@@ -1,0 +1,84 @@
+# ==== JARVIS .gitignore ====
+# Philosophy: git tracks SOURCE + config templates + requirements.
+# It never tracks: virtual-envs, model weights, vector DBs, archives, secrets.
+# Everything ignored here is either regenerable (venvs, caches) or data (DBs, weights).
+
+# --- Virtual environments (regenerable from requirements/) ---
+.venv/
+.venv*/
+**/.venv/
+**/.venv*/
+env/
+venv/
+
+# --- Python caches / build ---
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+build/
+dist/
+
+# --- Model weights (redownload from HuggingFace/Ollama; never in git) ---
+models/
+**/models/
+*.safetensors
+*.gguf
+*.bin
+*.pt
+*.pth
+*.onnx
+
+# --- Vector DBs & data stores (personal data — stays local) ---
+qdrant_db/
+**/qdrant_db/
+db/
+**/db/
+*.sqlite
+*.sqlite3
+storage.sqlite
+chroma/
+lancedb/
+*.lance
+
+# --- Generated knowledge artifacts (regenerable, huge, noisy) ---
+knowledge_graph.json
+*.knowledge_graph.json
+
+# --- Archives / backups (redundant with git history once code is tracked) ---
+archive/
+*.zip
+*.tar
+*.tar.gz
+*.7z
+brain_recovered*/
+
+# --- Secrets & environment (NEVER commit) ---
+.env
+.env.*
+*.key
+*.pem
+secrets/
+config.local.*
+credentials.json
+token.json
+*_secret*
+*_token*
+
+# --- Generated TTS audio (regenerable) ---
+*.mp3
+*.wav
+response_*.mp3
+
+# --- OS / editor noise ---
+Thumbs.db
+desktop.ini
+.DS_Store
+*.log
+*.tmp
+*.swp
+.vscode/
+.idea/

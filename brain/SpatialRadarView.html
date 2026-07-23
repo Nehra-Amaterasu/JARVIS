@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aankhen 3D Spatial Radar Visualizer — JARVIS</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+        body {
+            background-color: #070a12;
+            color: #e2e8f0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+        #webgl-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        /* Glassmorphic Overlay UI */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            padding: 16px;
+            position: absolute;
+            z-index: 10;
+        }
+
+        #header-panel {
+            top: 20px;
+            left: 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .eye-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #38bdf8 0%, #0284c7 60%, transparent 100%);
+            box-shadow: 0 0 15px #38bdf8;
+            animation: pulse-eye 2.5s infinite ease-in-out;
+        }
+        @keyframes pulse-eye {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 15px #38bdf8; }
+            50% { transform: scale(1.1); box-shadow: 0 0 25px #0ea5e9; }
+        }
+        .header-title h1 {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #f8fafc;
+            text-transform: uppercase;
+        }
+        .header-title p {
+            font-size: 11px;
+            color: #38bdf8;
+            letter-spacing: 0.5px;
+        }
+
+        #telemetry-panel {
+            top: 20px;
+            right: 20px;
+            width: 320px;
+        }
+        .stat-group {
+            margin-bottom: 12px;
+        }
+        .stat-group:last-child {
+            margin-bottom: 0;
+        }
+        .stat-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94a3b8;
+            margin-bottom: 4px;
+        }
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #38bdf8;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .badge {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 20px;
+            background: rgba(56, 189, 248, 0.15);
+            border: 1px solid #38bdf8;
+            color: #38bdf8;
+            text-transform: uppercase;
+        }
+        .badge-alert {
+            background: rgba(244, 63, 94, 0.2);
+            border-color: #f43f5e;
+            color: #fb7185;
+            animation: flash-badge 1s infinite alternate;
+        }
+        @keyframes flash-badge {
+            0% { opacity: 0.6; }
+            100% { opacity: 1.0; }
+        }
+
+        #controls-panel {
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: #e2e8f0;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .btn:hover {
+            background: #0284c7;
+            color: #ffffff;
+            box-shadow: 0 0 12px #38bdf8;
+        }
+        
+        #ws-status {
+            bottom: 20px;
+            left: 20px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #ef4444;
+        }
+        .status-dot.online {
+            background-color: #22c55e;
+            box-shadow: 0 0 8px #22c55e;
+        }
+    </style>
+    <!-- Three.js & OrbitControls from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <!-- WebGL Canvas -->
+    <canvas id="webgl-canvas"></canvas>
+
+    <!-- Header Panel -->
+    <div id="header-panel" class="glass-panel">
+        <div class="eye-icon"></div>
+        <div class="header-title">
+            <h1>Aankhen 3D</h1>
+            <p>Spatial Intelligence Perception Suite</p>
+        </div>
+    </div>
+
+    <!-- Telemetry Panel -->
+    <div id="telemetry-panel" class="glass-panel">
+        <div class="stat-group">
+            <div class="stat-label">Posture State</div>
+            <div class="stat-value">
+                <span id="val-posture">Sitting</span>
+                <span id="badge-posture" class="badge">Active</span>
+            </div>
+        </div>
+        <div class="stat-group">
+            <div class="stat-label">Gesture Recognition</div>
+            <div class="stat-value">
+                <span id="val-gesture">NONE</span>
+                <span id="badge-gesture" class="badge">Tracking</span>
+            </div>
+        </div>
+        <div class="stat-group">
+            <div class="stat-label">Physiological Vitals</div>
+            <div class="stat-value" style="font-size: 15px;">
+                <span>HR: <strong id="val-hr" style="color:#f43f5e;">74</strong> BPM</span>
+                <span>Resp: <strong id="val-resp" style="color:#38bdf8;">18</strong> RPM</span>
+            </div>
+        </div>
+        <div class="stat-group">
+            <div class="stat-label">Floorplan 3D Location</div>
+            <div class="stat-value" style="font-size: 13px; font-family: monospace;">
+                X: <span id="val-x">0.00</span>m | Y: <span id="val-y">2.00</span>m | Z: <span id="val-z">1.10</span>m
+            </div>
+        </div>
+    </div>
+
+    <!-- View Controls Panel -->
+    <div id="controls-panel" class="glass-panel">
+        <button class="btn" onclick="setCameraView('perspective')">3D Perspective</button>
+        <button class="btn" onclick="setCameraView('topdown')">2D Blueprint</button>
+        <button class="btn" onclick="toggleGrid()">Toggle Grid</button>
+        <button class="btn" onclick="resetCamera()">Reset View</button>
+    </div>
+
+    <!-- WebSocket Status -->
+    <div id="ws-status" class="glass-panel">
+        <div id="status-dot" class="status-dot"></div>
+        <span id="status-text">Connecting to ws://localhost:8765...</span>
+    </div>
+
+    <script>
+        // --- 1. Three.js Scene Setup ---
+        const canvas = document.getElementById('webgl-canvas');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x070a12);
+        scene.fog = new THREE.FogExp2(0x070a12, 0.08);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 5, 7);
+
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 2 - 0.02;
+
+        // --- 2. Lighting & Room Floorplan Grid ---
+        const ambientLight = new THREE.AmbientLight(0x38bdf8, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 5);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+
+        // Grid Floor (5m x 5m room space)
+        const gridHelper = new THREE.GridHelper(6, 12, 0x38bdf8, 0x1e293b);
+        gridHelper.position.y = 0;
+        scene.add(gridHelper);
+
+        // Room Enclosure Floor Mesh
+        const floorGeo = new THREE.PlaneGeometry(6, 6);
+        const floorMat = new THREE.MeshStandardMaterial({
+            color: 0x0f172a,
+            roughness: 0.8,
+            metalness: 0.2
+        });
+        const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+        floorMesh.rotation.x = -Math.PI / 2;
+        floorMesh.receiveShadow = true;
+        scene.add(floorMesh);
+
+        // Sensor Origin Node (Mounted at Sensor Height Z=2.2m)
+        const sensorGeo = new THREE.ConeGeometry(0.12, 0.25, 16);
+        const sensorMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, wireframe: true });
+        const sensorMesh = new THREE.Mesh(sensorGeo, sensorMat);
+        sensorMesh.position.set(0, 2.2, 0);
+        sensorMesh.rotation.x = Math.PI;
+        scene.add(sensorMesh);
+
+        // Sensor FOV Frustum
+        const frustumGeo = new THREE.ConeGeometry(2.5, 2.2, 4);
+        const frustumMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, wireframe: true, transparent: true, opacity: 0.15 });
+        const frustumMesh = new THREE.Mesh(frustumGeo, frustumMat);
+        frustumMesh.position.set(0, 1.1, 1.25);
+        frustumMesh.rotation.x = -Math.PI / 4;
+        scene.add(frustumMesh);
+
+        // Workstation Desk Mesh Representation
+        const deskGeo = new THREE.BoxGeometry(1.4, 0.75, 0.8);
+        const deskMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 });
+        const deskMesh = new THREE.Mesh(deskGeo, deskMat);
+        deskMesh.position.set(0, 0.375, 2.0);
+        scene.add(deskMesh);
+
+        // --- 3. Avatar Target & 17 COCO Skeletal Keypoints ---
+        const targetGroup = new THREE.Group();
+        scene.add(targetGroup);
+
+        // Pelvic Root Mesh (Glowing Sphere)
+        const rootGeo = new THREE.SphereGeometry(0.18, 32, 32);
+        const rootMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.6 });
+        const rootMesh = new THREE.Mesh(rootGeo, rootMat);
+        targetGroup.add(rootMesh);
+
+        // 17 Skeletal Joint Spheres
+        const jointMeshes = [];
+        const jointMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+        for (let i = 0; i < 17; i++) {
+            const jGeo = new THREE.SphereGeometry(0.04, 16, 16);
+            const jMesh = new THREE.Mesh(jGeo, jointMat);
+            targetGroup.add(jMesh);
+            jointMeshes.push(jMesh);
+        }
+
+        // COCO 17 Bone Connection Pairs
+        const bonePairs = [
+            [0, 1], [0, 2], [1, 3], [2, 4], [5, 6],
+            [5, 7], [7, 9], [6, 8], [8, 10], [5, 11],
+            [6, 12], [11, 12], [11, 13], [13, 15], [12, 14], [14, 16]
+        ];
+
+        const lineGeo = new THREE.BufferGeometry();
+        const lineMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 2 });
+        const skeletonLines = new THREE.LineSegments(lineGeo, lineMat);
+        targetGroup.add(skeletonLines);
+
+        // --- 4. WebSocket Data Receiver ---
+        let socket;
+        function connectWebSocket() {
+            socket = new WebSocket('ws://localhost:8765');
+
+            socket.onopen = () => {
+                document.getElementById('status-dot').className = 'status-dot online';
+                document.getElementById('status-text').innerText = 'Connected: ws://localhost:8765 (10Hz Live Telemetry)';
+            };
+
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                updateVisualizer(data);
+            };
+
+            socket.onclose = () => {
+                document.getElementById('status-dot').className = 'status-dot';
+                document.getElementById('status-text').innerText = 'Disconnected. Retrying in 3s...';
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        function updateVisualizer(data) {
+            if (!data) return;
+
+            // 1. Update Telemetry Panel Cards
+            if (data.posture) {
+                document.getElementById('val-posture').innerText = data.posture.state || 'Sitting';
+            }
+            if (data.vitals) {
+                document.getElementById('val-hr').innerText = data.vitals.heart_rate_bpm || 74;
+                document.getElementById('val-resp').innerText = data.vitals.respiration_rpm || 18;
+            }
+            if (data.gesture) {
+                const gestureVal = document.getElementById('val-gesture');
+                const gestureBadge = document.getElementById('badge-gesture');
+                gestureVal.innerText = data.gesture.name || 'NONE';
+                if (data.gesture.detected) {
+                    gestureBadge.className = 'badge badge-alert';
+                    gestureBadge.innerText = 'GESTURE DETECTED!';
+                } else {
+                    gestureBadge.className = 'badge';
+                    gestureBadge.innerText = 'Tracking';
+                }
+            }
+
+            // 2. Position Target Root & Skeleton
+            let targetX = 0, targetY = 2.0, targetZ = 1.1;
+            if (data.ld2450_radar) {
+                targetX = data.ld2450_radar.target_x_m || 0;
+                targetY = data.ld2450_radar.target_y_m || 2.0;
+                targetZ = data.ld2450_radar.target_z_m || 1.1;
+            }
+
+            document.getElementById('val-x').innerText = targetX.toFixed(2);
+            document.getElementById('val-y').innerText = targetY.toFixed(2);
+            document.getElementById('val-z').innerText = targetZ.toFixed(2);
+
+            // Move Three.js Target Group (Mapping: Radar X -> Three X, Radar Y -> Three Z)
+            targetGroup.position.set(targetX, targetZ, targetY);
+
+            // 3. Render 17 COCO Skeletal Joint Keypoints
+            if (data.posture && data.posture.coco_17_keypoints) {
+                const keypoints = data.posture.coco_17_keypoints;
+                const linePositions = [];
+
+                keypoints.forEach((kp, idx) => {
+                    if (jointMeshes[idx]) {
+                        // Position relative to target root
+                        const relX = kp.x - targetX;
+                        const relY = kp.z - targetZ;
+                        const relZ = kp.y - targetY;
+                        jointMeshes[idx].position.set(relX, relY, relZ);
+                    }
+                });
+
+                // Update Bone Connection Lines
+                bonePairs.forEach(([p1, p2]) => {
+                    if (jointMeshes[p1] && jointMeshes[p2]) {
+                        linePositions.push(
+                            jointMeshes[p1].position.x, jointMeshes[p1].position.y, jointMeshes[p1].position.z,
+                            jointMeshes[p2].position.x, jointMeshes[p2].position.y, jointMeshes[p2].position.z
+                        );
+                    }
+                });
+
+                lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(linePositions, 3));
+                lineGeo.computeBoundingSphere();
+            }
+        }
+
+        // --- 5. View & Camera Controls ---
+        function setCameraView(type) {
+            if (type === 'topdown') {
+                camera.position.set(0, 7, 2);
+                controls.target.set(0, 0, 2);
+            } else {
+                camera.position.set(0, 5, 7);
+                controls.target.set(0, 1, 2);
+            }
+            controls.update();
+        }
+
+        function toggleGrid() {
+            gridHelper.visible = !gridHelper.visible;
+        }
+
+        function resetCamera() {
+            camera.position.set(0, 5, 7);
+            controls.target.set(0, 1, 2);
+            controls.update();
+        }
+
+        // --- 6. Render Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            sensorMesh.rotation.y += 0.01;
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initialize Animation Loop & WebSocket Connection
+        animate();
+        connectWebSocket();
+    </script>
+</body>
+</html>

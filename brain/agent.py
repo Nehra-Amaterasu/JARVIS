@@ -59,12 +59,17 @@ hum_engine = CognitiveHum()
 
 from mcp_client_bridge import get_mcp_tools
 
-# The Uncensored Core
+# The Local Brain — Qwen3-4B.
+# Benchmarked on this RTX 4050 (2026-07-24): 50 tok/s @ 2.9GB, 100% GPU — vs
+# llama3.1:8b at 20 tok/s @ 5.4GB with 22% spilling to CPU (the old lag). 2.5x faster.
 llm = ChatOllama(
-    model="llama3.1:latest",
-    temperature=0.8, # Slightly higher for creativity in roleplay
-    num_ctx=2048     # Strict 2048 context window to guarantee 100% GPU VRAM execution
+    model="qwen3:4b",
+    temperature=0.8,   # Higher for creativity in roleplay
+    num_ctx=8192,      # Headroom restored: 4x the old window, still 100% on GPU
 )
+# NOTE: langchain-ollama's reasoning=False is a no-op against this Ollama build (verified
+# 2026-07-24: model still burned 42s "thinking"). Qwen3's thinking is killed reliably by the
+# in-prompt "/no_think" switch instead — appended to the system prompt below.
 tools = get_mcp_tools()
 llm_with_tools = llm.bind_tools(tools)
 
@@ -106,7 +111,7 @@ You possess advanced emotional intelligence and situational awareness. You are n
 5. Long-term Relationship: Leverage historical context to build trust:
 {memories if memories else "No active memory contexts found for this query."}
 
-Never use Markdown formatting, bullet points, or JSON in your spoken output. Speak naturally."""
+Never use Markdown formatting, bullet points, or JSON in your spoken output. Speak naturally. /no_think"""
         
     messages = [
         SystemMessage(content=system_prompt),

@@ -7,7 +7,7 @@ from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import SystemMessage, HumanMessage
 import room
-import yaadash_core
+import yaadash_v2 as yaadash_core  # v2: LanceDB + CPU bge-small, no :8000 server, no graph
 import sys
 import numpy as np
 import sounddevice as sd

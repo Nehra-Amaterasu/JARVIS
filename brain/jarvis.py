@@ -1,6 +1,16 @@
 """JARVIS v2.0 — Zero Latency, Self-Evolving, Hinglish Voice Assistant."""
 import os
 import sys
+
+# 2026-10-08: Windows consoles default to cp1252 and raise UnicodeEncodeError on
+# Devanagari or emoji, which killed the voice loop mid-reply whenever Whisper
+# returned Hindi script. Reconfigured in code rather than via PYTHONIOENCODING
+# because python -I ignores env vars (that is how this bug slipped through before).
+try:
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+except Exception:
+    pass
 # Dynamically add CUDA 12 libraries to the Windows PATH
 try:
     import nvidia.cublas
@@ -66,16 +76,36 @@ import traceback
 
 import room
 import agent
+import hinglish
 import chimes
 
 SAMPLE_RATE = 16000
 SILENCE_THRESHOLD = 0.04  # Lowered from 0.08 so JARVIS can hear normal speaking volume
-SILENCE_DURATION = 2.0    # Lowered to 2s for snappier response times
+# 2026-10-08: was 2.0, which cut Amreesh off mid-paragraph. He thinks out loud and
+# pauses for 2-3s between clauses; a 2s cutoff ends the recording during those pauses,
+# so long multi-question prompts arrived as fragments. The UI even printed "pausing
+# for 4s" while the constant said 2.0. 4.0 matches the promise and his speech rhythm.
+SILENCE_DURATION = 4.0
+
+# --- Voice ---
+# Was en-IN-NeerjaNeural at rate="+15%". The speed-up is what made Hinglish sound
+# garbled (rated 4/10): Hindi words in Latin script need full duration to land.
+# Prabhat is male, which fits JARVIS, and handles Latin-script Hinglish cleanly.
+# Swap to "en-IN-NeerjaNeural" (female) or "hi-IN-MadhurNeural" (true Hindi voice,
+# better for Devanagari output) if preferred.
+TTS_VOICE = "en-IN-PrabhatNeural"
+TTS_RATE = "+0%"
 
 print("Booting Cognitive Subsystems...")
-print("1. Loading Whisper STT (Offloaded to CPU to dedicate 100% GPU VRAM to Llama 3.1)...")
-# Offloaded to CPU to prevent 6GB VRAM thrashing and eliminate laptop lag
-model = WhisperModel("small", device="cpu", compute_type="int8")
+print("1. Loading Whisper STT (large-v3-turbo on GPU, int8_float16)...")
+# Benchmarked 2026-10-08 on real Hinglish audio (same clip, ground truth known):
+#   small / CPU / int8        -> 10.7s, badly garbled
+#   large-v3-turbo / CUDA     ->  2.7s, every word correct
+# Turbo is ~1GB at int8_float16 and fits in the ~2.6GB left beside qwen3:4b.
+# Language is deliberately NOT pinned: auto-detect keeps English words in Latin,
+# which the room-command keyword matching in agent.py depends on ("turn off light").
+# Pinning hi would render those in Devanagari and silently break light control.
+model = WhisperModel("large-v3-turbo", device="cuda", compute_type="int8_float16")
 
 print("2. Initializing Audio Drivers (Edge-TTS + Cognitive Hum)...")
 pygame.mixer.init(frequency=22050, size=-16, channels=2)
@@ -178,7 +208,7 @@ was_interrupted = False
 async def _async_speak(text):
     if not text: return
     # Balanced voice (en-IN-NeerjaNeural) set to +15% speed (1.15x) for fluid, snappy delivery
-    communicate = edge_tts.Communicate(text, "en-IN-NeerjaNeural", rate="+15%")
+    communicate = edge_tts.Communicate(text, TTS_VOICE, rate=TTS_RATE)
     audio_file = f"response_{uuid.uuid4().hex[:8]}.mp3"
     await communicate.save(audio_file)
     if os.path.exists(audio_file) and os.path.getsize(audio_file) > 100:
@@ -271,10 +301,13 @@ def main_loop():
                 initial_prompt="नमस्ते, मैं हिन्दी और English दोनों में बात कर रहा हूँ। Hey Jarvis, kya haal hai?",
                 condition_on_previous_text=False,
                 vad_filter=True, 
-                vad_parameters=dict(min_silence_duration_ms=1000, threshold=0.3, speech_pad_ms=400), 
+                vad_parameters=dict(min_silence_duration_ms=1500, threshold=0.3, speech_pad_ms=400), 
                 beam_size=5
             )
-            text = " ".join(s.text for s in segments).strip()
+            # Whisper returns Hindi in Devanagari and English in Latin. Romanize only
+            # the Devanagari runs so the line reads as one script; English is left
+            # alone, keeping the room-command keywords in agent.py working.
+            text = hinglish.romanize(" ".join(s.text for s in segments).strip())
             
             if len(text) < 2:
                 stop_hum()
@@ -349,10 +382,10 @@ def main_loop():
                     initial_prompt="नमस्ते, मैं हिन्दी और English दोनों में बात कर रहा हूँ। Hey Jarvis, kya haal hai?",
                     condition_on_previous_text=False,
                     vad_filter=True, 
-                    vad_parameters=dict(min_silence_duration_ms=1000, threshold=0.3, speech_pad_ms=400), 
+                    vad_parameters=dict(min_silence_duration_ms=1500, threshold=0.3, speech_pad_ms=400), 
                     beam_size=5
                 )
-                text = " ".join(s.text for s in segments).strip()
+                text = hinglish.romanize(" ".join(s.text for s in segments).strip())
                 if len(text) >= 2:
                     print(f"\nYou said: {text}")
                     print("Thinking...", end="\r")

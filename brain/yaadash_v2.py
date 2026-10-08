@@ -156,22 +156,62 @@ def store_interaction(user_input: str, jarvis_reply: str):
     threading.Thread(target=_bg, daemon=True).start()
 
 
+def search_authored(query: str, top_k: int = 4, user_id: str = USER_ID):
+    """Search ONLY authored ground-truth facts (identity/core_facts.md)."""
+    tbl = _get_table()
+    if tbl.count_rows() == 0:
+        return []
+    qv = embed(query, is_query=True)[0].tolist()
+    return (
+        tbl.search(qv)
+        .metric("cosine")
+        .where(f"user_id = '{user_id}' AND source LIKE 'authored%'")
+        .limit(top_k)
+        .to_list()
+    )
+
+
 def get_context(user_input: str) -> str:
-    """Retrieve relevant memories, formatted for the system prompt."""
+    """Retrieve relevant memories, formatted for the system prompt.
+
+    Authored facts are retrieved SEPARATELY and presented first, as ground truth.
+    Rationale (2026-10-08): with one undifferentiated store, the query "what am I
+    studying?" returned a friend's Instagram line saying college is a waste of
+    time, and JARVIS repeated it as advice. Social chatter is semantically close to
+    identity questions but factually worthless, and it drowns out real facts by
+    sheer volume. Separating the two channels — and labelling which is which — is
+    what stops the model treating teenage DMs as biography.
+    """
+    facts, hits = [], []
+    try:
+        facts = search_authored(user_input, top_k=4)
+    except Exception as e:
+        print(f"\n[Yaadash authored-search error: {e}]")
     try:
         hits = search(user_input, top_k=3)
     except Exception as e:
         print(f"\n[Yaadash search error: {e}]")
+    if not facts and not hits:
         return ""
-    if not hits:
-        return ""
-    out = "RELEVANT MEMORIES & SECOND BRAIN KNOWLEDGE:\n"
-    seen = set()
-    for h in hits:
-        t = h.get("text", "").strip()
-        if t and t not in seen:
-            seen.add(t)
-            out += f"- {t}\n"
+
+    out, seen = "", set()
+    if facts:
+        out += "CONFIRMED FACTS ABOUT THE USER (ground truth — trust these):\n"
+        for h in facts:
+            t = (h.get("text") or "").strip()
+            if t and t not in seen:
+                seen.add(t)
+                out += f"- {t}\n"
+    # Non-authored rows are evidence, not fact. Label them so the model hedges.
+    other = [h for h in hits if not (h.get("source") or "").startswith("authored")]
+    if other:
+        out += ("\nPAST CHAT FRAGMENTS (old social messages — these may be other\n"
+                "people's words or outdated. NEVER state them as fact about him):\n")
+        for h in other:
+            t = (h.get("text") or "").strip()
+            if t and t not in seen:
+                seen.add(t)
+                out += f"- {t}\n"
     return out
 
 

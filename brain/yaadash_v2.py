@@ -171,27 +171,67 @@ def search_authored(query: str, top_k: int = 4, user_id: str = USER_ID):
     )
 
 
+# Past-chat fragments are only shown when genuinely relevant. Measured 2026-10-08
+# on bge-small cosine distance (lower = closer) against the Instagram corpus:
+#   relevant:   "which anime?" -> 0.300 (One Piece/Black Clover message)
+#               "<friend name>" -> 0.291 (message mentioning that friend)
+#   irrelevant: "tell me my name" -> 0.349+ (a love letter, a username chat)
+#               "what music?"     -> 0.404+ (three Spotify Jam invite links)
+# Without a cutoff the top-3 were injected unconditionally, so "what's my name"
+# arrived wrapped in a 2022 love confession. 0.32 separates the two groups.
+FRAGMENT_MAX_DISTANCE = 0.32
+
+# Sources never retrieved on the hot path:
+#   claude            — Amreesh's past instructions to an AI coding assistant
+#                       ("push to git, fix the folders"). Retrieved, the model
+#                       read them as CURRENT orders and started talking about
+#                       spark-website and git mid-conversation.
+#   voice_interaction — JARVIS's own past replies, including the bad ones. Feeding
+#                       them back creates a loop that reinforces earlier mistakes.
+# The rows are kept on disk (reversible); they are simply not retrieved.
+EXCLUDED_FRAGMENT_SOURCES = ("claude", "voice_interaction", "authored")
+
+
+def search_fragments(query: str, top_k: int = 3, user_id: str = USER_ID):
+    """Past-chat evidence, excluding poisoned sources and irrelevant matches."""
+    tbl = _get_table()
+    if tbl.count_rows() == 0:
+        return []
+    qv = embed(query, is_query=True)[0].tolist()
+    excl = " AND ".join(f"source NOT LIKE '{s}%'" for s in EXCLUDED_FRAGMENT_SOURCES)
+    rows = (
+        tbl.search(qv)
+        .metric("cosine")
+        .where(f"user_id = '{user_id}' AND {excl}")
+        .limit(top_k)
+        .to_list()
+    )
+    return [r for r in rows if r.get("_distance", 1.0) <= FRAGMENT_MAX_DISTANCE]
+
+
 def get_context(user_input: str) -> str:
     """Retrieve relevant memories, formatted for the system prompt.
 
-    Authored facts are retrieved SEPARATELY and presented first, as ground truth.
-    Rationale (2026-10-08): with one undifferentiated store, the query "what am I
-    studying?" returned a friend's Instagram line saying college is a waste of
-    time, and JARVIS repeated it as advice. Social chatter is semantically close to
-    identity questions but factually worthless, and it drowns out real facts by
-    sheer volume. Separating the two channels — and labelling which is which — is
-    what stops the model treating teenage DMs as biography.
+    Two labelled channels:
+      CONFIRMED FACTS — authored ground truth from identity/core_facts.md.
+      PAST CHAT FRAGMENTS — social evidence, shown only when relevant, never fact.
+
+    History of why (2026-10-08): with one undifferentiated store, "what am I
+    studying?" returned a friend's DM saying college is a waste of time, and JARVIS
+    repeated it as advice. Then "tell me my name" arrived wrapped in a love letter.
+    In every case the model reported its context accurately — the context was the
+    defect. Provenance labels, a relevance cutoff and source exclusion fix that.
     """
-    facts, hits = [], []
+    facts, frags = [], []
     try:
         facts = search_authored(user_input, top_k=4)
     except Exception as e:
         print(f"\n[Yaadash authored-search error: {e}]")
     try:
-        hits = search(user_input, top_k=3)
+        frags = search_fragments(user_input, top_k=3)
     except Exception as e:
-        print(f"\n[Yaadash search error: {e}]")
-    if not facts and not hits:
+        print(f"\n[Yaadash fragment-search error: {e}]")
+    if not facts and not frags:
         return ""
 
     out, seen = "", set()
@@ -202,13 +242,11 @@ def get_context(user_input: str) -> str:
             if t and t not in seen:
                 seen.add(t)
                 out += f"- {t}\n"
-    # Non-authored rows are evidence, not fact. Label them so the model hedges.
-    other = [h for h in hits if not (h.get("source") or "").startswith("authored")]
-    if other:
-        out += ("\nPAST CHAT FRAGMENTS (old social messages — these may be other\n"
-                "people's words or outdated. NEVER state them as fact about him):\n")
-        for h in other:
-            t = (h.get("text") or "").strip()
+    if frags:
+        out += ("\nPAST CHAT FRAGMENTS (his old social messages — may be years out of\n"
+                "date. Use only as colour; NEVER state them as current fact):\n")
+        for h in frags:
+            t = " ".join((h.get("text") or "").split())[:300]
             if t and t not in seen:
                 seen.add(t)
                 out += f"- {t}\n"

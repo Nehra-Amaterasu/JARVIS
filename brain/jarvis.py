@@ -113,6 +113,18 @@ pygame.mixer.init(frequency=22050, size=-16, channels=2)
 print("3. Loading Wake Word Engine (hey_jarvis)...")
 oww_model = Model(wakeword_models=["hey_jarvis_v0.1"], inference_framework="onnx")
 
+# Warm memory + brain during boot, not during the first question.
+# Measured 2026-10-08: the bge-small embedder loaded lazily inside the first
+# get_context() call, adding 6.76s to the first reply (0.09s once warm). The LLM
+# likewise paid its weight-load on the first real question. Both costs now land
+# here, while the user is already watching the boot sequence.
+print("4. Warming Yaadash memory + brain...")
+try:
+    agent.yaadash_core.get_context("warmup")
+    agent.llm.invoke("hi")
+except Exception as _e:
+    print(f"   (warm-up skipped: {_e})")
+
 # --- PROCEDURAL SIRI-STYLE SOOTHING COGNITIVE HUM ENGINE ---
 hum_sound = None
 def _init_cognitive_hum():
@@ -214,8 +226,39 @@ async def _async_speak(text):
     if os.path.exists(audio_file) and os.path.getsize(audio_file) > 100:
         speech_queue.put((text, audio_file))
 
+import re as _re
+
+_EMOJI = _re.compile(
+    "[\U0001F300-\U0001FAFF\U00002600-\U000027BF\U0001F000-\U0001F2FF"
+    "\U0000FE0F\U0000200D]+"
+)
+
+
+def clean_for_speech(text: str) -> str:
+    """Strip markup the model writes for screens but a voice cannot say.
+
+    2026-10-08: Qwen3 emits Markdown (**bold**, *italic*, numbered lists) despite the
+    prompt forbidding it, and edge-tts read every marker literally — "asterisk
+    asterisk stop wasting ten seconds asterisk asterisk". Prompt rules alone are not
+    a reliable guard on model output, so the voice path sanitises unconditionally.
+    The printed transcript keeps the original text; only the spoken audio is cleaned.
+    """
+    if not text:
+        return text
+    t = _re.sub(r"`{1,3}[^`]*`{1,3}", "", text)           # code spans
+    t = _re.sub(r"\*{1,3}|_{2,}|~~|#{1,6}\s*", "", t)      # bold/italic/strike/headers
+    t = _re.sub(r"^\s*[-*•]\s+", "", t, flags=_re.M)       # bullet markers
+    t = _re.sub(r"^\s*\d+[.)]\s+", "", t, flags=_re.M)     # "1. " list numbers
+    t = _re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", t)        # [label](url) -> label
+    t = _EMOJI.sub("", t)                                  # emoji are noise in TTS
+    t = _re.sub(r"[—–]", ", ", t)                          # dashes -> natural pause
+    t = _re.sub(r"\s+", " ", t).strip()
+    return t
+
+
 def speak(text):
     """Queues TTS audio for sequential playback without sentence truncation."""
+    text = clean_for_speech(text)
     if not text: return
     asyncio.run(_async_speak(text))
 

@@ -59,20 +59,34 @@ hum_engine = CognitiveHum()
 
 from mcp_client_bridge import get_mcp_tools
 
-# The Local Brain — Qwen3-4B.
-# Benchmarked on this RTX 4050 (2026-07-24): 50 tok/s @ 2.9GB, 100% GPU — vs
-# llama3.1:8b at 20 tok/s @ 5.4GB with 22% spilling to CPU (the old lag). 2.5x faster.
+# The Local Brain — Qwen3-4B-Instruct-2507 (NON-reasoning).
+#
+# History:
+#   2026-07-24  llama3.1:8b -> qwen3:4b. 8B spilled 22% to CPU (20 tok/s); 4B fits
+#               100% on GPU at 50 tok/s.
+#   2026-10-08  qwen3:4b -> qwen3:4b-instruct-2507. qwen3:4b is a HYBRID reasoning
+#               model: it deliberates before every reply. In this Ollama build neither
+#               langchain's reasoning=False nor the API's think=False stops it — a
+#               direct test with think=False returned "We are in a roleplay where I am
+#               JARVIS..." as the answer itself, i.e. the reasoning just moved into the
+#               reply. Hidden inside <think> tags in the live loop, it cost ~1000 tokens
+#               (~20s at 50 tok/s) of silence before every answer: the 22s floor the
+#               user reported. Prefill was ruled out — 264 prompt tokens took 0.5s.
+#               Instruct-2507 is the same size with no thinking mode at all.
+#               A/B through the real run_agent path, same memory and prompt:
+#                   "tell me my name"      first token 52.6s -> 0.6s
+#                   anime + music (2 qs)   first token 30.8s -> 0.6s (3.3s total)
+#                   aadhaar number         first token 97.6s -> 0.7s (4.9s total)
+#               Both answered correctly — correctness came from the retrieval fixes,
+#               speed came from this swap.
 llm = ChatOllama(
-    model="qwen3:4b",
-    temperature=0.8,   # Higher for creativity in roleplay
-    num_ctx=8192,      # Headroom restored: 4x the old window, still 100% on GPU
+    model="qwen3:4b-instruct-2507-q4_K_M",
+    temperature=0.7,   # Qwen's recommended setting for Instruct-2507
+    num_ctx=8192,
     keep_alive="30m",  # Keep weights resident. Without this Ollama evicts after 5
                        # min and the next reply pays a full cold load (measured
                        # 124.6s on 2026-10-08) — fatal for a voice assistant.
 )
-# NOTE: langchain-ollama's reasoning=False is a no-op against this Ollama build (verified
-# 2026-07-24: model still burned 42s "thinking"). Qwen3's thinking is killed reliably by the
-# in-prompt "/no_think" switch instead — appended to the system prompt below.
 tools = get_mcp_tools()
 llm_with_tools = llm.bind_tools(tools)
 
@@ -131,7 +145,7 @@ He has explicitly asked for honesty over flattery. Inventing things is the one r
 5. Long-term Relationship: Leverage historical context to build trust:
 {memories if memories else "No active memory contexts found for this query."}
 
-Never use Markdown formatting, bullet points, or JSON in your spoken output. Speak naturally. /no_think"""
+Never use Markdown formatting, bullet points, asterisks, or JSON — everything you write is spoken aloud by a voice engine. Speak naturally."""
         
     messages = [
         SystemMessage(content=system_prompt),

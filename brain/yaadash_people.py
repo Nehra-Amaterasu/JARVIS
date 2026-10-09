@@ -40,7 +40,7 @@ SESSION_GAP_S = 3 * 3600
 
 # His own accounts messaging each other are not relationships. Without this the
 # alt account ranked as a "friend" of the main one (92% reels, closeness #88).
-SELF_NAMES = ("amritanshu nehra", "amreesh")
+SELF_NAMES = ("amritanshu nehra",)          # his own display name only; no nicknames
 
 TIE_WEIGHTS = {
     "longevity": 0.25,      # span from first to last message — his primary rule

@@ -97,7 +97,7 @@ def _parse_excerpt(text: str) -> dict:
     msgs = []
     for ln in lines[1:]:
         speaker, _, said = ln.partition(": ")
-        msgs.append({"speaker": speaker, "text": said, "me": speaker == "Amreesh"})
+        msgs.append({"speaker": speaker, "text": said, "me": speaker == "Aman"})
     return {"date": head["date"] if head else None, "who": head["who"] if head else None,
             "messages": msgs}
 

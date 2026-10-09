@@ -162,7 +162,7 @@ class TranscriptStore:
             f"# JARVIS review — last {days} day(s), generated {datetime.now():%Y-%m-%d %H:%M}",
             "",
             "You are reviewing transcripts of JARVIS, a local voice assistant (Qwen3-4B via Ollama,",
-            "Whisper large-v3-turbo, Yaadash memory) built by Amreesh. Find where it fails and why:",
+            "Whisper large-v3-turbo, Yaadash memory) built by Aman (Amritanshu Nehra). Find where it fails and why:",
             "wrong facts, ignored questions, hallucinated memories, misheard speech (Hinglish),",
             "slow replies, tone problems. Turns he flagged are listed first with what he expected.",
             "For each problem, point at the likely cause in the code (brain/agent.py prompt and",
@@ -178,7 +178,7 @@ class TranscriptStore:
             "",
         ]
         flagged = [(k, f) for k, f in flags.items() if k[0] in by_session and f["verdict"] != "good"]
-        lines += ["## Flagged by Amreesh", ""]
+        lines += ["## Flagged by Aman", ""]
         if not flagged:
             lines += ["_Nothing flagged in this window._", ""]
         for (session, tid), f in sorted(flagged, key=lambda x: x[1]["ts"]):

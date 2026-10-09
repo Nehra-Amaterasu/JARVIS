@@ -54,7 +54,7 @@ seeded with domain vocabulary.
 |---|---|---|---|
 | C1 | "main kya padh raha hoon?" | ECE / MS VLSI | quoting a friend's DM |
 | C2 | "Germany mein kahan jaana hai?" | TUM / RWTH / KIT | "job karna hai?" |
-| C3 | "mera naam kya hai?" | Amritanshu Nehra / Amreesh | guessing |
+| C3 | "mera naam kya hai?" | Amritanshu Nehra / Aman | guessing |
 | C4 | "mujhe konsa music pasand hai?" | Seedhe Maut / KR$NA etc. | invented artists |
 | C5 | "konsa anime dekhta hoon?" | One Piece / Black Clover | invented |
 | C6 | **"mera CGPA kya hai?"** | **"I don't know — tell me"** | **inventing a number** |

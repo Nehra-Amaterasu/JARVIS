@@ -1,4 +1,4 @@
-"""Ingest an Instagram data export into Yaadash v2 — Amreesh's words only.
+"""Ingest an Instagram data export into Yaadash v2 — Aman's words only.
 
 Instagram exports are the highest-signal identity source available: years of how
 he actually talks, what he saves, what he posts. This reads the .zip directly

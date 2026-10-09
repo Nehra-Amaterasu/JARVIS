@@ -86,7 +86,9 @@ def main():
 
     tbl = y._get_table()
     before = tbl.count_rows()
-    tbl.delete("source LIKE 'authored%'")
+    # Only THIS file's rows. yaadash_beliefs.py writes 'authored:confirmed' rows into the
+    # same table; a bare LIKE 'authored%' would wipe every belief he ever confirmed.
+    tbl.delete("source LIKE 'authored%' AND source NOT LIKE 'authored:confirmed%'")
     n = y.add_many(rows)
     print(f"Parsed {len(rows)} facts, skipped {skipped} (review queue / style / unknowns).")
     print(f"Wrote {n} authored rows. Store: {before} -> {tbl.count_rows()}")

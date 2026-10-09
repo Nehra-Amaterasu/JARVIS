@@ -47,7 +47,7 @@ def _is_noise(text: str) -> bool:
     """Drop system-injected content that isn't the user's own voice.
 
     Claude replays reminders/command output inside user-role lines; storing them
-    would teach JARVIS the harness's voice instead of Amreesh's.
+    would teach JARVIS the harness's voice instead of Aman's.
     """
     t = text.lstrip()
     return t.startswith((

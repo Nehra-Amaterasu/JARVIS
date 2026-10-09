@@ -246,10 +246,10 @@ def _excerpt(thread, idx):
     date = pd.to_datetime(g.ts.iloc[0], unit="s").strftime("%d %b %Y")
     lines = []
     for r in g.itertuples():
-        # My lines are labelled "Amreesh", never "Me". With "Me:", JARVIS read
+        # My lines are labelled "Aman", never "Me". With "Me:", JARVIS read
         # "Me: I completed one piece" as its OWN memory and improvised a story in
         # the first person ("maine ek bar dekha tha...") — tested 2026-10-09.
-        speaker = "Amreesh" if r.is_me else (normalize_name(r.sender).split(" ")[0] or who)
+        speaker = "Aman" if r.is_me else (normalize_name(r.sender).split(" ")[0] or who)
         lines.append(f"{speaker}: {r.text}")
     return f"[{date} - chat with {who}]\n" + "\n".join(lines)
 

@@ -154,8 +154,8 @@ def seed():
 
 
 # ------------------------------------------------------------------- distillation
-_DISTIL_PROMPT = """You are reading real Instagram messages written by Amreesh (an Indian ECE student). They are in Hinglish.
-Extract DURABLE facts about Amreesh himself: his preferences, values, beliefs, goals, habits, and relationships.
+_DISTIL_PROMPT = """You are reading real Instagram messages written by Aman (Amritanshu Nehra, an Indian ECE student). They are in Hinglish.
+Extract DURABLE facts about Aman himself: his preferences, values, beliefs, goals, habits, and relationships.
 
 Rules:
 - Only what he states or clearly implies about HIMSELF. Ignore jokes, sarcasm, song lyrics, forwarded text, and what other people are like.

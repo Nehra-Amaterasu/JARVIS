@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import struct
 from dataclasses import dataclass
-from typing import Optional
+from typing import Callable, Optional
 
 from .room import Room, SensorPose
 
@@ -110,7 +110,9 @@ class RoomDetection:
 
 
 def to_room(room: Room, sensor: SensorPose, dets: list[RadarDetection],
-            max_range_m: Optional[float] = None) -> list[RoomDetection]:
+            max_range_m: Optional[float] = None,
+            refine: Optional[Callable[["RadarDetection", float, float], tuple[float, float]]] = None,
+            ) -> list[RoomDetection]:
     """Project detections into the room frame, dropping ones outside the walls.
 
     Points outside the room are almost always reflections through a wall or off
@@ -123,6 +125,10 @@ def to_room(room: Room, sensor: SensorPose, dets: list[RadarDetection],
         if d.range_m > limit or d.y_m <= 0:
             continue
         x, y = room.radar_to_room(sensor, d.x_m, d.y_m)
+        if refine is not None:
+            # Second pass: the caller may re-project with a posture-aware torso
+            # height (see room.TORSO_HEIGHT_M and Engine._refine).
+            x, y = refine(d, x, y)
         out.append(RoomDetection(sensor.id, x, y, d.speed_mps,
                                  room.inside(x, y, margin=0.15)))
     return out

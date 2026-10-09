@@ -10,6 +10,74 @@ Format per entry: **Context → Decision → Evidence → Consequences / open it
 
 ---
 
+## 2026-10-09 — Aankhen v3: a simulator with an answer key, and what it caught
+
+**Context.** The v3 pipeline (protocol, CSI conditioning, motion detector, tracker,
+occupancy) had unit tests, but nothing tested the parts *together*, and the ESP32
+isn't connected yet. "It works" was a claim with no number behind it.
+
+**Decision.** Built three things:
+
+- `simulator.py` generates the exact bytes an ESP32 + LD2450 would send — ESP-IDF
+  CSI buffers (imaginary first, FFT order, garbage invalid word), byte-exact LD2450
+  frames, CRC-framed with sequence numbers, 3 % loss, burst gaps, AGC steps and
+  corrupted frames — from a small physical model: line-of-sight with Fresnel-zone
+  shadowing, static reflections, one moving reflection per body, breathing, radar
+  slant range, still bodies detected less often, one-frame ghosts. It knows where
+  everyone really is.
+- `fusion.py`: presence as a log-odds belief with evidence *rates* per sensor, a
+  slow absence term, and an exit-through-the-door event.
+- `bench.py`: replays any stream through the real decoder and `engine.py` and scores
+  it every 100 ms — presence accuracy, false-empty, false-occupied, motion recall /
+  false alarm / latency, position error, ID switches. The same harness scores real
+  recordings once they're labelled.
+
+**Evidence.** The first benchmark run was the useful kind — it failed:
+
+| metric (simulated evening, 220 s) | first run | after fixes |
+|---|---|---|
+| presence accuracy | 64.7 % | **98.5 %** |
+| false "occupied" while empty | 98.7 % | **2.7 %** |
+| false "empty" while occupied | 0 % | 0.8 % |
+| position error median / p90 | 0.31 / 0.38 m | **0.05 / 0.16 m** |
+| ID switches | 10 | **2** (both: walking out of the radar's ±60° FOV) |
+| still person: false "moving" / ID switches | 13 % / 17 | **0 % / 0** |
+| empty room, 10 min: Wi-Fi false alarms | — | **0** |
+
+Each fix came from a trace, not a guess:
+
+1. **Resampler invented 20 % of samples.** Slot edges sat exactly on nominal packet
+   times, so ±0.4 ms jitter flipped packets into the next slot. Centred the slots:
+   fill fell to 3.5 % (= the real loss). A real-hardware bug, found without hardware.
+2. **"Recent motion" counted as evidence** for 90 s and outvoted an empty radar and
+   a walk-out. It's memory, not evidence — removed.
+3. **Exit detection used the coasting prediction**, which drifts out of the doorway.
+   Now uses the last *measured* position, with 0.35 m tolerance; an exit with nobody
+   else tracked lands the belief on "empty".
+4. **Stillness from instantaneous speed** flickered (Kalman velocity jitter ≈ 0.16
+   m/s ≈ the 0.15 m/s threshold). Now net displacement over 2 s with hysteresis.
+5. **Seated people projected 0.34 m too far** — the slant-range formula assumed a
+   standing torso. Zones now carry a posture (desk → seated, bed → lying), and a
+   detection near a still track is re-projected with that torso height.
+6. **Lying person vanished** (radar sees ~20 % of frames). Desk/bed are "sticky":
+   a coasting track there stops at its last measurement, and sparse-but-consistent
+   detections there can confirm.
+7. **Duplicate tracks** stole a still person's detections (17 switches). No births
+   within 0.7 m of a confirmed track.
+8. **Standing up left a ghost at the chair**; a ghost hit dragged a still track
+   0.8 m. Still tracks ignore one far detection but wake on two within 0.6 s.
+
+One honest limit, now modelled: a still person is invisible to Wi-Fi through a wall
+(seated score 1.28× vs 1.82× threshold). I first set the body reflection too strong
+(breathing scored 23×, far beyond published results) and turned it *down* — a
+simulator that flatters the detector is worse than none.
+
+**Consequences.** `test_end_to_end.py` pins these numbers (thresholds just inside the
+measurements). All of it is synthetic and labelled so; real accuracy comes from
+labelled recordings of the real room through the same `bench.py`. 127 tests passing.
+
+---
+
 ## 2026-10-09 — Yaadash memory v3: archive, people, recall, taste, beliefs
 
 **Context.** Memory could answer "what's my name" but not "when did I finish One

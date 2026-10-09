@@ -29,7 +29,7 @@ from __future__ import annotations
 import itertools
 import math
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Callable, Optional
 
 import numpy as np
 from scipy.optimize import linear_sum_assignment
@@ -55,14 +55,55 @@ class TrackerConfig:
     max_speed: float = 3.0            # reject physically absurd velocities
     max_tracks: int = 8
     # STILL MODE. The LD2450 is built for moving targets and routinely loses a
-    # person who sits still (widely reported). A track slower than still_speed for
-    # still_after_s is held through radar silence for still_hold_s instead of
-    # being deleted after one second, and a returning detection re-attaches to it
+    # person who sits still (widely reported). A track that has moved less than
+    # still_disp_m over the last still_after_s is held through radar silence for
+    # still_hold_s instead of being deleted after one second, and a returning
+    # detection re-attaches to it
     # within still_reattach_m rather than spawning a new identity.
-    still_speed: float = 0.15
+    # Stillness is judged on DISPLACEMENT of the filtered position, not on the
+    # instantaneous velocity. The first version used speed < 0.15 m/s, but with
+    # 0.15 m radar noise the Kalman velocity itself jitters by ~0.16 m/s, so a
+    # seated person flickered between still and moving: the benchmark counted
+    # 13 % "moving" for someone sitting motionless, and every flicker dropped the
+    # long still-hold, so radar dropouts caused ID switches. Net displacement
+    # over 2 s averages that jitter away. Hysteresis: still below 0.30 m, moving
+    # again only above 0.50 m.
+    still_speed: float = 0.15         # kept for callers; no longer decides stillness
     still_after_s: float = 2.0
+    still_disp_m: float = 0.30
+    move_disp_m: float = 0.50
+    # STICKY ZONES (desk, bed: Zone.expect_stationary). People stop there, and
+    # the radar then sees them in only ~20-50 % of frames, so:
+    #  - a slow track that starts coasting inside one is switched to still mode
+    #    at once (velocity zeroed) instead of dying after max_coast_s, and
+    #  - a new track there may confirm on confirm_hits detections within
+    #    sticky_confirm_s, which a lying person (~2 detections/s) can achieve
+    #    but a one-frame multipath ghost at a random position cannot.
+    # Found by the benchmark: a person lying on the bed vanished within a second.
+    # Any speed: people WALK to the bed and stop. With 0.6 m/s the walking track
+    # coasted on at ~0.9 m/s after the radar lost the now-still person, overshot
+    # by most of a metre and died — and a new identity was born in its place.
+    sticky_slow_speed: float = 3.0
+    sticky_coast_trigger_s: float = 0.3
+    sticky_confirm_s: float = 4.0
+    sticky_tentative_coast_s: float = 1.5
+    # No new track may be born this close to a confirmed one. Without it, a
+    # detection that narrowly missed a still track (whose covariance has grown)
+    # seeded a duplicate with a tight covariance, which then won every Hungarian
+    # assignment and starved the real track: 17 ID switches for ONE seated person
+    # in 90 s on the benchmark.
+    min_birth_sep_m: float = 0.7
     still_hold_s: float = 30.0
     still_reattach_m: float = 1.5
+    # WAKE-UP. A still track that receives a detection farther than wake_m away
+    # treats a single one as an outlier (a multipath ghost dragged a long-silent
+    # still track 0.8 m off on the benchmark) but wakes on a second within
+    # wake_window_s: it leaves still mode and its velocity uncertainty is reset so
+    # it can follow someone who just stood up. Without this the slow still-mode
+    # filter lagged behind them, they escaped the gate, a new track was born and
+    # the old one haunted the chair for 30 s.
+    wake_m: float = 0.45
+    wake_window_s: float = 0.6
 
 
 @dataclass
@@ -78,6 +119,8 @@ class Track:
     slow_since: Optional[float] = None    # when speed first dropped below still_speed
     still: bool = False
     history: list = field(default_factory=list)   # recent (t, x, y) for trails
+    last_z: Optional[np.ndarray] = None   # last measurement that updated this track
+    wake_since: Optional[float] = None    # first far detection while still
 
     @property
     def position(self) -> tuple[float, float]:
@@ -110,7 +153,9 @@ class Track:
 
 
 class MultiTargetTracker:
-    def __init__(self, cfg: Optional[TrackerConfig] = None):
+    def __init__(self, cfg: Optional[TrackerConfig] = None,
+                 sticky_at: Optional[Callable[[float, float], bool]] = None):
+        self.sticky_at = sticky_at
         self.cfg = cfg or TrackerConfig()
         self.tracks: list[Track] = []
         self._ids = itertools.count(1)
@@ -165,10 +210,12 @@ class MultiTargetTracker:
             t.x[2:] *= self.cfg.max_speed / sp
         t.last_update = now
         t.hits += 1
+        t.last_z = np.array(z, dtype=float)
 
     def _birth(self, z: np.ndarray, now: float) -> Track:
         P = np.diag([self.cfg.meas_std_m ** 2] * 2 + [self.cfg.init_vel_std ** 2] * 2)
-        return Track(next(self._ids), np.array([z[0], z[1], 0.0, 0.0]), P, now, now)
+        return Track(next(self._ids), np.array([z[0], z[1], 0.0, 0.0]), P, now, now,
+                     last_z=np.array(z, dtype=float))
 
     # --------------------------------------------------------------- public
     def step(self, detections: list[tuple[float, float]], now: float) -> list[Track]:
@@ -199,35 +246,62 @@ class MultiTargetTracker:
                         cost[i, j] = d2
             rows, cols = linear_sum_assignment(cost)
             for i, j in zip(rows, cols):
-                if cost[i, j] < big:
-                    self._update(self.tracks[i], Z[j], now)
-                    matched_t.add(i)
-                    matched_z.add(j)
+                if cost[i, j] >= big:
+                    continue
+                t, z = self.tracks[i], Z[j]
+                matched_t.add(i)
+                matched_z.add(j)
+                if t.still and math.hypot(z[0] - t.x[0], z[1] - t.x[1]) > self.cfg.wake_m:
+                    if t.wake_since is not None and now - t.wake_since <= self.cfg.wake_window_s:
+                        t.still, t.slow_since, t.wake_since = False, None, None
+                        t.P[2:, 2:] = np.eye(2) * self.cfg.init_vel_std ** 2
+                        t.P[:2, :2] += np.eye(2) * self.cfg.wake_m ** 2
+                        self._update(t, z, now)
+                    else:
+                        t.wake_since = now      # possible outlier: consume, don't apply
+                    continue
+                t.wake_since = None
+                self._update(t, z, now)
 
+        confirmed_pos = [t.x[:2] for t in self.tracks if t.confirmed]
         for j, z in enumerate(Z):
-            if j not in matched_z and len(self.tracks) < self.cfg.max_tracks:
-                self.tracks.append(self._birth(z, now))
+            if j in matched_z or len(self.tracks) >= self.cfg.max_tracks:
+                continue
+            if any(math.hypot(z[0] - p[0], z[1] - p[1]) < self.cfg.min_birth_sep_m
+                   for p in confirmed_pos):
+                continue
+            self.tracks.append(self._birth(z, now))
 
         survivors = []
         for t in self.tracks:
-            if not t.confirmed and t.frames_seen <= self.cfg.confirm_window \
-                    and t.hits >= self.cfg.confirm_hits:
+            sticky = self.sticky_at is not None and self.sticky_at(t.x[0], t.x[1])
+            if not t.confirmed and t.hits >= self.cfg.confirm_hits and (
+                    t.frames_seen <= self.cfg.confirm_window
+                    or (sticky and now - t.born_at <= self.cfg.sticky_confirm_s)):
                 t.confirmed = True
+            if (t.confirmed and not t.still and sticky
+                    and now - t.last_update >= self.cfg.sticky_coast_trigger_s
+                    and t.speed < self.cfg.sticky_slow_speed):
+                t.still, t.slow_since = True, now
+                t.x[2:] = 0.0                     # stopped: don't coast along old velocity
+                if t.last_z is not None:          # and undo the coasting overshoot
+                    t.x[:2] = t.last_z
             # Still-mode state machine (confirmed tracks only).
             if t.confirmed and t.last_update == now:
-                if t.speed < self.cfg.still_speed:
-                    t.slow_since = t.slow_since if t.slow_since is not None else now
-                    if now - t.slow_since >= self.cfg.still_after_s:
-                        t.still = True
-                else:
-                    t.slow_since, t.still = None, False
+                disp = self._displacement(t, now - self.cfg.still_after_s)
+                if disp is not None:
+                    if not t.still and disp < self.cfg.still_disp_m:
+                        t.still, t.slow_since = True, now
+                    elif t.still and disp > self.cfg.move_disp_m:
+                        t.still, t.slow_since = False, None
             if not t.confirmed:
-                limit = self.cfg.max_coast_tentative_s
+                limit = self.cfg.sticky_tentative_coast_s if sticky else self.cfg.max_coast_tentative_s
             elif t.still:
                 limit = self.cfg.still_hold_s
             else:
                 limit = self.cfg.max_coast_s
-            expired_tentative = (not t.confirmed and t.frames_seen > self.cfg.confirm_window)
+            expired_tentative = (not t.confirmed and t.frames_seen > self.cfg.confirm_window
+                                 and not (sticky and now - t.born_at <= self.cfg.sticky_confirm_s))
             if now - t.last_update > limit or expired_tentative:
                 continue
             t.history.append((now, float(t.x[0]), float(t.x[1])))
@@ -236,6 +310,17 @@ class MultiTargetTracker:
             survivors.append(t)
         self.tracks = survivors
         return [t for t in self.tracks if t.confirmed]
+
+    @staticmethod
+    def _displacement(t: Track, since: float) -> Optional[float]:
+        """Net distance moved since `since`, or None if history is too short."""
+        h = t.history
+        if not h or h[0][0] > since + 1e-9:
+            return None
+        for ts, x, y in reversed(h):
+            if ts <= since + 1e-9:
+                return math.hypot(t.x[0] - x, t.x[1] - y)
+        return None
 
     def confirmed(self) -> list[Track]:
         return [t for t in self.tracks if t.confirmed]

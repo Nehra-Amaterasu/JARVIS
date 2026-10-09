@@ -192,6 +192,35 @@ def people():
     return _people
 
 
+# An everyday word that is also a word of someone's display name named that person:
+# 8 of 60 everyday sentences resolved to an account (2026-10-09) — "padhai ho rahi
+# hai" (5x), "mood off hai", "aaj ka plan", "verilog ka code", each word matching a
+# word of some display name — and the person card then replaced the real context. The accounts hit were
+# distant (closeness rank 222-408 of 504, or unranked), while friends whose names are
+# also dictionary words are close (ranks 3-92). So an everyday word (English
+# vocabulary of the embedder's tokenizer, or a common Hindi word) names someone only
+# if they are among the CLOSE_RANK closest; a distinctive name still matches anyone.
+# A blanket vocabulary filter instead would have made 2 of the top 20 unreachable.
+CLOSE_RANK = 100
+_HINDI_COMMON = set("""raha rahi rahe rha rhi rhe gaya gayi gaye gya gyi hoon hun karo kara kari kare
+liya liye diya diye dena lena hona hota hoti hote padhai khana kaam ghar dost neend pani mausam gaana
+thak thaka baarish garmi thand dimag accha achha acha theek chalo bas sab kuch nahi nhi bahut bohot
+mummy papa bhaiya didi""".split())
+_common = None
+
+
+def _common_words():
+    global _common
+    if _common is None:
+        try:
+            from transformers import AutoTokenizer
+            vocab = AutoTokenizer.from_pretrained("BAAI/bge-small-en-v1.5", local_files_only=True).get_vocab()
+            _common = {w for w in vocab if w.isalpha() and w.islower()} | _HINDI_COMMON
+        except Exception:                   # no tokenizer: Hindi list only
+            _common = set(_HINDI_COMMON)
+    return _common
+
+
 def resolve_person(text: str, min_score: int = 86, limit: int = 3):
     """Find threads whose person is named in `text`. Returns [(row, score), ...]."""
     p = people()
@@ -200,6 +229,7 @@ def resolve_person(text: str, min_score: int = 86, limit: int = 3):
     tokens = [t for t in re.findall(r"[a-zA-Z]{3,}", text.lower()) if t not in _STOP]
     if not tokens:
         return []
+    common = _common_words()
     hits = []
     for r in p.itertuples():
         # Match FIRST + LAST name and the thread alias only. People are referred to
@@ -213,7 +243,8 @@ def resolve_person(text: str, min_score: int = 86, limit: int = 3):
         names = words + [w for w in re.findall(r"[a-zA-Z]{3,}", (r.username or "").lower())][:1]
         if not names:
             continue
-        best = max(fuzz.ratio(t, n) for t in tokens for n in names)
+        close = pd.notna(r.closeness) and r.rank <= CLOSE_RANK
+        best = max((fuzz.ratio(t, n) for t in tokens for n in names if close or t not in common), default=0)
         if best >= min_score:
             hits.append((r, best))
     # Same score: prefer the closer person (the one more likely meant).

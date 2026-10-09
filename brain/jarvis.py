@@ -156,7 +156,10 @@ try:
     agent.yaadash_core.get_context("warmup")
     if agent.yaadash_recall is not None:
         agent.yaadash_recall.recall_context("yaad hai warmup")   # BM25 + people + archive
-    agent.llm.invoke("hi")
+    # With the real system message (persona + every confirmed fact, ~1900 tokens),
+    # so Ollama has that prefix cached before the first question, not just the weights.
+    agent.llm.invoke([agent.SystemMessage(content=agent.persona(agent.appio_text_mode())),
+                      agent.HumanMessage(content="hi")])
 except Exception as _e:
     print(f"   (warm-up skipped: {_e})")
 

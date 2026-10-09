@@ -13,8 +13,10 @@ Public API is drop-in compatible with the old yaadash_core so agent.py needs
 no change: get_context(str) -> str, store_interaction(user, reply).
 """
 import os
+import re
 import threading
-from datetime import datetime, timezone
+import time
+from datetime import datetime, timedelta, timezone
 
 import lancedb
 import pyarrow as pa
@@ -66,7 +68,13 @@ def _get_table():
         with _lock:
             if _table is None:
                 os.makedirs(DB_PATH, exist_ok=True)
-                _db = lancedb.connect(DB_PATH)
+                # Two processes write this table: the brain (turns, "remember that")
+                # and the app (beliefs he confirms, corrections he teaches). A handle
+                # opened with the default never re-reads the table, so until
+                # 2026-10-09 a fact confirmed in the app reached JARVIS only after a
+                # restart (checked: another process's row stayed invisible). Re-checking
+                # the table version every 5 s costs one small manifest read.
+                _db = lancedb.connect(DB_PATH, read_consistency_interval=timedelta(seconds=5))
                 if TABLE_NAME in _db.table_names():
                     _table = _db.open_table(TABLE_NAME)
                 else:
@@ -209,7 +217,138 @@ def search_fragments(query: str, top_k: int = 3, user_id: str = USER_ID):
     return [r for r in rows if r.get("_distance", 1.0) <= FRAGMENT_MAX_DISTANCE]
 
 
-def get_context(user_input: str, fragments: bool = True) -> str:
+# ---- every confirmed fact, always --------------------------------------------
+# Until 2026-10-09 only the 4 authored facts most similar to the question reached
+# the prompt, so a question worded unlike its fact missed it ("mera ghar kahan
+# hai?" never matched "He lives in ..."). Audit on 33 memory questions with the
+# live model: 81/99 correct with top-4 (3 seeds); 193/198 with every fact in the
+# system message (6 seeds; DECISIONS 2026-10-09). All of them are ~950 tokens, and
+# in the system message they are part of the prefix Ollama caches, so after the
+# first turn they cost almost no prefill (median stayed ~0.1 s). The block is
+# rebuilt only when the facts change, so the prefix stays identical turn to turn.
+FACTS_RECHECK_S = 15
+MAX_TOLD = 40            # "remember that ..." facts kept in the prompt (newest)
+MAX_CORRECTIONS = 30     # taught corrections kept in the prompt (newest)
+TOLD_SOURCE = "authored:confirmed:told"
+CORRECTION_SOURCE = "authored:confirmed:correction"
+_SECTION_ORDER = ("authored:Who he is", "authored:What he is building", "authored:Taste",
+                  "authored:Boundaries", "authored:confirmed")
+_facts = {"sig": None, "block": "", "checked": -1e9}
+
+
+def _authored_rows():
+    return (_get_table().search().where("source LIKE 'authored%'")
+            .select(["text", "source", "timestamp"]).limit(100000).to_list())
+
+
+def _format_facts(rows) -> str:
+    def rank(src):
+        return next((i for i, s in enumerate(_SECTION_ORDER) if src.startswith(s)), len(_SECTION_ORDER))
+
+    now, past, told, fixes = [], [], [], []
+    for r in sorted(rows, key=lambda r: (rank(r["source"]), r.get("timestamp") or "", r["text"])):
+        src, text = r["source"], " ".join((r.get("text") or "").split())
+        if not text:
+            continue
+        if src.startswith(TOLD_SOURCE):
+            told.append(text)
+        elif src.startswith(CORRECTION_SOURCE):
+            fixes.append(text)
+        elif ":past" in src or src.startswith("authored:HISTORY"):
+            past.append(text)
+        else:
+            now.append(text)
+    now, past = list(dict.fromkeys(now)), list(dict.fromkeys(past))
+    told, fixes = list(dict.fromkeys(told))[-MAX_TOLD:], list(dict.fromkeys(fixes))[-MAX_CORRECTIONS:]
+    if not (now or past or told or fixes):
+        return ""
+    out = ("CONFIRMED FACTS ABOUT AMAN. This is everything you know for certain about him. If he asks "
+           "about himself and the answer is not here or in CONTEXT, you do not know it: say so and ask "
+           "him. Never guess a number, a date or a name.\n")
+    out += "".join(f"- {t}\n" for t in now)
+    if past:
+        out += "TRUE IN THE PAST, NOT NOW:\n" + "".join(f"- {t}\n" for t in past)
+    if told:
+        out += "THINGS HE TOLD YOU TO REMEMBER (his own words, dated):\n" + "".join(f"- {t}\n" for t in told)
+    if fixes:
+        out += ("CORRECTIONS HE GAVE YOU (they override anything else you think):\n"
+                + "".join(f"- {t}\n" for t in fixes))
+    return out.rstrip("\n")
+
+
+def authored_block(force: bool = False) -> str:
+    """Every authored fact, formatted for the STATIC system message (cached)."""
+    now = time.monotonic()
+    if not force and now - _facts["checked"] < FACTS_RECHECK_S:
+        return _facts["block"]
+    _facts["checked"] = now
+    try:
+        rows = _authored_rows()
+    except Exception as e:                  # never let memory break a reply
+        print(f"\n[Yaadash facts error: {e}]")
+        return _facts["block"]
+    sig = tuple(sorted((r["source"], r["text"]) for r in rows))
+    if sig != _facts["sig"]:
+        _facts["sig"], _facts["block"] = sig, _format_facts(rows)
+    return _facts["block"]
+
+
+def _add_fact(text: str, source: str, already: str = None) -> bool:
+    """Store one authored fact unless it is already there (`already`: a substring
+    that identifies a duplicate; defaults to the whole text)."""
+    text = " ".join(text.split())
+    key = already or text
+    if any(key in r["text"] for r in _authored_rows()):
+        return False
+    add_many([{"text": text, "role": "fact", "source": source}])
+    _facts["checked"] = -1e9                # rebuild on the next turn
+    return True
+
+
+def remember_told(words: str) -> bool:
+    """'remember that ...' — kept in his own words, so nothing is lost converting
+    "my" to "his" (and Hinglish stays exactly as he said it)."""
+    words = " ".join(words.split()).strip('"').strip()
+    if not words:
+        return False
+    d = datetime.now()
+    return _add_fact(f'On {d.day} {d:%B %Y} he told you: "{words}"', TOLD_SOURCE, already=f'"{words}"')
+
+
+def remember_correction(question: str, answer: str) -> bool:
+    """A reply he flagged as wrong, with what it should have been."""
+    question, answer = " ".join((question or "").split()), " ".join((answer or "").split())
+    if not answer:
+        return False
+    text = (f'When he asked "{question[:200]}", the right answer is: {answer[:400]}' if question
+            else f"He corrected you: {answer[:400]}")
+    return _add_fact(text, CORRECTION_SOURCE)
+
+
+# A follow-up such as "aur uske baare mein?" or "what about her?" names nothing, so
+# memory searched with it alone finds nothing: the person or topic is in the
+# previous question. The model sees the conversation history; retrieval did not.
+# Measured 2026-10-09 on 11 follow-ups (VLSI/Germany notes, people): grounded 2/11
+# searched alone, 7/11 with the previous question. "it" and "this" are left out on
+# purpose: with them, "what time is it?" and "is it going to rain?" inherited the
+# previous topic (3 of 6 topic switches); without them, 0 of 6.
+_LEANS_BACK = re.compile(
+    r"^(?:and|aur|or|also|but|toh?|what about|how about|why|kyun?|kyon|kaise|since when|kab se)\b"
+    r"|\b(?:uske|uska|uski|unke|unka|unki|usne|unhone|iske|iska|iski|isme|usme|wo|woh|vo|"
+    r"he|him|his|she|her|hers|they|them|their)\b", re.I)
+FOLLOW_UP_MAX_WORDS = 8
+
+
+def follow_up_query(text: str, previous: str = "") -> str:
+    """The text to search memory with: `text`, plus `previous` (his last message)
+    when `text` is short and leans on it."""
+    if (not previous or len(text.split()) > FOLLOW_UP_MAX_WORDS
+            or not _LEANS_BACK.search(text)):
+        return text
+    return f"{previous} {text}"
+
+
+def get_context(user_input: str, fragments: bool = True, facts: bool = True) -> str:
     """Retrieve relevant memories, formatted for the system prompt.
 
     Two labelled channels:
@@ -222,9 +361,10 @@ def get_context(user_input: str, fragments: bool = True) -> str:
     In every case the model reported its context accurately — the context was the
     defect. Provenance labels, a relevance cutoff and source exclusion fix that.
     """
-    facts, frags = [], []
+    want_facts, facts, frags = facts, [], []
     try:
-        facts = search_authored(user_input, top_k=4)
+        # agent.py passes facts=False: every fact is already in its system message.
+        facts = search_authored(user_input, top_k=4) if want_facts else []
     except Exception as e:
         print(f"\n[Yaadash authored-search error: {e}]")
     try:

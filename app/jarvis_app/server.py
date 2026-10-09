@@ -1,7 +1,7 @@
 """The JARVIS app server: one FastAPI app behind the window.
 
     /api/core/*      start / stop / talk to JARVIS          (core.py)
-    /api/memory/*    Yaadash search, beliefs, people, taste (memory.py)
+    /api/memory/*    Yaadash search, beliefs, corrections, people, taste (memory.py)
     /api/aankhen/*   spatial twin control                   (brain/aankhen/hub.py)
     /ws/aankhen      the twin's live stream                 (brain/aankhen/server.py)
     /api/limbs/*     the room's devices                     (limbs.py)
@@ -245,6 +245,15 @@ def create_app(guard: Guard, autostart_aankhen: str = "auto") -> FastAPI:
         bus.publish("memory", "belief", f"Belief {verdict}" + (" with a correction" if correction else ""),
                     verdict=verdict)
         return {"ok": True}
+
+    @app.post("/api/memory/teach")
+    async def mem_teach(answer: str = Body(..., embed=True), question: str = Body("", embed=True)):
+        try:
+            added = await run_in_threadpool(memory.teach, question, answer)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        bus.publish("memory", "teach", "Learned a correction" if added else "Already knew that correction")
+        return {"ok": True, "added": added}
 
     @app.get("/api/memory/beliefs")
     async def mem_beliefs(status: str = "confirmed", limit: int = 40):

@@ -107,6 +107,10 @@ must actually free the GPU.
 - [x] JARVIS ⇄ the game: deterministic voice commands, live mission state in his prompt,
       the evening nudge, `/api/core/speak`
 - [x] JARVIS calls him by his name (prompts, labels, memory re-synced)
+- [x] One language: British English, Hindi understood; accents on demand, native Hindi
+      voice for Devanagari, Kokoro offline (DECISIONS 2026-10-09)
+- [x] Memory: every confirmed fact in the prompt, "remember that ...", taught
+      corrections, follow-up-aware retrieval, no false person matches
 - [ ] Flash v3, calibrate, record labelled sessions, `python -m aankhen bench` on the real room
 - [ ] Wire the relays (light, fan) and confirm a real click from the Limbs tab
 - [ ] Mosquitto on the laptop so relays and the room state share one bus

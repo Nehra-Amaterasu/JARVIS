@@ -19,6 +19,7 @@ from typing import Any
 from .paths import BRAIN, ensure_brain_importable
 
 DATA = BRAIN / "yaadash_data"
+NOT_FACTS = ("voice_interaction", "claude")
 _HEADER = re.compile(r"^\[(?P<date>[^\]]+?) - chat with (?P<who>[^\]]+)\]$")
 
 
@@ -114,7 +115,11 @@ def search(q: str, k: int = 4) -> dict:
         out["excerpts_error"] = str(e)
     try:
         import yaadash_v2 as y
-        for r in y.search(q, top_k=6):
+        # JARVIS's own past replies (voice_interaction) and dev-session logs are not
+        # facts; listed here they read as things he knows. Fetch extra, keep 6.
+        hits = [r for r in y.search(q, top_k=18)
+                if not str(r.get("source") or "").startswith(NOT_FACTS)][:6]
+        for r in hits:
             d = r.get("_distance")
             out["facts"].append({"text": r.get("text"), "source": r.get("source"),
                                  "distance": round(float(d), 3) if d is not None else None,
@@ -138,6 +143,18 @@ def answer(belief_id: str, verdict: str, correction: str | None = None) -> bool:
     ensure_brain_importable()
     import yaadash_beliefs as yb
     return bool(yb.record(belief_id, verdict, correction or None))
+
+
+def teach(question: str, answer: str) -> bool:
+    """A reply he flagged as wrong, with what it should have said, kept as a
+    correction. JARVIS has it in his system message within ~15 s (yaadash_v2).
+    False when the same correction is already stored."""
+    answer = (answer or "").strip()
+    if not answer:
+        raise ValueError("say what the right answer is")
+    ensure_brain_importable()
+    import yaadash_v2 as y
+    return bool(y.remember_correction(question or "", answer))
 
 
 def beliefs(status: str = "confirmed", limit: int = 40) -> list[dict]:

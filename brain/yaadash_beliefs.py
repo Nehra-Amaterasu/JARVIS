@@ -281,8 +281,10 @@ def hypotheses_context(query: str, k: int = 2) -> str:
     res = [r for r in res if r["_distance"] <= HYPOTHESIS_MAX_DIST]
     if not res:
         return ""
+    # Hedges in English: the Hinglish ones that were here ("lagta hai...") pulled
+    # replies back into romanised Hindi, which the persona now forbids (2026-10-09).
     out = ("LIKELY BUT UNCONFIRMED (inferred from his messages — hedge these: "
-           "'lagta hai...', 'agar main galat nahi hoon...'. Never state as certain):\n")
+           "'I believe...', 'if I'm not mistaken...'. Never state as certain):\n")
     for r in res:
         out += f"- {r['claim']} (confidence {r['confidence']:.0%}, from {r['era']})\n"
     return out

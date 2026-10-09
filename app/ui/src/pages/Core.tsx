@@ -193,7 +193,10 @@ function Conversation({ running }: { running: boolean }) {
             <div>{running ? 'Say “Hey Jarvis” or type below.' : 'Wake JARVIS to start talking.'}</div>
           </div>
         )}
-        {turns.map((t, i) => <TurnRow key={t.id} turn={t} n={i + 1} />)}
+        {turns.map((t, i) => (
+          <TurnRow key={t.id} turn={t} n={i + 1}
+            question={t.role === 'jarvis' ? turns.slice(0, i).reverse().find((p) => p.role === 'you')?.text : undefined} />
+        ))}
       </div>
       <form className="composer" onSubmit={(e) => { e.preventDefault(); void send() }}>
         <input className="field" placeholder={running ? 'Type to JARVIS…' : 'Wake JARVIS first'} value={text}
@@ -209,18 +212,26 @@ function Conversation({ running }: { running: boolean }) {
 type Verdict = 'good' | 'wrong' | 'slow' | 'misheard'
 
 /** Every turn can be judged. A verdict is stored with the transcript, and the
- *  review file for Claude lists flagged turns first, with what you expected. */
-function TurnRow({ turn, n }: { turn: Turn & { session?: string }; n: number }) {
+ *  review file for Claude lists flagged turns first, with what you expected.
+ *  A wrong answer can also be taught back: the right answer becomes a correction
+ *  in his memory, which he follows from his next reply on. */
+function TurnRow({ turn, n, question }: { turn: Turn & { session?: string }; n: number; question?: string }) {
   const toast = useStore((s) => s.toast)
   const [flag, setFlag] = useState<Verdict | null>(null)
   const [asking, setAsking] = useState(false)
   const [expected, setExpected] = useState('')
+  const [teach, setTeach] = useState(true)
   const canFlag = !!turn.session && turn.done
   const send = async (verdict: Verdict, exp = '') => {
     try {
       await post('/api/transcripts/flag', { session: turn.session, id: turn.id, verdict, expected: exp })
       setFlag(verdict)
       setAsking(false)
+      if (verdict === 'wrong' && teach && exp.trim()) {
+        const r = await post<{ added: boolean }>('/api/memory/teach', { question: question ?? '', answer: exp.trim() })
+        toast(r.added ? 'Taught. He will give that answer from now on.' : 'He already had that correction.', 'live')
+        return
+      }
       toast(verdict === 'good' ? 'Marked as a good answer.' : `Marked as ${verdict} — it'll be in the next review.`, verdict === 'good' ? 'live' : 'info')
     } catch (e) {
       toast((e as Error).message, 'fault')
@@ -252,6 +263,11 @@ function TurnRow({ turn, n }: { turn: Turn & { session?: string }; n: number }) 
           <form className="flag-form fade-in" onSubmit={(e) => { e.preventDefault(); void send(turn.role === 'jarvis' ? 'wrong' : 'misheard', expected) }}>
             <input className="field" autoFocus value={expected} onChange={(e) => setExpected(e.target.value)}
               placeholder={turn.role === 'jarvis' ? 'What should he have said? (optional)' : 'What did you actually say? (optional)'} />
+            {turn.role === 'jarvis' && expected.trim() && (
+              <label className="teach-toggle" title="Keep the right answer in his memory as a correction">
+                <input type="checkbox" checked={teach} onChange={(e) => setTeach(e.target.checked)} />Teach him
+              </label>
+            )}
             <button className="btn sm primary">Flag</button>
             <button type="button" className="btn sm ghost" onClick={() => setAsking(false)}>Cancel</button>
           </form>

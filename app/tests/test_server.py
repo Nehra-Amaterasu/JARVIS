@@ -85,3 +85,18 @@ def test_export_import_backup(client):
     dump = client.get("/api/germoney/export").json()
     assert dump["@silicon_logs_v1"] == "[]"
     assert client.post("/api/germoney/import", json=dump).json()["imported"] >= 1
+
+
+def test_teaching_a_correction(client, monkeypatch):
+    from jarvis_app import memory
+    taught = []
+    monkeypatch.setattr(memory, "teach", lambda q, a: taught.append((q, a)) or len(taught) == 1)
+    r = client.post("/api/memory/teach", json={"question": "what is my genre?", "answer": "Synthwave."})
+    assert r.status_code == 200 and r.json() == {"ok": True, "added": True}
+    assert taught == [("what is my genre?", "Synthwave.")]
+    assert client.post("/api/memory/teach", json={"answer": "Synthwave."}).json()["added"] is False
+
+
+def test_teaching_needs_an_answer(client):
+    assert client.post("/api/memory/teach", json={"question": "q", "answer": "  "}).status_code == 400
+    assert client.post("/api/memory/teach", json={"question": "q"}).status_code == 422

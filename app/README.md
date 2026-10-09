@@ -36,10 +36,16 @@ reasons: [docs/design/mission-game.md](../docs/design/mission-game.md)):
 | "start a 50 minute focus on German" | the Crucible starts |
 | "contract done: ripple carry adder" | that contract completed (drawn amber: a voice report is a claim) |
 | "how many marks do I have" · "redeem an anime episode" | the Armory |
+| "remember that my exam is on the 12th" · "mera roll number 42 hai, yaad rakhna" | kept as a confirmed fact, in his prompt from the next reply |
+| "light band kar do" · "fan 40 percent" · "turn on the light" | the room, through Limbs |
+| "say it in an American accent" · "Hindi mein bolo" | the reply switches voice (British by default) |
 
-Commands are parsed by `brain/mission.py` without the model, so they are instant and
-can't be misheard into a different action; questions ("what should I study now?") go
-to the model with the live mission state in its prompt.
+Commands are parsed without the model (`brain/mission.py`, `remember.py`, `room.py`),
+so they are instant and can't be misheard into a different action; questions ("what
+should I study now?") go to the model with the live mission state in its prompt.
+
+A reply that was wrong can be flagged in Core with the right answer and **Teach him**
+ticked: it becomes a correction he follows from then on.
 
 ## Run it
 

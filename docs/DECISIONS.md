@@ -10,6 +10,87 @@ Format per entry: **Context → Decision → Evidence → Consequences / open it
 
 ---
 
+## 2026-10-09 — Yaadash: every fact always, "remember that", corrections, follow-ups
+
+**Context.** An audit of the memory against the live model found five defects:
+- only the 4 confirmed facts most similar to the question reached the prompt, so a
+  question worded unlike its fact missed it;
+- nothing said by voice ever became a fact. Turns are stored as `voice_interaction`, which
+  retrieval skips on purpose, so "remember that…" was answered "noted" and lost;
+- a wrong answer flagged in the app went into a review file and nowhere else;
+- follow-ups ("aur uske baare mein?") were searched alone and found nothing;
+- everyday words resolved to people: 8 of 60 ordinary sentences ("padhai ho rahi hai",
+  "mood off hai") attached a stranger's person card.
+
+Found on the way: the brain opened LanceDB once and never re-read it, so a belief
+confirmed in the app reached JARVIS only after a restart.
+
+**Decision.**
+- All confirmed facts (~950 tokens) go into the static system message
+  (`yaadash_v2.authored_block`). They are grouped as current, past, "he told you" and
+  corrections, with one rule: anything not there, he does not know, and he never guesses
+  a number, date or name. The block is rebuilt only when a fact changes, so Ollama's
+  cached prefix holds turn to turn.
+- `brain/remember.py` parses "remember that…", "don't forget…", "yaad rakhna ki…" and
+  "…, yaad rakhna" without the model. Questions ("do you remember…?", "yaad hai…?") and
+  reminders ("remember to…") are refused. His words are stored verbatim with the date. He
+  confirms in English, echoing English facts in the second person.
+- In Core, a reply flagged Wrong with the right answer and **Teach him** ticked becomes a
+  correction (`POST /api/memory/teach`).
+- Follow-ups: when a short message leans on the last one (a personal or Hindi pronoun, or
+  "and/aur/what about…"), memory is searched with the previous question too.
+- People: an everyday word (the embedder's English vocabulary or a common Hindi word)
+  names someone only if they are among his 100 closest.
+- LanceDB is opened with `read_consistency_interval=5 s`.
+- Belief hedges are now English ("I believe…"); the Hinglish ones pulled replies back
+  into romanised Hindi.
+
+**Evidence.**
+
+| memory audit, 33 questions, live model | correct | Hindi/Hinglish | integrity (no fact exists) |
+|---|---|---|---|
+| before: top-4 facts per turn (3 seeds) | 81/99 (82%) | 42/60 | 6/6 |
+| every fact in the system message, audit prototype (3 seeds) | 96/99 | 57/60 | 6/6 |
+| `authored_block` after the LENGTH rule (6 seeds) | 191/198 | 113/120 | 12/12 |
+| **shipped: `authored_block` before the LENGTH rule (6 seeds)** | **193/198 (97%)** | **115/120** | 12/12 |
+
+The two placements are level on accuracy; the shipped one keeps spoken replies short
+(below). Prefill median stays ~0.05–0.11 s: the facts are part of the cached prefix.
+
+| follow-ups and people (probes on the local archive, counts only) | before | after |
+|---|---|---|
+| 11 follow-ups grounded (notes or person card) | 2/11 | 7/11 |
+| 6 topic switches that inherited the old topic | — | 0/6 (3/6 while "it/this" counted as follow-up words, so they don't) |
+| 60 everyday sentences resolving to a person | 8/60 | 0/60 |
+| closest 20 / 100 people found by first name | 20/20, 88/96 | 20/20, 88/96 |
+
+Another process's write, read through a long-lived handle: invisible with the default
+connection, visible with the consistency interval (tested on a scratch table).
+
+Does a prompt full of facts make him talk about Aman unasked? 12 questions that are not
+about him × 2 seeds:
+
+| | replies mentioning a fact word | mean words | technical answers: mean (max) |
+|---|---|---|---|
+| no facts in the prompt | 7/24 | 34 | 46 (51) |
+| facts after the LENGTH rule | 10/24 | 44 | 62 (81) |
+| **facts before the LENGTH rule (shipped)** | 11/24 | **39** | **53 (65)** |
+
+The mentions are topical (VLSI in a metastability answer, his artists when he says he
+is low); nothing private came up unasked. Length was the real regression, and moving the
+facts above the length rule recovers most of it. A per-turn length reminder on top
+gained little (technical 53 → 49 words), so it was left out. Romanised Hindi: 2/24 with
+facts, a single "bhai" echoing his own "bhai…" opener (0/24 without).
+
+**Consequences / open items.**
+- The prompt grows with every "remember that", so the newest 40 told facts and 30
+  corrections are kept in it. Past that, the old ones need a review screen; there is no
+  voice "forget that" yet.
+- Multilingual embeddings (`multilingual-e5-small`) for Hinglish fragment search are
+  the next memory step. Not measured yet.
+
+---
+
 ## 2026-10-09 — JARVIS speaks one language, in the accent he chooses
 
 **Context.** JARVIS's Hindi pronunciation and his grammar in both languages were wrong

@@ -197,6 +197,8 @@
 .turn-actions button:hover { color: var(--ink); background: rgba(255, 255, 255, 0.1); }
 .flag-form { display: flex; gap: 6px; margin-top: 8px; }
 .flag-form .field { height: 32px; font-size: 12.5px; }
+.teach-toggle { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--ink-2); white-space: nowrap; cursor: pointer; }
+.teach-toggle input { accent-color: var(--live); margin: 0; }
 .turn.flag-wrong .turn-text, .turn.flag-misheard .turn-text { text-decoration: underline wavy rgba(255, 69, 58, 0.5); text-underline-offset: 4px; }
 .review-btn { display: flex; align-items: center; gap: 8px; }
 .review-btn .mono { font-size: 10.5px; }

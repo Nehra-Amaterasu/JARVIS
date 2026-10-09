@@ -8,6 +8,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from collections import deque
 import room
+import remember               # "remember that ..." / "... yaad rakhna" (deterministic)
 import voice as voice_mod      # accents, tags, explicit accent requests (pure helpers)
 import yaadash_v2 as yaadash_core  # v2: LanceDB + CPU bge-small, no :8000 server, no graph
 try:
@@ -134,7 +135,22 @@ _LENGTH_TEXT = ("He is reading this on screen. Keep it under eighty words: one t
 
 
 def persona(text_mode: bool) -> str:
-    return _PERSONA.format(length=_LENGTH_TEXT if text_mode else _LENGTH_VOICE)
+    """The static system message: who JARVIS is, plus every confirmed fact about Aman
+    (yaadash_v2.authored_block — identical turn to turn until a fact changes, so
+    Ollama keeps reusing the cached prefix)."""
+    base = _PERSONA.format(length=_LENGTH_TEXT if text_mode else _LENGTH_VOICE)
+    try:
+        facts = yaadash_core.authored_block()
+    except Exception as e:
+        facts = ""
+        print(f"\n[Yaadash facts unavailable: {e}]")
+    if not facts:
+        return base
+    # The facts go BEFORE the length rule. Appended after it, they pushed it away from
+    # the end of the message and spoken replies grew: 12 questions x 2, mean 34 -> 44
+    # words, technical ones from ~45 to 60-80 (2026-10-09).
+    head, sep, tail = base.rpartition("LENGTH:")
+    return f"{head}{facts}\n\n{sep}{tail}" if sep else f"{base}\n\n{facts}"
 
 
 def appio_text_mode() -> bool:
@@ -202,6 +218,14 @@ def reset_conversation():
     _short_term.clear()
 
 
+def retrieval_query(user_input: str) -> str:
+    """What memory is searched with (yaadash_v2.follow_up_query): a short follow-up
+    such as "aur uske baare mein?" also carries the previous question."""
+    if not _short_term or time.time() - _last_turn_at > SHORT_TERM_IDLE_RESET_S:
+        return user_input
+    return yaadash_core.follow_up_query(user_input, _short_term[-1][0])
+
+
 # ---- Aankhen: what the room's sensors see right now ---------------------------
 _ROOM_WORDS = None
 
@@ -263,7 +287,23 @@ def run_agent(user_input: str) -> str:
     2. Build Persona.
     3. Stream response (or trigger tool).
     """
-    # 0. Mission Germoney commands ("log 2 hours of German", "brief me") are parsed
+    # 0. "Remember that ..." / "... yaad rakhna": he tells JARVIS a fact to keep. It is
+    # stored as a confirmed fact and is in the system message from the next turn on.
+    try:
+        words = remember.parse(user_input)
+    except Exception as e:
+        words = None
+        print(f"\n[Remember parse error: {e}]")
+    if words:
+        try:
+            reply = remember.reply(words, yaadash_core.remember_told(words))
+        except Exception as e:
+            print(f"\n[Remember save error: {e}]")
+            reply = "I'm afraid I couldn't save that to memory just now."
+        _remember_turn(user_input, reply)
+        yield reply
+        return
+    # 0a. Mission Germoney commands ("log 2 hours of German", "brief me") are parsed
     # deterministically and answered by the game — no model in the loop, so they are
     # instant and can never be misheard into a different action.
     if mission is not None:
@@ -293,23 +333,26 @@ def run_agent(user_input: str) -> str:
     # 1. Fetch Deep Memories
     # People + past conversations, only when the message names someone or asks
     # about the past. Never allowed to break a reply.
+    query = retrieval_query(user_input)
     recall_block = ""
     if yaadash_recall is not None:
         try:
-            recall_block = yaadash_recall.recall_context(user_input)
+            recall_block = yaadash_recall.recall_context(query)
         except Exception as e:
             print(f"\n[Yaadash recall error: {e}]")
     # When the question is about a person or a past conversation, the people card
     # and the dated excerpts are the evidence; loose chat fragments only distract.
     # Asked "how close am I with <friend>?", the model quoted a random one-liner
     # fragment instead of the closeness stats.
-    memories = yaadash_core.get_context(user_input, fragments=not recall_block)
+    # Confirmed facts are not searched per turn any more: all of them are in the
+    # system message (persona()). Only past-chat fragments are retrieved here.
+    memories = yaadash_core.get_context(query, fragments=not recall_block, facts=False)
     if recall_block:
         memories = (memories + "\n\n" + recall_block).strip()
     # Inferred-but-unconfirmed beliefs, labelled so the model hedges them.
     if yaadash_beliefs is not None:
         try:
-            hyp = yaadash_beliefs.hypotheses_context(user_input)
+            hyp = yaadash_beliefs.hypotheses_context(query)
             if hyp:
                 memories = (memories + "\n\n" + hyp).strip()
         except Exception as e:
@@ -329,7 +372,7 @@ def run_agent(user_input: str) -> str:
     # 2026-10-09 on 8 interview questions x 3: correct 15/24 without, 21/24 with.
     if knowledge is not None:
         try:
-            kn = knowledge.notes(user_input)
+            kn = knowledge.notes(query)
             if kn:
                 memories = (memories + "\n\n" + kn).strip()
         except Exception as e:

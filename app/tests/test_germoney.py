@@ -146,8 +146,9 @@ def test_free_blocks_skip_busy_time_and_short_gaps():
 
 def test_study_blocks_and_ics_export(tmp_path):
     cal = g.Calendar(tmp_path / "cal.json")
-    b = cal.add_block("VLSI deep work", (datetime.now() + timedelta(hours=1)).isoformat(timespec="minutes"), 90)
-    assert any(e.get("id") == b["id"] for e in cal.today()["events"])
+    start = datetime.now() + timedelta(hours=1)          # after 23:00 that is tomorrow: ask for its day
+    b = cal.add_block("VLSI deep work", start.isoformat(timespec="minutes"), 90)
+    assert any(e.get("id") == b["id"] for e in cal.today(start.date())["events"])
     ics = cal.block_ics(b["id"])
     assert "BEGIN:VEVENT" in ics and "SUMMARY:VLSI deep work" in ics
     with pytest.raises(ValueError):
@@ -155,7 +156,7 @@ def test_study_blocks_and_ics_export(tmp_path):
     with pytest.raises(ValueError):
         cal.set_feed("http://not-https.example/cal.ics")
     cal.remove_block(b["id"])
-    assert not any(e.get("id") == b["id"] for e in cal.today()["events"])
+    assert not any(e.get("id") == b["id"] for e in cal.today(start.date())["events"])
 
 
 def test_focus_guard_reports_a_shape():

@@ -98,6 +98,17 @@ must actually free the GPU.
 - [x] JARVIS's brain reads the room (agent.room_context), honestly in simulation
 - [x] Firmware v3: CSI enabled, binary protocol, token/MQTT relays, no open AP
       (compiles for ESP32-S3; not yet run on the board)
+- [x] Transcripts: every turn kept with timings, flags, review export
+- [x] Relays over USB (COMMAND frame); Limbs as the room's single owner; "confirmed" from the board
+- [x] Mission Germoney inside the app (stores ported verbatim behind two shims)
+- [x] Mission Germoney as a game: Floor/streak, contracts with characters, operations,
+      12 bosses, levels + Marks, Trials, War Chest, Drill, Boot Camp
+      (docs/design/mission-game.md)
+- [x] JARVIS ⇄ the game: deterministic voice commands, live mission state in his prompt,
+      the evening nudge, `/api/core/speak`
+- [x] JARVIS calls him by his name (prompts, labels, memory re-synced)
 - [ ] Flash v3, calibrate, record labelled sessions, `python -m aankhen bench` on the real room
+- [ ] Wire the relays (light, fan) and confirm a real click from the Limbs tab
 - [ ] Mosquitto on the laptop so relays and the room state share one bus
-- [ ] Prune JARVIS's own hallucinated replies from the memory store (35 voice_interaction rows)
+- [ ] Prune JARVIS's remaining hallucinated replies from the memory store
+      (the wrong-name ones are gone; ~25 voice_interaction rows left to review)

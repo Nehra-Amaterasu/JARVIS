@@ -10,6 +10,71 @@ Format per entry: **Context → Decision → Evidence → Consequences / open it
 
 ---
 
+## 2026-10-09 — Mission Germoney becomes a game, and JARVIS runs it
+
+**Context.** I built the Mission Germoney phone app and never used it. Reading my own
+planning notes for why: I fade after ~14 days, freeze on vague tasks, work under
+visible stakes, and every system I was handed was "text all over the place". The port
+inside JARVIS also had a structural fault: XP did nothing. Rank only moved through a
+`levelUp()` no button called, so the only rank change possible was the Purgatory drop.
+The 10 bosses sat on a 24-month clock I no longer have.
+
+**Decision.** A real game loop, every mechanic tied to one of those failure modes
+(`docs/design/mission-game.md`): a 45-minute daily Floor that keeps a streak alive
+(shields, "never miss twice", Phoenix after a break), three hyper-specific contracts a
+day from characters with faces and Intel cards, a weekly operation with a stake, twelve
+monthly bosses that are real deliverables (HP as preparation, the kill needs proof),
+levels from XP and rank from bosses, Marks (DM) spent on rewards I set, Trials for
+certificates and paperwork, a War Chest for real money, Drill (Leitner spaced
+repetition), Boot Camp days 1–7. JARVIS is the handler: voice commands are parsed
+deterministically (no model in the loop) and run by the game; questions about study
+get the live mission state in his prompt.
+
+**Evidence.**
+
+- Research changed the plan, not just the game (checked today, sources in the game):
+  TUM's EE & IT master is mainly German-taught and requires German proof; TUM's
+  English chip-design master charges non-EU students €4–6k per semester; RWTH
+  (Micro- & Nanoelectronics, English, no tuition) closes 1 March for non-EU; APS now
+  includes the dMAT for engineering master's applicants; APS ₹18,000; blocked account
+  €11,904/year.
+- Tests found real exploits before I did: stepping a Trial back and forward re-paid
+  its stages (free Marks on demand); the voice parser read the interjection "ah" as
+  "a h" = one hour and "7 am" as one minute; "buy me some time" became a purchase.
+  All fixed, all regression-tested. A link check found a dead resource URL (404).
+- End to end with the real brain in text mode: "maine aadha ghanta verilog kiya" →
+  30 min of Silicon logged, floor ticked, boss −3 HP, spoken answer in 0.5 s (an LLM
+  reply takes ~2.5 s). Given the mission state, "what should I study to hurt the
+  boss?" was first answered literally ("don't hurt anyone"); with the game's
+  vocabulary and the next unfinished step in context it named the exact step.
+- 54 UI tests (engine, store, voice actions), 81 app tests, 133 Aankhen tests.
+
+**Open items.** The 4B model still makes small factual slips in free answers (it
+listed 4 input cases for a full adder, which has 8). Fees and dates in the game carry
+their source and "checked" date; they must be re-verified before paying.
+
+---
+
+## 2026-10-09 — Phase 2: transcripts, real relays, Mission inside JARVIS
+
+**Context.** I had no record of what JARVIS got wrong, the relay code had never
+switched a real relay, and Mission Germoney lived in a phone app I didn't open.
+
+**Decision.** Every turn is kept with its timings; any turn can be flagged (wrong /
+slow / misheard) with what it should have said; one button exports a review file
+ordered for a reviewer. Relays: a COMMAND frame on the existing USB protocol, the app
+as the single owner of room state, "confirmed" only when the board's own STATUS agrees.
+Mission Germoney's stores ported verbatim behind two shims (storage → the server's
+key-value store with a per-key write queue; alerts → the app's dialogs).
+
+**Evidence.** Writing the limbs tests caught the scene buttons crashing (`int("sleep")`).
+The desktop shortcut failed under `pythonw` because uvicorn's log formatter called
+`isatty()` on a `None` stdout — reproduced and fixed. Re-running the identity sync
+would have wiped every confirmed belief (`LIKE 'authored%'` matched them too) — fixed
+before any existed.
+
+---
+
 ## 2026-10-09 — JARVIS becomes an app
 
 **Context.** JARVIS started from a command prompt and lived in a scrolling console:

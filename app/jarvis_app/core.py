@@ -28,8 +28,11 @@ CREATE_NO_WINDOW = 0x08000000          # no console window flashing up on Window
 
 
 class CoreProcess:
-    def __init__(self, bus: EventBus):
+    def __init__(self, bus: EventBus, api_url: Optional[str] = None, api_token: Optional[str] = None):
         self.bus = bus
+        # Handed to JARVIS so his brain can ask the Aankhen hub what the room looks
+        # like (agent.room_context). Local address, per-launch token; never logged.
+        self.api_url, self.api_token = api_url, api_token
         self.proc: Optional[subprocess.Popen] = None
         self.mode: Optional[str] = None
         self.state = "offline"
@@ -60,6 +63,8 @@ class CoreProcess:
                 return self.info()
             args = [core_python(), "-u", "jarvis.py", "--app"] + (["--text"] if mode == "text" else [])
             env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"}
+            if self.api_url and self.api_token:
+                env.update(JARVIS_API_URL=self.api_url, JARVIS_API_TOKEN=self.api_token)
             self.proc = subprocess.Popen(
                 args, cwd=str(BRAIN), env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT, creationflags=CREATE_NO_WINDOW if os.name == "nt" else 0)

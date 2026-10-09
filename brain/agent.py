@@ -21,6 +21,7 @@ try:
 except Exception as _e:
     yaadash_beliefs = None
     print(f"[Yaadash beliefs unavailable: {_e}]")
+import os
 import sys
 import numpy as np
 import sounddevice as sd
@@ -177,6 +178,60 @@ def reset_conversation():
     _short_term.clear()
 
 
+# ---- Aankhen: what the room's sensors see right now ---------------------------
+_ROOM_WORDS = None
+
+
+def room_context(user_input: str) -> str:
+    """One line about the room from the Aankhen hub (only when run by the desktop app,
+    which passes its local address and token in the environment).
+
+    Readings from the real sensors are always included — they are cheap (~30 tokens)
+    and let JARVIS notice the room without being asked. SIMULATED readings are
+    included only when he asks about the room, and are labelled so JARVIS never
+    talks about a simulated person as if someone were really there.
+    """
+    global _ROOM_WORDS
+    url, tok = os.environ.get("JARVIS_API_URL"), os.environ.get("JARVIS_API_TOKEN")
+    if not url or not tok:
+        return ""
+    import re
+    if _ROOM_WORDS is None:
+        _ROOM_WORDS = re.compile(r"\b(room|kamr[ae]|koi|anyone|someone|kaun|presence|present|log|people|"
+                                 r"motion|baitha|soya|empty|khali|aankhen|sensor)\b", re.I)
+    try:
+        import httpx
+        snap = httpx.get(f"{url}/api/aankhen/snapshot", headers={"X-Jarvis-Token": tok}, timeout=0.4).json()
+    except Exception:
+        return ""
+    pres, src = snap.get("presence"), snap.get("source")
+    if not pres or not src:
+        return ""
+    if src != "hardware":
+        # Simulated people are not in his room. Tested 2026-10-09: given a labelled
+        # simulated person, the 4B model answered "nobody is here... P2 is at the
+        # desk" — it cannot be trusted to carry a provenance label. So in simulation
+        # it gets no people at all, only the honest verdict.
+        if not _ROOM_WORDS.search(user_input):
+            return ""
+        return ("ROOM SENSORS: NOT CONNECTED. Aankhen is running a simulation, so you do NOT "
+                "know who is in his room. If he asks, say the room sensors are in simulation "
+                "mode and you cannot see the real room yet.")
+    people = snap.get("people") or []
+    state, conf = pres.get("state"), pres.get("confidence", 0)
+    if state == "empty":
+        return f"ROOM SENSORS (live): the room looks empty (confidence {conf:.0%})."
+    if state == "uncertain" or not people and state not in ("moving", "still"):
+        return "ROOM SENSORS (live): the sensors are unsure whether anyone is in the room."
+    def say(p):
+        where = f" at the {p['zone']}" if p.get("zone") else ""
+        return ("one sitting or standing still" if p.get("still") else "one moving") + where
+    desc = "; ".join(say(p) for p in people) or "someone, but the radar has no position"
+    n = len(people)
+    return (f"ROOM SENSORS (live): {n or 'at least one'} {'person' if n == 1 else 'people'} in the room — "
+            f"{desc} (confidence {conf:.0%}).")
+
+
 def run_agent(user_input: str) -> str:
     """
     The Zero-Latency Cognitive Loop.
@@ -208,6 +263,9 @@ def run_agent(user_input: str) -> str:
                 memories = (memories + "\n\n" + hyp).strip()
         except Exception as e:
             print(f"\n[Yaadash beliefs error: {e}]")
+    room_line = room_context(user_input)
+    if room_line:
+        memories = (memories + "\n\n" + room_line).strip()
     
     # 2. Construct the Expert Persona (Empathetic Context Engine)
     system_prompt = f"""[SYSTEM_ROLE: EMPATHETIC_CONTEXT_ENGINE]

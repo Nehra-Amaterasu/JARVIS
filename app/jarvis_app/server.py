@@ -41,9 +41,9 @@ from aankhen.server import attach           # noqa: E402
 
 
 class Services:
-    def __init__(self, bus: EventBus):
+    def __init__(self, bus: EventBus, guard: Guard):
         self.bus = bus
-        self.core = CoreProcess(bus)
+        self.core = CoreProcess(bus, f"http://127.0.0.1:{guard.port}", guard.token)
         self.limbs = Limbs(self.core)
         self.hub = AankhenHub()
         self._last_presence: Optional[str] = None
@@ -52,7 +52,7 @@ class Services:
 
 def create_app(guard: Guard, autostart_aankhen: str = "auto") -> FastAPI:
     bus = EventBus()
-    svc = Services(bus)
+    svc = Services(bus, guard)
 
     async def aankhen_watch():
         """Relay the twin's presence changes and track events to the ticker."""

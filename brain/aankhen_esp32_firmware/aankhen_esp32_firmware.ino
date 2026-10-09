@@ -32,10 +32,25 @@
 
 #include "aankhen_protocol.h"
 #include "config.h"    // wiring (tracked)
+// RECEIVER GAIN. The ESP32-S3 sets its receive gain per packet, almost at random
+// (Portner et al., IEEE IoT-J 2026), and the CSI amplitudes carry it. Without
+// knowing it the host must divide every packet by its own median, which also
+// throws away most of what a person does to the signal (aankhen/rf.py measured
+// 90-99 % of a walker's). Espressif's esp_csi_gain_ctrl reads that gain from the
+// packet and computes the compensation; with it installed, CSI goes out as
+// AK_CSI_GAIN frames and the host undoes the gain exactly. Without it, plain AK_CSI
+// frames as before. Installing it: aankhen_esp32_firmware/README.md.
+#if __has_include(<esp_csi_gain_ctrl.h>)
+#include <esp_csi_gain_ctrl.h>
+#define AK_GAIN_CTRL 1
+#else
+#define AK_GAIN_CTRL 0
+#endif
+#define GAIN_BASELINE_PACKETS 100   // Espressif's example records the first 100
 #include "secrets.h"   // gitignored; copy secrets.example.h
 
 // ------------------------------------------------------------------ config
-#define FW_VERSION "aankhen-3.0.0"
+#define FW_VERSION "aankhen-3.1.0"
 #define CSI_RATE_HZ 100           // router pings per second = CSI captures per second
 #define CSI_QUEUE_DEPTH 48        // ~0.5 s of slack if the USB host stalls
 // Automatic CSI scaling. The host divides every packet by its own median amplitude,
@@ -69,10 +84,11 @@ static WebServer http(80);
 static bool httpEnabled = false;
 
 struct CsiItem {
-  ak_csi_meta_t meta;
+  ak_csi_meta_gain_t mg;      // metadata + gain, contiguous: one write sends both
   uint64_t ts;
   uint8_t buf[128];
 };
+static uint32_t gainRecorded = 0;   // packets in the gain baseline so far
 
 static void logf(const char *fmt, ...) {
   char line[200];
@@ -97,17 +113,24 @@ static void IRAM_ATTR onCsi(void *ctx, wifi_csi_info_t *info) {
   }
   CsiItem item;
   item.ts = esp_timer_get_time();
-  item.meta.rssi = info->rx_ctrl.rssi;
-  item.meta.noise_floor = info->rx_ctrl.noise_floor;
-  item.meta.channel = info->rx_ctrl.channel;
-  item.meta.secondary_channel = info->rx_ctrl.secondary_channel;
-  item.meta.sig_mode = info->rx_ctrl.sig_mode;
-  item.meta.cwb = info->rx_ctrl.cwb;
-  item.meta.stbc = info->rx_ctrl.stbc;
-  item.meta.first_word_invalid = info->first_word_invalid ? 1 : 0;
-  memcpy(item.meta.mac, info->mac, 6);
+  item.mg.meta.rssi = info->rx_ctrl.rssi;
+  item.mg.meta.noise_floor = info->rx_ctrl.noise_floor;
+  item.mg.meta.channel = info->rx_ctrl.channel;
+  item.mg.meta.secondary_channel = info->rx_ctrl.secondary_channel;
+  item.mg.meta.sig_mode = info->rx_ctrl.sig_mode;
+  item.mg.meta.cwb = info->rx_ctrl.cwb;
+  item.mg.meta.stbc = info->rx_ctrl.stbc;
+  item.mg.meta.first_word_invalid = info->first_word_invalid ? 1 : 0;
+  memcpy(item.mg.meta.mac, info->mac, 6);
   uint16_t n = info->len > sizeof(item.buf) ? sizeof(item.buf) : info->len;
-  item.meta.csi_len = n;
+  item.mg.meta.csi_len = n;
+#if AK_GAIN_CTRL
+  esp_csi_gain_ctrl_get_rx_gain(&info->rx_ctrl, &item.mg.gain.agc_gain, &item.mg.gain.fft_gain);
+#else
+  item.mg.gain.agc_gain = 0;
+  item.mg.gain.fft_gain = 0;
+#endif
+  item.mg.gain.comp_cdb = AK_GAIN_UNKNOWN;
   memcpy(item.buf, info->buf, n);
   if (xQueueSendFromISR(csiQueue, &item, nullptr) == pdTRUE) csiCaptured++;
   else csiDropped++;                                     // counted, reported, never silent
@@ -380,14 +403,15 @@ static void sendStatus() {
            "{\"fw\":\"%s\",\"uptime_s\":%.1f,\"relays\":%s,\"wifi\":\"%s\",\"ip\":\"%s\",\"rssi\":%d,"
            "\"channel\":%d,\"csi_hz\":%lu,\"csi_dropped\":%lu,\"csi_rejected\":%lu,"
            "\"radar_frames\":%lu,\"radar_bad\":%lu,\"mqtt\":%s,\"http\":%s,"
-           "\"heap_free\":%lu,\"crc_ok\":%s}",
+           "\"heap_free\":%lu,\"crc_ok\":%s,\"gain\":\"%s\"}",
            FW_VERSION, esp_timer_get_time() / 1e6, relays,
            WiFi.status() == WL_CONNECTED ? "connected" : "connecting",
            WiFi.localIP().toString().c_str(), WiFi.RSSI(), WiFi.channel(),
            (unsigned long)hz, (unsigned long)csiDropped, (unsigned long)csiRejected,
            (unsigned long)radarFrames, (unsigned long)radarBad,
            mqttUp ? "true" : "false", httpEnabled ? "true" : "false",
-           (unsigned long)ESP.getFreeHeap(), ak_crc_self_test() ? "true" : "false");
+           (unsigned long)ESP.getFreeHeap(), ak_crc_self_test() ? "true" : "false",
+           !AK_GAIN_CTRL ? "unavailable" : gainRecorded < GAIN_BASELINE_PACKETS ? "recording" : "compensated");
   if (xSemaphoreTake(txLock, pdMS_TO_TICKS(20))) {
     ak.text(AK_STATUS, js);
     xSemaphoreGive(txLock);
@@ -443,7 +467,23 @@ void loop() {
   int burst = 0;
   while (burst++ < 16 && xQueueReceive(csiQueue, &item, 0) == pdTRUE) {
     if (xSemaphoreTake(txLock, pdMS_TO_TICKS(10))) {
-      ak.frame(AK_CSI, item.ts, (const uint8_t *)&item.meta, sizeof(item.meta), item.buf, item.meta.csi_len);
+#if AK_GAIN_CTRL
+      // Baseline first (the median gain of the first packets), then every packet's
+      // compensation against it. Done here, not in the Wi-Fi callback, to keep that short.
+      if (gainRecorded < GAIN_BASELINE_PACKETS) {
+        esp_csi_gain_ctrl_record_rx_gain(item.mg.gain.agc_gain, item.mg.gain.fft_gain);
+        gainRecorded++;
+      } else {
+        float comp = 1.0f;
+        if (esp_csi_gain_ctrl_get_gain_compensation(&comp, item.mg.gain.agc_gain, item.mg.gain.fft_gain) == ESP_OK
+            && comp > 0.0f) {
+          item.mg.gain.comp_cdb = (int16_t)lroundf(2000.0f * log10f(comp));
+        }
+      }
+      ak.frame(AK_CSI_GAIN, item.ts, (const uint8_t *)&item.mg, sizeof(item.mg), item.buf, item.mg.meta.csi_len);
+#else
+      ak.frame(AK_CSI, item.ts, (const uint8_t *)&item.mg.meta, sizeof(item.mg.meta), item.buf, item.mg.meta.csi_len);
+#endif
       xSemaphoreGive(txLock);
     }
   }

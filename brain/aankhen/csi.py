@@ -13,8 +13,15 @@ it produces a specific, known failure:
                invalid (first_word_invalid covers the first 4 bytes).
 3. AMPLITUDE   |CSI|, not phase. Between two unsynchronised radios the raw phase is
                dominated by per-packet carrier and timing offsets.
-4. NORMALISE   Divide each packet by its own median amplitude, so automatic gain
-               steps in the router or the ESP32 don't masquerade as motion.
+4. NORMALISE   With the receiver gain reported (CSI_GAIN frames): undo it exactly,
+               then divide by a SLOW reference (EMA of the median, 30 s), so a
+               person moving the whole channel up and down is kept. Without it:
+               divide each packet by its own median amplitude, so the ESP32's
+               automatic gain jumps don't masquerade as motion — at a price: on
+               the physical simulator that removed 90-99 % of a walker's signal,
+               which is mostly common to all subcarriers (rf.py, 2026-10-10).
+               Either way each sample carries a LEVEL in dB: the compensated
+               median (fine) or, without gain, the packet's RSSI (1 dB steps).
 5. RESAMPLE    Put packets on a uniform 100 Hz grid: at most one packet per 10 ms
                slot, short gaps forward-filled, long gaps (> 0.25 s) break the
                stream. The real arrival rate is MEASURED, never assumed — one
@@ -79,6 +86,8 @@ class Sample:
     t: float                 # slot time, seconds (device clock)
     amp: np.ndarray          # normalised amplitudes (51,)
     filled: bool             # True if forward-filled, not a real packet
+    level_db: Optional[float] = None    # overall level: compensated median, or RSSI
+    level_fine: bool = False            # True: from the reported gain; False: 1 dB RSSI
 
 
 class UniformResampler:
@@ -117,7 +126,8 @@ class UniformResampler:
     def _slot(self, t: float) -> int:
         return int(np.floor((t - self._t0) / self.dt + 0.5))
 
-    def push(self, t: float, amp: np.ndarray) -> list[Sample]:
+    def push(self, t: float, amp: np.ndarray, level_db: Optional[float] = None,
+             level_fine: bool = False) -> list[Sample]:
         out: list[Sample] = []
         if self._t0 is None:
             self._t0 = t
@@ -133,10 +143,10 @@ class UniformResampler:
             self._last = None
         for k in range(self._next_slot, self._next_slot + missing):
             if self._last is not None:
-                out.append(Sample(self._t0 + k * self.dt, self._last, True))
+                out.append(Sample(self._t0 + k * self.dt, self._last[0], True, *self._last[1:]))
                 self.filled += 1
-        out.append(Sample(self._t0 + slot * self.dt, amp, False))
-        self._last = amp
+        out.append(Sample(self._t0 + slot * self.dt, amp, False, level_db, level_fine))
+        self._last = (amp, level_db, level_fine)
         self._next_slot = slot + 1
         self.emitted += len(out)
         return out
@@ -183,7 +193,7 @@ class HampelFilter:
         if bad.any():
             self.replaced += int(bad.sum())
             amp = np.where(bad, med, centre.amp)
-            return Sample(centre.t, amp, centre.filled)
+            return Sample(centre.t, amp, centre.filled, centre.level_db, centre.level_fine)
         return centre
 
 
@@ -210,6 +220,8 @@ class RateMeter:
 class CsiConditioner:
     """Full chain: raw packet -> list of clean, uniformly-spaced samples."""
 
+    REF_TAU_S = 30.0          # slow reference for gain-compensated amplitudes
+
     def __init__(self, rate_hz: float = 100.0):
         self.rate = RateMeter()
         self.resampler = UniformResampler(rate_hz)
@@ -217,9 +229,17 @@ class CsiConditioner:
         self.rejected = 0
         self.last_rssi: Optional[int] = None
         self.last_raw_amp: Optional[np.ndarray] = None
+        self.gain_packets = 0             # packets that came with a usable gain
+        self._ref: Optional[float] = None
+        self._ref_t: Optional[float] = None
+
+    @property
+    def compensated(self) -> bool:
+        """True once gain-compensated packets are flowing (CSI_GAIN firmware)."""
+        return self.gain_packets > 0
 
     def push(self, t: float, raw: bytes, rssi: Optional[int] = None,
-             rx_ok: bool = True) -> list[Sample]:
+             rx_ok: bool = True, gain_comp_db: Optional[float] = None) -> list[Sample]:
         if not rx_ok:
             self.rejected += 1
             return []
@@ -227,15 +247,33 @@ class CsiConditioner:
         if amp is None:
             self.rejected += 1
             return []
-        norm = normalise(amp)
-        if norm is None:
-            self.rejected += 1
-            return []
+        if gain_comp_db is not None:
+            absolute = amp * 10 ** (gain_comp_db / 20)
+            med = float(np.median(absolute))
+            if med <= 1e-9:
+                self.rejected += 1
+                return []
+            # Slow reference: follows the room over ~30 s, so a person's movement
+            # (seconds) stays in the samples while slow drift is divided out.
+            if self._ref is None or self._ref_t is None or t - self._ref_t > 5.0:
+                self._ref = med
+            else:
+                a = min(1.0, (t - self._ref_t) / self.REF_TAU_S)
+                self._ref = (1 - a) * self._ref + a * med
+            self._ref_t = t
+            norm, level, fine = absolute / self._ref, 20 * float(np.log10(med)), True
+            self.gain_packets += 1
+        else:
+            norm = normalise(amp)
+            if norm is None:
+                self.rejected += 1
+                return []
+            level, fine = (float(rssi) if rssi is not None else None), False
         self.rate.tick(t)
         self.last_rssi = rssi
         self.last_raw_amp = amp
         out = []
-        for s in self.resampler.push(t, norm):
+        for s in self.resampler.push(t, norm, level, fine):
             clean = self.hampel.push(s)
             if clean is not None:
                 out.append(clean)

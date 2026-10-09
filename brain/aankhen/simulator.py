@@ -73,6 +73,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import time
 from dataclasses import asdict, dataclass, field
 from typing import Iterator, Optional
@@ -81,6 +82,7 @@ import numpy as np
 
 from .csi import bin_of
 from .protocol import CsiPacket, Frame, FrameType
+from . import rf
 from .radar import build_frame
 from .room import TORSO_HEIGHT_M, Room, SensorPose, default_room
 from .transport import RECORD_MAGIC, Source
@@ -285,6 +287,10 @@ class Fan:
     rps: float = 4.0                           # 240 rpm, a mid regulator setting
     wobble: float = 0.03                       # +- fractional slow speed variation
     blade_gain: float = 0.015                  # the audit's crossover: 0.005 harmless, 0.015 saturates
+    # Radar cross section of one blade at 2.4 GHz for the physical radio model. A flat
+    # 0.5 x 0.12 m blade is ~3 m^2 at exact specular incidence and far less elsewhere;
+    # 0.03 m^2 is an orientation-averaged ASSUMPTION until a fan is recorded.
+    blade_rcs_m2: float = 0.03
     radar_p: float = 0.0                       # chance per radar frame the LD2450 reports the blades
     on: list = field(default_factory=list)     # relay-on intervals [(t_on, t_off), ...]
     spin_up_s: float = 4.0
@@ -549,6 +555,54 @@ class CsiChannelModel:
         return H + noise[0] + 1j * noise[1]
 
 
+class PhysicalCsiModel:
+    """CSI from rf.py: room geometry, wall losses, bistatic body parts, knife-edge
+    shadowing and the ESP32 receiver (AGC steps, noise at the link's real SNR, phase
+    impairments, int8). The default radio since 2026-10-10; CsiChannelModel above is
+    kept as radio="simple" so old and new can be compared on the same scripts."""
+
+    STRIDE_M = 1.3                              # a full gait cycle covers ~1.3 m
+
+    def __init__(self, room: Room, tx: SensorPose, rx: SensorPose,
+                 channel_rng: np.random.Generator, rng: np.random.Generator,
+                 fan: Optional[FanState] = None, drift: Optional[Drift] = None,
+                 params: Optional[rf.RFParams] = None):
+        self.ch = rf.Channel(room, tx, rx, params, channel_rng)
+        self.receiver = rf.Esp32Receiver(self.ch, rng)
+        self.rng = rng
+        self.fan, self.drift = fan, drift
+        self._heading: dict[str, float] = {}
+        self._gait: dict[str, float] = {}
+        self._phase0: dict[str, float] = {}
+        self._t: Optional[float] = None
+
+    def bodies(self, t: float, people: list[TruthState]) -> list[rf.Body]:
+        dt = 0.0 if self._t is None else max(0.0, t - self._t)
+        self._t = t
+        out = []
+        for p in people:
+            speed = math.hypot(p.vx, p.vy)
+            if speed > 0.05:
+                self._heading[p.name] = math.atan2(p.vy, p.vx)
+            heading = self._heading.setdefault(p.name, float(self.rng.uniform(0, 2 * math.pi)))
+            g = self._gait.get(p.name, 0.0) + 2 * math.pi * speed / self.STRIDE_M * dt
+            self._gait[p.name] = g
+            ph0 = self._phase0.setdefault(p.name, float(self.rng.uniform(0, 2 * math.pi)))
+            chest = (p.chest_m if p.chest_m is not None
+                     else 0.003 * math.sin(2 * math.pi * p.breathing_bpm / 60.0 * t + ph0))
+            out.append(rf.Body(p.name, p.x, p.y, heading, p.posture, speed, g, chest))
+        return out
+
+    def capture(self, t: float, people: list[TruthState]) -> tuple[np.ndarray, int]:
+        H = self.ch.response(self.bodies(t, people), self.drift.phase(t) if self.drift else 0.0)
+        if self.fan is not None:
+            self.fan.advance(t)
+            if self.fan.rps > 0.05:
+                blades = self.fan.blades()
+                H = H + self.ch.scatter(np.array(blades), np.full(len(blades), self.fan.fan.blade_rcs_m2))
+        return self.receiver.capture(H)
+
+
 class RadarModel:
     """What an LD2450 would report for the current bodies (sensor frame)."""
 
@@ -674,7 +728,8 @@ class Simulator:
     def __init__(self, room: Optional[Room] = None, scenario: Optional[Scenario] = None,
                  seed: int = 0, csi_rate_hz: float = 100.0, radar_rate_hz: float = 10.0,
                  loss: float = 0.03, corrupt: float = 0.002, snr_db: float = 28.0,
-                 agc_step_p: float = 0.0005, channel_seed: int = 0):
+                 agc_step_p: float = 0.0005, channel_seed: int = 0, radio: Optional[str] = None,
+                 rf_params: Optional["rf.RFParams"] = None, gain_report: Optional[bool] = None):
         self.room = room or default_room()
         self.scenario = scenario or scenario_evening()
         # The script's own random parts (fidgets, sighs) have their own generator.
@@ -686,7 +741,7 @@ class Simulator:
         self.boot_us = 5_000_000
         self.t = 0.0
         self._next = {"csi": 0.0, "radar": 0.003, "status": 0.5}
-        self._seq = {FrameType.CSI: 0, FrameType.RADAR: 0, FrameType.STATUS: 0}
+        self._seq = {FrameType.CSI: 0, FrameType.CSI_GAIN: 0, FrameType.RADAR: 0, FrameType.STATUS: 0}
         self._burst_until = -1.0
         self._agc_db = 0.0
         self.stats = SimStats()
@@ -698,7 +753,18 @@ class Simulator:
         # The static multipath is the ROOM, so it has its own seed: calibrating on
         # one seed and testing on another would be calibrating in a different room.
         self.csi = None
-        if tx and rx:
+        # AANKHEN_RADIO=simple reruns anything (the bench's worker processes too) on the
+        # old textbook-lite model, for before/after comparisons.
+        radio = radio or os.environ.get("AANKHEN_RADIO", "physical")
+        self.radio = radio
+        # Whether the simulated firmware reports its receiver gain (CSI_GAIN frames,
+        # Espressif's esp_csi_gain_ctrl). AANKHEN_GAIN=0 simulates firmware without it.
+        self.gain_report = (gain_report if gain_report is not None
+                            else os.environ.get("AANKHEN_GAIN", "1") != "0")
+        if tx and rx and radio == "physical":
+            self.csi = PhysicalCsiModel(self.room, tx, rx, np.random.default_rng(channel_seed), self.rng,
+                                        fan=self.fan, drift=self.scenario.drift, params=rf_params)
+        elif tx and rx:
             self.csi = CsiChannelModel(self.room, tx, rx, np.random.default_rng(channel_seed),
                                        snr_db=snr_db, fan=self.fan, drift=self.scenario.drift)
             self.csi.rng = self.rng                   # per-packet noise follows `seed`
@@ -707,7 +773,7 @@ class Simulator:
                                 still_loss_s=self.scenario.radar_still_loss_s,
                                 merge_m=self.scenario.radar_merge_m,
                                 fan=self.fan) if radars else None
-        if self.csi:
+        if self.csi and radio != "physical":
             self._gain = 30.0 / self.csi.rms                  # typical |I|,|Q| ~ 30 counts
 
     # ---- ground truth ----------------------------------------------------
@@ -742,6 +808,20 @@ class Simulator:
             return b""
         if self.rng.random() < 0.0005:
             self._burst_until = t + float(self.rng.uniform(0.1, 0.4))
+        if self.radio == "physical":
+            vals, rssi = self.csi.capture(t, self.truth_at(t))
+            buf = np.zeros(128, dtype=np.int8)
+            buf[2 * _BINS], buf[2 * _BINS + 1] = vals.imag.astype(np.int8), vals.real.astype(np.int8)
+            buf[:4] = self.rng.integers(-128, 128, 4)              # invalid first word
+            jitter_us = int(self.rng.normal(0, 400))
+            nf = int(round(self.csi.ch.noise_floor_dbm()))
+            rcv = self.csi.receiver
+            gains = (rcv.last_agc_gain, 0, rcv.last_comp_db) if self.gain_report else (None, None, None)
+            pkt = CsiPacket(self.boot_us + int(t * 1e6) + jitter_us, 0, rssi, nf, 6, 0, 1, 0, 0, 1,
+                            FAKE_ROUTER_MAC, buf.tobytes(), *gains)
+            self.stats.csi_sent += 1
+            fr = pkt.to_frame()                       # CSI, or CSI_GAIN with the gain block
+            return self._frame(fr.type, t + jitter_us / 1e6, fr.payload)
         if self.rng.random() < self.agc_step_p:
             # Bounded: a real AGC is a loop that keeps the level in range. The first
             # version random-walked without limit — +12 dB after ~4 minutes on one

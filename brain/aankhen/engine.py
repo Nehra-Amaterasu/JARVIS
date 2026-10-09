@@ -173,7 +173,7 @@ class Engine:
         self.motion.radar_empty_s = (t - self._radar_empty_since
                                      if radar_up and self._radar_empty_since is not None else None)
         self.motion.settling = self._csi_settling(t)
-        for s in self.cond.push(t, p.raw, p.rssi):
+        for s in self.cond.push(t, p.raw, p.rssi, gain_comp_db=p.gain_comp_db):
             self.resp.push(s)
             r = self.motion.push(s)
             if r is None:

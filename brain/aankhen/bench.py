@@ -296,12 +296,13 @@ def calibrate_from_bytes(chunks, device_offset_s: float = 0.0, skip_s: float = 0
         for fr in dec.feed(ch):
             p = decode_packet(fr)
             if isinstance(p, CsiPacket):
-                for s in cond.push(p.timestamp_us / 1e6, p.raw, p.rssi):
+                for s in cond.push(p.timestamp_us / 1e6, p.raw, p.rssi, gain_comp_db=p.gain_comp_db):
                     t_first = s.t if t_first is None else t_first
                     resp.push(s)
                     r = det.push(s)
                     if r is not None and s.t - t_first >= skip_s:
-                        cal.add(r.features["mvs"])
+                        cal.add(r.features["mvs"], r.features.get("level_var"),
+                                r.features.get("level_fine"))
     if fan and not det.fan.locked:
         raise RuntimeError("no fan lines found in the capture — is the ceiling fan running?")
     b = cal.finish()

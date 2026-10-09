@@ -94,6 +94,14 @@ class MotionConfig:
     fan_learn_after_s: float = 20.0
     fan_learn_s: float = 60.0
     fan_threshold_scale: float = 2.0
+    # LEVEL CHANNEL. A person moves the whole channel up and down far more than they
+    # reshape it across subcarriers, and the shape-only MVS cannot see that part
+    # (csi.py). Each sample's level (gain-compensated median in dB, or the packet's
+    # RSSI) is detrended over the window; its variance against the empty room's is a
+    # second, independent test (OR-ed with MVS). With RSSI only, the threshold never
+    # goes below level_floor_rssi_db2: a still person's breathing can sit the level
+    # on a 1 dB boundary and flip RSSI between two values, variance <= 0.25 dB^2.
+    level_floor_rssi_db2: float = 0.5
 
     @property
     def window_n(self) -> int:
@@ -138,6 +146,11 @@ class Baseline:
     # by the same calibration. None in baselines saved before it existed: then the
     # breathing evidence stays off until the room is recalibrated.
     resp_floor: Optional[float] = None
+    # Empty-room threshold_quantile of the level channel's variance (dB^2), and
+    # whether that level came from the reported gain (fine) or from RSSI. None in
+    # baselines saved before the channel existed: it stays off until recalibrated.
+    level_q: Optional[float] = None
+    level_fine: Optional[bool] = None
 
     def threshold_ratio(self, scale: float) -> float:
         return scale * self.q_hi / self.median if self.median > 0 else float("inf")
@@ -156,10 +169,14 @@ class Baseline:
 
     @classmethod
     def from_values(cls, mvs: list[float], quantile: float, source: str,
-                    note: str = "") -> "Baseline":
+                    note: str = "", levels: Optional[list] = None,
+                    level_fine: Optional[bool] = None) -> "Baseline":
         arr = np.asarray(mvs, dtype=float)
+        lv = [v for v in (levels or []) if v is not None and np.isfinite(v)]
+        level_q = float(np.quantile(lv, quantile)) if len(lv) >= max(4, len(arr) // 2) else None
         return cls(float(np.median(arr)), float(np.quantile(arr, quantile)),
-                   len(arr), source=source, note=note)
+                   len(arr), source=source, note=note, level_q=level_q,
+                   level_fine=level_fine if level_q is not None else None)
 
 
 class Calibrator:
@@ -168,13 +185,19 @@ class Calibrator:
     def __init__(self, cfg: MotionConfig):
         self.cfg = cfg
         self.values: list[float] = []
+        self.levels: list = []
+        self.level_fine: Optional[bool] = None
 
     @property
     def seconds(self) -> float:
         return len(self.values) * self.cfg.hop_s
 
-    def add(self, mvs: float) -> None:
+    def add(self, mvs: float, level_var: Optional[float] = None,
+            level_fine: Optional[bool] = None) -> None:
         self.values.append(mvs)
+        self.levels.append(level_var)
+        if level_fine is not None:
+            self.level_fine = level_fine
 
     def ready(self) -> bool:
         return self.seconds >= self.cfg.baseline_min_s
@@ -184,7 +207,8 @@ class Calibrator:
             raise RuntimeError(
                 f"need {self.cfg.baseline_min_s:.0f} s of empty room, have {self.seconds:.0f} s")
         return Baseline.from_values(self.values, self.cfg.threshold_quantile, "calibrated",
-                                    f"{self.seconds:.0f} s empty-room capture")
+                                    f"{self.seconds:.0f} s empty-room capture",
+                                    levels=self.levels, level_fine=self.level_fine)
 
 
 # -------------------------------------------------------------- detector
@@ -223,6 +247,8 @@ class MotionDetector:
         self._calibrated = {k: copy(v) for k, v in self._baselines.items()}
         self.context = self.FAN_OFF
         self._turb: deque = deque(maxlen=self.cfg.window_n)
+        self._level: deque = deque(maxlen=self.cfg.window_n)
+        self._level_fine = False
         self._since_eval = 0
         self._on_run = 0
         self._off_run = 0
@@ -230,6 +256,7 @@ class MotionDetector:
         self._last_motion_t: Optional[float] = None
         self._quiet_since: Optional[float] = None
         self._auto: list[float] = []
+        self._auto_level: list = []
         self.last: Optional[MotionReading] = None
         self.evaluations = 0
         # Set by the engine before each push: seconds the radar has been live and
@@ -240,6 +267,7 @@ class MotionDetector:
         self.settling = False
         self._radar_quiet: deque = deque(maxlen=int(round(self.cfg.radar_adapt_after_s / self.cfg.hop_s)))
         self._fan_learn: list[float] = []
+        self._fan_learn_level: list = []
         self.fan = FanLines()
 
     # -- baselines --------------------------------------------------------
@@ -268,6 +296,7 @@ class MotionDetector:
         """Forget the signal history (the engine: the Wi-Fi channel changed). The
         baselines stay; radar-gated adaptation moves them to the new channel."""
         self._turb.clear()
+        self._level.clear()
         self._since_eval = self._on_run = self._off_run = 0
         self._in_motion = False
         self._radar_quiet.clear()
@@ -281,12 +310,20 @@ class MotionDetector:
             self._on_run = self._off_run = 0
             self._radar_quiet.clear()
             self._fan_learn.clear()
+            self._fan_learn_level.clear()
 
     # -- feed -------------------------------------------------------------
     def push(self, s: Sample) -> Optional[MotionReading]:
         """Feed one clean sample; returns a reading every hop, else None."""
         tb = turbulence(s.amp)
         self._turb.append(tb)
+        if s.level_fine != self._level_fine:
+            # RSSI (dBm) and the compensated level (dB of counts) are different
+            # scales: never mix them in one window. The firmware switches once, after
+            # recording its gain baseline (first 100 packets).
+            self._level.clear()
+        self._level.append(s.level_db if s.level_db is not None else float("nan"))
+        self._level_fine = s.level_fine
         self.fan.push(tb)
         self._since_eval += 1
         if len(self._turb) < self.cfg.window_n or self._since_eval < self.cfg.hop_n:
@@ -303,6 +340,8 @@ class MotionDetector:
             feats["mvs_raw"] = feats["mvs"]
             feats["mvs"] = self.fan.residual_variance(turb)
         mvs = feats["mvs"]
+        feats["level_var"] = self._level_var()
+        feats["level_fine"] = self._level_fine
 
         if self.baseline is None and self.context == self.FAN_ON:
             return self._learn_fan_baseline(t, mvs, feats)
@@ -311,10 +350,12 @@ class MotionDetector:
             # room was empty at start-up, which is why it is labelled "auto" and
             # reported with reduced confidence. Run `calibrate` for a real one.
             self._auto.append(mvs)
+            self._auto_level.append(feats["level_var"])
             if len(self._auto) * self.cfg.hop_s >= self.cfg.auto_baseline_s:
                 self.baseline = Baseline.from_values(
                     self._auto, self.cfg.threshold_quantile, "auto",
-                    "assumes the room was empty during the first 30 s after start")
+                    "assumes the room was empty during the first 30 s after start",
+                    levels=self._auto_level, level_fine=self._level_fine)
                 self._calibrated[self.context] = Baseline(**asdict(self.baseline))
             reading = MotionReading(t, STATE_UNCALIBRATED, None, None, 0.0, 0.0,
                                     "collecting a baseline — no decisions yet", feats, "none")
@@ -325,7 +366,11 @@ class MotionDetector:
         score = mvs / b.median if b.median > 0 else 0.0
         scale = self.cfg.fan_threshold_scale if self.context == self.FAN_ON else self.cfg.threshold_scale
         thr = b.threshold_ratio(scale)
-        above = score > thr
+        level_thr = self._level_threshold(b, scale)
+        lv = feats["level_var"]
+        level_over = level_thr is not None and lv is not None and lv > level_thr
+        feats["level_threshold"] = level_thr
+        above = score > thr or level_over
         if above:
             self._on_run += 1
             self._off_run = 0
@@ -345,6 +390,8 @@ class MotionDetector:
         if self._in_motion:
             state = STATE_MOTION
             reason = f"motion {score:.1f}x the empty-room level (threshold {thr:.1f}x)"
+            if level_over:
+                reason += f"; signal level swinging {lv:.2f} dB^2 (threshold {level_thr:.2f})"
         elif self._last_motion_t is not None and t - self._last_motion_t < self.cfg.hold_s:
             state = STATE_RECENT
             reason = f"moved {t - self._last_motion_t:.0f} s ago — probably still here"
@@ -379,20 +426,53 @@ class MotionDetector:
         if (not self.settling and self.radar_empty_s is not None
                 and self.radar_empty_s >= self.cfg.fan_learn_after_s):
             self._fan_learn.append(mvs)
+            self._fan_learn_level.append(feats.get("level_var"))
         need = int(self.cfg.fan_learn_s / self.cfg.hop_s)
         if len(self._fan_learn) >= need:
             b = Baseline.from_values(self._fan_learn, self.cfg.threshold_quantile,
                                      "learned (fan on)",
-                                     f"{self.cfg.fan_learn_s:.0f} s of radar-confirmed empty room, fan running")
+                                     f"{self.cfg.fan_learn_s:.0f} s of radar-confirmed empty room, fan running",
+                                     levels=self._fan_learn_level, level_fine=self._level_fine)
             self._baselines[self.FAN_ON] = b
             self._calibrated[self.FAN_ON] = Baseline(**asdict(b))
             self._fan_learn.clear()
+            self._fan_learn_level.clear()
         reading = MotionReading(t, STATE_UNCALIBRATED, None, None, 0.0, 0.0,
                                 f"fan on: learning its baseline ({len(self._fan_learn) * self.cfg.hop_s:.0f}"
                                 f" of {self.cfg.fan_learn_s:.0f} s with the radar seeing an empty room)",
                                 feats, "none")
         self.last = reading
         return reading
+
+    def _level_var(self) -> Optional[float]:
+        """Variance of the window's level after removing its straight-line trend
+        (breathing and drift are near-linear over 1 s; walking is not), in dB^2."""
+        if len(self._level) < self.cfg.window_n:
+            return None
+        y = np.fromiter(self._level, float)
+        if not np.all(np.isfinite(y)):
+            return None
+        n = y.size
+        tt = np.arange(n) - (n - 1) / 2
+        y = y - y.mean()
+        y = y - tt * (tt @ y) / (tt @ tt)
+        return float(y.var())
+
+    def _level_threshold(self, b: Baseline, scale: float) -> Optional[float]:
+        """None (channel off) without a level calibration, or when the calibration's
+        kind of level (gain / RSSI) differs from what is flowing now."""
+        if b.level_q is None or b.level_fine is None or b.level_fine != self._level_fine:
+            return None
+        # A precaution, not a measured fix: a spinning fan moves the total power
+        # periodically, and 1 dB RSSI steps would turn that into jumps a fan-on
+        # baseline learned in one minute may not cover. The fine, gain-based level
+        # follows the fan smoothly and stays on. (The 11-13 % false "occupied" on 4 of
+        # 10 no-gain fan runs that first suggested this comes from a radar blade
+        # ghost: identical with this channel off, 2026-10-10.)
+        if not b.level_fine and self.context == self.FAN_ON:
+            return None
+        floor = 0.0 if b.level_fine else self.cfg.level_floor_rssi_db2
+        return max(scale * b.level_q, floor)
 
     def _maybe_adapt(self, t: float, mvs: float, state: str) -> None:
         b = self.baseline
@@ -538,6 +618,12 @@ class RespirationDetector:
         Z = X - X.mean(axis=0)
         P = np.abs(np.fft.rfft(Z * self._win[:, None], self._nfft, axis=0)) ** 2
         ratio = P[self._band].mean(axis=0) / np.maximum(P[self._ref].mean(axis=0), 1e-18)
+        # Tried 2026-10-10, kept out: choosing the subcarriers from a ~1 min average of
+        # this ratio, scaling by noise and taking the band-only principal direction
+        # (+0.4 dB), and whitening by the full noise covariance (-1.3 dB). Measured with
+        # aankhen/tests/calibrate_physics.py: this window-local version detects half
+        # the windows at 17.2 dB of physics.py's breathing SNR, 90 % at 19.4 dB,
+        # which is what its own threshold predicts (6x a noise floor of ~12).
         top = np.argsort(ratio)[::-1][: self.top_k]
         Zt = Z[:, top] / np.maximum(Z[:, top].std(axis=0), 1e-12)
         Zt = Zt - Zt.mean(axis=0)

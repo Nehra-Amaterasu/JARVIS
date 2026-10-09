@@ -112,3 +112,5 @@ app/data/
 app/ui/dist/
 app/ui/node_modules/
 brain/aankhen/baseline.json
+brain/aankhen/baseline_fan.json
+brain/aankhen/rf_calibration.json

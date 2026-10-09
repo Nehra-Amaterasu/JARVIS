@@ -10,6 +10,96 @@ Format per entry: **Context → Decision → Evidence → Consequences / open it
 
 ---
 
+## 2026-10-10 — Aankhen on real physics: the ESP32's gain, and what one link can sense
+
+**Context.** Can one ESP32-S3, with no radar yet, sense small movements through Wi-Fi
+CSI, and is the code scientifically sound? The simulator used to answer that was
+"a few lines of textbook physics" and contained physical errors:
+- breathing changed the path by 2 × chest everywhere, which holds only for a
+  co-located radar;
+- the body's echo followed an invented decay;
+- walls were not modelled;
+- the body's shadow had an invented depth.
+Every detector threshold had been tuned against it. Full derivations and tables:
+`docs/design/aankhen-physics.md`.
+
+**Decision.**
+- `aankhen/rf.py`: the channel from first principles.
+  - Paths: Friis direct path; image-method wall, floor and ceiling bounces; bistatic
+    radar equation per body part (RCS 0.73 m², 3GPP TR 38.901); ITU-R P.2040 wall loss
+    (23 cm brick ≈ 6.4 dB); ITU-R P.526 knife-edge body shadowing; breathing as a real
+    chest displacement along its normal, so the bounce path changes by δ·n·(u_tx + u_rx).
+  - ESP32-S3 receiver: thermal noise, a 28 dB CSI floor (S3 measured: amplitude SD
+    0.035–0.037), near-random per-packet AGC (Portner et al., IEEE IoT-J 2026), a gain
+    report with error, phase scrambling, int8.
+  - It is the simulator's default radio; `AANKHEN_RADIO=simple` reruns the old one.
+- `aankhen/physics.py` + `python -m aankhen physics`: per-spot predictions of
+  breathing and walking visibility, for both pipelines, over several draws of unlisted
+  clutter. `--place` searches ESP32 positions. Blind spots are thin bands (3 cm of chest
+  movement flips one), so the analysis reports probabilities over positions and facing.
+- **Undo the gain instead of dividing it away.** Through a wall a person moves the
+  whole channel up and down far more than they reshape it. Dividing each packet by its
+  median removed 90–99 % of a walker's signal.
+  - The firmware (3.1.0) sends `CSI_GAIN` frames when Espressif's `esp_csi_gain_ctrl`
+    is installed.
+  - The host restores absolute amplitudes against a 30 s reference.
+  - The motion detector gained an OR-ed level test: the compensated level, or RSSI
+    with a 0.5 dB² floor.
+- `python -m aankhen validate`: a guided real-room session. Breathing is paced by a
+  metronome (12/min), so the true rate is known without another sensor. It also
+  measures the room's slow wander and the gain-compensation error and stores them for
+  `physics`.
+- `aankhen/tests/calibrate_physics.py` ties the model to the detector: 40 still people
+  at random poses, 4 rooms.
+
+**Evidence** (simulator; median / worst of 10 runs):
+
+| | toy radio, old pipeline | physics, old pipeline | **physics, new + gain** |
+|---|---|---|---|
+| Wi-Fi motion recall, evening | 80 / 77 % | 51 / 17 % | **77 / 74 %** |
+| Wi-Fi motion recall, walk | 91 / 90 % | 70 / 33 % | **91 / 90 %** |
+| Wi-Fi motion recall, two people | 97 / 87 % | 49 / 0 % | **89 / 87 %** |
+| sleeper called "empty" | 0 / 0 % | 71 / 85 % | **12** / 85 % |
+
+Without the gain report the new pipeline still helps (worst-case walk recall 33 →
+47 %), but no still pose's breathing was detected (0 of 40). Breathing detector
+calibrated: 50 % of windows pass at 17.2 dB, 90 % at 19.4 dB, matching its own
+threshold arithmetic. Breathing visibility then hinges on the compensation error:
+
+| compensation error | desk likely | bed likely |
+|---|---|---|
+| 0.05 dB | 85 % | 51 % |
+| 0.25 dB | 49 % | 20 % |
+| none reported | 1 % | 1 % |
+
+**Measured and rejected:**
+- sanitised phase for breathing: +1 point;
+- lag-1 autocorrelation as the motion statistic: worse, because the conditioner's
+  gap-filling correlates samples;
+- per-subcarrier energy on normalised amplitudes: worse;
+- two breathing-detector variants: +0.4 / −1.3 dB.
+
+Found on the way: the simulator wrapped gain payloads in plain CSI headers, so every
+subcarrier was read two bins off. A regression test now covers it.
+
+**Consequences / open items.**
+- The 3 previously-calibrated breathing verdicts were guesses 13 dB too generous; the
+  shared (common-mode) compensation error had been treated as independent noise.
+- Firmware with the gain library: compiles without it (69 % flash). Linking the
+  closed `.a` under Arduino is untested.
+- Count accuracy for a sleeper: 76 % worst. The still-track hold can expire before
+  breathing confirms.
+- Fan-blade radar ghosts in 2 of 5 seeds (tracker). Identical with the new level
+  channel off.
+- With the router in the hallway, walking outside looks 0.96× as strong as inside;
+  one link cannot tell them apart. A transmitter inside the room (a second ESP32)
+  would fix that.
+- Still presence that must not fail (sleep) needs the LD2410C (24 GHz: 3 mm of chest
+  motion is ~3 rad instead of 0.3).
+- The real room (room.json, `validate`) replaces every assumption above.
+
+---
+
 ## 2026-10-09 — Aankhen: Wi-Fi may hold a room, never fill it; sleepers stay; fans don't count
 
 **Context.** A multi-seed audit of Aankhen on the simulator found the single-seed bench

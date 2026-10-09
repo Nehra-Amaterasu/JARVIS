@@ -29,6 +29,7 @@ typedef enum : uint8_t {
   AK_STATUS = 0x03,  // 1 Hz device health, JSON text
   AK_LOG = 0x04,     // free-text log line (never plain prints: they'd break framing)
   AK_RSSI = 0x05,
+  AK_CSI_GAIN = 0x07,  // a CSI capture plus the receiver gain it was taken with
 } ak_type_t;
 
 #pragma pack(push, 1)
@@ -54,10 +55,29 @@ typedef struct {
   uint8_t mac[6];
   uint16_t csi_len;
 } ak_csi_meta_t;
+
+// Mirrors CSI_GAIN_FMT = "<Bbh" in protocol.py. In AK_CSI_GAIN frames it sits between
+// the metadata and the CSI buffer. comp_cdb = 2000 * log10(compensation factor), the
+// factor from esp_csi_gain_ctrl_get_gain_compensation; AK_GAIN_UNKNOWN while the
+// gain baseline is still being recorded.
+typedef struct {
+  uint8_t agc_gain;
+  int8_t fft_gain;
+  int16_t comp_cdb;
+} ak_csi_gain_t;
+
+typedef struct {
+  ak_csi_meta_t meta;
+  ak_csi_gain_t gain;
+} ak_csi_meta_gain_t;
 #pragma pack(pop)
+
+#define AK_GAIN_UNKNOWN (-32768)
 
 static_assert(sizeof(ak_header_t) == 16, "header must be 16 bytes (HEADER_FMT <2sBBHHQ)");
 static_assert(sizeof(ak_csi_meta_t) == 16, "CSI meta must be 16 bytes (CSI_META_FMT)");
+static_assert(sizeof(ak_csi_gain_t) == 4, "gain block must be 4 bytes (CSI_GAIN_FMT)");
+static_assert(sizeof(ak_csi_meta_gain_t) == 20, "meta + gain must be contiguous");
 
 // CRC-16/CCITT-FALSE: poly 0x1021, init 0xFFFF, no reflection, no xorout.
 // Check value for "123456789" is 0x29B1 — the same vector the Python tests assert,

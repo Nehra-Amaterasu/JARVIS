@@ -54,6 +54,7 @@ class FrameType(enum.IntEnum):
     LOG = 0x04           # free-text log line from the firmware
     RSSI = 0x05          # RSSI-only sample (fallback when CSI is unavailable)
     COMMAND = 0x06       # host -> device, JSON: {"relay": "light", "on": true}
+    CSI_GAIN = 0x07      # a CSI capture plus the receiver gain it was taken with
 
 
 # Largest legitimate payload per frame type. Validating LENGTH against the TYPE —
@@ -70,6 +71,7 @@ MAX_PAYLOAD_BY_TYPE = {
     0x04: 512,
     0x05: 32,
     0x06: 256,
+    0x07: 16 + 4 + 640,
 }
 
 
@@ -132,6 +134,16 @@ class Frame:
 #   cwb u8 | stbc u8 | first_word_invalid u8 | mac 6s | csi_len u16 | csi int8[len]
 CSI_META_FMT = "<bbBBBBBB6sH"
 CSI_META_SIZE = struct.calcsize(CSI_META_FMT)     # 16
+# CSI_GAIN frames insert a gain block between the metadata and the buffer:
+#   agc_gain u8 | fft_gain i8 | comp_cdb i16
+# agc_gain and fft_gain are what Espressif's esp_csi_gain_ctrl reads from reserved
+# bits of the ESP32-S3's rx_ctrl. comp_cdb is the compensation the firmware computed
+# with esp_csi_gain_ctrl_get_gain_compensation, in hundredths of a dB: multiplying
+# the amplitudes by 10^(comp_cdb / 2000) undoes the packet's automatic gain.
+# GAIN_UNKNOWN means the firmware could not compute it.
+CSI_GAIN_FMT = "<Bbh"
+CSI_GAIN_SIZE = struct.calcsize(CSI_GAIN_FMT)     # 4
+GAIN_UNKNOWN = -32768
 
 
 @dataclass
@@ -156,6 +168,13 @@ class CsiPacket:
     first_word_invalid: int  # ESP-IDF flag: first 4 bytes of buf are garbage
     mac: bytes
     raw: bytes
+    agc_gain: Optional[int] = None       # CSI_GAIN frames only
+    fft_gain: Optional[int] = None
+    gain_comp_db: Optional[float] = None # dB to add to undo the automatic gain
+
+    @property
+    def has_gain(self) -> bool:
+        return self.gain_comp_db is not None
 
     @property
     def n_subcarriers(self) -> int:
@@ -163,21 +182,31 @@ class CsiPacket:
 
     @classmethod
     def from_frame(cls, f: Frame) -> "CsiPacket":
-        if len(f.payload) < CSI_META_SIZE:
+        gain = f.type == FrameType.CSI_GAIN
+        head = CSI_META_SIZE + (CSI_GAIN_SIZE if gain else 0)
+        if len(f.payload) < head:
             raise ValueError("CSI payload shorter than its metadata block")
         (rssi, nf, ch, ch2, sig, cwb, stbc, fwi, mac, n) = struct.unpack_from(
             CSI_META_FMT, f.payload)
-        raw = f.payload[CSI_META_SIZE:CSI_META_SIZE + n]
+        agc = fft = comp = None
+        if gain:
+            agc, fft, cdb = struct.unpack_from(CSI_GAIN_FMT, f.payload, CSI_META_SIZE)
+            comp = None if cdb == GAIN_UNKNOWN else cdb / 100.0
+        raw = f.payload[head:head + n]
         if len(raw) != n:
             raise ValueError(f"CSI buffer truncated: header says {n}, got {len(raw)}")
         return cls(f.timestamp_us, f.seq, rssi, nf, ch, ch2, sig, cwb, stbc, fwi,
-                   mac, raw)
+                   mac, raw, agc, fft, comp)
 
     def to_frame(self) -> Frame:
         meta = struct.pack(CSI_META_FMT, self.rssi, self.noise_floor, self.channel,
                            self.secondary_channel, self.sig_mode, self.cwb, self.stbc,
                            self.first_word_invalid, self.mac, len(self.raw))
-        return Frame(FrameType.CSI, self.seq, self.timestamp_us, meta + self.raw)
+        if self.agc_gain is None and self.gain_comp_db is None:
+            return Frame(FrameType.CSI, self.seq, self.timestamp_us, meta + self.raw)
+        cdb = GAIN_UNKNOWN if self.gain_comp_db is None else             max(-32767, min(32767, int(round(self.gain_comp_db * 100))))
+        gain = struct.pack(CSI_GAIN_FMT, self.agc_gain or 0, self.fft_gain or 0, cdb)
+        return Frame(FrameType.CSI_GAIN, self.seq, self.timestamp_us, meta + gain + self.raw)
 
 
 @dataclass
@@ -325,7 +354,7 @@ class StreamDecoder:
 
 def decode_packet(frame: Frame):
     """Typed view of a frame: CsiPacket, RadarPacket, StatusPacket, or the frame."""
-    if frame.type == FrameType.CSI:
+    if frame.type in (FrameType.CSI, FrameType.CSI_GAIN):
         return CsiPacket.from_frame(frame)
     if frame.type == FrameType.RADAR:
         return RadarPacket.from_frame(frame)

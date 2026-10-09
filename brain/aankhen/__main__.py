@@ -214,6 +214,77 @@ def cmd_simulate(a) -> int:
     return 0
 
 
+def cmd_physics(a) -> int:
+    """Predict, from the physics model, what the Wi-Fi link can sense at every spot."""
+    from .physics import analyse, html_report, search_placement
+    from .room import SensorPose, load_room
+    room, measured = load_room(a.room)
+    if not measured:
+        print("NOTE: no room.json yet, so this uses the default 4 x 4 m layout. Measure your room.")
+    links = room.links or [[s.id for s in room.sensors_of("router")][:1] + [s.id for s in room.sensors_of("esp32")][:1]]
+    tx, rx = room.sensor(links[0][0]), room.sensor(links[0][1])
+    if a.tx:
+        x, y, z = (float(v) for v in a.tx.split(","))
+        tx = SensorPose("tx", "esp32", x, y, z)
+    if a.rx:
+        x, y, z = (float(v) for v in a.rx.split(","))
+        rx = SensorPose("esp32", "esp32", x, y, z)
+    print(f"link {tx.id} ({tx.x}, {tx.y}, {tx.z}) -> {rx.id} ({rx.x}, {rx.y}, {rx.z}); "
+          f"{a.rooms} simulated rooms per pipeline, computing...")
+    reps = {mode: analyse(room, tx, rx, step=a.step, chest_mm=a.chest_mm, mode=mode, rooms=a.rooms)
+            for mode in ("gain", "normalised")}
+    rep = reps["gain"]
+    print(f"RSSI {rep.rssi_dbm} dBm, CSI SNR {rep.csi_snr_db} dB, {rep.walls_on_los} wall(s) on the line of sight")
+    print(f"room wander sigma {rep.sigma_env} ({rep.sigma_env_source})")
+    for mode, label in (("gain", "WITH the gain library"), ("normalised", "WITHOUT it (current firmware)")):
+        print(f" {label}:")
+        for n, z in reps[mode].zones.items():
+            spread = z.get("likely_by_room")
+            rng = f" (rooms: {min(spread):.0%}-{max(spread):.0%})" if spread else ""
+            print(f"  {n:8} {z['posture']:7} breathing likely {z['likely']:.0%}{rng}, unlikely {z['unlikely']:.0%}; "
+                  f"walking seen {z['walk_detect']:.0%}")
+    if rep.outside_vs_inside_motion is not None:
+        print(f"  walking just outside the room looks {rep.outside_vs_inside_motion}x as strong as inside")
+    placements = None
+    if a.place:
+        print("searching ESP32 positions along the walls (a few minutes)...")
+        placements = search_placement(room, tx)
+        for s, p, r in placements[:5]:
+            print(f"  ({p.x:.2f}, {p.y:.2f}, {p.z:.1f} m) score {s:.2f}: " +
+                  ", ".join(f"{n} {z['likely']:.0%}" for n, z in r.zones.items()))
+    out = a.out or os.path.join(RECORDINGS, "physics-report.html")
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+    with open(out, "w", encoding="utf-8") as f:
+        f.write(html_report(room, rep, tx, rx, a.step, placements, compare=reps["normalised"]))
+    print(f"report: {out}")
+    return 0
+
+
+def cmd_validate(a) -> int:
+    """Guided ground-truth session in the real room (validate.py)."""
+    from .room import load_room
+    from .validate import analyse, print_report, run_session, save_calibration
+    if a.analyse:
+        with open(os.path.join(a.analyse, "session.json"), encoding="utf-8") as f:
+            paths = json.load(f)["paths"]
+    else:
+        out = os.path.join(RECORDINGS, "validate-" + time.strftime("%Y%m%d-%H%M%S"))
+        try:
+            paths = run_session(a.port, out, hallway=not a.no_hallway)
+        except RuntimeError as e:
+            print(f"Stopped: {e}")
+            return 1
+    room, measured = load_room()
+    rep = analyse(paths, room if measured else None)
+    print_report(rep)
+    saved = save_calibration(rep)
+    if saved:
+        print(f"room wander saved -> {saved} (physics predictions now use it)")
+    if not measured:
+        print("No measured room.json: the model comparison was skipped.")
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="python -m aankhen", description=__doc__.split("\n")[0])
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -262,9 +333,26 @@ def main(argv=None) -> int:
     m.add_argument("--seed", type=int, default=1)
     m.add_argument("--out")
 
+    ph = sub.add_parser("physics", help="predict what the Wi-Fi link can sense, spot by spot")
+    ph.add_argument("--room", help="room layout JSON (default: aankhen/room.json)")
+    ph.add_argument("--out", help="HTML report path (default: recordings/physics-report.html)")
+    ph.add_argument("--step", type=float, default=0.2, help="grid cell size in metres")
+    ph.add_argument("--chest-mm", type=float, default=3.0, help="peak chest displacement")
+    ph.add_argument("--place", action="store_true", help="also search the best ESP32 position")
+    ph.add_argument("--tx", metavar="X,Y,Z", help="override the transmitter position")
+    ph.add_argument("--rx", metavar="X,Y,Z", help="override the ESP32 position")
+    ph.add_argument("--rooms", type=int, default=3,
+                    help="draws of the unlisted clutter to average over (the spread is reported)")
+
+    v = sub.add_parser("validate", help="guided ground-truth session in the real room")
+    v.add_argument("--port")
+    v.add_argument("--analyse", metavar="DIR", help="re-analyse a previous session's recordings")
+    v.add_argument("--no-hallway", action="store_true", help="skip the walk outside the door")
+
     a = p.parse_args(argv)
     return {"doctor": cmd_doctor, "serve": cmd_serve, "record": cmd_record,
-            "calibrate": cmd_calibrate, "bench": cmd_bench, "simulate": cmd_simulate}[a.cmd](a)
+            "calibrate": cmd_calibrate, "bench": cmd_bench, "simulate": cmd_simulate,
+            "physics": cmd_physics, "validate": cmd_validate}[a.cmd](a)
 
 
 if __name__ == "__main__":

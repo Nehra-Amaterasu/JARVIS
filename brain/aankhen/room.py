@@ -43,6 +43,10 @@ class Zone:
     # How a STILL person in this zone is usually posed ("seated" at a desk, "lying"
     # on a bed). Used to pick the torso height for the slant-range projection.
     posture: Optional[str] = None
+    # Which way a person here usually faces, degrees in the floor plane (0 = +x, 90 =
+    # +y); for "lying", the direction from feet to head. Breathing visibility depends
+    # on it (physics.py), so the analysis uses it when given, any direction when not.
+    facing_deg: Optional[float] = None
 
     def contains(self, x: float, y: float) -> bool:
         return point_in_polygon(x, y, self.polygon)
@@ -253,9 +257,9 @@ def default_room() -> Room:
         width=4.0, depth=4.0, height=2.8,
         zones=[
             Zone("desk", [[0.0, 0.0], [1.6, 0.0], [1.6, 1.2], [0.0, 1.2]], "#4FC3F7", True,
-                 posture="seated"),
+                 posture="seated", facing_deg=-90.0),          # facing the desk on the y=0 wall
             Zone("bed", [[2.2, 2.0], [4.0, 2.0], [4.0, 4.0], [2.2, 4.0]], "#BA68C8", True,
-                 posture="lying"),
+                 posture="lying", facing_deg=90.0),            # head toward the y=4 wall
             Zone("floor", [[1.6, 0.0], [4.0, 0.0], [4.0, 2.0], [1.6, 2.0]], "#81C784"),
             Zone("door", [[0.0, 3.0], [0.8, 3.0], [0.8, 4.0], [0.0, 4.0]], "#FFB74D",
                  is_exit=True),

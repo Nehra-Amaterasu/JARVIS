@@ -182,7 +182,7 @@ def search_authored(query: str, top_k: int = 4, user_id: str = USER_ID):
 FRAGMENT_MAX_DISTANCE = 0.32
 
 # Sources never retrieved on the hot path:
-#   claude            — Amreesh's past instructions to an AI coding assistant
+#   claude            — my own dev-session logs: instructions while building this
 #                       ("push to git, fix the folders"). Retrieved, the model
 #                       read them as CURRENT orders and started talking about
 #                       spark-website and git mid-conversation.
@@ -209,7 +209,7 @@ def search_fragments(query: str, top_k: int = 3, user_id: str = USER_ID):
     return [r for r in rows if r.get("_distance", 1.0) <= FRAGMENT_MAX_DISTANCE]
 
 
-def get_context(user_input: str) -> str:
+def get_context(user_input: str, fragments: bool = True) -> str:
     """Retrieve relevant memories, formatted for the system prompt.
 
     Two labelled channels:
@@ -228,7 +228,7 @@ def get_context(user_input: str) -> str:
     except Exception as e:
         print(f"\n[Yaadash authored-search error: {e}]")
     try:
-        frags = search_fragments(user_input, top_k=3)
+        frags = search_fragments(user_input, top_k=3) if fragments else []
     except Exception as e:
         print(f"\n[Yaadash fragment-search error: {e}]")
     if not facts and not frags:

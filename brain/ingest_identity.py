@@ -72,7 +72,7 @@ def main():
     rows, skipped = [], 0
     for section, fact in parse(md):
         # The preamble (before the first "## " heading) holds rules ABOUT this file
-        # ("Only facts Amreesh stated...") — instructions to the editor, not facts.
+        # ("Only facts stated or confirmed...") — notes to the editor, not facts.
         if not section or section.lower().startswith(SKIP_SECTIONS):
             skipped += 1
             continue

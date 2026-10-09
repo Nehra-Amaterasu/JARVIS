@@ -21,26 +21,42 @@ def test_point_in_concave_polygon():
     assert not point_in_polygon(2, 2, L)                      # the notch
 
 
-def test_radar_straight_ahead_no_tilt():
+def test_radar_straight_ahead_body_at_sensor_height():
     r = Room()
-    s = SensorPose("r", "ld2450", 1.0, 0.0, 1.0, yaw_deg=90, pitch_deg=0)
-    x, y = r.radar_to_room(s, 0.0, 2.0)                      # 2 m straight ahead
+    s = SensorPose("r", "ld2450", 1.0, 0.0, 1.1, yaw_deg=90, pitch_deg=0)
+    x, y = r.radar_to_room(s, 0.0, 2.0, body_height_m=1.1)   # dh = 0: slant == floor
     assert math.isclose(x, 1.0, abs_tol=1e-9) and math.isclose(y, 2.0, abs_tol=1e-9)
 
 
 def test_radar_lateral_is_to_the_right_of_boresight():
     r = Room()
-    s = SensorPose("r", "ld2450", 1.0, 0.0, 1.0, yaw_deg=90)   # facing +y
-    x, y = r.radar_to_room(s, 0.5, 2.0)                      # +x = sensor's right
+    s = SensorPose("r", "ld2450", 1.0, 0.0, 1.1, yaw_deg=90)   # facing +y
+    x, y = r.radar_to_room(s, 0.5, 2.0, body_height_m=1.1)   # +x = sensor's right
     assert math.isclose(x, 1.5, abs_tol=1e-9)                 # right of +y is +x
     assert math.isclose(y, 2.0, abs_tol=1e-9)
 
 
-def test_radar_tilt_shortens_ground_distance():
+def test_slant_range_converts_to_floor_distance():
+    # Sensor at 1.8 m, standing torso at 1.1 m: dh = 0.7. A reported y of 1.0 m
+    # is slant range, so the person is sqrt(1 - 0.49) = 0.714 m away on the floor.
     r = Room()
-    s = SensorPose("r", "ld2450", 0.0, 0.0, 2.0, yaw_deg=0, pitch_deg=30)
-    x, _ = r.radar_to_room(s, 0.0, 2.0)
-    assert math.isclose(x, 2.0 * math.cos(math.radians(30)), rel_tol=1e-9)
+    s = SensorPose("r", "ld2450", 0.0, 0.0, 1.8, yaw_deg=0, pitch_deg=15)
+    x, _ = r.radar_to_room(s, 0.0, 1.0, body_height_m=1.1)
+    assert math.isclose(x, math.sqrt(1.0 - 0.49), rel_tol=1e-9)
+
+
+def test_tilt_does_not_change_the_conversion():
+    r = Room()
+    a = SensorPose("r", "ld2450", 0.0, 0.0, 1.8, yaw_deg=0, pitch_deg=0)
+    b = SensorPose("r", "ld2450", 0.0, 0.0, 1.8, yaw_deg=0, pitch_deg=30)
+    assert r.radar_to_room(a, 0.3, 2.5) == r.radar_to_room(b, 0.3, 2.5)
+
+
+def test_reading_inside_height_offset_clamps_to_zero():
+    r = Room()
+    s = SensorPose("r", "ld2450", 0.0, 0.0, 1.8, yaw_deg=0)
+    x, _ = r.radar_to_room(s, 0.0, 0.5, body_height_m=1.1)   # 0.5 < dh = 0.7
+    assert x == 0.0
 
 
 def test_fov_check():

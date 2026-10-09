@@ -100,17 +100,25 @@ class Room:
         return -margin <= x <= self.width + margin and -margin <= y <= self.depth + margin
 
     # ---- geometry ------------------------------------------------------
-    def radar_to_room(self, sensor: SensorPose, sx: float, sy: float) -> tuple[float, float]:
+    def radar_to_room(self, sensor: SensorPose, sx: float, sy: float,
+                      body_height_m: float = 1.1) -> tuple[float, float]:
         """Convert a radar's own (x lateral, y forward) reading to room x, y.
 
-        The LD2450 reports x = lateral offset (+ right of boresight) and y = range
-        along boresight, both in its own plane. If the radar is tilted down by
-        `pitch`, the reported forward distance is a slant range, so the ground
-        distance is y*cos(pitch) — ignoring that makes far targets appear further
-        away than they are.
+        The LD2450 has one transmitter and two receivers on a single horizontal
+        line, so it measures range and azimuth but NO elevation. It reports
+        x = r*sin(theta) and y = r*cos(theta), where r is the 3D distance to the
+        reflecting body part. With no roll, x is the true sideways offset, and
+        x^2 + y^2 = r^2 = x^2 + d^2 + dh^2, so the horizontal forward distance is
+
+            d = sqrt(max(y^2 - dh^2, 0)),   dh = sensor height - body height.
+
+        Tilting the sensor changes what it can SEE (coverage), not this formula.
+        An earlier version used y*cos(pitch), which assumes the person sits on the
+        tilted boresight; with a 1.8 m sensor and a standing person that is ~0.3 m
+        wrong at 1 m. body_height_m ~1.1 m for a standing torso, ~0.7 m seated.
         """
-        pitch = math.radians(sensor.pitch_deg)
-        forward = sy * math.cos(pitch)
+        dh = sensor.z - body_height_m
+        forward = math.sqrt(max(sy * sy - dh * dh, 0.0))
         lateral = sx
         yaw = math.radians(sensor.yaw_deg)
         # Forward axis = (cos yaw, sin yaw); right-hand lateral = (sin yaw, -cos yaw).

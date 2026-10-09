@@ -1,0 +1,823 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Aankhen — Spatial Twin</title>
+<!--
+  Aankhen spatial twin: a live 3D model of the room driven by the Aankhen server
+  (python -m aankhen serve). Single file, no build step: three.js comes from a
+  pinned CDN import map.
+
+  Coordinate convention matches aankhen/room.py: metres, origin at a floor corner,
+  +x along one wall, +y along the adjacent wall, +z up. Everything room-authored
+  lives under one group rotated -90 deg about X, so room (x, y, z) maps to
+  three.js world (x, z, -y) and stays right-handed.
+
+  Honesty rules (the reason this rewrite exists — the previous visualiser showed
+  a position before any data arrived and drew a "signal waveform" that was really
+  a derived index):
+    - The source banner is looked up from a table and NEVER defaults to live.
+    - Anything not from hardware is drawn dashed / desaturated.
+    - Wi-Fi motion is room-level: it is drawn as the pulsing Fresnel zone of the
+      link, never as a blob at a position.
+    - Nothing is drawn until the server sends it ("—" placeholders).
+-->
+<style>
+  :root{
+    --bg:#0b0f17; --panel:#111827e6; --line:#1f2937; --text:#cbd5e1; --dim:#64748b;
+    --live:#16a34a; --sim:#b45309; --bad:#b91c1c; --accent:#38bdf8; --warn:#f59e0b;
+  }
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font:13px/1.35 system-ui,-apple-system,Segoe UI,sans-serif;overflow:hidden}
+  #app{position:fixed;inset:0}
+  .lbl{font:11px ui-monospace,Consolas,monospace;padding:1px 6px;border-radius:3px;
+    background:#000b;color:#e2e8f0;white-space:nowrap}
+  .lbl.sim{border:1px dashed var(--warn);color:#fcd34d}
+  .sensorLbl{font:10px ui-monospace,Consolas,monospace;color:#94a3b8;background:#0008;padding:0 4px;border-radius:2px}
+  #status{position:fixed;top:10px;left:10px;padding:6px 12px;border-radius:5px;font-weight:700;
+    letter-spacing:.02em;z-index:5;box-shadow:0 2px 10px #0008}
+  #status.live{background:var(--live)} #status.sim{background:var(--sim)}
+  #status.stale,#status.down{background:var(--bad)}
+  #panel{position:fixed;top:10px;right:10px;width:310px;max-height:calc(100% - 20px);overflow:auto;
+    background:var(--panel);border:1px solid var(--line);border-radius:8px;z-index:4;backdrop-filter:blur(6px)}
+  #panel section{padding:10px 12px;border-bottom:1px solid var(--line)}
+  #panel section:last-child{border-bottom:none}
+  #panel h3{margin:0 0 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--dim)}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px}
+  .kv span:nth-child(odd){color:var(--dim)} .kv span:nth-child(even){text-align:right;font-variant-numeric:tabular-nums}
+  .big{font-size:22px;font-weight:700} .muted{color:var(--dim)}
+  .pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:700}
+  .pill.on{background:#166534} .pill.off{background:#334155} .pill.sim{background:var(--sim)} .pill.bad{background:var(--bad)}
+  canvas.chart{width:100%;height:70px;display:block;background:#0b1220;border-radius:4px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  td,th{padding:2px 4px;text-align:left} th{color:var(--dim);font-weight:600}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  #hud{position:fixed;bottom:10px;left:10px;display:flex;flex-wrap:wrap;gap:6px;z-index:4;max-width:calc(100% - 350px)}
+  #hud button,#hud label{background:#1e293b;color:var(--text);border:1px solid #334155;border-radius:5px;
+    padding:5px 9px;font:12px system-ui;cursor:pointer;user-select:none}
+  #hud button:hover,#hud label:hover{border-color:var(--accent)}
+  #hud input{vertical-align:middle;margin:0 4px 0 0}
+  #arOverlay{display:none;position:fixed;inset:0;pointer-events:none;z-index:10}
+  #arOverlay .msg{position:absolute;top:16px;left:50%;transform:translateX(-50%);background:#000c;
+    padding:8px 14px;border-radius:6px;pointer-events:auto;max-width:90%;text-align:center}
+  #arOverlay button{pointer-events:auto}
+  @media (max-width:720px){ #panel{width:auto;left:10px;top:auto;bottom:60px;max-height:40%} #hud{max-width:none} }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/",
+  "lil-gui": "https://cdn.jsdelivr.net/npm/lil-gui@0.21.0/dist/lil-gui.esm.min.js"
+} }
+</script>
+</head>
+<body>
+<div id="app"></div>
+<div id="status" class="down">CONNECTING…</div>
+
+<aside id="panel">
+  <section>
+    <h3>Presence</h3>
+    <div><span id="presence" class="big">—</span> <span id="presenceConf" class="muted"></span></div>
+    <div class="muted" id="presenceWhy">waiting for data</div>
+  </section>
+  <section>
+    <h3>Wi-Fi motion <span class="muted" id="motionUnit"></span></h3>
+    <canvas class="chart" id="motionChart" width="600" height="140"></canvas>
+    <div class="kv" style="margin-top:6px">
+      <span>motion score</span><span id="motionVal">—</span>
+      <span>threshold</span><span id="motionThr">—</span>
+      <span>breathing</span><span id="breath">—</span>
+    </div>
+  </section>
+  <section>
+    <h3>CSI spectrum (live amplitudes)</h3>
+    <canvas class="chart" id="csiChart" width="600" height="140"></canvas>
+    <div class="kv" style="margin-top:6px">
+      <span>subcarriers used</span><span id="csiN">—</span>
+      <span>CSI rate</span><span id="csiRate">—</span>
+      <span>RSSI</span><span id="rssi">—</span>
+    </div>
+  </section>
+  <section>
+    <h3>People</h3>
+    <table><thead><tr><th>id</th><th>zone</th><th class="num">speed</th><th class="num">conf</th></tr></thead>
+      <tbody id="people"><tr><td colspan="4" class="muted">no tracks</td></tr></tbody></table>
+  </section>
+  <section>
+    <h3>Zones</h3>
+    <table><thead><tr><th>zone</th><th>now</th><th class="num">dwell</th></tr></thead>
+      <tbody id="zones"><tr><td colspan="3" class="muted">—</td></tr></tbody></table>
+  </section>
+  <section>
+    <h3>Learned hotspots</h3>
+    <table><tbody id="hotspots"><tr><td class="muted">learning…</td></tr></tbody></table>
+  </section>
+  <section>
+    <h3>Sensors &amp; link</h3>
+    <div class="kv" id="sensorKv"><span>—</span><span></span></div>
+  </section>
+</aside>
+
+<div id="hud">
+  <button id="view">2D plan</button>
+  <label><input type="checkbox" id="lyWalls" checked>walls</label>
+  <label><input type="checkbox" id="lyHeat" checked>heatmap</label>
+  <button id="heatLayer">live map</button>
+  <label><input type="checkbox" id="lyFov" checked>radar FOV</label>
+  <label><input type="checkbox" id="lyFresnel" checked>Wi-Fi zone</label>
+  <label><input type="checkbox" id="lyTrails" checked>trails</label>
+  <label><input type="checkbox" id="lyLabels" checked>labels</label>
+  <button id="arBtn" style="display:none">AR</button>
+</div>
+
+<div id="arOverlay">
+  <div class="msg" id="arMsg">Tap the floor directly under the radar.</div>
+</div>
+
+<script>
+  window.__errors = [];
+  addEventListener('error', e => window.__errors.push(String(e.message)));
+  addEventListener('unhandledrejection', e => window.__errors.push('rej:' + String(e.reason)));
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+const d2r = THREE.MathUtils.degToRad;
+const $ = id => document.getElementById(id);
+const SERVER_PORT = 8770;               // python -m aankhen serve (default port)
+
+// ============================================================================
+// Renderer, scene, cameras
+// ============================================================================
+const app = $('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.localClippingEnabled = true;
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+app.appendChild(renderer.domElement);
+const labels = new CSS2DRenderer();
+labels.setSize(innerWidth, innerHeight);
+Object.assign(labels.domElement.style, { position: 'absolute', top: '0', pointerEvents: 'none' });
+app.appendChild(labels.domElement);
+
+const scene = new THREE.Scene();
+const BG = new THREE.Color(0x0b0f17);
+scene.background = BG;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x223344, 2.0));
+const sun = new THREE.DirectionalLight(0xffffff, 1.1); sun.position.set(3, 8, 4); scene.add(sun);
+
+// Room-authored content: room (x, y, z) -> world (x, z, -y).
+const room = new THREE.Group(); room.rotation.x = -Math.PI / 2;
+const arRoot = new THREE.Group(); arRoot.add(room); scene.add(arRoot);
+const roomToWorld = (x, y, z, out) => out.set(x, z, -y);
+
+const persp = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.05, 200);
+const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 200);
+ortho.up.set(0, 0, -1);
+const orbit = new OrbitControls(persp, renderer.domElement);
+orbit.enableDamping = true; orbit.maxPolarAngle = Math.PI * 0.49;
+const pan2d = new OrbitControls(ortho, renderer.domElement);
+pan2d.enableRotate = false; pan2d.enabled = false;
+let camera = persp;
+const PLAN_CUT = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1.2);   // architect's plan cut
+
+function frameCameras(w, d) {
+  const c = roomToWorld(w / 2, d / 2, 0, new THREE.Vector3());
+  persp.position.set(c.x + w * 0.9, Math.max(w, d) * 1.25, c.z + d * 1.4);
+  orbit.target.copy(c);
+  ortho.position.set(c.x, 30, c.z); ortho.lookAt(c); pan2d.target.copy(c);
+  fitOrtho(Math.max(w, d) / 2 + 0.6);
+}
+let orthoHalf = 2.6;
+function fitOrtho(half = orthoHalf) {
+  orthoHalf = half;
+  const a = innerWidth / innerHeight;
+  ortho.left = -half * a; ortho.right = half * a; ortho.top = half; ortho.bottom = -half;
+  ortho.updateProjectionMatrix();
+}
+$('view').onclick = () => {
+  const top = camera === persp;
+  camera = top ? ortho : persp; orbit.enabled = !top; pan2d.enabled = top;
+  renderer.clippingPlanes = top ? [PLAN_CUT] : [];
+  $('view').textContent = top ? '3D view' : '2D plan';
+  for (const f of fresnelViews) { f.mesh.visible = !top && layers.fresnel; f.ring.visible = top && layers.fresnel; }
+};
+addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight); labels.setSize(innerWidth, innerHeight);
+  persp.aspect = innerWidth / innerHeight; persp.updateProjectionMatrix(); fitOrtho();
+});
+
+// ============================================================================
+// Shared materials / geometry
+// ============================================================================
+const wallMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide });
+const floorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+const unitBox = new THREE.BoxGeometry(1, 1, 1).translate(0, 0, 0.5);   // base at z = 0
+const unitSphere = new THREE.SphereGeometry(1, 48, 24);
+const furnMats = new Map();
+const furnMat = hex => { if (!furnMats.has(hex)) furnMats.set(hex, new THREE.MeshStandardMaterial({ color: hex })); return furnMats.get(hex); };
+
+const layers = { walls: true, heat: true, fov: true, fresnel: true, trails: true, labels: true };
+let ROOM = null;
+
+// ============================================================================
+// Room builder (from the server's room.to_dict())
+// ============================================================================
+const roomStatic = new THREE.Group(); room.add(roomStatic);
+const roomClip = [];                       // world-space planes (normals point inward)
+
+function disposeTree(obj) {
+  obj.traverse(o => {
+    if (o.geometry && o.geometry !== unitBox && o.geometry !== unitSphere) o.geometry.dispose();
+    if (o.isCSS2DObject) o.element.remove();
+  });
+  obj.clear();
+}
+function rectPolygon(w, d) { return [[0, 0], [w, 0], [w, d], [0, d]]; }   // CCW from above
+
+function wallGeometry(L, H, T) {
+  const s = new THREE.Shape().moveTo(0, 0).lineTo(L, 0).lineTo(L, H).lineTo(0, H).closePath();
+  const g = new THREE.ExtrudeGeometry(s, { depth: T, bevelEnabled: false });
+  g.rotateX(Math.PI / 2);                  // shape-y -> up; extrusion outward for a CCW polygon
+  return g;
+}
+function updateRoomClip(P, H) {
+  roomClip.length = 0;
+  roomClip.push(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0.001), new THREE.Plane(new THREE.Vector3(0, -1, 0), H));
+  for (let i = 0; i < P.length; i++) {
+    const a = P[i], b = P[(i + 1) % P.length], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy);
+    roomClip.push(new THREE.Plane().setFromNormalAndCoplanarPoint(
+      new THREE.Vector3(-dy / l, 0, -dx / l), new THREE.Vector3(a[0], 0, -a[1])));
+  }
+}
+
+const zoneViews = new Map();               // name -> {mat, target, el}
+const sensorGroup = new THREE.Group(); room.add(sensorGroup);
+const fresnelViews = [];                   // {mesh, ring, mat, link}
+const fovViews = [];
+
+function buildRoom(r) {
+  ROOM = r;
+  disposeTree(roomStatic); disposeTree(sensorGroup);
+  zoneViews.clear(); fresnelViews.length = 0; fovViews.length = 0;
+  const P = rectPolygon(r.width, r.depth);
+  updateRoomClip(P, r.height);
+
+  const floor = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(P.map(([x, y]) => new THREE.Vector2(x, y)))), floorMat);
+  floor.renderOrder = 0; roomStatic.add(floor);
+  // 1 m floor grid: gives the eye a scale reference
+  const grid = new THREE.GridHelper(Math.max(r.width, r.depth), Math.ceil(Math.max(r.width, r.depth)), 0x334155, 0x1f2937);
+  grid.rotation.x = Math.PI / 2; grid.position.set(Math.max(r.width, r.depth) / 2, Math.max(r.width, r.depth) / 2, 0.001);
+  roomStatic.add(grid);
+
+  for (let i = 0; i < P.length; i++) {
+    const a = P[i], b = P[(i + 1) % P.length];
+    const wall = new THREE.Mesh(wallGeometry(Math.hypot(b[0] - a[0], b[1] - a[1]), r.height, 0.1), wallMat);
+    wall.position.set(a[0], a[1], 0); wall.rotation.z = Math.atan2(b[1] - a[1], b[0] - a[0]);
+    wall.renderOrder = 5; wall.userData.isWall = true; wall.visible = layers.walls;
+    roomStatic.add(wall);
+  }
+  // Furniture: room.py stores the min corner (x, y) + extents; the unit box is centred.
+  for (const f of r.furniture || []) {
+    const m = new THREE.Mesh(unitBox, furnMat(f.color || '#8D6E63'));
+    m.position.set(f.x + f.w / 2, f.y + f.d / 2, 0); m.scale.set(f.w, f.d, f.h);
+    roomStatic.add(m);
+    if (f.name) addLabel(roomStatic, f.name, f.x + f.w / 2, f.y + f.d / 2, f.h + 0.05, 'sensorLbl');
+  }
+  // Zones
+  for (const z of r.zones || []) {
+    const mat = new THREE.MeshBasicMaterial({ color: z.color || '#22d3ee', transparent: true, opacity: 0.05, depthWrite: false });
+    const mesh = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(z.polygon.map(p => new THREE.Vector2(p[0], p[1])))), mat);
+    mesh.position.z = 0.006; mesh.renderOrder = 2; roomStatic.add(mesh);
+    const c = z.polygon.reduce((s, p) => [s[0] + p[0] / z.polygon.length, s[1] + p[1] / z.polygon.length], [0, 0]);
+    addLabel(roomStatic, z.name, c[0], c[1], 0.02, 'sensorLbl');
+    zoneViews.set(z.name, { mat, target: 0.05 });
+  }
+  buildSensors(r);
+  frameCameras(r.width, r.depth);
+  buildHeat(heatW, heatH, heatCell);        // keep the heatmap aligned with the room
+}
+
+function addLabel(parent, text, x, y, z, cls) {
+  const el = document.createElement('div'); el.className = cls; el.textContent = text;
+  const o = new CSS2DObject(el); o.position.set(x, y, z); o.userData.isLabel = true;
+  o.visible = layers.labels; parent.add(o); return o;
+}
+
+// ============================================================================
+// Sensor geometry: radar FOV wedges, Wi-Fi Fresnel zones, markers
+// ============================================================================
+function fovWedge(range, hFov, vFov, seg = 16) {
+  // apex at origin, boresight +X, up +Z: a spherical cap at `range` plus four side fans
+  const pos = [0, 0, 0], idx = [], n = seg + 1;
+  for (let j = 0; j <= seg; j++) for (let i = 0; i <= seg; i++) {
+    const az = -hFov / 2 + hFov * i / seg, el = -vFov / 2 + vFov * j / seg;
+    pos.push(range * Math.cos(el) * Math.cos(az), range * Math.cos(el) * Math.sin(az), range * Math.sin(el));
+  }
+  const v = (i, j) => 1 + j * n + i;
+  for (let j = 0; j < seg; j++) for (let i = 0; i < seg; i++) idx.push(v(i, j), v(i + 1, j), v(i + 1, j + 1), v(i, j), v(i + 1, j + 1), v(i, j + 1));
+  for (let k = 0; k < seg; k++) idx.push(0, v(k, 0), v(k + 1, 0), 0, v(k + 1, seg), v(k, seg), 0, v(0, k + 1), v(0, k), 0, v(seg, k), v(seg, k + 1));
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+  return g;
+}
+const markerGeo = new THREE.OctahedronGeometry(0.07);
+const KIND_COLOR = { router: 0x38bdf8, esp32: 0x22c55e, ld2450: 0xf59e0b, ble: 0xa78bfa };
+
+function buildSensors(r) {
+  const byId = Object.fromEntries((r.sensors || []).map(s => [s.id, s]));
+  for (const s of r.sensors || []) {
+    const mk = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({ color: KIND_COLOR[s.kind] ?? 0xffffff }));
+    mk.position.set(s.x, s.y, s.z); sensorGroup.add(mk);
+    addLabel(sensorGroup, `${s.id} (${s.kind})`, s.x, s.y, s.z + 0.15, 'sensorLbl');
+    if (s.kind === 'ld2450') {
+      // LD2450 manual: +/-60 deg azimuth, +/-35 deg elevation, ~6 m.
+      // room.py pitch_deg is a DOWNWARD tilt (positive = down); rotating +X about
+      // +Y by +pitch tips the boresight down.
+      const fov = new THREE.Mesh(fovWedge(s.range_m, d2r(s.fov_deg), d2r(70)),
+        new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.07, depthWrite: false, side: THREE.DoubleSide, clippingPlanes: roomClip }));
+      fov.position.set(s.x, s.y, s.z);
+      fov.rotation.set(0, d2r(s.pitch_deg), d2r(s.yaw_deg), 'ZYX');
+      fov.renderOrder = 4; sensorGroup.add(fov);
+      const sector = new THREE.Mesh(new THREE.CircleGeometry(s.range_m, 48, d2r(s.yaw_deg - s.fov_deg / 2), d2r(s.fov_deg)),
+        new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.06, depthWrite: false, clippingPlanes: roomClip }));
+      sector.position.set(s.x, s.y, 0.004); sector.renderOrder = 1; sensorGroup.add(sector);
+      fov.visible = sector.visible = layers.fov;
+      fovViews.push(fov, sector);
+    }
+  }
+  // Wi-Fi links: first Fresnel zone = ellipsoid with the two radios as foci,
+  // |TP| + |PR| = d + lambda/2. a = (d + lambda/2)/2, b = sqrt(a^2 - (d/2)^2).
+  const lambda = 299792458 / 2.437e9;
+  for (const [txId, rxId] of r.links || []) {
+    const tx = byId[txId], rx = byId[rxId]; if (!tx || !rx) continue;
+    const T = new THREE.Vector3(tx.x, tx.y, tx.z), R = new THREE.Vector3(rx.x, rx.y, rx.z);
+    const d = T.distanceTo(R), a = (d + lambda / 2) / 2, b = Math.sqrt(Math.max(1e-6, a * a - (d / 2) ** 2));
+    const mat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.08, depthWrite: false, clippingPlanes: [] });
+    const mesh = new THREE.Mesh(unitSphere, mat);
+    mesh.position.copy(T).add(R).multiplyScalar(0.5);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), R.clone().sub(T).normalize());
+    mesh.scale.set(a, b, b); mesh.renderOrder = 6; sensorGroup.add(mesh);
+    // 2D-plan stand-in: the ellipse's floor footprint (the 3D shape reads oddly once cut)
+    const ring = new THREE.Mesh(new THREE.CircleGeometry(1, 64), new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.12, depthWrite: false }));
+    ring.position.set(mesh.position.x, mesh.position.y, 0.005);
+    ring.rotation.z = Math.atan2(R.y - T.y, R.x - T.x); ring.scale.set(a, b, 1); ring.visible = false;
+    sensorGroup.add(ring);
+    // the link line itself
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([T, R]),
+      new THREE.LineDashedMaterial({ color: 0x38bdf8, dashSize: 0.15, gapSize: 0.1, transparent: true, opacity: 0.6 }));
+    line.computeLineDistances(); sensorGroup.add(line);
+    fresnelViews.push({ mesh, ring, mat, link: `${txId}->${rxId}`, a, b });
+    mesh.visible = layers.fresnel && camera === persp;
+  }
+}
+
+// ============================================================================
+// Occupancy heatmap: two R8 textures cross-faded in a shader (live or learned)
+// ============================================================================
+let heatW = 40, heatH = 40, heatCell = 0.1, texA, texB, heat = null, heatFadeStart = -1;
+let heatLayer = 'live';
+const STOPS = [[68, 1, 84], [59, 82, 139], [33, 145, 140], [94, 201, 98], [253, 231, 37]];   // viridis approx.
+const lut = new Uint8Array(256 * 4);
+for (let i = 0; i < 256; i++) {
+  const f = i / 255 * (STOPS.length - 1), k = Math.min(Math.floor(f), STOPS.length - 2), t = f - k;
+  for (let c = 0; c < 3; c++) lut[i * 4 + c] = Math.round(STOPS[k][c] + (STOPS[k + 1][c] - STOPS[k][c]) * t);
+  lut[i * 4 + 3] = 255;
+}
+const lutTex = new THREE.DataTexture(lut, 256, 1); lutTex.magFilter = lutTex.minFilter = THREE.LinearFilter; lutTex.needsUpdate = true;
+const heatMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false,
+  uniforms: { uA: { value: null }, uB: { value: null }, uMix: { value: 1 }, uLut: { value: lutTex }, uOpacity: { value: 0.75 } },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+  fragmentShader: `
+    uniform sampler2D uA, uB, uLut; uniform float uMix, uOpacity; varying vec2 vUv;
+    void main(){
+      float v = mix(texture2D(uA, vUv).r, texture2D(uB, vUv).r, uMix);
+      vec3 c = texture2D(uLut, vec2(v, 0.5)).rgb;
+      gl_FragColor = vec4(c, uOpacity * smoothstep(0.02, 0.25, v));
+    }`,
+});
+function makeGrid(w, h) {
+  const t = new THREE.DataTexture(new Uint8Array(w * h), w, h, THREE.RedFormat, THREE.UnsignedByteType);
+  t.magFilter = t.minFilter = THREE.LinearFilter; t.needsUpdate = true; return t;
+}
+function buildHeat(w, h, cell) {
+  heatW = w; heatH = h; heatCell = cell;
+  texA?.dispose(); texB?.dispose();
+  texA = makeGrid(w, h); texB = makeGrid(w, h);
+  heatMat.uniforms.uA.value = texA; heatMat.uniforms.uB.value = texB;
+  if (!heat) {
+    heat = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).translate(0.5, 0.5, 0), heatMat);
+    heat.renderOrder = 1; room.add(heat);
+  }
+  heat.position.set(0, 0, 0.003); heat.scale.set(w * cell, h * cell, 1);
+  heat.visible = layers.heat;
+}
+buildHeat(40, 40, 0.1);
+function onHeatmap(msg) {                 // row-major, row 0 = lowest y (matches occupancy.py)
+  if ((msg.layer || 'live') !== heatLayer) return;
+  if (msg.w !== heatW || msg.h !== heatH || msg.cell !== heatCell) buildHeat(msg.w, msg.h, msg.cell);
+  [texA, texB] = [texB, texA];
+  const dst = texB.image.data, src = msg.data, inv = 255 / Math.max(1e-6, msg.vmax ?? 1);
+  for (let i = 0; i < dst.length; i++) dst[i] = Math.min(255, (src[i] || 0) * inv);
+  texB.needsUpdate = true;
+  heatMat.uniforms.uA.value = texA; heatMat.uniforms.uB.value = texB; heatMat.uniforms.uMix.value = 0;
+  heatFadeStart = performance.now();
+}
+$('heatLayer').onclick = () => {
+  heatLayer = heatLayer === 'live' ? 'learned' : 'live';
+  $('heatLayer').textContent = heatLayer === 'live' ? 'live map' : 'learned map';
+  ws?.readyState === 1 && ws.send(JSON.stringify({ type: 'hello', want: 'heatmap', layer: heatLayer }));
+};
+
+// ============================================================================
+// Tracks: pooled views + 150 ms snapshot interpolation (10 Hz data -> 60 fps)
+// ============================================================================
+const DELAY_MS = 150, MAX_TRACKS = 16, TRAIL = 48;
+const bodyGeo = new THREE.CapsuleGeometry(0.18, 1.2, 4, 12).rotateX(Math.PI / 2).translate(0, 0, 0.78);
+const discGeo = new THREE.CircleGeometry(0.28, 32).translate(0, 0, 0.015);
+const ringGeo = new THREE.RingGeometry(0.98, 1.0, 48).translate(0, 0, 0.016);   // uncertainty ring (scaled)
+const trailAlpha = new Float32Array(TRAIL * 4);
+for (let i = 0; i < TRAIL; i++) trailAlpha.set([0.4, 0.9, 1.0, 1 - i / TRAIL], i * 4);
+const SIM_TINT = new THREE.Color(0xd4a017), LIVE_TINT = new THREE.Color(0x4ade80);
+
+class TrackView {
+  constructor() {
+    this.mat = new THREE.MeshStandardMaterial({ color: 0x4ade80, transparent: true, opacity: 0 });
+    this.body = new THREE.Mesh(bodyGeo, this.mat);
+    this.body.add(new THREE.Mesh(discGeo, this.mat));
+    this.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.5, depthWrite: false }));
+    this.body.add(this.ring);
+    this.el = document.createElement('div'); this.el.className = 'lbl';
+    this.label = new CSS2DObject(this.el); this.label.position.set(0, 0, 1.85); this.body.add(this.label);
+    this.tPos = new Float32Array(TRAIL * 3);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(this.tPos, 3).setUsage(THREE.DynamicDrawUsage));
+    g.setAttribute('color', new THREE.BufferAttribute(trailAlpha, 4));
+    this.trail = new THREE.Line(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false }));
+    this.trail.frustumCulled = false;
+    this.ts = new Float64Array(8); this.xs = new Float32Array(8); this.ys = new Float32Array(8); this.n = 0;
+    this.id = null; this.conf = 0; this.alive = 0; this.lastSeen = 0; this.trailN = 0; this.std = 0.15;
+    room.add(this.body, this.trail); this.hide();
+  }
+  hide() { this.body.visible = this.trail.visible = this.label.visible = false; this.id = null; this.n = 0; this.trailN = 0; }
+  push(t, tr, isLive) {
+    if (this.n === 8) { this.ts.copyWithin(0, 1); this.xs.copyWithin(0, 1); this.ys.copyWithin(0, 1); this.n = 7; }
+    this.ts[this.n] = t; this.xs[this.n] = tr.x; this.ys[this.n] = tr.y; this.n++;
+    this.conf = tr.conf ?? 0.5; this.std = tr.std ?? 0.15; this.lastSeen = t;
+    const text = `${tr.id}${tr.zone ? ' · ' + tr.zone : ''}`;
+    if (this.el.textContent !== text) this.el.textContent = text;
+    this.el.className = isLive ? 'lbl' : 'lbl sim';
+    this.mat.color.copy(isLive ? LIVE_TINT : SIM_TINT);
+    if (this.id !== tr.id) {
+      this.id = tr.id;
+      this.body.visible = true; this.trail.visible = layers.trails; this.label.visible = layers.labels;
+    }
+  }
+  sample(rt, out) {
+    const n = this.n; if (!n) return false;
+    if (rt <= this.ts[0]) return out.set(this.xs[0], this.ys[0], 0), true;
+    for (let i = 1; i < n; i++) if (rt <= this.ts[i]) {
+      const k = (rt - this.ts[i - 1]) / (this.ts[i] - this.ts[i - 1]);
+      return out.set(this.xs[i - 1] + (this.xs[i] - this.xs[i - 1]) * k, this.ys[i - 1] + (this.ys[i] - this.ys[i - 1]) * k, 0), true;
+    }
+    return out.set(this.xs[n - 1], this.ys[n - 1], 0), true;      // hold last, never extrapolate
+  }
+  update(now, dt, p) {
+    const seen = now - this.lastSeen < 1000;
+    this.alive = THREE.MathUtils.damp(this.alive, seen ? 1 : 0, 6, dt);
+    this.mat.opacity = this.alive * (0.25 + 0.75 * this.conf);
+    this.ring.material.opacity = 0.45 * this.alive;
+    this.ring.scale.setScalar(Math.max(0.3, 2 * this.std));       // ~2-sigma position uncertainty
+    this.body.position.copy(p);
+    const tp = this.tPos;
+    if (this.trailN === 0 || Math.hypot(tp[0] - p.x, tp[1] - p.y) > 0.03) {
+      tp.copyWithin(3, 0, (TRAIL - 1) * 3); tp[0] = p.x; tp[1] = p.y; tp[2] = 0.02;
+      this.trailN = Math.min(TRAIL, this.trailN + 1);
+      this.trail.geometry.setDrawRange(0, this.trailN);
+      this.trail.geometry.attributes.position.needsUpdate = true;
+    }
+    this.trail.material.opacity = this.alive;
+    if (this.alive < 0.01 && !seen) this.hide();
+  }
+}
+const pool = Array.from({ length: MAX_TRACKS }, () => new TrackView());
+const byId = new Map();
+
+// ============================================================================
+// 2D charts: CSI spectrum and motion timeline (real data only)
+// ============================================================================
+const csiCtx = $('csiChart').getContext('2d');
+const motionCtx = $('motionChart').getContext('2d');
+const MOTION_N = 300;                        // ~30 s at 10 Hz
+const motionHist = new Float32Array(MOTION_N); let motionHead = 0, motionCount = 0;
+let motionThreshold = null, csiAmps = null, csiDirty = false;
+
+function drawCsi() {
+  const c = csiCtx, W = c.canvas.width, H = c.canvas.height;
+  c.clearRect(0, 0, W, H);
+  if (!csiAmps || !csiAmps.length) {
+    c.fillStyle = '#475569'; c.font = '22px system-ui'; c.fillText('no CSI received', 14, H / 2 + 8); return;
+  }
+  let mx = 1e-9; for (const v of csiAmps) mx = Math.max(mx, v);
+  const bw = W / csiAmps.length;
+  for (let i = 0; i < csiAmps.length; i++) {
+    const h = (csiAmps[i] / mx) * (H - 6);
+    c.fillStyle = source === 'hardware' ? '#38bdf8' : '#d4a017';
+    c.fillRect(i * bw + 0.5, H - h, Math.max(1, bw - 1), h);
+  }
+}
+function drawMotion() {
+  const c = motionCtx, W = c.canvas.width, H = c.canvas.height;
+  c.clearRect(0, 0, W, H);
+  if (!motionCount) { c.fillStyle = '#475569'; c.font = '22px system-ui'; c.fillText('no motion data', 14, H / 2 + 8); return; }
+  let mx = motionThreshold ? motionThreshold * 2 : 1;
+  for (let i = 0; i < motionCount; i++) mx = Math.max(mx, motionHist[(motionHead - motionCount + i + MOTION_N) % MOTION_N]);
+  if (motionThreshold) {                       // the decision line, so the decision is explainable
+    const ty = H - (motionThreshold / mx) * (H - 4);
+    c.strokeStyle = '#f59e0b'; c.setLineDash([8, 6]); c.beginPath(); c.moveTo(0, ty); c.lineTo(W, ty); c.stroke(); c.setLineDash([]);
+  }
+  c.strokeStyle = source === 'hardware' ? '#4ade80' : '#d4a017'; c.lineWidth = 2; c.beginPath();
+  for (let i = 0; i < motionCount; i++) {
+    const v = motionHist[(motionHead - motionCount + i + MOTION_N) % MOTION_N];
+    const x = (i / (MOTION_N - 1)) * W, y = H - (v / mx) * (H - 4);
+    i ? c.lineTo(x, y) : c.moveTo(x, y);
+  }
+  c.stroke();
+}
+
+// ============================================================================
+// Side panel (DOM writes throttled to 5 Hz; values only change when data does)
+// ============================================================================
+let lastFrame = null, lastStatus = null, lastHotspots = null;
+const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v)) ? '—' : Number(v).toFixed(d);
+function setText(id, text) { const el = $(id); if (el.textContent !== text) el.textContent = text; }
+
+function renderPanel() {
+  const f = lastFrame;
+  if (f) {
+    const p = f.presence || {};
+    setText('presence', p.state ? p.state.toUpperCase() : '—');
+    setText('presenceConf', p.confidence !== undefined ? `${Math.round(p.confidence * 100)}%` : '');
+    setText('presenceWhy', p.reason || '');
+    const m = f.motion_detail || {};
+    setText('motionVal', fmt(m.score));
+    setText('motionThr', fmt(m.threshold));
+    setText('motionUnit', m.unit ? `(${m.unit})` : '');
+    setText('breath', m.breathing_bpm ? `${fmt(m.breathing_bpm, 1)} /min (${Math.round((m.breathing_conf || 0) * 100)}%)` : 'not detected');
+    const c = f.csi || {};
+    setText('csiN', c.n_subcarriers !== undefined ? String(c.n_subcarriers) : '—');
+    setText('csiRate', c.rate_hz !== undefined ? `${fmt(c.rate_hz, 1)} Hz` : '—');
+    setText('rssi', c.rssi !== undefined ? `${c.rssi} dBm` : '—');
+    const rows = (f.tracks || []).map(t =>
+      `<tr><td>${t.id}</td><td>${t.zone || '—'}</td><td class="num">${fmt(Math.hypot(t.vx || 0, t.vy || 0))}</td><td class="num">${Math.round((t.conf || 0) * 100)}%</td></tr>`).join('');
+    const peopleHtml = rows || '<tr><td colspan="4" class="muted">no tracks (radar)</td></tr>';
+    if ($('people').innerHTML !== peopleHtml) $('people').innerHTML = peopleHtml;
+    const zrows = Object.entries(f.zones || {}).map(([name, occ]) =>
+      `<tr><td>${name}</td><td><span class="pill ${occ ? 'on' : 'off'}">${occ ? 'occupied' : 'empty'}</span></td><td class="num">${fmtDur((f.zone_seconds || {})[name])}</td></tr>`).join('');
+    if (zrows && $('zones').innerHTML !== zrows) $('zones').innerHTML = zrows;
+  }
+  if (lastHotspots) {
+    const h = lastHotspots.length ? lastHotspots.map(s =>
+      `<tr><td>${s.zone || 'unzoned'}</td><td class="num">(${fmt(s.x, 1)}, ${fmt(s.y, 1)})</td><td class="num">${fmtDur(s.person_seconds)}</td></tr>`).join('')
+      : '<tr><td class="muted">not enough data yet</td></tr>';
+    if ($('hotspots').innerHTML !== h) $('hotspots').innerHTML = h;
+  }
+  if (lastStatus) {
+    const kv = [];
+    for (const [k, v] of Object.entries(lastStatus.sensors || {})) {
+      const cls = v.state === 'live' ? 'on' : v.state === 'simulated' || v.state === 'replay' ? 'sim' : v.state === 'absent' ? 'off' : 'bad';
+      kv.push(`<span>${k}</span><span><span class="pill ${cls}">${v.state}</span>${v.detail ? ' ' + v.detail : ''}</span>`);
+    }
+    const l = lastStatus.link || {};
+    if (l.frames_ok !== undefined) kv.push(`<span>frames ok</span><span>${l.frames_ok}</span>`);
+    if (l.loss_ratio !== undefined) kv.push(`<span>packet loss</span><span>${(l.loss_ratio * 100).toFixed(1)}%</span>`);
+    if (l.crc_errors !== undefined) kv.push(`<span>CRC errors</span><span>${l.crc_errors}</span>`);
+    if (l.port) kv.push(`<span>port</span><span>${l.port}</span>`);
+    if (lastStatus.room_measured === false) kv.push(`<span>room layout</span><span class="muted">default — measure yours</span>`);
+    const html = kv.join('');
+    if ($('sensorKv').innerHTML !== html) $('sensorKv').innerHTML = html;
+  }
+}
+function fmtDur(s) {
+  if (s === undefined || s === null) return '—';
+  if (s < 60) return `${Math.round(s)} s`;
+  if (s < 3600) return `${Math.round(s / 60)} min`;
+  return `${(s / 3600).toFixed(1)} h`;
+}
+setInterval(() => { renderPanel(); if (csiDirty) { drawCsi(); csiDirty = false; } drawMotion(); }, 200);
+
+// ============================================================================
+// Link + honest status banner
+// ============================================================================
+const statusEl = $('status');
+let lastMsg = 0, link = 'down', source = 'unknown', motionTarget = 0, motion = 0, lastSeq = null, seqGaps = 0;
+const SOURCE_LABEL = {             // never defaults to 'live' or to 'simulated'
+  hardware:      { cls: 'live',  text: 'LIVE — ESP32 hardware' },
+  simulation:    { cls: 'sim',   text: 'SIMULATION — server simulator, not measured' },
+  replay:        { cls: 'sim',   text: 'REPLAY — recorded data, not live' },
+  'browser-sim': { cls: 'sim',   text: 'INVENTED IN BROWSER — not measured' },
+  unknown:       { cls: 'stale', text: 'SOURCE UNKNOWN — treat as unverified' },
+};
+function renderStatus(now) {
+  let cls, text;
+  if (link !== 'open') { cls = 'down'; text = 'DISCONNECTED — display is stale'; }
+  else if (now - lastMsg > 2000) { cls = 'stale'; text = `STALE — no data for ${((now - lastMsg) / 1000).toFixed(0)} s`; }
+  else ({ cls, text } = SOURCE_LABEL[source] ?? SOURCE_LABEL.unknown);
+  if (statusEl.className !== cls) statusEl.className = cls;
+  if (statusEl.textContent !== text) statusEl.textContent = text;
+}
+
+function onFrame(msg) {
+  const now = performance.now();
+  source = msg.source ?? 'unknown';
+  if (lastSeq !== null && msg.seq !== undefined && msg.seq !== lastSeq + 1) seqGaps++;
+  lastSeq = msg.seq ?? null;
+  const isLive = source === 'hardware';
+  for (const t of msg.tracks || []) {
+    let v = byId.get(t.id);
+    if (!v) { v = pool.find(p => p.id === null); if (!v) continue; byId.set(t.id, v); }
+    v.push(now, t, isLive);
+  }
+  for (const [name, z] of zoneViews) z.target = msg.zones?.[name] ? 0.35 : 0.05;
+  motionTarget = Math.max(0, Math.min(1, msg.motion ?? 0));
+  const score = msg.motion_detail?.score;
+  if (score !== undefined && score !== null) {
+    motionHist[motionHead] = score; motionHead = (motionHead + 1) % MOTION_N; motionCount = Math.min(MOTION_N, motionCount + 1);
+  }
+  if (msg.motion_detail?.threshold) motionThreshold = msg.motion_detail.threshold;
+  if (msg.csi?.amplitudes) { csiAmps = msg.csi.amplitudes; csiDirty = true; }
+  for (const fv of fresnelViews) fv.mat.color.set(isLive ? 0x38bdf8 : 0xd4a017);
+  lastFrame = msg;
+}
+function handle(msg) {
+  lastMsg = performance.now();
+  switch (msg.type) {
+    case 'frame': onFrame(msg); break;
+    case 'heatmap': onHeatmap(msg); if (msg.hotspots) lastHotspots = msg.hotspots; break;
+    case 'room': buildRoom(msg.room); source = msg.source ?? source; break;
+    case 'status': lastStatus = msg; source = msg.source ?? source; break;
+  }
+}
+function wsUrl() {
+  if (location.protocol === 'file:') return `ws://localhost:${SERVER_PORT}/ws`;
+  return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
+}
+let backoff = 500, ws = null;
+function connect() {
+  ws = new WebSocket(wsUrl());
+  ws.onopen = () => { backoff = 500; link = 'open'; ws.send(JSON.stringify({ type: 'hello', want: 'snapshot', layer: heatLayer })); };
+  ws.onmessage = ev => { try { handle(JSON.parse(ev.data)); } catch (e) { window.__errors.push('bad msg: ' + e); } };
+  ws.onclose = () => { link = 'down'; ws = null; setTimeout(connect, backoff * (0.5 + Math.random() * 0.5)); backoff = Math.min(backoff * 2, 10000); };
+  ws.onerror = () => ws && ws.close();
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !ws) { backoff = 500; connect(); } });
+
+// ============================================================================
+// Layer toggles
+// ============================================================================
+function bindLayer(id, key, apply) {
+  $(id).onchange = e => { layers[key] = e.target.checked; apply(layers[key]); };
+}
+bindLayer('lyWalls', 'walls', on => roomStatic.traverse(o => { if (o.userData.isWall) o.visible = on; }));
+bindLayer('lyHeat', 'heat', on => { if (heat) heat.visible = on; });
+bindLayer('lyFov', 'fov', on => fovViews.forEach(v => v.visible = on));
+bindLayer('lyFresnel', 'fresnel', on => fresnelViews.forEach(f => { f.mesh.visible = on && camera === persp; f.ring.visible = on && camera === ortho; }));
+bindLayer('lyTrails', 'trails', on => pool.forEach(p => { if (p.id !== null) p.trail.visible = on; }));
+bindLayer('lyLabels', 'labels', on => {
+  room.traverse(o => { if (o.userData.isLabel) o.visible = on; });
+  pool.forEach(p => { if (p.id !== null) p.label.visible = on; });
+});
+
+// ============================================================================
+// AR (Android Chrome + ARCore only; iOS Safari has no WebXR). Two-tap floor
+// calibration: tap the floor under the radar, then the room's origin corner.
+// The residual between measured and known distance is shown as calibration error.
+// ============================================================================
+let arSession = null, hitSource = null, arTaps = [];
+async function setupAR() {
+  if (!navigator.xr || !(await navigator.xr.isSessionSupported('immersive-ar').catch(() => false))) return;
+  $('arBtn').style.display = '';
+  $('arBtn').onclick = startAR;
+}
+async function startAR() {
+  renderer.xr.enabled = true;
+  arSession = await navigator.xr.requestSession('immersive-ar', {
+    requiredFeatures: ['hit-test'], optionalFeatures: ['dom-overlay', 'anchors'],
+    domOverlay: { root: $('arOverlay') } });
+  renderer.xr.setReferenceSpaceType('local');
+  await renderer.xr.setSession(arSession);
+  $('arOverlay').style.display = 'block'; arTaps = [];
+  scene.background = null;
+  roomStatic.traverse(o => { if (o.userData.isWall || o.material === floorMat) o.visible = false; });
+  const viewer = await arSession.requestReferenceSpace('viewer');
+  hitSource = await arSession.requestHitTestSource({ space: viewer });
+  arSession.addEventListener('select', onArSelect);
+  arSession.addEventListener('end', () => {
+    hitSource = null; arSession = null; $('arOverlay').style.display = 'none'; scene.background = BG;
+    arRoot.position.set(0, 0, 0); arRoot.rotation.set(0, 0, 0);
+    roomStatic.traverse(o => { if (o.userData.isWall) o.visible = layers.walls; if (o.material === floorMat) o.visible = true; });
+  });
+}
+let lastHit = null;
+function onArSelect() {
+  if (!lastHit || !ROOM) return;
+  arTaps.push(lastHit.clone());
+  const radar = (ROOM.sensors || []).find(s => s.kind === 'ld2450') || (ROOM.sensors || [])[0];
+  if (arTaps.length === 1) { $('arMsg').textContent = 'Now tap the floor at the room corner (0, 0).'; return; }
+  const A = radar ? [radar.x, radar.y] : [ROOM.width / 2, 0], B = [0, 0];
+  const err = calibrate(arTaps[0], arTaps[1], A, B);
+  $('arMsg').textContent = `Calibrated. Distance error ${(err * 100).toFixed(0)} cm — tap again to recalibrate.`;
+  arTaps = [];
+}
+const phi = (p, q) => Math.atan2(-(q.z - p.z), q.x - p.x);
+function calibrate(a, b, A, B) {          // a, b: XR floor hits; A, B: room [x, y] (m)
+  const Ap = new THREE.Vector3(A[0], 0, -A[1]), Bp = new THREE.Vector3(B[0], 0, -B[1]);
+  arRoot.rotation.set(0, phi(a, b) - phi(Ap, Bp), 0);
+  Ap.applyAxisAngle(new THREE.Vector3(0, 1, 0), arRoot.rotation.y);
+  arRoot.position.set(a.x - Ap.x, (a.y + b.y) / 2, a.z - Ap.z);
+  return Math.hypot(b.x - a.x, b.z - a.z) - Math.hypot(B[0] - A[0], B[1] - A[1]);
+}
+setupAR();
+
+// ============================================================================
+// Demo mode (?demo): a feed INVENTED IN THE BROWSER, labelled as such, for
+// checking the renderer without a server. Never used otherwise.
+// ============================================================================
+const params = new URLSearchParams(location.search);
+if (params.has('demo')) {
+  link = 'open'; let k = 0;
+  buildRoom({ name: 'demo', width: 4, depth: 4, height: 2.8,
+    zones: [{ name: 'desk', polygon: [[0, 0], [1.6, 0], [1.6, 1.2], [0, 1.2]], color: '#4FC3F7' },
+            { name: 'bed', polygon: [[2.2, 2], [4, 2], [4, 4], [2.2, 4]], color: '#BA68C8' }],
+    furniture: [{ name: 'desk', x: 0, y: 0, w: 1.6, d: 0.7, h: 0.75, color: '#8D6E63' }, { name: 'bed', x: 2.2, y: 2, w: 1.8, d: 2, h: 0.5, color: '#5D4037' }],
+    sensors: [{ id: 'router', kind: 'router', x: -0.2, y: 2, z: 1, yaw_deg: 0, pitch_deg: 0, fov_deg: 360, range_m: 15 },
+              { id: 'esp32', kind: 'esp32', x: 3.9, y: 2, z: 1, yaw_deg: 180, pitch_deg: 0, fov_deg: 360, range_m: 8 },
+              { id: 'radar', kind: 'ld2450', x: 0.8, y: 0.05, z: 1.8, yaw_deg: 90, pitch_deg: 15, fov_deg: 120, range_m: 6 }],
+    links: [['router', 'esp32']] });
+  setInterval(() => {
+    const t = k++ / 10, x = 2 + 1.3 * Math.cos(t * 0.5), y = 2 + 1.3 * Math.sin(t * 0.5), sc = 2 + 1.5 * Math.sin(t);
+    handle({ type: 'frame', seq: k, source: 'browser-sim', motion: Math.max(0, Math.sin(t)),
+      tracks: [{ id: 'P1', x, y, vx: -0.65 * Math.sin(t * 0.5), vy: 0.65 * Math.cos(t * 0.5), conf: 0.9, std: 0.12 }],
+      zones: { desk: x < 1.6 && y < 1.2, bed: x > 2.2 && y > 2 }, zone_seconds: { desk: k / 20, bed: k / 30 },
+      presence: { state: 'moving', confidence: 0.9, reason: 'browser demo feed' },
+      motion_detail: { score: sc, threshold: 3, unit: 'z-score' },
+      csi: { n_subcarriers: 52, rate_hz: 100, rssi: -55, amplitudes: Array.from({ length: 52 }, (_, i) => 10 + 5 * Math.sin(i / 4 + t) + 3 * Math.random()) } });
+    if (k % 30 === 1) handle({ type: 'heatmap', layer: 'live', w: 40, h: 40, cell: 0.1, vmax: 1,
+      data: Array.from({ length: 1600 }, (_, i) => Math.exp(-(((i % 40) / 10 - x) ** 2 + (Math.floor(i / 40) / 10 - y) ** 2) / 0.3)),
+      hotspots: [{ x: 0.8, y: 0.6, person_seconds: 4200, zone: 'desk' }] });
+  }, 100);
+} else {
+  connect();
+}
+
+// ============================================================================
+// Frame loop — no allocations below this line
+// ============================================================================
+const timer = new THREE.Timer(), tmp = new THREE.Vector3();
+timer.connect(document);
+let frames = 0;
+renderer.setAnimationLoop((ts, xrFrame) => {
+  timer.update(ts);
+  const dt = Math.min(timer.getDelta(), 0.1), now = performance.now(), rt = now - DELAY_MS;
+  if (xrFrame && hitSource) {
+    const hits = xrFrame.getHitTestResults(hitSource);
+    if (hits.length) {
+      const pose = hits[0].getPose(renderer.xr.getReferenceSpace());
+      if (pose) { const p = pose.transform.position; (lastHit ??= new THREE.Vector3()).set(p.x, p.y, p.z); }
+    }
+  }
+  for (const v of pool) if (v.id !== null && v.sample(rt, tmp)) v.update(now, dt, tmp);
+  for (const [id, v] of byId) if (v.id !== id) byId.delete(id);
+  for (const z of zoneViews.values()) z.mat.opacity = THREE.MathUtils.damp(z.mat.opacity, z.target, 5, dt);
+  motion = THREE.MathUtils.damp(motion, motionTarget, 3, dt);
+  for (const f of fresnelViews) {
+    // Room-level motion -> the whole link's sensitive zone pulses. Never a position.
+    f.mat.opacity = 0.04 + 0.3 * motion * (0.6 + 0.4 * Math.sin(now * 0.001 * Math.PI * 2 * (0.5 + 2 * motion)));
+    f.ring.material.opacity = 0.06 + 0.25 * motion;
+  }
+  if (heatFadeStart >= 0) {
+    const k = Math.min(1, (now - heatFadeStart) / 600); heatMat.uniforms.uMix.value = k; if (k === 1) heatFadeStart = -1;
+  }
+  renderStatus(now);
+  if (!renderer.xr.isPresenting) (camera === persp ? orbit : pan2d).update();
+  renderer.render(scene, camera);
+  if (!renderer.xr.isPresenting) labels.render(scene, camera);
+  frames++;
+});
+
+// Test hook used by the headless browser test.
+window.__probe = () => ({
+  frames, errors: window.__errors, status: statusEl.textContent, source,
+  tracks: pool.filter(p => p.id !== null).map(p => ({ id: p.id, x: +p.body.position.x.toFixed(2), y: +p.body.position.y.toFixed(2) })),
+  zones: [...zoneViews.keys()], fresnel: fresnelViews.map(f => ({ link: f.link, a: +f.a.toFixed(3), b: +f.b.toFixed(3) })),
+  heat: { w: heatW, h: heatH, cell: heatCell }, csiBars: csiAmps ? csiAmps.length : 0, seqGaps,
+  geometries: renderer.info.memory.geometries, calls: renderer.info.render.calls,
+});
+</script>
+</body>
+</html>

@@ -58,7 +58,7 @@ def test_frame_length_constant():
 
 def test_to_room_projects_and_flags_through_wall_ghosts():
     room = Room(width=4, depth=4, height=2.8)
-    s = SensorPose("radar", "ld2450", 2.0, 0.0, 1.0, yaw_deg=90, pitch_deg=0, range_m=6)
+    s = SensorPose("radar", "ld2450", 2.0, 0.0, 1.1, yaw_deg=90, pitch_deg=0, range_m=6)
     dets = parse_frame(build_frame([(0.0, 2.0, 0.0), (0.0, 5.5, 0.0)]))
     inside, ghost = to_room(room, s, dets)
     assert (round(inside.x, 3), round(inside.y, 3), inside.in_room) == (2.0, 2.0, True)

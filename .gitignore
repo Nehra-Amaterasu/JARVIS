@@ -103,3 +103,6 @@ notes/
 brain/aankhen/room.json
 brain/aankhen/recordings/
 *.akr
+
+# local editor / preview config
+.claude/

@@ -62,6 +62,7 @@
   #arOverlay .msg{position:absolute;top:16px;left:50%;transform:translateX(-50%);background:#000c;
     padding:8px 14px;border-radius:6px;pointer-events:auto;max-width:90%;text-align:center}
   #arOverlay button{pointer-events:auto}
+  body.noPanel #panel{display:none} body.noPanel #hud{max-width:none}
   @media (max-width:720px){ #panel{width:auto;left:10px;top:auto;bottom:60px;max-height:40%} #hud{max-width:none} }
 </style>
 <script type="importmap">
@@ -130,6 +131,7 @@
   <label><input type="checkbox" id="lyTrails" checked>trails</label>
   <label><input type="checkbox" id="lyLabels" checked>labels</label>
   <button id="arBtn" style="display:none">AR</button>
+  <button id="panelBtn">hide panel</button>
 </div>
 
 <div id="arOverlay">
@@ -664,6 +666,10 @@ function handle(msg) {
   }
 }
 function wsUrl() {
+  // ?ws=host:port points a page served from elsewhere (a static server, a phone
+  // on the LAN) at the Aankhen server; otherwise assume it served this page.
+  const override = new URLSearchParams(location.search).get('ws');
+  if (override) return `ws://${override}/ws`;
   if (location.protocol === 'file:') return `ws://localhost:${SERVER_PORT}/ws`;
   return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
 }
@@ -675,11 +681,18 @@ function connect() {
   ws.onclose = () => { link = 'down'; ws = null; setTimeout(connect, backoff * (0.5 + Math.random() * 0.5)); backoff = Math.min(backoff * 2, 10000); };
   ws.onerror = () => ws && ws.close();
 }
-document.addEventListener('visibilitychange', () => { if (!document.hidden && !ws) { backoff = 500; connect(); } });
+// Demo mode has no server: without this guard, switching back to the tab
+// opened a socket, it failed, and the banner flipped to DISCONNECTED mid-demo.
+const DEMO = new URLSearchParams(location.search).has('demo');
+document.addEventListener('visibilitychange', () => { if (!DEMO && !document.hidden && !ws) { backoff = 500; connect(); } });
 
 // ============================================================================
 // Layer toggles
 // ============================================================================
+$('panelBtn').onclick = () => {
+  const hidden = document.body.classList.toggle('noPanel');
+  $('panelBtn').textContent = hidden ? 'show panel' : 'hide panel';
+};
 function bindLayer(id, key, apply) {
   $(id).onchange = e => { layers[key] = e.target.checked; apply(layers[key]); };
 }
@@ -748,8 +761,7 @@ setupAR();
 // Demo mode (?demo): a feed INVENTED IN THE BROWSER, labelled as such, for
 // checking the renderer without a server. Never used otherwise.
 // ============================================================================
-const params = new URLSearchParams(location.search);
-if (params.has('demo')) {
+if (DEMO) {
   link = 'open'; let k = 0;
   buildRoom({ name: 'demo', width: 4, depth: 4, height: 2.8,
     zones: [{ name: 'desk', polygon: [[0, 0], [1.6, 0], [1.6, 1.2], [0, 1.2]], color: '#4FC3F7' },

@@ -4,7 +4,7 @@
     .venv311_gpu\\Scripts\\python.exe refresh_memory.py --quick      # skip archive re-embed
     .venv311_gpu\\Scripts\\python.exe refresh_memory.py --distill 400  # + LLM distillation
 
-WHY ONE COMMAND: on 2026-08-31 the memory was found to be rotting — Claude Code had
+WHY ONE COMMAND: on 2026-08-31 the memory was found to be rotting — my chat-log tool had
 silently deleted ~91 transcripts under its 30-day default, and retrieval measurably
 degraded. Memory that is rebuilt only when someone remembers to will always be
 stale. Each stage below is idempotent, so this is safe to run any time, and safe to

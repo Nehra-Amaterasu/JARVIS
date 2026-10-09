@@ -91,3 +91,10 @@ identity/
 brain/yaadash_data/
 **/yaadash_data/
 *.instagram.json
+
+# --- Firmware credentials (Wi-Fi SSID/password) — never commit ---
+secrets.h
+**/secrets.h
+
+# --- Private working notes (planning, personal context) — local only ---
+notes/

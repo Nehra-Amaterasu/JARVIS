@@ -91,6 +91,12 @@ class UniformResampler:
     # perfectly regular 100 Hz stream occasionally look one slot late, so it
     # invented a filled sample and then dropped the real packet. Caught by
     # test_resampler_regular_input_passes_through.
+    #
+    # Slots are CENTRED on the nominal packet times (round, not floor). With floor,
+    # the slot edges sat exactly where a regular 100 Hz stream lands, so +-0.4 ms of
+    # timing jitter flipped packets into the neighbouring slot: one was dropped as a
+    # duplicate and an empty slot was forward-filled. On the simulator that invented
+    # ~20 % of all samples. Centred slots tolerate up to +-5 ms of jitter.
     _EPS = 1e-6
 
     def __init__(self, rate_hz: float = 100.0, max_gap_s: float = 0.25):
@@ -105,7 +111,7 @@ class UniformResampler:
         self.emitted = 0
 
     def _slot(self, t: float) -> int:
-        return int(np.floor((t - self._t0) / self.dt + self._EPS))
+        return int(np.floor((t - self._t0) / self.dt + 0.5))
 
     def push(self, t: float, amp: np.ndarray) -> list[Sample]:
         out: list[Sample] = []

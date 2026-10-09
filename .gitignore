@@ -98,3 +98,8 @@ secrets.h
 
 # --- Private working notes (planning, personal context) — local only ---
 notes/
+
+# --- Aankhen: real room layout (home floorplan) stays local ---
+brain/aankhen/room.json
+brain/aankhen/recordings/
+*.akr

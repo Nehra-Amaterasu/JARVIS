@@ -10,6 +10,50 @@ Format per entry: **Context → Decision → Evidence → Consequences / open it
 
 ---
 
+## 2026-10-09 — JARVIS becomes an app
+
+**Context.** JARVIS started from a command prompt and lived in a scrolling console:
+no way to see what memory knows, what the room sensors see, or what the GPU is doing,
+and no way to talk to him without the microphone.
+
+**Decision.** A desktop app (`app/`): FastAPI on 127.0.0.1 behind a native WebView2
+window, six tabs (Core, Yaadash, Aankhen, Limbs, Connect, System). The voice loop
+stays a child process (`jarvis.py --app`) so a crash there can't take the window
+down and "sleep" really frees the GPU. Design rules in `docs/design/jarvis-app.md`;
+the main one is that colour means provenance (cyan measured, amber simulated or
+unconfirmed, red fault) on every tab.
+
+**Evidence.**
+
+- Typed conversation through the app: first token 0.6 s, full reply 2.5 s.
+  Text-only start 44 s → 26 s once it stopped importing TensorFlow, Whisper and the
+  wake-word engine it never uses.
+- Memory stats 16 s → 2 s by reading LanceDB directly instead of importing the
+  module that loads the embedding model.
+- Initial UI bundle 905 kB → 284 kB by lazy-loading the 3D twin.
+
+**What building it exposed (each would have been invisible in the console):**
+
+1. *A frozen JARVIS.* A keyword clash killed the thread reading his stdout; the
+   pipe filled and he blocked mid-reply. The reader now survives a bad event.
+2. *Untrustworthy GPU sensors.* NVML on this Optimus laptop returns Unknown (999)
+   while the dGPU sleeps, and its power sensor read 590 W against a 43 W limit.
+   Readings now fail individually, and an impossible value shows as "—".
+3. *Memory polluted by JARVIS himself.* Old replies are stored back as memories,
+   and some were hallucinated ("maine One Piece 2019 mein complete kiya tha"). The
+   app labels them "JARVIS's own words · unverified"; pruning them is open.
+4. *~14 GB of unused models on disk* (llama3.1, dolphin-llama3, a duplicate qwen3,
+   old Whisper sizes) — the System tab flags them; deleting is the user's call.
+5. *A 4B model can't carry a provenance label.* Given a simulated person marked
+   "SIMULATION", it answered "nobody's here… P2 is at the desk". So in simulation
+   the brain gets no people at all, only the verdict "sensors not connected"; it
+   now answers "Room sensors are in simulation mode, I can't see your room".
+
+**Consequences.** Firmware v3 (CSI on, binary protocol, authenticated relays, no
+open AP) compiles for the S3 but has not run on the board — the next real test.
+
+---
+
 ## 2026-10-09 — Aankhen v3: a simulator with an answer key, and what it caught
 
 **Context.** The v3 pipeline (protocol, CSI conditioning, motion detector, tracker,

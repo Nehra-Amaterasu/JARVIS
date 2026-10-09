@@ -87,13 +87,17 @@ must actually free the GPU.
 
 ## 5. Build checklist
 
-- [ ] Aankhen: simulator (wire bytes + ground truth), fusion, engine, hub
-- [ ] Aankhen: stronger motion detection, measured on simulated + real recordings
-- [ ] Aankhen: bench / record / calibrate / doctor CLI
-- [ ] jarvis_app backend: security, events bus, core process, memory, system,
+- [x] Aankhen: simulator (wire bytes + ground truth), fusion, engine, hub
+- [x] Aankhen: stronger detection, measured on the simulator (DECISIONS 2026-10-09)
+- [x] Aankhen: bench / record / calibrate / doctor CLI
+- [x] jarvis_app backend: security, events bus, core process, memory, system,
       limbs, connect, mission, aankhen mount
-- [ ] jarvis.py `--app` mode: JSON events, stdin commands, text-only mode
-- [ ] UI: design system, shell (dock, top bar, ticker, palette), six tabs
-- [ ] Desktop shell: pywebview window, launcher, Start-menu shortcut
-- [ ] Firmware v3: CSI enabled, binary protocol, token-auth relays, no open AP
-- [ ] Real-data benchmark with labelled recordings (empty / walking / sitting)
+- [x] jarvis.py `--app` mode: JSON events, stdin commands, text-only mode
+- [x] UI: design system, shell (dock, title bar, ticker, palette), six tabs
+- [x] Desktop shell: pywebview window, launcher, Start-menu + Desktop shortcuts
+- [x] JARVIS's brain reads the room (agent.room_context), honestly in simulation
+- [x] Firmware v3: CSI enabled, binary protocol, token/MQTT relays, no open AP
+      (compiles for ESP32-S3; not yet run on the board)
+- [ ] Flash v3, calibrate, record labelled sessions, `python -m aankhen bench` on the real room
+- [ ] Mosquitto on the laptop so relays and the room state share one bus
+- [ ] Prune JARVIS's own hallucinated replies from the memory store (35 voice_interaction rows)

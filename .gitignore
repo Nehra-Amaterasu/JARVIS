@@ -106,3 +106,9 @@ brain/aankhen/recordings/
 
 # local editor / preview config
 .claude/
+
+# desktop app: local state and build output
+app/data/
+app/ui/dist/
+app/ui/node_modules/
+brain/aankhen/baseline.json

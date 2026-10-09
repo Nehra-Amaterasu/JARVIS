@@ -1,0 +1,76 @@
+/* ==========================================================================
+   JARVIS design tokens.
+
+   Colour carries PROVENANCE, everywhere, the same way (docs/design/jarvis-app.md):
+     --live   ice cyan     measured by hardware · confirmed by me · active
+     --sim    amber        simulated · replayed · inferred · unconfirmed
+     --fault  signal red   fault · stale · disconnected
+     white / chrome        structure and identity — never data
+
+   Type has jobs too: Anton for page titles only (editorial, hip-hop poster),
+   Inter for the interface, Doto (dot matrix) for numbers that change, Geist
+   Mono for identifiers, units and timestamps.
+   ========================================================================== */
+@import '@fontsource-variable/inter';
+@import '@fontsource/anton';
+@import '@fontsource-variable/doto';
+@import '@fontsource-variable/geist-mono';
+
+:root {
+  color-scheme: dark;
+
+  /* surfaces */
+  --bg: #050506;
+  --bg-2: #0a0b0d;
+  --ink: #f5f6f8;
+  --ink-2: rgba(245, 246, 248, 0.66);
+  --ink-3: rgba(245, 246, 248, 0.42);
+  --ink-4: rgba(245, 246, 248, 0.22);
+  --hair: rgba(255, 255, 255, 0.07);
+  --hair-2: rgba(255, 255, 255, 0.12);
+  --hair-3: rgba(255, 255, 255, 0.2);
+
+  /* provenance */
+  --live: #5ce1ff;
+  --live-2: rgba(92, 225, 255, 0.16);
+  --live-glow: rgba(92, 225, 255, 0.35);
+  --sim: #ffb020;
+  --sim-2: rgba(255, 176, 32, 0.15);
+  --fault: #ff453a;
+  --fault-2: rgba(255, 69, 58, 0.16);
+  --chrome: linear-gradient(180deg, #ffffff 0%, #c9ced6 38%, #7d838d 62%, #e9ecf1 100%);
+
+  /* glass materials (Apple's "thin" and "regular") */
+  --glass-thin: rgba(22, 24, 28, 0.42);
+  --glass: rgba(18, 20, 24, 0.58);
+  --glass-thick: rgba(14, 15, 18, 0.78);
+  --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 0 0 0 1px rgba(255, 255, 255, 0.055);
+  --blur: blur(28px) saturate(170%);
+  --shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.8), 0 10px 30px -15px rgba(0, 0, 0, 0.6);
+
+  /* geometry: 8-pt grid */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px; --s8: 64px;
+  --r-sm: 10px; --r: 16px; --r-lg: 22px; --r-xl: 28px; --r-pill: 999px;
+
+  /* type */
+  --f-ui: 'Inter Variable', -apple-system, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+  --f-display: 'Anton', 'Impact', 'Arial Narrow Bold', sans-serif;
+  --f-dot: 'Doto Variable', 'Geist Mono Variable', ui-monospace, monospace;
+  --f-mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+
+  /* motion: Apple-like springs approximated with cubic-bezier */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --t-fast: 140ms;
+  --t: 260ms;
+  --t-slow: 520ms;
+
+  /* layout */
+  --titlebar: 52px;
+  --dock: 76px;
+  --ticker: 34px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --t-fast: 0ms; --t: 0ms; --t-slow: 0ms; }
+}

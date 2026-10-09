@@ -1,0 +1,233 @@
+/* ==========================================================================
+   Base: reset, typography, materials, shared primitives.
+   ========================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 450 14px/1.45 var(--f-ui);
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  user-select: none;
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; background: none; padding: 0; }
+input, textarea { user-select: text; }
+::selection { background: var(--live-2); }
+a { color: var(--live); text-decoration: none; }
+:focus-visible { outline: 2px solid var(--live); outline-offset: 2px; border-radius: 6px; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 10px; border: 3px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 255, 255, 0.16); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------------------------------------------------------------- materials */
+.glass {
+  background: var(--glass);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  box-shadow: var(--glass-edge), var(--shadow);
+  border-radius: var(--r-lg);
+}
+.glass-thin {
+  background: var(--glass-thin);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  box-shadow: var(--glass-edge);
+  border-radius: var(--r);
+}
+
+/* Film grain: the one texture in the system — the hip-hop print reference. It's
+   a static SVG noise tile, so it costs nothing per frame. */
+.grain::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0.045;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* ---------------------------------------------------------------- type */
+.display {
+  font-family: var(--f-display);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  line-height: 0.88;
+}
+.outline {
+  color: transparent;
+  -webkit-text-stroke: 1.2px rgba(255, 255, 255, 0.55);
+}
+.chrome-text {
+  background: var(--chrome);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.mono { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.01em; }
+.dot { font-family: var(--f-dot); font-weight: 700; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+.eyebrow {
+  font: 600 10.5px/1 var(--f-mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.muted { color: var(--ink-3); }
+.dim { color: var(--ink-2); }
+.num { font-variant-numeric: tabular-nums; }
+.live { color: var(--live); }
+.sim { color: var(--sim); }
+.fault { color: var(--fault); }
+
+/* ---------------------------------------------------------------- primitives */
+.card {
+  position: relative;
+  padding: var(--s5);
+  border-radius: var(--r-lg);
+  background: var(--glass-thin);
+  box-shadow: var(--glass-edge);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+}
+.card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+.card-head .track { font: 500 11px var(--f-mono); color: var(--ink-4); margin-right: 8px; }
+.card-title { font: 600 13px/1.2 var(--f-ui); letter-spacing: -0.005em; display: flex; align-items: center; }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 22px; padding: 0 10px;
+  border-radius: var(--r-pill);
+  font: 600 10.5px/1 var(--f-mono);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.pill.live { background: var(--live-2); color: var(--live); }
+.pill.sim { background: var(--sim-2); color: var(--sim); }
+.pill.fault { background: var(--fault-2); color: var(--fault); }
+.pill.planned { background: transparent; box-shadow: inset 0 0 0 1px var(--hair-3); border-style: dashed; color: var(--ink-3); }
+.pill .led { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 10px currentColor; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 36px; padding: 0 16px;
+  border-radius: var(--r-pill);
+  font: 600 13px/1 var(--f-ui);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 1px var(--hair);
+  color: var(--ink);
+  transition: background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease), box-shadow var(--t-fast);
+}
+.btn:hover { background: rgba(255, 255, 255, 0.12); }
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.38; cursor: not-allowed; transform: none; }
+.btn.primary { background: var(--ink); color: #050506; box-shadow: none; }
+.btn.primary:hover { background: #fff; }
+.btn.live { background: var(--live); color: #021318; }
+.btn.danger { background: var(--fault-2); color: var(--fault); }
+.btn.ghost { background: transparent; box-shadow: none; color: var(--ink-2); }
+.btn.ghost:hover { color: var(--ink); background: rgba(255, 255, 255, 0.05); }
+.btn.sm { height: 28px; padding: 0 12px; font-size: 12px; }
+.btn.icon { width: 36px; padding: 0; }
+
+.seg {
+  display: inline-flex; padding: 3px; gap: 2px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+.seg button {
+  height: 28px; padding: 0 14px; border-radius: var(--r-pill);
+  font: 600 12px var(--f-ui); color: var(--ink-2);
+  transition: background var(--t) var(--ease), color var(--t);
+}
+.seg button.on { background: var(--ink); color: #050506; }
+.seg button:not(.on):hover { color: var(--ink); }
+
+/* Apple-style switch */
+.switch {
+  position: relative; width: 46px; height: 28px; border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  transition: background var(--t) var(--ease);
+  flex: none;
+}
+.switch::after {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: transform var(--t) var(--ease);
+}
+.switch.on { background: var(--live); }
+.switch.on::after { transform: translateX(18px); }
+.switch:disabled { opacity: 0.4; cursor: not-allowed; }
+
+input[type='range'].slider {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 28px; background: transparent;
+}
+input[type='range'].slider::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 3px;
+  background: linear-gradient(90deg, var(--live) var(--pct, 0%), rgba(255, 255, 255, 0.1) var(--pct, 0%));
+}
+input[type='range'].slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 20px; height: 20px; margin-top: -7px; border-radius: 50%;
+  background: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+input[type='range'].slider:disabled { opacity: 0.4; }
+
+.field {
+  height: 44px; width: 100%;
+  padding: 0 16px;
+  border-radius: var(--r);
+  border: 0;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px var(--hair);
+  outline: none;
+  transition: box-shadow var(--t-fast);
+}
+.field:focus { box-shadow: inset 0 0 0 1px var(--hair-3), 0 0 0 4px rgba(92, 225, 255, 0.08); }
+.field::placeholder { color: var(--ink-4); }
+
+/* The EXPERIMENTAL sticker: the Parental Advisory label, repurposed to mark
+   lab-grade features (breathing rate) so nobody mistakes them for measurements. */
+.sticker {
+  display: inline-flex; flex-direction: column; align-items: stretch;
+  border: 1.5px solid currentColor; color: var(--ink);
+  font-family: var(--f-display); text-transform: uppercase; line-height: 1;
+  transform: rotate(-2deg);
+}
+.sticker b { font-weight: 400; font-size: 9px; letter-spacing: 0.12em; padding: 3px 6px 2px; }
+.sticker i { font-style: normal; font-size: 8px; letter-spacing: 0.2em; padding: 2px 6px 3px; background: currentColor; }
+.sticker i span { color: var(--bg); }
+
+.empty {
+  display: grid; place-items: center; text-align: center; gap: 8px;
+  padding: var(--s6); color: var(--ink-3);
+}
+
+.bar { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.bar > i { display: block; height: 100%; border-radius: 3px; background: var(--ink); transition: width var(--t-slow) var(--ease); }
+.bar.live > i { background: var(--live); }
+.bar.sim > i { background: var(--sim); }
+
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; align-items: baseline; }
+.kv > :nth-child(odd) { color: var(--ink-3); font-size: 12.5px; }
+.kv > :nth-child(even) { text-align: right; font-variant-numeric: tabular-nums; }
+
+.fade-in { animation: fadeIn var(--t-slow) var(--ease) both; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }

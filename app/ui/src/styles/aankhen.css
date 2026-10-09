@@ -1,0 +1,111 @@
+/* ==========================================================================
+   Aankhen: the twin stage and its HUD.
+   ========================================================================== */
+.aankhen-page { padding: 6px 18px 14px 6px; }
+.twin-stage {
+  position: relative; flex: 1; border-radius: var(--r-xl); overflow: hidden;
+  background:
+    radial-gradient(900px 600px at 50% 40%, rgba(92, 225, 255, 0.05), transparent 70%),
+    radial-gradient(1200px 800px at 50% 120%, rgba(255, 255, 255, 0.04), transparent 60%),
+    #060708;
+  box-shadow: inset 0 0 0 1px var(--hair), var(--shadow);
+}
+.twin-host { position: absolute; inset: 0; }
+.twin-host canvas { display: block; }
+.twin-host.stale { filter: grayscale(1) brightness(0.6); transition: filter var(--t-slow); }
+
+.hud { position: absolute; z-index: 3; display: flex; gap: 12px; pointer-events: none; }
+.hud > * { pointer-events: auto; }
+.hud-tl { top: 22px; left: 24px; flex-direction: column; align-items: flex-start; }
+.hud-tr { top: 18px; right: 18px; }
+.hud-right { top: 330px; right: 18px; bottom: 76px; flex-direction: column; width: 300px; overflow: auto; }
+.hud-left { left: 18px; top: 260px; flex-direction: column; width: 270px; }
+.hud-bl { left: 18px; bottom: 18px; align-items: center; flex-wrap: wrap; right: 340px; }
+.hud-bc { left: 50%; bottom: 74px; transform: translateX(-50%); flex-direction: column; align-items: center; gap: 4px; }
+
+.hud-title { display: flex; align-items: baseline; gap: 12px; }
+.hud-title h1 { font-size: 64px; margin: 0; line-height: 0.85; }
+.pill.big { height: 26px; font-size: 11px; padding: 0 12px; }
+
+.hud-card { padding: 14px 16px; border-radius: 18px; background: rgba(12, 13, 16, 0.62); width: 100%; }
+.hc-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+.hc-head .eyebrow.sim { color: var(--sim); }
+.hc-big { display: flex; align-items: baseline; gap: 10px; }
+.hc-big .dot { font-size: 30px; line-height: 1; }
+.hc-chart { width: 100%; height: 74px; display: block; margin-top: 8px; }
+.hc-matrix { width: 100%; height: 64px; display: block; }
+.hc-foot { margin-top: 8px; font-size: 10.5px; display: flex; justify-content: space-between; gap: 8px; align-items: center; flex-wrap: wrap; }
+.breath { display: inline-flex; align-items: center; gap: 8px; }
+.breath .sticker { color: var(--ink-2); transform: rotate(-3deg) scale(0.86); }
+
+.source-card { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: auto; max-width: 430px; }
+.source-card .eyebrow { width: 100%; }
+.seg.sm button { height: 24px; padding: 0 10px; font-size: 11.5px; }
+.scen-t { width: 100%; font-size: 10.5px; }
+
+.hc-person { display: grid; grid-template-columns: 34px 1fr auto; gap: 4px 10px; align-items: center; padding: 6px 0; font-size: 12.5px; border-top: 1px solid var(--hair); }
+.hc-person:first-of-type { border-top: 0; }
+.hc-person b { font: 700 13px var(--f-dot); }
+.hc-person .mono { color: var(--ink-3); font-size: 11px; }
+.hc-person .bar { grid-column: 1 / -1; height: 3px; }
+.hc-zones { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.hc-zones span { display: inline-flex; gap: 6px; align-items: baseline; padding: 4px 9px; border-radius: 999px; font-size: 11px; color: var(--ink-3); background: rgba(255, 255, 255, 0.04); }
+.hc-zones span.on { color: #050506; background: var(--ink); }
+.hc-zones em { font-style: normal; font-size: 10px; opacity: 0.7; }
+
+.hc-sensor { display: grid; grid-template-columns: 10px 1fr auto; gap: 2px 10px; align-items: center; padding: 6px 0; font-size: 12.5px; }
+.hc-sensor small { grid-column: 2 / -1; font-size: 10.5px; }
+.hc-sensor em { font-style: normal; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+.hc-sensor .led { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-4); }
+.hc-sensor .led.live { background: var(--live); box-shadow: 0 0 8px var(--live); }
+.hc-sensor .led.simulated, .hc-sensor .led.replay { background: var(--sim); box-shadow: 0 0 8px var(--sim); }
+.hc-sensor .led.silent { background: var(--fault); }
+.simcheck .dot { color: var(--sim); }
+
+.layer-chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 4px 6px 4px 10px; border-radius: 999px; background: rgba(12, 13, 16, 0.6); box-shadow: inset 0 0 0 1px var(--hair); }
+.layer-chips .chip { height: 24px; font-size: 11px; padding: 0 10px; }
+.layer-chips .chip.on { background: rgba(255, 255, 255, 0.14); color: var(--ink); }
+
+.twin-event { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--ink-3); padding: 5px 12px; border-radius: 999px; background: rgba(0, 0, 0, 0.45); }
+.twin-event.newest { color: var(--ink); animation: fadeIn var(--t-slow) var(--ease); }
+.twin-event time { color: var(--ink-4); font-size: 10px; }
+
+/* ---------------------------------------------------------------- presence core */
+.presence-core { position: relative; width: 300px; display: flex; flex-direction: column; align-items: center; padding: 10px 10px 14px; border-radius: 26px; background: rgba(12, 13, 16, 0.55); backdrop-filter: var(--blur); box-shadow: var(--glass-edge); }
+.presence-core svg { display: block; }
+.presence-core .tick { stroke: rgba(255, 255, 255, 0.1); stroke-width: 1.6; }
+.presence-core.live .tick.on { stroke: var(--live); }
+.presence-core.sim .tick.on { stroke: var(--sim); }
+.presence-core.unsure .tick.on { stroke: var(--ink-2); }
+.presence-core.empty .tick.on { stroke: var(--ink-3); }
+.presence-core .ev-track { stroke: rgba(255, 255, 255, 0.07); stroke-width: 4; fill: none; stroke-linecap: round; }
+.presence-core .ev { stroke: var(--ink); stroke-width: 4; fill: none; stroke-linecap: round; transition: opacity var(--t); }
+.presence-core.live .ev { stroke: var(--live); }
+.presence-core.sim .ev { stroke: var(--sim); }
+.presence-core .ev.against { stroke: var(--ink-3); }
+.pc-center { position: absolute; top: 10px; left: 0; right: 0; height: 184px; display: grid; place-content: center; text-align: center; }
+.pc-state { font-size: 21px; letter-spacing: 0.06em; }
+.pc-count { font-size: 34px; line-height: 1.05; }
+.pc-sub { font-size: 10.5px; color: var(--ink-3); }
+.pc-legend { display: flex; gap: 14px; font-size: 9.5px; letter-spacing: 0.14em; color: var(--ink-4); margin-top: -2px; }
+.pc-legend .on { color: var(--ink); }
+.presence-core.live .pc-legend .on { color: var(--live); }
+.presence-core.sim .pc-legend .on { color: var(--sim); }
+.pc-legend .against { color: var(--ink-2); }
+.pc-reason { margin-top: 8px; font-size: 11px; color: var(--ink-3); text-align: center; line-height: 1.4; padding: 0 8px; }
+
+/* ---------------------------------------------------------------- 3D labels (CSS2D) */
+.tw-label, .tw-zone, .tw-sensor, .tw-ruler {
+  font: 600 9.5px var(--f-mono); letter-spacing: 0.12em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45); white-space: nowrap; pointer-events: none;
+}
+.tw-zone { color: rgba(255, 255, 255, 0.32); }
+.tw-sensor { color: rgba(255, 255, 255, 0.6); padding: 2px 6px; border-radius: 4px; background: rgba(0, 0, 0, 0.5); }
+.tw-ruler { color: rgba(255, 255, 255, 0.25); letter-spacing: 0.04em; font-size: 9px; }
+.tw-tag {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none;
+  padding: 5px 10px 6px; border-radius: 10px; background: rgba(5, 5, 6, 0.72); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+.tw-tag b { font: 800 15px var(--f-dot); color: #fff; letter-spacing: 0.04em; }
+.tw-tag span { font: 600 9px var(--f-mono); letter-spacing: 0.12em; color: rgba(255, 255, 255, 0.55); }
+.tw-truth { font: 700 9px var(--f-mono); letter-spacing: 0.1em; color: var(--sim); text-transform: uppercase; transform: translateY(18px); white-space: nowrap; }

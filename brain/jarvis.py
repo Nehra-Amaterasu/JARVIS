@@ -123,6 +123,9 @@ SILENCE_DURATION = 4.0
 # (Kokoro on the CPU), and nothing in the speech path can end a turn any more.
 import voice as voice_mod
 import stt
+import ollama_guard              # starts Ollama if it isn't running
+BRAIN_DOWN = ("My brain isn't running: Ollama is closed and I couldn't start it. "
+              "Open Ollama, then ask me again.")
 
 print("Booting Cognitive Subsystems...")
 print("1. Loading Whisper STT (large-v3-turbo on GPU, int8_float16)...")
@@ -152,6 +155,8 @@ oww_model = None if TEXT_ONLY else Model(wakeword_models=["hey_jarvis_v0.1"], in
 # here, while the user is already watching the boot sequence.
 print("4. Warming Yaadash memory + brain...")
 appio.emit("boot", step="memory")
+if not ollama_guard.ensure():
+    appio.emit("error", message=BRAIN_DOWN)
 try:
     agent.yaadash_core.get_context("warmup")
     if agent.yaadash_recall is not None:
@@ -388,6 +393,30 @@ _turn_started = 0.0             # when the current reply began (for the first_au
 _first_audio_pending = False
 
 
+def _stream_reply(text: str, t0: float, full: list) -> None:
+    """Stream one reply from the agent into the voice queue and the app."""
+    sentence_buffer = ""
+    first_token = True
+    spoke_once = False
+    for chunk in agent.run_agent(text):
+        if first_token:
+            stop_hum()
+            first_token = False
+            appio.emit("timing", stage="first_token", seconds=round(time.time() - t0, 3))
+            appio.emit("state", state="replying")
+        sys.stdout.write(chunk)
+        sys.stdout.flush()
+        full.append(chunk)
+        appio.emit("reply_chunk", text=chunk)
+        sentence_buffer += chunk
+        ready, sentence_buffer = voice_mod.split_ready(sentence_buffer, first=not spoke_once)
+        if ready.strip():
+            speak(ready.strip())
+            spoke_once = True
+    if sentence_buffer.strip():
+        speak(sentence_buffer.strip())
+
+
 def respond(text: str) -> None:
     """One full turn: think, stream the reply, speak it sentence by sentence.
 
@@ -406,35 +435,26 @@ def respond(text: str) -> None:
     full = []
     try:
         print("JARVIS: ", end="")
-        sentence_buffer = ""
-        first_token = True
-        spoke_once = False
-        for chunk in agent.run_agent(text):
-            if first_token:
-                stop_hum()
-                first_token = False
-                appio.emit("timing", stage="first_token", seconds=round(time.time() - t0, 3))
-                appio.emit("state", state="replying")
-            sys.stdout.write(chunk)
-            sys.stdout.flush()
-            full.append(chunk)
-            appio.emit("reply_chunk", text=chunk)
-            sentence_buffer += chunk
-            ready, sentence_buffer = voice_mod.split_ready(sentence_buffer, first=not spoke_once)
-            if ready.strip():
-                speak(ready.strip())
-                spoke_once = True
-        if sentence_buffer.strip():
-            speak(sentence_buffer.strip())
+        try:
+            _stream_reply(text, t0, full)
+        except Exception as e:
+            # Ollama closed: start it and try once more, if nothing was said yet.
+            if full or not ollama_guard.is_down_error(e) or not ollama_guard.ensure():
+                raise
+            _stream_reply(text, t0, full)
         appio.emit("reply_end", text=voice_mod.strip_tags("".join(full)), seconds=round(time.time() - t0, 3))
     except Exception as e:
         stop_hum()
         print(f"\n[Cognitive Glitch]: {e}")
+        down = ollama_guard.is_down_error(e)
         # Keep what was said before the failure: the transcript used to lose the turn.
         if full:
             appio.emit("reply_end", text=voice_mod.strip_tags("".join(full)) + " [interrupted by an error]",
                        seconds=round(time.time() - t0, 3))
-        appio.emit("error", message=str(e))
+        # Say it out loud: a silent failure with a raw socket error on screen read as
+        # JARVIS refusing to answer (2026-10-10).
+        speak(BRAIN_DOWN if down else "I'm afraid that reply failed. The error is in the log.")
+        appio.emit("error", message=BRAIN_DOWN if down else str(e))
 
 
 def main_loop():

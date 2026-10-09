@@ -81,8 +81,8 @@ def detect(core_info: dict | None = None, aankhen_info: dict | None = None) -> l
                        "connected" if turbo.exists() else "missing",
                        "Speech to text on CUDA, int8_float16, ~2.7 s per utterance.",
                        None if turbo.exists() else "Downloads automatically on the first voice start."))
-    items.append(_item("tts", "Brain", "Edge TTS · en-IN-PrabhatNeural (voice)", "connected",
-                       "Online service: speech needs internet; everything else is local."))
+    items.append(_item("tts", "Brain", "Edge TTS · en-GB-RyanNeural (voice)", "connected",
+                       "Online voice; without internet JARVIS falls back to Kokoro-82M on the CPU."))
     oww = glob.glob(str(BRAIN / ".venv311_gpu" / "Lib" / "site-packages" / "openwakeword" / "resources" / "models" / "hey_jarvis*"))
     items.append(_item("wake", "Brain", "Wake word · \"Hey Jarvis\"", "connected" if oww else "missing",
                        "openWakeWord, ONNX, runs on CPU." if oww else "Model file not found.",

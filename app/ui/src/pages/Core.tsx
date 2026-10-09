@@ -324,11 +324,11 @@ function SystemsCard({ core }: { core: CoreInfo | null }) {
 
   const rows = [
     { icon: BrainCircuit, name: 'Brain', tone: llm ? 'live' : core?.running ? 'idle' : 'off', tab: 'system' as const,
-      value: llm ? `Qwen3-4B · ${fmtGb(llm.vram_mb)} GB` : vitals?.ollama ? 'loads on first question' : 'Ollama not reachable' },
+      value: llm ? `Qwen3-4B · ${fmtGb(llm.vram_mb)} GB` : vitals?.ollama ? 'loads on first question' : core?.running ? 'Ollama not reachable' : 'Ollama off · starts when he wakes' },
     { icon: Mic, name: 'Ears', tone: voice ? 'live' : 'off', tab: 'core' as const,
       value: voice ? 'Whisper turbo · CUDA' : core?.running ? 'off in text mode' : 'asleep' },
     { icon: Speaker, name: 'Voice', tone: voice ? 'live' : 'off', tab: 'core' as const,
-      value: voice ? 'Edge TTS · Prabhat' : '—' },
+      value: voice ? 'Ryan, British · Edge TTS (Kokoro offline)' : '—' },
     { icon: BrainCircuit, name: 'Memory', tone: mem?.memories ? 'idle' : 'off', tab: 'yaadash' as const,
       value: mem ? `${fmtInt(mem.memories)} facts · ${fmtInt(mem.archive_messages)} msgs` : 'loading…' },
     { icon: ScanEye, name: 'Eyes', tone: pres ? (eyesSim ? 'sim' : 'live') : 'off', tab: 'aankhen' as const,

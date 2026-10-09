@@ -124,6 +124,22 @@ class CoreProcess:
             raise ValueError("empty message")
         self._send({"type": "say", "text": text})
 
+    def speak(self, text: str) -> dict:
+        """JARVIS says `text` as-is (a brief, a nudge, a Crucible call) — it is NOT
+        sent to the model as a message from Aman. Kept in the transcript as his turn."""
+        text = text.strip()
+        if not text:
+            raise ValueError("empty line")
+        self._send({"type": "speak", "text": text[:600]})
+        with self._lock:
+            self._turn_id += 1
+            turn = {"id": self._turn_id, "role": "jarvis", "text": text[:600], "t": time.time(), "done": True,
+                    "session": self.session, "announce": True}
+            self.turns.append(turn)
+            self._keep(turn)
+        self.bus.publish("core", "turn", "", turn=turn)
+        return turn
+
     def room_command(self, device: str, action: str, value=None) -> None:
         self._send({"type": "room", "device": device, "action": action, "value": value})
 

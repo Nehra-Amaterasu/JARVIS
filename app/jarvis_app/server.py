@@ -52,6 +52,8 @@ class Services:
         self.kv = germoney.KVStore()
         self.calendar = germoney.Calendar()
         self._last_presence: Optional[str] = None
+        # Game actions waiting for the Mission UI to answer: id -> (event, result)
+        self.game_pending: dict[str, list] = {}
         self._seen_aankhen_event = 0
 
 
@@ -148,6 +150,61 @@ def create_app(guard: Guard, autostart_aankhen: str = "auto") -> FastAPI:
             svc.core.say(text)
         except Exception as e:
             raise HTTPException(409, str(e))
+        return {"ok": True}
+
+    @app.post("/api/core/speak")
+    def core_speak(text: str = Body(..., embed=True)):
+        try:
+            return {"ok": True, "turn": svc.core.speak(text)}
+        except Exception as e:
+            raise HTTPException(409, str(e))
+
+    # ------------------------------------------------------------ the Mission game <-> JARVIS
+    # The game's rules live in the UI (one engine, unit-tested there). JARVIS reaches
+    # them through here: a voice action becomes an ephemeral bus event, the Mission
+    # UI runs it and posts the result back, and this request returns it as one line.
+    @app.get("/api/game/brief")
+    def game_brief():
+        raw = svc.kv.get("@silicon_game_brief")
+        if not raw:
+            raise HTTPException(404, "No mission brief yet — open the Mission tab once.")
+        try:
+            return json.loads(raw)
+        except ValueError:
+            raise HTTPException(500, "The stored brief is damaged.")
+
+    @app.post("/api/game/action")
+    async def game_action(payload: dict = Body(...)):
+        action = str(payload.get("action") or "")
+        if not re.fullmatch(r"[a-z_]{2,24}", action):
+            raise HTTPException(400, "bad action")
+        args = payload.get("args") or {}
+        if not isinstance(args, dict):
+            raise HTTPException(400, "args must be an object")
+        if bus.listeners == 0:
+            raise HTTPException(503, "The JARVIS window is not open, so the game cannot run the action.")
+        import secrets
+        action_id = secrets.token_hex(8)
+        done = asyncio.Event()
+        svc.game_pending[action_id] = [done, None]
+        bus.publish("game", "action", f"game: {action}", ephemeral=True, action_id=action_id, action=action, args=args)
+        try:
+            await asyncio.wait_for(done.wait(), timeout=6)
+        except asyncio.TimeoutError:
+            raise HTTPException(504, "The Mission screen did not answer.")
+        finally:
+            entry = svc.game_pending.pop(action_id, [None, None])
+        return entry[1]
+
+    @app.post("/api/game/result")
+    async def game_result(payload: dict = Body(...)):
+        entry = svc.game_pending.get(str(payload.get("id") or ""))
+        if not entry:
+            raise HTTPException(404, "unknown or expired action")
+        entry[1] = {"ok": bool(payload.get("ok")), "say": str(payload.get("say") or "")[:800], "data": payload.get("data")}
+        entry[0].set()
+        if entry[1]["say"]:
+            bus.publish("game", "result", entry[1]["say"][:140])
         return {"ok": True}
 
     @app.get("/api/core/transcript")

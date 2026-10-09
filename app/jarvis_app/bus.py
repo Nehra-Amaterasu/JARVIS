@@ -46,6 +46,11 @@ class EventBus:
                 continue
             q.put_nowait(ev)
 
+    @property
+    def listeners(self) -> int:
+        """Open UI connections (WebSocket subscribers) right now."""
+        return len(self._subscribers)
+
     def history(self, n: int = 100) -> list[dict]:
         with self._lock:
             return list(self._history)[-n:]

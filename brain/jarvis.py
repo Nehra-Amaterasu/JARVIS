@@ -102,6 +102,9 @@ TEXT_ONLY = appio.TEXT_ONLY
 room.on_change = lambda device, st: appio.emit("room", device=device, state=st)
 appio.on("room", lambda c: room.apply(c["device"], c["action"], c.get("value")))
 appio.on("room_state", lambda c: appio.emit("room_state", state=room.state, mqtt=room.MQTT_OK))
+# A line the app wants said verbatim (mission brief, nudge, Crucible call). Spoken on its
+# own thread so the stdin reader stays free for room commands; silent in --text mode.
+appio.on("speak", lambda c: threading.Thread(target=speak, args=(str(c.get("text", "")),), daemon=True).start())
 
 SAMPLE_RATE = 16000
 SILENCE_THRESHOLD = 0.04  # Lowered from 0.08 so JARVIS can hear normal speaking volume

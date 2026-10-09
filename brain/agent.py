@@ -21,6 +21,11 @@ try:
 except Exception as _e:
     yaadash_beliefs = None
     print(f"[Yaadash beliefs unavailable: {_e}]")
+try:
+    import mission           # Mission Germoney: voice commands + live mission state
+except Exception as _e:
+    mission = None
+    print(f"[Mission bridge unavailable: {_e}]")
 import os
 import sys
 import numpy as np
@@ -239,6 +244,18 @@ def run_agent(user_input: str) -> str:
     2. Build Persona.
     3. Stream response (or trigger tool).
     """
+    # 0. Mission Germoney commands ("log 2 hours of German", "brief me") are parsed
+    # deterministically and answered by the game — no model in the loop, so they are
+    # instant and can never be misheard into a different action.
+    if mission is not None:
+        try:
+            reply = mission.handle(user_input)
+        except Exception as e:
+            reply = None
+            print(f"\n[Mission action error: {e}]")
+        if reply:
+            yield reply
+            return
     # 1. Fetch Deep Memories
     # People + past conversations, only when the message names someone or asks
     # about the past. Never allowed to break a reply.
@@ -266,7 +283,15 @@ def run_agent(user_input: str) -> str:
     room_line = room_context(user_input)
     if room_line:
         memories = (memories + "\n\n" + room_line).strip()
-    
+    # Live Mission Germoney state, only when he asks about study / German / the plan.
+    if mission is not None:
+        try:
+            mission_line = mission.context(user_input)
+            if mission_line:
+                memories = (memories + "\n\n" + mission_line).strip()
+        except Exception as e:
+            print(f"\n[Mission context error: {e}]")
+
     # 2. Construct the Expert Persona (Empathetic Context Engine)
     system_prompt = f"""[SYSTEM_ROLE: EMPATHETIC_CONTEXT_ENGINE]
 You possess advanced emotional intelligence and situational awareness. You are not a robotic interface; you are an empathetic, proactive companion deeply integrated into the user's living space.

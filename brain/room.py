@@ -88,3 +88,66 @@ def render():
         filled = int(s["level"] / 10) if s["on"] else 0
         return f"{d.upper():5} [{'#' * filled}{'.' * (10 - filled)}] {'ON  ' if s['on'] else 'off '} {s['level']}%"
     return "   ".join(bar(d) for d in state)
+
+
+# ------------------------------------------------------------------ spoken commands
+# Deterministic, English and Hinglish. Until 2026-10-09 room control went through the
+# model's tool call: 6.4 s per command (stream, re-invoke, final call), English-only
+# keywords, and for "light band kar do" the model, with no tool bound, CLAIMED the light
+# was off in 1 of 3 runs. A parser is instant, understands Hinglish, and never pretends.
+import re as _re
+
+_DEV = [("light", _re.compile(r"\b(lights?|batti|bulb|lamp|roshni)\b", _re.I)),
+        ("fan", _re.compile(r"\b(fan|pankha|pankhe)\b", _re.I))]
+_ALL = _re.compile(r"\b(everything|all|sab|sabhi|saari|sare)\b", _re.I)
+_ON = _re.compile(r"\b(on|chalu|chala|chalao|jala|jalao|start|switch on|turn on)\b", _re.I)
+_OFF = _re.compile(r"\b(off|band|bujha|bujhao|bujhado|stop|switch off|turn off|kill)\b", _re.I)
+_DIM = _re.compile(r"\b(dim|kam|halka|halki|dheema|dheemi|slow|lower|down)\b", _re.I)
+_UP = _re.compile(r"\b(bright(en|er)?|tez|zyada|full|fast(er)?|higher|up|badha|badhao)\b", _re.I)
+_PCT = _re.compile(r"\b(\d{1,3})\s*(%|percent|pratishat)", _re.I)
+_SCENE = [("sleep", _re.compile(r"\b(sleep|sone|good ?night|so ?raha|so ?jaun)\b", _re.I)),
+          ("focus", _re.compile(r"\b(focus|study mode|padhai|deep work)\b", _re.I)),
+          ("relaxation", _re.compile(r"\b(relax|chill|wind down|aaram)\b", _re.I))]
+_SCENE_VERB = _re.compile(r"\b(mode|scene|set|kar|karo|do|banao|time)\b", _re.I)
+_QUESTION = _re.compile(r"^\s*(is|are|was|kya|what|which|why|how|did|does|do you|can you tell)\b|\?\s*$", _re.I)
+
+
+def parse(text):
+    """[(device, action, value)] for an imperative room command, else []."""
+    t = (text or "").strip()
+    if not t or _QUESTION.search(t):
+        return []
+    for name, rx in _SCENE:
+        if rx.search(t) and _SCENE_VERB.search(t) and not any(d.search(t) for _, d in _DEV):
+            return [("environment", name, name)]
+    devices = [name for name, rx in _DEV if rx.search(t)]
+    if not devices:
+        if _ALL.search(t) and (_ON.search(t) or _OFF.search(t)):
+            devices = ["all"]
+        else:
+            return []
+    pct = _PCT.search(t)
+    if pct:
+        action, value = "set", max(0, min(100, int(pct.group(1))))
+    elif _OFF.search(t):
+        action, value = "off", None
+    elif _DIM.search(t):
+        action, value = "dim", None
+    elif _UP.search(t):
+        action, value = "brighten", None
+    elif _ON.search(t):
+        action, value = "on", None
+    else:
+        return []
+    return [(d, action, value) for d in devices]
+
+
+def describe(device):
+    """One short, true sentence about a device after a change."""
+    if device in ("all", "environment"):
+        return " ".join(describe(d) for d in ("light", "fan"))
+    s = state[device]
+    noun = "light" if device == "light" else "fan"
+    if not s["on"]:
+        return f"The {noun} is off."
+    return f"The {noun} is on at {s['level']} percent."

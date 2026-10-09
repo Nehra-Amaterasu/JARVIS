@@ -147,7 +147,7 @@ export const CARDS: Card[] = [
   o(6, 'uni-assist fees (2026)', '€75 for the first application, €30 for each additional one in the same semester.'),
   o(7, 'What is a VPD?', 'Vorprüfungsdokumentation: uni-assist\'s evaluation of a non-EU degree, which some universities (e.g. TUM) require.'),
   o(8, 'Modified Bavarian formula', 'German grade = 1 + 3 × (Nmax − Nd) / (Nmax − Nmin). 1.0 best, 4.0 pass.'),
-  o(9, 'CGPA 8.0 on a 10 scale, pass mark 4 → German grade?', '2.0'),
+  o(9, 'How is a 10-point CGPA converted to a German grade?', 'Modified Bavarian formula: 1 + 3 × (10 − CGPA) / (10 − pass mark). 1.0 is best, 4.0 is a pass.'),
   o(10, 'One ECTS credit ≈ ?', '25–30 hours of student work. A master\'s is 120 ECTS (4 semesters).'),
   o(11, 'RWTH EE & IT master — winter deadline for non-EU', '1 March (English-taught; German courses compulsory after admission below B1).'),
   o(12, 'TUM Microelectronics & Chip Design — tuition for non-EU', 'TUM charges non-EU master\'s students €4,000–6,000 per semester (programme-specific; check the page).'),

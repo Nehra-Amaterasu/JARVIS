@@ -162,7 +162,7 @@ the and was were with for that this you your have has had baat bola kaha bataya
 # "maine kab ... kiya?" / "when did I ..." asks about HIS OWN messages. Without a
 # boost, "when did I complete One Piece?" returned a friend saying "One piece
 # completed in 4 months bro" — right topic, wrong person.
-_FIRST_PERSON = re.compile(r"(maine|mene|mai ne|main ne|did i|have i|i (?:said|told|did|was|used)|my|mera|meri|mujhe)", re.I)
+_FIRST_PERSON = re.compile(r"\b(maine|mene|mai ne|main ne|did i|have i|i (?:said|told|did|was|used)|my|mera|meri|mujhe)\b", re.I)
 FIRST_PERSON_BOOST = 1.6
 
 

@@ -143,3 +143,15 @@ def test_brief_comes_from_the_store(client):
 
 def test_speak_needs_jarvis_awake(client):
     assert client.post("/api/core/speak", json={"text": "Floor not secured."}).status_code == 409
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("bhai aaj bahut thak gaya hoon, kya karu?", False),   # one generic word is not the mission
+    ("I have a job interview", False),
+    ("tell me a joke", False),
+    ("how is my streak", True),                              # a game word is enough
+    ("should I study German or Verilog now?", True),          # two topic words are
+    ("aaj exam hai", True),
+])
+def test_mission_context_is_pulled_in_only_when_relevant(text, expected):
+    assert mission.is_about_mission(text) is expected

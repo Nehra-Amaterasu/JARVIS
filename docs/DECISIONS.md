@@ -10,6 +10,69 @@ Format per entry: **Context → Decision → Evidence → Consequences / open it
 
 ---
 
+## 2026-10-09 — JARVIS speaks one language, in the accent he chooses
+
+**Context.** JARVIS's Hindi pronunciation and his grammar in both languages were wrong
+"all the time". The cause was two decisions stacked on each other: the persona told the
+model to speak "natural Hinglish ('Bhai', 'Haanji')", and the voice was an Indian-English
+voice (en-IN-PrabhatNeural) reading the romanised Hindi — an English voice guessing at
+Hindi words spelled in Latin letters. I want British English by default, Hindi
+understood but answered in English, and accents on demand (American, British, real Hindi).
+
+**Decision.**
+- Persona rewritten: British English only; Hinglish understood, never written; Hindi
+  only when asked, in Devanagari. A short "what you can and cannot do" (no internet, no
+  music, never claim an action a tool did not confirm), a NOW line, and a length budget
+  (voice: ~40 words; text: under 80).
+- `brain/voice.py`: accent tags `[us] [uk] [hi] [in]` per line; an explicit request
+  ("in an American accent", "Hindi mein") sets the reply's voice; any Devanagari is
+  routed to a native Hindi voice whatever the tag. Microsoft neural voices online,
+  Kokoro-82M offline on the CPU (no VRAM). Synthesis on its own thread; punctuation-only
+  text skipped; a failing cloud is retried after 60 s, not per sentence; per-voice gain.
+- The persona became static per mode and per-turn context moved into the user message, so
+  Ollama reuses its cached prefix. Room commands and VLSI facts got deterministic paths
+  (below), and transcription got guards (`brain/stt.py`).
+
+**Evidence** (round trip: synthesise → Whisper → error vs the intended text).
+
+| Hindi | character error |
+|---|---|
+| today: Indian-English voice reading romanised Hindi | 5.9% |
+| a British voice reading romanised Hindi | 35.5% |
+| native Hindi voice (Madhur) reading Devanagari | **2.6%** |
+| offline Kokoro hm_psi | 2.2% |
+
+English voices are all equally clear (4.0–4.8% WER; Kokoro bm_george 4.1%), so the
+choice is character: Ryan (British) for JARVIS, Andrew (American).
+
+Persona A/B on the live model, 12 inputs × 2: replies containing romanised Hindi
+**88% → 0%**; accent/Hindi requests honoured **0/6 → 6/6**; median length 123 → 30 words.
+Reading the replies found what the numbers missed — invented weather, invented "news",
+offers to play music — fixed by the capability rule and re-checked.
+
+Speech-path faults the conversation audit measured and this removes: a stray "..." raised
+NoAudioReceived and aborted the turn (one real turn lost that day); no network killed
+the voice loop; the token loop stalled ~1–1.8 s per sentence on synthesis; "Thinking."
+and "Transcribing." cost ~2.2 s per turn; a second hum played under the voice. Loudness:
+Madhur measured ~4 dB louder than Ryan, so switching into Hindi jumped — now levelled.
+
+**Verified notes.** Asked to explain setup time, the model said it is "how long a
+circuit takes to prepare itself" — wrong. Grounding on the drill-deck cards: 8 interview
+questions × 3, correct **15/24 → 21/24** (one remaining "miss" was a right answer my
+scorer did not recognise). A memory audit caught the danger: "mera CGPA kya hai?" pulled
+in a card with a sample CGPA. Questions about him now never get the Germany cards.
+
+**Found on the way.** Two regexes in the brain contained a literal backspace where `\b`
+was meant (a shell heredoc collapses `\\`); one of them, in `yaadash_recall.py`, had
+silently disabled the "boost his own messages" rule for first-person memory questions
+since that file was written. A test now fails if a backspace ever appears again.
+
+**Limits.** Accents are voices, not impressions: no cloning of real artists' voices, and
+the engines speak rather than sing. JARVIS has no reliable lyrics and is told not to
+invent them. Offline synthesis speed still has to be measured on an idle CPU.
+
+---
+
 ## 2026-10-09 — Mission Germoney becomes a game, and JARVIS runs it
 
 **Context.** I built the Mission Germoney phone app and never used it. Reading my own

@@ -60,6 +60,13 @@ class TranscriptStore:
             obj["timings"] = {k: v for k, v in timings.items() if k in ("stt", "first_token", "reply")}
         self._append(self._day_file(ts), obj)
 
+    def record_timing(self, session: str, turn_id: int, stage: str, seconds: float) -> None:
+        """A timing that arrives after the turn was kept — first_audio comes from the
+        playback thread, often after the reply text has finished streaming."""
+        ts = time.time()
+        self._append(self._day_file(ts), {"kind": "timing", "session": session, "id": int(turn_id),
+                                          "stage": stage, "seconds": seconds, "ts": ts})
+
     def record_error(self, session: str, message: str, critical: bool = False) -> None:
         ts = time.time()
         self._append(self._day_file(ts), {"kind": "error", "session": session, "ts": ts,
@@ -113,6 +120,9 @@ class TranscriptStore:
         flags = self.flags()
         sessions = {t["session"] for t in turns}
         lat = [t["seconds"] for t in replies if isinstance(t.get("seconds"), (int, float))]
+        # What he actually waits for: end of his speech -> JARVIS's voice starts.
+        audio = [e["seconds"] for e in ents if e.get("kind") == "timing" and e.get("stage") == "first_audio"
+                 and isinstance(e.get("seconds"), (int, float))]
         flag_counts = Counter(f["verdict"] for k, f in flags.items() if k[0] in sessions)
         return {
             "days": days, "sessions": len(sessions), "turns": len(turns),
@@ -121,6 +131,8 @@ class TranscriptStore:
             "flags": dict(flag_counts),
             "reply_seconds_median": round(statistics.median(lat), 2) if lat else None,
             "reply_seconds_p90": round(sorted(lat)[int(0.9 * (len(lat) - 1))], 2) if lat else None,
+            "first_audio_median": round(statistics.median(audio), 2) if audio else None,
+            "first_audio_p90": round(sorted(audio)[int(0.9 * (len(audio) - 1))], 2) if audio else None,
         }
 
     def recent(self, days: int = 2, limit: int = 200) -> list[dict]:

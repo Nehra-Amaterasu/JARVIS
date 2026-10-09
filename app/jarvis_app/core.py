@@ -242,6 +242,14 @@ class CoreProcess:
                 self.timings[ev.get("stage")] = ev.get("seconds")
                 if ev.get("stage") == "stt":
                     self._pending_stt = ev.get("seconds")
+                elif ev.get("stage") == "first_audio":
+                    jt = next((t for t in reversed(self.turns) if t["role"] == "jarvis"), None)
+                    if jt is not None:
+                        try:
+                            self.transcripts.record_timing(self.session or "unknown", jt["id"], "first_audio",
+                                                           ev.get("seconds"))
+                        except OSError as e:
+                            self._log(f"[app] timing write failed: {e}")
                 else:
                     self._turn_timings[ev.get("stage")] = ev.get("seconds")
                 self.bus.publish("core", "timing", ephemeral=True, stage=ev.get("stage"),

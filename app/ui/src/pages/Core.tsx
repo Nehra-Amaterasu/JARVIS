@@ -22,6 +22,10 @@ const BOOT_STEPS = [
   { id: 'memory', label: 'Memory', detail: 'Yaadash + brain warm-up' },
 ]
 
+/** Accent tags ([us]…[/us], [hi]…[/hi]) steer JARVIS's voice; they are never shown. */
+const VOICE_TAG = /\[\/?(uk|british|gb|us|american|usa|hi|hindi|in|indian)\]/gi
+const stripVoiceTags = (t: string) => (t || '').replace(VOICE_TAG, '').replace(/[ \t]{2,}/g, ' ')
+
 export function CorePage() {
   const core = useStore((s) => s.core)
   const level = useStore((s) => s.micLevel)
@@ -134,6 +138,7 @@ function Latency({ timings }: { timings: Record<string, number> }) {
   const items = [
     { k: 'stt', label: 'Hearing', hint: 'speech → text' },
     { k: 'first_token', label: 'First word', hint: 'question → first token' },
+    { k: 'first_audio', label: 'Voice', hint: 'question → JARVIS starts speaking (what you actually wait for)' },
     { k: 'reply', label: 'Full reply', hint: 'question → last token' },
   ]
   if (!Object.keys(timings).length) return null
@@ -229,7 +234,7 @@ function TurnRow({ turn, n }: { turn: Turn & { session?: string }; n: number }) 
           {turn.seconds !== undefined && <span className="mono turn-time">{fmt(turn.seconds, 1)}s</span>}
           {flag && <span className={`pill ${flag === 'good' ? 'live' : 'fault'}`}>{flag}</span>}
         </div>
-        <div className="turn-text">{turn.text || '…'}</div>
+        <div className="turn-text">{stripVoiceTags(turn.text) || '…'}</div>
         {canFlag && !flag && (
           <div className="turn-actions">
             {turn.role === 'jarvis' ? (

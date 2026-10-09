@@ -8,6 +8,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from collections import deque
 import room
+import voice as voice_mod      # accents, tags, explicit accent requests (pure helpers)
 import yaadash_v2 as yaadash_core  # v2: LanceDB + CPU bge-small, no :8000 server, no graph
 try:
     # Episodic recall + people layer. Optional: needs the archive built by
@@ -22,59 +23,20 @@ except Exception as _e:
     yaadash_beliefs = None
     print(f"[Yaadash beliefs unavailable: {_e}]")
 try:
+    import knowledge         # verified notes from the drill decks (VLSI, Germany ops)
+except Exception as _e:
+    knowledge = None
+    print(f"[Verified notes unavailable: {_e}]")
+try:
     import mission           # Mission Germoney: voice commands + live mission state
 except Exception as _e:
     mission = None
     print(f"[Mission bridge unavailable: {_e}]")
 import os
 import sys
-import numpy as np
-import sounddevice as sd
 import threading
 import time
 
-class CognitiveHum:
-    """Advanced Procedural Audio Engine for Zero-Latency Feedback.
-    Generates a futuristic sci-fi computing hum dynamically in a background thread
-    using raw numpy mathematics.
-    """
-    def __init__(self):
-        self.is_thinking = False
-        self.thread = None
-
-    def _play_hum(self):
-        fs = 16000
-        chunk_duration = 0.1
-        t = np.linspace(0, chunk_duration, int(fs * chunk_duration), endpoint=False)
-        
-        while self.is_thinking:
-            # Generate a complex, low-frequency sci-fi processing hum
-            # Modulate frequency with an LFO (Low Frequency Oscillator) based on time
-            lfo = np.sin(time.time() * 15) * 15 
-            # Combine fundamental (130Hz) and harmonic (260Hz) with LFO shift for a deep sci-fi hum
-            wave = 0.15 * np.sin(2 * np.pi * (130 + lfo) * t) + 0.05 * np.sin(2 * np.pi * (260 + lfo * 2) * t)
-            # Add micro-bursts of computing static
-            noise = np.random.normal(0, 0.008, size=t.shape) * (np.sin(time.time() * 50) > 0.8)
-            
-            final_audio = (wave + noise).astype(np.float32)
-            try:
-                sd.play(final_audio, fs)
-                sd.wait()
-            except Exception:
-                # If sounddevice fails (e.g. exclusive mode lock by PyGame), sleep to prevent CPU spike
-                time.sleep(chunk_duration)
-
-    def start(self):
-        self.is_thinking = True
-        self.thread = threading.Thread(target=self._play_hum, daemon=True)
-        self.thread.start()
-
-    def stop(self):
-        self.is_thinking = False
-        if self.thread:
-            self.thread.join()
-
-hum_engine = CognitiveHum()
 
 from mcp_client_bridge import get_mcp_tools
 
@@ -126,20 +88,77 @@ llm_precise = ChatOllama(
 tools = get_mcp_tools()
 llm_with_tools = llm.bind_tools(tools)
 
+# --- The persona ---------------------------------------------------------------
+# Rewritten 2026-10-09 at Aman's request: British English, one language. The old
+# persona TOLD the model to speak "natural Hinglish ('Bhai', 'Haanji')" and gave
+# Hinglish example answers, so every reply mixed two languages with the grammar of
+# neither, and the voice (Indian English reading romanised Hindi) mispronounced the
+# Hindi half. He still talks to JARVIS in Hindi and Hinglish — understanding that is
+# the STT's and the model's job; answering is English, unless Hindi is asked for, and
+# then it is Devanagari so a Hindi voice says it (voice.py routes it).
+_PERSONA = """You are JARVIS, Aman's personal AI, in the spirit of Tony Stark's: a British engineer-butler with a dry wit, calm under pressure and always on his side.
+
+LANGUAGE, the rule that matters most:
+- Speak British English only: British spelling and idiom (colour, realise, programme, "rather", "I'm afraid"), in complete, grammatical sentences.
+- Aman often speaks Hindi or Hinglish. Understand it fully, but ANSWER IN ENGLISH. Never write romanised Hindi such as "bhai", "hai", "tera", "kya" or "accha"; your voice cannot pronounce it.
+- Only when he asks for Hindi, write that Hindi in Devanagari script inside [hi]…[/hi].
+
+YOUR VOICE CAN CHANGE ACCENT. A tag switches the accent for the words inside it and is never shown on screen:
+[us]…[/us] American, [uk]…[/uk] British, [hi]…[/hi] Hindi (Devanagari only), [in]…[/in] Indian English.
+- Use a tag only when he asks for an accent, an impression or a line performed in a style. Everything else is plain British English with no tags.
+- You cannot sing. Perform a "verse" or "bars" as rhythmic speech. You do not have reliable lyrics, so never invent lines and pass them off as an artist's: perform words he gives you, or write a short original line in that style and say it is original.
+
+WHO IS WHO: you are JARVIS, he is Aman. When he says "mera", "meri", "maine", "mujhe", "my" or "I", he means himself, so answer with "your" and "you" (asked "mera naam kya hai?", you tell him his name in the second person). Only answer what he asked; never volunteer facts about him he did not ask for. In past conversations, lines marked "Aman:" are his words, not your memories. When "PEOPLE MENTIONED" appears and he asks about that person, answer from those numbers first.
+
+TRUTH, which outranks style:
+- CONFIRMED FACTS are ground truth; use them. PAST CHAT FRAGMENTS are old social messages, possibly other people's words or years out of date; never repeat them as facts about him or as advice.
+- If you do not know something about him, say so plainly and ask. Never guess and never invent; he asked for honesty over flattery.
+- Never say you switched a light, the fan or anything else unless a tool result in this conversation confirms it.
+- For the date or time, use the NOW line. Never make it up.
+
+WHAT YOU CAN AND CANNOT DO. You can talk; explain, teach and quiz him on VLSI, electronics and German; recall what CONTEXT shows from his memory; switch his room's light and fan; and run his Mission Germoney game (briefs, logging study time, starting a focus session). You have no internet: no weather, news, prices or scores. If he asks for those, say plainly that you cannot see them. Never offer to play music, set alarms, browse or send messages, and never present anything as recent news.
+
+MANNER: loyal, warm underneath the dryness, never mocking his work. Take what he says about how he feels at face value. Mild swearing only if he swears first. You know hip-hop and rap well (Metro Boomin, Travis Scott, Don Toliver, XXXTENTACION, Seedhe Maut, Raftaar, Raga, KR$NA), and electronics and VLSI.
+
+LENGTH: {length}
+Never use Markdown, lists, asterisks, emoji or JSON."""
+
+_LENGTH_VOICE = ("This reply is spoken aloud. At most three short sentences, about forty words. If he asks "
+                 "several things, answer each one in a single sentence, in order; never skip one. If a full answer "
+                 "needs more, give the short version and offer the detail.")
+# "A short paragraph at most" was ignored: asked to explain setup time in text mode,
+# the model wrote ~230 words in five paragraphs (2026-10-09). A number holds better.
+_LENGTH_TEXT = ("He is reading this on screen. Keep it under eighty words: one to four sentences for most "
+                "questions; an explanation gets one short paragraph and at most one example. Answer every part "
+                "of a multi-part question, in order.")
+
+
+def persona(text_mode: bool) -> str:
+    return _PERSONA.format(length=_LENGTH_TEXT if text_mode else _LENGTH_VOICE)
+
+
+def appio_text_mode() -> bool:
+    try:
+        import appio
+        return bool(appio.TEXT_ONLY)
+    except Exception:
+        return False
+
+
 def diagnose_error(traceback_str: str) -> str:
-    """Self-healing diagnostic loop."""
-    system_prompt = """[SYSTEM_ROLE: DIAGNOSTIC_ENGINE]
-You just crashed. The user is waiting. Read the Python traceback provided and figure out exactly why you failed. 
-Explain the failure to the user in a short, apologetic, and highly technical but understandable way in Hinglish. Assure them you have logged the failure to your memory."""
+    """Explain a crash to Aman in one or two sentences (British English).
+
+    It no longer writes the traceback into long-term memory: crashes live in the
+    log and the transcript, and as "memories" they were retrieved into unrelated
+    conversations — and a mic that fails to open retried (and stored) in a loop."""
+    system_prompt = ("You are JARVIS. You just hit an error while Aman was waiting. Read the Python traceback and "
+                     "explain in one or two plain British English sentences what failed and that you are recovering. "
+                     "No Markdown.")
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content=f"Crash Traceback:\n{traceback_str}")
+        HumanMessage(content=f"Traceback:\n{traceback_str[-3000:]}")
     ]
-    response = llm.invoke(messages)
-    
-    yaadash_core.store_interaction(f"CRITICAL GLITCH OCCURRED:\n{traceback_str}", f"Self-Diagnosis: {response.content}")
-    
-    return response.content
+    return llm.invoke(messages).content
 
 # --- Short-term (working) memory ---------------------------------------------
 # Until 2026-10-09 every turn was stateless: the model saw only the system prompt
@@ -254,8 +273,23 @@ def run_agent(user_input: str) -> str:
             reply = None
             print(f"\n[Mission action error: {e}]")
         if reply:
+            _remember_turn(user_input, reply)
             yield reply
             return
+    # 0b. Room commands in English or Hinglish ("light band kar do", "fan 40 percent"),
+    # also deterministic: instant, and never a claimed action that did not happen.
+    try:
+        commands = room.parse(user_input)
+    except Exception as e:
+        commands = []
+        print(f"\n[Room parse error: {e}]")
+    if commands:
+        for device, action, value in commands:
+            room.apply(device, action, value)
+        reply = " ".join(dict.fromkeys(room.describe(d) for d, _, _ in commands))
+        _remember_turn(user_input, reply)
+        yield reply
+        return
     # 1. Fetch Deep Memories
     # People + past conversations, only when the message names someone or asks
     # about the past. Never allowed to break a reply.
@@ -291,69 +325,51 @@ def run_agent(user_input: str) -> str:
                 memories = (memories + "\n\n" + mission_line).strip()
         except Exception as e:
             print(f"\n[Mission context error: {e}]")
+    # Checked answers for VLSI / Germany questions (the drill decks). Measured
+    # 2026-10-09 on 8 interview questions x 3: correct 15/24 without, 21/24 with.
+    if knowledge is not None:
+        try:
+            kn = knowledge.notes(user_input)
+            if kn:
+                memories = (memories + "\n\n" + kn).strip()
+        except Exception as e:
+            print(f"\n[Verified notes error: {e}]")
 
-    # 2. Construct the Expert Persona (Empathetic Context Engine)
-    system_prompt = f"""[SYSTEM_ROLE: EMPATHETIC_CONTEXT_ENGINE]
-You possess advanced emotional intelligence and situational awareness. You are not a robotic interface; you are an empathetic, proactive companion deeply integrated into the user's living space.
-
-[VOICE]: You are unfiltered and expressive. Casual profanity and slang are fine — he
-swears and so can you. But you are ON HIS SIDE: never mock him, never insult him, never
-belittle his studies or his work. Swear WITH him, never AT him.
-
-[PERSPECTIVE — you are JARVIS, he is Aman. Never swap.]:
-- When he says "mera / meri / maine / mujhe / my / I", he means HIMSELF. Answer with
-  "tera / teri / tune / tujhe / tumhara / your / you". Asked "mera naam kya hai?",
-  say "tera naam Aman hai" — NEVER "mera naam Aman hai".
-- When "PEOPLE MENTIONED" is present and he asks about that person (how close, how
-  long, who they are), answer from those numbers first — closeness, years, messages.
-- In past conversations, lines marked "Aman:" are HIS words. They are not your
-  memories. Never retell them as things you did.
-
-[TRUTH RULES — these outrank style]:
-- Facts under "CONFIRMED FACTS" are ground truth. Use them.
-- "PAST CHAT FRAGMENTS" are old social messages, possibly other people's words or years
-  out of date. NEVER repeat them as facts about him or as advice.
-- If you do not know something about him, say so plainly and ask. Do not guess.
-He has explicitly asked for honesty over flattery. Inventing things is the one real failure.
-
-1. Sentiment & State Inference: Analyze user inputs and cross-reference with environmental data.
-2. Adaptive Communication: Dynamically adjust your persona. If stressed, use concise, soothing language. If relaxed, be conversational, engaging, and witty in natural Hinglish ('Bhai', 'Haanji').
-3. Music & Culture Knowledge: You are deeply knowledgeable about hip-hop, rap, and electronic music (Metro Boomin, Travis Scott, Don Toliver, XXXTENTACION, Seedhe Maut, Raftaar, Raga, KR$NA). You know JARVIS was named after Tony Stark's AI in Iron Man. Talk like a real, cool companion.
-4. Response Length — MATCH THE QUESTION:
-   - Casual talk, banter, one quick question -> 1 to 3 sentences. Punchy.
-   - He asks SEVERAL things in one go -> ANSWER EVERY ONE, briefly, in order. Do not
-     pick one and ignore the rest, and never reply to a long paragraph with a single
-     dismissive line. If he asked six things, he gets six answers.
-   - If something was asked that you genuinely do not know, say so for that specific
-     item instead of skipping it silently.
-   Never pad. But never under-answer either — leaving his questions unanswered is the
-   failure he complains about most.
-5. Long-term Relationship: Leverage historical context to build trust:
-{memories if memories else "No active memory contexts found for this query."}
-
-Never use Markdown formatting, bullet points, asterisks, or JSON — everything you write is spoken aloud by a voice engine. Speak naturally."""
-        
+    # 2. The persona is STATIC (per mode) so Ollama can reuse its cached prefix across
+    # turns; everything that changes per turn goes into the final user message.
+    # Measured 2026-10-09 with six turns of history: memories inside the system prompt
+    # (ahead of the history) forced a full re-prefill every turn — 1.70 s prefill,
+    # 2.97 s to first token. With this layout only the new turn is prefilled.
+    style = voice_mod.requested_style(user_input)
     # A "not found" note buried mid system prompt LOST to the model's agreeable prior:
     # asked "yaad hai doctor strange wala joke?", it replied "haan yaad hai" and
     # invented a joke (2026-10-09). The user turn is where attention is strongest,
     # so the verdict is attached there, where it cannot be skimmed past.
-    human_turn = user_input
     not_found = (yaadash_recall is not None
                  and yaadash_recall.RECALL_NOT_FOUND in recall_block)
+    parts = []
+    if memories:
+        parts.append("CONTEXT (his memory and sensors — use only what is relevant to the question):\n" + memories)
+    parts.append(f"NOW: {time.strftime('%A %d %B %Y, %H:%M')} (India)")
     if not_found:
-        human_turn += ("\n\n[MEMORY CHECK: his chat archive has NO record of this. Do "
-                       "not pretend to remember it and do not make anything up. Tell "
-                       "him plainly that you don't have this one.]")
+        parts.append("[MEMORY CHECK: his chat archive has NO record of this. Do not pretend to "
+                     "remember it and do not make anything up. Tell him plainly that you don't have this one.]")
+    instruction = voice_mod.turn_instruction(style)
+    if instruction:
+        parts.append(instruction)
+    parts.append("HE SAID: " + user_input)
+    human_turn = "\n\n".join(parts)
 
     messages = [
-        SystemMessage(content=system_prompt),
+        SystemMessage(content=persona(appio_text_mode())),
         *_history_messages(),
         HumanMessage(content=human_turn)
     ]
     
-    # Ignite the procedural cognitive hum
-    hum_engine.start()
-    
+    # No hum here any more: jarvis.py plays one and stops it at the first token. This
+    # second hum (sounddevice, re-opened every 100 ms — audible clicks) ran until
+    # generation ENDED, so with speech now starting mid-generation it would have
+    # played under JARVIS's own voice; it also played in text mode.
     final_text = ""
     
     # Strict Room Command Intent Routing: Only bind tools on explicit hardware directives
@@ -375,17 +391,13 @@ Never use Markdown formatting, bullet points, asterisks, or JSON — everything 
         active_llm = llm
     tool_calls_buffer = []
     
-    try:
-        for chunk in active_llm.stream(messages):
-            if hasattr(chunk, 'tool_call_chunks') and chunk.tool_call_chunks:
-                tool_calls_buffer.extend(chunk.tool_call_chunks)
-            elif chunk.content:
-                final_text += chunk.content
-                yield chunk.content
-    finally:
-        # Extinguish the hum the exact millisecond thinking finishes
-        hum_engine.stop()
-            
+    for chunk in active_llm.stream(messages):
+        if hasattr(chunk, 'tool_call_chunks') and chunk.tool_call_chunks:
+            tool_calls_buffer.extend(chunk.tool_call_chunks)
+        elif chunk.content:
+            final_text += chunk.content
+            yield chunk.content
+
     print() # newline
     
     if has_room_intent and tool_calls_buffer:
@@ -410,8 +422,9 @@ Never use Markdown formatting, bullet points, asterisks, or JSON — everything 
         
     # Store the interaction in long-term memory for self-improvement (Hybrid Approach)
     # Using a background thread so it doesn't block the STT engine from listening to the user's next command.
-    _remember_turn(user_input, final_text)
-    threading.Thread(target=yaadash_core.store_interaction, args=(user_input, final_text), daemon=True).start()
+    spoken = voice_mod.strip_tags(final_text)       # tags are for the voice, not for memory
+    _remember_turn(user_input, spoken)
+    threading.Thread(target=yaadash_core.store_interaction, args=(user_input, spoken), daemon=True).start()
 
 if __name__ == "__main__":
     print("Testing Expert JARVIS...")

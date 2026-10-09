@@ -159,14 +159,25 @@ def handle(text: str) -> Optional[str]:
     return "The game refused that one."
 
 
-_MISSION_WORDS = re.compile(
-    r"\b(mission|germoney|quest|contract|boss|streak|marks|floor|crucible|focus|drill|study|studies|padhai|padhna|"
-    r"german|deutsch|verilog|vlsi|exam|aps|dmat|ielts|germany|tu9|rwth|plan|aaj|today|week|internship|job|certificat\w*)\b", re.I)
+# Game words are enough on their own; generic words need company. Until 2026-10-09 one
+# "aaj" ("bhai aaj thak gaya hoon") pulled the whole game state into a conversation
+# about being tired, and the model recited shields and contracts at him.
+_GAME_WORDS = re.compile(r"\b(mission|germoney|quest|contract|boss|streak|marks|floor|crucible|drill|brief)\b", re.I)
+_TOPIC_WORDS = re.compile(
+    r"\b(focus|study|studies|padhai|padhna|german|deutsch|verilog|vlsi|exam|aps|dmat|ielts|germany|tu9|rwth|"
+    r"plan|aaj|today|week|internship|job|certificat\w*)\b", re.I)
+
+
+def is_about_mission(text: str) -> bool:
+    t = text or ""
+    if _GAME_WORDS.search(t):
+        return True
+    return len({m.group(0).lower() for m in _TOPIC_WORDS.finditer(t)}) >= 2
 
 
 def context(text: str) -> str:
     """The live mission state, when the question is about the mission (~120 tokens)."""
-    if not _MISSION_WORDS.search(text or "") or _api()[0] is None:
+    if not is_about_mission(text) or _api()[0] is None:
         return ""
     try:
         r = _get("/api/game/brief")

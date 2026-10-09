@@ -31,6 +31,7 @@ import warnings
 import inspect
 import asyncio
 import threading
+import re
 import uuid
 import time
 import tempfile
@@ -115,13 +116,13 @@ SILENCE_THRESHOLD = 0.04  # Lowered from 0.08 so JARVIS can hear normal speaking
 SILENCE_DURATION = 4.0
 
 # --- Voice ---
-# Was en-IN-NeerjaNeural at rate="+15%". The speed-up is what made Hinglish sound
-# garbled (rated 4/10): Hindi words in Latin script need full duration to land.
-# Prabhat is male, which fits JARVIS, and handles Latin-script Hinglish cleanly.
-# Swap to "en-IN-NeerjaNeural" (female) or "hi-IN-MadhurNeural" (true Hindi voice,
-# better for Devanagari output) if preferred.
-TTS_VOICE = "en-IN-PrabhatNeural"
-TTS_RATE = "+0%"
+# Was en-IN-PrabhatNeural reading romanised Hinglish: an English voice guessing at
+# Hindi words spelled in Latin letters. Since 2026-10-09 voice.py owns the voices:
+# British English by default, American / Hindi / Indian English on request or per
+# tagged line, Devanagari always spoken by a native Hindi voice, offline fallback
+# (Kokoro on the CPU), and nothing in the speech path can end a turn any more.
+import voice as voice_mod
+import stt
 
 print("Booting Cognitive Subsystems...")
 print("1. Loading Whisper STT (large-v3-turbo on GPU, int8_float16)...")
@@ -201,10 +202,16 @@ def _tts_worker():
         item = speech_queue.get()
         if item is None:
             break
-        text, audio_file = item
+        text, audio_file = item[0], item[1]
+        gain = item[2] if len(item) > 2 else 1.0     # levels accents (voice.py Style gains)
         try:
             appio.emit("state", state="speaking", text=text)
+            global _first_audio_pending
+            if _first_audio_pending:
+                _first_audio_pending = False
+                appio.emit("timing", stage="first_audio", seconds=round(time.time() - _turn_started, 3))
             pygame.mixer.music.load(audio_file)
+            pygame.mixer.music.set_volume(gain)
             pygame.mixer.music.play()
             while pygame.mixer.music.get_busy():
                 time.sleep(0.05)
@@ -213,7 +220,7 @@ def _tts_worker():
                 os.remove(audio_file)
         except Exception:
             pass
-        if speech_queue.empty():
+        if speech_queue.empty() and voice_engine.pending() == 0:
             appio.emit("speech_done")
         speech_queue.task_done()
 
@@ -265,54 +272,27 @@ def listen_for_wake_word():
 last_interrupted_script = ""
 was_interrupted = False
 
-async def _async_speak(text):
-    if not text: return
-    # Balanced voice (en-IN-NeerjaNeural) set to +15% speed (1.15x) for fluid, snappy delivery
-    communicate = edge_tts.Communicate(text, TTS_VOICE, rate=TTS_RATE)
-    # In the temp folder, not the working directory: interrupted playback used to
-    # leave dozens of response_*.mp3 files behind in brain/.
-    audio_file = os.path.join(tempfile.gettempdir(), f"jarvis_{uuid.uuid4().hex[:8]}.mp3")
-    await communicate.save(audio_file)
-    if os.path.exists(audio_file) and os.path.getsize(audio_file) > 100:
-        speech_queue.put((text, audio_file))
-
-import re as _re
-
-_EMOJI = _re.compile(
-    "[\U0001F300-\U0001FAFF\U00002600-\U000027BF\U0001F000-\U0001F2FF"
-    "\U0000FE0F\U0000200D]+"
-)
+clean_for_speech = voice_mod.clean_for_speech
 
 
-def clean_for_speech(text: str) -> str:
-    """Strip markup the model writes for screens but a voice cannot say.
+def _play(text, audio_file, gain=1.0):
+    speech_queue.put((text, audio_file, gain))
 
-    2026-10-08: Qwen3 emits Markdown (**bold**, *italic*, numbered lists) despite the
-    prompt forbidding it, and edge-tts read every marker literally — "asterisk
-    asterisk stop wasting ten seconds asterisk asterisk". Prompt rules alone are not
-    a reliable guard on model output, so the voice path sanitises unconditionally.
-    The printed transcript keeps the original text; only the spoken audio is cleaned.
-    """
-    if not text:
-        return text
-    t = _re.sub(r"`{1,3}[^`]*`{1,3}", "", text)           # code spans
-    t = _re.sub(r"\*{1,3}|_{2,}|~~|#{1,6}\s*", "", t)      # bold/italic/strike/headers
-    t = _re.sub(r"^\s*[-*•]\s+", "", t, flags=_re.M)       # bullet markers
-    t = _re.sub(r"^\s*\d+[.)]\s+", "", t, flags=_re.M)     # "1. " list numbers
-    t = _re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", t)        # [label](url) -> label
-    t = _EMOJI.sub("", t)                                  # emoji are noise in TTS
-    t = _re.sub(r"[—–]", ", ", t)                          # dashes -> natural pause
-    t = _re.sub(r"\s+", " ", t).strip()
-    return t
+
+voice_engine = voice_mod.VoiceEngine(play=_play, log=print, enabled=not TEXT_ONLY)
 
 
 def speak(text):
-    """Queues TTS audio for sequential playback without sentence truncation."""
-    if TEXT_ONLY:
+    """Queue text for speech and return at once (synthesis runs on the voice thread).
+
+    Until 2026-10-09 this synthesised synchronously, one new event loop per sentence,
+    so the token loop stalled ~1-1.8 s per sentence, and any edge-tts error (a bare
+    "..." raised NoAudioReceived; no network raised at boot) killed the turn or the loop.
+    """
+    if TEXT_ONLY or not text:
         return
-    text = clean_for_speech(text)
-    if not text: return
-    asyncio.run(_async_speak(text))
+    voice_engine.say(text)
+
 
 def record_vad():
     """Records audio automatically by detecting voice activity with visual feedback."""
@@ -340,15 +320,19 @@ def record_vad():
         if volume_norm > SILENCE_THRESHOLD:
             # [PHASE 4: FULL-DUPLEX INTERRUPTION]
             # Instantly stop playback and save un-spoken text into the continuation buffer if user speaks
-            if pygame.mixer.music.get_busy() or not speech_queue.empty():
+            if pygame.mixer.music.get_busy() or not speech_queue.empty() or voice_engine.pending():
                 pygame.mixer.music.stop()
+                voice_engine.clear()          # sentences not yet synthesised are dropped too
                 
                 # Gather remaining un-spoken text for seamless continuation
                 remaining_text = []
                 while not speech_queue.empty():
                     try:
-                        txt, f_path = speech_queue.get_nowait()
+                        queued = speech_queue.get_nowait()
+                        txt, f_path = queued[0], queued[1]
                         remaining_text.append(txt)
+                        if os.path.exists(f_path):
+                            os.remove(f_path)
                     except Exception: pass
                 
                 if remaining_text:
@@ -384,43 +368,44 @@ def record_vad():
     return np.concatenate(audio_data).flatten() if audio_data else np.array([], dtype="float32")
 
 def transcribe(audio) -> str:
-    """Whisper -> romanised Hinglish text ('' if nothing usable was said)."""
+    """Whisper -> romanised Hinglish text ('' if nothing usable was said). See stt.py."""
     appio.emit("state", state="transcribing")
     t0 = time.time()
-    # Dual Devanagari & English prompt with beam_size=5 for accurate Hindi & Hinglish STT
-    segments, info = model.transcribe(
-        audio,
-        initial_prompt="नमस्ते, मैं हिन्दी और English दोनों में बात कर रहा हूँ। Hey Jarvis, kya haal hai?",
-        condition_on_previous_text=False,
-        vad_filter=True,
-        vad_parameters=dict(min_silence_duration_ms=1500, threshold=0.3, speech_pad_ms=400),
-        beam_size=5
-    )
+    raw, meta = stt.transcribe(model, audio)
     # Whisper returns Hindi in Devanagari and English in Latin. Romanize only
     # the Devanagari runs so the line reads as one script; English is left
-    # alone, keeping the room-command keywords in agent.py working.
-    text = hinglish.romanize(" ".join(seg.text for seg in segments).strip())
+    # alone, keeping the room-command keywords working.
+    text = hinglish.romanize(raw)
     appio.emit("timing", stage="stt", seconds=round(time.time() - t0, 3))
+    appio.emit("stt_meta", **meta)
     return text if len(text) >= 2 else ""
+
+
+_turn_started = 0.0             # when the current reply began (for the first_audio timing)
+_first_audio_pending = False
 
 
 def respond(text: str) -> None:
     """One full turn: think, stream the reply, speak it sentence by sentence.
 
-    This used to exist twice in main_loop (after the wake word and in the
-    follow-up window), and the copies had already started to drift apart.
+    Speech is queued (voice.py synthesises on its own thread), so the model streams
+    at full speed while earlier sentences play. The accent Aman asked for ("in an
+    American accent", "Hindi mein") becomes the reply's default voice.
     """
+    global _turn_started, _first_audio_pending
     print(f"\nYou said: {text}")
     appio.emit("heard", text=text)
     print("Thinking...", end="\r")
     appio.emit("state", state="thinking")
-    speak("Thinking.")
+    voice_engine.begin_turn(voice_mod.requested_style(text))
     t0 = time.time()
+    _turn_started, _first_audio_pending = t0, True
+    full = []
     try:
         print("JARVIS: ", end="")
         sentence_buffer = ""
-        full = []
         first_token = True
+        spoke_once = False
         for chunk in agent.run_agent(text):
             if first_token:
                 stop_hum()
@@ -432,18 +417,20 @@ def respond(text: str) -> None:
             full.append(chunk)
             appio.emit("reply_chunk", text=chunk)
             sentence_buffer += chunk
-            # If we hit a punctuation mark, queue the sentence for full, clear playback
-            if any(p in chunk for p in ['.', '?', '!']):
-                if sentence_buffer.strip():
-                    speak(sentence_buffer.strip())
-                    sentence_buffer = ""
-        # Speak any leftover text
+            ready, sentence_buffer = voice_mod.split_ready(sentence_buffer, first=not spoke_once)
+            if ready.strip():
+                speak(ready.strip())
+                spoke_once = True
         if sentence_buffer.strip():
             speak(sentence_buffer.strip())
-        appio.emit("reply_end", text="".join(full), seconds=round(time.time() - t0, 3))
+        appio.emit("reply_end", text=voice_mod.strip_tags("".join(full)), seconds=round(time.time() - t0, 3))
     except Exception as e:
         stop_hum()
         print(f"\n[Cognitive Glitch]: {e}")
+        # Keep what was said before the failure: the transcript used to lose the turn.
+        if full:
+            appio.emit("reply_end", text=voice_mod.strip_tags("".join(full)) + " [interrupted by an error]",
+                       seconds=round(time.time() - t0, 3))
         appio.emit("error", message=str(e))
 
 
@@ -451,7 +438,8 @@ def main_loop():
     print(f"\nMQTT broker: {'connected' if room.MQTT_OK else 'virtual room only'}")
     appio.emit("ready", mode="voice")
     appio.emit("room_state", state=room.state, mqtt=room.MQTT_OK)
-    speak("System online. I am ready, boss.")
+    hour = time.localtime().tm_hour
+    speak(f"Systems online. Good {'morning' if hour < 12 else 'afternoon' if hour < 17 else 'evening'}, Aman.")
 
     while True:
         try:
@@ -464,7 +452,6 @@ def main_loop():
 
             start_hum()
             print("Transcribing...", end="\r")
-            speak("Transcribing.")
             text = transcribe(audio)
             if not text:
                 stop_hum()
@@ -475,7 +462,7 @@ def main_loop():
             resume_keywords = ["continue", "pick up", "go on", "what were you saying", "carry on", "finish your thought"]
             if was_interrupted and any(kw in text.lower() for kw in resume_keywords) and last_interrupted_script:
                 print("\n[Resuming Interrupted Script...]")
-                speak(f"Right, as I was saying... {last_interrupted_script}")
+                speak(f"As I was saying, {last_interrupted_script}")
                 was_interrupted = False
                 last_interrupted_script = ""
                 stop_hum()
@@ -516,7 +503,7 @@ def main_loop():
             print(f"\n[CRITICAL GLITCH DETECTED]: {e}")
             appio.emit("error", message=str(e), critical=True)
             chimes.play_chime("error")
-            speak("I encountered a critical error. Running self-diagnostics.")
+            speak("I have hit an error. One moment while I look into it.")
 
             try:
                 print("Diagnosing error in background...")
@@ -526,7 +513,7 @@ def main_loop():
                 speak(diagnostic_reply)
             except Exception as inner_e:
                 print(f"Self-diagnosis failed: {inner_e}")
-                speak("Self-diagnostics failed. The core system requires manual intervention.")
+                speak("I could not diagnose that one. It is in the log.")
 
 
 def text_loop():

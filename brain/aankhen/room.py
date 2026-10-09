@@ -21,6 +21,11 @@ from typing import Optional
 
 WIFI_24GHZ_WAVELENGTH_M = 0.1249     # c / 2.401 GHz (channel 1 low edge ~ channel 6)
 
+# Height of the strongest radar/Wi-Fi reflector (the torso centre) per posture.
+# The LD2450 measures slant range, so the floor position depends on this height:
+# assuming "standing" for someone seated at a desk puts them ~0.34 m too far away.
+TORSO_HEIGHT_M = {"standing": 1.1, "seated": 0.7, "lying": 0.45}
+
 
 @dataclass
 class Zone:
@@ -31,6 +36,13 @@ class Zone:
     # Dwelling in some zones means something (sitting at the desk vs passing by);
     # the fusion layer uses this to decide when "still" is still presence.
     expect_stationary: bool = False
+    # A doorway. A track that ENDS here most likely left the room; a track that
+    # ends anywhere else most likely sat down and went quiet on the radar. That
+    # difference is the strongest absence cue a single-room system has.
+    is_exit: bool = False
+    # How a STILL person in this zone is usually posed ("seated" at a desk, "lying"
+    # on a bed). Used to pick the torso height for the slant-range projection.
+    posture: Optional[str] = None
 
     def contains(self, x: float, y: float) -> bool:
         return point_in_polygon(x, y, self.polygon)
@@ -125,6 +137,18 @@ class Room:
         rx = sensor.x + forward * math.cos(yaw) + lateral * math.sin(yaw)
         ry = sensor.y + forward * math.sin(yaw) - lateral * math.cos(yaw)
         return rx, ry
+
+    def room_to_radar(self, sensor: SensorPose, x: float, y: float,
+                      body_height_m: float = 1.1) -> tuple[float, float]:
+        """Inverse of radar_to_room: where a body at room (x, y) shows up in the
+        radar's own (lateral, slant-forward) frame. Used by the simulator, and by
+        the tests to prove the two directions agree."""
+        yaw = math.radians(sensor.yaw_deg)
+        dx, dy = x - sensor.x, y - sensor.y
+        forward = dx * math.cos(yaw) + dy * math.sin(yaw)
+        lateral = dx * math.sin(yaw) - dy * math.cos(yaw)
+        dh = sensor.z - body_height_m
+        return lateral, math.copysign(math.sqrt(forward * forward + dh * dh), forward)
 
     def in_fov(self, sensor: SensorPose, x: float, y: float) -> bool:
         dx, dy = x - sensor.x, y - sensor.y
@@ -228,10 +252,13 @@ def default_room() -> Room:
         name="study (default layout - measure yours)",
         width=4.0, depth=4.0, height=2.8,
         zones=[
-            Zone("desk", [[0.0, 0.0], [1.6, 0.0], [1.6, 1.2], [0.0, 1.2]], "#4FC3F7", True),
-            Zone("bed", [[2.2, 2.0], [4.0, 2.0], [4.0, 4.0], [2.2, 4.0]], "#BA68C8", True),
+            Zone("desk", [[0.0, 0.0], [1.6, 0.0], [1.6, 1.2], [0.0, 1.2]], "#4FC3F7", True,
+                 posture="seated"),
+            Zone("bed", [[2.2, 2.0], [4.0, 2.0], [4.0, 4.0], [2.2, 4.0]], "#BA68C8", True,
+                 posture="lying"),
             Zone("floor", [[1.6, 0.0], [4.0, 0.0], [4.0, 2.0], [1.6, 2.0]], "#81C784"),
-            Zone("door", [[0.0, 3.0], [0.8, 3.0], [0.8, 4.0], [0.0, 4.0]], "#FFB74D"),
+            Zone("door", [[0.0, 3.0], [0.8, 3.0], [0.8, 4.0], [0.0, 4.0]], "#FFB74D",
+                 is_exit=True),
         ],
         furniture=[
             Furniture("desk", 0.0, 0.0, 1.6, 0.7, 0.75),

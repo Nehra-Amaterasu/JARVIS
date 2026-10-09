@@ -91,3 +91,24 @@ def test_invalid_layout_fails_loudly():
         Room.from_dict({"width": 4, "depth": 4, "height": 2.8,
                         "sensors": [{"id": "a", "kind": "esp32", "x": 0, "y": 0, "z": 1}],
                         "links": [["a", "ghost"]]})
+
+
+@pytest.mark.parametrize("yaw", [0, 37, 90, 180, 251])
+def test_room_to_radar_inverts_radar_to_room(yaw):
+    """The simulator projects bodies INTO the radar frame with room_to_radar; the
+    pipeline projects them back with radar_to_room. If the two disagree, every
+    simulated test would be measuring my own geometry bug, not the tracker."""
+    r = default_room()
+    s = SensorPose("r", "ld2450", 0.8, 0.05, 1.8, yaw_deg=yaw, pitch_deg=15)
+    yr = math.radians(yaw)
+    for fwd, lat, h in [(1.0, 0.0, 1.1), (2.5, -0.8, 0.7), (0.9, 0.4, 0.45)]:
+        x = s.x + fwd * math.cos(yr) + lat * math.sin(yr)
+        y = s.y + fwd * math.sin(yr) - lat * math.cos(yr)
+        bx, by = r.room_to_radar(s, x, y, body_height_m=h)
+        rx, ry = r.radar_to_room(s, bx, by, body_height_m=h)
+        assert math.isclose(rx, x, abs_tol=1e-9) and math.isclose(ry, y, abs_tol=1e-9)
+
+
+def test_default_room_marks_the_door_as_an_exit():
+    exits = [z.name for z in default_room().zones if z.is_exit]
+    assert exits == ["door"]

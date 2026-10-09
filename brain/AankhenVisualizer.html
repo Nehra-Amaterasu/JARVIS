@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aankhen — RuView Holographic 3D Spatial Radar & Wi-Fi Sensing UI</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body {
+            background-color: #05070e;
+            color: #e2e8f0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+        #webgl-canvas { width: 100%; height: 100%; display: block; }
+        
+        .glass-panel {
+            background: rgba(10, 16, 30, 0.82);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.7);
+            border-radius: 14px;
+            padding: 18px;
+            position: absolute;
+            z-index: 10;
+        }
+
+        #header-panel {
+            top: 20px; left: 20px;
+            display: flex; align-items: center; gap: 16px;
+        }
+        .eye-icon {
+            width: 44px; height: 44px; border-radius: 50%;
+            background: radial-gradient(circle, #38bdf8 0%, #0284c7 60%, transparent 100%);
+            box-shadow: 0 0 22px #38bdf8;
+            animation: pulse-eye 2.5s infinite ease-in-out;
+        }
+        @keyframes pulse-eye {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 22px #38bdf8; }
+            50% { transform: scale(1.1); box-shadow: 0 0 32px #0ea5e9; }
+        }
+        .header-title h1 { font-size: 19px; font-weight: 700; color: #f8fafc; letter-spacing: 1px; text-transform: uppercase; }
+        .header-title p { font-size: 11px; color: #38bdf8; letter-spacing: 0.5px; }
+
+        #telemetry-panel { top: 20px; right: 20px; width: 360px; }
+        .stat-group { margin-bottom: 14px; }
+        .stat-group:last-child { margin-bottom: 0; }
+        .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 4px; }
+        .stat-value { font-size: 22px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; justify-content: space-between; }
+        .badge {
+            font-size: 11px; padding: 4px 12px; border-radius: 20px; font-weight: 600;
+            background: rgba(56, 189, 248, 0.15); border: 1px solid #38bdf8; color: #38bdf8;
+        }
+        .badge-present { background: rgba(34, 197, 94, 0.2); border-color: #22c55e; color: #4ade80; box-shadow: 0 0 12px rgba(34,197,94,0.4); }
+        .badge-absent { background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #f87171; }
+
+        /* Progress Motion Meter */
+        .progress-bar-bg {
+            width: 100%; height: 10px; background: rgba(30, 41, 59, 0.8);
+            border-radius: 5px; overflow: hidden; margin-top: 6px; border: 1px solid rgba(56, 189, 248, 0.25);
+        }
+        .progress-bar-fill {
+            height: 100%; width: 0%; background: linear-gradient(90deg, #38bdf8 0%, #22c55e 60%, #a855f7 100%);
+            transition: width 0.2s ease;
+        }
+
+        /* Real-Time Waveform Canvas */
+        #waveform-canvas {
+            width: 100%; height: 45px; background: rgba(5, 7, 14, 0.8);
+            border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2); margin-top: 6px;
+        }
+
+        /* Real-Time Execution Log Console */
+        #log-panel {
+            bottom: 20px; right: 20px; width: 440px; height: 190px;
+            font-family: 'Consolas', 'Courier New', monospace; font-size: 11px;
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .log-header { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+        #log-content {
+            flex-grow: 1; overflow-y: auto; color: #4ade80; background: rgba(5, 7, 14, 0.85);
+            padding: 10px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2);
+            white-space: pre-wrap; word-break: break-all; line-height: 1.4;
+        }
+
+        #controls-panel {
+            bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px;
+        }
+        .btn {
+            background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(56, 189, 248, 0.3);
+            color: #e2e8f0; padding: 8px 18px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .btn:hover { background: #0284c7; color: #ffffff; box-shadow: 0 0 14px #38bdf8; }
+
+        #ws-status { bottom: 20px; left: 20px; font-size: 11px; display: flex; align-items: center; gap: 8px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background-color: #ef4444; }
+        .status-dot.online { background-color: #22c55e; box-shadow: 0 0 8px #22c55e; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <canvas id="webgl-canvas"></canvas>
+
+    <!-- Header Panel -->
+    <div id="header-panel" class="glass-panel">
+        <div class="eye-icon"></div>
+        <div class="header-title">
+            <h1>Aankhen — RuView 3D</h1>
+            <p>Wi-Fi CSI / RSSI Spatial Perception Suite</p>
+        </div>
+    </div>
+
+    <!-- Telemetry Panel -->
+    <div id="telemetry-panel" class="glass-panel">
+        <div class="stat-group">
+            <div class="stat-label">Physical Human Presence & Activity</div>
+            <div class="stat-value">
+                <span id="val-presence-text">SEARCHING...</span>
+                <span id="badge-presence" class="badge badge-absent">ABSENT</span>
+            </div>
+        </div>
+        <div class="stat-group">
+            <div class="stat-label">Occupied Room Zone</div>
+            <div class="stat-value">
+                <span id="val-zone" style="color:#22c55e;">Workstation</span>
+                <span style="font-size:12px; color:#94a3b8;" id="val-coords">(0.0m, 1.8m)</span>
+            </div>
+        </div>
+        <div class="stat-group">
+            <div class="stat-label">RuView Body Motion Index (0 - 100%)</div>
+            <div class="stat-value">
+                <span id="val-motion">0.0%</span>
+                <span style="font-size: 11px; color: #94a3b8;" id="val-activity">STATIONARY</span>
+            </div>
+            <div class="progress-bar-bg">
+                <div id="progress-motion" class="progress-bar-fill"></div>
+            </div>
+        </div>
+        <div class="stat-group">
+            <div class="stat-label">Wi-Fi RF Signal Perturbation Waveform</div>
+            <canvas id="waveform-canvas"></canvas>
+        </div>
+    </div>
+
+    <!-- Live Execution Log Stream Panel -->
+    <div id="log-panel" class="glass-panel">
+        <div class="log-header">Live Hardware Execution Log Stream</div>
+        <div id="log-content">Connecting to Aankhen RuView Server (ws://localhost:8765)...</div>
+    </div>
+
+    <!-- View Controls Panel -->
+    <div id="controls-panel" class="glass-panel">
+        <button class="btn" onclick="setCameraView('3d')">3D Orbit View</button>
+        <button class="btn" onclick="setCameraView('topdown')">2D Blueprint View</button>
+        <button class="btn" onclick="clearLogs()">Clear Log Console</button>
+    </div>
+
+    <!-- WebSocket Status -->
+    <div id="ws-status" class="glass-panel">
+        <div id="status-dot" class="status-dot"></div>
+        <span id="status-text">Connecting to ws://localhost:8765...</span>
+    </div>
+
+    <script>
+        // --- 1. Three.js Scene Setup ---
+        const canvas = document.getElementById('webgl-canvas');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x05070e);
+        scene.fog = new THREE.FogExp2(0x05070e, 0.06);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 6, 8);
+
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x38bdf8, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 5);
+        scene.add(dirLight);
+
+        // Floor Grid (6m x 6m room space)
+        const gridHelper = new THREE.GridHelper(7, 14, 0x38bdf8, 0x1e293b);
+        scene.add(gridHelper);
+
+        // --- 2. Render 4 Explicit Room Zones on Floorplan ---
+        const zones = [
+            { name: "Workstation", x: 0, z: 1.35, w: 3.0, h: 1.7, color: 0x38bdf8 },
+            { name: "Center Floor", x: 0, z: 3.1, w: 3.0, h: 1.8, color: 0x22c55e },
+            { name: "Bed Area", x: -2.35, z: 2.0, w: 1.7, h: 3.0, color: 0xa855f7 },
+            { name: "Doorway", x: 2.25, z: 1.35, w: 1.5, h: 1.7, color: 0xf59e0b }
+        ];
+
+        const zoneMeshes = {};
+        zones.forEach(z => {
+            const zGeo = new THREE.PlaneGeometry(z.w, z.h);
+            const zMat = new THREE.MeshBasicMaterial({ color: z.color, transparent: true, opacity: 0.15, side: THREE.DoubleSide });
+            const zMesh = new THREE.Mesh(zGeo, zMat);
+            zMesh.rotation.x = -Math.PI / 2;
+            zMesh.position.set(z.x, 0.01, z.z);
+            scene.add(zMesh);
+
+            // Boundary Outline Wireframe
+            const edgesGeo = new THREE.EdgesGeometry(zGeo);
+            const edgesMat = new THREE.LineBasicMaterial({ color: z.color, linewidth: 2 });
+            const wireframe = new THREE.LineSegments(edgesGeo, edgesMat);
+            wireframe.rotation.x = -Math.PI / 2;
+            wireframe.position.set(z.x, 0.02, z.z);
+            scene.add(wireframe);
+
+            zoneMeshes[z.name] = { mesh: zMesh, material: zMat };
+        });
+
+        // ESP32-S3 Sensor Node Marker
+        const sensorGeo = new THREE.ConeGeometry(0.12, 0.25, 16);
+        const sensorMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, wireframe: true });
+        const sensorMesh = new THREE.Mesh(sensorGeo, sensorMat);
+        sensorMesh.position.set(0, 2.2, 0);
+        sensorMesh.rotation.x = Math.PI;
+        scene.add(sensorMesh);
+
+        // --- 3. Holographic Avatar Beacon (Replaces the Green Sphere) ---
+        const avatarGroup = new THREE.Group();
+        scene.add(avatarGroup);
+
+        // 3A. Vertical Glowing Energy Laser Cylinder
+        const beamGeo = new THREE.CylinderGeometry(0.05, 0.25, 2.0, 16, 1, true);
+        const beamMat = new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
+        const beamMesh = new THREE.Mesh(beamGeo, beamMat);
+        beamMesh.position.y = 1.0;
+        avatarGroup.add(beamMesh);
+
+        // 3B. Holographic Human Skeletal Body Representation
+        const headGeo = new THREE.SphereGeometry(0.12, 16, 16);
+        const headMat = new THREE.MeshStandardMaterial({ color: 0x22c55e, emissive: 0x15803d, emissiveIntensity: 0.8 });
+        const headMesh = new THREE.Mesh(headGeo, headMat);
+        headMesh.position.y = 1.6;
+        avatarGroup.add(headMesh);
+
+        const torsoGeo = new THREE.CylinderGeometry(0.14, 0.1, 0.65, 16);
+        const torsoMesh = new THREE.Mesh(torsoGeo, headMat);
+        torsoMesh.position.y = 1.15;
+        avatarGroup.add(torsoMesh);
+
+        // 3C. Ground Ripple Ring
+        const ringGeo = new THREE.RingGeometry(0.1, 0.45, 32);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.6, side: THREE.DoubleSide });
+        const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+        ringMesh.rotation.x = -Math.PI / 2;
+        ringMesh.position.y = 0.03;
+        avatarGroup.add(ringMesh);
+
+        // --- 4. RF Waveform Canvas Renderer ---
+        const waveCanvas = document.getElementById('waveform-canvas');
+        const waveCtx = waveCanvas.getContext('2d');
+        let waveHistory = new Array(60).fill(0);
+
+        function drawWaveform(motionVal) {
+            waveCanvas.width = waveCanvas.clientWidth;
+            waveCanvas.height = waveCanvas.clientHeight;
+            const w = waveCanvas.width;
+            const h = waveCanvas.height;
+
+            waveHistory.push(motionVal);
+            if (waveHistory.length > 60) waveHistory.shift();
+
+            waveCtx.clearRect(0, 0, w, h);
+            waveCtx.beginPath();
+            waveCtx.strokeStyle = '#38bdf8';
+            waveCtx.lineWidth = 2;
+
+            const dx = w / (waveHistory.length - 1);
+            waveHistory.forEach((val, i) => {
+                const x = i * dx;
+                const y = h - (val / 100.0) * (h - 10) - 5;
+                if (i === 0) waveCtx.moveTo(x, y);
+                else waveCtx.lineTo(x, y);
+            });
+            waveCtx.stroke();
+        }
+
+        // --- 5. WebSocket Telemetry Reader & UI Controller ---
+        let socket;
+        const logContent = document.getElementById('log-content');
+
+        function connectWebSocket() {
+            socket = new WebSocket('ws://localhost:8765');
+
+            socket.onopen = () => {
+                document.getElementById('status-dot').className = 'status-dot online';
+                document.getElementById('status-text').innerText = 'Connected: ws://localhost:8765 (RuView Master Spatial Engine)';
+                appendLog('[System]: Holographic 3D RuView Spatial Engine connected.');
+            };
+
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                updateUI(data);
+            };
+
+            socket.onclose = () => {
+                document.getElementById('status-dot').className = 'status-dot';
+                document.getElementById('status-text').innerText = 'Disconnected. Retrying in 3s...';
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        function updateUI(data) {
+            if (!data) return;
+
+            const isPresent = data.presence || false;
+            const motionVal = data.motion_index || 0.0;
+            const zoneName = data.occupied_zone || 'None';
+            const coords = data.world_coordinates || { x: 0, y: 1.8, z: 1.1 };
+            const explainedLog = data.explained_log || '';
+
+            // 1. Update Telemetry Cards
+            const presenceText = document.getElementById('val-presence-text');
+            const presenceBadge = document.getElementById('badge-presence');
+
+            if (isPresent) {
+                presenceText.innerText = 'HUMAN DETECTED';
+                presenceText.style.color = '#4ade80';
+                presenceBadge.className = 'badge badge-present';
+                presenceBadge.innerText = 'PRESENT';
+                avatarGroup.visible = true;
+            } else {
+                presenceText.innerText = 'ROOM EMPTY';
+                presenceText.style.color = '#94a3b8';
+                presenceBadge.className = 'badge badge-absent';
+                presenceBadge.innerText = 'ABSENT';
+                avatarGroup.visible = false;
+            }
+
+            document.getElementById('val-zone').innerText = zoneName;
+            document.getElementById('val-coords').innerText = `(${coords.x.toFixed(1)}m, ${coords.y.toFixed(1)}m)`;
+            document.getElementById('val-motion').innerText = motionVal.toFixed(1) + '%';
+            document.getElementById('val-activity').innerText = data.activity || 'STATIONARY';
+            document.getElementById('progress-motion').style.width = Math.min(100, motionVal) + '%';
+
+            // 2. Animate Avatar Group to Room Coordinates
+            avatarGroup.position.set(coords.x, 0, coords.y);
+            ringMesh.scale.set(1 + motionVal * 0.015, 1 + motionVal * 0.015, 1);
+
+            // 3. Highlight Occupied Room Zone Mesh
+            Object.keys(zoneMeshes).forEach(zKey => {
+                if (zKey === zoneName && isPresent) {
+                    zoneMeshes[zKey].material.opacity = 0.45;
+                } else {
+                    zoneMeshes[zKey].material.opacity = 0.15;
+                }
+            });
+
+            // 4. Render RF Waveform
+            drawWaveform(motionVal);
+
+            // 5. Append Natural Language Execution Log
+            if (explainedLog) {
+                appendLog(explainedLog);
+            }
+        }
+
+        function appendLog(msg) {
+            const timeStr = new Date().toLocaleTimeString();
+            logContent.innerText += `\n[${timeStr}] ${msg}`;
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        function clearLogs() {
+            logContent.innerText = '[System]: Execution log console cleared.';
+        }
+
+        function setCameraView(type) {
+            if (type === 'topdown') {
+                camera.position.set(0, 7.5, 2);
+                controls.target.set(0, 0, 2);
+            } else {
+                camera.position.set(0, 6, 8);
+                controls.target.set(0, 1, 2);
+            }
+            controls.update();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            sensorMesh.rotation.y += 0.01;
+            beamMesh.rotation.y -= 0.02;
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+        connectWebSocket();
+    </script>
+</body>
+</html>

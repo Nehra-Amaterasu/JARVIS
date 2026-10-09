@@ -214,12 +214,13 @@ class SpatialEventRequest(BaseModel):
 @app.get("/spatial/telemetry")
 @app.get("/aankhen/telemetry")
 def get_aankhen_spatial_telemetry():
-    """Fetches live Aankhen spatial telemetry, gestures, 17-keypoint postures, and vitals."""
-    import aankhen_engine
+    """Fetches live physical Aankhen telemetry from connected ESP32-S3 hardware on COM7."""
+    import aankhen_esp32_hardware
     try:
-        engine = aankhen_engine.AankhenSpatialEngine()
-        frame = engine.process_telemetry_frame()
-        return frame
+        reader = aankhen_esp32_hardware.ESP32SerialReader(port="COM7", baud=115200)
+        time.sleep(0.2)
+        snap = reader.get_telemetry_snapshot()
+        return snap
     except Exception as e:
         return {"status": "simulated", "system": "Aankhen", "note": str(e)}
 

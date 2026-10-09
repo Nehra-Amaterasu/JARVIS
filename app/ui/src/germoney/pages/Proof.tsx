@@ -52,7 +52,7 @@ export function ProofPage() {
   }
   return (
     <div className="mission-page">
-      <MissionHeader n="M8" title="Proof" sub="Evidence of work. The commit log is the résumé." />
+      <MissionHeader n="M12" title="Proof" sub="Evidence of work. The commit log is the résumé." />
       <div className="germany-grid">
         <section className="card">
           <div className="card-head"><span className="card-title"><GitBranch size={14} style={{ marginRight: 8 }} />GitHub</span>

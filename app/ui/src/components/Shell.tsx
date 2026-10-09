@@ -6,8 +6,8 @@
  *   - the ticker is the only place every subsystem reports to, in order
  */
 import {
-  AudioLines, BookOpen, BrainCircuit, Cable, CalendarDays, Dumbbell, Flame, Gauge, Hand, Maximize2, Minus,
-  ScanEye, Search, ShieldCheck, Skull, SlidersHorizontal, Swords, Terminal, Trophy, X,
+  AudioLines, Award, BookOpen, BrainCircuit, Cable, CalendarDays, Dumbbell, Flame, Gauge, Hand, Layers, Map, Maximize2, Minus,
+  ScanEye, Search, ShieldCheck, ShoppingBag, Skull, SlidersHorizontal, Swords, Terminal, Trophy, X,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef } from 'react'
 import { TABS, useStore, type Tab } from '../lib/store'
@@ -22,7 +22,7 @@ declare global {
 
 const ICONS: Record<Tab, typeof AudioLines> = {
   core: AudioLines, yaadash: BrainCircuit, aankhen: ScanEye, limbs: Hand, connect: Cable, system: Gauge,
-  mission: Trophy, quests: Swords, crucible: Flame, forge: Dumbbell, syllabus: BookOpen, terminal: Terminal,
+  mission: Trophy, quests: Swords, campaign: Map, trials: Award, drill: Layers, armory: ShoppingBag, crucible: Flame, forge: Dumbbell, syllabus: BookOpen, terminal: Terminal,
   interrogation: Skull, proof: ShieldCheck, schedule: CalendarDays, calibration: SlidersHorizontal,
 }
 

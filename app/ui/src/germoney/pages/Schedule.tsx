@@ -59,7 +59,7 @@ export function SchedulePage() {
   }
   return (
     <div className="mission-page">
-      <MissionHeader n="M9" title="Schedule" sub={`Today, ${day ? new Date(day.date).toDateString() : ''}`}
+      <MissionHeader n="M13" title="Schedule" sub={`Today, ${day ? new Date(day.date).toDateString() : ''}`}
         right={day?.feed && !editing ? <button className="btn sm ghost" onClick={() => setEditing(true)}><Link2 size={13} />Calendar linked</button> : null} />
       {(!day?.feed || editing) && (
         <section className="card" style={{ marginBottom: 18 }}>

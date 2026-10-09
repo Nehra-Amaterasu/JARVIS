@@ -17,9 +17,11 @@ import type { ProofEntry, ProofType } from './stores/proof-store'
 
 /* ------------------------------------------------------------------ sub-navigation */
 export const MISSION_TABS: { id: Tab; label: string }[] = [
-  { id: 'mission', label: 'Command' }, { id: 'quests', label: 'Quests' }, { id: 'crucible', label: 'Crucible' },
-  { id: 'forge', label: 'Forge' }, { id: 'syllabus', label: 'Syllabus' }, { id: 'terminal', label: 'Terminal' },
-  { id: 'interrogation', label: 'Interrogation' }, { id: 'proof', label: 'Proof' }, { id: 'schedule', label: 'Schedule' },
+  { id: 'mission', label: 'HQ' }, { id: 'quests', label: 'Contracts' }, { id: 'campaign', label: 'Campaign' },
+  { id: 'trials', label: 'Trials' }, { id: 'drill', label: 'Drill' }, { id: 'armory', label: 'Armory' },
+  { id: 'crucible', label: 'Crucible' }, { id: 'forge', label: 'Forge' }, { id: 'syllabus', label: 'Syllabus' },
+  { id: 'terminal', label: 'Terminal' }, { id: 'interrogation', label: 'Interrogation' }, { id: 'proof', label: 'Proof' },
+  { id: 'schedule', label: 'Schedule' },
 ]
 
 export function MissionNav() {
@@ -198,8 +200,8 @@ export function ProofGate({ tone = 'chrome', onCancel, onConfirm }: { tone?: str
   return (
     <div className={`proof-gate ${tone} fade-in`}>
       <span className="eyebrow">// Proof of work required</span>
-      <p className="muted">Write what you actually did ({MIN_TEXT}+ characters) or attach a photo. Honor system — nobody checks but you.</p>
-      <textarea className="field area" placeholder="What did you actually do / learn?" value={text} onChange={(e) => setText(e.target.value)} />
+      <p className="muted">Paste a link (repo, commit, certificate) or attach a photo and it counts as verified — cyan. A plain note ({MIN_TEXT}+ characters) still counts, drawn amber: claimed.</p>
+      <textarea className="field area" placeholder="https://github.com/… — or what you actually did / learned" value={text} onChange={(e) => setText(e.target.value)} />
       {image && (
         <div className="thumb"><img src={image} alt="proof" /><button className="btn ghost sm icon" onClick={() => setImage(null)} aria-label="Remove photo"><X size={13} /></button></div>
       )}

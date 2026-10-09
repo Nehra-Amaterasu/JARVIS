@@ -9,8 +9,8 @@ import { api, openSocket, type BusEvent, type CoreInfo, type Turn, type Vitals }
 export type Tab =
   | 'core' | 'yaadash' | 'aankhen' | 'limbs' | 'connect' | 'system'
   // Mission Germoney (src/germoney): the whole phone app, as tabs.
-  | 'mission' | 'quests' | 'crucible' | 'forge' | 'syllabus' | 'terminal' | 'interrogation' | 'proof'
-  | 'schedule' | 'calibration'
+  | 'mission' | 'quests' | 'campaign' | 'trials' | 'drill' | 'armory'
+  | 'crucible' | 'forge' | 'syllabus' | 'terminal' | 'interrogation' | 'proof' | 'schedule' | 'calibration'
 
 export const TABS: { id: Tab; n: string; title: string; sub: string; group: 'jarvis' | 'mission'; dock?: boolean }[] = [
   { id: 'core', n: '01', title: 'Core', sub: 'JARVIS himself — wake him, talk, watch him think.', group: 'jarvis', dock: true },
@@ -19,15 +19,19 @@ export const TABS: { id: Tab; n: string; title: string; sub: string; group: 'jar
   { id: 'limbs', n: '04', title: 'Limbs', sub: 'Hands — what JARVIS can switch in the room.', group: 'jarvis', dock: true },
   { id: 'connect', n: '05', title: 'Connect', sub: 'Everything that plugs into JARVIS, detected live.', group: 'jarvis', dock: true },
   { id: 'system', n: '06', title: 'System', sub: 'Vitals against the 6 GB ceiling. Models. Logs. Decisions.', group: 'jarvis', dock: true },
-  { id: 'mission', n: 'M1', title: 'Command', sub: 'Mission Germoney — rank, directives, Rule 1.', group: 'mission', dock: true },
-  { id: 'quests', n: 'M2', title: 'Quests', sub: 'Bosses, daily micro-quests, milestones.', group: 'mission', dock: true },
-  { id: 'crucible', n: 'M3', title: 'Crucible', sub: 'Deep-work lockdown.', group: 'mission', dock: true },
-  { id: 'forge', n: 'M4', title: 'Forge', sub: 'Training sessions.', group: 'mission', dock: true },
-  { id: 'syllabus', n: 'M5', title: 'Syllabus', sub: 'The VLSI curriculum and the TU9 plan.', group: 'mission', dock: true },
-  { id: 'terminal', n: 'M6', title: 'Terminal', sub: 'Log what you shipped.', group: 'mission' },
-  { id: 'interrogation', n: 'M7', title: 'Interrogation', sub: 'Failure analysis.', group: 'mission' },
-  { id: 'proof', n: 'M8', title: 'Proof', sub: 'GitHub evidence and posts.', group: 'mission' },
-  { id: 'schedule', n: 'M9', title: 'Schedule', sub: 'Today and the free blocks.', group: 'mission' },
+  { id: 'mission', n: 'M1', title: 'HQ', sub: 'Mission Germoney — the Floor, the streak, the boss of the month.', group: 'mission', dock: true },
+  { id: 'quests', n: 'M2', title: 'Contracts', sub: 'Three a day from the people who decide your year.', group: 'mission', dock: true },
+  { id: 'campaign', n: 'M3', title: 'Campaign', sub: 'Twelve bosses, October to September.', group: 'mission', dock: true },
+  { id: 'trials', n: 'M4', title: 'Trials', sub: 'Certificates, exams, APS and the dMAT.', group: 'mission' },
+  { id: 'drill', n: 'M5', title: 'Drill', sub: 'Spaced repetition: VLSI, German, Germany ops.', group: 'mission', dock: true },
+  { id: 'armory', n: 'M6', title: 'Armory', sub: 'Spend Marks, the War Chest, settings.', group: 'mission' },
+  { id: 'crucible', n: 'M7', title: 'Crucible', sub: 'Deep-work lockdown.', group: 'mission', dock: true },
+  { id: 'forge', n: 'M8', title: 'Forge', sub: 'Training sessions.', group: 'mission' },
+  { id: 'syllabus', n: 'M9', title: 'Syllabus', sub: 'The VLSI curriculum and the TU9 plan.', group: 'mission' },
+  { id: 'terminal', n: 'M10', title: 'Terminal', sub: 'Log what you shipped.', group: 'mission' },
+  { id: 'interrogation', n: 'M11', title: 'Interrogation', sub: 'Failure analysis.', group: 'mission' },
+  { id: 'proof', n: 'M12', title: 'Proof', sub: 'GitHub evidence and posts.', group: 'mission' },
+  { id: 'schedule', n: 'M13', title: 'Schedule', sub: 'Today and the free blocks.', group: 'mission' },
   { id: 'calibration', n: 'M0', title: 'Calibration', sub: 'Objective, skills, timeline.', group: 'mission' },
 ]
 

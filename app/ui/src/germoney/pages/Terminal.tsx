@@ -6,6 +6,7 @@ import { BookOpen, Clock, GitCommit, Send, Skull, Terminal as TerminalIcon } fro
 import { useState } from 'react'
 import { useStore } from '../../lib/store'
 import { useLogStore, type LogType } from '../stores/log-store'
+import { useGame } from '../game/store'
 import { usePlayerStore } from '../stores/player-store'
 import { MissionHeader, useFx } from '../ui'
 
@@ -37,8 +38,10 @@ export function TerminalPage() {
   const [hours, setHours] = useState('')
   const submit = () => {
     if (!text.trim()) return
-    const amount = type === 'commit' ? 1 : Math.max(1, parseInt(hours, 10) || 1)
+    // Quarter hours count: 45 minutes of German is a real session.
+    const amount = type === 'commit' ? 1 : Math.max(0.25, Math.round((parseFloat(hours) || 1) * 4) / 4)
     logExecution(type, amount)
+    useGame.getState().recordLog(type, amount)
     addEntry({ type, text: text.trim(), xp: 15 })
     burst('+15 XP')
     setText('')
@@ -47,7 +50,7 @@ export function TerminalPage() {
   const meta = TYPES.find((t) => t.id === type)!
   return (
     <div className="mission-page">
-      <MissionHeader n="M6" title="Terminal" sub="What did you ship today?" />
+      <MissionHeader n="M10" title="Terminal" sub="What did you ship today?" />
       <div className="term-grid">
         <section className="card term">
           <div className="seg">
@@ -58,7 +61,7 @@ export function TerminalPage() {
             ))}
           </div>
           <div className="prompt mono"><TerminalIcon size={13} /> root@silicon-frontier:~$ {meta.prompt}</div>
-          {type !== 'commit' && <input className="field" inputMode="numeric" placeholder="Hours spent" value={hours} onChange={(e) => setHours(e.target.value.replace(/[^0-9]/g, ''))} />}
+          {type !== 'commit' && <input className="field" inputMode="decimal" placeholder="Hours spent (0.75 = 45 min)" value={hours} onChange={(e) => setHours(e.target.value.replace(/[^0-9.]/g, ''))} />}
           <textarea className="field area mono" placeholder={type === 'commit' ? 'Describe your commit…' : 'What did you study?'} value={text}
             onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submit() }} />
           <div className="gate-row">

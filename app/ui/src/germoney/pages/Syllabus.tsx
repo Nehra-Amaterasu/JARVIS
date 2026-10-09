@@ -16,7 +16,7 @@ export function SyllabusPage() {
   const [view, setView] = useState<View>('tree')
   return (
     <div className="mission-page">
-      <MissionHeader n="M5" title="Syllabus" sub="The 24-month VLSI curriculum and the road to a TU9 admit."
+      <MissionHeader n="M9" title="Syllabus" sub="The 24-month VLSI curriculum and the road to a TU9 admit."
         right={<div className="seg">
           {([['tree', 'Skill tree'], ['germany', 'Germany'], ['careers', 'Careers'], ['live', 'Live intel']] as [View, string][]).map(([v, l]) => (
             <button key={v} className={view === v ? 'on' : ''} onClick={() => setView(v)}>{l}</button>

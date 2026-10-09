@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { CommandPalette } from './components/CommandPalette'
 import { Dialogs, FxLayer } from './germoney/ui'
+import { GameFx } from './germoney/game/fx'
 import { Dock, TitleBar, Ticker, Toasts, useHotkeys } from './components/Shell'
 import { api } from './lib/api'
 import { startEventStream, useStore } from './lib/store'
@@ -26,6 +27,13 @@ export default function App() {
   const refreshVitals = useStore((s) => s.refreshVitals)
   const [serverUp, setServerUp] = useState<boolean | null>(null)
   useHotkeys()
+
+  // The Mission game listens for JARVIS's voice actions and keeps his brief current
+  // from any tab — loaded at idle so the first paint stays fast.
+  useEffect(() => {
+    const t = window.setTimeout(() => void import('./germoney/game/bridge').then((m) => m.startBridge()), 1500)
+    return () => window.clearTimeout(t)
+  }, [])
 
   useEffect(() => {
     const stream = startEventStream()
@@ -62,6 +70,7 @@ export default function App() {
       <Toasts />
       <CommandPalette />
       <FxLayer />
+      <GameFx />
       <Dialogs />
       {serverUp === false && (
         <div className="server-down">

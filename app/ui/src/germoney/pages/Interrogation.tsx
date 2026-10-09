@@ -49,7 +49,7 @@ export function InterrogationPage() {
   const p = getPatterns()
   return (
     <div className="mission-page">
-      <MissionHeader n="M7" title="Interrogation" sub="Root cause, not the excuse." />
+      <MissionHeader n="M11" title="Interrogation" sub="Root cause, not the excuse." />
       <div className="term-grid">
         <section className="card interro">
           <span className="eyebrow">Q1 // What happened?</span>

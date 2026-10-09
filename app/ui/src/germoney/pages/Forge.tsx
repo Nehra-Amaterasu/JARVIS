@@ -7,6 +7,7 @@ import { Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { EXERCISES, MUSCLE_GROUPS, generateSession, type MuscleGroup, type SessionExercise } from '../data/exercises'
 import { Alert } from '../platform'
+import { useGame } from '../game/store'
 import { usePlayerStore } from '../stores/player-store'
 import { useWorkoutStore, type WorkoutEntry } from '../stores/workout-store'
 import { MissionHeader, NeonBar, useFx } from '../ui'
@@ -54,6 +55,7 @@ export function ForgePage() {
     }).filter((e) => Number.isFinite(e.sets) && Number.isFinite(e.reps) && Number.isFinite(e.weight))
     addSession({ muscles: MUSCLE_GROUPS.filter((m) => selected.has(m)), entries })
     logExecution('workout', 1)
+    useGame.getState().recordLog('workout', 1)
     burst('+15 XP')
     setSession(null)
     setDrafts({})
@@ -64,7 +66,7 @@ export function ForgePage() {
   if (!session) {
     return (
       <div className="mission-page">
-        <MissionHeader n="M4" title="Forge" sub="Choose your battle. Select the muscles to train." right={<span className="mono muted">{sessions.length} sessions logged</span>} />
+        <MissionHeader n="M8" title="Forge" sub="Choose your battle. Select the muscles to train." right={<span className="mono muted">{sessions.length} sessions logged</span>} />
         <p className="muted small">V-taper focus: back (lats) and shoulders (side delts) build the width. <Sparkles size={11} /> marks those groups.</p>
         <div className="muscle-grid">
           {MUSCLE_GROUPS.map((m) => {
@@ -92,7 +94,7 @@ export function ForgePage() {
   }
   return (
     <div className="mission-page">
-      <MissionHeader n="M4" title="Forge" sub={MUSCLE_GROUPS.filter((m) => selected.has(m)).join(' · ')}
+      <MissionHeader n="M8" title="Forge" sub={MUSCLE_GROUPS.filter((m) => selected.has(m)).join(' · ')}
         right={<button className="btn sm ghost" onClick={() => { setSession(null); setDrafts({}) }}>‹ Change muscles</button>} />
       <NeonBar progress={session.length ? logged / session.length : 0} />
       <div className="lift-grid">

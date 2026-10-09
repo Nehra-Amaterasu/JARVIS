@@ -6,7 +6,8 @@
  *   - the ticker is the only place every subsystem reports to, in order
  */
 import {
-  AudioLines, BrainCircuit, Cable, Gauge, Hand, Maximize2, Minus, ScanEye, Search, X,
+  AudioLines, BookOpen, BrainCircuit, Cable, CalendarDays, Dumbbell, Flame, Gauge, Hand, Maximize2, Minus,
+  ScanEye, Search, ShieldCheck, Skull, SlidersHorizontal, Swords, Terminal, Trophy, X,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef } from 'react'
 import { TABS, useStore, type Tab } from '../lib/store'
@@ -21,6 +22,8 @@ declare global {
 
 const ICONS: Record<Tab, typeof AudioLines> = {
   core: AudioLines, yaadash: BrainCircuit, aankhen: ScanEye, limbs: Hand, connect: Cable, system: Gauge,
+  mission: Trophy, quests: Swords, crucible: Flame, forge: Dumbbell, syllabus: BookOpen, terminal: Terminal,
+  interrogation: Skull, proof: ShieldCheck, schedule: CalendarDays, calibration: SlidersHorizontal,
 }
 
 export const STATE_LABEL: Record<CoreState, string> = {
@@ -91,16 +94,21 @@ export function Dock() {
   const core = useStore((s) => s.core)
   return (
     <nav className="dock glass-thin" aria-label="Sections">
-      {TABS.map((t) => {
+      {TABS.filter((t) => t.dock).map((t, i, arr) => {
         const Icon = ICONS[t.id]
+        const missionTab = TABS.find((x) => x.id === tab)?.group === 'mission'
+        // Mission sub-pages (Terminal, Proof...) light the group's Command icon.
+        const on = tab === t.id || (t.id === 'mission' && missionTab && !arr.some((x) => x.id === tab))
         return (
-          <button key={t.id} className={`dock-item ${tab === t.id ? 'on' : ''}`} onClick={() => setTab(t.id)}
-            aria-current={tab === t.id ? 'page' : undefined}>
-            <span className="dock-icon"><Icon size={19} strokeWidth={1.75} /></span>
-            <span className="dock-label">{t.title}</span>
-            <span className="dock-n mono">{t.n}</span>
-            {t.id === 'core' && core?.running && <i className={`dock-led ${stateTone(core.state)}`} />}
-          </button>
+          <div key={t.id} className="dock-slot">
+            {i > 0 && arr[i - 1].group !== t.group && <span className="dock-divider mono">mission</span>}
+            <button className={`dock-item ${on ? 'on' : ''}`} onClick={() => setTab(t.id)}
+              aria-current={on ? 'page' : undefined}>
+              <span className="dock-icon"><Icon size={18} strokeWidth={1.75} /></span>
+              <span className="dock-label">{t.title}</span>
+              {t.id === 'core' && core?.running && <i className={`dock-led ${stateTone(core.state)}`} />}
+            </button>
+          </div>
         )
       })}
       <div className="dock-spacer" />
@@ -187,6 +195,10 @@ export function useHotkeys() {
       if ((e.ctrlKey || e.metaKey) && /^[1-6]$/.test(e.key)) {
         e.preventDefault()
         ref.current.setTab(TABS[Number(e.key) - 1].id)
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+        e.preventDefault()
+        ref.current.setTab('mission')
       }
     }
     window.addEventListener('keydown', onKey)

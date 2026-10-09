@@ -189,3 +189,28 @@
 .decision:first-of-type { border-top: 0; }
 .decision b { display: block; font-size: 13.5px; margin-bottom: 4px; }
 .decision p { margin: 0; font-size: 12px; color: var(--ink-3); line-height: 1.5; }
+
+/* ---------------------------------------------------------------- transcripts: flags + review */
+.turn-actions { display: flex; gap: 6px; margin-top: 6px; opacity: 0; transition: opacity var(--t-fast); }
+.turn:hover .turn-actions, .turn:focus-within .turn-actions { opacity: 1; }
+.turn-actions button { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 999px; font: 600 10.5px var(--f-ui); color: var(--ink-3); background: rgba(255, 255, 255, 0.05); }
+.turn-actions button:hover { color: var(--ink); background: rgba(255, 255, 255, 0.1); }
+.flag-form { display: flex; gap: 6px; margin-top: 8px; }
+.flag-form .field { height: 32px; font-size: 12.5px; }
+.turn.flag-wrong .turn-text, .turn.flag-misheard .turn-text { text-decoration: underline wavy rgba(255, 69, 58, 0.5); text-underline-offset: 4px; }
+.review-btn { display: flex; align-items: center; gap: 8px; }
+.review-btn .mono { font-size: 10.5px; }
+
+/* ---------------------------------------------------------------- core: mission summary */
+.mission-sum { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
+.mission-sum > div:first-child { display: flex; flex-direction: column; gap: 4px; }
+.mission-sum b { font: 400 22px var(--f-display); text-transform: uppercase; letter-spacing: 0.02em; }
+.xp-mini { text-align: right; }
+.xp-mini .dot { font-size: 28px; display: block; line-height: 1; }
+.mission-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+.mission-stats > div { display: flex; flex-direction: column; gap: 4px; padding: 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.03); }
+.mission-stats .dot { font-size: 20px; }
+.card.mission.warn { box-shadow: inset 0 0 0 1px var(--fault-2), var(--glass-edge); }
+
+/* ---------------------------------------------------------------- limbs: confirmed by the board */
+.device.confirmed { box-shadow: inset 0 0 0 1px rgba(92, 225, 255, 0.28), var(--glass-edge); }

@@ -3,11 +3,14 @@
  * see what every subsystem is doing — and the week's mission numbers.
  */
 import {
-  AudioLines, BrainCircuit, Hand, Keyboard, Mic, Power, ScanEye, Send, Speaker,
+  AudioLines, BrainCircuit, Check, Ear, FileText, Flame, FolderOpen, Hand, Keyboard, Mic, Power, ScanEye, Send,
+  Snail, Speaker, ThumbsDown,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, post, type CoreInfo, type Turn } from '../lib/api'
 import { fmt, fmtDur, fmtGb, fmtInt, pad2, usePoll } from '../lib/format'
+import { DAILY_ITEMS, useChecklistStore } from '../germoney/stores/checklist-store'
+import { LEVELS, usePlayerStore } from '../germoney/stores/player-store'
 import { useStore } from '../lib/store'
 import { PageHeader, STATE_LABEL } from '../components/Shell'
 import { Reactor } from '../components/Reactor'
@@ -176,7 +179,7 @@ function Conversation({ running }: { running: boolean }) {
     <section className="card convo">
       <div className="card-head">
         <span className="card-title"><span className="track">A1</span>Conversation</span>
-        <span className="pill">{turns.length ? `${turns.length} turns` : 'empty'}</span>
+        <ReviewButton />
       </div>
       <div className="convo-list" ref={list}>
         {turns.length === 0 && (
@@ -198,16 +201,87 @@ function Conversation({ running }: { running: boolean }) {
   )
 }
 
-function TurnRow({ turn, n }: { turn: Turn; n: number }) {
+type Verdict = 'good' | 'wrong' | 'slow' | 'misheard'
+
+/** Every turn can be judged. A verdict is stored with the transcript, and the
+ *  review file for Claude lists flagged turns first, with what you expected. */
+function TurnRow({ turn, n }: { turn: Turn & { session?: string }; n: number }) {
+  const toast = useStore((s) => s.toast)
+  const [flag, setFlag] = useState<Verdict | null>(null)
+  const [asking, setAsking] = useState(false)
+  const [expected, setExpected] = useState('')
+  const canFlag = !!turn.session && turn.done
+  const send = async (verdict: Verdict, exp = '') => {
+    try {
+      await post('/api/transcripts/flag', { session: turn.session, id: turn.id, verdict, expected: exp })
+      setFlag(verdict)
+      setAsking(false)
+      toast(verdict === 'good' ? 'Marked as a good answer.' : `Marked as ${verdict} — it'll be in the next review.`, verdict === 'good' ? 'live' : 'info')
+    } catch (e) {
+      toast((e as Error).message, 'fault')
+    }
+  }
   return (
-    <div className={`turn ${turn.role} ${turn.done ? '' : 'streaming'}`}>
+    <div className={`turn ${turn.role} ${turn.done ? '' : 'streaming'} ${flag ? `flag-${flag}` : ''}`}>
       <span className="turn-n mono">{pad2(n)}</span>
       <div>
         <div className="turn-who eyebrow">{turn.role === 'you' ? 'You' : 'Jarvis'}
           {turn.seconds !== undefined && <span className="mono turn-time">{fmt(turn.seconds, 1)}s</span>}
+          {flag && <span className={`pill ${flag === 'good' ? 'live' : 'fault'}`}>{flag}</span>}
         </div>
         <div className="turn-text">{turn.text || '…'}</div>
+        {canFlag && !flag && (
+          <div className="turn-actions">
+            {turn.role === 'jarvis' ? (
+              <>
+                <button onClick={() => void send('good')} title="Good answer"><Check size={12} />Good</button>
+                <button onClick={() => setAsking(true)} title="Wrong or made-up answer"><ThumbsDown size={12} />Wrong</button>
+                <button onClick={() => void send('slow')} title="Took too long"><Snail size={12} />Slow</button>
+              </>
+            ) : (
+              <button onClick={() => setAsking(true)} title="JARVIS heard something else"><Ear size={12} />Misheard</button>
+            )}
+          </div>
+        )}
+        {asking && (
+          <form className="flag-form fade-in" onSubmit={(e) => { e.preventDefault(); void send(turn.role === 'jarvis' ? 'wrong' : 'misheard', expected) }}>
+            <input className="field" autoFocus value={expected} onChange={(e) => setExpected(e.target.value)}
+              placeholder={turn.role === 'jarvis' ? 'What should he have said? (optional)' : 'What did you actually say? (optional)'} />
+            <button className="btn sm primary">Flag</button>
+            <button type="button" className="btn sm ghost" onClick={() => setAsking(false)}>Cancel</button>
+          </form>
+        )}
       </div>
+    </div>
+  )
+}
+
+/** Writes app/data/reviews/review-*.md: flagged turns first, errors, slow replies,
+ *  then the full transcript — written for Claude to diagnose where JARVIS fails. */
+function ReviewButton() {
+  const toast = useStore((s) => s.toast)
+  const [sum] = usePoll(() => api<{ turns: number; flags: Record<string, number> }>('/api/transcripts/summary?days=7'), 30000)
+  const [busy, setBusy] = useState(false)
+  const flagged = Object.entries(sum?.flags ?? {}).filter(([k]) => k !== 'good').reduce((a, [, v]) => a + v, 0)
+  const run = async () => {
+    setBusy(true)
+    try {
+      const r = await post<{ name: string }>('/api/transcripts/export', { days: 7 })
+      toast(`Review written: ${r.name}. Tell Claude: "read app/data/reviews/${r.name}".`, 'live')
+      await post('/api/open', { which: 'reviews' })
+    } catch (e) {
+      toast((e as Error).message, 'fault')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="review-btn">
+      <span className="mono muted">{sum ? `${sum.turns} turns · ${flagged} flagged · 7 d` : ''}</span>
+      <button className="btn sm" disabled={busy || !sum?.turns} onClick={() => void run()} title="Write a review file for Claude">
+        <FileText size={13} />Review for Claude
+      </button>
+      <button className="btn sm ghost icon" aria-label="Open the reviews folder" onClick={() => void post('/api/open', { which: 'reviews' })}><FolderOpen size={13} /></button>
     </div>
   )
 }
@@ -261,77 +335,39 @@ function SystemsCard({ core }: { core: CoreInfo | null }) {
 }
 
 /* ------------------------------------------------------------------ mission */
-interface Mission {
-  week: string; days_left: number; targets: Record<string, number>; labels: Record<string, string>
-  current: Record<string, number>; history: Record<string, number | string>[]
-}
-
+/** The Mission Germoney summary: rank, XP, today's directives, Rule 1 — one click
+ *  from the Crucible. (Reads the same stores as the Mission tabs.) */
 function MissionCard() {
-  const [m, , reload] = usePoll(() => api<Mission>('/api/mission'), 60000)
-  const [local, setLocal] = useState<Mission | null>(null)
-  const data = local ?? m
-  const add = async (kind: string, delta: number) => {
-    setLocal(await post<Mission>('/api/mission', { kind, delta }))
-    reload()
-  }
-  const items = useMemo(() => data ? [
-    { k: 'numericals', label: 'VLSI numericals', unit: '', steps: [1, 5] },
-    { k: 'german_min', label: 'German', unit: 'min', steps: [15, 30] },
-  ] : [], [data])
-  if (!data) return <section className="card mission"><div className="empty">…</div></section>
+  const player = usePlayerStore((s) => s.player)
+  const loaded = usePlayerStore((s) => s.isLoaded)
+  const daily = useChecklistStore((s) => s.daily)
+  const setTab = useStore((s) => s.setTab)
+  useEffect(() => {
+    void usePlayerStore.getState().hydrate()
+    void useChecklistStore.getState().hydrate()
+  }, [])
+  if (!loaded) return <section className="card mission"><div className="empty">…</div></section>
+  const info = LEVELS.find((l) => l.level === player.level) ?? LEVELS[0]
+  const done = DAILY_ITEMS.filter((i) => daily[i.id]).length
+  const since = player.lastCommitDate ? Math.floor((Date.now() - new Date(player.lastCommitDate).getTime()) / 86_400_000) : null
   return (
-    <section className="card mission">
+    <section className={`card mission ${player.isPurgatoryActive ? 'warn' : ''}`}>
       <div className="card-head">
-        <span className="card-title"><span className="track">B2</span>Mission · Germany 2028</span>
-        <span className="mono muted">{data.week} · {data.days_left}d left</span>
+        <span className="card-title"><span className="track">B2</span>Mission · Germoney</span>
+        <button className="btn sm ghost" onClick={() => setTab('mission')}>Open</button>
       </div>
-      {items.map((it) => {
-        const cur = data.current[it.k] ?? 0
-        const tgt = data.targets[it.k]
-        const pct = Math.min(1, cur / tgt)
-        return (
-          <div key={it.k} className="mission-row">
-            <Ring pct={pct} done={pct >= 1} />
-            <div className="mission-body">
-              <div className="mission-label">{it.label}</div>
-              <div className="mission-num">
-                <span className="dot">{it.k === 'german_min' ? fmt(cur / 60, 1) : cur}</span>
-                <span className="muted mono"> / {it.k === 'german_min' ? `${tgt / 60} h` : tgt}</span>
-              </div>
-              <Spark values={data.history.map((h) => Number(h[it.k]) / tgt)} />
-            </div>
-            <div className="mission-btns">
-              {it.steps.map((s) => (
-                <button key={s} className="btn sm" onClick={() => void add(it.k, s)}>+{s}{it.unit && ` ${it.unit}`}</button>
-              ))}
-            </div>
-          </div>
-        )
-      })}
+      <div className="mission-sum">
+        <div><span className="eyebrow">Rank {player.level}/10</span><b>{info.rank}</b></div>
+        <div className="xp-mini"><span className="dot">{player.xp}</span><span className="mono muted">XP</span></div>
+      </div>
+      <div className="mission-stats">
+        <div><span className="dot">{done}/{DAILY_ITEMS.length}</span><span className="eyebrow">Directives</span></div>
+        <div><span className={`dot ${since !== null && since >= 11 ? 'fault' : ''}`}>{since === null ? '—' : `${since}d`}</span><span className="eyebrow">Since commit</span></div>
+        <div><span className="dot">{player.germanHours}h</span><span className="eyebrow">German</span></div>
+      </div>
+      <button className={`btn power ${player.isPurgatoryActive ? 'danger' : 'primary'}`} style={{ width: '100%', marginTop: 12 }} onClick={() => setTab('crucible')}>
+        <Flame size={15} />{player.isPurgatoryActive ? 'Purgatory: enter the Crucible' : 'Enter the Crucible'}
+      </button>
     </section>
-  )
-}
-
-function Ring({ pct, done }: { pct: number; done: boolean }) {
-  const r = 22, c = 2 * Math.PI * r
-  return (
-    <svg width="56" height="56" viewBox="0 0 56 56" className="ring">
-      <circle cx="28" cy="28" r={r} stroke="rgba(255,255,255,0.08)" strokeWidth="5" fill="none" />
-      <circle cx="28" cy="28" r={r} stroke={done ? 'var(--live)' : 'var(--ink)'} strokeWidth="5" fill="none"
-        strokeDasharray={`${c * pct} ${c}`} strokeLinecap="round" transform="rotate(-90 28 28)"
-        style={{ transition: 'stroke-dasharray 520ms var(--ease)' }} />
-      <text x="28" y="32" textAnchor="middle" className="ring-txt">{Math.round(pct * 100)}</text>
-    </svg>
-  )
-}
-
-/** Eight weeks of history as bars: the trend matters more than one week. */
-function Spark({ values }: { values: number[] }) {
-  return (
-    <div className="spark" title="last 8 weeks vs target">
-      {values.map((v, i) => (
-        <i key={i} style={{ height: `${Math.max(6, Math.min(1, v) * 100)}%` }} className={v >= 1 ? 'hit' : i === values.length - 1 ? 'now' : ''} />
-      ))}
-    </div>
   )
 }

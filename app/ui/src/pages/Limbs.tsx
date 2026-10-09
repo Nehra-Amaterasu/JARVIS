@@ -1,9 +1,13 @@
 /**
  * Limbs: what JARVIS can switch. The glyph IS the reading: the bulb's glow is the
- * brightness, the fan's rotor turns at the set speed. Controls go through the same
- * room.apply() as voice commands, so this page and JARVIS can't disagree.
+ * brightness, the fan's rotor turns at the set speed.
+ *
+ * The app owns the room's state (app/jarvis_app/limbs.py), so every switch works
+ * whether or not JARVIS is awake, drives the ESP32's relays over USB when the
+ * board is plugged in, and keeps JARVIS's voice commands in step. "Confirmed by
+ * board" (cyan) appears only when the ESP32's OWN status report agrees.
  */
-import { Fan, Focus, Lightbulb, Moon, Sunrise, TriangleAlert } from 'lucide-react'
+import { CircuitBoard, Fan, Focus, Lightbulb, Moon, Sunrise } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api, post } from '../lib/api'
 import { usePoll } from '../lib/format'
@@ -12,49 +16,48 @@ import { PageHeader } from '../components/Shell'
 
 interface Device {
   id: string; name: string; kind: 'light' | 'fan'; unit: string; mains: boolean; note: string
-  state: { on: boolean; level: number } | null; link: 'mqtt' | 'virtual' | 'offline'
+  state: { on: boolean; level: number }; link: 'usb' | 'mqtt' | 'virtual'
+  hardware_on: boolean | null; confirmed: boolean
 }
-interface View { devices: Device[]; scenes: { id: string; name: string; detail: string }[]; core_running: boolean; mqtt: boolean | null; hardware: string }
+interface View { devices: Device[]; scenes: { id: string; name: string; detail: string }[]; core_running: boolean; usb: boolean; mqtt: boolean | null; hardware: string }
 
 const SCENE_ICON: Record<string, typeof Focus> = { focus: Focus, relaxation: Sunrise, sleep: Moon }
 
 export function LimbsPage() {
-  const core = useStore((s) => s.core)
   const toast = useStore((s) => s.toast)
-  const [view, , reload] = usePoll(() => api<View>('/api/limbs'), 3000)
-  useEffect(() => { reload() }, [core?.room]) // eslint-disable-line react-hooks/exhaustive-deps
+  const events = useStore((s) => s.events)
+  const [view, , reload] = usePoll(() => api<View>('/api/limbs'), 2000)
+  // A voice command ("Hey Jarvis, fan off") arrives as an event: refresh at once.
+  const lastRoom = events.filter((e) => e.source === 'limbs').slice(-1)[0]?.id
+  useEffect(() => { reload() }, [lastRoom]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const send = async (path: string, body: unknown = {}) => {
     try {
-      await post(path, body)
-      window.setTimeout(reload, 150)
+      const r = await post<{ delivered?: Record<string, boolean> }>(path, body)
+      const failed = Object.entries(r.delivered ?? {}).filter(([, ok]) => !ok).map(([d]) => d)
+      if (failed.length) toast(`Saved, but the board didn't take it: ${failed.join(', ')}. Is the ESP32 plugged in?`, 'fault')
+      window.setTimeout(reload, 120)
     } catch (e) {
       toast((e as Error).message, 'fault')
     }
   }
-  const running = !!view?.core_running
   return (
     <div className="page fade-in">
-      <PageHeader tab="limbs" right={<span className={`pill ${view?.mqtt ? 'live' : ''}`}><i className="led" />{view?.mqtt ? 'MQTT bus' : 'virtual room'}</span>} />
-      {!running && (
-        <div className="banner">
-          <TriangleAlert size={16} />
-          <span style={{ flex: 1 }}>JARVIS is asleep. The room’s state lives in JARVIS, so wake him (text mode is enough) to switch things here.</span>
-          <button className="btn sm primary" onClick={() => void send('/api/core/start', { mode: 'text' })}>Wake in text mode</button>
-        </div>
-      )}
-      <div className="banner sim">
-        <span className="pill sim"><i className="led" />virtual</span>
-        {view?.hardware ?? '…'} When the relay board is wired, the same switches drive it over MQTT.
+      <PageHeader tab="limbs" right={
+        <span className={`pill ${view?.usb ? 'live' : view?.mqtt ? 'live' : 'sim'}`}><i className="led" />
+          {view?.usb ? 'relay board · USB' : view?.mqtt ? 'MQTT bus' : 'virtual room'}</span>} />
+      <div className={`banner ${view?.usb ? '' : 'sim'}`}>
+        <CircuitBoard size={16} />
+        <span style={{ flex: 1 }}>{view?.hardware ?? '…'}{view?.core_running ? ' Voice commands and these switches stay in sync.' : ' Voice commands sync as soon as JARVIS is awake.'}</span>
       </div>
       <div className="limbs-grid">
-        {view?.devices.map((d) => <DeviceCard key={d.id} d={d} disabled={!running} send={send} />)}
+        {view?.devices.map((d) => <DeviceCard key={d.id} d={d} send={send} />)}
       </div>
       <div className="scenes">
         {view?.scenes.map((s) => {
           const Icon = SCENE_ICON[s.id] ?? Focus
           return (
-            <button key={s.id} className="scene card" disabled={!running} onClick={() => void send(`/api/limbs/scene/${s.id}`)}>
+            <button key={s.id} className="scene card" onClick={() => void send(`/api/limbs/scene/${s.id}`)}>
               <Icon size={20} strokeWidth={1.6} />
               <b>{s.name}</b>
               <span>{s.detail}</span>
@@ -66,20 +69,22 @@ export function LimbsPage() {
   )
 }
 
-function DeviceCard({ d, disabled, send }: { d: Device; disabled: boolean; send: (p: string, b?: unknown) => Promise<void> }) {
+function DeviceCard({ d, send }: { d: Device; send: (p: string, b?: unknown) => Promise<void> }) {
   const on = !!d.state?.on
   const level = d.state?.level ?? 0
   const [local, setLocal] = useState<number | null>(null)
   const shown = local ?? level
   return (
-    <section className="card device">
+    <section className={`card device ${d.confirmed ? 'confirmed' : ''}`}>
       <div className="device-top">
         <div>
           <div className="device-name">{d.name}</div>
-          <div className="mono muted" style={{ marginTop: 4 }}>{d.id} · {d.link}</div>
+          <div className="mono muted" style={{ marginTop: 4 }}>
+            {d.id} · {d.link}{d.link === 'usb' && (d.confirmed ? ' · confirmed by board' : d.hardware_on === null ? ' · relay not wired' : ' · waiting for the board')}
+          </div>
         </div>
-        <button className={`switch ${on ? 'on' : ''}`} disabled={disabled} aria-pressed={on}
-          aria-label={`${d.name} power`} onClick={() => void send(`/api/limbs/${d.id}`, { action: on ? 'off' : 'on' })} />
+        <button className={`switch ${on ? 'on' : ''}`} aria-pressed={on} aria-label={`${d.name} power`}
+          onClick={() => void send(`/api/limbs/${d.id}`, { action: on ? 'off' : 'on' })} />
       </div>
       <div className="device-glyph">
         {d.kind === 'light' ? <Bulb on={on} level={shown} /> : <Rotor on={on} level={shown} />}
@@ -88,10 +93,11 @@ function DeviceCard({ d, disabled, send }: { d: Device; disabled: boolean; send:
         <span className="eyebrow">{d.unit}</span>
         <span className="dot">{on ? `${shown}%` : 'OFF'}</span>
       </div>
-      <input type="range" className="slider" min={10} max={100} step={5} value={shown} disabled={disabled}
+      <input type="range" className="slider" min={10} max={100} step={5} value={shown}
         style={{ ['--pct' as string]: `${((shown - 10) / 90) * 100}%` }}
         onChange={(e) => setLocal(Number(e.target.value))}
-        onPointerUp={() => { if (local !== null) { void send(`/api/limbs/${d.id}`, { action: 'set', value: local }); setLocal(null) } }} />
+        onPointerUp={() => { if (local !== null) { void send(`/api/limbs/${d.id}`, { action: 'set', value: local }); setLocal(null) } }}
+        onKeyUp={() => { if (local !== null) { void send(`/api/limbs/${d.id}`, { action: 'set', value: local }); setLocal(null) } }} />
       <div className="mono muted" style={{ fontSize: 11 }}>
         {d.mains && <span className="mains">MAINS 230 V · </span>}{d.note}
       </div>

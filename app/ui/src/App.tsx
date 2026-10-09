@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { CommandPalette } from './components/CommandPalette'
+import { Dialogs, FxLayer } from './germoney/ui'
 import { Dock, TitleBar, Ticker, Toasts, useHotkeys } from './components/Shell'
 import { api } from './lib/api'
 import { startEventStream, useStore } from './lib/store'
@@ -12,8 +13,10 @@ import { YaadashPage } from './pages/Yaadash'
 // The 3D twin pulls in three.js (~600 kB); load it only when Aankhen is opened, so
 // the window paints in a fraction of the time.
 const AankhenPage = lazy(() => import('./pages/Aankhen').then((m) => ({ default: m.AankhenPage })))
+// Mission Germoney carries its whole syllabus (~150 kB of content): loaded on first visit.
+const MissionRoot = lazy(() => import('./germoney/MissionRoot').then((m) => ({ default: m.MissionRoot })))
 
-const PAGES = {
+const PAGES: Record<string, React.ComponentType> = {
   core: CorePage, yaadash: YaadashPage, aankhen: AankhenPage,
   limbs: LimbsPage, connect: ConnectPage, system: SystemPage,
 }
@@ -45,19 +48,21 @@ export default function App() {
     }
   }, [refreshVitals])
 
-  const Page = PAGES[tab]
+  const Page = PAGES[tab] ?? MissionRoot
   return (
     <div className="app grain">
       <TitleBar />
       <Dock />
       <main className="main">
-        <Suspense fallback={<div className="page"><div className="empty">Loading the twin…</div></div>}>
+        <Suspense fallback={<div className="page"><div className="empty">Loading…</div></div>}>
           <Page key={tab} />
         </Suspense>
       </main>
       <Ticker />
       <Toasts />
       <CommandPalette />
+      <FxLayer />
+      <Dialogs />
       {serverUp === false && (
         <div className="server-down">
           <div className="card" style={{ maxWidth: 420, textAlign: 'center' }}>

@@ -5,9 +5,22 @@ from typing import Optional
 from langchain_core.tools import tool
 from langchain_ollama import ChatOllama
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+from collections import deque
 import room
 import yaadash_v2 as yaadash_core  # v2: LanceDB + CPU bge-small, no :8000 server, no graph
+try:
+    # Episodic recall + people layer. Optional: needs the archive built by
+    # yaadash_archive.py + yaadash_people.py. JARVIS runs without it.
+    import yaadash_recall
+except Exception as _e:
+    yaadash_recall = None
+    print(f"[Yaadash recall unavailable: {_e}]")
+try:
+    import yaadash_beliefs   # inferred claims + active learning (Steps 8-9)
+except Exception as _e:
+    yaadash_beliefs = None
+    print(f"[Yaadash beliefs unavailable: {_e}]")
 import sys
 import numpy as np
 import sounddevice as sd
@@ -83,9 +96,26 @@ llm = ChatOllama(
     model="qwen3:4b-instruct-2507-q4_K_M",
     temperature=0.7,   # Qwen's recommended setting for Instruct-2507
     num_ctx=8192,
+    num_predict=400,     # hard cap on reply length — see llm_precise below
+    repeat_penalty=1.1,
     keep_alive="30m",  # Keep weights resident. Without this Ollama evicts after 5
                        # min and the next reply pays a full cold load (measured
                        # 124.6s on 2026-10-08) — fatal for a voice assistant.
+)
+# Same model and weights at low temperature, used for turns grounded in retrieved
+# memory. At 0.7 the model embroidered real excerpts into invented stories; when
+# the job is "report what the record says", creativity is the failure mode.
+llm_precise = ChatOllama(
+    model="qwen3:4b-instruct-2507-q4_K_M",
+    temperature=0.2,
+    num_ctx=8192,
+    # Without a cap, a test run hung for 30+ minutes with the GPU pinned: at low
+    # temperature a 4B model can fall into a repetition loop and keep generating
+    # until the 8192-token context is full. A spoken reply never needs more than
+    # ~400 tokens (~1 minute of speech), and the penalty discourages the loop itself.
+    num_predict=400,
+    repeat_penalty=1.15,
+    keep_alive="30m",
 )
 tools = get_mcp_tools()
 llm_with_tools = llm.bind_tools(tools)
@@ -105,6 +135,48 @@ Explain the failure to the user in a short, apologetic, and highly technical but
     
     return response.content
 
+# --- Short-term (working) memory ---------------------------------------------
+# Until 2026-10-09 every turn was stateless: the model saw only the system prompt
+# and the current sentence, so it could not resolve "aur uske baare mein?" or
+# continue a thread it had started ten seconds earlier. This buffer carries the
+# last few exchanges into each call.
+#   - SHORT_TERM_TURNS: 6 exchanges is enough for natural follow-ups while staying
+#     far inside the 8192-token context alongside the system prompt and memories.
+#   - SHORT_TERM_IDLE_RESET_S: after 10 idle minutes a new conversation starts
+#     clean, so a morning question is not interpreted through last night's topic.
+#   - Each side is clipped so one long monologue cannot crowd out the rest.
+SHORT_TERM_TURNS = 6
+SHORT_TERM_IDLE_RESET_S = 600
+SHORT_TERM_CLIP_CHARS = 700
+_short_term = deque(maxlen=SHORT_TERM_TURNS)
+_last_turn_at = 0.0
+
+
+def _history_messages():
+    """Recent exchanges as chat messages; clears itself after a long idle gap."""
+    global _last_turn_at
+    if _short_term and time.time() - _last_turn_at > SHORT_TERM_IDLE_RESET_S:
+        _short_term.clear()
+    msgs = []
+    for user_said, jarvis_said in _short_term:
+        msgs.append(HumanMessage(content=user_said))
+        msgs.append(AIMessage(content=jarvis_said))
+    return msgs
+
+
+def _remember_turn(user_said: str, jarvis_said: str):
+    global _last_turn_at
+    if user_said and jarvis_said:
+        _short_term.append((user_said[:SHORT_TERM_CLIP_CHARS].strip(),
+                            jarvis_said[:SHORT_TERM_CLIP_CHARS].strip()))
+        _last_turn_at = time.time()
+
+
+def reset_conversation():
+    """Forget the current conversation (long-term memory is untouched)."""
+    _short_term.clear()
+
+
 def run_agent(user_input: str) -> str:
     """
     The Zero-Latency Cognitive Loop.
@@ -113,7 +185,29 @@ def run_agent(user_input: str) -> str:
     3. Stream response (or trigger tool).
     """
     # 1. Fetch Deep Memories
-    memories = yaadash_core.get_context(user_input)
+    # People + past conversations, only when the message names someone or asks
+    # about the past. Never allowed to break a reply.
+    recall_block = ""
+    if yaadash_recall is not None:
+        try:
+            recall_block = yaadash_recall.recall_context(user_input)
+        except Exception as e:
+            print(f"\n[Yaadash recall error: {e}]")
+    # When the question is about a person or a past conversation, the people card
+    # and the dated excerpts are the evidence; loose chat fragments only distract.
+    # Asked "how close am I with <friend>?", the model quoted a random one-liner
+    # fragment instead of the closeness stats.
+    memories = yaadash_core.get_context(user_input, fragments=not recall_block)
+    if recall_block:
+        memories = (memories + "\n\n" + recall_block).strip()
+    # Inferred-but-unconfirmed beliefs, labelled so the model hedges them.
+    if yaadash_beliefs is not None:
+        try:
+            hyp = yaadash_beliefs.hypotheses_context(user_input)
+            if hyp:
+                memories = (memories + "\n\n" + hyp).strip()
+        except Exception as e:
+            print(f"\n[Yaadash beliefs error: {e}]")
     
     # 2. Construct the Expert Persona (Empathetic Context Engine)
     system_prompt = f"""[SYSTEM_ROLE: EMPATHETIC_CONTEXT_ENGINE]
@@ -122,6 +216,15 @@ You possess advanced emotional intelligence and situational awareness. You are n
 [VOICE]: You are unfiltered and expressive. Casual profanity and slang are fine — he
 swears and so can you. But you are ON HIS SIDE: never mock him, never insult him, never
 belittle his studies or his work. Swear WITH him, never AT him.
+
+[PERSPECTIVE — you are JARVIS, he is Amreesh. Never swap.]:
+- When he says "mera / meri / maine / mujhe / my / I", he means HIMSELF. Answer with
+  "tera / teri / tune / tujhe / tumhara / your / you". Asked "mera naam kya hai?",
+  say "tera naam Amreesh hai" — NEVER "mera naam Amreesh hai".
+- When "PEOPLE MENTIONED" is present and he asks about that person (how close, how
+  long, who they are), answer from those numbers first — closeness, years, messages.
+- In past conversations, lines marked "Amreesh:" are HIS words. They are not your
+  memories. Never retell them as things you did.
 
 [TRUTH RULES — these outrank style]:
 - Facts under "CONFIRMED FACTS" are ground truth. Use them.
@@ -147,9 +250,22 @@ He has explicitly asked for honesty over flattery. Inventing things is the one r
 
 Never use Markdown formatting, bullet points, asterisks, or JSON — everything you write is spoken aloud by a voice engine. Speak naturally."""
         
+    # A "not found" note buried mid system prompt LOST to the model's agreeable prior:
+    # asked "yaad hai doctor strange wala joke?", it replied "haan yaad hai" and
+    # invented a joke (2026-10-09). The user turn is where attention is strongest,
+    # so the verdict is attached there, where it cannot be skimmed past.
+    human_turn = user_input
+    not_found = (yaadash_recall is not None
+                 and yaadash_recall.RECALL_NOT_FOUND in recall_block)
+    if not_found:
+        human_turn += ("\n\n[MEMORY CHECK: his chat archive has NO record of this. Do "
+                       "not pretend to remember it and do not make anything up. Tell "
+                       "him plainly that you don't have this one.]")
+
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content=user_input)
+        *_history_messages(),
+        HumanMessage(content=human_turn)
     ]
     
     # Ignite the procedural cognitive hum
@@ -166,7 +282,14 @@ Never use Markdown formatting, bullet points, asterisks, or JSON — everything 
     ]
     has_room_intent = any(cmd in user_input.lower() for cmd in room_commands)
     
-    active_llm = llm_with_tools if has_room_intent else llm
+    # Memory-grounded turns (people, past conversations) use the low-temperature
+    # model; casual talk keeps the livelier one.
+    if has_room_intent:
+        active_llm = llm_with_tools
+    elif recall_block:
+        active_llm = llm_precise
+    else:
+        active_llm = llm
     tool_calls_buffer = []
     
     try:
@@ -204,6 +327,7 @@ Never use Markdown formatting, bullet points, asterisks, or JSON — everything 
         
     # Store the interaction in long-term memory for self-improvement (Hybrid Approach)
     # Using a background thread so it doesn't block the STT engine from listening to the user's next command.
+    _remember_turn(user_input, final_text)
     threading.Thread(target=yaadash_core.store_interaction, args=(user_input, final_text), daemon=True).start()
 
 if __name__ == "__main__":

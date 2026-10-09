@@ -81,10 +81,10 @@ import chimes
 
 SAMPLE_RATE = 16000
 SILENCE_THRESHOLD = 0.04  # Lowered from 0.08 so JARVIS can hear normal speaking volume
-# 2026-10-08: was 2.0, which cut Amreesh off mid-paragraph. He thinks out loud and
+# 2026-10-08: was 2.0, which cut me off mid-paragraph. I think out loud and
 # pauses for 2-3s between clauses; a 2s cutoff ends the recording during those pauses,
 # so long multi-question prompts arrived as fragments. The UI even printed "pausing
-# for 4s" while the constant said 2.0. 4.0 matches the promise and his speech rhythm.
+# for 4s" while the constant said 2.0. 4.0 matches the promise and my speech rhythm.
 SILENCE_DURATION = 4.0
 
 # --- Voice ---
@@ -121,6 +121,8 @@ oww_model = Model(wakeword_models=["hey_jarvis_v0.1"], inference_framework="onnx
 print("4. Warming Yaadash memory + brain...")
 try:
     agent.yaadash_core.get_context("warmup")
+    if agent.yaadash_recall is not None:
+        agent.yaadash_recall.recall_context("yaad hai warmup")   # BM25 + people + archive
     agent.llm.invoke("hi")
 except Exception as _e:
     print(f"   (warm-up skipped: {_e})")

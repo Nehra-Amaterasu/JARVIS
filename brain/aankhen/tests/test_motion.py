@@ -147,6 +147,41 @@ def test_motion_then_recent_then_quiet_never_empty():
     assert "still person" in out[-1].reason
 
 
+def _run_with_radar(det, samples, radar_empty_from=None):
+    out = []
+    for s in samples:
+        det.radar_empty_s = None if radar_empty_from is None else s.t - radar_empty_from
+        r = det.push(s)
+        if r is not None:
+            out.append(r)
+    return out
+
+
+def test_a_radar_confirmed_empty_room_unfreezes_the_baseline():
+    """The room got noisier (here: 3x the noise — on the simulator, a channel
+    drifting through a subcarrier null did 27x). Quiet-only adaptation deadlocks:
+    the noise reads as motion and motion freezes it. With the radar live and empty
+    for a minute, the baseline follows."""
+    noisy = lambda secs, t0, seed: synthetic_csi(secs, t0=t0, seed=seed, noise=0.06)
+    stuck = _calibrated()
+    out = _run_with_radar(stuck, noisy(180, 100, 11))
+    assert out[-1].state == STATE_MOTION                      # never adapts
+
+    freed = _calibrated()
+    out = _run_with_radar(freed, noisy(180, 100, 11), radar_empty_from=100.0)
+    assert out[-1].state != STATE_MOTION
+    assert freed.baseline.median <= freed._calibrated[freed.context].median * freed.cfg.radar_adapt_cap
+
+
+def test_radar_gated_adaptation_is_capped():
+    det = _calibrated()
+    _run_with_radar(det, synthetic_csi(100, t0=100, seed=12, moving=True, body_mod=0.6),
+                    radar_empty_from=100.0)
+    cal = det._calibrated[det.context]
+    assert det.baseline.median <= cal.median * det.cfg.radar_adapt_cap * (1 + 1e-9)
+    assert det.baseline.q_hi <= cal.q_hi * det.cfg.radar_adapt_cap * (1 + 1e-9)
+
+
 def test_turbulence_is_gain_invariant():
     a = np.linspace(0.5, 1.5, 51)
     assert turbulence(a) == pytest.approx(turbulence(a * 4.2))
@@ -181,3 +216,57 @@ def test_breathing_never_estimated_while_moving():
     for s in synthetic_csi(62, breathing_bpm=15, noise=0.005, seed=13):
         est.push(s)
     assert est.estimate(STATE_MOTION).bpm is None
+
+
+# ------------------------------------------------------------ respiration (presence)
+def test_respiration_detector_finds_breathing_and_refuses_noise():
+    from aankhen.motion import RespirationDetector
+    cal = RespirationDetector()
+    for s in synthetic_csi(70, noise=0.02, seed=31):
+        cal.push(s)
+    floor = float(np.median(cal.stats))
+    still = RespirationDetector(floor=floor)
+    for s in synthetic_csi(70, breathing_bpm=14, noise=0.02, seed=32):
+        still.push(s)
+    assert still.last.present and abs(still.last.bpm - 14) <= 2.5
+    false = 0
+    for seed in range(40, 46):
+        empty = RespirationDetector(floor=floor)
+        for s in synthetic_csi(70, noise=0.02, seed=seed):
+            empty.push(s)
+        false += empty.last.present
+    assert false == 0
+
+
+def test_respiration_waits_out_movement():
+    from aankhen.motion import RespirationDetector
+    d = RespirationDetector(floor=1.0)
+    for s in synthetic_csi(40, breathing_bpm=14, noise=0.02, seed=33):
+        d.note_motion(s.t)                         # someone was moving the whole time
+        d.push(s)
+    assert not d.last.present and d.stats == []
+
+
+# ------------------------------------------------------------ ceiling fan lines
+def test_fan_lines_lock_and_their_removal_leaves_the_noise():
+    from aankhen.fan import FanLines
+    rng = np.random.default_rng(7)
+    t = np.arange(4000) / 100.0
+    fan = sum(0.02 / k * np.sin(2 * np.pi * (11.3 * k) * t + k) for k in range(1, 5))
+    x = 0.1 + fan + rng.normal(0, 0.003, t.size)
+    fl = FanLines()
+    for v in x:
+        fl.push(v)
+    assert fl.locked and abs(fl.f0 - 11.3) < 0.3
+    w = x[-100:]
+    assert fl.residual_variance(w) < 1.5 * 0.003 ** 2 < w.var()
+
+
+def test_broadband_movement_is_not_a_fan():
+    from aankhen.fan import FanLines
+    rng = np.random.default_rng(8)
+    x = 0.1 + np.cumsum(rng.normal(0, 0.002, 4000))   # wandering, aperiodic
+    fl = FanLines()
+    for v in x:
+        fl.push(v)
+    assert not fl.locked

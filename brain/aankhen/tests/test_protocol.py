@@ -11,7 +11,7 @@ import pytest
 
 from aankhen.protocol import (
     CRC_SIZE, HEADER_SIZE, MAX_PAYLOAD, SYNC, CsiPacket, Frame, FrameType,
-    StreamDecoder, crc16_ccitt, decode_packet,
+    StreamDecoder, crc16_ccitt, crc16_ccitt_reference, decode_packet,
 )
 
 
@@ -31,6 +31,14 @@ def test_crc_matches_standard_check_value():
 
 def test_crc_empty_is_init_value():
     assert crc16_ccitt(b"") == 0xFFFF
+
+
+def test_fast_crc_equals_the_reference_the_firmware_ports():
+    rnd = random.Random(4)
+    for _ in range(500):
+        data = bytes(rnd.randrange(256) for _ in range(rnd.randrange(0, 300)))
+        init = rnd.randrange(0x10000)
+        assert crc16_ccitt(data, init) == crc16_ccitt_reference(data, init)
 
 
 def test_header_size_is_16():

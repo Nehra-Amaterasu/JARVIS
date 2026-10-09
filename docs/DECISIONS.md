@@ -10,6 +10,83 @@ Format per entry: **Context → Decision → Evidence → Consequences / open it
 
 ---
 
+## 2026-10-09 — Aankhen: Wi-Fi may hold a room, never fill it; sleepers stay; fans don't count
+
+**Context.** A multi-seed audit of Aankhen on the simulator found the single-seed bench
+had hidden its worst cases. Evening seed 3 ran duplicate tracks: 53% false "occupied"
+and 14 ID switches. Five situations it had never been tested on all failed:
+- a sleeper: 69% false "empty";
+- someone pacing the hallway outside the wall: 100% false "occupied";
+- a ceiling fan: 99% false "occupied";
+- two people sitting together: they stayed "in the room" after leaving;
+- a Wi-Fi channel drifting through a subcarrier null: 74% false "occupied".
+The common cause was that Wi-Fi motion could create occupancy on its own. The router
+link runs 3 m outside the wall, so the hallway moves it more than the room does.
+
+**Decision.**
+- The bench runs many seeds in parallel and reports a median and a worst row.
+  - Motion false alarms are split into stop-lag and steady-state; count accuracy is
+    a new metric.
+  - Five new scenarios: sleep, hallway, fan, pair, drift.
+  - Thresholds are tuned on dev seeds 101–110 and reported on seeds 1–5.
+  - The simulator's AGC walk is capped at ±4.5 dB. Uncapped, it clipped and faked
+    breathing in an empty room.
+- Fusion: while the radar is live and sees nobody, Wi-Fi motion adds no evidence.
+  - It can hold an already-occupied belief for up to 60 s (someone in the radar's
+    blind corner).
+  - Without a radar, Wi-Fi keeps its full weight.
+  - A doorway entry lifts the belief to "unsure" at once, and the empty clamp is −4
+    (was −8), so the next entry is quick.
+- Breathing (Wi-Fi, `RespirationDetector`) can only hold a room that is already
+  occupied. It is ignored for 2 min after a walk-out and while the fan is detected, and
+  it keeps the sleeper's radar track alive.
+- Fan: the fan relay state from STATUS selects a fan-on Wi-Fi baseline
+  (`calibrate --fan`, or learned when the radar sees the room empty with the fan on).
+  Wi-Fi is ignored for 30 s after a relay switch, the fan's spectral lines are removed
+  (`fan.py`), and blade-like radar targets are rejected by their Doppler.
+- Tracker: duplicate tracks are merged, still holds are protected against ghosts, and
+  a person standing up at the desk is no longer re-projected onto the wall.
+- A Wi-Fi channel change drops the signal history and ignores Wi-Fi for 10 s.
+  Down-weighting deep-null subcarriers was tried and removed: on dev seeds it raised
+  drift false alarms from 51% to 59%.
+
+**Evidence** (simulator only, median / worst of 5 seeds, same bytes before and after):
+
+| scenario | presence accuracy | false "empty" | false "occupied" | ID switches |
+|---|---|---|---|---|
+| evening | 98.5/80.9 → 98.9/98.7 | 0.8/0.8 → 0.2/0.3 | 2.7/53.4 → 2.7/3.4 | 4/14 → 2/3 |
+| sleep | 33.9/20.3 → 99.8/99.8 | 69.4/85.3 → 0.0/0.0 | 1.9/100 → 1.9/2.1 | 2/5 → 0/1 |
+| hallway | 0/0 → 100/100 | — | 100/100 → 0/0 | 0 |
+| fan | 26.3/26.2 → 99.5/99.4 | 0.0/0.0 → 0.4/0.4 | 98.6/98.8 → 0.5/0.6 | 0/4 → 0/0 |
+| pair | 64.5/64.5 → 99.3/99.3 | 0 → 0 | 100/100 → 1.9/1.9 | 25/35 → 3/3 |
+| drift | 26.4/23.2 → 99.6/99.6 | 0.0/0.0 → 2.2/3.7 | 74.5/77.3 → 0.3/0.3 | 0 → 0 |
+| walk, still, empty | unchanged (≈91, 100, 100) | | | |
+
+The fixes hold across 3 simulated rooms × 5 seeds (135 runs): worst sleep false-empty
+0%, worst fan/hallway false-occupied ≤ 0.6%. Tests: 133 → 167. The 45-run suite takes
+71–88 s on 10 workers (135 s before; `binascii.crc_hqx` replaced a Python CRC loop that
+cost a fifth of every run, with identical output).
+
+**Consequences / open items.**
+- Trade-offs:
+  - Drift false-empty rose 0 → 2–4%; it was 0 only because the drift kept the room
+    falsely occupied.
+  - Pair count accuracy fell 81.5 → 58%: one LD2450 cannot separate two people 0.45 m
+    apart, and the old number came from leftover tracks.
+  - Someone moving in the radar's blind corner (~20% of the floor) is called empty
+    after ~2 min.
+- Not fixed:
+  - In 2 of 3 rooms, a seated person's breathing still trips the Wi-Fi motion detector
+    (18–86% false "moving").
+  - Under drift, Wi-Fi motion false-alarms 40–62% of the time; presence is unaffected.
+- Real-world unknowns:
+  - The fan's radar signature and the breathing threshold (6× the empty level) are
+    assumptions until the real room is recorded.
+  - The existing `baseline.json` has no breathing floor, so breathing stays off until
+    I recalibrate.
+
+---
+
 ## 2026-10-09 — Yaadash: every fact always, "remember that", corrections, follow-ups
 
 **Context.** An audit of the memory against the live model found five defects:

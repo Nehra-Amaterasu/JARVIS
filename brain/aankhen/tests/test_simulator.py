@@ -38,6 +38,17 @@ def test_same_seed_same_bytes():
     assert a == b
 
 
+def test_the_original_scenarios_are_unchanged_by_the_world_effects():
+    """The opt-in effects must not touch the original scenarios' byte streams — their
+    benchmark numbers are the reference every later change is compared with."""
+    for name in ("evening", "walk", "still", "empty"):
+        sim = Simulator(scenario=SCENARIOS[name](), seed=5)
+        assert sim.fan is None and sim.csi.drift is None
+        assert sim.radar.still_loss_s is None and sim.radar.merge_m is None
+        assert all(not tl.fidgets and not tl.sighs for tl in sim.timelines)
+        assert b"relays" not in b"".join(sim.chunks(2))
+
+
 def test_evening_script_truth():
     sim = Simulator(scenario=SCENARIOS["evening"]())
     assert sim.truth_at(1.0) == []                      # empty before A enters
@@ -77,3 +88,54 @@ def test_still_people_are_detected_less_often():
 def test_posture_heights_are_shared_with_the_pipeline():
     from aankhen.room import TORSO_HEIGHT_M
     assert POSTURE_HEIGHT is TORSO_HEIGHT_M
+
+
+# ------------------------------------------------------------ world effects
+def test_nobody_outside_the_room_is_an_occupant_or_a_radar_target():
+    sim = Simulator(scenario=SCENARIOS["hallway"](), seed=1)
+    assert len(sim.truth_at(30.0)) == 1 and sim.occupants_at(30.0) == []
+    room = default_room()
+    model = RadarModel(room, room.sensor("radar"), np.random.default_rng(0), ghost_p=0, mirror_p=0)
+    outside = TruthState("N", -1.0, 2.0, 0.8, 0.0, "standing", True, 14.0)   # behind the wall
+    assert all(model.observe([outside]) == [] for _ in range(50))
+
+
+def test_radar_forgets_a_still_body_after_still_loss_s():
+    room = default_room()
+    model = RadarModel(room, room.sensor("radar"), np.random.default_rng(2), ghost_p=0, mirror_p=0,
+                       still_loss_s=8.0)
+    still = TruthState("A", 0.8, 2.0, 0.0, 0.0, "seated", False, 14.0)
+    early = sum(bool(model.observe([still], 0.1 * i)) for i in range(70))        # 0-7 s
+    late = sum(bool(model.observe([still], 10.0 + 0.1 * i)) for i in range(300))  # 10-40 s
+    assert early > 20 and late == 0
+    fidget = TruthState("A", 0.8, 2.0, 0.05, 0.0, "seated", True, 14.0)
+    assert sum(bool(model.observe([fidget], 41.0 + 0.1 * i)) for i in range(10)) >= 8
+
+
+def test_bodies_closer_than_the_resolution_merge_into_one_target():
+    room = default_room()
+    model = RadarModel(room, room.sensor("radar"), np.random.default_rng(3), ghost_p=0, mirror_p=0,
+                       merge_m=0.6)
+    a = TruthState("A", 2.6, 2.4, 0.3, 0.0, "standing", True, 14.0)
+    b = TruthState("B", 3.05, 2.4, 0.3, 0.0, "standing", True, 14.0)
+    assert max(len(model.observe([a, b])) for _ in range(50)) == 1
+
+
+def test_fan_relay_is_reported_and_the_fan_spins_up():
+    sim = Simulator(scenario=SCENARIOS["fan"](), seed=1)
+    dec, pkts = _decode_all(sim, 12)
+    relays = [(p.timestamp_us, p.fields.get("relays")) for p in pkts if isinstance(p, StatusPacket)]
+    assert relays[0][1] == {"light": False, "fan": False}           # 0.5 s: still off
+    assert relays[-1][1] == {"light": False, "fan": True}           # on at 3 s
+    assert sim.fan.spinning and sim.fan.rps > 3.0
+
+
+def test_fidgets_are_movement_in_the_answer_key():
+    sim = Simulator(scenario=SCENARIOS["sleep"](), seed=1)
+    tl = sim.timelines[0]
+    assert tl.fidgets, "the sleep script should contain fidgets"
+    fg = tl.fidgets[0]
+    during = sim.truth_at(fg.t0 + fg.dur / 2)[0]
+    before = sim.truth_at(fg.t0 - 1.0)[0]
+    assert during.moving and not before.moving and before.posture == "lying"
+    assert before.chest_m is not None and abs(before.chest_m) <= 0.0045 * 2.5

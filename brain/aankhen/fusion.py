@@ -16,15 +16,29 @@ form), where each sensor contributes evidence at a RATE (log-odds per second).
 Rates make the result independent of how often update() is called — CSI readings
 arrive at 4 Hz and radar frames at 10 Hz, and both call it.
 
-THE EVIDENCE TABLE (log-odds per second, clamped to +-8 overall)
+THE EVIDENCE TABLE (log-odds per second; the belief is clamped to [-4, +8])
   radar: a confirmed moving track          +4.0   strong, direct
   radar: only still (held) tracks          +1.5   the tracker is holding them
   Wi-Fi: motion                            +1.0   (x0.5 on an auto baseline)
   Wi-Fi: recent motion (hold window)        0.0   not evidence — see below
   absence: radar live and empty >= 3 s,
-           and Wi-Fi not reporting motion  -0.15  (-0.05 without a radar)
+           and Wi-Fi not holding the room  -0.15  (-0.05 without a radar)
   exit: the last track ENDED in an exit
         zone (doorway)                     -5.0   once — the one direct absence cue
+  breathing (Wi-Fi, see motion.py)         +0.3   and no absence term; ONLY while the
+                                                  belief is already above even, never
+                                                  for 2 min after a walk-out
+
+WI-FI CAN SUSTAIN, NEVER CREATE, AGAINST AN EMPTY RADAR
+  While the radar is live and sees nobody, Wi-Fi motion adds no evidence. It may
+  hold up a belief that is ALREADY above even (someone moving in
+  a corner outside the radar's field of view) for csi_sustain_s, then the absence
+  term runs again. The audit found why: the link runs from a router 3 m outside the
+  wall, so someone pacing in the hallway perturbs it more than anyone inside, and
+  Wi-Fi motion used to add +1/s AND switch the absence term off — 100 % false
+  "occupied" for a neighbour, 74 % for a channel drifting through a subcarrier null,
+  99 % for a ceiling fan. Without a radar, Wi-Fi keeps its full weight: it is then
+  the only motion sensor there is.
 
 "Recent motion" is the detector REMEMBERING motion it already reported, so it is
 not new evidence. The first version counted it at +0.3/s, and the benchmark showed
@@ -63,9 +77,27 @@ class FusionConfig:
     # After a walk-out with nobody else tracked, the belief lands at least this
     # low (p = 0.18, "empty"). Adding -5 to a saturated +8 left it at p = 0.95,
     # so the room read "occupied" for a minute after it was empty. If someone is
-    # still there unseen, the first Wi-Fi motion or radar hit lifts it straight back.
+    # still there unseen, the first radar hit lifts it straight back.
     exit_ceiling_L: float = -1.5
+    # How long Wi-Fi motion alone may hold up an occupied belief while a live radar
+    # sees nobody (see "sustain, never create" above). 60 s, then the slow absence
+    # term takes ~60 s more: someone moving out of the radar's view for two minutes
+    # is eventually called "empty" — the price of not trusting the hallway.
+    csi_sustain_s: float = 60.0
+    # BREATHING HOLDS, NEVER CREATES. A sleeper the radar has forgotten is still
+    # breathing; on the sleep scenario the room read "empty" 72-85 % of the time
+    # someone slept in it. Breathing evidence switches the absence term off and adds
+    # llr_breathing, but only while the belief is already above even, and not for
+    # breathing_after_exit_s after a walk-out (a curtain swaying at 0.3 Hz must not
+    # keep a room occupied after its owner left through the door).
+    llr_breathing: float = 0.3
+    breathing_after_exit_s: float = 120.0
     clamp: float = 8.0
+    # How sure of "empty" the belief may get. Once Wi-Fi motion stopped propping up
+    # empty rooms, a long empty spell saturated at -8, and the next person through
+    # the door took ~2.4 s (confirmation + climbing back at +4/s) to stop reading
+    # "empty" — 8 % false "empty" on the drift run's short visit. At -4 it takes ~1.3 s.
+    clamp_empty: float = 4.0
     occupied_p: float = 0.7
     empty_p: float = 0.3
 
@@ -89,6 +121,7 @@ class Evidence:
     csi_state: Optional[str] = None        # motion.STATE_* or None
     csi_auto_baseline: bool = False
     csi_score: Optional[float] = None
+    breathing: bool = False                # Wi-Fi breathing evidence (RespirationDetector)
 
 
 @dataclass
@@ -99,7 +132,8 @@ class PresenceFusion:
     radar_empty_since: Optional[float] = None
     last_exit_t: Optional[float] = None
     ever_live: bool = False
-    contrib: dict = field(default_factory=lambda: {"radar": 0.0, "wifi": 0.0, "absence": 0.0})
+    contrib: dict = field(default_factory=lambda: {"radar": 0.0, "wifi": 0.0, "absence": 0.0,
+                                                   "breathing": 0.0})
     last: Evidence = field(default_factory=Evidence)
 
     @property
@@ -119,7 +153,7 @@ class PresenceFusion:
             self.L = _logit(self.p * s + (1 - self.p) * (1 - s))
 
         # 2. Evidence rates.
-        radar = wifi = absence = 0.0
+        radar = wifi = absence = breath = 0.0
         if ev.radar_live:
             if ev.n_moving:
                 radar = c.llr_radar_moving
@@ -132,24 +166,45 @@ class PresenceFusion:
                 self.radar_empty_since = None
         else:
             self.radar_empty_since = None
+        radar_empty_for = (t - self.radar_empty_since
+                           if ev.radar_live and self.radar_empty_since is not None else None)
+        holding = False                       # is Wi-Fi motion holding the room up?
         if ev.csi_live and ev.csi_state in (STATE_MOTION, STATE_RECENT):
             w = c.auto_baseline_weight if ev.csi_auto_baseline else 1.0
-            wifi = (c.llr_csi_motion if ev.csi_state == STATE_MOTION else c.llr_csi_recent) * w
-        wifi_quiet = not ev.csi_live or ev.csi_state != STATE_MOTION
-        if wifi_quiet:
-            if ev.radar_live and self.radar_empty_since is not None \
-                    and t - self.radar_empty_since >= c.absence_after_s:
+            if ev.csi_state == STATE_MOTION and radar_empty_for is not None:
+                # No grace period: with one, the 3 s before the absence term starts
+                # let hallway motion lift a fresh belief above even, and then hold
+                # it for csi_sustain_s (40 % false "occupied" on the hallway run).
+                holding = self.L > 0 and radar_empty_for < c.csi_sustain_s
+            else:
+                wifi = (c.llr_csi_motion if ev.csi_state == STATE_MOTION else c.llr_csi_recent) * w
+                holding = ev.csi_state == STATE_MOTION
+        if ev.breathing and self.L > 0 and (self.last_exit_t is None
+                                            or t - self.last_exit_t > c.breathing_after_exit_s):
+            breath, holding = c.llr_breathing, True
+        if not holding:
+            if radar_empty_for is not None and radar_empty_for >= c.absence_after_s:
                 absence = c.llr_absence
             elif not ev.radar_live and ev.csi_live and ev.csi_state in (STATE_QUIET, STATE_RECENT):
                 absence = c.llr_absence_no_radar
-        self.contrib = {"radar": radar, "wifi": wifi, "absence": absence}
-        self.L = max(-c.clamp, min(c.clamp, self.L + (radar + wifi + absence) * dt))
+        self.contrib = {"radar": radar, "wifi": wifi, "absence": absence, "breathing": breath}
+        self.L = max(-c.clamp_empty, min(c.clamp, self.L + (radar + wifi + absence + breath) * dt))
         return self.p
+
+    def entry_observed(self, t: float) -> None:
+        """A confirmed track appeared in an exit zone: someone walked in.
+
+        The mirror of the exit cue. Without it, a belief resting at the empty clamp
+        needed ~0.8 s at +4/s after the track confirmed to stop reading "empty" — on
+        the drift run's short visit that was 7 % false "empty", all of it in the
+        doorway. A doorway is where people appear; one there is at least "unsure".
+        """
+        self.L = max(self.L, 0.0)
 
     def exit_observed(self, t: float, tracks_remaining: int) -> None:
         """A confirmed track ended inside an exit zone."""
         if tracks_remaining == 0:
-            self.L = max(-self.cfg.clamp, min(self.L + self.cfg.llr_exit, self.cfg.exit_ceiling_L))
+            self.L = max(-self.cfg.clamp_empty, min(self.L + self.cfg.llr_exit, self.cfg.exit_ceiling_L))
             self.last_exit_t = t
 
     # ---- reporting ---------------------------------------------------------
@@ -176,6 +231,8 @@ class PresenceFusion:
         if ev.csi_live and ev.csi_state:
             sc = f" {ev.csi_score:.1f}x" if ev.csi_score is not None else ""
             parts.append(f"Wi-Fi: {ev.csi_state}{sc}")
+            if ev.breathing:
+                parts.append("Wi-Fi: breathing")
         else:
             parts.append("Wi-Fi: not connected")
         if self.last_exit_t is not None and now is not None and now - self.last_exit_t < 30:

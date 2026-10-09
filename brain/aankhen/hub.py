@@ -32,6 +32,7 @@ from .transport import ReplaySource, SerialSource, find_esp32_port
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASELINE_FILE = os.path.join(HERE, "baseline.json")     # gitignored: room-specific
+BASELINE_FAN_FILE = os.path.join(HERE, "baseline_fan.json")   # same, with the ceiling fan running
 
 
 class AankhenHub:
@@ -73,11 +74,13 @@ class AankhenHub:
                         "look identical), then press ESP32 again.")
                 source = SerialSource(port)
                 baseline = Baseline.load(BASELINE_FILE)
+                fan_baseline = Baseline.load(BASELINE_FAN_FILE)
             elif mode == "replay":
                 if not path or not os.path.exists(path):
                     raise FileNotFoundError(f"recording not found: {path}")
                 source = ReplaySource(path, speed=speed, loop=loop)
                 baseline = Baseline.load(BASELINE_FILE)
+                fan_baseline = Baseline.load(BASELINE_FAN_FILE)
             elif mode == "simulation":
                 if scenario not in SCENARIOS:
                     raise ValueError(f"unknown scenario {scenario!r}; one of {sorted(SCENARIOS)}")
@@ -85,13 +88,15 @@ class AankhenHub:
                     from .bench import simulated_baseline
                     self._sim_baseline = simulated_baseline(self.room)
                 baseline = self._sim_baseline
+                fan_baseline = None                     # learned from the radar-empty room
                 self.sim = Simulator(self.room, SCENARIOS[scenario](), seed=int(time.time()) % 10_000)
                 source = SimulatorSource(self.sim, speed=speed)
             else:
                 raise ValueError(f"unknown mode {mode!r}")
             if mode != "simulation":
                 self.sim = None
-            self.engine = Engine(self.room, source.kind, self.room_measured, baseline)
+            self.engine = Engine(self.room, source.kind, self.room_measured, baseline,
+                                 fan_baseline=fan_baseline)
             self.source = source
             self.mode, self.scenario = mode, scenario if mode == "simulation" else None
             self._stop = threading.Event()

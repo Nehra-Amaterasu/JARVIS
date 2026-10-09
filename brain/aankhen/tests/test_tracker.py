@@ -172,6 +172,65 @@ def test_still_track_eventually_expires():
     assert out == []
 
 
+def test_one_ghost_cannot_renew_a_still_hold():
+    """Evening seed 3: a single ghost 0.44 m from a zombie still track renewed its
+    30 s hold, and the empty room stayed occupied. One detection is not a person."""
+    tr = MultiTargetTracker(TrackerConfig(still_hold_s=30.0))
+    t = _settle(tr, 1.0, 1.0, 3.0)
+    tid = tr.confirmed()[0].id
+    for i in range(1, 250):                        # 25 s of silence
+        tr.step([], t + i / HZ)
+    tr.step([(1.2, 1.0)], t + 25.0)                # one ghost, 0.2 m away
+    alive_at = [bool(tr.step([], t + 25.0 + i / HZ)) for i in range(1, 80)]
+    assert tr.confirmed() == [] and not all(alive_at)
+    assert alive_at.index(False) / HZ < 6.0        # died ~30 s after the real hold began
+
+
+def test_two_hits_do_renew_a_still_hold():
+    tr = MultiTargetTracker(TrackerConfig(still_hold_s=30.0))
+    t = _settle(tr, 1.0, 1.0, 3.0)
+    tid = tr.confirmed()[0].id
+    for i in range(1, 250):
+        tr.step([], t + i / HZ)
+    tr.step([(1.1, 1.0)], t + 25.0)
+    tr.step([(1.05, 1.0)], t + 27.0)               # a second sighting within 5 s
+    for i in range(1, 100):                        # 10 s more silence: past the old hold
+        out = tr.step([], t + 27.0 + i / HZ)
+    assert [k.id for k in out] == [tid]
+
+
+def test_never_seen_together_and_close_means_one_person():
+    """Two tracks that the radar never reported in the same frame, sitting within
+    0.5 m of each other for over a second, are one body seen twice: merge them
+    into the older identity."""
+    tr = MultiTargetTracker()
+    t = _settle(tr, 1.0, 1.0, 3.0)                 # A: still at (1.0, 1.0)
+    first = tr.confirmed()[0].id
+    for i in range(10):                            # a second track, 1.4 m away, while A is silent
+        tr.step([(2.4, 1.0)], t + i / HZ)
+    assert len(tr.confirmed()) == 2
+    t += 1.0
+    for i in range(60):                            # alternate frames; the second drifts onto A
+        z = (1.0, 1.0) if i % 2 else (max(1.25, 2.4 - 0.05 * i), 1.0)
+        out = tr.step([z], t + i / HZ)
+    assert [k.id for k in out] == [first]
+
+
+def test_two_people_seen_together_are_never_merged():
+    tr = MultiTargetTracker()
+    for i in range(80):                            # side by side, 0.4 m apart, 8 s
+        out = tr.step([(1.0, 1.0), (1.4, 1.0)], i / HZ)
+    assert len(out) == 2
+
+
+def test_no_birth_next_to_a_still_person_in_a_sticky_zone():
+    tr = MultiTargetTracker(sticky_at=lambda x, y: True)
+    t = _settle(tr, 1.0, 1.0, 3.0)
+    assert tr.confirmed()[0].still
+    tr.step([(1.0, 1.0), (1.85, 1.0)], t)          # a ghost 0.85 m from the sleeper
+    assert len(tr.tracks) == 1
+
+
 def test_euclidean_cap_blocks_far_association():
     tr = MultiTargetTracker()
     _settle(tr, 1.0, 1.0, 1.0)
@@ -179,3 +238,38 @@ def test_euclidean_cap_blocks_far_association():
     tr.step([(3.0, 1.0)], 1.0)                     # 2 m jump: beyond the 1.2 m cap
     assert tr.confirmed()[0].id == tid
     assert tr.confirmed()[0].position[0] < 1.5     # the far detection did not pull it
+
+
+# ------------------------------------------------------------ spinning clutter
+def test_fan_blades_are_never_shown_as_a_person():
+    """A fixed point with a large Doppler whose sign flips (blade returns): never
+    confirmed, and remembered so it is not reborn there."""
+    rng = np.random.default_rng(5)
+    tr = MultiTargetTracker()
+    shown = 0
+    for i in range(300):                           # 30 s, the blades in 60 % of frames
+        dets = []
+        if rng.random() < 0.6:
+            v = float(rng.choice([-1.0, 1.0]) * rng.uniform(0.2, 1.0))
+            dets.append((2.0 + rng.normal(0, 0.1), 2.2 + rng.normal(0, 0.1), v))
+        shown += len(tr.step(dets, i / HZ))
+    assert shown == 0
+    assert tr.clutter_spots
+
+
+def test_a_walker_with_a_steady_doppler_is_confirmed_promptly():
+    tr = MultiTargetTracker()
+    for i in range(8):                             # walking away from the radar at 0.9 m/s
+        out = tr.step([(1.0, 1.0 + 0.09 * i, 0.9)], i / HZ)
+        if out:
+            break
+    assert out and i <= 5
+
+
+def test_a_still_sitter_with_jittery_doppler_is_not_clutter():
+    rng = np.random.default_rng(6)
+    tr = MultiTargetTracker()
+    for i in range(200):                           # small speeds of either sign
+        tr.step([(1.0 + rng.normal(0, 0.05), 1.0 + rng.normal(0, 0.05),
+                  float(rng.normal(0, 0.08)))], i / HZ)
+    assert len(tr.confirmed()) == 1

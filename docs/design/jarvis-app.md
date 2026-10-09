@@ -89,6 +89,8 @@ must actually free the GPU.
 
 - [x] Aankhen: simulator (wire bytes + ground truth), fusion, engine, hub
 - [x] Aankhen: stronger detection, measured on the simulator (DECISIONS 2026-10-09)
+- [x] Aankhen: multi-seed bench; sleep, hallway, fan, pair and drift handled
+      (Wi-Fi holds, never creates; breathing hold; fan baseline)
 - [x] Aankhen: bench / record / calibrate / doctor CLI
 - [x] jarvis_app backend: security, events bus, core process, memory, system,
       limbs, connect, mission, aankhen mount

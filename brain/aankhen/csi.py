@@ -63,7 +63,11 @@ def amplitudes(raw: bytes) -> Optional[np.ndarray]:
 
 
 def normalise(amp: np.ndarray) -> Optional[np.ndarray]:
-    med = float(np.median(amp))
+    n = amp.size
+    if n % 2:                                   # 51 bins: the middle of a partition is
+        med = float(np.partition(amp, n // 2)[n // 2])   # the median, without np.median's overhead
+    else:
+        med = float(np.median(amp))
     if med <= 1e-9:
         return None                             # dead packet (all-zero buffer)
     return amp / med
@@ -154,17 +158,26 @@ class HampelFilter:
         self.window = window
         self.k = k
         self._buf: deque = deque(maxlen=window)
+        self._arr: Optional[np.ndarray] = None     # ring buffer of the amplitudes
+        self._i = 0
         self.replaced = 0
         self.seen = 0
 
     def push(self, s: Sample) -> Optional[Sample]:
+        # The window is odd, so the median is the middle row of a column sort —
+        # identical to np.median, and ~4x cheaper at 100 calls a second.
+        if self._arr is None or self._arr.shape[1] != s.amp.size:
+            self._arr, self._i = np.empty((self.window, s.amp.size)), 0
+            self._buf.clear()
         self._buf.append(s)
+        self._arr[self._i % self.window] = s.amp
+        self._i += 1
         if len(self._buf) < self.window:
             return None
-        stack = np.stack([b.amp for b in self._buf])
-        med = np.median(stack, axis=0)
-        mad = 1.4826 * np.median(np.abs(stack - med), axis=0)
-        centre = self._buf[self.window // 2]
+        mid = self.window // 2
+        med = np.sort(self._arr, axis=0)[mid]
+        mad = 1.4826 * np.sort(np.abs(self._arr - med), axis=0)[mid]
+        centre = self._buf[mid]
         bad = np.abs(centre.amp - med) > self.k * np.maximum(mad, 1e-9)
         self.seen += centre.amp.size
         if bad.any():

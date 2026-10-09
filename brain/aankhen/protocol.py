@@ -31,6 +31,7 @@ Both sides MUST change together; bump PROTOCOL_VERSION when they do.
 """
 from __future__ import annotations
 
+import binascii
 import enum
 import json
 import struct
@@ -86,16 +87,25 @@ def _make_crc_table() -> list[int]:
 _CRC_TABLE = _make_crc_table()
 
 
+def crc16_ccitt_reference(data: bytes, crc: int = 0xFFFF) -> int:
+    """Table-driven CRC-16/CCITT-FALSE, written out: the C side is a port of this."""
+    for b in data:
+        crc = ((crc << 8) & 0xFFFF) ^ _CRC_TABLE[((crc >> 8) ^ b) & 0xFF]
+    return crc
+
+
 def crc16_ccitt(data: bytes, crc: int = 0xFFFF) -> int:
     """CRC-16/CCITT-FALSE: poly 0x1021, init 0xFFFF, no reflection, no xorout.
 
     Check value for b"123456789" is 0x29B1 (asserted in the tests), which is the
     standard reference vector — so the C implementation can be verified against
     exactly the same number.
+
+    binascii.crc_hqx is the same polynomial and register in C. The Python loop
+    above cost 1.6 s of every 60 s simulated (12,700 frames): a fifth of a
+    benchmark run went to checksums. Equality with the reference is tested.
     """
-    for b in data:
-        crc = ((crc << 8) & 0xFFFF) ^ _CRC_TABLE[((crc >> 8) ^ b) & 0xFF]
-    return crc
+    return binascii.crc_hqx(data, crc)
 
 
 # ---------------------------------------------------------------------- frames

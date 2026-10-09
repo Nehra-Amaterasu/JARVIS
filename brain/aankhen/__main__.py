@@ -3,8 +3,8 @@
     python -m aankhen doctor                       is everything plugged in and sane?
     python -m aankhen serve [--sim SCENARIO | --replay FILE | --port COM9] [--lan]
     python -m aankhen record --seconds 60 --label empty     labelled real recording
-    python -m aankhen calibrate --seconds 70                 empty-room Wi-Fi baseline
-    python -m aankhen bench [FILES...]                       score against ground truth
+    python -m aankhen calibrate --seconds 70 [--fan]         empty-room Wi-Fi baseline (fan off / on)
+    python -m aankhen bench [FILES...] [--sim --seeds 5]     score against ground truth
     python -m aankhen simulate --scenario evening --seconds 220 --out recordings/x.akr
 
 Run from the brain/ folder with the project venv.
@@ -135,12 +135,13 @@ def cmd_record(a) -> int:
 
 def cmd_calibrate(a) -> int:
     from .bench import calibrate_from_bytes
-    from .hub import BASELINE_FILE
+    from .hub import BASELINE_FAN_FILE, BASELINE_FILE
     from .transport import SerialSource, iter_recording
     if a.recording:
         chunks = (d for _, d in iter_recording(a.recording))
     else:
-        print(f"Calibrating: keep the room EMPTY for {a.seconds:.0f} s.")
+        print(f"Calibrating: keep the room EMPTY for {a.seconds:.0f} s"
+              + (", with the ceiling fan RUNNING at its usual speed." if a.fan else ", fan off."))
         src = SerialSource(a.port)
         buf = []
         src._ingest = lambda data, t=None: buf.append(data)      # capture raw bytes
@@ -148,16 +149,22 @@ def cmd_calibrate(a) -> int:
         time.sleep(a.seconds)
         src.stop()
         chunks = iter(buf)
-    b = calibrate_from_bytes(chunks)
-    b.source = "calibrated"
-    b.save(BASELINE_FILE)
-    print(f"Baseline saved -> {BASELINE_FILE}\n  median MVS {b.median:.3g}, "
+    try:
+        b = calibrate_from_bytes(chunks, fan=a.fan)
+    except RuntimeError as e:
+        print(f"Calibration failed: {e}")
+        return 1
+    b.source = "calibrated (fan on)" if a.fan else "calibrated"
+    path = BASELINE_FAN_FILE if a.fan else BASELINE_FILE
+    b.save(path)
+    print(f"Baseline saved -> {path}\n  median MVS {b.median:.3g}, "
           f"99.5th pct {b.q_hi:.3g}, {b.n_windows} windows")
     return 0
 
 
 def cmd_bench(a) -> int:
-    from .bench import bench_recording, bench_simulation, format_table, simulated_baseline
+    from .bench import (SUITE_SECONDS, bench_recording, format_summary, format_table, run_suite,
+                        simulated_baseline, summarise)
     from .hub import BASELINE_FILE
     from .motion import Baseline
     results = []
@@ -171,19 +178,31 @@ def cmd_bench(a) -> int:
             results.append(bench_recording(f, baseline=simulated_baseline() if sim else real_baseline))
         except Exception as e:
             print(f"  skipped {f}: {e}")
+    if results:
+        print(format_table(results))
+    sim_results = []
     if a.sim or not files:
         if not files:
             print("No labelled real recordings yet — running the simulated suite.\n")
-        b = simulated_baseline()
-        for scn, secs in (("evening", 220), ("walk", 64), ("still", 90), ("empty", 120)):
-            results.append(bench_simulation(scn, secs, seed=1, baseline=b))
-    print(format_table(results))
-    if any(r.notes for r in results):
-        print("\nRows starting 'sim:' are SYNTHETIC: they check the pipeline against the "
-              "simulator's physics, not the real room.")
+        scenarios = a.scenarios.split(",") if a.scenarios else list(SUITE_SECONDS)
+        unknown = [s for s in scenarios if s not in SUITE_SECONDS]
+        if unknown:
+            print(f"unknown scenario(s) {unknown}; one of {sorted(SUITE_SECONDS)}")
+            return 2
+        seeds = list(range(a.seed_base, a.seed_base + a.seeds))
+        rooms = list(range(a.channel_seeds))
+        t0 = time.time()
+        sim_results = run_suite(scenarios, seeds, rooms, workers=a.workers)
+        if a.runs:
+            print(format_table(sim_results) + "\n")
+        print(f"{len(sim_results)} runs: seeds {seeds[0]}..{seeds[-1]}, "
+              f"{len(rooms)} room(s), {time.time() - t0:.0f} s wall\n")
+        print(format_summary(summarise(sim_results)))
+        print("\nSYNTHETIC: these rows check the pipeline against the simulator's physics, "
+              "not the real room. 'worst' is the worst run for EACH column separately.")
     if a.json:
         with open(a.json, "w", encoding="utf-8") as fh:
-            json.dump([r.to_dict() for r in results], fh, indent=2)
+            json.dump([r.to_dict() for r in results + sim_results], fh, indent=2)
     return 0
 
 
@@ -220,10 +239,21 @@ def main(argv=None) -> int:
     c.add_argument("--seconds", type=float, default=70)
     c.add_argument("--port")
     c.add_argument("--recording", help="calibrate from an existing empty-room recording")
+    c.add_argument("--fan", action="store_true",
+                   help="the fan-on baseline: room empty, ceiling fan running")
 
     b = sub.add_parser("bench", help="score recordings (and/or the simulator) against truth")
     b.add_argument("files", nargs="*")
     b.add_argument("--sim", action="store_true", help="also run the simulated suite")
+    b.add_argument("--scenarios", help="comma-separated subset of the simulated suite")
+    b.add_argument("--seeds", type=int, default=3, help="noise seeds per scenario (default 3)")
+    b.add_argument("--seed-base", type=int, default=1,
+                   help="first seed; tune on one range, report on another")
+    b.add_argument("--channel-seeds", type=int, default=1,
+                   help="simulated rooms (static multipath), each with its own calibration")
+    b.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2),
+                   help="parallel processes")
+    b.add_argument("--runs", action="store_true", help="also print every individual run")
     b.add_argument("--json", help="write results as JSON")
 
     m = sub.add_parser("simulate", help="write a simulated recording + answer key")

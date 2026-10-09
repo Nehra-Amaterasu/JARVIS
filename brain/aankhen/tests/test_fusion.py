@@ -77,3 +77,67 @@ def test_belief_is_clamped():
     f = PresenceFusion(FusionConfig(clamp=8.0))
     _run(f, Evidence(radar_live=True, n_moving=3), 0, 60)
     assert f.L <= 8.0
+
+
+def test_wifi_motion_cannot_create_occupancy_against_an_empty_radar():
+    """Someone pacing by the router, outside the room: the radar sees nobody, so the
+    Wi-Fi motion must not make the room 'occupied' (100 % false occupied before)."""
+    f = PresenceFusion()
+    hallway = Evidence(radar_live=True, csi_live=True, csi_state=STATE_MOTION)
+    _run(f, hallway, 0, 30)
+    assert f.state() == "empty"
+
+
+def test_wifi_motion_holds_an_occupied_room_for_a_while_then_lets_go():
+    """Someone walks into a corner the radar cannot see and keeps moving: Wi-Fi holds
+    the belief for csi_sustain_s, then the slow absence term runs again."""
+    f = PresenceFusion(FusionConfig(csi_sustain_s=60.0))
+    t = _run(f, Evidence(radar_live=True, n_moving=1), 0, 5)
+    corner = Evidence(radar_live=True, csi_live=True, csi_state=STATE_MOTION)
+    t = _run(f, corner, t, 55)
+    assert f.state() == "moving"
+    _run(f, corner, t, 90)
+    assert f.state() == "empty"
+
+
+def test_wifi_keeps_full_weight_without_a_radar():
+    f = PresenceFusion()
+    _run(f, Evidence(csi_live=True, csi_state=STATE_MOTION), 0, 3)
+    assert f.state() == "moving"
+
+
+def test_a_long_empty_spell_does_not_make_the_next_entry_slow():
+    f = PresenceFusion()
+    t = _run(f, Evidence(radar_live=True, csi_live=True, csi_state=STATE_QUIET), 0, 600)
+    assert f.L >= -f.cfg.clamp_empty
+    _run(f, Evidence(radar_live=True, n_moving=1), t, 1.3)
+    assert f.state() != "empty"
+
+
+def test_someone_walking_in_through_the_door_is_at_once_not_empty():
+    f = PresenceFusion()
+    t = _run(f, Evidence(radar_live=True, csi_live=True, csi_state=STATE_QUIET), 0, 300)
+    assert f.state() == "empty"
+    f.entry_observed(t)
+    f.update(t + 0.1, Evidence(radar_live=True, n_moving=1))
+    assert f.state() != "empty"
+
+
+def test_breathing_holds_an_occupied_room_but_never_creates_one():
+    held = PresenceFusion()
+    t = _run(held, Evidence(radar_live=True, n_still=1), 0, 10)
+    sleeper = Evidence(radar_live=True, csi_live=True, csi_state=STATE_QUIET, breathing=True)
+    _run(held, sleeper, t, 600)                    # the radar lost them; they keep breathing
+    assert held.state() == "still"
+
+    empty = PresenceFusion()
+    _run(empty, sleeper, 0, 600)                   # 'breathing' in a room nobody entered
+    assert empty.state() == "empty"
+
+
+def test_breathing_is_ignored_after_a_walk_out():
+    f = PresenceFusion()
+    t = _run(f, Evidence(radar_live=True, n_moving=1), 0, 10)
+    f.exit_observed(t, tracks_remaining=0)
+    _run(f, Evidence(radar_live=True, csi_live=True, csi_state=STATE_QUIET, breathing=True), t, 100)
+    assert f.state() == "empty"

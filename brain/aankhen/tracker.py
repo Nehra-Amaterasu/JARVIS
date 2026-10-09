@@ -104,6 +104,58 @@ class TrackerConfig:
     # the old one haunted the chair for 30 s.
     wake_m: float = 0.45
     wake_window_s: float = 0.6
+    # ZOMBIES AND DUPLICATES. Evening seed 3 of the 10-seed benchmark read an EMPTY
+    # room as occupied for 51 s (53 % false "occupied"): a one-frame ghost inside the
+    # bed zone, 0.79 m from the lying person's still track, seeded a second track;
+    # it stole the person's detections and confirmed under the sticky rule. When the
+    # person walked out, the duplicate stayed behind as a still track, blocked the
+    # exit cue, and a single later ghost within 0.45 m renewed its 30 s hold.
+    #  - A still track no longer accepts ANY detection within still_reattach_m: it
+    #    gates with chi-square on a position uncertainty fixed at still_gate_std_m,
+    #    so the gate stays ~1.2 m wide however long the silence (it used to bypass
+    #    the gate entirely; see _still_mahalanobis2 for why it is fixed, not capped).
+    #  - Its 30 s hold is renewed only by still_refresh_hits detections inside
+    #    still_refresh_window_s — one ghost cannot keep a zombie alive.
+    #  - Two confirmed tracks closer than merge_m for merge_after_s are one person
+    #    unless the radar has seen them BOTH in the same frame at least
+    #    distinct_codetections times (two real people walking in together are).
+    #  - No birth inside a sticky zone within sticky_birth_sep_m of a still track.
+    still_gate_std_m: float = 0.35
+    still_refresh_hits: int = 2
+    still_refresh_window_s: float = 5.0
+    merge_m: float = 0.5
+    merge_after_s: float = 1.0
+    distinct_codetections: int = 3
+    sticky_birth_sep_m: float = 1.0
+    # SPINNING CLUTTER. A ceiling fan in the LD2450's beam comes back as a target
+    # that never moves yet carries a large Doppler whose sign keeps flipping (the
+    # strongest blade alternates between approaching and receding). In the fan
+    # scenario such a target, reported in 30 % of frames, kept an empty room
+    # "occupied" 98 % of the time. A person's radial speed does not flip sign
+    # frame to frame at walking speed, and a person who walked in has moved.
+    # All of it applies only to targets whose MEDIAN |Doppler| is clutter_median_v
+    # or more — a still person's is ~0 — and:
+    #  - such a target is not confirmed until it has moved clutter_confirm_disp_m
+    #    AND its Doppler points one way (|sum v| >= clutter_consistency * sum |v|):
+    #    a walker does both within its first few frames; blades do neither, except
+    #    by chance. Flipping signs alone missed half of them (four random signs show
+    #    no flip 1 time in 8), and one confirmed blade track kept an empty room
+    #    "occupied" for 40 s;
+    #  - a tentative track whose Doppler flips sign clutter_flips times (counting
+    #    |v| >= clutter_v), or a confirmed one that flipped 3 times in its last 25
+    #    detections while moving less than clutter_disp_m in 3 s, is clutter;
+    #  - its spot is remembered for clutter_memory_s: no track is born within
+    #    clutter_radius_m of it, and fast (|v| >= clutter_v) detections there are
+    #    ignored — a track born elsewhere had wandered onto the blades and stayed.
+    # This relies on the radar's speed field, which the engine used to discard.
+    clutter_v: float = 0.15
+    clutter_median_v: float = 0.3         # and only targets whose MEDIAN |v| is at least this
+    clutter_flips: int = 2
+    clutter_confirm_disp_m: float = 0.15
+    clutter_consistency: float = 0.7
+    clutter_disp_m: float = 0.3
+    clutter_memory_s: float = 600.0
+    clutter_radius_m: float = 0.5
 
 
 @dataclass
@@ -121,6 +173,12 @@ class Track:
     history: list = field(default_factory=list)   # recent (t, x, y) for trails
     last_z: Optional[np.ndarray] = None   # last measurement that updated this track
     wake_since: Optional[float] = None    # first far detection while still
+    hold_from: float = 0.0                # a still track's hold runs from here
+    hit_times: list = field(default_factory=list)   # recent detection times
+    dopplers: list = field(default_factory=list)    # recent radial speeds (None if unknown)
+    born_xy: Optional[tuple] = None
+    max_disp: float = 0.0                 # farthest it has been from where it was born
+    confirmed_at: Optional[float] = None
 
     @property
     def position(self) -> tuple[float, float]:
@@ -154,12 +212,17 @@ class Track:
 
 class MultiTargetTracker:
     def __init__(self, cfg: Optional[TrackerConfig] = None,
-                 sticky_at: Optional[Callable[[float, float], bool]] = None):
+                 sticky_at: Optional[Callable[[float, float], bool]] = None,
+                 origin: Optional[tuple[float, float]] = None):
         self.sticky_at = sticky_at
+        self.origin = origin          # the radar's floor position, for Doppler checks
         self.cfg = cfg or TrackerConfig()
         self.tracks: list[Track] = []
         self._ids = itertools.count(1)
         self._last_t: Optional[float] = None
+        self._codetect: dict[tuple[int, int], int] = {}     # frames both were detected
+        self._close_since: dict[tuple[int, int], float] = {}
+        self.clutter_spots: list[list[float]] = []           # [x, y, until]
         H = np.zeros((2, 4))
         H[0, 0] = H[1, 1] = 1.0
         self.H = H
@@ -198,7 +261,33 @@ class MultiTargetTracker:
         y, S = self._innovation(t, z)
         return float(y @ np.linalg.solve(S, y))
 
-    def _update(self, t: Track, z: np.ndarray, now: float) -> None:
+    def _still_mahalanobis2(self, t: Track, z: np.ndarray) -> float:
+        """Gate distance for a still track: its position uncertainty is taken as
+        still_gate_std_m, whatever the filter's covariance says (a ~1.2 m gate).
+
+        CAPPED, because the covariance keeps growing through a long silence and an
+        uncapped chi-square gate ends up accepting anything in the room. FLOORED
+        too: the first version only capped it, so a lying person tracked at 20 % of
+        frames had a ~0.55 m gate, and when they stood up and walked off they left
+        it before the two far detections that wake a still track arrived. A new
+        identity walked out of the door and the old one haunted the bed — evening
+        seeds 1, 4 and 5 went to 53-99 % false "occupied"."""
+        y = z[:2] - t.x[:2]
+        return float(y @ y) / (self.cfg.still_gate_std_m ** 2 + self.cfg.meas_std_m ** 2)
+
+    def _hold_refreshed(self, t: Track, now: float) -> None:
+        t.hit_times.append(now)
+        if len(t.hit_times) > 4:
+            del t.hit_times[0]
+        recent = sum(1 for h in t.hit_times if now - h <= self.cfg.still_refresh_window_s)
+        if not t.still or recent >= self.cfg.still_refresh_hits:
+            t.hold_from = now
+
+    def _go_still(self, t: Track, now: float) -> None:
+        t.still, t.slow_since = True, now
+        t.hold_from = t.last_update
+
+    def _update(self, t: Track, z: np.ndarray, now: float, v: Optional[float] = None) -> None:
         y, S = self._innovation(t, z)
         K = t.P @ self.H.T @ np.linalg.inv(S)
         t.x = t.x + K @ y
@@ -210,16 +299,131 @@ class MultiTargetTracker:
             t.x[2:] *= self.cfg.max_speed / sp
         t.last_update = now
         t.hits += 1
-        t.last_z = np.array(z, dtype=float)
+        t.last_z = np.array(z[:2], dtype=float)
+        self._hold_refreshed(t, now)
+        t.dopplers.append(v)
+        if len(t.dopplers) > 25:
+            del t.dopplers[0]
 
-    def _birth(self, z: np.ndarray, now: float) -> Track:
+    def _birth(self, z: np.ndarray, now: float, v: Optional[float] = None) -> Track:
         P = np.diag([self.cfg.meas_std_m ** 2] * 2 + [self.cfg.init_vel_std ** 2] * 2)
         return Track(next(self._ids), np.array([z[0], z[1], 0.0, 0.0]), P, now, now,
-                     last_z=np.array(z, dtype=float))
+                     last_z=np.array(z[:2], dtype=float), hold_from=now, hit_times=[now],
+                     dopplers=[v], born_xy=(float(z[0]), float(z[1])))
+
+    # ------------------------------------------------------------ clutter
+    def _flips(self, t: Track, last: int) -> int:
+        v = [x for x in t.dopplers[-last:] if x is not None and abs(x) >= self.cfg.clutter_v]
+        return sum(1 for a, b in zip(v, v[1:]) if a * b < 0)
+
+    def _fast(self, t: Track) -> bool:
+        """Median |Doppler| at least clutter_median_v. A still person's is ~0 most of
+        the time; without this test, a seated person gesturing could be taken for a fan."""
+        v = [abs(x) for x in t.dopplers if x is not None]
+        return bool(v) and float(np.median(v)) >= self.cfg.clutter_median_v
+
+    def _one_way(self, t: Track) -> bool:
+        v = [x for x in t.dopplers if x is not None and abs(x) >= self.cfg.clutter_v]
+        return bool(v) and abs(sum(v)) >= self.cfg.clutter_consistency * sum(abs(x) for x in v)
+
+    def _moves_with_doppler(self, t: Track) -> bool:
+        """Has its range from the radar changed the way its Doppler says it should
+        (at least 40 % of mean radial speed x age, in that direction)? A walker's
+        does; blade returns that happened to show one Doppler sign for a few frames
+        (1 time in 8 for four frames) do not. Without it, two such tracks confirmed
+        on a dev seed of the fan scenario and kept the room "occupied" 8 % of its
+        empty time."""
+        v = [x for x in t.dopplers if x is not None]
+        if self.origin is None or t.born_xy is None or t.last_z is None or not v:
+            return True
+        expected = float(np.mean(v)) * (t.last_update - t.born_at)     # + = receding
+        dr = math.dist(t.last_z, self.origin) - math.dist(t.born_xy, self.origin)
+        return dr * math.copysign(1.0, expected) >= 0.4 * abs(expected)
+
+    def _is_clutter(self, t: Track, now: float) -> bool:
+        if not self._fast(t):
+            return False
+        if not t.confirmed:
+            return self._flips(t, len(t.dopplers)) >= self.cfg.clutter_flips
+        disp = self._displacement(t, now - 3.0)
+        return disp is not None and disp < self.cfg.clutter_disp_m and self._flips(t, 25) >= 3
+
+    def _near_clutter(self, x: float, y: float, now: float) -> bool:
+        self.clutter_spots = [c for c in self.clutter_spots if c[2] > now]
+        return any(math.hypot(x - c[0], y - c[1]) < self.cfg.clutter_radius_m
+                   for c in self.clutter_spots)
+
+    def _remember_clutter(self, t: Track, now: float) -> None:
+        x, y = t.position
+        for c in self.clutter_spots:
+            if math.hypot(x - c[0], y - c[1]) < self.cfg.clutter_radius_m:
+                c[2] = now + self.cfg.clutter_memory_s
+                return
+        self.clutter_spots.append([x, y, now + self.cfg.clutter_memory_s])
+
+    # ------------------------------------------------------------ identity
+    @staticmethod
+    def _key(a: int, b: int) -> tuple[int, int]:
+        return (a, b) if a < b else (b, a)
+
+    def distinct(self, a: int, b: int) -> bool:
+        """True once the radar has reported tracks a and b in the same frame often
+        enough that they cannot be one person seen twice."""
+        return self._codetect.get(self._key(a, b), 0) >= self.cfg.distinct_codetections
+
+    def extend_hold(self, track_id: int, now: float) -> None:
+        """Renew a still track's hold on outside evidence (the engine: breathing)."""
+        for t in self.tracks:
+            if t.id == track_id and t.still:
+                t.hold_from = max(t.hold_from, now)
+
+    def drop(self, track_id: int) -> bool:
+        """Remove a track (the engine drops duplicates left behind by an exit)."""
+        n = len(self.tracks)
+        self.tracks = [t for t in self.tracks if t.id != track_id]
+        self._forget(track_id)
+        return len(self.tracks) < n
+
+    def _forget(self, track_id: int) -> None:
+        for d in (self._codetect, self._close_since):
+            for k in [k for k in d if track_id in k]:
+                del d[k]
+
+    def _merge_duplicates(self, now: float) -> None:
+        conf = [t for t in self.tracks if t.confirmed]
+        gone: set[int] = set()
+        for i, a in enumerate(conf):
+            for b in conf[i + 1:]:
+                if a.id in gone or b.id in gone:
+                    continue
+                key = self._key(a.id, b.id)
+                if (math.hypot(a.x[0] - b.x[0], a.x[1] - b.x[1]) >= self.cfg.merge_m
+                        or self.distinct(a.id, b.id)):
+                    self._close_since.pop(key, None)
+                    continue
+                since = self._close_since.setdefault(key, now)
+                if now - since < self.cfg.merge_after_s:
+                    continue
+                keep, lose = (a, b) if (a.born_at, a.id) <= (b.born_at, b.id) else (b, a)
+                if lose.last_update > keep.last_update:
+                    # The younger track is the one the radar is actually feeding:
+                    # keep the older identity, take the fresher state.
+                    keep.x, keep.P = lose.x.copy(), lose.P.copy()
+                    keep.last_update, keep.last_z = lose.last_update, lose.last_z
+                    keep.still, keep.slow_since = lose.still, lose.slow_since
+                    keep.hit_times = list(lose.hit_times)
+                keep.hold_from = max(keep.hold_from, lose.hold_from)
+                keep.hits += lose.hits
+                gone.add(lose.id)
+        if gone:
+            self.tracks = [t for t in self.tracks if t.id not in gone]
+            for tid in gone:
+                self._forget(tid)
 
     # --------------------------------------------------------------- public
-    def step(self, detections: list[tuple[float, float]], now: float) -> list[Track]:
-        """Advance to time `now` with this frame's detections (room metres).
+    def step(self, detections: list[tuple], now: float) -> list[Track]:
+        """Advance to time `now` with this frame's detections (room metres):
+        (x, y) or (x, y, radial_speed_mps).
 
         Returns the CONFIRMED tracks — the only ones that should ever be shown.
         """
@@ -229,7 +433,12 @@ class MultiTargetTracker:
         for t in self.tracks:
             t.frames_seen += 1
 
-        Z = [np.asarray(d, dtype=float) for d in detections]
+        if self.clutter_spots:
+            detections = [d for d in detections
+                          if not (len(d) > 2 and d[2] is not None and abs(d[2]) >= self.cfg.clutter_v
+                                  and self._near_clutter(d[0], d[1], now))]
+        Z = [np.asarray(d, dtype=float)[:2] for d in detections]
+        V = [float(d[2]) if len(d) > 2 and d[2] is not None else None for d in detections]
         matched_t, matched_z = set(), set()
         if self.tracks and Z:
             big = 1e6
@@ -239,10 +448,10 @@ class MultiTargetTracker:
                 for j, z in enumerate(Z):
                     if math.hypot(z[0] - t.x[0], z[1] - t.x[1]) > cap:
                         continue
-                    d2 = self._mahalanobis2(t, z)
-                    # A still track's covariance has grown during the silence, so
-                    # the euclidean cap (not chi-square) is what bounds re-attachment.
-                    if d2 <= self.cfg.gate_chi2 or t.still:
+                    # A still track's covariance has grown during the silence; its
+                    # gate uses the capped covariance instead (see TrackerConfig).
+                    d2 = self._still_mahalanobis2(t, z) if t.still else self._mahalanobis2(t, z)
+                    if d2 <= self.cfg.gate_chi2:
                         cost[i, j] = d2
             rows, cols = linear_sum_assignment(cost)
             for i, j in zip(rows, cols):
@@ -256,33 +465,64 @@ class MultiTargetTracker:
                         t.still, t.slow_since, t.wake_since = False, None, None
                         t.P[2:, 2:] = np.eye(2) * self.cfg.init_vel_std ** 2
                         t.P[:2, :2] += np.eye(2) * self.cfg.wake_m ** 2
-                        self._update(t, z, now)
+                        self._update(t, z, now, V[j])
                     else:
                         t.wake_since = now      # possible outlier: consume, don't apply
                     continue
                 t.wake_since = None
-                self._update(t, z, now)
+                self._update(t, z, now, V[j])
+
+        # Two confirmed tracks detected in the same frame are two bodies.
+        seen = [t.id for t in self.tracks if t.confirmed and t.last_update == now]
+        for a, b in itertools.combinations(seen, 2):
+            k = self._key(a, b)
+            self._codetect[k] = self._codetect.get(k, 0) + 1
 
         confirmed_pos = [t.x[:2] for t in self.tracks if t.confirmed]
+        still_pos = [t.x[:2] for t in self.tracks if t.confirmed and t.still]
         for j, z in enumerate(Z):
             if j in matched_z or len(self.tracks) >= self.cfg.max_tracks:
                 continue
             if any(math.hypot(z[0] - p[0], z[1] - p[1]) < self.cfg.min_birth_sep_m
                    for p in confirmed_pos):
                 continue
-            self.tracks.append(self._birth(z, now))
+            if still_pos and self.sticky_at is not None and self.sticky_at(z[0], z[1]) and any(
+                    math.hypot(z[0] - p[0], z[1] - p[1]) < self.cfg.sticky_birth_sep_m
+                    for p in still_pos):
+                continue
+            if self.clutter_spots and self._near_clutter(z[0], z[1], now):
+                continue
+            self.tracks.append(self._birth(z, now, V[j]))
 
         survivors = []
         for t in self.tracks:
             sticky = self.sticky_at is not None and self.sticky_at(t.x[0], t.x[1])
+            # A fast target held back only by the displacement rule, whose Doppler
+            # points one way, gets twice the window to confirm in: someone walking in
+            # from the door toward the radar moves little across the floor at first
+            # (0.13 m in 0.4 s), missed the 6-frame window and was reborn — 1 s late,
+            # past the doorway, with no entry cue (drift dev seed 104: 25 % false
+            # "empty" during the visit).
+            walker = (not t.confirmed and self._fast(t) and self._one_way(t)
+                      and t.frames_seen <= 2 * self.cfg.confirm_window)
             if not t.confirmed and t.hits >= self.cfg.confirm_hits and (
-                    t.frames_seen <= self.cfg.confirm_window
+                    t.frames_seen <= self.cfg.confirm_window or walker
                     or (sticky and now - t.born_at <= self.cfg.sticky_confirm_s)):
-                t.confirmed = True
+                if self._is_clutter(t, now):
+                    self._remember_clutter(t, now)
+                    self._forget(t.id)
+                    continue
+                if not self._fast(t) or (t.max_disp >= self.cfg.clutter_confirm_disp_m
+                                         and self._one_way(t) and self._moves_with_doppler(t)):
+                    t.confirmed, t.confirmed_at = True, now
+            if t.confirmed and t.last_update == now and self._is_clutter(t, now):
+                self._remember_clutter(t, now)
+                self._forget(t.id)
+                continue
             if (t.confirmed and not t.still and sticky
                     and now - t.last_update >= self.cfg.sticky_coast_trigger_s
                     and t.speed < self.cfg.sticky_slow_speed):
-                t.still, t.slow_since = True, now
+                self._go_still(t, now)
                 t.x[2:] = 0.0                     # stopped: don't coast along old velocity
                 if t.last_z is not None:          # and undo the coasting overshoot
                     t.x[:2] = t.last_z
@@ -291,24 +531,30 @@ class MultiTargetTracker:
                 disp = self._displacement(t, now - self.cfg.still_after_s)
                 if disp is not None:
                     if not t.still and disp < self.cfg.still_disp_m:
-                        t.still, t.slow_since = True, now
+                        self._go_still(t, now)
                     elif t.still and disp > self.cfg.move_disp_m:
                         t.still, t.slow_since = False, None
             if not t.confirmed:
-                limit = self.cfg.sticky_tentative_coast_s if sticky else self.cfg.max_coast_tentative_s
+                expired = now - t.last_update > (self.cfg.sticky_tentative_coast_s if sticky
+                                                 else self.cfg.max_coast_tentative_s)
             elif t.still:
-                limit = self.cfg.still_hold_s
+                expired = now - t.hold_from > self.cfg.still_hold_s
             else:
-                limit = self.cfg.max_coast_s
+                expired = now - t.last_update > self.cfg.max_coast_s
             expired_tentative = (not t.confirmed and t.frames_seen > self.cfg.confirm_window
+                                 and not walker
                                  and not (sticky and now - t.born_at <= self.cfg.sticky_confirm_s))
-            if now - t.last_update > limit or expired_tentative:
+            if expired or expired_tentative:
+                self._forget(t.id)
                 continue
             t.history.append((now, float(t.x[0]), float(t.x[1])))
+            if t.born_xy is not None:
+                t.max_disp = max(t.max_disp, math.hypot(t.x[0] - t.born_xy[0], t.x[1] - t.born_xy[1]))
             if len(t.history) > 60:
                 del t.history[: len(t.history) - 60]
             survivors.append(t)
         self.tracks = survivors
+        self._merge_duplicates(now)
         return [t for t in self.tracks if t.confirmed]
 
     @staticmethod

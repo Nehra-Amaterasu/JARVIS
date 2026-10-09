@@ -39,16 +39,30 @@ CHI2_2DOF_99 = 9.21
 
 @dataclass
 class TrackerConfig:
+    """Defaults from the TI people-tracking tuning guide and LD2450 field reports
+    (see docs/DECISIONS.md). The first version used generic textbook values;
+    these replace them."""
     meas_std_m: float = 0.15          # radar position noise (1 sigma)
-    accel_std: float = 1.5            # process noise: human acceleration, m/s^2
+    accel_std: float = 1.0            # process noise while walking, m/s^2
+    accel_std_still: float = 0.2      # ... while sitting / standing still
     gate_chi2: float = CHI2_2DOF_99   # Mahalanobis gate
-    confirm_hits: int = 3             # M ...
-    confirm_window: int = 5           # ... of N frames to confirm a new track
-    max_coast_s: float = 1.5          # delete a confirmed track after this silence
-    max_coast_tentative_s: float = 0.4
+    gate_euclid_m: float = 1.2        # AND a hard distance cap (guards inflated P)
+    confirm_hits: int = 4             # M ...
+    confirm_window: int = 6           # ... of N frames (0.6 s at 10 Hz) to confirm
+    max_coast_s: float = 1.0          # moving track deleted after ~10 missed frames
+    max_coast_tentative_s: float = 0.3
     init_vel_std: float = 1.0         # unknown initial velocity, m/s
     max_speed: float = 3.0            # reject physically absurd velocities
     max_tracks: int = 8
+    # STILL MODE. The LD2450 is built for moving targets and routinely loses a
+    # person who sits still (widely reported). A track slower than still_speed for
+    # still_after_s is held through radar silence for still_hold_s instead of
+    # being deleted after one second, and a returning detection re-attaches to it
+    # within still_reattach_m rather than spawning a new identity.
+    still_speed: float = 0.15
+    still_after_s: float = 2.0
+    still_hold_s: float = 30.0
+    still_reattach_m: float = 1.5
 
 
 @dataclass
@@ -61,6 +75,8 @@ class Track:
     hits: int = 1
     frames_seen: int = 1              # frames since birth (for M-of-N)
     confirmed: bool = False
+    slow_since: Optional[float] = None    # when speed first dropped below still_speed
+    still: bool = False
     history: list = field(default_factory=list)   # recent (t, x, y) for trails
 
     @property
@@ -81,11 +97,16 @@ class Track:
         return float(math.sqrt(max(0.0, (self.P[0, 0] + self.P[1, 1]) / 2)))
 
     def confidence(self, now: float, cfg: TrackerConfig) -> float:
-        """0..1 — falls with time since the last real detection."""
+        """0..1 — falls with time since the last real detection.
+
+        A still track decays over its longer hold window: the radar going quiet
+        is expected when someone sits down, so it is weaker evidence of absence.
+        """
         if not self.confirmed:
             return 0.0
         silence = now - self.last_update
-        return max(0.0, 1.0 - silence / cfg.max_coast_s)
+        window = cfg.still_hold_s if self.still else cfg.max_coast_s
+        return max(0.0, 1.0 - silence / window)
 
 
 class MultiTargetTracker:
@@ -116,9 +137,12 @@ class MultiTargetTracker:
         if dt <= 0:
             return
         F, Q = self._F_Q(dt)
+        Q_still = Q * (self.cfg.accel_std_still / self.cfg.accel_std) ** 2
         for t in self.tracks:
             t.x = F @ t.x
-            t.P = F @ t.P @ F.T + Q
+            t.P = F @ t.P @ F.T + (Q_still if t.still else Q)
+            if t.still:
+                t.x[2:] = 0.0          # a seated person does not drift while unseen
 
     def _innovation(self, t: Track, z: np.ndarray):
         y = z - self.H @ t.x
@@ -164,9 +188,14 @@ class MultiTargetTracker:
             big = 1e6
             cost = np.full((len(self.tracks), len(Z)), big)
             for i, t in enumerate(self.tracks):
+                cap = self.cfg.still_reattach_m if t.still else self.cfg.gate_euclid_m
                 for j, z in enumerate(Z):
+                    if math.hypot(z[0] - t.x[0], z[1] - t.x[1]) > cap:
+                        continue
                     d2 = self._mahalanobis2(t, z)
-                    if d2 <= self.cfg.gate_chi2:
+                    # A still track's covariance has grown during the silence, so
+                    # the euclidean cap (not chi-square) is what bounds re-attachment.
+                    if d2 <= self.cfg.gate_chi2 or t.still:
                         cost[i, j] = d2
             rows, cols = linear_sum_assignment(cost)
             for i, j in zip(rows, cols):
@@ -184,7 +213,20 @@ class MultiTargetTracker:
             if not t.confirmed and t.frames_seen <= self.cfg.confirm_window \
                     and t.hits >= self.cfg.confirm_hits:
                 t.confirmed = True
-            limit = self.cfg.max_coast_s if t.confirmed else self.cfg.max_coast_tentative_s
+            # Still-mode state machine (confirmed tracks only).
+            if t.confirmed and t.last_update == now:
+                if t.speed < self.cfg.still_speed:
+                    t.slow_since = t.slow_since if t.slow_since is not None else now
+                    if now - t.slow_since >= self.cfg.still_after_s:
+                        t.still = True
+                else:
+                    t.slow_since, t.still = None, False
+            if not t.confirmed:
+                limit = self.cfg.max_coast_tentative_s
+            elif t.still:
+                limit = self.cfg.still_hold_s
+            else:
+                limit = self.cfg.max_coast_s
             expired_tentative = (not t.confirmed and t.frames_seen > self.cfg.confirm_window)
             if now - t.last_update > limit or expired_tentative:
                 continue

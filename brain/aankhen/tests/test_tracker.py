@@ -116,7 +116,7 @@ def test_confidence_decays_while_coasting():
 
 
 def test_absurd_speed_is_clamped():
-    tr = MultiTargetTracker(TrackerConfig(max_speed=3.0, gate_chi2=1e9))
+    tr = MultiTargetTracker(TrackerConfig(max_speed=3.0, gate_chi2=1e9, gate_euclid_m=1e9))
     for i in range(5):
         tr.step([(1.0, 1.0)], i / HZ)
     tr.step([(9.0, 1.0)], 0.5)                   # teleport 8 m in 0.1 s
@@ -131,3 +131,51 @@ def test_covariance_stays_symmetric_positive_definite():
     P = tr.confirmed()[0].P
     assert np.allclose(P, P.T, atol=1e-9)
     assert np.all(np.linalg.eigvalsh(P) > 0)
+
+
+# ------------------------------------------------------------------ still mode
+def _settle(tr, x, y, seconds, t0=0.0):
+    """Feed a stationary person for `seconds`; returns the end time."""
+    n = int(seconds * HZ)
+    for i in range(n):
+        tr.step([(x, y)], t0 + i / HZ)
+    return t0 + n / HZ
+
+
+def test_seated_person_survives_radar_dropout():
+    """The LD2450 loses still people. A seated track must not vanish after 1 s."""
+    tr = MultiTargetTracker()
+    t = _settle(tr, 1.0, 1.0, 3.0)                 # 3 s still -> still mode
+    assert tr.confirmed()[0].still
+    for i in range(1, 100):                        # 10 s of radar silence
+        out = tr.step([], t + i / HZ)
+    assert len(out) == 1
+
+
+def test_still_track_reattaches_instead_of_new_identity():
+    tr = MultiTargetTracker()
+    t = _settle(tr, 1.0, 1.0, 3.0)
+    tid = tr.confirmed()[0].id
+    for i in range(1, 50):
+        tr.step([], t + i / HZ)
+    t += 5.0
+    for i in range(6):                             # reappears 0.6 m away
+        out = tr.step([(1.6, 1.0)], t + i / HZ)
+    assert [k.id for k in out] == [tid]
+
+
+def test_still_track_eventually_expires():
+    tr = MultiTargetTracker(TrackerConfig(still_hold_s=5.0))
+    t = _settle(tr, 1.0, 1.0, 3.0)
+    for i in range(1, 70):
+        out = tr.step([], t + i / HZ)
+    assert out == []
+
+
+def test_euclidean_cap_blocks_far_association():
+    tr = MultiTargetTracker()
+    _settle(tr, 1.0, 1.0, 1.0)
+    tid = tr.confirmed()[0].id
+    tr.step([(3.0, 1.0)], 1.0)                     # 2 m jump: beyond the 1.2 m cap
+    assert tr.confirmed()[0].id == tid
+    assert tr.confirmed()[0].position[0] < 1.5     # the far detection did not pull it

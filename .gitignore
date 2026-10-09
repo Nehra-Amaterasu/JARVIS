@@ -82,3 +82,12 @@ desktop.ini
 *.swp
 .vscode/
 .idea/
+
+# --- Personal identity & derived memory data (NEVER commit — public repo) ---
+# identity/ holds authored facts about Amreesh (health, goals, relationships).
+# yaadash_data/ holds derived people maps, tie-strength scores, taste profiles
+# and belief stores built from private messages, including friends' words.
+identity/
+brain/yaadash_data/
+**/yaadash_data/
+*.instagram.json

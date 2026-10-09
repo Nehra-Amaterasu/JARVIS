@@ -181,6 +181,8 @@ type PlayerStore = {
    *  while weekly milestone cards advertised +200..+500 (JARVIS port fix). */
   completeQuest: (questId: string, isBoss?: boolean, xp?: number) => void;
   levelUp: () => void;
+  /** Rank up to at least `rank` — called when a Mission boss is defeated. Never lowers rank. */
+  promote: (rank: number) => void;
   checkIntegrity: () => void;
   /** Feed real GitHub data into Rule 1: update last-commit + lifetime commit count. */
   syncGithub: (lastContribution: string | null, totalContributions: number) => void;
@@ -367,6 +369,9 @@ export const usePlayerStore = create<PlayerStore>((set, get) => {
 
     levelUp: () =>
       mutate(prev => (prev.level >= 10 ? prev : { ...prev, level: prev.level + 1 })),
+
+    promote: rank =>
+      mutate(prev => (rank <= prev.level ? prev : { ...prev, level: Math.min(10, rank) })),
 
     resetProgress: () => {
       persist(DEFAULT_PLAYER);

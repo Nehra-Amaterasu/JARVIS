@@ -22,14 +22,24 @@ from typing import Optional
 
 from .bus import EventBus
 from .paths import BRAIN, core_python
+from .transcripts import TranscriptStore
 
 SENTINEL = "\x1eJARVIS "
 CREATE_NO_WINDOW = 0x08000000          # no console window flashing up on Windows
 
 
 class CoreProcess:
-    def __init__(self, bus: EventBus, api_url: Optional[str] = None, api_token: Optional[str] = None):
+    def __init__(self, bus: EventBus, api_url: Optional[str] = None, api_token: Optional[str] = None,
+                 transcripts: Optional[TranscriptStore] = None):
         self.bus = bus
+        # Every question, reply and error is written to disk as it happens, so a
+        # bad answer can be flagged and reviewed later (transcripts.py).
+        self.transcripts = transcripts or TranscriptStore()
+        self.session: Optional[str] = None
+        # Set by Limbs: called when JARVIS changes the room (voice) and when his
+        # room.py reports its state at boot, so the app stays the single owner.
+        self.room_listener = None
+        self.room_boot_listener = None
         # Handed to JARVIS so his brain can ask the Aankhen hub what the room looks
         # like (agent.room_context). Local address, per-launch token; never logged.
         self.api_url, self.api_token = api_url, api_token
@@ -43,7 +53,12 @@ class CoreProcess:
         self.exit_code: Optional[int] = None
         self.room: dict = {}
         self.mqtt: Optional[bool] = None
-        self.timings: dict = {}
+        self.timings: dict = {}          # latest of each stage (shown in the UI)
+        # Per-turn timings for the transcript. Hearing (stt) is reported BEFORE the
+        # "heard" event, so it is parked until that turn exists; a typed question
+        # therefore never inherits the previous spoken turn's hearing time.
+        self._pending_stt: Optional[float] = None
+        self._turn_timings: dict = {}
         self.turns: deque = deque(maxlen=200)
         self.logs: deque = deque(maxlen=1500)
         self._turn_id = 0
@@ -69,6 +84,7 @@ class CoreProcess:
                 args, cwd=str(BRAIN), env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT, creationflags=CREATE_NO_WINDOW if os.name == "nt" else 0)
             self.mode, self.state, self.boot_step = mode, "booting", "starting"
+            self.session = time.strftime("%Y%m%d-%H%M%S")
             self.started_at, self.ready_at = time.time(), None
             self.last_error, self.exit_code = None, None
             threading.Thread(target=self._read, args=(self.proc,), name="core-reader", daemon=True).start()
@@ -153,9 +169,16 @@ class CoreProcess:
         if self.turns and self.turns[-1]["role"] == "jarvis" and not self.turns[-1]["done"]:
             return self.turns[-1]
         self._turn_id += 1
-        turn = {"id": self._turn_id, "role": "jarvis", "text": "", "t": time.time(), "done": False}
+        turn = {"id": self._turn_id, "role": "jarvis", "text": "", "t": time.time(), "done": False,
+                "session": self.session}
         self.turns.append(turn)
         return turn
+
+    def _keep(self, turn: dict) -> None:
+        try:
+            self.transcripts.record_turn(self.session or "unknown", turn, self.mode, self._turn_timings)
+        except OSError as e:
+            self._log(f"[app] transcript write failed: {e}")
 
     def _on_event(self, ev: dict) -> None:
         kind = ev.get("kind")
@@ -179,8 +202,11 @@ class CoreProcess:
             elif kind == "heard":
                 self._turn_id += 1
                 turn = {"id": self._turn_id, "role": "you", "text": ev.get("text", ""),
-                        "t": time.time(), "done": True}
+                        "t": time.time(), "done": True, "session": self.session}
                 self.turns.append(turn)
+                self._turn_timings = {"stt": self._pending_stt} if self._pending_stt is not None else {}
+                self._pending_stt = None
+                self._keep(turn)
                 self.bus.publish("core", "turn", "", turn=turn)
             elif kind == "reply_chunk":
                 turn = self._current_reply()
@@ -193,28 +219,37 @@ class CoreProcess:
                 turn["done"] = True
                 turn["seconds"] = ev.get("seconds")
                 self.timings["reply"] = ev.get("seconds")
+                self._turn_timings["reply"] = ev.get("seconds")
+                self._keep(turn)
                 self.bus.publish("core", "turn", "", turn=turn)
             elif kind == "timing":
                 self.timings[ev.get("stage")] = ev.get("seconds")
+                if ev.get("stage") == "stt":
+                    self._pending_stt = ev.get("seconds")
+                else:
+                    self._turn_timings[ev.get("stage")] = ev.get("seconds")
                 self.bus.publish("core", "timing", ephemeral=True, stage=ev.get("stage"),
                                  seconds=ev.get("seconds"))
             elif kind in ("room", "room_state"):
                 if kind == "room":
                     self.room[ev["device"]] = ev["state"]
-                    st = ev["state"]
-                    self.bus.publish("limbs", "room", f"{ev['device']} "
-                                     + (f"on · {st.get('level')}%" if st.get("on") else "off"),
-                                     device=ev["device"], state=st)
+                    if self.room_listener is not None:
+                        self.room_listener(ev["device"], ev["state"])
                 else:
                     self.room = dict(ev.get("state") or {})
                     self.mqtt = ev.get("mqtt")
-                    self.bus.publish("limbs", "room_state", ephemeral=True, state=self.room, mqtt=self.mqtt)
+                    if self.room_boot_listener is not None:
+                        self.room_boot_listener()
             elif kind == "speech_done":
                 self.bus.publish("core", "speech_done", ephemeral=True)
             elif kind in ("error", "diagnosis"):
                 msg = ev.get("message") or ev.get("text") or ""
                 if kind == "error":
                     self.last_error = msg
+                    try:
+                        self.transcripts.record_error(self.session or "unknown", msg, bool(ev.get("critical")))
+                    except OSError:
+                        pass
                 self.bus.publish("core", kind, msg, critical=ev.get("critical", False))
 
     # ------------------------------------------------------------ views
@@ -234,6 +269,7 @@ class CoreProcess:
                 "timings": dict(self.timings),
                 "room": dict(self.room),
                 "mqtt": self.mqtt,
+                "session": self.session,
             }
 
     def transcript(self, n: int = 60) -> list[dict]:

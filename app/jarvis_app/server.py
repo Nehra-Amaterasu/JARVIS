@@ -7,7 +7,8 @@
     /api/limbs/*     the room's devices                     (limbs.py)
     /api/connect     what's plugged in                      (connect.py)
     /api/system/*    vitals, models                         (system.py)
-    /api/mission     weekly roadmap numbers                 (mission.py)
+    /api/kv/*, /api/germoney/*   Mission Germoney     (germoney.py)
+    /api/transcripts/*           conversation history (transcripts.py)
     /ws/events       everything that happens, as it happens (bus.py)
     /                the UI bundle (app/ui/dist)
 
@@ -24,15 +25,15 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import Body, FastAPI, HTTPException, Request, WebSocket
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
-from . import __version__, connect, memory, mission, system
+from . import __version__, connect, germoney, memory, system
 from .bus import EventBus
 from .core import CoreProcess
 from .limbs import Limbs
-from .paths import DOCS, UI_DIST, ensure_brain_importable
+from .paths import DATA, DOCS, UI_DIST, ensure_brain_importable
 from .security import Guard
 
 ensure_brain_importable()
@@ -44,8 +45,12 @@ class Services:
     def __init__(self, bus: EventBus, guard: Guard):
         self.bus = bus
         self.core = CoreProcess(bus, f"http://127.0.0.1:{guard.port}", guard.token)
-        self.limbs = Limbs(self.core)
         self.hub = AankhenHub()
+        self.limbs = Limbs(self.core, self.hub, bus)
+        self.core.room_boot_listener = self.limbs.sync_core
+        self._board_was_connected = False
+        self.kv = germoney.KVStore()
+        self.calendar = germoney.Calendar()
         self._last_presence: Optional[str] = None
         self._seen_aankhen_event = 0
 
@@ -58,6 +63,14 @@ def create_app(guard: Guard, autostart_aankhen: str = "auto") -> FastAPI:
         """Relay the twin's presence changes and track events to the ticker."""
         while True:
             await asyncio.sleep(0.5)
+            # A board that (re)connects gets the room's current state pushed to it, so
+            # the relays match the app after a replug or a firmware reset.
+            connected = svc.hub.can_command
+            if connected and not svc._board_was_connected:
+                res = await run_in_threadpool(svc.limbs.resync_hardware)
+                bus.publish("limbs", "board", "Relay board connected — room state pushed",
+                            delivered=res)
+            svc._board_was_connected = connected
             eng = svc.hub.engine
             if eng is None:
                 continue
@@ -222,21 +235,19 @@ def create_app(guard: Guard, autostart_aankhen: str = "auto") -> FastAPI:
     def limbs_view():
         return svc.limbs.view()
 
-    @app.post("/api/limbs/{device}")
-    def limbs_control(device: str, action: str = Body(..., embed=True), value: Optional[int] = Body(None, embed=True)):
-        try:
-            svc.limbs.control(device, action, value)
-        except (ValueError, RuntimeError) as e:
-            raise HTTPException(409, str(e))
-        return {"ok": True}
-
     @app.post("/api/limbs/scene/{name}")
     def limbs_scene(name: str):
         try:
-            svc.limbs.scene(name)
-        except (ValueError, RuntimeError) as e:
-            raise HTTPException(409, str(e))
-        return {"ok": True}
+            return svc.limbs.scene(name)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+
+    @app.post("/api/limbs/{device}")
+    def limbs_control(device: str, action: str = Body(..., embed=True), value: Optional[int] = Body(None, embed=True)):
+        try:
+            return svc.limbs.apply(device, action, value)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
 
     # ------------------------------------------------------------- connect / system
     @app.get("/api/connect")
@@ -274,20 +285,150 @@ def create_app(guard: Guard, autostart_aankhen: str = "auto") -> FastAPI:
             out.append({"title": title.strip(), "summary": re.sub(r"\s+", " ", para)[:420]})
         return out
 
-    # ------------------------------------------------------------- mission
-    @app.get("/api/mission")
-    def mission_view():
-        return mission.view()
+    # ------------------------------------------------------------- transcripts
+    @app.get("/api/transcripts/summary")
+    async def tr_summary(days: int = 7):
+        return await run_in_threadpool(svc.core.transcripts.summary, days)
 
-    @app.post("/api/mission")
-    def mission_add(kind: str = Body(..., embed=True), delta: int = Body(..., embed=True)):
+    @app.get("/api/transcripts/recent")
+    async def tr_recent(days: int = 2, limit: int = 200):
+        return await run_in_threadpool(svc.core.transcripts.recent, days, limit)
+
+    @app.post("/api/transcripts/flag")
+    def tr_flag(session: str = Body(..., embed=True), id: int = Body(..., embed=True),
+                verdict: str = Body(..., embed=True), note: str = Body("", embed=True),
+                expected: str = Body("", embed=True)):
         try:
-            v = mission.add(kind, delta)
+            f = svc.core.transcripts.flag(session, id, verdict, note, expected)
         except ValueError as e:
             raise HTTPException(400, str(e))
-        bus.publish("mission", "log", f"{mission.LABELS[kind]} {'+' if delta >= 0 else ''}{delta}"
-                    + (" min" if kind == "german_min" else ""))
-        return v
+        bus.publish("core", "flag", f"Marked a reply as {verdict}", verdict=verdict)
+        return f
+
+    @app.post("/api/transcripts/export")
+    async def tr_export(days: int = Body(7, embed=True)):
+        path = await run_in_threadpool(svc.core.transcripts.export_review, days)
+        bus.publish("core", "review", f"Review for Claude written: {path.name}")
+        return {"path": str(path), "name": path.name,
+                "summary": await run_in_threadpool(svc.core.transcripts.summary, days)}
+
+    @app.post("/api/open")
+    def open_folder(which: str = Body(..., embed=True)):
+        """Open a data folder in Explorer (only these known folders — never a path
+        from the request)."""
+        folders = {"reviews": DATA / "reviews", "transcripts": DATA / "transcripts",
+                   "recordings": svc.hub.recordings_dir, "data": DATA}
+        target = folders.get(which)
+        if target is None:
+            raise HTTPException(404, "unknown folder")
+        target.mkdir(parents=True, exist_ok=True)
+        import os
+        os.startfile(str(target))                    # noqa: S606 — fixed, known path
+        return {"ok": True}
+
+    # ------------------------------------------------------------- mission germoney
+    @app.get("/api/kv")
+    def kv_keys():
+        return {"keys": svc.kv.keys()}
+
+    @app.get("/api/kv/{key}")
+    def kv_get(key: str):
+        try:
+            return {"value": svc.kv.get(key)}
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+
+    @app.put("/api/kv/{key}")
+    def kv_set(key: str, value: str = Body(..., embed=True)):
+        try:
+            svc.kv.set(key, value)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return {"ok": True}
+
+    @app.delete("/api/kv/{key}")
+    def kv_delete(key: str):
+        try:
+            svc.kv.delete(key)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return {"ok": True}
+
+    @app.get("/api/germoney/export")
+    def gm_export():
+        """Everything Mission Germoney stores, as one JSON document (a backup)."""
+        return Response(json.dumps(svc.kv.export_all(), indent=1), media_type="application/json",
+                        headers={"Content-Disposition": "attachment; filename=mission-germoney-backup.json"})
+
+    @app.post("/api/germoney/import")
+    def gm_import(data: dict = Body(...)):
+        n = svc.kv.import_all(data)
+        bus.publish("mission", "import", f"Imported {n} Mission Germoney record(s)")
+        return {"imported": n}
+
+    @app.post("/api/germoney/ai/{task}")
+    async def gm_ai(task: str, ctx: dict = Body(...)):
+        try:
+            return await run_in_threadpool(germoney.generate, task, ctx)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        except RuntimeError as e:
+            # The UI falls back to the deterministic engine and says so.
+            raise HTTPException(503, str(e))
+
+    @app.get("/api/germoney/github")
+    async def gm_github(user: str):
+        try:
+            return await run_in_threadpool(germoney.github_summary, user)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        except Exception as e:
+            raise HTTPException(502, f"GitHub unreachable: {e}")
+
+    @app.get("/api/germoney/arxiv")
+    async def gm_arxiv(q: str, max: int = 6):
+        try:
+            return await run_in_threadpool(germoney.arxiv, q, max)
+        except Exception as e:
+            raise HTTPException(502, f"arXiv unreachable: {e}")
+
+    @app.get("/api/germoney/focus")
+    def gm_focus():
+        return germoney.foreground()
+
+    @app.get("/api/germoney/calendar/today")
+    async def gm_cal_today():
+        return await run_in_threadpool(svc.calendar.today)
+
+    @app.put("/api/germoney/calendar/feed")
+    def gm_cal_feed(url: Optional[str] = Body(None, embed=True)):
+        try:
+            svc.calendar.set_feed(url)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        return {"ok": True}
+
+    @app.post("/api/germoney/calendar/block")
+    def gm_cal_block(title: str = Body("Study block", embed=True), start: str = Body(..., embed=True),
+                     minutes: int = Body(90, embed=True)):
+        try:
+            return svc.calendar.add_block(title, start, minutes)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+
+    @app.delete("/api/germoney/calendar/block/{block_id}")
+    def gm_cal_block_delete(block_id: str):
+        svc.calendar.remove_block(block_id)
+        return {"ok": True}
+
+    @app.get("/api/germoney/calendar/block/{block_id}.ics")
+    def gm_cal_block_ics(block_id: str):
+        try:
+            body = svc.calendar.block_ics(block_id)
+        except KeyError:
+            raise HTTPException(404, "no such block")
+        return Response(body, media_type="text/calendar",
+                        headers={"Content-Disposition": f"attachment; filename={block_id}.ics"})
 
     # ------------------------------------------------------------- events
     @app.websocket("/ws/events")

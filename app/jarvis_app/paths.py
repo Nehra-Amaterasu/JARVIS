@@ -10,7 +10,9 @@ REPO = APP.parent                                  # .../jarvis-room
 BRAIN = REPO / "brain"
 DOCS = REPO / "docs"
 UI_DIST = APP / "ui" / "dist"
-DATA = APP / "data"                                # gitignored: settings, mission log
+# Personal state (Mission progress, transcripts, room state). JARVIS_DATA_DIR points
+# a test or dev server somewhere else, so testing never writes into real progress.
+DATA = Path(os.environ.get("JARVIS_DATA_DIR") or (APP / "data"))   # gitignored
 VENV_PYTHON = BRAIN / ".venv311_gpu" / "Scripts" / "python.exe"
 HOME = Path(os.path.expanduser("~"))
 DOWNLOADS = HOME / "Downloads"

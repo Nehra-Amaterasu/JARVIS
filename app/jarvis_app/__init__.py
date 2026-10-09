@@ -9,7 +9,8 @@ Layout:
     limbs.py     what JARVIS can switch: the room's lights and fan
     connect.py   everything that can be plugged in, each with live detection
     system.py    vitals against the 6 GB VRAM ceiling, models on disk
-    mission.py   the Germany roadmap's weekly numbers
+    germoney.py  Mission Germoney: storage, local AI, GitHub, arXiv, focus guard, calendar
+    transcripts.py  every conversation kept + review files for Claude
     server.py    the FastAPI app that ties it together
     desktop.py   the native window (pywebview / WebView2)
 """

@@ -23,9 +23,15 @@ state = {
     "fan":   {"on": False, "level": 60},   # level = speed %
 }
 
+# Called with (device, state) after every change. The desktop app sets this (via
+# jarvis.py) to stream room changes to the Limbs tab; None when run standalone.
+on_change = None
+
 def _publish(device):
     if _mq:
         _mq.publish(f"jarvis/room/{device}", json.dumps(state[device]), retain=True)
+    if on_change is not None:
+        on_change(device, dict(state[device]))
 
 def apply(device, action, value=None):
     """Apply an intent or a holistic environmental state."""

@@ -33,6 +33,7 @@ import asyncio
 import threading
 import uuid
 import time
+import tempfile
 
 # [200 IQ FIX]: ChromaDB internally uses the deprecated asyncio.iscoroutinefunction which throws spam in Python 3.14.
 # Instead of hiding it, we monkey-patch the module globally to use the correct modern inspect function.
@@ -47,10 +48,19 @@ os.environ["POSTHOG_DISABLED"] = "1"
 os.environ["MEM0_TELEMETRY"] = "false"
 os.environ["ANONYMIZED_TELEMETRY"] = "false"
 
+# Text-only mode (--text, from the desktop app) never touches the microphone, so it
+# skips TensorFlow, Whisper and the wake-word engine entirely: those imports were
+# most of a 44 s text-mode start for code that never runs.
+_TEXT_ONLY_EARLY = "--text" in sys.argv
+
 # [TFLITE FIX FOR WINDOWS PYTHON 3.11]: openwakeword expects tflite_runtime.interpreter.
 # Since tflite-runtime is unavailable on PyPI for Windows Python 3.11, we alias tensorflow.lite.
 try:
+    if _TEXT_ONLY_EARLY:
+        raise RuntimeError("text-only: no wake word")
     import tflite_runtime.interpreter
+except RuntimeError:
+    pass
 except ImportError:
     try:
         import tensorflow.lite as tflite_interp
@@ -66,18 +76,32 @@ import pygame
 import edge_tts
 import numpy as np
 import sounddevice as sd
-from faster_whisper import WhisperModel
+if not _TEXT_ONLY_EARLY:
+    from faster_whisper import WhisperModel
 try:
     from indic_transliteration import sanscript
 except ImportError:
     sanscript = None
-from openwakeword.model import Model
+if not _TEXT_ONLY_EARLY:
+    from openwakeword.model import Model
 import traceback
 
 import room
 import agent
 import hinglish
 import chimes
+import appio
+
+# Under the desktop app (--app) this process reports its state as structured
+# events; with --text it skips the microphone, Whisper, the wake word and speech
+# entirely. Run from a terminal with no flags, nothing below changes behaviour.
+TEXT_ONLY = appio.TEXT_ONLY
+
+# The Limbs tab drives the same room.apply() that voice commands use, so the app
+# and JARVIS can never disagree about whether the light is on.
+room.on_change = lambda device, st: appio.emit("room", device=device, state=st)
+appio.on("room", lambda c: room.apply(c["device"], c["action"], c.get("value")))
+appio.on("room_state", lambda c: appio.emit("room_state", state=room.state, mqtt=room.MQTT_OK))
 
 SAMPLE_RATE = 16000
 SILENCE_THRESHOLD = 0.04  # Lowered from 0.08 so JARVIS can hear normal speaking volume
@@ -105,13 +129,17 @@ print("1. Loading Whisper STT (large-v3-turbo on GPU, int8_float16)...")
 # Language is deliberately NOT pinned: auto-detect keeps English words in Latin,
 # which the room-command keyword matching in agent.py depends on ("turn off light").
 # Pinning hi would render those in Devanagari and silently break light control.
-model = WhisperModel("large-v3-turbo", device="cuda", compute_type="int8_float16")
+appio.emit("boot", step="whisper", text_only=TEXT_ONLY)
+model = None if TEXT_ONLY else WhisperModel("large-v3-turbo", device="cuda", compute_type="int8_float16")
 
 print("2. Initializing Audio Drivers (Edge-TTS + Cognitive Hum)...")
-pygame.mixer.init(frequency=22050, size=-16, channels=2)
+appio.emit("boot", step="audio")
+if not TEXT_ONLY:
+    pygame.mixer.init(frequency=22050, size=-16, channels=2)
 
 print("3. Loading Wake Word Engine (hey_jarvis)...")
-oww_model = Model(wakeword_models=["hey_jarvis_v0.1"], inference_framework="onnx")
+appio.emit("boot", step="wakeword")
+oww_model = None if TEXT_ONLY else Model(wakeword_models=["hey_jarvis_v0.1"], inference_framework="onnx")
 
 # Warm memory + brain during boot, not during the first question.
 # Measured 2026-10-08: the bge-small embedder loaded lazily inside the first
@@ -119,6 +147,7 @@ oww_model = Model(wakeword_models=["hey_jarvis_v0.1"], inference_framework="onnx
 # likewise paid its weight-load on the first real question. Both costs now land
 # here, while the user is already watching the boot sequence.
 print("4. Warming Yaadash memory + brain...")
+appio.emit("boot", step="memory")
 try:
     agent.yaadash_core.get_context("warmup")
     if agent.yaadash_recall is not None:
@@ -144,7 +173,8 @@ def _init_cognitive_hum():
     except Exception as e:
         hum_sound = None
 
-_init_cognitive_hum()
+if not TEXT_ONLY:
+    _init_cognitive_hum()
 
 def start_hum():
     global hum_sound
@@ -170,6 +200,7 @@ def _tts_worker():
             break
         text, audio_file = item
         try:
+            appio.emit("state", state="speaking", text=text)
             pygame.mixer.music.load(audio_file)
             pygame.mixer.music.play()
             while pygame.mixer.music.get_busy():
@@ -179,12 +210,17 @@ def _tts_worker():
                 os.remove(audio_file)
         except Exception:
             pass
+        if speech_queue.empty():
+            appio.emit("speech_done")
         speech_queue.task_done()
 
 threading.Thread(target=_tts_worker, daemon=True).start()
 
 def listen_for_wake_word():
+    """Block until "Hey Jarvis" -> None, or until the app sends a typed message
+    -> that text (so typing in the app works while JARVIS is asleep)."""
     print("\n[Sleeping. Say 'Hey Jarvis' to wake up...]")
+    appio.emit("state", state="sleeping")
     # Reset openWakeWord internal state to clear stale audio features
     oww_model.reset()
     
@@ -205,15 +241,22 @@ def listen_for_wake_word():
             if not q.empty(): q.get()
             
         while True:
-            chunk = q.get()
+            typed = appio.poll_say()
+            if typed:
+                return typed
+            try:
+                chunk = q.get(timeout=0.1)
+            except queue.Empty:
+                continue
             prediction = oww_model.predict(chunk.flatten())
             
             # Lowered threshold from 0.5 to 0.35 for effortless detection
             for model_name, score in prediction.items():
                 if score > 0.35:
                     print(f"\n>>> WAKE WORD DETECTED! ({model_name}: {score:.2f}) <<<")
+                    appio.emit("wake", score=round(float(score), 2))
                     oww_model.reset()
-                    return
+                    return None
 
 # Interruption Continuation Memory Buffer
 last_interrupted_script = ""
@@ -223,7 +266,9 @@ async def _async_speak(text):
     if not text: return
     # Balanced voice (en-IN-NeerjaNeural) set to +15% speed (1.15x) for fluid, snappy delivery
     communicate = edge_tts.Communicate(text, TTS_VOICE, rate=TTS_RATE)
-    audio_file = f"response_{uuid.uuid4().hex[:8]}.mp3"
+    # In the temp folder, not the working directory: interrupted playback used to
+    # leave dozens of response_*.mp3 files behind in brain/.
+    audio_file = os.path.join(tempfile.gettempdir(), f"jarvis_{uuid.uuid4().hex[:8]}.mp3")
     await communicate.save(audio_file)
     if os.path.exists(audio_file) and os.path.getsize(audio_file) > 100:
         speech_queue.put((text, audio_file))
@@ -260,6 +305,8 @@ def clean_for_speech(text: str) -> str:
 
 def speak(text):
     """Queues TTS audio for sequential playback without sentence truncation."""
+    if TEXT_ONLY:
+        return
     text = clean_for_speech(text)
     if not text: return
     asyncio.run(_async_speak(text))
@@ -267,7 +314,9 @@ def speak(text):
 def record_vad():
     """Records audio automatically by detecting voice activity with visual feedback."""
     chimes.play_chime("wake")
+    appio.emit("state", state="listening")
     print("\n[Listening... Speak naturally. Pausing for 4s processes the command]")
+    last_level = [0.0]
     audio_data = []
     silence_frames = 0
     is_speaking = False
@@ -280,6 +329,10 @@ def record_vad():
     def callback(indata, frames, timestamp, status):
         nonlocal is_speaking, silence_frames, pulse_idx
         volume_norm = np.linalg.norm(indata) * 10
+        now = time.time()
+        if now - last_level[0] > 0.08:
+            last_level[0] = now
+            appio.emit("level", level=round(float(volume_norm), 4), threshold=SILENCE_THRESHOLD)
         
         if volume_norm > SILENCE_THRESHOLD:
             # [PHASE 4: FULL-DUPLEX INTERRUPTION]
@@ -327,39 +380,93 @@ def record_vad():
     chimes.play_chime("process")
     return np.concatenate(audio_data).flatten() if audio_data else np.array([], dtype="float32")
 
+def transcribe(audio) -> str:
+    """Whisper -> romanised Hinglish text ('' if nothing usable was said)."""
+    appio.emit("state", state="transcribing")
+    t0 = time.time()
+    # Dual Devanagari & English prompt with beam_size=5 for accurate Hindi & Hinglish STT
+    segments, info = model.transcribe(
+        audio,
+        initial_prompt="नमस्ते, मैं हिन्दी और English दोनों में बात कर रहा हूँ। Hey Jarvis, kya haal hai?",
+        condition_on_previous_text=False,
+        vad_filter=True,
+        vad_parameters=dict(min_silence_duration_ms=1500, threshold=0.3, speech_pad_ms=400),
+        beam_size=5
+    )
+    # Whisper returns Hindi in Devanagari and English in Latin. Romanize only
+    # the Devanagari runs so the line reads as one script; English is left
+    # alone, keeping the room-command keywords in agent.py working.
+    text = hinglish.romanize(" ".join(seg.text for seg in segments).strip())
+    appio.emit("timing", stage="stt", seconds=round(time.time() - t0, 3))
+    return text if len(text) >= 2 else ""
+
+
+def respond(text: str) -> None:
+    """One full turn: think, stream the reply, speak it sentence by sentence.
+
+    This used to exist twice in main_loop (after the wake word and in the
+    follow-up window), and the copies had already started to drift apart.
+    """
+    print(f"\nYou said: {text}")
+    appio.emit("heard", text=text)
+    print("Thinking...", end="\r")
+    appio.emit("state", state="thinking")
+    speak("Thinking.")
+    t0 = time.time()
+    try:
+        print("JARVIS: ", end="")
+        sentence_buffer = ""
+        full = []
+        first_token = True
+        for chunk in agent.run_agent(text):
+            if first_token:
+                stop_hum()
+                first_token = False
+                appio.emit("timing", stage="first_token", seconds=round(time.time() - t0, 3))
+                appio.emit("state", state="replying")
+            sys.stdout.write(chunk)
+            sys.stdout.flush()
+            full.append(chunk)
+            appio.emit("reply_chunk", text=chunk)
+            sentence_buffer += chunk
+            # If we hit a punctuation mark, queue the sentence for full, clear playback
+            if any(p in chunk for p in ['.', '?', '!']):
+                if sentence_buffer.strip():
+                    speak(sentence_buffer.strip())
+                    sentence_buffer = ""
+        # Speak any leftover text
+        if sentence_buffer.strip():
+            speak(sentence_buffer.strip())
+        appio.emit("reply_end", text="".join(full), seconds=round(time.time() - t0, 3))
+    except Exception as e:
+        stop_hum()
+        print(f"\n[Cognitive Glitch]: {e}")
+        appio.emit("error", message=str(e))
+
+
 def main_loop():
     print(f"\nMQTT broker: {'connected' if room.MQTT_OK else 'virtual room only'}")
+    appio.emit("ready", mode="voice")
+    appio.emit("room_state", state=room.state, mqtt=room.MQTT_OK)
     speak("System online. I am ready, boss.")
-    
+
     while True:
         try:
             print("\n" + room.render())
-            listen_for_wake_word()
+            typed = listen_for_wake_word()
+            if typed:
+                respond(typed)                 # typed in the app while asleep
+                continue
             audio = record_vad()
-            
+
             start_hum()
             print("Transcribing...", end="\r")
             speak("Transcribing.")
-            # Dual Devanagari & English prompt with beam_size=5 for 100% accurate Hindi & Hinglish STT
-            segments, info = model.transcribe(
-                audio, 
-                initial_prompt="नमस्ते, मैं हिन्दी और English दोनों में बात कर रहा हूँ। Hey Jarvis, kya haal hai?",
-                condition_on_previous_text=False,
-                vad_filter=True, 
-                vad_parameters=dict(min_silence_duration_ms=1500, threshold=0.3, speech_pad_ms=400), 
-                beam_size=5
-            )
-            # Whisper returns Hindi in Devanagari and English in Latin. Romanize only
-            # the Devanagari runs so the line reads as one script; English is left
-            # alone, keeping the room-command keywords in agent.py working.
-            text = hinglish.romanize(" ".join(s.text for s in segments).strip())
-            
-            if len(text) < 2:
+            text = transcribe(audio)
+            if not text:
                 stop_hum()
                 continue
-                    
-            print(f"\nYou said: {text}")
-            
+
             # Check if user wants to resume an interrupted thought
             global last_interrupted_script, was_interrupted
             resume_keywords = ["continue", "pick up", "go on", "what were you saying", "carry on", "finish your thought"]
@@ -370,109 +477,71 @@ def main_loop():
                 last_interrupted_script = ""
                 stop_hum()
                 continue
-                
-            print("Thinking...", end="\r")
-            speak("Thinking.")
-            try:
-                # Route to the Expert Streaming Brain
-                print("JARVIS: ", end="")
-                sentence_buffer = ""
-                first_token = True
-                for chunk in agent.run_agent(text):
-                    if first_token:
-                        stop_hum()
-                        first_token = False
-                        
-                    sys.stdout.write(chunk)
-                    sys.stdout.flush()
-                    sentence_buffer += chunk
-                    
-                    # If we hit a punctuation mark, queue the sentence for full, clear playback
-                    if any(p in chunk for p in ['.', '?', '!']):
-                        if sentence_buffer.strip():
-                            speak(sentence_buffer.strip())
-                            sentence_buffer = ""
-                
-                # Speak any leftover text
-                if sentence_buffer.strip():
-                    speak(sentence_buffer.strip())
-                    
-            except Exception as e:
-                stop_hum()
-                print(f"\n[Cognitive Glitch]: {e}")
-                
+
+            respond(text)
+
             # Active Follow-Up Conversation Loop:
             # Wait up to 5 seconds for user follow-up speech before returning to wake word sleep
             print("\n[Active Conversation Mode: Speak directly within 5s or say 'Hey Jarvis']")
+            appio.emit("state", state="followup")
             in_followup = False
             start_time = time.time()
-            
+
             def followup_callback(indata, frames, timestamp, status):
                 nonlocal in_followup
                 volume_norm = np.linalg.norm(indata) * 10
                 if volume_norm > SILENCE_THRESHOLD:
                     in_followup = True
-                    
+
             with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32", callback=followup_callback):
                 while time.time() - start_time < 5.0:
                     if in_followup:
                         break
                     sd.sleep(100)
-                    
+
             if in_followup:
                 audio = record_vad()
                 start_hum()
-                segments, info = model.transcribe(
-                    audio, 
-                    initial_prompt="नमस्ते, मैं हिन्दी और English दोनों में बात कर रहा हूँ। Hey Jarvis, kya haal hai?",
-                    condition_on_previous_text=False,
-                    vad_filter=True, 
-                    vad_parameters=dict(min_silence_duration_ms=1500, threshold=0.3, speech_pad_ms=400), 
-                    beam_size=5
-                )
-                text = hinglish.romanize(" ".join(s.text for s in segments).strip())
-                if len(text) >= 2:
-                    print(f"\nYou said: {text}")
-                    print("Thinking...", end="\r")
-                    speak("Thinking.")
-                    try:
-                        print("JARVIS: ", end="")
-                        sentence_buffer = ""
-                        first_token = True
-                        for chunk in agent.run_agent(text):
-                            if first_token:
-                                stop_hum()
-                                first_token = False
-                            sys.stdout.write(chunk)
-                            sys.stdout.flush()
-                            sentence_buffer += chunk
-                            if any(p in chunk for p in ['.', '?', '!']):
-                                if sentence_buffer.strip():
-                                    speak(sentence_buffer.strip())
-                                    sentence_buffer = ""
-                        if sentence_buffer.strip():
-                            speak(sentence_buffer.strip())
-                    except Exception as e:
-                        stop_hum()
-                        print(f"\n[Cognitive Glitch]: {e}")
-                    
+                text = transcribe(audio)
+                if text:
+                    respond(text)
+                else:
+                    stop_hum()
+
         except Exception as e:
             tb = traceback.format_exc()
             print(f"\n[CRITICAL GLITCH DETECTED]: {e}")
+            appio.emit("error", message=str(e), critical=True)
             chimes.play_chime("error")
             speak("I encountered a critical error. Running self-diagnostics.")
-            
+
             try:
                 print("Diagnosing error in background...")
                 diagnostic_reply = agent.diagnose_error(tb)
                 print(f"JARVIS Diagnosis: {diagnostic_reply}")
+                appio.emit("diagnosis", text=diagnostic_reply)
                 speak(diagnostic_reply)
             except Exception as inner_e:
                 print(f"Self-diagnosis failed: {inner_e}")
                 speak("Self-diagnostics failed. The core system requires manual intervention.")
 
+
+def text_loop():
+    """--text: typed messages from the app in, streamed replies out. No audio."""
+    print("\nText mode: no microphone, no speech. Waiting for messages from the app.")
+    appio.emit("ready", mode="text")
+    appio.emit("room_state", state=room.state, mqtt=room.MQTT_OK)
+    appio.emit("state", state="idle")
+    while True:
+        text = appio.wait_say()
+        if text is None:                       # the app closed our stdin: shut down
+            return
+        respond(text)
+        appio.emit("state", state="idle")
+
+
 if __name__ == "__main__":
     try:
-        main_loop()
+        text_loop() if TEXT_ONLY else main_loop()
     except KeyboardInterrupt:
         print("\nSystem offline.")

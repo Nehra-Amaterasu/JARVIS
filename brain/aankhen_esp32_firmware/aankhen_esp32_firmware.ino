@@ -7,8 +7,9 @@
 //      the router that decoded cleanly, and forwards the raw buffer.
 //   3. Forwards every HLK-LD2450 radar frame byte-for-byte.
 //   4. Reports its health once a second.
-//   5. Switches the room relays when JARVIS asks over MQTT — or over HTTP with a
-//      token. Never without one.
+//   5. Switches the room relays when JARVIS asks: over the same USB cable (COMMAND
+//      frames, CRC-checked), over MQTT, or over HTTP with a token. Never without one.
+//      Every STATUS frame reports the relays' actual states.
 // Everything goes to the laptop as CRC-checked binary frames over native USB (see
 // aankhen_protocol.h). The laptop does all the maths, so a recording made today can
 // be re-analysed by tomorrow's algorithm.
@@ -30,25 +31,23 @@
 #include "mqtt_client.h"
 
 #include "aankhen_protocol.h"
+#include "config.h"    // wiring (tracked)
 #include "secrets.h"   // gitignored; copy secrets.example.h
 
 // ------------------------------------------------------------------ config
 #define FW_VERSION "aankhen-3.0.0"
 #define CSI_RATE_HZ 100           // router pings per second = CSI captures per second
 #define CSI_QUEUE_DEPTH 48        // ~0.5 s of slack if the USB host stalls
-#define RADAR_RX_PIN 18           // ESP32 RX  <- LD2450 TX
-#define RADAR_TX_PIN 17           // ESP32 TX  -> LD2450 RX
-#define RADAR_BAUD 256000
 // Automatic CSI scaling. The host divides every packet by its own median amplitude,
 // so the absolute scale is irrelevant to the detector; automatic scaling keeps the
 // int8 samples using their full range, i.e. less quantisation noise.
 #define CSI_MANUAL_SCALE 0
 
-// Relays (mains). Leave a pin at -1 until it is wired and checked.
-struct Relay { const char *name; int pin; bool active_low; };
+// Relays (mains). Pins come from config.h; -1 disables one.
+struct Relay { const char *name; int pin; bool active_low; bool on; };
 static Relay RELAYS[] = {
-  {"light", -1, true},
-  {"fan", -1, true},
+  {"light", RELAY_LIGHT_PIN, RELAY_ACTIVE_LOW, false},
+  {"fan", RELAY_FAN_PIN, RELAY_ACTIVE_LOW, false},
 };
 
 #ifndef RELAY_TOKEN_VALUE
@@ -180,8 +179,20 @@ static void pumpRadar() {
 
 // ------------------------------------------------------------------ relays
 static void setRelay(Relay &r, bool on) {
+  r.on = on;
   if (r.pin < 0) return;
   digitalWrite(r.pin, (on ^ r.active_low) ? HIGH : LOW);
+}
+
+// Initialise a relay pin with NO glitch: set the "off" level on the pin latch
+// first, then make it an output. pinMode() before digitalWrite() would drive the
+// pin low for a moment — on an active-low module that is a brief "ON" of a mains
+// load at every boot.
+static void initRelay(Relay &r) {
+  if (r.pin < 0) return;
+  digitalWrite(r.pin, r.active_low ? HIGH : LOW);
+  pinMode(r.pin, OUTPUT);
+  setRelay(r, false);
 }
 
 static Relay *findRelay(const char *name) {
@@ -257,19 +268,120 @@ static void startHttp() {
 }
 #endif
 
+// ------------------------------------------------------------------ USB commands
+// Host -> device COMMAND frames (type 0x06) arrive on the same USB serial link the
+// sensor data leaves on. Same framing, same CRC: a corrupted byte can never switch
+// a relay. Payload is tiny JSON, e.g. {"relay":"light","on":true} or {"cmd":"status"}.
+static void sendStatus();
+
+static bool jsonBool(const char *js, const char *key, bool *out) {
+  const char *k = strstr(js, key);
+  if (!k) return false;
+  const char *v = strchr(k + strlen(key), ':');
+  if (!v) return false;
+  while (*++v == ' ') {}
+  if (strncmp(v, "true", 4) == 0) { *out = true; return true; }
+  if (strncmp(v, "false", 5) == 0) { *out = false; return true; }
+  return false;
+}
+
+static bool jsonString(const char *js, const char *key, char *out, size_t n) {
+  const char *k = strstr(js, key);
+  if (!k) return false;
+  const char *v = strchr(k + strlen(key), ':');
+  if (!v) return false;
+  v = strchr(v, '"');
+  if (!v) return false;
+  const char *e = strchr(++v, '"');
+  if (!e || (size_t)(e - v) >= n) return false;
+  memcpy(out, v, e - v);
+  out[e - v] = 0;
+  return true;
+}
+
+static void handleCommand(const char *js) {
+  char name[16];
+  bool on;
+  if (jsonString(js, "\"relay\"", name, sizeof(name)) && jsonBool(js, "\"on\"", &on)) {
+    bool any = false;
+    for (auto &r : RELAYS) {
+      if (strcmp(name, "all") == 0 || strcmp(name, r.name) == 0) {
+        setRelay(r, on);
+        any = true;
+      }
+    }
+    logf(any ? "relay %s -> %s" : "relay %s: unknown", name, on ? "on" : "off");
+    sendStatus();                                    // immediate confirmation
+  } else if (strstr(js, "\"status\"")) {
+    sendStatus();
+  } else {
+    logf("command not understood");
+  }
+}
+
+static uint8_t cmdBuf[16 + 256 + 2];
+static size_t cmdLen = 0;
+
+static void pumpCommands() {
+  while (Serial.available()) {
+    uint8_t b = Serial.read();
+    if (cmdLen == 0 && b != 0xAA) continue;          // hunt for SYNC
+    if (cmdLen == 1 && b != 0x55) { cmdLen = (b == 0xAA) ? 1 : 0; continue; }
+    cmdBuf[cmdLen++] = b;
+    if (cmdLen < sizeof(ak_header_t)) continue;
+    const ak_header_t *h = (const ak_header_t *)cmdBuf;
+    if (h->version != AK_PROTOCOL_VERSION || h->type != 0x06 || h->length > 256) {
+      cmdLen = 0;                                    // not a command frame: resync
+      continue;
+    }
+    size_t total = sizeof(ak_header_t) + h->length + 2;
+    if (cmdLen < total) continue;
+    uint16_t crc;
+    memcpy(&crc, cmdBuf + sizeof(ak_header_t) + h->length, 2);
+    if (ak_crc16(cmdBuf + 2, sizeof(ak_header_t) - 2 + h->length) == crc) {
+      char js[257];
+      memcpy(js, cmdBuf + sizeof(ak_header_t), h->length);
+      js[h->length] = 0;
+      handleCommand(js);
+    } else {
+      logf("command rejected: bad CRC");
+    }
+    cmdLen = 0;
+  }
+}
+
 // ------------------------------------------------------------------ status
 static void sendStatus() {
-  static uint32_t lastCaptured = 0;
-  uint32_t cap = csiCaptured;
-  uint32_t hz = cap - lastCaptured;                 // called once a second
-  lastCaptured = cap;
-  char js[420];
+  // Rate from elapsed time, not "per call": a command's immediate confirmation
+  // also sends a status, and a per-call count would split one second's packets
+  // across two reports.
+  static uint32_t lastCaptured = 0, lastMs = 0;
+  static float hzEma = 0;
+  uint32_t cap = csiCaptured, nowMs = millis();
+  if (lastMs && nowMs - lastMs >= 200) {
+    float inst = (cap - lastCaptured) * 1000.0f / (nowMs - lastMs);
+    hzEma = hzEma == 0 ? inst : 0.7f * hzEma + 0.3f * inst;
+    lastCaptured = cap;
+    lastMs = nowMs;
+  } else if (!lastMs) {
+    lastCaptured = cap;
+    lastMs = nowMs;
+  }
+  uint32_t hz = (uint32_t)(hzEma + 0.5f);
+  char relays[96];
+  int rn = snprintf(relays, sizeof(relays), "{");
+  for (size_t i = 0; i < sizeof(RELAYS) / sizeof(RELAYS[0]); i++) {
+    rn += snprintf(relays + rn, sizeof(relays) - rn, "%s\"%s\":%s", i ? "," : "", RELAYS[i].name,
+                   RELAYS[i].pin < 0 ? "null" : (RELAYS[i].on ? "true" : "false"));
+  }
+  snprintf(relays + rn, sizeof(relays) - rn, "}");
+  char js[520];
   snprintf(js, sizeof(js),
-           "{\"fw\":\"%s\",\"uptime_s\":%.1f,\"wifi\":\"%s\",\"ip\":\"%s\",\"rssi\":%d,"
+           "{\"fw\":\"%s\",\"uptime_s\":%.1f,\"relays\":%s,\"wifi\":\"%s\",\"ip\":\"%s\",\"rssi\":%d,"
            "\"channel\":%d,\"csi_hz\":%lu,\"csi_dropped\":%lu,\"csi_rejected\":%lu,"
            "\"radar_frames\":%lu,\"radar_bad\":%lu,\"mqtt\":%s,\"http\":%s,"
            "\"heap_free\":%lu,\"crc_ok\":%s}",
-           FW_VERSION, esp_timer_get_time() / 1e6,
+           FW_VERSION, esp_timer_get_time() / 1e6, relays,
            WiFi.status() == WL_CONNECTED ? "connected" : "connecting",
            WiFi.localIP().toString().c_str(), WiFi.RSSI(), WiFi.channel(),
            (unsigned long)hz, (unsigned long)csiDropped, (unsigned long)csiRejected,
@@ -314,12 +426,7 @@ void setup() {
   logf("%s booting, protocol v%d, crc self-test %s", FW_VERSION, AK_PROTOCOL_VERSION,
        ak_crc_self_test() ? "ok" : "FAILED");
 
-  for (auto &r : RELAYS) {
-    if (r.pin >= 0) {
-      pinMode(r.pin, OUTPUT);
-      setRelay(r, false);           // known state at boot: everything off
-    }
-  }
+  for (auto &r : RELAYS) initRelay(r);   // known state at boot: everything off
   Serial1.begin(RADAR_BAUD, SERIAL_8N1, RADAR_RX_PIN, RADAR_TX_PIN);
 
   connectWifi();
@@ -341,6 +448,7 @@ void loop() {
     }
   }
   pumpRadar();
+  pumpCommands();
   if (httpEnabled) http.handleClient();
 
   static uint32_t lastStatus = 0, lastWifiTry = 0;

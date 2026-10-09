@@ -52,6 +52,7 @@ class FrameType(enum.IntEnum):
     STATUS = 0x03        # 1 Hz device health, JSON text payload
     LOG = 0x04           # free-text log line from the firmware
     RSSI = 0x05          # RSSI-only sample (fallback when CSI is unavailable)
+    COMMAND = 0x06       # host -> device, JSON: {"relay": "light", "on": true}
 
 
 # Largest legitimate payload per frame type. Validating LENGTH against the TYPE —
@@ -67,6 +68,7 @@ MAX_PAYLOAD_BY_TYPE = {
     0x03: 1024,
     0x04: 512,
     0x05: 32,
+    0x06: 256,
 }
 
 

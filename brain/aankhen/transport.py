@@ -181,6 +181,25 @@ class SerialSource(Source):
         self.reconnect_s = reconnect_s
         self.on_status = on_status or (lambda msg: None)
         self.connected = threading.Event()
+        self._ser = None
+        self._write_lock = threading.Lock()
+
+    def write(self, data: bytes) -> bool:
+        """Send bytes to the board (host -> device commands). False if not connected.
+
+        The reader thread owns the port object; writes take a lock so a command
+        never interleaves with a reconnect.
+        """
+        with self._write_lock:
+            ser = self._ser
+            if ser is None or not self.connected.is_set():
+                return False
+            try:
+                ser.write(data)
+                ser.flush()
+                return True
+            except Exception:
+                return False
 
     def _open(self):
         import serial
@@ -206,6 +225,8 @@ class SerialSource(Source):
                 self._stop.wait(self.reconnect_s)
                 continue
             self.stats.connects += 1
+            with self._write_lock:
+                self._ser = ser
             self.connected.set()
             self.on_status(f"connected on {self.port}")
             try:
@@ -218,6 +239,8 @@ class SerialSource(Source):
                 self.stats.disconnects += 1
             finally:
                 self.connected.clear()
+                with self._write_lock:
+                    self._ser = None
                 try:
                     ser.close()
                 except Exception:

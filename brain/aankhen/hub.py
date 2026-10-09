@@ -12,10 +12,12 @@ pipeline thinks they are.
 """
 from __future__ import annotations
 
+import json
 import math
 import os
 import threading
 import time
+from pathlib import Path
 from typing import Optional
 
 import numpy as np
@@ -23,6 +25,7 @@ from scipy.optimize import linear_sum_assignment
 
 from .engine import Engine, run_engine
 from .motion import Baseline
+from .protocol import Frame, FrameType
 from .room import Room, load_room
 from .simulator import SCENARIOS, Simulator, SimulatorSource
 from .transport import ReplaySource, SerialSource, find_esp32_port
@@ -49,6 +52,8 @@ class AankhenHub:
         self._thread: Optional[threading.Thread] = None
         self._lock = threading.RLock()
         self._sim_baseline: Optional[Baseline] = None
+        self._cmd_seq = 0
+        self.recordings_dir = Path(HERE) / "recordings"
 
     # ------------------------------------------------------------ lifecycle
     def start(self, mode: str = "auto", scenario: str = "evening", port: Optional[str] = None,
@@ -59,6 +64,13 @@ class AankhenHub:
             if mode == "auto":
                 mode = "hardware" if (port or find_esp32_port()) else "simulation"
             if mode == "hardware":
+                # Asked for the board explicitly but none is plugged in: say so,
+                # instead of silently switching to a source that waits forever
+                # (the "ESP32" button used to do exactly that).
+                if not port and not find_esp32_port():
+                    raise FileNotFoundError(
+                        "No ESP32 found on USB. Plug it in with a data cable (charge-only cables "
+                        "look identical), then press ESP32 again.")
                 source = SerialSource(port)
                 baseline = Baseline.load(BASELINE_FILE)
             elif mode == "replay":
@@ -122,6 +134,31 @@ class AankhenHub:
                          if self.engine and self.engine.motion.baseline else "none"),
             "error": self.error,
         }
+
+    # ------------------------------------------------------------ commands
+    @property
+    def can_command(self) -> bool:
+        """True when a real board is attached and can take commands."""
+        return isinstance(self.source, SerialSource) and self.source.connected.is_set()
+
+    def command(self, payload: dict) -> bool:
+        """Send one JSON command frame down the USB link (e.g. a relay switch).
+
+        Returns False when no board is connected — callers treat that as "not
+        delivered", never as success.
+        """
+        src = self.source
+        if not isinstance(src, SerialSource):
+            return False
+        body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        self._cmd_seq = (self._cmd_seq + 1) & 0xFFFF
+        frame = Frame(FrameType.COMMAND, self._cmd_seq, int(time.time() * 1e6), body)
+        return src.write(frame.encode())
+
+    def device_status(self) -> dict:
+        """The board's last STATUS report (includes relay states), if any."""
+        eng = self.engine
+        return dict(eng.device_status) if eng is not None else {}
 
     # ------------------------------------------------------------ messages
     def link(self) -> dict:

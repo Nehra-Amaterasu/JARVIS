@@ -434,6 +434,10 @@ def main(argv=None) -> int:
     v.add_argument("--analyse", metavar="DIR", help="re-analyse a previous session's recordings")
     v.add_argument("--no-hallway", action="store_true", help="skip the walk outside the door")
 
+    fl = sub.add_parser("firstlight", help="2-minute voice-guided test: does the real board see you?")
+    fl.add_argument("--port")
+    fl.add_argument("--no-voice", action="store_true")
+
     ln = sub.add_parser("learn", help="spatial model trained on data: simulate, train, evaluate")
     ln.add_argument("action", choices=["simulate", "train", "eval"],
                     help="simulate: build a simulated dataset · train: fit the model · eval: score it")
@@ -449,7 +453,8 @@ def main(argv=None) -> int:
     a = p.parse_args(argv)
     return {"doctor": cmd_doctor, "serve": cmd_serve, "record": cmd_record,
             "calibrate": cmd_calibrate, "bench": cmd_bench, "simulate": cmd_simulate,
-            "physics": cmd_physics, "validate": cmd_validate, "learn": cmd_learn}[a.cmd](a)
+            "physics": cmd_physics, "validate": cmd_validate, "learn": cmd_learn,
+            "firstlight": lambda a: __import__("aankhen.firstlight", fromlist=["main"]).main(a.port, not a.no_voice)}[a.cmd](a)
 
 
 if __name__ == "__main__":

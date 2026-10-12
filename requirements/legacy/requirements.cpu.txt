@@ -1,4 +1,12 @@
-﻿aiohappyeyeballs==2.7.1
+# LEGACY. Not maintained, not checked, do not install from it.
+# A frozen package list from the first commit (2026-07-24), before the memory moved to
+# LanceDB: it pins stacks the code no longer uses (mem0ai, chromadb, qdrant-client,
+# exllamav2, langgraph) and lacks the memory store (lancedb) and the app's packages
+# (fastapi, pywebview, psutil). There is no CPU-only JARVIS today: core/jarvis.py
+# runs Whisper with device="cuda".
+# The install file is requirements/requirements.gpu.txt (checked against the imports
+# by requirements/check_requirements.py). Kept, like every legacy/ folder, for reference.
+aiohappyeyeballs==2.7.1
 aiohttp==3.14.2
 aiosignal==1.4.0
 annotated-doc==0.0.4

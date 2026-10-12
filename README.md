@@ -135,7 +135,8 @@ docs/
   DECISIONS.md              engineering log: every change, with evidence
   TESTING.md                spoken capability test protocol
   research/  design/  vision/
-requirements/             pinned environment (Python 3.11) + link_venv.py
+requirements/             what the code imports, pinned (Python 3.11); checked by
+                            check_requirements.py; link_venv.py
 data/                     everything personal — git-ignored, never pushed
 ```
 
@@ -151,14 +152,16 @@ reference, never imported.
 
 ```bash
 python -m venv .venv
-.venv/Scripts/python.exe -m pip install -r requirements/requirements.gpu.txt
+.venv/Scripts/python.exe -m pip install -r requirements/requirements.gpu.txt -c requirements/constraints.gpu.txt
 .venv/Scripts/python.exe requirements/link_venv.py
 ollama pull qwen3:4b-instruct-2507-q4_K_M
 .venv/Scripts/pythonw.exe app/JARVIS.pyw
 ```
 
-`link_venv.py` puts `core/`, `yaadash/` and the root on the venv's import path;
-run it again if the folder ever moves. The app starts JARVIS's voice loop from its
+`requirements.gpu.txt` lists exactly what the code imports (a test fails if it
+drifts); `constraints.gpu.txt` pins everything those packages pull in, and torch
+comes from PyTorch's CUDA 12.1 index. `link_venv.py` puts `core/`, `yaadash/` and
+the root on the venv's import path; run it again if the folder ever moves. The app starts JARVIS's voice loop from its
 Core tab; without the app, `.venv/Scripts/python.exe core/jarvis.py` runs it alone.
 Say **"hey jarvis"**, then speak. To build memory from your own Instagram data
 export (placed in `~/Downloads`):
@@ -167,7 +170,9 @@ export (placed in `~/Downloads`):
 .venv/Scripts/python.exe yaadash/refresh_memory.py
 ```
 
-Tests: `.venv/Scripts/python.exe -m pytest aankhen/tests`, then from `app/`,
+Tests, each suite on its own: `.venv/Scripts/python.exe -m pytest aankhen/tests`,
+`... -m pytest yaadash/tests` (memory recall on a synthetic history, in a scratch
+store), `... -m pytest requirements`, then from `app/`,
 `../.venv/Scripts/python.exe -m pytest tests` and `npx vitest run` in `app/ui/`.
 
 ---

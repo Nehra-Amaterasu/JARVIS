@@ -1,0 +1,63 @@
+{
+  "_readme": [
+    "EXAMPLE circuits for a generic flat. It is NOT anyone's real home and NOT a real tariff.",
+    "Copy this file to data/app/circuits.json (JARVIS_DATA_DIR) and edit it there: that copy is",
+    "git-ignored and never committed. Rated watts come from each appliance's label; the relay",
+    "channel is the relay that carries the circuit (null = tracked only, never switched).",
+    "JARVIS refuses, in code, to put an AC, geyser or heater on a relay, and anything drawing",
+    "more than 5.6 A (80% of a 7 A relay's rating) - whatever this file says."
+  ],
+  "example": true,
+  "relay_channels": 12,
+  "circuits": [
+    {"id": "L1", "name": "Bedroom tube light", "room": "bedroom", "kind": "light", "rated_w": 20,
+     "relay": 1, "safe_7a": true, "alias": "light"},
+    {"id": "L2", "name": "Bedroom wall lamp", "room": "bedroom", "kind": "light", "rated_w": 9,
+     "relay": 2, "safe_7a": true},
+    {"id": "L3", "name": "Hall tube light", "room": "hall", "kind": "light", "rated_w": 20,
+     "relay": 3, "safe_7a": true},
+    {"id": "L4", "name": "Hall LED panel", "room": "hall", "kind": "light", "rated_w": 15,
+     "relay": 4, "safe_7a": true},
+    {"id": "L5", "name": "Kitchen tube light", "room": "kitchen", "kind": "light", "rated_w": 20,
+     "relay": 5, "safe_7a": true},
+    {"id": "L6", "name": "Bathroom bulb", "room": "bathroom", "kind": "light", "rated_w": 9,
+     "relay": 6, "safe_7a": true},
+    {"id": "L7", "name": "Balcony bulb", "room": "balcony", "kind": "light", "rated_w": 9,
+     "relay": 7, "safe_7a": true},
+    {"id": "L8", "name": "Night lamp", "room": "bedroom", "kind": "light", "rated_w": 3,
+     "relay": 8, "safe_7a": true, "must_not_auto_off": true,
+     "note": "left on for whoever walks to the bathroom at night"},
+    {"id": "F1", "name": "Bedroom ceiling fan", "room": "bedroom", "kind": "fan", "rated_w": 75,
+     "relay": 9, "safe_7a": true, "alias": "fan",
+     "speed_steps": 5, "watts_by_step": [24, 36, 48, 62, 75],
+     "note": "example step watts for a 1200 mm fan on a capacitor regulator - measure yours"},
+    {"id": "AC1", "name": "Bedroom AC (1.5 ton)", "room": "bedroom", "kind": "ac", "rated_w": 1500,
+     "relay": null, "safe_7a": false,
+     "note": "label input power; an inverter AC averages well below it. IR control is planned, never a relay"},
+    {"id": "G1", "name": "Bathroom geyser (15 L)", "room": "bathroom", "kind": "geyser", "rated_w": 2000,
+     "relay": null, "safe_7a": false, "remind_after_min": 25,
+     "note": "tracked when you say it is on; JARVIS reminds you, he never switches it"}
+  ],
+  "tariff": {
+    "name": "EXAMPLE slabs - replace with your DISCOM's domestic tariff",
+    "example": true,
+    "currency": "INR",
+    "telescopic": true,
+    "base_kwh_month": 0,
+    "slabs": [
+      {"upto_kwh": 100, "rate": 3.0},
+      {"upto_kwh": 300, "rate": 4.5},
+      {"upto_kwh": 500, "rate": 6.5},
+      {"upto_kwh": null, "rate": 8.0}
+    ],
+    "note": "energy charge only: fixed charges, electricity duty and taxes are not included. base_kwh_month is the rest of the house's monthly units from your bill, so these circuits are priced at the slab they really fall in"
+  },
+  "waste": {
+    "sensed_room": "bedroom",
+    "grace_min": 5,
+    "nudge_after_min": 20,
+    "auto_off": {"enabled": false, "after_min": 45, "min_after_nudge_min": 10},
+    "night": {"start": "23:00", "end": "07:00"},
+    "speak_at_night": false
+  }
+}

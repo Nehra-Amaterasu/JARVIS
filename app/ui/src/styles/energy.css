@@ -1,0 +1,123 @@
+/* ==========================================================================
+   Energy card (components/EnergyCard.tsx). Same materials as every card; the
+   numbers are amber because they are estimates (tokens.css: provenance).
+   ========================================================================== */
+.energy { margin-top: 18px; display: flex; flex-direction: column; gap: 16px; }
+.energy .card-head { margin-bottom: 0; }
+.energy .card-title { gap: 8px; }
+.energy-head-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+
+.energy-skeleton { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.energy-error {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: var(--r);
+  background: var(--fault-2); color: var(--fault); font-size: 13px;
+}
+.energy-error span { flex: 1; }
+
+/* ---------------------------------------------------------------- the numbers */
+.energy-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.estat {
+  display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-radius: var(--r);
+  background: rgba(255, 255, 255, 0.025); box-shadow: inset 0 0 0 1px var(--hair);
+  min-width: 0;
+}
+.estat-num { font-size: 34px; line-height: 1; white-space: nowrap; }
+.estat-num small { font: 600 12px var(--f-mono); color: var(--ink-3); letter-spacing: 0.04em; }
+.estat-num.sim { color: var(--sim); }
+.estat-num.live { color: var(--live); }
+.estat .mono { font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------------------------------------------------------------- per hour / per day */
+.espark { display: flex; align-items: flex-end; gap: 3px; height: 54px; padding: 0 2px; }
+.espark i {
+  flex: 1; min-width: 2px; border-radius: 2px 2px 1px 1px; background: var(--sim);
+  opacity: 0.85; transition: height 700ms var(--spring-calm), opacity var(--t);
+}
+.espark i:hover { opacity: 1; filter: brightness(1.2); }
+.espark i.future { background: rgba(255, 255, 255, 0.06); opacity: 1; }
+.espark i.zero { background: rgba(255, 255, 255, 0.14); opacity: 1; }
+.espark-axis { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--ink-4); margin-top: -10px; }
+
+.energy-note {
+  display: flex; gap: 10px; align-items: flex-start; margin: 0; padding: 10px 14px;
+  border-radius: var(--r-sm); background: var(--sim-2); color: #ffd58a; font-size: 12.5px; line-height: 1.5;
+}
+.energy-note svg { flex: none; margin-top: 2px; }
+.energy-problems { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.energy-problems li {
+  display: flex; gap: 8px; align-items: flex-start; padding: 8px 12px; border-radius: var(--r-sm);
+  background: var(--fault-2); color: var(--fault); font-size: 12px;
+}
+
+/* ---------------------------------------------------------------- two columns */
+.energy-cols { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.ecirc, .ewatch { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+
+.erow {
+  display: grid; align-items: center; gap: 10px;
+  grid-template-columns: 8px minmax(130px, 1.3fr) minmax(50px, 1fr) 84px auto auto;
+  padding: 7px 10px; border-radius: var(--r-sm);
+  transition: background var(--t) var(--ease);
+}
+.erow:hover { background: rgba(255, 255, 255, 0.035); }
+.erow-led { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, 0.12); transition: background var(--t), box-shadow var(--t); }
+.erow-led.sim { background: var(--sim); box-shadow: 0 0 10px rgba(255, 176, 32, 0.6); animation: breatheGlow 2.4s var(--ease-in-out) infinite; }
+.erow-led.live { background: var(--live); box-shadow: 0 0 10px var(--live-glow); animation: breatheGlow 2.4s var(--ease-in-out) infinite; }
+.erow-name { display: flex; flex-direction: column; min-width: 0; }
+.erow-name b { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.erow-name .mono { font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.erow-bar { height: 5px; }
+.erow-kwh { text-align: right; font-size: 11.5px; white-space: nowrap; }
+.erow-kwh.sim { color: var(--sim); }
+.erow-kwh.live { color: var(--live); }
+.erow-chip, .erow-mark { height: 22px; padding: 0 9px; font-size: 10.5px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.erow-chip { font-family: var(--f-mono); }
+.erow-chip.fault { color: var(--fault); background: var(--fault-2); box-shadow: none; }
+.erow-chip.muted { color: var(--ink-3); }
+.erow:not(.on) .erow-mark { color: var(--ink-3); }
+
+/* ---------------------------------------------------------------- empty-room watch */
+.ewatch-status { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; padding-bottom: 4px; }
+.ewatch-status .pill { align-self: flex-start; }
+.eauto {
+  display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: var(--r);
+  background: rgba(255, 255, 255, 0.025); box-shadow: inset 0 0 0 1px var(--hair);
+}
+.eauto b { display: block; font-size: 13px; margin-bottom: 3px; }
+.eauto span { font-size: 11.5px; color: var(--ink-3); line-height: 1.45; }
+.enotes { font-size: 11px; }
+
+.enudges { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow: auto; }
+.enudge {
+  padding: 10px 12px; border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.03); box-shadow: inset 0 0 0 1px var(--hair);
+}
+.enudge.sim { box-shadow: inset 0 0 0 1px rgba(255, 176, 32, 0.25); }
+.enudge-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--ink-3); }
+.enudge-top .pill { height: 18px; font-size: 9.5px; padding: 0 7px; }
+.enudge p { margin: 6px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); user-select: text; }
+.enudge .btn { margin-top: 8px; }
+.enudge-empty { padding: 18px 12px; font-size: 12px; }
+
+.energy-foot {
+  display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 10.5px; color: var(--ink-4);
+  padding-top: 10px; border-top: 1px solid var(--hair);
+}
+
+/* ---------------------------------------------------------------- narrow windows and phones
+   Sized by the card's own width (container queries), not the viewport: the same
+   card sits in a wide Limbs page or a narrow phone column. */
+.energy { container-type: inline-size; }
+@container (max-width: 860px) {
+  .energy-cols { grid-template-columns: 1fr; }
+}
+@container (max-width: 560px) {
+  .energy-stats { grid-template-columns: 1fr; }
+  .estat-num { font-size: 28px; }
+  /* led · name · kWh on the first line, the bar under them, the chips wrapping below */
+  .erow { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+  .erow-name { flex: 1 1 0; }
+  .erow-bar { order: 5; flex: 1 1 100%; }
+  .erow-chip { order: 6; }
+  .erow-mark { order: 7; }
+}

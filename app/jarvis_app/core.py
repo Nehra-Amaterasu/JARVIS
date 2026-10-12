@@ -266,6 +266,15 @@ class CoreProcess:
                         self.room_boot_listener()
             elif kind == "speech_done":
                 self.bus.publish("core", "speech_done", ephemeral=True)
+            elif kind == "receipt":
+                # What a tool really did (core/tools): the evidence behind a reply.
+                receipt = {k: v for k, v in ev.items() if k not in ("kind", "t")}
+                self.bus.publish("core", "receipt", str(ev.get("did") or "")[:200], receipt=receipt,
+                                 sim=bool(ev.get("simulated")))
+            elif kind == "honesty":
+                replaced = ev.get("replaced") or []
+                self.bus.publish("core", "honesty", f"Replaced {len(replaced)} unbacked claim(s) in a reply",
+                                 replaced=replaced)
             elif kind in ("error", "diagnosis"):
                 msg = ev.get("message") or ev.get("text") or ""
                 if kind == "error":

@@ -1,0 +1,55 @@
+/* ==========================================================================
+   Reminders card + the alert that pops when one is due (components/Reminders*.tsx).
+   Same materials as every card; colour is provenance: cyan = spoken by JARVIS,
+   amber = a switch in the virtual room, red = missed or skipped.
+   ========================================================================== */
+.reminders { padding: 18px 16px; }
+.reminders .card-head { padding: 0 6px; margin-bottom: 12px; }
+
+.rem-form { display: flex; gap: 8px; margin-bottom: 12px; }
+.rem-form .field { height: 38px; font-size: 13px; }
+.rem-form .btn { flex: none; }
+
+.rem-list { display: flex; flex-direction: column; }
+.rem-row {
+  display: grid; grid-template-columns: 22px 1fr auto auto; gap: 10px; align-items: center;
+  padding: 8px 6px; border-radius: 12px;
+  transition: background var(--t-fast) var(--ease);
+}
+.rem-row + .rem-row { border-top: 1px solid var(--hair); }
+.rem-row:hover { background: rgba(255, 255, 255, 0.035); }
+.rem-row svg { color: var(--ink-3); }
+.rem-row.timer svg { color: var(--live); }
+.rem-row.action svg { color: var(--sim); }
+.rem-what { min-width: 0; }
+.rem-what b { display: block; font-weight: 550; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rem-when { font: 500 11px var(--f-mono); color: var(--ink-3); margin-top: 2px; }
+.rem-count { font-family: var(--f-dot); font-weight: 700; font-size: 15px; color: var(--live); font-variant-numeric: tabular-nums; }
+.rem-row .btn.icon { width: 28px; height: 28px; opacity: 0.55; }
+.rem-row:hover .btn.icon { opacity: 1; }
+
+.rem-recent { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--hair); }
+.rem-recent .eyebrow { display: block; margin: 0 6px 6px; }
+.rem-past { display: flex; gap: 8px; align-items: baseline; padding: 4px 6px; font-size: 12px; color: var(--ink-2); }
+.rem-past .pill { height: 18px; padding: 0 7px; font-size: 9.5px; flex: none; }
+.rem-past span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rem-note { margin: 10px 6px 0; font-size: 11px; }
+
+/* the alert: one glass stack, bottom right, above the dock */
+.rem-alerts {
+  position: fixed; right: 20px; bottom: calc(var(--dock) + var(--ticker) + 16px); z-index: 60;
+  display: flex; flex-direction: column; gap: 10px; width: min(380px, calc(100vw - 40px));
+}
+.rem-alert {
+  display: grid; grid-template-columns: 26px 1fr; gap: 12px; padding: 14px 16px;
+  border-radius: var(--r-lg); background: var(--glass-thick);
+  backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+  box-shadow: var(--glass-edge), var(--shadow);
+}
+.rem-alert > svg { margin-top: 2px; color: var(--ink-2); }
+.rem-alert.live > svg { color: var(--live); }
+.rem-alert.sim > svg { color: var(--sim); }
+.rem-alert.fault > svg { color: var(--fault); }
+.rem-alert p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.4; }
+.rem-alert .mono { display: block; margin-bottom: 10px; font-size: 10.5px; }
+.rem-alert-actions { display: flex; gap: 8px; }

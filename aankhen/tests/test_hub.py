@@ -48,6 +48,6 @@ def test_serial_write_without_a_port_is_refused():
 
 
 def test_asking_for_the_board_when_none_is_plugged_in_says_so(monkeypatch):
-    monkeypatch.setattr(hub_mod, "find_esp32_port", lambda: None)
+    monkeypatch.setattr(hub_mod, "find_esp32_port", lambda force=False: None)
     with pytest.raises(FileNotFoundError, match="No ESP32"):
         AankhenHub().start("hardware")

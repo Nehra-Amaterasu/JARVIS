@@ -77,6 +77,16 @@ arduino-cli upload  --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc -p COM9 aankhen/fir
 Use the board's native USB port (it shows up as Espressif `303A`). Use a data
 cable; charge-only cables are common and look identical.
 
+Close the JARVIS app (or stop Aankhen) before uploading: while Aankhen uses the
+board it holds the port, and the upload would find it busy.
+
+How JARVIS finds the board: not by its USB id (a CH340 is on ESP32 boards and on
+Arduino Uno clones alike) but by what it says. Each USB serial port is listened to,
+never written to, until a CRC-valid Aankhen frame arrives; the 1 Hz STATUS frame is
+the handshake. Nothing is sent to a port before that, so an Uno plugged in beside the
+ESP32 never receives a relay command. A board plugged in while the app runs is picked
+up within a few seconds of its first STATUS frame (`aankhen/boards.py`).
+
 ## 5. Check it
 
 ```bash

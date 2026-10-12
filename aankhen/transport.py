@@ -27,18 +27,24 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable, Iterator, Optional
 
-from .protocol import StreamDecoder, decode_packet
+from .protocol import FrameType, StreamDecoder, decode_packet
 
-# USB vendor IDs of the bridges ESP32 boards use. The ESP32-S3's built-in USB
-# (USB-Serial-JTAG) enumerates as Espressif 0x303A; many dev boards also carry a
-# separate UART bridge chip. Bluetooth "serial ports" (COM3-COM6 on this laptop)
-# have no USB VID and are excluded — opening one of those just hangs.
-ESP_USB_VIDS = {
+# USB-serial chips by vendor id. A HINT, never an identification: it orders the
+# probes and describes a port. What a board IS comes from what it says (boards.py):
+# the CH340 is on ESP32 dev boards and on every cheap Arduino Uno clone alike, and an
+# Arduino Nano ESP32 is an ESP32-S3 behind Arduino's own id. Bluetooth "serial ports"
+# (COM3-COM6 on this laptop) have no USB id and are left out: opening one just hangs.
+USB_SERIAL_CHIPS = {
     0x303A: "Espressif native USB (ESP32-S3 USB-Serial-JTAG)",
-    0x1A86: "WCH CH340 / CH343 USB-UART bridge",
     0x10C4: "Silicon Labs CP210x USB-UART bridge",
+    0x1A86: "WCH CH340 / CH343 USB-UART bridge",
     0x0403: "FTDI USB-UART bridge",
+    0x2341: "Arduino (ATmega16U2 or native USB)",
+    0x2A03: "Arduino.org board",
 }
+# Probe order: the native Espressif port first (no bridge chip: almost surely an
+# ESP32), then the bridges ESP32 dev boards use, then Arduino's ids, then the rest.
+_HINT_RANK = {0x303A: 0, 0x10C4: 1, 0x1A86: 1, 0x0403: 1, 0x2341: 2, 0x2A03: 2}
 DEFAULT_BAUD = 921_600     # the native USB port ignores baud; a UART bridge needs it
 RECORD_MAGIC = b"AKR1"
 
@@ -51,29 +57,68 @@ class PortCandidate:
     pid: Optional[int]
     description: str
     chip: str
+    serial_number: Optional[str] = None
+
+    @property
+    def hint_rank(self) -> int:
+        if self.vid is None:
+            return 4
+        return _HINT_RANK.get(self.vid, 3)
+
+    @property
+    def key(self) -> tuple:
+        """Identity while plugged in: a different device on the same COM number is a
+        different key (a CH340 has no serial number, so the ids carry it)."""
+        return (self.device, self.vid, self.pid, self.serial_number)
 
     def __str__(self) -> str:
         ids = f"{self.vid:04X}:{self.pid:04X}" if self.vid is not None else "no USB id"
         return f"{self.device}  [{ids}]  {self.chip or self.description}"
 
 
-def list_candidate_ports(include_all: bool = False) -> list[PortCandidate]:
-    """Serial ports that look like an ESP32, best match first."""
-    from serial.tools import list_ports
+def list_candidate_ports(include_all: bool = False, comports: Optional[Callable] = None) -> list[PortCandidate]:
+    """Every USB serial port, the likeliest ESP32 first. Listing opens nothing.
+
+    This is not an identification (see boards.py); include_all adds the ports with
+    no USB id. `comports` replaces pyserial's list_ports.comports (tests).
+    """
+    if comports is None:
+        from serial.tools import list_ports
+        comports = list_ports.comports
     out = []
-    for p in list_ports.comports():
-        chip = ESP_USB_VIDS.get(p.vid, "")
-        if not chip and not include_all:
+    for p in comports():
+        vid = getattr(p, "vid", None)
+        if vid is None and not include_all:
             continue
-        out.append(PortCandidate(p.device, p.vid, p.pid, p.description or "", chip))
-    # Prefer the native Espressif port: no bridge chip, no baud limit.
-    out.sort(key=lambda c: (c.vid != 0x303A, c.device))
+        out.append(PortCandidate(p.device, vid, getattr(p, "pid", None), getattr(p, "description", "") or "",
+                                 USB_SERIAL_CHIPS.get(vid, ""), getattr(p, "serial_number", None)))
+    out.sort(key=lambda c: (c.hint_rank, c.device))
     return out
 
 
-def find_esp32_port() -> Optional[str]:
-    c = list_candidate_ports()
-    return c[0].device if c else None
+def open_serial(port: str, baud: int = DEFAULT_BAUD, timeout: float = 0.05):
+    """Open a port without resetting what is behind it, as far as the host can.
+
+    Opening an ESP32 port with DTR/RTS asserted can reset the chip or drop it into the
+    bootloader, and DTR is an Uno's reset line: deassert both BEFORE opening. (Some
+    Windows CH340 drivers still pulse DTR at open; boards.py probes sparingly for it.)
+    """
+    import serial
+    ser = serial.Serial()
+    ser.port, ser.baudrate, ser.timeout = port, baud, timeout
+    ser.dtr = False
+    ser.rts = False
+    ser.open()
+    return ser
+
+
+def find_esp32_port(force: bool = False) -> Optional[str]:
+    """The port of a board that has SAID it is an Aankhen board (boards.py), or None.
+
+    force asks every port again (a person pressed a button); otherwise ports that
+    already answered "not Aankhen" are left alone."""
+    from .boards import default_finder
+    return default_finder().find(force=force)
 
 
 # ------------------------------------------------------------------ sources
@@ -173,24 +218,43 @@ class Source:
 
 
 class SerialSource(Source):
-    """Live ESP32 over USB serial, with auto-detection and auto-reconnect."""
+    """Live ESP32 over USB serial, with auto-detection and auto-reconnect.
+
+    `connected` means the HANDSHAKE: this connection has delivered at least one
+    CRC-valid frame from the board. Until then nothing is written to the port — not
+    on the strength of a USB vendor id, nor of an earlier probe — so whatever else is
+    behind a COM number (an Arduino Uno) never receives an Aankhen frame.
+    """
 
     kind = "hardware"
+    # Longer than the firmware's Wi-Fi join (setup() blocks up to 20 s, silent): an
+    # auto-picked port that says nothing for this long is let go and looked at again.
+    HANDSHAKE_TIMEOUT_S = 30.0
 
     def __init__(self, port: Optional[str] = None, baud: int = DEFAULT_BAUD,
-                 reconnect_s: float = 2.0, on_status: Optional[Callable[[str], None]] = None):
+                 reconnect_s: float = 2.0, on_status: Optional[Callable[[str], None]] = None,
+                 opener: Optional[Callable] = None, finder=None,
+                 handshake_timeout_s: Optional[float] = None):
         super().__init__()
         self.requested_port = port
         self.port: Optional[str] = None
         self.baud = baud
         self.reconnect_s = reconnect_s
         self.on_status = on_status or (lambda msg: None)
-        self.connected = threading.Event()
+        self.opener = opener or open_serial
+        self.finder = finder                   # boards.BoardFinder; None -> the process-wide one
+        self.handshake_timeout_s = (self.HANDSHAKE_TIMEOUT_S if handshake_timeout_s is None
+                                    else handshake_timeout_s)
+        self.connected = threading.Event()     # the handshake, see the class docstring
+        self.handshake_at: Optional[float] = None
+        self.opened_at: Optional[float] = None
+        self.fw: Optional[str] = None
         self._ser = None
         self._write_lock = threading.Lock()
 
     def write(self, data: bytes) -> bool:
-        """Send bytes to the board (host -> device commands). False if not connected.
+        """Send bytes to the board (host -> device commands). False unless the board on
+        the current connection has identified itself (see the class docstring).
 
         The reader thread owns the port object; writes take a lock so a command
         never interleaves with a reconnect.
@@ -206,39 +270,61 @@ class SerialSource(Source):
             except Exception:
                 return False
 
+    def _boards(self):
+        if self.finder is None:
+            from .boards import default_finder
+            self.finder = default_finder()
+        return self.finder
+
     def _open(self):
-        import serial
-        port = self.requested_port or find_esp32_port()
+        port = self.requested_port or self._boards().find()
         if not port:
-            raise OSError("no ESP32 serial port found (is it plugged in with a DATA cable?)")
-        ser = serial.Serial()
-        ser.port, ser.baudrate, ser.timeout = port, self.baud, 0.05
-        # Opening an ESP32 port with DTR/RTS asserted can reset the chip or drop it
-        # into the bootloader. Deassert both BEFORE opening.
-        ser.dtr = False
-        ser.rts = False
-        ser.open()
+            raise OSError("no Aankhen board answered on USB (plugged in with a DATA cable, and flashed?)")
+        ser = self.opener(port, self.baud)
         self.port = port
         return ser
+
+    def _emit(self, frame) -> None:
+        if frame.type != FrameType.COMMAND:            # the board speaking, not an echo of us
+            if frame.type == FrameType.STATUS:
+                from .boards import status_fw
+                self.fw = status_fw(frame) or self.fw
+            if not self.connected.is_set():
+                self.handshake_at = time.time()
+                self.connected.set()
+                took = time.monotonic() - self.opened_at if self.opened_at else 0.0
+                self.on_status(f"handshake on {self.port}: {frame.type.name} frame, CRC ok, "
+                               f"{took:.1f} s after opening")
+        super()._emit(frame)
 
     def _run(self) -> None:
         while not self._stop.is_set():
             try:
                 ser = self._open()
-            except OSError as e:
+            except Exception as e:           # OSError/SerialException, or a driver's own
                 self.on_status(f"waiting for ESP32: {e}")
                 self._stop.wait(self.reconnect_s)
                 continue
             self.stats.connects += 1
+            boards = self._boards()
+            boards.claim(self.port, self)
+            self.connected.clear()
+            self.opened_at = time.monotonic()
             with self._write_lock:
                 self._ser = ser
-            self.connected.set()
-            self.on_status(f"connected on {self.port}")
+            self.on_status(f"opened {self.port}; waiting for the board's first frame")
+            auto = self.requested_port is None
             try:
                 while not self._stop.is_set():
                     data = ser.read(4096)
                     if data:
                         self._ingest(data)
+                    if (auto and not self.connected.is_set()
+                            and time.monotonic() - self.opened_at > self.handshake_timeout_s):
+                        self.on_status(f"{self.port} sent no Aankhen frame in "
+                                       f"{self.handshake_timeout_s:.0f} s; letting it go")
+                        boards.forget(self.port)
+                        break
             except Exception as e:           # unplugged, driver error, etc.
                 self.on_status(f"disconnected: {e}")
                 self.stats.disconnects += 1
@@ -246,6 +332,7 @@ class SerialSource(Source):
                 self.connected.clear()
                 with self._write_lock:
                     self._ser = None
+                boards.release(self.port, self)
                 try:
                     ser.close()
                 except Exception:

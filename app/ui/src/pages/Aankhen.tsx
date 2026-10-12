@@ -24,6 +24,7 @@ import { api, openSocket, post } from '../lib/api'
 import { fmt, fmtDur } from '../lib/format'
 import { Presence, Ticker } from '../lib/motion'
 import { useStore, type Toast } from '../lib/store'
+import { FirstLightSheet } from '../components/FirstLight'
 import { SpatialTwin, type FrameMsg, type Framing, type HeatMsg, type Layer, type RoomSpec } from '../twin/SpatialTwin'
 
 interface HubInfo { running: boolean; mode: string | null; kind: string | null; scenario: string | null; scenarios: string[]; baseline: string; error: string | null; layout?: string }
@@ -81,6 +82,7 @@ export function AankhenPage() {
   const [layers, setLayers] = useState<Record<Layer, boolean>>({ walls: true, heat: true, fov: true, fresnel: true, trails: true, labels: true, truth: true, house: true })
   const [hist, setHist] = useState<{ score: number; thr: number }[]>([])
   const [teachOpen, setTeachOpen] = useState(false)
+  const [flOpen, setFlOpen] = useState(false)
   const lastUi = useRef(0)
 
   useEffect(() => {
@@ -192,13 +194,16 @@ export function AankhenPage() {
             ))}
           </div>
           <button className="btn icon sm ghost" aria-label="Reset camera" title="Reset camera" onClick={() => twin.current?.resetCamera()}><RotateCcw size={14} /></button>
-          <button className={`btn sm teach-btn ${teach.status?.recording ? 'recording' : ''}`} onClick={() => setTeachOpen((o) => !o)} aria-expanded={teachOpen}>
+          <button className={`btn sm teach-btn ${frame?.source === 'hardware' ? 'live' : ''}`} onClick={() => { setTeachOpen(false); setFlOpen((o) => !o) }} aria-expanded={flOpen}>
+            <Sparkles size={14} />First light
+          </button>
+          <button className={`btn sm ${teach.status?.recording ? 'recording-btn' : ''}`} onClick={() => { setFlOpen(false); setTeachOpen((o) => !o) }} aria-expanded={teachOpen}>
             {teach.status?.recording ? <i className="rec-dot" /> : <GraduationCap size={14} />}
             {teach.status?.recording ? 'Teaching' : 'Teach'}
           </button>
         </div>
 
-        <Presence show={!teachOpen}>
+        <Presence show={!teachOpen && !flOpen}>
           <div className="hud hud-bc">
             {(frame?.events ?? []).slice(-4).reverse().map((e, i) => (
               <div key={e.id} className={`twin-event ${i === 0 ? 'newest' : ''}`}>
@@ -209,6 +214,9 @@ export function AankhenPage() {
         </Presence>
         <Presence show={teachOpen}>
           <TeachSheet t={teach} onClose={() => setTeachOpen(false)} />
+        </Presence>
+        <Presence show={flOpen}>
+          <FirstLightSheet frame={frame} live={frame?.source === 'hardware' && online} onClose={() => setFlOpen(false)} toast={toast} />
         </Presence>
       </div>
     </div>
@@ -427,7 +435,12 @@ function MotionCard({ frame, hist }: { frame: FrameMsg | null; hist: { score: nu
     g.fillStyle = `rgba(${col},1)`; g.beginPath(); g.arc(x(299), y(last.score), 2.6, 0, Math.PI * 2); g.fill()
   }, [hist, sim])
   // human band on a 0..3x-threshold scale: the threshold sits at a third
-  const hbPct = hb?.ratio != null ? Math.min(100, (hb.ratio / 3) * 100) : 0
+  // Calibrated: against its threshold (0..3x, threshold at a third). Before calibration:
+  // against noise on a log scale (1x..50x), with the 1.6x start gate marked.
+  const calibrated = hb?.ratio != null
+  const hbPct = calibrated ? Math.min(100, (hb!.ratio! / 3) * 100)
+    : hb ? Math.min(100, Math.max(0, Math.log(Math.max(hb.energy, 1)) / Math.log(50)) * 100) : 0
+  const gatePct = calibrated ? 33.3 : hb ? (Math.log(hb.start_gate) / Math.log(50)) * 100 : 33.3
   return (
     <div className="hud-card glass-thin rise" style={{ ['--i' as string]: 1 }}>
       <div className="hc-head"><span className="eyebrow">Wi-Fi motion</span>
@@ -437,8 +450,9 @@ function MotionCard({ frame, hist }: { frame: FrameMsg | null; hist: { score: nu
       <canvas ref={ref} className="hc-chart" />
       <div className="hb" title="Human-band energy: power at body speeds (0.4–4 Hz) across smooth subcarrier patterns, in units of the window's own noise. It can start motion when the last second is above the start gate.">
         <div className="hb-head mono"><span>human band</span>
-          <span>{hb?.ratio != null ? <><Ticker value={hb.ratio} fmt={(n) => `${n.toFixed(2)}×`} /> its threshold</> : '—'}</span></div>
-        <div className={`meter ${sim ? 'sim' : 'live'}`}><i style={{ width: `${hbPct}%` }} /><b style={{ left: '33.3%' }} /></div>
+          <span>{calibrated ? <><Ticker value={hb!.ratio} fmt={(n) => `${n.toFixed(2)}×`} /> its threshold</>
+            : hb ? <><Ticker value={hb.energy} fmt={(n) => `${n.toFixed(1)}×`} /> noise · uncalibrated</> : '—'}</span></div>
+        <div className={`meter ${sim ? 'sim' : 'live'}`}><i style={{ width: `${hbPct}%` }} /><b style={{ left: `${gatePct}%` }} /></div>
         <div className="hb-foot mono muted">last 1 s {hb ? `${fmt(hb.recent, 2)}× noise` : '—'} · starts at {hb ? `${hb.start_gate}×` : '—'}</div>
       </div>
       <div className="hc-foot mono muted">

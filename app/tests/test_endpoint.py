@@ -430,6 +430,7 @@ def test_old_rule_vs_new_on_the_same_clips(capsys):
         print(f"  {'clip':30s} pause   new   old/256 old/512 old/1024")
         f = lambda v: "  never" if v is None else f"{v:7.2f}"
         for name, pause, new, olds in rows:
+            name = name.encode("ascii", "replace").decode()   # the console may be cp1252
             print(f"  {name:30s} {pause:4.1f} {new:6.2f} {f(olds[256])} {f(olds[512])} {f(olds[1024])}")
         print(f"  new: median {np.median(new_lat):.2f} s, max {max(new_lat):.2f} s; "
               f"old/256 cut {cut_mid_256} of {n_mid} mid-sentence pauses")

@@ -792,8 +792,18 @@ export class SpatialTwin {
       }
       v.push(now, t, color, this.layers.labels, this.layers.trails)
     }
-    for (const [name, z] of this.zoneViews) z.target = msg.zones[name] ? 1 : 0
-    this.motionTarget = Math.max(0, Math.min(1, msg.motion))
+    // Zones lit by a tracked person count fully. With no radar there are no tracks,
+    // so the learned model's guess (desk / bed / elsewhere in the room) lights its zone
+    // at half strength: shown, never passed off as a measured position.
+    const guess = msg.tracks.length ? null : ({ desk: 'desk', bed: 'bed', room: 'floor' } as Record<string, string>)[msg.learned?.state ?? '']
+    for (const [name, z] of this.zoneViews) z.target = msg.zones[name] ? 1 : name === guess ? 0.45 : 0
+    // The Wi-Fi zone glows with movement. Before a baseline exists the detector makes no
+    // calls (motion 0), but human-band energy is normalised by its own noise (~1 when
+    // nothing moves), so it drives the glow from the first second: 1.6x noise is where
+    // it may start motion, ~30x is waving arms at the desk.
+    const hb = msg.motion_detail.human_band
+    const hbe = hb ? Math.max(0, Math.min(1, Math.log(Math.max(hb.energy, 1) / 1.6) / Math.log(20))) : 0
+    this.motionTarget = Math.max(0, Math.min(1, Math.max(msg.motion, hbe)))
     this.radarTarget = Math.min(1, (msg.rates?.radar_hz ?? 0) / 10)
     this.flowSpeed = (msg.rates?.csi_hz ?? 0) / 100 * 1.6
     // simulation ground truth + the live error line to the matched track

@@ -397,7 +397,10 @@ def test_default_root_follows_the_environment(monkeypatch, tmp_path):
     monkeypatch.setenv("JARVIS_LIBRARY_DIR", str(tmp_path / "elsewhere"))
     assert L.default_root() == tmp_path / "elsewhere"
     monkeypatch.delenv("JARVIS_LIBRARY_DIR")
-    assert L.default_root().parts[-3:] == ("data", "yaadash", "library")
+    # Without the override it lives inside the memory folder, wherever home.py puts
+    # that (data/yaadash normally; a scratch folder under this test session).
+    import home
+    assert L.default_root() == Path(home.YAADASH_DATA) / "library"
 
 
 def test_a_second_handle_sees_new_documents(tmp_path, corpus, fake_embedder):

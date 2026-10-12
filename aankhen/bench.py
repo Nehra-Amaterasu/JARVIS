@@ -282,6 +282,9 @@ def _offline_engine(room: Room, kind: str, baseline: Optional[Baseline]) -> Engi
     return eng
 
 
+CALIBRATION_QUIET_HBE = 3.0     # x noise; an empty, still room sits near 1
+
+
 def calibrate_from_bytes(chunks, device_offset_s: float = 0.0, skip_s: float = 0.0,
                          fan: bool = False) -> Baseline:
     """Empty-room baseline from a byte stream (simulated or recorded).
@@ -289,6 +292,14 @@ def calibrate_from_bytes(chunks, device_offset_s: float = 0.0, skip_s: float = 0
     fan=True calibrates the FAN-ON baseline: the fan must be running, the first
     skip_s (default 10 s) are discarded while the detector locks onto its lines,
     and it refuses if no fan lines were found.
+
+    Only windows QUIET in the human band (HBE < CALIBRATION_QUIET_HBE x noise) count.
+    Found on the first real calibration (2026-10-12): with the room empty, someone
+    elsewhere in the flat moved near the router for most of the 150 s, HBE bursts
+    reached 25x, and the "empty room" threshold came out at 35x, blind to a person at
+    the desk (7-35x). In a real home someone is always moving somewhere; the empty
+    room's noise floor is what is left between those moments. If fewer than
+    baseline_min_s of quiet windows remain, every window is used and the note says so.
     """
     dec, cond = StreamDecoder(), CsiConditioner()
     cfg = MotionConfig()
@@ -296,6 +307,7 @@ def calibrate_from_bytes(chunks, device_offset_s: float = 0.0, skip_s: float = 0
     resp = RespirationDetector()                 # its empty-room floor, from the same capture
     from .learn import FeatureStream, reference_from
     fs, ref_windows = FeatureStream(), []        # the spatial model's empty-room reference
+    windows = []                                 # (mvs, level_var, level_fine, hbe) per detector window
     skip_s = skip_s or (10.0 if fan else 0.0)
     t_first = None
     for ch in chunks:
@@ -306,14 +318,24 @@ def calibrate_from_bytes(chunks, device_offset_s: float = 0.0, skip_s: float = 0
                     t_first = s.t if t_first is None else t_first
                     resp.push(s)
                     if fs.push(s, p.rssi) is not None and s.t - t_first >= skip_s:
-                        ref_windows.append(fs.last)
+                        last = det.last.features.get("hbe") if det.last is not None else None
+                        if last is None or last < CALIBRATION_QUIET_HBE:
+                            ref_windows.append(fs.last)
                     r = det.push(s)
                     if r is not None and s.t - t_first >= skip_s:
-                        cal.add(r.features["mvs"], r.features.get("level_var"),
-                                r.features.get("level_fine"), r.features.get("hbe"))
+                        windows.append((r.features["mvs"], r.features.get("level_var"),
+                                        r.features.get("level_fine"), r.features.get("hbe")))
     if fan and not det.fan.locked:
         raise RuntimeError("no fan lines found in the capture — is the ceiling fan running?")
+    quiet = [w for w in windows if w[3] is None or w[3] < CALIBRATION_QUIET_HBE]
+    use = quiet if len(quiet) * cfg.hop_s >= cfg.baseline_min_s else windows
+    for w in use:
+        cal.add(*w)
     b = cal.finish()
+    busy = 1 - len(quiet) / max(1, len(windows))
+    b.note = (f"{b.note}; {len(quiet)} of {len(windows)} windows quiet in the human band"
+              + (f" ({busy:.0%} had movement elsewhere, left out)" if use is quiet and busy > 0.01 else "")
+              + ("; NEVER quiet for long enough, so busy windows were used too" if use is not quiet else ""))
     if not fan and len(resp.stats) >= 3:
         b.resp_floor = float(np.median(resp.stats))
     if not fan:

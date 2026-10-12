@@ -15,12 +15,18 @@ the UI calls a state "confirmed" only when the board's report agrees with it.
 The command semantics mirror core/room.py exactly (on / off / set / dim /
 brighten, "all", and the environment scenes); tests/test_limbs.py holds the two
 side by side so they cannot drift apart.
+
+The two devices are circuits of the switchboard (circuits.py): the circuit with
+alias "light" is what the light relay carries, "fan" likewise. That mapping gives
+each device its rated watts, and it is also a safety gate — a relay whose circuit
+was refused (an AC, a geyser, anything over 5.6 A) is never driven. Every change is
+handed to listeners (the energy ledger) after it is applied, whoever made it.
 """
 from __future__ import annotations
 
 import json
 import threading
-from typing import Optional
+from typing import Callable, Optional
 
 from .bus import EventBus
 from .core import CoreProcess
@@ -88,12 +94,28 @@ def apply_command(state: dict, device: str, action: str, value=None) -> list[str
 
 
 class Limbs:
-    def __init__(self, core: CoreProcess, hub, bus: EventBus, path=FILE):
+    def __init__(self, core: CoreProcess, hub, bus: EventBus, path=FILE, circuits=None):
         self.core, self.hub, self.bus, self.path = core, hub, bus, path
         self._lock = threading.RLock()
         self.state = self._load()
         self._sent: dict[str, Optional[bool]] = {}        # last relay level sent to the board
+        # Called with one dict per applied change: device, state, origin, delivered,
+        # link. The energy ledger is one; a listener's failure never breaks a switch.
+        self.listeners: list[Callable[[dict], None]] = []
+        self.circuits = circuits if circuits is not None else _load_circuits()
         core.room_listener = self._on_core_room
+
+    def add_listener(self, fn: Callable[[dict], None]) -> None:
+        self.listeners.append(fn)
+
+    def _notify(self, device: str, origin: str, delivered: Optional[bool]) -> None:
+        ev = {"device": device, "state": dict(self.state[device]), "origin": origin, "delivered": delivered,
+              "link": "usb" if (self.hub and self.hub.can_command) else "virtual"}
+        for fn in list(self.listeners):
+            try:
+                fn(ev)
+            except Exception as e:                       # the switch already happened; say so
+                self.bus.publish("limbs", "error", f"A listener failed on {device}: {e}")
 
     # ---------------------------------------------------------------- persistence
     def _load(self) -> dict:
@@ -118,6 +140,13 @@ class Limbs:
         """Send relay commands for `devices`; returns {device: delivered}."""
         out = {}
         for d in devices:
+            blocked = self.circuits.blocked(d) if self.circuits is not None else None
+            if blocked:
+                # circuits.json puts a load on this relay that must never be switched
+                # by one. The app's state still changes; the relay is not touched.
+                out[d] = False
+                self.bus.publish("limbs", "refused", f"Relay {d} not switched: {blocked}", device=d)
+                continue
             on = bool(self.state[d]["on"])
             if not force and self._sent.get(d) == on:
                 continue                                  # relay already there
@@ -155,6 +184,7 @@ class Limbs:
                 self.bus.publish("limbs", "room", f"{d} " + (f"on · {st['level']}%" if st["on"] else "off"),
                                  device=d, state=dict(st), origin=origin,
                                  delivered=delivered.get(d))
+                self._notify(d, origin, delivered.get(d))
             return {"changed": changed, "delivered": delivered, "state": json.loads(json.dumps(self.state))}
 
     def scene(self, name: str) -> dict:
@@ -174,6 +204,7 @@ class Limbs:
                                                                if self.state[device]["on"] else "off"),
                              device=device, state=dict(self.state[device]), origin="voice",
                              delivered=delivered.get(device))
+            self._notify(device, "voice", delivered.get(device))
 
     def sync_core(self) -> None:
         """When JARVIS boots, his room.py starts at defaults: bring it to our state."""
@@ -197,6 +228,7 @@ class Limbs:
         for d in DEVICES:
             st = self.state[d["id"]]
             hw = reported.get(d["id"]) if isinstance(reported, dict) else None
+            c = self.circuits.by_alias(d["id"]) if self.circuits is not None else None
             devices.append({
                 **d, "state": dict(st),
                 "link": "usb" if usb else ("mqtt" if info.get("mqtt") else "virtual"),
@@ -204,6 +236,11 @@ class Limbs:
                 "hardware_on": hw,
                 "confirmed": usb and hw is not None and bool(hw) == bool(st["on"]),
                 "note": "on/off relay — brightness and speed need a dimmer, not wired",
+                # The switchboard circuit this device is (circuits.json), if mapped.
+                "circuit": None if c is None else {
+                    "id": c.id, "name": c.name, "room": c.room, "rated_w": c.rated_w, "relay": c.relay,
+                    "relay_safe": c.relay_safe, "refused": c.refused, "speed_steps": c.speed_steps,
+                    "example": self.circuits.example},
             })
         if usb:
             hardware = "ESP32 connected over USB: switches drive the real relays."
@@ -211,3 +248,13 @@ class Limbs:
             hardware = "No relay board connected: the room is virtual until the ESP32 is plugged in."
         return {"devices": devices, "scenes": SCENES, "core_running": info["running"],
                 "usb": usb, "mqtt": info.get("mqtt"), "hardware": hardware}
+
+
+def _load_circuits():
+    """The switchboard config, or None if it cannot be loaded. Limbs must never fail
+    to start because of it; the energy card reports the problem instead."""
+    try:
+        from .circuits import load_circuits
+        return load_circuits()
+    except Exception:
+        return None

@@ -1,0 +1,22 @@
+/* USB boards card (components/BoardPorts.tsx). Tokens and motion from tokens.css /
+   motion.css; colour is provenance: cyan only for a port that identified itself. */
+.boards { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.boards .card-head { margin-bottom: 4px; }
+.boards-count { font-size: 11.5px; display: inline-flex; gap: 4px; align-items: baseline; }
+.boards-skel { height: 64px; }
+.boards-headline { font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.boards-headline.live { color: var(--live); }
+.boards-headline .led { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 10px currentColor; }
+.boards-hotplug { font-size: 12.5px; line-height: 1.4; }
+.boards-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.boards-row { padding: 10px 12px; border-radius: 10px; background: rgba(0, 0, 0, 0.28); box-shadow: inset 0 0 0 1px var(--hair); min-width: 0; }
+.boards-row-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.boards-dev { font-weight: 600; color: var(--ink); }
+.boards-ids { flex: 1; font-size: 11px; }
+.boards-detail { font-size: 12px; line-height: 1.45; margin-top: 4px; overflow-wrap: anywhere; user-select: text; }
+.boards-empty { padding: 14px; font-size: 12.5px; }
+.boards-last { font-size: 11.5px; overflow-wrap: anywhere; }
+.boards-error { font-size: 12.5px; }
+.boards-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 2px; }
+.boards-actions .btn { display: inline-flex; gap: 6px; align-items: center; }
+.boards-note { font-size: 11.5px; }

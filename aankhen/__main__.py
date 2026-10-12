@@ -38,20 +38,24 @@ RECORDINGS = os.path.join(DATA_DIR, "recordings")      # data/aankhen/recordings
 
 
 def cmd_doctor(a) -> int:
-    from .transport import list_candidate_ports
+    from .boards import BoardFinder
     from .room import ROOM_FILE, layout_kind, load_room
     from .hub import BASELINE_FILE
     ok = True
     print("Aankhen doctor\n")
-    ports = list_candidate_ports()
-    if ports:
-        print("  [ok]  ESP32-like serial ports:")
-        for p in ports:
-            print(f"          {p}")
-    else:
+    # A board is what SAYS it is one: listen to every USB serial port for an Aankhen
+    # frame (nothing is sent). A USB vendor id alone would call an Uno an ESP32.
+    print("  Listening to each USB serial port for an Aankhen frame (2 s, nothing is sent)...")
+    results = BoardFinder().scan(force=True)
+    boards = [r for r in results if r.is_board]
+    for r in results:
+        tag = "ok" if r.is_board else "--"
+        print(f"  [{tag}]  {r.port or r.device}: {r.detail}")
+    if not boards:
         ok = False
-        print("  [--]  no ESP32 serial port. Plug the board in with a DATA cable (charge-only")
-        print("        cables are common). Bluetooth COM ports are ignored on purpose.")
+        print("  [--]  no Aankhen board answered. Plug it in with a DATA cable (charge-only")
+        print("        cables are common) and flash aankhen/firmware. Bluetooth COM ports are")
+        print("        ignored on purpose.")
     room, measured = load_room()
     kind = layout_kind()
     print(f"  [{'ok' if measured else '--'}]  room layout: " + {
@@ -84,6 +88,9 @@ def cmd_serve(a) -> int:
     from .hub import AankhenHub
     from .server import create_standalone_app
     hub = AankhenHub()
+    # A board plugged in later takes over from an automatic simulation; a chosen one
+    # (--sim) stays, and the board is announced.
+    hub.enable_hotplug(lambda kind, text, **_: print(f"  {text}"))
     if a.replay:
         info = hub.start("replay", path=a.replay, speed=a.speed, loop=True)
     elif a.sim:
@@ -116,7 +123,7 @@ def cmd_record(a) -> int:
     print(f"Recording {a.seconds:.0f} s labelled '{a.label}' -> {path}")
     src.start()
     if not src.connected.wait(timeout=10):
-        print("No ESP32 connected within 10 s.")
+        print("No Aankhen board answered within 10 s (no valid frame on any port).")
         src.stop()
         return 1
     t0 = time.time()
@@ -150,7 +157,12 @@ def cmd_calibrate(a) -> int:
               + (", with the ceiling fan RUNNING at its usual speed." if a.fan else ", fan off."))
         src = SerialSource(a.port)
         buf = []
-        src._ingest = lambda data, t=None: buf.append(data)      # capture raw bytes
+        ingest = src._ingest
+
+        def capture(data, t=None):          # keep the raw bytes, and still decode them:
+            buf.append(data)                # the decoder is what sees the board's handshake
+            ingest(data, t)
+        src._ingest = capture
         src.start()
         time.sleep(a.seconds)
         src.stop()

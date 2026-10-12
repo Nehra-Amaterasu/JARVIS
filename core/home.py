@@ -18,12 +18,16 @@ import each other by plain name (`import yaadash_v2`, `import aankhen`).
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
 
-YAADASH_DATA = DATA / "yaadash"        # archive, people, beliefs, taste, BM25 cache
+# JARVIS_YAADASH_DIR points the whole memory (parquet files, BM25 cache and LanceDB)
+# at another folder. The memory tests build a synthetic store there, so they can never
+# read or overwrite the real one; unset, it is data/yaadash as always.
+YAADASH_DATA = Path(os.environ.get("JARVIS_YAADASH_DIR") or DATA / "yaadash")
 LANCEDB = YAADASH_DATA / "lancedb"      # the vector store
 IDENTITY = DATA / "identity"            # authored facts about me
 MODELS = DATA / "models"                # local voice models (Kokoro)

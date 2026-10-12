@@ -241,10 +241,19 @@ def _excerpt(thread, idx):
     g = g[(g.idx >= idx - EXCERPT_BEFORE) & (g.idx <= idx + EXCERPT_AFTER)].sort_values("idx")
     if g.empty:
         return None
+    # Only the anchor's own conversation, dated by the anchor. Until 2026-10-12 the
+    # setup/follow-up span crossed session gaps and the header took the date of the
+    # first line shown: a March 2021 trek plan came back as "[01 Jun 2020 ...]" and a
+    # 2021 chat ended with a 2023 reply (found by yaadash/tests on synthetic chats).
+    # For "kab baat hui thi?" the date IS the answer. Sessions split like the
+    # archive's windows do, on a silence longer than SESSION_GAP_S.
+    anchor = g.index[(g.idx - idx).abs().argmin()]
+    session = (g.ts.diff().fillna(0) > yp.SESSION_GAP_S).cumsum()
+    g = g[session == session.loc[anchor]]
     people = yp.people()
     row = people[people.thread == thread]
     who = row.name.iloc[0] if len(row) else "them"
-    date = pd.to_datetime(g.ts.iloc[0], unit="s").strftime("%d %b %Y")
+    date = pd.to_datetime(g.ts.loc[anchor], unit="s").strftime("%d %b %Y")
     lines = []
     for r in g.itertuples():
         # My lines are labelled "Aman", never "Me". With "Me:", JARVIS read

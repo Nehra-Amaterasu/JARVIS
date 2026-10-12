@@ -2,11 +2,11 @@
 Features: Mem0 Injection, Hinglish Persona, Zero-Latency Streaming.
 """
 from typing import Optional
-from langchain_core.tools import tool
+from datetime import datetime
 from langchain_ollama import ChatOllama
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
 from collections import deque
+import re
 import room
 import remember               # "remember that ..." / "... yaad rakhna" (deterministic)
 import voice as voice_mod      # accents, tags, explicit accent requests (pure helpers)
@@ -38,8 +38,12 @@ import sys
 import threading
 import time
 
-
-from mcp_client_bridge import get_mcp_tools
+# One registry for everything JARVIS can do (core/tools): tiers, receipts, the
+# capability list in his persona, and the honesty guard on every model reply.
+from tools import honesty
+from tools import when as when_mod
+from tools.builtin import ToolContext, default_registry, say as say_receipts
+from tools.registry import Receipt
 
 # The Local Brain — Qwen3-4B-Instruct-2507 (NON-reasoning).
 #
@@ -86,8 +90,14 @@ llm_precise = ChatOllama(
     repeat_penalty=1.15,
     keep_alive="30m",
 )
-tools = get_mcp_tools()
-llm_with_tools = llm.bind_tools(tools)
+# Until 2026-10-12: two LangChain tools (mcp_client_bridge.py, now core/legacy/) bound
+# only when the sentence contained one of 16 exact phrases. Now every enabled tool in
+# the registry is bound whenever the turn touches something a tool does
+# (REGISTRY.wants_tools); T2 tools stay unbound while switched off, T3 never exist.
+REGISTRY = default_registry()
+llm_with_tools = llm.bind_tools(REGISTRY.schemas())
+llm_precise_with_tools = llm_precise.bind_tools(REGISTRY.schemas())
+MAX_TOOL_CALLS = 4          # one model round may ask for several; more than this is a loop
 
 # --- The persona ---------------------------------------------------------------
 # Rewritten 2026-10-09 at Aman's request: British English, one language. The old
@@ -117,7 +127,8 @@ TRUTH, which outranks style:
 - Never say you switched a light, the fan or anything else unless a tool result in this conversation confirms it.
 - For the date or time, use the NOW line. Never make it up.
 
-WHAT YOU CAN AND CANNOT DO. You can talk; explain, teach and quiz him on VLSI, electronics and German; recall what CONTEXT shows from his memory; switch his room's light and fan; and run his Mission Germoney game (briefs, logging study time, starting a focus session). You have no internet: no weather, news, prices or scores. If he asks for those, say plainly that you cannot see them. Never offer to play music, set alarms, browse or send messages, and never present anything as recent news.
+{capabilities}
+If he asks for weather, news, prices or scores, say plainly that you cannot see them, and never present anything as recent news.
 
 MANNER: loyal, warm underneath the dryness, never mocking his work. Take what he says about how he feels at face value. Mild swearing only if he swears first. You know hip-hop and rap well (Metro Boomin, Travis Scott, Don Toliver, XXXTENTACION, Seedhe Maut, Raftaar, Raga, KR$NA), and electronics and VLSI.
 
@@ -135,10 +146,12 @@ _LENGTH_TEXT = ("He is reading this on screen. Keep it under eighty words: one t
 
 
 def persona(text_mode: bool) -> str:
-    """The static system message: who JARVIS is, plus every confirmed fact about Aman
-    (yaadash_v2.authored_block — identical turn to turn until a fact changes, so
-    Ollama keeps reusing the cached prefix)."""
-    base = _PERSONA.format(length=_LENGTH_TEXT if text_mode else _LENGTH_VOICE)
+    """The static system message: who JARVIS is, what he can do (generated from the
+    tool registry, so the list can never claim a tool that does not exist), plus every
+    confirmed fact about Aman (yaadash_v2.authored_block — identical turn to turn until
+    a fact changes, so Ollama keeps reusing the cached prefix)."""
+    base = _PERSONA.format(length=_LENGTH_TEXT if text_mode else _LENGTH_VOICE,
+                           capabilities=REGISTRY.capability_block())
     try:
         facts = yaadash_core.authored_block()
     except Exception as e:
@@ -280,13 +293,111 @@ def room_context(user_input: str) -> str:
             f"{desc} (confidence {conf:.0%}).")
 
 
+# ---- Tools: context, the deterministic fast paths, receipts ---------------------
+PENDING_TTL_S = 120          # "remind me to call Mum" -> "When?" -> "at 9" must come within 2 min
+_pending_reminder = None     # (ReminderIntent, asked_at)
+# The last turn's receipts and replaced claims (the app logs them; tests read them).
+last_turn: dict = {"receipts": [], "verdicts": []}
+
+
+def _memory_search(query: str) -> str:
+    return yaadash_core.get_context(query, fragments=True, facts=True)
+
+
+def tool_context() -> ToolContext:
+    """What tools can reach this turn: the app (when JARVIS runs inside it), JARVIS's own
+    virtual room (when he runs alone), and his memory."""
+    return ToolContext.from_env(room=room, memory_search=_memory_search)
+
+
+_ASK_WHEN = {"timer": "For how long should the timer run?", "alarm": "What time should the alarm be?",
+             "reminder": "When should I remind you?", "action": "When should I do that?"}
+
+
+def reminder_reply(user_input: str, now: datetime, ctx: ToolContext, receipts: list) -> Optional[str]:
+    """Reminders, timers, alarms and timed switches, without the model (tools/when.py).
+
+    Runs BEFORE the Mission and room parsers: "remind me in 2 hours to study German" is
+    not a German log, and "turn off the fan in 30 minutes" must not switch it now."""
+    global _pending_reminder
+    pending, _pending_reminder = _pending_reminder, None
+    if pending is not None and time.time() - pending[1] < PENDING_TTL_S:
+        if when_mod.time_only(user_input, now) is not None:
+            intent = pending[0]
+            if intent.kind == "action":
+                a = intent.action or {}
+                r = REGISTRY.call("switch_later", {"device": "scene" if a.get("device") == "environment" else a.get("device"),
+                                                      "action": a.get("action"), "value": a.get("value")
+                                                      if a.get("device") != "environment" else None, "when": user_input}, ctx)
+            else:
+                r = REGISTRY.call("set_reminder", {"text": intent.text or "", "when": user_input, "kind": intent.kind}, ctx)
+            receipts.append(r)
+            return r.did
+    intent = when_mod.parse_reminder(user_input, now, room_parse=room.parse)
+    if intent is None:
+        return None
+    if intent.op == "list":
+        r = REGISTRY.call("list_reminders", {}, ctx)
+    elif intent.op == "cancel":
+        kind = None if intent.all and intent.kind == "reminder" else intent.kind
+        r = REGISTRY.call("cancel_reminder", {"query": intent.query, "kind": kind or "", "all": intent.all}, ctx)
+    elif intent.missing == "time":
+        _pending_reminder = (intent, time.time())
+        return _ASK_WHEN.get(intent.kind, _ASK_WHEN["reminder"])
+    elif intent.kind == "action":
+        a = intent.action
+        scene = a["device"] == "environment"
+        r = REGISTRY.call("switch_later", {"device": "scene" if scene else a["device"], "action": a["action"],
+                                              "value": None if scene else a.get("value"), "when": user_input}, ctx)
+    else:
+        r = REGISTRY.call("set_reminder", {"text": intent.text or "", "when": user_input, "kind": intent.kind}, ctx)
+    receipts.append(r)
+    return r.did
+
+
+# "What time is it?" / "aaj kya date hai?" as the WHOLE sentence: read the clock, no model.
+_TIME_QUESTION = re.compile(
+    r"^\s*(?:(?:hey\s+|ok\s+)?jarvis[\s,]*)?(?:please\s+)?"
+    r"(?:what(?:'s| is) the (?:time|date)(?: (?:now|today|right now))?|what time is it(?: now| right now)?|"
+    r"what(?:'s| is) today'?s date|what(?:'s| is) the day today|what day is (?:it|today)(?: today)?|"
+    r"which day is (?:it|today)|tell me the (?:time|date)|time kya (?:hua|hai|ho gaya)(?: hai)?|"
+    r"kitne baje(?: hain| hai| hai abhi| hain abhi)?|kya time (?:hua|hai|ho gaya)(?: hai)?|"
+    r"aaj (?:kya|kaun sa|kaunsa|konsa) (?:date|din|tarikh) hai|aaj ki (?:date|tarikh) kya hai)"
+    r"\s*(?:please|jarvis|bhai)?[\s?.!]*$", re.I)
+
+
+def _publish(receipts: list, verdicts: list) -> None:
+    """Receipts and replaced claims go to the app (Core tab, transcript review)."""
+    last_turn["receipts"], last_turn["verdicts"] = list(receipts), list(verdicts)
+    try:
+        import appio
+        for r in receipts:
+            appio.emit("receipt", **r.to_dict())
+        if verdicts:
+            appio.emit("honesty", replaced=[{"kind": v.kind, "mode": v.mode, "said": v.original[:200],
+                                             "now": v.replacement[:200]} for v in verdicts])
+    except Exception as e:
+        print(f"\n[Receipt emit error: {e}]")
+
+
 def run_agent(user_input: str) -> str:
     """
     The Zero-Latency Cognitive Loop.
+    0. Deterministic commands (remember, reminders, Mission, room, the clock): no
+       model, a receipt for every action, the reply built from the receipts.
     1. Fetch Memories.
-    2. Build Persona.
-    3. Stream response (or trigger tool).
+    2. Build Persona (its capability list comes from the tool registry).
+    3. Stream the reply; tools when the turn needs them; every sentence passes the
+       honesty guard (tools/honesty.py) before it is spoken.
     """
+    receipts: list = []
+    ctx = tool_context()
+
+    def direct(reply: str):
+        _remember_turn(user_input, reply)
+        _publish(receipts, [])
+        return reply
+
     # 0. "Remember that ..." / "... yaad rakhna": he tells JARVIS a fact to keep. It is
     # stored as a confirmed fact and is in the system message from the next turn on.
     try:
@@ -296,14 +407,27 @@ def run_agent(user_input: str) -> str:
         print(f"\n[Remember parse error: {e}]")
     if words:
         try:
-            reply = remember.reply(words, yaadash_core.remember_told(words))
+            saved = yaadash_core.remember_told(words)
+            reply = remember.reply(words, saved)
+            receipts.append(Receipt("remember", "T1", True, reply, source="Yaadash (confirmed facts)",
+                                    backs=("memory",), data={"new": bool(saved)}))
         except Exception as e:
             print(f"\n[Remember save error: {e}]")
             reply = "I'm afraid I couldn't save that to memory just now."
-        _remember_turn(user_input, reply)
-        yield reply
+            receipts.append(Receipt("remember", "T1", False, reply, source="Yaadash", error=str(e)))
+        yield direct(reply)
         return
-    # 0a. Mission Germoney commands ("log 2 hours of German", "brief me") are parsed
+    # 0a. Reminders, timers, alarms and timed switches ("remind me at 9 to call Mum",
+    # "medicine at 8 am every day", "10 minute ka timer", "fan off in 30 minutes").
+    try:
+        reply = reminder_reply(user_input, ctx.now(), ctx, receipts)
+    except Exception as e:
+        reply = None
+        print(f"\n[Reminder parse error: {e}]")
+    if reply:
+        yield direct(reply)
+        return
+    # 0b. Mission Germoney commands ("log 2 hours of German", "brief me") are parsed
     # deterministically and answered by the game — no model in the loop, so they are
     # instant and can never be misheard into a different action.
     if mission is not None:
@@ -313,11 +437,14 @@ def run_agent(user_input: str) -> str:
             reply = None
             print(f"\n[Mission action error: {e}]")
         if reply:
-            _remember_turn(user_input, reply)
-            yield reply
+            receipts.append(Receipt("mission", "T1", True, reply, source="app · Mission Germoney",
+                                    backs=("study_log",)))
+            yield direct(reply)
             return
-    # 0b. Room commands in English or Hinglish ("light band kar do", "fan 40 percent"),
-    # also deterministic: instant, and never a claimed action that did not happen.
+    # 0c. Room commands in English or Hinglish ("light band kar do", "fan 40 percent"),
+    # also deterministic: instant, and never a claimed action that did not happen. They
+    # go through the registry, so inside the app the APP switches (and says whether a
+    # relay board took it), and the reply says "virtual room" while none is connected.
     try:
         commands = room.parse(user_input)
     except Exception as e:
@@ -325,10 +452,16 @@ def run_agent(user_input: str) -> str:
         print(f"\n[Room parse error: {e}]")
     if commands:
         for device, action, value in commands:
-            room.apply(device, action, value)
-        reply = " ".join(dict.fromkeys(room.describe(d) for d, _, _ in commands))
-        _remember_turn(user_input, reply)
-        yield reply
+            if device == "environment":
+                receipts.append(REGISTRY.call("set_scene", {"scene": "focus" if action == "deep_focus" else action}, ctx))
+            else:
+                receipts.append(REGISTRY.call("set_device", {"device": device, "action": action, "value": value}, ctx))
+        yield direct(say_receipts(receipts))
+        return
+    # 0d. The time or the date, asked on its own: the clock answers, not the model.
+    if _TIME_QUESTION.match(user_input or ""):
+        receipts.append(REGISTRY.call("get_datetime", {}, ctx))
+        yield direct(receipts[-1].did)
         return
     # 1. Fetch Deep Memories
     # People + past conversations, only when the message names someone or asks
@@ -360,6 +493,10 @@ def run_agent(user_input: str) -> str:
     room_line = room_context(user_input)
     if room_line:
         memories = (memories + "\n\n" + room_line).strip()
+        if room_line.startswith("ROOM SENSORS (live)"):
+            # Live sensors in his context are evidence: a reply may say who is there.
+            receipts.append(Receipt("presence", "T0", True, room_line, source="app · Aankhen (live sensors)",
+                                    backs=("presence",)))
     # Live Mission Germoney state, only when he asks about study / German / the plan.
     if mission is not None:
         try:
@@ -414,57 +551,75 @@ def run_agent(user_input: str) -> str:
     # generation ENDED, so with speech now starting mid-generation it would have
     # played under JARVIS's own voice; it also played in text mode.
     final_text = ""
-    
-    # Strict Room Command Intent Routing: Only bind tools on explicit hardware directives
-    room_commands = [
-        "turn on light", "turn off light", "lights on", "lights off",
-        "turn on fan", "turn off fan", "fan on", "fan off",
-        "set fan", "fan speed", "control light", "control fan",
-        "turn on the light", "turn off the light", "turn on the fan", "turn off the fan"
-    ]
-    has_room_intent = any(cmd in user_input.lower() for cmd in room_commands)
-    
-    # Memory-grounded turns (people, past conversations) use the low-temperature
-    # model; casual talk keeps the livelier one.
-    if has_room_intent:
-        active_llm = llm_with_tools
-    elif recall_block:
-        active_llm = llm_precise
-    else:
-        active_llm = llm
-    tool_calls_buffer = []
-    
-    for chunk in active_llm.stream(messages):
-        if hasattr(chunk, 'tool_call_chunks') and chunk.tool_call_chunks:
-            tool_calls_buffer.extend(chunk.tool_call_chunks)
-        elif chunk.content:
-            final_text += chunk.content
-            yield chunk.content
 
-    print() # newline
-    
-    if has_room_intent and tool_calls_buffer:
-        print("\n[JARVIS triggered hardware...]")
+    # Tools are bound when the turn touches something a tool does (the registry's
+    # triggers: time, the room, reminders, presence, a memory search). Memory-grounded
+    # turns (people, past conversations) use the low-temperature model; casual talk
+    # keeps the livelier one.
+    wants_tools = REGISTRY.wants_tools(user_input)
+    if wants_tools:
+        active_llm = llm_precise_with_tools if recall_block else llm_with_tools
+    else:
+        active_llm = llm_precise if recall_block else llm
+    # Every sentence passes the honesty guard before it reaches the voice. In a round
+    # where the model may still call a tool, a sentence that claims something waits
+    # until the tools have run, so their receipts can back it.
+    guard = honesty.Guard(REGISTRY, receipts, hold_claims=wants_tools, split=voice_mod.split_ready)
+
+    ai = None
+    for chunk in active_llm.stream(messages):
+        if wants_tools:
+            ai = chunk if ai is None else ai + chunk    # tool-call chunks assemble into ai.tool_calls
+        if isinstance(chunk.content, str) and chunk.content:
+            out = guard.feed(chunk.content)
+            if out:
+                final_text += out
+                yield out
+
+    calls = list(getattr(ai, "tool_calls", None) or [])[:MAX_TOOL_CALLS] if ai is not None else []
+    if calls:
+        # Until 2026-10-12 the stream was thrown away and the model asked AGAIN
+        # (llm_with_tools.invoke) for the same tool calls: a second full generation.
+        print(f"\n[JARVIS tools: {', '.join(c.get('name', '?') for c in calls)}]")
+        messages.append(AIMessage(content=ai.content if isinstance(ai.content, str) else "", tool_calls=calls))
+        for call in calls:
+            # asked=: an action the MODEL chose runs only if his words are about it.
+            r = REGISTRY.call(call.get("name", ""), call.get("args") or {}, ctx, asked=user_input)
+            receipts.append(r)
+            messages.append(ToolMessage(content=r.for_model(), tool_call_id=call.get("id") or call.get("name", "tool")))
+        out = guard.settle()
+        if out:
+            final_text += out
+            yield out
+        # The answer from the receipts: low temperature, no tools (one round; no loops).
+        guard.hold_claims = False
         try:
-            response = llm_with_tools.invoke(messages)
-            if response.tool_calls:
-                for tool_call in response.tool_calls:
-                    t_name = tool_call["name"]
-                    t_match = next((t for t in tools if t.name == t_name), None)
-                    if t_match:
-                        args = tool_call["args"]
-                        tool_msg = t_match.invoke(args)
-                        from langchain_core.messages import ToolMessage
-                        messages.append(response)
-                        messages.append(ToolMessage(content=str(tool_msg), tool_call_id=tool_call["id"]))
-                        final_response = llm.invoke(messages)
-                        final_text += " " + final_response.content
-                        yield " " + final_response.content
+            for chunk in llm_precise.stream(messages):
+                if isinstance(chunk.content, str) and chunk.content:
+                    out = guard.feed(chunk.content)
+                    if out:
+                        final_text += out
+                        yield out
         except Exception as e:
-            print(f"Tool Execution Error: {e}")
-        
+            # The tools ran; the receipts are the truth even if the wording failed.
+            print(f"\n[Tool answer error: {e}]")
+            out = guard.settle() + guard.emit(" " + say_receipts(receipts))
+            final_text += out
+            yield out
+    out = guard.finish()
+    if out:
+        final_text += out
+        yield out
+    print()  # newline
+    if guard.verdicts:
+        print(f"[Honesty guard: replaced {len(guard.verdicts)} claim(s): "
+              + "; ".join(f"{v.kind}/{v.mode}" for v in guard.verdicts) + "]")
+    _publish(receipts, guard.verdicts)
+
     # Store the interaction in long-term memory for self-improvement (Hybrid Approach)
     # Using a background thread so it doesn't block the STT engine from listening to the user's next command.
+    # What is stored is what was SAID — after the guard — so an invented claim never
+    # becomes a memory.
     spoken = voice_mod.strip_tags(final_text)       # tags are for the voice, not for memory
     _remember_turn(user_input, spoken)
     threading.Thread(target=yaadash_core.store_interaction, args=(user_input, spoken), daemon=True).start()

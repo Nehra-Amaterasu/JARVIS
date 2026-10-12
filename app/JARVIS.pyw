@@ -1,16 +1,16 @@
 """Double-click to open JARVIS (no console window).
 
-Run with the project's interpreter:  brain/.venv311_gpu/Scripts/pythonw.exe app/JARVIS.pyw
+Run with the project's interpreter:  .venv/Scripts/pythonw.exe app/JARVIS.pyw
 The Start-menu / Desktop shortcut made by install_shortcut.ps1 does exactly that.
 
 Things this launcher handles so a double-click always works:
   - pythonw has NO console: sys.stdout and sys.stderr are None. Anything that
     prints, or checks isatty() (uvicorn's logging did, and crashed the first
-    shortcut launch), would fail. Both streams go to app/data/jarvis.log instead.
+    shortcut launch), would fail. Both streams go to data/app/jarvis.log instead.
   - A second double-click while JARVIS is open brings the existing window to the
     front instead of starting a second server and a second set of sensors.
   - If the interface has never been built, it is built first (needs Node.js).
-  - Any failure is written to app/data/launch.log and shown in a message box,
+  - Any failure is written to data/app/launch.log and shown in a message box,
     because a .pyw has nowhere else to say what went wrong.
 """
 import json

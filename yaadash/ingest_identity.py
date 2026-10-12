@@ -1,7 +1,7 @@
-"""Load identity/core_facts.md into Yaadash as authored ground truth.
+"""Load data/identity/core_facts.md into Yaadash as authored ground truth.
 
 Re-run this every time you edit core_facts.md:
-    .venv311_gpu\\Scripts\\python.exe ingest_identity.py
+    .venv\\Scripts\\python.exe yaadash\\ingest_identity.py
 
 It replaces all previous authored rows, so it is safe to run repeatedly.
 
@@ -31,8 +31,8 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 import yaadash_v2 as y
 
-FACTS = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                     "..", "identity", "core_facts.md")
+from home import IDENTITY  # noqa: E402  data/identity, git-ignored
+FACTS = str(IDENTITY / "core_facts.md")
 
 # Sections that must never be retrieved as memory.
 SKIP_SECTIONS = ("review queue", "how to talk to him")

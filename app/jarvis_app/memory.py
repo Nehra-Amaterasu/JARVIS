@@ -1,12 +1,12 @@
 """Yaadash in the app: search, the beliefs JARVIS wants confirmed, people, taste.
 
-Thin, read-mostly wrappers over the brain/yaadash_* modules. They load lazily (the
+Thin, read-mostly wrappers over the yaadash/yaadash_* modules. They load lazily (the
 embedding model takes a few seconds the first time) and run in a worker thread
 so a search never freezes the window.
 
 Privacy: this module reads the archive of real conversations — both sides. It is
 served only over the token-protected 127.0.0.1 server and nothing is cached
-outside the existing gitignored brain/yaadash_data/.
+outside the existing gitignored data/yaadash/.
 """
 from __future__ import annotations
 
@@ -16,9 +16,9 @@ import re
 import time
 from typing import Any
 
-from .paths import BRAIN, ensure_brain_importable
+from .paths import LANCEDB, YAADASH_DATA, ensure_jarvis_importable
 
-DATA = BRAIN / "yaadash_data"
+DATA = YAADASH_DATA
 NOT_FACTS = ("voice_interaction", "claude")
 _HEADER = re.compile(r"^\[(?P<date>[^\]]+?) - chat with (?P<who>[^\]]+)\]$")
 
@@ -48,7 +48,7 @@ def _lance():
     """Open the memory database directly: counting rows must not load the
     embedding model (importing yaadash_v2 does, which made this take 16 s)."""
     import lancedb
-    return lancedb.connect(str(BRAIN / "lancedb"))
+    return lancedb.connect(str(LANCEDB))
 
 
 def _columns(tbl, cols: list[str]):
@@ -105,7 +105,7 @@ def _parse_excerpt(text: str) -> dict:
 
 def search(q: str, k: int = 4) -> dict:
     """Hybrid search: dated conversation excerpts + facts from the memory store."""
-    ensure_brain_importable()
+    ensure_jarvis_importable()
     t0 = time.time()
     out: dict = {"query": q, "excerpts": [], "facts": []}
     try:
@@ -131,7 +131,7 @@ def search(q: str, k: int = 4) -> dict:
 
 
 def questions(n: int = 6) -> list[dict]:
-    ensure_brain_importable()
+    ensure_jarvis_importable()
     import yaadash_beliefs as yb
     keep = ("id", "claim", "category", "era", "confidence", "support", "source", "evidence", "status")
     return [_clean({k: q.get(k) for k in keep if k != "vector"}) for q in yb.next_questions(n)]
@@ -140,7 +140,7 @@ def questions(n: int = 6) -> list[dict]:
 def answer(belief_id: str, verdict: str, correction: str | None = None) -> bool:
     if verdict not in ("confirmed", "rejected", "outdated"):
         raise ValueError("verdict must be confirmed | rejected | outdated")
-    ensure_brain_importable()
+    ensure_jarvis_importable()
     import yaadash_beliefs as yb
     return bool(yb.record(belief_id, verdict, correction or None))
 
@@ -152,7 +152,7 @@ def teach(question: str, answer: str) -> bool:
     answer = (answer or "").strip()
     if not answer:
         raise ValueError("say what the right answer is")
-    ensure_brain_importable()
+    ensure_jarvis_importable()
     import yaadash_v2 as y
     return bool(y.remember_correction(question or "", answer))
 

@@ -1,4 +1,4 @@
-"""JARVIS's voice engine (brain/voice.py) and spoken room commands (brain/room.py).
+"""JARVIS's voice engine (core/voice.py) and spoken room commands (core/room.py).
 
 No network and no audio device: synthesis is replaced by fakes, so these test the
 routing, the fallbacks and the guarantees — not Microsoft's servers."""
@@ -6,9 +6,9 @@ import time
 
 import pytest
 
-from jarvis_app.paths import ensure_brain_importable
+from jarvis_app.paths import ensure_jarvis_importable
 
-ensure_brain_importable()
+ensure_jarvis_importable()
 import room  # noqa: E402
 import voice  # noqa: E402
 

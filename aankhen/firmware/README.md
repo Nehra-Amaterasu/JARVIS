@@ -2,7 +2,7 @@
 
 The sensor board for JARVIS's eyes. It streams raw Wi-Fi CSI (100 Hz) and raw
 LD2450 radar frames to the laptop as CRC-checked binary frames over USB. All
-processing happens on the laptop (`brain/aankhen`). Relays switch only on request
+processing happens on the laptop (`aankhen`). Relays switch only on request
 from JARVIS (MQTT) or a token-authenticated HTTP call.
 
 ## 1. Secrets
@@ -70,8 +70,8 @@ Arduino IDE: board **ESP32S3 Dev Module**, **USB CDC On Boot: Enabled**, then Up
 Or from a terminal:
 
 ```bash
-arduino-cli compile --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc brain/aankhen_esp32_firmware
-arduino-cli upload  --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc -p COM9 brain/aankhen_esp32_firmware
+arduino-cli compile --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc aankhen/firmware
+arduino-cli upload  --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc -p COM9 aankhen/firmware
 ```
 
 Use the board's native USB port (it shows up as Espressif `303A`). Use a data
@@ -80,9 +80,9 @@ cable; charge-only cables are common and look identical.
 ## 5. Check it
 
 ```bash
-cd brain
-.venv311_gpu\Scripts\python.exe -m aankhen doctor
-.venv311_gpu\Scripts\python.exe -m aankhen serve --port COM9
+cd C:\Projects\JARVIS
+.venv\Scripts\python.exe -m aankhen doctor
+.venv\Scripts\python.exe -m aankhen serve --port COM9
 ```
 
 Open the JARVIS app → **Aankhen** → **ESP32**. The banner must turn cyan

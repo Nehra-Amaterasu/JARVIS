@@ -1,9 +1,9 @@
-"""Transcription guards (brain/stt.py) with a fake Whisper model."""
+"""Transcription guards (core/stt.py) with a fake Whisper model."""
 from types import SimpleNamespace as NS
 
-from jarvis_app.paths import ensure_brain_importable
+from jarvis_app.paths import ensure_jarvis_importable
 
-ensure_brain_importable()
+ensure_jarvis_importable()
 import stt  # noqa: E402
 
 

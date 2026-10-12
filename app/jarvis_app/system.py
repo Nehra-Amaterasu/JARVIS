@@ -15,7 +15,7 @@ from typing import Optional
 import httpx
 import psutil
 
-from .paths import BRAIN, HOME
+from .paths import HOME, REPO
 
 OLLAMA = "http://127.0.0.1:11434"
 _nvml_ok: Optional[bool] = None
@@ -125,7 +125,7 @@ def ollama_unload(model: str) -> bool:
 
 def vitals() -> dict:
     vm = psutil.virtual_memory()
-    disk = shutil.disk_usage(str(BRAIN.anchor or "C:\\"))
+    disk = shutil.disk_usage(str(REPO.anchor or "C:\\"))
     return {
         "t": time.time(),
         "cpu_pct": psutil.cpu_percent(interval=None),

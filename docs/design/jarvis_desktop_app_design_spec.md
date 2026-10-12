@@ -35,7 +35,7 @@ Above all else, the UI/UX must be lightweight. If heavy graphics choke the 6GB V
 - Visual grid of all ingested documents, notes, Excel sheets (`SPARK_org_system_v2.xlsx`), audio files (ID3 metadata tags), and image OCR snippets.
 
 ### 4. Aankhen 3D Spatial Radar Tab (`/spatial`)
-- Embeds [SpatialRadarView.html](file:///C:/Projects/jarvis-room/brain/SpatialRadarView.html) or renders a Three.js WebGL canvas displaying 3D floorplans, live human target avatars, 17 COCO keypoint joint lines, posture states, gestures (`WAVING_HAND`), and vitals.
+- Embeds [SpatialRadarView.html](../../aankhen/legacy/SpatialRadarView.html) or renders a Three.js WebGL canvas displaying 3D floorplans, live human target avatars, 17 COCO keypoint joint lines, posture states, gestures (`WAVING_HAND`), and vitals.
 
 ### 5. FastMCP Hardware Manager (`/plugins`)
 - Toggle dashboard for local FastMCP tools (`mcp_hardware_server.py`), room lighting, fans, servos, and subagents.

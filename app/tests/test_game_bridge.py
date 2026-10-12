@@ -1,4 +1,4 @@
-"""JARVIS <-> the Mission game: the voice parser (brain/mission.py) and the server
+"""JARVIS <-> the Mission game: the voice parser (core/mission.py) and the server
 bridge (/api/game/*). The game itself is tested in the UI (vitest)."""
 import asyncio
 import json
@@ -8,12 +8,12 @@ import time
 import pytest
 from starlette.testclient import TestClient
 
-from jarvis_app.paths import ensure_brain_importable
+from jarvis_app.paths import ensure_jarvis_importable
 from jarvis_app.security import Guard
 from jarvis_app.server import create_app
 
-ensure_brain_importable()
-import mission  # noqa: E402  (brain/mission.py)
+ensure_jarvis_importable()
+import mission  # noqa: E402  (core/mission.py)
 
 TOKEN = "test-token-game"
 

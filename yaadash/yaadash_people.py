@@ -20,7 +20,7 @@ unsupervised and fully explainable: each person carries the factors that drove i
 If I later label ~20 people as close / not close, these same features
 train a supervised model instead (see TIE_WEIGHTS).
 
-Output: brain/yaadash_data/people.parquet (gitignored).
+Output: data/yaadash/people.parquet (gitignored).
 """
 import os
 import re
@@ -35,7 +35,8 @@ from rapidfuzz import fuzz
 from hinglish import normalize_name
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(HERE, "yaadash_data")
+from home import YAADASH_DATA  # noqa: E402  data/yaadash, git-ignored
+DATA = str(YAADASH_DATA)
 SESSION_GAP_S = 3 * 3600
 
 # His own accounts messaging each other are not relationships. Without this the

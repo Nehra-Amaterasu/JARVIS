@@ -37,6 +37,8 @@ import uuid
 from dataclasses import dataclass
 from typing import Callable, Optional
 
+from home import MODELS   # data/models, git-ignored
+
 
 @dataclass(frozen=True)
 class Style:
@@ -257,7 +259,7 @@ class VoiceEngine:
         self.log = log
         self.enabled = enabled
         self.segmenter = Segmenter()
-        self.kokoro = _Kokoro(model_dir or os.path.join(os.path.dirname(os.path.abspath(__file__)), "models", "kokoro"))
+        self.kokoro = _Kokoro(model_dir or str(MODELS / "kokoro"))   # data/models/kokoro, git-ignored
         self._edge_down_until = 0.0
         self._q: "queue.Queue[Optional[tuple[str, str, int]]]" = queue.Queue()
         self._epoch = 0                          # bumped by clear(): stale work is dropped

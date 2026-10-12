@@ -1,8 +1,8 @@
 """Rebuild every Yaadash layer, in dependency order (Step 10).
 
-    .venv311_gpu\\Scripts\\python.exe refresh_memory.py              # everything
-    .venv311_gpu\\Scripts\\python.exe refresh_memory.py --quick      # skip archive re-embed
-    .venv311_gpu\\Scripts\\python.exe refresh_memory.py --distill 400  # + LLM distillation
+    .venv\\Scripts\\python.exe yaadash\\refresh_memory.py              # everything
+    .venv\\Scripts\\python.exe yaadash\\refresh_memory.py --quick      # skip archive re-embed
+    .venv\\Scripts\\python.exe yaadash\\refresh_memory.py --distill 400  # + LLM distillation
 
 WHY ONE COMMAND: on 2026-08-31 the memory was found to be rotting — my chat-log tool had
 silently deleted ~91 transcripts under its 30-day default, and retrieval measurably
@@ -11,7 +11,7 @@ stale. Each stage below is idempotent, so this is safe to run any time, and safe
 schedule (see the end of this file).
 
 ORDER MATTERS:
-  1. identity facts   - authored ground truth (identity/core_facts.md)
+  1. identity facts   - authored ground truth (data/identity/core_facts.md)
   2. archive          - every message + embedded windows   (slow: ~7 min on CPU)
   3. people           - who each thread is + tie strength   (needs 2)
   4. taste            - topic model over likes/saves
@@ -19,11 +19,13 @@ ORDER MATTERS:
   6. beliefs: distill - optional, LLM reads his messages    (needs 2; ~1s/msg)
   BM25 rebuilds itself on first recall whenever the archive is newer than its cache.
 """
+import os
 import subprocess
 import sys
 import time
 
 PY = sys.executable
+HERE = os.path.dirname(os.path.abspath(__file__))   # the stages are scripts beside this one
 STAGES = [
     ("identity facts", ["ingest_identity.py"], "core"),
     ("archive (messages + windows)", ["yaadash_archive.py"], "archive"),
@@ -36,7 +38,7 @@ STAGES = [
 def run(label, args):
     print(f"\n=== {label} ===", flush=True)
     t0 = time.time()
-    r = subprocess.run([PY] + args)
+    r = subprocess.run([PY] + args, cwd=HERE)
     ok = r.returncode == 0
     print(f"--- {label}: {'OK' if ok else f'FAILED (exit {r.returncode})'} "
           f"in {time.time()-t0:.0f}s", flush=True)
@@ -76,7 +78,7 @@ if __name__ == "__main__":
 # is a deliberate opt-in). To refresh every Sunday at 03:00:
 #
 #   schtasks /Create /TN "JARVIS Memory Refresh" /SC WEEKLY /D SUN /ST 03:00 ^
-#     /TR "C:\Projects\jarvis-room\brain\.venv311_gpu\Scripts\python.exe C:\Projects\jarvis-room\brain\refresh_memory.py"
+#     /TR "C:\Projects\JARVIS\.venv\Scripts\python.exe C:\Projects\JARVIS\yaadash\refresh_memory.py"
 #
 # Note: Instagram data only changes when a new export is downloaded, so the archive
 # stage only matters after a fresh export lands in Downloads.

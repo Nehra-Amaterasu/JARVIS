@@ -1,14 +1,14 @@
 """Yaadash facts: every confirmed fact in JARVIS's system message, "remember that ..."
 by voice, corrections taught from a flagged reply, and follow-up-aware retrieval.
 
-Uses a throwaway LanceDB and a fake embedder: nothing touches brain/lancedb and the
+Uses a throwaway LanceDB and a fake embedder: nothing touches data/yaadash/lancedb and the
 embedding model is never loaded."""
 import numpy as np
 import pytest
 
-from jarvis_app.paths import ensure_brain_importable
+from jarvis_app.paths import ensure_jarvis_importable
 
-ensure_brain_importable()
+ensure_jarvis_importable()
 import remember  # noqa: E402
 import yaadash_v2 as y  # noqa: E402
 

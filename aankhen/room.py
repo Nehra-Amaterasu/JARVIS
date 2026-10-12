@@ -8,8 +8,8 @@ CONVENTIONS (one frame for everything — mixing frames is the classic tracker b
   - Each sensor has a pose (position + yaw + pitch). Sensor-local measurements are
     converted into room coordinates here, and nowhere else.
 
-The room file is the user's own home layout, so the real one (room.json) is
-gitignored; room.example.json documents the format.
+The room file is the user's own home layout, so the real one lives in
+data/aankhen/room.json (git-ignored); room.example.json here documents the format.
 """
 from __future__ import annotations
 
@@ -325,7 +325,9 @@ def default_room() -> Room:
     )
 
 
-ROOM_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "room.json")
+from . import DATA_DIR  # noqa: E402
+
+ROOM_FILE = os.path.join(DATA_DIR, "room.json")
 
 
 def load_room(path: Optional[str] = None) -> tuple[Room, bool]:

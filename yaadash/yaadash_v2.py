@@ -6,7 +6,7 @@ Replaces the old yaadash_core.py stack, which needed:
   - a 130k-node GraphRAG injection on the voice hot-path (~95% noise).
 
 This module is ONE self-contained thing:
-  - LanceDB   : embedded vector store, no server, on-disk at brain/lancedb/
+  - LanceDB   : embedded vector store, no server, on-disk at data/yaadash/lancedb/
   - bge-small : 384-d embedder pinned to CPU, so the 6GB GPU stays free for the LLM
 
 Public API is drop-in compatible with the old yaadash_core so agent.py needs
@@ -22,8 +22,8 @@ import lancedb
 import pyarrow as pa
 from sentence_transformers import SentenceTransformer
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "lancedb")
+from home import LANCEDB  # noqa: E402  data/yaadash/lancedb, git-ignored
+DB_PATH = str(LANCEDB)
 TABLE_NAME = "memories"
 USER_ID = "boss"
 
@@ -165,7 +165,7 @@ def store_interaction(user_input: str, jarvis_reply: str):
 
 
 def search_authored(query: str, top_k: int = 4, user_id: str = USER_ID):
-    """Search ONLY authored ground-truth facts (identity/core_facts.md)."""
+    """Search ONLY authored ground-truth facts (data/identity/core_facts.md)."""
     tbl = _get_table()
     if tbl.count_rows() == 0:
         return []
@@ -352,7 +352,7 @@ def get_context(user_input: str, fragments: bool = True, facts: bool = True) -> 
     """Retrieve relevant memories, formatted for the system prompt.
 
     Two labelled channels:
-      CONFIRMED FACTS — authored ground truth from identity/core_facts.md.
+      CONFIRMED FACTS — authored ground truth from data/identity/core_facts.md.
       PAST CHAT FRAGMENTS — social evidence, shown only when relevant, never fact.
 
     History of why (2026-10-08): with one undifferentiated store, "what am I

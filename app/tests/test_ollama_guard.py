@@ -1,11 +1,11 @@
-"""brain/ollama_guard.py: JARVIS starts Ollama himself when it is closed, and knows a
+"""core/ollama_guard.py: JARVIS starts Ollama himself when it is closed, and knows a
 refused connection from any other failure. Nothing here starts a real process."""
 import httpx
 import pytest
 
-from jarvis_app.paths import ensure_brain_importable
+from jarvis_app.paths import ensure_jarvis_importable
 
-ensure_brain_importable()
+ensure_jarvis_importable()
 import ollama_guard as g  # noqa: E402
 
 
@@ -61,6 +61,6 @@ def test_no_ollama_installed_fails_cleanly(monkeypatch):
 
 def test_ollama_does_not_inherit_the_venv_cuda_libraries(monkeypatch):
     sep = g.os.pathsep
-    monkeypatch.setenv("PATH", sep.join([r"C:\Projects\jarvis-room\brain\.venv311_gpu\Lib\site-packages\nvidia\cublas\bin",
+    monkeypatch.setenv("PATH", sep.join([r"C:\Projects\JARVIS\.venv\Lib\site-packages\nvidia\cublas\bin",
                                          r"C:\Windows\System32", r"C:\Program Files\Git\cmd"]))
     assert g.clean_env()["PATH"].split(sep) == [r"C:\Windows\System32", r"C:\Program Files\Git\cmd"]

@@ -14,7 +14,7 @@ The local LLM names each topic from its top words. Those names are INFERENCES,
 and they are written to the belief store as unconfirmed claims for him to confirm
 or reject (Step 9), never as facts.
 
-Output (gitignored): brain/yaadash_data/taste_profile.json
+Output (gitignored): data/yaadash/taste_profile.json
 """
 import glob
 import json
@@ -35,7 +35,8 @@ import hinglish
 from ingest_instagram import fix_mojibake
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(HERE, "yaadash_data")
+from home import YAADASH_DATA  # noqa: E402  data/yaadash, git-ignored
+DATA = str(YAADASH_DATA)
 N_TOPICS = 18
 SAVE_WEIGHT = 3            # a save is a stronger signal than a like
 RECENT_FROM_YEAR = 2025    # "now" vs "before" split for the trajectory

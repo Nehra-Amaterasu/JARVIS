@@ -1,4 +1,4 @@
-"""The room owner: commands match brain/room.py exactly, relays get driven, and the
+"""The room owner: commands match core/room.py exactly, relays get driven, and the
 buttons work whether or not JARVIS is awake."""
 import importlib
 import sys
@@ -7,7 +7,7 @@ import pytest
 
 from jarvis_app.bus import EventBus
 from jarvis_app.limbs import DEFAULT_STATE, Limbs, apply_command
-from jarvis_app.paths import BRAIN
+from jarvis_app.paths import CORE
 
 
 class FakeCore:
@@ -50,7 +50,7 @@ def _limbs(tmp_path, core=None, hub=None):
 
 
 def _room_py():
-    sys.path.insert(0, str(BRAIN))
+    sys.path.insert(0, str(CORE))
     room = importlib.import_module("room")
     room.state.update({"light": {"on": False, "level": 100}, "fan": {"on": False, "level": 60}})
     return room

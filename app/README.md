@@ -40,7 +40,7 @@ reasons: [docs/design/mission-game.md](../docs/design/mission-game.md)):
 | "light band kar do" · "fan 40 percent" · "turn on the light" | the room, through Limbs |
 | "say it in an American accent" · "Hindi mein bolo" | the reply switches voice (British by default) |
 
-Commands are parsed without the model (`brain/mission.py`, `remember.py`, `room.py`),
+Commands are parsed without the model (`core/mission.py`, `remember.py`, `room.py`),
 so they are instant and can't be misheard into a different action; questions ("what
 should I study now?") go to the model with the live mission state in its prompt.
 
@@ -57,14 +57,14 @@ powershell -ExecutionPolicy Bypass -File app\install_shortcut.ps1
 ```
 
 Then open **JARVIS** from the Start menu or the Desktop. (Or run
-`brain\.venv311_gpu\Scripts\pythonw.exe app\JARVIS.pyw`.) If the UI was never built,
+`.venv\Scripts\pythonw.exe app\JARVIS.pyw`.) If the UI was never built,
 the launcher builds it on first start.
 
 ## Develop
 
 ```bash
 # terminal 1: the server with a fixed token (JARVIS_DATA_DIR keeps your real progress out of it)
-cd app && JARVIS_DATA_DIR=../scratch ../brain/.venv311_gpu/Scripts/python.exe -m jarvis_app.desktop --server-only --token dev
+cd app && JARVIS_DATA_DIR=../scratch ../.venv/Scripts/python.exe -m jarvis_app.desktop --server-only --token dev
 # terminal 2: the UI with hot reload, proxied to that server
 cd app/ui && npm run dev        # open http://localhost:5173/#t=dev
 ```
@@ -72,7 +72,7 @@ cd app/ui && npm run dev        # open http://localhost:5173/#t=dev
 Tests:
 
 ```bash
-cd app && ../brain/.venv311_gpu/Scripts/python.exe -m pytest -q tests     # server, limbs, transcripts, game bridge, voice parser
+cd app && ../.venv/Scripts/python.exe -m pytest -q tests     # server, limbs, transcripts, game bridge, voice parser
 cd app/ui && npm test                                                       # game engine, store, voice actions, ported Germoney logic
 ```
 
@@ -80,9 +80,9 @@ cd app/ui && npm test                                                       # ga
 
 ```
 JARVIS.pyw ─▶ jarvis_app (FastAPI on 127.0.0.1, per-launch token) ─▶ WebView2 window
-                 ├─ core.py        runs brain/jarvis.py --app as a child process
-                 ├─ memory.py      brain/yaadash_* (search, beliefs, people, taste)
-                 ├─ /ws/aankhen    brain/aankhen hub (engine + serial/replay/simulator)
+                 ├─ core.py        runs core/jarvis.py --app as a child process
+                 ├─ memory.py      yaadash/yaadash_* (search, beliefs, people, taste)
+                 ├─ /ws/aankhen    aankhen hub (engine + serial/replay/simulator)
                  ├─ limbs.py       the room's single owner; relays over USB
                  ├─ germoney.py    Mission storage, local AI, GitHub, calendar, focus guard
                  ├─ /api/game/*    JARVIS ⇄ the game (the rules run in the UI, tested there)
@@ -92,7 +92,7 @@ JARVIS.pyw ─▶ jarvis_app (FastAPI on 127.0.0.1, per-launch token) ─▶ Web
 - **Why JARVIS stays a separate process.** The voice loop owns the microphone,
   Whisper on CUDA and audio playback. If it crashes, the window must not; and
   "Put to sleep" must really free the GPU, which only process exit guarantees.
-  The two talk over the child's stdin/stdout (`brain/appio.py`).
+  The two talk over the child's stdin/stdout (`core/appio.py`).
 - **Why the game's rules live in the UI.** One engine, pure functions, unit-tested;
   JARVIS reaches it through the server (`/api/game/action` → the open window runs
   it → one spoken line back), so there is never a second copy of the rules to drift.

@@ -1,6 +1,6 @@
 """Every conversation, kept — and a review file Claude can read to find what's failing.
 
-Storage (all under app/data/, gitignored — these are private conversations):
+Storage (all under data/app/, gitignored — these are private conversations):
     transcripts/YYYY-MM-DD.jsonl   one line per turn or error, appended as it happens
     transcripts/flags.jsonl        your verdicts on turns: wrong / slow / misheard / good
     reviews/review-*.md            generated review bundles
@@ -12,7 +12,7 @@ A turn line:
 
 Why a review FILE and not an upload: the conversations include friends' names and
 personal facts. The file stays on this machine; you point Claude Code at it
-("read app/data/reviews/review-…md") and nothing leaves unless you choose.
+("read data/app/reviews/review-…md") and nothing leaves unless you choose.
 """
 from __future__ import annotations
 
@@ -177,8 +177,8 @@ class TranscriptStore:
             "Whisper large-v3-turbo, Yaadash memory) built by Aman (Amritanshu Nehra). Find where it fails and why:",
             "wrong facts, ignored questions, hallucinated memories, misheard speech (Hinglish),",
             "slow replies, tone problems. Turns he flagged are listed first with what he expected.",
-            "For each problem, point at the likely cause in the code (brain/agent.py prompt and",
-            "context assembly, brain/yaadash_*.py retrieval, brain/jarvis.py STT/TTS) and propose",
+            "For each problem, point at the likely cause in the code (core/agent.py prompt and",
+            "context assembly, yaadash/yaadash_*.py retrieval, core/jarvis.py STT/TTS) and propose",
             "a concrete, testable fix. These are private conversations: don't quote them anywhere",
             "else.",
             "",

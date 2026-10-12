@@ -45,7 +45,7 @@ are in [`docs/DECISIONS.md`](docs/DECISIONS.md).
                                          ▼
                     speech sanitiser ─▶ edge-TTS ─▶ speaker
 
- ESP32-S3 (Wi-Fi RSSI sensing) ─serial─▶ memory_server API ─▶ presence / visualizer
+ ESP32-S3 (Wi-Fi CSI) ─USB─▶ Aankhen hub ─▶ presence for the agent, 3D twin in the app
 ```
 
 **VRAM budget (6 GB):** LLM ~3.3 GB + Whisper turbo ~1 GB. Embeddings, BM25 and all
@@ -55,19 +55,19 @@ the machine learning run on CPU, by design.
 
 ## Subsystems
 
-### Brain — `brain/agent.py`
+### Brain — `core/agent.py`
 Qwen3-4B-Instruct-2507 (4-bit) through Ollama. Chosen over the hybrid reasoning
 Qwen3-4B after measuring that the hybrid model spent ~1,000 hidden tokens deliberating
 before every reply. Two temperatures: lively for conversation, near-deterministic for
 answers grounded in retrieved memory. Output is length-capped after a runaway
 generation loop was caught in testing.
 
-### Voice — `brain/jarvis.py`, `brain/hinglish.py`
+### Voice — `core/jarvis.py`, `core/hinglish.py`
 Wake word → VAD → Whisper turbo → **single-script Hinglish**: Devanagari runs are
 romanized, English is left untouched so device commands still match. A sanitiser
 strips Markdown and emoji before text-to-speech.
 
-### Memory (Yaadash) — `brain/yaadash_*.py`
+### Memory (Yaadash) — `yaadash/yaadash_*.py`
 | Module | Role |
 |---|---|
 | `yaadash_v2.py` | Identity store (LanceDB + bge-small on CPU); labelled retrieval channels |
@@ -80,11 +80,22 @@ strips Markdown and emoji before text-to-speech.
 
 Design rationale: [`docs/research/memory-feasibility.md`](docs/research/memory-feasibility.md).
 
-### Sensing (Aankhen) — `brain/aankhen_*.py`, `brain/aankhen_esp32_firmware/`
-ESP32-S3 firmware measuring Wi-Fi RSSI/CSI disturbance for presence and motion,
-streamed over serial and WebSocket. `aankhen_v2.py` adds an LD2450 mmWave radar
-path. Every frame is tagged `hardware` or `simulation`, and capabilities the hardware
-can't physically deliver (single-antenna pose, radar vitals) are explicitly disabled.
+### Sensing (Aankhen) — `aankhen/`
+An ESP32-S3 measures how people disturb the Wi-Fi channel state information (CSI)
+between it and the router; firmware in `aankhen/firmware/`. The host conditions
+the CSI, detects motion down to millimetre movements in the human band (0.4–4 Hz),
+fuses an optional LD2450 radar, and a learned model (trained on labelled recordings
+of the real room) tells "someone in my room" from "family moving past the router".
+A physics simulator built from measured RF numbers tests all of it before hardware.
+Every frame is tagged `hardware`, `replay` or `simulation`, and capabilities one
+antenna can't physically deliver (pose, heart rate) are disabled, not faked.
+Write-ups: [`docs/design/aankhen-physics.md`](docs/design/aankhen-physics.md),
+[`docs/design/aankhen-learning.md`](docs/design/aankhen-learning.md).
+
+### App — `app/`
+FastAPI backend (127.0.0.1, per-launch token) and a React/three.js UI in a native
+window: JARVIS's live state, memory, the 3D room twin, room control, hardware
+status, and the Mission game.
 
 ---
 
@@ -112,17 +123,24 @@ A few problems where the obvious approach was wrong — each documented with evi
 ## Repository layout
 
 ```
-brain/                    runtime code (entry point: jarvis.py)
-  aankhen_esp32_firmware/   ESP32-S3 sketch — copy secrets.example.h to secrets.h
-  legacy/                   first-generation code, kept for reference, not imported
+app/                      desktop app: FastAPI server (jarvis_app/) + React UI (ui/)
+core/                     JARVIS himself: voice loop (jarvis.py), agent, voices, room
+  home.py                   where everything lives, written down once
+yaadash/                  memory: identity, archive, people, recall, taste, beliefs
+aankhen/                  spatial sensing (Python package)
+  firmware/                 ESP32-S3 sketch — copy secrets.example.h to secrets.h
+  web/                      standalone 3D viewer
+mission-germoney/         the original Expo app (the game itself is a tab in app/)
 docs/
   DECISIONS.md              engineering log: every change, with evidence
   TESTING.md                spoken capability test protocol
-  research/                 design notes
-  design/                   subsystem specs
-  vision/                   long-term vision (aspirational)
-requirements/             pinned environments (GPU: Python 3.11)
+  research/  design/  vision/
+requirements/             pinned environment (Python 3.11) + link_venv.py
+data/                     everything personal — git-ignored, never pushed
 ```
+
+Each part keeps its first-generation code in a `legacy/` folder: kept for
+reference, never imported.
 
 ---
 
@@ -132,27 +150,35 @@ requirements/             pinned environments (GPU: Python 3.11)
 [Ollama](https://ollama.com).
 
 ```bash
-python -m venv brain/.venv311_gpu
-brain/.venv311_gpu/Scripts/pip install -r requirements/requirements.gpu.txt
+python -m venv .venv
+.venv/Scripts/python.exe -m pip install -r requirements/requirements.gpu.txt
+.venv/Scripts/python.exe requirements/link_venv.py
 ollama pull qwen3:4b-instruct-2507-q4_K_M
-cd brain && .venv311_gpu/Scripts/python.exe jarvis.py
+.venv/Scripts/pythonw.exe app/JARVIS.pyw
 ```
 
+`link_venv.py` puts `core/`, `yaadash/` and the root on the venv's import path;
+run it again if the folder ever moves. The app starts JARVIS's voice loop from its
+Core tab; without the app, `.venv/Scripts/python.exe core/jarvis.py` runs it alone.
 Say **"hey jarvis"**, then speak. To build memory from your own Instagram data
 export (placed in `~/Downloads`):
 
 ```bash
-cd brain && .venv311_gpu/Scripts/python.exe refresh_memory.py
+.venv/Scripts/python.exe yaadash/refresh_memory.py
 ```
+
+Tests: `.venv/Scripts/python.exe -m pytest aankhen/tests`, then from `app/`,
+`../.venv/Scripts/python.exe -m pytest tests` and `npx vitest run` in `app/ui/`.
 
 ---
 
 ## Privacy
 
-All personal data stays on the machine. Memory stores, derived profiles, identity
-facts and device credentials are gitignored (`identity/`, `brain/yaadash_data/`,
-`lancedb/`, `secrets.h`). Identity documents are deliberately never ingested, and
-the assistant is instructed and tested to refuse to recite them.
+All personal data stays on the machine, in `data/`: memory stores, derived
+profiles, identity facts, the home's layout and sensor recordings, trained models
+and app state. The whole folder is git-ignored, as is `secrets.h`. Identity
+documents are deliberately never ingested, and the assistant is instructed and
+tested to refuse to recite them.
 
 ---
 
@@ -162,9 +188,9 @@ the assistant is instructed and tested to refuse to recite them.
 |---|---|
 | Voice loop, brain, memory, recall | working, measured |
 | Belief distillation at scale | implemented, not yet run on full history |
-| ESP32 presence sensing | firmware + bridge working; integration with the agent in progress |
-| Physical relay control | in progress (currently a virtual room) |
-| Desktop app | designed ([spec](docs/design/jarvis_desktop_app_design_spec.md)), not built |
+| Aankhen Wi-Fi sensing | complete on the physics simulator; awaiting real-room recordings |
+| Physical relay control | firmware + USB commands done; mains wiring in progress |
+| Desktop app | built and in daily use |
 
 Known limitation: on long answers about past events, the 4B model occasionally
 narrates my actions in the first person. A larger model would fix it; the VRAM

@@ -2,7 +2,7 @@
 
 What one ESP32-S3 listening to a home router can and cannot know about a person,
 from first principles, and how the code now follows from it. Every number is either a
-formula, a published measurement (sources in `brain/aankhen/rf.py`), or a measurement
+formula, a published measurement (sources in `aankhen/rf.py`), or a measurement
 of the full pipeline on the physics simulator. Simulator numbers are predictions, not
 evidence from the real room: `python -m aankhen validate` produces that evidence.
 

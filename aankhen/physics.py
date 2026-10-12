@@ -60,9 +60,10 @@ from typing import Optional
 import numpy as np
 
 from .rf import Body, Channel, RFParams
+from . import DATA_DIR
 from .room import Room, SensorPose
 
-RF_CAL_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rf_calibration.json")
+RF_CAL_FILE = os.path.join(DATA_DIR, "rf_calibration.json")
 
 # Defaults stated as assumptions. chest: peak displacement in quiet breathing (2-6 mm,
 # see docs/design/aankhen-physics.md). sigma_env: relative amplitude wander per 0.1 s

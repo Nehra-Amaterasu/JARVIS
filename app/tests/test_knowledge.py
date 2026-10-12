@@ -1,10 +1,10 @@
-"""Verified notes (brain/knowledge.py): checked drill-deck answers go into JARVIS's
+"""Verified notes (core/knowledge.py): checked drill-deck answers go into JARVIS's
 prompt for technical questions — and never for everyday ones."""
 import pytest
 
-from jarvis_app.paths import ensure_brain_importable
+from jarvis_app.paths import ensure_jarvis_importable
 
-ensure_brain_importable()
+ensure_jarvis_importable()
 import knowledge  # noqa: E402
 
 
@@ -46,6 +46,8 @@ def test_personal_but_technical_still_gets_concept_notes():
 def test_no_regex_in_the_brain_contains_a_literal_backspace():
     """A heredoc once turned \b into a backspace (chr 8) and silently disabled two regexes."""
     import glob, os
-    from jarvis_app.paths import BRAIN
-    bad = [p for p in glob.glob(os.path.join(str(BRAIN), "*.py")) if chr(8) in open(p, encoding="utf-8").read()]
+    from jarvis_app.paths import CORE, YAADASH
+    files = glob.glob(os.path.join(str(CORE), "*.py")) + glob.glob(os.path.join(str(YAADASH), "*.py"))
+    assert files
+    bad = [p for p in files if chr(8) in open(p, encoding="utf-8").read()]
     assert bad == []

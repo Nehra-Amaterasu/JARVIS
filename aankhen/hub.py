@@ -26,13 +26,13 @@ from scipy.optimize import linear_sum_assignment
 from .engine import Engine, run_engine
 from .motion import Baseline
 from .protocol import Frame, FrameType
+from . import DATA_DIR
 from .room import Room, load_room
 from .simulator import SCENARIOS, Simulator, SimulatorSource
 from .transport import ReplaySource, SerialSource, find_esp32_port
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-BASELINE_FILE = os.path.join(HERE, "baseline.json")     # gitignored: room-specific
-BASELINE_FAN_FILE = os.path.join(HERE, "baseline_fan.json")   # same, with the ceiling fan running
+BASELINE_FILE = os.path.join(DATA_DIR, "baseline.json")          # room-specific
+BASELINE_FAN_FILE = os.path.join(DATA_DIR, "baseline_fan.json")  # same, with the ceiling fan running
 
 
 class AankhenHub:
@@ -54,7 +54,7 @@ class AankhenHub:
         self._lock = threading.RLock()
         self._sim_baseline: Optional[Baseline] = None
         self._cmd_seq = 0
-        self.recordings_dir = Path(HERE) / "recordings"
+        self.recordings_dir = Path(DATA_DIR) / "recordings"
         from .teach import Teacher
         self.teacher = Teacher(self)
 

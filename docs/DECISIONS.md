@@ -8,6 +8,56 @@ a command output, or a reproducible test. If I couldn't measure it, I say so.
 
 Format per entry: **Context → Decision → Evidence → Consequences / open items.**
 
+Entries keep the paths as they were when written. Before 2026-10-12 all code lived
+in `brain/`; the entry below maps old paths to new.
+
+---
+
+## 2026-10-12 — One home: C:\Projects\JARVIS, code and personal data separated
+
+**Context.** Everything had grown inside `brain/`: the voice loop, memory, Aankhen,
+firmware, two venvs, vector stores, voice models, the room layout and old TTS files,
+side by side. Personal data was kept out of git by a long list of path-specific
+ignore rules, one per thing, so every new feature risked one more rule forgotten. The
+Mission Germoney Expo app lived in a different Projects folder altogether.
+
+**Decision.** One folder per part, and one folder for everything personal:
+
+| Was | Now |
+|---|---|
+| `brain/jarvis.py`, `agent.py`, `voice.py`, `stt.py`, `room.py`, `mission.py`, ... | `core/` |
+| `brain/yaadash_*.py`, `remember.py`, `ingest_*.py`, `refresh_memory.py` | `yaadash/` |
+| `brain/aankhen/` | `aankhen/` (package at the root) |
+| `brain/aankhen_esp32_firmware/` | `aankhen/firmware/` |
+| `brain/legacy/`, v1 Aankhen files, old memory server | `core/legacy/`, `yaadash/legacy/`, `aankhen/legacy/` |
+| `brain/yaadash_data/`, `brain/lancedb/` | `data/yaadash/`, `data/yaadash/lancedb/` |
+| `brain/models/kokoro/` | `data/models/kokoro/` |
+| `brain/aankhen/room.json`, baselines, `recordings/`, `models/` | `data/aankhen/` |
+| `app/data/`, `identity/`, `notes/`, `archive/` | `data/app/`, `data/identity/`, `data/notes/`, `data/archive/` |
+| `brain/.venv311_gpu/` | `.venv/` |
+| `Documents\Projects\mission_germoney` | `mission-germoney/expo/` (its own private git repo) |
+
+- `core/home.py` writes the layout down once; the app's `paths.py` and the Yaadash
+  modules read it. Aankhen stays standalone and finds `data/aankhen` from its own
+  location (`AANKHEN_DATA_DIR` overrides).
+- Modules keep importing each other by plain name: a `jarvis.pth` in the venv puts
+  `core/`, `yaadash/` and the root on `sys.path`. It computes the root from the
+  venv's location, so a future rename needs nothing. `requirements/link_venv.py`
+  writes it and rebuilds the venv's console launchers (`pip.exe` and friends carry an
+  absolute path to `python.exe` and break when a venv moves).
+- `.gitignore` now ignores `data/` as a whole instead of a dozen named paths.
+- Code moved with `git mv`, so `git log --follow` still shows each file's history.
+- The Mission game stays in `app/ui/src/germoney/`: it is a tab of the app and shares
+  its UI kit, API client and store. `mission-germoney/README.md` maps where its parts are.
+
+**Evidence.** Same suites before and after the move: Aankhen 212, app 216, UI 54, all
+passing. `git status` after the move lists only code; `git check-ignore` confirms the
+room layout, people table, firmware secrets and venv are ignored.
+
+**Consequences.** Shortcuts, the dev-server configs and the silent launcher point at
+the new paths. The unused CPU venv (Python 3.14), the old Qdrant graph store (4.8 GB)
+and the recovery folders moved to `data/archive/` rather than being deleted.
+
 ---
 
 ## 2026-10-11 — Aankhen: smaller movements, the whole house, a model that learns the home

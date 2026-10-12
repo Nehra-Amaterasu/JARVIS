@@ -2,8 +2,8 @@
 
     /api/core/*      start / stop / talk to JARVIS          (core.py)
     /api/memory/*    Yaadash search, beliefs, corrections, people, taste (memory.py)
-    /api/aankhen/*   spatial twin control                   (brain/aankhen/hub.py)
-    /ws/aankhen      the twin's live stream                 (brain/aankhen/server.py)
+    /api/aankhen/*   spatial twin control                   (aankhen/hub.py)
+    /ws/aankhen      the twin's live stream                 (aankhen/server.py)
     /api/limbs/*     the room's devices                     (limbs.py)
     /api/connect     what's plugged in                      (connect.py)
     /api/system/*    vitals, models                         (system.py)
@@ -33,11 +33,11 @@ from . import __version__, connect, germoney, memory, system
 from .bus import EventBus
 from .core import CoreProcess
 from .limbs import Limbs
-from .paths import DATA, DOCS, UI_DIST, ensure_brain_importable
+from .paths import DATA, DOCS, UI_DIST, ensure_jarvis_importable
 from .security import Guard
 
-ensure_brain_importable()
-from aankhen.hub import AankhenHub          # noqa: E402  (needs brain/ on the path)
+ensure_jarvis_importable()
+from aankhen.hub import AankhenHub          # noqa: E402  (needs the JARVIS root on the path)
 from aankhen.server import attach           # noqa: E402
 
 

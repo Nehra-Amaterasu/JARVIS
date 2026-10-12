@@ -5,7 +5,7 @@
  * of rewriting the game logic (and risking a subtly different XP rule), the same
  * modules run here unchanged except for their imports, which point at:
  *
- *   AsyncStorage  -> the JARVIS server's key-value store (app/data/germoney/,
+ *   AsyncStorage  -> the JARVIS server's key-value store (data/app/germoney/,
  *                    atomic writes, daily backups). Same keys as the phone app
  *                    ("@silicon_player_v2", …), so a phone export can be imported.
  *   Alert         -> a JARVIS toast, or a dialog when it asks a question.

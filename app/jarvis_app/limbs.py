@@ -1,7 +1,7 @@
 """Limbs: what JARVIS can physically switch — the room's light and fan.
 
 ONE owner of the room's state: this module. It keeps the state on disk, drives the
-real relays, and keeps JARVIS's own copy (brain/room.py, which voice commands use)
+real relays, and keeps JARVIS's own copy (core/room.py, which voice commands use)
 in step:
 
     Limbs tab / palette ─┐                         ┌─▶ ESP32 relays (USB COMMAND frame)
@@ -12,7 +12,7 @@ So the buttons work whether or not JARVIS is awake, and a voice command flips th
 real relay. Hardware state is reported back by the board in every STATUS frame;
 the UI calls a state "confirmed" only when the board's report agrees with it.
 
-The command semantics mirror brain/room.py exactly (on / off / set / dim /
+The command semantics mirror core/room.py exactly (on / off / set / dim /
 brighten, "all", and the environment scenes); tests/test_limbs.py holds the two
 side by side so they cannot drift apart.
 """
@@ -45,7 +45,7 @@ DEFAULT_STATE = {"light": {"on": False, "level": 100}, "fan": {"on": False, "lev
 def apply_command(state: dict, device: str, action: str, value=None) -> list[str]:
     """Pure: apply one command to `state` in place; return the devices that changed.
 
-    Mirrors brain/room.py apply() — keep the two identical (tested).
+    Mirrors core/room.py apply() — keep the two identical (tested).
     """
     if device == "environment":
         name = str(value).lower() if value else action

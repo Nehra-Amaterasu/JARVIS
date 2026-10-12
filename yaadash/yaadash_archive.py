@@ -8,8 +8,8 @@ and a joke is meaningless without the other person's reply. So the archive keeps
 everything, and is searched only when the question is about a past conversation.
 
 OUTPUTS (all gitignored — they contain friends' messages):
-  brain/yaadash_data/archive_msgs.parquet  one row per message (for BM25 + stats)
-  brain/yaadash_data/threads.parquet       one row per thread
+  data/yaadash/archive_msgs.parquet  one row per message (for BM25 + stats)
+  data/yaadash/threads.parquet       one row per thread
   LanceDB table "archive_windows"          embedded conversation windows
 
 A WINDOW is a run of consecutive messages inside one conversation session. Sessions
@@ -18,7 +18,7 @@ joke onto a 2023 reply. Windows overlap (stride < size) so a moment that falls o
 boundary still lands whole inside some window.
 
 Run:
-    .venv311_gpu\\Scripts\\python.exe yaadash_archive.py
+    .venv\\Scripts\\python.exe yaadash\\yaadash_archive.py
 """
 import collections
 import glob
@@ -39,7 +39,8 @@ import yaadash_v2 as y
 from ingest_instagram import detect_self_name, fix_mojibake
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(HERE, "yaadash_data")
+from home import YAADASH_DATA  # noqa: E402  data/yaadash, git-ignored
+DATA = str(YAADASH_DATA)
 DOWNLOADS = os.path.join(os.path.expanduser("~"), "Downloads")
 
 SESSION_GAP_H = 3          # silence longer than this starts a new conversation

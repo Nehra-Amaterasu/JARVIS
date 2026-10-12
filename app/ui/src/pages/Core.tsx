@@ -277,7 +277,7 @@ function TurnRow({ turn, n, question }: { turn: Turn & { session?: string }; n: 
   )
 }
 
-/** Writes app/data/reviews/review-*.md: flagged turns first, errors, slow replies,
+/** Writes data/app/reviews/review-*.md: flagged turns first, errors, slow replies,
  *  then the full transcript — written for Claude to diagnose where JARVIS fails. */
 function ReviewButton() {
   const toast = useStore((s) => s.toast)
@@ -288,7 +288,7 @@ function ReviewButton() {
     setBusy(true)
     try {
       const r = await post<{ name: string }>('/api/transcripts/export', { days: 7 })
-      toast(`Review written: ${r.name}. Tell Claude: "read app/data/reviews/${r.name}".`, 'live')
+      toast(`Review written: ${r.name}. Tell Claude: "read data/app/reviews/${r.name}".`, 'live')
       await post('/api/open', { which: 'reviews' })
     } catch (e) {
       toast((e as Error).message, 'fault')

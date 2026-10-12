@@ -48,7 +48,8 @@ import pyarrow as pa
 import yaadash_v2 as y
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(HERE, "yaadash_data")
+from home import YAADASH_DATA  # noqa: E402  data/yaadash, git-ignored
+DATA = str(YAADASH_DATA)
 TABLE = "beliefs"
 MERGE_DISTANCE = 0.12        # cosine distance under which two claims are "the same"
 CONFIDENCE_STEP = 0.08       # each extra supporting message adds this much

@@ -390,7 +390,7 @@ function SystemCard() {
         <button className="btn sm ghost" onClick={() => setTab('armory')}>Settings & modes</button>
         <span style={{ flex: 1 }} />
         <button className="btn sm ghost" onClick={() => setTab('calibration')}>Recalibrate</button>
-        <button className="btn sm danger" onClick={() => confirmDialog('Factory reset', 'Wipe ALL Mission progress — rank, XP, the game, quests, logs, workouts, failures, proofs? (Daily backups in app/data/germoney/backups still exist.)', 'Wipe it', () => { resetProgress(); toast('Mission progress wiped. Reloading…', 'fault'); window.setTimeout(() => window.location.reload(), 900) })}>Factory reset</button>
+        <button className="btn sm danger" onClick={() => confirmDialog('Factory reset', 'Wipe ALL Mission progress — rank, XP, the game, quests, logs, workouts, failures, proofs? (Daily backups in data/app/germoney/backups still exist.)', 'Wipe it', () => { resetProgress(); toast('Mission progress wiped. Reloading…', 'fault'); window.setTimeout(() => window.location.reload(), 900) })}>Factory reset</button>
       </div>
     </section>
   )

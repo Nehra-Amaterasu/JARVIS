@@ -1,4 +1,4 @@
-"""JARVIS himself: brain/jarvis.py as a supervised child process.
+"""JARVIS himself: core/jarvis.py as a supervised child process.
 
 Why a child process and not an import: the voice loop owns the microphone,
 Whisper on CUDA and audio playback. A crash there must not take the window down,
@@ -21,7 +21,7 @@ from collections import deque
 from typing import Optional
 
 from .bus import EventBus
-from .paths import BRAIN, core_python
+from .paths import CORE, core_python
 from .transcripts import TranscriptStore
 
 SENTINEL = "\x1eJARVIS "
@@ -81,7 +81,7 @@ class CoreProcess:
             if self.api_url and self.api_token:
                 env.update(JARVIS_API_URL=self.api_url, JARVIS_API_TOKEN=self.api_token)
             self.proc = subprocess.Popen(
-                args, cwd=str(BRAIN), env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                args, cwd=str(CORE), env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT, creationflags=CREATE_NO_WINDOW if os.name == "nt" else 0)
             self.mode, self.state, self.boot_step = mode, "booting", "starting"
             self.session = time.strftime("%Y%m%d-%H%M%S")

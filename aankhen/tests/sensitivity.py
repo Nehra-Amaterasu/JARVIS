@@ -15,7 +15,7 @@ run). A window is "seen" above it. Windows are labelled with each statistic's ow
 length: moving if the person moved inside the window, still if not within it plus
 0.5 s; anything in between is left out.
 
-    python -m aankhen.tests.sensitivity --quick     (from brain/, ~10 min)
+    python -m aankhen.tests.sensitivity --quick     (from the JARVIS folder, ~10 min)
     python -m aankhen.tests.sensitivity             (two rooms, all spreads)
 """
 from __future__ import annotations

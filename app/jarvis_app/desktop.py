@@ -79,7 +79,7 @@ def main(argv=None) -> int:
     # log_config=None: uvicorn's default config builds a colour formatter that calls
     # sys.stdout.isatty(), and under pythonw (the desktop shortcut) sys.stdout is
     # None — that crashed the first double-click launch. Python's own logging,
-    # which JARVIS.pyw points at app/data/jarvis.log, is enough.
+    # which JARVIS.pyw points at data/app/jarvis.log, is enough.
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning",
                                            ws_ping_interval=20, log_config=None))
     thread = threading.Thread(target=server.run, name="jarvis-server", daemon=True)

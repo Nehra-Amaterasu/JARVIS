@@ -16,7 +16,7 @@ from pathlib import Path
 
 import httpx
 
-from .paths import BRAIN, DOWNLOADS, HOME, ensure_brain_importable
+from .paths import DOWNLOADS, HOME, VENV, YAADASH_DATA, ensure_jarvis_importable
 
 
 def _port_open(port: int, host: str = "127.0.0.1") -> bool:
@@ -33,7 +33,7 @@ def _item(id, group, name, status, detail, next=None, glyph=None):
 
 
 def detect(core_info: dict | None = None, aankhen_info: dict | None = None) -> list[dict]:
-    ensure_brain_importable()
+    ensure_jarvis_importable()
     items = []
 
     # ---------------------------------------------------------------- hardware
@@ -48,7 +48,7 @@ def detect(core_info: dict | None = None, aankhen_info: dict | None = None) -> l
     else:
         items.append(_item("esp32", "Hardware", "ESP32-S3 sensor board", "missing",
                            "No ESP32 on USB. (Bluetooth COM ports are ignored on purpose.)",
-                           "Plug it in with a DATA cable, then flash brain/aankhen_esp32_firmware."))
+                           "Plug it in with a DATA cable, then flash aankhen/firmware."))
     radar_live = bool(aankhen_info and aankhen_info.get("kind") == "hardware")
     items.append(_item("ld2450", "Hardware", "HLK-LD2450 mmWave radar",
                        "connected" if radar_live else "missing",
@@ -83,7 +83,7 @@ def detect(core_info: dict | None = None, aankhen_info: dict | None = None) -> l
                        None if turbo.exists() else "Downloads automatically on the first voice start."))
     items.append(_item("tts", "Brain", "Edge TTS · en-GB-RyanNeural (voice)", "connected",
                        "Online voice; without internet JARVIS falls back to Kokoro-82M on the CPU."))
-    oww = glob.glob(str(BRAIN / ".venv311_gpu" / "Lib" / "site-packages" / "openwakeword" / "resources" / "models" / "hey_jarvis*"))
+    oww = glob.glob(str(VENV / "Lib" / "site-packages" / "openwakeword" / "resources" / "models" / "hey_jarvis*"))
     items.append(_item("wake", "Brain", "Wake word · \"Hey Jarvis\"", "connected" if oww else "missing",
                        "openWakeWord, ONNX, runs on CPU." if oww else "Model file not found.",
                        None if oww else "pip install openwakeword, then download its models."))
@@ -96,7 +96,7 @@ def detect(core_info: dict | None = None, aankhen_info: dict | None = None) -> l
     # ---------------------------------------------------------------- memory sources
     insta = sorted(DOWNLOADS.glob("instagram-*.zip"))
     items.append(_item("instagram", "Memory", "Instagram exports",
-                       "connected" if (BRAIN / "yaadash_data" / "archive_msgs.parquet").exists() else ("available" if insta else "missing"),
+                       "connected" if (YAADASH_DATA / "archive_msgs.parquet").exists() else ("available" if insta else "missing"),
                        f"{len(insta)} export(s) in Downloads; archive built." if insta else "No export found.",
                        None if insta else "Instagram → Your activity → Download your information (JSON)."))
     chatgpt = list(DOWNLOADS.glob("*chatgpt*.zip")) + list(DOWNLOADS.glob("*/conversations.json"))[:1]

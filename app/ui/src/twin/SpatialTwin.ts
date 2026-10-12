@@ -1,7 +1,7 @@
 /**
  * SpatialTwin — the room in 3D, driven by the Aankhen engine.
  *
- * Coordinates match brain/aankhen/room.py: metres, origin at a floor corner, +x
+ * Coordinates match aankhen/room.py: metres, origin at a floor corner, +x
  * along one wall, +y along the next, +z up. Everything room-authored lives in one
  * group rotated -90° about X, so room (x, y, z) -> world (x, z, -y).
  *

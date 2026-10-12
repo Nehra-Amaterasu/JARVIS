@@ -3,7 +3,7 @@
 **Engine Module:** `aankhen_engine.py`  
 **Simulation Server:** `ruview_simulator.py` (`ws://localhost:8765` at 10Hz)  
 **Signal Parser:** `ruview_parser.py`  
-**WebGL 3D Visualizer:** [SpatialRadarView.html](file:///C:/Projects/jarvis-room/brain/SpatialRadarView.html)  
+**WebGL 3D Visualizer:** [SpatialRadarView.html](../../aankhen/legacy/SpatialRadarView.html)  
 
 ---
 

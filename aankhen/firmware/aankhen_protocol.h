@@ -1,4 +1,4 @@
-// Aankhen wire protocol — the C side of brain/aankhen/protocol.py.
+// Aankhen wire protocol — the C side of aankhen/protocol.py.
 //
 // Both files describe ONE contract; change them together and bump
 // AK_PROTOCOL_VERSION when you do. Frame layout (little-endian):
@@ -16,7 +16,7 @@
 // The CSI payload is the 16-byte ak_csi_meta_t below followed by the raw CSI
 // buffer, exactly as esp_wifi_set_csi_rx_cb delivered it (imaginary first, FFT bin
 // order). The firmware does NO processing: a recording can be re-analysed with any
-// future algorithm, and every conversion lives in one place (brain/aankhen/csi.py).
+// future algorithm, and every conversion lives in one place (aankhen/csi.py).
 #pragma once
 #include <Arduino.h>
 

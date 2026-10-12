@@ -5,8 +5,8 @@ The point is to find the edges — where he breaks — not to confirm he works.
 
 **Start:**
 ```
-cd /d C:\Projects\jarvis-room\brain
-.venv311_gpu\Scripts\python.exe jarvis.py
+cd /d C:\Projects\JARVIS
+.venv\Scripts\python.exe core\jarvis.py
 ```
 Boot line must say **Python 3.11.9** and **"large-v3-turbo on GPU"**. If it says
 3.14.3, you are in the wrong venv.

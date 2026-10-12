@@ -56,7 +56,7 @@ change; Geist Mono for identifiers, timestamps, units.
 |---|---|---|
 | **Core** | JARVIS himself: start/stop (voice or text-only), live state, transcript, typed chat, subsystem health, mission tracker | `jarvis.py --app` subprocess, structured events on stdout, commands on stdin |
 | **Yaadash** | memory: hybrid search with real excerpts, "ask me" belief confirmation, people/ties, taste trajectory | `yaadash_recall`, `yaadash_beliefs`, `yaadash_people`, `taste_profile.json` |
-| **Aankhen** | the spatial twin: 3D room, tracks, Wi-Fi motion, presence, heatmaps, AR | `brain/aankhen` engine (serial / replay / simulator) |
+| **Aankhen** | the spatial twin: 3D room, tracks, Wi-Fi motion, presence, heatmaps, AR | `aankhen` engine (serial / replay / simulator) |
 | **Limbs** | everything JARVIS can actuate: lights, relays, fans | ESP32 relay endpoints with token auth; registry in `limbs.json` (gitignored) |
 | **Connect** | everything that can be plugged in: boards, sensors, models, data exports — each with live detection and the next step | port scan, Ollama, model cache, export folders |
 | **System** | vitals against the 6 GB ceiling, loaded models, latencies, logs, decisions | NVML, psutil, Ollama `/api/ps` |
@@ -75,7 +75,7 @@ Additions of my own, each with a reason:
 ```
 JARVIS.pyw ──▶ jarvis_app (FastAPI, 127.0.0.1, token) ──▶ pywebview window (WebView2)
                  │  /api/*  /ws/events  /ws/aankhen         │  app/ui (Vite + React + TS)
-                 ├─ core: spawns brain/jarvis.py --app       │  three.js twin, canvas charts
+                 ├─ core: spawns core/jarvis.py --app       │  three.js twin, canvas charts
                  ├─ memory: yaadash modules (lazy, threadpool)
                  ├─ aankhen: engine + source (serial/replay/sim)
                  ├─ limbs, connect, system, mission

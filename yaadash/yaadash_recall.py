@@ -15,7 +15,7 @@ Filters applied before ranking when the question carries them:
   - person: a name in the query is resolved to threads (yaadash_people)
   - year:   an explicit 4-digit year in the query
 
-Index files live in brain/yaadash_data/ (gitignored).
+Index files live in data/yaadash/ (gitignored).
 """
 import os
 import pickle
@@ -34,7 +34,8 @@ import yaadash_v2 as y
 from hinglish import normalize_name
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA = os.path.join(HERE, "yaadash_data")
+from home import YAADASH_DATA  # noqa: E402  data/yaadash, git-ignored
+DATA = str(YAADASH_DATA)
 BM25_CACHE = os.path.join(DATA, "bm25.pkl")
 WINDOWS_TABLE = "archive_windows"
 

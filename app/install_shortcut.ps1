@@ -5,12 +5,12 @@
 $ErrorActionPreference = 'Stop'
 $app   = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repo  = Split-Path -Parent $app
-$pyw   = Join-Path $repo 'brain\.venv311_gpu\Scripts\pythonw.exe'
+$pyw   = Join-Path $repo '.venv\Scripts\pythonw.exe'
 $entry = Join-Path $app 'JARVIS.pyw'
 $icon  = Join-Path $app 'assets\jarvis.ico'
 
 if (-not (Test-Path $pyw)) { throw "Project interpreter not found: $pyw" }
-if (-not (Test-Path $icon)) { & (Join-Path $repo 'brain\.venv311_gpu\Scripts\python.exe') (Join-Path $app 'make_icon.py') }
+if (-not (Test-Path $icon)) { & (Join-Path $repo '.venv\Scripts\python.exe') (Join-Path $app 'make_icon.py') }
 
 $shell = New-Object -ComObject WScript.Shell
 $targets = @(

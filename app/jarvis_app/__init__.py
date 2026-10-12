@@ -1,7 +1,7 @@
 """JARVIS desktop application: the local server behind the JARVIS window.
 
 Layout:
-    paths.py     where everything lives (repo, brain, venv, UI build, app data)
+    paths.py     where everything lives (repo, core, yaadash, venv, UI build, app data)
     security.py  per-launch token + Host check: the UI talks only to 127.0.0.1
     bus.py       one event stream every tab listens to (the bottom ticker, toasts)
     core.py      JARVIS himself — jarvis.py as a supervised child process

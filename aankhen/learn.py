@@ -41,6 +41,7 @@ from typing import Iterable, Optional
 
 import numpy as np
 
+from . import DATA_DIR
 from .csi import CsiConditioner, Sample
 from .fan import FanLines
 from .motion import HBE_BAND_HZ, _bridge_gaps, _smooth_basis, human_band_energy, turbulence
@@ -50,7 +51,7 @@ from .room import Room
 CLASSES = ["empty", "outside", "room", "desk", "bed"]
 OCCUPIED = {"room", "desk", "bed"}
 HOP_S = 0.5
-MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
+MODEL_DIR = os.path.join(DATA_DIR, "models")      # data/aankhen/models, git-ignored
 MODEL_FILE = os.path.join(MODEL_DIR, "spatial.joblib")
 
 SUB_BANDS = [(0.4, 1.0), (1.0, 2.0), (2.0, 4.0), (4.0, 10.0)]

@@ -7,7 +7,8 @@
     python -m aankhen bench [FILES...] [--sim --seeds 5]     score against ground truth
     python -m aankhen simulate --scenario evening --seconds 220 --out recordings/x.akr
 
-Run from the brain/ folder with the project venv.
+Run from the JARVIS folder with the project venv (.venv). Layout, baselines,
+recordings and models live in data/aankhen/.
 
 THE REAL-ROOM PROTOCOL (what `record` + `bench` are for)
   1. calibrate     70 s, room EMPTY, door closed, you outside.
@@ -31,8 +32,9 @@ import os
 import sys
 import time
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-RECORDINGS = os.path.join(HERE, "recordings")          # gitignored
+from . import DATA_DIR  # noqa: E402
+
+RECORDINGS = os.path.join(DATA_DIR, "recordings")      # data/aankhen/recordings, git-ignored
 
 
 def cmd_doctor(a) -> int:

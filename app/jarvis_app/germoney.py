@@ -15,7 +15,7 @@ the network does:
   /api/germoney/focus         the Crucible's distraction check (foreground window)
   /api/germoney/calendar/*    today's events from a private iCal feed + study blocks
 
-Storage (gitignored, personal): app/data/germoney/kv/*.json, one file per key,
+Storage (gitignored, personal): data/app/germoney/kv/*.json, one file per key,
 written atomically; the whole folder is snapshotted once a day (14 kept), because
 "my progress vanished" is the one bug a progress app cannot have.
 """

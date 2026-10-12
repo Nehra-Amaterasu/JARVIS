@@ -1,0 +1,152 @@
+/* ==========================================================================
+   Memory galaxy (components/MemoryGalaxy.tsx, GrowthChart.tsx).
+   Same stage as the Aankhen twin: a dark well with a faint glow, glass HUD cards
+   floating over it, colour = provenance.
+   ========================================================================== */
+.galaxy-card { padding: 20px 20px 16px; margin-bottom: 18px; }
+.gx-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin-bottom: 14px; }
+.gx-head .track { font: 500 11px var(--f-mono); color: var(--ink-4); margin-right: 8px; }
+.gx-pills { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
+.gx-pills .pill { text-transform: none; letter-spacing: 0.02em; }
+.gx-actions { display: flex; align-items: center; gap: 8px; }
+.chip.on-soft { background: rgba(255, 255, 255, 0.14); color: var(--ink); }
+.pill.scan { overflow: hidden; }
+
+.gx-stage {
+  position: relative; height: var(--gx-h, 540px); border-radius: var(--r-xl); overflow: hidden;
+  background:
+    radial-gradient(700px 480px at 50% 45%, rgba(92, 225, 255, 0.045), transparent 70%),
+    radial-gradient(1100px 700px at 50% 120%, rgba(255, 255, 255, 0.035), transparent 60%),
+    #060708;
+  box-shadow: inset 0 0 0 1px var(--hair), var(--shadow);
+}
+.gx-host { position: absolute; inset: 0; transition: filter var(--t-slow) var(--ease); }
+.gx-host canvas { display: block; touch-action: none; }
+.gx-host.stale { filter: saturate(0.75); }
+
+/* hover label: positioned by GalaxyScene with a transform */
+.gx-hover {
+  position: absolute; left: 0; top: 0; z-index: 4; pointer-events: none;
+  max-width: 300px; padding: 7px 10px 8px; border-radius: 12px;
+  background: rgba(10, 11, 14, 0.84); box-shadow: var(--glass-edge), 0 10px 30px -12px rgba(0, 0, 0, 0.8);
+  opacity: 0; transition: opacity 160ms var(--ease);
+}
+.gx-hover.on { opacity: 1; }
+.gx-hover b { display: block; font-weight: 550; font-size: 12.5px; line-height: 1.35; color: var(--ink); }
+.gx-hover span { display: block; margin-top: 3px; font: 500 9.5px var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+
+/* overlays: loading, error, empty */
+.gx-overlay { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; }
+.gx-msg { display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 380px; text-align: center; font-size: 13px; }
+.gx-msg b { font-size: 15px; font-weight: 600; }
+
+/* legend (also the filter) */
+.gx-legend {
+  position: absolute; left: 14px; top: 14px; z-index: 3; display: flex; flex-direction: column; gap: 2px;
+  padding: 8px; border-radius: 16px; background: rgba(12, 13, 16, 0.55);
+  backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur); box-shadow: var(--glass-edge);
+}
+.gx-leg {
+  display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 8px;
+  min-width: 190px; height: 26px; padding: 0 8px; border-radius: 9px; font-size: 12px; color: var(--ink-2); text-align: left;
+  transition: opacity var(--t) var(--ease), background var(--t-fast), transform 420ms var(--spring);
+}
+.gx-leg:hover { background: rgba(255, 255, 255, 0.06); color: var(--ink); }
+.gx-leg.off { opacity: 0.38; }
+.gx-leg.off .gx-sw { box-shadow: none; }
+.gx-shapes { display: flex; gap: 10px; padding: 6px 8px 2px; border-top: 1px solid var(--hair); margin-top: 4px; font-size: 10px; }
+.gx-shapes span { display: inline-flex; align-items: center; gap: 5px; }
+
+.gx-sw { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.gx-sw.glow { box-shadow: 0 0 10px currentColor; }
+.gx-glyph { display: inline-block; flex: none; width: 10px; height: 10px; color: var(--ink-2); }
+.gx-glyph.gx-g-memory { border-radius: 50%; background: currentColor; transform: scale(0.7); }
+.gx-glyph.gx-g-person { border-radius: 50%; box-shadow: inset 0 0 0 1.5px currentColor; }
+.gx-glyph.gx-g-belief { background: currentColor; transform: rotate(45deg) scale(0.68); border-radius: 1px; }
+.gx-glyph.gx-g-topic {
+  background: currentColor;
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+}
+.pill .gx-glyph { color: inherit; width: 9px; height: 9px; }
+
+/* detail card */
+.gx-detail {
+  position: absolute; right: 14px; top: 14px; bottom: 14px; z-index: 3; width: 330px;
+  overflow-y: auto; padding: 14px 16px 16px; border-radius: 20px; background: rgba(12, 13, 16, 0.8);
+  animation: gxIn var(--t-spring) var(--spring-calm) both;
+}
+@keyframes gxIn { from { opacity: 0; transform: translateX(18px) scale(0.98); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+.gx-detail-head { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+.gx-detail-head .btn { margin-left: auto; }
+.gx-detail-head .pill { text-transform: none; letter-spacing: 0.03em; }
+.gx-detail-label { font-size: 14.5px; line-height: 1.45; font-weight: 550; margin-bottom: 14px; user-select: text; overflow-wrap: anywhere; }
+.gx-kv { font-size: 12.5px; }
+.gx-kv > :nth-child(even) { overflow-wrap: anywhere; }
+.gx-note { margin-top: 12px; text-transform: none; letter-spacing: 0.03em; }
+.gx-links { display: flex; flex-direction: column; gap: 4px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--hair); }
+.gx-links .eyebrow { margin-bottom: 4px; }
+.gx-link {
+  display: grid; grid-template-columns: 12px 1fr; align-items: center; gap: 8px; text-align: left;
+  padding: 6px 8px; border-radius: 10px; font-size: 12px; color: var(--ink-2);
+}
+.gx-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gx-link:hover { background: rgba(255, 255, 255, 0.06); color: var(--ink); }
+.gx-skel { display: grid; gap: 8px; }
+.gx-skel i { display: block; height: 14px; }
+.gx-skel i:nth-child(2) { width: 80%; }
+.gx-skel i:nth-child(3) { width: 55%; }
+
+/* time scrubber */
+.gx-time { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 14px; margin-top: 14px; }
+.gx-when { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 190px; }
+.gx-when b { font-size: 17px; color: var(--ink); }
+.gx-when .mono { font-size: 10.5px; }
+
+/* growth chart */
+.gx-chart { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--hair); }
+.gx-chart-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.gx-chart-legend { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+.gx-chart-legend .chip { display: inline-flex; align-items: center; gap: 7px; height: 26px; }
+.gx-chart-legend .chip .mono { font-size: 10.5px; }
+.gx-chart-legend .chip.off { opacity: 0.4; }
+.gx-undated { font-size: 10.5px; }
+.gx-plot { position: relative; cursor: crosshair; touch-action: none; }
+.gx-plot svg { display: block; overflow: visible; }
+.gx-grid { stroke: rgba(255, 255, 255, 0.06); stroke-width: 1; }
+.gx-tick { font: 500 10px var(--f-mono); fill: var(--ink-4); }
+.gx-area { opacity: 0.85; stroke: #050506; stroke-width: 1; transition: d 700ms var(--spring-calm), opacity var(--t); }
+.gx-plot:hover .gx-area { opacity: 0.75; }
+.gx-line { fill: none; stroke: var(--live); stroke-width: 2; stroke-linejoin: round; }
+.gx-dot { fill: var(--live); stroke: #050506; stroke-width: 2; }
+.gx-cursor line { stroke: var(--live); stroke-width: 1.5; transition: x1 220ms var(--ease), x2 220ms var(--ease); }
+.gx-cross { stroke: rgba(255, 255, 255, 0.35); stroke-width: 1; stroke-dasharray: 3 3; }
+.gx-tip {
+  position: absolute; top: 4px; z-index: 2; min-width: 170px; padding: 8px 10px; pointer-events: none;
+  font-size: 11.5px; border-radius: 12px; background: rgba(12, 13, 16, 0.86);
+}
+.gx-tip .mono { color: var(--ink-3); margin-bottom: 4px; }
+.gx-tip-row { display: grid; grid-template-columns: 12px 1fr auto; align-items: center; gap: 6px; color: var(--ink-2); }
+.gx-tip-row b { color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 600; }
+.gx-chart-empty { min-height: 120px; font-size: 12.5px; }
+.gx-table { margin-top: 8px; }
+.gx-table summary { cursor: pointer; font-size: 11px; }
+.gx-table table { width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 11.5px; }
+.gx-table th, .gx-table td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--hair); font-variant-numeric: tabular-nums; }
+.gx-table th:first-child, .gx-table td:first-child { text-align: left; }
+.gx-table th { font: 600 10px var(--f-mono); letter-spacing: 0.06em; color: var(--ink-3); text-transform: uppercase; }
+
+/* phone width: the detail card becomes a sheet over the bottom of the stage */
+@media (max-width: 760px) {
+  .galaxy-card { padding: 14px 12px 12px; }
+  .gx-stage { height: min(var(--gx-h, 540px), 70vh); }
+  .gx-legend { left: 8px; top: 8px; padding: 6px; }
+  .gx-leg { min-width: 0; height: 22px; font-size: 11px; gap: 6px; }
+  .gx-shapes { display: none; }
+  .gx-detail { left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; max-height: 58%; }
+  .gx-time { grid-template-columns: auto 1fr; }
+  .gx-when { grid-column: 1 / -1; align-items: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gx-detail, .gx-area, .gx-cursor line { animation: none; transition: none; }
+}

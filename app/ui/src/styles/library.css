@@ -1,0 +1,120 @@
+/* ==========================================================================
+   Study library (components/LibraryPanel.tsx). Same materials as the rest of
+   Yaadash: glass-thin card, hairlines, mono for locations. Cyan marks text that
+   is my own documents'; amber what to check; red what failed.
+   ========================================================================== */
+/* A container: the card adapts to the column it is mounted in, not the window. */
+.library { display: flex; flex-direction: column; gap: 14px; container-type: inline-size; }
+.library .card-head { margin-bottom: 0; }
+
+.lib-stats { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 12px; color: var(--ink-3); }
+.lib-stats .dot { font-size: 20px; color: var(--ink); margin-right: 6px; vertical-align: -2px; }
+.lib-stats .sim .dot { color: var(--sim); }
+
+.lib-add, .lib-ask {
+  display: flex; align-items: center; gap: 10px;
+  height: 44px; padding: 0 6px 0 14px;
+  border-radius: var(--r);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 0 0 1px var(--hair);
+  transition: box-shadow var(--t-fast) var(--ease);
+}
+.lib-add:focus-within, .lib-ask:focus-within { box-shadow: inset 0 0 0 1px var(--hair-3), 0 0 0 4px rgba(92, 225, 255, 0.08); }
+.lib-add input, .lib-ask input { flex: 1; min-width: 0; height: 100%; background: none; border: 0; outline: none; font-size: 13.5px; }
+.lib-add input { font-family: var(--f-mono); font-size: 12.5px; }
+.lib-add input::placeholder, .lib-ask input::placeholder { color: var(--ink-4); font-family: var(--f-ui); }
+.lib-ask { height: 52px; }
+.lib-ask input { font-size: 15px; }
+.lib-ask input:disabled { cursor: not-allowed; }
+.lib-chips { margin-top: -4px; }
+
+/* ---------------------------------------------------------------- ingest */
+.lib-job { display: flex; flex-direction: column; gap: 8px; }
+.lib-job-line { display: flex; align-items: center; gap: 8px; color: var(--ink-2); }
+.lib-job-file { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lib-job .meter { color: var(--live); }
+.lib-skel { display: flex; flex-direction: column; gap: 6px; }
+.lib-skel .skeleton { height: 38px; }
+.lib-last { font-size: 11px; color: var(--ink-3); }
+.lib-last .sim { margin-top: 3px; }
+.lib-empty { padding: 18px 12px; font-size: 12.5px; line-height: 1.5; }
+
+/* ---------------------------------------------------------------- documents */
+.lib-docs { display: flex; flex-direction: column; max-height: 312px; overflow-y: auto; margin: 0 -6px; padding: 0 6px; }
+.lib-doc { display: grid; grid-template-columns: 50px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--hair); }
+.lib-doc:first-child { border-top: 0; }
+.lib-kind { font: 600 9.5px/1 var(--f-mono); letter-spacing: 0.1em; text-align: center; padding: 5px 0; border-radius: 6px; background: rgba(255, 255, 255, 0.06); color: var(--ink-2); }
+.lib-kind.k-pdf { color: var(--ink); }
+.lib-doc-main { min-width: 0; }
+.lib-doc-name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lib-doc-sub { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+.lib-doc-flags { display: inline-flex; gap: 6px; }
+.lib-doc-flags .pill { height: 20px; padding: 0 8px; }
+
+/* ---------------------------------------------------------------- answer */
+.lib-thinking { display: flex; flex-direction: column; gap: 8px; }
+.lib-thinking .skeleton { height: 14px; }
+.lib-answer {
+  padding: 16px 16px 12px;
+  border-radius: var(--r);
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: inset 0 0 0 1px var(--hair);
+  transition: box-shadow var(--t) var(--ease);
+}
+.lib-answer.tone-live { box-shadow: inset 0 0 0 1px rgba(92, 225, 255, 0.22); }
+.lib-answer.tone-sim { box-shadow: inset 0 0 0 1px rgba(255, 176, 32, 0.3); }
+.lib-answer.tone-fault { box-shadow: inset 0 0 0 1px rgba(255, 69, 58, 0.35); }
+.lib-answer-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.lib-meta { font-size: 10.5px; }
+.lib-answer-text { margin: 12px 0 2px; font-size: 15px; line-height: 1.6; user-select: text; }
+.lib-reason { font-size: 11px; margin-top: 2px; }
+.lib-caveat { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 11.5px; }
+
+.cite {
+  display: inline-grid; place-items: center;
+  min-width: 20px; height: 18px; padding: 0 5px; margin: 0 2px;
+  border-radius: 6px; vertical-align: 2px;
+  font: 600 10.5px/1 var(--f-mono);
+  background: var(--live-2); color: var(--live);
+  transition: background var(--t-fast) var(--ease), color var(--t-fast), transform 420ms var(--spring);
+}
+.cite:hover { background: rgba(92, 225, 255, 0.3); }
+.cite.on { background: var(--live); color: #021318; }
+.cite.bad { background: var(--fault-2); color: var(--fault); cursor: not-allowed; }
+.cite:active { transform: scale(0.9); transition-duration: 90ms; }
+
+.lib-sources { display: flex; flex-direction: column; gap: 1px; margin-top: 14px; }
+.lib-sources .eyebrow { margin-bottom: 6px; }
+.lib-src {
+  display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: baseline;
+  padding: 6px 8px; border-radius: 8px; text-align: left;
+  font-size: 12.5px; color: var(--ink-3);
+  transition: background var(--t-fast) var(--ease), color var(--t-fast);
+}
+.lib-src:hover { background: rgba(255, 255, 255, 0.05); color: var(--ink-2); }
+.lib-src.used { color: var(--ink); }
+.lib-src.used .lib-src-n { color: var(--live); }
+.lib-src.on { background: rgba(92, 225, 255, 0.08); }
+.lib-src-n { font-size: 11px; }
+.lib-src-body { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.lib-src-file { flex: none; max-width: 55%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lib-src-loc { flex: 1; min-width: 0; font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.lib-quote { margin-top: 10px; padding: 14px 16px; }
+.lib-quote-head { display: flex; align-items: center; gap: 8px; color: var(--live); margin-bottom: 8px; }
+.lib-quote p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink-2); user-select: text; }
+.lib-quote mark { background: var(--live-2); color: var(--ink); border-radius: 3px; padding: 0 2px; }
+.lib-quote-path { margin-top: 8px; font-size: 10.5px; word-break: break-all; user-select: text; }
+
+/* Narrow column: the amber flags go (the row's summary still says "1 scanned,
+   not read"), so the file name keeps its room. */
+@container (max-width: 440px) {
+  .lib-doc { grid-template-columns: 44px minmax(0, 1fr) auto; }
+  .lib-doc-flags { display: none; }
+  .lib-src-file { max-width: 48%; }
+  .lib-stats { gap: 2px 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cite { transition-duration: 1ms; }
+}

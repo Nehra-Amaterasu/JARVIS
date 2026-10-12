@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Galaxy bench</title>
+  </head>
+  <body>
+    <!-- Dev-only frame-rate bench for the memory galaxy (npm run dev, then open
+         /galaxy-bench.html?n=10000). Synthetic nodes only; not part of the build. -->
+    <div id="bench-stage"></div>
+    <pre id="bench-result">running…</pre>
+    <script type="module" src="/src/galaxy/bench.ts"></script>
+  </body>
+</html>

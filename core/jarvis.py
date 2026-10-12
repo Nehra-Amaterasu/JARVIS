@@ -115,6 +115,19 @@ SILENCE_THRESHOLD = 0.04  # Lowered from 0.08 so JARVIS can hear normal speaking
 # for 4s" while the constant said 2.0. 4.0 matches the promise and my speech rhythm.
 SILENCE_DURATION = 4.0
 
+# --- End-pointing (when have I finished speaking?) ---
+# 2026-10-12: the energy rule above (record_vad) cut me off on 10-10 and made every
+# reply wait 4 s; endpoint.py replaces it with Silero VAD and a silence tail chosen by
+# how my words end. The old rule stays, untouched, for comparison:
+#   JARVIS_ENDPOINTER=energy  (or --endpointer=energy)
+#   JARVIS_ENDPOINT_JUDGE=0   keeps Silero but turns off the speculative transcript
+#                             (then the tail is a fixed 1.2 s)
+import endpoint
+ENDPOINTER = endpoint.mode_from(sys.argv, os.environ)
+USE_JUDGE = os.environ.get("JARVIS_ENDPOINT_JUDGE", "1").strip() not in ("0", "false", "off", "no")
+WAKE_TIMEOUT_S = 8.0       # after "Hey Jarvis", silence this long goes back to sleep (TESTING A8)
+FOLLOWUP_S = 5.0           # follow-up window, counted once JARVIS has stopped talking
+
 # --- Voice ---
 # Was en-IN-PrabhatNeural reading romanised Hinglish: an English voice guessing at
 # Hindi words spelled in Latin letters. Since 2026-10-09 voice.py owns the voices:
@@ -148,6 +161,17 @@ print("3. Loading Wake Word Engine (hey_jarvis)...")
 appio.emit("boot", step="wakeword")
 oww_model = None if TEXT_ONLY else Model(wakeword_models=["hey_jarvis_v0.1"], inference_framework="onnx")
 
+# The end-pointer's VAD (Silero v6 from faster-whisper's assets, CPU, 0.17 ms a frame).
+# If it cannot load, the old energy rule is used and the log says so.
+silero_vad = None
+if not TEXT_ONLY and ENDPOINTER == "silero":
+    try:
+        silero_vad = endpoint.SileroStream()
+    except Exception as _e:
+        print(f"   (Silero VAD unavailable, using the old energy rule: {_e})")
+        ENDPOINTER = "energy"
+print(f"   End-pointing: {ENDPOINTER}" + (" + speculative transcript" if ENDPOINTER == "silero" and USE_JUDGE else ""))
+
 # Warm memory + brain during boot, not during the first question.
 # Measured 2026-10-08: the bge-small embedder loaded lazily inside the first
 # get_context() call, adding 6.76s to the first reply (0.09s once warm). The LLM
@@ -167,6 +191,17 @@ try:
                       agent.HumanMessage(content="hi")])
 except Exception as _e:
     print(f"   (warm-up skipped: {_e})")
+# Whisper's first decode pays CUDA set-up: measured 2026-10-12 on the RTX 4050, the
+# same 1.5 s clip took 2.77 s cold and 0.62 s warm. The end-pointer transcribes at the
+# first pause, so that cost would land on the first question. Pay it here instead
+# (no VAD filter: on silence the filter would skip the decoder and warm nothing).
+if model is not None:
+    try:
+        _noise = (np.random.default_rng(0).standard_normal(SAMPLE_RATE) * 0.003).astype(np.float32)
+        list(model.transcribe(_noise, beam_size=5, vad_filter=False, condition_on_previous_text=False,
+                              initial_prompt=stt.VOCAB_PROMPT)[0])
+    except Exception as _e:
+        print(f"   (Whisper warm-up skipped: {_e})")
 
 # --- PROCEDURAL SIRI-STYLE SOOTHING COGNITIVE HUM ENGINE ---
 hum_sound = None
@@ -375,6 +410,161 @@ def record_vad():
     chimes.play_chime("process")
     return np.concatenate(audio_data).flatten() if audio_data else np.array([], dtype="float32")
 
+
+def _followup_energy() -> bool:
+    """The pre-2026-10-12 follow-up listener (energy rule): True if any sound came
+    within 5 s. Kept verbatim for JARVIS_ENDPOINTER=energy."""
+    in_followup = False
+    start_time = time.time()
+
+    def followup_callback(indata, frames, timestamp, status):
+        nonlocal in_followup
+        volume_norm = np.linalg.norm(indata) * 10
+        if volume_norm > SILENCE_THRESHOLD:
+            in_followup = True
+
+    with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32", callback=followup_callback):
+        while time.time() - start_time < 5.0:
+            if in_followup:
+                break
+            sd.sleep(100)
+    return in_followup
+
+
+def _jarvis_talking() -> bool:
+    """True while a reply is still playing or queued (the follow-up clock waits)."""
+    try:
+        return bool(pygame.mixer.music.get_busy() or not speech_queue.empty() or voice_engine.pending())
+    except Exception:
+        return False
+
+
+def _interrupt_speech() -> None:
+    """Barge-in: stop JARVIS mid-reply and keep what he had not said yet (the same
+    continuation buffer record_vad fills)."""
+    global last_interrupted_script, was_interrupted
+    pygame.mixer.music.stop()
+    voice_engine.clear()
+    remaining_text = []
+    while not speech_queue.empty():
+        try:
+            queued = speech_queue.get_nowait()
+            remaining_text.append(queued[0])
+            if os.path.exists(queued[1]):
+                os.remove(queued[1])
+        except Exception:
+            pass
+    if remaining_text:
+        last_interrupted_script = " ".join(remaining_text)
+        was_interrupted = True
+    sys.stdout.write("\n[System: Interrupted by User Voice — Script Saved to Continuation Buffer]\n")
+    sys.stdout.flush()
+
+
+def _judge_fn(audio):
+    """The end-pointer's judge: transcribe the audio so far, exactly as a finished turn
+    would be (stt.transcribe), so the result can be reused instead of decoding twice."""
+    raw, meta = stt.transcribe(model, audio)
+    return hinglish.romanize(raw), (raw, meta)
+
+
+judge = (endpoint.ThreadJudge(_judge_fn)
+         if (not TEXT_ONLY and ENDPOINTER == "silero" and USE_JUDGE and model is not None) else None)
+
+
+def _record_silero(followup: bool = False) -> "endpoint.Utterance":
+    """One utterance through endpoint.EndPointer: mic blocks of 512 samples go to a
+    queue, and this thread scores and segments them (the audio callback stays tiny)."""
+    cfg = endpoint.EndpointConfig(start_timeout_s=FOLLOWUP_S if followup else WAKE_TIMEOUT_S)
+    ep = endpoint.EndPointer(cfg, vad=silero_vad, judge=judge, hold=_jarvis_talking)
+    if followup:
+        print(f"\n[Active Conversation Mode: Speak directly within {FOLLOWUP_S:.0f}s of my reply, or say 'Hey Jarvis']")
+        appio.emit("state", state="followup")
+    else:
+        chimes.play_chime("wake")
+        appio.emit("state", state="listening")
+        print("\n[Listening... Speak naturally; I stop when you have finished]")
+    blocks: "queue.Queue[np.ndarray]" = queue.Queue()
+
+    def callback(indata, frames, timestamp, status):
+        blocks.put(indata[:, 0].copy())
+
+    def next_block(timeout):
+        try:
+            return blocks.get(timeout=timeout)
+        except queue.Empty:
+            return None
+
+    def on_event(kind, _t, _info):
+        if kind == "start":
+            if followup:
+                appio.emit("state", state="listening")
+            if _jarvis_talking():
+                _interrupt_speech()
+
+    pulse_icons = [" |iI|iI|iI|iI| ", " iI|iI|iI|iI| ", " I|iI|iI|iI|i ", " |iI|iI|iI|iI| "]
+    shown = {"pulse": 0, "level_t": 0.0}
+
+    def on_block(block):
+        now = time.time()
+        if now - shown["level_t"] > 0.08:
+            shown["level_t"] = now
+            # Same level/threshold as before so the reactor looks the same; the VAD's
+            # own view rides along for anything that wants it.
+            appio.emit("level", level=round(float(np.linalg.norm(block) * 10), 4),
+                       threshold=SILENCE_THRESHOLD, speech_prob=round(ep.last_prob, 3),
+                       vad_threshold=cfg.start_threshold, speaking=ep.started)
+        if ep.started and ep.last_prob >= cfg.stop_threshold:
+            sys.stdout.write(f"\r[Listening...] {pulse_icons[shown['pulse'] % len(pulse_icons)]}")
+            sys.stdout.flush()
+            shown["pulse"] += 1
+
+    with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32",
+                        blocksize=endpoint.FRAME, callback=callback):
+        utt = endpoint.listen(ep, next_block, on_event=on_event, on_block=on_block)
+    if utt.reason == "closed":
+        print("\n[Microphone stopped sending audio]")
+    if utt.has_speech:
+        print(f"\n[End of speech: waited {utt.endpoint_s:.2f} s"
+              f" ({utt.verdict or 'no transcript yet'}, {utt.reason})]")
+        chimes.play_chime("process")
+    elif not followup:
+        print("\n[Heard nothing; back to sleep]")
+    return utt
+
+
+def record_utterance(followup: bool = False) -> "endpoint.Utterance":
+    """Listen for one utterance with the chosen end-pointer (see ENDPOINTER)."""
+    if ENDPOINTER == "silero":
+        return _record_silero(followup)
+    if followup:
+        print("\n[Active Conversation Mode: Speak directly within 5s or say 'Hey Jarvis']")
+        appio.emit("state", state="followup")
+        if not _followup_energy():
+            return endpoint.Utterance(np.zeros(0, dtype=np.float32), "timeout")
+    audio = record_vad()
+    return endpoint.Utterance(audio, "silence", speech_start_s=0.0 if audio.size else None)
+
+
+def transcribe_utterance(utt: "endpoint.Utterance") -> str:
+    """Text for an utterance; reuses the end-pointer's speculative transcript when it
+    already covers every word (then nothing is decoded twice)."""
+    if not utt.has_speech:
+        return ""
+    t0 = time.time()
+    j = utt.judgement
+    if j is None and utt.judge_upto is not None and judge is not None:
+        appio.emit("state", state="transcribing")
+        j = judge.wait_for(utt.judge_upto, timeout=20.0)   # it is already decoding this audio
+    if j is not None and isinstance(j.payload, tuple):
+        raw, meta = j.payload
+        appio.emit("state", state="transcribing")
+        appio.emit("timing", stage="stt", seconds=round(time.time() - t0, 3))
+        appio.emit("stt_meta", **meta, speculative=True, stt_compute_s=round(j.seconds, 3))
+        return j.text if len(j.text) >= 2 else ""
+    return transcribe(utt.audio)
+
+
 def transcribe(audio) -> str:
     """Whisper -> romanised Hinglish text ('' if nothing usable was said). See stt.py."""
     appio.emit("state", state="transcribing")
@@ -417,16 +607,21 @@ def _stream_reply(text: str, t0: float, full: list) -> None:
         speak(sentence_buffer.strip())
 
 
-def respond(text: str) -> None:
+def respond(text: str, endpoint_s=None) -> None:
     """One full turn: think, stream the reply, speak it sentence by sentence.
 
     Speech is queued (voice.py synthesises on its own thread), so the model streams
     at full speed while earlier sentences play. The accent Aman asked for ("in an
     American accent", "Hindi mein") becomes the reply's default voice.
+    `endpoint_s` (silence waited before the recording was closed) is reported after
+    "heard" so the app files it with this turn: end of speech -> first audio is
+    endpoint + stt + first_audio.
     """
     global _turn_started, _first_audio_pending
     print(f"\nYou said: {text}")
     appio.emit("heard", text=text)
+    if endpoint_s is not None:
+        appio.emit("timing", stage="endpoint", seconds=endpoint_s)
     print("Thinking...", end="\r")
     appio.emit("state", state="thinking")
     voice_engine.begin_turn(voice_mod.requested_style(text))
@@ -471,11 +666,13 @@ def main_loop():
             if typed:
                 respond(typed)                 # typed in the app while asleep
                 continue
-            audio = record_vad()
+            utt = record_utterance()
+            if not utt.has_speech:
+                continue                       # woken, then nothing said: back to sleep
 
             start_hum()
             print("Transcribing...", end="\r")
-            text = transcribe(audio)
+            text = transcribe_utterance(utt)
             if not text:
                 stop_hum()
                 continue
@@ -491,33 +688,19 @@ def main_loop():
                 stop_hum()
                 continue
 
-            respond(text)
+            respond(text, endpoint_s=utt.endpoint_s)
 
-            # Active Follow-Up Conversation Loop:
-            # Wait up to 5 seconds for user follow-up speech before returning to wake word sleep
-            print("\n[Active Conversation Mode: Speak directly within 5s or say 'Hey Jarvis']")
-            appio.emit("state", state="followup")
-            in_followup = False
-            start_time = time.time()
-
-            def followup_callback(indata, frames, timestamp, status):
-                nonlocal in_followup
-                volume_norm = np.linalg.norm(indata) * 10
-                if volume_norm > SILENCE_THRESHOLD:
-                    in_followup = True
-
-            with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32", callback=followup_callback):
-                while time.time() - start_time < 5.0:
-                    if in_followup:
-                        break
-                    sd.sleep(100)
-
-            if in_followup:
-                audio = record_vad()
+            # Active Follow-Up Conversation Loop: wait for follow-up speech before
+            # returning to wake-word sleep. With Silero the follow-up IS the recording
+            # (pre-roll included), so its first words are no longer lost to a second
+            # stream opening after the sound that triggered it; and the 5 s only run
+            # once JARVIS has stopped talking.
+            utt = record_utterance(followup=True)
+            if utt.has_speech:
                 start_hum()
-                text = transcribe(audio)
+                text = transcribe_utterance(utt)
                 if text:
-                    respond(text)
+                    respond(text, endpoint_s=utt.endpoint_s)
                 else:
                     stop_hum()
 

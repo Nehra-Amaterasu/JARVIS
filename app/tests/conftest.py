@@ -12,6 +12,7 @@ from pathlib import Path
 
 _TMP = tempfile.mkdtemp(prefix="jarvis-test-")
 os.environ["JARVIS_DATA_DIR"] = _TMP
+os.environ["AANKHEN_HOTPLUG"] = "0"          # never listen to this machine's real serial ports
 APP = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(APP))
 warnings.filterwarnings("ignore", category=DeprecationWarning)

@@ -1,0 +1,144 @@
+/* ==========================================================================
+   Away mode (SIH-1): the card (components/AwayModeCard.tsx) and the alert banner
+   (components/SecurityAlert.tsx). Built from the existing primitives — card, pill,
+   btn, chip, meter, kv — and the motion kit (rise, pop, breathe, scan, press).
+   The card's edge glows in the colour of what is watching: cyan real sensors, amber
+   simulation or a countdown, red a real alarm or nothing watching.
+   ========================================================================== */
+.away-card { display: flex; flex-direction: column; gap: var(--s4); transition: box-shadow var(--t-slow) var(--ease); }
+.away-card[data-tone='live'] { box-shadow: var(--glass-edge), 0 0 0 1px rgba(92, 225, 255, 0.18), 0 0 46px -20px var(--live-glow); }
+.away-card[data-tone='sim'] { box-shadow: var(--glass-edge), 0 0 0 1px rgba(255, 176, 32, 0.24); }
+.away-card[data-tone='fault'] { box-shadow: var(--glass-edge), 0 0 0 1px rgba(255, 69, 58, 0.4), 0 0 54px -16px rgba(255, 69, 58, 0.45); }
+.away-card .card-head { margin-bottom: 0; }
+
+/* ---------------------------------------------------------------- the state */
+.away-hero { display: flex; align-items: center; gap: var(--s4); }
+.away-glyph {
+  width: 54px; height: 54px; flex: none; display: grid; place-items: center; border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05); color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--hair);
+  transition: background var(--t) var(--ease), color var(--t) var(--ease);
+}
+.away-glyph.live { color: var(--live); background: var(--live-2); }
+.away-glyph.sim { color: var(--sim); background: var(--sim-2); }
+.away-glyph.fault { color: var(--fault); background: var(--fault-2); }
+.away-state { font: 600 22px/1.1 var(--f-ui); letter-spacing: -0.015em; }
+.away-line { margin-top: 5px; font-size: 13px; line-height: 1.45; color: var(--ink-2); }
+.away-actions { margin-left: auto; display: flex; gap: 8px; flex: none; }
+
+.away-count { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; color: var(--sim); }
+.away-count.fault { color: var(--fault); }
+.away-count .meter { color: inherit; }
+.away-secs { font-size: 18px; color: inherit; min-width: 3.2em; text-align: right; }
+
+.away-card .banner { margin-bottom: 0; }
+.banner.fault-banner { background: var(--fault-2); color: #ffb3ad; box-shadow: none; }
+
+.away-receipts { display: flex; flex-wrap: wrap; gap: 8px; }
+.away-receipts .chip { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.away-receipts .chip.ok { color: var(--live); background: var(--live-2); box-shadow: none; }
+.away-receipts .chip.no { color: var(--ink-2); }
+
+/* ---------------------------------------------------------------- sections */
+.away-section { display: flex; flex-direction: column; gap: 8px; }
+.away-sub { display: flex; align-items: center; gap: 12px; min-height: 28px; }
+.away-sub .eyebrow { flex: none; }
+.away-check { flex: 1; min-width: 0; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.away-sub-title { font: 600 13px var(--f-ui); }
+.away-note { font-size: 12px; line-height: 1.55; color: var(--ink-3); }
+.away-note b { color: var(--ink-2); font-weight: 600; }
+.away-note .btn { vertical-align: middle; margin-left: 2px; }
+.away-empty {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: var(--r-sm);
+  font-size: 12.5px; color: var(--ink-3); background: rgba(255, 255, 255, 0.025); box-shadow: inset 0 0 0 1px var(--hair);
+}
+
+.away-row {
+  display: grid; grid-template-columns: 10px minmax(0, 1fr) auto auto; gap: 12px; align-items: center;
+  padding: 9px 10px 9px 14px; border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.03); box-shadow: inset 0 0 0 1px var(--hair);
+}
+.home-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-4); transition: background var(--t), box-shadow var(--t); }
+.home-dot.on { background: var(--live); box-shadow: 0 0 10px var(--live); }
+.away-row .who { font: 600 13px/1.2 var(--f-ui); }
+.away-row .addr { margin-top: 2px; font: 11px var(--f-mono); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.away-seen { font: 500 11.5px var(--f-mono); color: var(--ink-3); white-space: nowrap; }
+.away-seen.live { color: var(--live); }
+.away-add { align-self: flex-start; }
+
+.away-form-wrap { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: var(--r); background: rgba(255, 255, 255, 0.025); box-shadow: inset 0 0 0 1px var(--hair); }
+.away-form { display: grid; grid-template-columns: 1.1fr 1.2fr 1fr auto; gap: 8px; align-items: center; }
+.away-form .field { height: 38px; font-size: 13px; }
+.away-form-btns { display: flex; gap: 6px; }
+.away-found { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow: auto; }
+.away-found-row {
+  display: grid; grid-template-columns: auto auto auto 1fr; gap: 12px; align-items: center; text-align: left;
+  padding: 8px 10px; border-radius: 10px; font-size: 12px; background: rgba(255, 255, 255, 0.03);
+}
+.away-found-row:hover:not(:disabled) { background: rgba(255, 255, 255, 0.07); }
+.away-found-row:disabled { opacity: 0.45; cursor: default; }
+
+.away-auto { display: flex; gap: 14px; align-items: flex-start; padding-top: 2px; }
+.away-auto .switch { margin-top: 2px; }
+
+/* ---------------------------------------------------------------- incidents */
+.away-inc {
+  width: 100%; display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; gap: 12px; align-items: center;
+  padding: 9px 12px; border-radius: var(--r-sm); text-align: left; font-size: 12.5px;
+  background: rgba(255, 255, 255, 0.03); box-shadow: inset 0 0 0 1px var(--hair);
+}
+.away-inc:hover, .away-inc.open { background: rgba(255, 255, 255, 0.06); }
+.away-inc-what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.away-inc-detail { padding: 10px 4px 4px; }
+.away-trace { width: 100%; height: 48px; display: block; margin-bottom: 10px; }
+.away-trace .thr { stroke: var(--ink-4); stroke-dasharray: 3 3; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.away-trace .zero { stroke: var(--ink-2); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.away-trace rect { transform-box: fill-box; transform-origin: bottom; animation: barGrow 520ms var(--spring-calm) both; animation-delay: calc(var(--i, 0) * 8ms); }
+.away-trace rect.neg { fill: rgba(255, 255, 255, 0.18); }
+.away-trace rect.pos { fill: var(--fault); }
+.away-trace rect.pos.sim { fill: var(--sim); }
+@keyframes barGrow { from { transform: scaleY(0); } }
+.away-kv { font-size: 12.5px; }
+
+.away-limits summary { cursor: pointer; font-size: 12.5px; color: var(--ink-2); list-style: none; }
+.away-limits summary::before { content: '›'; display: inline-block; margin-right: 8px; transition: transform var(--t) var(--ease); }
+.away-limits[open] summary::before { transform: rotate(90deg); }
+.away-limits ul { margin: 10px 0 8px; padding-left: 18px; font-size: 12.5px; line-height: 1.6; color: var(--ink-2); }
+.away-limits[open] > :not(summary) { animation: fadeIn var(--t-slow) var(--ease) both; }
+
+/* ---------------------------------------------------------------- the alert banner */
+.sec-alert {
+  position: fixed; z-index: 55; top: calc(var(--titlebar) + 10px); left: 0; right: 0; margin: 0 auto;
+  width: min(760px, calc(100vw - 32px)); display: flex; align-items: center; gap: 14px; padding: 14px 16px 14px 18px;
+  border-radius: 18px; background: var(--glass-thick); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
+  box-shadow: var(--shadow), inset 0 0 0 1px rgba(255, 69, 58, 0.55), 0 0 60px -20px rgba(255, 69, 58, 0.6);
+  animation: secAlertIn 560ms var(--spring) both;
+}
+.sec-alert.sim { box-shadow: var(--shadow), inset 0 0 0 1px rgba(255, 176, 32, 0.5); }
+.sec-alert.ended { box-shadow: var(--shadow), inset 0 0 0 1px var(--hair-3); }
+@keyframes secAlertIn { from { opacity: 0; transform: translateY(-18px) scale(0.97); } to { opacity: 1; transform: none; } }
+.sec-alert-icon { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 12px; color: var(--fault); background: var(--fault-2); }
+.sec-alert.sim .sec-alert-icon { color: var(--sim); background: var(--sim-2); }
+.sec-alert.ended .sec-alert-icon { color: var(--ink-2); background: rgba(255, 255, 255, 0.06); }
+.sec-alert-body { flex: 1; min-width: 0; }
+.sec-alert-title { display: flex; align-items: center; gap: 8px; font: 600 14px var(--f-ui); }
+.sec-alert-title time { margin-left: auto; font-size: 11px; }
+.sec-alert-text { margin-top: 3px; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); }
+
+@media (max-width: 720px) {
+  .away-hero { flex-wrap: wrap; }
+  .away-actions { margin-left: 0; width: 100%; }
+  .away-actions .btn { flex: 1; }
+  .away-form { grid-template-columns: 1fr; }
+  .away-found-row { grid-template-columns: 1fr auto; }
+  .away-inc { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .away-inc > .mono:nth-child(2) { display: none; }
+  .away-receipts .chip { display: block; height: auto; min-height: 28px; padding: 6px 12px; white-space: normal; line-height: 1.4; }
+  /* the banner: text gets the full width, Disarm wraps under it, dismiss sits in the corner */
+  .sec-alert { flex-wrap: wrap; top: calc(var(--titlebar) + 6px); padding-right: 44px; }
+  .sec-alert-body { flex: 1 1 calc(100% - 60px); }
+  .sec-alert > .btn.danger { margin-left: 54px; }
+  .sec-alert > .btn.ghost { position: absolute; top: 8px; right: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .away-trace rect, .sec-alert { animation: fadeIn 1ms both !important; }
+}

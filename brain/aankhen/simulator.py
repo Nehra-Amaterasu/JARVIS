@@ -123,6 +123,7 @@ class Actor:
     breath_wander: float = 0.0                 # +- fractional slow wander of the rate
     sigh_every_s: Optional[float] = None       # mean interval between deep breaths
     fidget_every_s: Optional[float] = None     # mean interval between fidgets while still
+    fidget_m: float = 0.05                     # spread of a fidget's displacement (sensitivity tests)
 
 
 @dataclass
@@ -206,7 +207,8 @@ class ActorTimeline:
                     ft += float(rng.exponential(actor.fidget_every_s))
                     if ft > leg.t1 - 5.0:
                         break
-                    dx, dy = np.clip(rng.normal(0, 0.05, 2), -0.12, 0.12)
+                    lim = 2.4 * actor.fidget_m
+                    dx, dy = np.clip(rng.normal(0, actor.fidget_m, 2), -lim, lim)
                     self.fidgets.append(_Fidget(ft, float(rng.uniform(1.0, 2.5)), float(dx), float(dy)))
         if actor.sigh_every_s:
             st_t = actor.enter_at
@@ -480,6 +482,131 @@ def scenario_drift() -> Scenario:
     return Scenario("drift", [a], drift=Drift(phase_rad=1.0, ramp_s=250.0),
                     description="empty room drifting through a subcarrier null, then a visit")
 
+
+def scenario_house(room: Room) -> Scenario:
+    """Built from room.json "house". The room is EMPTY for its first 100 s while the
+    family moves around the flat: one walks the passage to the second bedroom and
+    back, one moves between the living room, the router's console by the main door
+    and the dining table. At 100 s you come in, sit at your desk for a minute and
+    leave; the family keeps moving throughout. Only people inside the room count, so
+    everything outside it is the test: the physics says a walker 1 m from the router
+    moves the link 2.5x more than someone crossing the room."""
+    h = room.house
+    if h is None:
+        raise ValueError("the house scenario needs a room.json with a 'house' section")
+
+    def centre(name: str) -> Optional[tuple[float, float]]:
+        a = h.area(name)
+        if a is None:
+            return None
+        xs, ys = zip(*a.polygon)
+        return (sum(xs) / len(xs), sum(ys) / len(ys))
+
+    def fixture(word: str) -> Optional[tuple[float, float]]:
+        f = next((f for f in h.fixtures if word in f.name), None)
+        return (f.x, f.y) if f else None
+
+    actors = []
+    pas = h.area("passage")
+    if pas is not None:
+        xs, ys = zip(*pas.polygon)
+        y = (min(ys) + max(ys)) / 2
+        west, east = (min(xs) + 0.4, y), (max(xs) - 0.4, y)
+        loop = [Step("walk", east, speed=0.8)]
+        if centre("second bedroom"):
+            loop += [Step("walk", centre("second bedroom"), speed=0.8), Step("stay", seconds=12),
+                     Step("walk", east, speed=0.8)]
+        loop += [Step("walk", west, speed=0.8)]
+        if centre("dining"):
+            loop += [Step("walk", centre("dining"), speed=0.8), Step("stay", seconds=15, posture="seated"),
+                     Step("walk", west, speed=0.8)]
+        actors.append(Actor("family 1", west, steps=loop * 12))
+    living, console, door = centre("living room"), fixture("console"), fixture("main door")
+    if living:
+        loop = []
+        if console:
+            loop += [Step("walk", (console[0] + 0.5, console[1] + 0.3), speed=0.7), Step("stay", seconds=8)]
+        if door:
+            loop += [Step("walk", (door[0], door[1] + 0.6), speed=0.9), Step("stay", seconds=4)]
+        loop += [Step("walk", living, speed=0.7), Step("stay", seconds=10, posture="seated")]
+        if centre("dining"):
+            loop += [Step("walk", centre("dining"), speed=0.8), Step("stay", seconds=12, posture="seated")]
+        actors.append(Actor("family 2", living, steps=loop * 12))
+    desk = next((z for z in room.zones if z.name == "desk"), None)
+    my_door = fixture("your door")
+    if desk and my_door:
+        outside, inside = (my_door[0], my_door[1] - 0.6), (my_door[0], my_door[1] + 0.5)
+        actors.append(Actor("you", outside, enter_at=100.0, steps=[
+            Step("walk", inside), Step("walk", desk.centroid()),
+            Step("stay", seconds=60, posture="seated"),
+            Step("walk", inside), Step("walk", outside), Step("leave")]))
+    return Scenario("house", actors,
+                    description="family moving around the flat; you visit your desk at 100-170 s")
+
+
+def scenario_life(room: Room, rng: np.random.Generator, seconds: float = 600.0,
+                  family: bool = True, fan: bool = False) -> Scenario:
+    """A random stretch of an ordinary day, for TRAINING data (learn.py): you come and
+    go through your door; in between you sit at the desk, lie on the bed, stand or
+    walk about, with fidgets of random size; the family moves around the flat. Every
+    call with a different rng is a different day."""
+    h = room.house
+    zones = {z.name: z for z in room.zones}
+    door = next((f for f in (h.fixtures if h else []) if f.name == "your door"), None)
+    door_xy = (door.x, door.y) if door else (0.5, 0.0)
+    inside = (door_xy[0], door_xy[1] + 0.5)
+    outside = (door_xy[0], door_xy[1] - 0.6)
+
+    def jitter(p, r):
+        return (p[0] + float(rng.uniform(-r, r)), p[1] + float(rng.uniform(-r, r)))
+
+    def in_room(p):
+        return (min(max(p[0], 0.2), room.width - 0.2), min(max(p[1], 0.2), room.depth - 0.2))
+
+    steps, t = [], 0.0
+    away = float(rng.uniform(10, 60))
+    enter_at = away
+    while t < seconds - away - 30:
+        steps.append(Step("walk", inside))
+        for _ in range(int(rng.integers(1, 4))):
+            kind = rng.choice(["desk", "bed", "walk", "stand"], p=[0.4, 0.25, 0.2, 0.15])
+            if kind == "desk" and "desk" in zones:
+                steps += [Step("walk", in_room(jitter(zones["desk"].centroid(), 0.15))),
+                          Step("stay", seconds=float(rng.uniform(30, 150)), posture="seated")]
+            elif kind == "bed" and "bed" in zones:
+                steps += [Step("walk", in_room(jitter(zones["bed"].centroid(), 0.3))),
+                          Step("stay", seconds=float(rng.uniform(40, 200)), posture="lying")]
+            elif kind == "walk":
+                for _ in range(int(rng.integers(2, 6))):
+                    steps.append(Step("walk", in_room((float(rng.uniform(0.3, room.width - 0.3)),
+                                                       float(rng.uniform(0.3, room.depth - 0.3)))),
+                                      speed=float(rng.uniform(0.4, 1.1))))
+            else:
+                steps += [Step("walk", in_room((float(rng.uniform(0.5, room.width - 0.5)),
+                                                float(rng.uniform(0.5, room.depth - 0.5))))),
+                          Step("stay", seconds=float(rng.uniform(8, 30)), posture="standing")]
+        steps += [Step("walk", inside), Step("walk", outside)]
+        # Away for a while: modelled as standing still well outside, beyond the link's reach.
+        steps += [Step("walk", (outside[0] + 0.0, outside[1] - 0.4)),
+                  Step("stay", seconds=float(rng.uniform(20, 120)), posture="standing")]
+        t = enter_at + sum(s.seconds for s in steps) + 25.0 * len(steps) / 4
+    you = Actor("you", outside, enter_at=enter_at, steps=steps,
+                fidget_every_s=float(rng.uniform(15, 60)), fidget_m=float(rng.uniform(0.01, 0.06)),
+                breathing_bpm=float(rng.uniform(11, 18)))
+    actors = [you]
+    if family and h is not None:
+        fam = scenario_house(room).actors
+        for a in fam:
+            if a.name.startswith("family") and rng.random() < 0.7:
+                a.enter_at = float(rng.uniform(0, seconds / 2))
+                actors.append(a)
+    fan_obj = Fan(x=room.width / 2, y=room.depth / 2, radar_p=0.0, on=[(1.0, 1e9)]) if fan else None
+    return Scenario("life", actors, fan=fan_obj,
+                    description="a random stretch of an ordinary day (training data)")
+
+
+# Scenarios that need a room (built from its house section).
+ROOM_SCENARIOS = {"house": scenario_house}
 
 SCENARIOS = {
     "evening": scenario_evening,

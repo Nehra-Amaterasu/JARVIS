@@ -55,6 +55,8 @@ class AankhenHub:
         self._sim_baseline: Optional[Baseline] = None
         self._cmd_seq = 0
         self.recordings_dir = Path(HERE) / "recordings"
+        from .teach import Teacher
+        self.teacher = Teacher(self)
 
     # ------------------------------------------------------------ lifecycle
     def start(self, mode: str = "auto", scenario: str = "evening", port: Optional[str] = None,
@@ -95,8 +97,9 @@ class AankhenHub:
                 raise ValueError(f"unknown mode {mode!r}")
             if mode != "simulation":
                 self.sim = None
+            from .learn import SpatialModel
             self.engine = Engine(self.room, source.kind, self.room_measured, baseline,
-                                 fan_baseline=fan_baseline)
+                                 fan_baseline=fan_baseline, spatial_model=SpatialModel.load())
             self.source = source
             self.mode, self.scenario = mode, scenario if mode == "simulation" else None
             self._stop = threading.Event()
@@ -109,6 +112,8 @@ class AankhenHub:
 
     def stop(self) -> None:
         with self._lock:
+            if getattr(self, "teacher", None) is not None and self.teacher.session is not None:
+                self.teacher.stop()             # close the labels before the stream goes
             self._stop.set()
             if self.source is not None:
                 try:

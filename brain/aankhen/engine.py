@@ -31,6 +31,7 @@ import numpy as np
 
 from .csi import CsiConditioner
 from .fusion import Evidence, FusionConfig, PresenceFusion
+from .learn import CLASSES as LEARNED_CLASSES, OCCUPIED as LEARNED_OCCUPIED, FeatureStream, TemporalFilter
 from .motion import STATE_MOTION, STATE_UNCALIBRATED, Baseline, MotionConfig, MotionDetector, \
     RespirationDetector
 from .occupancy import OccupancyMap
@@ -63,7 +64,8 @@ class Engine:
                  tracker_cfg: Optional[TrackerConfig] = None,
                  fusion_cfg: Optional[FusionConfig] = None,
                  clock: Callable[[], float] = time.monotonic,
-                 fan_baseline: Optional[Baseline] = None):
+                 fan_baseline: Optional[Baseline] = None,
+                 spatial_model=None):
         self.room = room
         self.source_kind = source_kind
         self.room_measured = room_measured
@@ -80,6 +82,13 @@ class Engine:
             origin=(self.radar_sensor.x, self.radar_sensor.y) if self.radar_sensor else None)
         self.occ = OccupancyMap(room)
         self.fusion = PresenceFusion(fusion_cfg or FusionConfig())
+        # LEARNED SPATIAL MODEL (learn.py), ADVISORY: its answer is shown beside the
+        # fusion's, never used to decide, until it has been trained and scored on
+        # recordings from this room (`python -m aankhen learn`).
+        self.spatial = spatial_model
+        self._spatial_fs = FeatureStream() if spatial_model is not None else None
+        self._spatial_filter = TemporalFilter(spatial_model.priors) if spatial_model is not None else None
+        self.learned: Optional[dict] = None
 
         self.device_t: Optional[float] = None
         self.last_host = {"csi": None, "radar": None, "status": None}
@@ -175,6 +184,10 @@ class Engine:
         self.motion.settling = self._csi_settling(t)
         for s in self.cond.push(t, p.raw, p.rssi, gain_comp_db=p.gain_comp_db):
             self.resp.push(s)
+            if self._spatial_fs is not None:
+                v = self._spatial_fs.push(s, p.rssi, bool(self.fan_relay))
+                if v is not None:
+                    self._learned_step(s.t, v)
             r = self.motion.push(s)
             if r is None:
                 continue
@@ -188,6 +201,18 @@ class Engine:
                     self._event(r.t, "quiet", "Wi-Fi motion stopped")
             self._last_motion_state = r.state
             self._fuse(r.t)
+
+    def _learned_step(self, t: float, v: np.ndarray) -> None:
+        b = self._spatial_filter.step(self.spatial.proba(v[None, :])[0])
+        k = int(np.argmax(b))
+        sim_only = "sim" in str(self.spatial.trained_on.get("note", "")) and ".akr" not in str(
+            self.spatial.trained_on.get("note", ""))
+        self.learned = {"t": round(t, 2), "state": LEARNED_CLASSES[k],
+                        "p": {c: round(float(x), 3) for c, x in zip(LEARNED_CLASSES, b)},
+                        "occupied_p": round(float(sum(x for c, x in zip(LEARNED_CLASSES, b)
+                                                      if c in LEARNED_OCCUPIED)), 3),
+                        "advisory": True,
+                        "trained": "simulator only" if sim_only else "includes your recordings"}
 
     def _on_radar(self, p: RadarPacket) -> None:
         t = p.timestamp_us / 1e6
@@ -453,6 +478,7 @@ class Engine:
                 "zones": zones,
                 "zone_seconds": {k: round(v, 1) for k, v in self.occ.zone_seconds.items()},
                 "presence": self.fusion.summary(t),
+                "learned": self.learned,
                 "motion_detail": {
                     "state": m.state if m else None,
                     "score": m.score if m else None,

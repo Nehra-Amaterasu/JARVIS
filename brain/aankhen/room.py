@@ -87,17 +87,56 @@ class SensorPose:
 
 
 @dataclass
+class Area:
+    """A space of the house around the sensed room (another room, the passage, a
+    balcony), in the SAME frame as the room. Context only: the views draw it and the
+    simulator walks people through it; nothing sensed inside it counts as in the room."""
+    name: str
+    polygon: list[list[float]]
+    kind: str = "room"                 # room | passage | bath | kitchen | balcony | outside
+    color: str = "#334155"
+    height: float = 2.8
+
+
+@dataclass
+class Fixture:
+    """Something worth seeing on the house map: an AC, the TV, a door, the router's
+    console. Position in the room frame, metres."""
+    name: str
+    kind: str                          # ac | tv | door | fan | switchboard | speaker | sensor | console
+    x: float
+    y: float
+    z: float = 0.0
+    note: str = ""
+
+
+@dataclass
+class House:
+    areas: list[Area] = field(default_factory=list)
+    fixtures: list[Fixture] = field(default_factory=list)
+    note: str = ""
+
+    def area(self, name: str) -> Optional[Area]:
+        return next((a for a in self.areas if a.name == name), None)
+
+
+@dataclass
 class Room:
     name: str = "room"
     width: float = 4.0            # along x
     depth: float = 4.0            # along y
     height: float = 2.8
+    # False while the layout is read off a sketch or photos rather than a tape. Every
+    # status frame reports it, so estimated geometry is never shown as measured.
+    measured: bool = True
     zones: list[Zone] = field(default_factory=list)
     furniture: list[Furniture] = field(default_factory=list)
     sensors: list[SensorPose] = field(default_factory=list)
     # Wi-Fi links: (transmitter id, receiver id). Each link senses motion inside
     # its Fresnel zone; it carries no position information along its length.
     links: list[list[str]] = field(default_factory=list)
+    # The rest of the home around this room (optional; views and the simulator only).
+    house: Optional[House] = None
 
     # ---- lookup --------------------------------------------------------
     def sensor(self, sid: str) -> Optional[SensorPose]:
@@ -191,11 +230,15 @@ class Room:
 
     @classmethod
     def from_dict(cls, d: dict) -> "Room":
-        r = cls(**{k: d[k] for k in ("name", "width", "depth", "height") if k in d})
+        r = cls(**{k: d[k] for k in ("name", "width", "depth", "height", "measured") if k in d})
         r.zones = [Zone(**z) for z in d.get("zones", [])]
         r.furniture = [Furniture(**f) for f in d.get("furniture", [])]
         r.sensors = [SensorPose(**s) for s in d.get("sensors", [])]
         r.links = [list(l) for l in d.get("links", [])]
+        h = d.get("house")
+        if h:
+            r.house = House([Area(**a) for a in h.get("areas", [])],
+                            [Fixture(**f) for f in h.get("fixtures", [])], h.get("note", ""))
         r.validate()
         return r
 
@@ -225,6 +268,10 @@ class Room:
         for z in self.zones:
             if len(z.polygon) < 3:
                 problems.append(f"zone {z.name} needs at least 3 points")
+        if self.house:
+            for a in self.house.areas:
+                if len(a.polygon) < 3:
+                    problems.append(f"house area {a.name} needs at least 3 points")
         if problems:
             raise ValueError("invalid room layout: " + "; ".join(problems))
 
@@ -285,5 +332,14 @@ def load_room(path: Optional[str] = None) -> tuple[Room, bool]:
     """(room, is_measured). Falls back to the default layout, and says so."""
     path = path or ROOM_FILE
     if os.path.exists(path):
-        return Room.load(path), True
+        room = Room.load(path)
+        return room, room.measured
     return default_room(), False
+
+
+def layout_kind(path: Optional[str] = None) -> str:
+    """"measured", "estimated" (a room.json marked "measured": false) or "default" (none)."""
+    path = path or ROOM_FILE
+    if not os.path.exists(path):
+        return "default"
+    return "measured" if Room.load(path).measured else "estimated"

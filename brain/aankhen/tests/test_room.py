@@ -3,7 +3,7 @@ import math
 import pytest
 
 from aankhen.room import (
-    Room, SensorPose, Zone, default_room, point_in_polygon,
+    Room, SensorPose, Zone, default_room, layout_kind, load_room, point_in_polygon,
 )
 
 SQUARE = [[0, 0], [2, 0], [2, 2], [0, 2]]
@@ -84,6 +84,25 @@ def test_default_room_is_valid_and_round_trips(tmp_path):
     again = Room.load(str(p))
     assert again.width == room.width and len(again.zones) == len(room.zones)
     assert again.zone_at(0.5, 0.5).name == "desk"
+
+
+def test_an_estimated_layout_is_never_reported_as_measured(tmp_path):
+    """A room.json read off a sketch must say so on every screen, not pass as taped."""
+    p = tmp_path / "room.json"
+    assert layout_kind(str(p)) == "default"
+    assert load_room(str(p))[1] is False
+    est = default_room()
+    est.measured = False
+    est.save(str(p))
+    assert layout_kind(str(p)) == "estimated"
+    room, measured = load_room(str(p))
+    assert measured is False and room.width == est.width
+    est.measured = True
+    est.save(str(p))
+    assert layout_kind(str(p)) == "measured" and load_room(str(p))[1] is True
+    # files written before the flag existed were measured by hand
+    p.write_text('{"width": 4, "depth": 4, "height": 2.8}', encoding="utf-8")
+    assert load_room(str(p))[1] is True
 
 
 def test_invalid_layout_fails_loudly():

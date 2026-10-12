@@ -157,6 +157,23 @@ class FanLines:
                 self.locked, self.f0, self.lines = False, None, []
 
     # ------------------------------------------------------------ cancellation
+    def remove_lines(self, x: np.ndarray) -> np.ndarray:
+        """x (100 Hz samples) with the locked lines fitted and subtracted (the same
+        least-squares notch as residual_variance, keeping the series)."""
+        x = np.asarray(x, float)
+        if not self.locked or not self.lines:
+            return x
+        n = x.size
+        t = np.arange(n) / FS
+        cols = [np.ones(n)]
+        for f in self.lines:
+            if MIN_LINE_HZ <= f < FS / 2 - 0.5:
+                w = 2 * np.pi * f * t
+                cols += [np.cos(w), np.sin(w)]
+        A = np.stack(cols, axis=1)
+        coef, *_ = np.linalg.lstsq(A, x, rcond=None)
+        return x - A @ coef
+
     def residual_variance(self, x: np.ndarray) -> float:
         """Variance of x (100 Hz samples) after removing the locked lines."""
         x = np.asarray(x, float)

@@ -21,7 +21,7 @@ import os
 from typing import Awaitable, Callable, Optional
 from urllib.parse import urlparse
 
-from fastapi import WebSocket
+from fastapi import Request, WebSocket
 
 from .hub import AankhenHub
 
@@ -158,6 +158,39 @@ def create_standalone_app(hub: AankhenHub):
     @app.get("/api/info")
     def info():
         return JSONResponse(hub.info())
+
+    # TEACH: label what you are doing, train on it (teach.py). Writes only from this
+    # page: a cross-site request cannot set X-Aankhen without a CORS preflight, which
+    # this server never approves, and the Origin, when sent, must be this host.
+    # (Request is imported at module level: with postponed annotations FastAPI
+    # resolves "Request" from the module's globals, or it reads it as a query param.)
+    from fastapi.responses import Response
+
+    def _same_page(req: Request) -> bool:
+        if req.headers.get("x-aankhen") != "1":
+            return False
+        origin = req.headers.get("origin")
+        return origin is None or origin.split("://", 1)[-1] == req.headers.get("host")
+
+    def _guarded(fn):
+        async def handler(req: Request):
+            if not _same_page(req):
+                return Response(status_code=403)
+            try:
+                body = await req.json() if req.headers.get("content-length") not in (None, "0") else {}
+                return JSONResponse(fn(body))
+            except (RuntimeError, ValueError) as e:
+                return JSONResponse({"error": str(e)}, status_code=400)
+        return handler
+
+    @app.get("/api/teach")
+    def teach_status():
+        return JSONResponse(hub.teacher.status())
+
+    app.post("/api/teach/start")(_guarded(lambda b: hub.teacher.start()))
+    app.post("/api/teach/label")(_guarded(lambda b: hub.teacher.label(b.get("label") or None)))
+    app.post("/api/teach/stop")(_guarded(lambda b: hub.teacher.stop()))
+    app.post("/api/learn/train")(_guarded(lambda b: hub.teacher.train_async(bool(b.get("include_sim", True)))))
 
     web = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
     app.mount("/", StaticFiles(directory=web, html=True), name="web")

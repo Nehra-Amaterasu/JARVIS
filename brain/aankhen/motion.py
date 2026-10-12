@@ -38,6 +38,7 @@ ADAPTIVE BASELINE
 """
 from __future__ import annotations
 
+import functools
 import json
 import math
 import os
@@ -102,6 +103,9 @@ class MotionConfig:
     # goes below level_floor_rssi_db2: a still person's breathing can sit the level
     # on a 1 dB boundary and flip RSSI between two values, variance <= 0.25 dB^2.
     level_floor_rssi_db2: float = 0.5
+    # HUMAN-BAND ENERGY (see HBE above), a third test OR-ed with the two. On by
+    # default; AANKHEN_HBE=0 turns it off to benchmark the detector without it.
+    hbe: bool = field(default_factory=lambda: os.environ.get("AANKHEN_HBE", "1") != "0")
 
     @property
     def window_n(self) -> int:
@@ -132,6 +136,157 @@ def window_features(turb: np.ndarray) -> dict:
     }
 
 
+# ------------------------------------------------- human-band energy (HBE)
+# HUMAN-BAND ENERGY: a second motion statistic, more sensitive than MVS and blind to
+# what is not a person. Three steps, each from the physics in rf.py:
+#
+# 1. KEEP EVERY SUBCARRIER'S SAY, BUT ONLY THE SMOOTH PART. A moving body adds a
+#    path whose delay differs from the static ones by tens of ns at most, so what it
+#    changes across the 51 subcarriers is a slow ripple (under ~2.5 cycles over the
+#    16 MHz band). Receiver noise is independent per subcarrier. Projecting each
+#    sample onto the first HBE_ORDER+1 Legendre polynomials keeps that ripple and
+#    drops ~88 % of the noise. Turbulence (std / mean) keeps ONE direction of it:
+#    a movement whose ripple is orthogonal to the room's static shape is invisible
+#    to MVS.
+# 2. LISTEN ONLY AT HUMAN SPEEDS. Each coefficient's 3 s window is detrended and its
+#    power is summed over HBE_BAND_HZ. A movement of a few millimetres changes the
+#    path by far less than a wavelength, so the CSI follows the movement itself:
+#    a 1-2.5 s fidget lives at ~0.4-2 Hz. Below 0.4 Hz live breathing's fundamental
+#    and drift; above 4 Hz live most of the white noise (gain-compensation error,
+#    thermal) and a ceiling fan's blade-pass. Measured (tests/sensitivity.py, 2026-10-11):
+#    1-8 Hz threw the small movements away (+3-10 points over MVS); 0.3-8 Hz saw the
+#    most but called a still person at the desk "moving" in 83 % of windows (breathing
+#    harmonics); 0.4-4 Hz over 3 s: 15 % there, ~2 % elsewhere.
+# 3. NORMALISE BY THE NOISE OF THE SAME WINDOW. Each coefficient's white-noise level
+#    is estimated from the first differences of consecutive REAL samples (filled
+#    ones excluded), robustly (MAD). In-band power / that level is ~1 for an empty
+#    room whatever the RSSI, the gain error or the packet rate, so the threshold
+#    learned in calibration means the same thing tomorrow.
+# A windowed coefficient with locked fan lines has them removed first (FanLines).
+HBE_WINDOW_S = 3.0
+HBE_ORDER = 5
+HBE_BAND_HZ = (0.4, 4.0)
+HBE_MIN_REAL = 0.8                  # skip windows with more than 20 % filled samples
+HBE_STEP_SIGMA = 6.0                # a one-sample jump this many noise SDs is a step, not a body
+# A 3 s window remembers a movement for 3 s after it ends. On the benchmark that kept
+# "moving" on ~2 s too long whenever someone left (walk scenario: false "moving" beyond
+# the 2 s grace 0 % -> 11 %). So HBE only counts while the last HBE_RECENT_S still
+# carries human-band power above HBE_RECENT_GATE x the noise (noise alone: ~1).
+HBE_RECENT_S = 1.0
+HBE_RECENT_GATE = 1.6
+# The gate alone did not shorten the tail much (walk: 11 % -> 9 %): to hear a 0.4 Hz
+# movement takes ~2.5 s of data, so its memory cannot be shorter. So HBE may START
+# motion at the gate above, but KEEPING motion on through HBE alone needs the last
+# second to be clearly busy (HBE_HOLD_GATE); weaker than that, MVS and the level
+# decide when it stops. A small movement is still caught; it just does not linger.
+HBE_HOLD_GATE = 4.0
+
+
+@functools.lru_cache(maxsize=4)
+def _smooth_basis(n_sub: int, order: int = HBE_ORDER) -> np.ndarray:
+    """Orthonormal (n_sub x order+1) basis of low-order Legendre polynomials."""
+    x = np.linspace(-1.0, 1.0, n_sub)
+    q, _ = np.linalg.qr(np.polynomial.legendre.legvander(x, order))
+    return q
+
+
+def _bridge_gaps(C: np.ndarray, real: np.ndarray, k: int = 5) -> np.ndarray:
+    """Replace runs of filled samples with a line between the means of up to k real
+    samples on each side.
+
+    The resampler forward-fills a missing packet with the last real one. Across a
+    0.23 s gap that repeats ONE noisy sample 23 times: a rectangular pulse which, on
+    the simulator, held a 3.6-sigma noise sample long enough to look like a 3 cm
+    movement (empty-room HBE up to 7.5x its median). Averaging k neighbours on each
+    side shrinks what the bridge carries by sqrt(k)."""
+    C = C.copy()
+    n = len(real)
+    i = 0
+    while i < n:
+        if real[i]:
+            i += 1
+            continue
+        j = i
+        while j < n and not real[j]:
+            j += 1
+        before = np.flatnonzero(real[:i])[-k:]
+        after = j + np.flatnonzero(real[j:])[:k]
+        if before.size and after.size:
+            a, b = C[before].mean(axis=0), C[after].mean(axis=0)
+            w = (np.arange(i, j) - (i - 1)) / (j - (i - 1))
+            C[i:j] = a + np.outer(w, b - a)
+        elif before.size:
+            C[i:j] = C[before].mean(axis=0)
+        elif after.size:
+            C[i:j] = C[after].mean(axis=0)
+        i = j
+    return C
+
+
+def human_band_energy(amps: np.ndarray, filled: Optional[np.ndarray] = None,
+                      rate_hz: float = 100.0, band: tuple = HBE_BAND_HZ,
+                      fan: Optional["FanLines"] = None, detail: bool = False,
+                      order: Optional[int] = HBE_ORDER):
+    """HBE of one window: in-band power / white-noise power, averaged over the
+    smooth-subspace coefficients (~1 in an empty room). None if the window has too
+    many filled samples to trust. detail=True returns (value, per-coefficient).
+    order=None keeps every subcarrier (no projection), for comparison."""
+    A = np.asarray(amps, float)
+    n = A.shape[0]
+    real = np.ones(n, bool) if filled is None else ~np.asarray(filled, bool)
+    if n < 16 or real.mean() < HBE_MIN_REAL:
+        return None
+    C = A if order is None else A @ _smooth_basis(A.shape[1], order)
+    if not real.all():
+        C = _bridge_gaps(C, real)
+    t = np.arange(n) - (n - 1) / 2.0
+    C = C - C.mean(axis=0)
+    C = C - np.outer(t, (t @ C) / (t @ t))
+    if fan is not None and fan.locked and fan.lines:
+        C = np.stack([fan.remove_lines(C[:, j]) for j in range(C.shape[1])], axis=1)
+    pair = real[1:] & real[:-1]
+    if pair.sum() < 8:
+        return None
+    D = np.diff(C, axis=0)
+    d = D[pair]
+    med = np.median(d, axis=0)
+    dev = np.abs(d - med)
+    sd = np.maximum(1.4826 * np.median(dev, axis=0), 1e-12)
+    sigma2 = sd ** 2 / 2.0
+    # STEPS ARE NOT PEOPLE. A body moves smoothly: at 100 samples a second even a
+    # brisk fidget changes a coefficient by a fraction of the noise per sample. A gain
+    # step the compensation missed, or a glitch the Hampel filter let through, jumps
+    # in ONE sample, and a jump has energy at every frequency, the human band
+    # included. On the simulator these steps put the empty-room HBE at up to 7x its
+    # median. Differences beyond HBE_STEP_SIGMA noise deviations are zeroed and the
+    # series re-integrated, which removes the step and keeps everything smooth.
+    jump = np.abs(D - med) > HBE_STEP_SIGMA * sd
+    if jump.any():
+        D = np.where(jump, med, D)
+        C = np.vstack([np.zeros((1, C.shape[1])), np.cumsum(D, axis=0)])
+        C = C - C.mean(axis=0)
+        C = C - np.outer(t, (t @ C) / (t @ t))
+    w = np.hanning(n)
+    X = np.fft.rfft(C * w[:, None], axis=0)
+    f = np.fft.rfftfreq(n, 1.0 / rate_hz)
+    sel = (f >= band[0]) & (f <= band[1])
+    if not sel.any():
+        return None
+    p = (np.abs(X[sel]) ** 2).mean(axis=0) / (sigma2 * float(w @ w))
+    value = float(p.mean())
+    if not detail:
+        return value
+    # RECENT: the same band, but only the window's last HBE_RECENT_S. The full window
+    # finds weak movement; this says whether it is still going on (see HBE_RECENT_GATE).
+    Y = np.fft.rfft(C, axis=0)
+    Y[~sel] = 0.0
+    y = np.fft.irfft(Y, n=n, axis=0)
+    k = max(2, int(round(HBE_RECENT_S * rate_hz)))
+    frac = sel.sum() / len(f)                    # share of white-noise power in the band
+    recent = float(((y[-k:] ** 2).mean(axis=0) / (sigma2 * frac)).mean())
+    return value, p, recent
+
+
 # -------------------------------------------------------------- baseline
 @dataclass
 class Baseline:
@@ -151,6 +306,9 @@ class Baseline:
     # baselines saved before the channel existed: it stays off until recalibrated.
     level_q: Optional[float] = None
     level_fine: Optional[bool] = None
+    # Empty-room threshold_quantile of the human-band energy (HBE, dimensionless,
+    # ~1 for noise). None in baselines saved before it existed: off until recalibrated.
+    hbe_q: Optional[float] = None
 
     def threshold_ratio(self, scale: float) -> float:
         return scale * self.q_hi / self.median if self.median > 0 else float("inf")
@@ -170,13 +328,16 @@ class Baseline:
     @classmethod
     def from_values(cls, mvs: list[float], quantile: float, source: str,
                     note: str = "", levels: Optional[list] = None,
-                    level_fine: Optional[bool] = None) -> "Baseline":
+                    level_fine: Optional[bool] = None,
+                    hbes: Optional[list] = None) -> "Baseline":
         arr = np.asarray(mvs, dtype=float)
         lv = [v for v in (levels or []) if v is not None and np.isfinite(v)]
         level_q = float(np.quantile(lv, quantile)) if len(lv) >= max(4, len(arr) // 2) else None
+        hb = [v for v in (hbes or []) if v is not None and np.isfinite(v)]
+        hbe_q = float(np.quantile(hb, quantile)) if len(hb) >= max(4, len(arr) // 2) else None
         return cls(float(np.median(arr)), float(np.quantile(arr, quantile)),
                    len(arr), source=source, note=note, level_q=level_q,
-                   level_fine=level_fine if level_q is not None else None)
+                   level_fine=level_fine if level_q is not None else None, hbe_q=hbe_q)
 
 
 class Calibrator:
@@ -186,6 +347,7 @@ class Calibrator:
         self.cfg = cfg
         self.values: list[float] = []
         self.levels: list = []
+        self.hbes: list = []
         self.level_fine: Optional[bool] = None
 
     @property
@@ -193,9 +355,10 @@ class Calibrator:
         return len(self.values) * self.cfg.hop_s
 
     def add(self, mvs: float, level_var: Optional[float] = None,
-            level_fine: Optional[bool] = None) -> None:
+            level_fine: Optional[bool] = None, hbe: Optional[float] = None) -> None:
         self.values.append(mvs)
         self.levels.append(level_var)
+        self.hbes.append(hbe)
         if level_fine is not None:
             self.level_fine = level_fine
 
@@ -208,7 +371,8 @@ class Calibrator:
                 f"need {self.cfg.baseline_min_s:.0f} s of empty room, have {self.seconds:.0f} s")
         return Baseline.from_values(self.values, self.cfg.threshold_quantile, "calibrated",
                                     f"{self.seconds:.0f} s empty-room capture",
-                                    levels=self.levels, level_fine=self.level_fine)
+                                    levels=self.levels, level_fine=self.level_fine,
+                                    hbes=self.hbes)
 
 
 # -------------------------------------------------------------- detector
@@ -248,6 +412,9 @@ class MotionDetector:
         self.context = self.FAN_OFF
         self._turb: deque = deque(maxlen=self.cfg.window_n)
         self._level: deque = deque(maxlen=self.cfg.window_n)
+        hbe_n = int(round(HBE_WINDOW_S * self.cfg.rate_hz))
+        self._amps: deque = deque(maxlen=hbe_n)
+        self._filled: deque = deque(maxlen=hbe_n)
         self._level_fine = False
         self._since_eval = 0
         self._on_run = 0
@@ -257,6 +424,7 @@ class MotionDetector:
         self._quiet_since: Optional[float] = None
         self._auto: list[float] = []
         self._auto_level: list = []
+        self._auto_hbe: list = []
         self.last: Optional[MotionReading] = None
         self.evaluations = 0
         # Set by the engine before each push: seconds the radar has been live and
@@ -266,8 +434,10 @@ class MotionDetector:
         # spinning up or down and its signal sweeps through every frequency.
         self.settling = False
         self._radar_quiet: deque = deque(maxlen=int(round(self.cfg.radar_adapt_after_s / self.cfg.hop_s)))
+        self._radar_quiet_hbe: deque = deque(maxlen=self._radar_quiet.maxlen)
         self._fan_learn: list[float] = []
         self._fan_learn_level: list = []
+        self._fan_learn_hbe: list = []
         self.fan = FanLines()
 
     # -- baselines --------------------------------------------------------
@@ -297,9 +467,12 @@ class MotionDetector:
         baselines stay; radar-gated adaptation moves them to the new channel."""
         self._turb.clear()
         self._level.clear()
+        self._amps.clear()
+        self._filled.clear()
         self._since_eval = self._on_run = self._off_run = 0
         self._in_motion = False
         self._radar_quiet.clear()
+        self._radar_quiet_hbe.clear()
         self._fan_learn.clear()
         self.fan = FanLines()
 
@@ -309,8 +482,10 @@ class MotionDetector:
             self.context = ctx
             self._on_run = self._off_run = 0
             self._radar_quiet.clear()
+            self._radar_quiet_hbe.clear()
             self._fan_learn.clear()
             self._fan_learn_level.clear()
+            self._fan_learn_hbe.clear()
 
     # -- feed -------------------------------------------------------------
     def push(self, s: Sample) -> Optional[MotionReading]:
@@ -324,6 +499,8 @@ class MotionDetector:
             self._level.clear()
         self._level.append(s.level_db if s.level_db is not None else float("nan"))
         self._level_fine = s.level_fine
+        self._amps.append(s.amp)
+        self._filled.append(s.filled)
         self.fan.push(tb)
         self._since_eval += 1
         if len(self._turb) < self.cfg.window_n or self._since_eval < self.cfg.hop_n:
@@ -342,6 +519,7 @@ class MotionDetector:
         mvs = feats["mvs"]
         feats["level_var"] = self._level_var()
         feats["level_fine"] = self._level_fine
+        feats["hbe"], feats["hbe_recent"] = self._hbe()
 
         if self.baseline is None and self.context == self.FAN_ON:
             return self._learn_fan_baseline(t, mvs, feats)
@@ -351,11 +529,12 @@ class MotionDetector:
             # reported with reduced confidence. Run `calibrate` for a real one.
             self._auto.append(mvs)
             self._auto_level.append(feats["level_var"])
+            self._auto_hbe.append(feats["hbe"])
             if len(self._auto) * self.cfg.hop_s >= self.cfg.auto_baseline_s:
                 self.baseline = Baseline.from_values(
                     self._auto, self.cfg.threshold_quantile, "auto",
                     "assumes the room was empty during the first 30 s after start",
-                    levels=self._auto_level, level_fine=self._level_fine)
+                    levels=self._auto_level, level_fine=self._level_fine, hbes=self._auto_hbe)
                 self._calibrated[self.context] = Baseline(**asdict(self.baseline))
             reading = MotionReading(t, STATE_UNCALIBRATED, None, None, 0.0, 0.0,
                                     "collecting a baseline — no decisions yet", feats, "none")
@@ -370,7 +549,12 @@ class MotionDetector:
         lv = feats["level_var"]
         level_over = level_thr is not None and lv is not None and lv > level_thr
         feats["level_threshold"] = level_thr
-        above = score > thr or level_over
+        hbe, hbe_thr = feats["hbe"], (scale * b.hbe_q if b.hbe_q is not None else None)
+        gate = HBE_HOLD_GATE if self._in_motion else HBE_RECENT_GATE
+        hbe_over = (hbe_thr is not None and hbe is not None and hbe > hbe_thr
+                    and (feats["hbe_recent"] or 0.0) > gate)
+        feats["hbe_threshold"] = hbe_thr
+        above = score > thr or level_over or hbe_over
         if above:
             self._on_run += 1
             self._off_run = 0
@@ -392,6 +576,8 @@ class MotionDetector:
             reason = f"motion {score:.1f}x the empty-room level (threshold {thr:.1f}x)"
             if level_over:
                 reason += f"; signal level swinging {lv:.2f} dB^2 (threshold {level_thr:.2f})"
+            if hbe_over:
+                reason += f"; human-speed movement {hbe / hbe_thr:.1f}x its threshold"
         elif self._last_motion_t is not None and t - self._last_motion_t < self.cfg.hold_s:
             state = STATE_RECENT
             reason = f"moved {t - self._last_motion_t:.0f} s ago — probably still here"
@@ -412,8 +598,10 @@ class MotionDetector:
             conf *= 0.7
 
         if not self.settling:
-            self._maybe_adapt(t, mvs, state)
+            self._maybe_adapt(t, mvs, state, hbe)
         motion01 = max(0.0, min(1.0, score / (3.0 * thr))) if thr > 0 else 0.0
+        if hbe_thr and hbe is not None:
+            motion01 = max(motion01, min(1.0, hbe / (3.0 * hbe_thr)))
         reading = MotionReading(t, state, round(score, 3), round(thr, 3), motion01,
                                 round(conf, 3), reason, feats, b.source)
         self.last = reading
@@ -427,22 +615,34 @@ class MotionDetector:
                 and self.radar_empty_s >= self.cfg.fan_learn_after_s):
             self._fan_learn.append(mvs)
             self._fan_learn_level.append(feats.get("level_var"))
+            self._fan_learn_hbe.append(feats.get("hbe"))
         need = int(self.cfg.fan_learn_s / self.cfg.hop_s)
         if len(self._fan_learn) >= need:
             b = Baseline.from_values(self._fan_learn, self.cfg.threshold_quantile,
                                      "learned (fan on)",
                                      f"{self.cfg.fan_learn_s:.0f} s of radar-confirmed empty room, fan running",
-                                     levels=self._fan_learn_level, level_fine=self._level_fine)
+                                     levels=self._fan_learn_level, level_fine=self._level_fine,
+                                     hbes=self._fan_learn_hbe)
             self._baselines[self.FAN_ON] = b
             self._calibrated[self.FAN_ON] = Baseline(**asdict(b))
             self._fan_learn.clear()
             self._fan_learn_level.clear()
+            self._fan_learn_hbe.clear()
         reading = MotionReading(t, STATE_UNCALIBRATED, None, None, 0.0, 0.0,
                                 f"fan on: learning its baseline ({len(self._fan_learn) * self.cfg.hop_s:.0f}"
                                 f" of {self.cfg.fan_learn_s:.0f} s with the radar seeing an empty room)",
                                 feats, "none")
         self.last = reading
         return reading
+
+    def _hbe(self) -> tuple[Optional[float], Optional[float]]:
+        """(HBE of the full window, human-band power of its last second)."""
+        if not self.cfg.hbe or len(self._amps) < self._amps.maxlen:
+            return None, None
+        r = human_band_energy(np.stack(self._amps), np.fromiter(self._filled, bool),
+                              self.cfg.rate_hz, fan=self.fan if self.fan.locked else None,
+                              detail=True)
+        return (None, None) if r is None else (r[0], r[2])
 
     def _level_var(self) -> Optional[float]:
         """Variance of the window's level after removing its straight-line trend
@@ -474,12 +674,14 @@ class MotionDetector:
         floor = 0.0 if b.level_fine else self.cfg.level_floor_rssi_db2
         return max(scale * b.level_q, floor)
 
-    def _maybe_adapt(self, t: float, mvs: float, state: str) -> None:
+    def _maybe_adapt(self, t: float, mvs: float, state: str, hbe: Optional[float] = None) -> None:
         b = self.baseline
         if self.radar_empty_s is None:
             self._radar_quiet.clear()
+            self._radar_quiet_hbe.clear()
         else:
             self._radar_quiet.append(mvs)
+            self._radar_quiet_hbe.append(hbe)
             if (self.radar_empty_s >= self.cfg.radar_adapt_after_s
                     and self._calibrated.get(self.context) is not None):
                 self._adapt_to_radar_quiet(b)
@@ -498,6 +700,11 @@ class MotionDetector:
         # noisier, so it moves at a tenth of the rate.
         b.q_hi = (1 - a) * b.q_hi + a * max(mvs, b.q_hi) if mvs > b.q_hi else \
             (1 - a * 0.1) * b.q_hi + a * 0.1 * mvs
+        if b.hbe_q is not None and hbe is not None:
+            # Same rule for the human-band threshold. HBE is self-normalised by the
+            # window's own noise, so it barely drifts; this only follows slow changes.
+            b.hbe_q = (1 - a) * b.hbe_q + a * hbe if hbe > b.hbe_q else \
+                (1 - a * 0.1) * b.hbe_q + a * 0.1 * hbe
 
     def _adapt_to_radar_quiet(self, b: Baseline) -> None:
         """Follow the last minute of radar-confirmed-empty readings (capped)."""
@@ -510,6 +717,10 @@ class MotionDetector:
         hi = (1 - a) * b.q_hi + a * float(np.quantile(vals, self.cfg.threshold_quantile))
         b.median = min(max(med, cal.median / cap), cal.median * cap)
         b.q_hi = min(max(hi, cal.q_hi / cap), cal.q_hi * cap)
+        hb = [v for v in self._radar_quiet_hbe if v is not None]
+        if b.hbe_q is not None and cal.hbe_q is not None and len(hb) >= len(vals) // 2:
+            hq = (1 - a) * b.hbe_q + a * float(np.quantile(hb, self.cfg.threshold_quantile))
+            b.hbe_q = min(max(hq, cal.hbe_q / cap), cal.hbe_q * cap)
         if b.source == "calibrated":
             b.note = "following radar-confirmed empty room"
 

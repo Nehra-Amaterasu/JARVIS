@@ -121,6 +121,11 @@ class Source:
         self._recorder = Recorder(path, {"source": self.kind, **(meta or {})})
         return self._recorder
 
+    def stop_recording(self) -> None:
+        rec, self._recorder = self._recorder, None
+        if rec:
+            rec.close()
+
     # -- shared plumbing -------------------------------------------------
     def _ingest(self, data: bytes, t: Optional[float] = None) -> None:
         if not data:

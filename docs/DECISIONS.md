@@ -10,6 +10,56 @@ Format per entry: **Context → Decision → Evidence → Consequences / open it
 
 ---
 
+## 2026-10-11 — Aankhen: smaller movements, the whole house, a model that learns the home
+
+**Context.** Three asks:
+- sense smaller human movements, and only humans;
+- put the whole flat into the 3D, 2D and simulated views;
+- train a spatial model on data from this home.
+
+The house layout also exposed a problem no threshold fixes. The router sits by the main
+door, and someone 1 m from it moves the link 2.5× more than someone crossing the room.
+
+**Decision.**
+- **Human-band energy (HBE)**, a third motion test OR-ed with MVS and the level:
+  - project onto 6 smooth subcarrier patterns;
+  - keep 0.4–4 Hz over 3 s;
+  - normalise by the window's own noise.
+  It may start motion when the last second carries power above 1.6× noise, but keep it
+  on only above 4×.
+- **House layer.** `room.json` `house` (areas, fixtures) drives the 3D/2D views and a
+  house simulator scenario.
+- **`learn.py`.** A five-state spatial model (gradient-boosted trees plus a
+  movement-rules hidden-Markov filter). It trains on simulated days and on labelled real
+  recordings.
+- **`teach.py` and the viewer's Teach panel.** Label from the viewer, train, see the
+  held-out score, and the model is swapped live. It is advisory.
+
+**Evidence** (simulator; tables in `docs/design/aankhen-learning.md`).
+- **Small movements.** At the middle of the room, 6 mm movements are seen in 53–59 % of
+  windows (was 26–30 %), and 1 cm in 61–73 % (was 44–50 %).
+  - Empty, drifting and fan-on rooms are still flagged in only 0–1 % of windows.
+  - Presence accuracy is unchanged on the full suite.
+  - False "moving" beyond 2 s: walk 0 → 0.6 %, evening 0 → 2.6 %.
+- **Two defects found and fixed.** Forward-filled gaps held one noisy sample for up to
+  23 slots (empty-room HBE up to 7.5×), and one-sample gain steps.
+- **House.** Today's engine gets presence right 27 % of the time and says "occupied"
+  100 % of the time the family moves.
+- **Learned model**, scored on 12 held-out simulated days:
+  - occupancy right 94.7 % (engine 63.1 %);
+  - "occupied" while only family moved outside 8.0 % (engine 99.5 %);
+  - zone right 86.7 %;
+  - on an unseen simulated room, occupancy 90.5–91.9 %.
+
+**Consequences / open.**
+- Every learned-model number is simulated until teach sessions exist.
+- The model is advisory and does not vote in fusion until its held-out score on real
+  recordings beats the engine's.
+- Free labels (keyboard activity, HC-SR04) are next.
+- 212 Aankhen tests (16 new), 216 app tests.
+
+---
+
 ## 2026-10-10 — Aankhen on real physics: the ESP32's gain, and what one link can sense
 
 **Context.** Can one ESP32-S3, with no radar yet, sense small movements through Wi-Fi

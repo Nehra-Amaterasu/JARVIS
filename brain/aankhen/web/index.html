@@ -35,6 +35,8 @@
     background:#000b;color:#e2e8f0;white-space:nowrap}
   .lbl.sim{border:1px dashed var(--warn);color:#fcd34d}
   .sensorLbl{font:10px ui-monospace,Consolas,monospace;color:#94a3b8;background:#0008;padding:0 4px;border-radius:2px}
+  .houseLbl{font:11px system-ui,sans-serif;color:#cbd5e1;background:#0f172acc;padding:1px 6px;border-radius:3px;border:1px solid #334155}
+  .fixLbl{font:10px system-ui,sans-serif;color:#e2e8f0;background:#0008;padding:0 4px;border-radius:2px}
   #status{position:fixed;top:10px;left:10px;padding:6px 12px;border-radius:5px;font-weight:700;
     letter-spacing:.02em;z-index:5;box-shadow:0 2px 10px #0008}
   #status.live{background:var(--live)} #status.sim{background:var(--sim)}
@@ -47,7 +49,7 @@
   .kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px}
   .kv span:nth-child(odd){color:var(--dim)} .kv span:nth-child(even){text-align:right;font-variant-numeric:tabular-nums}
   .big{font-size:22px;font-weight:700} .muted{color:var(--dim)}
-  .pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:700}
+  .pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:700;color:#f8fafc}
   .pill.on{background:#166534} .pill.off{background:#334155} .pill.sim{background:var(--sim)} .pill.bad{background:var(--bad)}
   canvas.chart{width:100%;height:70px;display:block;background:#0b1220;border-radius:4px}
   table{width:100%;border-collapse:collapse;font-size:12px}
@@ -63,7 +65,33 @@
     padding:8px 14px;border-radius:6px;pointer-events:auto;max-width:90%;text-align:center}
   #arOverlay button{pointer-events:auto}
   body.noPanel #panel{display:none} body.noPanel #hud{max-width:none}
-  @media (max-width:720px){ #panel{width:auto;left:10px;top:auto;bottom:60px;max-height:40%} #hud{max-width:none} }
+  #presence.moving{color:var(--accent)} #presence.still{color:#4ade80} #presence.empty{color:var(--dim)} #presence.uncertain{color:var(--warn)}
+  .bars{display:grid;grid-template-columns:auto 1fr auto;gap:3px 8px;align-items:center;margin-top:6px;font-size:12px}
+  .bars .track{height:8px;border-radius:4px;background:#1e293b;overflow:hidden}
+  .bars .fill{display:block;height:100%;background:#475569;border-radius:4px;transition:width .4s ease}
+  .bars .fill.top{background:var(--accent)} .bars .v{text-align:right;font-variant-numeric:tabular-nums;color:var(--dim)}
+  @media (prefers-reduced-motion: reduce){ .bars .fill{transition:none} }
+  .teachGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+  .teachGrid button,#trainBtn,#teachStop{background:#1e293b;color:var(--text);border:1px solid #334155;border-radius:6px;
+    padding:7px 8px;font:12px system-ui;cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:6px}
+  .teachGrid button:hover,#trainBtn:hover,#teachStop:hover{border-color:var(--accent)}
+  .teachGrid button:focus-visible,#trainBtn:focus-visible,#teachStop:focus-visible,#hud button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .teachGrid button.on{background:#0c4a6e;border-color:var(--accent);color:#e0f2fe}
+  kbd{font:10px ui-monospace,monospace;color:var(--dim);border:1px solid #334155;border-radius:3px;padding:0 4px}
+  #teachNow{margin-top:8px} #teachNow.rec{color:#fca5a5}
+  #teachNow.rec::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444;margin-right:6px;vertical-align:middle}
+  .teachRow{display:flex;gap:6px;margin-top:8px} .teachRow button{flex:1;justify-content:center !important}
+  #trainBtn[disabled],#teachStop[disabled]{opacity:.45;cursor:default}
+  #trainResult{margin-top:6px;white-space:pre-line}
+  #layers{display:contents} #layersBtn{display:none}
+  /* Phones: the eight layer switches fold behind one button so the toolbar stays
+     one row and never covers the panel above it. */
+  @media (max-width:720px){
+    #panel{width:auto;left:10px;top:auto;bottom:58px;max-height:42%} #hud{max-width:none}
+    #layersBtn{display:inline-block} #layers{display:none}
+    body.showLayers #layers{display:flex;flex-wrap:wrap;gap:6px;position:fixed;left:10px;right:10px;bottom:58px;z-index:6;
+      background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px}
+  }
 </style>
 <script type="importmap">
 { "imports": {
@@ -82,6 +110,26 @@
     <h3>Presence</h3>
     <div><span id="presence" class="big">—</span> <span id="presenceConf" class="muted"></span></div>
     <div class="muted" id="presenceWhy">waiting for data</div>
+    <div id="learnedBox" hidden>
+      <div class="muted" style="margin-top:8px">learned model · <span id="learnedTag" class="pill sim">advisory</span></div>
+      <div class="bars" id="learnedBars"></div>
+    </div>
+  </section>
+  <section id="teachSec" hidden>
+    <h3>Teach Aankhen <span class="muted" id="teachMode"></span></h3>
+    <div class="muted">Tap where you are now. JARVIS records the Wi-Fi with that label and learns your home from it.</div>
+    <div class="teachGrid" id="teachGrid">
+      <button data-label="desk" aria-pressed="false">At my desk <kbd>D</kbd></button>
+      <button data-label="bed" aria-pressed="false">In bed <kbd>B</kbd></button>
+      <button data-label="walk" aria-pressed="false">Moving around <kbd>W</kbd></button>
+      <button data-label="hallway" aria-pressed="false">Outside my door <kbd>O</kbd></button>
+      <button data-label="empty" aria-pressed="false">Room empty <kbd>E</kbd></button>
+      <button data-label="" aria-pressed="false">Pause <kbd>P</kbd></button>
+    </div>
+    <div class="muted" id="teachNow">Not recording.</div>
+    <div class="bars" id="teachTotals"></div>
+    <div class="teachRow"><button id="teachStop">Stop recording</button><button id="trainBtn">Train on my labels</button></div>
+    <div class="muted" id="trainResult" aria-live="polite"></div>
   </section>
   <section>
     <h3>Wi-Fi motion <span class="muted" id="motionUnit"></span></h3>
@@ -123,13 +171,18 @@
 
 <div id="hud">
   <button id="view">2D plan</button>
-  <label><input type="checkbox" id="lyWalls" checked>walls</label>
-  <label><input type="checkbox" id="lyHeat" checked>heatmap</label>
-  <button id="heatLayer">live map</button>
-  <label><input type="checkbox" id="lyFov" checked>radar FOV</label>
-  <label><input type="checkbox" id="lyFresnel" checked>Wi-Fi zone</label>
-  <label><input type="checkbox" id="lyTrails" checked>trails</label>
-  <label><input type="checkbox" id="lyLabels" checked>labels</label>
+  <button id="frame" style="display:none">whole house</button>
+  <button id="layersBtn" aria-expanded="false" aria-controls="layers">layers</button>
+  <span id="layers">
+    <label><input type="checkbox" id="lyWalls" checked>walls</label>
+    <label id="lyHouseLbl" style="display:none"><input type="checkbox" id="lyHouse" checked>house</label>
+    <label><input type="checkbox" id="lyHeat" checked>heatmap</label>
+    <button id="heatLayer">live map</button>
+    <label><input type="checkbox" id="lyFov" checked>radar FOV</label>
+    <label><input type="checkbox" id="lyFresnel" checked>Wi-Fi zone</label>
+    <label><input type="checkbox" id="lyTrails" checked>trails</label>
+    <label><input type="checkbox" id="lyLabels" checked>labels</label>
+  </span>
   <button id="arBtn" style="display:none">AR</button>
   <button id="panelBtn">hide panel</button>
 </div>
@@ -195,9 +248,11 @@ function frameCameras(w, d) {
   fitOrtho(Math.max(w, d) / 2 + 0.6);
 }
 let orthoHalf = 2.6;
+// A hidden tab reports a 0 x 0 window; 0 / 0 would make every later frame NaN.
+const viewW = () => innerWidth || 1280, viewH = () => innerHeight || 720;
 function fitOrtho(half = orthoHalf) {
   orthoHalf = half;
-  const a = innerWidth / innerHeight;
+  const a = viewW() / viewH();
   ortho.left = -half * a; ortho.right = half * a; ortho.top = half; ortho.bottom = -half;
   ortho.updateProjectionMatrix();
 }
@@ -223,7 +278,7 @@ const unitSphere = new THREE.SphereGeometry(1, 48, 24);
 const furnMats = new Map();
 const furnMat = hex => { if (!furnMats.has(hex)) furnMats.set(hex, new THREE.MeshStandardMaterial({ color: hex })); return furnMats.get(hex); };
 
-const layers = { walls: true, heat: true, fov: true, fresnel: true, trails: true, labels: true };
+const layers = { walls: true, heat: true, fov: true, fresnel: true, trails: true, labels: true, house: true };
 let ROOM = null;
 
 // ============================================================================
@@ -300,9 +355,88 @@ function buildRoom(r) {
     zoneViews.set(z.name, { mat, target: 0.05 });
   }
   buildSensors(r);
-  frameCameras(r.width, r.depth);
+  buildHouse(r);
+  frameView();
   buildHeat(heatW, heatH, heatCell);        // keep the heatmap aligned with the room
 }
+
+// ============================================================================
+// The rest of the house (room.json "house"): context only. Other rooms are dim
+// floors with waist-high walls (below the 2D plan's 1.2 m cut, so the plan shows
+// them as outlines); fixtures (ACs, the TV, doors, the router's console) are
+// labelled markers. Nothing sensed is drawn out here except the link itself.
+// ============================================================================
+const houseGroup = new THREE.Group(); room.add(houseGroup);
+const HOUSE_WALL_H = 1.1;
+const houseWallMat = new THREE.MeshStandardMaterial({ color: 0x64748b, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
+const FIX_COLOR = { ac: 0x22d3ee, tv: 0x94a3b8, door: 0xf59e0b, fan: 0xe2e8f0, switchboard: 0xc2410c,
+                    speaker: 0x475569, sensor: 0xa78bfa, console: 0xfbbf24 };
+const fixGeo = new THREE.BoxGeometry(0.22, 0.22, 0.22);
+let houseBounds = null, framing = 'room';
+
+function polyArea(P) { let s = 0; for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length]; s += a[0] * b[1] - b[0] * a[1]; } return s / 2; }
+
+function buildHouse(r) {
+  disposeTree(houseGroup);
+  const h = r.house;
+  const has = !!(h && ((h.areas || []).length || (h.fixtures || []).length));
+  $('frame').style.display = has ? '' : 'none';
+  $('lyHouseLbl').style.display = has ? '' : 'none';
+  houseBounds = null;
+  if (!has) { framing = 'room'; return; }
+  let x0 = 0, y0 = 0, x1 = r.width, y1 = r.depth;
+  const grow = (x, y) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
+  for (const a of h.areas || []) {
+    let P = a.polygon.map(p => [p[0], p[1]]);
+    if (polyArea(P) < 0) P = P.reverse();                 // walls extrude outward for CCW
+    P.forEach(p => grow(p[0], p[1]));
+    const floor = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape(P.map(([x, y]) => new THREE.Vector2(x, y)))),
+      new THREE.MeshBasicMaterial({ color: a.color || '#334155', transparent: true, opacity: a.kind === 'balcony' ? 0.25 : 0.45, depthWrite: false }));
+    floor.position.z = -0.003; floor.renderOrder = 0; houseGroup.add(floor);
+    for (let i = 0; i < P.length; i++) {
+      const p = P[i], q = P[(i + 1) % P.length];
+      const wall = new THREE.Mesh(wallGeometry(Math.hypot(q[0] - p[0], q[1] - p[1]), HOUSE_WALL_H, 0.06), houseWallMat);
+      wall.position.set(p[0], p[1], 0); wall.rotation.z = Math.atan2(q[1] - p[1], q[0] - p[0]);
+      wall.renderOrder = 5; houseGroup.add(wall);
+    }
+    const c = P.reduce((s, p) => [s[0] + p[0] / P.length, s[1] + p[1] / P.length], [0, 0]);
+    addLabel(houseGroup, a.name, c[0], c[1], 0.05, 'houseLbl');
+  }
+  for (const f of h.fixtures || []) {
+    const m = new THREE.Mesh(fixGeo, new THREE.MeshStandardMaterial({ color: FIX_COLOR[f.kind] ?? 0xffffff }));
+    m.position.set(f.x, f.y, Math.max(f.z, 0.11)); houseGroup.add(m);
+    addLabel(houseGroup, f.name, f.x, f.y, Math.max(f.z, 0.11) + 0.25, 'fixLbl');
+    grow(f.x, f.y);
+  }
+  for (const s of r.sensors || []) grow(s.x, s.y);
+  houseBounds = [x0 - 0.5, y0 - 0.5, x1 + 0.5, y1 + 0.5];
+  houseGroup.visible = layers.house;
+}
+
+function frameBounds(x0, y0, x1, y1) {
+  const w = x1 - x0, d = y1 - y0;
+  const c = roomToWorld(x0 + w / 2, y0 + d / 2, 0, new THREE.Vector3());
+  persp.position.set(c.x + w * 0.55, Math.max(w, d) * 0.95, c.z + d * 0.9);
+  orbit.target.copy(c);
+  // The side panel covers the right of the screen: fit the plan into what is left
+  // and move it left by half the panel, so nothing hides under it.
+  const panelPx = document.body.classList.contains('noPanel') ? 0 : Math.min(330, viewW() * 0.45);
+  const a = (viewW() - panelPx) / viewH();
+  fitOrtho(Math.max(d / 2, w / 2 / a) + 0.3);
+  const shift = panelPx / 2 * (2 * orthoHalf / viewH());
+  const oc = c.clone(); oc.x += shift;
+  ortho.position.set(oc.x, 30, oc.z); ortho.lookAt(oc); pan2d.target.copy(oc);
+}
+function frameView() {
+  if (framing === 'house' && houseBounds) frameBounds(...houseBounds);
+  else if (ROOM) frameCameras(ROOM.width, ROOM.depth);
+  $('frame').textContent = framing === 'house' ? 'my room' : 'whole house';
+  // At house scale the room's furniture and zone labels pile up on each other; the
+  // house fixtures (your AC, your door, the bed sensor) still name what matters.
+  const roomLabels = framing !== 'house' && layers.labels;
+  roomStatic.traverse(o => { if (o.userData.isLabel) o.visible = roomLabels; });
+}
+$('frame').onclick = () => { framing = framing === 'house' ? 'room' : 'house'; frameView(); };
 
 function addLabel(parent, text, x, y, z, cls) {
   const el = document.createElement('div'); el.className = cls; el.textContent = text;
@@ -566,6 +700,8 @@ function renderPanel() {
     setText('presence', p.state ? p.state.toUpperCase() : '—');
     setText('presenceConf', p.confidence !== undefined ? `${Math.round(p.confidence * 100)}%` : '');
     setText('presenceWhy', p.reason || '');
+    $('presence').className = 'big ' + (p.state || '');
+    renderLearned(f.learned);
     const m = f.motion_detail || {};
     setText('motionVal', fmt(m.score));
     setText('motionThr', fmt(m.threshold));
@@ -600,7 +736,7 @@ function renderPanel() {
     if (l.loss_ratio !== undefined) kv.push(`<span>packet loss</span><span>${(l.loss_ratio * 100).toFixed(1)}%</span>`);
     if (l.crc_errors !== undefined) kv.push(`<span>CRC errors</span><span>${l.crc_errors}</span>`);
     if (l.port) kv.push(`<span>port</span><span>${l.port}</span>`);
-    if (lastStatus.room_measured === false) kv.push(`<span>room layout</span><span class="muted">default — measure yours</span>`);
+    if (lastStatus.room_measured === false) kv.push(`<span>room layout</span><span class="muted">not measured — measure yours</span>`);
     const html = kv.join('');
     if ($('sensorKv').innerHTML !== html) $('sensorKv').innerHTML = html;
   }
@@ -702,8 +838,13 @@ bindLayer('lyFov', 'fov', on => fovViews.forEach(v => v.visible = on));
 bindLayer('lyFresnel', 'fresnel', on => fresnelViews.forEach(f => { f.mesh.visible = on && camera === persp; f.ring.visible = on && camera === ortho; }));
 bindLayer('lyTrails', 'trails', on => pool.forEach(p => { if (p.id !== null) p.trail.visible = on; }));
 bindLayer('lyLabels', 'labels', on => {
-  room.traverse(o => { if (o.userData.isLabel) o.visible = on; });
+  room.traverse(o => { if (o.userData.isLabel) o.visible = on && (layers.house || !houseGroup.children.includes(o)); });
   pool.forEach(p => { if (p.id !== null) p.label.visible = on; });
+});
+// A hidden group does not hide its CSS2D labels by itself: set them too.
+bindLayer('lyHouse', 'house', on => {
+  houseGroup.visible = on;
+  houseGroup.traverse(o => { if (o.userData.isLabel) o.visible = on && layers.labels; });
 });
 
 // ============================================================================
@@ -822,6 +963,86 @@ renderer.setAnimationLoop((ts, xrFrame) => {
   frames++;
 });
 
+
+// ============================================================================
+// Learned model (advisory) and the Teach panel (teach.py)
+// ============================================================================
+const LEARNED_NAMES = { empty: 'room empty', outside: 'someone outside', room: 'in the room', desk: 'at the desk', bed: 'in bed' };
+function barsHtml(rows) {
+  const top = Math.max(...rows.map(r => r[1]));
+  return rows.map(([name, v, txt]) =>
+    `<span>${name}</span><span class="track"><span class="fill${v === top && v > 0 ? ' top' : ''}" style="width:${Math.round(Math.min(1, v) * 100)}%"></span></span><span class="v">${txt}</span>`).join('');
+}
+function renderLearned(L) {
+  $('learnedBox').hidden = !L;
+  if (!L) return;
+  setText('learnedTag', `advisory · trained on ${L.trained}`);
+  const html = barsHtml(Object.keys(LEARNED_NAMES).map(k => [LEARNED_NAMES[k], L.p?.[k] || 0, `${Math.round((L.p?.[k] || 0) * 100)}%`]));
+  if ($('learnedBars').innerHTML !== html) $('learnedBars').innerHTML = html;
+}
+
+const API = (path, body) => fetch(path, body === undefined ? {} : {
+  method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Aankhen': '1' }, body: JSON.stringify(body)
+}).then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`); return j; });
+let teach = null, teachBusy = false;
+const fmtMin = s => s >= 60 ? `${Math.floor(s / 60)} min ${Math.round(s % 60)} s` : `${Math.round(s)} s`;
+function renderTeach(t) {
+  teach = t;
+  setText('teachMode', t.simulated ? '(simulator: practice only, never trained on)' : '');
+  for (const b of $('teachGrid').querySelectorAll('button')) {
+    const on = t.recording && ((t.current && b.dataset.label === t.current.label) || (!t.current && b.dataset.label === ''));
+    b.classList.toggle('on', !!on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+  const now = $('teachNow');
+  now.className = 'muted' + (t.recording ? ' rec' : '');
+  now.textContent = !t.recording ? 'Not recording. Tap a place to start.'
+    : t.current ? `Recording: ${t.current.name} · ${fmtMin(t.current.seconds)}` : 'Recording, paused: nothing is being labelled.';
+  const tot = t.totals || {};
+  const maxS = Math.max(60, ...Object.values(tot));
+  const html = barsHtml(Object.entries(t.labels || {}).map(([k, name]) => [name, (tot[k] || 0) / maxS, fmtMin(tot[k] || 0)]));
+  if ($('teachTotals').innerHTML !== html) $('teachTotals').innerHTML = html;
+  $('teachStop').disabled = !t.recording;
+  const tr = t.training || {};
+  $('trainBtn').disabled = tr.state === 'running';
+  $('trainBtn').textContent = tr.state === 'running' ? 'Training…' : 'Train on my labels';
+  const res = tr.state === 'running' ? `Working: ${tr.step || ''}`
+    : tr.state === 'error' ? `Could not train: ${tr.error}`
+    : tr.state === 'done' ? `Trained. Scored on the last 30% of your labels, which it never saw:\n` +
+        `in the room or not: ${Math.round(tr.occupancy_accuracy * 100)}% right · where: ${Math.round(tr.zone_accuracy * 100)}% right ` +
+        `(${tr.held_out_windows} half-second windows). Now running, advisory.` : '';
+  setText('trainResult', res);
+}
+async function teachAction(path, body) {
+  if (teachBusy) return;
+  teachBusy = true;
+  try { renderTeach(await API(path, body)); }
+  catch (e) { setText('teachNow', `Could not do that: ${e.message}`); }
+  finally { teachBusy = false; }
+}
+$('teachGrid').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  teachAction('/api/teach/label', { label: b.dataset.label || null });
+});
+$('teachStop').onclick = () => teachAction('/api/teach/stop', {});
+$('trainBtn').onclick = () => teachAction('/api/learn/train', { include_sim: true });
+const KEYS = { d: 'desk', b: 'bed', w: 'walk', o: 'hallway', e: 'empty', p: '' };
+addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || /input|textarea|select/i.test(e.target.tagName) || $('teachSec').hidden) return;
+  const k = KEYS[e.key.toLowerCase()];
+  if (k !== undefined) { e.preventDefault(); teachAction('/api/teach/label', { label: k || null }); }
+});
+async function pollTeach() {
+  try { renderTeach(await API('/api/teach')); $('teachSec').hidden = false; }
+  catch { $('teachSec').hidden = true; }            // a server without Teach (e.g. inside the app)
+  setTimeout(pollTeach, teach && (teach.recording || teach.training?.state === 'running') ? 1000 : 4000);
+}
+pollTeach();
+
+$('layersBtn').onclick = () => {
+  const on = document.body.classList.toggle('showLayers');
+  $('layersBtn').setAttribute('aria-expanded', on ? 'true' : 'false');
+};
 // Test hook used by the headless browser test.
 window.__probe = () => ({
   frames, errors: window.__errors, status: statusEl.textContent, source,
@@ -829,6 +1050,9 @@ window.__probe = () => ({
   zones: [...zoneViews.keys()], fresnel: fresnelViews.map(f => ({ link: f.link, a: +f.a.toFixed(3), b: +f.b.toFixed(3) })),
   heat: { w: heatW, h: heatH, cell: heatCell }, csiBars: csiAmps ? csiAmps.length : 0, seqGaps,
   geometries: renderer.info.memory.geometries, calls: renderer.info.render.calls,
+  view: { camera: camera === persp ? '3d' : '2d', framing, houseBounds, orthoHalf,
+          ortho: ortho.position.toArray().map(v => +v.toFixed(2)), target: pan2d.target.toArray().map(v => +v.toFixed(2)),
+          house: houseGroup.children.length },
 });
 </script>
 </body>

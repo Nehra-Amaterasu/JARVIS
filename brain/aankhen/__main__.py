@@ -37,7 +37,7 @@ RECORDINGS = os.path.join(HERE, "recordings")          # gitignored
 
 def cmd_doctor(a) -> int:
     from .transport import list_candidate_ports
-    from .room import ROOM_FILE, load_room
+    from .room import ROOM_FILE, layout_kind, load_room
     from .hub import BASELINE_FILE
     ok = True
     print("Aankhen doctor\n")
@@ -51,8 +51,12 @@ def cmd_doctor(a) -> int:
         print("  [--]  no ESP32 serial port. Plug the board in with a DATA cable (charge-only")
         print("        cables are common). Bluetooth COM ports are ignored on purpose.")
     room, measured = load_room()
-    print(f"  [{'ok' if measured else '--'}]  room layout: "
-          + (f"{ROOM_FILE}" if measured else "default 4x4 m (copy room.example.json -> room.json and measure)"))
+    kind = layout_kind()
+    print(f"  [{'ok' if measured else '--'}]  room layout: " + {
+        "measured": ROOM_FILE,
+        "estimated": f"{ROOM_FILE} is an estimate (measure it, then set \"measured\": true)",
+        "default": "default 4x4 m (copy room.example.json -> room.json and measure)",
+    }[kind])
     try:
         room.validate()
     except ValueError as e:
@@ -163,7 +167,7 @@ def cmd_calibrate(a) -> int:
 
 
 def cmd_bench(a) -> int:
-    from .bench import (SUITE_SECONDS, bench_recording, format_summary, format_table, run_suite,
+    from .bench import (ROOM_SCENARIO_SECONDS, SUITE_SECONDS, bench_recording, format_summary, format_table, run_suite,
                         simulated_baseline, summarise)
     from .hub import BASELINE_FILE
     from .motion import Baseline
@@ -185,9 +189,10 @@ def cmd_bench(a) -> int:
         if not files:
             print("No labelled real recordings yet — running the simulated suite.\n")
         scenarios = a.scenarios.split(",") if a.scenarios else list(SUITE_SECONDS)
-        unknown = [s for s in scenarios if s not in SUITE_SECONDS]
+        known = {**SUITE_SECONDS, **ROOM_SCENARIO_SECONDS}
+        unknown = [s for s in scenarios if s not in known]
         if unknown:
-            print(f"unknown scenario(s) {unknown}; one of {sorted(SUITE_SECONDS)}")
+            print(f"unknown scenario(s) {unknown}; one of {sorted(known)}")
             return 2
         seeds = list(range(a.seed_base, a.seed_base + a.seeds))
         rooms = list(range(a.channel_seeds))
@@ -217,10 +222,13 @@ def cmd_simulate(a) -> int:
 def cmd_physics(a) -> int:
     """Predict, from the physics model, what the Wi-Fi link can sense at every spot."""
     from .physics import analyse, html_report, search_placement
-    from .room import SensorPose, load_room
+    from .room import SensorPose, layout_kind, load_room
     room, measured = load_room(a.room)
-    if not measured:
+    kind = layout_kind(a.room)
+    if kind == "default":
         print("NOTE: no room.json yet, so this uses the default 4 x 4 m layout. Measure your room.")
+    elif kind == "estimated":
+        print("NOTE: the room layout is an estimate (\"measured\": false), so these predictions are too.")
     links = room.links or [[s.id for s in room.sensors_of("router")][:1] + [s.id for s in room.sensors_of("esp32")][:1]]
     tx, rx = room.sensor(links[0][0]), room.sensor(links[0][1])
     if a.tx:
@@ -262,7 +270,7 @@ def cmd_physics(a) -> int:
 
 def cmd_validate(a) -> int:
     """Guided ground-truth session in the real room (validate.py)."""
-    from .room import load_room
+    from .room import layout_kind, load_room
     from .validate import analyse, print_report, run_session, save_calibration
     if a.analyse:
         with open(os.path.join(a.analyse, "session.json"), encoding="utf-8") as f:
@@ -274,14 +282,89 @@ def cmd_validate(a) -> int:
         except RuntimeError as e:
             print(f"Stopped: {e}")
             return 1
-    room, measured = load_room()
-    rep = analyse(paths, room if measured else None)
+    room, _ = load_room()
+    kind = layout_kind()
+    rep = analyse(paths, None if kind == "default" else room)
     print_report(rep)
     saved = save_calibration(rep)
     if saved:
         print(f"room wander saved -> {saved} (physics predictions now use it)")
-    if not measured:
-        print("No measured room.json: the model comparison was skipped.")
+    if kind == "default":
+        print("No room.json: the model comparison was skipped.")
+    elif kind == "estimated":
+        print("The model comparison used an estimated room layout; measure it for a fair one.")
+    return 0
+
+
+def _learn_data(items: list[str]) -> list[dict]:
+    from .learn import load_runs, recorded_dataset
+    runs, real = [], []
+    for it in items:
+        if it.endswith(".npz"):
+            runs += load_runs(it)
+        else:
+            real.append(it)
+    return runs + (recorded_dataset(real) if real else [])
+
+
+def _print_eval(rep: dict) -> None:
+    pct = lambda v: "   -" if v is None else f"{v * 100:5.1f}%"
+    print(f"windows: {rep['windows']}  " + "  ".join(f"{c} {n}" for c, n in rep["classes"].items()))
+    rows = [("learned, raw", rep["classifier"]), ("learned + movement rules", rep["filtered"])]
+    if "today_engine" in rep:
+        rows.append(("today's engine", rep["today_engine"]))
+    print(f"\n{'':26s} {'occupancy':>10s} {'false occ.':>11s} {'false occ.':>11s} {'missed':>8s}")
+    print(f"{'':26s} {'accuracy':>10s} {'(outside)':>11s} {'(empty)':>11s} {'person':>8s}")
+    for name, r in rows:
+        print(f"{name:26s} {pct(r.get('occ_accuracy')):>10s} {pct(r.get('occ_false_occupied_when_outside')):>11s} "
+              f"{pct(r.get('occ_false_occupied_when_empty')):>11s} {pct(r.get('occ_missed_when_occupied')):>8s}")
+    f = rep["filtered"]
+    print(f"\nfive-way accuracy: raw {pct(rep['classifier']['accuracy'])}, with movement rules {pct(f['accuracy'])}")
+    if "zone_accuracy_when_occupied" in f:
+        print(f"where (room / desk / bed) when someone is in: {pct(f['zone_accuracy_when_occupied'])}")
+    print("\nconfusion (rows: truth, columns: said):")
+    from .learn import CLASSES
+    print(" " * 9 + "".join(f"{c:>9s}" for c in CLASSES))
+    for t, row in rep["confusion_filtered"].items():
+        print(f"{t:9s}" + "".join(f"{row[c]:9d}" for c in CLASSES))
+
+
+def cmd_learn(a) -> int:
+    """Spatial model: simulated or recorded data -> trained model -> evaluation."""
+    from .learn import MODEL_DIR, MODEL_FILE, SpatialModel, evaluate, save_runs, simulate_dataset, train
+    from .room import layout_kind, load_room
+    if a.action == "simulate":
+        room, _ = load_room()
+        if layout_kind() == "default":
+            print("NOTE: no room.json, so this simulates the default 4 x 4 m layout.")
+        out = a.out or os.path.join(MODEL_DIR, f"sim-{a.seed}-{a.runs}x{int(a.seconds)}s.npz")
+        t0 = time.time()
+        runs = simulate_dataset(room, a.runs, a.seconds, a.seed, workers=a.workers)
+        save_runs(runs, out)
+        n = sum(len(r["y"]) for r in runs)
+        print(f"{len(runs)} simulated days, {n} windows, {time.time() - t0:.0f} s -> {out}")
+        print("SYNTHETIC: simulator physics, not your room's. Real data: validate sessions / record --label.")
+        return 0
+    if a.action == "train":
+        runs = _learn_data(a.data)
+        if not runs:
+            print("No data. Give --data with a .npz from `learn simulate`, validate folders or labelled .akr files.")
+            return 1
+        model = train(runs, note="; ".join(a.data))
+        model.save(a.out or MODEL_FILE)
+        print(f"trained on {model.trained_on['windows']} windows from {len(runs)} runs -> {a.out or MODEL_FILE}")
+        if a.test:
+            _print_eval(evaluate(model, _learn_data(a.test)))
+        return 0
+    model = SpatialModel.load(a.out or MODEL_FILE)
+    if model is None:
+        print("No trained model yet: run `python -m aankhen learn train --data ...` first.")
+        return 1
+    runs = _learn_data(a.test or a.data)
+    if not runs:
+        print("No evaluation data: give --test (held out from training).")
+        return 1
+    _print_eval(evaluate(model, runs))
     return 0
 
 
@@ -349,10 +432,22 @@ def main(argv=None) -> int:
     v.add_argument("--analyse", metavar="DIR", help="re-analyse a previous session's recordings")
     v.add_argument("--no-hallway", action="store_true", help="skip the walk outside the door")
 
+    ln = sub.add_parser("learn", help="spatial model trained on data: simulate, train, evaluate")
+    ln.add_argument("action", choices=["simulate", "train", "eval"],
+                    help="simulate: build a simulated dataset · train: fit the model · eval: score it")
+    ln.add_argument("--data", nargs="*", default=[],
+                    help="datasets (.npz from `learn simulate`), validate session folders, or labelled .akr files")
+    ln.add_argument("--test", nargs="*", default=[], help="(train/eval) held-out data, same kinds as --data")
+    ln.add_argument("--runs", type=int, default=32, help="(simulate) simulated days")
+    ln.add_argument("--seconds", type=float, default=600.0, help="(simulate) length of each day")
+    ln.add_argument("--seed", type=int, default=1000, help="(simulate) first seed")
+    ln.add_argument("--out", help="(simulate) dataset path; (train) model path")
+    ln.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2))
+
     a = p.parse_args(argv)
     return {"doctor": cmd_doctor, "serve": cmd_serve, "record": cmd_record,
             "calibrate": cmd_calibrate, "bench": cmd_bench, "simulate": cmd_simulate,
-            "physics": cmd_physics, "validate": cmd_validate}[a.cmd](a)
+            "physics": cmd_physics, "validate": cmd_validate, "learn": cmd_learn}[a.cmd](a)
 
 
 if __name__ == "__main__":

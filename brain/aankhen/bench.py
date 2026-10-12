@@ -58,8 +58,8 @@ from .engine import Engine
 from .motion import Baseline, Calibrator, MotionConfig, MotionDetector, RespirationDetector, STATE_MOTION
 from .protocol import StreamDecoder, decode_packet, CsiPacket
 from .csi import CsiConditioner
-from .room import Room, default_room
-from .simulator import SCENARIOS, Simulator
+from .room import Room, default_room, load_room
+from .simulator import ROOM_SCENARIOS, SCENARIOS, Simulator
 from .transport import iter_recording, read_recording_meta
 
 MATCH_GATE_M = 1.0
@@ -70,6 +70,10 @@ STOP_LAG_S = 2.0
 # phase of its script (the sleep scenario's sleeper leaves at ~549 s).
 SUITE_SECONDS = {"evening": 220, "walk": 64, "still": 90, "empty": 120, "sleep": 600,
                  "hallway": 150, "fan": 260, "pair": 150, "drift": 400}
+
+# Scenarios built from your room.json's house: not in the default suite (they need
+# that file); run them with --scenarios house.
+ROOM_SCENARIO_SECONDS = {"house": 240}
 
 # For "worst": these are better when HIGHER; every other metric is better lower.
 HIGHER_IS_BETTER = {"presence_accuracy", "motion_recall", "wifi_motion_recall", "count_accuracy"}
@@ -302,7 +306,7 @@ def calibrate_from_bytes(chunks, device_offset_s: float = 0.0, skip_s: float = 0
                     r = det.push(s)
                     if r is not None and s.t - t_first >= skip_s:
                         cal.add(r.features["mvs"], r.features.get("level_var"),
-                                r.features.get("level_fine"))
+                                r.features.get("level_fine"), r.features.get("hbe"))
     if fan and not det.fan.locked:
         raise RuntimeError("no fan lines found in the capture — is the ceiling fan running?")
     b = cal.finish()
@@ -356,11 +360,17 @@ def _run(name: str, chunks, truth, room: Room, kind: str, baseline: Optional[Bas
 def bench_simulation(scenario: str = "evening", seconds: Optional[float] = None, seed: int = 1,
                      room: Optional[Room] = None, baseline: Optional[Baseline] = None,
                      warmup_s: float = 3.0, channel_seed: int = 0) -> BenchResult:
-    room = room or default_room()
-    seconds = seconds or SUITE_SECONDS.get(scenario, 120)
+    if scenario in ROOM_SCENARIOS:
+        # Built from a house layout: your room.json, unless a room is given.
+        room = room or load_room()[0]
+        scn = ROOM_SCENARIOS[scenario](room)
+    else:
+        room = room or default_room()
+        scn = SCENARIOS[scenario]()
+    seconds = seconds or SUITE_SECONDS.get(scenario, ROOM_SCENARIO_SECONDS.get(scenario, 120))
     if baseline is None:
         baseline = simulated_baseline(room, channel_seed=channel_seed)
-    sim = Simulator(room, SCENARIOS[scenario](), seed=seed, channel_seed=channel_seed)
+    sim = Simulator(room, scn, seed=seed, channel_seed=channel_seed)
     tag = f"sim:{scenario}:seed{seed}" + (f":room{channel_seed}" if channel_seed else "")
     r = _run(tag, sim.chunks(seconds), _SimTruth(sim), room,
              "simulation", baseline, sim.boot_us / 1e6, seconds, warmup_s)
@@ -394,7 +404,7 @@ def run_suite(scenarios: Optional[list[str]] = None, seeds=(1, 2, 3), channel_se
               seconds: Optional[dict] = None, workers: int = 1) -> list[BenchResult]:
     """Every scenario x seed x room. `workers` > 1 runs them in parallel processes."""
     scenarios = scenarios or list(SUITE_SECONDS)
-    seconds = {**SUITE_SECONDS, **(seconds or {})}
+    seconds = {**SUITE_SECONDS, **ROOM_SCENARIO_SECONDS, **(seconds or {})}
     jobs = [(s, seconds.get(s, 120), seed, cs) for s in scenarios for cs in channel_seeds
             for seed in seeds]
     return run_jobs(jobs, workers)

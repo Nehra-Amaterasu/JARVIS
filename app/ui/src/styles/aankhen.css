@@ -241,3 +241,29 @@
 .fl-tile b { font-size: 13.5px; }
 .fl-tile span { font-size: 12px; line-height: 1.45; }
 .fl-tile i { font-style: normal; margin-top: 6px; gap: 6px; }
+
+/* ---------------------------------------------------------------- activity over the twin */
+.tw-activity {
+  display: flex; align-items: center; gap: 8px; pointer-events: none; white-space: nowrap;
+  padding: 6px 12px 6px 9px; border-radius: 999px; background: rgba(5, 5, 6, 0.78);
+  box-shadow: inset 0 0 0 1px var(--acc-line, rgba(92, 225, 255, 0.45)), 0 8px 26px -10px var(--acc-glow, rgba(92, 225, 255, 0.6));
+  animation: pop 520ms var(--spring) both;
+}
+.tw-activity.sim { --acc-line: rgba(255, 176, 32, 0.45); --acc-glow: rgba(255, 176, 32, 0.6); }
+.tw-activity i { font-style: normal; font-size: 15px; display: inline-block; }
+.tw-activity b { font: 700 11px var(--f-mono); letter-spacing: 0.16em; color: #fff; }
+.tw-activity.act-waving i { animation: waveHand 0.9s var(--ease-in-out) infinite; transform-origin: 70% 80%; }
+.tw-activity.act-typing i { animation: tapKeys 0.35s steps(2) infinite; }
+.tw-activity.act-walking i { animation: stepBob 0.6s var(--ease-in-out) infinite; }
+.tw-activity.act-still i { animation: breatheGlow 2.4s var(--ease-in-out) infinite; }
+@keyframes waveHand { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(18deg); } }
+@keyframes tapKeys { 50% { transform: translateY(1.5px); } }
+@keyframes stepBob { 50% { transform: translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) { .tw-activity i { animation: none !important; } }
+.lc-act { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--hair); }
+.lc-act-now { font: 700 14px var(--f-ui); color: var(--acc); }
+.lc-act-bars { display: flex; gap: 6px; align-items: flex-end; height: 34px; }
+.lc-act-bars span { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; width: 26px; height: 100%; }
+.lc-act-bars i { display: block; width: 8px; border-radius: 3px; background: var(--ink-4); transition: height 600ms var(--spring-calm), background var(--t); }
+.lc-act-bars span.on i { background: var(--acc); }
+.lc-act-bars em { font-style: normal; font-size: 8.5px; color: var(--ink-3); }

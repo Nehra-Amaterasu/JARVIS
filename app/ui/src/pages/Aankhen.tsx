@@ -62,6 +62,7 @@ const STATES: { id: string; name: string }[] = [
   { id: 'empty', name: 'Room empty' }, { id: 'outside', name: 'Outside my room' }, { id: 'room', name: 'In my room' },
   { id: 'desk', name: 'At my desk' }, { id: 'bed', name: 'In bed' },
 ]
+const ACT_NAMES: Record<string, string> = { none: 'Not in the room', still: 'Still', typing: 'Typing', waving: 'Waving', walking: 'Walking' }
 // Teach labels and their keys (teach.py LABELS).
 const TEACH_KEYS: { id: string; key: string }[] = [
   { id: 'desk', key: 'D' }, { id: 'bed', key: 'B' }, { id: 'walk', key: 'W' }, { id: 'hallway', key: 'O' }, { id: 'empty', key: 'E' },
@@ -495,6 +496,19 @@ function LearnedCard({ frame, onTeach }: { frame: FrameMsg | null; onTeach: () =
               )
             })}
           </div>
+          {l.activity && (
+            <div className="lc-act">
+              <span className="eyebrow">doing</span>
+              <span key={l.activity.state} className={`lc-act-now pop act-${l.activity.state}`}>{ACT_NAMES[l.activity.state] ?? l.activity.state}</span>
+              <div className="lc-act-bars">
+                {Object.entries(l.activity.p).filter(([k]) => k !== 'none').map(([k, v]) => (
+                  <span key={k} title={`${k} ${Math.round(v * 100)}%`} className={k === l.activity!.state ? 'on' : ''}>
+                    <i style={{ height: `${Math.max(6, v * 100)}%` }} /><em className="mono">{k.slice(0, 4)}</em>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
       <div className="hc-foot mono muted">

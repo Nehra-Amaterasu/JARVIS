@@ -112,19 +112,45 @@ class UniformResampler:
     # ~20 % of all samples. Centred slots tolerate up to +-5 ms of jitter.
     _EPS = 1e-6
 
+    # SEVERAL PACKETS PER SLOT ARE AVERAGED, not dropped. Found on the real board with
+    # the ceiling fan at full speed (2026-10-12): the blades flicker the channel at
+    # ~23 Hz and its harmonics, and sampling at 100 Hz folds anything near a multiple
+    # of 100 Hz down to near 0 (4 x 23.07 Hz = 92.3 Hz arrived as a 7.7 Hz "line"),
+    # into the band where people move. The firmware now pings faster than the grid;
+    # averaging every packet of a 10 ms slot is a boxcar filter whose nulls sit
+    # exactly at 100, 200, ... Hz, the frequencies that would fold onto slow movement.
+    # A slot is emitted when the next one starts (10 ms of latency).
+
     def __init__(self, rate_hz: float = 100.0, max_gap_s: float = 0.25):
         self.dt = 1.0 / rate_hz
         self.max_gap_s = max_gap_s
         self._t0: Optional[float] = None        # origin of slot 0
         self._next_slot = 0                     # first slot not yet emitted
-        self._last: Optional[np.ndarray] = None
+        self._last: Optional[tuple] = None
+        self._acc: Optional[list] = None        # [slot, amp sum, n, level sum, level n, fine]
         self.gaps = 0
         self.filled = 0
-        self.dropped_same_slot = 0
+        self.dropped_same_slot = 0              # late packets (their slot already emitted)
+        self.averaged = 0                       # extra packets merged into a slot
         self.emitted = 0
 
     def _slot(self, t: float) -> int:
         return int(np.floor((t - self._t0) / self.dt + 0.5))
+
+    def _flush(self) -> list[Sample]:
+        slot, a, n, ls, ln, fine = self._acc
+        self._acc = None
+        out = []
+        for k in range(self._next_slot, slot):
+            if self._last is not None:
+                out.append(Sample(self._t0 + k * self.dt, self._last[0], True, *self._last[1:]))
+                self.filled += 1
+        amp = a / n
+        level = ls / ln if ln else None
+        out.append(Sample(self._t0 + slot * self.dt, amp, False, level, fine))
+        self._last = (amp, level, fine)
+        self._next_slot = slot + 1
+        return out
 
     def push(self, t: float, amp: np.ndarray, level_db: Optional[float] = None,
              level_fine: bool = False) -> list[Sample]:
@@ -132,22 +158,28 @@ class UniformResampler:
         if self._t0 is None:
             self._t0 = t
         slot = self._slot(t)
-        if slot < self._next_slot:              # second packet in a slot, or late
-            self.dropped_same_slot += 1
+        acc = self._acc
+        if acc is not None and slot == acc[0]:  # same slot: average it in
+            acc[1] = acc[1] + amp
+            acc[2] += 1
+            if level_db is not None:
+                acc[3] += level_db
+                acc[4] += 1
+            acc[5] = acc[5] or level_fine
+            self.averaged += 1
             return out
-        missing = slot - self._next_slot
-        if missing * self.dt > self.max_gap_s:
+        if slot < self._next_slot or (acc is not None and slot < acc[0]):
+            self.dropped_same_slot += 1         # late: its slot is already out
+            return out
+        if acc is not None:
+            out += self._flush()
+        if (slot - self._next_slot) * self.dt > self.max_gap_s:
             self.gaps += 1                      # too long to bridge honestly
-            self._t0, slot, missing = t, 0, 0
+            self._t0, slot = t, 0
             self._next_slot = 0
             self._last = None
-        for k in range(self._next_slot, self._next_slot + missing):
-            if self._last is not None:
-                out.append(Sample(self._t0 + k * self.dt, self._last[0], True, *self._last[1:]))
-                self.filled += 1
-        out.append(Sample(self._t0 + slot * self.dt, amp, False, level_db, level_fine))
-        self._last = (amp, level_db, level_fine)
-        self._next_slot = slot + 1
+        self._acc = [slot, np.asarray(amp, float).copy(), 1,
+                     level_db if level_db is not None else 0.0, int(level_db is not None), level_fine]
         self.emitted += len(out)
         return out
 

@@ -55,7 +55,8 @@ export interface FrameMsg {
     breathing_bpm: number | null; breathing_conf: number | null; breathing_note: string | null
     human_band?: { energy: number; threshold: number | null; ratio: number | null; recent: number; start_gate: number } | null
   }
-  learned?: { t: number; state: string; p: Record<string, number>; occupied_p: number; advisory: boolean; trained: string; reference?: string } | null
+  learned?: { t: number; state: string; p: Record<string, number>; occupied_p: number; advisory: boolean; trained: string; reference?: string
+    activity?: { state: string; p: Record<string, number>; trained: string } }| null
   csi: { n_subcarriers: number; rate_hz: number; rssi: number | null; fill_ratio: number; amplitudes: number[] }
   rates: { csi_hz: number; radar_hz: number }
   events: { id: number; t: number; ts: number; kind: string; text: string }[]
@@ -370,6 +371,8 @@ export class SpatialTwin {
   framing: Framing = 'room'
   private planCut = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1.35)
   private zoneViews = new Map<string, { fill: THREE.MeshBasicMaterial; line: THREE.LineDashedMaterial; target: number }>()
+  private zoneCentres = new Map<string, [number, number]>()
+  private activityTag: CSS2DObject | null = null
   private fresnel: { group: THREE.Group; rings: THREE.LineBasicMaterial[]; foot: THREE.Mesh; flow: THREE.ShaderMaterial; length: number }[] = []
   private fov: { mat: THREE.ShaderMaterial; edge: THREE.LineBasicMaterial; objs: THREE.Object3D[] }[] = []
   private walls: THREE.Object3D[] = []
@@ -517,6 +520,7 @@ export class SpatialTwin {
       l.position.set(c[0], c[1], 0.02)
       this.roomStatic.add(mesh, line, l)
       this.zoneViews.set(z.name, { fill: fillMat, line: lineMat, target: 0 })
+      this.zoneCentres.set(z.name, [c[0], c[1]])
     }
     this.buildSensors(r)
     this.buildHouse(r)
@@ -796,6 +800,7 @@ export class SpatialTwin {
     // so the learned model's guess (desk / bed / elsewhere in the room) lights its zone
     // at half strength: shown, never passed off as a measured position.
     const guess = msg.tracks.length ? null : ({ desk: 'desk', bed: 'bed', room: 'floor' } as Record<string, string>)[msg.learned?.state ?? '']
+    this.showActivity(guess, msg.learned?.activity?.state)
     for (const [name, z] of this.zoneViews) z.target = msg.zones[name] ? 1 : name === guess ? 0.45 : 0
     // The Wi-Fi zone glows with movement. Before a baseline exists the detector makes no
     // calls (motion 0), but human-band energy is normalised by its own noise (~1 when
@@ -844,6 +849,32 @@ export class SpatialTwin {
     }
     this.heat!.instanceMatrix.needsUpdate = true
     if (this.heat!.instanceColor) this.heat!.instanceColor.needsUpdate = true
+  }
+
+  /** What the activity model says I am doing, floating over the zone it places me in.
+   *  Learned from my own recordings; amber in simulation like everything else. */
+  private showActivity(zone: string | null | undefined, activity: string | undefined) {
+    if (!this.activityTag) {
+      const el = document.createElement('div')
+      el.className = 'tw-activity'
+      const icon = document.createElement('i'), text = document.createElement('b')
+      el.append(icon, text)
+      this.activityTag = new CSS2DObject(el)
+      this.room.add(this.activityTag)
+    }
+    const c = zone ? this.zoneCentres.get(zone) : undefined
+    const on = !!c && !!activity && activity !== 'none'
+    this.activityTag.visible = on
+    if (!on) return
+    this.activityTag.position.set(c![0], c![1], 1.55)
+    const el = this.activityTag.element
+    const glyph: Record<string, string> = { still: '•', typing: '⌨', waving: '✋', walking: '🚶' }
+    if (el.dataset.act !== activity) {
+      el.dataset.act = activity!
+      el.className = `tw-activity act-${activity} ${this.live ? 'live' : 'sim'}`
+      ;(el.children[0] as HTMLElement).textContent = glyph[activity!] ?? '•'
+      ;(el.children[1] as HTMLElement).textContent = activity!.toUpperCase()
+    }
   }
 
   /* ---------------------------------------------------------------- loop */

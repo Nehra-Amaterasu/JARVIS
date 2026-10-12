@@ -139,6 +139,12 @@ def presence(ctx: ToolContext) -> Receipt:
                        "the room.", source=f"app · Aankhen ({src})", simulated=True, data={"source": src})
     people = snap.get("people") or []
     state, conf = pres.get("state"), float(pres.get("confidence") or 0)
+    learned = snap.get("learned") or {}
+    if not people and learned.get("state"):
+        # No radar: one Wi-Fi link gives no position, so where I am comes from the
+        # spatial model trained on this room, and what I am doing from the activity
+        # model. Said as the sensors' estimate, with how long and today's totals.
+        return _learned_presence(learned, snap.get("journal") or {})
     if state == "empty":
         did = f"The room sensors say the room looks empty ({conf:.0%} confident)."
     elif state == "uncertain" or (not people and state not in ("moving", "still")):
@@ -151,6 +157,39 @@ def presence(ctx: ToolContext) -> Receipt:
                + f" ({conf:.0%} confident).")
     return Receipt("presence", "T0", True, did, source="app · Aankhen (live sensors)", backs=("presence",),
                    data={"state": state, "confidence": conf, "people": people})
+
+
+_ZONE_WORDS = {"desk": "at your desk", "bed": "on your bed", "room": "in your room, away from the desk and bed",
+               "outside": "out of your room (someone is moving elsewhere in the house)",
+               "empty": "out of your room, and the house is quiet"}
+_ACT_WORDS = {"still": "keeping still", "typing": "typing", "waving": "waving or moving your arms",
+              "walking": "walking around"}
+
+
+def _mins(s: float) -> str:
+    m = int(round(s / 60))
+    return f"{m // 60} h {m % 60} min" if m >= 60 else f"{max(m, 1)} min" if s >= 30 else f"{int(s)} s"
+
+
+def _learned_presence(learned: dict, journal: dict) -> Receipt:
+    zone, p = learned.get("state"), learned.get("p") or {}
+    act = (learned.get("activity") or {}).get("state")
+    conf = float(p.get(zone, 0) or 0)
+    did = f"The room sensors estimate you are {_ZONE_WORDS.get(zone, zone)}"
+    if act and act != "none" and zone in ("desk", "bed", "room"):
+        did += f", {_ACT_WORDS.get(act, act)}"
+    did += f" (model, {conf:.0%})."
+    now = journal.get("now") or {}
+    if now.get("zone") == zone and now.get("seconds"):
+        did += f" That has held for {_mins(now['seconds'])}."
+    zones = (journal.get("today") or {}).get("zones") or {}
+    if zones:
+        top = sorted(((k, v) for k, v in zones.items() if k in ("desk", "bed", "room")), key=lambda kv: -kv[1])
+        if top:
+            did += " Today so far: " + ", ".join(f"{k} {_mins(v)}" for k, v in top) + "."
+    return Receipt("presence", "T0", True, did, source="app · Aankhen (live board, learned models)",
+                   backs=("presence",), data={"zone": zone, "activity": act, "confidence": conf,
+                                              "journal": journal})
 
 
 def memory_search(ctx: ToolContext, query: str) -> Receipt:

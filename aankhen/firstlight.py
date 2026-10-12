@@ -280,3 +280,122 @@ class Guided:
         self._set(state="done", step=None, left=None, recording=os.path.basename(path),
                   baseline={"windows": b.n_windows, "mvs_q": b.q_hi, "hbe_q": b.hbe_q,
                             "reference": bool(b.ref)}, finished=time.time())
+
+
+# ---------------------------------------------------------------- learn my room
+# Where you are (zone) and what you are doing (activity), taught by doing it. Lessons
+# from the first attempt (2026-10-12): the person left at "away" and never heard the
+# call back, so a whole round was recorded with nobody in it. Now:
+#   - it starts only when the person waves at the board (proof they are there);
+#   - "away" is the LAST step, so nobody has to be called back;
+#   - each step is checked live against the still step; a step that does not look like
+#     what was asked is repeated once (and the person is told why);
+#   - waving is both arms, a far bigger reflector than one hand.
+ROOM_STEPS = [
+    ("desk_still", 30, "desk", "still", "Sit at your desk, completely still, hands off the keyboard."),
+    ("desk_type", 30, "desk", "typing", "Stay at the desk and type normally."),
+    ("desk_wave", 25, "desk", "waving", "Still at the desk, wave both arms, big, and keep waving."),
+    ("walk", 30, "room", "walking", "Stand up and walk around the room."),
+    ("bed_still", 30, "bed", "still", "Lie on your bed, completely still."),
+    ("bed_wave", 25, "bed", "waving", "Lying on the bed, wave both arms, and keep waving."),
+    ("away", 40, "away", "none", "Last step. Leave the room and close the door. You can come back in whenever you like after a minute."),
+]
+SETTLE_S = 5.0
+# A moving step must show at least this much more human-band energy than the still
+# step at the same place; otherwise it is repeated once.
+MOVING_OVER_STILL = 1.8
+
+
+def run_room_session(port: Optional[str] = None, voice: bool = True, rounds: int = 1,
+                     out_dir: Optional[str] = None) -> str:
+    """Record the guided session; returns the recording path (labels beside it)."""
+    from .transport import SerialSource, iter_recording
+    out_dir = out_dir or os.path.join(DATA_DIR, "recordings")
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, "teach-room-" + time.strftime("%Y%m%d-%H%M%S") + ".akr")
+    src = SerialSource(port)
+    src.record_to(path, {"label": "learn-my-room", "rounds": rounds})
+    src.start()
+    if not src.connected.wait(timeout=10):
+        src.stop()
+        raise RuntimeError("no ESP32 answered within 10 s")
+    # Live human-band energy, so the session can see the person and check each step.
+    cond, det = CsiConditioner(), MotionDetector(MotionConfig())
+    live = {"hbe": [], "csi": False}
+    lock, stop = threading.Lock(), threading.Event()
+
+    def consume():
+        for pkt in src.iter_packets(timeout=0.2):
+            if stop.is_set():
+                return
+            if not isinstance(pkt, CsiPacket):
+                continue
+            live["csi"] = True
+            for smp in cond.push(pkt.timestamp_us / 1e6, pkt.raw, pkt.rssi, gain_comp_db=pkt.gain_comp_db):
+                r = det.push(smp)
+                if r is not None and r.features.get("hbe") is not None:
+                    with lock:
+                        live["hbe"].append((time.time(), r.features["hbe"]))
+    threading.Thread(target=consume, daemon=True).start()
+
+    def hbe_between(a: float, b: float) -> Optional[float]:
+        with lock:
+            v = [h for t, h in live["hbe"] if a <= t < b]
+        return float(np.median(v)) if v else None
+
+    segs = []
+    try:
+        t_wait = time.time()
+        while not live["csi"] and time.time() - t_wait < 60:
+            time.sleep(0.2)
+        if not live["csi"]:
+            raise RuntimeError("no CSI for 60 s")
+        time.sleep(4)
+        say("This is JARVIS. Let's learn your room. Sit at your desk, then wave both arms at me to start.", voice)
+        t_wave = time.time()
+        while True:                              # proof the person is there: a clear wave
+            time.sleep(0.5)
+            now = time.time()
+            h = hbe_between(now - 2, now)
+            if h is not None and h >= 6:
+                break
+            if now - t_wave > 90:
+                raise RuntimeError("never saw a wave to start (is anyone at the desk?)")
+        say("I see you. Starting.", voice)
+        still_ref: dict = {}
+        for rnd in range(1, rounds + 1):
+            for name, seconds, zone, activity, text in ROOM_STEPS:
+                for attempt in (1, 2):
+                    print(f"  [{rnd}] {name} (try {attempt}): {text}", flush=True)
+                    say(text, voice)
+                    t0 = time.time()
+                    time.sleep(SETTLE_S)
+                    seg = {"step": name, "round": rnd, "zone": zone, "activity": activity,
+                           "attempt": attempt, "start_host": time.time()}
+                    while time.time() - t0 < seconds:
+                        time.sleep(0.2)
+                    seg["end_host"] = time.time()
+                    h = hbe_between(seg["start_host"] + 3, seg["end_host"])
+                    seg["hbe_median"] = h
+                    if activity == "still":
+                        still_ref[zone] = h
+                    ref = still_ref.get(zone)
+                    ok = not (activity in ("waving", "walking") and h is not None and ref and h < MOVING_OVER_STILL * ref)
+                    seg["checked"] = "ok" if ok else "too small"
+                    segs.append(seg)
+                    if ok or attempt == 2:
+                        break
+                    say("That did not look different from sitting still. Let's do it once more, bigger.", voice)
+        say("All done. Thank you.", voice)
+    finally:
+        stop.set()
+        src.stop()
+    t_first = next(iter(iter_recording(path)))[0]
+    for g in segs:
+        g["start"], g["end"] = round(g["start_host"] - t_first, 2), round(g["end_host"] - t_first, 2)
+    with open(path[:-4] + ".labels.json", "w", encoding="utf-8") as f:
+        json.dump({"kind": "human-labels", "source": "learn-my-room", "simulated": False,
+                   "clock": "seconds from the recording's first chunk", "segments": segs}, f, indent=2)
+    for g in segs:
+        print(f"  {g['step']:11s} try {g['attempt']}  HBE {g['hbe_median'] if g['hbe_median'] is None else round(g['hbe_median'], 2)}  {g['checked']}")
+    return path

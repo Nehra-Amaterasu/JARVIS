@@ -65,7 +65,7 @@ class Engine:
                  fusion_cfg: Optional[FusionConfig] = None,
                  clock: Callable[[], float] = time.monotonic,
                  fan_baseline: Optional[Baseline] = None,
-                 spatial_model=None):
+                 spatial_model=None, activity_model=None):
         self.room = room
         self.source_kind = source_kind
         self.room_measured = room_measured
@@ -86,6 +86,8 @@ class Engine:
         # fusion's, never used to decide, until it has been trained and scored on
         # recordings from this room (`python -m aankhen learn`).
         self.spatial = spatial_model
+        self.activity = activity_model                # what I am doing, when I am in (learn.py)
+        self._activity_p = None                       # its probabilities, smoothed over ~2 s
         self._spatial_fs = self.new_feature_stream() if spatial_model is not None else None
         self._spatial_filter = TemporalFilter(spatial_model.priors) if spatial_model is not None else None
         self.learned: Optional[dict] = None
@@ -222,6 +224,18 @@ class Engine:
                         # or (no calibration yet) whatever the first seconds saw
                         "reference": "calibrated" if self._spatial_fs.seeded else "first seconds",
                         "trained": "simulator only" if sim_only else "includes your recordings"}
+        if self.activity is not None:
+            from .learn import ACTIVITIES
+            a = self.activity.proba(v[None, :])[0]
+            # Smoothed (EMA over ~4 windows = 2 s) so the label does not flicker, and only
+            # meaningful while I am in the room: out of it, the activity is "none".
+            self._activity_p = a if self._activity_p is None else 0.5 * self._activity_p + 0.5 * a
+            occ = self.learned["occupied_p"]
+            pa = self._activity_p * occ
+            pa[ACTIVITIES.index("none")] += 1.0 - occ
+            j = int(np.argmax(pa))
+            self.learned["activity"] = {"state": ACTIVITIES[j], "p": {c: round(float(x), 3) for c, x in zip(ACTIVITIES, pa)},
+                                        "trained": "your recordings"}
 
     def _on_radar(self, p: RadarPacket) -> None:
         t = p.timestamp_us / 1e6
@@ -567,7 +581,9 @@ class Engine:
         f = self.frame_message()
         return {"source": f["source"], "presence": f["presence"],
                 "people": [{"id": t["id"], "zone": t["zone"], "still": t["still"]} for t in f["tracks"]],
-                "motion": f["motion_detail"]["state"]}
+                "motion": f["motion_detail"]["state"],
+                "learned": f.get("learned"),
+                "human_band": f["motion_detail"].get("human_band")}
 
 
 def _human_band(m) -> Optional[dict]:

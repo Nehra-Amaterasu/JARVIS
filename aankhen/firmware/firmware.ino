@@ -50,9 +50,11 @@
 #include "secrets.h"   // gitignored; copy secrets.example.h
 
 // ------------------------------------------------------------------ config
-#define FW_VERSION "aankhen-3.1.0"
-#define CSI_RATE_HZ 100           // router pings per second = CSI captures per second
-#define CSI_QUEUE_DEPTH 48        // ~0.5 s of slack if the USB host stalls
+#define FW_VERSION "aankhen-3.2.0"
+#define CSI_RATE_HZ 500           // router pings per second = CSI captures per second. 500, not 100:
+                                  // the host averages ~5 per 10 ms slot, which keeps a full-speed
+                                  // ceiling fan (~23 Hz and harmonics) from folding into the human band
+#define CSI_QUEUE_DEPTH 160       // ~0.3 s of slack at 500 Hz if the USB host stalls
 // Automatic CSI scaling. The host divides every packet by its own median amplitude,
 // so the absolute scale is irrelevant to the detector; automatic scaling keeps the
 // int8 samples using their full range, i.e. less quantisation noise.

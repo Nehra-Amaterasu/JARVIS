@@ -302,6 +302,16 @@ STEP_LABEL = {"empty": "empty", "desk": "desk", "bed": "bed", "walk": "room", "h
               "walking": "room", "standing": "room", "sitting": "desk", "lying": "bed"}
 
 
+def _zone_class(zone: str, v: np.ndarray) -> str:
+    """A taught zone as a model class. "away" means I was out of my room: the window is
+    "outside" when the human band shows someone moving (the family, near the router),
+    "empty" when the flat is quiet (same 3x-noise split as calibration)."""
+    if zone == "away":
+        hbe = v[FEATURES.index("log_hbe")]
+        return "outside" if np.isfinite(hbe) and hbe >= np.log(3.0) else "empty"
+    return zone
+
+
 def recording_run(path: str, labels: Optional[list[dict]] = None, label: Optional[str] = None) -> dict:
     """Features of one real recording (.akr) with its labels: either one label for
     the whole file (a validate step) or time segments from a .labels.json."""
@@ -315,7 +325,7 @@ def recording_run(path: str, labels: Optional[list[dict]] = None, label: Optiona
     from .motion import Baseline
     base = Baseline.load(os.path.join(DATA_DIR, "baseline.json"))   # the room's own calibration
     fs, cond = FeatureStream(ref=base.ref if base else None), CsiConditioner()
-    X, y, ts = [], [], []
+    X, y, ts, acts, rounds = [], [], [], [], []
     t0 = None
     for p in _packets(d for _, d in iter_recording(path)):
         for s in cond.push(p.timestamp_us / 1e6, p.raw, p.rssi, gain_comp_db=p.gain_comp_db):
@@ -324,18 +334,21 @@ def recording_run(path: str, labels: Optional[list[dict]] = None, label: Optiona
             if v is None:
                 continue
             rel = s.t - t0
-            lab = None
+            lab, act, rnd = None, None, None
             if labels:
                 for seg in labels:
                     if seg["start"] <= rel < seg["end"]:
-                        lab = STEP_LABEL.get(seg["label"])
+                        if "zone" in seg:              # learn-my-room: zone + activity
+                            lab, act, rnd = _zone_class(seg["zone"], v), seg.get("activity"), seg.get("round")
+                        else:
+                            lab = STEP_LABEL.get(seg["label"])
             elif label:
                 lab = STEP_LABEL.get(label)
             if lab is None:
                 continue
-            X.append(v); y.append(lab); ts.append(rel)
+            X.append(v); y.append(lab); ts.append(rel); acts.append(act or "none"); rounds.append(rnd or 0)
     return {"X": np.asarray(X), "y": np.asarray(y), "t": np.asarray(ts), "engine": np.asarray([]),
-            "path": path}
+            "activity": np.asarray(acts), "round": np.asarray(rounds), "path": path}
 
 
 def recorded_dataset(paths: list[str]) -> list[dict]:
@@ -415,6 +428,47 @@ class SpatialModel:
         # and saved itself on this machine (aankhen/models/), never a downloaded file.
         import joblib
         return joblib.load(path) if os.path.exists(path) else None
+
+
+ACTIVITIES = ["none", "still", "typing", "waving", "walking"]
+ACTIVITY_FILE = os.path.join(MODEL_DIR, "activity.joblib")
+
+
+@dataclass
+class ActivityModel:
+    """What I am doing while in my room: still, typing, waving or walking ("none" when
+    I am not in it). Learned only from my own labelled recordings: the simulator has no
+    hands or keyboards. Each has its own rhythm in the human band, which the window
+    features (per-pattern powers, sub-bands, level, context) carry."""
+    clf: object
+    trained_on: dict
+
+    def proba(self, X: np.ndarray) -> np.ndarray:
+        P = np.zeros((len(X), len(ACTIVITIES)))
+        P[:, [ACTIVITIES.index(c) for c in self.clf.classes_]] = self.clf.predict_proba(X)
+        return P
+
+    def save(self, path: str = ACTIVITY_FILE) -> None:
+        import joblib
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        joblib.dump(self, path)
+
+    @staticmethod
+    def load(path: str = ACTIVITY_FILE) -> Optional["ActivityModel"]:
+        import joblib                          # only models trained and saved here
+        return joblib.load(path) if os.path.exists(path) else None
+
+
+def train_activity(runs: list[dict], note: str = "") -> ActivityModel:
+    from sklearn.ensemble import HistGradientBoostingClassifier
+    X = np.concatenate([r["X"] for r in runs])
+    a = np.concatenate([r["activity"] for r in runs])
+    clf = HistGradientBoostingClassifier(max_iter=300, learning_rate=0.06, max_leaf_nodes=15,
+                                         l2_regularization=1.0, class_weight="balanced", random_state=0)
+    clf.fit(X, a)
+    return ActivityModel(clf, {"windows": int(len(a)), "note": note,
+                               "classes": {c: int((a == c).sum()) for c in ACTIVITIES},
+                               "when": time.strftime("%Y-%m-%d %H:%M")})
 
 
 def train(runs: list[dict], note: str = "", weights: Optional[list[float]] = None) -> SpatialModel:

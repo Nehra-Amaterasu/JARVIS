@@ -146,3 +146,17 @@ def test_say_merges_receipts_and_says_virtual_once():
     b = Receipt("set_device", "T1", True, "The fan is off. Virtual room only; no relay board is connected.",
                 "x", simulated=True)
     assert say([a, b]) == "The light is off. The fan is off. Virtual room only; no relay board is connected."
+
+
+def test_presence_from_the_learned_models_says_where_what_and_how_long():
+    """No radar: where I am comes from the spatial model, what I am doing from the
+    activity model, both said as the sensors' estimate, with the journal's times."""
+    from tools.builtin import _learned_presence
+    r = _learned_presence({"state": "desk", "p": {"desk": 0.86}, "activity": {"state": "typing"}},
+                          {"now": {"zone": "desk", "seconds": 1500},
+                           "today": {"zones": {"desk": 4200, "bed": 900, "outside": 300}}})
+    assert r.ok and r.backs == ("presence",)
+    assert "at your desk" in r.did and "typing" in r.did and "model, 86%" in r.did
+    assert "25 min" in r.did and "desk 1 h 10 min" in r.did and "outside" not in r.did.split("Today")[1]
+    out = _learned_presence({"state": "outside", "p": {"outside": 0.7}, "activity": {"state": "none"}}, {})
+    assert "out of your room" in out.did and "none" not in out.did

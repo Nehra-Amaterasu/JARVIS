@@ -89,3 +89,26 @@ def test_house_scenarios_need_a_house():
     assert {"family 1", "family 2", "you"} <= set(names)
     life = scenario_life(r, np.random.default_rng(3), 300.0)
     assert life.actors[0].name == "you" and life.actors[0].steps
+
+
+def test_a_taught_away_window_is_outside_when_someone_moves_and_empty_when_quiet():
+    from aankhen.learn import _zone_class
+    v = np.zeros(len(FEATURES))
+    v[FEATURES.index("log_hbe")] = np.log(8.0)
+    assert _zone_class("away", v) == "outside"
+    v[FEATURES.index("log_hbe")] = np.log(1.2)
+    assert _zone_class("away", v) == "empty"
+    assert _zone_class("desk", v) == "desk"
+
+
+def test_the_activity_model_learns_separable_rhythms():
+    from aankhen.learn import ACTIVITIES, train_activity
+    rng = np.random.default_rng(0)
+    X, a = [], []
+    for k, act in enumerate(["still", "typing", "waving", "walking"]):
+        x = rng.normal(0, 0.3, (80, len(FEATURES)))
+        x[:, FEATURES.index("log_hbe")] += k * 1.5
+        X.append(x); a += [act] * 80
+    m = train_activity([{"X": np.concatenate(X), "activity": np.array(a)}])
+    pred = np.array(ACTIVITIES)[m.proba(np.concatenate(X)).argmax(1)]
+    assert (pred == np.array(a)).mean() > 0.9

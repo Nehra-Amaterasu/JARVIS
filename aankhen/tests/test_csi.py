@@ -66,13 +66,14 @@ def test_resampler_regular_input_passes_through():
     out = []
     for i in range(10):
         out += r.push(i * 0.01, np.ones(51))
-    assert len(out) == 10 and not any(s.filled for s in out)
+    # a slot is emitted when the next one starts: 10 packets -> 9 samples so far
+    assert len(out) == 9 and not any(s.filled for s in out)
 
 
 def test_resampler_fills_short_gap_and_reports_it():
     r = UniformResampler(100, max_gap_s=0.25)
-    out = r.push(0.0, np.ones(51)) + r.push(0.05, np.ones(51) * 2)   # 4 slots missing
-    assert len(out) == 6
+    out = r.push(0.0, np.ones(51)) + r.push(0.05, np.ones(51) * 2) + r.push(0.06, np.ones(51))
+    assert len(out) == 6                           # slot 0, 4 filled, slot 5
     assert sum(s.filled for s in out) == 4
     assert r.fill_ratio() > 0
 
@@ -81,14 +82,31 @@ def test_resampler_breaks_on_long_gap_instead_of_inventing_data():
     r = UniformResampler(100, max_gap_s=0.25)
     r.push(0.0, np.ones(51))
     out = r.push(1.0, np.ones(51))                 # 1 s gap: must not fill 99 slots
-    assert len(out) == 1 and r.gaps == 1
+    assert len(out) == 1 and not out[0].filled and r.gaps == 1
 
 
-def test_resampler_drops_second_packet_in_same_slot():
+def test_resampler_averages_packets_in_the_same_slot():
     r = UniformResampler(100)
-    r.push(0.0, np.ones(51))
-    assert r.push(0.004, np.ones(51)) == []
-    assert r.dropped_same_slot == 1
+    r.push(0.0, np.ones(51), level_db=-70.0)
+    assert r.push(0.004, np.ones(51) * 3, level_db=-72.0) == []
+    out = r.push(0.01, np.ones(51))
+    assert r.averaged == 1 and r.dropped_same_slot == 0
+    assert np.allclose(out[0].amp, 2.0) and out[0].level_db == -71.0
+
+
+def test_averaging_fast_packets_keeps_a_fan_out_of_the_human_band():
+    """A fan harmonic at 92.3 Hz, sampled once per 10 ms, folds to 7.7 Hz; sampled at
+    500 Hz and averaged per 10 ms slot it is attenuated ~20x before it can fold."""
+    f_fan, fs = 92.3, 500.0
+    def run(rate):
+        r = UniformResampler(100)
+        out = []
+        for i in range(int(4 * rate)):
+            t = i / rate
+            out += r.push(t, np.ones(51) * (1 + 0.1 * np.sin(2 * np.pi * f_fan * t)))
+        x = np.array([s.amp[0] for s in out]) - 1
+        return np.abs(np.fft.rfft(x * np.hanning(len(x)))).max()
+    assert run(fs) < run(100.0) / 10
 
 
 # ---------------------------------------------------------------- hampel

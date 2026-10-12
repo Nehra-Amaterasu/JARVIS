@@ -58,6 +58,10 @@ class AankhenHub:
         self.room_measured = bool(room_measured)
         self.source = None
         self.engine: Optional[Engine] = None
+        # The day as Aankhen saw it (journal.py): fed once a second from the REAL board.
+        from .journal import ActivityJournal
+        self.journal = ActivityJournal()
+        self._journal_thread: Optional[threading.Thread] = None
         self.sim: Optional[Simulator] = None
         self.mode: Optional[str] = None
         self.scenario: Optional[str] = None
@@ -132,10 +136,11 @@ class AankhenHub:
                 raise ValueError(f"unknown mode {mode!r}")
             if mode != "simulation":
                 self.sim = None
-            from .learn import SpatialModel
+            from .learn import ActivityModel, SpatialModel
             prev = self.engine
             self.engine = Engine(self.room, source.kind, self.room_measured, baseline,
-                                 fan_baseline=fan_baseline, spatial_model=SpatialModel.load())
+                                 fan_baseline=fan_baseline, spatial_model=SpatialModel.load(),
+                                 activity_model=ActivityModel.load())
             if prev is not None:
                 # Event ids keep rising across a source switch. The app relays an event
                 # only if its id is above the last one relayed (server.aankhen_watch), so
@@ -153,6 +158,7 @@ class AankhenHub:
             self._thread.start()
             self.started_at = time.time()
             self._ensure_hotplug()
+            self._ensure_journal()
             return self.info()
 
     def stop(self) -> None:
@@ -402,8 +408,36 @@ class AankhenHub:
                 "room_measured": self.room_measured}
 
     def snapshot(self) -> dict:
-        """Compact presence summary for JARVIS's brain."""
-        return self.engine.snapshot() if self.engine else {"source": None, "presence": None}
+        """Compact presence summary for JARVIS's brain, with where I am, what I am doing
+        and how long (the learned models and the journal)."""
+        snap = self.engine.snapshot() if self.engine else {"source": None, "presence": None}
+        if self.engine is not None and snap.get("source") == "hardware":
+            snap["journal"] = self.journal.summary()
+        return snap
+
+    def _ensure_journal(self) -> None:
+        if self._journal_thread is not None and self._journal_thread.is_alive():
+            return
+
+        def loop():
+            while True:
+                time.sleep(1.0)
+                eng = self.engine
+                if eng is None or self.mode != "hardware":
+                    self.journal.close()           # the segment ends when the board does
+                    continue
+                try:
+                    with eng.lock:
+                        f = eng.frame_message()
+                except Exception:
+                    continue
+                l = f.get("learned") or {}
+                zone = l.get("state")
+                act = (l.get("activity") or {}).get("state")
+                self.journal.update(zone, act, f["motion_detail"].get("state") == "motion")
+
+        self._journal_thread = threading.Thread(target=loop, name="aankhen-journal", daemon=True)
+        self._journal_thread.start()
 
 
 def _match(truth: list[dict], tracks: list[dict], gate: float = 1.0) -> dict:

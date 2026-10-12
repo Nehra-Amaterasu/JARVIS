@@ -450,6 +450,11 @@ def main(argv=None) -> int:
     fl.add_argument("--port")
     fl.add_argument("--no-voice", action="store_true")
 
+    lr = sub.add_parser("learnroom", help="~8-minute voice-guided session: where you are and what you are doing")
+    lr.add_argument("--port")
+    lr.add_argument("--rounds", type=int, default=1)
+    lr.add_argument("--no-voice", action="store_true")
+
     ln = sub.add_parser("learn", help="spatial model trained on data: simulate, train, evaluate")
     ln.add_argument("action", choices=["simulate", "train", "eval"],
                     help="simulate: build a simulated dataset · train: fit the model · eval: score it")
@@ -466,6 +471,7 @@ def main(argv=None) -> int:
     return {"doctor": cmd_doctor, "serve": cmd_serve, "record": cmd_record,
             "calibrate": cmd_calibrate, "bench": cmd_bench, "simulate": cmd_simulate,
             "physics": cmd_physics, "validate": cmd_validate, "learn": cmd_learn,
+            "learnroom": lambda a: print(__import__("aankhen.firstlight", fromlist=["x"]).run_room_session(a.port, not a.no_voice, a.rounds)) or 0,
             "firstlight": lambda a: __import__("aankhen.firstlight", fromlist=["main"]).main(a.port, not a.no_voice)}[a.cmd](a)
 
 

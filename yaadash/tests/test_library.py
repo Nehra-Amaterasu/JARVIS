@@ -360,7 +360,19 @@ def test_parse_answer_flags():
     p = L.parse_answer("The notes don't cover the delay, but the chip decodes [2].", 5)
     assert not p["abstained"] and p["used"] == [2]
     assert L.parse_answer("Something [7].", 5) == {"answer": "Something [7].", "used": [], "invalid": [7],
-                                                   "abstained": False, "uncited": True}
+                                                   "abstained": False, "uncited": True, "caveat": ""}
+
+
+def test_a_cited_answer_that_also_refuses_keeps_the_answer_and_says_so():
+    """Seen live: both definitions, cited, then the refusal sentence verbatim."""
+    raw = ("Setup time is before the clock edge [1]. Hold time is after it [1]. "
+           "I don't know - your notes don't cover that.")
+    p = L.parse_answer(raw, 5)
+    assert p["answer"] == "Setup time is before the clock edge [1]. Hold time is after it [1]."
+    assert p["used"] == [1] and not p["abstained"] and p["caveat"] == L.CAVEAT_NOT_FULLY
+    # The refusal on its own is still a refusal, with no caveat.
+    q = L.parse_answer(L.NOT_IN_NOTES, 5)
+    assert q["abstained"] and q["caveat"] == "" and q["answer"] == L.NOT_IN_NOTES
 
 
 def test_speakable_names_the_sources_instead_of_reading_brackets():

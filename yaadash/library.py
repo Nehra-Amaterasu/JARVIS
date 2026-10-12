@@ -42,7 +42,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Callable, Iterable, Optional, Protocol
+from typing import Callable, Optional, Protocol
 
 import numpy as np
 
@@ -606,6 +606,11 @@ def llm_name(fn: LLM) -> str:
     return getattr(fn, "model_name", None) or "injected"
 
 
+# Live run, 2026-10-12: asked "setup time aur hold time mein kya farak hai?", the
+# model gave both definitions with correct citations and then appended the rule-2
+# sentence word for word, contradicting itself. A rule forbidding that did not
+# help (cited-and-refused in 4/50 answers with this prompt, 5/50 with the rule,
+# 25 questions x 2), so this prompt stays and parse_answer() deals with it.
 SYSTEM_PROMPT = f"""You answer questions using ONLY the numbered passages, which come from the user's own study notes.
 Rules:
 1. After every sentence that states a fact, put the number of the passage it came from in square brackets, like [2]. If two passages support it, write [1][3].
@@ -646,15 +651,27 @@ def cited_numbers(text: str) -> list[int]:
     return out
 
 
+_STRAY_REFUSAL = re.compile(r"\s*I\s+don'?t\s+know\s*[—–-]+\s*your\s+notes\s+don'?t\s+cover\s+that\.?", re.I)
+CAVEAT_NOT_FULLY = "The model also said your notes do not fully cover this question."
+
+
 def parse_answer(text: str, n_sources: int) -> dict:
-    """What the model's reply cites, and whether it abstained or failed to cite."""
+    """What the model's reply cites, and whether it abstained or failed to cite.
+
+    A cited answer that ALSO carries the refusal sentence contradicts itself. The
+    sentence is moved out of the answer into `caveat`, which the UI shows, rather
+    than deleted: the model may have meant that part of the question is missing."""
     text = (text or "").strip()
     nums = cited_numbers(text)
     used = [n for n in nums if 1 <= n <= n_sources]
     invalid = [n for n in nums if not 1 <= n <= n_sources]
+    caveat = ""
+    if used and _STRAY_REFUSAL.search(text):
+        text = _STRAY_REFUSAL.sub("", text).strip()
+        caveat = CAVEAT_NOT_FULLY
     abstained = not used and bool(_DONT_KNOW.search(text))
     return {"answer": text, "used": used, "invalid": invalid, "abstained": abstained,
-            "uncited": not used and not abstained and bool(text)}
+            "uncited": not used and not abstained and bool(text), "caveat": caveat}
 
 
 def speakable(result: dict) -> str:
@@ -839,10 +856,6 @@ class Library:
             self.embedder_error = f"{type(e).__name__}: {e}"[:300]
             self.embedder = None
             return None
-
-    @property
-    def vector_ready(self) -> bool:
-        return self.embedder is not None
 
     # ------------------------------------------------------------ ingest
     def _doc_by_path(self, m: dict, path: Path) -> Optional[dict]:
@@ -1219,14 +1232,14 @@ class Library:
                 "retrieval_ms": r.took_ms}
         if r.abstained:
             return {**base, "answer": NOT_IN_NOTES, "abstained": True, "reason": r.reason,
-                    "used": [], "invalid": [], "uncited": False, "llm": None,
+                    "used": [], "invalid": [], "uncited": False, "caveat": "", "llm": None,
                     "took_ms": round((time.time() - t0) * 1000)}
         system, user = build_prompt(question, sources)
         try:
             text = (llm or self.llm)(system, user)
         except Exception as e:
             return {**base, "answer": None, "abstained": False, "reason": "",
-                    "used": [], "invalid": [], "uncited": False, "llm": None,
+                    "used": [], "invalid": [], "uncited": False, "caveat": "", "llm": None,
                     "llm_error": str(e)[:300], "took_ms": round((time.time() - t0) * 1000)}
         parsed = parse_answer(text, len(sources))
         return {**base, **parsed, "reason": "the model said the passages do not answer it"

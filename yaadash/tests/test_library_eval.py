@@ -187,7 +187,7 @@ def test_live_model_citations(lib):
     """The real 4B model behind ask(): how often its first citation is the gold page,
     whether it invents citation numbers, and whether it abstains on its own."""
     ok, any_ok, invalid, uncited, errors = 0, 0, 0, 0, []
-    rows = []
+    rows, mixed = [], []
     t0 = time.time()
     for q, gold in C.QUESTIONS:
         res = lib.ask(q, llm=L.ollama_llm)
@@ -200,7 +200,16 @@ def test_live_model_citations(lib):
         any_ok += any(C.is_hit(by_n[n], gold) for n in res["used"])
         invalid += bool(res["invalid"])
         uncited += res["uncited"]
+        if res["caveat"]:
+            mixed.append(q)
         rows.append((q, res["answer"]))
+    hinglish_ok = 0
+    for q, gold in C.HINGLISH:
+        res = lib.ask(q, llm=L.ollama_llm)
+        by_n = {s["n"]: s for s in res["sources"]}
+        hinglish_ok += any(C.is_hit(by_n[n], gold) for n in res.get("used", []))
+        if res.get("caveat"):
+            mixed.append(q)
     unans = [lib.ask(q, llm=L.ollama_llm) for q in C.UNANSWERABLE]
     model_refusals = sum(r["abstained"] for r in unans)
     # The gate usually stops these before the model sees them. To test the
@@ -217,7 +226,9 @@ def test_live_model_citations(lib):
           f"gold page among citations {any_ok}/{len(C.QUESTIONS)}, answers with invented numbers {invalid}, "
           f"uncited {uncited}; unanswerable refused {model_refusals}/{len(C.UNANSWERABLE)} "
           f"(gate + model), by the model alone with the gate bypassed {model_only}/{len(C.UNANSWERABLE)}; "
-          f"{took:.0f} s for {len(C.QUESTIONS) + 2 * len(C.UNANSWERABLE)} calls")
+          f"Hinglish cited the gold page {hinglish_ok}/{len(C.HINGLISH)}; answers that cited AND refused "
+          f"{len(mixed)}/{len(C.QUESTIONS) + len(C.HINGLISH)} {mixed or ''}; "
+          f"{took:.0f} s for {len(C.QUESTIONS) + len(C.HINGLISH) + 2 * len(C.UNANSWERABLE)} calls")
     for q, a in rows[:4]:
         print(f"  Q: {q}\n  A: {a}")
     for q, a in zip(C.UNANSWERABLE, alone):

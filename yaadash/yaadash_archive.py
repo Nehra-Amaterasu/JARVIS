@@ -224,7 +224,12 @@ def main():
         pa.field("text", pa.string()),
         pa.field("vector", pa.list_(pa.float32(), 384)),
     ])
-    db = y._get_table() and y._db           # reuse the same on-disk LanceDB
+    # Reuse the same on-disk LanceDB. Was `y._get_table() and y._db`, but a LanceTable
+    # is falsy when it has no rows, so on a fresh store (no identity facts yet) `db` was
+    # the empty table and the build died on db.table_names() (found 2026-10-12 by the
+    # yaadash tests, which build a store from nothing).
+    y._get_table()
+    db = y._db
     if WINDOWS_TABLE in db.table_names():
         db.drop_table(WINDOWS_TABLE)
     db.create_table(WINDOWS_TABLE, data=windows, schema=schema)

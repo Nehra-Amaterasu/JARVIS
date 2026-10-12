@@ -104,3 +104,6 @@ mission-germoney/expo/
 # desktop app build output
 app/ui/dist/
 app/ui/node_modules/
+
+# never again: the app state moved to data/app
+app/data/

@@ -184,7 +184,7 @@ class Teacher:
             if eng is not None:
                 with eng.lock:
                     eng.spatial = model
-                    eng._spatial_fs = FeatureStream()
+                    eng._spatial_fs = eng.new_feature_stream()
                     eng._spatial_filter = TemporalFilter(model.priors)
             f = rep["filtered"]
             self.training = {"state": "done", "finished": time.time(),

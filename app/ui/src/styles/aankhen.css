@@ -16,16 +16,98 @@
 
 .hud { position: absolute; z-index: 3; display: flex; gap: 12px; pointer-events: none; }
 .hud > * { pointer-events: auto; }
-.hud-tl { top: 22px; left: 24px; flex-direction: column; align-items: flex-start; }
-.hud-tr { top: 18px; right: 18px; }
-.hud-right { top: 330px; right: 18px; bottom: 76px; flex-direction: column; width: 300px; overflow: auto; }
-.hud-left { left: 18px; top: 260px; flex-direction: column; width: 270px; }
-.hud-bl { left: 18px; bottom: 18px; align-items: center; flex-wrap: wrap; right: 340px; }
+/* Two instrument columns that scroll on their own, so no card ever sits on another
+   whatever the window height; the 3D room breathes in the middle. */
+.hud-col-left, .hud-col-right {
+  top: 18px; bottom: 74px; flex-direction: column; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: none; padding-bottom: 8px;
+}
+.hud-col-left::-webkit-scrollbar, .hud-col-right::-webkit-scrollbar { display: none; }
+.hud-col-left { left: 18px; width: 300px; align-items: stretch; }
+.hud-col-left .hud-title { padding: 4px 6px 0; }
+.hud-col-right { right: 18px; width: 300px; }
+.hud-bl { left: 18px; bottom: 18px; align-items: center; flex-wrap: wrap; right: 18px; }
 .hud-bc { left: 50%; bottom: 74px; transform: translateX(-50%); flex-direction: column; align-items: center; gap: 4px; }
 
 .hud-title { display: flex; align-items: baseline; gap: 12px; }
 .hud-title h1 { font-size: 64px; margin: 0; line-height: 0.85; }
+.hud-pills { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 4px; }
 .pill.big { height: 26px; font-size: 11px; padding: 0 12px; }
+.chips-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip.on.sim { background: var(--sim-2); color: var(--sim); box-shadow: inset 0 0 0 1px rgba(255, 176, 32, 0.35); }
+.teach-btn { margin-left: auto; }
+.teach-btn.recording { background: var(--fault-2); color: var(--ink); box-shadow: inset 0 0 0 1px rgba(255, 69, 58, 0.4); }
+
+/* ---------------------------------------------------------------- human band meter */
+.hb { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--hair); }
+.hb-head { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--ink-2); margin-bottom: 7px; letter-spacing: 0.04em; }
+.hb .meter { color: var(--live); }
+.hb .meter.sim { color: var(--sim); }
+.hb-foot { font-size: 10px; margin-top: 6px; }
+
+/* ---------------------------------------------------------------- spatial model */
+.learned-card .lc-empty { font-size: 12.5px; padding: 4px 0 2px; }
+.lc-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.lc-state { font-size: 24px; letter-spacing: 0.02em; }
+.lc-top .dot { color: var(--ink); font-size: 13px; }
+.lc-rows { display: grid; gap: 7px; }
+.lc-row { display: grid; grid-template-columns: 104px 1fr 26px; gap: 10px; align-items: center; font-size: 12px; color: var(--ink-3); transition: color var(--t) var(--ease); }
+.lc-row.on { color: var(--ink); }
+.lc-row .bar { height: 5px; }
+.lc-row em { font-style: normal; font-size: 10.5px; text-align: right; color: var(--ink-3); }
+.learned-card .hc-foot .btn { height: 24px; padding: 0 8px; font-size: 11px; gap: 6px; }
+
+/* ---------------------------------------------------------------- teach sheet */
+/* Centred with margins, not a transform, so the enter/exit animations own transform. */
+.teach-sheet {
+  position: absolute; z-index: 5; left: 330px; right: 330px; bottom: 70px; margin: 0 auto;
+  max-width: 780px; padding: 18px 20px 16px; border-radius: 24px;
+  background: rgba(12, 13, 16, 0.8);
+}
+.ts-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ts-title { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.ts-title b { font-weight: 650; letter-spacing: -0.01em; }
+.ts-actions { display: flex; gap: 6px; align-items: center; }
+.ts-actions .btn { gap: 6px; }
+.ts-sub { font-size: 12px; margin: 6px 0 14px; line-height: 1.5; }
+.ts-tiles { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.ts-tile {
+  position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  min-height: 92px; padding: 12px 12px 10px; border-radius: 16px; text-align: left;
+  background: rgba(255, 255, 255, 0.045); box-shadow: inset 0 0 0 1px var(--hair);
+  transition: background var(--t) var(--ease), box-shadow var(--t) var(--ease), transform 420ms var(--spring);
+}
+.ts-tile:hover:not(:disabled) { background: rgba(255, 255, 255, 0.08); }
+.ts-tile:active:not(:disabled) { transform: scale(0.95); transition-duration: 90ms; }
+.ts-tile:disabled { opacity: 0.4; cursor: not-allowed; }
+.ts-tile kbd {
+  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px;
+  font: 700 11px var(--f-mono); color: var(--ink-2); background: rgba(255, 255, 255, 0.07); box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+}
+.ts-name { font-size: 12.5px; font-weight: 600; line-height: 1.2; display: inline-flex; align-items: center; gap: 5px; }
+.ts-time { font-size: 10px; color: var(--ink-3); margin-top: auto; }
+.ts-fill { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--ink-3); transition: width 700ms var(--spring-calm); }
+.ts-tile.on { background: var(--acc-2); box-shadow: inset 0 0 0 1px var(--acc), 0 10px 30px -12px var(--acc); }
+.ts-tile.on kbd { background: var(--acc); color: #050506; }
+.ts-tile.on .ts-time { color: var(--acc); }
+.ts-tile.on .ts-fill { background: var(--acc); }
+.ts-tile.on::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120px 80px at 20% 0%, var(--acc-2), transparent 70%); animation: breatheGlow 2.4s var(--ease-in-out) infinite;
+}
+.ts-train { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--hair); font-size: 12.5px; }
+.ts-train-text b { color: var(--ink); }
+.ts-step { display: inline-block; padding: 3px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.05); }
+.aankhen-page.is-live { --acc: var(--live); --acc-2: var(--live-2); }
+.aankhen-page.is-sim { --acc: var(--sim); --acc-2: var(--sim-2); }
+.tw-area { font: 600 10px var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.34); white-space: nowrap; pointer-events: none; }
+.tw-fixture {
+  display: flex; align-items: center; gap: 6px; pointer-events: none; white-space: nowrap;
+  padding: 3px 8px 3px 6px; border-radius: 999px; background: rgba(5, 5, 6, 0.66); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+.tw-fixture::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--fx); box-shadow: 0 0 8px var(--fx); }
+.tw-fixture b { font: 600 10px var(--f-ui); color: rgba(255, 255, 255, 0.85); }
+.tw-fixture span { font: 600 8.5px var(--f-mono); letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 255, 255, 0.4); }
 
 .hud-card { padding: 14px 16px; border-radius: 18px; background: rgba(12, 13, 16, 0.62); width: 100%; }
 .hc-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
@@ -38,8 +120,8 @@
 .breath { display: inline-flex; align-items: center; gap: 8px; }
 .breath .sticker { color: var(--ink-2); transform: rotate(-3deg) scale(0.86); }
 
-.source-card { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: auto; max-width: 430px; }
-.source-card .eyebrow { width: 100%; }
+.source-card .hc-head { margin-bottom: 8px; }
+.source-card .chip { height: 24px; font-size: 11px; padding: 0 10px; }
 .seg.sm button { height: 24px; padding: 0 10px; font-size: 11.5px; }
 .scen-t { width: 100%; font-size: 10.5px; }
 
@@ -73,13 +155,13 @@
 /* ---------------------------------------------------------------- presence core */
 .presence-core { position: relative; width: 300px; display: flex; flex-direction: column; align-items: center; padding: 10px 10px 14px; border-radius: 26px; background: rgba(12, 13, 16, 0.55); backdrop-filter: var(--blur); box-shadow: var(--glass-edge); }
 .presence-core svg { display: block; }
-.presence-core .tick { stroke: rgba(255, 255, 255, 0.1); stroke-width: 1.6; }
+.presence-core .tick { stroke: rgba(255, 255, 255, 0.1); stroke-width: 1.6; transition: stroke 420ms var(--ease); }
 .presence-core.live .tick.on { stroke: var(--live); }
 .presence-core.sim .tick.on { stroke: var(--sim); }
 .presence-core.unsure .tick.on { stroke: var(--ink-2); }
 .presence-core.empty .tick.on { stroke: var(--ink-3); }
 .presence-core .ev-track { stroke: rgba(255, 255, 255, 0.07); stroke-width: 4; fill: none; stroke-linecap: round; }
-.presence-core .ev { stroke: var(--ink); stroke-width: 4; fill: none; stroke-linecap: round; transition: opacity var(--t); }
+.presence-core .ev { stroke: var(--ink); stroke-width: 4; fill: none; stroke-linecap: round; transition: opacity var(--t), d 600ms var(--spring-calm); }
 .presence-core.live .ev { stroke: var(--live); }
 .presence-core.sim .ev { stroke: var(--sim); }
 .presence-core .ev.against { stroke: var(--ink-3); }
@@ -109,3 +191,28 @@
 .tw-tag b { font: 800 15px var(--f-dot); color: #fff; letter-spacing: 0.04em; }
 .tw-tag span { font: 600 9px var(--f-mono); letter-spacing: 0.12em; color: rgba(255, 255, 255, 0.55); }
 .tw-truth { font: 700 9px var(--f-mono); letter-spacing: 0.1em; color: var(--sim); text-transform: uppercase; transform: translateY(18px); white-space: nowrap; }
+
+/* ---------------------------------------------------------------- narrow windows and phones
+   The instruments can no longer sit beside the room, so they flow under it: the twin
+   keeps the top of the screen, the cards scroll beneath, the controls stay reachable. */
+@media (max-width: 980px) {
+  .aankhen-page { padding: 6px 10px 10px; overflow-y: auto; }
+  .twin-stage { display: flex; flex-direction: column; overflow: visible; background: none; box-shadow: none; flex: none; }
+  .twin-host { position: relative; height: 58vh; min-height: 300px; border-radius: var(--r-xl); overflow: hidden;
+    background: radial-gradient(700px 500px at 50% 40%, rgba(92, 225, 255, 0.05), transparent 70%), #060708;
+    box-shadow: inset 0 0 0 1px var(--hair); order: 1; }
+  .hud { position: static; }
+  /* the left column dissolves: its title leads the page, its cards join the flow below */
+  .hud-col-left { display: contents; }
+  .hud-col-left > .hud-title, .hud-col-left > .hud-pills { order: 0; margin-bottom: 8px; }
+  .hud-col-left > .hud-card { order: 4; margin-top: 10px; }
+  .hud-col-left .hud-title h1 { font-size: 44px; }
+  .hud-bl { order: 2; position: sticky; bottom: 0; z-index: 4; padding: 10px 0; flex-wrap: wrap; gap: 8px;
+    background: linear-gradient(180deg, transparent, var(--bg) 30%); }
+  .hud-col-right { order: 3; width: auto; overflow: visible; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  .hud-col-right .presence-core { width: auto; }
+  .hud-bc { display: none; }
+  .teach-sheet { position: fixed; left: 8px; right: 8px; bottom: 8px; max-width: none; }
+  .ts-tiles { grid-template-columns: repeat(3, 1fr); }
+  .teach-btn { margin-left: 0; }
+}

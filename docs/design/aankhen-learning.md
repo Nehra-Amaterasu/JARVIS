@@ -115,26 +115,47 @@ patterns.
 - **Movement rules:** a hidden-Markov filter. Nobody gets from the desk to the bed
   without crossing the room, and nobody appears or leaves except via the room.
 
-**Simulator result.**
-- Trained on 32 random 10-minute days in this house (`scenario_life`).
-- Scored on 12 other days, 14,187 windows:
+**Simulator result — corrected 2026-10-12.** The first version of this section
+reported 94.7 % occupancy. That number was inflated, for two reasons found by
+running the model live in the app, where it said "in bed, 100 %" for an empty room:
 
-| | occupancy right | "occupied" while only family moved outside | "occupied" when empty | missed you |
-|---|---|---|---|---|
-| today's engine | 63.1 % | 99.5 % | 86.7 % | 1.0 % |
-| learned + movement rules | **94.7 %** | **8.0 %** | **3.3 %** | 5.6 % |
+1. **The reference was an artifact.** Shape and level changes were measured
+   against whatever the first second of each simulated day looked like, which was
+   the simulator's start-up transient. Even the empty room sat at `shape_dev2 ≈ −22`,
+   so the model's top features (0.24 and 0.17 importance) partly learned that
+   artifact. When a stream started with the family already moving, the features
+   went far outside anything it had seen (`shape_dev1` 34 vs at most 13).
+   **Fix:** calibration now records the empty room's shape, level and RSSI
+   (`Baseline.ref`), and every stream starts from it — live, in teach recordings,
+   and in every training day (each day gets its own empty-room calibration).
+2. **"Away" was unrealistic.** When "you" left the room in a training day, the
+   simulator parked you standing still half a metre outside your door. So "only
+   the family is moving while I'm in the kitchen" almost never appeared, and the
+   model read it as someone inside. **Fix:** away time is now spent in the other
+   rooms of the house or out of the main door.
 
-When someone is in, it names desk, bed or elsewhere in the room right 86.7 % of the time.
+Trained on 32 new 10-minute days of this house; scored on 12 other days (14,190
+windows) and on the house scenario (family moving from the first second, you
+visit the desk at 100–170 s; 3 seeds):
 
-**Moving to a different room.** Trained on one simulated room and scored on the other,
-it gets 90.5–91.9 % occupancy, with 6.5–21.8 % "occupied" while only family moved
-outside and 79–84 % zone accuracy. That is the honest preview of moving from simulation
-to a real room. It still beats today's 63 %, and it is why the model must be trained
-on the real room.
+| | scored on | occupancy right | "occupied" while only family moved outside | "occupied" when empty | missed you |
+|---|---|---|---|---|---|
+| today's engine | realistic days | 57.4 % | 99.5 % | 89.7 % | 3.6 % |
+| first model (2026-10-11) | realistic days | 61.8 % | 82.8 % | 71.4 % | 9.1 % |
+| **current model + movement rules** | **realistic days** | **77.2 %** | **23.9 %** | **18.4 %** | 24.1 % |
+| first model | house scenario | 30–35 % | 93–100 % | — | 0 % |
+| **current model** | **house scenario** | **85.8 %** | **18.8 %** | — | 3.4 % |
 
-**What it relies on.** By permutation importance, the shape change against the quiet
-reference ranks first (0.24), then the level change (0.17). It learns the fingerprint a
-still body leaves at a spot, which also means it must be retrained when furniture moves.
+When someone is in, it names desk, bed or elsewhere in the room right 70 % of the
+time on realistic days (93 % in the house scenario, where you only sit at the desk).
+Its biggest confusion is a still person in bed versus nobody moving anywhere (bed
+read as empty or outside in 46 % of bed windows): a body lying still away from the
+link's sensitive zone changes one link's channel very little. That is close to the
+physical limit of one ESP32 and one router, not a bug to tune away.
+
+**What this means.** 77 % on simulated days is a better starting point than the
+engine's 57 %, not a result. Real recordings decide, which is why the model stays
+advisory.
 
 **Teach, from the viewer.**
 - **Label.** Tap "At my desk / In bed / Moving around / Outside my door / Room empty"
@@ -153,7 +174,7 @@ what it was trained on. Fusion does not use it yet. It earns a vote only after i
 held-out score on your recordings beats the engine's.
 
 CLI: `python -m aankhen learn simulate | train --data … --test … | eval`.
-Models live in `aankhen/models/` (git-ignored).
+Models live in `data/aankhen/models/` (git-ignored); the replaced ones in `previous/`.
 
 ## Open
 

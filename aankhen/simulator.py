@@ -371,7 +371,91 @@ class Scenario:
 DOOR = (0.4, 3.6)
 
 
-def scenario_evening() -> Scenario:
+@dataclass
+class Places:
+    """Where a scenario's people go, in the room it runs in.
+
+    The default values are the default 4 x 4 m room's (the benchmarks are measured
+    on it). places(room) finds the same spots in a real room.json from its zones:
+    the door zone, the desk zone (where the chair is), the bed zone, the open floor,
+    the wardrobe, and outside, the passage of the house."""
+    door: tuple = DOOR                        # just inside the room's door
+    chair: tuple = (0.8, 0.95)                # seated at the desk
+    bed: tuple = (3.0, 3.0)                   # lying on the bed
+    bed_way: tuple = (1.5, 2.6)               # floor beside the bed, the way in and out
+    mid: tuple = (1.2, 2.0)                   # open floor between door and desk
+    mid2: tuple = (2.0, 1.6)                  # open floor between desk and bed
+    laps: tuple = ((1.2, 1.6), (3.0, 1.4), (2.0, 0.9))
+    wardrobe: tuple = (2.6, 1.0)              # standing in front of the wardrobe
+    wander: tuple = ((3.0, 1.6), (1.0, 2.5))
+    edge_a: tuple = (2.6, 2.4)                # two people on the bed edge, 0.45 m apart
+    edge_b: tuple = (3.05, 2.4)
+    edge_way_b: tuple = (1.6, 2.9)
+    hallway: tuple = ((-2.6, 1.2), (-0.4, 2.8))   # pacing outside, near the router
+    fan: tuple = (2.0, 2.2)
+
+
+def places(room: Optional[Room] = None) -> Places:
+    """The scenario spots for a room; the default room's spots without one."""
+    p = Places()
+    if room is None:
+        return p
+    zones = {z.name: z for z in room.zones}
+    W, D = room.width, room.depth
+    floor = zones.get("floor")
+
+    def inside(x, y):
+        return (0.25 <= x <= W - 0.25 and 0.25 <= y <= D - 0.25
+                and (floor is None or floor.contains(x, y)))
+
+    grid = [(0.25 + 0.15 * i, 0.25 + 0.15 * j) for i in range(int((W - 0.5) / 0.15) + 1)
+            for j in range(int((D - 0.5) / 0.15) + 1)]
+    free = [q for q in grid if inside(*q)] or [(W / 2, D / 2)]
+
+    def near(x, y):
+        """The open-floor point nearest (x, y)."""
+        return min(free, key=lambda q: (q[0] - x) ** 2 + (q[1] - y) ** 2)
+
+    door = next((z for n, z in zones.items() if n == "door"), None) or \
+        next((z for z in room.zones if z.is_exit and "door" in z.name), None)
+    if door:
+        p.door = door.centroid()
+    if "desk" in zones:
+        p.chair = zones["desk"].centroid()
+    bed = zones.get("bed")
+    if bed:
+        bx, by = bed.centroid()
+        p.bed = (bx, by)
+        p.bed_way = near(bx, by)
+        xs = [q[0] for q in bed.polygon]; ys = [q[1] for q in bed.polygon]
+        # the bed edge that faces the open floor: two people sit 0.45 m apart on it
+        ex, ey = p.bed_way
+        if abs(ey - by) >= abs(ex - bx):
+            y_edge = (max(ys) - 0.15) if ey > by else (min(ys) + 0.15)
+            p.edge_a, p.edge_b = (bx - 0.225, y_edge), (bx + 0.225, y_edge)
+        else:
+            x_edge = (max(xs) - 0.15) if ex > bx else (min(xs) + 0.15)
+            p.edge_a, p.edge_b = (x_edge, by - 0.225), (x_edge, by + 0.225)
+        p.edge_way_b = near(p.edge_b[0], p.edge_b[1])
+    p.mid = near((p.door[0] + p.chair[0]) / 2 + 0.4, (p.door[1] + p.chair[1]) / 2)
+    p.mid2 = near((p.chair[0] + p.bed[0]) / 2, (p.chair[1] + p.bed[1]) / 2)
+    far = max(free, key=lambda q: (q[0] - p.door[0]) ** 2 + (q[1] - p.door[1]) ** 2)
+    p.laps = (p.mid, far, near((p.mid[0] + far[0]) / 2, (p.mid[1] + far[1]) / 2 + 0.3))
+    wr = next((f for f in room.furniture if "wardrobe" in f.name.lower()), None)
+    p.wardrobe = near(wr.x + wr.w / 2, wr.y + wr.d / 2) if wr else near(W * 0.65, D * 0.3)
+    p.wander = (near(W * 0.75, D * 0.45), near(W * 0.25, D * 0.65))
+    h = room.house
+    pas = h.area("passage") if h else None
+    if pas is not None:
+        xs, ys = zip(*pas.polygon)
+        ymid = (min(ys) + max(ys)) / 2
+        p.hallway = ((min(xs) + 0.4, ymid), (max(xs) - 0.4, ymid))
+    fan = next((f for f in (h.fixtures if h else []) if f.kind == "fan"), None)
+    p.fan = (fan.x, fan.y) if fan else (W / 2, D / 2)
+    return p
+
+
+def scenario_evening(room: Optional[Room] = None) -> Scenario:
     """A plausible evening in the default 4 x 4 m study, looped every 110 s.
 
     A walks in through the door, sits at the desk for 35 s, moves to the bed and
@@ -379,41 +463,43 @@ def scenario_evening() -> Scenario:
     wardrobe, wanders and leaves — so there are two people, a crossing of the Wi-Fi
     link, seated and lying stillness, and ~35 s of genuinely empty room per loop.
     """
-    door, chair, bedside = DOOR, (0.8, 0.95), (3.0, 3.0)
+    P = places(room)
+    door, chair, bedside = P.door, P.chair, P.bed
     a = Actor("A", door, enter_at=4.0, steps=[
-        Step("walk", (1.2, 2.0)), Step("walk", chair),
+        Step("walk", P.mid), Step("walk", chair),
         Step("stay", seconds=35, posture="seated"),
-        Step("walk", (2.0, 1.6)), Step("walk", bedside),
+        Step("walk", P.mid2), Step("walk", bedside),
         Step("stay", seconds=25, posture="lying"),
-        Step("walk", (1.5, 2.6)), Step("walk", door), Step("leave")])
+        Step("walk", P.bed_way), Step("walk", door), Step("leave")])
     b = Actor("B", door, enter_at=55.0, breathing_bpm=17.0, steps=[
-        Step("walk", (2.6, 1.0)), Step("stay", seconds=6, posture="standing"),
-        Step("walk", (3.0, 1.6)), Step("walk", (1.0, 2.5)), Step("walk", door),
+        Step("walk", P.wardrobe), Step("stay", seconds=6, posture="standing"),
+        Step("walk", P.wander[0]), Step("walk", P.wander[1]), Step("walk", door),
         Step("leave")])
     return Scenario("evening", [a, b], period_s=110.0,
                     description="enter, sit at desk, lie on bed, a second person visits, both leave")
 
 
-def scenario_walk() -> Scenario:
+def scenario_walk(room: Optional[Room] = None) -> Scenario:
     """One person doing slow laps — the easiest case, for checking the renderer."""
-    door = DOOR
+    P = places(room)
+    door, (l1, l2, l3) = P.door, P.laps
     a = Actor("A", door, enter_at=1.0, steps=[
-        Step("walk", (1.2, 1.6)), Step("walk", (3.0, 1.4)), Step("walk", (2.0, 0.9)),
-        Step("walk", (1.2, 1.6)), Step("walk", door), Step("leave")])
+        Step("walk", l1), Step("walk", l2), Step("walk", l3),
+        Step("walk", l1), Step("walk", door), Step("leave")])
     return Scenario("walk", [a], period_s=16.0, description="one person walking laps")
 
 
-def scenario_empty() -> Scenario:
+def scenario_empty(room: Optional[Room] = None) -> Scenario:
     return Scenario("empty", [], description="nobody — used for calibration and false-alarm tests")
 
 
-def scenario_still() -> Scenario:
+def scenario_still(room: Optional[Room] = None) -> Scenario:
     """Someone sitting at the desk the whole time: the hardest case for Wi-Fi."""
-    a = Actor("A", (0.8, 0.95), steps=[Step("stay", seconds=10_000, posture="seated")])
+    a = Actor("A", places(room).chair, steps=[Step("stay", seconds=10_000, posture="seated")])
     return Scenario("still", [a], description="one person seated and still")
 
 
-def scenario_sleep() -> Scenario:
+def scenario_sleep(room: Optional[Room] = None) -> Scenario:
     """Walk in, lie on the bed for nine minutes, get up and leave.
 
     The LD2450 forgets the sleeper 8 s after they stop moving and sees them again
@@ -421,64 +507,70 @@ def scenario_sleep() -> Scenario:
     with a sigh every ~3 min. This is the case where the system must not decide the
     room is empty: the audit measured 39 % false "empty" here.
     """
-    bed = (3.0, 3.0)
-    a = Actor("A", DOOR, enter_at=2.0, breathing_bpm=13.0, chest_mm=4.5, breath_wander=0.12,
+    P = places(room)
+    a = Actor("A", P.door, enter_at=2.0, breathing_bpm=13.0, chest_mm=4.5, breath_wander=0.12,
               sigh_every_s=180.0, fidget_every_s=150.0, steps=[
-                  Step("walk", (1.5, 2.6)), Step("walk", bed),
+                  Step("walk", P.bed_way), Step("walk", P.bed),
                   Step("stay", seconds=540, posture="lying"),
-                  Step("walk", (1.5, 2.6)), Step("walk", DOOR), Step("leave")])
+                  Step("walk", P.bed_way), Step("walk", P.door), Step("leave")])
     return Scenario("sleep", [a], radar_still_loss_s=8.0,
                     description="nine minutes asleep; the radar loses the sleeper between fidgets")
 
 
-def scenario_hallway() -> Scenario:
+def scenario_hallway(room: Optional[Room] = None) -> Scenario:
     """The room is EMPTY; someone paces in the hallway next to the router.
 
     The Wi-Fi link runs from the router (3 m outside the wall) across the room, so a
     person near the router perturbs it more than anyone inside. The audit measured
     100 % false "occupied" for this.
     """
-    n = Actor("N", (-2.6, 1.2), steps=[Step("walk", (-0.4, 2.8), speed=0.8),
-                                        Step("walk", (-2.6, 1.2), speed=0.8)] * 40)
+    a, b = places(room).hallway
+    n = Actor("N", a, steps=[Step("walk", b, speed=0.8), Step("walk", a, speed=0.8)] * 40)
     return Scenario("hallway", [n], description="empty room, a neighbour pacing near the router")
 
 
-def scenario_fan() -> Scenario:
+def scenario_fan(room: Optional[Room] = None) -> Scenario:
     """The ceiling fan runs the whole time (relay on at 3 s). The room is empty for
     100 s, A comes in, works at the desk for a minute, and leaves. The LD2450 also
     picks up the blades in 30 % of its frames."""
-    a = Actor("A", DOOR, enter_at=100.0, steps=[
-        Step("walk", (1.2, 2.0)), Step("walk", (0.8, 0.95)),
+    P = places(room)
+    a = Actor("A", P.door, enter_at=100.0, steps=[
+        Step("walk", P.mid), Step("walk", P.chair),
         Step("stay", seconds=60, posture="seated"),
-        Step("walk", (1.5, 2.6)), Step("walk", DOOR), Step("leave")])
-    return Scenario("fan", [a], fan=Fan(radar_p=0.3, on=[(3.0, 1e9)]),
+        Step("walk", P.bed_way), Step("walk", P.door), Step("leave")])
+    fan = Fan(radar_p=0.3, on=[(3.0, 1e9)]) if room is None else \
+        Fan(x=P.fan[0], y=P.fan[1], z=min(2.6, room.height - 0.25), radar_p=0.3, on=[(3.0, 1e9)])
+    return Scenario("fan", [a], fan=fan,
                     description="ceiling fan on; empty, then a visit to the desk, then empty")
 
 
-def scenario_pair() -> Scenario:
+def scenario_pair(room: Optional[Room] = None) -> Scenario:
     """Two people sit side by side on the edge of the bed, 0.45 m apart — closer than
     the LD2450 can separate, so it reports one target."""
-    a = Actor("A", DOOR, enter_at=2.0, steps=[
-        Step("walk", (1.5, 2.6)), Step("walk", (2.6, 2.4)),
-        Step("stay", seconds=90, posture="seated"), Step("walk", (1.5, 2.6)),
-        Step("walk", DOOR), Step("leave")])
-    b = Actor("B", DOOR, enter_at=5.0, breathing_bpm=17.0, steps=[
-        Step("walk", (1.6, 2.9)), Step("walk", (3.05, 2.4)),
-        Step("stay", seconds=86, posture="seated"), Step("walk", (1.6, 2.9)),
-        Step("walk", DOOR), Step("leave")])
+    P = places(room)
+    a = Actor("A", P.door, enter_at=2.0, steps=[
+        Step("walk", P.bed_way), Step("walk", P.edge_a),
+        Step("stay", seconds=90, posture="seated"), Step("walk", P.bed_way),
+        Step("walk", P.door), Step("leave")])
+    b = Actor("B", P.door, enter_at=5.0, breathing_bpm=17.0, steps=[
+        Step("walk", P.edge_way_b), Step("walk", P.edge_b),
+        Step("stay", seconds=86, posture="seated"), Step("walk", P.edge_way_b),
+        Step("walk", P.door), Step("leave")])
     return Scenario("pair", [a, b], radar_merge_m=0.6,
                     description="two people seated 0.45 m apart on the bed edge")
 
 
-def scenario_drift() -> Scenario:
+def scenario_drift(room: Optional[Room] = None) -> Scenario:
     """Empty room whose static multipath slowly rotates by 1 rad over ~4 min (a door
     easing open, a curtain, temperature). With the default channel a subcarrier passes
     through a deep null around 150-250 s; the audit measured the empty-room motion
     score rising to 27x there. Then someone walks laps and leaves."""
-    a = Actor("A", DOOR, enter_at=300.0, steps=[
-        Step("walk", (1.2, 1.6)), Step("walk", (3.0, 1.4)), Step("walk", (2.0, 0.9)),
-        Step("walk", (1.2, 1.6)), Step("walk", (3.0, 1.4)), Step("walk", (2.0, 0.9)),
-        Step("walk", (1.2, 1.6)), Step("walk", DOOR), Step("leave")])
+    P = places(room)
+    l1, l2, l3 = P.laps
+    a = Actor("A", P.door, enter_at=300.0, steps=[
+        Step("walk", l1), Step("walk", l2), Step("walk", l3),
+        Step("walk", l1), Step("walk", l2), Step("walk", l3),
+        Step("walk", l1), Step("walk", P.door), Step("leave")])
     return Scenario("drift", [a], drift=Drift(phase_rad=1.0, ramp_s=250.0),
                     description="empty room drifting through a subcarrier null, then a visit")
 
@@ -563,6 +655,21 @@ def scenario_life(room: Room, rng: np.random.Generator, seconds: float = 600.0,
     def in_room(p):
         return (min(max(p[0], 0.2), room.width - 0.2), min(max(p[1], 0.2), room.depth - 0.2))
 
+    # Where "you" go when not in your room: the other rooms of the house and, now
+    # and then, out of the main door. (Standing still just outside your own door,
+    # as this once modelled it, meant "only the family is moving" almost never
+    # appeared in training, and the model read it as someone inside.)
+    away_spots = []
+    for a in (h.areas if h else []):
+        if a.kind != "passage" and len(a.polygon) >= 3:
+            xs, ys = zip(*a.polygon)
+            away_spots.append((sum(xs) / len(xs), sum(ys) / len(ys)))
+    main_door = next((f for f in (h.fixtures if h else []) if f.name == "main door"), None)
+    if main_door:
+        away_spots.append((main_door.x, main_door.y - 1.2))     # out of the flat
+    if not away_spots:
+        away_spots = [(outside[0], outside[1] - 0.4)]
+
     steps, t = [], 0.0
     away = float(rng.uniform(10, 60))
     enter_at = away
@@ -586,9 +693,12 @@ def scenario_life(room: Room, rng: np.random.Generator, seconds: float = 600.0,
                                                 float(rng.uniform(0.5, room.depth - 0.5))))),
                           Step("stay", seconds=float(rng.uniform(8, 30)), posture="standing")]
         steps += [Step("walk", inside), Step("walk", outside)]
-        # Away for a while: modelled as standing still well outside, beyond the link's reach.
-        steps += [Step("walk", (outside[0] + 0.0, outside[1] - 0.4)),
-                  Step("stay", seconds=float(rng.uniform(20, 120)), posture="standing")]
+        # Away for a while somewhere else in the house (or out), then back to the door.
+        dest = away_spots[int(rng.integers(len(away_spots)))]
+        steps += [Step("walk", jitter(dest, 0.4), speed=float(rng.uniform(0.6, 1.1))),
+                  Step("stay", seconds=float(rng.uniform(20, 180)),
+                       posture=str(rng.choice(["standing", "seated"]))),
+                  Step("walk", outside, speed=float(rng.uniform(0.6, 1.1)))]
         t = enter_at + sum(s.seconds for s in steps) + 25.0 * len(steps) / 4
     you = Actor("you", outside, enter_at=enter_at, steps=steps,
                 fidget_every_s=float(rng.uniform(15, 60)), fidget_m=float(rng.uniform(0.01, 0.06)),
@@ -598,7 +708,8 @@ def scenario_life(room: Room, rng: np.random.Generator, seconds: float = 600.0,
         fam = scenario_house(room).actors
         for a in fam:
             if a.name.startswith("family") and rng.random() < 0.7:
-                a.enter_at = float(rng.uniform(0, seconds / 2))
+                # a third of days the family is already moving when the stream starts
+                a.enter_at = 0.0 if rng.random() < 0.35 else float(rng.uniform(0, seconds / 2))
                 actors.append(a)
     fan_obj = Fan(x=room.width / 2, y=room.depth / 2, radar_p=0.0, on=[(1.0, 1e9)]) if fan else None
     return Scenario("life", actors, fan=fan_obj,

@@ -100,3 +100,28 @@ def test_teaching_a_correction(client, monkeypatch):
 def test_teaching_needs_an_answer(client):
     assert client.post("/api/memory/teach", json={"question": "q", "answer": "  "}).status_code == 400
     assert client.post("/api/memory/teach", json={"question": "q"}).status_code == 422
+
+
+def test_teach_from_the_app_records_labels_and_refuses_when_aankhen_is_off(client, tmp_path):
+    hub = client.app.state.svc.hub
+    hub.stop()
+    assert client.post("/api/aankhen/teach/start").status_code == 400      # nothing to record yet
+    hub.recordings_dir = tmp_path                                          # never the real recordings
+    assert client.post("/api/aankhen/start", json={"mode": "simulation", "scenario": "still"}).status_code == 200
+    try:
+        import time
+        deadline = time.time() + 20
+        while hub.engine is None or hub.engine.device_t is None:
+            assert time.time() < deadline
+            time.sleep(0.2)
+        s = client.post("/api/aankhen/teach/label", json={"label": "desk"}).json()
+        assert s["recording"] and s["simulated"] and s["current"]["label"] == "desk"
+        assert client.post("/api/aankhen/teach/label", json={"label": "sofa"}).status_code == 400
+        s = client.post("/api/aankhen/teach/stop").json()
+        assert not s["recording"]
+        # A simulator session is practice: it is named teach-sim-* and counts nowhere.
+        assert [p.name for p in tmp_path.glob("teach-*.akr")][0].startswith("teach-sim-")
+        assert s["totals"]["desk"] == 0
+        assert client.get("/api/aankhen/teach").json()["training"]["state"] == "idle"
+    finally:
+        hub.stop()

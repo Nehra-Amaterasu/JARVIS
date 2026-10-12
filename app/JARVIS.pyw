@@ -22,8 +22,10 @@ import traceback
 from pathlib import Path
 
 APP = Path(__file__).resolve().parent
-DATA = APP / "data"
-DATA.mkdir(exist_ok=True)
+# The app's own state lives in JARVIS/data/app (git-ignored), the same folder
+# jarvis_app.paths.DATA uses; JARVIS_DATA_DIR moves both.
+DATA = Path(os.environ.get("JARVIS_DATA_DIR") or (APP.parent / "data" / "app"))
+DATA.mkdir(parents=True, exist_ok=True)
 LOG = DATA / "launch.log"
 INSTANCE = DATA / "instance.json"
 

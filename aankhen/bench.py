@@ -294,6 +294,8 @@ def calibrate_from_bytes(chunks, device_offset_s: float = 0.0, skip_s: float = 0
     cfg = MotionConfig()
     det, cal = MotionDetector(cfg), Calibrator(cfg)
     resp = RespirationDetector()                 # its empty-room floor, from the same capture
+    from .learn import FeatureStream, reference_from
+    fs, ref_windows = FeatureStream(), []        # the spatial model's empty-room reference
     skip_s = skip_s or (10.0 if fan else 0.0)
     t_first = None
     for ch in chunks:
@@ -303,6 +305,8 @@ def calibrate_from_bytes(chunks, device_offset_s: float = 0.0, skip_s: float = 0
                 for s in cond.push(p.timestamp_us / 1e6, p.raw, p.rssi, gain_comp_db=p.gain_comp_db):
                     t_first = s.t if t_first is None else t_first
                     resp.push(s)
+                    if fs.push(s, p.rssi) is not None and s.t - t_first >= skip_s:
+                        ref_windows.append(fs.last)
                     r = det.push(s)
                     if r is not None and s.t - t_first >= skip_s:
                         cal.add(r.features["mvs"], r.features.get("level_var"),
@@ -312,6 +316,8 @@ def calibrate_from_bytes(chunks, device_offset_s: float = 0.0, skip_s: float = 0
     b = cal.finish()
     if not fan and len(resp.stats) >= 3:
         b.resp_floor = float(np.median(resp.stats))
+    if not fan:
+        b.ref = reference_from(ref_windows)
     if fan:
         b.note = f"fan on ({det.fan.summary()['f0_hz']} Hz comb); " + b.note
     return b
@@ -365,8 +371,11 @@ def bench_simulation(scenario: str = "evening", seconds: Optional[float] = None,
         room = room or load_room()[0]
         scn = ROOM_SCENARIOS[scenario](room)
     else:
+        given = room is not None
         room = room or default_room()
-        scn = SCENARIOS[scenario]()
+        # The default room keeps its fixed spots (the benchmark numbers are measured
+        # on them); a given room gets its own bed, desk and door.
+        scn = SCENARIOS[scenario](room if given else None)
     seconds = seconds or SUITE_SECONDS.get(scenario, ROOM_SCENARIO_SECONDS.get(scenario, 120))
     if baseline is None:
         baseline = simulated_baseline(room, channel_seed=channel_seed)

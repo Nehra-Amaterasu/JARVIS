@@ -5,6 +5,7 @@
  */
 import { create } from 'zustand'
 import { api, openSocket, type BusEvent, type CoreInfo, type Turn, type Vitals } from './api'
+import { switchView } from './motion'
 
 export type Tab =
   | 'core' | 'yaadash' | 'aankhen' | 'limbs' | 'connect' | 'system'
@@ -63,8 +64,9 @@ let toastId = 0
 export const useStore = create<Store>((set, get) => ({
   tab: (sessionStorage.getItem('jarvis.tab') as Tab) || 'core',
   setTab: (tab) => {
+    if (get().tab === tab) return
     sessionStorage.setItem('jarvis.tab', tab)
-    set({ tab })
+    switchView(() => set({ tab }))          // the page morphs instead of cutting
   },
   core: null,
   turns: [],

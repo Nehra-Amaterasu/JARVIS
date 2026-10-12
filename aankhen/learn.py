@@ -68,6 +68,20 @@ def _log(v: Optional[float]) -> float:
     return math.log10(v + 1e-9) if v is not None and np.isfinite(v) else float("nan")
 
 
+def reference_from(windows: list) -> Optional[dict]:
+    """The empty room's reference from FeatureStream.last of many calibration
+    windows: the per-coefficient median, so a passer-by outside barely moves it."""
+    shapes = [w[0] for w in windows if w[0] is not None]
+    if len(shapes) < 10:
+        return None
+    lv = [w[1] for w in windows if w[1] is not None and np.isfinite(w[1])]
+    rs = [w[2] for w in windows if w[2] is not None and np.isfinite(w[2])]
+    return {"shape": [round(float(v), 6) for v in np.median(np.asarray(shapes), axis=0)],
+            "level": float(np.median(lv)) if lv else None,
+            "rssi": float(np.median(rs)) if rs else None,
+            "windows": len(shapes)}
+
+
 class FeatureStream:
     """CSI samples in, one feature vector every HOP_S out (see FEATURES).
 
@@ -78,7 +92,7 @@ class FeatureStream:
     after it; someone who came in keeps producing small movements.
     """
 
-    def __init__(self, rate_hz: float = 100.0):
+    def __init__(self, rate_hz: float = 100.0, ref: Optional[dict] = None):
         self.rate = rate_hz
         self.n1, self.n3 = int(rate_hz), int(3 * rate_hz)
         self.hop = int(HOP_S * rate_hz)
@@ -90,6 +104,13 @@ class FeatureStream:
         self.ref_shape: Optional[np.ndarray] = None
         self.ref_level: Optional[float] = None
         self.ref_rssi: Optional[float] = None
+        if ref and ref.get("shape") is not None:
+            # the calibrated empty room (Baseline.ref): see reference_from()
+            self.ref_shape = np.asarray(ref["shape"], float)
+            self.ref_level, self.ref_rssi = ref.get("level"), ref.get("rssi")
+        self.seeded = self.ref_shape is not None
+        # this window's raw shape / level / rssi, for calibration to collect
+        self.last: tuple = (None, None, None)
         self.hist: deque = deque(maxlen=int(120 / HOP_S))
         self.k = 0
         self.t = 0.0
@@ -127,6 +148,7 @@ class FeatureStream:
         C = A[-self.n1:] @ _smooth_basis(A.shape[1])
         shape = C.mean(axis=0)
         level = float(np.nanmean(y)) if np.isfinite(y).any() else None
+        self.last = (shape, level, rssi)
         quiet = hbe is not None and hbe < 1.6 and (lv is None or lv < 0.05)
         a = HOP_S / 1800.0
         if self.ref_shape is None:
@@ -218,11 +240,14 @@ def simulate_run(room: Room, seed: int, seconds: float = 600.0, channel_seed: in
     scn = scenario_life(room, rng, seconds, family=family, fan=fan)
     sim = Simulator(room, scn, seed=seed, channel_seed=channel_seed)
     boot = sim.boot_us / 1e6
-    fs, cond = FeatureStream(), CsiConditioner()
+    from .bench import _offline_engine, simulated_baseline
+    # Calibrated like the real thing: an empty-room session of the same room and
+    # channel, measured separately (simulated_baseline uses its own noise seed).
+    base = _baseline_for(room, channel_seed)
+    fs, cond = FeatureStream(ref=base.ref), CsiConditioner()
     eng = None
     if with_engine:
-        from .bench import _offline_engine, simulated_baseline
-        eng = _offline_engine(room, "simulation", simulated_baseline(room, channel_seed=channel_seed))
+        eng = _offline_engine(room, "simulation", base)
     X, y, base, ts = [], [], [], []
     for p in _packets(sim.chunks(seconds)):
         if eng is not None:
@@ -240,6 +265,18 @@ def simulate_run(room: Room, seed: int, seconds: float = 600.0, channel_seed: in
                 base.append(st)
     return {"X": np.asarray(X), "y": np.asarray(y), "t": np.asarray(ts), "engine": np.asarray(base),
             "seed": seed, "channel_seed": channel_seed, "fan": fan, "family": family}
+
+
+_BASELINES: dict = {}
+
+
+def _baseline_for(room: Room, channel_seed: int):
+    """One empty-room calibration per room and channel, per process."""
+    from .bench import simulated_baseline
+    key = (json.dumps(room.to_dict(), sort_keys=True), channel_seed)
+    if key not in _BASELINES:
+        _BASELINES[key] = simulated_baseline(room, channel_seed=channel_seed)
+    return _BASELINES[key]
 
 
 def _sim_job(args):
@@ -275,7 +312,9 @@ def recording_run(path: str, labels: Optional[list[dict]] = None, label: Optiona
             labels = json.load(open(lp, encoding="utf-8")).get("segments")
         else:
             label = (read_recording_meta(path) or {}).get("label")
-    fs, cond = FeatureStream(), CsiConditioner()
+    from .motion import Baseline
+    base = Baseline.load(os.path.join(DATA_DIR, "baseline.json"))   # the room's own calibration
+    fs, cond = FeatureStream(ref=base.ref if base else None), CsiConditioner()
     X, y, ts = [], [], []
     t0 = None
     for p in _packets(d for _, d in iter_recording(path)):

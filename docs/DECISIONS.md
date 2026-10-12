@@ -13,6 +13,40 @@ in `brain/`; the entry below maps old paths to new.
 
 ---
 
+## 2026-10-12 — Aankhen inside the app, and a correction to the spatial model's numbers
+
+**Context.** Aankhen's new abilities (whole-house map, human-band motion, the learned
+model, Teach) lived only in the standalone viewer. Running them inside the app showed
+two things that were wrong:
+- The simulator's built-in scenarios used the default room's coordinates in my room:
+  "sleep" walked to (3.0, 3.0), which in my room is the balcony door.
+- The learned model said "in bed, 100 %" for an empty room in the house scenario.
+
+**Decision.**
+- App: whole-house layer and a camera that flies between my room and the house; the
+  learned model's five-state belief; a human-band meter; a Teach sheet (D/B/W/O/E,
+  P to pause, train, held-out score); `/api/aankhen/teach*` and `/learn/train`;
+  "house" and "day" scenarios; layout shown as measured / estimated / default.
+- Motion system for the whole app (`styles/motion.css`, `lib/motion.tsx`): damped
+  springs sampled into CSS `linear()`, number tickers, enter/exit presence, View
+  Transitions between tabs. No animation library.
+- Scenarios take the room they run in (`places(room)`: door, desk, bed, open floor,
+  passage from `room.json`); without a room they keep the default spots, so the
+  benchmarks are unchanged.
+- The model's reference comes from calibration (`Baseline.ref`), and simulated "away"
+  time is spent in the rest of the house instead of standing outside my door.
+
+**Evidence.** House scenario, 3 seeds: old model 30–35 % occupancy right, "occupied"
+93–100 % of the time only the family moved; current model 85.8 % and 18.8 %.
+Realistic held-out days: 77.2 % (engine 57.4 %, old model 61.8 %). The 94.7 % reported
+on 2026-10-11 was inflated by a start-up artifact in the reference; details in
+`docs/design/aankhen-learning.md` §3. Tests: aankhen 217, app 217, UI 54.
+
+**Consequences.** Still simulation only. None of Aankhen has run on the real board;
+the model stays advisory until real recordings say otherwise.
+
+---
+
 ## 2026-10-12 — One home: C:\Projects\JARVIS, code and personal data separated
 
 **Context.** Everything had grown inside `brain/`: the voice loop, memory, Aankhen,

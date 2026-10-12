@@ -18,7 +18,11 @@
  *   heat dots            occupancy grid; dot area = time spent there
  *   amber rings          SIMULATION ONLY: where the simulated people truly are,
  *                        with a line to the track matched to them = the live error
+ *   house                the rest of the home (room.json "house"): other rooms as
+ *                        dim floors with waist-high glass, fixtures as labelled pins.
+ *                        Context only — nothing sensed out there counts as "in the room"
  * Colour = provenance: cyan measured by hardware, amber simulated/replayed.
+ * The camera never cuts: framing my room or the whole house is a flight.
  *
  * Cost: one WebGL renderer, a few hundred draw calls, no post-processing. The
  * loop stops when the page is hidden.
@@ -28,20 +32,30 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js'
 
 /* ------------------------------------------------------------------ wire types */
+export interface HouseArea { name: string; polygon: number[][]; kind: string; color?: string; height?: number }
+export interface HouseFixture { name: string; kind: string; x: number; y: number; z: number; note?: string }
 export interface RoomSpec {
   name: string; width: number; depth: number; height: number
+  measured?: boolean
   zones: { name: string; polygon: number[][]; is_exit?: boolean }[]
   furniture: { name: string; x: number; y: number; w: number; d: number; h: number }[]
   sensors: { id: string; kind: string; x: number; y: number; z: number; yaw_deg: number; pitch_deg: number; fov_deg: number; range_m: number }[]
   links: string[][]
+  house?: { areas: HouseArea[]; fixtures: HouseFixture[]; note?: string } | null
 }
+export type Framing = 'room' | 'house'
 export interface TrackMsg { id: string; x: number; y: number; vx: number; vy: number; speed: number; conf: number; std: number; zone: string | null; still: boolean }
 export interface TruthMsg { name: string; x: number; y: number; posture: string; moving: boolean }
 export interface FrameMsg {
   type: 'frame'; seq: number; source: string; t: number
   tracks: TrackMsg[]; motion: number; zones: Record<string, boolean>; zone_seconds: Record<string, number>
   presence: { state: string; p: number; confidence: number; count: number | null; evidence: Record<string, number>; reason: string }
-  motion_detail: { state: string | null; score: number | null; threshold: number | null; baseline: string; reason: string; breathing_bpm: number | null; breathing_conf: number | null; breathing_note: string | null }
+  motion_detail: {
+    state: string | null; score: number | null; threshold: number | null; baseline: string; reason: string
+    breathing_bpm: number | null; breathing_conf: number | null; breathing_note: string | null
+    human_band?: { energy: number; threshold: number | null; ratio: number | null; recent: number; start_gate: number } | null
+  }
+  learned?: { t: number; state: string; p: Record<string, number>; occupied_p: number; advisory: boolean; trained: string; reference?: string } | null
   csi: { n_subcarriers: number; rate_hz: number; rssi: number | null; fill_ratio: number; amplitudes: number[] }
   rates: { csi_hz: number; radar_hz: number }
   events: { id: number; t: number; ts: number; kind: string; text: string }[]
@@ -50,7 +64,19 @@ export interface FrameMsg {
   scenario?: { name: string; t: number; period_s: number | null }
 }
 export interface HeatMsg { type: 'heatmap'; layer: string; w: number; h: number; cell: number; data: number[]; hotspots: { x: number; y: number; person_seconds: number; zone: string | null }[] }
-export type Layer = 'walls' | 'heat' | 'fov' | 'fresnel' | 'trails' | 'labels' | 'truth'
+export type Layer = 'walls' | 'heat' | 'fov' | 'fresnel' | 'trails' | 'labels' | 'truth' | 'house'
+
+const HOUSE_WALL_H = 1.1
+// Areas are tinted by what they are, barely: the eye should read "kitchen" from the
+// label, and only feel that wet rooms and outdoors differ from living space.
+const AREA_TINT: Record<string, string> = {
+  room: '#8b95a5', passage: '#6b7280', bath: '#5b8fa8', kitchen: '#a8925b', balcony: '#6f9a74', outside: '#6f9a74',
+}
+// Fixtures carry their own colours so an AC is findable at a glance across the house.
+const FIX_TINT: Record<string, string> = {
+  ac: '#7dd3fc', tv: '#c4b5fd', door: '#fbbf24', fan: '#e5e7eb', switchboard: '#fb923c',
+  speaker: '#f0abfc', sensor: '#5ce1ff', console: '#93c5fd',
+}
 
 const LIVE = new THREE.Color('#5ce1ff')
 const SIM = new THREE.Color('#ffb020')
@@ -90,6 +116,13 @@ const dotFloorShader = {
 const wallShader = {
   vertexShader: `varying float vH; void main(){ vH = uv.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
   fragmentShader: `varying float vH; void main(){ float a = 0.09 * pow(1.0 - vH, 1.6) + 0.012; gl_FragColor = vec4(vec3(1.0), a); }`,
+}
+const houseWallShader = {
+  uniforms: { uColor: { value: new THREE.Color() }, uAlpha: { value: 1 } },
+  vertexShader: `varying float vH; void main(){ vH = uv.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+  fragmentShader: `uniform vec3 uColor; uniform float uAlpha; varying float vH;
+    void main(){ float a = (0.07 * pow(1.0 - vH, 1.4) + 0.01) * uAlpha; float rim = smoothstep(0.93, 1.0, vH) * 0.35 * uAlpha;
+      gl_FragColor = vec4(uColor, a + rim); }`,
 }
 const columnShader = {
   uniforms: { uColor: { value: new THREE.Color() }, uAlpha: { value: 0 } },
@@ -331,6 +364,10 @@ export class SpatialTwin {
   private room = new THREE.Group()
   private roomStatic = new THREE.Group()
   private sensors = new THREE.Group()
+  private house = new THREE.Group()
+  private houseBounds: [number, number, number, number] | null = null
+  private fly: { t: number; dur: number; p0: THREE.Vector3; p1: THREE.Vector3; c0: THREE.Vector3; c1: THREE.Vector3; h0: number; h1: number } | null = null
+  framing: Framing = 'room'
   private planCut = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1.35)
   private zoneViews = new Map<string, { fill: THREE.MeshBasicMaterial; line: THREE.LineDashedMaterial; target: number }>()
   private fresnel: { group: THREE.Group; rings: THREE.LineBasicMaterial[]; foot: THREE.Mesh; flow: THREE.ShaderMaterial; length: number }[] = []
@@ -343,7 +380,7 @@ export class SpatialTwin {
   private heatW = 0
   private heatH = 0
   private heatColors: THREE.Color[] = []
-  private layers: Record<Layer, boolean> = { walls: true, heat: true, fov: true, fresnel: true, trails: true, labels: true, truth: true }
+  private layers: Record<Layer, boolean> = { walls: true, heat: true, fov: true, fresnel: true, trails: true, labels: true, truth: true, house: true }
   private accent = SIM.clone()
   private live = false
   private motion = 0
@@ -384,7 +421,7 @@ export class SpatialTwin {
 
     this.scene.fog = new THREE.Fog(0x050506, 14, 34)
     this.room.rotation.x = -Math.PI / 2
-    this.room.add(this.roomStatic, this.sensors)
+    this.room.add(this.house, this.roomStatic, this.sensors)
     this.scene.add(this.room)
     for (let i = 0; i < POOL; i++) this.people.push(new PersonView(this.room))
     for (let i = 0; i < 6; i++) this.truths.push(new TruthView(this.room))
@@ -398,7 +435,7 @@ export class SpatialTwin {
   /* ---------------------------------------------------------------- room */
   setRoom(r: RoomSpec) {
     this.roomSpec = r
-    for (const g of [this.roomStatic, this.sensors]) {
+    for (const g of [this.roomStatic, this.sensors, this.house]) {
       g.traverse((o) => {
         const m = o as THREE.Mesh
         if (m.geometry && m.geometry !== unitBox && m.geometry !== unitBoxEdges) m.geometry.dispose()
@@ -482,7 +519,85 @@ export class SpatialTwin {
       this.zoneViews.set(z.name, { fill: fillMat, line: lineMat, target: 0 })
     }
     this.buildSensors(r)
-    this.frameCameras()
+    this.buildHouse(r)
+    this.frameCameras(false)
+    this.applyLayers()
+  }
+
+  /** The rest of the home: dim floors, waist-high glass walls, labelled fixtures. */
+  private buildHouse(r: RoomSpec) {
+    this.houseBounds = null
+    const h = r.house
+    if (!h || (!h.areas.length && !h.fixtures.length)) { if (this.framing === 'house') this.framing = 'room'; return }
+    let x0 = 0, y0 = 0, x1 = r.width, y1 = r.depth
+    const grow = (x: number, y: number) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y) }
+    for (const a of h.areas) {
+      if (a.polygon.length < 3) continue
+      a.polygon.forEach((p) => grow(p[0], p[1]))
+      const tint = new THREE.Color(AREA_TINT[a.kind] ?? AREA_TINT.room)
+      const shape = new THREE.Shape(a.polygon.map((p) => new THREE.Vector2(p[0], p[1])))
+      const floor = new THREE.Mesh(new THREE.ShapeGeometry(shape),
+        new THREE.MeshBasicMaterial({ color: tint, transparent: true, opacity: 0.055, depthWrite: false }))
+      floor.position.z = -0.003
+      floor.userData.houseOpacity = 0.055
+      const loop = [...a.polygon, a.polygon[0]].map((p) => new THREE.Vector3(p[0], p[1], 0.002))
+      const outline = new THREE.Line(new THREE.BufferGeometry().setFromPoints(loop),
+        new THREE.LineBasicMaterial({ color: WHITE, transparent: true, opacity: 0.28 }))
+      outline.userData.houseOpacity = 0.28
+      const wallMat = new THREE.ShaderMaterial({ ...houseWallShader, uniforms: { uColor: { value: tint.clone().lerp(WHITE, 0.4) }, uAlpha: { value: 1 } },
+        transparent: true, depthWrite: false, side: THREE.DoubleSide })
+      const pos: number[] = [], uv: number[] = [], idx: number[] = []
+      a.polygon.forEach((p, i) => {
+        const q = a.polygon[(i + 1) % a.polygon.length], b = pos.length / 3
+        pos.push(p[0], p[1], 0, q[0], q[1], 0, q[0], q[1], HOUSE_WALL_H, p[0], p[1], HOUSE_WALL_H)
+        uv.push(0, 0, 1, 0, 1, 1, 0, 1)
+        idx.push(b, b + 1, b + 2, b, b + 2, b + 3)
+      })
+      const g = new THREE.BufferGeometry()
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
+      g.setIndex(idx)
+      const walls = new THREE.Mesh(g, wallMat)
+      walls.renderOrder = 5
+      const c = a.polygon.reduce((s, p) => [s[0] + p[0] / a.polygon.length, s[1] + p[1] / a.polygon.length], [0, 0])
+      const l = label(a.name, 'tw-area')
+      l.position.set(c[0], c[1], 0.04)
+      l.userData.houseOnly = true             // named only when the whole house is framed
+      this.house.add(floor, outline, walls, l)
+    }
+    for (const f of h.fixtures) {
+      grow(f.x, f.y)
+      const col = new THREE.Color(FIX_TINT[f.kind] ?? '#ffffff')
+      const z = Math.max(f.z, 0.12)
+      const pin = new THREE.Mesh(new THREE.OctahedronGeometry(0.055), new THREE.MeshBasicMaterial({ color: col }))
+      pin.position.set(f.x, f.y, z)
+      const stem = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(f.x, f.y, 0.002), new THREE.Vector3(f.x, f.y, z)]),
+        new THREE.LineDashedMaterial({ color: col, dashSize: 0.04, gapSize: 0.05, transparent: true, opacity: 0.45 }))
+      stem.computeLineDistances()
+      const foot = new THREE.Mesh(new THREE.RingGeometry(0.07, 0.085, 32), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.5, depthWrite: false }))
+      foot.position.set(f.x, f.y, 0.004)
+      // Built with textContent: names come from room.json.
+      const el = document.createElement('div')
+      el.className = 'tw-fixture'
+      el.style.setProperty('--fx', `#${col.getHexString()}`)
+      const b = document.createElement('b'), s = document.createElement('span')
+      b.textContent = f.name; s.textContent = f.kind
+      el.append(b, s)
+      const tag = new CSS2DObject(el)
+      tag.position.set(f.x, f.y, z + 0.22)
+      // Framed on my room, only the fixtures in it keep their names.
+      tag.userData.houseOnly = !(f.x >= 0 && f.x <= r.width && f.y >= 0 && f.y <= r.depth)
+      this.house.add(pin, stem, foot, tag)
+    }
+    this.houseBounds = [x0 - 0.6, y0 - 0.6, x1 + 0.6, y1 + 0.6]
+  }
+
+  hasHouse() { return this.houseBounds !== null }
+
+  /** Fly the camera to my room or the whole house. */
+  setFraming(f: Framing) {
+    this.framing = f === 'house' && this.houseBounds ? 'house' : 'room'
+    this.frameCameras(true)
     this.applyLayers()
   }
 
@@ -569,19 +684,45 @@ export class SpatialTwin {
     ]
   }
 
-  private frameCameras() {
+  private frameCameras(animate: boolean) {
     const r = this.roomSpec
     if (!r) return
-    const c = new THREE.Vector3(r.width / 2, 0, -r.depth / 2)
-    const span = Math.max(r.width, r.depth)
-    // Pulled back far enough that the whole room, walls included, sits between
+    const [x0, y0, x1, y1] = this.framing === 'house' && this.houseBounds ? this.houseBounds : [0, 0, r.width, r.depth]
+    // room (x, y) -> world (x, -y)
+    const c = new THREE.Vector3((x0 + x1) / 2, 0, -(y0 + y1) / 2)
+    const span = Math.max(x1 - x0, y1 - y0)
+    // Pulled back far enough that the whole frame, walls included, sits between
     // the HUD columns at a 16:10 window.
-    this.persp.position.set(c.x + span * 1.25, span * 1.55, c.z + span * 1.9)
-    this.orbit.target.copy(c).setY(0.2)
-    this.ortho.position.set(c.x, 30, c.z)
-    this.ortho.lookAt(c)
-    this.pan.target.copy(c)
-    this.fitOrtho(span / 2 + 0.9)
+    const p1 = new THREE.Vector3(c.x + span * 1.25, span * 1.55, c.z + span * 1.9)
+    const c1 = c.clone().setY(0.2)
+    const h1 = span / 2 + 0.9
+    this.orbit.maxDistance = Math.max(22, span * 5)
+    const fog = this.scene.fog as THREE.Fog
+    fog.near = Math.max(14, span * 2.2); fog.far = Math.max(34, span * 6)
+    if (!animate) {
+      this.fly = null
+      this.persp.position.copy(p1); this.orbit.target.copy(c1)
+      this.ortho.position.set(c.x, 30, c.z); this.ortho.lookAt(c); this.pan.target.copy(c)
+      this.fitOrtho(h1)
+      return
+    }
+    this.fly = { t: 0, dur: 1.15, p0: this.persp.position.clone(), p1, c0: this.orbit.target.clone(), c1, h0: this.orthoHalf, h1 }
+  }
+
+  /** One step of a camera flight: ease-out quint, both cameras together. */
+  private stepFly(dt: number) {
+    const f = this.fly
+    if (!f) return
+    f.t = Math.min(1, f.t + dt / f.dur)
+    const k = 1 - Math.pow(1 - f.t, 5)
+    this.persp.position.lerpVectors(f.p0, f.p1, k)
+    // arc the flight slightly upward so the move reads as a lift, not a slide
+    this.persp.position.y += Math.sin(Math.PI * k) * f.p1.distanceTo(f.p0) * 0.12
+    this.orbit.target.lerpVectors(f.c0, f.c1, k)
+    const c = this.orbit.target
+    this.ortho.position.set(c.x, 30, c.z); this.pan.target.set(c.x, 0, c.z)
+    this.fitOrtho(f.h0 + (f.h1 - f.h0) * k)
+    if (f.t >= 1) this.fly = null
   }
   private orthoHalf = 3
   private fitOrtho(half = this.orthoHalf) {
@@ -620,11 +761,17 @@ export class SpatialTwin {
     for (const f of this.fov) for (const o of f.objs) o.visible = this.layers.fov
     for (const f of this.fresnel) { f.group.visible = this.layers.fresnel && this.view === '3d'; f.foot.visible = this.layers.fresnel && this.view === 'plan' }
     if (this.heat) this.heat.visible = this.layers.heat
-    this.roomStatic.traverse((o) => { if (o instanceof CSS2DObject) o.visible = this.layers.labels })
+    // At house scale the room's furniture and zone labels pile up on each other; the
+    // house's own labels (areas, fixtures) still name what matters.
+    const roomLabels = this.layers.labels && this.framing !== 'house'
+    this.roomStatic.traverse((o) => { if (o instanceof CSS2DObject) o.visible = roomLabels })
+    this.house.visible = this.layers.house
+    const all = this.framing === 'house'
+    this.house.traverse((o) => { if (o instanceof CSS2DObject) o.visible = this.layers.labels && this.layers.house && (all || !o.userData.houseOnly) })
     this.sensors.traverse((o) => { if (o instanceof CSS2DObject) o.visible = this.layers.labels })
     for (const t of this.truths) if (!this.layers.truth) t.set(null)
   }
-  resetCamera() { this.frameCameras() }
+  resetCamera() { this.frameCameras(true) }
 
   /* ---------------------------------------------------------------- data */
   onFrame(msg: FrameMsg) {
@@ -716,6 +863,7 @@ export class SpatialTwin {
       f.flow.uniforms.uT.value = (f.flow.uniforms.uT.value + dt * this.flowSpeed) % 1000
     }
     for (const f of this.fov) { f.mat.uniforms.uI.value = 0.15 + 0.85 * this.radarI; f.edge.opacity = 0.08 + 0.3 * this.radarI }
+    this.stepFly(dt)
     ;(this.camera === this.persp ? this.orbit : this.pan).update()
     this.renderer.render(this.scene, this.camera)
     this.labels.render(this.scene, this.camera)
@@ -737,6 +885,7 @@ export class SpatialTwin {
       people: this.people.filter((p) => p.id !== null).map((p) => p.id),
       truths: this.truths.filter((t) => t.name).map((t) => t.name),
       zones: [...this.zoneViews.keys()], fresnel: this.fresnel.length, heat: [this.heatW, this.heatH],
+      house: this.house.children.length, framing: this.framing, flying: this.fly !== null,
       calls: this.renderer.info.render.calls, geometries: this.renderer.info.memory.geometries,
     }
   }

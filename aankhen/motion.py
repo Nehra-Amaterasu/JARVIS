@@ -309,6 +309,11 @@ class Baseline:
     # Empty-room threshold_quantile of the human-band energy (HBE, dimensionless,
     # ~1 for noise). None in baselines saved before it existed: off until recalibrated.
     hbe_q: Optional[float] = None
+    # The empty room's channel shape, level and RSSI as the spatial model measures
+    # them (learn.FeatureStream): its reference for "what changed". Without it the
+    # reference is whatever the first seconds saw, and a stream that starts while the
+    # family walks past the router reads an empty room as someone in bed.
+    ref: Optional[dict] = None
 
     def threshold_ratio(self, scale: float) -> float:
         return scale * self.q_hi / self.median if self.median > 0 else float("inf")

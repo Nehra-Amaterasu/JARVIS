@@ -32,8 +32,8 @@ import numpy as np
 from .csi import CsiConditioner
 from .fusion import Evidence, FusionConfig, PresenceFusion
 from .learn import CLASSES as LEARNED_CLASSES, OCCUPIED as LEARNED_OCCUPIED, FeatureStream, TemporalFilter
-from .motion import STATE_MOTION, STATE_UNCALIBRATED, Baseline, MotionConfig, MotionDetector, \
-    RespirationDetector
+from .motion import HBE_RECENT_GATE, STATE_MOTION, STATE_UNCALIBRATED, Baseline, MotionConfig, \
+    MotionDetector, RespirationDetector
 from .occupancy import OccupancyMap
 from .protocol import CsiPacket, RadarPacket, StatusPacket
 from .radar import FrameError, parse_frame, to_room
@@ -86,7 +86,7 @@ class Engine:
         # fusion's, never used to decide, until it has been trained and scored on
         # recordings from this room (`python -m aankhen learn`).
         self.spatial = spatial_model
-        self._spatial_fs = FeatureStream() if spatial_model is not None else None
+        self._spatial_fs = self.new_feature_stream() if spatial_model is not None else None
         self._spatial_filter = TemporalFilter(spatial_model.priors) if spatial_model is not None else None
         self.learned: Optional[dict] = None
 
@@ -202,6 +202,12 @@ class Engine:
             self._last_motion_state = r.state
             self._fuse(r.t)
 
+    def new_feature_stream(self) -> FeatureStream:
+        """The spatial model's feature stream, starting from the calibrated empty room
+        when the baseline carries one (Baseline.ref)."""
+        b = self.motion.baseline
+        return FeatureStream(ref=b.ref if b is not None else None)
+
     def _learned_step(self, t: float, v: np.ndarray) -> None:
         b = self._spatial_filter.step(self.spatial.proba(v[None, :])[0])
         k = int(np.argmax(b))
@@ -212,6 +218,9 @@ class Engine:
                         "occupied_p": round(float(sum(x for c, x in zip(LEARNED_CLASSES, b)
                                                       if c in LEARNED_OCCUPIED)), 3),
                         "advisory": True,
+                        # what "changed" is measured against: the calibrated empty room,
+                        # or (no calibration yet) whatever the first seconds saw
+                        "reference": "calibrated" if self._spatial_fs.seeded else "first seconds",
                         "trained": "simulator only" if sim_only else "includes your recordings"}
 
     def _on_radar(self, p: RadarPacket) -> None:
@@ -496,6 +505,9 @@ class Engine:
                     "context": self.motion.context,
                     "settling": self._csi_settling(t),
                     "fan": {"relay": self.fan_relay, **self.motion.fan.summary()},
+                    # Human-band energy (motion.py): power at body speeds (0.4-4 Hz)
+                    # over the last 3 s / 1 s, in units of the window's own noise.
+                    "human_band": _human_band(m),
                 },
                 "csi": {
                     "channel": self.csi_channel,
@@ -556,6 +568,20 @@ class Engine:
         return {"source": f["source"], "presence": f["presence"],
                 "people": [{"id": t["id"], "zone": t["zone"], "still": t["still"]} for t in f["tracks"]],
                 "motion": f["motion_detail"]["state"]}
+
+
+def _human_band(m) -> Optional[dict]:
+    """The HBE test as the frame shows it: how far over its threshold, and how busy
+    the last second was against the start gate. None until there is a reading."""
+    f = m.features if m else {}
+    hbe, thr = f.get("hbe"), f.get("hbe_threshold")
+    if hbe is None:
+        return None
+    return {"energy": round(float(hbe), 2),
+            "threshold": round(float(thr), 2) if thr else None,
+            "ratio": round(float(hbe) / thr, 2) if thr else None,
+            "recent": round(float(f.get("hbe_recent") or 0.0), 2),
+            "start_gate": HBE_RECENT_GATE}
 
 
 def run_engine(source, engine: Engine, stop: threading.Event) -> None:

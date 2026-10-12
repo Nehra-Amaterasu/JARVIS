@@ -1,0 +1,83 @@
+/* ==========================================================================
+   Motion. Nothing in JARVIS appears, changes or leaves without moving, and every
+   move says something:
+     rise      a thing arrived (cards, rows, results), staggered by --i
+     pop       a thing was created by you (a label, a toast, a new memory)
+     settle    a value changed (bars, meters, numbers spring to the new value)
+     press     you touched it (every button, chip and row gives under the finger)
+     breathe   it is alive and listening (live sources, recording)
+     scan      it is working and you are waiting (skeletons, training)
+   Springs are real damped springs (z = 0.55 bouncy, z = 0.75 calm), sampled into
+   CSS linear(), so CSS and the JS springs in lib/motion.ts feel the same.
+   Reduced motion: everything collapses to a plain cross-fade.
+   ========================================================================== */
+:root {
+  --spring: linear(0, 0.054 3.1%, 0.188 6.2%, 0.362 9.4%, 0.545 12.5%, 0.715 15.6%, 0.860 18.8%, 0.973 21.9%, 1.052 25%, 1.100 28.1%, 1.123 31.2%, 1.125 34.4%, 1.114 37.5%, 1.095 40.6%, 1.073 43.8%, 1.050 46.9%, 1.029 50%, 1.012 53.1%, 1 56.2%, 0.991 59.4%, 0.986 62.5%, 0.984 65.6%, 0.984 68.8%, 0.986 71.9%, 0.989 75%, 0.992 78.1%, 0.995 81.2%, 0.997 84.4%, 0.999 87.5%, 1);
+  --spring-calm: linear(0, 0.029 3.1%, 0.103 6.2%, 0.202 9.4%, 0.314 12.5%, 0.427 15.6%, 0.536 18.8%, 0.635 21.9%, 0.723 25%, 0.798 28.1%, 0.859 31.2%, 0.909 34.4%, 0.948 37.5%, 0.977 40.6%, 0.998 43.8%, 1.012 46.9%, 1.021 50%, 1.026 53.1%, 1.028 56.2%, 1.028 59.4%, 1.026 62.5%, 1.024 65.6%, 1.021 68.8%, 1.017 71.9%, 1.014 75%, 1.011 78.1%, 1.009 81.2%, 1.006 84.4%, 1.005 87.5%, 1.003 90.6%, 1.002 93.8%, 1);
+  --t-spring: 620ms;
+  --stagger: 42ms;
+}
+
+/* ---------------------------------------------------------------- arrive */
+.rise { animation: rise var(--t-spring) var(--spring-calm) both; animation-delay: calc(var(--i, 0) * var(--stagger)); }
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); filter: blur(6px); }
+  60% { filter: blur(0); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+.pop { animation: pop 520ms var(--spring) both; animation-delay: calc(var(--i, 0) * var(--stagger)); }
+@keyframes pop { from { opacity: 0; transform: scale(0.86); } to { opacity: 1; transform: none; } }
+.slide-up { animation: slideUp var(--t-spring) var(--spring-calm) both; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(36px); } to { opacity: 1; transform: none; } }
+
+/* leaving: Presence (lib/motion.ts) keeps the node until this finishes */
+[data-presence='exit'] { animation: leave 240ms var(--ease-in-out) both !important; pointer-events: none; }
+@keyframes leave { to { opacity: 0; transform: translateY(8px) scale(0.98); filter: blur(4px); } }
+
+/* ---------------------------------------------------------------- settle */
+.bar > i { transition: width 700ms var(--spring-calm), background var(--t); }
+.meter { position: relative; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.07); }
+.meter > i { position: absolute; inset: 0 auto 0 0; border-radius: 2px; background: currentColor; transition: width 700ms var(--spring-calm); }
+.meter > b { position: absolute; top: -3px; bottom: -3px; width: 1.5px; background: var(--ink-2); border-radius: 1px; transition: left 700ms var(--spring-calm); }
+
+/* ---------------------------------------------------------------- press */
+.btn, .chip, .seg button, .press {
+  transition: background var(--t-fast) var(--ease), color var(--t) var(--ease), box-shadow var(--t-fast),
+              transform 420ms var(--spring);
+}
+.btn:active:not(:disabled), .chip:active, .seg button:active, .press:active { transform: scale(0.955); transition-duration: 90ms; }
+.lift { transition: transform 520ms var(--spring-calm), box-shadow var(--t) var(--ease); }
+.lift:hover { transform: translateY(-2px); }
+
+/* ---------------------------------------------------------------- alive */
+.breathe { animation: breatheGlow 2.4s var(--ease-in-out) infinite; }
+@keyframes breatheGlow { 50% { opacity: 0.55; filter: saturate(0.7); } }
+.rec-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fault); box-shadow: 0 0 0 0 rgba(255, 69, 58, 0.6); animation: recPulse 1.6s var(--ease-in-out) infinite; }
+@keyframes recPulse { 0% { box-shadow: 0 0 0 0 rgba(255, 69, 58, 0.55); } 70% { box-shadow: 0 0 0 10px rgba(255, 69, 58, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 69, 58, 0); } }
+
+/* ---------------------------------------------------------------- waiting */
+.scan { position: relative; overflow: hidden; }
+.scan::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.07) 50%, transparent 80%);
+  transform: translateX(-100%); animation: scan 1.6s var(--ease-in-out) infinite;
+}
+@keyframes scan { to { transform: translateX(100%); } }
+.skeleton { border-radius: 8px; background: rgba(255, 255, 255, 0.05); min-height: 12px; }
+
+/* ---------------------------------------------------------------- the number ticker */
+.ticker-num { display: inline-block; font-variant-numeric: tabular-nums; }
+.ticker-num.bump { animation: bump 380ms var(--spring); }
+@keyframes bump { 30% { transform: translateY(-2px); filter: brightness(1.5); } }
+
+/* ---------------------------------------------------------------- page changes (View Transitions) */
+::view-transition-old(page) { animation: pageOut 220ms var(--ease-in-out) both; }
+::view-transition-new(page) { animation: pageIn 560ms var(--spring-calm) both; }
+@keyframes pageOut { to { opacity: 0; transform: scale(0.985); filter: blur(8px); } }
+@keyframes pageIn { from { opacity: 0; transform: translateY(10px) scale(1.01); filter: blur(8px); } to { opacity: 1; transform: none; filter: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise, .pop, .slide-up, .breathe, .rec-dot, .ticker-num.bump, .scan::after { animation: fadeIn 1ms both !important; }
+  .btn, .chip, .seg button, .press, .lift, .bar > i, .meter > i, .meter > b { transition-duration: 1ms !important; }
+  ::view-transition-old(page), ::view-transition-new(page) { animation-duration: 1ms; }
+}

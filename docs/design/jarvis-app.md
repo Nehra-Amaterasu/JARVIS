@@ -50,6 +50,24 @@ Four influences, each given a job so they don't fight:
 Type scale: Anton for H1 only; Inter 600/500/400 for UI; Doto for numerals that
 change; Geist Mono for identifiers, timestamps, units.
 
+**Motion** (`styles/motion.css`, `lib/motion.tsx`; no animation library). Nothing
+appears, changes or leaves without moving, and each move has one meaning:
+
+| Move | Means | Where |
+|---|---|---|
+| rise | it arrived (staggered by `--i`) | cards, rows, results |
+| pop | you made it, or its state just flipped | labels, state words, pills |
+| settle | a value changed | bars, meters, `<Ticker>` numbers |
+| press | you touched it | every button, chip, tile |
+| breathe | it is alive / recording | live LEDs, the teach tile, rec dot |
+| scan | you are waiting on it | skeletons, training |
+| flight | the view changed, not the world | twin camera (room ↔ whole house) |
+| page morph | you went somewhere else | tab changes (View Transitions) |
+
+The springs are real damped springs (ζ 0.55 and 0.75) sampled into CSS `linear()`;
+`useSpring` in JS uses the same physics, so a bar and the number beside it settle
+together. `prefers-reduced-motion` collapses all of it to plain fades.
+
 ## 3. Tabs
 
 | tab | what it is | real backend |

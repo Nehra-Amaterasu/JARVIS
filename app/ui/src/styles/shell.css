@@ -91,7 +91,7 @@ kbd {
 .dock-ver { font-size: 9px; color: var(--ink-4); }
 
 /* ------------------------------------------------------------------ main */
-.main { grid-area: main; position: relative; overflow: hidden; }
+.main { grid-area: main; position: relative; overflow: hidden; view-transition-name: page; }
 .page { position: absolute; inset: 0; overflow: auto; padding: 18px 28px 28px 22px; }
 .page.full { overflow: hidden; padding-bottom: 14px; display: flex; flex-direction: column; }
 

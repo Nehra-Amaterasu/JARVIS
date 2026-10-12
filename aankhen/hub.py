@@ -27,8 +27,8 @@ from .engine import Engine, run_engine
 from .motion import Baseline
 from .protocol import Frame, FrameType
 from . import DATA_DIR
-from .room import Room, load_room
-from .simulator import SCENARIOS, Simulator, SimulatorSource
+from .room import Room, layout_kind, load_room
+from .simulator import ROOM_SCENARIOS, SCENARIOS, Simulator, SimulatorSource, scenario_life
 from .transport import ReplaySource, SerialSource, find_esp32_port
 
 BASELINE_FILE = os.path.join(DATA_DIR, "baseline.json")          # room-specific
@@ -40,6 +40,9 @@ class AankhenHub:
         if room is None:
             room, measured = load_room()
             room_measured = measured if room_measured is None else room_measured
+            self.layout = layout_kind()             # measured | estimated | default
+        else:
+            self.layout = "measured" if room_measured else "default"
         self.room = room
         self.room_measured = bool(room_measured)
         self.source = None
@@ -84,14 +87,21 @@ class AankhenHub:
                 baseline = Baseline.load(BASELINE_FILE)
                 fan_baseline = Baseline.load(BASELINE_FAN_FILE)
             elif mode == "simulation":
-                if scenario not in SCENARIOS:
-                    raise ValueError(f"unknown scenario {scenario!r}; one of {sorted(SCENARIOS)}")
+                if scenario not in self.scenarios():
+                    raise ValueError(f"unknown scenario {scenario!r}; one of {self.scenarios()}")
                 if self._sim_baseline is None:
                     from .bench import simulated_baseline
                     self._sim_baseline = simulated_baseline(self.room)
                 baseline = self._sim_baseline
                 fan_baseline = None                     # learned from the radar-empty room
-                self.sim = Simulator(self.room, SCENARIOS[scenario](), seed=int(time.time()) % 10_000)
+                seed = int(time.time()) % 10_000
+                if scenario in SCENARIOS:
+                    scen = SCENARIOS[scenario](self.room)   # mapped onto this room's bed, desk and door
+                elif scenario == "day":                 # a random ordinary day in this house
+                    scen = scenario_life(self.room, np.random.default_rng(seed))
+                else:                                   # built from room.json "house"
+                    scen = ROOM_SCENARIOS[scenario](self.room)
+                self.sim = Simulator(self.room, scen, seed=seed)
                 source = SimulatorSource(self.sim, speed=speed)
             else:
                 raise ValueError(f"unknown mode {mode!r}")
@@ -128,6 +138,12 @@ class AankhenHub:
     def running(self) -> bool:
         return self.source is not None
 
+    def scenarios(self) -> list[str]:
+        """The simulator's scenarios; with a house in room.json, also "house" (the
+        family moves outside while I visit my desk) and "day" (a random ordinary day)."""
+        extra = sorted(ROOM_SCENARIOS) + ["day"] if self.room.house else []
+        return sorted(SCENARIOS) + extra
+
     def info(self) -> dict:
         src = self.source
         return {
@@ -135,10 +151,11 @@ class AankhenHub:
             "mode": self.mode,
             "kind": getattr(src, "kind", None),
             "scenario": self.scenario,
-            "scenarios": sorted(SCENARIOS),
+            "scenarios": self.scenarios(),
             "port": getattr(src, "port", None),
             "room": self.room.name,
             "room_measured": self.room_measured,
+            "layout": self.layout,
             "started_at": self.started_at,
             "baseline": (self.engine.motion.baseline.source
                          if self.engine and self.engine.motion.baseline else "none"),

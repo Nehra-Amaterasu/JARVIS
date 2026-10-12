@@ -7,6 +7,7 @@ import './styles/pages.css'
 import './styles/aankhen.css'
 import './styles/mission.css'
 import './styles/game.css'
+import './styles/motion.css'
 import App from './App'
 
 createRoot(document.getElementById('root')!).render(

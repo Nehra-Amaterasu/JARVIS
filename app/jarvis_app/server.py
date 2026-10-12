@@ -294,6 +294,37 @@ def create_app(guard: Guard, autostart_aankhen: str = "auto") -> FastAPI:
     def aankhen_snapshot():
         return svc.hub.snapshot()
 
+    # Teach: I label what I am doing while Aankhen records, then the spatial model
+    # trains on it and is scored on time it never saw (aankhen/teach.py). Recordings
+    # made while the simulator runs are named teach-sim-* and never trained on.
+    def _teach(fn):
+        try:
+            return fn()
+        except (RuntimeError, ValueError) as e:
+            raise HTTPException(400, str(e))
+
+    @app.get("/api/aankhen/teach")
+    def aankhen_teach():
+        return svc.hub.teacher.status()
+
+    @app.post("/api/aankhen/teach/start")
+    def aankhen_teach_start():
+        return _teach(svc.hub.teacher.start)
+
+    @app.post("/api/aankhen/teach/label")
+    def aankhen_teach_label(label: Optional[str] = Body(None, embed=True)):
+        return _teach(lambda: svc.hub.teacher.label(label or None))
+
+    @app.post("/api/aankhen/teach/stop")
+    def aankhen_teach_stop():
+        return _teach(svc.hub.teacher.stop)
+
+    @app.post("/api/aankhen/learn/train")
+    def aankhen_learn_train(include_sim: bool = Body(True, embed=True)):
+        info = _teach(lambda: svc.hub.teacher.train_async(include_sim))
+        bus.publish("aankhen", "learn", "Aankhen: training the spatial model on my labels")
+        return info
+
     attach(app, svc.hub, "/ws/aankhen", authorize=guard.ws_ok)
 
     # ------------------------------------------------------------- limbs

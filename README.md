@@ -3,7 +3,8 @@
 A local-first personal AI assistant: it listens, remembers, senses the room, and
 controls devices — running entirely on a laptop with a **6 GB GPU**, no cloud LLM.
 
-JARVIS answers in spoken Hinglish, remembers years of my real conversations, knows
+JARVIS understands Hinglish and answers aloud (in British English unless asked
+otherwise), remembers years of my real conversations, knows
 who the important people in my life are, and is built to say *"I don't know"* rather
 than invent an answer.
 
@@ -19,7 +20,8 @@ are in [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
 | | Before | After |
 |---|---|---|
-| Time to first spoken word | 22–97 s | **0.6 s** |
+| Time to the model's first token (text) | 22–97 s | **0.6 s** |
+| Time to first audio, real voice turns (2026-10-10 log) | — | 2.1–10.8 s — still too slow |
 | Speech-to-text (15 s Hinglish clip) | 10.7 s, garbled | **2.7 s**, word-accurate |
 | Memory: finds a one-line message from 2021 | — | ✅ dated excerpt |
 | Closeness model vs. my own Close Friends list | — | **95 % precision@20** |
@@ -84,9 +86,12 @@ Design rationale: [`docs/research/memory-feasibility.md`](docs/research/memory-f
 An ESP32-S3 measures how people disturb the Wi-Fi channel state information (CSI)
 between it and the router; firmware in `aankhen/firmware/`. The host conditions
 the CSI, detects motion down to millimetre movements in the human band (0.4–4 Hz),
-fuses an optional LD2450 radar, and a learned model (trained on labelled recordings
-of the real room) tells "someone in my room" from "family moving past the router".
-A physics simulator built from measured RF numbers tests all of it before hardware.
+and can fuse an LD2450 radar. A learned model tells "someone in my room" from
+"family moving past the router": so far trained only on simulated days of this
+house (77 % occupancy right on realistic days vs 57 % for the rule-based engine),
+and built to be retrained on labelled recordings of the real room.
+A physics simulator built from measured RF numbers tests all of it; none of it has
+run on the real board yet.
 Every frame is tagged `hardware`, `replay` or `simulation`, and capabilities one
 antenna can't physically deliver (pose, heart rate) are disabled, not faked.
 Write-ups: [`docs/design/aankhen-physics.md`](docs/design/aankhen-physics.md),

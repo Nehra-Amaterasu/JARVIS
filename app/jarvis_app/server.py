@@ -57,6 +57,23 @@ class Services:
         self._seen_aankhen_event = 0
 
 
+def register_feature_routes(app: FastAPI, svc: "Services", bus: EventBus) -> list[tuple[str, str]]:
+    """Import every jarvis_app/routes_*.py and call its register(app, svc, bus).
+    Returns (module, error) for the ones that failed, in name order."""
+    import importlib
+    import pkgutil
+    from . import __path__ as pkg_path
+    failed = []
+    for m in sorted(pkgutil.iter_modules(pkg_path), key=lambda m: m.name):
+        if not m.name.startswith("routes_"):
+            continue
+        try:
+            importlib.import_module(f"{__package__}.{m.name}").register(app, svc, bus)
+        except Exception as e:                       # one broken feature must not stop the app
+            failed.append((m.name, f"{type(e).__name__}: {e}"))
+    return failed
+
+
 def create_app(guard: Guard, autostart_aankhen: str = "auto") -> FastAPI:
     bus = EventBus()
     svc = Services(bus, guard)
@@ -544,6 +561,13 @@ def create_app(guard: Guard, autostart_aankhen: str = "auto") -> FastAPI:
             pass
         finally:
             bus.unsubscribe(q)
+
+    # ------------------------------------------------------------- feature routes
+    # Each feature keeps its routes in its own module, jarvis_app/routes_<area>.py,
+    # with register(app, svc, bus). Adding a feature never edits this file, and a
+    # feature that fails to load is reported instead of taking the server down.
+    for name, err in register_feature_routes(app, svc, bus):
+        bus.publish("system", "error", f"Feature routes {name} failed to load: {err}")
 
     # ------------------------------------------------------------- UI
     if UI_DIST.exists():

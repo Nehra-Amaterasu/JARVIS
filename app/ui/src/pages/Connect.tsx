@@ -5,7 +5,9 @@
  *                          how he says words; test it out loud
  *   05.2 Modules           heavy capabilities switched on for a moment
  *   05.3 Memory exports    request each export, bring the file in, see what is in it
- *   05.4 Detected          ports, models, services, found live. Four statuses, each
+ *   05.4 Phone             JARVIS from the phone on the home Wi-Fi: off by default; pair
+ *                          by QR, remove a phone, firewall + HTTPS steps
+ *   05.5 Detected          ports, models, services, found live. Four statuses, each
  *                          meaning one thing; "planned" is dashed and has no switch.
  */
 import {
@@ -17,6 +19,7 @@ import { usePoll } from '../lib/format'
 import { useStore } from '../lib/store'
 import { PageHeader } from '../components/Shell'
 import { BrainCard, ExportsSection, ModulesSection, PronunciationCard, VoiceCard } from '../components/ConnectControls'
+import { PhoneCard } from '../components/PhoneCard'
 import { useState } from 'react'
 
 interface Item { id: string; group: string; name: string; status: 'connected' | 'available' | 'missing' | 'planned'; detail: string; next: string | null }
@@ -72,7 +75,11 @@ export function ConnectPage() {
         <ExportsSection />
       </Group>
 
-      <Group n="05.4" title="Detected">
+      <Group n="05.4" title="Phone">
+        <PhoneCard />
+      </Group>
+
+      <Group n="05.5" title="Detected">
         {loading && !items && <div className="empty">Scanning ports, models and exports…</div>}
         <div className="connect-grid">
           {detected?.map((i) => <Integration key={i.id} item={i} />)}

@@ -82,6 +82,12 @@ if ENABLED:
     threading.Thread(target=_reader, name="appio-stdin", daemon=True).start()
 
 
+def queue_say(text: str) -> None:
+    """Put a message in line as if the app had typed it (a phone recording, transcribed)."""
+    if text and text.strip():
+        _commands.put({"type": "say", "text": text.strip()})
+
+
 def poll_say() -> Optional[str]:
     """Non-blocking: a typed message waiting from the app, else None."""
     try:

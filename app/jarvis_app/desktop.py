@@ -26,8 +26,10 @@ from .security import Guard
 from .server import create_app
 
 
-def free_port(preferred: int = 8777) -> int:
+def free_port(preferred: int = 8777, avoid: tuple = ()) -> int:
     for port in [preferred, *range(preferred + 1, preferred + 40)]:
+        if port in avoid:
+            continue                      # the phone listener's port (phone.py)
         with socket.socket() as s:
             try:
                 s.bind(("127.0.0.1", port))
@@ -74,7 +76,8 @@ def main(argv=None) -> int:
     ap.add_argument("--debug", action="store_true", help="WebView2 developer tools")
     a = ap.parse_args(argv)
 
-    port = free_port(a.port)
+    from .phone import load_config
+    port = free_port(a.port, avoid=(load_config().port,))
     guard = Guard(port, a.token, extra_hosts=a.dev_host)
     app = create_app(guard, autostart_aankhen=a.aankhen)
     # log_config=None: uvicorn's default config builds a colour formatter that calls

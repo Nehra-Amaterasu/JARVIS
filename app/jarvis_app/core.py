@@ -147,6 +147,16 @@ class CoreProcess:
         self.bus.publish("core", "turn", "", turn=turn)
         return turn
 
+    def hear(self, path: str, clip_id: str) -> None:
+        """A recording from his phone: JARVIS's own Whisper (already loaded in voice mode)
+        transcribes it and the text becomes a turn, exactly like a typed message. He
+        deletes the file once read and answers with a `phone_heard` event."""
+        if not self.running:
+            raise RuntimeError("JARVIS is not running")
+        if self.mode != "voice":
+            raise RuntimeError("JARVIS is in text mode: there is no Whisper to hear with")
+        self._send({"type": "hear", "path": path, "id": clip_id})
+
     def room_command(self, device: str, action: str, value=None) -> None:
         self._send({"type": "room", "device": device, "action": action, "value": value})
 

@@ -41,6 +41,7 @@ import time
 # One registry for everything JARVIS can do (core/tools): tiers, receipts, the
 # capability list in his persona, and the honesty guard on every model reply.
 from tools import honesty
+from tools import media as media_words
 from tools import when as when_mod
 from tools.builtin import ToolContext, default_registry, say as say_receipts
 from tools.registry import Receipt
@@ -506,6 +507,30 @@ def reminder_reply(user_input: str, now: datetime, ctx: ToolContext, receipts: l
     return r.did
 
 
+def media_reply(user_input: str, ctx: ToolContext, receipts: list) -> Optional[str]:
+    """"play <song>", "pause the music", "gaana band karo", "next song", "what's playing?"
+    (tools/media.py), without the model. The app's player answers with a receipt, and the
+    reply IS that receipt: "Now playing ..." only when the window or Windows reported it,
+    "Opened Spotify on a search ..." when a click is still his to make.
+
+    Runs before the room parser, so "play Turn On The Lights by Future" is a song; the
+    parser itself hands "fan chalao" back to the room."""
+    intent = media_words.parse(user_input, room_parse=room.parse)
+    if intent is None:
+        return None
+    if intent.op == "play":
+        r = REGISTRY.call("play_media", {"query": intent.query, "source": intent.source}, ctx)
+    elif intent.op == "control":
+        args = {"action": intent.action}
+        if intent.value is not None:
+            args["value"] = intent.value
+        r = REGISTRY.call("media_control", args, ctx)
+    else:
+        r = REGISTRY.call("media_state", {}, ctx)
+    receipts.append(r)
+    return r.did
+
+
 # "What time is it?" / "aaj kya date hai?" as the WHOLE sentence: read the clock, no model.
 _TIME_QUESTION = re.compile(
     r"^\s*(?:(?:hey\s+|ok\s+)?jarvis[\s,]*)?(?:please\s+)?"
@@ -534,7 +559,7 @@ def _publish(receipts: list, verdicts: list) -> None:
 def run_agent(user_input: str) -> str:
     """
     The Zero-Latency Cognitive Loop.
-    0. Deterministic commands (remember, reminders, Mission, room, the clock): no
+    0. Deterministic commands (remember, reminders, media, Mission, room, the clock): no
        model, a receipt for every action, the reply built from the receipts.
     1. Fetch Memories.
     2. Build Persona (its capability list comes from the tool registry).
@@ -575,6 +600,16 @@ def run_agent(user_input: str) -> str:
     except Exception as e:
         reply = None
         print(f"\n[Reminder parse error: {e}]")
+    if reply:
+        yield direct(reply)
+        return
+    # 0a'. The media player: "play Blinding Lights by The Weeknd", "Kesariya chalao",
+    # "pause the music", "agla gana", "volume 30", "what's playing?".
+    try:
+        reply = media_reply(user_input, ctx, receipts)
+    except Exception as e:
+        reply = None
+        print(f"\n[Media command error: {e}]")
     if reply:
         yield direct(reply)
         return

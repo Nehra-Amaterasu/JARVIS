@@ -17,6 +17,7 @@ from datetime import datetime
 from typing import Any, Callable, Optional
 from urllib.parse import quote
 
+from . import media as media_words
 from .registry import Receipt, Registry, Tier, Tool
 from .when import fmt_clock
 
@@ -372,6 +373,71 @@ def cancel_reminder(ctx: ToolContext, query: str = "", kind: str = "", all: bool
                    error=None if n else "no matching reminder", data={"cancelled": res.get("cancelled") or []})
 
 
+# ------------------------------------------------------------------ T1: the media player
+# The app owns the player (app/jarvis_app/media.py): it opens Spotify or the browser,
+# presses the media keys, plays his music folder in the window, and reads Windows' media
+# sessions. Its receipt's `confirmed` is True only when something REPORTED the effect
+# (the window's play(), a new Windows media session), and only then does the receipt back
+# a "Now playing ..." claim: an opened Spotify search is said as exactly that.
+MEDIA_TIMEOUT = 12.0        # the app waits up to 6 s for a browser to report it is playing
+MEDIA_SOURCES = ("auto", "local", "youtube", "ytmusic", "spotify")
+_MEDIA_FROM = {"local": "your music folder", "youtube": "YouTube", "ytmusic": "YouTube Music", "spotify": "Spotify",
+               "system": "Windows volume"}
+
+
+def _media_call(ctx: ToolContext, name: str, tier: str, method: str, path: str, body: Any = None) -> Receipt:
+    try:
+        status, res = ctx.api(method, path, body, timeout=MEDIA_TIMEOUT)
+    except NoApp:
+        return Receipt(name, tier, False, "I can't play or control music right now: the player lives in the JARVIS "
+                       "app, and it isn't running.", source="none", error="app not running")
+    except Exception as e:
+        return Receipt(name, tier, False, "The media player didn't answer.", source="app · media", error=str(e))
+    if status != 200 or not isinstance(res, dict):
+        return Receipt(name, tier, False, f"The media player refused that: {_detail(res)}.", source="app · media",
+                       error=_detail(res))
+    if name == "media_state":
+        now = res.get("now") or {}
+        playing = now.get("status") == "Playing"
+        return Receipt(name, tier, True, res.get("say") or "unknown", source="app · media (Windows media sessions)",
+                       backs=("media",) if playing else (),
+                       data={"now": now or None, "readable": res.get("readable"), "last": res.get("last")})
+    ok, confirmed = bool(res.get("ok")), bool(res.get("confirmed"))
+    src = _MEDIA_FROM.get(res.get("source") or "", "")
+    return Receipt(name, tier, ok, res.get("say") or ("Done." if ok else "That didn't work."),
+                   source="app · media" + (f" ({src})" if src else ""),
+                   backs=("media",) if ok and confirmed else (),
+                   data={k: res.get(k) for k in ("action", "source", "confirmed", "needs_click", "query") if k in res},
+                   error=None if ok else (res.get("error") or "failed"))
+
+
+def play_media(ctx: ToolContext, query: str, source: str = "auto") -> Receipt:
+    return _media_call(ctx, "play_media", "T1", "POST", "/api/media/play", {"query": query, "source": source or "auto"})
+
+
+def media_control(ctx: ToolContext, action: str, value: Optional[str] = None) -> Receipt:
+    body = {"action": action} if value in (None, "") else {"action": action, "value": str(value)}
+    return _media_call(ctx, "media_control", "T1", "POST", "/api/media/control", body)
+
+
+def media_state(ctx: ToolContext) -> Receipt:
+    return _media_call(ctx, "media_state", "T0", "GET", "/api/media/state")
+
+
+class _MediaTurn:
+    """When a turn may need the media tools: a music word, or a sentence the media parser
+    reads as a command. Not a bare "play": "let's play chess" is no song, and the model
+    must not be handed a player for it (an action it chose runs only if these match)."""
+    _RX = re.compile(r"\b(?:music|songs?|gaan[ae]|gan[ae]|gaane|playlists?|albums?|spotify|youtube|lo-?fi|volume|"
+                     r"ava[zj]|awaa?[zj]|now playing|what'?s playing)\b", re.I)
+
+    def search(self, text: str):
+        return self._RX.search(text or "") or media_words.parse(text or "") is not None
+
+
+MEDIA_TRIGGERS = _MediaTurn()
+
+
 # ------------------------------------------------------------------ T2: speaks for him (off)
 def send_message(ctx: ToolContext, to: str, text: str) -> Receipt:
     return Receipt("send_message", "T2", False, "No message channel is set up, so nothing was sent.",
@@ -455,6 +521,24 @@ def default_registry() -> Registry:
         ("device", "action", "when"), Tier.T1, lambda ctx, **a: switch_later(ctx, **a),
         "switch the light or fan at a later time", backs=("schedule", "switch"),
         triggers=_RX(r"(" + _ROOM_WORDS + r").{0,40}\b(in|at|after|baad|baje)\b")))
+    reg.register(Tool(
+        "play_media", "Play a song, an artist or a kind of music he names. Put his words in `query` ('Blinding Lights "
+        "by The Weeknd', 'lo-fi'); set `source` only when he names one (local is his music folder).",
+        {"query": {"type": "string", "description": "the song, artist or style, in his words", "maxLength": 200},
+         "source": {"type": "string", "enum": list(MEDIA_SOURCES)}},
+        ("query",), Tier.T1, lambda ctx, **a: play_media(ctx, **a),
+        "play a song or artist he names: from his music folder in the app, YouTube's top result in his browser, or "
+        "a Spotify search he starts with one click", backs=("media",), triggers=MEDIA_TRIGGERS))
+    reg.register(Tool(
+        "media_control", "Pause, resume, skip to the next or previous track, or change the volume of whatever is "
+        "playing.", {"action": {"type": "string", "enum": ["play", "pause", "next", "prev", "volume"]},
+                     "value": {"type": "string", "description": "volume only: up, down, mute or 0-100",
+                               "maxLength": 8}},
+        ("action",), Tier.T1, lambda ctx, **a: media_control(ctx, **a),
+        "pause, resume, skip and change the volume of what is playing", backs=("media",), triggers=MEDIA_TRIGGERS))
+    reg.register(Tool(
+        "media_state", "Read what is playing right now, from Windows' media sessions and the JARVIS player.", {}, (),
+        Tier.T0, lambda ctx: media_state(ctx), "say what is playing", backs=("media",), triggers=MEDIA_TRIGGERS))
     reg.register(Tool(
         "send_message", "Send a message to someone on his behalf.",
         {"to": {"type": "string"}, "text": {"type": "string"}}, ("to", "text"), Tier.T2,

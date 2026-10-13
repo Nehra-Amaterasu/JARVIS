@@ -46,6 +46,9 @@ _REACHABLE = re.compile(r"\b(?:lights?|lamps?|bulbs?|fans?|scene|mode)\b", re.I)
 _REM = r"(?:\s+(?:up|you))?\s+(?:a|an|the|your|that|this|one)?\s*(?:[\w-]+\s+){0,2}?(?:reminders?|alarms?|timers?)\b"
 _MEDIA = (r"(?=.{0,40}\b(?:music|songs?|tracks?|playlists?|albums?|videos?|something|lo-?fi|beats|radio|"
           r"podcasts?|spotify|youtube|for you)\b)")
+# Control claims ("I've paused the music", "Skipped to the next track") name what they
+# acted on; "I've stopped the timer" or "I stopped tracking" must not read as music.
+_PLAYBACK = r"(?=.{0,40}\b(?:music|songs?|tracks?|playback|playlists?|videos?|spotify|youtube|volume|sound)\b)"
 _NOT_YOU = r"(?!\s+(?:you|yourself)\b)"
 _NOT_MEM = r"(?!.{0,25}\bmemory)"
 # "tell" as in "pass a message on", not "make out". In the 10-13 eval, "I can tell your
@@ -153,7 +156,17 @@ KINDS: dict[str, tuple[list, list]] = {
         _I_DID + r"(?:played|queued(?:\s+up)?|put on|started playing|streamed)\b" + _MEDIA,
         _I_ING + r"(?:playing|queuing|queueing|streaming)\b" + _MEDIA,
         r"^\W*(?:now\s+)?playing\b", r"\bnow playing\b",
-    ), _rx(_I_CAN + r"(?:play|put on|queue|stream)\b" + _MEDIA)),
+        # Control, since a tool can do it (2026-10-13): pause, skip, resume, the volume.
+        _I_DID + r"(?:paused|stopped|skipped|resumed|muted|unmuted|turned\s+(?:up|down)|raised|lowered)\b" + _PLAYBACK,
+        _I_WILL + r"(?:pause|stop|skip|resume|mute|unmute|turn\s+(?:up|down)|raise|lower)\b" + _PLAYBACK,
+        _I_ING + r"(?:pausing|stopping|skipping|resuming|muting)\b" + _PLAYBACK,
+        _I_DID + r"(?:turned|cranked|brought)\s+(?:the\s+)?(?:volume|music|sound)\s+(?:up|down)\b",
+        _I_WILL + r"(?:turn|crank|bring)\s+(?:the\s+)?(?:volume|music|sound)\s+(?:up|down)\b",
+        r"^\W*(?:the\s+)?(?:music|song|track|playback|volume)\s+(?:is\s+|has\s+been\s+)?(?:now\s+)?"
+        r"(?:paused|stopped|skipped|resumed|muted)\b",
+        r"^\W*(?:skipping|skipped)\s+(?:ahead\s+)?(?:to\s+)?(?:the\s+)?(?:next|previous)\b",
+    ), _rx(_I_CAN + r"(?:play|put on|queue|stream)\b" + _MEDIA,
+           _I_CAN + r"(?:pause|skip|resume|mute|turn\s+(?:up|down))\b" + _PLAYBACK)),
     "memory": (_rx(
         _I_WILL + r"(?:remember|keep\s+(?:that|this|it)\s+in\s+mind|make\s+a\s+note|note\s+(?:that|this|it)|"
         r"save\s+(?:that|this|it)\b|store\s+(?:that|this|it)\b|add\s+(?:that|this|it)\s+to\s+(?:my|your)\s+memory|"
@@ -224,7 +237,8 @@ HAVENT = {
                   "moving, not angles, fingers or faces.",
     "memory": "I haven't saved that. Say \"remember that …\" and I'll keep it.",
     "presence": "I haven't checked the room sensors, so I can't say who is there.",
-    "media": "I haven't played anything.",
+    "media": "I haven't played or changed anything yet; say \"play\" and the song, for example \"play Blinding "
+             "Lights\".",
     "web": "I haven't done that.",
     "generic": "I haven't done anything yet.",
     "lookup": "",
@@ -334,10 +348,13 @@ class Verdict:
 
 
 def honest_line(kind: str, registry: Registry, receipts: list[Receipt]) -> str:
-    failed = [r for r in receipts if not r.ok and registry.get(r.tool) is not None
-              and kind in registry.get(r.tool).backs]
-    if failed:
-        return failed[-1].did
+    # A tool for this kind ran but its receipt does not back the claim: it failed, or it
+    # did something short of the claim (Spotify opened on a search that still needs his
+    # click is not "now playing"). Its own sentence is the truth.
+    ran = [r for r in receipts if registry.get(r.tool) is not None and kind in registry.get(r.tool).backs
+           and kind not in r.backs]
+    if ran:
+        return ran[-1].did
     if registry.can(kind):
         return HAVENT.get(kind, "")
     off = [t for t in registry.tools_backing(kind) if not t.enabled]

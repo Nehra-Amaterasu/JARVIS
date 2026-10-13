@@ -113,7 +113,9 @@ def test_capability_block_is_generated_from_the_registry():
     for t in reg.bindable():
         assert f"({t.name})" in block
     assert "send messages or make calls for him" in block.split("switched off")[1]   # T2 listed as off
-    assert "use the internet" in block and "play music" in block       # no tool backs these
+    cannot = block.split("You cannot:")[1]
+    assert "use the internet" in cannot                                # no tool backs this
+    assert "play music or videos" not in cannot and "(play_media)" in block   # a tool does, since 10-13
     assert "No money" in block and "RECEIPT" in block
     assert "set reminders" not in block.split("You cannot:")[1]        # a tool exists for that now
     assert reg.capability_block() == block                             # static: Ollama's prefix cache holds
@@ -133,11 +135,21 @@ def test_capability_block_follows_the_registry_when_tools_change():
 def test_wants_tools_binds_on_domains_not_on_chit_chat():
     reg = default_registry()
     for text in ("is the light on?", "what time is it in the evening", "pankha kitna tez hai",
-                 "remind me later to call", "is anyone in my room", "search my memory for the exam"):
+                 "remind me later to call", "is anyone in my room", "search my memory for the exam",
+                 "play Blinding Lights", "gaana band karo", "I need some music to focus", "next song"):
         assert reg.wants_tools(text), text
     for text in ("how are you today", "explain setup time", "track my steps", "what is the weather",
-                 "tell me a joke about verilog"):
+                 "tell me a joke about verilog", "let's play chess", "play devil's advocate for me"):
         assert not reg.wants_tools(text), text
+
+
+def test_a_number_for_a_string_field_is_accepted():
+    """The model may send the volume as 30, not "30"."""
+    sent = []
+    ctx = ToolContext(http=lambda m, p, b, t: (sent.append(b), (200, {"ok": True, "confirmed": True,
+                                                                      "say": "Set the volume to about 30 percent."}))[1])
+    r = default_registry().call("media_control", {"action": "volume", "value": 30}, ctx)
+    assert r.ok and sent == [{"action": "volume", "value": "30"}]
 
 
 def test_say_merges_receipts_and_says_virtual_once():

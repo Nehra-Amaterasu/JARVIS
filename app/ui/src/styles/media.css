@@ -1,0 +1,49 @@
+/* ==========================================================================
+   Media card (components/MediaCard.tsx). Same materials as every card: glass,
+   hairlines, mono for provenance. Colour is provenance: cyan = playback confirmed
+   by the window or by Windows, amber = opened or pressed but not confirmed,
+   red = failed.
+   ========================================================================== */
+.core-center .card.media { width: 100%; max-width: 440px; margin-top: 18px; }
+.media { padding: 18px 16px 14px; }
+.media .card-head { padding: 0 6px; margin-bottom: 12px; }
+
+.media-now { display: grid; grid-template-columns: 42px 1fr; gap: 12px; align-items: center; padding: 0 6px; }
+.media-art {
+  display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px;
+  color: var(--ink-3); background: rgba(255, 255, 255, 0.04); box-shadow: inset 0 0 0 1px var(--hair);
+  transition: color var(--t) var(--ease), background var(--t) var(--ease), box-shadow var(--t) var(--ease);
+}
+.media-now.live .media-art { color: var(--live); background: var(--live-2); box-shadow: inset 0 0 0 1px rgba(92, 225, 255, 0.22), 0 0 22px -6px var(--live-glow); }
+.media-meta { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.media-meta b { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.media-meta .mono { font-size: 11px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.media-ctl { display: flex; align-items: center; gap: 4px; margin: 12px 0 10px; padding: 0 2px; }
+.media-ctl .btn.icon { width: 34px; height: 34px; }
+.media-ctl .media-pp { width: 40px; height: 40px; }
+.media-gap { flex: 1; }
+
+.media-search { display: flex; gap: 8px; }
+.media-search .field { height: 38px; font-size: 13px; }
+.media-search .btn { flex: none; }
+
+.media-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; padding: 0 2px; }
+.media-chip {
+  height: 26px; padding: 0 11px; border-radius: var(--r-pill);
+  font: 600 11.5px var(--f-ui); color: var(--ink-2);
+  background: rgba(255, 255, 255, 0.04); box-shadow: inset 0 0 0 1px var(--hair);
+  transition: background var(--t-fast) var(--ease), color var(--t-fast), box-shadow var(--t-fast);
+}
+.media-chip:hover { color: var(--ink); background: rgba(255, 255, 255, 0.08); }
+.media-chip.on { background: var(--ink); color: #050506; box-shadow: none; }
+.media-folder-btn { margin-left: auto; width: 28px !important; height: 28px; }
+.media-folder-btn.on { color: var(--ink); background: rgba(255, 255, 255, 0.08); }
+
+.media-folder { display: flex; gap: 8px; margin-top: 10px; }
+.media-folder .field { height: 34px; font-size: 12px; }
+
+.media-receipt { margin: 10px 6px 0; font-size: 11px; line-height: 1.45; color: var(--ink-3); }
+.media-receipt.live { color: var(--live); }
+.media-receipt.sim { color: var(--sim); }
+.media-receipt.fault { color: var(--fault); }

@@ -14,6 +14,7 @@ _TMP = tempfile.mkdtemp(prefix="jarvis-test-")
 os.environ["JARVIS_DATA_DIR"] = _TMP
 os.environ["AANKHEN_HOTPLUG"] = "0"          # never listen to this machine's real serial ports
 os.environ["AANKHEN_STREAM"] = "0"           # never record into the real data/aankhen/stream
+os.environ["JARVIS_MEDIA_OS"] = "0"          # never open a browser or Spotify, never press a media key
 APP = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(APP))
 warnings.filterwarnings("ignore", category=DeprecationWarning)

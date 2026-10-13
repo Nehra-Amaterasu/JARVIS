@@ -11,8 +11,8 @@ promised and claimed actions it had no way to do. The registry fixes both ends:
     ok or failed — and a reply may only claim what a receipt shows (honesty.py).
 
 Tiers (docs/ROADMAP.md, A2):
-  T0  read only: time, date, room state, presence, memory search, the reminder list
-  T1  reversible home actions: lights, fan, scenes, reminders and timers
+  T0  read only: time, date, room state, presence, memory search, the reminder list, what is playing
+  T1  reversible home actions: lights, fan, scenes, reminders and timers, the media player
   T2  speaks for him (messages): registered so the persona can say it exists, but
       disabled until he enables it, and never bound to the model while disabled
   T3  money or anything irreversible: never registered — register() refuses it
@@ -243,8 +243,9 @@ _TYPES = {"string": str, "integer": int, "number": (int, float), "boolean": bool
 def validate(tool: Tool, args: dict) -> Optional[str]:
     """Check args against the tool's schema (the subset we use). None when fine.
 
-    The 4B model sometimes sends a number as a string ("40") — coerced, since the
-    meaning is unambiguous; anything else that does not fit is refused."""
+    The 4B model sometimes sends a number as a string ("40"), or a string field as a
+    number — coerced, since the meaning is unambiguous; anything else that does not fit
+    is refused."""
     for k in tool.required:
         if args.get(k) in (None, ""):
             return f"missing {k}"
@@ -266,6 +267,8 @@ def validate(tool: Tool, args: dict) -> Optional[str]:
                     return f"{k} must be a whole number"
                 v = int(v)
             args[k] = v
+        if typ == "string" and isinstance(v, (int, float)) and not isinstance(v, bool):
+            v = args[k] = str(v)                     # the other way round: "volume 30" sent as 30
         if typ in _TYPES and not isinstance(v, _TYPES[typ]):
             return f"{k} must be a {typ}"
         if "enum" in spec and v not in spec["enum"]:

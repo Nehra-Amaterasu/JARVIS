@@ -12,6 +12,7 @@ import { fmt, fmtDur, fmtGb, fmtInt, pad2, usePoll } from '../lib/format'
 import { DAILY_ITEMS, useChecklistStore } from '../germoney/stores/checklist-store'
 import { LEVELS, usePlayerStore } from '../germoney/stores/player-store'
 import { useStore } from '../lib/store'
+import { MediaCard } from '../components/MediaCard'
 import { PageHeader, STATE_LABEL } from '../components/Shell'
 import { Reactor } from '../components/Reactor'
 import { StaffCard } from '../components/Staff'
@@ -107,6 +108,7 @@ export function CorePage() {
           </p>
           {core?.last_error && !running && <p className="core-error mono">{core.last_error}</p>}
           <Latency timings={core?.timings ?? {}} />
+          <MediaCard />
         </section>
 
         <Conversation running={running} />

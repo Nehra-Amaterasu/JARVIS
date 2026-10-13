@@ -54,6 +54,12 @@ REG = default_registry()
     ("I’ll make sure your brother knows you’ll call him later.", "message"),
     ("The room lights are dimming and the fan is running softly.", "switch_state"),
     ("The room temperature is now comfortably regulated.", "switch_state"),
+    # the media player can pause, skip and turn the volume since 10-13: those are claims now
+    ("I've paused the music.", "media"),
+    ("Skipped to the next track.", "media"),
+    ("The music is paused.", "media"),
+    ("I'll turn the volume down a little.", "media"),
+    ("I’ve skipped that song for you.", "media"),
 ])
 def test_claims_are_detected(sentence, kind):
     assert kind in {k for k, mode in honesty.claims(sentence) if mode == "assert"}
@@ -62,7 +68,6 @@ def test_claims_are_detected(sentence, kind):
 @pytest.mark.parametrize("sentence, kind", [
     ("Shall I send her a message?", "message"),
     ("I can order a pizza for you.", "web"),
-    ("Would you like me to play some music?", "media"),
 ])
 def test_impossible_offers_are_detected(sentence, kind):
     assert (kind, "offer") in honesty.claims(sentence)
@@ -90,6 +95,11 @@ def test_impossible_offers_are_detected(sentence, kind):
     "If you like, I can switch the fan off.",
     "Your German is improving, Aman.",
     "That timer circuit uses a 555.",
+    "Would you like me to play some music?",   # a tool plays music since 10-13: offering it is fine
+    "Shall I pause the music?",
+    "I've stopped the timer.",                 # a timer, not playback
+    "I stopped tracking the bug once I found it.",
+    "Let me pause and think about that.",
 ])
 def test_honest_sentences_pass_untouched(sentence):
     assert honesty.unbacked(sentence, REG, []) == []
@@ -111,6 +121,20 @@ def test_a_receipt_of_another_kind_does_not():
     r = [ok("set_device", ("switch", "switch_state"))]
     assert honesty.unbacked("I've set a reminder for 9 pm.", REG, r)
     assert honesty.unbacked("Message sent.", REG, r)
+
+
+def test_now_playing_needs_a_confirmed_receipt():
+    """The media player's receipt backs "Now playing" only when the window or Windows
+    reported playback. An opened Spotify search (ok, still needs his click) does not, and
+    its own sentence is what he hears instead."""
+    said = "Now playing Kesariya by Arijit Singh."
+    confirmed = ok("play_media", ("media",), "Now playing Kesariya by Arijit Singh from your music folder.")
+    assert honesty.check(said, REG, [confirmed]) == said
+    opened = Receipt("play_media", "T1", True, "Opened Spotify on a search for “Kesariya”. Spotify needs one click on "
+                     "the top result to start it.", "app · media (Spotify)", backs=())
+    out = honesty.check(said, REG, [opened])
+    assert out == opened.did and "Now playing" not in out
+    assert honesty.check(said, REG, []) == honesty.HAVENT["media"]          # a tool exists; nothing ran
 
 
 def test_a_failed_receipt_wins_over_the_models_optimism():

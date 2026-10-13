@@ -12,6 +12,7 @@ JARVIS, the Aankhen source and the server, in that order.
 from __future__ import annotations
 
 import argparse
+import os
 import socket
 import sys
 import threading
@@ -109,6 +110,12 @@ def main(argv=None) -> int:
         server.should_exit = True
         return 0
 
+    # A song from his music folder is started by VOICE, with no click in the window, and
+    # Chromium's default autoplay policy refuses such a play() (the Media card then says
+    # "press play"). pywebview sets its own AdditionalBrowserArguments, so its one flag is
+    # repeated here, whichever of the two WebView2 lets win.
+    os.environ.setdefault("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+                          "--disable-features=ElasticOverscroll --autoplay-policy=no-user-gesture-required")
     import webview
     icon = APP / "assets" / "jarvis.ico"
     webview.create_window(

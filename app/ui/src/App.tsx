@@ -4,6 +4,7 @@ import { Dialogs, FxLayer } from './germoney/ui'
 import { GameFx } from './germoney/game/fx'
 import { Dock, TitleBar, Ticker, Toasts, useHotkeys } from './components/Shell'
 import { api } from './lib/api'
+import { startMediaHost } from './lib/media'
 import { startEventStream, useStore } from './lib/store'
 import { ConnectPage } from './pages/Connect'
 import { CorePage } from './pages/Core'
@@ -34,6 +35,9 @@ export default function App() {
     const t = window.setTimeout(() => void import('./germoney/game/bridge').then((m) => m.startBridge()), 1500)
     return () => window.clearTimeout(t)
   }, [])
+
+  // Songs from his music folder play in this window, whatever tab is open (lib/media.ts).
+  useEffect(() => startMediaHost(), [])
 
   useEffect(() => {
     const stream = startEventStream()

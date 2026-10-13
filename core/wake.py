@@ -56,6 +56,26 @@ def is_stop(text: str) -> bool:
     return bool(STOP.search(text or ""))
 
 
+# His name and nothing else: "Hey Jarvis!", "Jarvis?", "Jarvis, you there?". Until 10-14
+# the model answered it with a report on the room sensors; a butler answers his name
+# with a word.
+NAME_ONLY = re.compile(r"^\W*(?:(?:hey|ok(?:ay)?|oi|oye|yo)\W+)?" + _NAME_ONLY +
+                       r"(?:\W+(?:are\s+)?you\s+there|\W+(?:are\s+you\s+)?listening)?\W*$", re.I)
+ACKNOWLEDGE = ("Sir?", "At your service, sir.", "Yes, sir?", "Listening, sir.")
+_ack_turn = [0]
+
+
+def name_only(text: str) -> bool:
+    return bool(NAME_ONLY.match(text or ""))
+
+
+def acknowledgement() -> str:
+    """A short answer to his name, a different one each time (never the same twice running)."""
+    line = ACKNOWLEDGE[_ack_turn[0] % len(ACKNOWLEDGE)]
+    _ack_turn[0] += 1
+    return line
+
+
 @dataclass
 class Heard:
     """A burst that named him: the whole transcript and what followed the name."""

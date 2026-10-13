@@ -180,9 +180,10 @@ def test_clear_drops_unsynthesised_speech(engine):
 @pytest.mark.parametrize("text, expected", [
     ("light band kar do", [("light", "off", None)]),
     ("turn on the fan", [("fan", "on", None)]),
-    ("fan 40 percent", [("fan", "set", 40)]),
-    ("batti thodi kam karo", [("light", "dim", None)]),
-    ("pankha tez karo", [("fan", "brighten", None)]),
+    # relays switch, they don't regulate: a level is a "level" request (said honestly)
+    ("fan 40 percent", [("fan", "level", None)]),
+    ("batti thodi kam karo", [("light", "level", None)]),
+    ("pankha tez karo", [("fan", "level", None)]),
     ("sab band kar do", [("all", "off", None)]),
     ("study mode on karo", [("environment", "focus", "focus")]),
     ("lights on please", [("light", "on", None)]),

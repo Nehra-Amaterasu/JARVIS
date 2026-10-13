@@ -137,6 +137,100 @@ def _what(q: str) -> str:
     return re.sub(r"\s+", " ", q)
 
 
+# ------------------------------------------------------------------ "play that" (2026-10-14)
+# JARVIS suggested a song; he said "play that"; YouTube's top result for the word "that"
+# opened. A pronoun is now resolved to the last title JARVIS himself suggested.
+_REFERENCE = _rx(r"^(?:it|that|this|that\s+one|this\s+one|that\s+(?:song|track)|this\s+(?:song|track)|"
+                 r"the\s+(?:one|song|track)\s+you\s+(?:just\s+)?(?:said|suggested|mentioned|picked|recommended)|"
+                 r"what\s+you\s+(?:just\s+)?(?:said|suggested|recommended)|your\s+(?:suggestion|pick|recommendation)|"
+                 r"wo|woh|vo|voh|wahi|wohi|woh\s+wala|wo\s+wala|vo\s+wala)$")
+_PLAY_IT = _rx(r"^(?:play|start)\s+(?:it|that)(?:\s+again)?$")
+_SUGGESTED_REF = _rx(r"\b(?:the|that)\s+(?:song|one|track)\s+you\s+(?:just\s+)?(?:said|suggested|mentioned|picked|"
+                     r"recommended)\b|\bwhat\s+you\s+(?:just\s+)?(?:suggested|recommended)\b")
+# A title JARVIS suggested, as the model writes one: in quotes, perhaps "by <Artist>".
+_ARTIST = r"[A-Z0-9$][\w$.'&-]*(?:\s+(?:and\s+|&\s+|x\s+)?[A-Z0-9$][\w$.'&-]*){0,3}"
+_QUOTED = re.compile(r"[“\"]([^”\"\n]{1,60}?)[”\"](?:\s+by\s+(" + _ARTIST + r"))?")
+_SUGGESTED = re.compile(r"\b(?:how about|what about|try|suggest|recommend|go with|maybe)\s+(?!some\b|a\b|an\b|the\b)"
+                        r"([A-Z0-9][\w'$.-]*(?:\s+[A-Z0-9][\w'$.-]*){0,5})\s+by\s+(" + _ARTIST + r")")
+
+
+_NOT_TITLE = _rx(r"^(?:play|remember|log|light|fan|remind|turn|switch|say|stop|pause|set|hey|jarvis)\b")
+_MUSIC_TALK = _rx(r"\b(?:songs?|tracks?|tunes?|album|listen|spotify|youtube|playlist|play)\b")
+
+
+def is_reference(query: str) -> bool:
+    return bool(_REFERENCE.match((query or "").strip(" .!?,")))
+
+
+def titles_in(text: str) -> list[str]:
+    """Song titles in one of JARVIS's replies, in order: “Glass Rain” by X -> "Glass Rain by X"."""
+    t = (text or "").replace("’", "'")
+    found = []
+    musical = bool(_MUSIC_TALK.search(t))
+    for m in _QUOTED.finditer(t):
+        title = m.group(1).strip(" .,")
+        if not title or len(title.split()) > 10 or _NOT_TITLE.match(title):
+            continue                                  # "say "play Blinding Lights"", "remember that ..."
+        if m.group(2):
+            found.append((m.start(), f"{title} by {m.group(2)}"))
+        elif musical:                                 # a bare quote counts only in talk about music
+            found.append((m.start(), title))
+    for m in _SUGGESTED.finditer(t):
+        if not any(abs(m.start() - s) < 20 for s, _ in found):
+            found.append((m.start(), f"{m.group(1)} by {m.group(2)}"))
+    return [title for _, title in sorted(found)]
+
+
+def last_title(replies: list[str]) -> str:
+    """The last title in the most recent reply that names one ('' when none does)."""
+    for reply in reversed(replies or []):
+        got = titles_in(reply)
+        if got:
+            return got[-1]
+    return ""
+
+
+def resolve(intent: Optional[MediaIntent], text: str, replies: list[str]):
+    """ "play that" / "wo gaana chalao" -> the song JARVIS last suggested. Returns the
+    intent (changed or not), or a sentence to say when there is nothing to resolve.
+    "play it" means a suggestion only right after one; otherwise it resumes."""
+    if intent is None:
+        # A long sentence the parser leaves alone: "...find the song you suggested online
+        # and play it" (live run, 10-14: the model told him to use his browser instead).
+        if asks_to_play(text) and _SUGGESTED_REF.search(text or ""):
+            title = last_title((replies or [])[-3:])
+            if title:
+                return MediaIntent("play", query=title, source=source_in(text))
+        return None
+    if intent.op == "play" and is_reference(intent.query):
+        title = last_title((replies or [])[-3:])
+        if title:
+            return MediaIntent("play", query=title, source=intent.source)
+        return "Which song shall I play? I haven't suggested one yet."
+    if intent.op == "control" and intent.action == "play" and _PLAY_IT.match(_clean(text).rstrip("?").strip()):
+        title = last_title((replies or [])[-1:])
+        if title:
+            return MediaIntent("play", query=title)
+    return intent
+
+
+# ------------------------------------------------------------------ for the honesty guard's rescue
+_ASKS_PLAY = _rx(r"\b(?:play|chalao|chala\s*do|bajao|baja\s*do|lagao|sunao|put\s+(?:it\s+)?on|bring\s+(?:it\s+)?up)\b")
+
+
+def asks_to_play(text: str) -> bool:
+    """Did he ask for something to be played (anywhere in a long sentence)?"""
+    return bool(_ASKS_PLAY.search(text or ""))
+
+
+def source_in(text: str) -> str:
+    """The player he named, first mention wins: spotify | youtube | auto."""
+    m = re.search(r"\b(spotify|youtube|you\s+tube|browser|online|chrome|brave|web)\b", text or "", re.I)
+    if not m:
+        return "auto"
+    return "spotify" if m.group(1).lower() == "spotify" else "youtube"
+
+
 def parse(text: str, room_parse: Optional[Callable[[str], list]] = None) -> Optional[MediaIntent]:
     """A media command, or None when the sentence is not one."""
     raw = (text or "").strip()

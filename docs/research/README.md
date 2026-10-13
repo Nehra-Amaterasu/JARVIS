@@ -17,4 +17,5 @@ One line per note (CLAUDE.md: research is never lost). Private notes live in
 - [2026-10-13-wifi-sensing-limits-and-routes.md](2026-10-13-wifi-sensing-limits-and-routes.md): what one Wi-Fi link can see, and signal-only routes past it.
 - [2026-10-13-world-model-and-channel-charting.md](2026-10-13-world-model-and-channel-charting.md): world model and channel charting on one link, tested.
 - [2026-10-14-spatial-intelligence-brainstorm.md](2026-10-14-spatial-intelligence-brainstorm.md): how Aankhen can know where he is: five lenses plus an adversarial review, ranked to a Rs 0 backbone (free labels from his devices, semi-Markov belief, honest sets) and a gated experiment ladder before any board is bought.
+- [2026-10-14-conversation-fixes.md](2026-10-14-conversation-fixes.md): nine fixes from the 10-14 transcript review: one verb per clause, honest fan speed, invented "playing now" turned into a real play, "play that", promise claims, whole-sentence long answers, name-only wake, short unsure transcripts dropped (core tests 389 -> 465).
 - [memory-feasibility.md](memory-feasibility.md): personal memory at N = 1.

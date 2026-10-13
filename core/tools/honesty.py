@@ -46,6 +46,17 @@ _REACHABLE = re.compile(r"\b(?:lights?|lamps?|bulbs?|fans?|scene|mode)\b", re.I)
 _REM = r"(?:\s+(?:up|you))?\s+(?:a|an|the|your|that|this|one)?\s*(?:[\w-]+\s+){0,2}?(?:reminders?|alarms?|timers?)\b"
 _MEDIA = (r"(?=.{0,40}\b(?:music|songs?|tracks?|playlists?|albums?|videos?|something|lo-?fi|beats|radio|"
           r"podcasts?|spotify|youtube|for you)\b)")
+# A title in quotes sits between the verb and the place: "I've located “<song>” by <artist>
+# and <artist> in your Spotify library" puts Spotify 38+ characters after the verb.
+_MEDIA_FAR = (r"(?=.{0,90}\b(?:music|songs?|tracks?|playlists?|albums?|videos?|spotify|youtube|library|"
+              r"music folder)\b)")
+# "Promise" claims: work JARVIS would do on his own, later, or on hardware no tool reaches.
+# 10-14: a reply promised to run a diagnostic on a board and to report back in a few
+# minutes; he has no background jobs and no follow-ups: a reply ends and nothing more happens.
+_LATER = (r"(?:in|within|after)\s+(?:a\s+(?:few|couple(?:\s+of)?)\s+|\d+\s+|one\s+|two\s+|three\s+|five\s+|"
+          r"ten\s+|a\s+)?(?:minutes?|mins?|seconds?|secs?|hours?|moments?)\b")
+_FIX_VERB = (r"(?:reset|reboot|restart|reflash|repair|fix|update|upgrade|reprogram|recalibrate|adjust|tune|"
+             r"reconfigure)")
 # Control claims ("I've paused the music", "Skipped to the next track") name what they
 # acted on; "I've stopped the timer" or "I stopped tracking" must not read as music.
 _PLAYBACK = r"(?=.{0,40}\b(?:music|songs?|tracks?|playback|playlists?|videos?|spotify|youtube|volume|sound)\b)"
@@ -83,11 +94,17 @@ KINDS: dict[str, tuple[list, list]] = {
     ), _rx(_I_CAN + r"(?:turn|switch|shut|dim|brighten|power|set)" + _DEV)),
     "switch_state": (_rx(
         r"^\W*(?!if\b|when\b|once\b|whenever\b|while\b|unless\b|until\b).{0,30}?\b(?:the|your)\s+(?:room\s+)?"
-        r"(?:lights?|lamp|fan|ac|air[- ]?conditioner|tv)\s+(?:is|are)\s+(?:now\s+|currently\s+|already\s+|still\s+)?"
-        r"(?:off|on|running|at\s+\d+|dimming|brightening|spinning|slowing|glowing)\b",
+        r"(?:lights?|lamp|fan|ac|air[- ]?conditioner|tv)\s+(?:is|are)\s+"
+        r"(?:now\s+|currently\s+|already\s+|still\s+|indeed\s+|definitely\s+|certainly\s+|clearly\s+|also\s+)?"
+        # "on" before a noun is a preposition, not a state: "the fan is on a relay", "the
+        # fan is on your wall regulator" explain the wiring and claim nothing (10-14).
+        r"(?:(?:off|on)\b(?!\s+(?:a|an|the|your|my|his|its|this|that|our|one|two)\b)|running|at\s+\d+|dimming|"
+        r"brightening|spinning|slowing|glowing)",
+        # "quiet" left this list on 10-14: "the room is quiet" is the sensors' news, not a
+        # claim about the switches, and earned an irrelevant "I haven't checked the light".
         r"^\W*(?!if\b|when\b|once\b|whenever\b|while\b|unless\b|until\b).{0,30}?\b(?:the|your)\s+room"
         r"(?:\s+temperature)?\s+(?:is|should|will|would)\s+(?:now\s+)?(?:be\s+)?(?:now\s+)?(?:\w+\s+)?"
-        r"(?:cool|cooler|warm|warmer|dark|darker|bright|brighter|lit|dim|dimmer|quiet|regulated|comfortable)\b",
+        r"(?:cool|cooler|warm|warmer|dark|darker|bright|brighter|lit|dim|dimmer|regulated|comfortable)\b",
         # "The room will dim and the fan will slow" (live run, 10-12)
         r"^\W*(?!if\b|when\b|once\b|whenever\b|while\b|unless\b|until\b).{0,30}?\b(?:the|your)\s+"
         r"(?:room|lights?|lamp|fan)\s+will\s+(?:now\s+)?(?:dim|brighten|slow|speed up|turn|switch|go)\b",
@@ -124,10 +141,12 @@ KINDS: dict[str, tuple[list, list]] = {
     ), _rx(_I_CAN + r"(?:send|message|text|email|e-mail|forward|call|ring|phone|whatsapp|" + _TELL + r"|inform|"
            r"notify|let\s+(?!you\b)\w+(?:\s+\w+)?\s+know)\b" + _NOT_YOU)),
     "track": (_rx(
+        # "I'm counting on you" and "I'm watching the clock" are figures of speech, not
+        # tracking (both earned the long "I can't track that" tail in review, 10-14).
         _I_WILL + r"(?:keep\s+(?:a\s+)?(?:track|tabs|an eye|a log|a record|count)|track|monitor|watch over|log|"
-        r"record|count|measure)\b",
-        _I_ING + r"(?:tracking|monitoring|logging|recording|counting|measuring|watching (?:over\s+)?(?:you|your|the)|"
-        r"keeping (?:track|tabs|an eye|count))\b",
+        r"record|count(?!\s+on\b)|measure)\b",
+        _I_ING + r"(?:tracking|monitoring|logging|recording|counting(?!\s+on\b)|measuring|watching (?:over\s+)?"
+        r"(?:you\b|your\b|the\s+(?:room|house|door|desk|bed)\b)|keeping (?:track|tabs|an eye|count))\b",
         _I_DID + r"(?:started\s+)?(?:tracking|monitoring|logging|recording|logged|recorded|tracked|counted|measured)\b",
         _I_PAST + r"(?:logged|recorded|tracked|counted|measured)\b",
     ), _rx(_I_CAN + r"(?:track|monitor|log|record|count|measure|keep track)\b")),
@@ -165,6 +184,13 @@ KINDS: dict[str, tuple[list, list]] = {
         r"^\W*(?:the\s+)?(?:music|song|track|playback|volume)\s+(?:is\s+|has\s+been\s+)?(?:now\s+)?"
         r"(?:paused|stopped|skipped|resumed|muted)\b",
         r"^\W*(?:skipping|skipped)\s+(?:ahead\s+)?(?:to\s+)?(?:the\s+)?(?:next|previous)\b",
+        # 10-14, five times with no tool called: a song "located" in his Spotify library and
+        # "playing now", a song "initiated" from the music folder, a song to be "brought" to
+        # Spotify. None of these verbs counted as a media claim before.
+        r"^(?!.*\b(?:nothing|not|isn't|no)\b).*\bplaying\s+(?:it\s+)?now\b",
+        _I_DID + r"(?!(?:found|located)\s+(?:nothing|no)\b)(?:located|found|initiated|started|launched|opened|"
+        r"brought|pulled\s+up|cued(?:\s+up)?|loaded|lined\s+up)\b" + _MEDIA_FAR,
+        _I_WILL + r"(?:bring|pull\s+up|open|load|cue(?:\s+up)?|find|locate)\b" + _MEDIA_FAR,
     ), _rx(_I_CAN + r"(?:play|put on|queue|stream)\b" + _MEDIA,
            _I_CAN + r"(?:pause|skip|resume|mute|turn\s+(?:up|down))\b" + _PLAYBACK)),
     "memory": (_rx(
@@ -185,6 +211,9 @@ KINDS: dict[str, tuple[list, list]] = {
         r"\b(?:the|your)\s+room\s+(?:is|looks|seems)\s+(?:empty|occupied)\b",
         r"\bthere(?:'s| is| are)\s+(?:someone|somebody|nobody|no one|\w+ people)\s+in\s+(?:the|your)\s+room\b",
         r"\b(?:sensors|aankhen)\s+(?:show|shows|say|says|see|sees|detect|detects)\b",
+        # Live run, 10-14, with no sensor line in the prompt: "By my sensors, you're at your
+        # desk, typing" — the persona's hedge, used to report what nothing reported.
+        r"\b(?:by my sensors|aankhen (?:reckons|confirms|reports|says))\b[^.?!]{0,30}?\byou(?:'re|\s+are|\s+were)\b",
     ), []),
     "lookup": (_rx(
         r"\blet me (?:just\s+)?(?:check|find out|have a look|take a look|look into|pull (?:that|it) up)\b[^.?!,]*[,.]?",
@@ -214,6 +243,22 @@ KINDS: dict[str, tuple[list, list]] = {
         r"\b(?:aankhen|my sensors|the sensors|my staff|I can see|I see|I notice|I spot|I detect)\b[^.?!]{0,80}?"
         r"\b(?:head is|head's|eyes are|eyes fixed|eyes glued|gaze|staring|tilted|leaning|slouch\w*|hunch\w*|"
         r"frown\w*|smil\w*|fingers?|elbows?|posture|face)\b",
+    ), []),
+    # Work on his own, later, or on hardware no tool reaches. No tool backs this kind, so a
+    # claim is always replaced (registry.CANNOT puts the same rule in the persona).
+    "promise": (_rx(
+        _I_WILL + r"(?:get back to you|come back to you|follow up|check back|circle back|report back|"
+        r"keep\s+(?:looking|searching|trying|working|digging|at it)|"
+        r"run\s+(?:a\s+|an\s+|the\s+|some\s+)?(?:quick\s+|full\s+|manual\s+|proper\s+)?(?:diagnostics?|diagnosis|scan|"
+        r"check|test|reset)|diagnose|debug|troubleshoot|investigate|"
+        + _FIX_VERB + r"\s+(?:it|that|this|the|your|my)\b)",
+        _I_DID + r"(?:updated|adjusted|changed|reconfigured|recalibrated|retuned|tuned|reset|rebooted|restarted|"
+        r"fixed|repaired|reprogrammed|upgraded|diagnosed|debugged)\s+(?:my|the|your|it|that|this)\b",
+        _I_DID + r"(?:checked|scanned|tested|probed|pinged)\s+(?:the|your)\s+(?:[\w-]+\s+){0,2}?(?:ports?|boards?|"
+        r"devices?|connection|firmware|esp32[\w-]*|uno|arduino|sensors?|drivers?|serial|com\s?\d+|wiring|relays?)\b",
+        # "I'll ... in two minutes", unless it is a reminder or a timed switch a tool sets.
+        r"\b(?:I'll|I will|I shall)\b(?![^.?!]{0,60}\b(?:remind|wake|alert|ping|notify|alarm|timer|turn|switch|set)\b)"
+        r"[^.?!]{0,60}\b" + _LATER,
     ), []),
     "generic": (_rx(
         r"^\W*(?:done|all done|all set|consider it done|sorted|right away|on it|will do|it'?s done|that'?s done|"
@@ -253,14 +298,20 @@ CANNOT_SAY = {
              "German\", and Aankhen's record of where you were and how much you moved.",
     "perception": "I can't see that much detail: Aankhen's Wi-Fi tells me where you are and roughly how you're "
                   "moving, not angles, fingers or faces.",
-    "web": "I have no internet access, so I can't search, see news or weather, upload, book or buy anything.",
+    # Until 10-14: "I have no internet access, so I can't search ...", said in the same
+    # session in which play_media had just opened YouTube's top result for a song. The
+    # one thing he CAN open online is a song, so the line says so.
+    "web": "I can't browse or search the web, so no news, weather, uploads or bookings; the one thing I can open "
+           "online is a song: say \"play\" and its name.",
     "media": "I can't play music or videos yet.",
+    "promise": "I can't do that on my own or come back to you later; I only act while you're talking to me.",
     "memory": "I haven't saved that. Say \"remember that …\" and I'll keep it.",
     "presence": "I can't see who is in the room right now.",
     "generic": "I haven't done anything yet.",
     "lookup": "",
 }
 UNREACHABLE = "I can't control that from here; I can only switch the room's light and fan."
+_LIGHTISH = re.compile(r"\b(?:dark|darker|bright|brighter|lit|dim|dimmer)\b", re.I)   # "the room is dark": the light
 SIM_NOTE = {"switch": "Virtual room only; no relay board is connected.",
             "switch_state": "Virtual room only; no relay board is connected."}
 
@@ -396,6 +447,48 @@ def _remember_said(line: str) -> None:
 def forget_recent() -> None:
     """A new conversation: every correction may be said once again."""
     _recent.clear()
+    _recent_receipts.clear()
+
+
+# What earlier turns of this conversation really did. 10-13: the room fast path switched
+# the light and fan; on the next turn (he asked for more detail) the model said it had, and
+# the guard, judging only that turn's receipts, answered "I haven't switched anything yet"
+# — false. A PAST-tense claim may now cite a receipt from the last few minutes; a promise
+# ("I'll turn it off") still needs one from this turn.
+RECENT_RECEIPT_S = 180.0
+CARRY_KINDS = ("switch", "media")
+_PAST_TENSE = re.compile(r"\bI(?:'ve| have)\b|\bI\s+(?:just\s+|already\s+)?\w+ed\b|\b(?:has|have)\s+been\b|"
+                         r"^\W*(?:turned|switched|paused|skipped)\b", re.I)
+_recent_receipts: list = []
+
+
+def note_receipts(receipts: list[Receipt], now: Optional[float] = None) -> None:
+    """Keep this turn's successful receipts for the next few minutes (see CARRY_KINDS)."""
+    import time
+    t = now or time.time()
+    _recent_receipts[:] = [(at, r) for at, r in _recent_receipts if t - at < RECENT_RECEIPT_S]
+    _recent_receipts.extend((t, r) for r in receipts if r.ok and r.backs)
+
+
+def _earlier(now: Optional[float] = None) -> list[Receipt]:
+    import time
+    t = now or time.time()
+    return [r for at, r in _recent_receipts if t - at < RECENT_RECEIPT_S]
+
+
+def _backing(kind: str, body: str, receipts: list[Receipt]) -> list[Receipt]:
+    got = _backed(kind, receipts)
+    if not got and kind in CARRY_KINDS and _PAST_TENSE.search(plain(body)):
+        got = _backed(kind, _earlier())
+    return got
+
+
+# A claim the guard can make TRUE instead of only correcting it: read the switches
+# (room_state, read-only) for a state claim; play the song for a "playing now" or "I'll
+# search YouTube for it" (10-14: five unbacked "playing now" replies in a row, while the
+# player sat unused). The agent supplies the rescuer (it knows what he asked); at most one
+# per group per reply.
+RESCUE_GROUP = {"switch_state": "room", "media": "play", "web": "play"}
 
 
 def check(text: str, registry: Registry, receipts: list[Receipt], log: Optional[list] = None,
@@ -414,17 +507,43 @@ def check(text: str, registry: Registry, receipts: list[Receipt], log: Optional[
         if not found:
             out.append(sent)
             continue
-        replace, drop_lookup = [], False
+        replace, drop_lookup, drop_rescued = [], False, False
+        fresh = state.setdefault("fresh", set())         # lines from a rescue: news, never muted
         for kind, mode in found:
-            backing = _backed(kind, receipts)
+            backing = _backing(kind, body, receipts)
             if mode == "offer" and registry.can(kind):
                 continue                                  # offering what a tool really does is fine
             if mode == "assert" and backing:
+                if all(any(r is x for x in state.get("rescue_receipts", ())) for r in backing):
+                    # Backed only by what a rescue just read or did: that receipt was said
+                    # already, and the model's wording ("spinning fast") is not what it read.
+                    drop_rescued = True
+                    continue
                 # Backed, but only by a virtual room: he must hear that, once (sim_note).
                 if kind in SIM_NOTE and all(r.simulated for r in backing):
                     state.setdefault("sim_pending", SIM_NOTE[kind])
                 continue
-            line = honest_line(kind, registry, receipts)
+            line = None
+            group = RESCUE_GROUP.get(kind)
+            rescue = state.get("rescue")
+            if kind == "switch_state" and not _REACHABLE.search(plain(body)) and not _LIGHTISH.search(body):
+                # "The room is now comfortably cool": the AC, not the light or fan, so
+                # "I haven't checked the light and fan" would answer something unsaid.
+                line = UNREACHABLE
+            elif rescue is not None and group and mode == "assert" and group not in state.setdefault("rescued", set()):
+                try:
+                    r = rescue(kind, body)
+                except Exception as e:                    # a rescue must never break the reply
+                    r = None
+                    print(f"\n[Honesty rescue error: {e}]")
+                if r is not None:
+                    state["rescued"].add(group)
+                    state.setdefault("rescue_receipts", []).append(r)
+                    receipts.append(r)
+                    line = r.did
+                    fresh.add(line)
+            if line is None:
+                line = honest_line(kind, registry, receipts)
             if kind == "switch" and line == HAVENT["switch"] and not _REACHABLE.search(plain(body)):
                 line = UNREACHABLE                        # the AC, the TV: no tool reaches them at all
             if log is not None:
@@ -438,13 +557,15 @@ def check(text: str, registry: Registry, receipts: list[Receipt], log: Optional[
             if len(replace) > 1 or state.get("corrected"):
                 replace = [(k, ln) for k, ln in replace if k != "generic"] or []
             lines = [ln for ln in dict.fromkeys(ln for _, ln in replace)
-                     if ln and ln not in said and not _said_lately(ln)]
+                     if ln and ln not in said and (ln in fresh or not _said_lately(ln))]
             said.update(lines)
             for ln in lines:
                 _remember_said(ln)
             if lines:
                 out.append(lead + " ".join(lines))
                 state["corrected"] = True
+            continue
+        if drop_rescued:
             continue
         if drop_lookup:
             body = plain(body)
@@ -467,7 +588,8 @@ class Guard:
     settle() — by then the tools have run and their receipts can back it."""
 
     def __init__(self, registry: Registry, receipts: list[Receipt], hold_claims: bool = False,
-                 split: Optional[Callable[[str, bool], tuple[str, str]]] = None):
+                 split: Optional[Callable[[str, bool], tuple[str, str]]] = None,
+                 rescue: Optional[Callable[[str, str], Optional[Receipt]]] = None):
         self.registry, self.receipts = registry, receipts
         self.hold_claims = hold_claims
         self.split = split or split_ready
@@ -475,7 +597,7 @@ class Guard:
         self.held: list[str] = []
         self.released = ""
         self.verdicts: list[Verdict] = []
-        self._state: dict = {}
+        self._state: dict = {"rescue": rescue} if rescue is not None else {}
 
     def emit(self, text: str) -> str:
         """Check and release `text` now (also used for a reply built from receipts)."""
@@ -508,8 +630,16 @@ class Guard:
         held, self.held = "".join(self.held), []
         return self.emit(held) if held else ""
 
-    def finish(self) -> str:
+    def finish(self, capped: bool = False) -> str:
+        """Release what is left. `capped`: the model hit its token limit, so the tail is
+        a sentence cut in half (10-14: a story ended "Discipline is not control; it");
+        the reply then ends at its last complete sentence instead."""
         rest, self.buf = self.buf, ""
+        if capped and rest.strip() and not _ENDS_SENTENCE.search(rest):
+            if (self.released + "".join(self.held)).strip():
+                rest = ""
+            else:
+                rest = rest.rstrip(" ,;:-—–") + "…"         # nothing complete at all: mark the cut
         out = self.settle()
         if rest.strip():
             out += self.emit(rest)
@@ -532,6 +662,6 @@ def unbacked(text: str, registry: Registry, receipts: list[Receipt]) -> list[tup
             if mode == "offer":
                 if not registry.can(kind):
                     bad.append((kind, mode, sent.strip()))
-            elif not _backed(kind, receipts):
+            elif not _backing(kind, sent, receipts):
                 bad.append((kind, mode, sent.strip()))
     return bad

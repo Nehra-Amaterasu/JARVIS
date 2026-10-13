@@ -6,6 +6,7 @@
     python -m aankhen calibrate --seconds 70 [--fan]         empty-room Wi-Fi baseline (fan off / on)
     python -m aankhen bench [FILES...] [--sim --seeds 5]     score against ground truth
     python -m aankhen simulate --scenario evening --seconds 220 --out recordings/x.akr
+    python -m aankhen worldmodel train|eval [RECORDINGS...] --out MODEL  self-supervised world model
 
 Run from the JARVIS folder with the project venv (.venv). Layout, baselines,
 recordings and models live in data/aankhen/.
@@ -382,6 +383,45 @@ def cmd_learn(a) -> int:
     return 0
 
 
+def cmd_worldmodel(a) -> int:
+    """Self-supervised world model of the Wi-Fi change picture (worldmodel.py), and how it
+    scores against human-band energy and the hand-made features (worldeval.py)."""
+    # CPU only: the GPU belongs to the local LLM and Whisper. Set before torch loads.
+    os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
+    from . import worldmodel as wm
+    out = a.out or wm.MODEL_FILE
+    if a.action == "train":
+        # recordings/*.akr only: recordings/discarded/ (mislabelled sessions) is never read
+        paths = a.recordings or sorted(glob.glob(os.path.join(RECORDINGS, "*.akr")))
+        paths = [p for p in paths if not any(x in os.path.basename(p) for x in a.exclude)]
+        if not paths:
+            print("No recordings to learn from.")
+            return 1
+        print(f"pictures from {len(paths)} recordings ({'amplitude + phase' if a.phase else 'amplitude'})...")
+        pics = [wm.change_picture(wm.replay(p, phase=a.phase), phase=a.phase) for p in paths]
+        m = wm.train(pics, kind=a.kind, seed=a.seed, minutes=a.minutes, threads=a.threads,
+                     **({"max_steps": a.steps} if a.steps else {}))
+        m.save(out)
+        v = m.meta
+        print(f"{v['kind']} model, {v['parameters']} parameters, {v['minutes_of_data']} min of pictures, "
+              f"{v['steps']} steps in {v['seconds']:.0f} s -> {out}")
+        b = v["validation_baselines"]
+        print(f"held-out minutes, error of the next 0.5 s (noise units^2): network {v['validation_error']}, "
+              f"linear {b['linear']}, last frame held {b['persist']}, zero {b['zero']}")
+        return 0
+    from . import worldeval as we
+    m = wm.WorldModel.load(out)
+    if m is None:
+        print(f"No world model at {out}: run `python -m aankhen worldmodel train` first.")
+        return 1
+    rep = we.evaluate(m, a.recordings or we.default_paths(), features=not a.no_features)
+    we.print_report(rep)
+    if a.json:
+        with open(a.json, "w", encoding="utf-8") as fh:
+            json.dump(rep, fh, indent=1, default=float)
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="python -m aankhen", description=__doc__.split("\n")[0])
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -467,10 +507,27 @@ def main(argv=None) -> int:
     ln.add_argument("--out", help="(simulate) dataset path; (train) model path")
     ln.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2))
 
+    wm = sub.add_parser("worldmodel", help="self-supervised world model of the change picture: train, eval")
+    wm.add_argument("action", choices=["train", "eval"],
+                    help="train: learn to predict the next 0.5 s · eval: surprise vs HBE, embedding vs features")
+    wm.add_argument("recordings", nargs="*",
+                    help="(train) .akr files, default every recording; (eval) labelled ones, default teach-room-*")
+    wm.add_argument("--out", help="model file (default data/aankhen/models/worldmodel.pt)")
+    wm.add_argument("--exclude", nargs="*", default=[],
+                    help="(train) leave out recordings whose name contains any of these (the sessions you score)")
+    wm.add_argument("--kind", choices=["causal", "shared", "masked"], default="shared")
+    wm.add_argument("--phase", action="store_true", help="(train) add the phase-residual channels")
+    wm.add_argument("--minutes", type=float, default=10.0, help="(train) CPU time budget")
+    wm.add_argument("--steps", type=int, help="(train) stop after this many steps (reproducible, unlike a time budget)")
+    wm.add_argument("--seed", type=int, default=0)
+    wm.add_argument("--threads", type=int, default=3, help="(train) CPU threads for torch")
+    wm.add_argument("--json", help="(eval) also write the report as JSON")
+    wm.add_argument("--no-features", action="store_true", help="(eval) skip the zone / activity comparison")
+
     a = p.parse_args(argv)
     return {"doctor": cmd_doctor, "serve": cmd_serve, "record": cmd_record,
             "calibrate": cmd_calibrate, "bench": cmd_bench, "simulate": cmd_simulate,
-            "physics": cmd_physics, "validate": cmd_validate, "learn": cmd_learn,
+            "physics": cmd_physics, "validate": cmd_validate, "learn": cmd_learn, "worldmodel": cmd_worldmodel,
             "learnroom": lambda a: print(__import__("aankhen.firstlight", fromlist=["x"]).run_room_session(a.port, not a.no_voice, a.rounds)) or 0,
             "firstlight": lambda a: __import__("aankhen.firstlight", fromlist=["main"]).main(a.port, not a.no_voice)}[a.cmd](a)
 

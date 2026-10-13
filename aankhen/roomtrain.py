@@ -43,9 +43,10 @@ def rule_activity(X: np.ndarray) -> np.ndarray:
     """No training: human-band energy against this session's own still level. Still
     under 2x, typing up to 4x, walking when the slow band (0.4-1 Hz, gait) dominates,
     waving otherwise. A baseline, not a product."""
-    hbe = np.exp(X[:, FEATURES.index("log_hbe")])
-    slow = np.exp(X[:, FEATURES.index("log_band_0.4_1")])
-    fast = np.exp(X[:, FEATURES.index("log_band_1_2")]) + np.exp(X[:, FEATURES.index("log_band_2_4")])
+    # features are log10 (learn.py): np.exp made the 2x/4x thresholds really 4.9x/20x
+    hbe = 10.0 ** (X[:, FEATURES.index("log_hbe")])
+    slow = 10.0 ** (X[:, FEATURES.index("log_band_0.4_1")])
+    fast = 10.0 ** (X[:, FEATURES.index("log_band_1_2")]) + 10.0 ** (X[:, FEATURES.index("log_band_2_4")])
     floor = np.percentile(hbe, 10)
     r = hbe / max(floor, 1e-9)
     return np.where(r < 2.0, "still", np.where(r < 4.0, "typing", np.where(slow > fast, "walking", "waving")))

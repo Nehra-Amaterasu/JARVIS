@@ -48,6 +48,35 @@ def test_whisper_phantoms_on_near_silence_become_nothing():
         assert text == "" and meta["phantom"]
 
 
+def test_a_short_unsure_line_is_dropped_not_answered():
+    """Noise right after JARVIS spoke came back as a few nonsense words (10-14 review)."""
+    for s in (seg("Okay. Sit, Bruno.", logprob=-0.95), seg("parallel and both", no_speech=0.55, logprob=-0.4)):
+        m = FakeModel({None: ("en", [s])})
+        text, meta = stt.transcribe(m, "clip")
+        assert text == "" and meta["low_confidence"] and meta["dropped_text"] == s.text
+
+
+def test_a_short_clear_command_survives():
+    m = FakeModel({None: ("en", [seg("lights off", logprob=-0.3)])})
+    assert stt.transcribe(m, "clip")[0] == "lights off"
+
+
+def test_a_long_sentence_is_not_held_to_the_short_bar():
+    m = FakeModel({None: ("en", [seg("I was thinking we could revise the adder chapter tonight", logprob=-0.9)])})
+    assert stt.transcribe(m, "clip")[0].startswith("I was thinking")
+
+
+def test_hindi_keeps_whispers_bar_and_his_name_is_never_dropped():
+    m = FakeModel({None: ("hi", [seg("पंखा बंद करो", logprob=-0.9)])})
+    assert stt.transcribe(m, "clip")[0] == "पंखा बंद करो"                 # -0.9 passes Hindi's -1.0
+    m = FakeModel({None: ("en", [seg("Jarvis?", logprob=-1.2)])})
+    assert stt.transcribe(m, "clip")[0] == "Jarvis?"
+
+
+def test_the_short_bar_is_stricter_than_whispers_own():
+    assert stt.SHORT_MIN_LOGPROB > -1.0 and stt.SHORT_MAX_NO_SPEECH < 0.6 and stt.SHORT_MIN_LOGPROB_HI == -1.0
+
+
 def test_real_sentences_that_contain_thanks_survive():
     m = FakeModel({None: ("en", [seg("thank you for the help with Verilog")])})
     assert stt.transcribe(m, "clip")[0] == "thank you for the help with Verilog"

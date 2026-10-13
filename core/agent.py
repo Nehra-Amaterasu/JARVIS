@@ -43,6 +43,9 @@ import time
 from tools import honesty
 from tools import media as media_words
 from tools import when as when_mod
+from tools import rescue as rescue_mod
+import longform               # a story gets a bigger budget; a capped reply ends on a full sentence
+import wake                   # "Hey Jarvis!" on its own gets "Sir?", not a sensor report
 from tools.builtin import ToolContext, default_registry, say as say_receipts
 from tools.registry import Receipt
 
@@ -175,6 +178,7 @@ TRUTH, which outranks style:
 - CONFIRMED FACTS are ground truth; use them. PAST CHAT FRAGMENTS are old social messages, possibly other people's words or years out of date; never repeat them as facts about him or as advice.
 - If you do not know something about him, say so plainly and ask. Never guess and never invent; he asked for honesty over flattery.
 - Never say you switched a light, the fan or anything else unless a tool result in this conversation confirms it.
+- You act only while he is talking to you. Never promise to check, fix, diagnose or keep looking later, or to get back to him: when the reply ends, nothing more happens.
 - For the date or time, use the NOW line. Never make it up.
 - YOUR SENSES are Aankhen, the room's Wi-Fi sensing, and your staff, the live agents under YOUR STAFF. They tell you whether he is in his room, which spot he is at (the desk, the bed, elsewhere in the room), roughly what he is doing (still, typing, waving or moving his arms, walking), for how long, and how restless he has been. Nothing finer: one Wi-Fi link cannot see fingers, joint angles, posture, faces or expressions, so never describe them and never invent a number. What your staff report is an estimate: say "by my sensors" or "Aankhen reckons". If YOUR STAFF says the sensors are off or simulated, you cannot see him at all.
 
@@ -558,8 +562,10 @@ def media_reply(user_input: str, ctx: ToolContext, receipts: list) -> Optional[s
     Runs before the room parser, so "play Turn On The Lights by Future" is a song; the
     parser itself hands "fan chalao" back to the room."""
     intent = media_words.parse(user_input, room_parse=room.parse)
-    if intent is None:
-        return None
+    # "play that": the song JARVIS just suggested, not a YouTube search for "that" (10-14).
+    intent = media_words.resolve(intent, user_input, [said for _, said in _short_term])
+    if intent is None or isinstance(intent, str):
+        return intent
     if intent.op == "play":
         r = REGISTRY.call("play_media", {"query": intent.query, "source": intent.source}, ctx)
     elif intent.op == "control":
@@ -587,6 +593,7 @@ _TIME_QUESTION = re.compile(
 def _publish(receipts: list, verdicts: list) -> None:
     """Receipts and replaced claims go to the app (Core tab, transcript review)."""
     last_turn["receipts"], last_turn["verdicts"] = list(receipts), list(verdicts)
+    honesty.note_receipts(receipts)       # "I've turned the light on" next turn is still true
     try:
         import appio
         for r in receipts:
@@ -682,6 +689,8 @@ def run_agent(user_input: str) -> str:
         for device, action, value in commands:
             if device == "environment":
                 receipts.append(REGISTRY.call("set_scene", {"scene": "focus" if action == "deep_focus" else action}, ctx))
+            elif action == "level":              # speed/brightness: relays only switch (room.no_levels)
+                receipts.append(Receipt("room_levels", "T0", True, room.no_levels(device), source="core/room.py"))
             else:
                 receipts.append(REGISTRY.call("set_device", {"device": device, "action": action, "value": value}, ctx))
         yield direct(say_receipts(receipts))
@@ -690,6 +699,10 @@ def run_agent(user_input: str) -> str:
     if _TIME_QUESTION.match(user_input or ""):
         receipts.append(REGISTRY.call("get_datetime", {}, ctx))
         yield direct(receipts[-1].did)
+        return
+    # 0e. His name and nothing else ("Hey Jarvis!", "Jarvis?"): a butler's word, no model.
+    if wake.name_only(user_input):
+        yield direct(wake.acknowledgement())
         return
     # 1. Fetch Deep Memories
     # People + past conversations, only when the message names someone or asks
@@ -775,6 +788,9 @@ def run_agent(user_input: str) -> str:
     instruction = voice_mod.turn_instruction(style)
     if instruction:
         parts.append(instruction)
+    long_form = longform.wants_long(user_input)
+    if long_form:
+        parts.append(longform.INSTRUCTION)
     parts.append("HE SAID: " + user_input)
     human_turn = "\n\n".join(parts)
 
@@ -800,14 +816,20 @@ def run_agent(user_input: str) -> str:
         active_llm = b_precise_tools if recall_block else b_tools
     else:
         active_llm = b_precise if recall_block else b_plain
+    if long_form:
+        active_llm = longform.with_budget(active_llm)
     # Every sentence passes the honesty guard before it reaches the voice. In a round
     # where the model may still call a tool, a sentence that claims something waits
-    # until the tools have run, so their receipts can back it.
-    guard = honesty.Guard(REGISTRY, receipts, hold_claims=wants_tools, split=voice_mod.split_ready)
+    # until the tools have run, so their receipts can back it. The rescuer turns some
+    # unbacked claims into the real thing (tools/rescue.py: read the room, play the song).
+    rescue = rescue_mod.make(REGISTRY, ctx, user_input, [said for _, said in _short_term])
+    guard = honesty.Guard(REGISTRY, receipts, hold_claims=wants_tools, split=voice_mod.split_ready, rescue=rescue)
+    capped = False
 
     for attempt in range(2):
         ai, echoed = None, False
         for chunk in active_llm.stream(messages):
+            capped = capped or longform.capped(chunk)
             if wants_tools:
                 ai = chunk if ai is None else ai + chunk    # tool-call chunks assemble into ai.tool_calls
             if isinstance(chunk.content, str) and chunk.content:
@@ -827,7 +849,10 @@ def run_agent(user_input: str) -> str:
         print("\n[Echo guard: the reply opened like an earlier one; asking again]")
         messages[-1] = HumanMessage(content=human_turn + "\n\n" + ECHO_NUDGE)
         active_llm = b_tools if wants_tools else b_plain
-        guard = honesty.Guard(REGISTRY, receipts, hold_claims=wants_tools, split=voice_mod.split_ready)
+        if long_form:
+            active_llm = longform.with_budget(active_llm)
+        guard = honesty.Guard(REGISTRY, receipts, hold_claims=wants_tools, split=voice_mod.split_ready, rescue=rescue)
+        capped = False
 
     calls = list(getattr(ai, "tool_calls", None) or [])[:MAX_TOOL_CALLS] if ai is not None else []
     if calls:
@@ -847,7 +872,9 @@ def run_agent(user_input: str) -> str:
         # The answer from the receipts: low temperature, no tools (one round; no loops).
         guard.hold_claims = False
         try:
+            capped = False
             for chunk in b_precise.stream(messages):
+                capped = capped or longform.capped(chunk)
                 if isinstance(chunk.content, str) and chunk.content:
                     out = _tidy(guard.feed(chunk.content))
                     if out:
@@ -859,7 +886,7 @@ def run_agent(user_input: str) -> str:
             out = guard.settle() + guard.emit(" " + say_receipts(receipts))
             final_text += out
             yield out
-    out = _tidy(guard.finish())
+    out = _tidy(guard.finish(capped=capped))       # cut at the token cap: end on a whole sentence
     if out:
         final_text += out
         yield out

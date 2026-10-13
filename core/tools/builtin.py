@@ -492,7 +492,8 @@ def default_registry() -> Registry:
          "action": {"type": "string", "enum": ["on", "off", "set", "dim", "brighten"]},
          "value": {"type": "integer", "minimum": 0, "maximum": 100, "description": "level in percent, optional"}},
         ("device", "action"), Tier.T1, lambda ctx, **a: set_device(ctx, **a),
-        "switch the light and fan now", backs=("switch", "switch_state"), triggers=_RX(_ROOM_WORDS)))
+        "switch the light and fan on or off now (relays: the fan's speed is on his wall regulator, the light has "
+        "no dimmer)", backs=("switch", "switch_state"), triggers=_RX(_ROOM_WORDS)))
     reg.register(Tool(
         "set_scene", "Set a room scene: focus (light 80%, fan low), relaxation (light 30%, fan medium) or sleep "
         "(light off, fan low).", {"scene": {"type": "string", "enum": ["focus", "relaxation", "sleep"]}},

@@ -101,8 +101,13 @@ CANNOT = {
     "reminder": "set reminders, timers or alarms",
     "message": "send messages, emails or calls for you",
     "track": "track or log things over time (steps, sleep, health, spending)",
-    "web": "use the internet: search, weather, news, prices, uploads, bookings or purchases",
+    # Not "no internet access": play_media opens a song's top YouTube result or a Spotify
+    # search, and saying otherwise contradicted it in the same conversation (10-14).
+    "web": "browse or search the web (news, weather, prices, uploads, bookings, purchases); the only thing you open "
+           "online is a song, through play_media",
     "media": "play music or videos",
+    "promise": "work in the background, run diagnostics, fix or reset devices, or come back to him later: you act "
+               "only while he is talking to you, so never promise a follow-up",
     "memory": "save things to long-term memory on my own",
     "presence": "see who is in the room",
 }

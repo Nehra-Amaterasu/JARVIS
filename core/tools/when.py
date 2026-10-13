@@ -595,7 +595,8 @@ def parse_reminder(text: str, now: datetime,
     rest = _mask(t, w.spans)
     # "turn off the fan in 30 minutes", "light on at 6 am": a switch at a later time.
     if room_parse is not None and (w.relative_s or w.explicit_clock):
-        cmds = room_parse(_clean(rest))
+        # A speed or brightness request is not a switch: the relays can't do it later either.
+        cmds = [c for c in room_parse(_clean(rest)) if c[1] != "level"]
         if cmds:
             device, action, value = cmds[0]
             return ReminderIntent(op="create", kind="action", text=_clean(rest), when=w,

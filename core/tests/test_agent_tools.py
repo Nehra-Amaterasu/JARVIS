@@ -285,10 +285,16 @@ def test_an_action_he_did_not_ask_for_is_refused(brain):
 
 
 def test_tools_without_a_call_mean_no_claim(brain):
-    brain.use_app()
+    """No tool called, a state claimed: the guard READS the room (room_state, read only)
+    and says what is true instead of "I haven't checked the light and fan" (10-14)."""
+    app = brain.use_app()
     brain.bound.rounds.append(words("The light is on at full brightness."))
     out = run(brain.agent, "is the light on?")
-    assert "full brightness" not in out and "haven't checked" in out
+    assert "full brightness" not in out and "haven't checked" not in out
+    assert out.startswith("The light is on at 100 percent. The fan is on at 60 percent.")
+    assert ("GET", "/api/limbs", None) in app.calls and receipts(brain.agent)[-1].tool == "room_state"
+    assert not any(c[0] == "POST" for c in app.calls)                   # reading, never switching
+    assert honesty.unbacked(out, brain.agent.REGISTRY, receipts(brain.agent)) == []
 
 
 def test_unknown_and_disabled_tools_called_by_the_model_fail_safely(brain):
@@ -313,9 +319,9 @@ def test_room_commands_stay_instant_and_say_virtual(brain):
 
 def test_room_commands_go_through_the_app_when_it_runs(brain):
     app = brain.use_app(FakeApp(usb=True))
-    out = run(brain.agent, "fan 40 percent")
-    assert out == "The fan is on at 40 percent."
-    assert ("POST", "/api/limbs/fan", {"action": "set", "value": 40}) in app.calls
+    out = run(brain.agent, "turn on the fan")
+    assert out == "The fan is on."                    # a relay: the speed is the wall regulator's, not ours
+    assert ("POST", "/api/limbs/fan", {"action": "on", "value": None}) in app.calls
 
 
 def test_scenes_go_through_the_registry(brain):

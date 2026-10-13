@@ -4,9 +4,16 @@ ONE owner of the room's state: this module. It keeps the state on disk, drives t
 real relays, and keeps JARVIS's own copy (core/room.py, which voice commands use)
 in step:
 
-    Limbs tab / palette ─┐                         ┌─▶ ESP32 relays (USB COMMAND frame)
+    Limbs tab / palette ─┐                         ┌─▶ Uno relays (uno.py, USB serial)
                          ├─▶ Limbs.apply() ── state ┤
     "Hey Jarvis, light off" ─▶ room.apply() ─▶ event ┘  └─▶ JARVIS's room.state (stdin)
+
+Since 2026-10-13 the relays hang off an Arduino Uno (uno.py), not the ESP32: when the
+Uno transport is given, it is the ONLY relay writer (the ESP32 still answers relay
+commands for pins nothing is wired to, and would "confirm" switches that never
+happened). The board's reply is the truth: a switch counts as delivered only when the
+Uno reports the new state, and on (re)connect the app adopts the board's state (its
+relays boot OFF) instead of pushing yesterday's file onto the room.
 
 So the buttons work whether or not JARVIS is awake, and a voice command flips the
 real relay. Hardware state is reported back by the board in every STATUS frame;
@@ -94,8 +101,9 @@ def apply_command(state: dict, device: str, action: str, value=None) -> list[str
 
 
 class Limbs:
-    def __init__(self, core: CoreProcess, hub, bus: EventBus, path=FILE, circuits=None):
+    def __init__(self, core: CoreProcess, hub, bus: EventBus, path=FILE, circuits=None, relays=None):
         self.core, self.hub, self.bus, self.path = core, hub, bus, path
+        self.relays = relays                      # uno.UnoRelays, the relay transport, if any
         self._lock = threading.RLock()
         self.state = self._load()
         self._sent: dict[str, Optional[bool]] = {}        # last relay level sent to the board
@@ -110,7 +118,7 @@ class Limbs:
 
     def _notify(self, device: str, origin: str, delivered: Optional[bool]) -> None:
         ev = {"device": device, "state": dict(self.state[device]), "origin": origin, "delivered": delivered,
-              "link": "usb" if (self.hub and self.hub.can_command) else "virtual"}
+              "link": "usb" if self._linked() else "virtual"}
         for fn in list(self.listeners):
             try:
                 fn(ev)
@@ -136,6 +144,33 @@ class Limbs:
         tmp.replace(self.path)
 
     # ---------------------------------------------------------------- hardware
+    def _linked(self) -> bool:
+        if self.relays is not None:
+            return self.relays.connected
+        return bool(self.hub and self.hub.can_command)
+
+    def adopt_board(self) -> list[str]:
+        """The Uno just (re)connected: take its relay states as the room's truth."""
+        if self.relays is None:
+            return []
+        with self._lock:
+            changed = []
+            for d, on in self.relays.state.items():
+                if on is None or d not in self.state or bool(self.state[d]["on"]) == on:
+                    continue
+                self.state[d]["on"] = on
+                changed.append(d)
+            if changed:
+                self._save()
+                for d in changed:
+                    if self.core.running:
+                        try:
+                            self.core.room_command(d, "on" if self.state[d]["on"] else "off", None)
+                        except Exception:
+                            pass
+                    self._notify(d, "board", True)
+            return changed
+
     def _drive(self, devices: list[str], force: bool = False) -> dict[str, bool]:
         """Send relay commands for `devices`; returns {device: delivered}."""
         out = {}
@@ -148,6 +183,16 @@ class Limbs:
                 self.bus.publish("limbs", "refused", f"Relay {d} not switched: {blocked}", device=d)
                 continue
             on = bool(self.state[d]["on"])
+            if self.relays is not None:
+                if not force and self.relays.state.get(d) == on:
+                    out[d] = True                         # the board already reports it there
+                    continue
+                ok, why = self.relays.set(d, on)
+                out[d] = ok
+                if not ok:
+                    self.bus.publish("limbs", "relay_failed", f"{d} {'on' if on else 'off'} not confirmed: {why}",
+                                     device=d, reason=why)
+                continue
             if not force and self._sent.get(d) == on:
                 continue                                  # relay already there
             ok = bool(self.hub and self.hub.command({"relay": d, "on": on}))
@@ -157,7 +202,10 @@ class Limbs:
         return out
 
     def resync_hardware(self) -> dict[str, bool]:
-        """Push the whole room to the board (e.g. after it reconnects)."""
+        """Push the whole room to the board (e.g. after it reconnects). Not with the
+        Uno: it boots with relays OFF and the app adopts that (adopt_board)."""
+        if self.relays is not None:
+            return {}
         with self._lock:
             self._sent.clear()
             return self._drive(list(self.state), force=True)
@@ -173,6 +221,13 @@ class Limbs:
             if changed:
                 self._save()
             delivered = self._drive(changed)
+            if self.relays is not None and self.relays.connected:
+                # The Uno did not confirm: the room is what the board says, not what was asked.
+                for d, ok in delivered.items():
+                    board = self.relays.state.get(d)
+                    if not ok and board is not None and bool(self.state[d]["on"]) != board:
+                        self.state[d]["on"] = board
+                        self._save()
             # Keep JARVIS's own copy (voice commands use it) in step.
             if origin != "core" and self.core.running:
                 try:
@@ -222,8 +277,11 @@ class Limbs:
     # ---------------------------------------------------------------- view
     def view(self) -> dict:
         info = self.core.info()
-        reported = (self.hub.device_status().get("relays") if self.hub else None) or {}
-        usb = bool(self.hub and self.hub.can_command)
+        if self.relays is not None:
+            reported = dict(self.relays.state)
+        else:
+            reported = (self.hub.device_status().get("relays") if self.hub else None) or {}
+        usb = self._linked()
         devices = []
         for d in DEVICES:
             st = self.state[d["id"]]
@@ -242,12 +300,19 @@ class Limbs:
                     "relay_safe": c.relay_safe, "refused": c.refused, "speed_steps": c.speed_steps,
                     "example": self.circuits.example},
             })
-        if usb:
+        if self.relays is not None:
+            r = self.relays.view()
+            hardware = (f"Relay board (Arduino Uno) on {r['port']}: switches drive the real light and fan, "
+                        f"and each one counts only when the board confirms it." if usb else
+                        f"Relay board (Arduino Uno) not connected: {r['error'] or 'waiting for it'}. "
+                        f"The room is virtual until it is back.")
+        elif usb:
             hardware = "ESP32 connected over USB: switches drive the real relays."
         else:
             hardware = "No relay board connected: the room is virtual until the ESP32 is plugged in."
         return {"devices": devices, "scenes": SCENES, "core_running": info["running"],
-                "usb": usb, "mqtt": info.get("mqtt"), "hardware": hardware}
+                "usb": usb, "mqtt": info.get("mqtt"), "hardware": hardware,
+                "relay_board": self.relays.view() if self.relays is not None else None}
 
 
 def _load_circuits():

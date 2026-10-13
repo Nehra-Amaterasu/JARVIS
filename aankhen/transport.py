@@ -76,6 +76,12 @@ class PortCandidate:
         return f"{self.device}  [{ids}]  {self.chip or self.description}"
 
 
+# Arduino LLC / Arduino SRL USB vendor ids: an Uno, never an Aankhen ESP32.
+ARDUINO_VIDS = {0x2341, 0x2A03}
+# Ports another owner holds (the Uno relay transport registers its port here).
+CLAIMED_PORTS: set[str] = set()
+
+
 def list_candidate_ports(include_all: bool = False, comports: Optional[Callable] = None) -> list[PortCandidate]:
     """Every USB serial port, the likeliest ESP32 first. Listing opens nothing.
 
@@ -89,6 +95,11 @@ def list_candidate_ports(include_all: bool = False, comports: Optional[Callable]
     for p in comports():
         vid = getattr(p, "vid", None)
         if vid is None and not include_all:
+            continue
+        # The Uno relay board belongs to the app's Uno transport (jarvis_app/uno.py).
+        # Opening an Uno's port pulses DTR, its reset line, which drops both relays:
+        # never probe an Arduino id, nor any port the transport has claimed.
+        if vid in ARDUINO_VIDS or p.device in CLAIMED_PORTS:
             continue
         out.append(PortCandidate(p.device, vid, getattr(p, "pid", None), getattr(p, "description", "") or "",
                                  USB_SERIAL_CHIPS.get(vid, ""), getattr(p, "serial_number", None)))

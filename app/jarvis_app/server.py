@@ -46,7 +46,13 @@ class Services:
         self.bus = bus
         self.core = CoreProcess(bus, f"http://127.0.0.1:{guard.port}", guard.token)
         self.hub = AankhenHub()
-        self.limbs = Limbs(self.core, self.hub, bus)
+        # The relay board: an Arduino Uno on USB (uno.py) since 2026-10-13. JARVIS_UNO=0
+        # turns it off (tests); then the ESP32 hub path is used, as before.
+        from . import uno
+        self.relays = uno.UnoRelays(bus) if uno.enabled() else None
+        self.limbs = Limbs(self.core, self.hub, bus, relays=self.relays)
+        if self.relays is not None:
+            self.relays.on_connect = self.limbs.adopt_board
         self.core.room_boot_listener = self.limbs.sync_core
         self._board_was_connected = False
         self.kv = germoney.KVStore()
@@ -121,8 +127,12 @@ def create_app(guard: Guard, autostart_aankhen: str = "auto") -> FastAPI:
                 bus.publish("aankhen", "error", f"Aankhen failed to start: {e}")
         if autostart_aankhen != "off":
             threading.Thread(target=start_hub, daemon=True).start()
+        if svc.relays is not None:
+            svc.relays.start()
         watcher = asyncio.create_task(aankhen_watch())
         yield
+        if svc.relays is not None:
+            svc.relays.stop()
         watcher.cancel()
         svc.core.stop()
         svc.hub.stop()

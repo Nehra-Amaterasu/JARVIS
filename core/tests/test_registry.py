@@ -114,7 +114,9 @@ def test_capability_block_is_generated_from_the_registry():
         assert f"({t.name})" in block
     assert "send messages or make calls for him" in block.split("switched off")[1]   # T2 listed as off
     cannot = block.split("You cannot:")[1]
-    assert "use the internet" in cannot                                # no tool backs this
+    assert "browse or search the web" in cannot                        # no tool backs this
+    assert "only thing you open online is a song" in cannot            # ...but play_media opens YouTube (10-14)
+    assert "come back to him later" in cannot                          # the promise rule (10-14)
     assert "play music or videos" not in cannot and "(play_media)" in block   # a tool does, since 10-13
     assert "No money" in block and "RECEIPT" in block
     assert "set reminders" not in block.split("You cannot:")[1]        # a tool exists for that now

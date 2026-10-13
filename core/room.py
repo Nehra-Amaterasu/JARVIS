@@ -114,11 +114,50 @@ _QUESTION = _re.compile(r"^\s*(is|are|was|kya|what|which|why|how|did|does|do you
 
 MAX_COMMAND_WORDS = 14
 
+# One sentence, several orders. On 10-14 a sentence asking for the light ON and the fan
+# OFF switched BOTH off: the whole sentence was searched for a verb and "off" won. Each
+# clause now gets its own verb; a clause naming only a device ("... and the fan")
+# borrows the verb of the clause before it (or after it: "the light and the fan off").
+_CLAUSE = _re.compile(r"\s*(?:[,;]|\band then\b|\bthen\b|\band\b|\baur\b|\bphir\b|\bplus\b|\balso\b)\s*", _re.I)
+# The relays only switch (an Arduino relay board): the fan's speed is its wall regulator
+# and nothing dims the light. A speed or brightness request gets the truth, not a fake
+# percentage (10-14: a request for more fan speed got "I haven't checked the light and fan").
+_LEVEL_WORDS = _re.compile(r"\b(speed|brightness|dim(?:mer|med|ming)?|regulator|faster|slower|brighter|"
+                           r"increase|decrease|tez|dheem[ai]|level)\b", _re.I)
+LEVEL_SAY = {
+    "fan": "The fan's speed is on your wall regulator, sir; I can only switch it on or off.",
+    "light": "The light has no dimmer, sir; I can only switch it on or off.",
+    "all": "I can only switch the light and fan on or off, sir; the fan's speed is on your wall regulator.",
+}
+
+
+def no_levels(device):
+    """The one true sentence for a speed or brightness request."""
+    return LEVEL_SAY.get(device, LEVEL_SAY["all"])
+
+
+def _verb(clause):
+    """(action, value) a clause asks for, or None. On/off beat a level word ("fan on
+    full" switches it on); a level alone is a "level" request the relays cannot do."""
+    if _OFF.search(clause):
+        return "off"
+    if _ON.search(clause):
+        return "on"
+    if _PCT.search(clause) or _DIM.search(clause) or _UP.search(clause) or _LEVEL_WORDS.search(clause):
+        return "level"
+    return None
+
+
+def _wants_level(clause):
+    return bool(_PCT.search(clause) or _LEVEL_WORDS.search(clause) or _UP.search(clause) and
+                _re.search(r"\b(full|fast(er)?|tez|zyada)\b", clause, _re.I))
+
 
 def parse(text):
-    """[(device, action, value)] for an imperative room command, else []."""
+    """[(device, action, value)] for an imperative room command, else []. action is
+    on | off | level ("level": a speed or brightness request; say no_levels(device))."""
     t = (text or "").strip()
-    if not t or _QUESTION.search(t):
+    if not t:
         return []
     # Commands are short. On 10-13 this parser read 89-134-word monologues as orders
     # ("...all these things..." + "turned off the noise cancelling" -> all off) and
@@ -126,29 +165,44 @@ def parse(text):
     # turn goes to the model, which still has the switch tools when he really asks.
     if len(t.split()) > MAX_COMMAND_WORDS:
         return []
+    if _QUESTION.search(t):
+        # "Why can't you increase the fan speed?" has one true answer, whoever asks.
+        devices = [name for name, rx in _DEV if rx.search(t)]
+        if devices and _LEVEL_WORDS.search(t):
+            return [(devices[0] if len(devices) == 1 else "all", "level", None)]
+        return []
     for name, rx in _SCENE:
         if rx.search(t) and _SCENE_VERB.search(t) and not any(d.search(t) for _, d in _DEV):
             return [("environment", name, name)]
-    devices = [name for name, rx in _DEV if rx.search(t)]
-    if not devices:
-        if _ALL.search(t) and (_ON.search(t) or _OFF.search(t)):
+    clauses = []
+    for c in (p for p in _CLAUSE.split(t) if p and p.strip()):
+        devices = [name for name, rx in _DEV if rx.search(c)]
+        verb = _verb(c)
+        if not devices and _ALL.search(c) and verb in ("on", "off"):
             devices = ["all"]
-        else:
-            return []
-    pct = _PCT.search(t)
-    if pct:
-        action, value = "set", max(0, min(100, int(pct.group(1))))
-    elif _OFF.search(t):
-        action, value = "off", None
-    elif _DIM.search(t):
-        action, value = "dim", None
-    elif _UP.search(t):
-        action, value = "brighten", None
-    elif _ON.search(t):
-        action, value = "on", None
-    else:
-        return []
-    return [(d, action, value) for d in devices]
+        clauses.append([devices, verb, c])
+    # A verb with no device ("... and make it faster") acts on the device before it.
+    for i, cl in enumerate(clauses):
+        if cl[1] and not cl[0] and i > 0 and clauses[i - 1][0]:
+            cl[0] = list(clauses[i - 1][0])
+    # A device with no verb borrows the nearest verb: before it, else after it.
+    for i, cl in enumerate(clauses):
+        if cl[0] and not cl[1]:
+            before = next((c[1] for c in reversed(clauses[:i]) if c[1] and c[0]), None)
+            after = next((c[1] for c in clauses[i + 1:] if c[1]), None)
+            cl[1] = before or after
+    out = []
+    for devices, verb, c in clauses:
+        if not devices or not verb:
+            continue
+        for d in devices:
+            cmds = [(d, verb, None)]
+            if verb == "on" and _wants_level(c):
+                cmds.append((d, "level", None))      # "fan on full speed": on, and the truth about speed
+            for cmd in cmds:
+                if cmd not in out:
+                    out.append(cmd)
+    return out
 
 
 def describe(device):

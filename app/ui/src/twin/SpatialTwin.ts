@@ -57,7 +57,7 @@ export interface FrameMsg {
   }
   learned?: { t: number; state: string; p: Record<string, number>; occupied_p: number; advisory: boolean; trained: string; reference?: string
     activity?: { state: string; p: Record<string, number>; trained: string } }| null
-  csi: { n_subcarriers: number; rate_hz: number; rssi: number | null; fill_ratio: number; amplitudes: number[] }
+  csi: { channel?: number | null; n_subcarriers: number; rate_hz: number; rssi: number | null; fill_ratio: number; amplitudes: number[] }
   rates: { csi_hz: number; radar_hz: number }
   events: { id: number; t: number; ts: number; kind: string; text: string }[]
   truth?: TruthMsg[]
@@ -392,6 +392,7 @@ export class SpatialTwin {
   private radarTarget = 0
   private flowSpeed = 0
   private raf = 0
+  private paused = false
   private last = performance.now()
   private tmp = new THREE.Vector2()
   private resizeObs: ResizeObserver
@@ -776,6 +777,9 @@ export class SpatialTwin {
     for (const t of this.truths) if (!this.layers.truth) t.set(null)
   }
   resetCamera() { this.frameCameras(true) }
+  /** Stop drawing while another view covers the twin (the Aankhen page's Eyes). Frames
+   *  keep arriving, so the room is current the moment it is shown again. */
+  setPaused(p: boolean) { this.paused = p }
 
   /* ---------------------------------------------------------------- data */
   onFrame(msg: FrameMsg) {
@@ -880,7 +884,7 @@ export class SpatialTwin {
   /* ---------------------------------------------------------------- loop */
   private loop = (ts: number) => {
     this.raf = requestAnimationFrame(this.loop)
-    if (document.hidden) return
+    if (document.hidden || this.paused) { this.last = ts; return }
     const dt = Math.min((ts - this.last) / 1000, 0.1)
     this.last = ts
     const now = performance.now(), rt = now - DELAY_MS

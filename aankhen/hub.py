@@ -393,6 +393,12 @@ class AankhenHub:
     def heatmap(self, layer: str = "live") -> Optional[dict]:
         return self.engine.heatmap_message(layer) if self.engine else None
 
+    def eyes(self) -> Optional[dict]:
+        """The channel as a picture (engine.eyes_message): ripples and rhythm. Each
+        call consumes the columns built since the last, so only the streamer calls it."""
+        eng = self.engine
+        return eng.eyes_message() if eng is not None else None
+
     def status(self) -> Optional[dict]:
         if self.engine is None:
             return {"type": "status", "source": "unknown", "sensors": {}, "link": {},

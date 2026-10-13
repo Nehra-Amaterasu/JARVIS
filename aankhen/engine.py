@@ -30,6 +30,7 @@ from typing import Callable, Optional
 import numpy as np
 
 from .csi import CsiConditioner
+from .eyes import EyesBuffer
 from .fusion import Evidence, FusionConfig, PresenceFusion
 from .learn import CLASSES as LEARNED_CLASSES, OCCUPIED as LEARNED_OCCUPIED, FeatureStream, TemporalFilter
 from .motion import HBE_RECENT_GATE, STATE_MOTION, STATE_UNCALIBRATED, Baseline, MotionConfig, \
@@ -73,6 +74,9 @@ class Engine:
         self.lock = threading.RLock()
 
         self.cond = CsiConditioner()
+        # What the channel looks like, for a person to watch (eyes.py). Display only:
+        # nothing below reads it.
+        self.eyes = EyesBuffer()
         self.motion = MotionDetector(motion_cfg or MotionConfig(), baseline, fan_baseline)
         self.resp = RespirationDetector(floor=baseline.resp_floor if baseline else None)
         self.tracker_cfg = tracker_cfg or TrackerConfig()
@@ -160,6 +164,7 @@ class Engine:
 
     def _on_channel_change(self, t: float, old: int, new: int) -> None:
         self.cond = CsiConditioner()
+        self.eyes.reset()
         self.motion.restart()
         self.resp = RespirationDetector(floor=self.resp.floor)
         self._csi_settle_until = max(self._csi_settle_until, t + self.CHANNEL_SETTLE_S)
@@ -184,7 +189,9 @@ class Engine:
         self.motion.radar_empty_s = (t - self._radar_empty_since
                                      if radar_up and self._radar_empty_since is not None else None)
         self.motion.settling = self._csi_settling(t)
+        self.eyes.push_raw(t, p.raw)                 # phase needs the packet itself
         for s in self.cond.push(t, p.raw, p.rssi, gain_comp_db=p.gain_comp_db):
+            self.eyes.push(s)
             self.resp.push(s)
             if self._spatial_fs is not None:
                 v = self._spatial_fs.push(s, p.rssi, bool(self.fan_relay))
@@ -534,6 +541,19 @@ class Engine:
                 "rates": {"csi_hz": round(self.cond.rate.hz, 1), "radar_hz": round(self.radar_rate_hz(), 1)},
                 "events": [e.to_dict() for e in list(self.events)[-8:]],
             }
+
+    def eyes_message(self) -> dict:
+        """What the channel looks like right now (eyes.py), for viewers that asked.
+
+        column / phase_column: the ripples' newest columns (51 values, noise units,
+        +-6), None while warming up or when nothing arrived since the last call. Each
+        call CONSUMES what arrived, so one caller (the streamer's tick) builds it once
+        and hands the same message to every viewer."""
+        with self.lock:
+            return {"type": "eyes", "source": self.source_kind, "t": round(self.device_t or 0.0, 3),
+                    "column": self.eyes.column(), "phase_column": self.eyes.phase_column(),
+                    "spectrum": self.eyes.spectrum(), "rate_hz": round(self.cond.rate.hz, 1),
+                    "seconds": round(self.eyes.seconds, 1)}
 
     def heatmap_message(self, layer: str = "live") -> dict:
         with self.lock:

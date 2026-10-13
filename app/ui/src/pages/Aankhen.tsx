@@ -16,16 +16,35 @@
  *   sim check       only in simulation: live error between the tracked and the
  *                   true positions — the twin grades itself
  *
+ * Three views share the stage: 3D, Plan (the twin's two cameras) and Eyes
+ * (components/EyesView: the Wi-Fi channel itself, as a waterfall and a spectrum). In
+ * Eyes the twin stays mounted but paused and hidden, its HUD steps aside, and the
+ * socket asks the hub for the "eyes" stream (hello want/drop), which it only sends
+ * to viewers that ask.
+ *
  * Colour is provenance everywhere: cyan measured by the ESP32, amber simulated.
  */
-import { Box, Crosshair, GraduationCap, Home, Layers, Map as MapIcon, Pause, RotateCcw, Square, Sparkles, X } from 'lucide-react'
+import { Box, Crosshair, GraduationCap, Home, Layers, Map as MapIcon, Pause, RotateCcw, ScanEye, Square, Sparkles, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, openSocket, post } from '../lib/api'
 import { fmt, fmtDur } from '../lib/format'
 import { Presence, Ticker } from '../lib/motion'
 import { useStore, type Toast } from '../lib/store'
+import type { EyesMsg } from '../lib/eyes'
+import { EyesView } from '../components/EyesView'
 import { FirstLightSheet } from '../components/FirstLight'
 import { SpatialTwin, type FrameMsg, type Framing, type HeatMsg, type Layer, type RoomSpec } from '../twin/SpatialTwin'
+
+type View = '3d' | 'plan' | 'eyes'
+const VIEW_KEY = 'jarvis.aankhen.view'
+const savedView = (): View => {
+  try {
+    const v = sessionStorage.getItem(VIEW_KEY)
+    return v === 'plan' || v === 'eyes' ? v : '3d'
+  } catch {
+    return '3d'
+  }
+}
 
 interface HubInfo { running: boolean; mode: string | null; kind: string | null; scenario: string | null; scenarios: string[]; baseline: string; error: string | null; layout?: string }
 interface StatusMsg {
@@ -77,7 +96,10 @@ export function AankhenPage() {
   const [status, setStatus] = useState<StatusMsg | null>(null)
   const [room, setRoom] = useState<RoomSpec | null>(null)
   const [online, setOnline] = useState(false)
-  const [view, setView] = useState<'3d' | 'plan'>('3d')
+  const [view, setViewState] = useState<View>(savedView)
+  const viewRef = useRef<View>(view)
+  // The eyes stream (10 Hz) goes straight to EyesView's drawing loop, never through React state.
+  const eyesSink = useRef<((m: EyesMsg) => void) | null>(null)
   const [framing, setFramingState] = useState<Framing>('room')
   const [heatLayer, setHeatLayer] = useState<'live' | 'learned'>('live')
   const [layers, setLayers] = useState<Record<Layer, boolean>>({ walls: true, heat: true, fov: true, fresnel: true, trails: true, labels: true, truth: true, house: true })
@@ -89,10 +111,14 @@ export function AankhenPage() {
   useEffect(() => {
     const t = new SpatialTwin(host.current!)
     twin.current = t
+    if (viewRef.current === 'plan') t.setView('plan')
+    t.setPaused(viewRef.current === 'eyes')
     ;(window as unknown as { __twin: () => unknown }).__twin = () => t.probe()
     sock.current = openSocket('/ws/aankhen', (raw) => {
       const m = raw as { type: string }
-      if (m.type === 'room') {
+      if (m.type === 'eyes') {
+        eyesSink.current?.(m as EyesMsg)
+      } else if (m.type === 'room') {
         const r = (m as unknown as { room: RoomSpec }).room
         t.setRoom(r)
         setRoom(r)
@@ -112,7 +138,8 @@ export function AankhenPage() {
       }
     }, (s) => {
       setOnline(s === 'open')
-      if (s === 'open') sock.current?.send({ type: 'hello', want: 'snapshot', layer: 'live' })
+      // a reconnect starts a new subscription: ask for the eyes again if they are on screen
+      if (s === 'open') sock.current?.send({ type: 'hello', want: viewRef.current === 'eyes' ? ['snapshot', 'eyes'] : 'snapshot', layer: 'live' })
     })
     return () => {
       sock.current?.close()
@@ -126,7 +153,18 @@ export function AankhenPage() {
     setLayers({ ...layers, [l]: on })
     twin.current?.setLayer(l, on)
   }
-  const switchView = (v: '3d' | 'plan') => { setView(v); twin.current?.setView(v) }
+  const switchView = (v: View) => {
+    const was = viewRef.current
+    if (v === was) return
+    viewRef.current = v
+    setViewState(v)
+    try { sessionStorage.setItem(VIEW_KEY, v) } catch { /* private window: not remembered */ }
+    twin.current?.setPaused(v === 'eyes')
+    if (v !== 'eyes') twin.current?.setView(v)
+    // The hub builds the eyes stream only for viewers that ask; stop asking when it is off screen.
+    if (v === 'eyes') sock.current?.send({ type: 'hello', want: 'eyes' })
+    else if (was === 'eyes') sock.current?.send({ type: 'hello', drop: 'eyes' })
+  }
   const setFraming = (f: Framing) => { setFramingState(f); twin.current?.setFraming(f) }
   const switchHeat = (l: 'live' | 'learned') => { setHeatLayer(l); sock.current?.send({ type: 'hello', want: 'heatmap', layer: l }) }
   const startSource = async (body: Record<string, unknown>) => {
@@ -146,10 +184,14 @@ export function AankhenPage() {
   const sim = !!frame && frame.source !== 'hardware'
   const layout = LAYOUT[hub?.layout ?? (status?.room_measured ? 'measured' : 'default')] ?? LAYOUT.default
   const hasHouse = !!room?.house && (room.house.areas.length > 0 || room.house.fixtures.length > 0)
+  const eyes = view === 'eyes'
   return (
-    <div className={`page full aankhen-page fade-in ${sim ? 'is-sim' : 'is-live'}`}>
+    <div className={`page full aankhen-page fade-in ${sim ? 'is-sim' : 'is-live'} ${eyes ? 'view-eyes' : ''}`}>
       <div className="twin-stage">
-        <div ref={host} className={`twin-host ${stale ? 'stale' : ''}`} />
+        <div ref={host} className={`twin-host ${stale ? 'stale' : ''}`} aria-hidden={eyes} />
+        <Presence show={eyes}>
+          <EyesView frame={frame} online={online} sinkRef={eyesSink} />
+        </Presence>
 
         <div className="hud hud-col-left">
           <div className="hud-title rise">
@@ -174,10 +216,12 @@ export function AankhenPage() {
         </div>
 
         <div className="hud hud-bl">
-          <div className="seg">
-            <button className={view === '3d' ? 'on' : ''} onClick={() => switchView('3d')}><Box size={13} style={{ marginRight: 6, verticalAlign: -2 }} />3D</button>
-            <button className={view === 'plan' ? 'on' : ''} onClick={() => switchView('plan')}><MapIcon size={13} style={{ marginRight: 6, verticalAlign: -2 }} />Plan</button>
+          <div className="seg" role="tablist" aria-label="View">
+            <button className={view === '3d' ? 'on' : ''} role="tab" aria-selected={view === '3d'} onClick={() => switchView('3d')}><Box size={13} style={{ marginRight: 6, verticalAlign: -2 }} />3D</button>
+            <button className={view === 'plan' ? 'on' : ''} role="tab" aria-selected={view === 'plan'} onClick={() => switchView('plan')}><MapIcon size={13} style={{ marginRight: 6, verticalAlign: -2 }} />Plan</button>
+            <button className={view === 'eyes' ? 'on' : ''} role="tab" aria-selected={eyes} title="What the Wi-Fi channel itself sees" onClick={() => switchView('eyes')}><ScanEye size={13} style={{ marginRight: 6, verticalAlign: -2 }} />Eyes</button>
           </div>
+          {!eyes && <>
           {hasHouse && (
             <div className="seg">
               <button className={framing === 'room' ? 'on' : ''} onClick={() => setFraming('room')}>My room</button>
@@ -202,9 +246,10 @@ export function AankhenPage() {
             {teach.status?.recording ? <i className="rec-dot" /> : <GraduationCap size={14} />}
             {teach.status?.recording ? 'Teaching' : 'Teach'}
           </button>
+          </>}
         </div>
 
-        <Presence show={!teachOpen && !flOpen}>
+        <Presence show={!teachOpen && !flOpen && !eyes}>
           <div className="hud hud-bc">
             {(frame?.events ?? []).slice(-4).reverse().map((e, i) => (
               <div key={e.id} className={`twin-event ${i === 0 ? 'newest' : ''}`}>
@@ -213,10 +258,10 @@ export function AankhenPage() {
             ))}
           </div>
         </Presence>
-        <Presence show={teachOpen}>
+        <Presence show={teachOpen && !eyes}>
           <TeachSheet t={teach} onClose={() => setTeachOpen(false)} />
         </Presence>
-        <Presence show={flOpen}>
+        <Presence show={flOpen && !eyes}>
           <FirstLightSheet frame={frame} live={frame?.source === 'hardware' && online} onClose={() => setFlOpen(false)} toast={toast} />
         </Presence>
       </div>

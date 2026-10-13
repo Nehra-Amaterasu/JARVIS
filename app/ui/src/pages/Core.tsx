@@ -14,6 +14,7 @@ import { LEVELS, usePlayerStore } from '../germoney/stores/player-store'
 import { useStore } from '../lib/store'
 import { PageHeader, STATE_LABEL } from '../components/Shell'
 import { Reactor } from '../components/Reactor'
+import { StaffCard } from '../components/Staff'
 
 const BOOT_STEPS = [
   { id: 'whisper', label: 'Ears', detail: 'Whisper on CUDA' },
@@ -64,6 +65,7 @@ export function CorePage() {
         <div className="core-col">
           <SystemsCard core={core} />
           <MissionCard />
+          <StaffCard />
         </div>
 
         <section className="core-center">

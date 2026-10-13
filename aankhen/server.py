@@ -1,8 +1,24 @@
 """WebSocket streaming for the Aankhen hub, mountable on any FastAPI app.
 
-Protocol (JSON text frames), unchanged from the first viewer:
+Protocol (JSON text frames):
   server -> client   room | frame (10 Hz) | heatmap (1 Hz, per client layer) | status (1 Hz)
+                     | eyes (10 Hz, ONLY to clients that asked for it, see below)
   client -> server   {"type": "hello", "want": "snapshot" | "heatmap", "layer": "live" | "learned"}
+                     {"type": "hello", "want": "eyes"}   start receiving "eyes" (also when
+                                                         "want" is a list that includes it)
+                     {"type": "hello", "drop": "eyes"}   stop receiving them
+
+  eyes = {"type": "eyes", "source", "t" (device s), "rate_hz" (packets/s), "seconds"
+          (stream since start or channel change),
+          "column": [51] | null        amplitude ripple: per subcarrier (-26..-1, +2..+26),
+                                       deviation from a ~10 s baseline in noise units, +-6
+          "phase_column": [51] | null  the same from the phase, after removing the line
+                                       the unsynchronised clocks scramble (eyes.py)
+          "spectrum": {"hz": [64], "power": [64] log10 x noise floor, "peak_hz": float |
+                       null, "bands": {"breathing", "body", "fast", "above"} x noise,
+                       "window_s"} | null}
+  Building it consumes the columns, so the server builds ONE per tick, and only when
+  someone asked; clients that never ask get exactly what they always got.
 
 Each client has a LATEST-WINS mailbox per message type. A slow client (a phone on
 bad Wi-Fi, a background tab) never builds a backlog and never slows the others: if
@@ -26,12 +42,23 @@ from fastapi import Request, WebSocket
 from .hub import AankhenHub
 
 FRAME_HZ = 10.0
+STREAMS = ("eyes",)              # opt-in message types a hello can ask for (or drop)
+
+
+def _names(v) -> set[str]:
+    """A hello's "want"/"drop": one name or a list of names."""
+    if isinstance(v, str):
+        return {v}
+    if isinstance(v, (list, tuple)):
+        return {x for x in v if isinstance(x, str)}
+    return set()
 
 
 class _Client:
     def __init__(self, ws):
         self.ws = ws
         self.layer = "live"
+        self.wants: set[str] = set()                 # opt-in streams (STREAMS)
         self.pending: dict[str, dict] = {}
         self.wake = asyncio.Event()
 
@@ -75,11 +102,15 @@ class Streamer:
             status = self.hub.status() if tick % 10 == 0 else None
             layers = {c.layer for c in self.clients} if tick % 10 == 5 else set()
             heat = {layer: self.hub.heatmap(layer) for layer in layers}
+            # Built only when someone watches: it consumes the columns (engine.eyes_message).
+            eyes = self.hub.eyes() if any("eyes" in c.wants for c in self.clients) else None
             for c in list(self.clients):
                 c.offer(frame)
                 c.offer(status)
                 if c.layer in heat:
                     c.offer(heat[c.layer])
+                if eyes is not None and "eyes" in c.wants:
+                    c.offer(eyes)
 
     async def serve(self, ws) -> None:
         await ws.accept()
@@ -100,7 +131,10 @@ class Streamer:
                 if msg.get("type") == "hello":
                     if msg.get("layer") in ("live", "learned"):
                         client.layer = msg["layer"]
-                    if msg.get("want") == "snapshot":
+                    want = _names(msg.get("want"))
+                    client.wants |= want & set(STREAMS)
+                    client.wants -= _names(msg.get("drop"))
+                    if "snapshot" in want:
                         client.offer(self.hub.room_message())
                         client.offer(self.hub.status())
                     client.offer(self.hub.heatmap(client.layer))

@@ -25,7 +25,7 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import Body, FastAPI, HTTPException, Request, WebSocket
-from fastapi.responses import HTMLResponse, JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
 
@@ -140,10 +140,26 @@ def create_app(guard: Guard, autostart_aankhen: str = "auto") -> FastAPI:
     app = FastAPI(title="JARVIS", version=__version__, lifespan=lifespan,
                   docs_url=None, redoc_url=None, openapi_url=None)
     app.state.svc = svc
+    app.state.guard = guard
 
     @app.middleware("http")
     async def guard_api(request: Request, call_next):
         path = request.url.path
+        # A request that came in on the phone listener (phone.py; off unless switched on)
+        # answers to the phone's rules only: its own hosts, a paired device, its own routes.
+        phone = getattr(app.state, "phone", None)
+        if phone is not None and phone.is_remote(request.scope):
+            status, reason, device = phone.check(
+                method=request.method, path=path, host=request.headers.get("host"),
+                client=request.client.host if request.client else None,
+                origin=request.headers.get("origin"), header=request.headers.get("x-jarvis-phone"),
+                cookies=request.cookies)
+            if status == 307:
+                return RedirectResponse(reason, status_code=307)
+            if status != 200:
+                return JSONResponse({"error": reason}, status_code=status)
+            request.state.phone_device = device
+            return await call_next(request)
         if not guard.host_ok(request.headers.get("host")):
             return JSONResponse({"error": "bad host"}, status_code=403)
         if path.startswith("/api/") and path != "/api/health" and not guard.http_ok(request):

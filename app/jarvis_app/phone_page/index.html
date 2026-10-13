@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#050506">
+<meta name="color-scheme" content="dark">
+<meta name="referrer" content="no-referrer">
+<title>JARVIS</title>
+<link rel="manifest" href="/phone/manifest.webmanifest">
+<link rel="icon" href="/phone/icon-192.png">
+<link rel="apple-touch-icon" href="/phone/icon-192.png">
+<style>
+  :root {
+    --bg: #050506; --panel: #0e0f12; --line: #1f2227; --ink: #e8eaed; --ink-2: #9aa0a8; --ink-3: #636871;
+    --cyan: #5ce1ff; --live: #4ade80; --warn: #fbbf24; --fault: #f87171;
+    --r: 18px; --f: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 var(--f); }
+  body { min-height: 100dvh; padding: max(14px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom)); }
+  main { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .brand { font: 700 18px/1 var(--f); letter-spacing: 0.32em; }
+  .pill { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; border-radius: 99px;
+          border: 1px solid var(--line); color: var(--ink-2); font: 500 12px/1 var(--mono); white-space: nowrap; }
+  .led { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); flex: none; }
+  .live .led { background: var(--live); box-shadow: 0 0 8px var(--live); }
+  .fault .led { background: var(--fault); }
+  h2 { margin: 0 0 8px; font: 600 11px/1 var(--mono); letter-spacing: 0.16em; color: var(--ink-3); text-transform: uppercase; }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tile { position: relative; min-height: 148px; border-radius: var(--r); border: 1px solid var(--line);
+          background: var(--panel); color: var(--ink); padding: 16px; text-align: left; font: inherit;
+          display: flex; flex-direction: column; justify-content: space-between; cursor: pointer;
+          transition: background .15s, border-color .15s, transform .08s; touch-action: manipulation; }
+  .tile:active { transform: scale(0.98); }
+  .tile.on { background: linear-gradient(160deg, rgba(92,225,255,.16), rgba(92,225,255,.04)); border-color: rgba(92,225,255,.55); }
+  .tile .name { font-weight: 600; font-size: 16px; }
+  .tile .big { font: 700 34px/1 var(--f); letter-spacing: 0.02em; }
+  .tile.on .big { color: var(--cyan); }
+  .tile .sub { font: 500 11.5px/1.35 var(--mono); color: var(--ink-3); }
+  .tile .sub.ok { color: var(--live); } .tile .sub.bad { color: var(--warn); }
+  .tile[aria-busy="true"] { opacity: .6; pointer-events: none; }
+  .scenes { display: flex; gap: 8px; margin-top: 10px; overflow-x: auto; }
+  .chip { flex: none; padding: 9px 14px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel);
+          color: var(--ink-2); font: 500 13px var(--f); }
+  .card { border-radius: var(--r); border: 1px solid var(--line); background: var(--panel); padding: 14px; }
+  .turns { display: flex; flex-direction: column; gap: 8px; max-height: 46dvh; overflow-y: auto; scroll-behavior: smooth; }
+  .turn { padding: 9px 12px; border-radius: 14px; max-width: 88%; white-space: pre-wrap; word-wrap: break-word; }
+  .turn.you { align-self: flex-end; background: #1a2a33; }
+  .turn.jarvis { align-self: flex-start; background: #15171b; border: 1px solid var(--line); }
+  .turn.note { align-self: center; color: var(--ink-3); font: 12px var(--mono); background: none; padding: 2px; }
+  .empty { color: var(--ink-3); font-size: 13px; }
+  .compose { display: flex; gap: 8px; margin-top: 12px; align-items: flex-end; }
+  textarea { flex: 1; resize: none; min-height: 46px; max-height: 120px; border-radius: 14px; border: 1px solid var(--line);
+             background: #0a0b0d; color: var(--ink); padding: 12px; font: inherit; }
+  textarea:focus, input:focus { outline: 1px solid var(--cyan); }
+  button.btn { border: 1px solid var(--line); background: #16181c; color: var(--ink); border-radius: 14px;
+               min-width: 46px; height: 46px; padding: 0 14px; font: 600 14px var(--f); }
+  button.btn.primary { background: var(--cyan); color: #001018; border-color: var(--cyan); }
+  button.btn:disabled { opacity: .45; }
+  .mic { width: 56px; height: 46px; padding: 0; }
+  .mic.rec { background: var(--fault); border-color: var(--fault); color: #fff; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 7px rgba(248,113,113,.18); } }
+  .row { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .muted { color: var(--ink-3); font-size: 12.5px; }
+  .note { color: var(--ink-2); font-size: 12.5px; }
+  .err { color: var(--fault); font-size: 13px; min-height: 1em; }
+  label.switch { display: inline-flex; gap: 8px; align-items: center; color: var(--ink-2); font-size: 13px; }
+  input[type=text] { width: 100%; height: 48px; border-radius: 14px; border: 1px solid var(--line); background: #0a0b0d;
+                     color: var(--ink); padding: 0 14px; font: 600 18px var(--mono); letter-spacing: 0.08em; }
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+  footer { display: flex; justify-content: space-between; align-items: center; color: var(--ink-3); font-size: 12px; }
+  footer button { background: none; border: none; color: var(--ink-3); text-decoration: underline; font: inherit; padding: 6px 0; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="brand">JARVIS</span>
+    <span id="link" class="pill"><i class="led"></i><span id="linkText">connecting</span></span>
+  </header>
+
+  <!-- not paired yet -->
+  <section id="pairView" class="card stack" hidden>
+    <h2>Pair this phone</h2>
+    <p class="note">On the laptop: JARVIS, Connect, Phone, <b>Pair a phone</b>. Scan the code, or type the 8 letters shown there.</p>
+    <input id="pairCode" type="text" inputmode="text" autocomplete="one-time-code" autocapitalize="characters"
+           placeholder="ABCD-EFGH" maxlength="9" aria-label="Pairing code">
+    <input id="pairName" type="text" maxlength="40" aria-label="Name for this phone" style="font: 500 15px var(--f); letter-spacing: 0">
+    <button id="pairBtn" class="btn primary">Pair</button>
+    <div id="pairErr" class="err" role="alert"></div>
+  </section>
+
+  <!-- paired -->
+  <section id="roomView" hidden>
+    <h2>Room</h2>
+    <div class="tiles" id="tiles"></div>
+    <div class="scenes" id="scenes"></div>
+    <div id="hardware" class="muted" style="margin-top:8px"></div>
+  </section>
+
+  <section id="talkView" class="card" hidden>
+    <div class="row" style="margin-bottom:10px">
+      <h2 style="margin:0">JARVIS</h2>
+      <span id="coreState" class="pill"><i class="led"></i><span>offline</span></span>
+    </div>
+    <div id="wake" class="row" style="margin-bottom:10px" hidden>
+      <span class="note">He is asleep.</span>
+      <span style="display:flex;gap:8px">
+        <button class="btn" data-wake="text">Wake (text)</button>
+        <button class="btn" data-wake="voice">Wake (voice)</button>
+      </span>
+    </div>
+    <div class="turns" id="turns"><div class="empty">Nothing said yet.</div></div>
+    <div class="compose">
+      <textarea id="msg" rows="1" placeholder="Talk to JARVIS…" maxlength="2000" aria-label="Message"></textarea>
+      <button id="mic" class="btn mic" aria-label="Hold to talk" title="Tap to talk, tap again to send">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></svg>
+      </button>
+      <button id="send" class="btn primary" aria-label="Send">Send</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label class="switch"><input id="speakHere" type="checkbox"> Speak his replies on this phone</label>
+      <span id="recInfo" class="muted"></span>
+    </div>
+    <div id="micNote" class="muted" style="margin-top:6px" hidden></div>
+    <div id="talkErr" class="err" role="alert"></div>
+  </section>
+
+  <footer id="foot" hidden>
+    <span id="devName"></span>
+    <button id="unpair">Forget this phone</button>
+  </footer>
+</main>
+<script src="/phone/app.js"></script>
+</body>
+</html>

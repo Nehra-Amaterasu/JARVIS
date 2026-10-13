@@ -60,6 +60,23 @@ Then open **JARVIS** from the Start menu or the Desktop. (Or run
 `.venv\Scripts\pythonw.exe app\JARVIS.pyw`.) If the UI was never built,
 the launcher builds it on first start.
 
+### From the phone (off by default)
+
+Connect, **Phone**, then **Switch phone access on**. The laptop also serves
+`http://<laptop-ip>:8778/phone` on the home Wi-Fi; the desktop window is unchanged.
+Once, in an **admin** PowerShell (the app never changes the firewall):
+
+```powershell
+New-NetFirewallRule -DisplayName "JARVIS phone (TCP 8778)" -Direction Inbound -Protocol TCP -LocalPort 8778 -Action Allow -Profile Private -RemoteAddress LocalSubnet
+```
+
+Then **Pair a phone** and scan the code. Light, fan, scenes and typing work over
+http. The microphone needs https: with Tailscale on both devices,
+`tailscale serve --bg --https=443 http://127.0.0.1:8778`, and add the
+`https://<laptop>.<tailnet>.ts.net` address in the card. `JARVIS_PHONE=1/0` forces
+the switch for one run. Why, and the options compared:
+`docs/research/2026-10-14-phone-access.md`.
+
 ## Develop
 
 ```bash

@@ -152,6 +152,38 @@ print("1. Loading Whisper STT (large-v3-turbo on GPU, int8_float16)...")
 appio.emit("boot", step="whisper", text_only=TEXT_ONLY)
 model = None if TEXT_ONLY else WhisperModel("large-v3-turbo", device="cuda", compute_type="int8_float16")
 
+def _hear_phone(cmd: dict) -> None:
+    """A recording from his phone (the app's /api/phone/hear): transcribe it with the
+    Whisper already loaded and queue the text as a turn, like a typed message. Runs on
+    its own thread so the stdin reader stays free for room commands. The file is the
+    app's (DATA/phone/inbox) and is deleted here once read."""
+    path, clip = str(cmd.get("path") or ""), cmd.get("id")
+
+    def work():
+        text, meta = "", {}
+        try:
+            if model is None:
+                raise RuntimeError("text mode has no Whisper")
+            t0 = time.time()
+            raw, meta = stt.transcribe(model, path)          # faster-whisper decodes webm/ogg via PyAV
+            text = hinglish.romanize(raw)
+            text = text if len(text) >= 2 else ""
+            meta = {**meta, "stt_s": round(time.time() - t0, 3)}
+        except Exception as e:
+            appio.emit("phone_heard", id=clip, text="", error=str(e))
+            return
+        finally:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        appio.emit("phone_heard", id=clip, text=text, **{k: v for k, v in meta.items() if k != "id"})
+        appio.queue_say(text)
+    threading.Thread(target=work, name="phone-hear", daemon=True).start()
+
+
+appio.on("hear", _hear_phone)
+
 print("2. Initializing Audio Drivers (Edge-TTS + Cognitive Hum)...")
 appio.emit("boot", step="audio")
 if not TEXT_ONLY:

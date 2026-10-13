@@ -86,6 +86,10 @@ class AankhenHub:
         self.hotplug_last: Optional[dict] = None
         from .teach import Teacher
         self.teacher = Teacher(self)
+        # The rolling week of raw Wi-Fi (stream.py): recording while the REAL board runs.
+        self.stream = None
+        self.stream_error: Optional[str] = None
+        self._stream_usage: tuple[float, dict] = (float("-inf"), {})
 
     # ------------------------------------------------------------ lifecycle
     def start(self, mode: str = "auto", scenario: str = "evening", port: Optional[str] = None,
@@ -149,6 +153,7 @@ class AankhenHub:
                 self.engine._event_id = prev._event_id
             self.source = source
             self.mode, self.scenario = mode, scenario if mode == "simulation" else None
+            self._start_stream(source.kind)
             self.requested_mode = requested
             self.link_note = None
             self._stop = threading.Event()
@@ -179,6 +184,47 @@ class AankhenHub:
             if self._thread is not None:
                 self._thread.join(timeout=2)
             self.source, self._thread = None, None
+            if self.stream is not None:     # after the consumer: every packet is queued
+                if self.engine is not None:
+                    self.engine.tap = None
+                self.stream.stop()
+                self.stream = None
+
+    # ------------------------------------------------------------ raw stream
+    def _start_stream(self, kind: str) -> None:
+        """Record the rolling raw stream for the real board only (stream.py)."""
+        from . import stream as raw_stream
+        self.stream_error = None
+        if kind != "hardware" or not raw_stream.enabled():
+            return
+        try:
+            self.stream = raw_stream.StreamRecorder(Path(DATA_DIR) / "stream").start()
+            self.engine.tap = self.stream
+        except Exception as e:                  # no recorder is no reason to lose the board
+            self.stream, self.stream_error = None, f"{type(e).__name__}: {e}"
+
+    def stream_info(self) -> dict:
+        """The raw-stream recorder: on, today's MB, days kept, drops (stream.py)."""
+        from . import stream as raw_stream
+        on = raw_stream.enabled()
+        rec = self.stream
+        if rec is not None:
+            return {"enabled": on, **rec.info()}
+        at, u = self._stream_usage
+        if time.monotonic() - at > 10.0:        # info() runs at 1 Hz; the disk changes slowly
+            u = raw_stream.usage(Path(DATA_DIR) / "stream")
+            self._stream_usage = (time.monotonic(), u)
+        if not on:
+            why = "off (AANKHEN_STREAM=0)"
+        elif self.stream_error:
+            why = f"failed to start: {self.stream_error}"
+        elif self.running and self.mode != "hardware":
+            why = f"not recording: {self.mode} is never recorded, only the real board"
+        else:
+            why = "not recording: no board running"
+        return {"enabled": on, "on": False, "today_mb": u.get("today_mb", 0.0),
+                "total_mb": u.get("total_mb", 0.0), "days_kept": u.get("days", 0),
+                "keep_days": raw_stream.KEEP_DAYS, "drops": 0, "note": why}
 
     @property
     def running(self) -> bool:
@@ -339,6 +385,7 @@ class AankhenHub:
             "baseline": (self.engine.motion.baseline.source
                          if self.engine and self.engine.motion.baseline else "none"),
             "error": self.error,
+            "stream": self.stream_info(),
         }
 
     # ------------------------------------------------------------ commands
@@ -380,9 +427,9 @@ class AankhenHub:
         eng = self.engine
         if eng is None:
             return None
-        msg = eng.frame_message()
+        msg = eng.latest_frame()            # published by the consumer, read without the lock
         if self.sim is not None and eng.device_t is not None:
-            t = eng.device_t - self.sim.boot_us / 1e6
+            t = msg["t"] - self.sim.boot_us / 1e6     # the frame's own time: truth beside its tracks
             truth = [s.to_dict() for s in self.sim.truth_at(t)]
             msg["truth"] = truth
             msg["metrics"] = _match(truth, msg["tracks"])
@@ -433,8 +480,7 @@ class AankhenHub:
                     self.journal.close()           # the segment ends when the board does
                     continue
                 try:
-                    with eng.lock:
-                        f = eng.frame_message()
+                    f = eng.latest_frame()
                 except Exception:
                     continue
                 l = f.get("learned") or {}

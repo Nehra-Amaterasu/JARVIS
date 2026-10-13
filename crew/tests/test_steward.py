@@ -159,3 +159,21 @@ def test_the_http_probe_against_a_throwaway_server():
         server.shutdown()
         server.server_close()
     assert ollama_answers(f"http://127.0.0.1:{port}/api/version") is False       # nobody listening now
+
+
+def test_the_raw_stream_recorder_is_in_the_aankhen_line(steward, checks):
+    checks.aankhen = {**checks.aankhen, "stream": {"enabled": True, "on": True, "today_mb": 41.4,
+                                                   "days_kept": 3, "drops": 0}}
+    steward.run(NOW)
+    assert "Aankhen live, 262 packets/s; raw stream on, 41 MB today, 3 days kept." in steward.context_line()
+    assert steward.data["checks"]["aankhen"]["stream"] == {"on": True, "today_mb": 41.4, "days_kept": 3, "drops": 0}
+    checks.aankhen["stream"]["drops"] = 120
+    steward.run(NOW + 10)
+    assert "3 days kept, 120 samples dropped" in steward.context_line()
+    assert events(steward) == []                         # the recorder's state is shown, not news
+    checks.aankhen = {"mode": "simulation", "stream": {"enabled": True, "on": False, "days_kept": 3}}
+    steward.run(NOW + 20)
+    assert "Aankhen in simulation (no real room data); raw stream not recording (3 days kept)" in steward.context_line()
+    checks.aankhen["stream"] = {"enabled": False, "on": False}
+    steward.run(NOW + 30)
+    assert "raw stream switched off" in steward.context_line()

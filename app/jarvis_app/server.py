@@ -94,7 +94,7 @@ def create_app(guard: Guard, autostart_aankhen: str = "auto") -> FastAPI:
             if eng is None:
                 continue
             try:
-                f = eng.frame_message()
+                f = eng.latest_frame()       # no engine lock: this runs on the event loop
             except Exception:
                 continue
             for e in f.get("events", []):

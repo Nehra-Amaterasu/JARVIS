@@ -85,6 +85,7 @@ class Streamer:
         self.hub = hub
         self.clients: set[_Client] = set()
         self._task: Optional[asyncio.Task] = None
+        self._side: Optional[asyncio.Task] = None      # the lock-taking messages, off the schedule
 
     def ensure_running(self) -> None:
         if self._task is None or self._task.done():
@@ -93,24 +94,51 @@ class Streamer:
     async def _loop(self) -> None:
         tick = 0
         period = 1.0 / FRAME_HZ
+        loop = asyncio.get_running_loop()
+        due = loop.time()
         while True:
-            await asyncio.sleep(period)
+            # On a schedule, not "sleep 100 ms after the work": the sleep-after-work
+            # loop ran at 1 / (0.1 s + the tick's work + the event loop's lag), 6.6 Hz in
+            # the live app. A tick that overruns is not caught up with a burst.
+            due += period
+            now = loop.time()
+            if due < now:
+                due = now
+            await asyncio.sleep(due - now)
             tick += 1
             if not self.clients:
                 continue
-            frame = self.hub.frame()
-            status = self.hub.status() if tick % 10 == 0 else None
-            layers = {c.layer for c in self.clients} if tick % 10 == 5 else set()
-            heat = {layer: self.hub.heatmap(layer) for layer in layers}
-            # Built only when someone watches: it consumes the columns (engine.eyes_message).
-            eyes = self.hub.eyes() if any("eyes" in c.wants for c in self.clients) else None
+            frame = self.hub.frame()             # published by the engine: no lock, no wait
             for c in list(self.clients):
                 c.offer(frame)
-                c.offer(status)
-                if c.layer in heat:
-                    c.offer(heat[c.layer])
-                if eyes is not None and "eyes" in c.wants:
-                    c.offer(eyes)
+            want_status = tick % 10 == 0
+            layers = {c.layer for c in self.clients} if tick % 10 == 5 else set()
+            # Built only when someone watches: it consumes the columns (engine.eyes_message).
+            want_eyes = any("eyes" in c.wants for c in self.clients)
+            if not (want_status or layers or want_eyes):
+                continue
+            # These take the engine lock, which a busy consumer can hold for whole bursts.
+            # So they are built on a thread, beside the schedule: the wait stalls neither
+            # the event loop (every other route, the app's watcher) nor the frames. While
+            # one build is still waiting, the next tick's is skipped: status and heatmap are
+            # latest-wins anyway, and the eyes columns keep accumulating for the next one.
+            if self._side is None or self._side.done():
+                self._side = loop.create_task(self._send_locked(want_status, layers, want_eyes))
+
+    async def _send_locked(self, want_status: bool, layers: set, want_eyes: bool) -> None:
+        status, heat, eyes = await asyncio.to_thread(self._locked_messages, want_status, layers, want_eyes)
+        for c in list(self.clients):
+            c.offer(status)
+            if c.layer in heat:
+                c.offer(heat[c.layer])
+            if eyes is not None and "eyes" in c.wants:
+                c.offer(eyes)
+
+    def _locked_messages(self, want_status: bool, layers: set, want_eyes: bool):
+        status = self.hub.status() if want_status else None
+        heat = {layer: self.hub.heatmap(layer) for layer in layers}
+        eyes = self.hub.eyes() if want_eyes else None
+        return status, heat, eyes
 
     async def serve(self, ws) -> None:
         await ws.accept()

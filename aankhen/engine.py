@@ -119,6 +119,13 @@ class Engine:
                          "radar_detections": 0, "outside_room": 0}
         self._radar_times: deque = deque(maxlen=50)
         self.seq = 0
+        # The frame the consumer thread last published (publish_frame), read without
+        # the lock by every viewer (latest_frame). See publish_frame for why.
+        self._frame: Optional[dict] = None
+        self._frame_at = float("-inf")
+        # Raw-stream recorder (stream.py), set by the hub on the real board only.
+        # Every call into it is one deque append: it never waits on the writer or a disk.
+        self.tap = None
 
     # ================================================================ input
     def process(self, pkt) -> None:
@@ -190,8 +197,13 @@ class Engine:
                                      if radar_up and self._radar_empty_since is not None else None)
         self.motion.settling = self._csi_settling(t)
         self.eyes.push_raw(t, p.raw)                 # phase needs the packet itself
+        tap = self.tap
+        if tap is not None:
+            tap.raw(t, p.raw, p.channel, self.fan_relay)
         for s in self.cond.push(t, p.raw, p.rssi, gain_comp_db=p.gain_comp_db):
             self.eyes.push(s)
+            if tap is not None:
+                tap.sample(s.t, s.amp, s.filled)
             self.resp.push(s)
             if self._spatial_fs is not None:
                 v = self._spatial_fs.push(s, p.rssi, bool(self.fan_relay))
@@ -243,6 +255,9 @@ class Engine:
             j = int(np.argmax(pa))
             self.learned["activity"] = {"state": ACTIVITIES[j], "p": {c: round(float(x), 3) for c, x in zip(ACTIVITIES, pa)},
                                         "trained": "your recordings"}
+        if self.tap is not None:
+            a = self.learned.get("activity") or {}
+            self.tap.learned(t, self.learned["state"], self.learned["occupied_p"], a.get("state"))
 
     def _on_radar(self, p: RadarPacket) -> None:
         t = p.timestamp_us / 1e6
@@ -542,6 +557,39 @@ class Engine:
                 "events": [e.to_dict() for e in list(self.events)[-8:]],
             }
 
+    # How often the consumer thread publishes a frame for the viewers: 20 Hz, twice the
+    # websocket's 10 Hz, so a viewer's frame is at most ~50 ms older than the packets.
+    FRAME_EVERY_S = 0.05
+
+    def publish_frame(self, force: bool = False) -> None:
+        """Build the viewers' frame, at most every FRAME_EVERY_S. Called by the consumer
+        thread (run_engine), between packets.
+
+        WHY. Every viewer used to build its own frame under the engine lock: the 10 Hz
+        websocket, the app's 2 Hz event watcher, the crew's 2 Hz movement watcher, the
+        1 Hz journal, the steward. Building one costs ~0.03 ms; WAITING for the lock was
+        the cost. The consumer thread holds it for every packet (~290/s on the real
+        board) and for ~15 ms per learned-model call (HistGradientBoosting
+        predict_proba on one row, twice every 0.5 s). A busy consumer re-takes the lock
+        before a waiting thread is scheduled, so with the rest of the app competing for
+        the GIL a reader waited out whole bursts. Bench (hub + simulator at 290 packets/s,
+        docs/research/2026-10-13-raw-stream-and-crew-speed.md): a movement tick took
+        19.5 ms and the stream ran at 6.1 Hz with one thread busy 75 % of the time,
+        582 ms and 2.2 Hz at 90 %; the live app measured ~106 ms and 6.6 Hz. Published
+        here, a read is one attribute load: 0.5 and 1.2 ms per tick at the same loads."""
+        now = self.clock()
+        if not force and now - self._frame_at < self.FRAME_EVERY_S:
+            return
+        msg = self.frame_message()
+        self._frame, self._frame_at = msg, now
+
+    def latest_frame(self) -> dict:
+        """The last published frame, without the engine lock; a fresh one when nothing
+        has been published (an engine driven directly, as the tests do). A shallow copy:
+        callers add keys to it (hub.frame adds the simulator's truth)."""
+        f = self._frame
+        return dict(f) if f is not None else self.frame_message()
+
     def eyes_message(self) -> dict:
         """What the channel looks like right now (eyes.py), for viewers that asked.
 
@@ -627,5 +675,7 @@ def run_engine(source, engine: Engine, stop: threading.Event) -> None:
         try:
             pkt = source.packets.get(timeout=0.2)
         except queue.Empty:
+            engine.publish_frame()               # nothing arriving: the frame still ages
             continue
         engine.process(pkt)
+        engine.publish_frame()

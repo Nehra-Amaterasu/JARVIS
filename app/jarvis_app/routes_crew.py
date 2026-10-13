@@ -8,7 +8,7 @@
 The crew:
     movement  the hub's latest frame and mode (crew/agents/movement.py)
     ledger    the transcripts JARVIS's process writes; its ranking in DATA/crew/ledger.json
-    steward   Ollama, the hub, JARVIS's process, errors in the transcripts
+    steward   Ollama, the hub (and its raw-stream recorder), JARVIS's process, errors in the transcripts
 
 It starts with the app (chained onto the server's lifespan, so server.py is not edited)
 and stops before the hub does. A notable board event goes to the bus as source "crew", so
@@ -65,7 +65,9 @@ def build_crew(svc, bus) -> Crew:
             return None
         csi = (hub.frame() or {}).get("csi") or {}
         sensor = ((hub.status() or {}).get("sensors") or {}).get("Wi-Fi CSI") or {}
-        return {"mode": hub.mode, "rate_hz": csi.get("rate_hz"), "rssi": csi.get("rssi"), "csi": sensor.get("state")}
+        stream = getattr(hub, "stream_info", None)       # the raw-stream recorder (aankhen/stream.py)
+        return {"mode": hub.mode, "rate_hz": csi.get("rate_hz"), "rssi": csi.get("rssi"), "csi": sensor.get("state"),
+                "stream": stream() if stream is not None else None}
 
     # ollama_answers is looked up at each probe, so a test can swap it for a fake.
     steward = Steward(ollama=lambda: ollama_answers(), aankhen=aankhen, errors=RecentErrors(transcripts),

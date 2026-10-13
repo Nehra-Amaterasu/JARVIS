@@ -8,7 +8,8 @@ it looked like JARVIS refusing me. Every 10 s the steward checks:
     core     JARVIS's process: running, offline, or exited with an error code
     aankhen  the hub's mode; on the real board, whether Wi-Fi packets are arriving now
              (the engine's own 2 s liveness test: the packet rate it reports is an average
-             that does not fall to zero when the board goes quiet) and how fast
+             that does not fall to zero when the board goes quiet) and how fast; and the
+             raw-stream recorder (aankhen/stream.py): on, today's MB, days kept, drops
     errors   error lines in the transcripts in the last hour: how many, and the most
              common message (its first 80 characters)
 
@@ -122,6 +123,21 @@ class Reading:
     data: dict = field(default_factory=dict)
 
 
+def stream_text(s: dict) -> str:
+    """The raw-stream recorder in a few words: "raw stream on, 41 MB today, 3 days kept"."""
+    if s.get("on"):
+        text = f"raw stream on, {s.get('today_mb') or 0:.0f} MB today, {s.get('days_kept') or 0} days kept"
+        drops = s.get("drops") or 0
+        if drops:
+            text += f", {drops} samples dropped"
+        if s.get("error"):
+            text += f", write error: {s['error']}"
+        return text
+    if not s.get("enabled", True):
+        return "raw stream switched off"
+    return f"raw stream not recording ({s.get('days_kept') or 0} days kept)"
+
+
 class Steward(Agent):
     id = "steward"
     name = "Steward"
@@ -131,8 +147,8 @@ class Steward(Agent):
     def __init__(self, ollama: Callable[[], bool], aankhen: Callable[[], Optional[dict]],
                  errors: Callable[[float], tuple[int, Optional[str]]],
                  core: Optional[Callable[[], Optional[dict]]] = None, clock: Callable[[], float] = time.time):
-        """ollama() -> it answers; aankhen() -> {"mode", "rate_hz", "rssi", "csi"} or None while
-        the hub is off; errors(now) -> (count, most common message) in the last hour;
+        """ollama() -> it answers; aankhen() -> {"mode", "rate_hz", "rssi", "csi", "stream"} or
+        None while the hub is off ("stream": hub.stream_info(), optional); errors(now) -> (count, most common message) in the last hour;
         core() -> CoreProcess.info(), or no core at all when JARVIS's process is not ours."""
         super().__init__(clock)
         self._ollama, self._aankhen, self._errors, self._core = ollama, aankhen, errors, core
@@ -185,6 +201,14 @@ class Steward(Agent):
 
     def _read_aankhen(self) -> Reading:
         info = self._aankhen() or {}
+        r = self._read_aankhen_link(info)
+        stream = info.get("stream")
+        if isinstance(stream, dict):
+            r.text += f"; {stream_text(stream)}"
+            r.data["stream"] = {k: stream.get(k) for k in ("on", "today_mb", "days_kept", "drops")}
+        return r
+
+    def _read_aankhen_link(self, info: dict) -> Reading:
         mode = info.get("mode")
         if mode is None:
             return Reading(True, "Aankhen off", data={"mode": None})

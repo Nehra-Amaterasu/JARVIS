@@ -24,6 +24,8 @@ for _m in ("paho", "paho.mqtt", "paho.mqtt.client"):
     sys.modules[_m] = None
 
 os.environ["JARVIS_DATA_DIR"] = tempfile.mkdtemp(prefix="jarvis-core-test-")
+# What JARVIS learned from his chats (yaadash/chat_memory.py): a scratch folder, never the real one.
+os.environ["JARVIS_LEARNED_DIR"] = tempfile.mkdtemp(prefix="jarvis-core-learned-")
 os.environ.pop("JARVIS_API_URL", None)          # the agent must not find a running app
 os.environ.pop("JARVIS_API_TOKEN", None)
 os.environ.pop("JARVIS_T2_ENABLED", None)

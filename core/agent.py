@@ -24,6 +24,13 @@ except Exception as _e:
     yaadash_beliefs = None
     print(f"[Yaadash beliefs unavailable: {_e}]")
 try:
+    # What he taught JARVIS in their own chats (yaadash/learn_chats.py writes it, the app's
+    # crew runs it after a chat goes quiet): "remember that.", "call me sir", corrections.
+    import chat_memory
+except Exception as _e:
+    chat_memory = None
+    print(f"[Chat memory unavailable: {_e}]")
+try:
     import knowledge         # verified notes from the drill decks (VLSI, Germany ops)
 except Exception as _e:
     knowledge = None
@@ -227,6 +234,8 @@ def persona(text_mode: bool) -> str:
     a fact changes, so Ollama keeps reusing the cached prefix)."""
     base = _PERSONA.format(length=_LENGTH_TEXT if text_mode else _LENGTH_VOICE,
                            capabilities=REGISTRY.capability_block())
+    if chat_memory is not None:
+        base = chat_memory.adjust_persona(base)     # how he asked to be addressed; what he taught
     try:
         facts = yaadash_core.authored_block()
     except Exception as e:
@@ -642,6 +651,20 @@ def run_agent(user_input: str) -> str:
             receipts.append(Receipt("remember", "T1", False, reply, source="Yaadash", error=str(e)))
         yield direct(reply)
         return
+    # 0'. "Remember that." / "note it" right after he said something: HIS previous statement
+    # is saved (it named nothing, so until 10-14 it reached the model, which answered "I
+    # don't have a record of that"). "Call me sir, always" becomes a standing preference.
+    if chat_memory is not None:
+        try:
+            got = chat_memory.handle_command(user_input, [u for u, _ in _short_term], yaadash_core.remember_told)
+        except Exception as e:
+            got = None
+            print(f"\n[Chat memory command error: {e}]")
+        if got:
+            receipts.append(Receipt("remember", "T1", got.ok, got.reply, source="Yaadash (chat memory)",
+                                    backs=("memory",), data={"kind": got.kind}))
+            yield direct(got.reply)
+            return
     # 0a. Reminders, timers, alarms and timed switches ("remind me at 9 to call Mum",
     # "medicine at 8 am every day", "10 minute ka timer", "fan off in 30 minutes").
     try:
@@ -731,6 +754,12 @@ def run_agent(user_input: str) -> str:
                 memories = (memories + "\n\n" + hyp).strip()
         except Exception as e:
             print(f"\n[Yaadash beliefs error: {e}]")
+    # What JARVIS learned in earlier chats with him (chat_memory.py): at most ~250 tokens.
+    from_chats = False
+    if chat_memory is not None:
+        learned, from_chats = chat_memory.context_block(query)
+        if learned:
+            memories = (memories + "\n\n" + learned).strip()
     # His staff (crew/): the movement watcher's line every turn, health and the task
     # ledger when he asks. When the watcher describes the real room live, it IS the room
     # line, and it backs what a reply says about where he is and what he is doing.
@@ -776,7 +805,7 @@ def run_agent(user_input: str) -> str:
     # asked "yaad hai doctor strange wala joke?", it replied "haan yaad hai" and
     # invented a joke (2026-10-09). The user turn is where attention is strongest,
     # so the verdict is attached there, where it cannot be skimmed past.
-    not_found = (yaadash_recall is not None
+    not_found = (yaadash_recall is not None and not from_chats
                  and yaadash_recall.RECALL_NOT_FOUND in recall_block)
     parts = []
     if memories:

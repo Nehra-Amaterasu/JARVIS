@@ -43,16 +43,17 @@ def test_the_crew_needs_the_token(client):
     assert client.post("/api/crew/ledger/run", headers={"X-Jarvis-Token": "nope"}).status_code == 401
 
 
-def test_three_agents_with_their_health(client):
-    for agent_id in ("movement", "ledger", "steward"):
+def test_four_agents_with_their_health(client):
+    for agent_id in ("movement", "ledger", "steward", "learner"):
         assert client.post(f"/api/crew/{agent_id}/run").status_code == 200
     s = client.get("/api/crew").json()
     a = {x["id"]: x for x in s["agents"]}
-    assert list(a) == ["movement", "ledger", "steward"]
+    assert list(a) == ["movement", "ledger", "steward", "learner"]
     assert (a["movement"]["name"], a["movement"]["role"]) == ("Movement watcher",
                                                               "watches how you move through Aankhen's Wi-Fi")
     assert a["ledger"]["name"] == "Task ledger" and a["steward"]["name"] == "Steward"
-    assert [a[i]["health"]["cadence_s"] for i in a] == [0.5, 600.0, 10.0]
+    assert [a[i]["health"]["cadence_s"] for i in a] == [0.5, 600.0, 10.0, 120.0]
+    assert a["learner"]["name"] == "Chat learner" and a["learner"]["state"] == "idle"   # waits out its start delay
     for x in s["agents"]:
         assert set(x["health"]) == {"runs", "errors", "last_error", "avg_ms", "last_tick", "cadence_s"}
         assert x["health"]["runs"] >= 1 and x["health"]["errors"] == 0 and x["state"] in ("running", "idle")
@@ -66,7 +67,8 @@ def test_the_block_for_jarvis_with_aankhen_off(client):
     client.post("/api/crew/movement/run")
     client.post("/api/crew/steward/run")
     ctx = client.get("/api/crew/context").json()
-    assert set(ctx) == {"text", "lines", "live"} and set(ctx["lines"]) == {"movement", "ledger", "steward"}
+    assert set(ctx) == {"text", "lines", "live"} and set(ctx["lines"]) == {"movement", "ledger", "steward", "learner"}
+    assert ctx["lines"]["learner"] == ""                          # it adds nothing to the prompt
     assert ctx["lines"]["movement"] == "Movement: Aankhen is off, so you cannot see the room."
     assert "Ollama ok" in ctx["lines"]["steward"] and "Aankhen off" in ctx["lines"]["steward"]
     assert ctx["text"].startswith(HEADER + "\n") and ctx["lines"]["movement"] in ctx["text"]

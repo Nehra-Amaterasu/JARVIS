@@ -1,7 +1,12 @@
 /**
- * Connect: everything that can plug into JARVIS, detected live (ports, files,
- * sockets). Four statuses, each meaning one thing; "planned" is drawn dashed and
- * has no switch, because pretending would be worse than saying so.
+ * Connect: what JARVIS thinks and speaks with, and everything that plugs into him.
+ *
+ *   05.1 Brain and voice   choose the model (applies on restart), the voice, the speed,
+ *                          how he says words; test it out loud
+ *   05.2 Modules           heavy capabilities switched on for a moment
+ *   05.3 Memory exports    request each export, bring the file in, see what is in it
+ *   05.4 Detected          ports, models, services, found live. Four statuses, each
+ *                          meaning one thing; "planned" is dashed and has no switch.
  */
 import {
   AudioLines, BrainCircuit, Cable, Check, Copy, Cpu, Database, Mic, MessageSquare, Music, Plug, Radar,
@@ -11,6 +16,7 @@ import { api } from '../lib/api'
 import { usePoll } from '../lib/format'
 import { useStore } from '../lib/store'
 import { PageHeader } from '../components/Shell'
+import { BrainCard, ExportsSection, ModulesSection, PronunciationCard, VoiceCard } from '../components/ConnectControls'
 import { useState } from 'react'
 
 interface Item { id: string; group: string; name: string; status: 'connected' | 'available' | 'missing' | 'planned'; detail: string; next: string | null }
@@ -21,12 +27,22 @@ const GLYPH: Record<string, typeof Cable> = {
   claude: Terminal, gemini: Terminal, spotify: Music, ytmusic: Music,
 }
 const TONE: Record<Item['status'], string> = { connected: 'live', available: '', missing: 'fault', planned: 'planned' }
-const GROUP_N: Record<string, string> = { Hardware: '05.1', Brain: '05.2', Memory: '05.3' }
+// These four have their own export cards (05.3), with the real state of the file.
+const HAS_EXPORT_CARD = new Set(['instagram', 'chatgpt', 'spotify', 'ytmusic'])
+
+function Group({ n, title, children }: { n: string; title: string; children: React.ReactNode }) {
+  return (
+    <section className="connect-group">
+      <h2><span className="mono muted" style={{ fontSize: 12 }}>{n}</span>{title}</h2>
+      {children}
+    </section>
+  )
+}
 
 export function ConnectPage() {
   const [items, loading] = usePoll(() => api<Item[]>('/api/connect'), 15000)
-  const groups = ['Hardware', 'Brain', 'Memory']
-  const count = (s: Item['status']) => items?.filter((i) => i.status === s).length ?? 0
+  const detected = items?.filter((i) => !HAS_EXPORT_CARD.has(i.id))
+  const count = (s: Item['status']) => detected?.filter((i) => i.status === s).length ?? 0
   return (
     <div className="page fade-in">
       <PageHeader tab="connect" right={
@@ -37,15 +53,31 @@ export function ConnectPage() {
           <span className="pill planned">{count('planned')} planned</span>
         </div>
       } />
-      {loading && !items && <div className="empty">Scanning ports, models and exports…</div>}
-      {groups.map((g) => (
-        <section key={g} className="connect-group">
-          <h2><span className="mono muted" style={{ fontSize: 12 }}>{GROUP_N[g]}</span>{g}</h2>
-          <div className="connect-grid">
-            {items?.filter((i) => i.group === g).map((i) => <Integration key={i.id} item={i} />)}
+
+      <Group n="05.1" title="Brain and voice">
+        <div className="cx-two">
+          <BrainCard />
+          <div className="cx-card" style={{ gap: 14 }}>
+            <VoiceCard />
+            <PronunciationCard />
           </div>
-        </section>
-      ))}
+        </div>
+      </Group>
+
+      <Group n="05.2" title="Modules">
+        <ModulesSection />
+      </Group>
+
+      <Group n="05.3" title="Memory exports">
+        <ExportsSection />
+      </Group>
+
+      <Group n="05.4" title="Detected">
+        {loading && !items && <div className="empty">Scanning ports, models and exports…</div>}
+        <div className="connect-grid">
+          {detected?.map((i) => <Integration key={i.id} item={i} />)}
+        </div>
+      </Group>
     </div>
   )
 }
@@ -61,7 +93,7 @@ function Integration({ item }: { item: Item }) {
         <span className="integ-name"><Icon size={17} strokeWidth={1.7} />{item.name}</span>
         <span className={`pill ${TONE[item.status]}`}>{item.status !== 'planned' && <i className="led" />}{item.status}</span>
       </div>
-      <div className="integ-detail">{item.detail}</div>
+      <div className="integ-detail"><span className="mono muted">{item.group} · </span>{item.detail}</div>
       {item.next && (
         <div className="integ-next">
           <span>{item.next}</span>

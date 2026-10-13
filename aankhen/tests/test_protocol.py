@@ -5,13 +5,15 @@ plausible. These tests pin the exact behaviour the firmware must match.
 """
 import os
 import random
+import re
 import struct
 
 import pytest
 
 from aankhen.protocol import (
-    CRC_SIZE, HEADER_SIZE, MAX_PAYLOAD, SYNC, CsiPacket, Frame, FrameType,
-    StreamDecoder, crc16_ccitt, crc16_ccitt_reference, decode_packet,
+    CRC_SIZE, CSI_LINK_HEAD_SIZE, HEADER_SIZE, LINK_PHONE, MAX_PAYLOAD, MAX_PAYLOAD_BY_TYPE,
+    SYNC, CsiLinkPacket, CsiPacket, Frame, FrameType, StreamDecoder, crc16_ccitt,
+    crc16_ccitt_reference, decode_packet,
 )
 
 
@@ -179,6 +181,126 @@ def test_status_frame_parses_json():
     f = Frame(FrameType.STATUS, 1, 5, b'{"wifi": true, "csi_hz": 98.5}')
     p = decode_packet(next(StreamDecoder().feed(f.encode())))
     assert p.fields == {"wifi": True, "csi_hz": 98.5}
+
+
+# ------------------------------------------------------ CSI_LINK (0x08)
+PHONE_MAC = b"\x02\x00\x00\x00\x00\x02"         # locally administered, like a private address
+
+
+def _link(seq=0, n=64, ts=2_000_000, link=LINK_PHONE, comp=-3.5):
+    raw = bytes((i * 11 + seq) & 0xFF for i in range(n * 2))
+    return CsiLinkPacket(link, ts, seq, rssi=-71, noise_floor=-95, channel=6,
+                         secondary_channel=0, sig_mode=1, cwb=0, stbc=0,
+                         first_word_invalid=0, mac=PHONE_MAC, raw=raw,
+                         agc_gain=30, fft_gain=-4, gain_comp_db=comp)
+
+
+def test_csi_link_round_trip():
+    p = _link(seq=7)
+    f = p.to_frame()
+    assert f.type == FrameType.CSI_LINK == 0x08
+    assert len(f.payload) == CSI_LINK_HEAD_SIZE + 128 == 149
+    q = decode_packet(next(StreamDecoder().feed(f.encode())))
+    assert isinstance(q, CsiLinkPacket) and not isinstance(q, CsiPacket)
+    assert q == p                                  # every field, the link id and signed values included
+    assert q.has_gain and q.n_subcarriers == 64
+
+
+def test_csi_link_without_the_gain_library_carries_an_unknown_gain():
+    p = _link(comp=None)
+    p.agc_gain = p.fft_gain = None
+    q = decode_packet(next(StreamDecoder().feed(p.to_frame().encode())))
+    assert q.gain_comp_db is None and not q.has_gain
+    assert (q.agc_gain, q.fft_gain) == (0, 0)      # the block is always there, zeroed
+
+
+def test_csi_link_limits_match_the_firmware_layout():
+    assert CSI_LINK_HEAD_SIZE == 21                # sizeof(ak_csi_link_head_t)
+    assert MAX_PAYLOAD_BY_TYPE[0x08] == 21 + 640   # + AK_MAX_CSI_BYTES
+
+
+def test_firmware_header_agrees_with_frame_types():
+    """aankhen_protocol.h and this module are one contract: every AK_ type there must
+    be the same number here, and the CSI_LINK head the same size."""
+    h = open(os.path.join(os.path.dirname(__file__), "..", "firmware", "aankhen_protocol.h"),
+             encoding="utf-8").read()
+    enum = h[h.index("typedef enum"):h.index("} ak_type_t;")]
+    c_types = {m.group(1): int(m.group(2), 16) for m in re.finditer(r"AK_(\w+)\s*=\s*0x([0-9A-Fa-f]+)", enum)}
+    assert c_types["CSI_LINK"] == 0x08
+    for name, value in c_types.items():
+        assert FrameType[name] == value, name
+    assert "sizeof(ak_csi_link_head_t) == 21" in h
+    max_csi = int(re.search(r"#define AK_MAX_CSI_BYTES (\d+)", h).group(1))
+    assert MAX_PAYLOAD_BY_TYPE[0x08] == CSI_LINK_HEAD_SIZE + max_csi
+    assert re.search(r"#define AK_LINK_PHONE (\d+)", h).group(1) == str(LINK_PHONE)
+
+
+def _mixed_stream(n=40):
+    """Every frame type the board sends, interleaved, each with its own sequence."""
+    rng = random.Random(3)
+    out, expect = [], []
+    for i in range(n):
+        frames = [_csi(seq=i).to_frame(), _link(seq=i).to_frame(),
+                  Frame(FrameType.RADAR, i, i, bytes(30))]
+        g = _csi(seq=i)
+        g.agc_gain, g.gain_comp_db = 20, 1.25
+        frames.append(g.to_frame())
+        if i % 5 == 0:
+            frames.append(Frame(FrameType.STATUS, i // 5, i, b'{"beacon": {"ip": null}}'))
+            frames.append(Frame(FrameType.LOG, i // 5, i, b"link 2: phone found"))
+        if i % 7 == 0:
+            frames.append(_link(seq=i, link=3).to_frame())
+        rng.shuffle(frames)
+        out += frames
+    return out
+
+
+def test_decoder_stays_in_sync_across_mixed_frame_types():
+    frames = _mixed_stream()
+    stream = b"".join(f.encode() for f in frames)
+    for chunking in ("bytes", "random"):
+        dec, got = StreamDecoder(), []
+        if chunking == "bytes":
+            for b in stream:
+                got.extend(dec.feed(bytes([b])))
+        else:
+            rng, i = random.Random(9), 0
+            while i < len(stream):
+                k = rng.randrange(1, 300)
+                got.extend(dec.feed(stream[i:i + k]))
+                i += k
+        assert [(f.type, f.seq, f.payload) for f in got] == [(f.type, f.seq, f.payload) for f in frames]
+        s = dec.stats
+        assert (s.crc_errors, s.bad_headers, s.bytes_skipped) == (0, 0, 0)
+    links = [decode_packet(f) for f in got if f.type == FrameType.CSI_LINK]
+    assert all(isinstance(p, CsiLinkPacket) for p in links)
+    assert {p.link for p in links} == {2, 3}
+
+
+def test_a_host_without_csi_link_reads_it_as_corruption(monkeypatch):
+    """Why the host must be updated BEFORE firmware 3.3.0 is flashed: a decoder that
+    does not know 0x08 counts every link-2 frame as a corrupted header and skips it
+    byte by byte. It keeps link 1 (resync works), but the link panel fills with junk."""
+    import aankhen.protocol as proto
+    old = {k: v for k, v in proto.MAX_PAYLOAD_BY_TYPE.items() if k != 0x08}
+    monkeypatch.setattr(proto, "MAX_PAYLOAD_BY_TYPE", old)
+    frames = _mixed_stream(10)
+    dec = StreamDecoder()
+    got = list(dec.feed(b"".join(f.encode() for f in frames))) + list(dec.flush())
+    assert [f.seq for f in got if f.type == FrameType.CSI] == list(range(10))
+    assert not any(f.type == FrameType.CSI_LINK for f in got)
+    assert dec.stats.bad_headers > 0 and dec.stats.bytes_skipped > 0
+
+
+def test_truncated_csi_link_is_a_bad_frame_not_a_crash():
+    p = _link()
+    f = p.to_frame()
+    short = Frame(FrameType.CSI_LINK, 0, 0, f.payload[:CSI_LINK_HEAD_SIZE - 1])
+    with pytest.raises(ValueError):
+        decode_packet(short)
+    cut = Frame(FrameType.CSI_LINK, 0, 0, f.payload[:-10])   # head says 128, 118 follow
+    with pytest.raises(ValueError):
+        decode_packet(cut)
 
 
 def test_frame_size_overhead():

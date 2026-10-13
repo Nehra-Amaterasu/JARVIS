@@ -1,7 +1,8 @@
 # Aankhen firmware v3 (ESP32-S3)
 
-The sensor board for JARVIS's eyes. It streams raw Wi-Fi CSI (100 Hz) and raw
-LD2450 radar frames to the laptop as CRC-checked binary frames over USB. All
+The sensor board for JARVIS's eyes. It streams raw Wi-Fi CSI to the laptop as
+CRC-checked binary frames over USB: the router link at up to 500 captures a second, and
+optionally a second link from a phone (section 7). Aankhen senses from radio alone. All
 processing happens on the laptop (`aankhen`). Relays switch only on request
 from JARVIS (MQTT) or a token-authenticated HTTP call.
 
@@ -20,6 +21,10 @@ The v2 fields `AP_SSID_VALUE` / `AP_PASS_VALUE` are no longer used: v3 has no fa
 access point.
 
 ## 2. Wiring
+
+Nothing but USB is needed for Wi-Fi sensing. The firmware also forwards an HLK-LD2450
+radar's frames, should one ever be fitted; none is planned, and without one the board
+simply sends none. The pins it would use:
 
 | LD2450 | ESP32-S3 |
 |---|---|
@@ -40,25 +45,23 @@ own median, which also discards most of what a person does to the signal. The
 physics model (`python -m aankhen physics`) puts breathing visibility at the desk at
 ~29 % of positions without it and ~97 % with it, on the default layout.
 
-Espressif's `esp_csi_gain_ctrl` reads that gain from the packet. The firmware picks
-it up automatically when its header is found, and then sends `CSI_GAIN` frames (the
-STATUS frame says `"gain":"compensated"`). Without it, the firmware behaves as before
-(`"gain":"unavailable"`).
+Espressif's `esp_csi_gain_ctrl` reads that gain from the packet. With it, the board
+sends `CSI_GAIN` frames for the router link and fills the gain block of every link-2
+`CSI_LINK` frame (STATUS says `"gain":"compensated"`). It is switched by `AK_GAIN_LIB`
+in `config.h` (on). Set it to 0 to build without it (`"gain":"unavailable"`).
 
-The library is closed source and ships as a precompiled `.a` per chip and ESP-IDF
-version. Espressif documents it for ESP-IDF; using it from Arduino is untested:
+**Vendored here**: `libraries/esp_csi_gain_ctrl/`, from `espressif/esp_csi_gain_ctrl`
+**0.1.5** (ESP Component Registry; source repository github.com/espressif/esp-csi),
+Apache-2.0 (`LICENSE` kept beside it). Only the ESP32-S3 archive built for **ESP-IDF
+5.5** is kept, because the Arduino-ESP32 core 3.3.x is IDF 5.5 and another IDF's
+archive does not link. It is closed source, a precompiled `.a`. Checksums and what
+was taken: `libraries/esp_csi_gain_ctrl/ORIGIN.md`.
 
-1. Download `espressif/esp_csi_gain_ctrl` from the ESP Component Registry
-   (components.espressif.com). It contains `include/esp_csi_gain_ctrl.h` and
-   `lib/<idf version>/<chip>/libesp_csi_gain_ctrl.a`.
-2. Make an Arduino library: `Documents/Arduino/libraries/esp_csi_gain_ctrl/` with
-   - `library.properties`: `name=esp_csi_gain_ctrl`, `version=0.1.5`, `precompiled=true`,
-     `ldflags=-lesp_csi_gain_ctrl`
-   - `src/esp_csi_gain_ctrl.h` (from `include/`)
-   - `src/esp32s3/libesp_csi_gain_ctrl.a`, from the folder for **ESP-IDF 5.5**. The
-     Arduino-ESP32 core 3.3.x is built on IDF 5.5; a mismatched build will not link.
-3. Compile. The build log should link `libesp_csi_gain_ctrl`; on boot STATUS should
-   show `"gain":"recording"` for ~1 s, then `"compensated"`.
+The build must be told where it is, with `--libraries aankhen/firmware/libraries`
+(section 4). Without that, the compile stops at `esp_csi_gain_ctrl.h: No such file`.
+That is deliberate. Firmware up to 3.2 probed with `__has_include`, which arduino-cli's
+library discovery never answers, so the gain stayed off even with the library installed.
+On boot STATUS shows `"gain":"recording"` for ~1 s, then `"compensated"`.
 
 Then run `python -m aankhen validate`. It measures how accurate the compensation
 is (packet-to-packet jitter in an empty room), and the physics predictions use that
@@ -66,11 +69,12 @@ measured value.
 
 ## 4. Flash
 
-Arduino IDE: board **ESP32S3 Dev Module**, **USB CDC On Boot: Enabled**, then Upload.
+Arduino IDE: copy `libraries/esp_csi_gain_ctrl` into your sketchbook's `libraries` folder
+once, then board **ESP32S3 Dev Module**, **USB CDC On Boot: Enabled**, Upload.
 Or from a terminal:
 
 ```bash
-arduino-cli compile --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc aankhen/firmware
+arduino-cli compile --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc --libraries aankhen/firmware/libraries aankhen/firmware
 arduino-cli upload  --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc -p COM9 aankhen/firmware
 ```
 
@@ -100,7 +104,6 @@ Open the JARVIS app → **Aankhen** → **ESP32**. The banner must turn cyan
 
 - `Wi-Fi CSI live ~100 Hz`. If it's far lower, the router is rate-limiting pings
   or the board is in power save.
-- `LD2450 radar live ~10 Hz` once the radar is wired.
 - `ESP32 … crc_ok true`. The firmware checks its own CRC against the Python one at boot.
 
 ## 6. Calibrate, validate, benchmark
@@ -121,6 +124,83 @@ breathing. You breathe with a metronome (12/min) at the desk and on the bed, and
 detector must find exactly that rate. It also measures the room's own slow signal
 wander and the gain compensation's accuracy, the two numbers the physics model can't
 know, and saves them so `python -m aankhen physics` predicts with them.
+
+## 7. Second link: your phone
+
+**What it is.** A phone on the home Wi-Fi becomes a second transmitter. The board
+pings it (`BEACON_PING_HZ`, 100 by default, in `config.h`). The phone sends each reply
+to the router, and the board overhears it in promiscuous receive while it stays
+connected as a station. Each overheard reply is a CSI capture of the phone → board
+path. Aankhen then sees the room along two radio paths: router → board (link 1) and
+phone → board (link 2). It is radio only: the phone transmits and records nothing.
+Link-2 captures travel as their own frame type (`CSI_LINK`, 0x08) and never mix into
+link 1.
+
+**Why the same channel.** The board has one radio and hears one channel at a time.
+It must stay on the router's channel to keep its own connection and link 1. A phone on
+the home Wi-Fi transmits on exactly that channel. Do not use a phone hotspot: that is
+another network on a channel the phone picks, and following it would take the board
+off the router.
+
+**Wi-Fi 4 only.** The ESP32-S3 decodes only 802.11b/g/n (Wi-Fi 4) on 2.4 GHz. A Wi-Fi 6
+or Wi-Fi 7 phone sends Wi-Fi 6/7 frames whenever the router allows it, and the board
+cannot read those, even on the right channel. So, plainly: **the router's 2.4 GHz
+network must run in Wi-Fi 4 (802.11n) mode, or the phone must join a 2.4 GHz-only,
+b/g/n network** on the same router as the board (not a guest network: those usually
+stop devices reaching each other). A phone on 5 GHz cannot be heard at all. The page
+says "Answering, but not heard" when the phone replies to pings but none of its frames
+can be read: that is this.
+
+**How to start it.** Find the board's address: the `ip` field of its STATUS frame, the
+log line `link 2: a phone on this Wi-Fi (2.4 GHz) can open http://…/beacon` printed
+after it joins, or the router's device list. On the phone, open
+`http://<board-ip>/beacon` in Chrome (Android) or Safari (iPhone). There is nothing to
+install. The page registers the phone, beats every 1.5 s, and shows **Link on** with
+the packets per second the board counts. The board serves one phone at a time; a
+second phone waits until the first page is closed. Closing the page, or 6 s without a
+beat, stops the pinging and promiscuous receive.
+
+**Rate is a ceiling.** esp_ping waits for each reply before sending the next ping, so
+link 2 runs at most at 1000 / (the phone's reply time in ms) per second. A phone in
+power save can drop to 20-60 Hz. Below ~80 Hz the host's human-band test gives no
+reading rather than a wrong one. Two numbers tell you what is happening:
+`beacon.rate_hz` (captures heard) and `beacon.pings_ok` (replies) in STATUS.
+
+**Placement.** Pick a fixed spot at about torso height (a shelf, the desk edge) where
+the line phone → board crosses the part of the room the router → board line misses.
+Ideally the two lines cross near the middle of the room. Then leave it there: moving
+the phone changes link 2's empty room, as moving the router does for link 1. An old
+spare phone is ideal, since a phone in your hand is a moving transmitter.
+
+**Battery and screen.** Keep it plugged in. The page must stay open and in front.
+Browsers let a page hold the screen on only over https, and the board serves http, so
+use the phone's own setting: Android **Developer options → Stay awake** (while
+charging), or iPhone **Display & Brightness → Auto-Lock → Never** while it is the
+beacon. The page is black, which an OLED screen barely lights, and it drifts a few
+pixels over ten minutes against burn-in. If the phone has a charge limit (80 %,
+Optimised charging), turn it on.
+
+**Airtime.** Each ping is four frames over the air. At 100 Hz link 2 occupies roughly
+6-10 % of the channel, on top of link 1's 15-25 %. If video calls in the house
+stutter, lower `BEACON_PING_HZ`, and see the note in `config.h` first.
+
+**Safety of link 1.** Promiscuous receive is on only while a phone is registered and
+its MAC is known. While it is on, link 1 keeps only the router's frames addressed to
+this board, exactly what it took before. If link 1's rate still falls below half its
+previous value for 3 s, the board turns promiscuous receive off for that registration
+(`beacon.fallback: true`; the page says "Paused to protect link 1").
+
+**What it cannot do.** Two links are two paths, not a map: there are still no
+coordinates. Link 2 is a second viewpoint for the learned models. The host already
+decodes and records it (every `.akr` keeps the `CSI_LINK` frames), but the engine
+ignores it until it is integrated (`aankhen/links.py`). With the ceiling fan on, link
+2 at ~100 Hz has about one packet per 10 ms slot, so it lacks the slot averaging that
+keeps the fan's aliases out of link 1's human band.
+
+**Update the host first.** A host older than this firmware reads frame type 0x08 as
+corruption: it skips those frames byte by byte and counts them as bad headers. The
+board sends none until a phone registers, but update `aankhen/protocol.py` before
+anyone opens `/beacon`.
 
 ## What changed from v2, and why
 

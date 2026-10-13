@@ -1,13 +1,17 @@
 // Aankhen ESP32-S3 firmware v3 — the eyes' sensor board.
 //
 // What it does, and nothing more:
-//   1. Joins the home Wi-Fi as a station and pings the router at 100 Hz, so the
-//      router's replies give a steady stream of Wi-Fi CSI captures.
+//   1. Joins the home Wi-Fi as a station and pings the router at 500 Hz, so the
+//      router's replies give a steady stream of Wi-Fi CSI captures (link 1).
 //   2. Captures CSI (legacy LTF only, 64 bins = 128 bytes), keeps only packets FROM
 //      the router that decoded cleanly, and forwards the raw buffer.
-//   3. Forwards every HLK-LD2450 radar frame byte-for-byte.
-//   4. Reports its health once a second.
-//   5. Switches the room relays when JARVIS asks: over the same USB cable (COMMAND
+//   3. Link 2, when a phone asks for it at /beacon: pings that phone and overhears its
+//      replies on their way to the router, a second radio path across the room. Its
+//      captures travel as their own frame type (AK_CSI_LINK), never mixed into link 1's.
+//   4. Forwards HLK-LD2450 radar frames byte-for-byte, should one ever be fitted
+//      (none is planned; without one, nothing is sent).
+//   5. Reports its health once a second.
+//   6. Switches the room relays when JARVIS asks: over the same USB cable (COMMAND
 //      frames, CRC-checked), over MQTT, or over HTTP with a token. Never without one.
 //      Every STATUS frame reports the relays' actual states.
 // Everything goes to the laptop as CRC-checked binary frames over native USB (see
@@ -29,19 +33,26 @@
 #include <esp_timer.h>
 #include "ping/ping_sock.h"
 #include "mqtt_client.h"
+#include "lwip/etharp.h"
+#include "lwip/tcpip.h"
 
 #include "aankhen_protocol.h"
 #include "config.h"    // wiring (tracked)
+#include "beacon_page.h"
 // RECEIVER GAIN. The ESP32-S3 sets its receive gain per packet, almost at random
 // (Portner et al., IEEE IoT-J 2026), and the CSI amplitudes carry it. Without
 // knowing it the host must divide every packet by its own median, which also
 // throws away most of what a person does to the signal (aankhen/rf.py measured
 // 90-99 % of a walker's). Espressif's esp_csi_gain_ctrl reads that gain from the
-// packet and computes the compensation; with it installed, CSI goes out as
-// AK_CSI_GAIN frames and the host undoes the gain exactly. Without it, plain AK_CSI
-// frames as before. Installing it: aankhen_esp32_firmware/README.md.
-#if __has_include(<esp_csi_gain_ctrl.h>)
-#include <esp_csi_gain_ctrl.h>
+// packet and computes the compensation; with it, CSI goes out as AK_CSI_GAIN frames
+// and the host undoes the gain exactly. Without it, plain AK_CSI frames as before.
+// It is vendored in libraries/esp_csi_gain_ctrl (README.md, section 3) and switched by
+// AK_GAIN_LIB in config.h. An explicit switch, not __has_include: arduino-cli adds a
+// library only for an #include it cannot otherwise resolve, and __has_include never
+// asks, so the old probe stayed 0 even with the library installed (seen 2026-10-13: a
+// build with it on the library path was byte-identical to one without).
+#if AK_GAIN_LIB
+#include <esp_csi_gain_ctrl.h>   // not found? compile with --libraries aankhen/firmware/libraries
 #define AK_GAIN_CTRL 1
 #else
 #define AK_GAIN_CTRL 0
@@ -50,7 +61,7 @@
 #include "secrets.h"   // gitignored; copy secrets.example.h
 
 // ------------------------------------------------------------------ config
-#define FW_VERSION "aankhen-3.2.0"
+#define FW_VERSION "aankhen-3.3.0"
 #define CSI_RATE_HZ 500           // router pings per second = CSI captures per second. 500, not 100:
                                   // the host averages ~5 per 10 ms slot, which keeps a full-speed
                                   // ceiling fan (~23 Hz and harmonics) from folding into the human band
@@ -59,6 +70,20 @@
 // so the absolute scale is irrelevant to the detector; automatic scaling keeps the
 // int8 samples using their full range, i.e. less quantisation noise.
 #define CSI_MANUAL_SCALE 0
+// Link 2 (the phone). BEACON_PING_HZ, and what its airtime costs the house: config.h.
+#define BEACON_PING_TIMEOUT_MS 100  // an awake phone answers in ~3-30 ms. A reply lost on the air then
+                                    // costs 0.1 s of link 2, under the host's 0.25 s gap limit (csi.py),
+                                    // so the stream is bridged, not broken. A phone that dozed off or
+                                    // left gets at most 10 pings a second until BEACON_LOST_MS
+#define BEACON_LOST_MS 6000         // the page beats every 1.5 s: 4 missed beats (screen locked, page
+                                    // closed, phone gone) end link 2: no more pings, promiscuous
+                                    // receive off, and another phone may register
+#define BEACON_CSI_MAX_HZ (2 * BEACON_PING_HZ)  // every frame the phone sends is a capture, not only the
+                                    // ping replies: an app update downloading in the background sends
+                                    // ~1,000 TCP ACKs a second, which would crowd link 1 off the USB
+                                    // link. Two per ping: the reply, and room for one other frame
+#define BEACON_QUEUE_DEPTH 64       // ~0.3 s at the 200 Hz cap, the same slack as link 1's queue
+static_assert(BEACON_PING_HZ >= 1 && BEACON_PING_HZ <= 500, "BEACON_PING_HZ (config.h) must be 1..500");
 
 // Relays (mains). Pins come from config.h; -1 disables one.
 struct Relay { const char *name; int pin; bool active_low; bool on; };
@@ -83,14 +108,65 @@ static esp_ping_handle_t pingHandle = nullptr;
 static esp_mqtt_client_handle_t mqtt = nullptr;
 static volatile bool mqttUp = false;
 static WebServer http(80);
-static bool httpEnabled = false;
+static bool httpEnabled = false;   // relay control over HTTP (STATUS "http"); needs RELAY_TOKEN_VALUE
+static bool webUp = false;         // the server itself: always on, for /beacon
 
 struct CsiItem {
-  ak_csi_meta_gain_t mg;      // metadata + gain, contiguous: one write sends both
+  ak_csi_link_head_t head;    // link id + metadata + gain, contiguous: one write sends them
   uint64_t ts;
   uint8_t buf[128];
 };
 static uint32_t gainRecorded = 0;   // packets in the gain baseline so far
+
+// Link 2 (design: LINK 2 below). Shared with the Wi-Fi task, hence volatile.
+static QueueHandle_t linkQueue;     // the phone's captures: a queue of their own, so they never crowd link 1's
+static uint8_t ownMac[6];           // this board's station MAC
+static volatile bool promisc = false;      // promiscuous receive on: link 1 also checks the destination
+static uint32_t beaconIp = 0;              // the registered phone (lwIP byte order); 0 = none
+static uint32_t beaconBeatMs = 0;          // its page's last beat (millis)
+static uint32_t beaconArpMs = 0, beaconPingTryMs = 0;
+static esp_ping_handle_t beaconPing = nullptr;
+static volatile uint32_t beaconGen = 0;    // registration number: late ping callbacks for an earlier phone are ignored
+// The phone's MAC, double-buffered: the Wi-Fi task compares against beaconMacs[beaconMacSlot]
+// while loop() writes the OTHER slot and then flips the index with a single byte store.
+static uint8_t beaconMacs[2][6];
+static volatile int8_t beaconMacSlot = -1; // -1: not known, and no frame is taken as link 2
+static volatile uint32_t beaconPingsOk = 0, beaconCaptured = 0, beaconDropped = 0, beaconRejected = 0;
+static volatile int8_t beaconRssi = 0;
+static volatile bool beaconHeard = false;  // a capture since it registered (else STATUS "rssi": null)
+static int64_t beaconLastUs = 0;           // Wi-Fi task only: when the last capture was taken (BEACON_CSI_MAX_HZ)
+// LINK-1 GUARD. In promiscuous receive link 1 keeps only frames whose dmac is this board.
+// The IDF headers document dmac but promise nothing about it in promiscuous CSI; were it
+// left zero, link 1 would go dark for as long as a phone is registered. So link 1's rate
+// is watched: below half of what it was before promiscuous receive, 3 s running, and
+// promiscuous receive goes off for this registration (STATUS beacon "fallback": true).
+// Link 1 never pays for link 2.
+#define LINK1_GUARD_FRACTION 0.5f
+#define LINK1_GUARD_S 3
+static float link1HzBefore = 0;            // csi_hz when promiscuous receive went on
+static uint32_t link1GuardCount = 0, link1GuardMs = 0;
+static uint8_t link1LowSeconds = 0;
+static bool beaconFallback = false;
+
+// Captures per second from a counter, over elapsed time, not "per call": a command's
+// immediate confirmation also sends a status, and a per-call count would split one
+// second's packets across two reports.
+struct RateEma {
+  uint32_t lastCount = 0, lastMs = 0;
+  float hz = 0;
+  void update(uint32_t count, uint32_t nowMs) {
+    if (lastMs && nowMs - lastMs >= 200) {
+      float inst = (count - lastCount) * 1000.0f / (nowMs - lastMs);
+      hz = hz == 0 ? inst : 0.7f * hz + 0.3f * inst;
+      lastCount = count;
+      lastMs = nowMs;
+    } else if (!lastMs) {
+      lastCount = count;
+      lastMs = nowMs;
+    }
+  }
+};
+static RateEma csiRate, beaconRate;
 
 static void logf(const char *fmt, ...) {
   char line[200];
@@ -105,35 +181,70 @@ static void logf(const char *fmt, ...) {
 }
 
 // ------------------------------------------------------------------ CSI
+// Copies one capture out of the driver's record, which is freed when the callback returns.
+static void IRAM_ATTR fillItem(CsiItem &item, wifi_csi_info_t *info, uint8_t link, int64_t ts) {
+  item.ts = ts;
+  item.head.link = link;
+  item.head.mg.meta.rssi = info->rx_ctrl.rssi;
+  item.head.mg.meta.noise_floor = info->rx_ctrl.noise_floor;
+  item.head.mg.meta.channel = info->rx_ctrl.channel;
+  item.head.mg.meta.secondary_channel = info->rx_ctrl.secondary_channel;
+  item.head.mg.meta.sig_mode = info->rx_ctrl.sig_mode;
+  item.head.mg.meta.cwb = info->rx_ctrl.cwb;
+  item.head.mg.meta.stbc = info->rx_ctrl.stbc;
+  item.head.mg.meta.first_word_invalid = info->first_word_invalid ? 1 : 0;
+  memcpy(item.head.mg.meta.mac, info->mac, 6);
+  uint16_t n = info->len > sizeof(item.buf) ? sizeof(item.buf) : info->len;
+  item.head.mg.meta.csi_len = n;
+#if AK_GAIN_CTRL
+  esp_csi_gain_ctrl_get_rx_gain(&info->rx_ctrl, &item.head.mg.gain.agc_gain, &item.head.mg.gain.fft_gain);
+#else
+  item.head.mg.gain.agc_gain = 0;
+  item.head.mg.gain.fft_gain = 0;
+#endif
+  item.head.mg.gain.comp_cdb = AK_GAIN_UNKNOWN;
+  memcpy(item.buf, info->buf, n);
+}
+
+// Link 2: one of the phone's frames, overheard.
+static void IRAM_ATTR onPhoneCsi(wifi_csi_info_t *info) {
+  if (info->rx_ctrl.rx_state != 0) {                     // failed decode = garbage CSI
+    beaconRejected++;
+    return;
+  }
+  int64_t now = esp_timer_get_time();
+  if (now - beaconLastUs < 1000000 / BEACON_CSI_MAX_HZ) return;   // capped (BEACON_CSI_MAX_HZ), not lost
+  beaconLastUs = now;
+  CsiItem item;
+  fillItem(item, info, AK_LINK_PHONE, now);
+  beaconRssi = info->rx_ctrl.rssi;
+  beaconHeard = true;
+  if (xQueueSendFromISR(linkQueue, &item, nullptr) == pdTRUE) beaconCaptured++;
+  else beaconDropped++;                                  // counted, reported, never silent
+}
+
 // Runs in the Wi-Fi task: copy and get out. No allocation, no printing.
 static void IRAM_ATTR onCsi(void *ctx, wifi_csi_info_t *info) {
-  if (!info || !info->buf || !haveBssid) return;
-  if (memcmp(info->mac, routerBssid, 6) != 0) return;   // only the router's replies
+  if (!info || !info->buf) return;
+  // The phone first. In promiscuous receive this callback hears every frame on the
+  // channel, the neighbours' included: theirs cost two 6-byte compares, each of which
+  // stops at the first byte that differs.
+  int8_t slot = beaconMacSlot;
+  if (slot >= 0 && memcmp(info->mac, beaconMacs[slot], 6) == 0) {
+    onPhoneCsi(info);
+    return;
+  }
+  if (!haveBssid || memcmp(info->mac, routerBssid, 6) != 0) return;   // only the router's replies
+  // ...and, in promiscuous receive, only the router's frames addressed to this board or
+  // to everyone: exactly what the radio passed before. Not its traffic to the rest of
+  // the house, whose rate follows whatever the family is streaming.
+  if (promisc && memcmp(info->dmac, ownMac, 6) != 0 && !(info->dmac[0] & 0x01)) return;
   if (info->rx_ctrl.rx_state != 0) {                     // failed decode = garbage CSI
     csiRejected++;
     return;
   }
   CsiItem item;
-  item.ts = esp_timer_get_time();
-  item.mg.meta.rssi = info->rx_ctrl.rssi;
-  item.mg.meta.noise_floor = info->rx_ctrl.noise_floor;
-  item.mg.meta.channel = info->rx_ctrl.channel;
-  item.mg.meta.secondary_channel = info->rx_ctrl.secondary_channel;
-  item.mg.meta.sig_mode = info->rx_ctrl.sig_mode;
-  item.mg.meta.cwb = info->rx_ctrl.cwb;
-  item.mg.meta.stbc = info->rx_ctrl.stbc;
-  item.mg.meta.first_word_invalid = info->first_word_invalid ? 1 : 0;
-  memcpy(item.mg.meta.mac, info->mac, 6);
-  uint16_t n = info->len > sizeof(item.buf) ? sizeof(item.buf) : info->len;
-  item.mg.meta.csi_len = n;
-#if AK_GAIN_CTRL
-  esp_csi_gain_ctrl_get_rx_gain(&info->rx_ctrl, &item.mg.gain.agc_gain, &item.mg.gain.fft_gain);
-#else
-  item.mg.gain.agc_gain = 0;
-  item.mg.gain.fft_gain = 0;
-#endif
-  item.mg.gain.comp_cdb = AK_GAIN_UNKNOWN;
-  memcpy(item.buf, info->buf, n);
+  fillItem(item, info, AK_LINK_ROUTER, esp_timer_get_time());
   if (xQueueSendFromISR(csiQueue, &item, nullptr) == pdTRUE) csiCaptured++;
   else csiDropped++;                                     // counted, reported, never silent
 }
@@ -150,6 +261,52 @@ static void startCsi() {
   ESP_ERROR_CHECK(esp_wifi_set_csi_config(&cfg));
   ESP_ERROR_CHECK(esp_wifi_set_csi_rx_cb(&onCsi, nullptr));
   ESP_ERROR_CHECK(esp_wifi_set_csi(true));
+}
+
+// Sends one queued capture. Link 1 exactly as before: AK_CSI_GAIN with the gain library,
+// else AK_CSI. Link 2 always as AK_CSI_LINK, gain block included.
+static void sendCsi(CsiItem &item) {
+  bool router = item.head.link == AK_LINK_ROUTER;
+#if AK_GAIN_CTRL
+  // Baseline first (the median gain of the first packets), then every packet's
+  // compensation against it. Done here, not in the Wi-Fi callback, to keep that short.
+  // Only the router's packets set the baseline; the phone's are compensated against the
+  // same one, so both links' amplitudes are on one scale.
+  if (gainRecorded < GAIN_BASELINE_PACKETS) {
+    if (router) {
+      esp_csi_gain_ctrl_record_rx_gain(item.head.mg.gain.agc_gain, item.head.mg.gain.fft_gain);
+      gainRecorded++;
+    }
+  } else {
+    float comp = 1.0f;
+    if (esp_csi_gain_ctrl_get_gain_compensation(&comp, item.head.mg.gain.agc_gain, item.head.mg.gain.fft_gain) == ESP_OK
+        && comp > 0.0f) {
+      item.head.mg.gain.comp_cdb = (int16_t)lroundf(2000.0f * log10f(comp));
+    }
+  }
+#endif
+  if (!router) {
+    ak.frame(AK_CSI_LINK, item.ts, (const uint8_t *)&item.head, sizeof(item.head), item.buf,
+             item.head.mg.meta.csi_len);
+    return;
+  }
+#if AK_GAIN_CTRL
+  ak.frame(AK_CSI_GAIN, item.ts, (const uint8_t *)&item.head.mg, sizeof(item.head.mg), item.buf,
+           item.head.mg.meta.csi_len);
+#else
+  ak.frame(AK_CSI, item.ts, (const uint8_t *)&item.head.mg.meta, sizeof(item.head.mg.meta), item.buf,
+           item.head.mg.meta.csi_len);
+#endif
+}
+
+static void drainCsi(QueueHandle_t q, int burst) {
+  CsiItem item;
+  while (burst-- > 0 && xQueueReceive(q, &item, 0) == pdTRUE) {
+    if (xSemaphoreTake(txLock, pdMS_TO_TICKS(10))) {
+      sendCsi(item);
+      xSemaphoreGive(txLock);
+    }
+  }
 }
 
 // Traffic generator: ICMP echo to the gateway. Each reply is one CSI capture.
@@ -171,6 +328,189 @@ static void startPing() {
   esp_ping_callbacks_t cbs = {};
   if (esp_ping_new_session(&cfg, &cbs, &pingHandle) == ESP_OK) esp_ping_start(pingHandle);
   else logf("ping session failed");
+}
+
+// ------------------------------------------------------------------ LINK 2: your phone
+// WHY. The router -> board path (link 1) sees the room along one line; someone who does
+// not cross it barely changes it. A phone left at a fixed spot is a second transmitter:
+// the board measures how the room changes the phone's signal on its way to the board,
+// a second path from another angle. Nothing to install: the phone opens
+// http://<board>/beacon, which registers it and keeps its Wi-Fi awake (beacon_page.h).
+//
+// HOW THE BOARD HEARS IT. The board pings the phone (BEACON_PING_HZ, config.h). The
+// phone sends each reply to the router, not to the board, and the radio drops frames
+// addressed to someone else unless promiscuous receive is on. It is on only while a
+// phone is registered and its MAC known, and the board stays connected as a station
+// throughout: one radio, one channel, the router's. So the phone must be on the home
+// Wi-Fi's 2.4 GHz band. A phone hotspot is another network on another channel:
+// following it would take the board off the router, and link 1 with it.
+//
+// WHICH FRAMES ARE THE PHONE'S. A CSI record carries its transmitter's MAC. The phone's
+// comes from lwIP's ARP table, which has it once the phone's page has loaded (the phone
+// asked who the board is) or the first ping has gone out, and it is looked up again
+// every 2 s: a phone that changes its private address is followed, not silently lost.
+//
+// ONE PHONE AT A TIME: two would interleave two transmitters under one link id. A second
+// page is told "busy" until the first stops beating. The board only ever pings the
+// address a request came from (a TCP connection's source cannot be forged on the LAN),
+// so /beacon cannot aim pings at anything else.
+
+// lwIP's ARP table belongs to the tcpip thread. This core (esp32s3-libs 3.3.12) is built
+// with CONFIG_LWIP_TCPIP_CORE_LOCKING=y and CONFIG_LWIP_CHECK_THREAD_SAFETY=y: another
+// task may call into lwIP only while it holds the core lock, as the core's own
+// esp32-hal-time.c does. etharp_find_addr returns a pointer INTO the table, which the
+// tcpip thread may rewrite as soon as the lock is released: copy it out under the lock.
+#if !CONFIG_LWIP_TCPIP_CORE_LOCKING
+#error "link 2 reads lwIP's ARP table under the TCPIP core lock, and this core is built without one"
+#endif
+static bool arpLookup(uint32_t ip, uint8_t mac[6]) {
+  ip4_addr_t want;
+  want.addr = ip;
+  struct eth_addr *eth = nullptr;
+  const ip4_addr_t *at = nullptr;
+  bool found = false;
+  LOCK_TCPIP_CORE();
+  if (etharp_find_addr(nullptr, &want, &eth, &at) >= 0 && eth) {   // nullptr: any netif; the station is the only one
+    memcpy(mac, eth->addr, 6);
+    found = true;
+  }
+  UNLOCK_TCPIP_CORE();
+  return found;
+}
+
+static void setPromiscuous(bool on) {
+  if (on == promisc) return;
+  if (on) {
+    link1HzBefore = csiRate.hz;   // the guard's reference (LINK-1 GUARD)
+    link1GuardCount = csiCaptured;
+    link1GuardMs = millis();
+    link1LowSeconds = 0;
+    promisc = true;               // first: link 1 checks the destination before a foreign frame can arrive
+    // Data frames only: the phone's replies are data frames, and the neighbours' beacons
+    // and control frames (hundreds a second on a busy channel) never reach the driver's
+    // CSI path. Whether this mask also gates CSI is not documented; if it costs link 1
+    // anything that matters, the LINK-1 GUARD turns promiscuous receive off.
+    wifi_promiscuous_filter_t f = {};
+    f.filter_mask = WIFI_PROMIS_FILTER_MASK_DATA;
+    esp_wifi_set_promiscuous_filter(&f);
+    if (esp_wifi_set_promiscuous(true) != ESP_OK) {
+      promisc = false;
+      logf("link 2: promiscuous receive refused");
+    }
+  } else {
+    esp_wifi_set_promiscuous(false);
+    promisc = false;              // last: until it is off, foreign frames may still arrive
+  }
+}
+
+static void learnPhoneMac() {
+  uint8_t mac[6];
+  if (!arpLookup(beaconIp, mac)) return;                 // not resolved yet: the next look
+  int8_t slot = beaconMacSlot;
+  if (slot >= 0 && memcmp(mac, beaconMacs[slot], 6) == 0) return;
+  int8_t next = slot == 0 ? 1 : 0;
+  memcpy(beaconMacs[next], mac, 6);
+  __sync_synchronize();                                  // the bytes land before the index that points at them
+  beaconMacSlot = next;
+  if (!beaconFallback) setPromiscuous(true);
+  logf("link 2: phone %s (%s address); overhearing it", slot < 0 ? "found" : "changed its MAC",
+       (mac[0] & 0x02) ? "a private, randomised" : "its factory");
+}
+
+static void onPhonePingOk(esp_ping_handle_t, void *gen) {
+  if ((uint32_t)(uintptr_t)gen == beaconGen) beaconPingsOk++;   // a late reply to an earlier phone is not this one's
+}
+
+static void startPhonePing() {
+  esp_ping_config_t cfg = ESP_PING_DEFAULT_CONFIG();
+  cfg.target_addr.type = IPADDR_TYPE_V4;
+  cfg.target_addr.u_addr.ip4.addr = beaconIp;
+  cfg.count = ESP_PING_COUNT_INFINITE;
+  cfg.interval_ms = 1000 / BEACON_PING_HZ;
+  cfg.timeout_ms = BEACON_PING_TIMEOUT_MS;
+  cfg.data_size = 1;
+  cfg.task_stack_size = 3072;
+  esp_ping_callbacks_t cbs = {};
+  cbs.cb_args = (void *)(uintptr_t)beaconGen;
+  cbs.on_ping_success = onPhonePingOk;
+  if (esp_ping_new_session(&cfg, &cbs, &beaconPing) == ESP_OK) {
+    esp_ping_start(beaconPing);
+  } else {
+    beaconPing = nullptr;
+    logf("link 2: ping session failed; trying again in 1 s");
+  }
+}
+
+static void resetPhoneCounters() {
+  beaconPingsOk = 0;
+  beaconCaptured = 0;
+  beaconDropped = 0;
+  beaconRejected = 0;
+  beaconHeard = false;
+  beaconRate = RateEma();
+  beaconFallback = false;
+}
+
+// LINK-1 GUARD, once a second while promiscuous receive is on.
+static void guardLink1(uint32_t now) {
+  if (!promisc || link1HzBefore < 20.0f || now - link1GuardMs < 1000) return;
+  uint32_t cap = csiCaptured;
+  float hz = (cap - link1GuardCount) * 1000.0f / (now - link1GuardMs);
+  link1GuardCount = cap;
+  link1GuardMs = now;
+  link1LowSeconds = hz < LINK1_GUARD_FRACTION * link1HzBefore ? link1LowSeconds + 1 : 0;
+  if (link1LowSeconds >= LINK1_GUARD_S) {
+    setPromiscuous(false);
+    beaconFallback = true;
+    logf("link 2: link 1 fell to %.0f Hz from %.0f Hz in promiscuous receive; turned it off", hz, link1HzBefore);
+  }
+}
+
+static void dropPhone(const char *why) {
+  if (!beaconIp) return;
+  beaconMacSlot = -1;                                    // the Wi-Fi task takes none of its frames from now
+  setPromiscuous(false);
+  if (beaconPing) {
+    // The ping task finishes its current ping (<= BEACON_PING_TIMEOUT_MS) and then frees
+    // itself; a callback it still makes carries the old beaconGen and is ignored.
+    esp_ping_stop(beaconPing);
+    esp_ping_delete_session(beaconPing);
+    beaconPing = nullptr;
+  }
+  beaconIp = 0;
+  resetPhoneCounters();
+  logf("link 2: phone released (%s)", why);
+}
+
+static void registerPhone(uint32_t ip) {
+  dropPhone("replaced by a new registration");
+  beaconGen++;
+  beaconIp = ip;
+  resetPhoneCounters();
+  beaconArpMs = 0;                                       // look its MAC up straight away
+  beaconPingTryMs = 0;
+  logf("link 2: phone %s registered", IPAddress(ip).toString().c_str());
+}
+
+static void phoneTick(uint32_t now) {
+  if (!beaconIp) return;
+  if (WiFi.status() != WL_CONNECTED) {
+    dropPhone("Wi-Fi lost");
+    return;
+  }
+  if (now - beaconBeatMs > BEACON_LOST_MS) {
+    dropPhone("its page stopped beating");
+    return;
+  }
+  if (!beaconPing && now - beaconPingTryMs >= 1000) {
+    beaconPingTryMs = now;
+    startPhonePing();
+  }
+  if (now - beaconArpMs >= (beaconMacSlot < 0 ? 100u : 2000u)) {
+    beaconArpMs = now;
+    learnPhoneMac();
+  }
+  guardLink1(now);
 }
 
 // ------------------------------------------------------------------ radar
@@ -262,6 +602,8 @@ static void startMqtt() {
 #endif
 }
 
+// ------------------------------------------------------------------ HTTP
+// Port 80 always serves /beacon (link 2). /relay exists only with RELAY_TOKEN_VALUE.
 #ifdef RELAY_TOKEN_VALUE
 // Constant-time comparison: response timing must not reveal how much of a guessed
 // token was right.
@@ -274,8 +616,55 @@ static bool tokenOk() {
   for (size_t i = 0; i < n; i++) diff |= (uint8_t)t[i] ^ (uint8_t)want[i];
   return diff == 0;
 }
+#endif
+
+// The requester's IPv4 address; 0 for IPv6, which the phone's ping cannot use.
+static uint32_t clientIpv4() {
+  IPAddress ip = http.client().remoteIP();
+  return ip.type() == IPv4 ? (uint32_t)ip : 0;
+}
+
+static void onBeaconPage() {
+  http.sendHeader("Cache-Control", "no-cache");
+  http.send_P(200, "text/html; charset=utf-8", BEACON_HTML);
+}
+
+// POST /beacon/beat: registers the phone, or keeps it registered, and tells the page
+// how the link is doing (beacon_page.h).
+static void onBeat() {
+  uint32_t ip = clientIpv4(), now = millis();
+  http.sendHeader("Cache-Control", "no-store");
+  if (!ip) {
+    http.send(400, "application/json", "{\"error\":\"open the page at the board's IPv4 address\"}");
+    return;
+  }
+  if (beaconIp && ip != beaconIp && now - beaconBeatMs <= BEACON_LOST_MS) {
+    http.send(200, "application/json", "{\"role\":\"busy\"}");
+    return;
+  }
+  if (ip != beaconIp) registerPhone(ip);
+  beaconBeatMs = now;
+  char rssi[8] = "null";
+  if (beaconHeard) snprintf(rssi, sizeof(rssi), "%d", beaconRssi);
+  char js[160];
+  snprintf(js, sizeof(js),
+           "{\"role\":\"beacon\",\"mac_known\":%s,\"pings_ok\":%lu,\"rate_hz\":%lu,\"rssi\":%s,\"ping_hz\":%d,\"fallback\":%s}",
+           beaconMacSlot >= 0 ? "true" : "false", (unsigned long)beaconPingsOk,
+           (unsigned long)(beaconRate.hz + 0.5f), rssi, BEACON_PING_HZ, beaconFallback ? "true" : "false");
+  http.send(200, "application/json", js);
+}
+
+// POST /beacon/bye: the page was closed; free the board straight away.
+static void onBye() {
+  if (beaconIp && clientIpv4() == beaconIp) dropPhone("its page closed");
+  http.send(204);
+}
 
 static void startHttp() {
+  http.on("/beacon", HTTP_GET, onBeaconPage);
+  http.on("/beacon/beat", HTTP_POST, onBeat);
+  http.on("/beacon/bye", HTTP_POST, onBye);
+#ifdef RELAY_TOKEN_VALUE
   static const char *hdrs[] = {"X-Aankhen-Token"};
   http.collectHeaders(hdrs, 1);
   http.on("/relay", HTTP_POST, []() {
@@ -287,11 +676,12 @@ static void startHttp() {
     setRelay(*r, on);
     http.send(200, "application/json", on ? "{\"on\":true}" : "{\"on\":false}");
   });
+  httpEnabled = true;
+#endif
   http.onNotFound([]() { http.send(404, "text/plain", "not found"); });
   http.begin();
-  httpEnabled = true;
+  webUp = true;
 }
-#endif
 
 // ------------------------------------------------------------------ USB commands
 // Host -> device COMMAND frames (type 0x06) arrive on the same USB serial link the
@@ -377,22 +767,10 @@ static void pumpCommands() {
 
 // ------------------------------------------------------------------ status
 static void sendStatus() {
-  // Rate from elapsed time, not "per call": a command's immediate confirmation
-  // also sends a status, and a per-call count would split one second's packets
-  // across two reports.
-  static uint32_t lastCaptured = 0, lastMs = 0;
-  static float hzEma = 0;
-  uint32_t cap = csiCaptured, nowMs = millis();
-  if (lastMs && nowMs - lastMs >= 200) {
-    float inst = (cap - lastCaptured) * 1000.0f / (nowMs - lastMs);
-    hzEma = hzEma == 0 ? inst : 0.7f * hzEma + 0.3f * inst;
-    lastCaptured = cap;
-    lastMs = nowMs;
-  } else if (!lastMs) {
-    lastCaptured = cap;
-    lastMs = nowMs;
-  }
-  uint32_t hz = (uint32_t)(hzEma + 0.5f);
+  uint32_t nowMs = millis();
+  csiRate.update(csiCaptured, nowMs);
+  beaconRate.update(beaconCaptured, nowMs);
+  uint32_t hz = (uint32_t)(csiRate.hz + 0.5f);
   char relays[96];
   int rn = snprintf(relays, sizeof(relays), "{");
   for (size_t i = 0; i < sizeof(RELAYS) / sizeof(RELAYS[0]); i++) {
@@ -400,12 +778,21 @@ static void sendStatus() {
                    RELAYS[i].pin < 0 ? "null" : (RELAYS[i].on ? "true" : "false"));
   }
   snprintf(relays + rn, sizeof(relays) - rn, "}");
-  char js[520];
+  // Link 2, the phone's own numbers: the board's view of it, beside the host's (links.py).
+  char phoneIp[20] = "null", rssi[8] = "null", beacon[200];
+  if (beaconIp) snprintf(phoneIp, sizeof(phoneIp), "\"%s\"", IPAddress(beaconIp).toString().c_str());
+  if (beaconIp && beaconHeard) snprintf(rssi, sizeof(rssi), "%d", beaconRssi);
+  snprintf(beacon, sizeof(beacon),
+           "{\"ip\":%s,\"mac_known\":%s,\"pings_ok\":%lu,\"rate_hz\":%lu,\"rssi\":%s,\"dropped\":%lu,\"rejected\":%lu,\"fallback\":%s}",
+           phoneIp, beaconMacSlot >= 0 ? "true" : "false", (unsigned long)beaconPingsOk,
+           (unsigned long)(beaconIp ? beaconRate.hz + 0.5f : 0.0f), rssi,
+           (unsigned long)beaconDropped, (unsigned long)beaconRejected, beaconFallback ? "true" : "false");
+  char js[768];
   snprintf(js, sizeof(js),
            "{\"fw\":\"%s\",\"uptime_s\":%.1f,\"relays\":%s,\"wifi\":\"%s\",\"ip\":\"%s\",\"rssi\":%d,"
            "\"channel\":%d,\"csi_hz\":%lu,\"csi_dropped\":%lu,\"csi_rejected\":%lu,"
            "\"radar_frames\":%lu,\"radar_bad\":%lu,\"mqtt\":%s,\"http\":%s,"
-           "\"heap_free\":%lu,\"crc_ok\":%s,\"gain\":\"%s\"}",
+           "\"heap_free\":%lu,\"crc_ok\":%s,\"gain\":\"%s\",\"beacon\":%s}",
            FW_VERSION, esp_timer_get_time() / 1e6, relays,
            WiFi.status() == WL_CONNECTED ? "connected" : "connecting",
            WiFi.localIP().toString().c_str(), WiFi.RSSI(), WiFi.channel(),
@@ -413,7 +800,8 @@ static void sendStatus() {
            (unsigned long)radarFrames, (unsigned long)radarBad,
            mqttUp ? "true" : "false", httpEnabled ? "true" : "false",
            (unsigned long)ESP.getFreeHeap(), ak_crc_self_test() ? "true" : "false",
-           !AK_GAIN_CTRL ? "unavailable" : gainRecorded < GAIN_BASELINE_PACKETS ? "recording" : "compensated");
+           !AK_GAIN_CTRL ? "unavailable" : gainRecorded < GAIN_BASELINE_PACKETS ? "recording" : "compensated",
+           beacon);
   if (xSemaphoreTake(txLock, pdMS_TO_TICKS(20))) {
     ak.text(AK_STATUS, js);
     xSemaphoreGive(txLock);
@@ -423,6 +811,7 @@ static void sendStatus() {
 // ------------------------------------------------------------------ Wi-Fi
 static void connectWifi() {
   WiFi.mode(WIFI_STA);
+  esp_wifi_get_mac(WIFI_IF_STA, ownMac);
   WiFi.setSleep(false);
   WiFi.begin(WIFI_SSID_VALUE, WIFI_PASS_VALUE);
   logf("joining %s", WIFI_SSID_VALUE);
@@ -438,6 +827,7 @@ static void connectWifi() {
   logf("wifi: %s ch %d rssi %d bssid %02x:%02x:%02x:%02x:%02x:%02x", WiFi.localIP().toString().c_str(),
        WiFi.channel(), WiFi.RSSI(), routerBssid[0], routerBssid[1], routerBssid[2], routerBssid[3],
        routerBssid[4], routerBssid[5]);
+  logf("link 2: a phone on this Wi-Fi (2.4 GHz) can open http://%s/beacon", WiFi.localIP().toString().c_str());
   startPing();
 }
 
@@ -448,6 +838,7 @@ void setup() {
   Serial.setTxTimeoutMs(0);        // never block when no host is reading: drop instead
   txLock = xSemaphoreCreateMutex();
   csiQueue = xQueueCreate(CSI_QUEUE_DEPTH, sizeof(CsiItem));
+  linkQueue = xQueueCreate(BEACON_QUEUE_DEPTH, sizeof(CsiItem));
   delay(300);
   logf("%s booting, protocol v%d, crc self-test %s", FW_VERSION, AK_PROTOCOL_VERSION,
        ak_crc_self_test() ? "ok" : "FAILED");
@@ -458,43 +849,20 @@ void setup() {
   connectWifi();
   startCsi();
   startMqtt();
-#ifdef RELAY_TOKEN_VALUE
   startHttp();
-#endif
 }
 
 void loop() {
-  // CSI: drain the queue in bursts.
-  CsiItem item;
-  int burst = 0;
-  while (burst++ < 16 && xQueueReceive(csiQueue, &item, 0) == pdTRUE) {
-    if (xSemaphoreTake(txLock, pdMS_TO_TICKS(10))) {
-#if AK_GAIN_CTRL
-      // Baseline first (the median gain of the first packets), then every packet's
-      // compensation against it. Done here, not in the Wi-Fi callback, to keep that short.
-      if (gainRecorded < GAIN_BASELINE_PACKETS) {
-        esp_csi_gain_ctrl_record_rx_gain(item.mg.gain.agc_gain, item.mg.gain.fft_gain);
-        gainRecorded++;
-      } else {
-        float comp = 1.0f;
-        if (esp_csi_gain_ctrl_get_gain_compensation(&comp, item.mg.gain.agc_gain, item.mg.gain.fft_gain) == ESP_OK
-            && comp > 0.0f) {
-          item.mg.gain.comp_cdb = (int16_t)lroundf(2000.0f * log10f(comp));
-        }
-      }
-      ak.frame(AK_CSI_GAIN, item.ts, (const uint8_t *)&item.mg, sizeof(item.mg), item.buf, item.mg.meta.csi_len);
-#else
-      ak.frame(AK_CSI, item.ts, (const uint8_t *)&item.mg.meta, sizeof(item.mg.meta), item.buf, item.mg.meta.csi_len);
-#endif
-      xSemaphoreGive(txLock);
-    }
-  }
+  // CSI: drain the queues in bursts. Link 1 first: it is what the engine runs on.
+  drainCsi(csiQueue, 16);
+  drainCsi(linkQueue, 8);
   pumpRadar();
   pumpCommands();
-  if (httpEnabled) http.handleClient();
+  if (webUp) http.handleClient();
 
   static uint32_t lastStatus = 0, lastWifiTry = 0;
   uint32_t now = millis();
+  phoneTick(now);                  // before any reconnect: a lost link drops the phone first
   if (now - lastStatus >= 1000) {
     lastStatus = now;
     sendStatus();

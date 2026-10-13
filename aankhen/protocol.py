@@ -26,8 +26,13 @@ FRAME LAYOUT (all little-endian)
   16+N   2    CRC16       CRC-16/CCITT-FALSE over bytes [2 .. 16+N) — everything
                           after SYNC and before the CRC itself
 
-The C side of this contract lives in aankhen_esp32_firmware/aankhen_protocol.h.
-Both sides MUST change together; bump PROTOCOL_VERSION when they do.
+The C side of this contract lives in aankhen/firmware/aankhen_protocol.h.
+Both sides MUST change together. Bump PROTOCOL_VERSION when an EXISTING layout
+changes: the decoder rejects every frame of another version, so a bump also makes
+every .akr recorded before it unreadable. A NEW frame type is additive and keeps the
+version (CSI_GAIN 0x07, CSI_LINK 0x08), but it must reach the host BEFORE any firmware
+sends it: an unknown TYPE has no entry in MAX_PAYLOAD_BY_TYPE, so the decoder reads it
+as a corrupted header (bad_headers, bytes_skipped) and resynchronises past it.
 """
 from __future__ import annotations
 
@@ -55,6 +60,7 @@ class FrameType(enum.IntEnum):
     RSSI = 0x05          # RSSI-only sample (fallback when CSI is unavailable)
     COMMAND = 0x06       # host -> device, JSON: {"relay": "light", "on": true}
     CSI_GAIN = 0x07      # a CSI capture plus the receiver gain it was taken with
+    CSI_LINK = 0x08      # a CSI capture from ANOTHER transmitter (link 2: a phone)
 
 
 # Largest legitimate payload per frame type. Validating LENGTH against the TYPE —
@@ -64,6 +70,9 @@ class FrameType(enum.IntEnum):
 # global 2048-byte cap, a LENGTH corrupted to 1500 stalled the whole stream.
 #   CSI: 16 B metadata + at most 612 B of CSI (ESP32-S3, HT40, all LTFs enabled).
 #   RADAR: an LD2450 report is always exactly 30 bytes.
+#   CSI_LINK: link id + metadata + gain block (21 B) + the same CSI buffer.
+# This table is also the decoder's list of KNOWN types: a type missing here is read as
+# corruption, so a new type is registered here before any firmware sends it.
 MAX_PAYLOAD_BY_TYPE = {
     0x01: 16 + 640,
     0x02: 64,
@@ -72,6 +81,7 @@ MAX_PAYLOAD_BY_TYPE = {
     0x05: 32,
     0x06: 256,
     0x07: 16 + 4 + 640,
+    0x08: 1 + 16 + 4 + 640,
 }
 
 
@@ -207,6 +217,87 @@ class CsiPacket:
         cdb = GAIN_UNKNOWN if self.gain_comp_db is None else             max(-32767, min(32767, int(round(self.gain_comp_db * 100))))
         gain = struct.pack(CSI_GAIN_FMT, self.agc_gain or 0, self.fft_gain or 0, cdb)
         return Frame(FrameType.CSI_GAIN, self.seq, self.timestamp_us, meta + gain + self.raw)
+
+
+# CSI_LINK payload: which link, then exactly a CSI_GAIN payload:
+#   link u8 | CSI_META_FMT (16) | CSI_GAIN_FMT (4) | csi int8[len]
+# The gain block is always present (agc 0, fft 0, GAIN_UNKNOWN when the firmware has no
+# esp_csi_gain_ctrl), so every link is gain-compensated exactly like link 1. Mirrors
+# ak_csi_link_head_t in aankhen_protocol.h.
+CSI_LINK_FMT = "<B"
+CSI_LINK_HEAD_SIZE = struct.calcsize(CSI_LINK_FMT) + CSI_META_SIZE + CSI_GAIN_SIZE   # 21
+LINK_ROUTER = 1      # router -> board. Travels as CSI / CSI_GAIN, never as CSI_LINK.
+LINK_PHONE = 2       # the owner's phone -> board: the phone that opened the board's /beacon
+LINK_NAMES = {LINK_ROUTER: "router", LINK_PHONE: "phone"}
+
+
+@dataclass
+class CsiLinkPacket:
+    """One CSI capture from a transmitter other than the router: link 2, a phone.
+
+    The board overhears the phone's replies to its pings on their way to the router
+    (firmware, LINK 2), so this is the phone -> board path: the same physics as a
+    CsiPacket, seen from another place in the room.
+
+    Deliberately NOT a CsiPacket subclass. Everything built for link 1 (Engine.process,
+    learn._packets, bench, validate, firstlight) selects packets with
+    isinstance(p, CsiPacket), so link-2 data cannot leak into the router link's
+    conditioner, baselines or models until someone integrates it on purpose (links.py).
+    """
+    link: int
+    timestamp_us: int
+    seq: int
+    rssi: int
+    noise_floor: int
+    channel: int
+    secondary_channel: int
+    sig_mode: int
+    cwb: int
+    stbc: int
+    first_word_invalid: int
+    mac: bytes               # the transmitter as heard on the air (the phone's current MAC)
+    raw: bytes
+    agc_gain: Optional[int] = None
+    fft_gain: Optional[int] = None
+    gain_comp_db: Optional[float] = None
+
+    @property
+    def has_gain(self) -> bool:
+        return self.gain_comp_db is not None
+
+    @property
+    def n_subcarriers(self) -> int:
+        return len(self.raw) // 2
+
+    @classmethod
+    def from_frame(cls, f: Frame) -> "CsiLinkPacket":
+        # ValueError, never struct.error: Source._emit counts a ValueError as a bad
+        # frame and carries on; anything else would end the reader thread.
+        if f.type != FrameType.CSI_LINK:
+            raise ValueError(f"not a CSI_LINK frame: {f.type!r}")
+        if len(f.payload) < CSI_LINK_HEAD_SIZE:
+            raise ValueError("CSI_LINK payload shorter than its head block")
+        (link,) = struct.unpack_from(CSI_LINK_FMT, f.payload)
+        off = struct.calcsize(CSI_LINK_FMT)
+        (rssi, nf, ch, ch2, sig, cwb, stbc, fwi, mac, n) = struct.unpack_from(
+            CSI_META_FMT, f.payload, off)
+        agc, fft, cdb = struct.unpack_from(CSI_GAIN_FMT, f.payload, off + CSI_META_SIZE)
+        raw = f.payload[CSI_LINK_HEAD_SIZE:CSI_LINK_HEAD_SIZE + n]
+        if len(raw) != n:
+            raise ValueError(f"CSI buffer truncated: header says {n}, got {len(raw)}")
+        comp = None if cdb == GAIN_UNKNOWN else cdb / 100.0
+        return cls(link, f.timestamp_us, f.seq, rssi, nf, ch, ch2, sig, cwb, stbc, fwi,
+                   mac, raw, agc, fft, comp)
+
+    def to_frame(self) -> Frame:
+        head = struct.pack(CSI_LINK_FMT, self.link)
+        meta = struct.pack(CSI_META_FMT, self.rssi, self.noise_floor, self.channel,
+                           self.secondary_channel, self.sig_mode, self.cwb, self.stbc,
+                           self.first_word_invalid, self.mac, len(self.raw))
+        cdb = GAIN_UNKNOWN if self.gain_comp_db is None else \
+            max(-32767, min(32767, int(round(self.gain_comp_db * 100))))
+        gain = struct.pack(CSI_GAIN_FMT, self.agc_gain or 0, self.fft_gain or 0, cdb)
+        return Frame(FrameType.CSI_LINK, self.seq, self.timestamp_us, head + meta + gain + self.raw)
 
 
 @dataclass
@@ -353,9 +444,12 @@ class StreamDecoder:
 
 
 def decode_packet(frame: Frame):
-    """Typed view of a frame: CsiPacket, RadarPacket, StatusPacket, or the frame."""
+    """Typed view of a frame: CsiPacket (link 1), CsiLinkPacket (link 2 and on),
+    RadarPacket, StatusPacket, or the frame itself."""
     if frame.type in (FrameType.CSI, FrameType.CSI_GAIN):
         return CsiPacket.from_frame(frame)
+    if frame.type == FrameType.CSI_LINK:
+        return CsiLinkPacket.from_frame(frame)
     if frame.type == FrameType.RADAR:
         return RadarPacket.from_frame(frame)
     if frame.type == FrameType.STATUS:

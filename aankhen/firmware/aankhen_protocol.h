@@ -1,7 +1,10 @@
 // Aankhen wire protocol — the C side of aankhen/protocol.py.
 //
-// Both files describe ONE contract; change them together and bump
-// AK_PROTOCOL_VERSION when you do. Frame layout (little-endian):
+// Both files describe ONE contract; change them together. Bump AK_PROTOCOL_VERSION
+// when an EXISTING layout changes (the host then rejects every older frame, and every
+// older recording). A NEW frame type is additive and keeps the version (AK_CSI_GAIN,
+// AK_CSI_LINK), but the host must know it before any firmware sends it: the decoder
+// reads an unknown TYPE as a corrupted header. Frame layout (little-endian):
 //
 //   offset size field
 //   0      2    SYNC        0xAA 0x55
@@ -30,7 +33,13 @@ typedef enum : uint8_t {
   AK_LOG = 0x04,     // free-text log line (never plain prints: they'd break framing)
   AK_RSSI = 0x05,
   AK_CSI_GAIN = 0x07,  // a CSI capture plus the receiver gain it was taken with
+  AK_CSI_LINK = 0x08,  // a CSI capture from ANOTHER transmitter: link 2, the phone
 } ak_type_t;
+
+// Link ids. Link 1 is the router and keeps its own frame types (AK_CSI, AK_CSI_GAIN),
+// so the host's link-1 pipeline can never be handed another transmitter's captures.
+#define AK_LINK_ROUTER 1
+#define AK_LINK_PHONE 2
 
 #pragma pack(push, 1)
 typedef struct {
@@ -70,6 +79,14 @@ typedef struct {
   ak_csi_meta_t meta;
   ak_csi_gain_t gain;
 } ak_csi_meta_gain_t;
+
+// Mirrors CSI_LINK_FMT + CSI_META_FMT + CSI_GAIN_FMT in protocol.py. In AK_CSI_LINK
+// frames it precedes the CSI buffer: which link, then exactly an AK_CSI_GAIN payload's
+// head, so both links carry the gain block and are compensated the same way.
+typedef struct {
+  uint8_t link;              // AK_LINK_*
+  ak_csi_meta_gain_t mg;
+} ak_csi_link_head_t;
 #pragma pack(pop)
 
 #define AK_GAIN_UNKNOWN (-32768)
@@ -78,6 +95,7 @@ static_assert(sizeof(ak_header_t) == 16, "header must be 16 bytes (HEADER_FMT <2
 static_assert(sizeof(ak_csi_meta_t) == 16, "CSI meta must be 16 bytes (CSI_META_FMT)");
 static_assert(sizeof(ak_csi_gain_t) == 4, "gain block must be 4 bytes (CSI_GAIN_FMT)");
 static_assert(sizeof(ak_csi_meta_gain_t) == 20, "meta + gain must be contiguous");
+static_assert(sizeof(ak_csi_link_head_t) == 21, "link head must be 21 bytes (CSI_LINK_HEAD_SIZE)");
 
 // CRC-16/CCITT-FALSE: poly 0x1021, init 0xFFFF, no reflection, no xorout.
 // Check value for "123456789" is 0x29B1 — the same vector the Python tests assert,
@@ -109,7 +127,7 @@ class AkWriter {
     h.version = AK_PROTOCOL_VERSION;
     h.type = type;
     h.length = (uint16_t)(n1 + n2);
-    h.seq = seq_[type & 0x07]++;
+    h.seq = seq_[type & 0x0F]++;
     h.timestamp_us = ts_us;
     const uint8_t *hb = (const uint8_t *)&h;
     uint16_t crc = ak_crc16(hb + 2, sizeof(h) - 2);
@@ -127,5 +145,8 @@ class AkWriter {
 
  private:
   Print &out_;
-  uint16_t seq_[8] = {0};
+  // One counter per type: the host counts loss per type from these. 16, not 8: with
+  // `type & 0x07`, AK_CSI_LINK (0x08) would share slot 0 by luck, and the next type
+  // (0x09) would share AK_CSI's counter and make both types' gaps look like loss.
+  uint16_t seq_[16] = {0};
 };

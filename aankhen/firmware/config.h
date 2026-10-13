@@ -10,11 +10,21 @@
 // ---- Relays ------------------------------------------------------------------
 // Typical 5 V relay modules with an optocoupler switch ON when the input is pulled
 // LOW ("active low"). If yours clicks ON at boot and OFF when told "on", flip this.
+// The JARVIS app edits the values below through a form (Limbs -> Firmware), which
+// rewrites only the number on each #define line: keep one define per line.
 #define RELAY_ACTIVE_LOW 1
 // GPIO 4 and 5 are free general-purpose pins on the ESP32-S3-DevKitC-1 (not strapping
 // pins, not USB, not flash/PSRAM). Set a pin to -1 to disable that relay entirely.
 #define RELAY_LIGHT_PIN 4
 #define RELAY_FAN_PIN 5
+
+// ---- Link 1: the router ------------------------------------------------------
+// Router pings per second = CSI captures per second. 500, not 100: the host averages
+// ~5 per 10 ms slot, which keeps a full-speed ceiling fan (~23 Hz and harmonics) from
+// folding into the human band. Each ping is two frames over the air, ~15-25 % of the
+// channel at 500. Must divide 1000 (the ping interval is a whole number of ms):
+// 100, 125, 200, 250 or 500.
+#define CSI_RATE_HZ 500
 
 // ---- Receiver gain (README.md, section 3) ------------------------------------
 // 1: link Espressif's esp_csi_gain_ctrl (vendored in libraries/), so both links send
@@ -24,6 +34,9 @@
 #define AK_GAIN_LIB 1
 
 // ---- Link 2: your phone (README.md, "Second link: your phone") ----------------
+// 1: the board serves http://<board>/beacon and a phone that opens it becomes link 2.
+// 0: no /beacon page, no pinging, promiscuous receive never turns on (link 1 only).
+#define BEACON_ENABLED 1
 // Pings per second to the phone that opened http://<board>/beacon. Each reply the
 // phone sends is one link-2 CSI capture; the host resamples link 2 to 100 Hz.
 // AIRTIME, shared by every device in the house: each ping is FOUR frames over the air

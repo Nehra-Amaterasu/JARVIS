@@ -1,6 +1,6 @@
 # Aankhen firmware v3 (ESP32-S3)
 
-The sensor board for JARVIS's eyes. It streams raw Wi-Fi CSI to the laptop as
+Firmware 3.4.0. The sensor board for JARVIS's eyes. It streams raw Wi-Fi CSI to the laptop as
 CRC-checked binary frames over USB: the router link at up to 500 captures a second, and
 optionally a second link from a phone (section 7). Aankhen senses from radio alone. All
 processing happens on the laptop (`aankhen`). Relays switch only on request
@@ -12,7 +12,10 @@ from JARVIS (MQTT) or a token-authenticated HTTP call.
 copy secrets.example.h secrets.h
 ```
 
-Fill in `WIFI_SSID_VALUE` / `WIFI_PASS_VALUE` for the **2.4 GHz** network. The router you
+Fill in `WIFI_SSID_VALUE` / `WIFI_PASS_VALUE` for the **2.4 GHz** network. Add
+`OTA_PASS_VALUE` (12+ characters, your own, not the example's) before the board goes
+behind the switchboard: without it the firmware has no OTA and only USB can update it
+(section 4b). The router you
 join is the CSI transmitter, so put the board on the far side of the room from it
 for the Wi-Fi link to cross the room. Relay control is off until you add
 `RELAY_TOKEN_VALUE` and/or `MQTT_URI_VALUE`. `secrets.h` is gitignored.
@@ -33,9 +36,33 @@ simply sends none. The pins it would use:
 | TX | GPIO 18 (RADAR_RX_PIN) |
 | RX | GPIO 17 (RADAR_TX_PIN) |
 
-Relays: set the GPIOs in `RELAYS[]` only once the relay board is wired and checked.
-They're `-1` (disabled) by default. Mains wiring is not a hobby shortcut: use a
-proper relay module with isolation, and have it checked.
+Relays: `config.h` puts the light relay on **GPIO 4** and the fan relay on **GPIO 5**,
+active-low (the usual optocoupler module: ON when IN is pulled LOW). Set a pin to `-1`
+to disable that relay. The JARVIS app edits these through a form (Limbs → Firmware →
+Abilities), which refuses strapping pins (0, 3, 45, 46), the USB pins (19, 20), the
+flash and PSRAM pins (26-37), UART0 (43, 44), the RGB LED (38, 48) and the radar's
+pins, and rewrites only the number on each `#define` line.
+
+| Relay module | ESP32-S3 |
+|---|---|
+| VCC | 5V (a 5 V module's coils need 5 V) |
+| GND | GND (shared: the IN signal needs the same ground) |
+| IN1 | GPIO 4 (`RELAY_LIGHT_PIN`) |
+| IN2 | GPIO 5 (`RELAY_FAN_PIN`) |
+
+Mains goes through COM and NO, on the live wire only, with the breaker off. If a relay
+will not release when told off, the ESP32's 3.3 V HIGH is not enough for that module's
+5 V input: move its VCC to 3V3, and on a module with a JD-VCC jumper remove the jumper
+and feed JD-VCC 5 V. The Limbs tab's "Wire your relays" card has the checklist and a
+1-second test click per relay (with the board's confirmation as a receipt). Mains wiring
+is not a hobby shortcut: use a proper relay module with isolation, and have it checked.
+
+**Powered from the switchboard.** Later the board runs from a 5 V DC supply (enclosed,
+fused on its mains side) into its **5V** and **GND** pins: never 230 V to the board. USB
+and the 5V pin are two of the DevKitC-1's three power inputs, used one at a time
+(Espressif's user guide): unplug USB once the supply feeds 5V. Budget: the S3 peaks near
+0.35 A on Wi-Fi and a 5 V relay coil draws ~70 mA, so a 1 A supply has margin. STATUS
+`"reset":"brownout"` after a relay click means the supply sags under the coils.
 
 ## 3. Receiver gain (recommended)
 
@@ -81,8 +108,46 @@ arduino-cli upload  --fqbn esp32:esp32:esp32s3:CDCOnBoot=cdc -p COM9 aankhen/fir
 Use the board's native USB port (it shows up as Espressif `303A`). Use a data
 cable; charge-only cables are common and look identical.
 
-Close the JARVIS app (or stop Aankhen) before uploading: while Aankhen uses the
-board it holds the port, and the upload would find it busy.
+Close the JARVIS app (or stop Aankhen) before uploading from a terminal: while Aankhen
+uses the board it holds the port, and the upload would find it busy.
+
+**From the JARVIS app** (Limbs → Firmware): Compile runs the same `arduino-cli compile`
+into `data/app/firmware/build` (the image carries the Wi-Fi password, so it stays in
+the private data folder) and shows the size against the 1,310,720-byte app slot.
+Flash → Over USB asks the server for a plan, shows it, and uploads only after you
+confirm. The app first stops Aankhen's serial link and claims the port so nothing
+probes it mid-upload, then restarts Aankhen on the same port.
+
+## 4b. Flash over Wi-Fi (OTA)
+
+With `OTA_PASS_VALUE` in `secrets.h`, the firmware runs ArduinoOTA (built into the
+Arduino-ESP32 core): it listens on UDP 3232 as `aankhen`, and STATUS says `"ota":true`.
+The core answers a PBKDF2-HMAC-SHA256 challenge, so the password never crosses the air.
+Without the define, OTA is not compiled in at all: an open OTA port would let anyone on
+the Wi-Fi replace the code that switches mains.
+
+The first OTA-capable firmware has to go over USB once. After that:
+
+- **JARVIS app**: Limbs → Firmware → Compile, then Flash → Over Wi-Fi. The board's
+  address is learnt from its STATUS while it is on USB, or typed on the board card. The
+  app asks for the OTA password in the confirm dialog, never stores it, and hands it to
+  the core's `espota.py` through the environment rather than its command line.
+- **Terminal**: `python <esp32 core>/tools/espota.py -i <board-ip> -p 3232 -a <password> -f firmware.ino.bin`.
+
+During the upload (10-30 s) the board pauses sensing: the 500 Hz router pings and a
+phone's link 2 would compete with it for airtime. It checks the image, then restarts
+into it. The relays come back as they were: their states go to RTC memory just before
+that restart and are restored only after a software restart (a power cut or brownout
+still starts with everything off). A failed upload resumes sensing.
+
+Windows may ask whether Python may use the network the first time: allow it on private
+networks. espota listens for the board to connect back for the data.
+
+**Without USB, the board still reports.** `GET http://<board-ip>/status` answers with
+the firmware version, uptime, RSSI, CSI rate, OTA and the last reset reason; with the
+`X-Aankhen-Token` header (`RELAY_TOKEN_VALUE`) it answers the full STATUS JSON, relays
+included. The JARVIS app reads it for the board card (set `AANKHEN_RELAY_TOKEN` for the
+full version).
 
 How JARVIS finds the board: not by its USB id (a CH340 is on ESP32 boards and on
 Arduino Uno clones alike) but by what it says. Each USB serial port is listened to,
@@ -158,7 +223,8 @@ after it joins, or the router's device list. On the phone, open
 install. The page registers the phone, beats every 1.5 s, and shows **Link on** with
 the packets per second the board counts. The board serves one phone at a time; a
 second phone waits until the first page is closed. Closing the page, or 6 s without a
-beat, stops the pinging and promiscuous receive.
+beat, stops the pinging and promiscuous receive. `BEACON_ENABLED 0` in `config.h` (the
+app's form: "Phone link") builds the board without the page at all.
 
 **Rate is a ceiling.** esp_ping waits for each reply before sending the next ping, so
 link 2 runs at most at 1000 / (the phone's reply time in ms) per second. A phone in
@@ -211,3 +277,4 @@ anyone opens `/beacon`.
 | open fallback access point | none |
 | `/relay/1/on` with no authentication | MQTT from JARVIS, or HTTP with a ≥16-char token compared in constant time |
 | plain-text prints mixed into the data stream | log lines are frames too, so the stream never desynchronises |
+| (3.4.0) USB-only updates | OTA with a password (or none at all), `/status` over Wi-Fi, relays kept across an update |

@@ -8,6 +8,7 @@ One line per note (CLAUDE.md: research is never lost). Private notes live in
 - [2026-10-12-sih-problem-statements.md](2026-10-12-sih-problem-statements.md): Smart India Hackathon statements that fit JARVIS.
 - [2026-10-13-audit-phone-link.md](2026-10-13-audit-phone-link.md): audit of link 2, the phone as a second transmitter.
 - [2026-10-13-csi-phase-vs-amplitude.md](2026-10-13-csi-phase-vs-amplitude.md): does sanitised phase carry more than amplitude.
+- [2026-10-13-ota-flashing-and-relay-wiring.md](2026-10-13-ota-flashing-and-relay-wiring.md): firmware over Wi-Fi (ArduinoOTA, 998,101 bytes = 76 % of the app slot), safe relay GPIOs, 5 V supply and 3.3 V logic on relay modules.
 - [2026-10-13-phone-second-link.md](2026-10-13-phone-second-link.md): a phone as Aankhen's second Wi-Fi link.
 - [2026-10-13-raw-stream-and-crew-speed.md](2026-10-13-raw-stream-and-crew-speed.md): the rolling 7-day raw CSI recorder (312 MB/day with phase) and the lock-free frame that took the movement tick from 19.5 to 0.5 ms and the stream from 6.1 to 10 Hz in the bench.
 - [2026-10-13-wifi-sensing-limits-and-routes.md](2026-10-13-wifi-sensing-limits-and-routes.md): what one Wi-Fi link can see, and signal-only routes past it.

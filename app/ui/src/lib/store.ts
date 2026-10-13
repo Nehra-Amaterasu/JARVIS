@@ -55,6 +55,9 @@ interface Store {
   setPendingQuery: (q: string | null) => void
   toasts: Toast[]
   toast: (text: string, tone?: Toast['tone']) => void
+  /** The firmware job's latest progress (board_ctl.py publishes it ephemeral, ~4 Hz):
+   *  kept here for the Limbs tab, never in the ticker. */
+  boardProgress: BusEvent | null
   refreshCore: () => Promise<void>
   refreshVitals: () => Promise<void>
 }
@@ -80,6 +83,7 @@ export const useStore = create<Store>((set, get) => ({
   pendingQuery: null,
   setPendingQuery: (pendingQuery) => set({ pendingQuery }),
   toasts: [],
+  boardProgress: null,
   toast: (text, tone = 'info') => {
     const id = ++toastId
     set({ toasts: [...get().toasts, { id, text, tone }] })
@@ -144,6 +148,10 @@ export function startEventStream() {
         if (['starting', 'ready', 'stopped', 'boot', 'error'].includes(ev.kind)) void s.refreshCore()
         if (ev.kind === 'error') s.toast(ev.text || 'JARVIS reported an error', 'fault')
         if (ev.kind === 'ready') s.toast(ev.text, 'live')
+      }
+      if (ev.source === 'board' && ev.kind === 'progress') {
+        st.setState({ boardProgress: ev })
+        return
       }
       if (ev.source === 'limbs' && (ev.kind === 'room' || ev.kind === 'room_state')) void s.refreshCore()
       if (ev.kind === 'level' || ev.kind === 'reply_chunk' || ev.kind === 'timing' || ev.kind === 'room_state' || ev.kind === 'speech_done') return

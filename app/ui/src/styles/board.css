@@ -1,0 +1,98 @@
+/* The board on the Limbs tab (components/BoardPanel, FirmwareCard, RelayWiring).
+   Tokens from tokens.css; colour is provenance: cyan only for what the board reported. */
+.limbs-section { font: 400 24px var(--f-display); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-2); margin: 34px 0 14px; }
+.board-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 18px; align-items: start; margin-bottom: 18px; }
+@media (max-width: 980px) { .board-grid { grid-template-columns: 1fr; } }
+
+/* ---------------------------------------------------------------- the board itself */
+.board-panel { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.board-fw { display: flex; gap: 28px; align-items: flex-end; flex-wrap: wrap; }
+.board-fw > div { display: flex; flex-direction: column; gap: 6px; }
+.board-fw b { font: 600 15px var(--f-mono); }
+.board-kv { gap: 8px 16px; }
+.board-kv > :nth-child(even) { overflow-wrap: anywhere; }
+.board-relays { display: inline-flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.board-empty { padding: 18px; font-size: 12.5px; }
+.board-ip { display: flex; gap: 8px; align-items: center; }
+.board-ip .field { height: 34px; font-size: 12.5px; }
+.board-note { font-size: 11.5px; line-height: 1.45; }
+
+/* ---------------------------------------------------------------- firmware */
+.firmware { margin-bottom: 18px; }
+.firmware-tabs { display: inline-flex; padding: 3px; gap: 2px; border-radius: var(--r-pill); background: rgba(255, 255, 255, 0.05); box-shadow: inset 0 0 0 1px var(--hair); }
+.firmware-tabs button { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 14px; border-radius: var(--r-pill); font: 600 12px var(--f-ui); color: var(--ink-2); transition: background var(--t) var(--ease), color var(--t); }
+.firmware-tabs button.on { background: var(--ink); color: #050506; }
+.firmware-tabs button:not(.on):hover { color: var(--ink); }
+.firmware-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 22px; align-items: start; }
+@media (max-width: 1080px) { .firmware-body { grid-template-columns: 1fr; } }
+.firmware-main { min-width: 0; }
+.firmware-side { display: flex; flex-direction: column; gap: 9px; padding: 16px; border-radius: var(--r); background: rgba(0, 0, 0, 0.25); box-shadow: inset 0 0 0 1px var(--hair); }
+.firmware-side .btn { justify-content: flex-start; }
+.firmware-note { font-size: 11.5px; line-height: 1.45; }
+.firmware-build { display: flex; flex-direction: column; gap: 6px; font-size: 11.5px; }
+.firmware-build .mono { font-size: 11.5px; }
+.firmware-job { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--hair); }
+.firmware-job-head { display: flex; justify-content: space-between; align-items: center; }
+.firmware-job-line { font-size: 11px; color: var(--ink-2); overflow-wrap: anywhere; user-select: text; }
+.firmware-job summary { font-size: 11.5px; cursor: pointer; }
+.firmware-log { height: 220px; margin: 8px 0 0; font-size: 10.5px; }
+
+/* config.h form */
+.cfg { display: flex; flex-direction: column; gap: 2px; }
+.cfg-row { display: grid; grid-template-columns: minmax(170px, 230px) 170px minmax(0, 1fr); gap: 16px; align-items: center; padding: 10px 12px; border-radius: 12px; }
+.cfg-row:nth-child(odd) { background: rgba(255, 255, 255, 0.02); }
+.cfg-row.changed { box-shadow: inset 2px 0 0 var(--live); }
+.cfg-row.bad { box-shadow: inset 2px 0 0 var(--fault); }
+.cfg-label { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cfg-label b { font-size: 13px; }
+.cfg-label .mono { font-size: 10.5px; }
+.cfg-select { height: 34px; padding: 0 12px; font-size: 12.5px; color: var(--ink); }
+.cfg-select option { background: #111; }
+.cfg-help { font-size: 11.5px; line-height: 1.45; }
+@media (max-width: 760px) { .cfg-row { grid-template-columns: 1fr; gap: 6px; } }
+.cfg-readonly { font-size: 11px; line-height: 1.5; padding: 10px 12px; }
+.cfg-problems { font-size: 12px; padding: 0 12px; }
+.cfg-actions { display: flex; gap: 10px; align-items: center; padding: 8px 12px 0; flex-wrap: wrap; }
+.cfg-actions .mono { font-size: 10.5px; margin-left: auto; }
+
+/* firmware.ino, read-only */
+.src-head { font-size: 11px; margin-bottom: 8px; }
+.src-code { margin: 0; height: 430px; overflow: auto; padding: 12px 0; border-radius: 12px; background: rgba(0, 0, 0, 0.45); font: 500 11.5px/1.55 var(--f-mono); color: var(--ink-2); user-select: text; }
+.src-line { white-space: pre; padding-right: 16px; }
+.src-n { display: inline-block; width: 46px; padding-right: 14px; text-align: right; color: var(--ink-4); user-select: none; }
+
+/* the confirm dialog */
+.flash-scrim { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(0, 0, 0, 0.6); padding: 16px; animation: fadeIn var(--t) var(--ease) both; }
+.flash-dialog { width: min(560px, 100%); background: var(--glass-thick); box-shadow: var(--glass-edge), var(--shadow); display: flex; flex-direction: column; gap: 12px; }
+.flash-dialog .card-head { margin-bottom: 0; }
+.flash-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.5; color: var(--ink-2); }
+.flash-warn { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; line-height: 1.45; padding: 10px 12px; border-radius: 12px; background: var(--sim-2); }
+.flash-warn svg { flex: none; margin-top: 2px; }
+.flash-pass { display: flex; flex-direction: column; gap: 8px; }
+.flash-pass .field { height: 38px; }
+.flash-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.flash-foot { font-size: 10.5px; text-align: right; }
+
+/* ---------------------------------------------------------------- wiring */
+.wiring { margin-bottom: 18px; }
+.wiring-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 26px; }
+@media (max-width: 980px) { .wiring-grid { grid-template-columns: 1fr; } }
+.wiring-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11.5px; }
+.wiring-table th { text-align: left; font-weight: 600; color: var(--ink-3); padding: 6px 8px; border-bottom: 1px solid var(--hair-2); }
+.wiring-table td { padding: 8px; border-bottom: 1px solid var(--hair); vertical-align: top; color: var(--ink-2); }
+.wiring-table td:first-child, .wiring-table td:nth-child(2) { white-space: nowrap; color: var(--ink); font-weight: 600; }
+.wiring-table td.live { color: var(--live); }
+.wiring-p { font-size: 12.5px; line-height: 1.55; color: var(--ink-2); margin: 10px 0 0; }
+.wiring-check { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.wiring-check .check { display: flex; gap: 10px; align-items: flex-start; text-align: left; width: 100%; padding: 7px 8px; border-radius: 10px; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); }
+.wiring-check .check:hover { background: rgba(255, 255, 255, 0.04); }
+.wiring-check .box { flex: none; width: 16px; height: 16px; margin-top: 1px; border-radius: 5px; display: grid; place-items: center; box-shadow: inset 0 0 0 1.5px var(--hair-3); }
+.wiring-check .check.on { color: var(--ink); }
+.wiring-check .check.on .box { background: var(--live); color: #021318; box-shadow: none; }
+.wiring-tests { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.wiring-test { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.wiring-receipt { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 10.5px; }
+.wiring-note { font-size: 11.5px; margin-top: 8px; }
+.wiring-later { margin-top: 22px; padding: 16px 18px; border-radius: var(--r); background: rgba(255, 255, 255, 0.025); box-shadow: inset 0 0 0 1px var(--hair); }
+.wiring-later .eyebrow { display: inline-flex; gap: 6px; align-items: center; }
+.wiring-later ol { margin: 10px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 7px; font-size: 12.5px; line-height: 1.55; color: var(--ink-2); }

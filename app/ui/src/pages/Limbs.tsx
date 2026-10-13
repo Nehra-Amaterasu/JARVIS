@@ -6,6 +6,10 @@
  * whether or not JARVIS is awake, drives the ESP32's relays over USB when the
  * board is plugged in, and keeps JARVIS's voice commands in step. "Confirmed by
  * board" (cyan) appears only when the ESP32's OWN status report agrees.
+ *
+ * Below the switches, the board itself: what it reports (USB or Wi-Fi), its USB ports,
+ * its firmware (config.h as a form, firmware.ino read-only, compile, flash over USB or
+ * Wi-Fi), and the relay wiring with a test click per relay.
  */
 import { CircuitBoard, Fan, Focus, Lightbulb, Moon, Sunrise } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -13,6 +17,12 @@ import { api, post } from '../lib/api'
 import { usePoll } from '../lib/format'
 import { useStore } from '../lib/store'
 import { PageHeader } from '../components/Shell'
+import { BoardPanel } from '../components/BoardPanel'
+import { BoardPorts } from '../components/BoardPorts'
+import { FirmwareCard } from '../components/FirmwareCard'
+import { RelayWiring } from '../components/RelayWiring'
+import type { BoardView } from '../lib/board'
+import '../styles/board.css'
 
 interface Device {
   id: string; name: string; kind: 'light' | 'fan'; unit: string; mains: boolean; note: string
@@ -27,9 +37,13 @@ export function LimbsPage() {
   const toast = useStore((s) => s.toast)
   const events = useStore((s) => s.events)
   const [view, , reload] = usePoll(() => api<View>('/api/limbs'), 2000)
+  const [board, , reloadBoard] = usePoll(() => api<BoardView>('/api/board'), 2000)
   // A voice command ("Hey Jarvis, fan off") arrives as an event: refresh at once.
   const lastRoom = events.filter((e) => e.source === 'limbs').slice(-1)[0]?.id
   useEffect(() => { reload() }, [lastRoom]) // eslint-disable-line react-hooks/exhaustive-deps
+  // A compile or flash milestone (or the hub pausing for one): the board view follows at once.
+  const lastBoard = events.filter((e) => e.source === 'board' || (e.source === 'aankhen' && e.kind === 'source')).slice(-1)[0]?.id
+  useEffect(() => { reloadBoard() }, [lastBoard]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const send = async (path: string, body: unknown = {}) => {
     try {
@@ -65,6 +79,14 @@ export function LimbsPage() {
           )
         })}
       </div>
+
+      <h2 className="limbs-section">The board</h2>
+      <div className="board-grid">
+        <BoardPanel v={board} reload={reloadBoard} />
+        <BoardPorts />
+      </div>
+      <FirmwareCard v={board} reload={reloadBoard} />
+      <RelayWiring v={board} onTested={() => { reload(); reloadBoard() }} />
     </div>
   )
 }

@@ -131,6 +131,7 @@ def test_a_device_no_tool_reaches_gets_cant_not_say_light_off():
     out = honesty.check("[uk]Set the AC to 24 degrees.[/uk] I’ve done that for you.", REG, [])
     assert out == honesty.UNREACHABLE                      # one correction; "done" adds nothing
     # verbatim from the third live run: the closing voice tag hid the sentence end
+    honesty.forget_recent()
     out = honesty.check("[uk]Set the AC to 24 degrees.[/uk]  \nThe room temperature is now comfortably regulated.",
                         REG, [])
     assert out.startswith(honesty.UNREACHABLE) and "regulated" not in out
@@ -237,6 +238,7 @@ def test_body_detail_no_sensor_produces_is_replaced(sentence):
     assert "perception" in {k for k, _ in honesty.claims(sentence)}
     assert honesty.check(sentence, REG, []) == honesty.CANNOT_SAY["perception"]
     live = [ok("presence", ("presence",), "Movement (Wi-Fi estimate): at the desk 4 min, typing (80%).")]
+    honesty.forget_recent()                       # a new conversation: the correction may be said again
     assert honesty.check(sentence, REG, live) == honesty.CANNOT_SAY["perception"]   # live sensors don't back it
 
 
@@ -266,3 +268,12 @@ def test_fine_detail_credited_to_the_sensors_is_replaced():
     assert "perception" in {k for k, _ in honesty.claims(said)}
     assert "tilted" not in honesty.check(said, REG, [])
     assert "perception" not in {k for k, _ in honesty.claims("Aankhen reckons you've been at the desk for an hour.")}
+
+
+def test_a_correction_is_said_once_a_conversation_then_the_claim_is_just_dropped():
+    first = honesty.check("I'll keep track of your steps from now on.", REG, [])
+    assert "can't track" in first
+    again = honesty.check("Sure. I'll keep track of your steps from now on.", REG, [])
+    assert again.strip() == "Sure." and "can't track" not in again
+    honesty.forget_recent()
+    assert "can't track" in honesty.check("I'll keep track of your steps.", REG, [])

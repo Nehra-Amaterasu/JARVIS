@@ -27,3 +27,14 @@ os.environ["JARVIS_DATA_DIR"] = tempfile.mkdtemp(prefix="jarvis-core-test-")
 os.environ.pop("JARVIS_API_URL", None)          # the agent must not find a running app
 os.environ.pop("JARVIS_API_TOKEN", None)
 os.environ.pop("JARVIS_T2_ENABLED", None)
+
+
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _fresh_corrections():
+    """Each test is its own conversation: corrections said in one never mute another."""
+    from tools import honesty
+    honesty.forget_recent()
+    yield

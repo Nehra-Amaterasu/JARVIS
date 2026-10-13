@@ -74,3 +74,15 @@ def test_long_conversation_is_cut_and_judged():
     s = _spotter([0.9] * 400, "and then he said the exam was easy")
     assert _feed(s, 400) is None
     assert s.calls and max(s.calls) <= (wake.MAX_BURST_S * wake.SAMPLE_RATE + wake.FRAME * 12)
+
+
+@pytest.mark.parametrize("said", ["Stop Jarvis.", "stop, Jarvis, I am saying something", "Jarvis stop", "bas Jarvis",
+                                  "ruko Jarvis", "Wait Jarvis!", "Jarvis, stop it"])
+def test_stop_jarvis_cuts_him_off(said):
+    assert wake.is_stop(said)
+
+
+@pytest.mark.parametrize("said", ["", "pravadi aur English donon", "stop the music", "Jarvis turn on the light",
+                                  "bus stop near the gate", "Okay. Set, Bruce."])
+def test_noise_and_other_speech_do_not(said):
+    assert not wake.is_stop(said)

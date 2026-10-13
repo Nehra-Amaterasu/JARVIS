@@ -486,6 +486,18 @@ def _interrupt_speech() -> None:
     sys.stdout.flush()
 
 
+_quick_whisper = wake.whisper_transcriber(model) if model is not None else None
+
+
+def _quick_text(audio) -> str:
+    """A fast greedy transcript of a short burst (for "stop Jarvis" while he talks)."""
+    try:
+        return _quick_whisper(audio) if _quick_whisper is not None else ""
+    except Exception as e:
+        print(f"\n[quick transcript failed: {e}]")
+        return ""
+
+
 def _judge_fn(audio):
     """The end-pointer's judge: transcribe the audio so far, exactly as a finished turn
     would be (stt.transcribe), so the result can be reused instead of decoding twice."""
@@ -520,12 +532,17 @@ def _record_silero(followup: bool = False) -> "endpoint.Utterance":
         except queue.Empty:
             return None
 
+    # Speech that starts while JARVIS is talking no longer interrupts him. With noise
+    # suppression off (10-13), room noise and his own voice opened "utterances" that
+    # cut him off and were answered as if Aman had spoken ("pravadi aur English
+    # donon"). Now such speech is only checked for "stop Jarvis" (wake.is_stop).
+    over = {"jarvis": False}
+
     def on_event(kind, _t, _info):
         if kind == "start":
-            if followup:
+            over["jarvis"] = _jarvis_talking()
+            if followup and not over["jarvis"]:
                 appio.emit("state", state="listening")
-            if _jarvis_talking():
-                _interrupt_speech()
 
     pulse_icons = [" |iI|iI|iI|iI| ", " iI|iI|iI|iI| ", " I|iI|iI|iI|i ", " |iI|iI|iI|iI| "]
     shown = {"pulse": 0, "level_t": 0.0}
@@ -546,7 +563,20 @@ def _record_silero(followup: bool = False) -> "endpoint.Utterance":
 
     with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32",
                         blocksize=endpoint.FRAME, callback=callback):
-        utt = endpoint.listen(ep, next_block, on_event=on_event, on_block=on_block)
+        while True:
+            utt = endpoint.listen(ep, next_block, on_event=on_event, on_block=on_block)
+            if not (utt.has_speech and over["jarvis"]):
+                break
+            heard = _quick_text(utt.audio)
+            ep = endpoint.EndPointer(cfg, vad=silero_vad, judge=judge, hold=_jarvis_talking)
+            over["jarvis"] = False
+            if wake.is_stop(heard):
+                print(f"\n[\"{heard}\": stopping]")
+                _interrupt_speech()
+                chimes.play_chime("wake")
+                appio.emit("state", state="listening")
+            else:
+                print(f"\n[Ignored while talking: \"{heard[:60]}\"]")
     if utt.reason == "closed":
         print("\n[Microphone stopped sending audio]")
     if utt.has_speech:

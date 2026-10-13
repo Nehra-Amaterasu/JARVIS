@@ -357,6 +357,30 @@ def sim_note(state: dict, text_so_far: str) -> str:
     return "" if not note or _SAYS_SIM.search(text_so_far) else " " + note
 
 
+# A correction is said once a conversation; after that the unbacked sentence is just
+# dropped. On 10-13 "I can't track that on my own. What I keep is study time you
+# report..." was appended to five replies in one session, and "I haven't checked the
+# light and fan" to four: true each time, and unbearable.
+RECENT_WINDOW_S = 600.0             # the conversation's idle reset (agent.SHORT_TERM_IDLE_RESET_S)
+_recent: dict[str, float] = {}
+
+
+def _said_lately(line: str, now: Optional[float] = None) -> bool:
+    import time
+    t = _recent.get(line)
+    return t is not None and (now or time.time()) - t < RECENT_WINDOW_S
+
+
+def _remember_said(line: str) -> None:
+    import time
+    _recent[line] = time.time()
+
+
+def forget_recent() -> None:
+    """A new conversation: every correction may be said once again."""
+    _recent.clear()
+
+
 def check(text: str, registry: Registry, receipts: list[Receipt], log: Optional[list] = None,
           state: Optional[dict] = None) -> str:
     """The text with every unbacked claim and impossible offer replaced. `state`
@@ -396,8 +420,11 @@ def check(text: str, registry: Registry, receipts: list[Receipt], log: Optional[
             # "Done" next to a specific correction (or after one) adds nothing but noise.
             if len(replace) > 1 or state.get("corrected"):
                 replace = [(k, ln) for k, ln in replace if k != "generic"] or []
-            lines = [ln for ln in dict.fromkeys(ln for _, ln in replace) if ln and ln not in said]
+            lines = [ln for ln in dict.fromkeys(ln for _, ln in replace)
+                     if ln and ln not in said and not _said_lately(ln)]
             said.update(lines)
+            for ln in lines:
+                _remember_said(ln)
             if lines:
                 out.append(lead + " ".join(lines))
                 state["corrected"] = True

@@ -112,10 +112,19 @@ _SCENE_VERB = _re.compile(r"\b(mode|scene|set|kar|karo|do|banao|time)\b", _re.I)
 _QUESTION = _re.compile(r"^\s*(is|are|was|kya|what|which|why|how|did|does|do you|can you tell)\b|\?\s*$", _re.I)
 
 
+MAX_COMMAND_WORDS = 14
+
+
 def parse(text):
     """[(device, action, value)] for an imperative room command, else []."""
     t = (text or "").strip()
     if not t or _QUESTION.search(t):
+        return []
+    # Commands are short. On 10-13 this parser read 89-134-word monologues as orders
+    # ("...all these things..." + "turned off the noise cancelling" -> all off) and
+    # switched the room, answering a long question with "The light is off". A long
+    # turn goes to the model, which still has the switch tools when he really asks.
+    if len(t.split()) > MAX_COMMAND_WORDS:
         return []
     for name, rx in _SCENE:
         if rx.search(t) and _SCENE_VERB.search(t) and not any(d.search(t) for _, d in _DEV):

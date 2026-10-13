@@ -241,6 +241,7 @@ def _history_messages():
     global _last_turn_at
     if _short_term and time.time() - _last_turn_at > SHORT_TERM_IDLE_RESET_S:
         _short_term.clear()
+        honesty.forget_recent()
     msgs = []
     for user_said, jarvis_said in _short_term:
         msgs.append(HumanMessage(content=user_said))
@@ -259,6 +260,7 @@ def _remember_turn(user_said: str, jarvis_said: str):
 def reset_conversation():
     """Forget the current conversation (long-term memory is untouched)."""
     _short_term.clear()
+    honesty.forget_recent()
 
 
 # ---- Saying something new, cleanly ------------------------------------------------

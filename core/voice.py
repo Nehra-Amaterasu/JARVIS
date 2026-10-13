@@ -40,13 +40,26 @@ from typing import Callable, Optional
 from home import MODELS   # data/models, git-ignored
 
 
+# How fast he speaks. +0% read as slow (10-13: "a little lag in your speaking speed,
+# which makes me susceptible to interrupting you"). JARVIS_VOICE_RATE overrides it
+# (Edge TTS syntax, e.g. "+25%"); Kokoro gets the same factor.
+VOICE_RATE = os.environ.get("JARVIS_VOICE_RATE", "+15%")
+
+
+def _speed_factor(rate: str) -> float:
+    try:
+        return max(0.5, min(2.0, 1.0 + float(rate.strip().rstrip("%")) / 100.0))
+    except ValueError:
+        return 1.0
+
+
 @dataclass(frozen=True)
 class Style:
     key: str
     label: str
     edge: str                       # Microsoft neural voice (online)
     kokoro: Optional[tuple]         # (voice, espeak language) for the offline engine
-    rate: str = "+0%"
+    rate: str = VOICE_RATE
     # Playback gain (0-1) that levels this voice with the British one. Measured speech
     # RMS 2026-10-09: Ryan -19.2 dBFS, Andrew -18.0, Madhur -15.0, Prabhat -14.9;
     # Kokoro bm_george -19.6, am_michael -22.4, hm_psi -15.4. Without it a reply that
@@ -226,7 +239,7 @@ class _Kokoro:
             if self._k is None:
                 from kokoro_onnx import Kokoro
                 self._k = Kokoro(os.path.join(self.dir, "kokoro-v1.0.int8.onnx"), os.path.join(self.dir, "voices-v1.0.bin"))
-            samples, sr = self._k.create(text, voice=voice, speed=1.0, lang=lang)
+            samples, sr = self._k.create(text, voice=voice, speed=_speed_factor(VOICE_RATE), lang=lang)
         import soundfile as sf
         path = os.path.join(tempfile.gettempdir(), f"jarvis_{uuid.uuid4().hex[:8]}.wav")
         sf.write(path, samples, sr)

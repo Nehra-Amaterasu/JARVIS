@@ -41,6 +41,20 @@ NAME = re.compile(
     re.I)
 WAKE_PROMPT = "Jarvis."             # nudges Whisper towards spelling the name
 
+# The only thing that may cut JARVIS off mid-reply (10-13: he asked for exactly this,
+# because with noise suppression off, any noise used to interrupt him).
+_NAME_ONLY = (r"(?:j[ae]{1,2}r+[vw]?[iey]{1,2}s{0,2}|jarvi|jarvis|jaarvis|jarwis|javis|jervis|jarvees|"
+              r"charvis|जार्विस|जारविस|जरविस|जार्वेस)")
+_STOP_WORD = r"(?:stop|wait|ruko|ruk|bas|hold on|shut up|chup|enough)"
+STOP = re.compile(r"\b" + _STOP_WORD + r"\W+(?:it\W+)?" + _NAME_ONLY + r"\b|\b" + _NAME_ONLY + r"\W+" + _STOP_WORD
+                  + r"\b", re.I)
+
+
+def is_stop(text: str) -> bool:
+    """ "Stop Jarvis", "Jarvis, stop", "bas Jarvis", "ruko Jarvis"... in what he said
+    over JARVIS's voice."""
+    return bool(STOP.search(text or ""))
+
 
 @dataclass
 class Heard:

@@ -42,7 +42,7 @@ from .room import TORSO_HEIGHT_M, Room
 from .tracker import MultiTargetTracker, TrackerConfig
 
 SENSOR_STATE_BY_SOURCE = {"hardware": "live", "simulation": "simulated", "replay": "replay"}
-LIVE_WINDOW_S = 2.0
+LIVE_WINDOW_S = 2.0          # a sensor is "live" if a packet arrived this recently
 # Gain compensation (firmware 3.3.0, esp_csi_gain_ctrl) changes the normalisation
 # (absolute level over a 30 s reference instead of each packet's median). The
 # baseline and both learned models were made on the per-packet path, and with
@@ -50,7 +50,7 @@ LIVE_WINDOW_S = 2.0
 # after he stood up. Off until a session recorded with it is calibrated, trained and
 # shown better on the same moments. AANKHEN_GAIN_COMP=1 turns it on.
 import os as _os
-GAIN_COMP = _os.environ.get("AANKHEN_GAIN_COMP", "0") == "1"          # a sensor is "live" if a packet arrived this recently
+GAIN_COMP = _os.environ.get("AANKHEN_GAIN_COMP", "0") == "1"
 
 
 @dataclass

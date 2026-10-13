@@ -21,6 +21,12 @@
  *   house                the rest of the home (room.json "house"): other rooms as
  *                        dim floors with waist-high glass, fixtures as labelled pins.
  *                        Context only — nothing sensed out there counts as "in the room"
+ *   estimate figure      where the LEARNED model places me (EstimateAvatar.ts): a
+ *                        hologram person on a learned spot (seated at the desk, lying on
+ *                        the bed, standing on the open floor), its opacity = P(place),
+ *                        heat on the body where the activity says I am moving, a dotted
+ *                        ring under it and an "estimate 82% · desk · typing" label.
+ *                        A place, never a measured coordinate
  * Colour = provenance: cyan measured by hardware, amber simulated/replayed.
  * The camera never cuts: framing my room or the whole house is a flight.
  *
@@ -30,6 +36,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js'
+import { EstimateAvatar, type EstimateSummary } from './EstimateAvatar'
 
 /* ------------------------------------------------------------------ wire types */
 export interface HouseArea { name: string; polygon: number[][]; kind: string; color?: string; height?: number }
@@ -37,7 +44,7 @@ export interface HouseFixture { name: string; kind: string; x: number; y: number
 export interface RoomSpec {
   name: string; width: number; depth: number; height: number
   measured?: boolean
-  zones: { name: string; polygon: number[][]; is_exit?: boolean }[]
+  zones: { name: string; polygon: number[][]; is_exit?: boolean; posture?: string | null; facing_deg?: number | null }[]
   furniture: { name: string; x: number; y: number; w: number; d: number; h: number }[]
   sensors: { id: string; kind: string; x: number; y: number; z: number; yaw_deg: number; pitch_deg: number; fov_deg: number; range_m: number }[]
   links: string[][]
@@ -65,7 +72,8 @@ export interface FrameMsg {
   scenario?: { name: string; t: number; period_s: number | null }
 }
 export interface HeatMsg { type: 'heatmap'; layer: string; w: number; h: number; cell: number; data: number[]; hotspots: { x: number; y: number; person_seconds: number; zone: string | null }[] }
-export type Layer = 'walls' | 'heat' | 'fov' | 'fresnel' | 'trails' | 'labels' | 'truth' | 'house'
+export type Layer = 'walls' | 'heat' | 'fov' | 'fresnel' | 'trails' | 'labels' | 'truth' | 'house' | 'estimate'
+export type { EstimateSummary }
 
 const HOUSE_WALL_H = 1.1
 // Areas are tinted by what they are, barely: the eye should read "kitchen" from the
@@ -372,7 +380,7 @@ export class SpatialTwin {
   private planCut = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1.35)
   private zoneViews = new Map<string, { fill: THREE.MeshBasicMaterial; line: THREE.LineDashedMaterial; target: number }>()
   private zoneCentres = new Map<string, [number, number]>()
-  private activityTag: CSS2DObject | null = null
+  private estimate: EstimateAvatar
   private fresnel: { group: THREE.Group; rings: THREE.LineBasicMaterial[]; foot: THREE.Mesh; flow: THREE.ShaderMaterial; length: number }[] = []
   private fov: { mat: THREE.ShaderMaterial; edge: THREE.LineBasicMaterial; objs: THREE.Object3D[] }[] = []
   private walls: THREE.Object3D[] = []
@@ -383,7 +391,7 @@ export class SpatialTwin {
   private heatW = 0
   private heatH = 0
   private heatColors: THREE.Color[] = []
-  private layers: Record<Layer, boolean> = { walls: true, heat: true, fov: true, fresnel: true, trails: true, labels: true, truth: true, house: true }
+  private layers: Record<Layer, boolean> = { walls: true, heat: true, fov: true, fresnel: true, trails: true, labels: true, truth: true, house: true, estimate: true }
   private accent = SIM.clone()
   private live = false
   private motion = 0
@@ -398,6 +406,8 @@ export class SpatialTwin {
   private resizeObs: ResizeObserver
   roomSpec: RoomSpec | null = null
   view: '3d' | 'plan' = '3d'
+  /** What the estimate figure shows changed (place, activity, or gone): for the HUD's legend. */
+  set onEstimate(cb: ((s: EstimateSummary | null) => void) | null) { this.estimate.onChange = cb }
 
   constructor(container: HTMLElement) {
     this.container = container
@@ -429,6 +439,7 @@ export class SpatialTwin {
     this.scene.add(this.room)
     for (let i = 0; i < POOL; i++) this.people.push(new PersonView(this.room))
     for (let i = 0; i < 6; i++) this.truths.push(new TruthView(this.room))
+    this.estimate = new EstimateAvatar(this.room)
 
     this.resizeObs = new ResizeObserver(() => this.resize())
     this.resizeObs.observe(container)
@@ -525,6 +536,7 @@ export class SpatialTwin {
     }
     this.buildSensors(r)
     this.buildHouse(r)
+    this.estimate.setRoom(r)
     this.frameCameras(false)
     this.applyLayers()
   }
@@ -756,6 +768,7 @@ export class SpatialTwin {
     this.pan.enabled = plan
     this.renderer.clippingPlanes = plan ? [this.planCut] : []
     for (const f of this.fresnel) { f.group.visible = !plan && this.layers.fresnel; f.foot.visible = plan && this.layers.fresnel }
+    this.estimate.setView(v)
   }
   setLayer(l: Layer, on: boolean) {
     this.layers[l] = on
@@ -775,6 +788,7 @@ export class SpatialTwin {
     this.house.traverse((o) => { if (o instanceof CSS2DObject) o.visible = this.layers.labels && this.layers.house && (all || !o.userData.houseOnly) })
     this.sensors.traverse((o) => { if (o instanceof CSS2DObject) o.visible = this.layers.labels })
     for (const t of this.truths) if (!this.layers.truth) t.set(null)
+    this.estimate.setLayers({ show: this.layers.estimate, labels: this.layers.labels, trails: this.layers.trails })
   }
   resetCamera() { this.frameCameras(true) }
   /** Stop drawing while another view covers the twin (the Aankhen page's Eyes). Frames
@@ -802,9 +816,10 @@ export class SpatialTwin {
     }
     // Zones lit by a tracked person count fully. With no radar there are no tracks,
     // so the learned model's guess (desk / bed / elsewhere in the room) lights its zone
-    // at half strength: shown, never passed off as a measured position.
+    // at half strength: shown, never passed off as a measured position. The estimate
+    // figure stands in it, posed by the activity model.
     const guess = msg.tracks.length ? null : ({ desk: 'desk', bed: 'bed', room: 'floor' } as Record<string, string>)[msg.learned?.state ?? '']
-    this.showActivity(guess, msg.learned?.activity?.state)
+    this.estimate.onFrame(msg, now / 1000)
     for (const [name, z] of this.zoneViews) z.target = msg.zones[name] ? 1 : name === guess ? 0.45 : 0
     // The Wi-Fi zone glows with movement. Before a baseline exists the detector makes no
     // calls (motion 0), but human-band energy is normalised by its own noise (~1 when
@@ -855,32 +870,6 @@ export class SpatialTwin {
     if (this.heat!.instanceColor) this.heat!.instanceColor.needsUpdate = true
   }
 
-  /** What the activity model says I am doing, floating over the zone it places me in.
-   *  Learned from my own recordings; amber in simulation like everything else. */
-  private showActivity(zone: string | null | undefined, activity: string | undefined) {
-    if (!this.activityTag) {
-      const el = document.createElement('div')
-      el.className = 'tw-activity'
-      const icon = document.createElement('i'), text = document.createElement('b')
-      el.append(icon, text)
-      this.activityTag = new CSS2DObject(el)
-      this.room.add(this.activityTag)
-    }
-    const c = zone ? this.zoneCentres.get(zone) : undefined
-    const on = !!c && !!activity && activity !== 'none'
-    this.activityTag.visible = on
-    if (!on) return
-    this.activityTag.position.set(c![0], c![1], 1.55)
-    const el = this.activityTag.element
-    const glyph: Record<string, string> = { still: '•', typing: '⌨', waving: '✋', walking: '🚶' }
-    if (el.dataset.act !== activity) {
-      el.dataset.act = activity!
-      el.className = `tw-activity act-${activity} ${this.live ? 'live' : 'sim'}`
-      ;(el.children[0] as HTMLElement).textContent = glyph[activity!] ?? '•'
-      ;(el.children[1] as HTMLElement).textContent = activity!.toUpperCase()
-    }
-  }
-
   /* ---------------------------------------------------------------- loop */
   private loop = (ts: number) => {
     this.raf = requestAnimationFrame(this.loop)
@@ -908,6 +897,7 @@ export class SpatialTwin {
       f.flow.uniforms.uT.value = (f.flow.uniforms.uT.value + dt * this.flowSpeed) % 1000
     }
     for (const f of this.fov) { f.mat.uniforms.uI.value = 0.15 + 0.85 * this.radarI; f.edge.opacity = 0.08 + 0.3 * this.radarI }
+    this.estimate.update(dt, t)
     this.stepFly(dt)
     ;(this.camera === this.persp ? this.orbit : this.pan).update()
     this.renderer.render(this.scene, this.camera)
@@ -916,6 +906,7 @@ export class SpatialTwin {
 
   dispose() {
     cancelAnimationFrame(this.raf)
+    this.estimate.dispose()
     this.resizeObs.disconnect()
     this.orbit.dispose()
     this.pan.dispose()
@@ -931,6 +922,7 @@ export class SpatialTwin {
       truths: this.truths.filter((t) => t.name).map((t) => t.name),
       zones: [...this.zoneViews.keys()], fresnel: this.fresnel.length, heat: [this.heatW, this.heatH],
       house: this.house.children.length, framing: this.framing, flying: this.fly !== null,
+      estimate: this.estimate.probe(),
       calls: this.renderer.info.render.calls, geometries: this.renderer.info.memory.geometries,
     }
   }

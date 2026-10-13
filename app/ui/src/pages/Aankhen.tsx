@@ -15,6 +15,9 @@
  *                   unlit dots are the scale)
  *   sim check       only in simulation: live error between the tracked and the
  *                   true positions — the twin grades itself
+ *   estimate        the figure in the twin is the learned model's place for me
+ *                   (twin/EstimateAvatar.ts); the legend under the title says what it
+ *                   is: a learned spot, never a measured coordinate
  *
  * Three views share the stage: 3D, Plan (the twin's two cameras) and Eyes
  * (components/EyesView: the Wi-Fi channel itself, as a waterfall and a spectrum). In
@@ -33,7 +36,7 @@ import { useStore, type Toast } from '../lib/store'
 import type { EyesMsg } from '../lib/eyes'
 import { EyesView } from '../components/EyesView'
 import { FirstLightSheet } from '../components/FirstLight'
-import { SpatialTwin, type FrameMsg, type Framing, type HeatMsg, type Layer, type RoomSpec } from '../twin/SpatialTwin'
+import { SpatialTwin, type EstimateSummary, type FrameMsg, type Framing, type HeatMsg, type Layer, type RoomSpec } from '../twin/SpatialTwin'
 
 type View = '3d' | 'plan' | 'eyes'
 const VIEW_KEY = 'jarvis.aankhen.view'
@@ -74,7 +77,7 @@ const LAYOUT: Record<string, { label: string; cls: string; hint: string }> = {
 const LAYERS: { id: Layer; label: string }[] = [
   { id: 'walls', label: 'Walls' }, { id: 'house', label: 'House' }, { id: 'heat', label: 'Heat' }, { id: 'fov', label: 'Radar' },
   { id: 'fresnel', label: 'Wi-Fi zone' }, { id: 'trails', label: 'Trails' }, { id: 'labels', label: 'Labels' },
-  { id: 'truth', label: 'Truth' },
+  { id: 'truth', label: 'Truth' }, { id: 'estimate', label: 'Estimate' },
 ]
 // The learned model's five states, as I would say them.
 const STATES: { id: string; name: string }[] = [
@@ -102,7 +105,9 @@ export function AankhenPage() {
   const eyesSink = useRef<((m: EyesMsg) => void) | null>(null)
   const [framing, setFramingState] = useState<Framing>('room')
   const [heatLayer, setHeatLayer] = useState<'live' | 'learned'>('live')
-  const [layers, setLayers] = useState<Record<Layer, boolean>>({ walls: true, heat: true, fov: true, fresnel: true, trails: true, labels: true, truth: true, house: true })
+  const [layers, setLayers] = useState<Record<Layer, boolean>>({ walls: true, heat: true, fov: true, fresnel: true, trails: true, labels: true, truth: true, house: true, estimate: true })
+  // What the estimate figure shows (place, activity), or null when it shows nothing.
+  const [est, setEst] = useState<EstimateSummary | null>(null)
   const [hist, setHist] = useState<{ score: number; thr: number }[]>([])
   const [teachOpen, setTeachOpen] = useState(false)
   const [flOpen, setFlOpen] = useState(false)
@@ -111,6 +116,7 @@ export function AankhenPage() {
   useEffect(() => {
     const t = new SpatialTwin(host.current!)
     twin.current = t
+    t.onEstimate = setEst
     if (viewRef.current === 'plan') t.setView('plan')
     t.setPaused(viewRef.current === 'eyes')
     ;(window as unknown as { __twin: () => unknown }).__twin = () => t.probe()
@@ -207,6 +213,17 @@ export function AankhenPage() {
           <LearnedCard frame={frame} onTeach={() => setTeachOpen(true)} />
           {frame?.metrics && <SimCheck frame={frame} />}
         </div>
+
+        <Presence show={!!est && layers.estimate && !eyes}>
+          <div className="hud hud-tc">
+            <div className={`est-legend ${est?.live ? 'live' : 'sim'}`} role="note"
+              title="The figure stands where the learned model places me: at the desk, on the bed or on the open floor. Its opacity is how sure the model is; the heat on it is the Wi-Fi's human-band energy.">
+              <i className="est-swatch" aria-hidden />
+              <b>{est?.zone === 'outside' ? 'Door marker' : 'Figure'} = estimate</b>
+              <span>position from learned spots, not measured coordinates</span>
+            </div>
+          </div>
+        </Presence>
 
         <div className="hud hud-col-right">
           <PresenceCore frame={frame} />

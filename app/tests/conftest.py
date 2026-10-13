@@ -12,6 +12,7 @@ from pathlib import Path
 
 _TMP = tempfile.mkdtemp(prefix="jarvis-test-")
 os.environ["JARVIS_DATA_DIR"] = _TMP
+os.environ["JARVIS_LEARNED_DIR"] = os.path.join(_TMP, "learned")   # the crew's chat learner: never the real store
 os.environ["AANKHEN_HOTPLUG"] = "0"          # never listen to this machine's real serial ports
 os.environ["AANKHEN_STREAM"] = "0"           # never record into the real data/aankhen/stream
 os.environ["JARVIS_MEDIA_OS"] = "0"          # never open a browser or Spotify, never press a media key

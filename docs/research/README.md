@@ -16,4 +16,5 @@ One line per note (CLAUDE.md: research is never lost). Private notes live in
 - [2026-10-13-raw-stream-and-crew-speed.md](2026-10-13-raw-stream-and-crew-speed.md): the rolling 7-day raw CSI recorder (312 MB/day with phase) and the lock-free frame that took the movement tick from 19.5 to 0.5 ms and the stream from 6.1 to 10 Hz in the bench.
 - [2026-10-13-wifi-sensing-limits-and-routes.md](2026-10-13-wifi-sensing-limits-and-routes.md): what one Wi-Fi link can see, and signal-only routes past it.
 - [2026-10-13-world-model-and-channel-charting.md](2026-10-13-world-model-and-channel-charting.md): world model and channel charting on one link, tested.
+- [2026-10-14-yaadash-feedback-loop.md](2026-10-14-yaadash-feedback-loop.md): what Yaadash is for and whether it works (chat probes 0/7, archive hit@2 3/10, "remember that" had never stored anything), the chat -> memory loop that fixes it (chat probes 5/7, off-topic 0/8, <= 250 tokens a turn), and when a QLoRA fine-tune of the 4B would be worth it.
 - [memory-feasibility.md](memory-feasibility.md): personal memory at N = 1.

@@ -9,6 +9,7 @@ The crew:
     movement  the hub's latest frame and mode (crew/agents/movement.py)
     ledger    the transcripts JARVIS's process writes; its ranking in DATA/crew/ledger.json
     steward   Ollama, the hub (and its raw-stream recorder), JARVIS's process, errors in the transcripts
+    learner   finished chats -> Yaadash's learned memory (crew/agents/learner.py, yaadash/learn_chats.py)
 
 It starts with the app (chained onto the server's lifespan, so server.py is not edited)
 and stops before the hub does. A notable board event goes to the bus as source "crew", so
@@ -28,7 +29,8 @@ from .paths import DATA, ensure_jarvis_importable
 from .transcripts import TRANSCRIPTS
 
 ensure_jarvis_importable()
-from crew.agents.ledger import TaskLedger                            # noqa: E402  (the JARVIS root on the path)
+from crew.agents.learner import ChatLearner, default_learn          # noqa: E402  (the JARVIS root on the path)
+from crew.agents.ledger import TaskLedger                            # noqa: E402
 from crew.agents.movement import MovementWatcher                     # noqa: E402
 from crew.agents.steward import RecentErrors, Steward, ollama_answers  # noqa: E402
 from crew.board import Blackboard                                     # noqa: E402
@@ -72,7 +74,10 @@ def build_crew(svc, bus) -> Crew:
     # ollama_answers is looked up at each probe, so a test can swap it for a fake.
     steward = Steward(ollama=lambda: ollama_answers(), aankhen=aankhen, errors=RecentErrors(transcripts),
                       core=getattr(core, "info", None))
-    return Crew([MovementWatcher(frames), TaskLedger(transcripts, CREW_DATA), steward],
+    # The learner reads finished chats into Yaadash (yaadash/learn_chats.py); its pass is
+    # swappable on the crew (svc.crew.agent("learner").learn) for tests.
+    learner = ChatLearner(default_learn(transcripts))
+    return Crew([MovementWatcher(frames), TaskLedger(transcripts, CREW_DATA), steward, learner],
                 board=Blackboard(sink=bus_sink(bus)))
 
 

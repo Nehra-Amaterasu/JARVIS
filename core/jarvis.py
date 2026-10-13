@@ -172,6 +172,19 @@ if not TEXT_ONLY and ENDPOINTER == "silero":
         ENDPOINTER = "energy"
 print(f"   End-pointing: {ENDPOINTER}" + (" + speculative transcript" if ENDPOINTER == "silero" and USE_JUDGE else ""))
 
+# Waking on his name alone (core/wake.py): Silero finds a burst of speech, Whisper
+# reads it, "Jarvis" anywhere in it wakes him. Its own Silero stream: the end-pointer's
+# keeps LSTM state of its own. JARVIS_NAME_WAKE=0 turns it off (openWakeWord only).
+import wake
+name_spotter = None
+if not TEXT_ONLY and model is not None and os.environ.get("JARVIS_NAME_WAKE", "1") != "0":
+    try:
+        name_spotter = wake.NameSpotter(vad=endpoint.SileroStream(), transcribe=wake.whisper_transcriber(model),
+                                        hold=lambda: _jarvis_talking())
+        print("   Wake: \"Jarvis\" (Whisper name spotter) + \"Hey Jarvis\" (openWakeWord)")
+    except Exception as _e:
+        print(f"   (name spotter unavailable, \"Hey Jarvis\" only: {_e})")
+
 # Warm memory + brain during boot, not during the first question.
 # Measured 2026-10-08: the bge-small embedder loaded lazily inside the first
 # get_context() call, adding 6.76s to the first reply (0.09s once warm). The LLM
@@ -272,10 +285,12 @@ threading.Thread(target=_tts_worker, daemon=True).start()
 def listen_for_wake_word():
     """Block until "Hey Jarvis" -> None, or until the app sends a typed message
     -> that text (so typing in the app works while JARVIS is asleep)."""
-    print("\n[Sleeping. Say 'Hey Jarvis' to wake up...]")
+    print("\n[Sleeping. Say 'Jarvis' to wake me...]")
     appio.emit("state", state="sleeping")
     # Reset openWakeWord internal state to clear stale audio features
     oww_model.reset()
+    if name_spotter is not None:
+        name_spotter.reset()
     
     import queue
     q = queue.Queue()
@@ -302,7 +317,17 @@ def listen_for_wake_word():
             except queue.Empty:
                 continue
             prediction = oww_model.predict(chunk.flatten())
-            
+            if name_spotter is not None:
+                heard = name_spotter.feed(chunk)
+                if heard is not None:
+                    # "Jarvis, turn off the light" in one breath: the rest IS the request.
+                    print(f"\n>>> NAME HEARD: \"{heard.text}\" <<<")
+                    appio.emit("wake", score=1.0, by="name", heard=heard.text)
+                    oww_model.reset()
+                    if heard.rest:
+                        return heard.rest
+                    return None
+
             # Lowered threshold from 0.5 to 0.35 for effortless detection
             for model_name, score in prediction.items():
                 if score > 0.35:

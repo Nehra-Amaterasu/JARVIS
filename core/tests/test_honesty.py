@@ -220,3 +220,49 @@ def test_a_reply_that_was_all_lies_still_says_something_true():
     out = feed_all(g, "Done.")
     assert out == "I haven't done anything yet."
     assert honesty.unbacked(out, REG, []) == []
+
+
+# ------------------------------------------------------------------ body detail (10-12)
+# Asked to describe his movement, the model said "elbows bent at 140 degrees, shoulders
+# relaxed": one Wi-Fi link sees that a body moved, never how it is bent.
+@pytest.mark.parametrize("sentence", [
+    "I can sense your movement — elbows bent at 140 degrees, shoulders relaxed, arms slightly outstretched.",
+    "Your elbows are bent at about 140 degrees.",
+    "Your right knee is at 90°.",
+    "I can see you're smiling.",
+    "I noticed your fingers tapping.",
+    "Your posture looks slightly hunched.",
+])
+def test_body_detail_no_sensor_produces_is_replaced(sentence):
+    assert "perception" in {k for k, _ in honesty.claims(sentence)}
+    assert honesty.check(sentence, REG, []) == honesty.CANNOT_SAY["perception"]
+    live = [ok("presence", ("presence",), "Movement (Wi-Fi estimate): at the desk 4 min, typing (80%).")]
+    assert honesty.check(sentence, REG, live) == honesty.CANNOT_SAY["perception"]   # live sensors don't back it
+
+
+@pytest.mark.parametrize("sentence", [
+    "Keep your elbows at 90 degrees while you type.",
+    "Ideally, knees bent at 90 degrees and feet flat on the floor.",
+    "You should keep your back at about 100 degrees to the seat.",
+    "The phase margin is 45 degrees at unity gain.",
+    "A 30 degree tilt of the radar changes its coverage, not its range.",
+    "I can see you're at the desk, typing.",
+])
+def test_advice_and_engineering_angles_are_not_body_claims(sentence):
+    assert "perception" not in {k for k, _ in honesty.claims(sentence)}
+
+
+def test_live_movement_backs_where_he_is_but_not_how_he_is_bent():
+    live = [ok("presence", ("presence",), "Movement (Wi-Fi estimate): at the desk 4 min, typing (80%).")]
+    said = "I can see you're at the desk, typing away. Your elbows are bent at 140 degrees."
+    out = honesty.check(said, REG, live)
+    assert out.startswith("I can see you're at the desk, typing away.")
+    assert "140" not in out and honesty.CANNOT_SAY["perception"] in out
+
+
+def test_fine_detail_credited_to_the_sensors_is_replaced():
+    # 10-13 eval, verbatim: Wi-Fi saw none of this
+    said = "Aankhen reckons you've been at the desk for over an hour, sir, your head is tilted, eyes fixed on the screen."
+    assert "perception" in {k for k, _ in honesty.claims(said)}
+    assert "tilted" not in honesty.check(said, REG, [])
+    assert "perception" not in {k for k, _ in honesty.claims("Aankhen reckons you've been at the desk for an hour.")}

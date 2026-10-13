@@ -57,10 +57,10 @@ REPO = HERE.parent
 REQUIREMENTS = HERE / "requirements.gpu.txt"
 CONSTRAINTS = HERE / "constraints.gpu.txt"
 
-# What ships as JARVIS. The four code folders, plus the app's launcher and icon script
+# What ships as JARVIS. The five code folders, plus the app's launcher and icon script
 # and the app's tests, which sit beside jarvis_app/ rather than inside it. The test
 # folders are scanned on purpose: pytest is a dependency of `pytest` working.
-SCAN = ("core", "yaadash", "aankhen", "app/jarvis_app", "app/tests",
+SCAN = ("core", "yaadash", "aankhen", "crew", "app/jarvis_app", "app/tests",
         "app/JARVIS.pyw", "app/make_icon.py")
 # legacy/ holds first-generation code that is never imported (README); fixtures/ is
 # test data, not code that runs.

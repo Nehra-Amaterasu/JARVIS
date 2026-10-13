@@ -363,3 +363,149 @@ def test_remember_still_stores_and_leaves_a_receipt(brain):
     out = run(brain.agent, "remember that my exam is on the 12th")
     assert brain.agent._yaadash_stub.told[-1] == "my exam is on the 12th"
     assert receipts(brain.agent)[0].tool == "remember" and out
+
+
+# ------------------------------------------------------------------ his staff (crew/) and the room line
+MOVE_LIVE = "Movement (Wi-Fi estimate): at the desk 25 min, typing (82%); waved twice in the last minute."
+STEWARD_OK = "Systems: Ollama ok; Aankhen live, 262 packets/s."
+LEDGER = "Most asked lately: presence & movement (7), greeting & chat (6)."
+
+
+def fake_api(context=None, snapshot=None):
+    """agent._app_get as the app answers it: one dict per path, None for anything else."""
+    calls = []
+
+    def get(path, timeout=0.4):
+        calls.append(path)
+        if path == "/api/crew/context":
+            return context
+        if path == "/api/aankhen/snapshot":
+            return snapshot
+        return None
+    get.calls = calls
+    return get
+
+
+def human_turn(fake):
+    return fake.seen[-1][-1].content
+
+
+def test_the_movement_line_comes_with_a_greeting_and_backs_where_he_is(brain, monkeypatch):
+    a = brain.agent
+    monkeypatch.setattr(a, "_app_get", fake_api({"lines": {"movement": MOVE_LIVE, "steward": STEWARD_OK,
+                                                           "ledger": LEDGER}, "live": ["movement"]}))
+    brain.plain.rounds.append(words("I can see you at your desk, typing away. Tea, sir?"))
+    out = run(a, "good evening jarvis")
+    turn = human_turn(brain.plain)
+    assert a.STAFF_HEADER in turn and MOVE_LIVE in turn
+    assert STEWARD_OK not in turn and LEDGER not in turn          # not asked about health or habits
+    assert out == "I can see you at your desk, typing away. Tea, sir?"   # backed by the live line
+    assert any(r.tool == "presence" and r.ok for r in receipts(a))
+
+
+def test_health_and_the_ledger_come_in_only_when_asked(brain, monkeypatch):
+    a = brain.agent
+    ctx = {"lines": {"movement": MOVE_LIVE, "steward": STEWARD_OK, "ledger": LEDGER}, "live": ["movement"]}
+    monkeypatch.setattr(a, "_app_get", fake_api(ctx))
+    brain.plain.rounds.append(words("All quiet on every front, sir."))
+    run(a, "how are things going with your staff?")
+    turn = human_turn(brain.plain)
+    assert STEWARD_OK in turn and LEDGER in turn
+    a.reset_conversation()
+    ctx["lines"]["steward"] = "Systems: PROBLEM: Ollama not answering. Fine: Aankhen live, 262 packets/s."
+    brain.plain.rounds.append(words("Hello again."))
+    run(a, "hello")
+    assert "PROBLEM: Ollama" in human_turn(brain.plain)              # a problem always goes in
+
+
+def test_simulated_sensors_never_back_a_claim_about_him(brain, monkeypatch):
+    a = brain.agent
+    sim = "Movement: Aankhen is running a simulation, so the room sensors show nothing real about him."
+    monkeypatch.setattr(a, "_app_get", fake_api({"lines": {"movement": sim}, "live": []}))
+    brain.plain.rounds.append(words("I can see you sitting at your desk."))
+    out = run(a, "hi jarvis")
+    assert sim in human_turn(brain.plain)
+    assert "sitting at your desk" not in out
+    assert not any(r.tool == "presence" for r in receipts(a))
+
+
+def test_without_the_crew_the_room_line_never_mentions_a_radar(brain, monkeypatch):
+    a = brain.agent
+    snap = {"source": "hardware", "presence": {"state": "still", "confidence": 0.9}, "people": [],
+            "learned": {"state": "desk", "p": {"desk": 0.86}, "activity": {"state": "typing"}}}
+    monkeypatch.setattr(a, "_app_get", fake_api(None, snap))
+    line = a.room_context("is anyone in my room")
+    assert line.startswith("ROOM SENSORS (live): The room sensors estimate you are at your desk, typing")
+    assert "radar" not in line.lower()
+    snap["learned"] = None                                          # no model either: still no radar
+    assert "radar" not in a.room_context("anyone here").lower()
+
+
+def test_an_echo_of_an_earlier_reply_is_caught_before_it_is_said(brain):
+    a = brain.agent
+    same = "I detect presence in the room, Aman, someone is here though not where. Shall I switch to relaxation mode?"
+    brain.plain.rounds.append(words(same))
+    assert run(a, "how are you") == same
+    brain.plain.rounds.append(words(same))                        # the collapse: the same reply again
+    brain.plain.rounds.append(words("Tonight, one past paper, timed, then sleep. Shall we pick which?"))
+    out = run(a, "what should I do tonight")
+    assert out == "Tonight, one past paper, timed, then sleep. Shall we pick which?"
+    assert a.ECHO_NUDGE in human_turn(brain.plain)                 # asked again, told why
+    assert "relaxation mode" not in out
+
+
+def test_a_short_stock_phrase_is_not_an_echo(brain):
+    a = brain.agent
+    brain.plain.rounds.append(words("Of course, sir."))
+    run(a, "thanks")
+    brain.plain.rounds.append(words("Of course, sir."))
+    assert run(a, "thank you") == "Of course, sir."
+
+
+def test_emoji_and_markdown_stars_never_reach_the_voice(brain):
+    a = brain.agent
+    prompt = "tell me a joke about my fan"                         # "fan" binds the room tools
+    (brain.bound if a.REGISTRY.wants_tools(prompt) else brain.plain).rounds.append(
+        words("Here's one: it's *always spinning*, never arriving. 😄"))
+    out = run(a, prompt)
+    assert out.strip() == "Here's one: it's always spinning, never arriving."
+
+
+def test_the_movement_line_stays_out_of_turns_that_are_not_about_him(brain, monkeypatch):
+    a = brain.agent
+    plain_line = "Movement (Wi-Fi estimate): at the desk 25 min, typing (82%)."
+    get = fake_api({"lines": {"movement": plain_line}, "live": ["movement"]},
+                   {"source": "hardware", "presence": {"state": "still"}, "people": []})
+    monkeypatch.setattr(a, "_app_get", get)
+    brain.plain.rounds.append(words("Setup time is the minimum time data must be stable before the clock edge."))
+    run(a, "explain setup time")
+    turn = human_turn(brain.plain)
+    assert a.STAFF_HEADER not in turn and "ROOM SENSORS" not in turn     # nothing about the room at all
+    assert "/api/aankhen/snapshot" not in get.calls                      # the crew decides; no fallback read
+    brain.plain.rounds.append(words("You're at the desk, sir, typing away."))
+    run(a, "what am I doing right now?")
+    assert plain_line in human_turn(brain.plain)
+
+
+def test_news_in_the_movement_line_comes_through_unasked(brain, monkeypatch):
+    a = brain.agent
+    monkeypatch.setattr(a, "_app_get", fake_api({"lines": {"movement": MOVE_LIVE}, "live": ["movement"]}))
+    brain.plain.rounds.append(words("Setup time is the minimum time before the clock edge."))
+    run(a, "explain setup time")
+    assert MOVE_LIVE in human_turn(brain.plain)                           # "waved twice" is news
+
+
+def test_without_a_crew_the_old_room_line_still_comes(brain, monkeypatch):
+    a = brain.agent
+    snap = {"source": "hardware", "presence": {"state": "still", "confidence": 0.9}, "people": [],
+            "learned": {"state": "bed", "p": {"bed": 0.9}, "activity": {"state": "still"}}}
+    monkeypatch.setattr(a, "_app_get", fake_api(None, snap))             # an app without /api/crew
+    brain.plain.rounds.append(words("Resting, I see."))
+    run(a, "hi")
+    assert "ROOM SENSORS (live): The room sensors estimate you are on your bed" in human_turn(brain.plain)
+
+
+def test_i_can_tell_is_reading_the_sensors_not_sending_a_message():
+    said = "Beyond my Wi-Fi, I'm afraid: I can tell your arms are moving, not how they're bent."
+    assert "message" not in {k for k, _ in honesty.claims(said)}
+    assert "message" in {k for k, _ in honesty.claims("I can tell your brother you'll be late.")}

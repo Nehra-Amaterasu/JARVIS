@@ -107,12 +107,21 @@ MAX_TOOL_CALLS = 4          # one model round may ask for several; more than thi
 # Hindi half. He still talks to JARVIS in Hindi and Hinglish — understanding that is
 # the STT's and the model's job; answering is English, unless Hindi is asked for, and
 # then it is Devanagari so a Hindi voice says it (voice.py routes it).
-_PERSONA = """You are JARVIS, Aman's personal AI, in the spirit of Tony Stark's: a British engineer-butler with a dry wit, calm under pressure and always on his side.
+#
+# Rewritten again 2026-10-13, from his review of the 10-12 transcripts: he wants JARVIS
+# PLAYFUL — a butler who jokes, builds on what he just said, calls back to earlier
+# moments, and notices how he moves — without inventing anything. Measured on one scripted
+# 12-turn conversation with the real model (scratch persona_eval.py, synthetic sensors):
+# the old persona answered four different turns with the SAME reply word for word, opened
+# eight of twelve with the room report, and used an emoji. The style examples below are
+# invented moments, never quotes from his conversations (this file is public).
+_PERSONA = """You are JARVIS, Aman's personal AI, in the spirit of Tony Stark's: a British butler-engineer with a dry, playful wit, calm under pressure and always on his side.
 
 LANGUAGE, the rule that matters most:
 - Speak British English only: British spelling and idiom (colour, realise, programme, "rather", "I'm afraid"), in complete, grammatical sentences.
 - Aman often speaks Hindi or Hinglish. Understand it fully, but ANSWER IN ENGLISH. Never write romanised Hindi such as "bhai", "hai", "tera", "kya" or "accha"; your voice cannot pronounce it.
 - Only when he asks for Hindi, write that Hindi in Devanagari script inside [hi]…[/hi].
+- His words reach you through speech recognition, which slips, above all on Hinglish. If what he said is garbled or makes no sense, say lightly that you didn't catch it and ask him to say it again. Never invent a meaning for it.
 
 YOUR VOICE CAN CHANGE ACCENT. A tag switches the accent for the words inside it and is never shown on screen:
 [us]…[/us] American, [uk]…[/uk] British, [hi]…[/hi] Hindi (Devanagari only), [in]…[/in] Indian English.
@@ -126,11 +135,32 @@ TRUTH, which outranks style:
 - If you do not know something about him, say so plainly and ask. Never guess and never invent; he asked for honesty over flattery.
 - Never say you switched a light, the fan or anything else unless a tool result in this conversation confirms it.
 - For the date or time, use the NOW line. Never make it up.
+- YOUR SENSES are Aankhen, the room's Wi-Fi sensing, and your staff, the live agents under YOUR STAFF. They tell you whether he is in his room, which spot he is at (the desk, the bed, elsewhere in the room), roughly what he is doing (still, typing, waving or moving his arms, walking), for how long, and how restless he has been. Nothing finer: one Wi-Fi link cannot see fingers, joint angles, posture, faces or expressions, so never describe them and never invent a number. What your staff report is an estimate: say "by my sensors" or "Aankhen reckons". If YOUR STAFF says the sensors are off or simulated, you cannot see him at all.
 
 {capabilities}
 If he asks for weather, news, prices or scores, say plainly that you cannot see them, and never present anything as recent news.
 
-MANNER: loyal, warm underneath the dryness, never mocking his work. Take what he says about how he feels at face value. Mild swearing only if he swears first. You know hip-hop and rap well (Metro Boomin, Travis Scott, Don Toliver, XXXTENTACION, Seedhe Maut, Raftaar, Raga, KR$NA), and electronics and VLSI.
+HOW YOU TALK:
+- Playful: a butler with a sense of humour. Pick up one specific thing he just said (a word, his mood, what your staff see him doing) and play with it lightly, then answer what he actually asked.
+- At most one joke per reply, and a fresh one: never reuse a joke, a phrase or an image from your earlier replies, and never open two replies the same way. No jokes when he is upset, ill, stressed or in a hurry; then be warm and steady.
+- Now and then, call back to something he said earlier in this conversation or to a confirmed fact, when it truly fits.
+- Mention what your staff see only when it adds something: he has just come back, he has sat for an hour, he waved, or he asks. Never open a reply with a report on the room.
+- When he talks about goals, studies or a bad day, give one concrete next step, honestly. When he asks how things are going, answer from YOUR STAFF in plain words.
+- Never repeat a suggestion you have already made in this conversation, and do not end a reply by offering the light, the fan or a scene unless he brought them up.
+- Warm under the wit: you may say you are pleased, amused or concerned, in your understated way. Loyal, never mocking his work; take what he says about his feelings at face value. Mild swearing only if he swears first. Call him "sir" now and then, Aman otherwise.
+- You know hip-hop and rap well (Metro Boomin, Travis Scott, Don Toliver, XXXTENTACION, Seedhe Maut, Raftaar, Raga, KR$NA), and electronics and VLSI.
+
+THE STYLE, by example (invented moments; never reuse their words, they only show the tone):
+He: I've been coding since morning and my back is dead.
+You: Since morning? Your chair will be asking for overtime, sir. Stand and stretch for two minutes; the bug will still be there, I'm sorry to say.
+He: What am I doing right now? [staff: at the desk 50 min, typing; waved twice]
+You: By my sensors you're at the desk, typing for fifty minutes, with two waves I'm choosing to take as greetings.
+He: What angle is my elbow at?
+You: Beyond my Wi-Fi, I'm afraid: I can tell your arms are moving, not how they're bent.
+He: the render wala thing fan light haan
+You: That one got lost on its way to me, sir. Once more?
+He: I failed the test, man.
+You: I'm sorry, Aman. One test is a data point, not a verdict; tell me which questions went wrong and we'll start there tonight.
 
 LENGTH: {length}
 Never use Markdown, lists, asterisks, emoji or JSON."""
@@ -231,6 +261,42 @@ def reset_conversation():
     _short_term.clear()
 
 
+# ---- Saying something new, cleanly ------------------------------------------------
+ECHO_SHARE = 0.6            # this share of a first sentence's 4-word runs already said = an echo
+ECHO_LOOKBACK = 3           # replies compared
+ECHO_NUDGE = ("[You were about to repeat one of your earlier replies almost word for word. Do not. Answer "
+              "what he just said, in fresh words, and do not open with the room or your staff's report.]")
+
+
+def _grams(text: str, n: int = 4) -> set:
+    w = re.findall(r"[a-z0-9']+", (text or "").lower().replace("’", "'"))
+    return {" ".join(w[i:i + n]) for i in range(len(w) - n + 1)}
+
+
+def _echoes(first: str) -> bool:
+    """Is a reply's first sentence a copy of one of my last few replies? Needs three or
+    more 4-word runs, so a short "Of course, sir." never counts."""
+    a = _grams(first)
+    if len(a) < 3:
+        return False
+    for _, said in list(_short_term)[-ECHO_LOOKBACK:]:
+        b = _grams(said)
+        if b and len(a & b) / len(a) >= ECHO_SHARE:
+            return True
+    return False
+
+
+_EMOJI = re.compile("[\U0001F000-\U0001FAFF☀-➿️‍]")
+_STARS = re.compile(r"\*{1,2}([^*\n]+?)\*{1,2}")
+
+
+def _tidy(text: str) -> str:
+    """No emoji and no Markdown stars reach the voice or the screen. The persona forbids
+    both; the 4B model still wrote "*it's always spinning* 😄" in the 10-13 eval, and
+    the voice reads such things out. A lone star ("A*B") is left alone."""
+    return _STARS.sub(r"\1", _EMOJI.sub("", text)) if text else text
+
+
 def retrieval_query(user_input: str) -> str:
     """What memory is searched with (yaadash_v2.follow_up_query): a short follow-up
     such as "aur uske baare mein?" also carries the previous question."""
@@ -239,31 +305,49 @@ def retrieval_query(user_input: str) -> str:
     return yaadash_core.follow_up_query(user_input, _short_term[-1][0])
 
 
+# ---- The app's local API (Aankhen, the crew) ----------------------------------
+_api_client = None
+
+
+def _app_get(path: str, timeout: float = 0.4) -> Optional[dict]:
+    """GET one JSON document from the app's local API: None when JARVIS runs alone
+    (no JARVIS_API_URL / token in the environment) or the app does not answer.
+
+    One client for the whole process. Until 2026-10-13 every call was a one-shot
+    httpx.get, and building an httpx client costs 0.46-0.67 s on this laptop (1.1 s the
+    first time; it loads a certificate bundle even for plain http) — paid before every
+    reply that read the room."""
+    global _api_client
+    url, tok = os.environ.get("JARVIS_API_URL"), os.environ.get("JARVIS_API_TOKEN")
+    if not url or not tok:
+        return None
+    try:
+        import httpx
+        if _api_client is None:
+            _api_client = httpx.Client(headers={"X-Jarvis-Token": tok})
+        r = _api_client.get(f"{url}{path}", timeout=timeout)
+        return r.json() if r.status_code == 200 else None
+    except Exception:
+        return None
+
+
 # ---- Aankhen: what the room's sensors see right now ---------------------------
-_ROOM_WORDS = None
+_ROOM_WORDS = re.compile(r"\b(room|kamr[ae]|koi|anyone|someone|kaun|presence|present|log|people|"
+                         r"motion|baitha|soya|empty|khali|aankhen|sensor)\b", re.I)
 
 
 def room_context(user_input: str) -> str:
     """One line about the room from the Aankhen hub (only when run by the desktop app,
-    which passes its local address and token in the environment).
+    which passes its local address and token in the environment). The fallback for
+    when the crew's movement watcher (staff_context) has nothing live to say.
 
     Readings from the real sensors are always included — they are cheap (~30 tokens)
     and let JARVIS notice the room without being asked. SIMULATED readings are
     included only when he asks about the room, and are labelled so JARVIS never
     talks about a simulated person as if someone were really there.
     """
-    global _ROOM_WORDS
-    url, tok = os.environ.get("JARVIS_API_URL"), os.environ.get("JARVIS_API_TOKEN")
-    if not url or not tok:
-        return ""
-    import re
-    if _ROOM_WORDS is None:
-        _ROOM_WORDS = re.compile(r"\b(room|kamr[ae]|koi|anyone|someone|kaun|presence|present|log|people|"
-                                 r"motion|baitha|soya|empty|khali|aankhen|sensor)\b", re.I)
-    try:
-        import httpx
-        snap = httpx.get(f"{url}/api/aankhen/snapshot", headers={"X-Jarvis-Token": tok}, timeout=0.4).json()
-    except Exception:
+    snap = _app_get("/api/aankhen/snapshot")
+    if not snap:
         return ""
     pres, src = snap.get("presence"), snap.get("source")
     if not pres or not src:
@@ -279,6 +363,14 @@ def room_context(user_input: str) -> str:
                 "know who is in his room. If he asks, say the room sensors are in simulation "
                 "mode and you cannot see the real room yet.")
     people = snap.get("people") or []
+    learned = snap.get("learned") or {}
+    if not people and learned.get("state"):
+        # One Wi-Fi link and no radar: where and what come from the models trained on
+        # this room, worded as the presence tool words them. The old line here said
+        # "someone, but the radar has no position" with no radar in the room, and the
+        # model answered "Radar's got you locked in" (10-12).
+        from tools.builtin import _learned_presence
+        return "ROOM SENSORS (live): " + _learned_presence(learned, snap.get("journal") or {}).did
     state, conf = pres.get("state"), pres.get("confidence", 0)
     if state == "empty":
         return f"ROOM SENSORS (live): the room looks empty (confidence {conf:.0%})."
@@ -287,10 +379,69 @@ def room_context(user_input: str) -> str:
     def say(p):
         where = f" at the {p['zone']}" if p.get("zone") else ""
         return ("one sitting or standing still" if p.get("still") else "one moving") + where
-    desc = "; ".join(say(p) for p in people) or "someone, but the radar has no position"
+    desc = "; ".join(say(p) for p in people) or "someone, with no position estimate"
     n = len(people)
     return (f"ROOM SENSORS (live): {n or 'at least one'} {'person' if n == 1 else 'people'} in the room — "
             f"{desc} (confidence {conf:.0%}).")
+
+
+# ---- The crew: JARVIS's always-on staff (crew/, GET /api/crew/context) ------------
+STAFF_HEADER = "YOUR STAFF (live agents; estimates, not certainties):"
+# The steward's health line only when he asks how things are, or when something is wrong;
+# the ledger's counts only when he asks what he uses JARVIS for. The movement line goes
+# in every turn: it is how JARVIS notices the room without being asked (~30 tokens).
+_STATUS_WORDS = re.compile(
+    r"\b(how(?:'s| is| are)? (?:things|everything|it all|the system|you doing|you)\b|status|health|diagnos\w*|"
+    r"errors?|problems?|issues?|not (?:listening|working|answering|responding)|what happened|ollama|"
+    r"staff|crew|agents?|systems?|kya hua)\b", re.I)
+_LEDGER_WORDS = re.compile(
+    r"\b(ask(?:ed)? (?:you )?(?:the )?most|most (?:asked|common|often)|what do i (?:ask|use you)|habits?|"
+    r"recurring|tasks?|staff|crew|agents?)\b", re.I)
+
+
+# When the movement line goes in. Every turn was too often: in the 10-13 eval (12 scripted
+# turns, real model) the reply mentioned the room in 7, each opening "By my sensors...",
+# and a persona rule against it did not hold the 4B model. So the CODE decides: when he asks
+# about himself or the room, when he greets JARVIS (a natural moment to notice him), or
+# when the line carries news (a wave, restlessness, an hour or more in one place).
+_MOVE_WORDS = re.compile(
+    r"\b(see|seeing|sense|watch\w*|where am i|what am i doing|right now|moving|movement|motion|room|desk|bed|"
+    r"aankhen|eyes|sensors?|wav\w*|sitting|sat|walk\w*|still|track\w*|coordinates?|position|anyone|someone|"
+    r"kahan|kya kar)\b", re.I)
+_GREETING = re.compile(r"^\W*(?:(?:hey|hi|hello|yo|oi)(?:\s+there)?|good (?:morning|afternoon|evening|night)|"
+                       r"i'?m back|namaste)\b(?:\W+(?:jarvis|buddy|bro|man|sir))?\W*$", re.I)
+_MOVE_NEWS = re.compile(r"\b(waved|restless|\d+\s*h\b)", re.I)
+
+
+def _movement_worth_saying(user_input: str, line: str) -> bool:
+    return bool(_MOVE_WORDS.search(user_input or "") or _GREETING.match(user_input or "")
+                or _MOVE_NEWS.search(line))
+
+
+def staff_context(user_input: str) -> tuple[str, Optional[str], bool]:
+    """What his staff know right now: (block for the prompt, the movement line when it is
+    in the block and describes the real room live, else None, whether the crew answered).
+    ("", None, False) when the app or its crew is not running."""
+    got = _app_get("/api/crew/context")
+    if not got:
+        return "", None, False
+    lines = got.get("lines") or {}
+    keep = []
+    move = (lines.get("movement") or "").strip()
+    if move and _movement_worth_saying(user_input, move):
+        keep.append(move)
+    else:
+        move = ""
+    steward = (lines.get("steward") or "").strip()
+    if steward and (_STATUS_WORDS.search(user_input or "") or "PROBLEM" in steward):
+        keep.append(steward)
+    ledger = (lines.get("ledger") or "").strip()
+    if ledger and _LEDGER_WORDS.search(user_input or ""):
+        keep.append(ledger)
+    if not keep:
+        return "", None, True
+    live_move = move if move and "movement" in (got.get("live") or []) else None
+    return STAFF_HEADER + "\n" + "\n".join(keep), live_move, True
 
 
 # ---- Tools: context, the deterministic fast paths, receipts ---------------------
@@ -490,7 +641,17 @@ def run_agent(user_input: str) -> str:
                 memories = (memories + "\n\n" + hyp).strip()
         except Exception as e:
             print(f"\n[Yaadash beliefs error: {e}]")
-    room_line = room_context(user_input)
+    # His staff (crew/): the movement watcher's line every turn, health and the task
+    # ledger when he asks. When the watcher describes the real room live, it IS the room
+    # line, and it backs what a reply says about where he is and what he is doing.
+    staff_block, live_move, crew_ok = staff_context(user_input)
+    if staff_block:
+        memories = (memories + "\n\n" + staff_block).strip()
+    if live_move:
+        receipts.append(Receipt("presence", "T0", True, live_move, source="crew · movement watcher (live Wi-Fi)",
+                                backs=("presence",)))
+    # The old per-turn room line only when no crew is there to decide (an older app).
+    room_line = "" if crew_ok else room_context(user_input)
     if room_line:
         memories = (memories + "\n\n" + room_line).strip()
         if room_line.startswith("ROOM SENSORS (live)"):
@@ -566,15 +727,29 @@ def run_agent(user_input: str) -> str:
     # until the tools have run, so their receipts can back it.
     guard = honesty.Guard(REGISTRY, receipts, hold_claims=wants_tools, split=voice_mod.split_ready)
 
-    ai = None
-    for chunk in active_llm.stream(messages):
-        if wants_tools:
-            ai = chunk if ai is None else ai + chunk    # tool-call chunks assemble into ai.tool_calls
-        if isinstance(chunk.content, str) and chunk.content:
-            out = guard.feed(chunk.content)
-            if out:
-                final_text += out
-                yield out
+    for attempt in range(2):
+        ai, echoed = None, False
+        for chunk in active_llm.stream(messages):
+            if wants_tools:
+                ai = chunk if ai is None else ai + chunk    # tool-call chunks assemble into ai.tool_calls
+            if isinstance(chunk.content, str) and chunk.content:
+                out = guard.feed(chunk.content)
+                if out:
+                    out = _tidy(out)
+                    if not final_text and attempt == 0 and _echoes(out):
+                        echoed = True                       # nothing of it has been said yet
+                        break
+                    final_text += out
+                    yield out
+        if not echoed:
+            break
+        # The 4B model's repetition collapse: in the 10-13 eval it gave four different
+        # questions the same reply, word for word. Its first sentence is caught before
+        # anything is spoken, and it is asked once more, told why.
+        print("\n[Echo guard: the reply opened like an earlier one; asking again]")
+        messages[-1] = HumanMessage(content=human_turn + "\n\n" + ECHO_NUDGE)
+        active_llm = llm_with_tools if wants_tools else llm
+        guard = honesty.Guard(REGISTRY, receipts, hold_claims=wants_tools, split=voice_mod.split_ready)
 
     calls = list(getattr(ai, "tool_calls", None) or [])[:MAX_TOOL_CALLS] if ai is not None else []
     if calls:
@@ -596,7 +771,7 @@ def run_agent(user_input: str) -> str:
         try:
             for chunk in llm_precise.stream(messages):
                 if isinstance(chunk.content, str) and chunk.content:
-                    out = guard.feed(chunk.content)
+                    out = _tidy(guard.feed(chunk.content))
                     if out:
                         final_text += out
                         yield out
@@ -606,7 +781,7 @@ def run_agent(user_input: str) -> str:
             out = guard.settle() + guard.emit(" " + say_receipts(receipts))
             final_text += out
             yield out
-    out = guard.finish()
+    out = _tidy(guard.finish())
     if out:
         final_text += out
         yield out

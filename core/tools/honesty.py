@@ -48,6 +48,17 @@ _MEDIA = (r"(?=.{0,40}\b(?:music|songs?|tracks?|playlists?|albums?|videos?|somet
           r"podcasts?|spotify|youtube|for you)\b)")
 _NOT_YOU = r"(?!\s+(?:you|yourself)\b)"
 _NOT_MEM = r"(?!.{0,25}\bmemory)"
+# "tell" as in "pass a message on", not "make out". In the 10-13 eval, "I can tell your
+# arms are moving" was JARVIS reading his sensors, and the guard swapped it for "I can't
+# send messages". An object followed by its own verb is perceiving.
+_TELL = (r"tell(?!\s+(?:your|the|that|this|if|whether|how|what|when|from|by)\b[^.?!,;]{0,30}?\b"
+         r"(?:is|are|was|were|has|have|looks?|seems?|moving|bent)\b)")
+_BODY = (r"(?:elbows?|knees?|shoulders?|wrists?|fingers?|thumbs?|palms?|fists?|neck|spine|hips?|ankles?|"
+         r"forearms?|arms?|legs?|head|back)")
+# A sentence that gives advice or a condition, not a report: "keep your elbows bent at 90
+# degrees", "ideally, knees at 90 degrees", "if your back is at 30 degrees...".
+_NOT_ADVICE = (r"^(?!\W*(?:keep|hold|try|make sure|bend|raise|lower|sit|stand|put|place|rest|aim|set|stretch|"
+               r"ideally|if|when|while|always|never|don't|do not|you should|you could|it helps)\b)[^.?!]*?\b")
 
 
 def _rx(*parts: str) -> list:
@@ -107,8 +118,8 @@ KINDS: dict[str, tuple[list, list]] = {
         _I_DID + r"passed\s+(?:it|that|this|the message|your message)(?:\s+on)?\b",
         _I_ING + r"(?:sending|messaging|texting|emailing|forwarding|calling|phoning)" + _NOT_YOU,
         r"\b(?:message|text|email|e-mail|whatsapp|sms)\s+(?:has\s+been\s+|was\s+|is\s+)?(?:sent|delivered)\b",
-    ), _rx(_I_CAN + r"(?:send|message|text|email|e-mail|forward|call|ring|phone|whatsapp|tell|inform|notify|"
-           r"let\s+(?!you\b)\w+(?:\s+\w+)?\s+know)\b" + _NOT_YOU)),
+    ), _rx(_I_CAN + r"(?:send|message|text|email|e-mail|forward|call|ring|phone|whatsapp|" + _TELL + r"|inform|"
+           r"notify|let\s+(?!you\b)\w+(?:\s+\w+)?\s+know)\b" + _NOT_YOU)),
     "track": (_rx(
         _I_WILL + r"(?:keep\s+(?:a\s+)?(?:track|tabs|an eye|a log|a record|count)|track|monitor|watch over|log|"
         r"record|count|measure)\b",
@@ -168,6 +179,29 @@ KINDS: dict[str, tuple[list, list]] = {
         r"^\W*(?:one|just a)\s+(?:moment|second|sec)\b[^.?!]*[.!]?",
         r"\bgive me a (?:moment|second|sec)\b[^.?!]*[,.!]?",
     ), []),
+    # Body detail no sensor here produces. 10-12, asked to describe his movement, the
+    # model said "elbows bent at 140 degrees, shoulders relaxed, arms slightly
+    # outstretched": one Wi-Fi link sees that a body moved, never how it is bent. No tool
+    # backs this kind, so a claim is always replaced. Advice is left alone ("keep your
+    # elbows at 90 degrees while you type" has no copula and starts with a verb).
+    "perception": (_rx(
+        r"\b(?:your|his)\s+(?:left\s+|right\s+|both\s+)?" + _BODY + r"\s+(?:is|are|'re|'s|sits?|stays?|looks?)\s+"
+        r"(?:\w+\s+){0,3}?(?:at\s+|to\s+|by\s+)?(?:about\s+|around\s+|roughly\s+|nearly\s+)?\d{1,3}(?:\.\d+)?\s*"
+        r"(?:°|degrees?\b)",
+        _NOT_ADVICE + _BODY + r"\s+(?:bent|angled|raised|held|tilted|turned|rotated|flexed|lifted)\s+"
+        r"(?:at|to|by)\s+(?:about\s+|around\s+|roughly\s+|nearly\s+)?\d{1,3}(?:\.\d+)?\s*(?:°|degrees?\b)",
+        r"\bI\s+(?:can\s+)?(?:see|saw|sense[ds]?|detect(?:ed)?|spot(?:ted)?|notice[ds]?|tell|read)\s+(?:that\s+)?"
+        r"(?:you(?:'re|\s+are)?|your)\b[^.?!]{0,50}?\b(?:smil\w*|frown\w*|grin\w*|blink\w*|wink\w*|eyebrows?|"
+        r"expression|face|fingers?|thumbs?|fists?|posture|slouch\w*|hunch\w*|elbows?|knees?|wrists?|shoulders?)\b",
+        r"\b(?:your|his)\s+(?:posture|facial expression|expression|face|fingers?|elbows?|shoulders?|knees?)\s+"
+        r"(?:is|are|look|looks|seem|seems)\s+(?:\w+\s+){0,2}?(?:relaxed|tense|straight|bent|curled|crossed|"
+        r"slumped|hunched|upright|raised|lowered|clenched)\b",
+        # Fine detail credited to the sensors. 10-13 eval: "Aankhen reckons you've been at the
+        # desk for over an hour, sir, your head is tilted, eyes fixed on the screen."
+        r"\b(?:aankhen|my sensors|the sensors|my staff|I can see|I see|I notice|I spot|I detect)\b[^.?!]{0,80}?"
+        r"\b(?:head is|head's|eyes are|eyes fixed|eyes glued|gaze|staring|tilted|leaning|slouch\w*|hunch\w*|"
+        r"frown\w*|smil\w*|fingers?|elbows?|posture|face)\b",
+    ), []),
     "generic": (_rx(
         r"^\W*(?:done|all done|all set|consider it done|sorted|right away|on it|will do|it'?s done|that'?s done|"
         r"taken care of|done and done)\b(?:\s*[,!.-]\s*(?:sir|aman|boss))?\W*$",
@@ -184,8 +218,10 @@ HAVENT = {
     "reminder": "I haven't set a reminder; nothing was saved. Say, for example, \"remind me at 9 to call Mum\".",
     "schedule": "I haven't scheduled anything; nothing was saved. Say, for example, \"remind me at 9 to call Mum\".",
     "message": "I haven't sent anything.",
-    "track": "I haven't logged anything; the only log I keep is study time you report, like \"log 2 hours of "
-             "German\".",
+    "track": "I haven't logged that. What I keep is study time you report, like \"log 2 hours of German\", and "
+             "Aankhen's record of where you were and how much you moved.",
+    "perception": "I can't see that much detail: Aankhen's Wi-Fi tells me where you are and roughly how you're "
+                  "moving, not angles, fingers or faces.",
     "memory": "I haven't saved that. Say \"remember that …\" and I'll keep it.",
     "presence": "I haven't checked the room sensors, so I can't say who is there.",
     "media": "I haven't played anything.",
@@ -199,8 +235,10 @@ CANNOT_SAY = {
     "reminder": "I can't set reminders right now.",
     "schedule": "I can't schedule things right now.",
     "message": "I can't send messages, emails or calls for you.",
-    "track": "I can't track or log that on my own; the only log I keep is study time you report, like \"log 2 "
-             "hours of German\".",
+    "track": "I can't track that on my own. What I keep is study time you report, like \"log 2 hours of "
+             "German\", and Aankhen's record of where you were and how much you moved.",
+    "perception": "I can't see that much detail: Aankhen's Wi-Fi tells me where you are and roughly how you're "
+                  "moving, not angles, fingers or faces.",
     "web": "I have no internet access, so I can't search, see news or weather, upload, book or buy anything.",
     "media": "I can't play music or videos yet.",
     "memory": "I haven't saved that. Say \"remember that …\" and I'll keep it.",

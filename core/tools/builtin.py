@@ -21,6 +21,10 @@ from .registry import Receipt, Registry, Tier, Tool
 from .when import fmt_clock
 
 API_TIMEOUT = 3.0
+# One HTTP client for the process. Each one-shot httpx.request built a new client, and
+# that costs 0.46-0.67 s on this laptop (1.1 s the first time) before a byte is sent:
+# measured 2026-10-13, paid on every tool call. httpx clients are safe to share.
+_client = None
 
 
 class NoApp(RuntimeError):
@@ -55,9 +59,12 @@ class ToolContext:
             raise NoApp("the JARVIS app is not running")
         if self._http is not None:
             return self._http(method, path, body, timeout)
-        import httpx
-        r = httpx.request(method, f"{self.api_url}{path}", json=body, timeout=timeout,
-                          headers={"X-Jarvis-Token": self.api_token})
+        global _client
+        if _client is None:
+            import httpx
+            _client = httpx.Client()
+        r = _client.request(method, f"{self.api_url}{path}", json=body, timeout=timeout,
+                            headers={"X-Jarvis-Token": self.api_token})
         try:
             data = r.json()
         except ValueError:

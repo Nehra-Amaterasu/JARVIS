@@ -87,9 +87,13 @@ def get_datetime(ctx: ToolContext) -> Receipt:
                    data={"iso": now.isoformat(timespec="minutes"), "weekday": now.strftime("%A")})
 
 
-def _say_device(d: str, st: dict) -> str:
+def _say_device(d: str, st: dict, relay: bool = False) -> str:
+    """relay: a real on/off relay drives it, so a level would be a fiction (the fan's
+    speed is its wall regulator's; nothing dims the light)."""
     noun = "light" if d == "light" else "fan"
-    return f"The {noun} is off." if not st.get("on") else f"The {noun} is on at {int(st.get('level', 0))} percent."
+    if not st.get("on"):
+        return f"The {noun} is off."
+    return f"The {noun} is on." if relay else f"The {noun} is on at {int(st.get('level', 0))} percent."
 
 
 VIRTUAL_NOTE = "Virtual room only; no relay board is connected."
@@ -111,7 +115,7 @@ def room_state(ctx: ToolContext) -> Receipt:
         if v is not None:
             states = {d["id"]: d.get("state") or {} for d in v.get("devices", [])}
             usb = bool(v.get("usb"))
-            did = " ".join(_say_device(d, s) for d, s in states.items())
+            did = " ".join(_say_device(d, s, relay=usb) for d, s in states.items())
             return Receipt("room_state", "T0", True, did + ("" if usb else " " + VIRTUAL_NOTE),
                            source="app · Limbs " + ("(relay board over USB)" if usb else "(virtual room)"),
                            simulated=not usb, backs=("switch_state",),
@@ -254,12 +258,12 @@ def set_device(ctx: ToolContext, device: str, action: str, value: Optional[int] 
         state = res.get("state") or {}
         delivered = res.get("delivered") or {}
         targets = ["light", "fan"] if device == "all" else [device]
-        did = " ".join(_say_device(d, state.get(d, {})) for d in targets)
         try:
             view = _limbs_view(ctx) or {}
         except Exception:
             view = {}
         usb = bool(view.get("usb")) or any(delivered.values())
+        did = " ".join(_say_device(d, state.get(d, {}), relay=usb) for d in targets)
         failed = [d for d, ok in delivered.items() if not ok]
         if failed and usb:
             return Receipt("set_device", "T1", False, did + f" Saved, but the relay board did not take it for "

@@ -314,7 +314,7 @@ def test_room_commands_stay_instant_and_say_virtual(brain):
 def test_room_commands_go_through_the_app_when_it_runs(brain):
     app = brain.use_app(FakeApp(usb=True))
     out = run(brain.agent, "fan 40 percent")
-    assert out == "The fan is on at 40 percent."
+    assert out == "The fan is on."                    # a relay: the speed is the wall regulator's, not ours
     assert ("POST", "/api/limbs/fan", {"action": "set", "value": 40}) in app.calls
 
 

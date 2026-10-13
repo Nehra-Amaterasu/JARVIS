@@ -23,6 +23,10 @@ What it does:
     keeps streaming instead of waiting on audio.
   - Never fatal: text with no letters or digits is skipped; any synthesis error drops
     that sentence and logs it; the conversation goes on.
+  - Chosen in the app (2026-10-13, user_settings.py), read before every sentence: his
+    main voice (any Edge British/American/Indian English voice, or a Kokoro one, which
+    means always offline), the speed, "offline voice for a moment", and a pronunciation
+    table applied to what is SAID only ("Aankhen" -> "Aan-khen"), never to the screen.
 """
 from __future__ import annotations
 
@@ -34,9 +38,10 @@ import tempfile
 import threading
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, Optional
 
+import user_settings      # core/user_settings.py: what Aman chose in the app
 from home import MODELS   # data/models, git-ignored
 
 
@@ -69,6 +74,44 @@ _ALIASES = {"uk": "uk", "british": "uk", "gb": "uk", "us": "us", "american": "us
 _TAG = re.compile(r"\[(/?)(uk|british|gb|us|american|usa|hi|hindi|in|indian)\]", re.I)
 _DEVANAGARI_RUN = re.compile(r"[ऀ-ॿ][ऀ-ॿ\s,.!?।॥'\"\-]*")
 _HAS_WORD = re.compile(r"[^\W_]", re.UNICODE)
+
+
+# ------------------------------------------------------------------ what Aman chose (the app)
+# Which accent a chosen voice speaks, so it replaces that accent's voice and becomes
+# the default: choose en-US-GuyNeural and untagged text is American (Guy), while a
+# [uk]...[/uk] line is still Ryan. Kokoro names: a/b = American/British, f/m = gender.
+EDGE_LOCALE_STYLE = {"en-GB": "uk", "en-US": "us", "en-IN": "in"}
+KOKORO_PREFIX = {"b": ("uk", "en-gb"), "a": ("us", "en-us")}
+
+
+@dataclass(frozen=True)
+class VoicePrefs:
+    default_key: str = DEFAULT_STYLE
+    edge: dict = field(default_factory=dict)         # style key -> Edge voice replacing its own
+    kokoro: dict = field(default_factory=dict)       # style key -> (Kokoro voice, language)
+    offline: bool = False                            # skip the cloud: Kokoro only
+    speed: float = 1.0
+    pron: dict = field(default_factory=dict)
+
+
+def resolve_prefs(settings: dict, now: Optional[float] = None) -> VoicePrefs:
+    """The app's settings -> what the engine does with the next sentence."""
+    v = settings.get("voice") or {}
+    speed = user_settings.clamp_speed(v.get("speed", 1.0))
+    pron = settings.get("pronunciations") or {}
+    pron = pron if isinstance(pron, dict) else {}
+    offline = user_settings.offline_voice(settings, now)
+    chosen = user_settings.parse_voice_id(v.get("id"))
+    default_key, edge, kokoro = DEFAULT_STYLE, {}, {}
+    if chosen and chosen[0] == "edge":
+        key = EDGE_LOCALE_STYLE.get("-".join(chosen[1].split("-")[:2]))
+        if key:
+            default_key, edge = key, {key: chosen[1]}
+    elif chosen and chosen[0] == "kokoro":
+        hit = KOKORO_PREFIX.get(chosen[1][:1])
+        if hit:
+            default_key, kokoro, offline = hit[0], {hit[0]: (chosen[1], hit[1])}, True
+    return VoicePrefs(default_key, edge, kokoro, offline, speed, pron)
 
 
 def strip_tags(text: str) -> str:
@@ -221,12 +264,16 @@ class _Kokoro:
     def available(self) -> bool:
         return all(os.path.exists(os.path.join(self.dir, f)) for f in ("kokoro-v1.0.int8.onnx", "voices-v1.0.bin"))
 
-    def synth(self, text: str, voice: str, lang: str) -> str:
+    @property
+    def loaded(self) -> bool:
+        return self._k is not None
+
+    def synth(self, text: str, voice: str, lang: str, speed: float = 1.0) -> str:
         with self._lock:
             if self._k is None:
                 from kokoro_onnx import Kokoro
                 self._k = Kokoro(os.path.join(self.dir, "kokoro-v1.0.int8.onnx"), os.path.join(self.dir, "voices-v1.0.bin"))
-            samples, sr = self._k.create(text, voice=voice, speed=1.0, lang=lang)
+            samples, sr = self._k.create(text, voice=voice, speed=speed, lang=lang)
         import soundfile as sf
         path = os.path.join(tempfile.gettempdir(), f"jarvis_{uuid.uuid4().hex[:8]}.wav")
         sf.write(path, samples, sr)
@@ -254,12 +301,16 @@ class VoiceEngine:
     EDGE_COOLDOWN_S = 60.0
 
     def __init__(self, play: Callable[[str, str, float], None], log: Callable[[str], None] = print,
-                 model_dir: Optional[str] = None, enabled: bool = True):
+                 model_dir: Optional[str] = None, enabled: bool = True,
+                 settings: Optional[Callable[[], dict]] = None):
         self.play = play                         # play(text, audio_path, gain) — the app's playback queue
         self.log = log
         self.enabled = enabled
         self.segmenter = Segmenter()
         self.kokoro = _Kokoro(model_dir or str(MODELS / "kokoro"))   # data/models/kokoro, git-ignored
+        self._settings = settings or user_settings.current
+        self._requested: Optional[str] = None    # an accent he asked for in this turn
+        self._kokoro_said = False
         self._edge_down_until = 0.0
         self._q: "queue.Queue[Optional[tuple[str, str, int]]]" = queue.Queue()
         self._epoch = 0                          # bumped by clear(): stale work is dropped
@@ -270,14 +321,28 @@ class VoiceEngine:
             self._thread.start()
 
     # -------------------------------------------------------------- public
+    def prefs(self) -> VoicePrefs:
+        """What the app has chosen right now. A settings file that cannot be read means
+        the defaults: the voice must never fail because of a preference."""
+        try:
+            return resolve_prefs(self._settings() or {})
+        except Exception as e:
+            self.log(f"[voice] settings unreadable, using defaults: {e}")
+            return VoicePrefs()
+
     def begin_turn(self, style: Optional[str] = None) -> None:
         """A new reply: close any open accent and set the reply's default voice."""
-        self.segmenter.reset(style)
+        self._requested = style
+        self.segmenter.reset(style or self.prefs().default_key)
 
     def say(self, text: str) -> int:
         """Queue a sentence (tags allowed). Returns how many segments were queued."""
         if not self.enabled:
             return 0
+        if self._requested is None and not self.segmenter.stack:
+            # A voice chosen mid-session (or an app announcement between turns) uses
+            # the current choice, not the one the last turn started with.
+            self.segmenter.default = self.prefs().default_key
         segs = self.segmenter.feed(text or "")
         if not segs:
             self.stats["skipped"] += 1
@@ -320,21 +385,33 @@ class VoiceEngine:
 
     def _synth(self, style: Style, text: str) -> Optional[tuple[str, float]]:
         """(audio path, playback gain), or None when no engine could say it."""
-        if time.monotonic() >= self._edge_down_until:
+        p = self.prefs()
+        spoken = user_settings.apply_pronunciations(text, p.pron)
+        if not p.offline and time.monotonic() >= self._edge_down_until:
+            # A chosen voice replaces its accent's own. The gains were measured for the
+            # default voices only (Style); another voice plays unlevelled (gain 1.0).
+            name = p.edge.get(style.key, style.edge)
+            rate = user_settings.edge_rate(p.speed) if p.speed != 1.0 else style.rate
             try:
-                path = self._loop.run_until_complete(_edge_synth(text, style.edge, style.rate))
+                path = self._loop.run_until_complete(_edge_synth(spoken, name, rate))
                 self.stats["edge"] += 1
-                return path, style.edge_gain
+                return path, style.edge_gain if name == style.edge else 1.0
             except Exception as e:
                 self._edge_down_until = time.monotonic() + self.EDGE_COOLDOWN_S
                 self.log(f"[voice] online voice failed ({type(e).__name__}: {e}); offline voice for {self.EDGE_COOLDOWN_S:.0f} s")
         # No offline voice for this accent (Indian English): the default one says it.
         offline = style if style.kokoro else STYLES[DEFAULT_STYLE]
         if self.kokoro.available:
+            kv = p.kokoro.get(offline.key, offline.kokoro)
             try:
-                path = self.kokoro.synth(text, *offline.kokoro)
+                path = (self.kokoro.synth(spoken, *kv, speed=p.speed) if p.speed != 1.0
+                        else self.kokoro.synth(spoken, *kv))
                 self.stats["kokoro"] += 1
-                return path, offline.kokoro_gain
+                if not self._kokoro_said:
+                    # The app's Modules card reads this line: the offline voice is in RAM now.
+                    self._kokoro_said = True
+                    self.log("[voice] offline voice loaded (Kokoro-82M, CPU)")
+                return path, offline.kokoro_gain if kv == offline.kokoro else 1.0
             except Exception as e:
                 self.log(f"[voice] offline voice failed: {type(e).__name__}: {e}")
         self.stats["failed"] += 1

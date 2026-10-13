@@ -509,3 +509,44 @@ def test_i_can_tell_is_reading_the_sensors_not_sending_a_message():
     said = "Beyond my Wi-Fi, I'm afraid: I can tell your arms are moving, not how they're bent."
     assert "message" not in {k for k, _ in honesty.claims(said)}
     assert "message" in {k for k, _ in honesty.claims("I can tell your brother you'll be late.")}
+
+
+# ------------------------------------------------------------------ the brain the app chose (2026-10-13)
+def test_the_brain_is_todays_model_unless_the_app_says_otherwise(agent):
+    import user_settings
+    assert agent.BRAIN_MODEL == user_settings.DEFAULT_BRAIN          # conftest sets no JARVIS_BRAIN_MODEL
+    assert agent.llm.model == agent.llm_precise.model == agent.BRAIN_MODEL
+
+
+def test_deep_think_answers_while_it_is_on_and_stops_on_time(brain, monkeypatch):
+    import time as _time
+    import user_settings
+    a = brain.agent
+    on = {"modules": {"deep_think": {"model": "qwen3:4b", "thinking": True, "until": _time.time() + 600}}}
+    monkeypatch.setattr(user_settings, "current", lambda: on)
+    plain, precise, tools, precise_tools = a.turn_brains()
+    assert plain.model == precise.model == "qwen3:4b"
+    assert plain.reasoning is True                    # its thinking is kept out of what is spoken
+    assert plain.num_predict == 400 + a.DEEP_THINK_TOKENS and plain.keep_alive == a.DEEP_KEEP_ALIVE
+    assert a.turn_brains()[0] is plain                # built once, not per turn
+    on["modules"]["deep_think"]["until"] = _time.time() - 1
+    assert a.turn_brains() == (brain.plain, brain.plain, brain.bound, brain.bound)
+
+
+def test_a_turn_streams_from_the_deep_model_while_it_is_on(brain, monkeypatch):
+    a = brain.agent
+    deep = FakeLLM("deep model")
+    monkeypatch.setattr(a, "turn_brains", lambda: (deep, deep, brain.bound, brain.bound))
+    deep.rounds.append(words("Let me think that through, sir."))
+    assert run(a, "tell me something thoughtful") == "Let me think that through, sir."
+    assert brain.plain.seen == [] and len(deep.seen) == 1
+
+
+def test_a_deep_model_without_reasoning_runs_as_it_is(brain, monkeypatch):
+    import time as _time
+    import user_settings
+    a = brain.agent
+    monkeypatch.setattr(user_settings, "current", lambda: {"modules": {"deep_think": {
+        "model": "llama3.1:latest", "thinking": False, "until": _time.time() + 60}}})
+    plain = a.turn_brains()[0]
+    assert plain.model == "llama3.1:latest" and plain.reasoning is None and plain.num_predict == 400

@@ -10,10 +10,12 @@
 //      captures travel as their own frame type (AK_CSI_LINK), never mixed into link 1's.
 //   4. Forwards HLK-LD2450 radar frames byte-for-byte, should one ever be fitted
 //      (none is planned; without one, nothing is sent).
-//   5. Reports its health once a second.
+//   5. Reports its health once a second, over USB and at http://<board>/status.
 //   6. Switches the room relays when JARVIS asks: over the same USB cable (COMMAND
 //      frames, CRC-checked), over MQTT, or over HTTP with a token. Never without one.
 //      Every STATUS frame reports the relays' actual states.
+//   7. Takes new firmware over Wi-Fi (ArduinoOTA, password from secrets.h), so a board
+//      powered from the switchboard, with no USB cable, can still be updated.
 // Everything goes to the laptop as CRC-checked binary frames over native USB (see
 // aankhen_protocol.h). The laptop does all the maths, so a recording made today can
 // be re-analysed by tomorrow's algorithm.
@@ -60,11 +62,36 @@
 #define GAIN_BASELINE_PACKETS 100   // Espressif's example records the first 100
 #include "secrets.h"   // gitignored; copy secrets.example.h
 
+// FIRMWARE OVER WI-FI. Once the board is powered from the switchboard (a 5 V supply
+// behind the relays), USB is gone and this is the only way new firmware reaches it.
+// ArduinoOTA (built into the Arduino-ESP32 core) listens on UDP 3232 for espota.py or
+// the IDE's network port. It is compiled in only with OTA_PASS_VALUE in secrets.h: an
+// open OTA port would let anyone on the Wi-Fi replace the code that switches mains.
+// The core (3.3.x) answers a PBKDF2-HMAC-SHA256 challenge, so the password itself never
+// crosses the air.
+// A struct, not a free function: the Arduino builder inserts its generated prototypes
+// before the first free function, and they name types (CsiItem, Relay) defined below.
+struct AkText {
+  static constexpr bool same(const char *a, const char *b) { return *a == *b && (*a == 0 || same(a + 1, b + 1)); }
+};
+#ifdef OTA_PASS_VALUE
+#include <ArduinoOTA.h>
+#define OTA_ENABLED 1
+static_assert(sizeof(OTA_PASS_VALUE) - 1 >= 12, "OTA_PASS_VALUE (secrets.h) must be at least 12 characters");
+static_assert(!AkText::same(OTA_PASS_VALUE, "paste-a-long-random-ota-password"),
+              "OTA_PASS_VALUE (secrets.h) is still the example's placeholder: make your own");
+#else
+#define OTA_ENABLED 0
+#warning "OTA_PASS_VALUE is not set in secrets.h: firmware updates over Wi-Fi are disabled."
+#endif
+#define OTA_HOSTNAME "aankhen"       // mDNS: the IDE lists the board as aankhen at <ip>
+
 // ------------------------------------------------------------------ config
-#define FW_VERSION "aankhen-3.3.0"
-#define CSI_RATE_HZ 500           // router pings per second = CSI captures per second. 500, not 100:
-                                  // the host averages ~5 per 10 ms slot, which keeps a full-speed
-                                  // ceiling fan (~23 Hz and harmonics) from folding into the human band
+#define FW_VERSION "aankhen-3.4.0"
+// CSI_RATE_HZ (router pings = CSI captures per second) lives in config.h, where the app's
+// firmware form can set it. The ping interval is 1000 / CSI_RATE_HZ whole milliseconds.
+static_assert(CSI_RATE_HZ >= 100 && CSI_RATE_HZ <= 500 && 1000 % CSI_RATE_HZ == 0,
+              "CSI_RATE_HZ (config.h) must be 100, 125, 200, 250 or 500");
 #define CSI_QUEUE_DEPTH 160       // ~0.3 s of slack at 500 Hz if the USB host stalls
 // Automatic CSI scaling. The host divides every packet by its own median amplitude,
 // so the absolute scale is irrelevant to the detector; automatic scaling keeps the
@@ -84,6 +111,7 @@
                                     // link. Two per ping: the reply, and room for one other frame
 #define BEACON_QUEUE_DEPTH 64       // ~0.3 s at the 200 Hz cap, the same slack as link 1's queue
 static_assert(BEACON_PING_HZ >= 1 && BEACON_PING_HZ <= 500, "BEACON_PING_HZ (config.h) must be 1..500");
+static_assert(BEACON_ENABLED == 0 || BEACON_ENABLED == 1, "BEACON_ENABLED (config.h) must be 0 or 1");
 
 // Relays (mains). Pins come from config.h; -1 disables one.
 struct Relay { const char *name; int pin; bool active_low; bool on; };
@@ -95,6 +123,18 @@ static Relay RELAYS[] = {
 #ifndef RELAY_TOKEN_VALUE
 #warning "RELAY_TOKEN_VALUE is not set in secrets.h: HTTP relay control is disabled."
 #endif
+
+// RELAYS ACROSS A FIRMWARE UPDATE. An OTA update ends in ESP.restart(), and setup() turns
+// every relay off: the room light would go dark at every update and stay dark until
+// JARVIS next switched it (over Wi-Fi nothing re-sends the room's state). So the relays'
+// states are written to RTC memory just before that restart, which keeps its contents
+// through a software reset (not a power cut), and setup() restores them only when the
+// reset reason is a software restart AND this marker is present. A power-on, a brownout
+// or a crash still starts with everything off. The load sees ~1 s of off while the chip
+// reboots.
+#define RELAY_KEEP_MAGIC 0xA4E1B007u
+RTC_NOINIT_ATTR static uint32_t relayKeepMagic;
+RTC_NOINIT_ATTR static uint8_t relayKeepBits;
 
 // ------------------------------------------------------------------ state
 static AkWriter ak(Serial);
@@ -109,7 +149,9 @@ static esp_mqtt_client_handle_t mqtt = nullptr;
 static volatile bool mqttUp = false;
 static WebServer http(80);
 static bool httpEnabled = false;   // relay control over HTTP (STATUS "http"); needs RELAY_TOKEN_VALUE
-static bool webUp = false;         // the server itself: always on, for /beacon
+static bool webUp = false;         // the server itself: always on, for /beacon and /status
+static bool otaUp = false;         // ArduinoOTA is listening (STATUS "ota")
+static int8_t otaLastTenth = -1;   // progress, logged every 10 %
 
 struct CsiItem {
   ak_csi_link_head_t head;    // link id + metadata + gain, contiguous: one write sends them
@@ -566,6 +608,48 @@ static Relay *findRelay(const char *name) {
   return nullptr;
 }
 
+static const size_t RELAY_COUNT = sizeof(RELAYS) / sizeof(RELAYS[0]);
+static_assert(sizeof(RELAYS) / sizeof(RELAYS[0]) <= 8, "relayKeepBits holds 8 relays");
+
+// Just before an OTA restart (RELAYS ACROSS A FIRMWARE UPDATE).
+static void keepRelaysForRestart() {
+  uint8_t bits = 0;
+  for (size_t i = 0; i < RELAY_COUNT; i++)
+    if (RELAYS[i].on) bits |= (uint8_t)(1u << i);
+  relayKeepBits = bits;
+  relayKeepMagic = RELAY_KEEP_MAGIC;
+}
+
+// At boot: everything off, then, after a software restart that left the marker, the
+// states it left. The marker is cleared first, so it is used once.
+static const char *bootRelays() {
+  bool keep = esp_reset_reason() == ESP_RST_SW && relayKeepMagic == RELAY_KEEP_MAGIC;
+  uint8_t bits = relayKeepBits;
+  relayKeepMagic = 0;
+  for (size_t i = 0; i < RELAY_COUNT; i++) {
+    initRelay(RELAYS[i]);
+    if (keep && (bits & (1u << i))) setRelay(RELAYS[i], true);
+  }
+  return keep ? "restored after a firmware update" : "all off";
+}
+
+// Why the chip last started, for STATUS "reset". A brownout here, after a relay clicked,
+// means the 5 V supply sags under the relay coil: give the module its own 5 V feed.
+static const char *resetReason() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON: return "power-on";
+    case ESP_RST_SW: return "software";
+    case ESP_RST_PANIC: return "crash";
+    case ESP_RST_INT_WDT:
+    case ESP_RST_TASK_WDT:
+    case ESP_RST_WDT: return "watchdog";
+    case ESP_RST_BROWNOUT: return "brownout";
+    case ESP_RST_EXT: return "reset-pin";
+    case ESP_RST_USB: return "usb";
+    default: return "other";
+  }
+}
+
 // MQTT: room.py publishes {"on": true, "level": 80} on jarvis/room/<device>.
 // The relay switches on/off; "level" needs a dimmer and is ignored here.
 static void onMqtt(void *, esp_event_base_t, int32_t id, void *data) {
@@ -660,13 +744,49 @@ static void onBye() {
   http.send(204);
 }
 
+// GET /status: what the board is doing, for the JARVIS app when no USB cable connects
+// them (the board behind the switchboard). With the relay token: the full STATUS JSON,
+// relays included. Without it: only what tells you the board is alive and which
+// firmware it runs. The relays' states say whether someone is home, so they stay
+// behind the token like the switches themselves.
+static void buildStatus(char *js, size_t jsLen);
+
+static void onStatus() {
+  http.sendHeader("Cache-Control", "no-store");
+#ifdef RELAY_TOKEN_VALUE
+  if (tokenOk()) {
+    char js[896];
+    buildStatus(js, sizeof(js));
+    http.send(200, "application/json", js);
+    return;
+  }
+#endif
+  char js[256];
+  snprintf(js, sizeof(js),
+           "{\"fw\":\"%s\",\"uptime_s\":%.1f,\"rssi\":%d,\"channel\":%d,\"csi_hz\":%lu,"
+           "\"ota\":%s,\"http\":%s,\"reset\":\"%s\",\"beacon_enabled\":%s,\"full\":false}",
+           FW_VERSION, esp_timer_get_time() / 1e6, WiFi.RSSI(), WiFi.channel(),
+           (unsigned long)(csiRate.hz + 0.5f), otaUp ? "true" : "false", httpEnabled ? "true" : "false",
+           resetReason(), BEACON_ENABLED ? "true" : "false");
+  http.send(200, "application/json", js);
+}
+
 static void startHttp() {
-  http.on("/beacon", HTTP_GET, onBeaconPage);
-  http.on("/beacon/beat", HTTP_POST, onBeat);
-  http.on("/beacon/bye", HTTP_POST, onBye);
 #ifdef RELAY_TOKEN_VALUE
   static const char *hdrs[] = {"X-Aankhen-Token"};
   http.collectHeaders(hdrs, 1);
+#endif
+  http.on("/status", HTTP_GET, onStatus);
+#if BEACON_ENABLED
+  http.on("/beacon", HTTP_GET, onBeaconPage);
+  http.on("/beacon/beat", HTTP_POST, onBeat);
+  http.on("/beacon/bye", HTTP_POST, onBye);
+#else
+  http.on("/beacon", HTTP_GET, []() {
+    http.send(404, "text/plain", "link 2 is off on this board (BEACON_ENABLED 0 in config.h)");
+  });
+#endif
+#ifdef RELAY_TOKEN_VALUE
   http.on("/relay", HTTP_POST, []() {
     if (!tokenOk()) { http.send(401, "application/json", "{\"error\":\"token\"}"); return; }
     Relay *r = findRelay(http.arg("ch").c_str());
@@ -766,7 +886,9 @@ static void pumpCommands() {
 }
 
 // ------------------------------------------------------------------ status
-static void sendStatus() {
+// The STATUS JSON, for the USB frame and for GET /status with the token. Under 1024
+// bytes (protocol.py MAX_PAYLOAD_BY_TYPE[STATUS]); ~700 at its longest.
+static void buildStatus(char *js, size_t jsLen) {
   uint32_t nowMs = millis();
   csiRate.update(csiCaptured, nowMs);
   beaconRate.update(beaconCaptured, nowMs);
@@ -787,12 +909,12 @@ static void sendStatus() {
            phoneIp, beaconMacSlot >= 0 ? "true" : "false", (unsigned long)beaconPingsOk,
            (unsigned long)(beaconIp ? beaconRate.hz + 0.5f : 0.0f), rssi,
            (unsigned long)beaconDropped, (unsigned long)beaconRejected, beaconFallback ? "true" : "false");
-  char js[768];
-  snprintf(js, sizeof(js),
+  snprintf(js, jsLen,
            "{\"fw\":\"%s\",\"uptime_s\":%.1f,\"relays\":%s,\"wifi\":\"%s\",\"ip\":\"%s\",\"rssi\":%d,"
            "\"channel\":%d,\"csi_hz\":%lu,\"csi_dropped\":%lu,\"csi_rejected\":%lu,"
            "\"radar_frames\":%lu,\"radar_bad\":%lu,\"mqtt\":%s,\"http\":%s,"
-           "\"heap_free\":%lu,\"crc_ok\":%s,\"gain\":\"%s\",\"beacon\":%s}",
+           "\"heap_free\":%lu,\"crc_ok\":%s,\"gain\":\"%s\",\"ota\":%s,\"reset\":\"%s\","
+           "\"beacon_enabled\":%s,\"beacon\":%s}",
            FW_VERSION, esp_timer_get_time() / 1e6, relays,
            WiFi.status() == WL_CONNECTED ? "connected" : "connecting",
            WiFi.localIP().toString().c_str(), WiFi.RSSI(), WiFi.channel(),
@@ -801,11 +923,77 @@ static void sendStatus() {
            mqttUp ? "true" : "false", httpEnabled ? "true" : "false",
            (unsigned long)ESP.getFreeHeap(), ak_crc_self_test() ? "true" : "false",
            !AK_GAIN_CTRL ? "unavailable" : gainRecorded < GAIN_BASELINE_PACKETS ? "recording" : "compensated",
-           beacon);
+           otaUp ? "true" : "false", resetReason(), BEACON_ENABLED ? "true" : "false", beacon);
+}
+
+static void sendStatus() {
+  char js[896];
+  buildStatus(js, sizeof(js));
   if (xSemaphoreTake(txLock, pdMS_TO_TICKS(20))) {
     ak.text(AK_STATUS, js);
     xSemaphoreGive(txLock);
   }
+}
+
+// ------------------------------------------------------------------ OTA
+// ArduinoOTA.handle() runs the whole transfer inside loop() (~1 MB, 10-30 s), so loop()
+// stops draining the CSI queues anyway. Sensing is paused for it on purpose: the 500 Hz
+// router pings and the phone's would compete with the upload for the same airtime. If
+// the update fails, sensing resumes; if it succeeds, the board restarts into the new
+// firmware with the relays as they were (RELAYS ACROSS A FIRMWARE UPDATE).
+static void dropPhone(const char *why);
+
+static bool sensingPaused = false;
+
+static void pauseSensing() {
+  if (sensingPaused) return;
+  sensingPaused = true;
+  dropPhone("firmware update");
+  if (pingHandle) esp_ping_stop(pingHandle);
+  esp_wifi_set_csi(false);
+}
+
+// Only what pauseSensing() stopped: an error before the transfer began (a wrong
+// password, no room for the image) never paused anything.
+static void resumeSensing() {
+  if (!sensingPaused) return;
+  sensingPaused = false;
+  esp_wifi_set_csi(true);
+  if (pingHandle) esp_ping_start(pingHandle);
+}
+
+static void startOta() {
+#if OTA_ENABLED
+  if (otaUp) return;
+  ArduinoOTA.setHostname(OTA_HOSTNAME);
+  ArduinoOTA.setPassword(OTA_PASS_VALUE);
+  ArduinoOTA.onStart([]() {
+    otaLastTenth = -1;
+    pauseSensing();
+    logf("ota: receiving new firmware; sensing paused");
+  });
+  ArduinoOTA.onProgress([](unsigned int done, unsigned int total) {
+    int8_t tenth = total ? (int8_t)(10ull * done / total) : 0;
+    if (tenth != otaLastTenth) {
+      otaLastTenth = tenth;
+      logf("ota: %d %%", tenth * 10);
+    }
+  });
+  ArduinoOTA.onEnd([]() {
+    keepRelaysForRestart();
+    logf("ota: written and verified; restarting into it");
+  });
+  ArduinoOTA.onError([](ota_error_t e) {
+    const char *why = e == OTA_AUTH_ERROR ? "wrong password" : e == OTA_BEGIN_ERROR ? "no room for the image"
+                    : e == OTA_CONNECT_ERROR ? "could not connect back" : e == OTA_RECEIVE_ERROR ? "upload stalled"
+                    : "image failed its check";
+    logf("ota: failed (%s)%s", why, sensingPaused ? "; sensing resumes" : "");
+    resumeSensing();
+  });
+  ArduinoOTA.begin();
+  otaUp = true;
+  logf("ota: listening on UDP 3232 as %s", OTA_HOSTNAME);
+#endif
 }
 
 // ------------------------------------------------------------------ Wi-Fi
@@ -827,8 +1015,11 @@ static void connectWifi() {
   logf("wifi: %s ch %d rssi %d bssid %02x:%02x:%02x:%02x:%02x:%02x", WiFi.localIP().toString().c_str(),
        WiFi.channel(), WiFi.RSSI(), routerBssid[0], routerBssid[1], routerBssid[2], routerBssid[3],
        routerBssid[4], routerBssid[5]);
+#if BEACON_ENABLED
   logf("link 2: a phone on this Wi-Fi (2.4 GHz) can open http://%s/beacon", WiFi.localIP().toString().c_str());
+#endif
   startPing();
+  startOta();
 }
 
 // ------------------------------------------------------------------ main
@@ -843,7 +1034,8 @@ void setup() {
   logf("%s booting, protocol v%d, crc self-test %s", FW_VERSION, AK_PROTOCOL_VERSION,
        ak_crc_self_test() ? "ok" : "FAILED");
 
-  for (auto &r : RELAYS) initRelay(r);   // known state at boot: everything off
+  const char *relaysAtBoot = bootRelays();   // everything off, unless an OTA restart kept them
+  logf("reset: %s; relays %s", resetReason(), relaysAtBoot);
   Serial1.begin(RADAR_BAUD, SERIAL_8N1, RADAR_RX_PIN, RADAR_TX_PIN);
 
   connectWifi();
@@ -859,6 +1051,9 @@ void loop() {
   pumpRadar();
   pumpCommands();
   if (webUp) http.handleClient();
+#if OTA_ENABLED
+  if (otaUp) ArduinoOTA.handle();
+#endif
 
   static uint32_t lastStatus = 0, lastWifiTry = 0;
   uint32_t now = millis();

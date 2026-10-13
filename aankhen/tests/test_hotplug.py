@@ -134,3 +134,37 @@ def test_the_watcher_is_off_until_enabled(sim_baseline):
         assert wait_for(lambda: hub.can_command, timeout=3)
     finally:
         hub.stop()
+
+
+def test_lending_the_port_frees_it_and_keeps_everyone_off_it(make_hub):
+    """The app's firmware flasher borrows the board's port: the serial source lets go,
+    nothing reopens or probes it while it is lent, and the source comes back on it."""
+    board = FakeBoard("COM7", "esp32", fw="aankhen-3.3.0")
+    usb = FakeUsb(board)
+    hub, events = make_hub(usb)
+    hub.start("auto")
+    assert wait_for(lambda: hub.can_command and hub.info()["port"] == "COM7")
+    loan = hub.lend_port("COM7", "flashing firmware over COM7")
+    assert loan["stopped"] and not hub.running and board.held == 0      # the port is free
+    assert hub.info()["hold"] == "flashing firmware over COM7"
+    with pytest.raises(RuntimeError, match="paused: flashing firmware over COM7"):
+        hub.start("hardware")                                          # a button cannot take it back
+    opens = board.opens
+    seen = {r.device: r for r in hub.boards_scan(force=True)}           # even a forced look
+    assert board.opens == opens                                         # never opened the lent port
+    assert seen["COM7"].verdict == "claimed" and seen["COM7"].detail == "flashing firmware over COM7"
+    assert hub.hotplug_tick() is None and not hub.running               # the watcher is off too
+    board.fw = "aankhen-3.4.0"                                          # the upload happened
+    info = hub.return_port(loan)
+    assert info["mode"] == "hardware" and info["port"] == "COM7" and info["requested_mode"] == "auto"
+    assert hub.hold is None and hub.hotplug_info()["watching"]
+    assert wait_for(lambda: hub.can_command and hub.board_info().get("fw") == "aankhen-3.4.0")
+
+
+def test_lending_a_port_leaves_a_simulation_running(make_hub):
+    usb = FakeUsb()
+    hub, _ = make_hub(usb)
+    assert hub.start("simulation")["mode"] == "simulation"
+    loan = hub.lend_port("COM9", "flashing firmware over COM9")
+    assert not loan["stopped"] and hub.running and hub.mode == "simulation"
+    assert hub.return_port(loan) is None and hub.hold is None and hub.mode == "simulation"

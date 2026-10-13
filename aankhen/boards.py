@@ -190,7 +190,9 @@ class BoardFinder:
 
     # ------------------------------------------------------------ claims
     def claim(self, device: str, source) -> None:
-        """Our own SerialSource has `device` open: never probe it (it would read as busy)."""
+        """Our own SerialSource has `device` open: never probe it (it would read as busy).
+        The firmware flasher claims the port too, with a `claim_note` saying so: a probe
+        opening the port mid-upload would break the upload."""
         with self._lock:
             self._claims[device] = source
 
@@ -296,6 +298,9 @@ class BoardFinder:
         return out
 
     def _claimed(self, p: PortCandidate, src) -> ProbeResult:
+        note = getattr(src, "claim_note", None)
+        if note:                                # not a SerialSource: e.g. the firmware flasher
+            return ProbeResult(p.device, "claimed", str(note), p, mono=self.clock(), in_use=True)
         connected = getattr(src, "connected", None)
         verified = bool(connected is not None and connected.is_set())
         if verified:

@@ -77,6 +77,10 @@ class AankhenHub:
         # finder, shared with the Connect page; a test passes one over fake ports.
         self.boards = boards
         self.requested_mode: Optional[str] = None   # what was asked: "auto" may become either
+        # Set while something else needs the board's serial port (the app's firmware
+        # flasher): start() refuses, so neither a button nor the hot-plug watcher can
+        # reopen the port in the middle of an upload.
+        self.hold: Optional[str] = None
         self.link_note: Optional[str] = None        # the serial link's last word
         self._hotplug_cb = None
         self._hotplug_interval = HOTPLUG_INTERVAL_S
@@ -95,6 +99,8 @@ class AankhenHub:
     def start(self, mode: str = "auto", scenario: str = "evening", port: Optional[str] = None,
               path: Optional[str] = None, speed: float = 1.0, loop: bool = True) -> dict:
         with self._lock:
+            if self.hold:
+                raise RuntimeError(f"Aankhen is paused: {self.hold}")
             self._stop_source()
             self.error = None
             requested, found = mode, None
@@ -243,6 +249,42 @@ class AankhenHub:
         """Every USB serial port with what it said (boards.ProbeResult)."""
         return self._finder().scan(force=force)
 
+    def boards_seen(self) -> list:
+        """What the ports said at the last look, without looking again (no port opened)."""
+        return self._finder().results()
+
+    # ------------------------------------------------------------ the port, lent out
+    def lend_port(self, port: str, reason: str) -> dict:
+        """Free the board's serial port for something else (the app's firmware flasher)
+        and keep it free until return_port(loan): the serial source stops if one is
+        running (it may hold the port, or open it any second), start() refuses while
+        `hold` is set, and the finder never probes the port meanwhile. A Windows COM
+        port has one owner at a time, so an upload needs all three."""
+        self.hold = reason                      # first: no start() can slip in after the stop
+        info = self.info()
+        stopped = isinstance(self.source, SerialSource)
+        if stopped:
+            self.stop()                         # the source and the hot-plug watcher
+        loan = {"port": port, "claim": _PortLoan(reason), "stopped": stopped,
+                "requested_mode": info.get("requested_mode"), "scenario": info.get("scenario"),
+                "was_port": info.get("port")}
+        self._finder().claim(port, loan["claim"])
+        return loan
+
+    def return_port(self, loan: dict) -> Optional[dict]:
+        """Undo lend_port(). What the port said before is forgotten (the board behind it
+        has restarted into new firmware), and the serial source lend_port() stopped is
+        started again ON THAT PORT: right after an upload the board is still rebooting,
+        and an explicit port waits for it where "auto" would fall back to the simulator."""
+        finder = self._finder()
+        finder.release(loan["port"], loan["claim"])
+        finder.forget(loan["port"])
+        self.hold = None
+        if not loan["stopped"]:
+            return None
+        return self.start(loan.get("requested_mode") or "auto", scenario=loan.get("scenario") or "evening",
+                          port=loan["port"])
+
     def _no_board_message(self) -> str:
         """Why no board, from what the ports said at the last look (no new probing)."""
         others = [r for r in self._finder().results() if not r.is_board]
@@ -385,6 +427,7 @@ class AankhenHub:
             "baseline": (self.engine.motion.baseline.source
                          if self.engine and self.engine.motion.baseline else "none"),
             "error": self.error,
+            "hold": self.hold,
             "stream": self.stream_info(),
         }
 
@@ -490,6 +533,14 @@ class AankhenHub:
 
         self._journal_thread = threading.Thread(target=loop, name="aankhen-journal", daemon=True)
         self._journal_thread.start()
+
+
+class _PortLoan:
+    """A claim on a serial port held by something other than a SerialSource (lend_port).
+    The finder shows the port as claimed, with this note, and never probes it."""
+
+    def __init__(self, note: str):
+        self.claim_note = note
 
 
 def _match(truth: list[dict], tracks: list[dict], gate: float = 1.0) -> dict:

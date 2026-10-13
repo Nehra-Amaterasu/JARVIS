@@ -308,7 +308,7 @@ def _zone_class(zone: str, v: np.ndarray) -> str:
     "empty" when the flat is quiet (same 3x-noise split as calibration)."""
     if zone == "away":
         hbe = v[FEATURES.index("log_hbe")]
-        return "outside" if np.isfinite(hbe) and hbe >= np.log(3.0) else "empty"
+        return "outside" if np.isfinite(hbe) and hbe >= np.log10(3.0) else "empty"   # log_hbe is log10 (learn.py feature code); np.log(3) meant 12.5x
     return zone
 
 

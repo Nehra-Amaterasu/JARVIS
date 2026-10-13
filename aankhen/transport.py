@@ -76,8 +76,10 @@ class PortCandidate:
         return f"{self.device}  [{ids}]  {self.chip or self.description}"
 
 
-# Arduino LLC / Arduino SRL USB vendor ids: an Uno, never an Aankhen ESP32.
+# Arduino LLC / Arduino SRL USB vendor ids: an Uno or Mega, never an Aankhen ESP32 ...
 ARDUINO_VIDS = {0x2341, 0x2A03}
+# ... except Arduino's own ESP32 boards, which carry Arduino's vendor id (Nano ESP32).
+ARDUINO_ESP32_PIDS = {0x0070}
 # Ports another owner holds (the Uno relay transport registers its port here).
 CLAIMED_PORTS: set[str] = set()
 
@@ -98,8 +100,9 @@ def list_candidate_ports(include_all: bool = False, comports: Optional[Callable]
             continue
         # The Uno relay board belongs to the app's Uno transport (jarvis_app/uno.py).
         # Opening an Uno's port pulses DTR, its reset line, which drops both relays:
-        # never probe an Arduino id, nor any port the transport has claimed.
-        if vid in ARDUINO_VIDS or p.device in CLAIMED_PORTS:
+        # never probe an Arduino AVR id, nor any port the transport has claimed.
+        pid = getattr(p, "pid", None)
+        if (vid in ARDUINO_VIDS and pid not in ARDUINO_ESP32_PIDS) or p.device in CLAIMED_PORTS:
             continue
         out.append(PortCandidate(p.device, vid, getattr(p, "pid", None), getattr(p, "description", "") or "",
                                  USB_SERIAL_CHIPS.get(vid, ""), getattr(p, "serial_number", None)))

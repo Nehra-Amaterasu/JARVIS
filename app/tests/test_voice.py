@@ -92,11 +92,13 @@ def test_split_ready(buf, first, ready, rest):
 # The REAL VoiceEngine and its real _synth; only the network call and Kokoro are faked.
 @pytest.fixture()
 def engine(monkeypatch):
-    calls = {"edge": [], "kokoro": []}
+    calls = {"edge": [], "kokoro": [], "rate": [], "speed": []}
     state = {"edge_ok": True, "kokoro_ok": True}
+    settings = {}                                   # what the app chose (user_settings format)
 
     async def fake_edge(text, voice_name, rate):
         calls["edge"].append(voice_name)
+        calls["rate"].append(rate)
         if not state["edge_ok"]:
             raise RuntimeError("no network")
         return f"edge:{voice_name}:{text}"
@@ -104,17 +106,19 @@ def engine(monkeypatch):
     class FakeKokoro:
         available = True
 
-        def synth(self, text, v, lang):
+        def synth(self, text, v, lang, speed=1.0):
             calls["kokoro"].append(v)
+            calls["speed"].append(speed)
             if not state["kokoro_ok"]:
                 raise RuntimeError("broken model")
             return f"kokoro:{v}:{text}"
 
     monkeypatch.setattr(voice, "_edge_synth", fake_edge)
     played, logs = [], []
-    gains = []
-    e = voice.VoiceEngine(play=lambda t, p, g: (played.append(p), gains.append(g)), log=logs.append, model_dir="nowhere")
-    e.gains = gains
+    gains, texts = [], []
+    e = voice.VoiceEngine(play=lambda t, p, g: (played.append(p), gains.append(g), texts.append(t)),
+                          log=logs.append, model_dir="nowhere", settings=lambda: settings)
+    e.gains, e.texts, e.settings = gains, texts, settings
     e.kokoro = FakeKokoro()
     e.calls, e.state, e.played_paths, e.logs = calls, state, played, logs
     yield e
@@ -202,3 +206,85 @@ def test_louder_voices_are_levelled_with_the_british_one(engine):
     engine.say("Right. [hi]नमस्ते[/hi]")
     _drain(engine, 2)
     assert engine.gains[0] == 1.0 and engine.gains[1] < 0.7
+
+
+# ------------------------------------------------------------------ what Aman chose in the app (2026-10-13)
+def test_a_chosen_voice_speaks_from_the_next_sentence(engine):
+    engine.say("Before.")
+    _drain(engine, 1)
+    engine.settings["voice"] = {"id": "edge:en-GB-ThomasNeural", "speed": 1.0}
+    engine.say("After.")
+    _drain(engine, 2)
+    assert engine.calls["edge"] == ["en-GB-RyanNeural", "en-GB-ThomasNeural"]
+
+
+def test_an_american_main_voice_keeps_the_british_tag_british(engine):
+    engine.settings["voice"] = {"id": "edge:en-US-GuyNeural"}
+    engine.begin_turn()
+    engine.say("Hello there. [uk]Jolly good.[/uk]")
+    _drain(engine, 2)
+    assert engine.calls["edge"] == ["en-US-GuyNeural", "en-GB-RyanNeural"]
+
+
+def test_an_explicit_request_still_beats_the_chosen_voice(engine):
+    engine.settings["voice"] = {"id": "edge:en-US-GuyNeural"}
+    engine.begin_turn("hi")
+    engine.say("नमस्ते")
+    _drain(engine, 1)
+    assert engine.calls["edge"] == ["hi-IN-MadhurNeural"]
+
+
+def test_speed_reaches_both_engines(engine):
+    engine.settings["voice"] = {"id": None, "speed": 1.2}
+    engine.say("Faster.")
+    _drain(engine, 1)
+    engine.state["edge_ok"] = False
+    engine._edge_down_until = 0
+    engine.say("Offline and faster.")
+    _drain(engine, 2)
+    assert engine.calls["rate"][0] == "+20%" and engine.calls["speed"] == [1.2]
+
+
+def test_a_kokoro_voice_means_always_offline(engine):
+    engine.settings["voice"] = {"id": "kokoro:bm_lewis"}
+    engine.say("Quietly local.")
+    _drain(engine, 1)
+    assert engine.calls["edge"] == [] and engine.played_paths == ["kokoro:bm_lewis:Quietly local."]
+    assert any("offline voice loaded" in l for l in engine.logs)      # the Modules card reads this
+
+
+def test_the_offline_switch_skips_the_cloud_until_it_ends(engine):
+    engine.settings["modules"] = {"offline_voice": {"until": time.time() + 60}}
+    engine.say("One.")
+    _drain(engine, 1)
+    assert engine.calls["edge"] == [] and engine.calls["kokoro"] == ["bm_george"]
+    engine.settings["modules"]["offline_voice"]["until"] = time.time() - 1
+    engine.say("Two.")
+    _drain(engine, 2)
+    assert engine.calls["edge"] == ["en-GB-RyanNeural"]
+
+
+def test_pronunciations_change_what_is_said_not_what_is_shown(engine):
+    engine.settings["pronunciations"] = {"Aankhen": "Aan-khen"}
+    engine.say("Aankhen sees the room.")
+    _drain(engine, 1)
+    assert engine.played_paths == ["edge:en-GB-RyanNeural:Aan-khen sees the room."]
+    assert engine.texts == ["Aankhen sees the room."]                  # the caption keeps his spelling
+
+
+def test_an_unreadable_setting_never_stops_the_voice(engine):
+    engine._settings = lambda: (_ for _ in ()).throw(OSError("disk gone"))
+    engine.say("Still here.")
+    _drain(engine, 1)
+    assert engine.played_paths == ["edge:en-GB-RyanNeural:Still here."]
+
+
+@pytest.mark.parametrize("vid, key, edge, kokoro, offline", [
+    ("edge:en-IN-NeerjaNeural", "in", {"in": "en-IN-NeerjaNeural"}, {}, False),
+    ("kokoro:af_heart", "us", {}, {"us": ("af_heart", "en-us")}, True),
+    ("kokoro:hm_psi", "uk", {}, {}, False),                    # not an English voice: ignored
+    ("edge:fr-FR-HenriNeural", "uk", {}, {}, False),
+])
+def test_resolving_the_choice(vid, key, edge, kokoro, offline):
+    p = voice.resolve_prefs({"voice": {"id": vid}})
+    assert (p.default_key, p.edge, p.kokoro, p.offline) == (key, edge, kokoro, offline)

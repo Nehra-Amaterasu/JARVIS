@@ -66,8 +66,12 @@ from tools.registry import Receipt
 #                   aadhaar number         first token 97.6s -> 0.7s (4.9s total)
 #               Both answered correctly — correctness came from the retrieval fixes,
 #               speed came from this swap.
+#   2026-10-13  chosen in the app (Connect -> Brain), handed over as JARVIS_BRAIN_MODEL
+#               and applied when JARVIS restarts; unset, it is still the model above.
+import user_settings            # core/user_settings.py: the app's choices, read live
+BRAIN_MODEL = user_settings.brain_model(os.environ)
 llm = ChatOllama(
-    model="qwen3:4b-instruct-2507-q4_K_M",
+    model=BRAIN_MODEL,
     temperature=0.7,   # Qwen's recommended setting for Instruct-2507
     num_ctx=8192,
     num_predict=400,     # hard cap on reply length — see llm_precise below
@@ -80,7 +84,7 @@ llm = ChatOllama(
 # memory. At 0.7 the model embroidered real excerpts into invented stories; when
 # the job is "report what the record says", creativity is the failure mode.
 llm_precise = ChatOllama(
-    model="qwen3:4b-instruct-2507-q4_K_M",
+    model=BRAIN_MODEL,
     temperature=0.2,
     num_ctx=8192,
     # Without a cap, a test run hung for 30+ minutes with the GPU pinned: at low
@@ -99,6 +103,42 @@ REGISTRY = default_registry()
 llm_with_tools = llm.bind_tools(REGISTRY.schemas())
 llm_precise_with_tools = llm_precise.bind_tools(REGISTRY.schemas())
 MAX_TOOL_CALLS = 4          # one model round may ask for several; more than this is a loop
+
+# Deep think (the app's Modules card): a bigger or reasoning model answers for the next
+# N minutes, then the app unloads it. Read before every turn, so it starts and stops
+# without a restart. A reasoning model is run with reasoning=True: langchain-ollama then
+# keeps its thinking out of the streamed content (so the voice never reads it), and it
+# gets 1200 more tokens, because Ollama counts thinking against num_predict and qwen3:4b
+# measured ~1000 tokens of it before each reply (the 2026-10-08 note above).
+DEEP_KEEP_ALIVE = "10m"
+DEEP_THINK_TOKENS = 1200
+_deep_brains: dict = {}
+
+
+def _deep(model: str, thinking: bool) -> tuple:
+    key = (model, thinking)
+    if key not in _deep_brains:
+        common = dict(model=model, num_ctx=8192, keep_alive=DEEP_KEEP_ALIVE,
+                      num_predict=400 + (DEEP_THINK_TOKENS if thinking else 0),
+                      reasoning=True if thinking else None)
+        plain = ChatOllama(temperature=0.7, repeat_penalty=1.1, **common)
+        precise = ChatOllama(temperature=0.2, repeat_penalty=1.15, **common)
+        _deep_brains.clear()                     # one deep model at a time
+        _deep_brains[key] = (plain, precise, plain.bind_tools(REGISTRY.schemas()),
+                             precise.bind_tools(REGISTRY.schemas()))
+    return _deep_brains[key]
+
+
+def turn_brains() -> tuple:
+    """(plain, precise, plain + tools, precise + tools) for this turn: the deep-think
+    model while it is switched on, otherwise the brain JARVIS started with."""
+    try:
+        deep = user_settings.deep_think(user_settings.current())
+    except Exception:
+        deep = None
+    if deep and deep["model"] != BRAIN_MODEL:
+        return _deep(deep["model"], deep["thinking"])
+    return llm, llm_precise, llm_with_tools, llm_precise_with_tools
 
 # --- The persona ---------------------------------------------------------------
 # Rewritten 2026-10-09 at Aman's request: British English, one language. The old
@@ -755,10 +795,11 @@ def run_agent(user_input: str) -> str:
     # turns (people, past conversations) use the low-temperature model; casual talk
     # keeps the livelier one.
     wants_tools = REGISTRY.wants_tools(user_input)
+    b_plain, b_precise, b_tools, b_precise_tools = turn_brains()
     if wants_tools:
-        active_llm = llm_precise_with_tools if recall_block else llm_with_tools
+        active_llm = b_precise_tools if recall_block else b_tools
     else:
-        active_llm = llm_precise if recall_block else llm
+        active_llm = b_precise if recall_block else b_plain
     # Every sentence passes the honesty guard before it reaches the voice. In a round
     # where the model may still call a tool, a sentence that claims something waits
     # until the tools have run, so their receipts can back it.
@@ -785,7 +826,7 @@ def run_agent(user_input: str) -> str:
         # anything is spoken, and it is asked once more, told why.
         print("\n[Echo guard: the reply opened like an earlier one; asking again]")
         messages[-1] = HumanMessage(content=human_turn + "\n\n" + ECHO_NUDGE)
-        active_llm = llm_with_tools if wants_tools else llm
+        active_llm = b_tools if wants_tools else b_plain
         guard = honesty.Guard(REGISTRY, receipts, hold_claims=wants_tools, split=voice_mod.split_ready)
 
     calls = list(getattr(ai, "tool_calls", None) or [])[:MAX_TOOL_CALLS] if ai is not None else []
@@ -806,7 +847,7 @@ def run_agent(user_input: str) -> str:
         # The answer from the receipts: low temperature, no tools (one round; no loops).
         guard.hold_claims = False
         try:
-            for chunk in llm_precise.stream(messages):
+            for chunk in b_precise.stream(messages):
                 if isinstance(chunk.content, str) and chunk.content:
                     out = _tidy(guard.feed(chunk.content))
                     if out:

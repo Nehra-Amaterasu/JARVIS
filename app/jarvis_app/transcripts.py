@@ -57,7 +57,9 @@ class TranscriptStore:
                "text": turn.get("text", ""), "ts": ts, "mode": mode}
         if turn["role"] == "jarvis":
             obj["seconds"] = turn.get("seconds")
-            obj["timings"] = {k: v for k, v in timings.items() if k in ("stt", "first_token", "reply")}
+            # endpoint (kept since 2026-10-13): the silence waited before the recording
+            # closed, so "end of speech -> first word" can be told from the record.
+            obj["timings"] = {k: v for k, v in timings.items() if k in ("stt", "first_token", "reply", "endpoint")}
         self._append(self._day_file(ts), obj)
 
     def record_timing(self, session: str, turn_id: int, stage: str, seconds: float) -> None:

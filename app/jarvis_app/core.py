@@ -43,6 +43,11 @@ class CoreProcess:
         # Handed to JARVIS so his brain can ask the Aankhen hub what the room looks
         # like (agent.room_context). Local address, per-launch token; never logged.
         self.api_url, self.api_token = api_url, api_token
+        # Feature hooks, so a feature never edits this file (routes_settings uses both):
+        # env_hooks add to JARVIS's environment at each start (the chosen brain, the
+        # settings file); event_taps see every event he sends (the latency meter).
+        self.env_hooks: list = []
+        self.event_taps: list = []
         self.proc: Optional[subprocess.Popen] = None
         self.mode: Optional[str] = None
         self.state = "offline"
@@ -80,6 +85,8 @@ class CoreProcess:
             env = {**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"}
             if self.api_url and self.api_token:
                 env.update(JARVIS_API_URL=self.api_url, JARVIS_API_TOKEN=self.api_token)
+            for hook in self.env_hooks:
+                env.update({k: str(v) for k, v in (hook() or {}).items()})
             self.proc = subprocess.Popen(
                 args, cwd=str(CORE), env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT, creationflags=CREATE_NO_WINDOW if os.name == "nt" else 0)
@@ -198,6 +205,11 @@ class CoreProcess:
 
     def _on_event(self, ev: dict) -> None:
         kind = ev.get("kind")
+        for tap in self.event_taps:
+            try:
+                tap(ev)
+            except Exception as e:                   # a tap must never stop the reader
+                self._log(f"[app] event tap failed: {e!r}")
         with self._lock:
             if kind == "boot":
                 self.boot_step = ev.get("step")

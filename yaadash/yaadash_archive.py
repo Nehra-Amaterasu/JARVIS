@@ -82,7 +82,14 @@ def _placeholder(kind: str, m: dict) -> str:
 
 
 def find_exports():
-    return sorted(glob.glob(os.path.join(DOWNLOADS, "instagram-*.zip")))
+    """Exports in Downloads and in the app's imports folder (Connect → Memory exports,
+    data/app/imports/instagram since 2026-10-13). The same zip in both is read once."""
+    from home import APP_DATA
+    found = {}
+    for folder in (DOWNLOADS, os.path.join(str(APP_DATA), "imports", "instagram")):
+        for p in glob.glob(os.path.join(folder, "instagram-*.zip")):
+            found[os.path.basename(p)] = p             # the imports copy wins
+    return [found[k] for k in sorted(found)]
 
 
 def load_export(zip_path: str):

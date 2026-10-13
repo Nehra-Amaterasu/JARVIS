@@ -89,8 +89,8 @@ CONFIG_FIELDS = [
 ]
 FIELD_KEYS = [f["key"] for f in CONFIG_FIELDS]
 READONLY_KEYS = ("AK_GAIN_LIB", "RADAR_RX_PIN", "RADAR_TX_PIN", "RADAR_BAUD")
-_DEFINE = re.compile(r"^(?P<head>[ \t]*#define[ \t]+(?P<key>[A-Z][A-Z0-9_]*)[ \t]+)(?P<val>-?\d+)(?P<tail>[^\r\n]*)$",
-                     re.M)
+_DEFINE = re.compile(r"^(?P<head>[ \t]*#define[ \t]+(?P<key>[A-Z][A-Z0-9_]*)[ \t]+)(?P<val>-?\d+)(?P<tail>[^\r\n]*)(?=\r?$)",
+                     re.M)   # \r?: the checkout stores config.h with CRLF line ends
 _FW_VERSION = re.compile(r'^\s*#define\s+FW_VERSION\s+"([^"]+)"', re.M)
 _SIZE = re.compile(r"Sketch uses (\d+) bytes \((\d+)%\) of program storage space\. Maximum is (\d+) bytes")
 _RAM = re.compile(r"Global variables use (\d+) bytes \((\d+)%\) of dynamic memory.*Maximum is (\d+) bytes")

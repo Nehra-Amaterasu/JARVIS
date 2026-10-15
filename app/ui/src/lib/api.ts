@@ -115,7 +115,7 @@ export interface CoreInfo {
   last_error: string | null
   exit_code: number | null
   timings: Record<string, number>
-  room: Record<string, { on: boolean; level: number }>
+  room: Record<string, { on: boolean }>
   mqtt: boolean | null
 }
 

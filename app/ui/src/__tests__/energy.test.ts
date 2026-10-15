@@ -55,9 +55,9 @@ function view(extra: Partial<EnergyView> = {}): EnergyView {
       ],
     },
     states: {
-      L1: { on: true, level: 100, watts: 20, since: 0, link: 'virtual', origin: 'app' },
-      G1: { on: true, level: 100, watts: 2000, since: 0, link: 'manual', origin: 'you' },
-      AC1: { on: false, level: 0, watts: 0, since: null, link: null, origin: null },
+      L1: { on: true, watts: 20, since: 0, link: 'virtual', origin: 'app' },
+      G1: { on: true, watts: 2000, since: 0, link: 'manual', origin: 'you' },
+      AC1: { on: false, watts: 0, since: null, link: null, origin: null },
     },
     waste: {
       status: { state: 'wasting', text: 'Room empty 49 min with the bedroom tube light on.', sim: false },

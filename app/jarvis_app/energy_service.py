@@ -98,14 +98,23 @@ class EnergyService:
         return cfg.to_dict()
 
     # -------------------------------------------------------------- recording
-    def _link(self) -> str:
+    def _link(self, device=None) -> str:
+        """Whether a relay board really carries the switches: the Uno (or the ESP32) as
+        Limbs sees it, not just "an ESP32 is plugged in"."""
+        linked = getattr(self.limbs, "linked", None)
+        if callable(linked):
+            try:
+                return "usb" if linked(device) else "virtual"
+            except Exception:
+                pass
         return "usb" if (self.hub is not None and getattr(self.hub, "can_command", False)) else "virtual"
 
     def _observe_limbs(self, origin: str) -> None:
         for device, st in self.limbs.state.items():
             c = self.circuits.by_alias(device)
             if c is not None:
-                self.ledger.record(c.id, st["on"], st["level"], c.watts(st["on"], st["level"]), origin, self._link())
+                on = bool(st["on"])
+                self.ledger.record(c.id, on, 100 if on else 0, c.watts(on), origin, self._link(device))
 
     def on_limbs(self, ev: dict) -> None:
         """Limbs listener: every applied change, from the app, a scene, a voice command
@@ -113,26 +122,21 @@ class EnergyService:
         c = self.circuits.by_alias(ev["device"])
         if c is None:
             return
-        st = ev["state"]
-        self.ledger.record(c.id, st["on"], st["level"], c.watts(st["on"], st["level"]), ev["origin"], ev["link"])
+        on = bool(ev["state"]["on"])
+        # The ledger's "lvl" is 100 for on and 0 for off: the relays have no levels.
+        self.ledger.record(c.id, on, 100 if on else 0, c.watts(on), ev["origin"], ev["link"])
 
     def set_state(self, cid: str, on: bool, level: Optional[int] = None, origin: str = "you") -> dict:
-        """Switch a circuit JARVIS can switch; RECORD one he cannot (it is said so)."""
+        """Switch a circuit JARVIS can switch; RECORD one he cannot (it is said so).
+        On/off only: a `level` from an older caller is ignored."""
         c = self.circuits.get(cid)
         if c is None:
             raise KeyError(cid)
-        lvl = 100 if level is None else max(0, min(100, int(level)))
         if c.switchable:
-            if on:
-                r = self.limbs.apply(c.alias, "set" if level is not None else "on", lvl if level is not None else None)
-            else:
-                r = self.limbs.apply(c.alias, "off")
+            r = self.limbs.apply(c.alias, "on" if on else "off")
             return {"switched": True, "delivered": r["delivered"].get(c.alias), "circuit": c.id,
                     "note": "switched through Limbs"}
-        last = self.ledger.last(cid)
-        if level is None and last:
-            lvl = last["lvl"] if last["lvl"] else lvl
-        self.ledger.record(cid, bool(on), lvl, c.watts(bool(on), lvl), origin, "manual")
+        self.ledger.record(cid, bool(on), 100 if on else 0, c.watts(bool(on)), origin, "manual")
         why = c.refused or ("it must never be on a relay" if c.never_on_relay
                             else "only the light and fan relays are driven until the Uno firmware exists")
         self.bus.publish("energy", "manual", f"{c.name}: recorded {'on' if on else 'off'} (not switched: {why})",
@@ -159,8 +163,7 @@ class EnergyService:
         for c in self.circuits.circuits:
             ev = self.ledger.last(c.id)
             on = bool(ev and ev["on"])
-            lvl = ev["lvl"] if ev else 0
-            out.append(Load(id=c.id, name=c.name, room=c.room, on=on, watts=c.watts(on, lvl),
+            out.append(Load(id=c.id, name=c.name, room=c.room, on=on, watts=c.watts(on),
                             switchable=c.switchable, kind=c.kind, must_not_auto_off=c.must_not_auto_off,
                             on_since=self.ledger.on_since(c.id) if on else None,
                             remind_after_min=c.remind_after_min))
@@ -221,7 +224,7 @@ class EnergyService:
         states = {}
         for load in self.loads():
             ev = self.ledger.last(load.id)
-            states[load.id] = {"on": load.on, "level": ev["lvl"] if ev else 0, "watts": load.watts,
+            states[load.id] = {"on": load.on, "watts": load.watts,
                                "since": load.on_since, "link": ev["link"] if ev else None,
                                "origin": ev["o"] if ev else None}
         pres = dict(self.last_presence)

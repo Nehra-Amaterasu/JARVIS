@@ -339,7 +339,7 @@ function SystemsCard({ core }: { core: CoreInfo | null }) {
       value: pres ? `${pres.state}${pres.count != null ? ` · ${pres.count} seen` : ''}${eyesSim ? ' · sim' : ''}` : 'no source' },
     { icon: Hand, name: 'Limbs', tone: Object.keys(room).length ? 'idle' : 'off', tab: 'limbs' as const,
       value: Object.keys(room).length
-        ? Object.entries(room).map(([d, s]) => `${d} ${s.on ? `${s.level}%` : 'off'}`).join(' · ')
+        ? Object.entries(room).map(([d, s]) => `${d} ${s.on ? 'on' : 'off'}`).join(' · ')
         : 'virtual · JARVIS asleep' },
   ]
   return (

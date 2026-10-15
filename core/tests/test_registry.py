@@ -70,9 +70,10 @@ def test_bad_arguments_and_unknown_tools_are_failed_receipts_not_crashes():
     reg = default_registry()
     ctx = ToolContext()
     assert reg.call("launch_rocket", {}, ctx).error == "unknown tool"
-    assert "must be one of" in reg.call("set_device", {"device": "toaster", "action": "on"}, ctx).error
+    assert reg.call("set_device", {"device": "toaster", "action": "on"}, ctx).ok is False
     assert reg.call("set_device", {"device": "fan"}, ctx).error == "missing action"
-    assert "at most 100" in reg.call("set_device", {"device": "fan", "action": "set", "value": 400}, ctx).error
+    # The relays only switch: a level action is refused by the schema, not faked.
+    assert "must be one of on, off" in reg.call("set_device", {"device": "fan", "action": "set", "value": 400}, ctx).error
 
     def boom(ctx):
         raise RuntimeError("wire fell out")
@@ -98,13 +99,25 @@ def test_an_action_the_model_chose_must_be_what_he_asked_for():
 
 
 def test_numbers_sent_as_strings_are_accepted():
+    reg = Registry()
+    reg.register(Tool("count", "x", {"n": {"type": "integer", "minimum": 0, "maximum": 100}}, ("n",), Tier.T0,
+                      lambda ctx, n: Receipt("count", "T0", True, f"{n} counted", source="test", backs=("time",)),
+                      "count things", backs=("time",)))
+    r = reg.call("count", {"n": "40"}, ToolContext())
+    assert r.ok and r.args["n"] == 40 and r.did == "40 counted"
+
+
+def test_the_room_tools_say_on_or_off_never_a_level():
     class Room:
-        state = {"light": {"on": False, "level": 100}, "fan": {"on": False, "level": 60}}
+        state = {"light": {"on": False}, "fan": {"on": False}}
 
         def apply(self, device, action, value=None):
-            self.state[device] = {"on": action != "off", "level": int(value) if value is not None else 60}
-    r = default_registry().call("set_device", {"device": "fan", "action": "set", "value": "40"}, ToolContext(room=Room()))
-    assert r.ok and r.args["value"] == 40 and "40 percent" in r.did
+            for d in (list(self.state) if device == "all" else [device]):
+                self.state[d] = {"on": action != "off"}
+    r = default_registry().call("set_device", {"device": "fan", "action": "on"}, ToolContext(room=Room()))
+    assert r.ok and r.did.startswith("The fan is on.") and "percent" not in r.did
+    unknown = default_registry().call("set_device", {"device": "toaster", "action": "on"}, ToolContext(room=Room()))
+    assert unknown.ok is False and "no device called toaster" in unknown.did
 
 
 def test_capability_block_is_generated_from_the_registry():

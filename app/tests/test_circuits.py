@@ -102,13 +102,14 @@ def test_a_broken_user_file_falls_back_to_the_example_and_says_so(tmp_path):
     assert cs.source == "example" and "could not be read" in cs.problems[0]["error"]
 
 
-def test_fan_watts_follow_the_regulator_step_and_lights_ignore_brightness():
+def test_watts_are_on_or_off_never_by_level():
     cs = parse_config(_example())
     fan, light = cs.get("F1"), cs.get("L1")
-    assert [fan.watts(True, lvl) for lvl in (10, 20, 30, 60, 100)] == [24, 24, 36, 48, 75]
-    assert fan.watts(False, 60) == 0
-    # On a relay a light is on or off: no dimmer is wired, so 30 % still draws 20 W.
-    assert light.watts(True, 30) == 20 and light.watts(False, 30) == 0
+    # The relays only switch; the fan's speed is on its wall regulator, which JARVIS
+    # cannot read, so an on fan is estimated at its rated watts (2026-10-15).
+    assert fan.watts(True) == 75 and fan.watts(False) == 0
+    assert [fan.watts(True, lvl) for lvl in (10, 60, 100)] == [75, 75, 75]      # an old level is ignored
+    assert light.watts(True) == 20 and light.watts(False) == 0
 
 
 def test_limbs_never_drives_a_relay_whose_circuit_was_refused(tmp_path):
@@ -135,4 +136,4 @@ def test_limbs_view_names_each_device_s_circuit(tmp_path):
                   circuits=parse_config(_example(), "example"))
     devices = {d["id"]: d for d in limbs.view()["devices"]}
     assert devices["light"]["circuit"]["id"] == "L1" and devices["light"]["circuit"]["rated_w"] == 20
-    assert devices["fan"]["circuit"]["speed_steps"] == 5
+    assert "speed_steps" not in devices["fan"]["circuit"]                 # no level reaches the UI

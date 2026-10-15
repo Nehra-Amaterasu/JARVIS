@@ -64,14 +64,14 @@ def test_every_switch_lands_in_the_ledger_whoever_made_it(tmp_path):
     svc, limbs, bus, clock, core, hub = _service(tmp_path, {"state": "moving", "source": "hardware"})
     limbs.apply("light", "on")                              # a button
     clock.t += 60
-    core.room_listener("fan", {"on": True, "level": 60})    # "Hey Jarvis, fan on" (voice)
+    core.room_listener("fan", {"on": True})                 # "Hey Jarvis, fan on" (voice)
     clock.t += 60
-    limbs.scene("sleep")                                    # light off, fan 20 %
+    limbs.scene("sleep")                                    # light off, fan on
     events = [(e["c"], e["on"], e["w"], e["o"], e["link"]) for e in svc.ledger.events]
     assert ("L1", True, 20.0, "app", "usb") in events
-    assert ("F1", True, 48.0, "voice", "usb") in events
+    assert ("F1", True, 75.0, "voice", "usb") in events     # on/off: the fan's rated watts
     assert ("L1", False, 0.0, "app", "usb") in events
-    assert ("F1", True, 24.0, "app", "usb") in events       # 20 % is regulator step 1
+    assert all(e["lvl"] in (0, 100) for e in svc.ledger.events)   # no fake levels in the ledger
 
 
 def test_with_no_relay_board_the_ledger_says_virtual(tmp_path):

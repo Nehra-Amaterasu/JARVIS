@@ -53,7 +53,7 @@ class FakeApp:
 
     def __init__(self, usb=False):
         self.calls, self.usb = [], usb
-        self.state = {"light": {"on": True, "level": 100}, "fan": {"on": True, "level": 60}}
+        self.state = {"light": {"on": True}, "fan": {"on": True}}
         self.reminder_status, self.reminder_reply = 200, None
 
     def __call__(self, method, path, body, timeout):
@@ -64,7 +64,7 @@ class FakeApp:
         if path.startswith("/api/limbs/") and method == "POST":
             device = path.rsplit("/", 1)[1]
             for d in (["light", "fan"] if device == "all" else [device]):
-                self.state[d] = {"on": body["action"] != "off", "level": body.get("value") or self.state[d]["level"]}
+                self.state[d] = {"on": body["action"] != "off"}
             return 200, {"changed": [device], "delivered": {device: self.usb}, "state": self.state}
         if path == "/api/reminders" and method == "POST":
             if self.reminder_status != 200:
@@ -131,7 +131,7 @@ def brain(agent, monkeypatch):
     monkeypatch.setattr(agent, "_pending_reminder", None)
     agent.reset_conversation()
     for d in agent.room.state:
-        agent.room.state[d] = {"on": False, "level": 100 if d == "light" else 60}
+        agent.room.state[d] = {"on": False}
     env = types.SimpleNamespace(plain=plain, bound=bound, app=None, agent=agent)
 
     def use_app(app=None):
@@ -291,7 +291,7 @@ def test_tools_without_a_call_mean_no_claim(brain):
     brain.bound.rounds.append(words("The light is on at full brightness."))
     out = run(brain.agent, "is the light on?")
     assert "full brightness" not in out and "haven't checked" not in out
-    assert out.startswith("The light is on at 100 percent. The fan is on at 60 percent.")
+    assert out.startswith("The light is on. The fan is on.") and "percent" not in out
     assert ("GET", "/api/limbs", None) in app.calls and receipts(brain.agent)[-1].tool == "room_state"
     assert not any(c[0] == "POST" for c in app.calls)                   # reading, never switching
     assert honesty.unbacked(out, brain.agent.REGISTRY, receipts(brain.agent)) == []
@@ -326,7 +326,15 @@ def test_room_commands_go_through_the_app_when_it_runs(brain):
 
 def test_scenes_go_through_the_registry(brain):
     out = run(brain.agent, "sleep mode kar do")
-    assert out.startswith("Sleep scene: The light is off. The fan is on at 20 percent.")
+    assert out.startswith("Sleep: The light is off. The fan is on.") and "percent" not in out
+
+
+def test_a_mode_is_asked_for_by_its_name_alone(brain):
+    """2026-10-15: "Jarvis, deep focus" is enough: the mode's name, no verb needed."""
+    out = run(brain.agent, "Jarvis, deep focus")
+    assert out.startswith("Deep focus: The light is on. The fan is on.")
+    out = run(brain.agent, "set wind down")
+    assert out.startswith("Wind down: The light is off. The fan is on.")
 
 
 def test_the_clock_answers_the_time(brain):
@@ -367,7 +375,7 @@ def test_a_reminder_to_study_is_not_a_study_log(brain, monkeypatch):
 
 def test_a_switch_later_is_scheduled_and_nothing_switches_now(brain):
     app = brain.use_app()
-    brain.agent.room.state["fan"] = {"on": True, "level": 60}
+    brain.agent.room.state["fan"] = {"on": True}
     run(brain.agent, "turn off the fan in 30 minutes")
     post = next(c for c in app.calls if c[1] == "/api/reminders")
     assert post[2]["kind"] == "action" and post[2]["action"] == {"device": "fan", "action": "off", "value": None}

@@ -194,3 +194,36 @@ def test_on_reconnect_the_room_adopts_the_board_not_yesterdays_file(room, tmp_pa
     assert room.limbs.adopt_board() == ["light"]
     assert room.limbs.state["light"]["on"] is False
     assert room.limbs.resync_hardware() == {}                   # never pushes the file onto the Uno
+
+
+# ------------------------------------------------------------------ N channels (firmware 1.1.0), same protocol
+class FakeUno11(FakeUno):
+    """uno_relay.ino 1.1.0: a third channel in the pin table, the same protocol."""
+
+    def __init__(self, **kw):
+        super().__init__(banner=False, **kw)
+        self.state = {"light": False, "fan": False, "lamp": False}
+        self.out = [json.dumps({"board": "jarvis-uno-relay", "version": "1.1.0",
+                                "pins": {"light": 4, "fan": 5, "lamp": 6}}), json.dumps(self.state)]
+
+
+def test_firmware_1_1_channels_come_from_the_board():
+    r, fake = relays(FakeUno11())
+    assert r.connect() and r.version == "1.1.0" and r.pins == {"light": 4, "fan": 5, "lamp": 6}
+    assert r.set("lamp", True) == (True, "") and fake.written[-1] == "lamp on"
+    assert r.view()["channels"] == ["light", "fan", "lamp"]
+
+
+def test_firmware_1_0_replies_still_read_and_a_missing_channel_is_said():
+    r, fake = relays()                                      # 1.0.0: light and fan only
+    assert r.connect() and r.state == {"light": False, "fan": False}
+    ok, why = r.set("lamp", True)
+    assert not ok and "no lamp channel" in why and "1.1.0" in why
+    assert "lamp on" not in fake.written                     # never sent to a board without it
+
+
+def test_only_whole_state_lines_count_as_state():
+    assert uno.is_state({"light": True, "fan": False})
+    assert not uno.is_state({"board": "jarvis-uno-relay", "version": "1.1.0", "pins": {"light": 4}})
+    assert not uno.is_state({"error": "unknown device"}) and not uno.is_state({"scan_pin": 6})
+    assert not uno.is_state({})

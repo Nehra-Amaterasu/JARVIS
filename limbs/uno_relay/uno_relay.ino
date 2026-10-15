@@ -1,19 +1,26 @@
-// JARVIS limbs: Arduino Uno driving a 2-channel relay board (HL-52S, Songle SRD-05VDC).
+// JARVIS limbs: an Arduino Uno driving active-low relay boards (HL-52S, Songle SRD-05VDC).
+// Version 1.1.0 (2026-10-15): N channels from one pin table. Same protocol as 1.0.0.
 //
 // Wiring (no breadboard needed, jumpers go straight into the Uno's headers):
 //   relay VCC -> Uno 5V      relay GND -> Uno GND
 //   relay IN1 -> Uno D4 (light)   relay IN2 -> Uno D5 (fan)
+//   more channels: IN3 -> D6, IN4 -> D7, ... (add a row to RELAYS below)
 //   keep the yellow jumper on the relay board's VCC-JDVCC pins.
+//   Each relay's COM/NO goes IN PARALLEL with its wall switch: either one turns the load on.
+//
+// To add a channel: add {"name", pin, false, 0} to RELAYS (name: lowercase, max 12 chars,
+// the same id as in the app's devices.json), compile, flash. Flashing resets the Uno and
+// every relay boots OFF.
 //
 // Serial, 115200 baud, one command per line:
-//   light on | light off | light toggle
-//   fan on   | fan off   | fan toggle
-//   all off  | status    | help
-//   scan     (clicks D2..D13 one by one, to find where a wire is plugged)
-// Every reply is one JSON line, e.g. {"light":true,"fan":false}
+//   <name> on | <name> off | <name> toggle     (light, fan, and any name in RELAYS)
+//   all off  | all on | status | channels | help
+//   scan     (clicks the free pins D2..D13 one by one, to find where a wire is plugged)
+// Every reply is one JSON line, e.g. {"light":true,"fan":false}; errors are {"error":"..."}.
+// The boot banner names the version and every channel's pin:
+//   {"board":"jarvis-uno-relay","version":"1.1.0","pins":{"light":4,"fan":5}}
 
-const uint8_t PIN_LIGHT = 4;
-const uint8_t PIN_FAN = 5;
+const char *VERSION = "1.1.0";
 const bool ACTIVE_LOW = true;              // HL-52S: IN pulled LOW = relay ON
 const unsigned long MIN_SWITCH_MS = 250;   // ignore faster flips, saves the relay contacts
 
@@ -24,9 +31,12 @@ struct Relay {
   unsigned long lastSwitch;
 };
 
+// The pin table. D0/D1 are the USB serial link: never use them.
 Relay relays[] = {
-  {"light", PIN_LIGHT, false, 0},
-  {"fan", PIN_FAN, false, 0},
+  {"light", 4, false, 0},
+  {"fan", 5, false, 0},
+  // {"lamp", 6, false, 0},
+  // {"lamp2", 7, false, 0},
 };
 const uint8_t RELAY_COUNT = sizeof(relays) / sizeof(relays[0]);
 
@@ -55,6 +65,26 @@ void printStatus() {
   Serial.println('}');
 }
 
+void printPins() {
+  Serial.print('{');
+  for (uint8_t i = 0; i < RELAY_COUNT; i++) {
+    if (i) Serial.print(',');
+    Serial.print('"');
+    Serial.print(relays[i].name);
+    Serial.print("\":");
+    Serial.print(relays[i].pin);
+  }
+  Serial.print('}');
+}
+
+void printBanner() {
+  Serial.print("{\"board\":\"jarvis-uno-relay\",\"version\":\"");
+  Serial.print(VERSION);
+  Serial.print("\",\"pins\":");
+  printPins();
+  Serial.println('}');
+}
+
 void printError(const char *msg) {
   Serial.print("{\"error\":\"");
   Serial.print(msg);
@@ -68,14 +98,17 @@ Relay *findRelay(const char *name) {
   return nullptr;
 }
 
+bool isRelayPin(uint8_t pin) {
+  for (uint8_t i = 0; i < RELAY_COUNT; i++) if (relays[i].pin == pin) return true;
+  return false;
+}
+
 // Pulses each free pin LOW for 1 s so a relay wired to it clicks. The relay pins are skipped
 // because they are already known; D0/D1 are the USB serial link and are never touched.
 void scanPins() {
   Serial.println("{\"scan\":\"start\",\"note\":\"listen for a click; the pin printed just before it is your wire\"}");
   for (uint8_t pin = 2; pin <= 13; pin++) {
-    bool isRelay = false;
-    for (uint8_t i = 0; i < RELAY_COUNT; i++) if (relays[i].pin == pin) isRelay = true;
-    if (isRelay) continue;
+    if (isRelayPin(pin)) continue;
     Serial.print("{\"scan_pin\":");
     Serial.print(pin);
     Serial.println('}');
@@ -88,6 +121,17 @@ void scanPins() {
   Serial.println("{\"scan\":\"done\"}");
 }
 
+// Switches every relay, MIN_SWITCH_MS apart per relay as always; one that flipped too
+// recently is left as it is (the status line shows the truth).
+void setAll(bool on) {
+  for (uint8_t i = 0; i < RELAY_COUNT; i++) {
+    Relay &r = relays[i];
+    if (r.on == on) continue;
+    if (millis() - r.lastSwitch < MIN_SWITCH_MS) continue;
+    writeRelay(r, on);
+  }
+}
+
 void handle(char *cmd) {
   for (char *p = cmd; *p; p++) *p = tolower(*p);
   char *word1 = strtok(cmd, " \t");
@@ -95,13 +139,19 @@ void handle(char *cmd) {
   if (!word1) return;
 
   if (strcmp(word1, "status") == 0) { printStatus(); return; }
+  if (strcmp(word1, "channels") == 0) {
+    Serial.print("{\"channels\":");
+    printPins();
+    Serial.println('}');
+    return;
+  }
   if (strcmp(word1, "help") == 0) {
-    Serial.println("{\"help\":\"light|fan on|off|toggle, all off, status, scan\"}");
+    Serial.println("{\"help\":\"<name> on|off|toggle, all on|off, status, channels, scan\"}");
     return;
   }
   if (strcmp(word1, "scan") == 0) { scanPins(); printStatus(); return; }
-  if (strcmp(word1, "all") == 0 && word2 && strcmp(word2, "off") == 0) {
-    for (uint8_t i = 0; i < RELAY_COUNT; i++) writeRelay(relays[i], false);
+  if (strcmp(word1, "all") == 0 && word2 && (strcmp(word2, "off") == 0 || strcmp(word2, "on") == 0)) {
+    setAll(strcmp(word2, "on") == 0);
     printStatus();
     return;
   }
@@ -132,7 +182,7 @@ void setup() {
     relays[i].on = false;
   }
   Serial.begin(115200);
-  Serial.println("{\"board\":\"jarvis-uno-relay\",\"version\":\"1.0.0\",\"pins\":{\"light\":4,\"fan\":5}}");
+  printBanner();
   printStatus();
 }
 

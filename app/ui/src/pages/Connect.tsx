@@ -7,11 +7,14 @@
  *   05.3 Memory exports    request each export, bring the file in, see what is in it
  *   05.4 Phone             JARVIS from the phone on the home Wi-Fi: off by default; pair
  *                          by QR, remove a phone, firewall + HTTPS steps
- *   05.5 Detected          ports, models, services, found live. Four statuses, each
- *                          meaning one thing; "planned" is dashed and has no switch.
+ *   05.5 Detected          ports, models, services, found live. Five statuses, each
+ *                          meaning one thing: "installed" is on disk but not loaded now
+ *                          (Whisper and the wake word while JARVIS is off or in text
+ *                          mode); "planned" is dashed and has no switch. The relay board
+ *                          is the Uno transport's real state (port, firmware, channels).
  */
 import {
-  AudioLines, BrainCircuit, Cable, Check, Copy, Cpu, Database, Mic, MessageSquare, Music, Plug, Radar,
+  AudioLines, BrainCircuit, Cable, Check, Copy, Cpu, Database, Mic, MessageSquare, Music, Plug,
   Terminal, ToggleRight, Waves,
 } from 'lucide-react'
 import { api } from '../lib/api'
@@ -22,14 +25,14 @@ import { BrainCard, ExportsSection, ModulesSection, PronunciationCard, VoiceCard
 import { PhoneCard } from '../components/PhoneCard'
 import { useState } from 'react'
 
-interface Item { id: string; group: string; name: string; status: 'connected' | 'available' | 'missing' | 'planned'; detail: string; next: string | null }
+interface Item { id: string; group: string; name: string; status: 'connected' | 'installed' | 'available' | 'missing' | 'planned'; detail: string; next: string | null }
 
 const GLYPH: Record<string, typeof Cable> = {
-  esp32: Cpu, ld2450: Radar, relay: ToggleRight, mic: Mic, ollama: BrainCircuit, whisper: AudioLines,
+  esp32: Cpu, relay: ToggleRight, mic: Mic, ollama: BrainCircuit, whisper: AudioLines,
   tts: Waves, wake: AudioLines, mqtt: Plug, instagram: MessageSquare, chatgpt: MessageSquare,
   claude: Terminal, gemini: Terminal, spotify: Music, ytmusic: Music,
 }
-const TONE: Record<Item['status'], string> = { connected: 'live', available: '', missing: 'fault', planned: 'planned' }
+const TONE: Record<Item['status'], string> = { connected: 'live', installed: '', available: '', missing: 'fault', planned: 'planned' }
 // These four have their own export cards (05.3), with the real state of the file.
 const HAS_EXPORT_CARD = new Set(['instagram', 'chatgpt', 'spotify', 'ytmusic'])
 
@@ -51,6 +54,7 @@ export function ConnectPage() {
       <PageHeader tab="connect" right={
         <div className="connect-summary">
           <span className="pill live"><i className="led" />{count('connected')} connected</span>
+          <span className="pill">{count('installed')} installed</span>
           <span className="pill">{count('available')} available</span>
           <span className="pill fault">{count('missing')} missing</span>
           <span className="pill planned">{count('planned')} planned</span>

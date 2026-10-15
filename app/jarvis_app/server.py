@@ -51,8 +51,12 @@ class Services:
         from . import uno
         self.relays = uno.UnoRelays(bus) if uno.enabled() else None
         self.limbs = Limbs(self.core, self.hub, bus, relays=self.relays)
+        # After the Uno is adopted (its relays boot OFF), presence_on.py may switch the
+        # room back on once per app start when he is there (A6, 2026-10-15).
+        from .presence_on import PresenceOn
+        self.presence_on = PresenceOn(self.limbs, bus, hub=self.hub, core=self.core)
         if self.relays is not None:
-            self.relays.on_connect = self.limbs.adopt_board
+            self.relays.on_connect = lambda: (self.limbs.adopt_board(), self.presence_on.start())
         self.core.room_boot_listener = self.limbs.sync_core
         self._board_was_connected = False
         self.kv = germoney.KVStore()
@@ -131,6 +135,7 @@ def create_app(guard: Guard, autostart_aankhen: str = "auto") -> FastAPI:
             svc.relays.start()
         watcher = asyncio.create_task(aankhen_watch())
         yield
+        svc.presence_on.stop()
         if svc.relays is not None:
             svc.relays.stop()
         watcher.cancel()

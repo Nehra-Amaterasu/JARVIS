@@ -74,21 +74,38 @@ def test_nothing_plugged_in():
     assert [i for i in items if i.startswith("usb-")] == []
 
 
-# ---------------------------------------------------------------- the radar
-def test_the_radar_is_connected_only_on_recent_real_frames():
-    hw = {"kind": "hardware", "board": {"handshake": True, "radar": {"frames": 400, "last_s": 0.4, "hz": 10.0}}}
-    assert connect.radar_item(hw)["status"] == "connected"
-    stale = {"kind": "hardware", "board": {"handshake": True, "radar": {"frames": 400, "last_s": 12.0, "hz": 0}}}
-    r = connect.radar_item(stale)
-    assert r["status"] == "missing" and "12 s ago" in r["detail"]
-    never = {"kind": "hardware", "board": {"handshake": True, "radar": {"frames": 0, "last_s": None, "hz": 0}}}
-    r = connect.radar_item(never)
-    assert r["status"] == "missing" and "no radar frame yet" in r["detail"]
-    # Simulated radar frames are not this sensor, however fresh.
-    sim = {"kind": "simulation", "board": {"radar": {"frames": 900, "last_s": 0.1, "hz": 10.0}}}
-    r = connect.radar_item(sim)
-    assert r["status"] == "missing" and "simulat" in r["detail"]
-    assert connect.radar_item(None)["status"] == "missing"
+# ---------------------------------------------------------------- the relay board (2026-10-15)
+def test_the_uno_relay_board_comes_from_the_transport_not_a_plan():
+    live = {"connected": True, "port": "COM8", "version": "1.0.0", "pins": {"light": 4, "fan": 5},
+            "state": {"light": True, "fan": False}, "error": None}
+    r = connect.relay_item(live)
+    assert r["status"] == "connected" and "COM8" in r["detail"] and "1.0.0" in r["detail"]
+    assert "light on" in r["detail"] and "fan off" in r["detail"] and "light D4" in r["detail"]
+    assert "dimmer" not in r["name"].lower() and "planned" not in r["status"]
+    gone = {"connected": False, "port": None, "version": None, "pins": {}, "state": {},
+            "error": "COM8 is held by another program."}
+    r = connect.relay_item(gone)
+    assert r["status"] == "missing" and "held by another program" in r["detail"]
+    assert connect.relay_item(None)["status"] == "missing"                 # JARVIS_UNO=0
+
+
+def test_no_radar_and_no_planned_relay_in_detected(monkeypatch):
+    monkeypatch.setattr(connect, "_port_open", lambda port, host="127.0.0.1": False)
+    items = by_id(connect.detect({}, {"running": False}, boards=[], core_logs=[], voice={"ok": True, "ms": 5},
+                                 relays=None))
+    assert "ld2450" not in items and items["relay"]["name"] == "Relay board · Arduino Uno"
+    assert "mqtt" not in items                                             # the relays never needed it
+
+
+def test_ears_are_connected_only_when_loaded():
+    assert connect.ears_loaded({"running": True, "mode": "voice", "started_at": 10.0, "ready_at": 40.0})
+    assert not connect.ears_loaded({"running": True, "mode": "voice", "started_at": 10.0, "ready_at": None})
+    assert not connect.ears_loaded({"running": True, "mode": "text", "started_at": 10.0, "ready_at": 12.0})
+    assert not connect.ears_loaded({"running": False, "mode": "voice", "started_at": 10.0, "ready_at": 40.0})
+    assert not connect.ears_loaded({"running": True, "mode": "voice", "started_at": 50.0, "ready_at": 40.0})
+    off = by_id(connect.detect({"running": False}, {"running": False}, boards=[], core_logs=[],
+                               voice={"ok": True, "ms": 5}, relays=None))
+    assert off["whisper"]["status"] in ("installed", "missing") and off["wake"]["status"] in ("installed", "missing")
 
 
 # ---------------------------------------------------------------- the voice
@@ -191,18 +208,18 @@ def test_connect_endpoint_end_to_end(client):
     items = by_id(client.get("/api/connect").json())
     assert items["esp32"]["status"] == "available"           # answered, but Aankhen is stopped
     assert items["usb-COM5"]["name"] == "USB serial device · not Aankhen"
-    assert items["ld2450"]["status"] == "missing"
+    assert "ld2450" not in items
+    assert items["relay"]["status"] == "missing"                       # JARVIS_UNO=0: no transport
     assert items["tts"]["status"] == "connected" and items["tts"]["detail"].startswith("Speaking offline")
 
     assert client.post("/api/aankhen/start", json={"mode": "auto"}).json()["mode"] == "hardware"
     deadline = time.time() + 5
     while time.time() < deadline:
         items = by_id(client.get("/api/connect").json())
-        if items["esp32"]["status"] == "connected" and items["ld2450"]["status"] == "connected":
+        if items["esp32"]["status"] == "connected":
             break
         time.sleep(0.1)
     assert items["esp32"]["status"] == "connected" and "COM7" in items["esp32"]["detail"]
-    assert items["ld2450"]["status"] == "connected"
     assert bytes(uno.written) == b""
 
 

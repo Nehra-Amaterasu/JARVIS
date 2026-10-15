@@ -2,6 +2,8 @@
 
 Statuses mean exactly one thing each:
     connected   detected and working right now
+    installed   on disk, but not loaded or running right now (Whisper, the wake word
+                while JARVIS is off or in text mode)
     available   present on this machine, not wired in yet (a next step exists)
     missing     not found; `next` says how to get it
     planned     designed but not built — honest about it, no fake toggle
@@ -11,8 +13,12 @@ Since ROADMAP F2 that includes the three that used to be assumed:
     ESP32    connected only when the board has SAID so: a CRC-valid Aankhen frame on
              the link (aankhen/boards.py). A CH340 or CP210x is not an ESP32; a USB
              serial device that has not identified itself is listed as unidentified.
-    LD2450   connected only when a real radar frame arrived in the last RADAR_FRESH_S
-             (the hub being in hardware mode says nothing about the radar's wiring).
+    relays   the Uno relay board from the relay transport's own state (uno.py):
+             connected with its port, firmware and channels, or why it is not.
+             (The LD2450 radar item is gone: Aman dropped the radar on 2026-10-13.)
+    ears     Whisper and the wake word are "connected" only while JARVIS runs in voice
+             mode and has said he is ready (he loads both before that); otherwise
+             "installed" when the files are there.
     voice    connected when the online voice is reachable, or the offline one is
              installed — taken from the voice engine's own log first (it says when the
              online voice fails), and otherwise from one small cached TCP connect.
@@ -32,7 +38,6 @@ import httpx
 
 from .paths import DOWNLOADS, HOME, VENV, YAADASH_DATA, ensure_jarvis_importable
 
-RADAR_FRESH_S = 5.0          # "radar frames seen in the last 5 s" (ROADMAP F2)
 VOICE_HOST = ("speech.platform.bing.com", 443)   # where edge-tts synthesises
 VOICE_PROBE_TTL_S = 120.0    # one TCP connect per two minutes at most
 EDGE_COOLDOWN_S = 60.0       # core/voice.py: a failed online voice is skipped this long
@@ -44,11 +49,17 @@ KOKORO_FILES = ("kokoro-v1.0.int8.onnx", "voices-v1.0.bin")    # core/voice.py _
 # the process-wide finder is used.
 _core = None
 _hub = None
+_relays = None               # uno.UnoRelays, set by routes_limbs.register
 
 
 def bind(core=None, hub=None) -> None:
     global _core, _hub
     _core, _hub = core, hub
+
+
+def bind_relays(relays=None) -> None:
+    global _relays
+    _relays = relays
 
 
 def _port_open(port: int, host: str = "127.0.0.1") -> bool:
@@ -140,30 +151,24 @@ def board_items(results: list, aankhen_info: Optional[dict], now: Optional[float
     return items
 
 
-def radar_item(aankhen_info: Optional[dict]) -> dict:
-    """Connected only on real radar frames seen in the last RADAR_FRESH_S."""
-    info = aankhen_info or {}
-    board = info.get("board") or {}
-    radar = board.get("radar") or {}
-    last = radar.get("last_s")
-    name = "HLK-LD2450 mmWave radar"
-    if info.get("kind") == "hardware" and last is not None and last <= RADAR_FRESH_S:
-        hz = radar.get("hz")
-        return _item("ld2450", "Hardware", name, "connected",
-                     f"Radar frames through the ESP32: {hz:.0f} Hz, last {last:.1f} s ago."
-                     if hz else f"Radar frames through the ESP32, last {last:.1f} s ago.")
-    if info.get("kind") == "hardware" and board.get("handshake"):
-        detail = ("The ESP32 is talking but has sent no radar frame yet."
-                  if last is None else f"The ESP32 is talking but its last radar frame was {last:.0f} s ago.")
-        return _item("ld2450", "Hardware", name, "missing", detail,
-                     "Check the LD2450's wiring to the ESP32 UART (its TX to the board's RX, 5 V).")
-    if info.get("kind") == "simulation":
-        return _item("ld2450", "Hardware", name, "missing",
-                     "No real radar frames: Aankhen is on the simulator, whose radar is simulated.",
-                     "Connect the ESP32 first: the radar talks through it.")
-    return _item("ld2450", "Hardware", name, "missing",
-                 "No radar frames: the radar reaches JARVIS through the ESP32, which is not connected.",
-                 "Wire to the ESP32's UART (RX/TX, 5 V), see the firmware README.")
+def relay_item(relays_view: Optional[dict]) -> dict:
+    """The Uno relay board, from the transport's own state (uno.UnoRelays.view())."""
+    name = "Relay board · Arduino Uno"
+    if relays_view is None:
+        return _item("relay", "Hardware", name, "missing",
+                     "The relay transport is switched off (JARVIS_UNO=0): the light and fan are virtual.",
+                     "Start the app without JARVIS_UNO=0.")
+    r = relays_view
+    if r.get("connected"):
+        chans = ", ".join(f"{d} {'on' if on else 'off'}" for d, on in (r.get("state") or {}).items())
+        pins = r.get("pins") or {}
+        where = ", ".join(f"{d} D{p}" for d, p in pins.items())
+        return _item("relay", "Hardware", name, "connected",
+                     f"{r.get('port')} · firmware {r.get('version') or '?'} · {chans or 'no channels reported'}"
+                     + (f" · pins {where}" if where else "") + " · each switch confirmed by the board")
+    return _item("relay", "Hardware", name, "missing",
+                 f"Not connected: {r.get('error') or 'waiting for it'}",
+                 "Plug the Uno in by USB (limbs/uno_relay firmware); only one program can hold its port.")
 
 
 # ---------------------------------------------------------------- the voice
@@ -256,12 +261,23 @@ def tts_item(logs: Optional[list] = None, online: Optional[dict] = None,
                  "data/models/kokoro) is a download that needs your OK.")
 
 
+_UNSET = object()
+
+
+def ears_loaded(core_info: Optional[dict]) -> bool:
+    """Whisper and the wake word are in memory: JARVIS runs in voice mode and said
+    "ready" for THIS run (jarvis.py loads both before it emits ready)."""
+    c = core_info or {}
+    ready, started = c.get("ready_at"), c.get("started_at")
+    return bool(c.get("running") and c.get("mode") == "voice" and ready and (started is None or ready >= started))
+
+
 def detect(core_info: dict | None = None, aankhen_info: dict | None = None, *,
            boards: Optional[list] = None, core_logs: Optional[list] = None,
-           voice: Optional[dict] = None) -> list[dict]:
+           voice: Optional[dict] = None, relays=_UNSET) -> list[dict]:
     """Everything that can plug in, each with a live status. `boards` (probe results),
-    `core_logs` and `voice` (an online_voice_reachable() result) replace the live
-    checks in tests; by default the board finder and the bound JARVIS process are used."""
+    `core_logs`, `voice` (an online_voice_reachable() result) and `relays` (a
+    UnoRelays.view(), or None for no transport) replace the live checks in tests; by default the board finder and the bound JARVIS process are used."""
     ensure_jarvis_importable()
     items: list[dict] = []
 
@@ -276,10 +292,9 @@ def detect(core_info: dict | None = None, aankhen_info: dict | None = None, *,
         except Exception:
             boards = []
     items.extend(board_items(boards, aankhen_info))
-    items.append(radar_item(aankhen_info))
-    items.append(_item("relay", "Hardware", "Relay / dimmer board", "planned",
-                       "Switches the room light and fan (mains).",
-                       "Firmware v3 adds token-authenticated relay control; wire by an electrician-grade standard."))
+    if relays is _UNSET:
+        relays = _relays.view() if _relays is not None else None
+    items.append(relay_item(relays))
     try:
         import sounddevice as sd
         dev = sd.query_devices(kind="input")
@@ -300,22 +315,29 @@ def detect(core_info: dict | None = None, aankhen_info: dict | None = None, *,
                            "Ollama is not running on :11434.", "Start the Ollama app."))
     hub = HOME / ".cache" / "huggingface" / "hub"
     turbo = hub / "models--mobiuslabsgmbh--faster-whisper-large-v3-turbo"
+    loaded = ears_loaded(core_info)
     items.append(_item("whisper", "Brain", "Whisper large-v3-turbo (ears)",
-                       "connected" if turbo.exists() else "missing",
-                       "Speech to text on CUDA, int8_float16, ~2.7 s per utterance.",
+                       "missing" if not turbo.exists() else ("connected" if loaded else "installed"),
+                       ("Loaded on CUDA (int8_float16): JARVIS is listening in voice mode." if loaded else
+                        "Model files on disk; loaded only while JARVIS runs in voice mode.") if turbo.exists()
+                       else "Model files not found.",
                        None if turbo.exists() else "Downloads automatically on the first voice start."))
     if core_logs is None and _core is not None:
         core_logs = list(getattr(_core, "logs", []) or [])
     items.append(tts_item(core_logs, voice))
     oww = glob.glob(str(VENV / "Lib" / "site-packages" / "openwakeword" / "resources" / "models" / "hey_jarvis*"))
-    items.append(_item("wake", "Brain", "Wake word · \"Hey Jarvis\"", "connected" if oww else "missing",
-                       "openWakeWord, ONNX, runs on CPU." if oww else "Model file not found.",
+    items.append(_item("wake", "Brain", "Wake word · \"Hey Jarvis\"",
+                       "missing" if not oww else ("connected" if loaded else "installed"),
+                       ("openWakeWord (ONNX, CPU) loaded: JARVIS is listening for it." if loaded else
+                        "openWakeWord model on disk; loaded only while JARVIS runs in voice mode.") if oww
+                       else "Model file not found.",
                        None if oww else "pip install openwakeword, then download its models."))
-    mqtt = _port_open(1883)
-    items.append(_item("mqtt", "Brain", "MQTT broker (room bus)", "connected" if mqtt else "missing",
-                       "Room changes go out on jarvis/room/<device>." if mqtt
-                       else "Without it the room is virtual: the app and voice share state, hardware can't listen.",
-                       None if mqtt else "winget install EclipseFoundation.Mosquitto"))
+    # The relays are on the Uno over USB (through the app) since 2026-10-13, and room.py no
+    # longer publishes on MQTT: nothing in JARVIS needs a broker. Listed only when one runs.
+    if _port_open(1883):
+        items.append(_item("mqtt", "Brain", "MQTT broker", "available",
+                           "A broker answers on :1883, but nothing in JARVIS uses it now: the relays are on "
+                           "the Uno over USB."))
 
     # ---------------------------------------------------------------- memory sources
     insta = sorted(DOWNLOADS.glob("instagram-*.zip"))

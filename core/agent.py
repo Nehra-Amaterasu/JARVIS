@@ -80,15 +80,19 @@ from tools.registry import Receipt
 #               and applied when JARVIS restarts; unset, it is still the model above.
 import user_settings            # core/user_settings.py: the app's choices, read live
 BRAIN_MODEL = user_settings.brain_model(os.environ)
+import ollama_guard             # keep_alive: resident (-1) unless JARVIS_KEEP_ALIVE says otherwise
+KEEP_ALIVE = ollama_guard.keep_alive_value()
 llm = ChatOllama(
     model=BRAIN_MODEL,
     temperature=0.7,   # Qwen's recommended setting for Instruct-2507
     num_ctx=8192,
     num_predict=400,     # hard cap on reply length — see llm_precise below
     repeat_penalty=1.1,
-    keep_alive="30m",  # Keep weights resident. Without this Ollama evicts after 5
-                       # min and the next reply pays a full cold load (measured
-                       # 124.6s on 2026-10-08) — fatal for a voice assistant.
+    keep_alive=KEEP_ALIVE,  # Keep weights resident. Without this Ollama evicts after 5
+                            # min and the next reply pays a full cold load (measured
+                            # 124.6s on 2026-10-08) — fatal for a voice assistant.
+                            # Was "30m" until 2026-10-15: after 30 quiet minutes he
+                            # still went cold. Now -1 (resident) plus ollama_guard.Keeper.
 )
 # Same model and weights at low temperature, used for turns grounded in retrieved
 # memory. At 0.7 the model embroidered real excerpts into invented stories; when
@@ -103,8 +107,12 @@ llm_precise = ChatOllama(
     # ~400 tokens (~1 minute of speech), and the penalty discourages the loop itself.
     num_predict=400,
     repeat_penalty=1.15,
-    keep_alive="30m",
+    keep_alive=KEEP_ALIVE,
 )
+# Unprompted remarks (core/proactive.py): one short line, same weights and num_ctx (a
+# different num_ctx would make Ollama reload the model), a hard cap of 60 tokens.
+remark_llm = ChatOllama(model=BRAIN_MODEL, temperature=0.4, num_ctx=8192, num_predict=60,
+                        repeat_penalty=1.1, keep_alive=KEEP_ALIVE)
 # Until 2026-10-12: two LangChain tools (mcp_client_bridge.py, now core/legacy/) bound
 # only when the sentence contained one of 16 exact phrases. Now every enabled tool in
 # the registry is bound whenever the turn touches something a tool does

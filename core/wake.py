@@ -109,6 +109,11 @@ class NameSpotter:
     bursts: int = 0
     judged: int = 0
 
+    @property
+    def busy(self) -> bool:
+        """In the middle of a burst of speech (the mic watchdog waits for it to end)."""
+        return bool(self._burst)
+
     def reset(self) -> None:
         self._buf = np.zeros(0, np.float32)
         self._pre, self._burst, self._quiet, self._voiced = [], [], 0, 0

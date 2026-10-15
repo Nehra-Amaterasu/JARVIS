@@ -14,4 +14,13 @@ Layout:
     server.py    the FastAPI app that ties it together
     desktop.py   the native window (pywebview / WebView2)
 """
+import os as _os
+
+# Before anything imports numpy: OpenBLAS reserves a buffer per thread, one pool per copy
+# (numpy's and scipy's), sized for every core. Measured 2026-10-15 (numpy + torch +
+# sentence-transformers + sklearn in one process): 1400 MB private bytes with the default,
+# 750 MB with 2 threads, the same working set. The core inherits it (core.py starts it with
+# this environment). An explicit OPENBLAS_NUM_THREADS still wins.
+_os.environ.setdefault("OPENBLAS_NUM_THREADS", "2")
+
 __version__ = "1.0.0"

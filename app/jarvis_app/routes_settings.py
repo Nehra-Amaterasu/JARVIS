@@ -98,7 +98,7 @@ def _consume(path: str) -> bytes:
 
 def register(app: FastAPI, svc, bus) -> None:
     core = svc.core
-    wakes = latency.WakeLog()
+    wakes = latency.WakeLog(path=st.SETTINGS_PATH.parent / "wake.jsonl")   # last 500 kept on disk
     mods = Modules(core, bus.publish)
     svc.modules, svc.wakes = mods, wakes
 

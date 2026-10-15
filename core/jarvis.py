@@ -2,6 +2,10 @@
 import os
 import sys
 
+# Before numpy: OpenBLAS buffers per thread cost ~650 MB of private bytes at the default
+# thread count (app/jarvis_app/__init__.py has the measurement). The app sets the same.
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "2")
+
 # 2026-10-08: Windows consoles default to cp1252 and raise UnicodeEncodeError on
 # Devanagari or emoji, which killed the voice loop mid-reply whenever Whisper
 # returned Hindi script. Reconfigured in code rather than via PYTHONIOENCODING
@@ -92,6 +96,9 @@ import agent
 import hinglish
 import chimes
 import appio
+import mic as mic_mod           # the pinned microphone + its watchdog (core/mic.py)
+import proactive                # when JARVIS may speak unprompted (core/proactive.py)
+import user_settings
 
 # Under the desktop app (--app) this process reports its state as structured
 # events; with --text it skips the microphone, Whisper, the wake word and speech
@@ -248,6 +255,16 @@ if model is not None:
     except Exception as _e:
         print(f"   (Whisper warm-up skipped: {_e})")
 
+# The brain stays resident (agent.KEEP_ALIVE, -1 by default): the keeper re-pins it when
+# another client's "30m" request put it back on a timer, and reloads it if Ollama dropped
+# it. It never pins in the middle of a turn (the turn's own request does that).
+_turn_busy = threading.Event()          # set from the wake to the end of the follow-up
+brain_keeper = ollama_guard.Keeper(agent.BRAIN_MODEL, agent.KEEP_ALIVE, busy=_turn_busy.is_set,
+                                   num_ctx=getattr(agent.llm, "num_ctx", None),
+                                   log=lambda m: (print(m), appio.emit("brain", text=m)))
+if isinstance(agent.KEEP_ALIVE, int) and agent.KEEP_ALIVE < 0:
+    brain_keeper.start()
+
 # --- PROCEDURAL SIRI-STYLE SOOTHING COGNITIVE HUM ENGINE ---
 hum_sound = None
 def _init_cognitive_hum():
@@ -314,6 +331,15 @@ def _tts_worker():
 
 threading.Thread(target=_tts_worker, daemon=True).start()
 
+# The microphone: pinned by name (settings "mic", else the default input at start), so a
+# Bluetooth headset that becomes Windows' default does not move him; reopened when it
+# stops delivering audio (core/mic.py). Every stream below opens on MIC.device().
+MIC = mic_mod.Mic(sd, wanted=lambda: (user_settings.current().get("mic") or {}).get("name"), log=print)
+mic_dog = mic_mod.MicWatchdog()
+MIC_RECHECK_S = 300.0            # while asleep, look for the pinned mic again this often
+_REOPEN = object()
+
+
 def listen_for_wake_word():
     """Block until "Hey Jarvis" -> None, or until the app sends a typed message
     -> that text (so typing in the app works while JARVIS is asleep)."""
@@ -323,31 +349,65 @@ def listen_for_wake_word():
     oww_model.reset()
     if name_spotter is not None:
         name_spotter.reset()
-    
+    refresh = False
+    while True:
+        got = _wake_stream(refresh)
+        if got is not _REOPEN:
+            return got
+        refresh = True                         # find the mic again with a fresh device list
+
+
+def _wake_stream(refresh: bool):
+    """One stream's life in the wake loop: the wake result, or _REOPEN when the stream
+    went silent (watchdog) or it is time to look for the pinned mic again."""
     import queue
     q = queue.Queue()
-    
-    def callback(indata, frames, time, status):
+
+    def callback(indata, frames, time_info, status):
         # Downmix multi-channel arrays to mono to fix Intel Smart Sound array bug
         if indata.shape[1] > 1:
             mono_data = np.mean(indata, axis=1).astype(np.int16)
         else:
             mono_data = indata.flatten()
         q.put(mono_data.copy())
-        
-    with sd.InputStream(samplerate=16000, dtype="int16", blocksize=1280, callback=callback):
+
+    idx, name = MIC.resolve(refresh=refresh) if (refresh or MIC.index is None) else (MIC.index, MIC.name)
+    try:
+        stream = sd.InputStream(samplerate=16000, dtype="int16", blocksize=1280, callback=callback, device=idx)
+    except Exception as e:
+        print(f"\n[mic] could not open {name or 'the microphone'}: {e}")
+        mic_dog.reopened("open_failed")
+        appio.emit("mic", alive=False, device=name, reason="open_failed", error=str(e)[:160],
+                   reopens=mic_dog.reopens)
+        time.sleep(3.0)
+        return _REOPEN
+    with stream:
+        mic_dog.opened()
+        opened_at = time.monotonic()
         # Discard the first 2 chunks to flush stream startup noise
         for _ in range(2):
             if not q.empty(): q.get()
-            
+
         while True:
             typed = appio.poll_say()
             if typed:
                 return typed
+            beat = mic_dog.heartbeat()
+            if beat is not None:
+                appio.emit("mic", device=MIC.name, **beat)
             try:
                 chunk = q.get(timeout=0.1)
             except queue.Empty:
+                if mic_dog.stalled():
+                    print(f"\n[mic] no audio from {MIC.name or 'the microphone'} for "
+                          f"{mic_dog.stall_s:.0f} s: reopening it")
+                    mic_dog.reopened("stalled")
+                    appio.emit("mic", alive=False, device=MIC.name, reason="stalled", reopens=mic_dog.reopens)
+                    return _REOPEN
                 continue
+            mic_dog.block(float(np.abs(chunk).max()) / 32768.0 if chunk.size else 0.0)
+            if time.monotonic() - opened_at > MIC_RECHECK_S and not (name_spotter is not None and name_spotter.busy):
+                return _REOPEN                 # a routine look, not a fault: not counted
             prediction = oww_model.predict(chunk.flatten())
             if name_spotter is not None:
                 heard = name_spotter.feed(chunk)
@@ -455,7 +515,8 @@ def record_vad():
             if volume_norm <= SILENCE_THRESHOLD:
                 silence_frames += 1
                 
-    with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32", callback=callback):
+    with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32", callback=callback,
+                        device=MIC.device()):
         while True:
             # If we've been speaking and hit 4.0 seconds of silence, stop recording
             # Or if user hits Ctrl+C to force stop
@@ -480,7 +541,8 @@ def _followup_energy() -> bool:
         if volume_norm > SILENCE_THRESHOLD:
             in_followup = True
 
-    with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32", callback=followup_callback):
+    with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32", callback=followup_callback,
+                        device=MIC.device()):
         while time.time() - start_time < 5.0:
             if in_followup:
                 break
@@ -594,7 +656,7 @@ def _record_silero(followup: bool = False) -> "endpoint.Utterance":
             shown["pulse"] += 1
 
     with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="float32",
-                        blocksize=endpoint.FRAME, callback=callback):
+                        blocksize=endpoint.FRAME, callback=callback, device=MIC.device()):
         while True:
             utt = endpoint.listen(ep, next_block, on_event=on_event, on_block=on_block)
             if not (utt.has_speech and over["jarvis"]):
@@ -706,9 +768,12 @@ def respond(text: str, endpoint_s=None) -> None:
     """
     global _turn_started, _first_audio_pending
     print(f"\nYou said: {text}")
+    _last_heard_at[0] = time.time()
     appio.emit("heard", text=text)
     if endpoint_s is not None:
         appio.emit("timing", stage="endpoint", seconds=endpoint_s)
+    if _quiet_mode_command(text):
+        return
     print("Thinking...", end="\r")
     appio.emit("state", state="thinking")
     voice_engine.begin_turn(voice_mod.requested_style(text))
@@ -739,6 +804,87 @@ def respond(text: str, endpoint_s=None) -> None:
         appio.emit("error", message=BRAIN_DOWN if down else str(e))
 
 
+# ------------------------------------------------------------------ unprompted remarks
+# The app's event feed (crew/feed.py) sends {"type": "event", "event": {...}, "context":
+# {...}}; core/proactive.py decides whether to say anything and builds the line. Every
+# decision goes back to the app as a "proactive" event (it logs them all).
+_proactive = proactive.Policy(settings=user_settings.current)
+_last_heard_at = [None]                # when he last said something to JARVIS
+_remark_lock = threading.Lock()
+
+
+def _event_brief(ev: dict) -> dict:
+    return {k: ev.get(k) for k in ("id", "kind", "priority", "certainty", "evidence", "summary", "ts")}
+
+
+def _remark_text(prompt_text: str) -> str:
+    msg = agent.remark_llm.invoke([agent.HumanMessage(content=prompt_text)])
+    return str(getattr(msg, "content", "") or "")
+
+
+def _on_staff_event(cmd: dict) -> None:
+    ev = cmd.get("event") if isinstance(cmd.get("event"), dict) else {}
+    context = cmd.get("context") if isinstance(cmd.get("context"), dict) else {}
+
+    def ctx() -> dict:
+        return {"talking": _jarvis_talking(), "in_turn": _turn_busy.is_set(), "last_heard_at": _last_heard_at[0],
+                "media_playing": bool(context.get("media_playing")), "text_mode": TEXT_ONLY}
+
+    def work():
+        if not _remark_lock.acquire(blocking=False):
+            appio.emit("proactive", event=_event_brief(ev), speak=False, reason="busy", note="another remark")
+            return
+        try:
+            d = _proactive.decide(ev, ctx())
+            if not d.speak:
+                appio.emit("proactive", event=_event_brief(ev), **d.to_dict())
+                return
+            t0 = time.time()
+            line, via = proactive.make_line(ev, _remark_text)
+            gen_s = round(time.time() - t0, 2)
+            c = ctx()                                  # he may have started talking meanwhile
+            if c["talking"] or c["in_turn"]:
+                appio.emit("proactive", event=_event_brief(ev), speak=False, reason="busy", line=line,
+                           via=via, gen_s=gen_s)
+                return
+            _proactive.spoke()
+            speak(line)
+            appio.emit("proactive", event=_event_brief(ev), speak=True, reason="speak", line=line, via=via,
+                       gen_s=gen_s)
+        except Exception as e:
+            appio.emit("proactive", event=_event_brief(ev), speak=False, reason="error", error=str(e)[:200])
+        finally:
+            _remark_lock.release()
+    threading.Thread(target=work, name="proactive", daemon=True).start()
+
+
+appio.on("event", _on_staff_event)
+
+
+def _quiet_mode_command(text: str) -> bool:
+    """"Jarvis, quiet mode" / "you can talk again": flip the remark switch (the same one as
+    the app's), say so, and end the turn without the model. True when it was one."""
+    cmd = proactive.voice_command(text)
+    if cmd is None:
+        return False
+    try:
+        saved = proactive.set_muted(cmd == "mute")
+    except Exception as e:
+        print(f"\n[quiet mode: could not save the switch: {e}]")
+        saved = False
+    reply = proactive.MUTE_REPLY if cmd == "mute" else proactive.UNMUTE_REPLY
+    if not saved:
+        # No settings file (JARVIS run from a terminal): the switch lives in this process.
+        muted = cmd == "mute"
+        _proactive.settings = lambda: {"proactive": {"muted": muted}}
+    print(f"JARVIS: {reply}")
+    appio.emit("state", state="replying")
+    speak(reply)
+    appio.emit("reply_end", text=reply, seconds=0.0)
+    appio.emit("proactive", event={"kind": f"voice_{cmd}"}, speak=False, reason=cmd, saved=saved)
+    return True
+
+
 def main_loop():
     print(f"\nMQTT broker: {'connected' if room.MQTT_OK else 'virtual room only'}")
     appio.emit("ready", mode="voice")
@@ -748,8 +894,10 @@ def main_loop():
 
     while True:
         try:
+            _turn_busy.clear()
             print("\n" + room.render())
             typed = listen_for_wake_word()
+            _turn_busy.set()                   # woken: no unprompted remark until this turn is over
             if typed:
                 respond(typed)                 # typed in the app while asleep
                 continue
@@ -819,7 +967,11 @@ def text_loop():
         text = appio.wait_say()
         if text is None:                       # the app closed our stdin: shut down
             return
-        respond(text)
+        _turn_busy.set()
+        try:
+            respond(text)
+        finally:
+            _turn_busy.clear()
         appio.emit("state", state="idle")
 
 

@@ -29,7 +29,7 @@ from .paths import DATA, ensure_jarvis_importable
 from .transcripts import TRANSCRIPTS
 
 ensure_jarvis_importable()
-from crew.agents.learner import ChatLearner, default_learn          # noqa: E402  (the JARVIS root on the path)
+from crew.agents.learner import ChatLearner, default_learn, folder_signature  # noqa: E402  (the JARVIS root on the path)
 from crew.agents.ledger import TaskLedger                            # noqa: E402
 from crew.agents.movement import MovementWatcher                     # noqa: E402
 from crew.agents.steward import RecentErrors, Steward, ollama_answers  # noqa: E402
@@ -76,7 +76,10 @@ def build_crew(svc, bus) -> Crew:
                       core=getattr(core, "info", None))
     # The learner reads finished chats into Yaadash (yaadash/learn_chats.py); its pass is
     # swappable on the crew (svc.crew.agent("learner").learn) for tests.
-    learner = ChatLearner(default_learn(transcripts))
+    # Skips a pass when the transcripts are unchanged since one that left nothing to do,
+    # so the embedder is not loaded into the app for nothing (learner.py MEMORY).
+    learner = ChatLearner(default_learn(transcripts), signature=folder_signature(transcripts),
+                          state_path=CREW_DATA / "learner.json")
     return Crew([MovementWatcher(frames), TaskLedger(transcripts, CREW_DATA), steward, learner],
                 board=Blackboard(sink=bus_sink(bus)))
 

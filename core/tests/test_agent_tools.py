@@ -683,3 +683,11 @@ def test_a_deep_model_without_reasoning_runs_as_it_is(brain, monkeypatch):
         "model": "llama3.1:latest", "thinking": False, "until": _time.time() + 60}}})
     plain = a.turn_brains()[0]
     assert plain.model == "llama3.1:latest" and plain.reasoning is None and plain.num_predict == 400
+
+
+def test_the_brain_is_asked_to_stay_resident(agent):
+    """keep_alive -1 on every brain request (was "30m": he went cold after 30 quiet minutes),
+    and the remark model shares num_ctx with the brain, so a remark never reloads it."""
+    assert agent.KEEP_ALIVE == -1
+    assert agent.llm.keep_alive == -1 and agent.llm_precise.keep_alive == -1
+    assert agent.remark_llm.num_ctx == agent.llm.num_ctx and agent.remark_llm.num_predict == 60

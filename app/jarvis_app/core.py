@@ -5,6 +5,13 @@ Whisper on CUDA and audio playback. A crash there must not take the window down,
 and "stop JARVIS" must really give the ~1 GB of VRAM back — only process exit
 guarantees that. The two sides talk through appio.py (see its docstring).
 
+Supervision (2026-10-15): when the process exits on its own while the app still wants
+him (a crash, a CUDA or memory failure at boot, a killed process), the app writes the
+exit and the last log lines to DATA/core_crashes.log and starts him again in the same
+mode after a backoff of 5 s, 15 s, 60 s, then 300 s, at most 5 restarts in any hour
+(backoff.RestartBudget). A run that lasted 10 minutes resets the backoff. stop() is the
+only deliberate exit, so it is never "restarted".
+
 States, as the Core tab shows them:
     offline -> booting -> sleeping (voice: waiting for "Hey Jarvis")
                        -> idle     (text: waiting for a typed message)
@@ -20,8 +27,9 @@ import time
 from collections import deque
 from typing import Optional
 
+from .backoff import RestartBudget
 from .bus import EventBus
-from .paths import CORE, core_python
+from .paths import CORE, DATA, core_python
 from .transcripts import TranscriptStore
 
 SENTINEL = "\x1eJARVIS "
@@ -69,16 +77,34 @@ class CoreProcess:
         self._turn_id = 0
         self._lock = threading.RLock()
         self._stdin_lock = threading.Lock()
+        # The supervisor (module docstring). wanted: the app wants him running (start()
+        # sets it, only stop() clears it). schedule(delay, fn) runs fn later and returns
+        # something with cancel(); tests replace it.
+        self.supervise = True
+        self.wanted = False
+        self.budget = RestartBudget()
+        self.crash_log = DATA / "core_crashes.log"
+        self.restarts = 0
+        self.restart_due_at: Optional[float] = None
+        self.gave_up_at: Optional[float] = None
+        self.stop_hooks: list = []               # called after a deliberate stop (routes_alwayson)
+        self._restart_timer = None
+        self.schedule = _timer
 
     # ------------------------------------------------------------ control
     @property
     def running(self) -> bool:
         return self.proc is not None and self.proc.poll() is None
 
-    def start(self, mode: str = "voice") -> dict:
+    def start(self, mode: str = "voice", _auto: bool = False) -> dict:
         if mode not in ("voice", "text"):
             raise ValueError("mode must be 'voice' or 'text'")
         with self._lock:
+            self.wanted = True
+            if not _auto:                          # a person asked: a fresh backoff
+                self._cancel_restart()
+                self.budget.reset()
+                self.gave_up_at = None
             if self.running:
                 return self.info()
             args = [core_python(), "-u", "jarvis.py", "--app"] + (["--text"] if mode == "text" else [])
@@ -100,6 +126,8 @@ class CoreProcess:
 
     def stop(self) -> dict:
         with self._lock:
+            self.wanted = False                    # a deliberate stop is never restarted
+            self._cancel_restart()
             proc = self.proc
         if proc is None or proc.poll() is not None:
             return self.info()
@@ -115,7 +143,58 @@ class CoreProcess:
                 proc.wait(timeout=3)
             except subprocess.TimeoutExpired:
                 proc.kill()
+        for hook in self.stop_hooks:
+            try:
+                hook()
+            except Exception as e:
+                self._log(f"[app] stop hook failed: {e!r}")
         return self.info()
+
+    # ------------------------------------------------------------ supervisor
+    def _cancel_restart(self) -> None:
+        t, self._restart_timer, self.restart_due_at = self._restart_timer, None, None
+        if t is not None:
+            try:
+                t.cancel()
+            except Exception:
+                pass
+
+    def _crashed(self, proc: subprocess.Popen, code: Optional[int]) -> None:
+        """He exited on his own while wanted: log it and schedule the restart (or give up)."""
+        now = time.time()
+        ran = now - self.started_at if self.started_at else None
+        tail = [l["line"] for l in list(self.logs)[-40:]]
+        try:
+            self.crash_log.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.crash_log, "a", encoding="utf-8") as f:
+                f.write(f"=== {time.strftime('%Y-%m-%d %H:%M:%S')} exit {code} after "
+                        f"{'?' if ran is None else round(ran)} s ({self.mode} mode, pid {proc.pid})\n")
+                f.write("\n".join(tail) + "\n")
+        except OSError as e:
+            self._log(f"[app] crash log write failed: {e}")
+        delay = self.budget.next_delay(ran)
+        if delay is None:
+            self.gave_up_at = now
+            self.bus.publish("core", "gave_up", f"JARVIS keeps crashing: {self.budget.max_per_hour} restarts in an "
+                             "hour. Not restarting; see core_crashes.log", exit_code=code)
+            return
+        self.restart_due_at = now + delay
+        self.bus.publish("core", "restarting", f"JARVIS exited ({code}); restarting in {delay:.0f} s",
+                         exit_code=code, delay_s=delay, restarts=self.restarts)
+        self._restart_timer = self.schedule(delay, self._auto_restart)
+
+    def _auto_restart(self) -> None:
+        with self._lock:
+            self._restart_timer, self.restart_due_at = None, None
+            if not self.wanted or self.running:
+                return
+            self.restarts += 1
+            mode = self.mode or "voice"
+        try:
+            self.start(mode, _auto=True)
+        except Exception as e:
+            self.last_error = f"restart failed: {e}"
+            self.bus.publish("core", "error", f"Could not restart JARVIS: {e}")
 
     def _send(self, obj: dict) -> None:
         if not self.running:
@@ -189,6 +268,10 @@ class CoreProcess:
         self.bus.publish("core", "stopped",
                          "JARVIS stopped" if code in (0, None, 1) else f"JARVIS exited ({code})",
                          exit_code=code, error=self.last_error)
+        with self._lock:
+            crashed = self.supervise and self.wanted and proc is self.proc
+        if crashed:
+            self._crashed(proc, code)
 
     def _log(self, line: str) -> None:
         self.logs.append({"t": time.time(), "line": line})
@@ -325,7 +408,22 @@ class CoreProcess:
                 "room": dict(self.room),
                 "mqtt": self.mqtt,
                 "session": self.session,
+                "supervisor": {"on": self.supervise, "wanted": self.wanted, "restarts": self.restarts,
+                               "restarts_last_hour": self.budget.used_last_hour(),
+                               "restart_due_at": self.restart_due_at, "gave_up_at": self.gave_up_at},
             }
+
+    def note_remark(self, text: str, reason: str = "proactive") -> dict:
+        """A line JARVIS said on his own (an unprompted remark): kept in the transcript
+        as his turn, like speak(), but nothing is sent to him (he already said it)."""
+        with self._lock:
+            self._turn_id += 1
+            turn = {"id": self._turn_id, "role": "jarvis", "text": text[:600], "t": time.time(), "done": True,
+                    "session": self.session, "announce": True, "proactive": reason}
+            self.turns.append(turn)
+            self._keep(turn)
+        self.bus.publish("core", "turn", "", turn=turn)
+        return turn
 
     def transcript(self, n: int = 60) -> list[dict]:
         with self._lock:
@@ -333,3 +431,10 @@ class CoreProcess:
 
     def log_tail(self, n: int = 300) -> list[dict]:
         return list(self.logs)[-n:]
+
+
+def _timer(delay: float, fn):
+    t = threading.Timer(delay, fn)
+    t.daemon = True
+    t.start()
+    return t

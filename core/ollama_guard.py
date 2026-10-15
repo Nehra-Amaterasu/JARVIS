@@ -11,6 +11,7 @@ The server is started detached, so putting JARVIS to sleep (the app terminates h
 process) leaves it running for the next wake.
 """
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -98,3 +99,129 @@ def is_down_error(e: BaseException) -> bool:
             return True
         e = e.__cause__ or e.__context__
     return False
+
+
+# ------------------------------------------------------------------ keep the brain resident
+# 2026-10-15: the brain was asked for with keep_alive="30m", and every other client of the
+# same model (the chat learner, the beliefs and taste passes, Mission's AI) also sends
+# "30m". So after 30 quiet minutes Ollama dropped it, and the next question paid a cold
+# load (124.6 s measured on 10-08; ~6-10 s from a warm disk cache). Now JARVIS asks with
+# keep_alive=-1 (resident until unloaded) and a keeper re-pins it: any request from
+# another client with "30m" resets the timer to 30 minutes, so every KEEP_CHECK_S the
+# keeper reads /api/ps and, when the brain is missing or due to expire, loads it again
+# with -1 (an empty /api/generate loads the weights and generates nothing).
+KEEP_ALIVE = -1                  # Ollama: a negative duration keeps the model loaded
+KEEP_CHECK_S = 300.0
+PINNED_AFTER_S = 10 * 365 * 24 * 3600   # -1 shows in /api/ps as an expiry centuries ahead
+
+
+def keep_alive_value(environ=None):
+    """JARVIS_KEEP_ALIVE overrides (e.g. "30m" to go back to the old behaviour); default -1."""
+    raw = ((environ if environ is not None else os.environ).get("JARVIS_KEEP_ALIVE") or "").strip()
+    if not raw:
+        return KEEP_ALIVE
+    try:
+        return int(raw)
+    except ValueError:
+        return raw
+
+
+def _expiry_s(expires_at, now: float):
+    """Seconds until an /api/ps expires_at ("2026-10-15T13:02:11.5+05:30"), or None."""
+    if not expires_at:
+        return None
+    from datetime import datetime
+    s = str(expires_at)
+    m = re.match(r"(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(\.\d+)?(Z|[+-]\d\d:\d\d)?", s)
+    if not m:
+        return None
+    tz = m.group(3) or "+00:00"
+    try:
+        dt = datetime.fromisoformat(m.group(1) + (tz if tz != "Z" else "+00:00"))
+    except ValueError:
+        return None
+    return dt.timestamp() - now
+
+
+def brain_status(model: str, ps: list, now: float = None) -> dict:
+    """{"loaded": bool, "vram_mb", "expires_in_s", "pinned"} for `model` in /api/ps's list."""
+    now = time.time() if now is None else now
+    for m in ps or []:
+        if (m.get("name") or m.get("model")) == model:
+            exp = _expiry_s(m.get("expires_at"), now)
+            return {"loaded": True, "vram_mb": int(m.get("size_vram") or 0) // 2**20,
+                    "expires_in_s": None if exp is None else round(exp),
+                    "pinned": exp is not None and exp > PINNED_AFTER_S,
+                    "num_ctx": m.get("context_length")}
+    return {"loaded": False, "vram_mb": 0, "expires_in_s": None, "pinned": False, "num_ctx": None}
+
+
+def needs_pin(status: dict, keep_alive=KEEP_ALIVE, num_ctx=None) -> bool:
+    """Load when the brain is not loaded, or loaded with another context size (the next
+    question would reload it: measured 2026-10-15, an empty /api/generate loads it at
+    4096, JARVIS asks at 8192). In resident mode (keep_alive < 0), also re-pin when
+    another client's request put it back on a timer (minutes, not centuries)."""
+    if not status.get("loaded"):
+        return True
+    if num_ctx and status.get("num_ctx") and int(status["num_ctx"]) != int(num_ctx):
+        return True
+    return isinstance(keep_alive, int) and keep_alive < 0 and not status.get("pinned")
+
+
+def ps(timeout: float = 2.0) -> list:
+    r = httpx.get(f"{URL}/api/ps", timeout=timeout)
+    r.raise_for_status()
+    return r.json().get("models") or []
+
+
+def pin(model: str, keep_alive=KEEP_ALIVE, num_ctx=None, timeout: float = 180.0) -> bool:
+    """Load `model` (if needed) at JARVIS's context size and set its keep_alive. Never raises."""
+    body = {"model": model, "keep_alive": keep_alive}
+    if num_ctx:
+        body["options"] = {"num_ctx": int(num_ctx)}
+    try:
+        httpx.post(f"{URL}/api/generate", json=body, timeout=timeout)
+        return True
+    except Exception:
+        return False
+
+
+class Keeper:
+    """The thread that keeps the brain resident. check() is one look (tests call it)."""
+
+    def __init__(self, model: str, keep_alive=KEEP_ALIVE, interval_s: float = KEEP_CHECK_S,
+                 get_ps=None, do_pin=None, log=print, busy=lambda: False, num_ctx=None):
+        self.model, self.keep_alive, self.interval_s, self.num_ctx = model, keep_alive, interval_s, num_ctx
+        self.get_ps = get_ps or ps
+        self.do_pin = do_pin or (lambda m, k: pin(m, k, num_ctx))
+        self.log, self.busy = log, busy
+        self.last: dict = {}
+        self.pins = 0
+        self._stop = threading.Event()
+
+    def check(self) -> dict:
+        try:
+            st = brain_status(self.model, self.get_ps())
+        except Exception as e:
+            self.last = {"error": f"{type(e).__name__}: {e}"[:160]}
+            return self.last
+        if needs_pin(st, self.keep_alive, self.num_ctx) and not self.busy():
+            why = ("not loaded" if not st["loaded"] else
+                   f"loaded at num_ctx {st.get('num_ctx')}" if self.num_ctx and st.get("num_ctx")
+                   and int(st["num_ctx"]) != int(self.num_ctx) else f"expires in {st['expires_in_s']} s")
+            ok = self.do_pin(self.model, self.keep_alive)
+            self.pins += 1
+            self.log(f"[Ollama] brain {why}: {'pinned again' if ok else 'pin FAILED'} (keep_alive={self.keep_alive})")
+            st = {**st, "repinned": ok}
+        self.last = st
+        return st
+
+    def start(self) -> "Keeper":
+        def loop():
+            while not self._stop.wait(self.interval_s):
+                self.check()
+        threading.Thread(target=loop, name="ollama-keeper", daemon=True).start()
+        return self
+
+    def stop(self) -> None:
+        self._stop.set()

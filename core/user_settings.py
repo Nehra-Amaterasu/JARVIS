@@ -43,6 +43,10 @@ DEFAULTS: dict = {
     "voice": {"id": None, "speed": 1.0},
     "pronunciations": {},
     "modules": {},
+    # Unprompted remarks (core/proactive.py): enabled, muted, quiet hours, min gap.
+    "proactive": {},
+    # The microphone to keep listening on (core/mic.py): {"name": "<part of its name>"}.
+    "mic": {},
 }
 
 

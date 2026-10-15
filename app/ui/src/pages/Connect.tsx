@@ -19,6 +19,7 @@ import { usePoll } from '../lib/format'
 import { useStore } from '../lib/store'
 import { PageHeader } from '../components/Shell'
 import { BrainCard, ExportsSection, ModulesSection, PronunciationCard, VoiceCard } from '../components/ConnectControls'
+import { RemarksCard } from '../components/RemarksCard'
 import { PhoneCard } from '../components/PhoneCard'
 import { useState } from 'react'
 
@@ -63,6 +64,7 @@ export function ConnectPage() {
           <div className="cx-card" style={{ gap: 14 }}>
             <VoiceCard />
             <PronunciationCard />
+            <RemarksCard />
           </div>
         </div>
       </Group>

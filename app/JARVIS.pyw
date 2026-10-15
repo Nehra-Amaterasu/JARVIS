@@ -12,6 +12,10 @@ Things this launcher handles so a double-click always works:
   - If the interface has never been built, it is built first (needs Node.js).
   - Any failure is written to data/app/launch.log and shown in a message box,
     because a .pyw has nowhere else to say what went wrong.
+  - Started by app/watchdog.pyw (the login shortcut), it gets JARVIS_AUTOSTART_CORE
+    (the voice core starts with the window, routes_alwayson.py) and no message box.
+    Exit code 0 means the window was closed on purpose; anything else is a crash the
+    watchdog restarts.
 """
 import json
 import os
@@ -38,6 +42,10 @@ sys.path.insert(0, str(APP))
 
 
 def message(text: str, error: bool = True) -> None:
+    # Started by app/watchdog.pyw: a dialog would block its restart until someone clicks
+    # it (at 3 am, nobody). The log file still has the details.
+    if os.environ.get("JARVIS_NO_MESSAGEBOX") == "1":
+        return
     try:
         import ctypes
         ctypes.windll.user32.MessageBoxW(None, text, "JARVIS", 0x10 if error else 0x40)

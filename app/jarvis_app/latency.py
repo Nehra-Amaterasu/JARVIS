@@ -22,14 +22,18 @@ low scores on the ones that were are the sign of it.
 """
 from __future__ import annotations
 
+import json
+import os
 import statistics
 import threading
 import time
 from collections import deque
+from pathlib import Path
 from typing import Iterable, Optional
 
 WAKE_THRESHOLD = 0.35            # core/jarvis.py listen_for_wake_word
-KEEP_WAKES = 20
+KEEP_WAKES = 20                  # shown: the wakes since the app started
+KEEP_WAKES_ON_DISK = 500         # kept: data/app/wake.jsonl, across restarts (overnight false wakes)
 
 
 def _num(v) -> Optional[float]:
@@ -95,12 +99,55 @@ class WakeLog:
 
     OPEN = ("listening", "thinking")
 
-    def __init__(self, keep: int = KEEP_WAKES, clock=time.time):
+    def __init__(self, keep: int = KEEP_WAKES, clock=time.time, path: Optional[Path] = None,
+                 keep_on_disk: int = KEEP_WAKES_ON_DISK):
         self._wakes: deque = deque(maxlen=keep)
         self._lock = threading.Lock()
         self.clock = clock
+        # On disk: the last keep_on_disk wakes from every run (one JSON object a line), so
+        # a night's false wakes can be counted in the morning. view() still shows only
+        # this run's, as before.
+        self.path = Path(path) if path else None
+        self._disk: deque = deque(maxlen=keep_on_disk)
+        if self.path is not None:
+            try:
+                for line in self.path.read_text(encoding="utf-8").splitlines():
+                    try:
+                        self._disk.append(json.loads(line))
+                    except ValueError:
+                        pass
+            except OSError:
+                pass
+
+    def _save(self) -> None:
+        if self.path is None:
+            return
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = self.path.with_suffix(".tmp")
+            tmp.write_text("".join(json.dumps(w, ensure_ascii=False) + "\n" for w in self._disk), encoding="utf-8")
+            os.replace(tmp, self.path)
+        except OSError:
+            pass                                    # a full disk must not stop the wake log
 
     def on_event(self, ev: dict) -> None:
+        if self.path is None:
+            return self._on_event(ev)
+        with self._lock:
+            cur = self._wakes[-1] if self._wakes else None
+            before = (id(cur), json.dumps(cur, sort_keys=True, default=str)) if cur is not None else None
+        self._on_event(ev)
+        with self._lock:
+            cur = self._wakes[-1] if self._wakes else None
+            if cur is None:
+                return
+            if before is None or before[0] != id(cur):
+                self._disk.append(cur)               # the same dict: later updates show up in it
+            elif before[1] == json.dumps(cur, sort_keys=True, default=str):
+                return
+            self._save()
+
+    def _on_event(self, ev: dict) -> None:
         kind = ev.get("kind")
         t = _num(ev.get("t")) or self.clock()
         with self._lock:

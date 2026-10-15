@@ -244,28 +244,29 @@
 .fl-tile span { font-size: 12px; line-height: 1.45; }
 .fl-tile i { font-style: normal; margin-top: 6px; gap: 6px; }
 
-/* ---------------------------------------------------------------- the estimate figure
-   Its label is dashed, never solid: a solid edge is a measurement (a radar track's tag). */
-.tw-est {
+/* ---------------------------------------------------------------- the belief cloud
+   Its label is dashed, never solid: a solid edge is a measurement (a radar track's tag).
+   Copper while the belief is "in the room", grey while unsure. */
+.tw-belief {
+  --bel: #d98c52;
   display: flex; align-items: center; gap: 7px; pointer-events: none; white-space: nowrap;
-  padding: 5px 11px 5px 8px; border-radius: 999px; background: rgba(5, 5, 6, 0.74);
-  border: 1px dashed var(--est-line, rgba(92, 225, 255, 0.55));
-  box-shadow: 0 8px 26px -12px var(--est-glow, rgba(92, 225, 255, 0.7));
-  transition: opacity 400ms var(--ease);
+  padding: 4px 11px 4px 8px; border-radius: 999px; background: rgba(5, 5, 6, 0.74);
+  border: 1px dashed color-mix(in srgb, var(--bel) 60%, transparent);
+  box-shadow: 0 8px 26px -12px color-mix(in srgb, var(--bel) 70%, transparent);
+  transform: translateY(-14px);
+  transition: opacity 400ms var(--ease), border-color 600ms var(--ease);
 }
-.tw-est.sim { --est-line: rgba(255, 176, 32, 0.55); --est-glow: rgba(255, 176, 32, 0.7); }
-.tw-est i { font-style: normal; font-size: 13px; display: inline-block; color: #fff; }
-.tw-est b { font: 650 10.5px var(--f-mono); letter-spacing: 0.08em; color: rgba(255, 255, 255, 0.92); }
-.tw-est.out { padding: 4px 10px 4px 8px; }
-.tw-est.out b { color: rgba(255, 255, 255, 0.7); }
-.tw-est.act-waving i { animation: waveHand 0.9s var(--ease-in-out) infinite; transform-origin: 70% 80%; }
-.tw-est.act-typing i { animation: tapKeys 0.35s steps(2) infinite; }
-.tw-est.act-walking i { animation: stepBob 0.6s var(--ease-in-out) infinite; }
-.tw-est.act-still i { animation: breatheGlow 2.4s var(--ease-in-out) infinite; }
-@keyframes waveHand { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(18deg); } }
-@keyframes tapKeys { 50% { transform: translateY(1.5px); } }
-@keyframes stepBob { 50% { transform: translateY(-2px); } }
-@media (prefers-reduced-motion: reduce) { .tw-est i { animation: none !important; } }
+.tw-belief.unsure { --bel: #9aa0a8; }
+.tw-belief i {
+  flex: none; width: 9px; height: 9px; border-radius: 50%;
+  background: radial-gradient(circle, var(--bel) 0 1.5px, transparent 2px) 0 0 / 4.5px 4.5px;
+  animation: breatheGlow 5s var(--ease-in-out) infinite;
+}
+.tw-belief.moving i { animation-duration: 1.2s; }
+.tw-belief b { font: 650 10.5px var(--f-mono); letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.92); }
+.tw-bzone { font: 600 9px var(--f-mono); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap;
+  color: rgba(255, 255, 255, 0.3); pointer-events: none; transform: translateY(8px); }
+@media (prefers-reduced-motion: reduce) { .tw-belief i { animation: none !important; } }
 
 .hud-tc { top: 18px; left: 330px; right: 330px; justify-content: center; }
 .est-legend {
@@ -276,10 +277,12 @@
 .est-legend b { font: 650 10.5px var(--f-mono); letter-spacing: 0.06em; color: var(--ink); text-transform: uppercase; }
 .est-legend span { overflow: hidden; text-overflow: ellipsis; }
 .est-swatch {
-  flex: none; width: 12px; height: 12px; border-radius: 50%; border: 1.5px dotted var(--est, var(--live));
-  box-shadow: 0 0 8px var(--est, var(--live)), inset 0 0 4px var(--est, var(--live));
+  --est: #d98c52;
+  flex: none; width: 12px; height: 12px; border-radius: 50%;
+  background: radial-gradient(circle, var(--est) 0 1.4px, transparent 1.8px) 0 0 / 4px 4px;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--est) 60%, transparent);
 }
-.est-legend.sim .est-swatch { --est: var(--sim); }
+.est-legend.unsure .est-swatch, .est-legend.empty .est-swatch { --est: #9aa0a8; }
 .lc-act { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--hair); }
 .lc-act-now { font: 700 14px var(--f-ui); color: var(--acc); }
 .lc-act-bars { display: flex; gap: 6px; align-items: flex-end; height: 34px; }

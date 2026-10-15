@@ -15,9 +15,10 @@
  *                   unlit dots are the scale)
  *   sim check       only in simulation: live error between the tracked and the
  *                   true positions — the twin grades itself
- *   estimate        the figure in the twin is the learned model's place for me
- *                   (twin/EstimateAvatar.ts); the legend under the title says what it
- *                   is: a learned spot, never a measured coordinate
+ *   belief          the dot cloud in the twin is where movement / presence probably
+ *                   is (twin/BeliefCloud.ts): dots per zone ∝ probability, no body,
+ *                   because Aankhen sees none; the legend says so, and the zone map
+ *                   (circles with names) shows the zones I train against
  *
  * Three views share the stage: 3D, Plan (the twin's two cameras) and Eyes
  * (components/EyesView: the Wi-Fi channel itself, as a waterfall and a spectrum). In
@@ -36,7 +37,7 @@ import { useStore, type Toast } from '../lib/store'
 import type { EyesMsg } from '../lib/eyes'
 import { EyesView } from '../components/EyesView'
 import { FirstLightSheet } from '../components/FirstLight'
-import { SpatialTwin, type EstimateSummary, type FrameMsg, type Framing, type HeatMsg, type Layer, type RoomSpec } from '../twin/SpatialTwin'
+import { SpatialTwin, type BeliefSummary, type FrameMsg, type Framing, type HeatMsg, type Layer, type RoomSpec } from '../twin/SpatialTwin'
 
 type View = '3d' | 'plan' | 'eyes'
 const VIEW_KEY = 'jarvis.aankhen.view'
@@ -56,6 +57,7 @@ interface StatusMsg {
   link: { frames_ok?: number; crc_errors?: number; loss_ratio?: number; port?: string | null }
   room_measured: boolean
   hub?: HubInfo
+  belief?: unknown
 }
 interface TeachStatus {
   recording: boolean; simulated: boolean
@@ -77,7 +79,7 @@ const LAYOUT: Record<string, { label: string; cls: string; hint: string }> = {
 const LAYERS: { id: Layer; label: string }[] = [
   { id: 'walls', label: 'Walls' }, { id: 'house', label: 'House' }, { id: 'heat', label: 'Heat' }, { id: 'fov', label: 'Radar' },
   { id: 'fresnel', label: 'Wi-Fi zone' }, { id: 'trails', label: 'Trails' }, { id: 'labels', label: 'Labels' },
-  { id: 'truth', label: 'Truth' }, { id: 'estimate', label: 'Estimate' },
+  { id: 'truth', label: 'Truth' }, { id: 'estimate', label: 'Belief' }, { id: 'zones', label: 'Zone map' },
 ]
 // The learned model's five states, as I would say them.
 const STATES: { id: string; name: string }[] = [
@@ -105,9 +107,9 @@ export function AankhenPage() {
   const eyesSink = useRef<((m: EyesMsg) => void) | null>(null)
   const [framing, setFramingState] = useState<Framing>('room')
   const [heatLayer, setHeatLayer] = useState<'live' | 'learned'>('live')
-  const [layers, setLayers] = useState<Record<Layer, boolean>>({ walls: true, heat: true, fov: true, fresnel: true, trails: true, labels: true, truth: true, house: true, estimate: true })
-  // What the estimate figure shows (place, activity), or null when it shows nothing.
-  const [est, setEst] = useState<EstimateSummary | null>(null)
+  const [layers, setLayers] = useState<Record<Layer, boolean>>({ walls: true, heat: true, fov: true, fresnel: true, trails: true, labels: true, truth: true, house: true, estimate: true, zones: true })
+  // What the belief cloud says ("probably: at the desk chair · 62 %"), or null with no belief.
+  const [est, setEst] = useState<BeliefSummary | null>(null)
   const [hist, setHist] = useState<{ score: number; thr: number }[]>([])
   const [teachOpen, setTeachOpen] = useState(false)
   const [flOpen, setFlOpen] = useState(false)
@@ -140,7 +142,9 @@ export function AankhenPage() {
       } else if (m.type === 'heatmap') {
         t.onHeatmap(m as HeatMsg)
       } else if (m.type === 'status') {
-        setStatus(m as StatusMsg)
+        const st = m as StatusMsg
+        setStatus(st)
+        if (st.belief) t.onBelief(st.belief, st.source)
       }
     }, (s) => {
       setOnline(s === 'open')
@@ -216,11 +220,11 @@ export function AankhenPage() {
 
         <Presence show={!!est && layers.estimate && !eyes}>
           <div className="hud hud-tc">
-            <div className={`est-legend ${est?.live ? 'live' : 'sim'}`} role="note"
-              title="The figure stands where the learned model places me: at the desk, on the bed or on the open floor. Its opacity is how sure the model is; the heat on it is the Wi-Fi's human-band energy.">
+            <div className={`est-legend ${est?.state ?? ''}`} role="note"
+              title="Aankhen sees no body, only where movement probably is. Each zone gets dots in proportion to its probability; the cloud spreads and jitters with motion and fades when the model is unsure.">
               <i className="est-swatch" aria-hidden />
-              <b>{est?.zone === 'outside' ? 'Door marker' : 'Figure'} = estimate</b>
-              <span>position from learned spots, not measured coordinates</span>
+              <b>{est?.label}</b>
+              <span>dots = probability, not a person{est?.fallback ? ' · from the learned states' : ''}</span>
             </div>
           </div>
         </Presence>

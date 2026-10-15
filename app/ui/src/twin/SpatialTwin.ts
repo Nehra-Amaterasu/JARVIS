@@ -21,12 +21,12 @@
  *   house                the rest of the home (room.json "house"): other rooms as
  *                        dim floors with waist-high glass, fixtures as labelled pins.
  *                        Context only — nothing sensed out there counts as "in the room"
- *   estimate figure      where the LEARNED model places me (EstimateAvatar.ts): a
- *                        hologram person on a learned spot (seated at the desk, lying on
- *                        the bed, standing on the open floor), its opacity = P(place),
- *                        heat on the body where the activity says I am moving, a dotted
- *                        ring under it and an "estimate 82% · desk · typing" label.
- *                        A place, never a measured coordinate
+ *   belief cloud         where movement / presence PROBABLY is (BeliefCloud.ts): small
+ *                        dots per zone, count ∝ P(zone), spread and jitter ∝ motion,
+ *                        opacity = confidence, copper in the room / grey unsure, and a
+ *                        "probably: at the desk chair · 62 %" label. Aankhen sees no
+ *                        body, so the twin draws a probability, never a person
+ *   zone map             faint dashed circles with names: the belief's zones
  * Colour = provenance: cyan measured by hardware, amber simulated/replayed.
  * The camera never cuts: framing my room or the whole house is a flight.
  *
@@ -36,7 +36,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js'
-import { EstimateAvatar, type EstimateSummary } from './EstimateAvatar'
+import { BeliefCloud, type BeliefSummary } from './BeliefCloud'
 
 /* ------------------------------------------------------------------ wire types */
 export interface HouseArea { name: string; polygon: number[][]; kind: string; color?: string; height?: number }
@@ -64,6 +64,8 @@ export interface FrameMsg {
   }
   learned?: { t: number; state: string; p: Record<string, number>; occupied_p: number; advisory: boolean; trained: string; reference?: string
     activity?: { state: string; p: Record<string, number>; trained: string } }| null
+  /** The hub's room belief (lib/belief.ts); absent from an older hub. */
+  belief?: unknown
   csi: { channel?: number | null; n_subcarriers: number; rate_hz: number; rssi: number | null; fill_ratio: number; amplitudes: number[] }
   rates: { csi_hz: number; radar_hz: number }
   events: { id: number; t: number; ts: number; kind: string; text: string }[]
@@ -72,8 +74,8 @@ export interface FrameMsg {
   scenario?: { name: string; t: number; period_s: number | null }
 }
 export interface HeatMsg { type: 'heatmap'; layer: string; w: number; h: number; cell: number; data: number[]; hotspots: { x: number; y: number; person_seconds: number; zone: string | null }[] }
-export type Layer = 'walls' | 'heat' | 'fov' | 'fresnel' | 'trails' | 'labels' | 'truth' | 'house' | 'estimate'
-export type { EstimateSummary }
+export type Layer = 'walls' | 'heat' | 'fov' | 'fresnel' | 'trails' | 'labels' | 'truth' | 'house' | 'estimate' | 'zones'
+export type { BeliefSummary }
 
 const HOUSE_WALL_H = 1.1
 // Areas are tinted by what they are, barely: the eye should read "kitchen" from the
@@ -380,7 +382,7 @@ export class SpatialTwin {
   private planCut = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1.35)
   private zoneViews = new Map<string, { fill: THREE.MeshBasicMaterial; line: THREE.LineDashedMaterial; target: number }>()
   private zoneCentres = new Map<string, [number, number]>()
-  private estimate: EstimateAvatar
+  private estimate: BeliefCloud
   private fresnel: { group: THREE.Group; rings: THREE.LineBasicMaterial[]; foot: THREE.Mesh; flow: THREE.ShaderMaterial; length: number }[] = []
   private fov: { mat: THREE.ShaderMaterial; edge: THREE.LineBasicMaterial; objs: THREE.Object3D[] }[] = []
   private walls: THREE.Object3D[] = []
@@ -391,7 +393,7 @@ export class SpatialTwin {
   private heatW = 0
   private heatH = 0
   private heatColors: THREE.Color[] = []
-  private layers: Record<Layer, boolean> = { walls: true, heat: true, fov: true, fresnel: true, trails: true, labels: true, truth: true, house: true, estimate: true }
+  private layers: Record<Layer, boolean> = { walls: true, heat: true, fov: true, fresnel: true, trails: true, labels: true, truth: true, house: true, estimate: true, zones: true }
   private accent = SIM.clone()
   private live = false
   private motion = 0
@@ -406,8 +408,8 @@ export class SpatialTwin {
   private resizeObs: ResizeObserver
   roomSpec: RoomSpec | null = null
   view: '3d' | 'plan' = '3d'
-  /** What the estimate figure shows changed (place, activity, or gone): for the HUD's legend. */
-  set onEstimate(cb: ((s: EstimateSummary | null) => void) | null) { this.estimate.onChange = cb }
+  /** What the belief cloud says changed (its label or state, or gone): for the HUD's legend. */
+  set onEstimate(cb: ((s: BeliefSummary | null) => void) | null) { this.estimate.onChange = cb }
 
   constructor(container: HTMLElement) {
     this.container = container
@@ -439,7 +441,7 @@ export class SpatialTwin {
     this.scene.add(this.room)
     for (let i = 0; i < POOL; i++) this.people.push(new PersonView(this.room))
     for (let i = 0; i < 6; i++) this.truths.push(new TruthView(this.room))
-    this.estimate = new EstimateAvatar(this.room)
+    this.estimate = new BeliefCloud(this.room)
 
     this.resizeObs = new ResizeObserver(() => this.resize())
     this.resizeObs.observe(container)
@@ -768,7 +770,6 @@ export class SpatialTwin {
     this.pan.enabled = plan
     this.renderer.clippingPlanes = plan ? [this.planCut] : []
     for (const f of this.fresnel) { f.group.visible = !plan && this.layers.fresnel; f.foot.visible = plan && this.layers.fresnel }
-    this.estimate.setView(v)
   }
   setLayer(l: Layer, on: boolean) {
     this.layers[l] = on
@@ -788,7 +789,7 @@ export class SpatialTwin {
     this.house.traverse((o) => { if (o instanceof CSS2DObject) o.visible = this.layers.labels && this.layers.house && (all || !o.userData.houseOnly) })
     this.sensors.traverse((o) => { if (o instanceof CSS2DObject) o.visible = this.layers.labels })
     for (const t of this.truths) if (!this.layers.truth) t.set(null)
-    this.estimate.setLayers({ show: this.layers.estimate, labels: this.layers.labels, trails: this.layers.trails })
+    this.estimate.setLayers({ show: this.layers.estimate, labels: this.layers.labels, zones: this.layers.zones })
   }
   resetCamera() { this.frameCameras(true) }
   /** Stop drawing while another view covers the twin (the Aankhen page's Eyes). Frames
@@ -816,8 +817,8 @@ export class SpatialTwin {
     }
     // Zones lit by a tracked person count fully. With no radar there are no tracks,
     // so the learned model's guess (desk / bed / elsewhere in the room) lights its zone
-    // at half strength: shown, never passed off as a measured position. The estimate
-    // figure stands in it, posed by the activity model.
+    // at half strength: shown, never passed off as a measured position. The belief
+    // cloud draws where in it movement probably is.
     const guess = msg.tracks.length ? null : ({ desk: 'desk', bed: 'bed', room: 'floor' } as Record<string, string>)[msg.learned?.state ?? '']
     this.estimate.onFrame(msg, now / 1000)
     for (const [name, z] of this.zoneViews) z.target = msg.zones[name] ? 1 : name === guess ? 0.45 : 0
@@ -839,6 +840,11 @@ export class SpatialTwin {
       const m = t ? trackPos.get(pairs.get(t.name) ?? '') : undefined
       tv.set(t ?? null, m ? { x: m.x, y: m.y } : undefined, this.layers.labels)
     })
+  }
+
+  /** A `belief` block that came on a status message rather than a frame. */
+  onBelief(belief: unknown, source: string) {
+    this.estimate.onFrame({ source, belief }, performance.now() / 1000)
   }
 
   onHeatmap(msg: HeatMsg) {
@@ -897,7 +903,7 @@ export class SpatialTwin {
       f.flow.uniforms.uT.value = (f.flow.uniforms.uT.value + dt * this.flowSpeed) % 1000
     }
     for (const f of this.fov) { f.mat.uniforms.uI.value = 0.15 + 0.85 * this.radarI; f.edge.opacity = 0.08 + 0.3 * this.radarI }
-    this.estimate.update(dt, t)
+    this.estimate.update(dt, t, this.renderer.domElement.height)
     this.stepFly(dt)
     ;(this.camera === this.persp ? this.orbit : this.pan).update()
     this.renderer.render(this.scene, this.camera)

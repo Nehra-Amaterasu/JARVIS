@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Twin bench</title>
+  </head>
+  <body>
+    <!-- Dev-only frame-time bench for the Aankhen room twin (npm run dev, then open
+         /twin-bench.html). Synthetic room and frames only, no hub, no API calls;
+         not part of the build. -->
+    <div id="bench-stage"></div>
+    <pre id="bench-result">running…</pre>
+    <script type="module" src="/src/twin/bench.ts"></script>
+  </body>
+</html>

@@ -400,6 +400,15 @@ class TemporalFilter:
         return self.belief
 
 
+def _proba_one_thread(clf, X: np.ndarray) -> np.ndarray:
+    """predict_proba on OpenMP's single thread. HistGradientBoosting otherwise starts a
+    thread per core (12 here) to score ONE row, twice a second, inside the engine lock:
+    766 ms and ~2 cores per pair of predictions on 10-14, against 38 ms on one thread."""
+    from threadpoolctl import threadpool_limits
+    with threadpool_limits(limits=1, user_api="openmp"):
+        return clf.predict_proba(X)
+
+
 # ---------------------------------------------------------------- model
 @dataclass
 class SpatialModel:
@@ -410,7 +419,7 @@ class SpatialModel:
 
     def proba(self, X: np.ndarray) -> np.ndarray:
         P = np.zeros((len(X), len(CLASSES)))
-        P[:, [CLASSES.index(c) for c in self.clf.classes_]] = self.clf.predict_proba(X)
+        P[:, [CLASSES.index(c) for c in self.clf.classes_]] = _proba_one_thread(self.clf, X)
         return P
 
     def filtered(self, X: np.ndarray) -> np.ndarray:
@@ -445,7 +454,7 @@ class ActivityModel:
 
     def proba(self, X: np.ndarray) -> np.ndarray:
         P = np.zeros((len(X), len(ACTIVITIES)))
-        P[:, [ACTIVITIES.index(c) for c in self.clf.classes_]] = self.clf.predict_proba(X)
+        P[:, [ACTIVITIES.index(c) for c in self.clf.classes_]] = _proba_one_thread(self.clf, X)
         return P
 
     def save(self, path: str = ACTIVITY_FILE) -> None:

@@ -94,6 +94,14 @@ class AankhenHub:
         self.stream = None
         self.stream_error: Optional[str] = None
         self._stream_usage: tuple[float, dict] = (float("-inf"), {})
+        # Free teachers (teachers.py): laptop input counts, phone on Wi-Fi, voice turns,
+        # relay changes. Logged while the REAL board runs. The app hands the hub two
+        # readers: the fan as the Uno reports it, and a running count of voice turns.
+        self.teachers = None
+        self.fan_reader = None                  # () -> Optional[bool]
+        self.voice_reader = None                # () -> int, rises by one per voice turn
+        self._voice_seen: Optional[int] = None
+        self.fan_board: Optional[bool] = None
 
     # ------------------------------------------------------------ lifecycle
     def start(self, mode: str = "auto", scenario: str = "evening", port: Optional[str] = None,
@@ -146,11 +154,15 @@ class AankhenHub:
                 raise ValueError(f"unknown mode {mode!r}")
             if mode != "simulation":
                 self.sim = None
+            from .dayeval import ZoneModel
             from .learn import ActivityModel, SpatialModel
             prev = self.engine
             self.engine = Engine(self.room, source.kind, self.room_measured, baseline,
                                  fan_baseline=fan_baseline, spatial_model=SpatialModel.load(),
-                                 activity_model=ActivityModel.load())
+                                 activity_model=ActivityModel.load(),
+                                 zone_model=ZoneModel.load_current() if mode != "simulation" else None)
+            if self.fan_board is not None and mode == "hardware":
+                self.engine.set_fan_external(self.fan_board)
             if prev is not None:
                 # Event ids keep rising across a source switch. The app relays an event
                 # only if its id is above the last one relayed (server.aankhen_watch), so
@@ -170,12 +182,82 @@ class AankhenHub:
             self.started_at = time.time()
             self._ensure_hotplug()
             self._ensure_journal()
+            self._ensure_teachers(mode)
             return self.info()
 
     def stop(self) -> None:
         """Stop the source and the hot-plug watcher: a stopped hub stays stopped."""
         self._stop_hotplug()
         self._stop_source()
+        if self.teachers is not None:
+            self.teachers.stop()
+            self.teachers = None
+
+    # ------------------------------------------------------------ free teachers
+    def _ensure_teachers(self, mode: str) -> None:
+        from . import teachers as ft
+        if mode != "hardware" or not ft.enabled():
+            if self.teachers is not None:
+                self.teachers.stop()
+                self.teachers = None
+            return
+        if self.teachers is None:
+            self.teachers = ft.FreeTeachers()
+        self.teachers.start()
+
+    def note_fan(self, on: Optional[bool]) -> None:
+        """What the relay board (the Uno) says the fan is doing."""
+        changed = on != self.fan_board
+        self.fan_board = on
+        if self.teachers is not None:
+            self.teachers.note_relay("fan", on)
+        eng = self.engine
+        if changed and eng is not None and on is not None and self.mode == "hardware":
+            eng.set_fan_external(on)
+
+    def note_relay(self, device: str, on: Optional[bool]) -> None:
+        if self.teachers is not None:
+            self.teachers.note_relay(device, on)
+
+    def note_voice_turn(self) -> None:
+        if self.teachers is not None:
+            self.teachers.note_voice_turn()
+
+    def _teacher_tick(self) -> None:
+        """Once a second: read the app's fan and voice counters, hand the teachers' hint
+        to the engine, and run the daily empty-room recalibration only while the teachers
+        say the room is empty (phone away and laptop idle, 10+ minutes)."""
+        if self.fan_reader is not None:
+            try:
+                self.note_fan(self.fan_reader())
+            except Exception:
+                pass
+        if self.voice_reader is not None:
+            try:
+                n = int(self.voice_reader())
+                if self._voice_seen is not None and n > self._voice_seen:
+                    for _ in range(min(n - self._voice_seen, 10)):
+                        self.note_voice_turn()
+                self._voice_seen = n
+            except Exception:
+                pass
+        eng, t = self.engine, self.teachers
+        if eng is None or t is None or self.mode != "hardware":
+            return
+        hint = t.hint()
+        eng.teacher_hint = hint
+        active = eng.recal.active_source
+        if hint["away"] and active is None:
+            eng.recalibrate_from("teachers")
+        elif not hint["away"] and active == "teachers":
+            eng.recalibrate_from(None)
+
+    def belief(self) -> Optional[dict]:
+        """The zone belief (belief.py contract), or None before anything runs."""
+        eng = self.engine
+        if eng is None:
+            return None
+        return eng.latest_frame().get("belief")
 
     def _stop_source(self) -> None:
         with self._lock:
@@ -495,6 +577,9 @@ class AankhenHub:
                     "room_measured": self.room_measured, "hub": self.info()}
         msg = self.engine.status_message(self.link())
         msg["hub"] = self.info()
+        f = self.engine.latest_frame()
+        msg["belief"] = f.get("belief")
+        msg["honest"] = f.get("honest")
         return msg
 
     def room_message(self) -> dict:
@@ -518,6 +603,10 @@ class AankhenHub:
         def loop():
             while True:
                 time.sleep(1.0)
+                try:
+                    self._teacher_tick()
+                except Exception:
+                    pass
                 eng = self.engine
                 if eng is None or self.mode != "hardware":
                     self.journal.close()           # the segment ends when the board does
@@ -526,9 +615,11 @@ class AankhenHub:
                     f = eng.latest_frame()
                 except Exception:
                     continue
-                l = f.get("learned") or {}
-                zone = l.get("state")
-                act = (l.get("activity") or {}).get("state")
+                # The journal keeps what the HONEST output says: a zone only when sure,
+                # "unsure" / "empty" otherwise, never "waving".
+                h = f.get("honest") or {}
+                zone = h.get("zone") or h.get("state")
+                act = h.get("activity")
                 self.journal.update(zone, act, f["motion_detail"].get("state") == "motion")
 
         self._journal_thread = threading.Thread(target=loop, name="aankhen-journal", daemon=True)

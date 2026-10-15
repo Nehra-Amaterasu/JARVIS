@@ -1,0 +1,254 @@
+{
+  "version": 1,
+  "note": "Zones in the room frame (metres, same origin as room.json). Edit x, y, r freely; set \"estimate\": false on a zone once you have measured it. in_room false means outside the sensed room (bathroom, balcony, gone). neighbours: where you can step to directly.",
+  "zones": [
+    {
+      "id": "at_desk_chair",
+      "name": "Sitting at the desk",
+      "x": 0.8,
+      "y": 0.6,
+      "r": 0.35,
+      "coarse": "desk",
+      "in_room": true,
+      "posture": "seated",
+      "dwell_s": 1800.0,
+      "estimate": true,
+      "neighbours": [
+        "desk_standing"
+      ]
+    },
+    {
+      "id": "desk_standing",
+      "name": "Standing at the desk",
+      "x": 0.8,
+      "y": 1.3,
+      "r": 0.35,
+      "coarse": "desk",
+      "in_room": true,
+      "posture": "standing",
+      "dwell_s": 60.0,
+      "estimate": true,
+      "neighbours": [
+        "at_desk_chair",
+        "beside_bed_desk_side",
+        "wardrobe",
+        "room_door"
+      ]
+    },
+    {
+      "id": "beside_bed_desk_side",
+      "name": "Beside the bed, desk side",
+      "x": 3.1,
+      "y": 1.55,
+      "r": 0.3,
+      "coarse": "room",
+      "in_room": true,
+      "posture": null,
+      "dwell_s": 20.0,
+      "estimate": true,
+      "neighbours": [
+        "desk_standing",
+        "bed_sitting",
+        "room_door",
+        "between_bed_and_balcony_door",
+        "wardrobe"
+      ]
+    },
+    {
+      "id": "bed_lying",
+      "name": "Lying on the bed",
+      "x": 3.1,
+      "y": 3.0,
+      "r": 0.72,
+      "coarse": "bed",
+      "in_room": true,
+      "posture": "lying",
+      "dwell_s": 3600.0,
+      "estimate": true,
+      "neighbours": [
+        "bed_sitting",
+        "standing_on_bed"
+      ]
+    },
+    {
+      "id": "bed_sitting",
+      "name": "Sitting on the bed",
+      "x": 3.1,
+      "y": 2.3,
+      "r": 0.35,
+      "coarse": "bed",
+      "in_room": true,
+      "posture": "seated",
+      "dwell_s": 600.0,
+      "estimate": true,
+      "neighbours": [
+        "beside_bed_desk_side",
+        "bed_lying",
+        "standing_on_bed",
+        "beside_bed_bathroom_wall"
+      ]
+    },
+    {
+      "id": "standing_on_bed",
+      "name": "Standing on the bed",
+      "x": 3.1,
+      "y": 3.0,
+      "r": 0.54,
+      "coarse": "bed",
+      "in_room": true,
+      "posture": "standing",
+      "dwell_s": 30.0,
+      "estimate": true,
+      "neighbours": [
+        "bed_sitting",
+        "bed_lying"
+      ]
+    },
+    {
+      "id": "beside_bed_bathroom_wall",
+      "name": "Beside the bed, bathroom wall",
+      "x": 4.15,
+      "y": 3.0,
+      "r": 0.3,
+      "coarse": "room",
+      "in_room": true,
+      "posture": null,
+      "dwell_s": 20.0,
+      "estimate": true,
+      "neighbours": [
+        "bed_sitting",
+        "outside_bathroom"
+      ]
+    },
+    {
+      "id": "outside_bathroom",
+      "name": "Outside the bathroom",
+      "x": 3.8,
+      "y": 3.0,
+      "r": 0.35,
+      "coarse": "room",
+      "in_room": true,
+      "posture": null,
+      "dwell_s": 15.0,
+      "estimate": true,
+      "neighbours": [
+        "beside_bed_bathroom_wall",
+        "inside_bathroom",
+        "between_bed_and_balcony_door"
+      ]
+    },
+    {
+      "id": "inside_bathroom",
+      "name": "In the bathroom",
+      "x": 4.7,
+      "y": 3.0,
+      "r": 0.6,
+      "coarse": "empty",
+      "in_room": false,
+      "posture": null,
+      "dwell_s": 600.0,
+      "estimate": true,
+      "neighbours": [
+        "outside_bathroom"
+      ]
+    },
+    {
+      "id": "between_bed_and_balcony_door",
+      "name": "Between the bed and the balcony door",
+      "x": 2.4,
+      "y": 3.92,
+      "r": 0.35,
+      "coarse": "room",
+      "in_room": true,
+      "posture": null,
+      "dwell_s": 20.0,
+      "estimate": true,
+      "neighbours": [
+        "beside_bed_desk_side",
+        "outside_bathroom",
+        "at_balcony_door",
+        "wardrobe"
+      ]
+    },
+    {
+      "id": "at_balcony_door",
+      "name": "At the balcony door",
+      "x": 2.4,
+      "y": 3.85,
+      "r": 0.3,
+      "coarse": "room",
+      "in_room": true,
+      "posture": null,
+      "dwell_s": 15.0,
+      "estimate": true,
+      "neighbours": [
+        "between_bed_and_balcony_door",
+        "balcony"
+      ]
+    },
+    {
+      "id": "balcony",
+      "name": "On the balcony",
+      "x": 2.4,
+      "y": 4.65,
+      "r": 0.6,
+      "coarse": "empty",
+      "in_room": false,
+      "posture": null,
+      "dwell_s": 600.0,
+      "estimate": true,
+      "neighbours": [
+        "at_balcony_door"
+      ]
+    },
+    {
+      "id": "room_door",
+      "name": "At the room door",
+      "x": 0.4,
+      "y": 3.5,
+      "r": 0.35,
+      "coarse": "room",
+      "in_room": true,
+      "posture": null,
+      "dwell_s": 10.0,
+      "estimate": true,
+      "neighbours": [
+        "desk_standing",
+        "beside_bed_desk_side",
+        "out_of_room"
+      ]
+    },
+    {
+      "id": "wardrobe",
+      "name": "At the wardrobe",
+      "x": 3.1,
+      "y": 0.5,
+      "r": 0.3,
+      "coarse": "room",
+      "in_room": true,
+      "posture": null,
+      "dwell_s": 60.0,
+      "estimate": true,
+      "neighbours": [
+        "desk_standing",
+        "beside_bed_desk_side",
+        "between_bed_and_balcony_door"
+      ]
+    },
+    {
+      "id": "out_of_room",
+      "name": "Out of the room",
+      "x": -0.5,
+      "y": 3.5,
+      "r": 0.4,
+      "coarse": "empty",
+      "in_room": false,
+      "posture": null,
+      "dwell_s": 1800.0,
+      "estimate": true,
+      "neighbours": [
+        "room_door"
+      ]
+    }
+  ]
+}

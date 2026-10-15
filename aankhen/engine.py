@@ -32,7 +32,9 @@ import numpy as np
 from .csi import CsiConditioner
 from .eyes import EyesBuffer
 from .fusion import Evidence, FusionConfig, PresenceFusion
-from .learn import CLASSES as LEARNED_CLASSES, OCCUPIED as LEARNED_OCCUPIED, FeatureStream, TemporalFilter
+from .belief import BeliefTracker, OodGuard, feature_ranges_from_model, motion01
+from .learn import CLASSES as LEARNED_CLASSES, FEATURES as LEARNED_FEATURES, OCCUPIED as LEARNED_OCCUPIED, \
+    FeatureStream, TemporalFilter
 from .motion import HBE_RECENT_GATE, STATE_MOTION, STATE_UNCALIBRATED, Baseline, MotionConfig, \
     MotionDetector, RespirationDetector
 from .occupancy import OccupancyMap
@@ -74,7 +76,8 @@ class Engine:
                  fusion_cfg: Optional[FusionConfig] = None,
                  clock: Callable[[], float] = time.monotonic,
                  fan_baseline: Optional[Baseline] = None,
-                 spatial_model=None, activity_model=None):
+                 spatial_model=None, activity_model=None, zone_model=None, zone_map=None,
+                 references=None):
         self.room = room
         self.source_kind = source_kind
         self.room_measured = room_measured
@@ -99,10 +102,27 @@ class Engine:
         # recordings from this room (`python -m aankhen learn`).
         self.spatial = spatial_model
         self.activity = activity_model                # what I am doing, when I am in (learn.py)
+        self.zone_model = zone_model                  # drill-trained zones + activities (dayeval.py)
         self._activity_p = None                       # its probabilities, smoothed over ~2 s
-        self._spatial_fs = self.new_feature_stream() if spatial_model is not None else None
         self._spatial_filter = TemporalFilter(spatial_model.priors) if spatial_model is not None else None
         self.learned: Optional[dict] = None
+        # HONESTY (belief.py): one belief over the zone map, an out-of-distribution guard
+        # on the models' inputs, and the empty-room reference matched to firmware + fan.
+        from .zones import load_zones
+        self.zmap = zone_map if zone_map is not None else load_zones(room)
+        self.belief = BeliefTracker(self.zmap)
+        guard_model = zone_model if zone_model is not None else spatial_model
+        self.ood = OodGuard(getattr(guard_model, "features", None) or LEARNED_FEATURES,
+                            feature_ranges_from_model(guard_model))
+        from .recal import Recalibrator, ReferenceStore
+        self.recal = Recalibrator(ReferenceStore(references) if references else None)
+        self.reference: dict = {"source": "baseline" if baseline is not None and baseline.ref else "none",
+                                "matched": False}
+        self.fan_external: Optional[bool] = None      # the fan as the Uno reports it (hub.note_fan)
+        self.teacher_hint: Optional[dict] = None      # free teachers' current hint (hub)
+        self._belief_at = float("-inf")
+        self._ref_key: Optional[tuple] = None
+        self._spatial_fs = self.new_feature_stream() if self._has_models() else None
 
         self.device_t: Optional[float] = None
         self.last_host = {"csi": None, "radar": None, "status": None}
@@ -134,6 +154,11 @@ class Engine:
         # Raw-stream recorder (stream.py), set by the hub on the real board only.
         # Every call into it is one deque append: it never waits on the writer or a disk.
         self.tap = None
+        if source_kind == "simulation":
+            # the simulator's baseline is made for this very run: it always matches
+            self.reference = {"source": "simulated", "matched": True}
+        else:
+            self._match_reference()
 
     # ================================================================ input
     def process(self, pkt) -> None:
@@ -161,15 +186,69 @@ class Engine:
         self.device_status = p.fields
         relays = p.fields.get("relays")
         fan = relays.get("fan") if isinstance(relays, dict) else None
-        if not isinstance(fan, bool):
-            return
-        t = p.timestamp_us / 1e6
-        if self.fan_relay is not None and fan != self.fan_relay:
-            self._csi_settle_until = t + self.FAN_SETTLE_S
-            self._event(t, "fan", f"Fan switched {'on' if fan else 'off'}: "
-                                  f"Wi-Fi ignored for {self.FAN_SETTLE_S:.0f} s while it settles")
-        self.fan_relay = fan
-        self.motion.set_fan(fan)
+        if isinstance(fan, bool):
+            t = p.timestamp_us / 1e6
+            # With the Uno reporting the fan, the ESP32's relay drives nothing: no pause.
+            if self.fan_relay is not None and fan != self.fan_relay and self.fan_external is None:
+                self._csi_settle_until = t + self.FAN_SETTLE_S
+                self._event(t, "fan", f"Fan switched {'on' if fan else 'off'}: "
+                                      f"Wi-Fi ignored for {self.FAN_SETTLE_S:.0f} s while it settles")
+            self.fan_relay = fan
+            if self.fan_external is None:
+                self.motion.set_fan(fan)
+        if self._ref_key != (self.firmware(), self.fan_on):
+            self._match_reference()
+
+    @property
+    def fan_on(self) -> Optional[bool]:
+        """The fan as best known: the Uno's report (the switch that really drives it since
+        10-13) over the ESP32's own relay, which nothing is wired to any more."""
+        return self.fan_external if self.fan_external is not None else self.fan_relay
+
+    def set_fan_external(self, on: Optional[bool], t: Optional[float] = None) -> None:
+        """The hub tells the engine what the Uno says the fan is doing. A switch starts the
+        same settling pause as the ESP32 relay used to, and picks the matching reference."""
+        with self.lock:
+            if on is None:
+                self.fan_external = None
+                return
+            on = bool(on)
+            t = self.device_t if t is None else t
+            if self.fan_external is not None and on != self.fan_external and t is not None:
+                self._csi_settle_until = t + self.FAN_SETTLE_S
+                self._event(t, "fan", f"Fan switched {'on' if on else 'off'} (relay board): "
+                                      f"Wi-Fi ignored for {self.FAN_SETTLE_S:.0f} s while it settles")
+            self.fan_external = on
+            self.motion.set_fan(on)
+            self._match_reference()
+
+    def firmware(self) -> Optional[str]:
+        fw = self.device_status.get("fw") if isinstance(self.device_status, dict) else None
+        return str(fw) if fw else None
+
+    def _match_reference(self) -> None:
+        """Use the empty-room reference made on THIS firmware with the fan as it is now
+        (recal.py). None matching: keep the old one and mark it stale, so no zone is named."""
+        fs = self._spatial_fs
+        self._ref_key = (self.firmware(), self.fan_on)
+        ref = self.recal.store.load(self.firmware(), self.fan_on)
+        if ref is not None and fs is not None:
+            fs.ref_shape = np.asarray(ref["shape"], float)
+            fs.ref_level, fs.ref_rssi = ref.get("level"), ref.get("rssi")
+            fs.seeded = True
+        if ref is not None:
+            self.reference = {"source": f"{ref.get('source', '?')} {ref.get('day', '?')}", "matched": True,
+                              "firmware": self.firmware(), "fan_on": self.fan_on}
+        else:
+            self.reference = {"source": self.reference.get("source", "none") if not self.reference.get("matched")
+                              else "none", "matched": False, "firmware": self.firmware(), "fan_on": self.fan_on}
+        self.belief.reference_ok = ref is not None
+
+    def recalibrate_from(self, source: Optional[str]) -> None:
+        """Start ("teachers" | "drill") or stop (None) collecting empty-room windows for
+        today's reference under the current firmware and fan."""
+        with self.lock:
+            self.recal.set_active(source, self.firmware(), self.fan_on)
 
     # A router that changes channel (auto channel selection, a reboot) hands the
     # ESP32 a different multipath — a different "empty room". The signal history is
@@ -214,9 +293,13 @@ class Engine:
                 tap.sample(s.t, s.amp, s.filled)
             self.resp.push(s)
             if self._spatial_fs is not None:
-                v = self._spatial_fs.push(s, p.rssi, bool(self.fan_relay))
+                v = self._spatial_fs.push(s, p.rssi, self._fan_feature())
                 if v is not None:
                     self._learned_step(s.t, v)
+                    saved = self.recal.push(self._spatial_fs.last)
+                    if saved is not None:
+                        self._event(s.t, "calibrated", "New empty-room reference saved for this firmware and fan")
+                        self._match_reference()
             r = self.motion.push(s)
             if r is None:
                 continue
@@ -230,6 +313,8 @@ class Engine:
                     self._event(r.t, "quiet", "Wi-Fi motion stopped")
             self._last_motion_state = r.state
             self._fuse(r.t)
+            if self._spatial_fs is None:              # no models: the belief still ticks
+                self._belief_step(r.t)
 
     def new_feature_stream(self) -> FeatureStream:
         """The spatial model's feature stream, starting from the calibrated empty room
@@ -237,35 +322,92 @@ class Engine:
         b = self.motion.baseline
         return FeatureStream(ref=b.ref if b is not None else None)
 
+    def _has_models(self) -> bool:
+        return self.spatial is not None or self.zone_model is not None
+
+    def _fan_feature(self) -> bool:
+        """The models' fan_on input. The installed models were trained with it always 0
+        (the ESP32 relay, never wired to the fan), so they keep getting the relay; a model
+        trained on drills, which record the real fan, gets the real fan."""
+        m = self.zone_model if self.zone_model is not None else self.spatial
+        src = (getattr(m, "trained_on", {}) or {}).get("fan_source") if m is not None else None
+        return bool(self.fan_on if src == "uno" else self.fan_relay)
+
+    # The coarse model's top class must be this sure to be shown; below it, "unsure".
+    LEARNED_FLOOR = 0.6
+    ACTIVITY_FLOOR = 0.7
+
     def _learned_step(self, t: float, v: np.ndarray) -> None:
-        b = self._spatial_filter.step(self.spatial.proba(v[None, :])[0])
-        k = int(np.argmax(b))
-        sim_only = "sim" in str(self.spatial.trained_on.get("note", "")) and ".akr" not in str(
-            self.spatial.trained_on.get("note", ""))
-        self.learned = {"t": round(t, 2), "state": LEARNED_CLASSES[k],
-                        "p": {c: round(float(x), 3) for c, x in zip(LEARNED_CLASSES, b)},
-                        "occupied_p": round(float(sum(x for c, x in zip(LEARNED_CLASSES, b)
-                                                      if c in LEARNED_OCCUPIED)), 3),
-                        "advisory": True,
-                        # what "changed" is measured against: the calibrated empty room,
-                        # or (no calibration yet) whatever the first seconds saw
-                        "reference": "calibrated" if self._spatial_fs.seeded else "first seconds",
-                        "trained": "simulator only" if sim_only else "includes your recordings"}
-        if self.activity is not None:
+        ood = self.ood.check(v)
+        coarse_raw = None
+        if self.spatial is not None:
+            raw = self.spatial.proba(v[None, :])[0]
+            coarse_raw = {c: float(x) for c, x in zip(LEARNED_CLASSES, raw)}
+            b = self._spatial_filter.step(raw)
+            k = int(np.argmax(b))
+            sim_only = "sim" in str(self.spatial.trained_on.get("note", "")) and ".akr" not in str(
+                self.spatial.trained_on.get("note", ""))
+            # Honest: below the floor, or on input unlike anything trained, it says so
+            # instead of falling into "bed" (where these models land on anything unseen).
+            state = LEARNED_CLASSES[k] if ood is None and b[k] >= self.LEARNED_FLOOR else "unsure"
+            self.learned = {"t": round(t, 2), "state": state,
+                            "p": {c: round(float(x), 3) for c, x in zip(LEARNED_CLASSES, b)},
+                            "occupied_p": round(float(sum(x for c, x in zip(LEARNED_CLASSES, b)
+                                                          if c in LEARNED_OCCUPIED)), 3),
+                            "advisory": True,
+                            "unsure": ood,
+                            # what "changed" is measured against: the calibrated empty room,
+                            # or (no calibration yet) whatever the first seconds saw
+                            "reference": "calibrated" if self._spatial_fs.seeded else "first seconds",
+                            "reference_matched": bool(self.reference.get("matched")),
+                            "trained": "simulator only" if sim_only else "includes your recordings"}
+        act_p = None
+        if self.activity is not None and self.learned is not None:
             from .learn import ACTIVITIES
-            a = self.activity.proba(v[None, :])[0]
+            a = self.activity.proba(v[None, :])[0].copy()
+            # "waving" is never shown: it was the dumping ground for anything unseen (94 %
+            # of away windows went there). Its mass is dropped and the rest renormalised.
+            if "waving" in ACTIVITIES:
+                a[ACTIVITIES.index("waving")] = 0.0
+                a = a / max(a.sum(), 1e-9)
             # Smoothed (EMA over ~4 windows = 2 s) so the label does not flicker, and only
             # meaningful while I am in the room: out of it, the activity is "none".
             self._activity_p = a if self._activity_p is None else 0.5 * self._activity_p + 0.5 * a
+            act_p = {c: float(x) for c, x in zip(ACTIVITIES, self._activity_p) if c != "waving"}
             occ = self.learned["occupied_p"]
             pa = self._activity_p * occ
             pa[ACTIVITIES.index("none")] += 1.0 - occ
             j = int(np.argmax(pa))
-            self.learned["activity"] = {"state": ACTIVITIES[j], "p": {c: round(float(x), 3) for c, x in zip(ACTIVITIES, pa)},
+            shown = ACTIVITIES[j] if ood is None and pa[j] >= self.ACTIVITY_FLOOR else None
+            self.learned["activity"] = {"state": shown,
+                                        "p": {c: round(float(x), 3) for c, x in zip(ACTIVITIES, pa)
+                                              if c != "waving"},
                                         "trained": "your recordings"}
-        if self.tap is not None:
+        zone_p = None
+        if self.zone_model is not None:
+            zone_p = self.zone_model.zone_proba(v)
+            za = self.zone_model.activity_proba(v)
+            act_p = za if za is not None else act_p
+        self._belief_step(t, coarse_raw, zone_p, act_p, ood, force=True)
+        if self.tap is not None and self.learned is not None:
             a = self.learned.get("activity") or {}
             self.tap.learned(t, self.learned["state"], self.learned["occupied_p"], a.get("state"))
+
+    BELIEF_EVERY_S = 0.5
+
+    def _belief_step(self, t: float, coarse_p=None, zone_p=None, act_p=None, ood=None,
+                     force: bool = False) -> None:
+        if not force and t - self._belief_at < self.BELIEF_EVERY_S:
+            return
+        self._belief_at = t
+        m = self.motion.last
+        f = m.features if m else {}
+        mot = motion01(f.get("hbe"), f.get("hbe_threshold"))
+        if self._csi_settling(t):
+            ood = ood or "Wi-Fi settling after a fan or channel change"
+            coarse_p = zone_p = act_p = None
+        self.belief.step(t, mot, coarse_p=coarse_p, zone_p=zone_p, activity_p=act_p, ood=ood,
+                         teacher=self.teacher_hint)
 
     def _on_radar(self, p: RadarPacket) -> None:
         t = p.timestamp_us / 1e6
@@ -532,6 +674,9 @@ class Engine:
                 "zone_seconds": {k: round(v, 1) for k, v in self.occ.zone_seconds.items()},
                 "presence": self.fusion.summary(t),
                 "learned": self.learned,
+                "belief": self.belief.contract(),
+                "honest": self.belief.honest(),
+                "reference": dict(self.reference),
                 "motion_detail": {
                     "state": m.state if m else None,
                     "score": m.score if m else None,
@@ -548,7 +693,8 @@ class Engine:
                     "breathing_note": b.note,
                     "context": self.motion.context,
                     "settling": self._csi_settling(t),
-                    "fan": {"relay": self.fan_relay, **self.motion.fan.summary()},
+                    "fan": {"relay": self.fan_relay, "board": self.fan_external, "on": self.fan_on,
+                            **self.motion.fan.summary()},
                     # Human-band energy (motion.py): power at body speeds (0.4-4 Hz)
                     # over the last 3 s / 1 s, in units of the window's own noise.
                     "human_band": _human_band(m),
@@ -659,6 +805,8 @@ class Engine:
                 "people": [{"id": t["id"], "zone": t["zone"], "still": t["still"]} for t in f["tracks"]],
                 "motion": f["motion_detail"]["state"],
                 "learned": f.get("learned"),
+                "belief": f.get("belief"),
+                "honest": f.get("honest"),
                 "human_band": f["motion_detail"].get("human_band")}
 
 

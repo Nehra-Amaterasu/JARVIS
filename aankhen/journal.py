@@ -1,8 +1,9 @@
 """What I did, where, and for how long: Aankhen's memory of the day.
 
-Every second the hub hands the journal what the live board says right now: the zone
-the spatial model places me in (desk / bed / room / outside / empty), what the activity
-model says I am doing (still / typing / waving / walking), and whether Wi-Fi saw motion.
+Every second the hub hands the journal what the live board HONESTLY says right now
+(engine "honest", belief.py): the zone when one is sure enough, else "in_room" /
+"empty" / "unsure"; the activity (still / typing / moving / lying) when sure, else none;
+and whether Wi-Fi saw motion. "Waving" is no longer an activity.
 The journal keeps one open SEGMENT (the same zone and activity) and closes it when either
 changes for longer than a short hold, so a one-second flicker never splits the day.
 Closed segments go to data/aankhen/activity/<date>.jsonl (git-ignored: this is a

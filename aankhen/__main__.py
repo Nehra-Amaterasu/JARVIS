@@ -7,6 +7,10 @@
     python -m aankhen bench [FILES...] [--sim --seeds 5]     score against ground truth
     python -m aankhen simulate --scenario evening --seconds 220 --out recordings/x.akr
     python -m aankhen worldmodel train|eval [RECORDINGS...] --out MODEL  self-supervised world model
+    python -m aankhen drill [--minutes 26] [--zones a,b] [--fan both|on|off]   the daily labelled drill
+    python -m aankhen evaluate --leave-one-day-out    judge drill-trained models by days they never saw
+    python -m aankhen train                           train zones + activities on every drill day
+    python -m aankhen zones [--write]                 the zone map (write data/aankhen/zones.json to edit)
 
 Run from the JARVIS folder with the project venv (.venv). Layout, baselines,
 recordings and models live in data/aankhen/.
@@ -422,6 +426,117 @@ def cmd_worldmodel(a) -> int:
     return 0
 
 
+def _app_api() -> tuple:
+    """(base, token) of the running JARVIS app, or (None, why). The app writes its port and
+    this launch's token to <data>/app/runtime/aankhen-api.json (routes_aankhen_drill.py)."""
+    import urllib.request
+    data = os.environ.get("JARVIS_DATA_DIR") or os.path.join(os.path.dirname(DATA_DIR), "app")
+    try:
+        with open(os.path.join(data, "runtime", "aankhen-api.json"), encoding="utf-8") as f:
+            rt = json.load(f)
+    except (OSError, ValueError):
+        return None, "no app runtime file"
+    try:
+        req = urllib.request.Request(rt["base"] + "/api/aankhen", headers={"x-jarvis-token": rt["token"]})
+        with urllib.request.urlopen(req, timeout=2) as r:
+            info = json.loads(r.read().decode())
+        return (rt["base"], rt["token"], info), None
+    except Exception as e:
+        return None, f"app not answering ({type(e).__name__})"
+
+
+def cmd_drill(a) -> int:
+    from . import drill as dr
+    from .teachers import FreeTeachers
+    seed = a.seed if a.seed is not None else int(time.time() // 86400)
+    zones = [z.strip() for z in a.zones.split(",")] if a.zones else None
+    try:
+        blocks = dr.plan_session(seed, a.minutes, zones, a.fan, a.block_seconds)
+    except ValueError as e:
+        print(f"  {e}")
+        return 2
+    print(dr.describe_plan(blocks))
+    if a.plan:
+        return 0
+    app, why = _app_api()
+    if app is not None:
+        base, token, info = app
+        if info.get("mode") != "hardware":
+            print(f"  The JARVIS app is running but Aankhen is on {info.get('mode')!r}, not the board."
+                  " Press ESP32 on the Aankhen tab, then run the drill again.")
+            return 1
+        print(f"  Recording through the running app ({base}); the drill does not open the port itself.")
+        backend = dr.HttpBackend(base, token)
+    else:
+        print(f"  The JARVIS app is not running ({why}): opening the board directly.")
+        try:
+            backend = dr.DirectBackend(a.port)
+        except RuntimeError as e:
+            print(f"  {e}")
+            return 1
+    inputs = FreeTeachers(write_lines=False).start()
+    speak = dr.speak_default if not a.no_voice else (lambda t: print(f"  JARVIS: {t}\a", flush=True))
+    runner = dr.DrillRunner(backend, dr.KeyboardConfirmer(), speak=speak, inputs=inputs,
+                            min_rate=a.min_rate)
+    print("\n  Keys: Enter = ready / done as asked;  r = redo;  b = bad;  w <zone> = I was really there;"
+          "  q = stop.\n")
+    try:
+        res = runner.run(blocks, seed, note=a.note or "")
+    except KeyboardInterrupt:
+        runner.stop()
+        print("\n  Stopped.")
+        return 1
+    finally:
+        inputs.stop()
+        backend.close()
+    print(f"\n  Session {res['session']}: {res['state']}, {res['passed']} passed, {res['failed']} failed.")
+    print(f"  Saved in {res['folder']}")
+    print(json.dumps(res["summary"], indent=1))
+    return 0
+
+
+def cmd_evaluate(a) -> int:
+    from .dayeval import format_report, leave_one_day_out, load_days
+    days = load_days(a.root)
+    rep = leave_one_day_out(days)
+    print(format_report(rep))
+    if a.json:
+        with open(a.json, "w", encoding="utf-8") as fh:
+            json.dump(rep, fh, indent=1, default=float)
+    return 0
+
+
+def cmd_train(a) -> int:
+    from .dayeval import MODEL_ROOT, load_days, train_all
+    days = load_days(a.root)
+    try:
+        m, folder = train_all(days, a.out or MODEL_ROOT)
+    except ValueError as e:
+        print(f"  {e}")
+        return 1
+    print(f"  Trained on {m.trained_on['windows']} windows from {len(days)} day(s); saved {folder}")
+    print("  The app uses it from its next Aankhen start. Older versions are kept beside it.")
+    return 0
+
+
+def cmd_zones(a) -> int:
+    from .room import load_room
+    from .zones import ZONES_FILE, ZoneMap, default_zones, load_zones
+    room, _ = load_room()
+    zm = load_zones(room)
+    print(f"  zones from: {zm.source}" + (f" ({ZONES_FILE})" if zm.source == "file" else " (room.json)"))
+    for z in zm.zones:
+        print(f"  {z.id:30s} x {z.x:5.2f}  y {z.y:5.2f}  r {z.r:4.2f}  {'in room ' if z.in_room else 'outside '}"
+              f"{'estimate' if z.estimate else 'measured'}  {z.name}")
+    if a.write:
+        if os.path.exists(ZONES_FILE) and not a.force:
+            print(f"  {ZONES_FILE} exists; --force overwrites it with the derivation from room.json.")
+            return 1
+        path = ZoneMap(default_zones(room)).save(ZONES_FILE)
+        print(f"  Wrote {path}. Edit x, y, r there; set \"estimate\": false when measured.")
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="python -m aankhen", description=__doc__.split("\n")[0])
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -524,10 +639,37 @@ def main(argv=None) -> int:
     wm.add_argument("--json", help="(eval) also write the report as JSON")
     wm.add_argument("--no-features", action="store_true", help="(eval) skip the zone / activity comparison")
 
+    dl = sub.add_parser("drill", help="the daily labelled drill (~26 min): blocks of zone + activity + fan")
+    dl.add_argument("--minutes", type=float, default=26.0, help="time budget (default 26)")
+    dl.add_argument("--zones", help="comma-separated zone ids to drill (default: all)")
+    dl.add_argument("--fan", choices=["both", "on", "off"], default="both")
+    dl.add_argument("--seed", type=int, help="block order seed (default: today's date)")
+    dl.add_argument("--block-seconds", type=float, default=50.0)
+    dl.add_argument("--min-rate", type=float, default=150.0, help="QC: minimum CSI packets/s")
+    dl.add_argument("--port", help="serial port when the app is not running")
+    dl.add_argument("--plan", action="store_true", help="only print the plan")
+    dl.add_argument("--no-voice", action="store_true", help="print prompts and beep instead of speaking")
+    dl.add_argument("--note", help="free text saved with the session (no names)")
+
+    ev = sub.add_parser("evaluate", help="score drill-trained models on held-out days")
+    ev.add_argument("--leave-one-day-out", action="store_true", default=True,
+                    help="hold out each day in turn (the only mode)")
+    ev.add_argument("--root", help="drill folder (default data/aankhen/drill)")
+    ev.add_argument("--json", help="also write the report as JSON")
+
+    tr = sub.add_parser("train", help="train zone + activity models on every drill day (versioned)")
+    tr.add_argument("--root", help="drill folder (default data/aankhen/drill)")
+    tr.add_argument("--out", help="model folder (default data/aankhen/models/drill)")
+
+    zn = sub.add_parser("zones", help="show the zone map; --write saves it for editing")
+    zn.add_argument("--write", action="store_true")
+    zn.add_argument("--force", action="store_true")
+
     a = p.parse_args(argv)
     return {"doctor": cmd_doctor, "serve": cmd_serve, "record": cmd_record,
             "calibrate": cmd_calibrate, "bench": cmd_bench, "simulate": cmd_simulate,
             "physics": cmd_physics, "validate": cmd_validate, "learn": cmd_learn, "worldmodel": cmd_worldmodel,
+            "drill": cmd_drill, "evaluate": cmd_evaluate, "train": cmd_train, "zones": cmd_zones,
             "learnroom": lambda a: print(__import__("aankhen.firstlight", fromlist=["x"]).run_room_session(a.port, not a.no_voice, a.rounds)) or 0,
             "firstlight": lambda a: __import__("aankhen.firstlight", fromlist=["main"]).main(a.port, not a.no_voice)}[a.cmd](a)
 

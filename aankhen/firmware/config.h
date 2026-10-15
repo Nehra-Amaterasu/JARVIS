@@ -51,4 +51,4 @@
 // of the human band. esp_ping waits for each reply before the next ping, so link 2
 // gets at most 1000 / (the phone's reply time in ms) per second whatever this says.
 // To stop link 2, close the page.
-#define BEACON_PING_HZ 100
+#define BEACON_PING_HZ 200

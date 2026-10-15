@@ -49,7 +49,7 @@ export interface EnergyView {
   now: number; estimate: boolean; meter: null | Record<string, unknown>
   report: Report
   circuits: { source: 'yours' | 'example'; example: boolean; relay_channels: number; problems: { id: string | null; error: string }[]; relay_rating_a: number; safe_current_a: number; circuits: Circuit[] }
-  states: Record<string, { on: boolean; level: number; watts: number; since: number | null; link: 'usb' | 'virtual' | 'manual' | null; origin: string | null }>
+  states: Record<string, { on: boolean; watts: number; since: number | null; link: 'usb' | 'virtual' | 'manual' | null; origin: string | null }>
   waste: {
     status: { state: string; text: string; sim?: boolean; empty_min?: number }
     config: { sensed_room: string | null; grace_min: number; nudge_after_min: number; auto_off_enabled: boolean; auto_off_after_min: number; min_after_nudge_min: number; night: { start: string; end: string }; notes: string[] }

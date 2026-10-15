@@ -119,15 +119,12 @@ class Circuit:
             return 0
         return max(1, min(self.speed_steps, math.ceil(max(0, min(100, level)) / 100 * self.speed_steps)))
 
-    def watts(self, on: bool, level: int = 100) -> float:
-        """ESTIMATED draw. A light on a relay is on or off (no dimmer is wired), so it
-        draws its rated watts whatever the app's brightness says; a fan with a step
-        table draws that step's watts."""
-        if not on:
-            return 0.0
-        if self.speed_steps > 0 and len(self.watts_by_step) == self.speed_steps:
-            return float(self.watts_by_step[self.step(level) - 1])
-        return float(self.rated_w)
+    def watts(self, on: bool, level=None) -> float:
+        """ESTIMATED draw: on/off only. The relays switch and nothing else: no dimmer is
+        wired, and a fan's speed is set on its wall regulator, which JARVIS cannot read.
+        So an on load draws its rated watts (a fan's at full speed, the safe side of the
+        estimate). `level` is ignored; it stays in the signature for older callers."""
+        return float(self.rated_w) if on else 0.0
 
     def to_dict(self) -> dict:
         d = {k: getattr(self, k) for k in _FIELDS}

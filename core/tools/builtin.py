@@ -88,12 +88,11 @@ def get_datetime(ctx: ToolContext) -> Receipt:
 
 
 def _say_device(d: str, st: dict, relay: bool = False) -> str:
-    """relay: a real on/off relay drives it, so a level would be a fiction (the fan's
-    speed is its wall regulator's; nothing dims the light)."""
-    noun = "light" if d == "light" else "fan"
-    if not st.get("on"):
-        return f"The {noun} is off."
-    return f"The {noun} is on." if relay else f"The {noun} is on at {int(st.get('level', 0))} percent."
+    """On or off, nothing else: the relays only switch (the fan's speed is its wall
+    regulator's; nothing dims the light), and the virtual room mirrors them. `relay`
+    is kept for callers; the sentence is the same either way."""
+    noun = d.replace("_", " ")
+    return f"The {noun} is {'on' if st.get('on') else 'off'}."
 
 
 VIRTUAL_NOTE = "Virtual room only; no relay board is connected."
@@ -257,7 +256,7 @@ def set_device(ctx: ToolContext, device: str, action: str, value: Optional[int] 
                            source="app · Limbs", error=_detail(res))
         state = res.get("state") or {}
         delivered = res.get("delivered") or {}
-        targets = ["light", "fan"] if device == "all" else [device]
+        targets = list(state) if device == "all" else [device]
         try:
             view = _limbs_view(ctx) or {}
         except Exception:
@@ -275,8 +274,11 @@ def set_device(ctx: ToolContext, device: str, action: str, value: Optional[int] 
                        data={"state": {d: state.get(d) for d in targets}, "delivered": delivered,
                              "changed": res.get("changed", [])})
     if ctx.room is not None:
+        if device != "all" and device not in ctx.room.state:
+            return Receipt("set_device", "T1", False, f"There is no device called {device} in the room.",
+                           source="JARVIS's own virtual room (no app)", error="unknown device")
         ctx.room.apply(device, action, value)
-        targets = ["light", "fan"] if device == "all" else [device]
+        targets = list(ctx.room.state) if device == "all" else [device]
         did = " ".join(_say_device(d, ctx.room.state[d]) for d in targets)
         return Receipt("set_device", "T1", True, did + " " + VIRTUAL_NOTE, source="JARVIS's own virtual room (no app)",
                        simulated=True, backs=("switch", "switch_state"),
@@ -285,10 +287,12 @@ def set_device(ctx: ToolContext, device: str, action: str, value: Optional[int] 
                    error="no app and no room module")
 
 
-_SCENE_SAY = {"focus": "Deep focus", "relaxation": "Wind down", "sleep": "Sleep"}
+_SCENE_SAY = {"focus": "Deep focus", "relaxation": "Wind down", "sleep": "Sleep", "all_off": "All off"}
 
 
 def set_scene(ctx: ToolContext, scene: str) -> Receipt:
+    """A room mode: an on/off set of devices (built in, or one he made in the Limbs tab),
+    by id or by name."""
     if ctx.has_app:
         try:
             status, res = ctx.api("POST", f"/api/limbs/scene/{scene}")
@@ -299,17 +303,23 @@ def set_scene(ctx: ToolContext, scene: str) -> Receipt:
             return Receipt("set_scene", "T1", False, f"The scene was refused: {_detail(res)}.", source="app · Limbs",
                            error=_detail(res))
         state = res.get("state") or {}
+        mode = res.get("mode") or {}
         try:
             usb = bool((_limbs_view(ctx) or {}).get("usb"))
         except Exception:
             usb = False
-        did = f"{_SCENE_SAY.get(scene, scene)} scene: " + " ".join(_say_device(d, state.get(d, {})) for d in ("light", "fan"))
+        shown = list(mode.get("resolved") or state)
+        did = f"{mode.get('name') or _SCENE_SAY.get(scene, scene)}: " + " ".join(
+            _say_device(d, state.get(d, {})) for d in shown)
         return Receipt("set_scene", "T1", True, did + ("" if usb else " " + VIRTUAL_NOTE),
                        source="app · Limbs " + ("(relay board over USB)" if usb else "(virtual room)"),
                        simulated=not usb, backs=("switch", "switch_state"), data={"state": state})
     if ctx.room is not None:
-        ctx.room.apply("environment", scene, scene)
-        did = f"{_SCENE_SAY.get(scene, scene)} scene: " + " ".join(_say_device(d, ctx.room.state[d]) for d in ("light", "fan"))
+        said = ctx.room.apply("environment", scene, scene)
+        if str(said).startswith("Unknown mode"):
+            return Receipt("set_scene", "T1", False, f"There is no mode called {scene}.",
+                           source="JARVIS's own virtual room (no app)", error="unknown mode")
+        did = f"{_SCENE_SAY.get(scene, scene)}: " + " ".join(_say_device(d, s) for d, s in ctx.room.state.items())
         return Receipt("set_scene", "T1", True, did + " " + VIRTUAL_NOTE, source="JARVIS's own virtual room (no app)",
                        simulated=True, backs=("switch", "switch_state"))
     return Receipt("set_scene", "T1", False, "I can't reach the room's switches right now.", source="none",
@@ -343,13 +353,17 @@ def set_reminder(ctx: ToolContext, text: str, when: str, kind: str = "reminder")
 
 
 def switch_later(ctx: ToolContext, device: str, action: str, when: str, value: Optional[int] = None) -> Receipt:
+    """Schedule an on/off (or a mode). `value` is accepted from older callers and dropped:
+    the relays have no levels."""
     if device == "scene":
         act = {"device": "environment", "action": action, "value": action}
+    elif action not in ("on", "off"):
+        return Receipt("switch_later", "T1", False, f"I can only switch the {device} on or off later, sir.",
+                       source="core/tools", error="not on/off")
     else:
-        act = {"device": device, "action": action, "value": value}
+        act = {"device": device, "action": action, "value": None}
     return _post_reminder(ctx, "switch_later", {
-        "kind": "action", "when": when, "origin": ctx.origin,
-        "text": f"{device} {action}" + (f" {value}%" if value is not None else ""), "action": act})
+        "kind": "action", "when": when, "origin": ctx.origin, "text": f"{device} {action}", "action": act})
 
 
 def say(receipts: list[Receipt]) -> str:
@@ -467,8 +481,8 @@ def default_registry() -> Registry:
                      r"current (?:time|date)|today'?s date|what day|which day|kitne baje|kya time|samay kya|"
                      r"aaj (?:kya|kaun ?sa|konsa) (?:date|din)|tarikh|weekday|day of the week)\b")))
     reg.register(Tool(
-        "room_state", "Read whether the room's light and fan are on, and at what level. Says when the room is "
-        "virtual (no relay board).", {}, (), Tier.T0, lambda ctx: room_state(ctx),
+        "room_state", "Read whether the room's light and fan (and any other wired device) are on or off. Says "
+        "when the room is virtual (no relay board).", {}, (), Tier.T0, lambda ctx: room_state(ctx),
         "read the room's light and fan", backs=("switch_state",), triggers=_RX(_ROOM_WORDS)))
     reg.register(Tool(
         "presence", "Ask the Aankhen room sensors who is in the room. Says when the sensors are only simulated.",
@@ -487,17 +501,20 @@ def default_registry() -> Registry:
         lambda ctx: list_reminders(ctx), "list his reminders, timers and alarms", backs=("reminder_read",),
         triggers=_RX(_REMIND_WORDS)))
     reg.register(Tool(
-        "set_device", "Switch the room's light or fan now: on, off, set to a level, dim or brighten.",
-        {"device": {"type": "string", "enum": ["light", "fan", "all"]},
-         "action": {"type": "string", "enum": ["on", "off", "set", "dim", "brighten"]},
-         "value": {"type": "integer", "minimum": 0, "maximum": 100, "description": "level in percent, optional"}},
+        "set_device", "Switch a room device on or off now: the light, the fan, 'all', or another device wired "
+        "in the Limbs tab. Relays only switch: no brightness, no fan speed.",
+        {"device": {"type": "string", "maxLength": 24, "description": "light, fan, all, or a wired device's id"},
+         "action": {"type": "string", "enum": ["on", "off"]}},
         ("device", "action"), Tier.T1, lambda ctx, **a: set_device(ctx, **a),
         "switch the light and fan on or off now (relays: the fan's speed is on his wall regulator, the light has "
         "no dimmer)", backs=("switch", "switch_state"), triggers=_RX(_ROOM_WORDS)))
     reg.register(Tool(
-        "set_scene", "Set a room scene: focus (light 80%, fan low), relaxation (light 30%, fan medium) or sleep "
-        "(light off, fan low).", {"scene": {"type": "string", "enum": ["focus", "relaxation", "sleep"]}},
-        ("scene",), Tier.T1, lambda ctx, scene: set_scene(ctx, scene), "set a room scene (focus, relaxation, sleep)",
+        "set_scene", "Set a room mode, an on/off set of the devices: focus (Deep focus: light on, fan on), "
+        "relaxation (Wind down: light off, fan on), sleep (light off, fan on), all_off, or a mode he made in "
+        "the Limbs tab, by its name.",
+        {"scene": {"type": "string", "maxLength": 32, "description": "the mode's id or name"}},
+        ("scene",), Tier.T1, lambda ctx, scene: set_scene(ctx, scene), "set a room mode (deep focus, wind down, "
+        "sleep, all off, or one he made)",
         backs=("switch", "switch_state"), triggers=_RX(_ROOM_WORDS)))
     reg.register(Tool(
         "set_reminder", "Set a reminder, timer or alarm for anything he wants to remember or do later: a call, "
@@ -519,10 +536,10 @@ def default_registry() -> Registry:
         "switch_later", "Switch the room's light or fan, or set a room scene, at a later time — only when he names "
         "the light, the fan or a scene ('fan off in 30 minutes', 'light off at 11 pm'). For a scene, device is "
         "'scene' and action is the scene name. Anything else to do later is a reminder (set_reminder).",
-        {"device": {"type": "string", "enum": ["light", "fan", "all", "scene"]},
-         "action": {"type": "string", "enum": ["on", "off", "set", "dim", "brighten", "focus", "relaxation", "sleep"]},
-         "when": {"type": "string", "description": "the time as he said it", "maxLength": 120},
-         "value": {"type": "integer", "minimum": 0, "maximum": 100}},
+        {"device": {"type": "string", "maxLength": 24, "description": "light, fan, all, a wired device's id, "
+                    "or 'scene'"},
+         "action": {"type": "string", "maxLength": 32, "description": "on or off; for a scene, the mode's name"},
+         "when": {"type": "string", "description": "the time as he said it", "maxLength": 120}},
         ("device", "action", "when"), Tier.T1, lambda ctx, **a: switch_later(ctx, **a),
         "switch the light or fan at a later time", backs=("schedule", "switch"),
         triggers=_RX(r"(" + _ROOM_WORDS + r").{0,40}\b(in|at|after|baad|baje)\b")))

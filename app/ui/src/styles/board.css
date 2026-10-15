@@ -96,3 +96,22 @@
 .wiring-later { margin-top: 22px; padding: 16px 18px; border-radius: var(--r); background: rgba(255, 255, 255, 0.025); box-shadow: inset 0 0 0 1px var(--hair); }
 .wiring-later .eyebrow { display: inline-flex; gap: 6px; align-items: center; }
 .wiring-later ol { margin: 10px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 7px; font-size: 12.5px; line-height: 1.55; color: var(--ink-2); }
+
+/* ---------------------------------------------------------------- limbs: modes and the presence rule (2026-10-15) */
+.limbs-modes { margin-top: 22px; }
+.limbs-modes-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+.limbs-modes-head .btn { margin-left: auto; }
+.limbs-modes .scenes { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); margin-top: 0; }
+.scene.mode { position: relative; padding: 0; }
+.scene.mode .mode-run { display: block; width: 100%; padding: 18px; text-align: left; }
+.scene.mode .mode-run em { display: block; margin-top: 6px; font-size: 10px; font-style: normal; color: var(--live); }
+.scene.mode.last { box-shadow: inset 0 0 0 1px rgba(92, 225, 255, 0.28), var(--glass-edge); }
+.scene.mode .mode-tools { position: absolute; top: 8px; right: 8px; display: flex; gap: 2px; opacity: 0.55; }
+.scene.mode:hover .mode-tools, .scene.mode:focus-within .mode-tools { opacity: 1; }
+.mode-editor { margin-top: 12px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.mode-name { display: flex; flex-direction: column; gap: 6px; max-width: 320px; }
+.mode-name input, .presence-quiet input { background: rgba(255, 255, 255, 0.05); border: 0; border-radius: 8px; padding: 8px 10px; color: var(--ink); box-shadow: inset 0 0 0 1px var(--hair-2); }
+.mode-devices { display: flex; flex-wrap: wrap; gap: 8px; }
+.presence-rule { margin-top: 18px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.presence-quiet { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.wiring-p.fault { color: var(--fault, #ff6b6b); }

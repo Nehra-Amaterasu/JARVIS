@@ -4,7 +4,7 @@
     GET  /api/energy/report?period=&at=      one report (at = any timestamp in the period)
     GET  /api/energy/circuits                the switchboard, with each relay's safety verdict
     POST /api/energy/circuits/{id}/relay     {"channel": n | null}; unsafe loads are refused (400)
-    POST /api/energy/circuits/{id}/state     {"on": bool, "level"?: n}; switches it if JARVIS can,
+    POST /api/energy/circuits/{id}/state     {"on": bool}; switches it if JARVIS can (on/off only),
                                              otherwise records what you reported (and says so)
     POST /api/energy/nudges/{id}/keep        "keep it on": no automatic switch-off this episode
     POST /api/energy/auto-off                {"enabled": bool}

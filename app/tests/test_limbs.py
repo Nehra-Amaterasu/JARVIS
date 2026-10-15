@@ -1,6 +1,8 @@
-"""The room owner: commands match core/room.py exactly, relays get driven, and the
-buttons work whether or not JARVIS is awake."""
+"""The room owner: on/off only, commands match core/room.py exactly, modes are
+editable on/off sets, devices come from devices.json, and the buttons work whether or
+not JARVIS is awake. No serial port is ever opened (fakes only)."""
 import importlib
+import json
 import sys
 
 import pytest
@@ -15,16 +17,18 @@ class FakeCore:
         self.running = running
         self.sent = []
         self.room_listener = None
-        self.mqtt = None
 
     def info(self):
-        return {"running": self.running, "mqtt": self.mqtt}
+        return {"running": self.running}
 
     def room_command(self, device, action, value=None):
         self.sent.append((device, action, value))
 
 
 class FakeHub:
+    """An ESP32 with relays (devices on board "esp32", or every device when the Uno
+    transport is switched off)."""
+
     def __init__(self, connected=True):
         self.connected = connected
         self.commands = []
@@ -45,23 +49,47 @@ class FakeHub:
         return {"relays": dict(self.relays)} if self.connected else {}
 
 
-def _limbs(tmp_path, core=None, hub=None):
-    return Limbs(core or FakeCore(), hub if hub is not None else FakeHub(), EventBus(), path=tmp_path / "room.json")
+class FakeUno:
+    """uno.UnoRelays as limbs.py sees it: a board that confirms what it has."""
+
+    def __init__(self, channels=("light", "fan"), connected=True):
+        self.connected = connected
+        self.state = {c: False for c in channels}
+        self.calls = []
+
+    def set(self, device, on):
+        self.calls.append((device, on))
+        if device not in self.state:
+            return False, f"the board has no {device} channel"
+        self.state[device] = on
+        return True, ""
+
+    def view(self):
+        return {"connected": self.connected, "port": "COM8", "version": "1.1.0", "pins": {}, "channels": list(self.state),
+                "state": dict(self.state), "error": None}
+
+
+def _limbs(tmp_path, core=None, hub=None, relays=None):
+    return Limbs(core or FakeCore(), hub if hub is not None else FakeHub(), EventBus(), path=tmp_path / "room.json",
+                 relays=relays, sleep=lambda s: None)
 
 
 def _room_py():
     sys.path.insert(0, str(CORE))
     room = importlib.import_module("room")
-    room.state.update({"light": {"on": False, "level": 100}, "fan": {"on": False, "level": 60}})
+    for d in list(room.state):
+        room.state[d] = {"on": False}
     return room
 
 
+# ------------------------------------------------------------------ on/off, and the mirror
 @pytest.mark.parametrize("seq", [
-    [("light", "on", None), ("light", "dim", None), ("light", "dim", None), ("fan", "set", 40)],
+    [("light", "on", None), ("light", "dim", None), ("fan", "set", 40)],
     [("all", "on", None), ("fan", "brighten", None), ("light", "off", None)],
-    [("environment", "focus", "focus"), ("light", "brighten", 95)],
-    [("environment", "sleep", "sleep"), ("fan", "dim", None)],
+    [("environment", "focus", "focus"), ("light", "off", None)],
+    [("environment", "sleep", "sleep"), ("fan", "off", None)],
     [("environment", "relaxation", "relaxation"), ("all", "off", None)],
+    [("all", "on", None), ("environment", "all_off", "all_off")],
 ])
 def test_semantics_match_room_py(seq):
     """JARVIS's voice path (room.py) and the app must agree on every command."""
@@ -71,6 +99,13 @@ def test_semantics_match_room_py(seq):
         room.apply(device, action, value)
         apply_command(state, device, action, value)
     assert state == room.state
+
+
+def test_there_are_no_levels_anywhere(tmp_path):
+    l = _limbs(tmp_path)
+    r = l.apply("light", "set", 55)                       # an old caller asking for 55 %
+    assert r["state"]["light"] == {"on": True}
+    assert "level" not in json.dumps(l.view()["devices"]) and "%" not in json.dumps(l.view()["modes"])
 
 
 def test_buttons_work_while_jarvis_sleeps_and_drive_the_relay(tmp_path):
@@ -85,31 +120,34 @@ def test_relay_is_not_resent_when_nothing_changes(tmp_path):
     hub = FakeHub()
     l = _limbs(tmp_path, hub=hub)
     l.apply("fan", "on")
-    l.apply("fan", "set", 80)            # level change only: the relay is already on
+    l.apply("fan", "set", 80)            # still just "on": nothing to send
     assert hub.commands == [{"relay": "fan", "on": True}]
 
 
-def test_jarvis_is_kept_in_sync_when_awake(tmp_path):
+def test_jarvis_is_kept_in_sync_when_awake_with_plain_on_off(tmp_path):
     core = FakeCore(running=True)
     l = _limbs(tmp_path, core)
     l.apply("light", "dim", 40)
-    assert core.sent == [("light", "dim", 40)]
+    l.scene("sleep")
+    # One on/off per device, never a level and never a scene JARVIS would re-interpret.
+    assert core.sent == [("light", "on", None), ("light", "off", None), ("fan", "on", None)]
 
 
 def test_a_voice_command_flips_the_real_relay(tmp_path):
     core, hub = FakeCore(running=True), FakeHub()
     l = _limbs(tmp_path, core, hub)
-    core.room_listener("fan", {"on": True, "level": 60})    # what jarvis.py reports
-    assert l.state["fan"]["on"] is True
+    core.room_listener("fan", {"on": True, "level": 60})    # an older jarvis.py may still send a level
+    assert l.state["fan"] == {"on": True}
     assert hub.commands == [{"relay": "fan", "on": True}]
     assert core.sent == []                                  # no echo back to JARVIS
 
 
-def test_state_survives_a_restart(tmp_path):
+def test_state_survives_a_restart_and_an_old_file_loses_its_levels(tmp_path):
+    (tmp_path / "room.json").write_text(json.dumps({"light": {"on": True, "level": 35}, "fan": {"on": False, "level": 60}}))
     l = _limbs(tmp_path)
-    l.apply("light", "set", 35)
-    again = _limbs(tmp_path)
-    assert again.state["light"] == {"on": True, "level": 35}
+    assert l.state == {"light": {"on": True}, "fan": {"on": False}}
+    l.apply("fan", "on")
+    assert _limbs(tmp_path).state["fan"] == {"on": True}
 
 
 def test_board_unplugged_is_reported_not_hidden(tmp_path):
@@ -129,7 +167,7 @@ def test_confirmed_only_when_the_board_agrees(tmp_path):
     assert next(d for d in l.view()["devices"] if d["id"] == "light")["confirmed"] is False
 
 
-def test_resync_pushes_everything_after_a_replug(tmp_path):
+def test_resync_pushes_the_esp32_devices_after_a_replug(tmp_path):
     hub = FakeHub()
     l = _limbs(tmp_path, hub=hub)
     l.apply("light", "on")
@@ -147,9 +185,115 @@ def test_bad_input_is_rejected(tmp_path):
         l.scene("party")
 
 
-@pytest.mark.parametrize("scene", ["focus", "relaxation", "sleep"])
-def test_every_scene_button_works(tmp_path, scene):
-    """Scenes pass their name as the value; that once crashed int() in apply()."""
+# ------------------------------------------------------------------ modes
+def test_default_modes_are_the_on_off_sets_aman_asked_for(tmp_path):
     l = _limbs(tmp_path)
-    r = l.scene(scene)
-    assert set(r["changed"]) <= {"light", "fan"} and r["state"]
+    modes = {m["id"]: m for m in l.view()["modes"]}
+    assert [m["name"] for m in l.view()["modes"]] == ["Deep focus", "Wind down", "Sleep", "All off"]
+    assert modes["focus"]["resolved"] == {"light": True, "fan": True}
+    assert modes["relaxation"]["resolved"] == {"light": False, "fan": True}
+    assert modes["sleep"]["resolved"] == {"light": False, "fan": True}
+    assert modes["all_off"]["resolved"] == {"light": False, "fan": False}
+    assert modes["focus"]["detail"] == "room light on · ceiling fan on"
+
+
+@pytest.mark.parametrize("name, light, fan", [("focus", True, True), ("Deep focus", True, True),
+                                              ("wind down", False, True), ("sleep", False, True),
+                                              ("all_off", False, False)])
+def test_every_mode_works_by_id_or_name(tmp_path, name, light, fan):
+    l = _limbs(tmp_path)
+    l.apply("all", "on")
+    r = l.scene(name)
+    assert r["state"] == {"light": {"on": light}, "fan": {"on": fan}}
+
+
+def test_modes_are_created_renamed_deleted_and_persisted(tmp_path):
+    l = _limbs(tmp_path)
+    m = l.create_mode("Reading", {"light": "on", "fan": False})
+    assert m["id"] == "reading" and m["resolved"] == {"light": True, "fan": False}
+    l.update_mode("reading", name="Reading time")
+    l.scene("reading time")
+    assert l.last_mode == "reading"
+    again = _limbs(tmp_path)                                  # a restart reads modes.json
+    assert again.last_mode == "reading" and any(x["name"] == "Reading time" for x in again.modes)
+    again.delete_mode("sleep")                                # built-ins are editable too
+    assert all(x["id"] != "sleep" for x in _limbs(tmp_path).modes)
+    with pytest.raises(KeyError):
+        again.delete_mode("sleep")
+
+
+@pytest.mark.parametrize("name, st", [("", {"light": True}), ("Dim", {"light": 40}), ("Ghost", {"lamp": True}),
+                                      ("Empty", {}), ("Deep focus", {"light": True})])
+def test_a_bad_mode_is_refused_with_a_reason(tmp_path, name, st):
+    with pytest.raises(ValueError):
+        _limbs(tmp_path).create_mode(name, st)
+
+
+# ------------------------------------------------------------------ data-driven devices
+def _devices(tmp_path, extra):
+    (tmp_path / "devices.json").write_text(json.dumps({"devices": [
+        {"id": "light", "name": "Room light", "kind": "light", "board": "uno", "channel": 4},
+        {"id": "fan", "name": "Ceiling fan", "kind": "fan", "board": "uno", "channel": 5}] + extra}))
+
+
+def test_a_light_added_on_d6_is_one_line_of_config(tmp_path):
+    _devices(tmp_path, [{"id": "lamp", "name": "Desk lamp", "kind": "light", "board": "uno", "channel": 6}])
+    uno = FakeUno(channels=("light", "fan", "lamp"))
+    l = _limbs(tmp_path, relays=uno)
+    assert [d["id"] for d in l.view()["devices"]] == ["light", "fan", "lamp"]
+    assert l.apply("lamp", "on")["delivered"] == {"lamp": True} and uno.state["lamp"] is True
+    l.scene("all_off")                                        # "*" covers the new lamp too
+    assert uno.state == {"light": False, "fan": False, "lamp": False}
+
+
+def test_a_channel_the_flashed_firmware_lacks_is_said_not_faked(tmp_path):
+    _devices(tmp_path, [{"id": "lamp", "name": "Desk lamp", "kind": "light", "board": "uno", "channel": 6}])
+    l = _limbs(tmp_path, relays=FakeUno(channels=("light", "fan")))     # 1.0.0: light and fan only
+    assert l.apply("lamp", "on")["delivered"] == {"lamp": False}
+    v = l.view()
+    assert v["relay_board"]["missing_channels"] == ["lamp"] and "1.1.0" in v["hardware"]
+
+
+def test_uno_and_esp32_devices_each_go_to_their_own_board(tmp_path):
+    _devices(tmp_path, [{"id": "porch", "name": "Porch light", "kind": "light", "board": "esp32", "channel": 21}])
+    uno, hub = FakeUno(), FakeHub()
+    l = _limbs(tmp_path, hub=hub, relays=uno)
+    l.apply("all", "on")
+    assert uno.calls == [("light", True), ("fan", True)]
+    assert hub.commands == [{"relay": "porch", "on": True}]                # never the Uno's devices
+
+
+def test_a_broken_devices_file_falls_back_to_today_s_room(tmp_path):
+    (tmp_path / "devices.json").write_text(json.dumps({"devices": [{"id": "Heater!", "kind": "heater"}]}))
+    l = _limbs(tmp_path)
+    assert list(l.state) == ["light", "fan"] and l.view()["problems"]
+
+
+# ------------------------------------------------------------------ the Uno, manual commands, test click
+def test_the_uno_is_the_only_writer_when_present(tmp_path):
+    uno, hub = FakeUno(), FakeHub()
+    l = _limbs(tmp_path, hub=hub, relays=uno)
+    l.apply("light", "on")
+    assert uno.calls == [("light", True)] and hub.commands == []
+    assert l.resync_hardware() == {}                          # the Uno adopts, it is never pushed
+
+
+def test_manual_commands_are_counted_but_presence_and_the_board_are_not(tmp_path):
+    l = _limbs(tmp_path, relays=FakeUno())
+    l.apply("light", "on", origin="presence")
+    l.relays.state["fan"] = True
+    l.adopt_board()
+    assert l.manual == []
+    l.apply("fan", "off", origin="app")
+    assert [o for o, _ in l.manual] == ["app"]
+
+
+def test_a_test_click_flips_and_restores_with_the_board_as_receipt(tmp_path):
+    uno = FakeUno()
+    l = _limbs(tmp_path, relays=uno)
+    r = l.test_click("fan")
+    assert r["ok"] and r["restored"] and [s["action"] for s in r["steps"]] == ["on", "off"]
+    assert [s["board_says"] for s in r["steps"]] == [True, False] and uno.state["fan"] is False
+    uno.connected = False
+    with pytest.raises(RuntimeError):
+        l.test_click("fan")

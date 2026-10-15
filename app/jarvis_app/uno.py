@@ -1,10 +1,13 @@
 """The Uno relay board: the transport that switches the real light and fan.
 
 Hardware (2026-10-13): an Arduino Uno on USB running limbs/uno_relay/uno_relay.ino
-1.0.0, a 2-channel active-low relay board on D4 (light) and D5 (fan), its contacts in
-parallel with the wall switches. Text protocol at 115200 baud, one command per line
-("light on", "fan off", "status"); every reply is one JSON line holding the whole
-state, {"light": true, "fan": false}, or {"error": "..."}.
+(1.0.0 flashed; 1.1.0 in the repo), a 2-channel active-low relay board on D4 (light) and
+D5 (fan), its contacts in parallel with the wall switches. Text protocol at 115200 baud,
+one command per line ("light on", "fan off", "<name> on|off", "status"); every reply is
+one JSON line holding the whole state, {"light": true, "fan": false, ...}, or
+{"error": "..."}. The channel names come from the board (its banner and its state
+lines), so a relay added to the firmware's pin table (1.1.0: D6, D7, ...) is switchable
+here with no code change; 1.0.0's replies (light and fan only) read the same way.
 
 Two facts shape this module:
   * OPENING THE PORT RESETS THE UNO (DTR is its reset line) and the relays boot OFF.
@@ -33,7 +36,14 @@ BANNER_S = 4.0                               # the Uno's bootloader waits ~1.6 s
 REPLY_S = 1.5
 KEEPALIVE_S = 10.0
 RETRY_S = 3.0
-DEVICES = ("light", "fan")
+LEGACY_DEVICES = ("light", "fan")            # what firmware 1.0.0 has
+_NOT_STATE = {"board", "version", "pins", "error", "scan", "scan_pin", "help", "note", "channels"}
+
+
+def is_state(msg) -> bool:
+    """A whole-state line: {"light": true, "fan": false, ...}, every value a bool."""
+    return (isinstance(msg, dict) and bool(msg) and not (_NOT_STATE & set(msg))
+            and all(isinstance(v, bool) for v in msg.values()))
 
 
 def _default_open(port: str):
@@ -73,7 +83,8 @@ class UnoRelays:
         self.ser = None
         self.port: Optional[str] = None
         self.version: Optional[str] = None
-        self.state: dict[str, Optional[bool]] = {d: None for d in DEVICES}
+        self.pins: dict[str, int] = {}                # name -> Uno pin, from the boot banner
+        self.state: dict[str, Optional[bool]] = {}
         self.error: Optional[str] = None
         self._lock = threading.RLock()
         self._stop = threading.Event()
@@ -120,22 +131,23 @@ class UnoRelays:
                 msg = self._read_json()
                 if msg and msg.get("board") == BANNER:
                     self.version = msg.get("version")
+                    self.pins = {str(k): int(v) for k, v in (msg.get("pins") or {}).items()
+                                 if isinstance(v, int)}
                     break
             reply = self._exchange("status")
-            if reply is None or "light" not in reply:
+            if reply is None or not is_state(reply):
                 self._drop(f"{port} answered, but not as the JARVIS Uno relay firmware.")
                 return False
             self.error = None
-            self._say("board", f"Relay board (Uno) connected on {port}: light "
-                      f"{'on' if self.state['light'] else 'off'}, fan {'on' if self.state['fan'] else 'off'}",
-                      port=port, version=self.version)
+            self._say("board", f"Relay board (Uno) connected on {port}: " + ", ".join(
+                f"{d} {'on' if on else 'off'}" for d, on in self.state.items()), port=port, version=self.version)
             return True
 
     def _drop(self, why: str) -> None:
         with self._lock:
             ser, self.ser = self.ser, None
             _claim(self.port, False)
-            self.state = {d: None for d in DEVICES}
+            self.state = {}
             self.error = why
             if ser is not None:
                 try:
@@ -155,8 +167,8 @@ class UnoRelays:
             msg = json.loads(text)
         except ValueError:
             return None
-        if all(d in msg for d in DEVICES):
-            self.state = {d: bool(msg[d]) for d in DEVICES}
+        if is_state(msg):
+            self.state = {str(d): bool(v) for d, v in msg.items()}
         return msg
 
     def _exchange(self, command: str, timeout: float = REPLY_S) -> Optional[dict]:
@@ -167,7 +179,7 @@ class UnoRelays:
             deadline = time.monotonic() + timeout
             while time.monotonic() < deadline:
                 msg = self._read_json()
-                if msg is not None and ("error" in msg or all(d in msg for d in DEVICES)):
+                if msg is not None and ("error" in msg or is_state(msg)):
                     return msg
         except Exception as e:                       # unplugged mid-command
             self._drop(f"the USB link broke ({e})")
@@ -177,11 +189,14 @@ class UnoRelays:
     def set(self, device: str, on: bool) -> tuple[bool, str]:
         """Switch one relay. (confirmed, what happened): confirmed only when the
         Uno's reply shows the device in the asked state."""
-        if device not in DEVICES:
-            return False, f"no relay for {device}"
+        if not device or not device.replace("_", "").isalnum() or len(device) > 12:
+            return False, f"no relay for {device!r}"
         with self._lock:
             if self.ser is None and not self.connect():
                 return False, self.error or "relay board not connected"
+            if self.state and device not in self.state:
+                return False, (f"the board has no {device} channel (firmware {self.version or '?'} has "
+                               f"{', '.join(self.state)}); add it to uno_relay.ino's pin table and flash 1.1.0")
             reply = self._exchange(f"{device} {'on' if on else 'off'}")
             if reply is not None and "error" in reply and "too fast" in str(reply["error"]):
                 self.sleep(0.3)                      # firmware: one flip per relay per 250 ms
@@ -234,7 +249,8 @@ class UnoRelays:
 
     def view(self) -> dict:
         return {"connected": self.connected, "port": self.port, "version": self.version,
-                "state": dict(self.state), "error": self.error}
+                "pins": dict(self.pins), "channels": list(self.state), "state": dict(self.state),
+                "error": self.error}
 
 
 def enabled() -> bool:

@@ -291,10 +291,10 @@ def test_tools_set_list_and_cancel_reminders_through_the_app(tools_ctx):
 
 def test_tools_switch_the_room_through_limbs_and_say_virtual(tools_ctx):
     reg, ctx = tools_ctx
-    r = reg.call("set_device", {"device": "light", "action": "set", "value": 30}, ctx)
-    assert r.ok and r.simulated and r.did == "The light is on at 30 percent. Virtual room only; no relay board is connected."
+    r = reg.call("set_device", {"device": "light", "action": "on"}, ctx)
+    assert r.ok and r.simulated and r.did == "The light is on. Virtual room only; no relay board is connected."
     s = reg.call("room_state", {}, ctx)
-    assert s.ok and "The light is on at 30 percent." in s.did and s.source == "app · Limbs (virtual room)"
+    assert s.ok and "The light is on." in s.did and "percent" not in s.did and s.source == "app · Limbs (virtual room)"
     sw = reg.call("switch_later", {"device": "fan", "action": "off", "when": "in 30 minutes"}, ctx)
     assert sw.ok and sw.did.startswith("Scheduled: fan off, at ")
 

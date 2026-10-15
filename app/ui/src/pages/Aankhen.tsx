@@ -233,7 +233,6 @@ export function AankhenPage() {
           <PresenceCore frame={frame} />
           <MotionCard frame={frame} hist={hist} />
           <ChannelCard frame={frame} />
-          <PeopleCard frame={frame} />
         </div>
 
         <div className="hud hud-bl">
@@ -618,31 +617,6 @@ function ChannelCard({ frame }: { frame: FrameMsg | null }) {
         <span className="mono muted">{frame ? `${fmt(frame.csi.rate_hz, 0)} Hz · ${frame.csi.rssi ?? '—'} dBm` : '—'}</span></div>
       <canvas ref={ref} className="hc-matrix" />
       <div className="hc-foot mono muted">{frame ? `${fmt(frame.csi.fill_ratio * 100, 1)}% gaps filled · radar ${fmt(frame.rates.radar_hz, 0)} Hz` : ''}</div>
-    </div>
-  )
-}
-
-/* ------------------------------------------------------------------ people + zones */
-function PeopleCard({ frame }: { frame: FrameMsg | null }) {
-  const sim = frame && frame.source !== 'hardware'
-  const zones = Object.entries(frame?.zone_seconds ?? {})
-  return (
-    <div className="hud-card glass-thin rise" style={{ ['--i' as string]: 3 }}>
-      <div className="hc-head"><span className="eyebrow">People · radar</span><span className="mono muted">{frame?.tracks.length ?? 0} tracked</span></div>
-      {!frame?.tracks.length && <div className="muted" style={{ fontSize: 12 }}>No confirmed tracks.</div>}
-      {frame?.tracks.map((t) => (
-        <div key={t.id} className="hc-person rise">
-          <b className={sim ? 'sim' : 'live'}>{t.id}</b>
-          <span>{t.zone ?? 'unzoned'}</span>
-          <span className="mono">{t.still ? 'still' : `${fmt(t.speed, 1)} m/s`}</span>
-          <div className="bar" title="track confidence"><i style={{ width: `${t.conf * 100}%` }} /></div>
-        </div>
-      ))}
-      <div className="hc-zones">
-        {zones.map(([z, s]) => (
-          <span key={z} className={frame?.zones[z] ? 'on' : ''}>{z}<em className="mono">{fmtDur(s)}</em></span>
-        ))}
-      </div>
     </div>
   )
 }

@@ -1,93 +1,84 @@
-"""Virtual room state. Mirrors what the ESP32 will do in Phase 1.
+"""JARVIS's own copy of the room: which switchable devices are on.
 
-If an MQTT broker is running (Mosquitto on localhost), every state change is
-also published to jarvis/room/<device> — the ESP32 will subscribe to exactly
-these topics later, so the brain code never changes when hardware arrives.
+The app (app/jarvis_app/limbs.py) owns the room and is the ONLY writer to the relays
+(an Arduino Uno over USB since 2026-10-13). This module mirrors its state for the voice
+path and for JARVIS run without the app (a virtual room then).
+
+Until 2026-10-15 every change was also published on MQTT (jarvis/room/<device>,
+retained) for the ESP32, whose firmware switches relays on those topics: a second relay
+writer beside the app. That publisher is gone; MQTT_OK stays (always False) for the
+callers that report it.
+
+The relays only switch: a device is on or off. "set", "dim" and "brighten" switch it on
+(the voice path answers a level request with no_levels() before it gets here). The
+devices and the modes ("deep focus", "wind down", ones he made in the Limbs tab) come
+from core/room_config.py: the same files the app reads.
 """
-import json
+import room_config
 
-try:
-    import paho.mqtt.client as mqtt
-    _mq = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-    _mq.connect("localhost", 1883, keepalive=30)
-    _mq.loop_start()
-    MQTT_OK = True
-except Exception:
-    _mq = None
-    MQTT_OK = False
+MQTT_OK = False          # nothing publishes room state on MQTT any more (see above)
 
-STEP = 20  # % change for "dim a bit" / "brighten a bit"
+ACTIONS = ("on", "off", "set", "dim", "brighten")
 
-state = {
-    "light": {"on": False, "level": 100},  # level = brightness %
-    "fan":   {"on": False, "level": 60},   # level = speed %
-}
+
+def _devices():
+    return room_config.load_devices()[0]
+
+
+def _fresh_state():
+    return {d["id"]: {"on": False} for d in _devices()}
+
+
+state = _fresh_state()
 
 # Called with (device, state) after every change. The desktop app sets this (via
 # jarvis.py) to stream room changes to the Limbs tab; None when run standalone.
 on_change = None
 
+
 def _publish(device):
-    if _mq:
-        _mq.publish(f"jarvis/room/{device}", json.dumps(state[device]), retain=True)
     if on_change is not None:
         on_change(device, dict(state[device]))
 
+
+def _switch(d, on):
+    """Set one device; True when it changed."""
+    s = state.setdefault(d, {"on": False})
+    s.pop("level", None)
+    if s["on"] == on:
+        return False
+    s["on"] = on
+    _publish(d)
+    return True
+
+
 def apply(device, action, value=None):
-    """Apply an intent or a holistic environmental state."""
-    # [Predictive Environment Router] Macro-state handler
+    """Apply a device command or a mode; returns one short sentence."""
     if device == "environment":
-        state_name = str(value).lower() if value else action
-        if state_name in ["deep_focus", "focus"]:
-            apply("light", "set", 80)
-            apply("fan", "set", 30)
-            return "Transitioned environment to 'Deep Focus' (Lighting 80%, Fan minimal for silence)."
-        elif state_name in ["relaxation", "chill"]:
-            apply("light", "set", 30)
-            apply("fan", "set", 50)
-            return "Transitioned environment to 'Relaxation' (Lighting 30%, Fan medium)."
-        elif state_name == "sleep":
-            apply("light", "off")
-            apply("fan", "set", 20)
-            return "Environment set to 'Sleep'. All lights off, fan optimized for sleep."
-        else:
-            return f"Unknown environmental state '{state_name}'."
-            
-    targets = ["light", "fan"] if device == "all" else [device]
+        name = str(value) if value else str(action)
+        mode = room_config.find_mode(room_config.load_modes()["modes"], name)
+        if mode is None:
+            return f"Unknown mode '{name}'."
+        for d, on in room_config.resolve(mode, list(state)).items():
+            _switch(d, on)
+        return f"{mode['name']}: " + describe("all")
+    targets = list(state) if device == "all" else [device]
     replies = []
     for d in targets:
         if d not in state:
             replies.append(f"Error: Device '{d}' does not exist.")
             continue
-        
-        s = state[d]
-        if action == "on":
-            s["on"] = True
-            if value is not None: s["level"] = int(value)
-        elif action == "off":
-            s["on"] = False
-        elif action == "set":
-            s["on"] = True
-            if value is not None: s["level"] = int(value)
-        elif action == "dim":
-            s["on"] = True
-            s["level"] = int(value) if value is not None else max(10, s["level"] - STEP)
-        elif action == "brighten":
-            s["on"] = True
-            s["level"] = int(value) if value is not None else min(100, s["level"] + STEP)
-        _publish(d)
-        unit = "brightness" if d == "light" else "speed"
-        state_str = "off" if not s["on"] else f"on, {unit} {s['level']} percent"
-        replies.append(f"{d} {state_str}")
+        if action not in ACTIONS:
+            replies.append(f"Error: unknown action '{action}'.")
+            continue
+        _switch(d, action != "off")
+        replies.append(f"{d} {'on' if state[d]['on'] else 'off'}")
     return "; ".join(replies)
+
 
 def render():
     """One-line room status for the console."""
-    def bar(d):
-        s = state[d]
-        filled = int(s["level"] / 10) if s["on"] else 0
-        return f"{d.upper():5} [{'#' * filled}{'.' * (10 - filled)}] {'ON  ' if s['on'] else 'off '} {s['level']}%"
-    return "   ".join(bar(d) for d in state)
+    return "   ".join(f"{d.upper():5} [{'ON ' if s['on'] else 'off'}]" for d, s in state.items())
 
 
 # ------------------------------------------------------------------ spoken commands
@@ -153,6 +144,47 @@ def _wants_level(clause):
                 _re.search(r"\b(full|fast(er)?|tez|zyada)\b", clause, _re.I))
 
 
+# Words around a mode's name that do not change which mode he means.
+_MODE_FILLER = _re.compile(r"\b(hey|ok|okay|jarvis|please|plz|now|set|switch( to)?|activate|start|turn on|go|"
+                           r"enable|put|the|room|in(to)?|to|mode|scene|on|karo|kar( do)?|kardo|lagao|chalu|chalao|"
+                           r"wala|vala)\b", _re.I)
+
+
+def _mode_named(t):
+    """The mode id when the whole utterance is a mode's name ("Jarvis, deep focus",
+    "set wind down", "reading mode"), else None. "All off" is left to the device path
+    (same effect, and "sab band" must stay a device command)."""
+    rest = room_config.norm(_MODE_FILLER.sub(" ", room_config.norm(t)))
+    if not rest:
+        return None
+    try:
+        modes = room_config.load_modes()["modes"]
+    except Exception:
+        return None
+    m = room_config.find_mode(modes, rest)
+    if m is None or m["id"] == "all_off":
+        return None
+    return m["id"]
+
+
+def _extra_devices():
+    """Devices beyond the light and the fan (devices.json): (id, regex on id or name)."""
+    out = []
+    for d in _devices():
+        if d["id"] in ("light", "fan"):
+            continue
+        words = {d["id"].replace("_", " "), room_config.norm(d["name"])}
+        out.append((d["id"], _re.compile(r"\b(" + "|".join(_re.escape(w) for w in words if w) + r")\b", _re.I)))
+    return out
+
+
+def _devices_in(clause, extra):
+    named = [name for name, rx in extra if rx.search(clause)]
+    if named:                                      # "desk lamp" is the desk lamp, not also the light
+        return named
+    return [name for name, rx in _DEV if rx.search(clause)]
+
+
 def parse(text):
     """[(device, action, value)] for an imperative room command, else []. action is
     on | off | level ("level": a speed or brightness request; say no_levels(device))."""
@@ -165,18 +197,23 @@ def parse(text):
     # turn goes to the model, which still has the switch tools when he really asks.
     if len(t.split()) > MAX_COMMAND_WORDS:
         return []
+    if not _QUESTION.search(t):
+        mode = _mode_named(t)
+        if mode is not None:
+            return [("environment", mode, mode)]
+    extra = _extra_devices()
     if _QUESTION.search(t):
         # "Why can't you increase the fan speed?" has one true answer, whoever asks.
-        devices = [name for name, rx in _DEV if rx.search(t)]
+        devices = _devices_in(t, extra)
         if devices and _LEVEL_WORDS.search(t):
             return [(devices[0] if len(devices) == 1 else "all", "level", None)]
         return []
     for name, rx in _SCENE:
-        if rx.search(t) and _SCENE_VERB.search(t) and not any(d.search(t) for _, d in _DEV):
+        if rx.search(t) and _SCENE_VERB.search(t) and not _devices_in(t, extra):
             return [("environment", name, name)]
     clauses = []
     for c in (p for p in _CLAUSE.split(t) if p and p.strip()):
-        devices = [name for name, rx in _DEV if rx.search(c)]
+        devices = _devices_in(c, extra)
         verb = _verb(c)
         if not devices and _ALL.search(c) and verb in ("on", "off"):
             devices = ["all"]
@@ -208,9 +245,8 @@ def parse(text):
 def describe(device):
     """One short, true sentence about a device after a change."""
     if device in ("all", "environment"):
-        return " ".join(describe(d) for d in ("light", "fan"))
+        return " ".join(describe(d) for d in state)
     s = state[device]
-    noun = "light" if device == "light" else "fan"
-    if not s["on"]:
-        return f"The {noun} is off."
-    return f"The {noun} is on at {s['level']} percent."
+    noun = device if device in ("light", "fan") else next(
+        (d["name"].lower() for d in _devices() if d["id"] == device), device)
+    return f"The {noun} is {'on' if s.get('on') else 'off'}."

@@ -62,18 +62,18 @@ def test_on_time_becomes_kwh_and_rupees(tmp_path, circuits):
     clock = Clock(ts(2026, 10, 12, 18, 0))
     led = Ledger(tmp_path, clock)
     led.record("L1", True, 100, 20, "app", "usb")
-    led.record("F1", True, 60, circuits.get("F1").watts(True, 60), "app", "usb")       # step 3: 48 W
+    led.record("F1", True, 100, circuits.get("F1").watts(True), "app", "usb")          # rated 75 W: on/off only
     clock.t = ts(2026, 10, 12, 19, 0)
     led.record("F1", False, 60, 0, "app", "usb")
     clock.t = ts(2026, 10, 12, 20, 0)
     r = build_report(led, circuits, Tariff.from_config(SLABS), "day")
     rows = {row["id"]: row for row in r["circuits"]}
     assert rows["L1"]["kwh"] == pytest.approx(0.040)                    # 20 W x 2 h, still on
-    assert rows["F1"]["kwh"] == pytest.approx(0.048)                    # 48 W x 1 h
-    assert r["kwh"] == pytest.approx(0.088) and r["rupees"] == pytest.approx(0.26, abs=0.006)
+    assert rows["F1"]["kwh"] == pytest.approx(0.075)                    # 75 W x 1 h
+    assert r["kwh"] == pytest.approx(0.115)
     assert r["estimate"] is True and "not a meter" in r["basis"]
     hours = {s["label"]: s["kwh"] for s in r["series"]}
-    assert hours["18"] == pytest.approx(0.068) and hours["19"] == pytest.approx(0.020)
+    assert hours["18"] == pytest.approx(0.095) and hours["19"] == pytest.approx(0.020)
     assert len(r["series"]) == 24 and r["series"][21]["future"] is True
 
 

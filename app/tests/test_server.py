@@ -40,8 +40,8 @@ def test_kv_round_trip(client):
 
 
 def test_limbs_work_without_jarvis_running(client):
-    r = client.post("/api/limbs/light", json={"action": "set", "value": 55})
-    assert r.status_code == 200 and r.json()["state"]["light"] == {"on": True, "level": 55}
+    r = client.post("/api/limbs/light", json={"action": "on"})
+    assert r.status_code == 200 and r.json()["state"]["light"] == {"on": True}
     assert client.post("/api/limbs/scene/sleep").json()["state"]["light"]["on"] is False
     assert client.post("/api/limbs/toaster", json={"action": "on"}).status_code == 400
     v = client.get("/api/limbs").json()

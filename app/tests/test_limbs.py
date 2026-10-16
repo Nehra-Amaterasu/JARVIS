@@ -167,13 +167,106 @@ def test_confirmed_only_when_the_board_agrees(tmp_path):
     assert next(d for d in l.view()["devices"] if d["id"] == "light")["confirmed"] is False
 
 
-def test_resync_pushes_the_esp32_devices_after_a_replug(tmp_path):
+def test_a_reconnected_esp32_is_adopted_never_pushed(tmp_path):
+    """3.4.0 pushed the app's state to the board on every (re)connect. On the wall, after
+    a power cut at 3 am, that would switch mains loads on: the board's word wins now."""
     hub = FakeHub()
     l = _limbs(tmp_path, hub=hub)
     l.apply("light", "on")
     hub.commands.clear()
-    assert l.resync_hardware() == {"light": True, "fan": True}
-    assert {c["relay"] for c in hub.commands} == {"light", "fan"}
+    hub.relays = {"light": False, "fan": True}                # rebooted, and someone's fan on
+    hooks = []
+    l.on_board_connect.append(lambda: hooks.append("presence"))
+    assert l.resync_hardware() == {"light": False, "fan": True}
+    assert hub.commands == [] and l.state == {"light": {"on": False}, "fan": {"on": True}}
+    assert hooks == ["presence"]
+    assert l.resync_hardware() == {}                          # nothing differs the second time
+
+
+class ConfirmHub(FakeHub):
+    """hub.set_relay as AankhenHub has it: the board's STATUS is the receipt."""
+
+    def __init__(self, refuse=(), **kw):
+        super().__init__(**kw)
+        self.refuse = set(refuse)
+        self.calls = []
+
+    def set_relay(self, device, on):
+        self.calls.append((device, on))
+        if not self.connected:
+            return False, self.offline_reason()
+        if device in self.refuse:
+            return False, f"the ESP32 reports {device} {'on' if self.relays.get(device) else 'off'}"
+        self.relays[device] = on
+        return True, ""
+
+    def offline_reason(self):
+        return "the ESP32 is not answering over Wi-Fi (192.168.1.50): no session yet"
+
+    def board_info(self):
+        return {"link": "wifi", "address": "192.168.1.50", "rssi": -61, "fw": "aankhen-3.5.0"}
+
+
+def test_an_esp32_switch_counts_only_when_the_board_confirms_it(tmp_path):
+    bus_events = []
+    hub = ConfirmHub(refuse={"fan"})
+    hub.relays = {"light": False, "fan": False}
+    l = _limbs(tmp_path, hub=hub)
+    l.bus.publish = lambda *a, **k: bus_events.append((a, k))
+    assert l.apply("light", "on")["delivered"] == {"light": True}
+    r = l.apply("fan", "on")
+    assert r["delivered"] == {"fan": False}
+    assert l.state["fan"] == {"on": False}                    # the room is what the board says
+    failed = [k for a, k in bus_events if a[1] == "relay_failed"]
+    assert failed and "reports fan off" in failed[-1]["reason"]
+
+
+def test_an_offline_esp32_is_a_clear_error_and_nothing_is_sent(tmp_path):
+    bus_events = []
+    hub = ConfirmHub(connected=False)
+    l = _limbs(tmp_path, hub=hub)
+    l.bus.publish = lambda *a, **k: bus_events.append((a, k))
+    assert l.apply("light", "on")["delivered"] == {"light": False}
+    assert hub.calls == []
+    failed = [k for a, k in bus_events if a[1] == "relay_failed"]
+    assert "not answering over Wi-Fi (192.168.1.50)" in failed[-1]["reason"]
+    v = l.view()
+    assert v["esp32"]["connected"] is False and "not answering over Wi-Fi" in v["hardware"]
+
+
+def test_the_view_names_the_esp32_link(tmp_path):
+    hub = ConfirmHub()
+    hub.relays = {"light": True, "fan": False}
+    l = _limbs(tmp_path, hub=hub)
+    v = l.view()
+    assert v["esp32"]["how"] == "Wi-Fi (192.168.1.50, -61 dBm)"
+    assert "over Wi-Fi (192.168.1.50, -61 dBm), firmware aankhen-3.5.0" in v["hardware"]
+    assert {d["id"]: d["link"] for d in v["devices"]} == {"light": "wifi", "fan": "wifi"}
+    assert v["links"] == ["wifi"]
+
+
+def test_the_wall_box_example_devices_file_is_valid(tmp_path):
+    import shutil
+    from jarvis_app.paths import APP
+    shutil.copy(APP / "jarvis_app" / "devices.esp32-box.example.json", tmp_path / "devices.json")
+    hub = ConfirmHub()
+    hub.relays = {"light": False, "fan": False, "light2": False, "light3": False, "light4": None}
+    l = _limbs(tmp_path, hub=hub, relays=FakeUno())           # the Uno transport on, owning nothing
+    assert [(d["id"], d["board"], d["channel"]) for d in l.devices] == [
+        ("light", "esp32", 4), ("fan", "esp32", 5), ("light2", "esp32", 6), ("light3", "esp32", 7),
+        ("light4", "esp32", 8)]
+    assert l.device_problems == []
+    l.scene("focus")
+    assert hub.calls == [("light", True), ("fan", True)] and l.relays.calls == []
+    v = l.view()
+    assert v["esp32"]["missing_channels"] == ["light4"] and "light4" in v["hardware"]
+    assert "Arduino Uno" not in v["hardware"]                 # nothing is on the Uno any more
+
+
+def test_an_esp32_device_on_an_unsafe_pin_is_refused(tmp_path):
+    _devices(tmp_path, [{"id": "lamp", "name": "Lamp", "kind": "light", "board": "esp32", "channel": 0}])
+    l = _limbs(tmp_path)
+    assert "lamp" not in l.state and any("GPIO 0" in p for p in l.view()["problems"])
 
 
 def test_bad_input_is_rejected(tmp_path):

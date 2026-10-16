@@ -13,10 +13,31 @@
 // The JARVIS app edits the values below through a form (Limbs -> Firmware), which
 // rewrites only the number on each #define line: keep one define per line.
 #define RELAY_ACTIVE_LOW 1
-// GPIO 4 and 5 are free general-purpose pins on the ESP32-S3-DevKitC-1 (not strapping
-// pins, not USB, not flash/PSRAM). Set a pin to -1 to disable that relay entirely.
+// GPIO 4-8 are free general-purpose pins on the ESP32-S3-DevKitC-1 (not strapping
+// pins, not USB, not flash/PSRAM). Set a pin to -1 to disable that relay entirely: it
+// stays in the table, and STATUS reports it as null ("not wired").
 #define RELAY_LIGHT_PIN 4
 #define RELAY_FAN_PIN 5
+#define RELAY_LIGHT2_PIN 6
+#define RELAY_LIGHT3_PIN 7
+#define RELAY_LIGHT4_PIN 8
+// The relay table: each row is a name and a pin. The name is the word JARVIS sends
+// ({"relay":"light2","on":true}) and the device id in the app's devices.json (board
+// "esp32"): lowercase letters, digits and _, at most 12 characters. At most 8 rows.
+// Every relay boots OFF (except right after an OTA update, which restores them) and
+// keeps its state when Wi-Fi or the laptop goes away: the wall switches work anyway.
+#define RELAY_TABLE \
+  {"light", RELAY_LIGHT_PIN}, {"fan", RELAY_FAN_PIN}, {"light2", RELAY_LIGHT2_PIN}, \
+  {"light3", RELAY_LIGHT3_PIN}, {"light4", RELAY_LIGHT4_PIN}
+
+// ---- The Wi-Fi link to JARVIS (README.md, section 4c) ---------------------------
+// With LINK_KEY_VALUE in secrets.h the board also streams its frames to JARVIS over
+// UDP and takes relay commands that way, every datagram signed with HMAC-SHA256.
+// The board listens on this port; the laptop's side is the app's setting (47270).
+#define LINK_PORT 47269
+// A part-full batch of frames leaves after this many ms (~8 CSI frames per datagram
+// at 500 Hz; a command's answer leaves at once).
+#define LINK_FLUSH_MS 20
 
 // ---- Link 1: the router ------------------------------------------------------
 // Router pings per second = CSI captures per second. 500, not 100: the host averages

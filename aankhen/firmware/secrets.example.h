@@ -18,6 +18,13 @@
 // flash and never stores it.
 // #define OTA_PASS_VALUE "paste-a-long-random-ota-password"
 
+// The Wi-Fi link to JARVIS (firmware 3.5.0; README.md, section 4c): sensor frames to the
+// laptop and relay commands from it over UDP, every datagram signed with HMAC-SHA256
+// under this key. The JARVIS app makes the key and shows you this exact line (Limbs ->
+// Firmware -> Wi-Fi link -> "Show the secrets.h line"): 64 hex characters, 32 random
+// bytes. Leave it commented out and the board talks over USB only.
+// #define LINK_KEY_VALUE "the-64-hex-characters-the-jarvis-app-shows-you-go-here-000000000"
+
 // Relay control from JARVIS over MQTT (room.py publishes on jarvis/room/<device>).
 // Point it at the laptop running Mosquitto.
 // #define MQTT_URI_VALUE  "mqtt://192.168.1.10:1883"

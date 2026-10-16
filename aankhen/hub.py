@@ -15,6 +15,17 @@ Hot-plug (enable_hotplug): while the hub runs, a watcher looks for a board every
 seconds. If the simulator is running only because no board answered at start
 ("auto"), the first board that answers takes over. If a person chose the simulation,
 it is left alone and the board is announced instead.
+
+TWO LINKS TO ONE BOARD (firmware 3.5.0). The board reaches the laptop over USB
+(SerialSource) or over Wi-Fi (NetSource: authenticated UDP, netlink.py). The app hands
+the hub `net_config` (the shared key and where the board may be). The choice:
+    prefer "auto"  USB when a board has identified itself on USB; else Wi-Fi when a key
+                   is set and the board answers a HELLO; else the simulator (start "auto")
+    prefer "usb"   USB only;   prefer "wifi"   Wi-Fi only, even with a USB cable in
+The watcher follows the board: a USB board that appears takes over from Wi-Fi ("USB wins":
+no airtime, no key), and a USB board that went silent for USB_GONE_S hands over to Wi-Fi
+when the board answers there. Commands go down whichever link is live; the board takes
+them from either, so the relays never depend on which one it is.
 """
 from __future__ import annotations
 
@@ -36,13 +47,19 @@ from . import DATA_DIR
 from .room import Room, layout_kind, load_room
 from .simulator import ROOM_SCENARIOS, SCENARIOS, Simulator, SimulatorSource, scenario_life
 from .boards import default_finder
-from .transport import ReplaySource, SerialSource, find_esp32_port
+from .netlink import NetConfig
+from .transport import NetSource, ReplaySource, SerialSource, find_esp32_port, probe_board
 
 BASELINE_FILE = os.path.join(DATA_DIR, "baseline.json")          # room-specific
 BASELINE_FAN_FILE = os.path.join(DATA_DIR, "baseline_fan.json")  # same, with the ceiling fan running
 
 
 HOTPLUG_INTERVAL_S = 2.0     # how often the watcher looks; F4 asks for < 5 s after the handshake
+NET_PROBE_INTERVAL_S = 10.0  # how often the watcher greets the board over Wi-Fi (one HELLO round)
+NET_PROBE_WAIT_S = 1.0       # a board on the LAN answers in ~5-50 ms
+USB_GONE_S = 10.0            # a USB board silent this long hands over to Wi-Fi ("auto")
+RELAY_CONFIRM_S = 1.2        # the board answers a command with a STATUS at once; Wi-Fi adds ms
+RELAY_TRIES = 2
 
 
 class AankhenHub:
@@ -102,20 +119,64 @@ class AankhenHub:
         self.voice_reader = None                # () -> int, rises by one per voice turn
         self._voice_seen: Optional[int] = None
         self.fan_board: Optional[bool] = None
+        # The Wi-Fi link (netlink.py): the app sets net_config, () -> NetConfig, with the
+        # key from data/app. on_net_peer(ip) hears every address the board answered from.
+        self.net_config = None
+        self.on_net_peer = None
+        self.net_prober = None                  # (NetConfig) -> Optional[dict]; tests replace it
+        self._net_probe_at = float("-inf")
+        self.net_last: Optional[dict] = None    # the last HELLO round: {"t", "ok", "ip", "fw", ...}
+        self.net_probe_interval_s = NET_PROBE_INTERVAL_S
+        self.usb_gone_s = USB_GONE_S
 
     # ------------------------------------------------------------ lifecycle
     def start(self, mode: str = "auto", scenario: str = "evening", port: Optional[str] = None,
-              path: Optional[str] = None, speed: float = 1.0, loop: bool = True) -> dict:
+              path: Optional[str] = None, speed: float = 1.0, loop: bool = True,
+              link: Optional[str] = None) -> dict:
+        """`link` ("usb" | "wifi") picks the board's link; None follows the settings'
+        preference (module docstring, TWO LINKS TO ONE BOARD)."""
+        if link not in (None, "usb", "wifi"):
+            raise ValueError(f"unknown link {link!r}; usb or wifi")
         with self._lock:
             if self.hold:
                 raise RuntimeError(f"Aankhen is paused: {self.hold}")
             self._stop_source()
             self.error = None
             requested, found = mode, None
+            cfg = self._net_cfg()
+            prefer = link or (cfg.prefer if cfg is not None else "auto")
+            if port:
+                prefer = "usb"                       # a named COM port is a USB choice
             if mode == "auto":
-                found = port or self._find_board(force=False)
-                mode = "hardware" if found else "simulation"
-            if mode == "hardware":
+                if prefer != "wifi":
+                    found = port or self._find_board(force=False)
+                if found:
+                    mode, link = "hardware", "usb"
+                elif prefer != "usb" and cfg is not None and cfg.configured and self._probe_net(cfg):
+                    mode, link = "hardware", "wifi"
+                else:
+                    mode = "simulation"
+            elif mode == "hardware" and link is None:
+                if prefer in ("usb", "wifi"):
+                    link = prefer
+                elif (found := self._find_board(force=True)):
+                    link = "usb"
+                elif cfg is not None and cfg.configured:
+                    link = "wifi"                    # it says how it is doing; no silent waiting
+                else:
+                    link = "usb"                     # and the USB path says why there is no board
+            if mode == "hardware" and link == "wifi":
+                if cfg is None or cfg.key is None:
+                    raise FileNotFoundError("The Wi-Fi link has no key yet: Limbs → Firmware → Wi-Fi link makes "
+                                            "one; put the same line in secrets.h and flash 3.5.0 once over USB.")
+                if not cfg.addresses:
+                    raise FileNotFoundError("The Wi-Fi link has no address for the board: type its IP in "
+                                            "Limbs → Firmware, or plug it in over USB once so it reports it.")
+                source = NetSource(cfg.key, self._net_addresses, board_port=cfg.board_port,
+                                   host_port=cfg.host_port, on_status=self._on_link, on_peer=self._on_peer)
+                baseline = Baseline.load(BASELINE_FILE)
+                fan_baseline = Baseline.load(BASELINE_FAN_FILE)
+            elif mode == "hardware":
                 # Asked for the board explicitly but none answers: say so, instead of
                 # silently switching to a source that waits forever (the "ESP32"
                 # button used to do exactly that). A person pressed a button, so every
@@ -382,15 +443,64 @@ class AankhenHub:
     def _on_link(self, msg: str) -> None:
         self.link_note = msg
 
+    # ------------------------------------------------------------ the Wi-Fi link
+    def _net_cfg(self) -> Optional[NetConfig]:
+        fn = self.net_config
+        if fn is None:
+            return None
+        try:
+            cfg = fn() if callable(fn) else fn
+        except Exception as e:                      # a broken settings file is not a crash
+            self.net_last = {"t": time.time(), "ok": False, "note": f"Wi-Fi link settings unreadable: {e}"}
+            return None
+        return cfg if isinstance(cfg, NetConfig) else None
+
+    def _net_addresses(self) -> list:
+        cfg = self._net_cfg()
+        return list(cfg.addresses) if cfg is not None else []
+
+    def _on_peer(self, ip: str) -> None:
+        cb = self.on_net_peer
+        if cb is not None:
+            try:
+                cb(ip)
+            except Exception:
+                pass
+
+    def _probe_net(self, cfg: NetConfig) -> Optional[dict]:
+        """One HELLO round to the board (no session). The answer, or None."""
+        self._net_probe_at = time.monotonic()
+        try:
+            if self.net_prober is not None:
+                got = self.net_prober(cfg)
+            else:
+                got = probe_board(cfg.key, cfg.addresses, cfg.board_port, cfg.host_port, NET_PROBE_WAIT_S)
+        except Exception as e:
+            got, err = None, f"{type(e).__name__}: {e}"
+        else:
+            err = None
+        self.net_last = {"t": time.time(), "ok": got is not None, **(got or {}),
+                         "note": err or (None if got else f"no WELCOME from {', '.join(map(str, cfg.addresses))}")}
+        if got and got.get("ip"):
+            self._on_peer(got["ip"])
+        return got
+
     def board_info(self) -> dict:
         """What the live link really shows: the handshake, and when the radar last
         sent a frame (host clock). Cheap; no probing."""
         src = self.source
-        out: dict = {"source": getattr(src, "kind", None)}
+        out: dict = {"source": getattr(src, "kind", None), "link": getattr(src, "link", None)}
         if isinstance(src, SerialSource):
             since = src.stats.seconds_since_data()
             out.update(port=src.port, handshake=src.connected.is_set(), handshake_at=src.handshake_at,
                        fw=src.fw, note=self.link_note,
+                       last_byte_s=round(since, 2) if since != float("inf") else None)
+        elif isinstance(src, NetSource):
+            since = src.stats.seconds_since_data()
+            st = src.fresh_status() or {}
+            out.update(port=None, address=src.address, handshake=src.connected.is_set(),
+                       handshake_at=src.handshake_at, fw=src.fw, note=self.link_note,
+                       rssi=st.get("rssi"), net=src.link_info(),
                        last_byte_s=round(since, 2) if since != float("inf") else None)
         eng = self.engine
         if eng is not None:
@@ -446,13 +556,15 @@ class AankhenHub:
     def hotplug_tick(self) -> Optional[str]:
         """One look for a board plugged in since the hub started. Returns what it did:
         "switched", "announced" or None."""
-        if not self.running or self.mode in ("hardware", "replay"):
+        if not self.running or self.mode == "replay":
             return None                             # nothing to find, or a person's replay
+        if self.mode == "hardware":
+            return self._follow_board()
         results = self.boards_scan()
         boards = [r for r in results if r.is_board and not r.in_use]
         self._announced &= {r.device for r in boards}   # unplugged: announce it again next time
         if not boards:
-            return None
+            return self._look_on_wifi()
         board = boards[0]
         fw = f" ({board.fw})" if board.fw else ""
         with self._lock:
@@ -474,6 +586,64 @@ class AankhenHub:
         self.hotplug_last = {"t": time.time(), "action": "announced", "text": text}
         self._emit_hotplug("board", text, port=board.device, fw=board.fw)
         return "announced"
+
+    def _look_on_wifi(self) -> Optional[str]:
+        """The simulation runs because no board answered at start ("auto"): greet the
+        board over Wi-Fi now and then, and switch when it answers."""
+        cfg = self._net_cfg()
+        if (cfg is None or not cfg.configured or cfg.prefer == "usb" or self.requested_mode != "auto"
+                or self.mode != "simulation"
+                or time.monotonic() - self._net_probe_at < self.net_probe_interval_s):
+            return None
+        got = self._probe_net(cfg)
+        if not got:
+            return None
+        with self._lock:
+            if not (self.running and self.mode == "simulation" and self.requested_mode == "auto"):
+                return None
+            info = self.start("auto", scenario=self.scenario or "evening", link="wifi")
+        if info.get("mode") != "hardware":
+            return None
+        text = (f"ESP32 answered over Wi-Fi at {got['ip']}{' (' + got['fw'] + ')' if got.get('fw') else ''}: "
+                "Aankhen switched from the simulation to live hardware")
+        self.hotplug_last = {"t": time.time(), "action": "switched", "text": text}
+        self._emit_hotplug("source", text, info=info, address=got["ip"], fw=got.get("fw"), link="wifi")
+        return "switched"
+
+    def _follow_board(self) -> Optional[str]:
+        """On the real board, chosen "auto": USB takes over from Wi-Fi when a board says
+        so on USB, and a USB board gone quiet hands over to Wi-Fi when the board answers
+        there. A link a person picked (prefer usb/wifi) is left alone."""
+        cfg = self._net_cfg()
+        prefer = cfg.prefer if cfg is not None else "auto"
+        src = self.source
+        if self.requested_mode != "auto" or prefer != "auto":
+            return None
+        if isinstance(src, NetSource):
+            boards = [r for r in self.boards_scan() if r.is_board and not r.in_use]
+            if not boards:
+                return None
+            with self._lock:
+                info = self.start("auto", scenario=self.scenario or "evening", link="usb")
+            text = f"ESP32 on USB ({boards[0].device}): Aankhen moved from Wi-Fi to the cable"
+            self.hotplug_last = {"t": time.time(), "action": "switched", "text": text}
+            self._emit_hotplug("source", text, info=info, port=boards[0].device, link="usb")
+            return "switched"
+        if isinstance(src, SerialSource):
+            quiet = src.stats.seconds_since_data()
+            if (src.connected.is_set() or quiet < self.usb_gone_s or cfg is None or not cfg.configured
+                    or time.monotonic() - self._net_probe_at < self.net_probe_interval_s):
+                return None
+            got = self._probe_net(cfg)
+            if not got:
+                return None
+            with self._lock:
+                info = self.start("auto", scenario=self.scenario or "evening", link="wifi")
+            text = (f"The ESP32 left USB and answered over Wi-Fi at {got['ip']}: Aankhen follows it there")
+            self.hotplug_last = {"t": time.time(), "action": "switched", "text": text}
+            self._emit_hotplug("source", text, info=info, address=got["ip"], link="wifi")
+            return "switched"
+        return None
 
     def _emit_hotplug(self, kind: str, text: str, **data) -> None:
         cb = self._hotplug_cb
@@ -503,6 +673,9 @@ class AankhenHub:
             "room_measured": self.room_measured,
             "layout": self.layout,
             "requested_mode": self.requested_mode,
+            "link": getattr(src, "link", None),
+            "address": getattr(src, "address", None),
+            "net": self.net_info(),
             "board": self.board_info(),
             "hotplug": self.hotplug_info(),
             "started_at": self.started_at,
@@ -516,25 +689,103 @@ class AankhenHub:
     # ------------------------------------------------------------ commands
     @property
     def can_command(self) -> bool:
-        """True when a real board is attached and can take commands."""
-        return isinstance(self.source, SerialSource) and self.source.connected.is_set()
+        """True when a real board is attached (USB or Wi-Fi) and can take commands."""
+        src = self.source
+        return isinstance(src, (SerialSource, NetSource)) and src.connected.is_set()
 
     def command(self, payload: dict) -> bool:
-        """Send one JSON command frame down the USB link (e.g. a relay switch).
-
-        Returns False when no board is connected — callers treat that as "not
-        delivered", never as success.
-        """
+        """Send one JSON command frame down the board's live link (USB, or the Wi-Fi
+        session: an authenticated CMD datagram). Returns False when no board is
+        connected. True only means SENT: set_relay() waits for the board's word."""
         src = self.source
-        if not isinstance(src, SerialSource):
+        if not isinstance(src, (SerialSource, NetSource)):
             return False
         body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
         self._cmd_seq = (self._cmd_seq + 1) & 0xFFFF
         frame = Frame(FrameType.COMMAND, self._cmd_seq, int(time.time() * 1e6), body)
         return src.write(frame.encode())
 
+    def offline_reason(self) -> str:
+        """Why no command can reach the board right now, in words for a person."""
+        src = self.source
+        if isinstance(src, NetSource):
+            where = src.address or ", ".join(src.addresses()) or "no address"
+            return (f"the ESP32 is not answering over Wi-Fi ({where}): "
+                    f"{self.link_note or 'no session yet'}")
+        if isinstance(src, SerialSource):
+            return f"the ESP32 is not talking on USB ({src.port or 'no port'}): {self.link_note or 'no handshake yet'}"
+        if self.mode == "simulation":
+            return "Aankhen is running the simulation, not the ESP32: no relay can be switched"
+        return "the ESP32 is not connected (neither USB nor Wi-Fi)"
+
+    def set_relay(self, device: str, on: bool, timeout_s: float = RELAY_CONFIRM_S,
+                  tries: int = RELAY_TRIES) -> tuple[bool, str]:
+        """Switch one ESP32 relay and wait for the board's own STATUS to show it.
+        (confirmed, why not): confirmed only when the board reports the new state, as
+        with the Uno. A command lost on Wi-Fi is sent again once."""
+        src = self.source
+        if not self.can_command:
+            return False, self.offline_reason()
+        want = bool(on)
+
+        def settled(st: dict) -> bool:
+            r = st.get("relays")
+            # The new state, or a definite "cannot": no such relay, or not wired.
+            return isinstance(r, dict) and (device not in r or r.get(device) is None or r.get(device) == want)
+
+        last = None
+        for _ in range(max(1, tries)):
+            sent_at = time.perf_counter()               # the clock Source.wait_status keeps
+            if not self.command({"relay": device, "on": want}):
+                return False, self.offline_reason()
+            st = src.wait_status(sent_at, timeout_s, settled)
+            relays = (st or src.fresh_status() or {}).get("relays")
+            if not isinstance(relays, dict):
+                continue
+            last = relays
+            if relays.get(device) == want:
+                return True, ""
+            if device not in relays:
+                return False, (f"the ESP32 has no {device} relay (its firmware has {', '.join(relays) or 'none'}): "
+                               f"add it to RELAY_TABLE in config.h and flash")
+            if relays[device] is None:
+                return False, f"the ESP32's {device} relay is not wired (its pin is -1 in config.h)"
+        if last is None:
+            return False, f"the ESP32 did not answer within {timeout_s:g} s ({tries} tries)"
+        return False, f"the ESP32 reports {device} {'on' if last.get(device) else 'off'}"
+
+    def board_relays(self, wait_s: float = 2.0) -> Optional[dict]:
+        """The relays as the board reports them on the CURRENT connection (never a report
+        from before a reconnect), asking for a STATUS if none came within `wait_s`."""
+        src = self.source
+        if not self.can_command:
+            return None
+        st = src.fresh_status()
+        if st is None:
+            st = src.wait_status(time.perf_counter() - 1e9, wait_s / 2)
+        if st is None and self.command({"cmd": "status"}):
+            st = src.wait_status(time.perf_counter() - 1e9, wait_s / 2)
+        relays = (st or {}).get("relays")
+        return dict(relays) if isinstance(relays, dict) else None
+
+    def net_info(self) -> dict:
+        """The Wi-Fi link as the settings and the last look say (no probing)."""
+        cfg = self._net_cfg()
+        out = {"configured": bool(cfg and cfg.configured), "key": bool(cfg and cfg.key),
+               "prefer": cfg.prefer if cfg else None, "addresses": list(cfg.addresses) if cfg else [],
+               "board_port": cfg.board_port if cfg else None, "host_port": cfg.host_port if cfg else None,
+               "last_probe": self.net_last}
+        return out
+
     def device_status(self) -> dict:
-        """The board's last STATUS report (includes relay states), if any."""
+        """The board's last STATUS report (includes relay states), if any: as it arrived
+        on the live link (so a relay confirmed a moment ago reads the same here), else
+        the engine's copy."""
+        src = self.source
+        if isinstance(src, (SerialSource, NetSource)):
+            st = src.fresh_status()
+            if st is not None:
+                return st
         eng = self.engine
         return dict(eng.device_status) if eng is not None else {}
 

@@ -13,6 +13,11 @@ means every device ("All off"), so a light wired later is covered without editin
 No file means today's room: the light on D4 and the fan on D5 of the Uno, and the four
 default modes. A file that does not parse is reported (problems) and the defaults are
 used; nothing here ever switches anything.
+
+One owner per device: each device names ONE board, and the app drives it through that
+board only (the Uno over its USB transport, the ESP32 over the hub's live link, USB or
+Wi-Fi). The ESP32 in the wall box (2026-10-16) is app/jarvis_app/devices.esp32-box.example.json:
+light, fan and light2-4 on GPIO 4-8, every one on the ESP32.
 """
 from __future__ import annotations
 
@@ -26,6 +31,12 @@ from typing import Optional
 KINDS = ("light", "fan")
 BOARDS = ("uno", "esp32")
 UNO_PINS = range(2, 14)          # D0/D1 are the Uno's USB serial link
+# ESP32-S3 GPIOs a relay input may use (the same list as the app's firmware form,
+# board_ctl.SAFE_GPIOS: no strapping, USB, flash, PSRAM, UART0 or LED pins). For an
+# "esp32" device, `id` is the relay's NAME in the firmware's RELAY_TABLE (config.h), and
+# `channel` is the GPIO that table gives it: the board's STATUS reports both
+# ("relay_pins"), and the app says so when they disagree.
+ESP32_PINS = (1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 21, 39, 40, 41, 42, 47)
 ID_RX = re.compile(r"^[a-z][a-z0-9_]{0,11}$")   # also the firmware's command word (line buffer: 48 chars)
 
 DEFAULT_DEVICES = [
@@ -104,6 +115,9 @@ def check_device(d: dict, seen: set) -> Optional[str]:
         return f"{did}: channel must be a pin number"
     if d["board"] == "uno" and ch not in UNO_PINS:
         return f"{did}: an Uno relay goes on D2..D13 (D0/D1 are its USB link)"
+    if d["board"] == "esp32" and ch not in ESP32_PINS:
+        return (f"{did}: GPIO {ch} is not safe for an ESP32-S3 relay input "
+                f"(use one of {', '.join(map(str, ESP32_PINS))})")
     return None
 
 

@@ -20,11 +20,12 @@ import { CircuitBoard, Fan, Focus, Lightbulb, Moon, Pencil, Plus, Power, Sunrise
 import { useEffect, useState } from 'react'
 import { api, post } from '../lib/api'
 import { usePoll } from '../lib/format'
-import { describeSet, draftFrom, draftProblem, type LimbsDevice, type LimbsView, type Mode, type PresenceOnView } from '../lib/limbs'
+import { describeSet, draftFrom, draftProblem, linkWord, type LimbsDevice, type LimbsView, type Mode, type PresenceOnView } from '../lib/limbs'
 import { useStore } from '../lib/store'
 import { PageHeader } from '../components/Shell'
 import { BoardPanel } from '../components/BoardPanel'
 import { BoardPorts } from '../components/BoardPorts'
+import { Esp32LinkCard } from '../components/Esp32LinkCard'
 import { FirmwareCard } from '../components/FirmwareCard'
 import { RelayWiring } from '../components/RelayWiring'
 import type { BoardView } from '../lib/board'
@@ -48,7 +49,7 @@ export function LimbsPage() {
     try {
       const r = await post<{ delivered?: Record<string, boolean> }>(path, body)
       const failed = Object.entries(r.delivered ?? {}).filter(([, ok]) => !ok).map(([d]) => d)
-      if (failed.length) toast(`Saved, but the relay board didn't confirm: ${failed.join(', ')}. Is the Uno plugged in?`, 'fault')
+      if (failed.length) toast(`Saved, but the relay board didn't confirm: ${failed.join(', ')}. Is it connected (USB or Wi-Fi)?`, 'fault')
       window.setTimeout(reload, 120)
     } catch (e) {
       toast((e as Error).message, 'fault')
@@ -57,8 +58,8 @@ export function LimbsPage() {
   return (
     <div className="page fade-in">
       <PageHeader tab="limbs" right={
-        <span className={`pill ${view?.usb ? 'live' : 'sim'}`}><i className="led" />
-          {view?.usb ? 'relay board · USB' : 'virtual room'}</span>} />
+        <span className={`pill ${linkWord(view).live ? 'live' : 'sim'}`}><i className="led" />
+          {linkWord(view).text}</span>} />
       <div className={`banner ${view?.usb ? '' : 'sim'}`}>
         <CircuitBoard size={16} />
         <span style={{ flex: 1 }}>{view?.hardware ?? '…'}{view?.core_running ? ' Voice commands and these switches stay in sync.' : ' Voice commands sync as soon as JARVIS is awake.'}</span>
@@ -76,6 +77,7 @@ export function LimbsPage() {
       <div className="board-grid">
         <BoardPanel v={board} reload={reloadBoard} />
         <BoardPorts />
+        <Esp32LinkCard />
       </div>
       <FirmwareCard v={board} reload={reloadBoard} />
     </div>
@@ -85,14 +87,15 @@ export function LimbsPage() {
 function DeviceCard({ d, send }: { d: LimbsDevice; send: (p: string, b?: unknown) => Promise<void> }) {
   const on = !!d.state?.on
   // The glyph follows the board when it reports; the saved state only for a virtual room.
-  const shown = d.link === 'usb' && d.hardware_on !== null ? d.hardware_on : on
+  const linked = d.link !== 'virtual'
+  const shown = linked && d.hardware_on !== null ? d.hardware_on : on
   return (
     <section className={`card device ${d.confirmed ? 'confirmed' : ''}`}>
       <div className="device-top">
         <div>
           <div className="device-name">{d.name}</div>
           <div className="mono muted" style={{ marginTop: 4 }}>
-            {d.id} · {d.link}{d.link === 'usb' && (d.confirmed ? ' · confirmed by board' : d.hardware_on === null ? ' · not on the board' : ' · waiting for the board')}
+            {d.id} · {d.link === 'wifi' ? 'Wi-Fi' : d.link}{linked && (d.confirmed ? ' · confirmed by board' : d.hardware_on === null ? ' · not on the board' : ' · waiting for the board')}
           </div>
         </div>
         <button className={`switch ${on ? 'on' : ''}`} aria-pressed={on} aria-label={`${d.name} power`}

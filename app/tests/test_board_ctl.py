@@ -358,6 +358,26 @@ def test_the_board_over_wifi(rig):
     assert rig.ctl.wifi_probe("192.168.1.50", force=True)["note"].startswith("answers, but has no /status")
 
 
+def test_the_board_over_the_wifi_link_session(rig):
+    """Firmware 3.5.0: the hub's authenticated UDP session carries the full STATUS (relays
+    included), so the card needs no HTTP probe and no relay token."""
+    probes = []
+
+    def http_get(url, headers, timeout):
+        probes.append(url)
+        raise OSError("must not be called")
+    rig.ctl.http_get = http_get
+    info = rig.hub.info
+    rig.hub.info = lambda: {**info(), "port": None, "link": "wifi",
+                            "board": {"link": "wifi", "address": "192.168.1.50", "handshake": True, "rssi": -61,
+                                      "fw": "aankhen-3.5.0", "note": None, "net": {"handshakes": 1}}}
+    v = rig.ctl.view()
+    assert v["link"] == "wifi" and v["wifi"] is None and probes == []
+    assert v["session"]["address"] == "192.168.1.50" and v["session"]["rssi"] == -61
+    assert v["status"]["relays"] == {"light": False, "fan": False} and v["link_stats"]["frames_ok"] == 100
+    assert rig.ctl.relay_test("fan")["ok"]                     # a test click works over the session too
+
+
 # ---------------------------------------------------------------------- the panel
 def test_the_simulators_status_is_never_shown_as_the_board(rig):
     rig.hub.kind, rig.hub.connected = "simulation", False
@@ -386,6 +406,8 @@ def test_config_form_reads_the_real_config_h():
     ({"RELAY_FAN_PIN": 43}, "UART0"),
     ({"RELAY_FAN_PIN": 18}, "radar's UART"),
     ({"RELAY_FAN_PIN": 4}, "cannot share GPIO 4"),
+    ({"RELAY_LIGHT2_PIN": 5}, "RELAY_LIGHT2_PIN and RELAY_FAN_PIN cannot share GPIO 5"),
+    ({"RELAY_LIGHT4_PIN": 46}, "strapping pin"),
     ({"RELAY_ACTIVE_LOW": 2}, "0 or 1"),
     ({"CSI_RATE_HZ": 300}, "must be one of"),
     ({"RELAY_FAN_PIN": "five"}, "not a whole number"),
@@ -399,11 +421,11 @@ def test_bad_values_are_refused(changes, why):
 
 def test_a_valid_edit_rewrites_only_the_number(rig):
     before = (rig.fw / "config.h").read_text(encoding="utf-8")
-    r = rig.ctl.update_config({"RELAY_FAN_PIN": 6, "BEACON_ENABLED": False, "CSI_RATE_HZ": 500})
+    r = rig.ctl.update_config({"RELAY_FAN_PIN": 9, "BEACON_ENABLED": False, "CSI_RATE_HZ": 500})
     after = (rig.fw / "config.h").read_text(encoding="utf-8")
-    assert r["changed"] == {"RELAY_FAN_PIN": [5, 6], "BEACON_ENABLED": [1, 0]}
-    assert r["values"]["RELAY_FAN_PIN"] == 6 and r["values"]["BEACON_ENABLED"] == 0
-    assert after == before.replace("#define RELAY_FAN_PIN 5", "#define RELAY_FAN_PIN 6").replace(
+    assert r["changed"] == {"RELAY_FAN_PIN": [5, 9], "BEACON_ENABLED": [1, 0]}
+    assert r["values"]["RELAY_FAN_PIN"] == 9 and r["values"]["BEACON_ENABLED"] == 0
+    assert after == before.replace("#define RELAY_FAN_PIN 5", "#define RELAY_FAN_PIN 9").replace(
         "#define BEACON_ENABLED 1", "#define BEACON_ENABLED 0")
     assert any(e["source"] == "board" and e["kind"] == "config" for e in rig.bus.history())
     assert (rig.fw / "secrets.h").read_text(encoding="utf-8") == "// test stand-in\n"
@@ -499,10 +521,10 @@ def test_routes_config_and_source(client, fw):
     assert cfg["values"]["RELAY_LIGHT_PIN"] == 4 and cfg["readonly"]["AK_GAIN_LIB"] in (0, 1)
     r = client.post("/api/board/config", json={"changes": {"RELAY_LIGHT_PIN": 46}})
     assert r.status_code == 400 and "strapping pin" in r.json()["detail"]
-    r = client.post("/api/board/config", json={"changes": {"RELAY_LIGHT_PIN": 7}})
-    assert r.status_code == 200 and "#define RELAY_LIGHT_PIN 7" in (fw / "config.h").read_text(encoding="utf-8")
+    r = client.post("/api/board/config", json={"changes": {"RELAY_LIGHT_PIN": 9}})
+    assert r.status_code == 200 and "#define RELAY_LIGHT_PIN 9" in (fw / "config.h").read_text(encoding="utf-8")
     assert client.get("/api/board/source", params={"name": "secrets.h"}).status_code == 404
-    assert client.get("/api/board/source", params={"name": "config.h"}).json()["text"].count("RELAY_LIGHT_PIN 7") == 1
+    assert client.get("/api/board/source", params={"name": "config.h"}).json()["text"].count("RELAY_LIGHT_PIN 9") == 1
 
 
 def test_routes_relay_test_refuses_without_a_board(client):

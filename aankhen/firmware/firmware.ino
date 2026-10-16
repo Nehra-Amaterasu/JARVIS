@@ -11,14 +11,19 @@
 //   4. Forwards HLK-LD2450 radar frames byte-for-byte, should one ever be fitted
 //      (none is planned; without one, nothing is sent).
 //   5. Reports its health once a second, over USB and at http://<board>/status.
-//   6. Switches the room relays when JARVIS asks: over the same USB cable (COMMAND
-//      frames, CRC-checked), over MQTT, or over HTTP with a token. Never without one.
-//      Every STATUS frame reports the relays' actual states.
+//   6. Switches the room relays (a table of up to 8 in config.h) when JARVIS asks: over
+//      the same USB cable (COMMAND frames, CRC-checked), over the Wi-Fi link (the same
+//      COMMAND frames inside HMAC-signed, replay-checked UDP), over MQTT with a broker
+//      login, or over HTTP with a token. Never without one. Every STATUS frame reports
+//      the relays' actual states, and a command is answered with one at once.
 //   7. Takes new firmware over Wi-Fi (ArduinoOTA, password from secrets.h), so a board
 //      powered from the switchboard, with no USB cable, can still be updated.
+//   8. (3.5.0) Streams the same frames to JARVIS over Wi-Fi when the laptop opens an
+//      authenticated session (WI-FI LINK below), several frames per datagram, and
+//      answers to aankhen.local (mDNS).
 // Everything goes to the laptop as CRC-checked binary frames over native USB (see
-// aankhen_protocol.h). The laptop does all the maths, so a recording made today can
-// be re-analysed by tomorrow's algorithm.
+// aankhen_protocol.h), and, with a session, over Wi-Fi as well. The laptop does all the
+// maths, so a recording made today can be re-analysed by tomorrow's algorithm.
 //
 // Removed from v2, deliberately:
 //   - the open fallback access point (anyone nearby could join the board that
@@ -31,12 +36,16 @@
 
 #include <WiFi.h>
 #include <WebServer.h>
+#include <ESPmDNS.h>
 #include <esp_wifi.h>
 #include <esp_timer.h>
+#include <esp_random.h>
 #include "ping/ping_sock.h"
 #include "mqtt_client.h"
 #include "lwip/etharp.h"
 #include "lwip/tcpip.h"
+#include "lwip/sockets.h"
+#include "mbedtls/md.h"
 
 #include "aankhen_protocol.h"
 #include "config.h"    // wiring (tracked)
@@ -73,6 +82,8 @@
 // before the first free function, and they name types (CsiItem, Relay) defined below.
 struct AkText {
   static constexpr bool same(const char *a, const char *b) { return *a == *b && (*a == 0 || same(a + 1, b + 1)); }
+  static constexpr bool hexChar(char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'); }
+  static constexpr bool hex(const char *s) { return *s == 0 || (hexChar(*s) && hex(s + 1)); }
 };
 #ifdef OTA_PASS_VALUE
 #include <ArduinoOTA.h>
@@ -84,10 +95,24 @@ static_assert(!AkText::same(OTA_PASS_VALUE, "paste-a-long-random-ota-password"),
 #define OTA_ENABLED 0
 #warning "OTA_PASS_VALUE is not set in secrets.h: firmware updates over Wi-Fi are disabled."
 #endif
-#define OTA_HOSTNAME "aankhen"       // mDNS: the IDE lists the board as aankhen at <ip>
+#define OTA_HOSTNAME "aankhen"       // mDNS: aankhen.local; the IDE lists the board as aankhen at <ip>
+
+// THE WI-FI LINK (3.5.0; WI-FI LINK below). Compiled in only with LINK_KEY_VALUE in
+// secrets.h, the 32-byte key JARVIS made, as 64 hex characters: every datagram either
+// way carries an HMAC-SHA256 tag under it (or under the session key derived from it), so
+// nobody else on the Wi-Fi can read a command into the relays or replay one.
+#ifdef LINK_KEY_VALUE
+#define LINK_ENABLED 1
+static_assert(sizeof(LINK_KEY_VALUE) - 1 == 64, "LINK_KEY_VALUE (secrets.h) must be 64 hex characters: copy the line the JARVIS app shows");
+static_assert(AkText::hex(LINK_KEY_VALUE), "LINK_KEY_VALUE (secrets.h) must be hex: copy the line the JARVIS app shows");
+#else
+#define LINK_ENABLED 0
+#warning "LINK_KEY_VALUE is not set in secrets.h: the Wi-Fi link to JARVIS is off (USB only)."
+#endif
 
 // ------------------------------------------------------------------ config
-#define FW_VERSION "aankhen-3.4.0"
+#define FW_VERSION "aankhen-3.5.0"
+#define STATUS_MAX 1000                 // the STATUS JSON's buffer: under the host's 1024-byte limit
 // CSI_RATE_HZ (router pings = CSI captures per second) lives in config.h, where the app's
 // firmware form can set it. The ping interval is 1000 / CSI_RATE_HZ whole milliseconds.
 static_assert(CSI_RATE_HZ >= 100 && CSI_RATE_HZ <= 500 && 1000 % CSI_RATE_HZ == 0,
@@ -113,12 +138,9 @@ static_assert(CSI_RATE_HZ >= 100 && CSI_RATE_HZ <= 500 && 1000 % CSI_RATE_HZ == 
 static_assert(BEACON_PING_HZ >= 1 && BEACON_PING_HZ <= 500, "BEACON_PING_HZ (config.h) must be 1..500");
 static_assert(BEACON_ENABLED == 0 || BEACON_ENABLED == 1, "BEACON_ENABLED (config.h) must be 0 or 1");
 
-// Relays (mains). Pins come from config.h; -1 disables one.
-struct Relay { const char *name; int pin; bool active_low; bool on; };
-static Relay RELAYS[] = {
-  {"light", RELAY_LIGHT_PIN, RELAY_ACTIVE_LOW, false},
-  {"fan", RELAY_FAN_PIN, RELAY_ACTIVE_LOW, false},
-};
+// Relays (mains). The table (names and pins) is RELAY_TABLE in config.h; -1 disables one.
+struct Relay { const char *name; int pin; bool on; };
+static Relay RELAYS[] = { RELAY_TABLE };
 
 #ifndef RELAY_TOKEN_VALUE
 #warning "RELAY_TOKEN_VALUE is not set in secrets.h: HTTP relay control is disabled."
@@ -152,6 +174,24 @@ static bool httpEnabled = false;   // relay control over HTTP (STATUS "http"); n
 static bool webUp = false;         // the server itself: always on, for /beacon and /status
 static bool otaUp = false;         // ArduinoOTA is listening (STATUS "ota")
 static int8_t otaLastTenth = -1;   // progress, logged every 10 %
+static bool mdnsUp = false;        // aankhen.local answers (STATUS "mdns")
+
+// The Wi-Fi link's state (WI-FI LINK below). Sessions are touched by loop() only; the
+// batch and the socket's sends belong to txLock, like the USB writer.
+struct LinkSession {
+  bool up;
+  uint32_t id;
+  uint8_t key[32];       // the session key, derived from the link key and both nonces
+  uint32_t ip;           // the laptop (lwIP byte order) and its UDP port: the only peer
+  uint16_t port;
+  uint64_t tx, rx;       // the last counter sent / accepted
+  uint32_t lastMs, createdMs;
+};
+static LinkSession linkLive = {}, linkPending = {};
+static int linkSock = -1;
+static uint8_t linkKey[32];
+static char linkKeyFp[9] = "";
+static uint32_t linkDgrams = 0, linkCmds = 0, linkBad = 0, linkReplays = 0, linkSendFail = 0, linkSessions = 0;
 
 struct CsiItem {
   ak_csi_link_head_t head;    // link id + metadata + gain, contiguous: one write sends them
@@ -586,9 +626,9 @@ static void pumpRadar() {
 
 // ------------------------------------------------------------------ relays
 static void setRelay(Relay &r, bool on) {
+  if (r.pin < 0) return;                   // not wired: stays off, and STATUS says null
   r.on = on;
-  if (r.pin < 0) return;
-  digitalWrite(r.pin, (on ^ r.active_low) ? HIGH : LOW);
+  digitalWrite(r.pin, (on ^ (bool)RELAY_ACTIVE_LOW) ? HIGH : LOW);
 }
 
 // Initialise a relay pin with NO glitch: set the "off" level on the pin latch
@@ -596,8 +636,9 @@ static void setRelay(Relay &r, bool on) {
 // pin low for a moment — on an active-low module that is a brief "ON" of a mains
 // load at every boot.
 static void initRelay(Relay &r) {
+  r.on = false;
   if (r.pin < 0) return;
-  digitalWrite(r.pin, r.active_low ? HIGH : LOW);
+  digitalWrite(r.pin, RELAY_ACTIVE_LOW ? HIGH : LOW);
   pinMode(r.pin, OUTPUT);
   setRelay(r, false);
 }
@@ -672,14 +713,18 @@ static void onMqtt(void *, esp_event_base_t, int32_t id, void *data) {
   }
 }
 
+// A broker anyone on the Wi-Fi can publish to would be an unauthenticated relay switch:
+// 3.5.0 subscribes only with a broker login (MQTT_USER_VALUE). JARVIS itself no longer
+// publishes there (2026-10-15); the Wi-Fi link replaces it.
+#if defined(MQTT_URI_VALUE) && !defined(MQTT_USER_VALUE)
+#warning "MQTT_URI_VALUE without MQTT_USER_VALUE: MQTT relay control is disabled (no unauthenticated relay path)."
+#endif
 static void startMqtt() {
-#ifdef MQTT_URI_VALUE
+#if defined(MQTT_URI_VALUE) && defined(MQTT_USER_VALUE)
   esp_mqtt_client_config_t cfg = {};
   cfg.broker.address.uri = MQTT_URI_VALUE;
-#ifdef MQTT_USER_VALUE
   cfg.credentials.username = MQTT_USER_VALUE;
   cfg.credentials.authentication.password = MQTT_PASS_VALUE;
-#endif
   mqtt = esp_mqtt_client_init(&cfg);
   esp_mqtt_client_register_event(mqtt, MQTT_EVENT_ANY, onMqtt, nullptr);
   esp_mqtt_client_start(mqtt);
@@ -755,19 +800,20 @@ static void onStatus() {
   http.sendHeader("Cache-Control", "no-store");
 #ifdef RELAY_TOKEN_VALUE
   if (tokenOk()) {
-    char js[896];
+    char js[STATUS_MAX];
     buildStatus(js, sizeof(js));
     http.send(200, "application/json", js);
     return;
   }
 #endif
-  char js[256];
+  char js[320];
   snprintf(js, sizeof(js),
            "{\"fw\":\"%s\",\"uptime_s\":%.1f,\"rssi\":%d,\"channel\":%d,\"csi_hz\":%lu,"
-           "\"ota\":%s,\"http\":%s,\"reset\":\"%s\",\"beacon_enabled\":%s,\"full\":false}",
+           "\"ota\":%s,\"http\":%s,\"reset\":\"%s\",\"beacon_enabled\":%s,\"link\":%s,\"mdns\":%s,\"full\":false}",
            FW_VERSION, esp_timer_get_time() / 1e6, WiFi.RSSI(), WiFi.channel(),
            (unsigned long)(csiRate.hz + 0.5f), otaUp ? "true" : "false", httpEnabled ? "true" : "false",
-           resetReason(), BEACON_ENABLED ? "true" : "false");
+           resetReason(), BEACON_ENABLED ? "true" : "false", LINK_ENABLED ? "true" : "false",
+           mdnsUp ? "\"" OTA_HOSTNAME ".local\"" : "null");
   http.send(200, "application/json", js);
 }
 
@@ -885,21 +931,360 @@ static void pumpCommands() {
   }
 }
 
+// ------------------------------------------------------------------ WI-FI LINK
+// WHY. In the box beside the switchboard the board has no USB cable: its frames must
+// cross the home Wi-Fi, and a relay that switches mains must not obey anybody else on it.
+//
+// THE PROTOCOL (the Python side, and the reasoning, is aankhen/netlink.py). Every datagram:
+// "AKN1" | kind u8 | flags u8 | length u16 | session u32 | counter u64 | payload | tag[16],
+// tag = the first 16 bytes of HMAC-SHA256 over everything before it.
+//   HELLO     laptop -> board, under the link key: the laptop's 16-byte nonce. The board
+//             makes a PENDING session (3 s to live) and answers
+//   WELCOME   board -> laptop, under the link key: the laptop's nonce, the board's nonce,
+//             FW_VERSION. Both sides now derive the session key
+//             HMAC(link key, "AKN1 session" | session | laptop nonce | board nonce).
+//   READY     laptop -> board, session key, counter 1: the session goes live, replacing any
+//             other (the newest laptop wins), and the board streams to that IP and port
+//   DATA      board -> laptop, session key, counter 1, 2, ...: whole AK frames, batched
+//   CMD       laptop -> board, session key: one AK COMMAND frame, exactly as on USB. The
+//             board answers with a STATUS frame, sent at once
+//   KEEPALIVE laptop -> board, session key, every second; 10 s without one ends the session
+//   BYE       laptop -> board, session key: the session ends now
+// Laptop -> board counters must rise: a datagram whose counter is not above the last one
+// accepted is a replay, and is dropped. A replayed HELLO only makes a pending session that
+// nobody can finish without the key. Nothing unverified is ever answered.
+//
+// WHAT A SESSION ENDING DOES: the board stops streaming, nothing more. The relays keep
+// their state when Wi-Fi or the laptop goes away; the wall switches work regardless.
+//
+// USB AND WI-FI TOGETHER. Both are always on: frames go to the USB port (dropped when no
+// program reads it) and, with a session, to the laptop over Wi-Fi. Both take commands;
+// a USB command needs the cable, a Wi-Fi one the key. The app talks over one link at a
+// time (USB when the board is on USB), so they never contend in practice, and each
+// command's STATUS shows the relays as they are, whichever link switched them.
+#define LINK_HDR 20
+#define LINK_TAG 16
+#define LINK_DGRAM_MAX 1392                     // < 1400 B: one 802.11 frame with UDP/IP on top
+#define LINK_PAYLOAD_MAX (LINK_DGRAM_MAX - LINK_HDR - LINK_TAG)
+#define LINK_PENDING_MS 3000
+#define LINK_TIMEOUT_MS 10000
+#define LINK_HELLO_GAP_MS 50                    // at most 20 HELLOs a second are even checked
+enum : uint8_t { LK_HELLO = 1, LK_WELCOME, LK_READY, LK_DATA, LK_CMD, LK_KEEPALIVE, LK_BYE };
+
+#pragma pack(push, 1)
+struct LinkHdr {
+  char magic[4];
+  uint8_t kind;
+  uint8_t flags;
+  uint16_t length;
+  uint32_t session;
+  uint64_t counter;
+};
+#pragma pack(pop)
+static_assert(sizeof(LinkHdr) == LINK_HDR, "link header must be 20 bytes (netlink.py HDR_FMT <4sBBHIQ)");
+static_assert(AK_FRAME_MAX <= LINK_PAYLOAD_MAX, "a whole frame must fit one datagram");
+
+static uint8_t linkBatch[LINK_DGRAM_MAX];       // DATA, built in place: header | frames | tag
+static size_t linkBatchLen = 0;                 // frame bytes in it
+static uint32_t linkBatchMs = 0;
+
+static void hmacSha256(const uint8_t *key, const uint8_t *a, size_t na, const uint8_t *b, size_t nb, uint8_t out[32]) {
+  mbedtls_md_context_t c;
+  mbedtls_md_init(&c);
+  if (mbedtls_md_setup(&c, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 1) == 0) {
+    mbedtls_md_hmac_starts(&c, key, 32);
+    if (na) mbedtls_md_hmac_update(&c, a, na);
+    if (nb) mbedtls_md_hmac_update(&c, b, nb);
+    mbedtls_md_hmac_finish(&c, out);
+  } else {
+    memset(out, 0, 32);
+  }
+  mbedtls_md_free(&c);
+}
+
+// The tag at the end of a datagram, checked in constant time.
+static bool linkTagOk(const uint8_t *key, const uint8_t *d, size_t n) {
+  uint8_t want[32];
+  hmacSha256(key, d, n - LINK_TAG, nullptr, 0, want);
+  uint8_t diff = 0;
+  for (int i = 0; i < LINK_TAG; i++) diff |= want[i] ^ d[n - LINK_TAG + i];
+  return diff == 0;
+}
+
+// Header and tag around `n` payload bytes already at d + LINK_HDR, then out. txLock held.
+static bool linkSendRaw(uint8_t *d, uint8_t kind, uint32_t session, uint64_t counter, size_t n,
+                        const uint8_t *key, uint32_t ip, uint16_t port) {
+  LinkHdr h;
+  memcpy(h.magic, "AKN1", 4);
+  h.kind = kind;
+  h.flags = 0;
+  h.length = (uint16_t)n;
+  h.session = session;
+  h.counter = counter;
+  memcpy(d, &h, LINK_HDR);
+  uint8_t tag[32];
+  hmacSha256(key, d, LINK_HDR + n, nullptr, 0, tag);
+  memcpy(d + LINK_HDR + n, tag, LINK_TAG);
+  struct sockaddr_in to = {};
+  to.sin_family = AF_INET;
+  to.sin_port = htons(port);
+  to.sin_addr.s_addr = ip;
+  int len = LINK_HDR + n + LINK_TAG;
+  if (sendto(linkSock, d, len, MSG_DONTWAIT, (struct sockaddr *)&to, sizeof(to)) != len) {
+    linkSendFail++;                             // lwIP out of buffers: the host counts the frames' seq gap
+    return false;
+  }
+  return true;
+}
+
+// The batch out as one DATA datagram. txLock held.
+static void linkFlush() {
+  if (!linkBatchLen) return;
+  if (linkLive.up && linkSock >= 0) {
+    linkLive.tx++;
+    if (linkSendRaw(linkBatch, LK_DATA, linkLive.id, linkLive.tx, linkBatchLen, linkLive.key, linkLive.ip, linkLive.port))
+      linkDgrams++;
+  }
+  linkBatchLen = 0;
+}
+
+// AkWriter's tee: every finished frame joins the batch. txLock held (AkWriter's rule).
+static void linkOffer(const uint8_t *f, size_t n) {
+  if (!linkLive.up) return;
+  if (linkBatchLen + n > LINK_PAYLOAD_MAX) linkFlush();
+  if (!linkBatchLen) linkBatchMs = millis();
+  memcpy(linkBatch + LINK_HDR + linkBatchLen, f, n);
+  linkBatchLen += n;
+}
+
+static void linkFlushNow() {
+  if (xSemaphoreTake(txLock, pdMS_TO_TICKS(20))) {
+    linkFlush();
+    xSemaphoreGive(txLock);
+  }
+}
+
+static void linkEnd(const char *why) {
+  if (!linkLive.up) return;
+  if (xSemaphoreTake(txLock, pdMS_TO_TICKS(50))) {
+    linkFlush();
+    linkLive.up = false;
+    linkBatchLen = 0;
+    xSemaphoreGive(txLock);
+  } else {
+    linkLive.up = false;
+  }
+  logf("link: session ended (%s); relays unchanged", why);
+}
+
+static void linkOnHello(const uint8_t *d, size_t n, uint32_t ip, uint16_t port, uint32_t now) {
+  static uint32_t lastHelloMs = 0;
+  const LinkHdr *h = (const LinkHdr *)d;
+  if (h->length != 16 || h->session != 0) { linkBad++; return; }
+  if (lastHelloMs && now - lastHelloMs < LINK_HELLO_GAP_MS) return;   // before the HMAC: cheap to refuse
+  lastHelloMs = now;
+  if (!linkTagOk(linkKey, d, n)) { linkBad++; return; }
+  const uint8_t *hostNonce = d + LINK_HDR;
+  uint8_t boardNonce[16];
+  esp_fill_random(boardNonce, sizeof(boardNonce));
+  uint32_t id;
+  do { id = esp_random(); } while (id == 0 || id == linkLive.id);
+  uint8_t msg[12 + 4 + 16 + 16];
+  memcpy(msg, "AKN1 session", 12);
+  memcpy(msg + 12, &id, 4);
+  memcpy(msg + 16, hostNonce, 16);
+  memcpy(msg + 32, boardNonce, 16);
+  LinkSession p = {};
+  hmacSha256(linkKey, msg, sizeof(msg), nullptr, 0, p.key);
+  p.up = true;
+  p.id = id;
+  p.ip = ip;
+  p.port = port;
+  p.createdMs = now;
+  p.lastMs = now;
+  static uint8_t out[LINK_HDR + 32 + 32 + LINK_TAG];
+  size_t fwn = strlen(FW_VERSION) > 31 ? 31 : strlen(FW_VERSION);
+  memcpy(out + LINK_HDR, hostNonce, 16);
+  memcpy(out + LINK_HDR + 16, boardNonce, 16);
+  memcpy(out + LINK_HDR + 32, FW_VERSION, fwn);
+  linkPending = p;
+  if (xSemaphoreTake(txLock, pdMS_TO_TICKS(20))) {
+    linkSendRaw(out, LK_WELCOME, id, 0, 32 + fwn, linkKey, ip, port);
+    xSemaphoreGive(txLock);
+  }
+}
+
+// A COMMAND frame inside a CMD datagram: the same checks as on USB, then the same handler.
+static void linkOnCommand(const uint8_t *f, size_t n) {
+  if (n < sizeof(ak_header_t) + 2) { linkBad++; return; }
+  const ak_header_t *h = (const ak_header_t *)f;
+  if (h->sync[0] != 0xAA || h->sync[1] != 0x55 || h->version != AK_PROTOCOL_VERSION || h->type != 0x06
+      || h->length > 256 || sizeof(ak_header_t) + h->length + 2 != n) {
+    linkBad++;
+    return;
+  }
+  uint16_t crc;
+  memcpy(&crc, f + sizeof(ak_header_t) + h->length, 2);
+  if (ak_crc16(f + 2, sizeof(ak_header_t) - 2 + h->length) != crc) { linkBad++; return; }
+  char js[257];
+  memcpy(js, f + sizeof(ak_header_t), h->length);
+  js[h->length] = 0;
+  linkCmds++;
+  handleCommand(js);                            // switches, logs, and sends a STATUS ...
+  linkFlushNow();                               // ... which leaves now, not in 20 ms
+}
+
+static void linkHandle(const uint8_t *d, size_t n, uint32_t ip, uint16_t port) {
+  uint32_t now = millis();
+  if (n < LINK_HDR + LINK_TAG || n > LINK_DGRAM_MAX) { linkBad++; return; }
+  const LinkHdr *h = (const LinkHdr *)d;
+  if (memcmp(h->magic, "AKN1", 4) != 0 || h->length != n - LINK_HDR - LINK_TAG) { linkBad++; return; }
+  if (h->kind == LK_HELLO) {
+    linkOnHello(d, n, ip, port, now);
+    return;
+  }
+  if (h->kind != LK_READY && h->kind != LK_CMD && h->kind != LK_KEEPALIVE && h->kind != LK_BYE) {
+    linkBad++;                                  // WELCOME and DATA travel the other way
+    return;
+  }
+  LinkSession *s = nullptr;
+  if (h->kind == LK_READY && linkPending.up && h->session == linkPending.id) s = &linkPending;
+  else if (h->kind != LK_READY && linkLive.up && h->session == linkLive.id) s = &linkLive;
+  if (!s || ip != s->ip || port != s->port) { linkBad++; return; }
+  if (!linkTagOk(s->key, d, n)) { linkBad++; return; }
+  if (h->counter <= s->rx) { linkReplays++; return; }
+  s->rx = h->counter;
+  s->lastMs = now;
+  if (s == &linkPending) {
+    bool replaced = linkLive.up;
+    if (xSemaphoreTake(txLock, pdMS_TO_TICKS(50))) {
+      linkBatchLen = 0;
+      linkLive = linkPending;
+      linkLive.tx = 0;
+      linkPending.up = false;
+      xSemaphoreGive(txLock);
+    } else {
+      return;                                   // try again on the laptop's next READY
+    }
+    linkSessions++;
+    logf("link: JARVIS at %s:%u, session %08lx%s; streaming", IPAddress(ip).toString().c_str(), port,
+         (unsigned long)linkLive.id, replaced ? " (replaced the previous one)" : "");
+    sendStatus();                               // the relays, first thing
+    linkFlushNow();
+    return;
+  }
+  if (h->kind == LK_BYE) {
+    linkEnd("JARVIS said goodbye");
+  } else if (h->kind == LK_CMD) {
+    linkOnCommand(d + LINK_HDR, h->length);
+  }
+}
+
+static uint8_t linkHex(char c) { return c <= '9' ? c - '0' : (c | 0x20) - 'a' + 10; }
+
+static void startLink() {
+#if LINK_ENABLED
+  if (linkSock >= 0) return;
+  const char *hex = LINK_KEY_VALUE;
+  for (int i = 0; i < 32; i++) linkKey[i] = (uint8_t)(linkHex(hex[2 * i]) << 4 | linkHex(hex[2 * i + 1]));
+  // A fingerprint to show (the app shows its own): equal means the same key, without
+  // either side ever printing the key. SHA-256("AKN1 fingerprint" | key), 4 bytes.
+  uint8_t fp[32], msg[16 + 32];
+  memcpy(msg, "AKN1 fingerprint", 16);
+  memcpy(msg + 16, linkKey, 32);
+  mbedtls_md(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), msg, sizeof(msg), fp);
+  snprintf(linkKeyFp, sizeof(linkKeyFp), "%02x%02x%02x%02x", fp[0], fp[1], fp[2], fp[3]);
+  int s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+  if (s < 0) {
+    logf("link: no UDP socket (errno %d); USB only", errno);
+    return;
+  }
+  struct sockaddr_in a = {};
+  a.sin_family = AF_INET;
+  a.sin_port = htons(LINK_PORT);
+  a.sin_addr.s_addr = htonl(INADDR_ANY);
+  if (bind(s, (struct sockaddr *)&a, sizeof(a)) < 0) {
+    logf("link: cannot bind UDP %d (errno %d); USB only", LINK_PORT, errno);
+    closesocket(s);
+    return;
+  }
+  linkSock = s;
+  logf("link: listening on UDP %d (key %s)", LINK_PORT, linkKeyFp);
+#endif
+}
+
+static void pumpLink() {
+  if (linkSock < 0) return;
+  static uint8_t in[LINK_DGRAM_MAX + 1];
+  for (int i = 0; i < 4; i++) {
+    struct sockaddr_in from = {};
+    socklen_t fl = sizeof(from);
+    int n = -1;
+    if (xSemaphoreTake(txLock, pdMS_TO_TICKS(5))) {   // the socket's sends happen under it
+      n = recvfrom(linkSock, in, sizeof(in), MSG_DONTWAIT, (struct sockaddr *)&from, &fl);
+      xSemaphoreGive(txLock);
+    }
+    if (n <= 0) return;
+    linkHandle(in, (size_t)n, from.sin_addr.s_addr, ntohs(from.sin_port));
+  }
+}
+
+static void linkTick(uint32_t now) {
+  if (linkPending.up && now - linkPending.createdMs > LINK_PENDING_MS) linkPending.up = false;
+  if (linkLive.up && now - linkLive.lastMs > LINK_TIMEOUT_MS) linkEnd("no keepalive for 10 s");
+  if (linkBatchLen && now - linkBatchMs >= LINK_FLUSH_MS) linkFlushNow();
+}
+
+static void startMdns() {
+  if (mdnsUp) return;
+  if (!MDNS.begin(OTA_HOSTNAME)) {
+    logf("mdns: could not start; use the board's IP");
+    return;
+  }
+  MDNS.addService("http", "tcp", 80);
+#if LINK_ENABLED
+  MDNS.addService("aankhen", "udp", LINK_PORT);
+#endif
+#if OTA_ENABLED
+  MDNS.enableArduino(3232, true);              // what ArduinoOTA would have announced
+#endif
+  mdnsUp = true;
+  logf("mdns: %s.local", OTA_HOSTNAME);
+}
+
 // ------------------------------------------------------------------ status
-// The STATUS JSON, for the USB frame and for GET /status with the token. Under 1024
-// bytes (protocol.py MAX_PAYLOAD_BY_TYPE[STATUS]); ~700 at its longest.
+// The STATUS JSON, for the USB frame, the Wi-Fi link and GET /status with the token.
+// Under 1024 bytes (protocol.py MAX_PAYLOAD_BY_TYPE[STATUS]): 3.5.0 at its longest with
+// the default relay table (five relays, a phone, a session, every counter at 10 digits)
+// is 872 bytes; the tests rebuild that worst case (aankhen/tests/test_netlink.py).
+// STATUS_MAX: config above. A longer table that would not fit sends a short STATUS that
+// still carries the relays, never a cut-off JSON.
 static void buildStatus(char *js, size_t jsLen) {
   uint32_t nowMs = millis();
   csiRate.update(csiCaptured, nowMs);
   beaconRate.update(beaconCaptured, nowMs);
   uint32_t hz = (uint32_t)(csiRate.hz + 0.5f);
-  char relays[96];
+  char relays[200], pins[176];
   int rn = snprintf(relays, sizeof(relays), "{");
+  int pn = snprintf(pins, sizeof(pins), "{");
   for (size_t i = 0; i < sizeof(RELAYS) / sizeof(RELAYS[0]); i++) {
     rn += snprintf(relays + rn, sizeof(relays) - rn, "%s\"%s\":%s", i ? "," : "", RELAYS[i].name,
                    RELAYS[i].pin < 0 ? "null" : (RELAYS[i].on ? "true" : "false"));
+    pn += snprintf(pins + pn, sizeof(pins) - pn, "%s\"%s\":%d", i ? "," : "", RELAYS[i].name, RELAYS[i].pin);
   }
   snprintf(relays + rn, sizeof(relays) - rn, "}");
+  snprintf(pins + pn, sizeof(pins) - pn, "}");
+  // The Wi-Fi link: the key's fingerprint (never the key), the laptop it streams to, counts.
+  char net[200];
+#if LINK_ENABLED
+  char peer[24] = "null";
+  if (linkLive.up) snprintf(peer, sizeof(peer), "\"%s:%u\"", IPAddress(linkLive.ip).toString().c_str(), linkLive.port);
+  snprintf(net, sizeof(net), "{\"key\":\"%s\",\"port\":%d,\"peer\":%s,\"dgrams\":%lu,\"cmds\":%lu,\"bad\":%lu,\"replays\":%lu,\"fail\":%lu}",
+           linkKeyFp, LINK_PORT, peer, (unsigned long)linkDgrams, (unsigned long)linkCmds, (unsigned long)linkBad,
+           (unsigned long)linkReplays, (unsigned long)linkSendFail);
+#else
+  snprintf(net, sizeof(net), "null");
+#endif
   // Link 2, the phone's own numbers: the board's view of it, beside the host's (links.py).
   char phoneIp[20] = "null", rssi[8] = "null", beacon[200];
   if (beaconIp) snprintf(phoneIp, sizeof(phoneIp), "\"%s\"", IPAddress(beaconIp).toString().c_str());
@@ -909,25 +1294,30 @@ static void buildStatus(char *js, size_t jsLen) {
            phoneIp, beaconMacSlot >= 0 ? "true" : "false", (unsigned long)beaconPingsOk,
            (unsigned long)(beaconIp ? beaconRate.hz + 0.5f : 0.0f), rssi,
            (unsigned long)beaconDropped, (unsigned long)beaconRejected, beaconFallback ? "true" : "false");
-  snprintf(js, jsLen,
-           "{\"fw\":\"%s\",\"uptime_s\":%.1f,\"relays\":%s,\"wifi\":\"%s\",\"ip\":\"%s\",\"rssi\":%d,"
+  int n = snprintf(js, jsLen,
+           "{\"fw\":\"%s\",\"uptime_s\":%.1f,\"relays\":%s,\"relay_pins\":%s,\"wifi\":\"%s\",\"ip\":\"%s\","
+           "\"mdns\":%s,\"rssi\":%d,"
            "\"channel\":%d,\"csi_hz\":%lu,\"csi_dropped\":%lu,\"csi_rejected\":%lu,"
            "\"radar_frames\":%lu,\"radar_bad\":%lu,\"mqtt\":%s,\"http\":%s,"
            "\"heap_free\":%lu,\"crc_ok\":%s,\"gain\":\"%s\",\"ota\":%s,\"reset\":\"%s\","
-           "\"beacon_enabled\":%s,\"beacon\":%s}",
-           FW_VERSION, esp_timer_get_time() / 1e6, relays,
+           "\"beacon_enabled\":%s,\"beacon\":%s,\"net\":%s}",
+           FW_VERSION, esp_timer_get_time() / 1e6, relays, pins,
            WiFi.status() == WL_CONNECTED ? "connected" : "connecting",
-           WiFi.localIP().toString().c_str(), WiFi.RSSI(), WiFi.channel(),
+           WiFi.localIP().toString().c_str(), mdnsUp ? "\"" OTA_HOSTNAME ".local\"" : "null", WiFi.RSSI(), WiFi.channel(),
            (unsigned long)hz, (unsigned long)csiDropped, (unsigned long)csiRejected,
            (unsigned long)radarFrames, (unsigned long)radarBad,
            mqttUp ? "true" : "false", httpEnabled ? "true" : "false",
            (unsigned long)ESP.getFreeHeap(), ak_crc_self_test() ? "true" : "false",
            !AK_GAIN_CTRL ? "unavailable" : gainRecorded < GAIN_BASELINE_PACKETS ? "recording" : "compensated",
-           otaUp ? "true" : "false", resetReason(), BEACON_ENABLED ? "true" : "false", beacon);
+           otaUp ? "true" : "false", resetReason(), BEACON_ENABLED ? "true" : "false", beacon, net);
+  if (n < 0 || (size_t)n >= jsLen) {
+    snprintf(js, jsLen, "{\"fw\":\"%s\",\"relays\":%s,\"ip\":\"%s\",\"note\":\"STATUS too long: shorten the relay names\"}",
+             FW_VERSION, relays, WiFi.localIP().toString().c_str());
+  }
 }
 
 static void sendStatus() {
-  char js[896];
+  char js[STATUS_MAX];
   buildStatus(js, sizeof(js));
   if (xSemaphoreTake(txLock, pdMS_TO_TICKS(20))) {
     ak.text(AK_STATUS, js);
@@ -967,6 +1357,7 @@ static void startOta() {
   if (otaUp) return;
   ArduinoOTA.setHostname(OTA_HOSTNAME);
   ArduinoOTA.setPassword(OTA_PASS_VALUE);
+  ArduinoOTA.setMdnsEnabled(false);            // startMdns() owns mDNS and announces OTA itself
   ArduinoOTA.onStart([]() {
     otaLastTenth = -1;
     pauseSensing();
@@ -1020,6 +1411,8 @@ static void connectWifi() {
 #endif
   startPing();
   startOta();
+  startMdns();
+  startLink();
 }
 
 // ------------------------------------------------------------------ main
@@ -1028,6 +1421,7 @@ void setup() {
   Serial.begin(921600);            // native USB ignores the rate; a UART bridge needs it
   Serial.setTxTimeoutMs(0);        // never block when no host is reading: drop instead
   txLock = xSemaphoreCreateMutex();
+  ak.tee = linkOffer;              // every frame also joins the Wi-Fi batch (sent only with a session)
   csiQueue = xQueueCreate(CSI_QUEUE_DEPTH, sizeof(CsiItem));
   linkQueue = xQueueCreate(BEACON_QUEUE_DEPTH, sizeof(CsiItem));
   delay(300);
@@ -1050,6 +1444,7 @@ void loop() {
   drainCsi(linkQueue, 8);
   pumpRadar();
   pumpCommands();
+  pumpLink();
   if (webUp) http.handleClient();
 #if OTA_ENABLED
   if (otaUp) ArduinoOTA.handle();
@@ -1058,6 +1453,7 @@ void loop() {
   static uint32_t lastStatus = 0, lastWifiTry = 0;
   uint32_t now = millis();
   phoneTick(now);                  // before any reconnect: a lost link drops the phone first
+  linkTick(now);
   if (now - lastStatus >= 1000) {
     lastStatus = now;
     sendStatus();

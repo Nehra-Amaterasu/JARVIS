@@ -1,0 +1,10 @@
+{
+  "_comment": "The ESP32-S3 in the wall box (firmware 3.5.0), every relay on it. Copy to data/app/devices.json when the box is wired and the Uno is unplugged. Each id is a relay NAME in the firmware's RELAY_TABLE (aankhen/firmware/config.h) and channel is its GPIO there. Rename the names freely; keep the ids.",
+  "devices": [
+    {"id": "light", "name": "Room light", "kind": "light", "board": "esp32", "channel": 4},
+    {"id": "fan", "name": "Ceiling fan", "kind": "fan", "board": "esp32", "channel": 5},
+    {"id": "light2", "name": "Light 2", "kind": "light", "board": "esp32", "channel": 6},
+    {"id": "light3", "name": "Light 3", "kind": "light", "board": "esp32", "channel": 7},
+    {"id": "light4", "name": "Light 4", "kind": "light", "board": "esp32", "channel": 8}
+  ]
+}

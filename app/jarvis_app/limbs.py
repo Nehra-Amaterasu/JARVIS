@@ -5,7 +5,7 @@ the state on disk, drives the real relays, and keeps JARVIS's own copy (core/roo
 which the voice path reads) in step:
 
     Limbs tab / palette ─┐                          ┌─▶ Uno relays (uno.py, USB serial)
-    voice (set_device) ──┼─▶ Limbs.apply() ── state ┼─▶ ESP32 relays (hub), when wired
+    voice (set_device) ──┼─▶ Limbs.apply() ── state ┼─▶ ESP32 relays (hub: USB, or Wi-Fi)
     presence_on.py ──────┘                          └─▶ JARVIS's room.state (stdin)
 
 What is wired comes from devices.json (core/room_config.py): id, name, kind light|fan,
@@ -19,9 +19,13 @@ on or off. There is no brightness and no fan speed (the fan's speed is its wall
 regulator's); "set", "dim" and "brighten" switch a device on, and the voice path answers
 a level request with core/room.py no_levels() before it gets here.
 
-The board's reply is the truth: a switch counts as delivered only when the Uno reports
-the new state, and on (re)connect the room adopts the board's state (its relays boot
-OFF; presence_on.py may then switch them back on when he is there).
+The board's reply is the truth, on both boards: a switch counts as delivered only when
+the board reports the new state (the Uno's reply line; the ESP32's STATUS frame, which
+it sends at once after a command, over USB or the Wi-Fi link: hub.set_relay), and on
+(re)connect the room adopts the board's state. The Uno's relays boot OFF; the ESP32's
+keep their state while Wi-Fi or the laptop is away, and boot OFF after a power cut.
+Either way presence_on.py may then switch them back on when he is there. A device whose
+board is offline is not switched, and the reason says which board and why.
 
 Modes ("Deep focus" = light on + fan on, ...) are on/off sets, editable here and in
 the Limbs tab, persisted in modes.json, and asked for by voice by their name.
@@ -106,7 +110,9 @@ class Limbs:
         m = room_config.load_modes(self.config_dir)
         self.modes, self.last_mode, self.mode_problems = m["modes"], m["last"], m["problems"]
         self.state = self._load()
-        self._sent: dict[str, Optional[bool]] = {}        # last relay level sent to the ESP32
+        # Called (no arguments) after the ESP32 (re)connects and its state is adopted:
+        # the presence rule hangs here as it does on the Uno's on_connect.
+        self.on_board_connect: list[Callable[[], None]] = []
         # Every command a person gave since the app started (origin, time): the presence
         # rule (presence_on.py) never overrides one.
         self.started_at = time.time()
@@ -122,7 +128,7 @@ class Limbs:
 
     def _notify(self, device: str, origin: str, delivered: Optional[bool]) -> None:
         ev = {"device": device, "state": dict(self.state[device]), "origin": origin, "delivered": delivered,
-              "link": "usb" if self.linked(device) else "virtual"}
+              "link": self.link_of(device)}
         for fn in list(self.listeners):
             try:
                 fn(ev)
@@ -169,6 +175,44 @@ class Limbs:
 
     _linked = linked                                    # older name (board_ctl, energy)
 
+    def esp32_link(self) -> Optional[dict]:
+        """The ESP32's live link, or None: {"link": "usb"|"wifi", "where": COMx or IP,
+        "rssi", "fw"} from the hub's own view of it (never probes)."""
+        hub = self.hub
+        if hub is None or not hub.can_command:
+            return None
+        b = {}
+        if hasattr(hub, "board_info"):
+            try:
+                b = hub.board_info() or {}
+            except Exception:
+                b = {}
+        link = b.get("link") or "usb"
+        st = hub.device_status() or {}
+        return {"link": link, "where": b.get("address") if link == "wifi" else b.get("port"),
+                "rssi": b.get("rssi", st.get("rssi")), "fw": b.get("fw") or st.get("fw")}
+
+    def link_of(self, device: str) -> str:
+        """"usb" | "wifi" | "virtual": how this device's board is reached right now."""
+        if not self.linked(device):
+            return "virtual"
+        if self.board_of(device) == "uno":
+            return "usb"
+        return (self.esp32_link() or {}).get("link") or "usb"
+
+    def _esp_reported(self) -> dict:
+        """The ESP32's relays as its last STATUS reported them ({} while it is offline)."""
+        hub = self.hub
+        if hub is None or not hub.can_command:
+            return {}
+        r = (hub.device_status() or {}).get("relays")
+        return dict(r) if isinstance(r, dict) else {}
+
+    def _esp_offline(self) -> str:
+        hub = self.hub
+        fn = getattr(hub, "offline_reason", None) if hub is not None else None
+        return fn() if fn is not None else "the ESP32 is not connected"
+
     def adopt_board(self) -> list[str]:
         """The Uno just (re)connected: take its relay states as the room's truth."""
         if self.relays is None:
@@ -209,23 +253,67 @@ class Limbs:
                     self.bus.publish("limbs", "relay_failed", f"{d} {'on' if on else 'off'} not confirmed: {why}",
                                      device=d, reason=why)
                 continue
-            if not force and self._sent.get(d) == on:
-                out[d] = True
-                continue                                  # relay already there
-            ok = bool(self.hub and self.hub.command({"relay": d, "on": on}))
-            if ok:
-                self._sent[d] = on
+            # The ESP32, over whichever link the hub has (USB or Wi-Fi).
+            if self.hub is None or not self.hub.can_command:
+                out[d] = False
+                why = self._esp_offline()
+                self.bus.publish("limbs", "relay_failed", f"{d} {'on' if on else 'off'} not switched: {why}",
+                                 device=d, reason=why)
+                continue
+            if not force and self._esp_reported().get(d) == on:
+                out[d] = True                             # the board already reports it there
+                continue
+            set_relay = getattr(self.hub, "set_relay", None)
+            if set_relay is not None:
+                ok, why = set_relay(d, on)                # waits for the board's STATUS
+            else:                                         # an older hub: sent is all it can say
+                ok = bool(self.hub.command({"relay": d, "on": on}))
+                why = "" if ok else "not delivered"
             out[d] = ok
+            if not ok:
+                self.bus.publish("limbs", "relay_failed", f"{d} {'on' if on else 'off'} not confirmed: {why}",
+                                 device=d, reason=why)
         return out
 
     def resync_hardware(self) -> dict[str, bool]:
-        """Push the ESP32's devices to it after it reconnects. Never the Uno's: it boots
-        with relays OFF and the room adopts that (adopt_board)."""
+        """The ESP32 just (re)connected, over USB or Wi-Fi: its relays become the room's
+        truth for its devices (returned: the ones that changed, and to what). Adopted,
+        never pushed: the board kept its relays while the link was down, or rebooted
+        with them OFF after a power cut, and pushing the app's old state back would
+        switch mains loads on at whatever hour the link came back (3.4.0 pushed).
+        Then the on_board_connect hooks run (the presence rule)."""
+        esp = [d for d in self.state if self.board_of(d) == "esp32"]
+        if not esp:
+            return {}
+        report = None
+        if self.hub is not None and self.hub.can_command:
+            fn = getattr(self.hub, "board_relays", None)
+            try:
+                report = fn() if fn is not None else (self.hub.device_status() or {}).get("relays")
+            except Exception:
+                report = None
+        changed: dict[str, bool] = {}
         with self._lock:
-            esp = [d for d in self.state if self.board_of(d) == "esp32"]
             for d in esp:
-                self._sent.pop(d, None)
-            return self._drive(esp, force=True) if esp else {}
+                on = (report or {}).get(d)
+                if on is None or self.state[d]["on"] == bool(on):
+                    continue
+                self.state[d]["on"] = bool(on)
+                changed[d] = bool(on)
+            if changed:
+                self._save()
+                for d in changed:
+                    self._tell_core(d, "on" if self.state[d]["on"] else "off")
+                    self._notify(d, "board", True)
+        if report is None:
+            self.bus.publish("limbs", "board", "ESP32 connected, but it sent no relay report yet: the room "
+                             "keeps its own state until it does")
+        for fn in list(self.on_board_connect):
+            try:
+                fn()
+            except Exception as e:
+                self.bus.publish("limbs", "error", f"After the ESP32 connected: {e}")
+        return changed
 
     def _tell_core(self, device: str, action: str) -> None:
         """Keep JARVIS's own copy (voice reads it) in step: one on/off per device."""
@@ -240,13 +328,21 @@ class Limbs:
         if changed:
             self._save()
         delivered = self._drive(changed)
-        if self.relays is not None and self.relays.connected:
-            # The Uno did not confirm: the room is what the board says, not what was asked.
-            for d, ok in delivered.items():
-                board = self.relays.state.get(d)
-                if not ok and self.board_of(d) == "uno" and board is not None and self.state[d]["on"] != board:
-                    self.state[d]["on"] = board
-                    self._save()
+        # A board that did not confirm: the room is what the board says, not what was asked.
+        esp = None
+        for d, ok in delivered.items():
+            if ok:
+                continue
+            if self.board_of(d) == "uno":
+                board = self.relays.state.get(d) if self.relays is not None and self.relays.connected else None
+            else:
+                esp = self._esp_reported() if esp is None else esp
+                board = esp.get(d)
+                if board is None and esp:
+                    board = False                     # reporting, but no such relay (or pin -1): off
+            if board is not None and self.state[d]["on"] != bool(board):
+                self.state[d]["on"] = bool(board)
+                self._save()
         for d in changed:
             if tell_core:
                 self._tell_core(d, "on" if self.state[d]["on"] else "off")
@@ -312,7 +408,8 @@ class Limbs:
                 self.sleep(hold_s)
             t = time.monotonic()
             r = self.apply(device, action, origin="test")
-            board = self.relays.state.get(device) if self.board_of(device) == "uno" and self.relays else None
+            board = ((self.relays.state.get(device) if self.relays else None) if self.board_of(device) == "uno"
+                     else self._esp_reported().get(device))
             steps.append({"action": action, "delivered": bool(r["delivered"].get(device)), "board_says": board,
                           "ms": round((time.monotonic() - t) * 1000)})
         ok = all(s["delivered"] for s in steps) and self.state[device]["on"] == before
@@ -395,7 +492,8 @@ class Limbs:
     # ---------------------------------------------------------------- view
     def view(self) -> dict:
         info = self.core.info()
-        esp_reported = (self.hub.device_status().get("relays") if self.hub and self.hub.can_command else None) or {}
+        esp_reported = self._esp_reported()
+        esp_link = self.esp32_link()
         uno_reported = dict(self.relays.state) if self.relays is not None else {}
         devices = []
         for d in self.devices:
@@ -406,7 +504,7 @@ class Limbs:
             c = self.circuits.by_alias(d["id"]) if self.circuits is not None else None
             pin = f"D{d['channel']}" if d["board"] == "uno" else f"GPIO {d['channel']}"
             devices.append({
-                **d, "state": dict(st), "link": "usb" if linked else "virtual",
+                **d, "state": dict(st), "link": self.link_of(d["id"]),
                 # True/False: the board's own report; None: no board / no such channel on it.
                 "hardware_on": hw,
                 "confirmed": linked and hw is not None and bool(hw) == bool(st["on"]),
@@ -424,25 +522,62 @@ class Limbs:
             board["missing_channels"] = ([d for d in on_uno if d not in uno_reported or uno_reported[d] is None]
                                          if self.relays.connected else [])
         usb = self.linked()
-        if self.relays is not None:
+        on_esp = [d["id"] for d in self.devices if self.board_of(d["id"]) == "esp32"]
+        esp32 = self._esp32_view(on_esp, esp_reported, esp_link)
+        parts = []
+        if self.relays is not None and (any(self.board_of(d["id"]) == "uno" for d in self.devices) or not on_esp):
             r = board
             if r["connected"]:
-                hardware = (f"Relay board (Arduino Uno, firmware {r.get('version') or '?'}) on {r['port']}: "
-                            f"switches drive the real relays, and each one counts only when the board confirms it.")
+                text = (f"Relay board (Arduino Uno, firmware {r.get('version') or '?'}) on {r['port']}: "
+                        f"switches drive the real relays, and each one counts only when the board confirms it.")
                 if r["missing_channels"]:
-                    hardware += (f" Not on the board yet: {', '.join(r['missing_channels'])} "
-                                 f"(flash uno_relay 1.1.0 with that pin in its table).")
+                    text += (f" Not on the board yet: {', '.join(r['missing_channels'])} "
+                             f"(flash uno_relay 1.1.0 with that pin in its table).")
             else:
-                hardware = (f"Relay board (Arduino Uno) not connected: {r['error'] or 'waiting for it'}. "
-                            f"The room is virtual until it is back.")
-        elif usb:
-            hardware = "ESP32 connected over USB: switches drive its relays."
-        else:
-            hardware = "No relay board connected: the room is virtual until one is plugged in."
+                text = (f"Relay board (Arduino Uno) not connected: {r['error'] or 'waiting for it'}. "
+                        f"The room is virtual until it is back.")
+            parts.append(text)
+        if on_esp:
+            parts.append(esp32["text"] if esp32["connected"] else
+                         esp32["text"] + " The room is virtual for them until it is back.")
+        hardware = " ".join(parts) if parts else (
+            "No relay board connected: the room is virtual until one is plugged in.")
         modes = [self._mode_view(m) for m in self.modes]
         return {"devices": devices, "modes": modes, "scenes": modes, "last_mode": self.last_mode,
                 "core_running": info["running"], "usb": usb, "hardware": hardware, "relay_board": board,
+                "esp32": esp32, "links": sorted({x["link"] for x in devices if x["link"] != "virtual"}),
                 "problems": self.device_problems + self.mode_problems}
+
+    def _esp32_view(self, on_esp: list, reported: dict, link: Optional[dict]) -> dict:
+        """The ESP32 as a relay board: its link in words ("Wi-Fi (192.168.1.50, -58 dBm)"
+        or "USB (COM7)"), the devices it should switch but does not report, and pins
+        that disagree with devices.json."""
+        out = {"devices": on_esp, "connected": link is not None, "link": None, "where": None, "rssi": None,
+               "fw": None, "how": None, "missing_channels": [], "pin_mismatch": [], "text": ""}
+        if link is None:
+            out["text"] = (f"ESP32 relays ({', '.join(on_esp)}): {self._esp_offline()}." if on_esp else "")
+            return out
+        rssi = link.get("rssi")
+        how = (f"Wi-Fi ({link['where'] or '?'}{f', {rssi} dBm' if rssi is not None else ''})"
+               if link["link"] == "wifi" else f"USB ({link['where'] or '?'})")
+        out.update(link=link["link"], where=link["where"], rssi=rssi, fw=link.get("fw"), how=how)
+        out["missing_channels"] = [d for d in on_esp if reported.get(d) is None]
+        pins = (self.hub.device_status() or {}).get("relay_pins") if self.hub is not None else None
+        if isinstance(pins, dict):
+            out["pin_mismatch"] = [{"device": d, "devices_json": self._by_id[d]["channel"], "board": pins.get(d)}
+                                   for d in on_esp if d in pins and pins.get(d) not in (-1, None)
+                                   and pins.get(d) != self._by_id[d]["channel"]]
+        text = (f"ESP32 relay board over {how}" + (f", firmware {link['fw']}" if link.get("fw") else "")
+                + ": switches drive its relays, and each one counts only when the board confirms it.")
+        if out["missing_channels"]:
+            text += (f" Not on the board (or its pin is -1): {', '.join(out['missing_channels'])}; add them "
+                     "to RELAY_TABLE in config.h and flash.")
+        if out["pin_mismatch"]:
+            text += " Pins differ from devices.json: " + ", ".join(
+                f"{m['device']} is GPIO {m['board']} on the board, {m['devices_json']} in devices.json"
+                for m in out["pin_mismatch"]) + "."
+        out["text"] = text
+        return out
 
 
 def _load_circuits():

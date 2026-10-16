@@ -1,10 +1,13 @@
 # Aankhen firmware v3 (ESP32-S3)
 
-Firmware 3.4.0. The sensor board for JARVIS's eyes. It streams raw Wi-Fi CSI to the laptop as
-CRC-checked binary frames over USB: the router link at up to 500 captures a second, and
-optionally a second link from a phone (section 7). Aankhen senses from radio alone. All
-processing happens on the laptop (`aankhen`). Relays switch only on request
-from JARVIS (MQTT) or a token-authenticated HTTP call.
+Firmware 3.5.0. The sensor board for JARVIS's eyes, and since 3.5.0 the room's relay board.
+It streams raw Wi-Fi CSI to the laptop as CRC-checked binary frames, over USB and, from a box
+on the wall with no cable, over Wi-Fi (section 4c): the router link at up to 500 captures a
+second, and optionally a second link from a phone (section 7). Aankhen senses from radio
+alone. All processing happens on the laptop (`aankhen`). Up to 8 relays (5 in the default
+table) switch only on request from JARVIS: over the USB cable, over the Wi-Fi link (every
+datagram HMAC-signed under a key only the laptop and the board hold), over MQTT with a
+broker login, or over a token-authenticated HTTP call.
 
 ## 1. Secrets
 
@@ -15,7 +18,8 @@ copy secrets.example.h secrets.h
 Fill in `WIFI_SSID_VALUE` / `WIFI_PASS_VALUE` for the **2.4 GHz** network. Add
 `OTA_PASS_VALUE` (12+ characters, your own, not the example's) before the board goes
 behind the switchboard: without it the firmware has no OTA and only USB can update it
-(section 4b). The router you
+(section 4b). Add `LINK_KEY_VALUE`, the line the JARVIS app shows you (section 4c), or
+the board talks over USB only. The router you
 join is the CSI transmitter, so put the board on the far side of the room from it
 for the Wi-Fi link to cross the room. Relay control is off until you add
 `RELAY_TOKEN_VALUE` and/or `MQTT_URI_VALUE`. `secrets.h` is gitignored.
@@ -36,19 +40,28 @@ simply sends none. The pins it would use:
 | TX | GPIO 18 (RADAR_RX_PIN) |
 | RX | GPIO 17 (RADAR_TX_PIN) |
 
-Relays: `config.h` puts the light relay on **GPIO 4** and the fan relay on **GPIO 5**,
-active-low (the usual optocoupler module: ON when IN is pulled LOW). Set a pin to `-1`
-to disable that relay. The JARVIS app edits these through a form (Limbs → Firmware →
-Abilities), which refuses strapping pins (0, 3, 45, 46), the USB pins (19, 20), the
-flash and PSRAM pins (26-37), UART0 (43, 44), the RGB LED (38, 48) and the radar's
-pins, and rewrites only the number on each `#define` line.
+Relays: `RELAY_TABLE` in `config.h` names each relay and its pin: **light GPIO 4, fan
+GPIO 5, light2 GPIO 6, light3 GPIO 7, light4 GPIO 8**, all active-low (the usual
+optocoupler module such as the HL-52S: ON when IN is pulled LOW). The name is the word
+JARVIS sends and the device id in the app's `devices.json`. Set a pin to `-1` to disable
+that relay: STATUS then reports it as `null` ("not wired"), and JARVIS says so instead of
+claiming it switched. Every relay boots OFF, except right after an OTA update (section
+4b). A relay keeps its state when Wi-Fi or the laptop goes away; the wall switches, wired
+in parallel, work regardless. STATUS reports `relays` (name: on/off/null) and
+`relay_pins` (name: GPIO). The JARVIS app edits the pins through a form (Limbs →
+Firmware → Abilities), which refuses strapping pins (0, 3, 45, 46), the USB pins (19,
+20), the flash and PSRAM pins (26-37), UART0 (43, 44), the RGB LED (38, 48), the radar's
+pins and two relays on one pin, and rewrites only the number on each `#define` line.
 
 | Relay module | ESP32-S3 |
 |---|---|
 | VCC | 5V (a 5 V module's coils need 5 V) |
 | GND | GND (shared: the IN signal needs the same ground) |
-| IN1 | GPIO 4 (`RELAY_LIGHT_PIN`) |
-| IN2 | GPIO 5 (`RELAY_FAN_PIN`) |
+| IN1 | GPIO 4 (`RELAY_LIGHT_PIN`, "light") |
+| IN2 | GPIO 5 (`RELAY_FAN_PIN`, "fan") |
+| IN3 | GPIO 6 (`RELAY_LIGHT2_PIN`, "light2") |
+| IN4 | GPIO 7 (`RELAY_LIGHT3_PIN`, "light3") |
+| IN5 | GPIO 8 (`RELAY_LIGHT4_PIN`, "light4") |
 
 Mains goes through COM and NO, on the live wire only, with the breaker off. If a relay
 will not release when told off, the ESP32's 3.3 V HIGH is not enough for that module's
@@ -61,8 +74,10 @@ is not a hobby shortcut: use a proper relay module with isolation, and have it c
 fused on its mains side) into its **5V** and **GND** pins: never 230 V to the board. USB
 and the 5V pin are two of the DevKitC-1's three power inputs, used one at a time
 (Espressif's user guide): unplug USB once the supply feeds 5V. Budget: the S3 peaks near
-0.35 A on Wi-Fi and a 5 V relay coil draws ~70 mA, so a 1 A supply has margin. STATUS
-`"reset":"brownout"` after a relay click means the supply sags under the coils.
+0.35 A on Wi-Fi and a 5 V relay coil draws ~70 mA, so five coils on at once (0.35 A) plus
+the board stay near 0.7 A: an unmodified phone charger rated 1 A has little margin, 2 A is
+comfortable. STATUS `"reset":"brownout"` after a relay click means the supply sags under
+the coils.
 
 ## 3. Receiver gain (recommended)
 
@@ -149,7 +164,69 @@ the firmware version, uptime, RSSI, CSI rate, OTA and the last reset reason; wit
 included. The JARVIS app reads it for the board card (set `AANKHEN_RELAY_TOKEN` for the
 full version).
 
-How JARVIS finds the board: not by its USB id (a CH340 is on ESP32 boards and on
+## 4c. The Wi-Fi link to JARVIS (3.5.0)
+
+**Why.** In the box beside the switchboard there is no USB cable. The board's frames, and
+JARVIS's relay commands, cross the home Wi-Fi instead, and a relay that switches mains must
+not obey anybody else on that Wi-Fi.
+
+**What travels.** The same AK frames as on USB (CSI, STATUS, LOG, COMMAND, with their CRC
+and the board's own microsecond timestamps), several whole frames to a UDP datagram of at
+most 1392 bytes: at 500 captures a second, ~8 frames per datagram, 63 datagrams a second
+instead of 500 (~2-4 % of the channel's airtime instead of ~11-13 %; measured numbers in
+`docs/research/2026-10-16-wireless-esp32-hub.md`). A part-full batch leaves after 20 ms
+(`LINK_FLUSH_MS`); the answer to a command leaves at once.
+
+**Who may talk to it.** The laptop opens a session: HELLO (signed with the shared key), the
+board's WELCOME (signed, with its own nonce), READY (signed with the session key derived
+from both nonces). Then the board streams to that laptop's address and port only, and
+takes COMMAND frames only in datagrams signed with the session key and carrying a counter
+above every one it has accepted: a captured command sent again is dropped, and so is one
+from a session that has ended. Keepalives every second; 10 s without one ends the session
+(the relays stay as they are). Nothing unsigned is ever answered. The protocol, byte by
+byte: `aankhen/netlink.py`. USB keeps working exactly as before, at the same time.
+
+**Set it up (once):**
+1. **The key.** JARVIS app → Limbs → the **Wi-Fi link** card → **Show the secrets.h line**.
+   Copy the line (`#define LINK_KEY_VALUE "…64 hex characters…"`) into `secrets.h`. The app
+   made the key the first time it started and keeps it in `data/app/esp32_link.json`
+   (private, git-ignored); it never logs it. The card shows the key's fingerprint, and the
+   board's own once it runs 3.5.0: equal fingerprints, equal keys.
+2. **The firewall** (an **administrator** PowerShell, once; JARVIS never runs it). The
+   board's datagrams arrive on UDP 47270:
+   ```powershell
+   New-NetFirewallRule -DisplayName "JARVIS Aankhen ESP32 link (UDP 47270)" -Direction Inbound -Protocol UDP -LocalPort 47270 -Profile Private -RemoteAddress LocalSubnet -Action Allow
+   ```
+   It allows UDP to that one port, from the home subnet, on Private networks only: check the
+   home Wi-Fi is a Private network (`Get-NetConnectionProfile`). The replies often pass
+   without it as answers to the laptop's own HELLO and keepalives, but a Public profile or
+   an earlier "block Python" choice in the Windows prompt drops them.
+3. **Flash 3.5.0 once over USB, before the box is sealed** (section 4: the app's Limbs →
+   Firmware → Compile, then Flash → Over USB). Keep `OTA_PASS_VALUE` in `secrets.h` so every
+   later update goes over Wi-Fi (section 4b). Check on the board card, still on USB: firmware
+   `aankhen-3.5.0`, `ota` on, the key fingerprints equal, `mdns` `aankhen.local`, and the
+   board's `ip`. Try the link with the cable still in: the Wi-Fi link card → **Connect over
+   Wi-Fi**; the board card's pill turns to `Wi-Fi · <ip> · <rssi> dBm`.
+4. **Into the box.** Unplug USB, power it from the 5 V supply. With the link on "Auto",
+   Aankhen follows the board to Wi-Fi by itself after ~10 s, and back to USB whenever a cable
+   is plugged in ("USB wins": no airtime, no key needed).
+
+**Finding it.** The hub greets, in order: the address typed on the Wi-Fi link card, the last
+address the board answered from, the address it reported over USB, then `aankhen.local`
+(the board announces itself over mDNS; Windows 10+ resolves `.local` names itself). A DHCP
+reservation for the board on the router keeps its address fixed, which is the most reliable.
+
+**USB and Wi-Fi at once.** Both links are always on: frames go to the USB port (dropped when
+no program reads it) and, during a session, over Wi-Fi. Both take commands; a USB command
+needs the cable, a Wi-Fi one the key. The app uses one link at a time, so they never
+contend, and every command's STATUS shows the relays as they are, whichever link switched
+them.
+
+**MQTT.** 3.5.0 subscribes to `jarvis/room/+` only with a broker login (`MQTT_USER_VALUE`):
+a broker anyone on the Wi-Fi can publish to would be an unauthenticated relay switch. JARVIS
+itself no longer publishes there.
+
+How JARVIS finds the board on USB: not by its USB id (a CH340 is on ESP32 boards and on
 Arduino Uno clones alike) but by what it says. Each USB serial port is listened to,
 never written to, until a CRC-valid Aankhen frame arrives; the 1 Hz STATUS frame is
 the handshake. Nothing is sent to a port before that, so an Uno plugged in beside the
@@ -278,3 +355,4 @@ anyone opens `/beacon`.
 | `/relay/1/on` with no authentication | MQTT from JARVIS, or HTTP with a ≥16-char token compared in constant time |
 | plain-text prints mixed into the data stream | log lines are frames too, so the stream never desynchronises |
 | (3.4.0) USB-only updates | OTA with a password (or none at all), `/status` over Wi-Fi, relays kept across an update |
+| (3.5.0) USB-only data and commands; two relays | the Wi-Fi link (batched, HMAC-SHA256, replay-checked UDP) beside USB; a relay table of up to 8 (5 by default) with names and pins in STATUS; mDNS `aankhen.local`; MQTT only with a login |

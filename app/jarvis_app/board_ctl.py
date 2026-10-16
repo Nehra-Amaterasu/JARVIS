@@ -3,8 +3,9 @@
 What it answers and does (routes in routes_board_ctl.py):
 
     view()            the board as JARVIS sees it right now: over USB (the hub's live link
-                      and the board's own STATUS frame) or over Wi-Fi (GET /status on the
-                      board, firmware 3.4.0+), never the simulator's STATUS
+                      and the board's own STATUS frame), over the Wi-Fi link (the hub's
+                      authenticated UDP session, firmware 3.5.0+: the same STATUS frames),
+                      or else GET /status on the board (3.4.0+); never the simulator's STATUS
     config_*()        the user-tunable #defines of aankhen/firmware/config.h, read and
                       written through a validated form (secrets.h is never opened)
     start_compile()   arduino-cli compile into a scratch output dir under data/ (the image
@@ -76,6 +77,12 @@ CONFIG_FIELDS = [
      "help": "The GPIO wired to the relay module's IN for the light. -1: no light relay."},
     {"key": "RELAY_FAN_PIN", "label": "Fan relay GPIO", "kind": "pin",
      "help": "The GPIO wired to the relay module's IN for the fan. -1: no fan relay."},
+    {"key": "RELAY_LIGHT2_PIN", "label": "Light 2 relay GPIO", "kind": "pin",
+     "help": "Relay \"light2\" in RELAY_TABLE (firmware 3.5.0). -1: not wired."},
+    {"key": "RELAY_LIGHT3_PIN", "label": "Light 3 relay GPIO", "kind": "pin",
+     "help": "Relay \"light3\" in RELAY_TABLE (firmware 3.5.0). -1: not wired."},
+    {"key": "RELAY_LIGHT4_PIN", "label": "Light 4 relay GPIO", "kind": "pin",
+     "help": "Relay \"light4\" in RELAY_TABLE (firmware 3.5.0). -1: not wired."},
     {"key": "RELAY_ACTIVE_LOW", "label": "Relay module is active-low", "kind": "bool",
      "help": "Most optocoupler modules switch ON when IN is pulled LOW. If yours clicks on at boot, flip it."},
     {"key": "CSI_RATE_HZ", "label": "Router pings per second (link 1)", "kind": "choice",
@@ -88,6 +95,10 @@ CONFIG_FIELDS = [
      "help": "Link 2's rate. Each ping is four frames over the air: 100 Hz is ~6-10 % of the channel."},
 ]
 FIELD_KEYS = [f["key"] for f in CONFIG_FIELDS]
+PIN_KEYS = [f["key"] for f in CONFIG_FIELDS if f["kind"] == "pin"]
+# The relay each pin define drives (its name in RELAY_TABLE, config.h).
+RELAY_PIN_KEY = {"light": "RELAY_LIGHT_PIN", "fan": "RELAY_FAN_PIN", "light2": "RELAY_LIGHT2_PIN",
+                 "light3": "RELAY_LIGHT3_PIN", "light4": "RELAY_LIGHT4_PIN"}
 READONLY_KEYS = ("AK_GAIN_LIB", "RADAR_RX_PIN", "RADAR_TX_PIN", "RADAR_BAUD")
 _DEFINE = re.compile(r"^(?P<head>[ \t]*#define[ \t]+(?P<key>[A-Z][A-Z0-9_]*)[ \t]+)(?P<val>-?\d+)(?P<tail>[^\r\n]*)(?=\r?$)",
                      re.M)   # \r?: the checkout stores config.h with CRLF line ends
@@ -170,6 +181,15 @@ def validate_config(current: dict[str, int], changes: dict) -> dict[str, int]:
     light, fan = merged.get("RELAY_LIGHT_PIN", -1), merged.get("RELAY_FAN_PIN", -1)
     if light >= 0 and light == fan:
         problems.append(f"the light and the fan cannot share GPIO {light}")
+    else:
+        seen: dict[int, str] = {}
+        for key in PIN_KEYS:                        # two relays on one GPIO switch together
+            pin = merged.get(key, -1)
+            if pin is None or pin < 0:
+                continue
+            if pin in seen and (key in clean or seen[pin] in clean):
+                problems.append(f"{key} and {seen[pin]} cannot share GPIO {pin}")
+            seen.setdefault(pin, key)
     if problems:
         raise Refused("; ".join(problems))
     return clean
@@ -422,23 +442,25 @@ class BoardControl:
         info = self.hub.info()
         board = info.get("board") or {}
         status, age = self._usb_status()
-        usb_live = bool(self.hub.can_command)
+        live = bool(self.hub.can_command)
+        net_live = live and info.get("link") == "wifi"     # the authenticated UDP session (3.5.0)
+        usb_live = live and not net_live
         if usb_live and status.get("ip") and status.get("wifi") == "connected" and status["ip"] != "0.0.0.0":
             try:
                 if self._state.get("ip") != status["ip"]:
                     self.set_ip(status["ip"], source="usb")
             except Refused:
                 pass
-        ip = self.remembered_ip()
-        wifi = self.wifi_probe(ip)
+        ip = self.remembered_ip() or (board.get("address") if net_live else None)
+        wifi = None if net_live else self.wifi_probe(ip)   # the session already says everything
         wifi_status = (wifi or {}).get("status") or {}
         if usb_live:
             link = "usb"
-        elif wifi and wifi.get("reachable"):
+        elif net_live or (wifi and wifi.get("reachable")):
             link = "wifi"
         else:
             link = "none"
-        running = status.get("fw") if usb_live else wifi_status.get("fw")
+        running = status.get("fw") if live else wifi_status.get("fw")
         repo_fw = fw_version(self.firmware_dir)
         build = self._state.get("build")
         if build:
@@ -449,12 +471,15 @@ class BoardControl:
                     "fw": board.get("fw"), "last_byte_s": board.get("last_byte_s"), "note": board.get("note"),
                     } if info.get("kind") == "hardware" else None,
             "status": {**status, "age_s": age} if status else None,
+            "session": {"address": board.get("address"), "rssi": board.get("rssi"), "handshake": bool(board.get("handshake")),
+                        "fw": board.get("fw"), "note": board.get("note"), "net": board.get("net")}
+            if info.get("link") == "wifi" else None,
             "wifi": wifi,
             "ip": ip, "ip_source": self._state.get("ip_source"),
             "firmware": {"repo": repo_fw, "running": running,
                          "differs": bool(running and repo_fw and running != repo_fw),
-                         "ota": (status.get("ota") if usb_live else wifi_status.get("ota"))},
-            "link_stats": self.hub.link() if usb_live else {},
+                         "ota": (status.get("ota") if live else wifi_status.get("ota"))},
+            "link_stats": self.hub.link() if live else {},
             "hub": {k: info.get(k) for k in ("running", "mode", "kind", "port", "hold")},
             "build": build,
             "job": self.job.view() if self.job else None,
@@ -779,15 +804,15 @@ class BoardControl:
         """Toggle one relay for `hold_s` and put it back, through Limbs.apply: the same
         path, safety gate (circuits.json) and receipts as the switches. The receipt says
         what was sent, whether the board took it, and what the board itself then reported."""
-        if device not in ("light", "fan"):
+        if device not in RELAY_PIN_KEY or device not in self.limbs.state:
             raise NotFound(f"no relay called {device!r}")
         if not self.hub.can_command:
-            raise Conflict("no board on USB: a test click needs the ESP32 plugged in to switch the relay")
+            raise Conflict("no board on USB or Wi-Fi: a test click needs the ESP32 connected to switch the relay")
         if not self._test_lock.acquire(blocking=False):
             raise Conflict("a test click is already running")
         try:
             cfg = parse_defines(self._config_path().read_text(encoding="utf-8"))
-            key = "RELAY_LIGHT_PIN" if device == "light" else "RELAY_FAN_PIN"
+            key = RELAY_PIN_KEY[device]
             before = dict(self.limbs.state[device])
             first = "off" if before["on"] else "on"
             back = "on" if before["on"] else "off"

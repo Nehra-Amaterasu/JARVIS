@@ -2,7 +2,8 @@
  * The ESP32 on the Limbs tab, as /api/board reports it (app/jarvis_app/board_ctl.py).
  *
  * Words and colour follow provenance, as everywhere in this app: cyan only for what the
- * board itself reported (its STATUS over USB, or GET /status over Wi-Fi), amber for
+ * board itself reported (its STATUS over USB or over the Wi-Fi link's signed session,
+ * or GET /status over Wi-Fi), amber for
  * "known, but not live" (a remembered IP, a stale report), red for a fault. The
  * simulator's STATUS never reaches here: the server drops it.
  */
@@ -27,6 +28,11 @@ export interface BoardStatus {
   reset?: string
   beacon_enabled?: boolean
   beacon?: { ip: string | null; mac_known: boolean; pings_ok: number; rate_hz: number; rssi: number | null; fallback: boolean }
+  relay_pins?: Record<string, number>
+  mdns?: string | null
+  /** The Wi-Fi link (3.5.0): the key's fingerprint (never the key), the laptop it streams to. */
+  net?: { key: string; port: number; peer: string | null; dgrams: number; cmds: number; bad: number; replays: number; fail: number } | null
+  link?: boolean
   full?: boolean
   age_s?: number | null
 }
@@ -71,9 +77,16 @@ export interface JobView {
   cmd: string[]
 }
 
+/** The hub's authenticated UDP session with the board (firmware 3.5.0). */
+export interface SessionView {
+  address: string | null; rssi: number | null; handshake: boolean; fw: string | null; note: string | null
+  net: { handshakes: number; datagrams: number; bad_tag: number; lost: number; late: number; rtt_ms: number | null; host_port: number } | null
+}
+
 export interface BoardView {
   link: 'usb' | 'wifi' | 'none'
   usb: { port: string | null; handshake: boolean; fw: string | null; last_byte_s: number | null; note: string | null } | null
+  session?: SessionView | null
   status: BoardStatus | null
   wifi: WifiProbe | null
   ip: string | null
@@ -124,16 +137,21 @@ export interface TestReceipt {
 }
 
 /** What the board panel's pill says, and in which colour. */
-export function linkPill(v: Pick<BoardView, 'link' | 'usb' | 'wifi' | 'ip'>): { text: string; tone: '' | 'live' | 'sim' | 'fault' } {
+export function linkPill(v: Pick<BoardView, 'link' | 'usb' | 'wifi' | 'ip'> & { session?: SessionView | null }): { text: string; tone: '' | 'live' | 'sim' | 'fault' } {
   if (v.link === 'usb') return { text: `USB · ${v.usb?.port ?? '?'}`, tone: 'live' }
+  if (v.link === 'wifi' && v.session) {
+    const rssi = v.session.rssi === null || v.session.rssi === undefined ? '' : ` · ${v.session.rssi} dBm`
+    return { text: `Wi-Fi · ${v.session.address ?? v.ip ?? '?'}${rssi}`, tone: v.session.handshake ? 'live' : 'sim' }
+  }
   if (v.link === 'wifi') return { text: `Wi-Fi · ${v.wifi?.ip ?? v.ip}`, tone: 'live' }
   if (v.ip) return { text: `not answering · ${v.ip}`, tone: 'sim' }
   return { text: 'no board', tone: 'sim' }
 }
 
-/** The board's own report: over USB if plugged in, else what GET /status returned. */
-export function liveStatus(v: Pick<BoardView, 'link' | 'status' | 'wifi'>): BoardStatus | null {
+/** The board's own report: its STATUS over USB or the Wi-Fi session, else what GET /status returned. */
+export function liveStatus(v: Pick<BoardView, 'link' | 'status' | 'wifi'> & { session?: SessionView | null }): BoardStatus | null {
   if (v.link === 'usb') return v.status
+  if (v.link === 'wifi' && v.session) return v.status
   if (v.link === 'wifi') return v.wifi?.status ?? null
   return null
 }
@@ -196,12 +214,24 @@ export function configDraft(cfg: ConfigView, draft: Record<string, number>): { c
   }
   const merged = { ...cfg.values, ...changes }
   const problems: string[] = []
-  for (const key of ['RELAY_LIGHT_PIN', 'RELAY_FAN_PIN']) {
+  const pinKeys = cfg.fields.filter((f) => f.kind === 'pin').map((f) => f.key)
+  for (const key of pinKeys) {
     const why = key in changes ? pinProblem(changes[key], cfg) : null
     if (why) problems.push(`${key}: GPIO ${changes[key]} is ${why}`)
   }
   const light = merged.RELAY_LIGHT_PIN ?? -1, fan = merged.RELAY_FAN_PIN ?? -1
   if (light >= 0 && light === fan) problems.push(`the light and the fan cannot share GPIO ${light}`)
+  else {
+    // Two relays on one GPIO switch together (the server refuses it too).
+    const seen = new Map<number, string>()
+    for (const key of pinKeys) {
+      const pin = merged[key] ?? -1
+      if (pin < 0) continue
+      const first = seen.get(pin)
+      if (first && (key in changes || first in changes)) problems.push(`${key} and ${first} cannot share GPIO ${pin}`)
+      if (!first) seen.set(pin, key)
+    }
+  }
   return { changes, problems }
 }
 

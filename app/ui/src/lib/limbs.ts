@@ -7,7 +7,7 @@ export type BoardId = 'uno' | 'esp32'
 
 export interface LimbsDevice {
   id: string; name: string; kind: Kind; board: BoardId; channel: number
-  state: { on: boolean }; link: 'usb' | 'virtual'
+  state: { on: boolean }; link: 'usb' | 'wifi' | 'virtual'
   hardware_on: boolean | null; confirmed: boolean; note: string
 }
 
@@ -22,9 +22,25 @@ export interface RelayBoard {
   error: string | null; devices: string[]; missing_channels: string[]
 }
 
+/** The ESP32 as a relay board (limbs.py _esp32_view): its link in words, what it lacks. */
+export interface Esp32Relays {
+  devices: string[]; connected: boolean; link: 'usb' | 'wifi' | null; where: string | null; rssi: number | null
+  fw: string | null; how: string | null; missing_channels: string[]
+  pin_mismatch: { device: string; devices_json: number; board: number }[]; text: string
+}
+
 export interface LimbsView {
   devices: LimbsDevice[]; modes: Mode[]; last_mode: string | null
+  /** `usb`: any relay board is linked (its old name). `links`: which links, "usb" and/or "wifi". */
   core_running: boolean; usb: boolean; hardware: string; relay_board: RelayBoard | null; problems: string[]
+  esp32?: Esp32Relays; links?: ('usb' | 'wifi')[]
+}
+
+/** The page's pill: which link the relay boards are on right now. */
+export function linkWord(v: Pick<LimbsView, 'usb' | 'links'> | null | undefined): { text: string; live: boolean } {
+  if (!v?.usb) return { text: 'virtual room', live: false }
+  const links = v.links?.length ? v.links : ['usb']
+  return { text: `relay board · ${links.map((l) => (l === 'wifi' ? 'Wi-Fi' : 'USB')).join(' + ')}`, live: true }
 }
 
 export interface PresenceOnView {

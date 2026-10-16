@@ -92,13 +92,14 @@ def create_app(guard: Guard, autostart_aankhen: str = "auto") -> FastAPI:
         """Relay the twin's presence changes and track events to the ticker."""
         while True:
             await asyncio.sleep(0.5)
-            # A board that (re)connects gets the room's current state pushed to it, so
-            # the relays match the app after a replug or a firmware reset.
+            # An ESP32 that (re)connects, over USB or Wi-Fi: the room adopts its relays
+            # (limbs.resync_hardware; never pushed), then the presence rule may run.
             connected = svc.hub.can_command
             if connected and not svc._board_was_connected:
                 res = await run_in_threadpool(svc.limbs.resync_hardware)
-                bus.publish("limbs", "board", "Relay board connected — room state pushed",
-                            delivered=res)
+                took = ", ".join(f"{d} {'on' if on else 'off'}" for d, on in res.items())
+                bus.publish("limbs", "board", "ESP32 connected: the room took its relay states"
+                            + (f" ({took})" if took else ""), adopted=res)
             svc._board_was_connected = connected
             eng = svc.hub.engine
             if eng is None:

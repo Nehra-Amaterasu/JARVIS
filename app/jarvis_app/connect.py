@@ -13,6 +13,8 @@ Since ROADMAP F2 that includes the three that used to be assumed:
     ESP32    connected only when the board has SAID so: a CRC-valid Aankhen frame on
              the link (aankhen/boards.py). A CH340 or CP210x is not an ESP32; a USB
              serial device that has not identified itself is listed as unidentified.
+             Over Wi-Fi (firmware 3.5.0): a WELCOME verified under the shared key and
+             the board's first DATA; shown as "Wi-Fi (ip, rssi)" beside "USB (COMx)".
     relays   the Uno relay board from the relay transport's own state (uno.py):
              connected with its port, firmware and channels, or why it is not.
              (The LD2450 radar item is gone: Aman dropped the radar on 2026-10-13.)
@@ -103,11 +105,27 @@ def board_items(results: list, aankhen_info: Optional[dict], now: Optional[float
     live = next((r for r in rs if r["verdict"] == "aankhen" and r.get("in_use")), None)
     waiting = next((r for r in rs if r["verdict"] == "claimed"), None)
     found = next((r for r in rs if r["verdict"] == "aankhen" and not r.get("in_use")), None)
-    if live is not None or (board.get("handshake") and board.get("port")):
+    if board.get("link") == "wifi":
+        # The Wi-Fi link (firmware 3.5.0): the hub's authenticated UDP session.
+        where = board.get("address") or ", ".join((info.get("net") or {}).get("addresses") or []) or "no address"
+        if board.get("handshake"):
+            rssi = board.get("rssi")
+            fw = board.get("fw")
+            items.append(_item("esp32", "Hardware", "ESP32-S3 sensor board", "connected",
+                               f"Wi-Fi ({where}{f', {rssi} dBm' if rssi is not None else ''}) · handshake "
+                               f"{_ago(board.get('handshake_at'), now)}" + (f" · {fw}" if fw else "")
+                               + " · HMAC-signed datagrams"))
+        else:
+            items.append(_item("esp32", "Hardware", "ESP32-S3 sensor board", "missing",
+                               f"Aankhen is set to the ESP32 over Wi-Fi ({where}), but it is not answering"
+                               + (f" ({board['note']})." if board.get("note") else "."),
+                               "Check it has power and firmware 3.5.0 with the same LINK_KEY_VALUE "
+                               "(Limbs → Firmware → Wi-Fi link), and the firewall rule shown there."))
+    elif live is not None or (board.get("handshake") and board.get("port")):
         port = (live or {}).get("device") or board.get("port")
         fw = board.get("fw") or (live or {}).get("fw")
         items.append(_item("esp32", "Hardware", "ESP32-S3 sensor board", "connected",
-                           f"{port} · handshake {_ago(board.get('handshake_at'), now)}"
+                           f"USB ({port}) · handshake {_ago(board.get('handshake_at'), now)}"
                            + (f" · {fw}" if fw else "") + " · CRC-checked frames"))
     elif waiting is not None:
         items.append(_item("esp32", "Hardware", "ESP32-S3 sensor board", "missing",

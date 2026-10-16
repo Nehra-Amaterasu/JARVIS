@@ -2,8 +2,9 @@
  * The ESP32 itself: which link reaches it (USB port or Wi-Fi address), and what it
  * says about itself — firmware, uptime, RSSI, packet rate, relays, link 2, OTA.
  *
- * Every number here is the board's own report: its STATUS frame over USB, or
- * GET /status over Wi-Fi (firmware 3.4.0+). Nothing is filled in from the app's own
+ * Every number here is the board's own report: its STATUS frame over USB or over the
+ * Wi-Fi link's signed session (3.5.0), or GET /status over Wi-Fi (firmware 3.4.0+).
+ * Nothing is filled in from the app's own
  * state, and the simulator's STATUS never reaches this card (board_ctl.py drops it).
  */
 import { Cpu, Radio, Wifi } from 'lucide-react'
@@ -73,7 +74,11 @@ export function BoardPanel({ v, reload }: { v: BoardView | null; reload: () => v
             <span>Report</span>
             <span className="mono">{st.age_s === null || st.age_s === undefined ? '—' : `${st.age_s.toFixed(1)} s ago`}{st.heap_free ? ` · ${Math.round(st.heap_free / 1024)} KB free` : ''}</span>
           </>}
-          {v.link === 'wifi' && <>
+          {v.link === 'wifi' && v.session && <>
+            <span>Host link</span>
+            <span className="mono">Wi-Fi session · {(v.session.net?.datagrams ?? 0).toLocaleString('en-US')} datagrams · {v.session.net?.lost ?? 0} lost · {v.session.net?.bad_tag ?? 0} bad tags{v.session.net?.rtt_ms != null ? ` · handshake ${v.session.net.rtt_ms} ms` : ''}</span>
+          </>}
+          {v.link === 'wifi' && !v.session && <>
             <span>Answered in</span><span className="mono">{v.wifi?.latency_ms ?? '—'} ms over Wi-Fi</span>
           </>}
         </div>

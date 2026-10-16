@@ -68,6 +68,20 @@ def test_the_esp32_is_connected_only_with_a_handshake():
     assert items["esp32"]["status"] == "missing" and "no board is talking" in items["esp32"]["detail"]
 
 
+def test_the_esp32_over_wifi_is_shown_with_its_address_and_rssi():
+    now = time.time()
+    wifi = {"running": True, "mode": "hardware", "kind": "hardware", "link": "wifi",
+            "board": {"source": "hardware", "link": "wifi", "port": None, "address": "192.168.1.50",
+                      "handshake": True, "handshake_at": now - 3, "rssi": -61, "fw": "aankhen-3.5.0"}}
+    items = by_id(connect.board_items([], wifi, now=now))
+    assert items["esp32"]["status"] == "connected"
+    assert items["esp32"]["detail"].startswith("Wi-Fi (192.168.1.50, -61 dBm) · handshake 3 s ago · aankhen-3.5.0")
+    silent = {**wifi, "board": {**wifi["board"], "handshake": False, "note": "no answer from 192.168.1.50"}}
+    item = by_id(connect.board_items([], silent, now=now))["esp32"]
+    assert item["status"] == "missing" and "no answer from 192.168.1.50" in item["detail"]
+    assert "LINK_KEY_VALUE" in item["next"]
+
+
 def test_nothing_plugged_in():
     items = by_id(connect.board_items([], {"running": False}))
     assert items["esp32"]["status"] == "missing"

@@ -113,14 +113,23 @@ static inline bool ak_crc_self_test() {
   return ak_crc16((const uint8_t *)v, 9) == 0x29B1;
 }
 
-// Writes whole frames to a Print (the USB serial port). One writer at a time: the
-// caller holds the lock, so frames from different tasks never interleave.
+#define AK_MAX_PAYLOAD 1024           // STATUS, the largest type (MAX_PAYLOAD_BY_TYPE[STATUS])
+#define AK_FRAME_MAX (sizeof(ak_header_t) + AK_MAX_PAYLOAD + 2)
+
+// Writes whole frames to a Print (the USB serial port), and hands each finished frame
+// to `tee` too (the Wi-Fi link's batch, firmware 3.5.0). One writer at a time: the
+// caller holds the lock, so frames from different tasks never interleave, and the
+// frame is assembled in one buffer owned by that lock. The USB bytes are exactly what
+// 3.4.0 wrote, in one write instead of four.
 class AkWriter {
  public:
   explicit AkWriter(Print &out) : out_(out) {}
 
+  void (*tee)(const uint8_t *frame, size_t n) = nullptr;
+
   void frame(ak_type_t type, uint64_t ts_us, const uint8_t *p1, size_t n1,
              const uint8_t *p2 = nullptr, size_t n2 = 0) {
+    if (n1 + n2 > AK_MAX_PAYLOAD) return;          // never a frame the host would reject
     ak_header_t h;
     h.sync[0] = 0xAA;
     h.sync[1] = 0x55;
@@ -129,14 +138,20 @@ class AkWriter {
     h.length = (uint16_t)(n1 + n2);
     h.seq = seq_[type & 0x0F]++;
     h.timestamp_us = ts_us;
-    const uint8_t *hb = (const uint8_t *)&h;
-    uint16_t crc = ak_crc16(hb + 2, sizeof(h) - 2);
-    crc = ak_crc16(p1, n1, crc);
-    if (n2) crc = ak_crc16(p2, n2, crc);
-    out_.write(hb, sizeof(h));
-    out_.write(p1, n1);
-    if (n2) out_.write(p2, n2);
-    out_.write((const uint8_t *)&crc, 2);
+    size_t n = 0;
+    memcpy(buf_, &h, sizeof(h));
+    n += sizeof(h);
+    memcpy(buf_ + n, p1, n1);
+    n += n1;
+    if (n2) {
+      memcpy(buf_ + n, p2, n2);
+      n += n2;
+    }
+    uint16_t crc = ak_crc16(buf_ + 2, n - 2);
+    memcpy(buf_ + n, &crc, 2);
+    n += 2;
+    out_.write(buf_, n);
+    if (tee) tee(buf_, n);
   }
 
   void text(ak_type_t type, const char *s) {
@@ -145,6 +160,7 @@ class AkWriter {
 
  private:
   Print &out_;
+  uint8_t buf_[AK_FRAME_MAX];
   // One counter per type: the host counts loss per type from these. 16, not 8: with
   // `type & 0x07`, AK_CSI_LINK (0x08) would share slot 0 by luck, and the next type
   // (0x09) would share AK_CSI's counter and make both types' gaps look like loss.

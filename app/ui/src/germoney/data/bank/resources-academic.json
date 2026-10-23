@@ -1,0 +1,808 @@
+[
+  {
+    "id": "acad.problems.pauls-calc3",
+    "title": "Paul's Online Math Notes - Calculus III (notes + practice problems with solutions)",
+    "kind": "problems",
+    "url": "https://tutorial.math.lamar.edu/Classes/CalcIII/CalcIII.aspx",
+    "free": true,
+    "covers": [
+      "double integrals (Cartesian, polar)",
+      "change of order of integration",
+      "triple integrals (cylindrical, spherical)",
+      "change of variables / Jacobian",
+      "line integrals",
+      "surface integrals",
+      "Green's theorem",
+      "Stokes' theorem",
+      "divergence theorem",
+      "gradient, divergence, curl"
+    ],
+    "hours": 15
+  },
+  {
+    "id": "acad.course.mit-18-02sc",
+    "title": "MIT OCW 18.02SC Multivariable Calculus (lectures, recitations, problem sets and exams with solutions)",
+    "kind": "course",
+    "url": "https://ocw.mit.edu/courses/18-02sc-multivariable-calculus-fall-2010/",
+    "free": true,
+    "covers": [
+      "double and triple integrals",
+      "polar and spherical coordinates",
+      "vector fields",
+      "line and surface integrals",
+      "Green's theorem",
+      "Stokes' theorem",
+      "divergence theorem"
+    ],
+    "hours": 40
+  },
+  {
+    "id": "acad.video.gajendra-purohit",
+    "title": "Dr. Gajendra Purohit - YouTube (exam-style Indian engineering maths lectures; search the channel by topic)",
+    "kind": "video",
+    "url": "https://www.youtube.com/@gajendrapurohit",
+    "free": true,
+    "covers": [
+      "Beta and Gamma functions",
+      "change of order of integration",
+      "numerical methods worked examples",
+      "probability worked examples"
+    ]
+  },
+  {
+    "id": "acad.course.nptel-numerical-methods",
+    "title": "NPTEL: Numerical Methods - Prof. Ameeya Kumar Nayak and Prof. Sanjeev Kumar, IIT Roorkee",
+    "kind": "course",
+    "url": "https://nptel.ac.in/courses/111107105",
+    "free": true,
+    "certificate": {
+      "issuer": "NPTEL / SWAYAM (IIT Roorkee)",
+      "cost_inr": 1000,
+      "credibility": 4
+    },
+    "covers": [
+      "bisection method",
+      "regula falsi",
+      "Newton-Raphson",
+      "finite differences",
+      "Newton forward/backward interpolation",
+      "Lagrange interpolation",
+      "divided differences",
+      "LU decomposition",
+      "Jacobi and Gauss-Seidel",
+      "trapezoidal and Simpson's rules"
+    ],
+    "hours": 20
+  },
+  {
+    "id": "acad.book.kaw-holistic-numerical-methods",
+    "title": "Holistic Numerical Methods - Autar Kaw, Univ. of South Florida (free textbook chapters, videos, quizzes)",
+    "kind": "book",
+    "url": "https://nm.mathforcollege.com/",
+    "free": true,
+    "covers": [
+      "bisection",
+      "false position",
+      "Newton-Raphson",
+      "Newton divided difference and Lagrange interpolation",
+      "LU decomposition",
+      "Gauss-Seidel",
+      "trapezoidal rule",
+      "Simpson's 1/3 rule",
+      "Runge-Kutta 4th order"
+    ],
+    "hours": 25
+  },
+  {
+    "id": "acad.book.pishro-nik-probability",
+    "title": "Introduction to Probability, Statistics and Random Processes - H. Pishro-Nik (free online textbook, probabilitycourse.com)",
+    "kind": "book",
+    "url": "https://www.probabilitycourse.com/",
+    "free": true,
+    "covers": [
+      "sample space and events",
+      "conditional probability",
+      "Bayes' theorem",
+      "CDF, PMF, PDF",
+      "joint, marginal and conditional distributions",
+      "random processes and their classification",
+      "autocorrelation",
+      "power spectral density",
+      "Gaussian random process"
+    ],
+    "hours": 30
+  },
+  {
+    "id": "acad.course.nptel-probability-statistics",
+    "title": "NPTEL: Probability and Statistics - Prof. Somesh Kumar, IIT Kharagpur",
+    "kind": "course",
+    "url": "https://nptel.ac.in/courses/111105090",
+    "free": true,
+    "certificate": {
+      "issuer": "NPTEL / SWAYAM (IIT Kharagpur)",
+      "cost_inr": 1000,
+      "credibility": 4
+    },
+    "covers": [
+      "axioms of probability",
+      "conditional probability and Bayes' theorem",
+      "random variables and distributions",
+      "joint distributions"
+    ],
+    "hours": 30
+  },
+  {
+    "id": "acad.pyq.aktu-math1",
+    "title": "AKTU Engineering Mathematics-I previous papers (Notes Gallery) - multiple integrals, Beta/Gamma, vector calculus sections",
+    "kind": "pyq",
+    "url": "https://notesgallery.com/1st-year-aktu-pyqs-math-1/",
+    "free": true,
+    "covers": [
+      "double/triple integrals",
+      "change of order",
+      "Beta and Gamma functions",
+      "gradient, divergence, curl",
+      "Green, Stokes, Gauss theorems"
+    ]
+  },
+  {
+    "id": "acad.pyq.aktu-cbnt",
+    "title": "AKTU Computer Based Numerical Techniques previous papers (Notes Gallery)",
+    "kind": "pyq",
+    "url": "https://notesgallery.com/oe-3rd-pyqs-computer-based-numerical-techniques/",
+    "free": true,
+    "covers": [
+      "regula falsi",
+      "interpolation formulas",
+      "divided differences",
+      "trapezoidal rule",
+      "Runge-Kutta 4th order"
+    ]
+  },
+  {
+    "id": "acad.pyq.aktu-math4",
+    "title": "AKTU Mathematics-IV previous papers (Notes Gallery) - probability and statistics sections",
+    "kind": "pyq",
+    "url": "https://notesgallery.com/2nd-year-aktu-pyqs-math-4/",
+    "free": true,
+    "covers": [
+      "addition and multiplication rules",
+      "conditional probability",
+      "Bayes' theorem",
+      "random variables"
+    ]
+  },
+  {
+    "id": "acad.pyq.gate-ec-official",
+    "title": "GATE official previous question papers and answer keys (EC 2019-2025 + bulk 2007-2025), GATE 2026 site",
+    "kind": "pyq",
+    "url": "https://gate2026.iitg.ac.in/download.html",
+    "free": true,
+    "covers": [
+      "engineering mathematics (vector calculus, probability)",
+      "networks",
+      "analog circuits",
+      "communications",
+      "control systems"
+    ]
+  },
+  {
+    "id": "acad.video.neso-network-theory",
+    "title": "Neso Academy - Network Theory (YouTube playlist)",
+    "kind": "video",
+    "url": "https://www.youtube.com/playlist?list=PLBlnK6fEyqRgLR-hMp7wem-bdVN1iEhsh",
+    "free": true,
+    "covers": [
+      "nodal and mesh analysis",
+      "source transformation",
+      "network theorems",
+      "transients",
+      "Laplace-domain circuit analysis",
+      "two-port networks"
+    ]
+  },
+  {
+    "id": "acad.book.ulaby-circuit-analysis-design",
+    "title": "Circuit Analysis and Design - Ulaby, Maharbiz, Furse (open-access textbook, Michigan Publishing)",
+    "kind": "book",
+    "url": "https://services.publishing.umich.edu/Books/C/Circuit-Analysis-and-Design",
+    "free": true,
+    "legal_pdf_url": "https://www.fulcrum.org/concern/monographs/5t34sp19h?locale=en",
+    "covers": [
+      "nodal and mesh analysis",
+      "network theorems",
+      "AC steady state",
+      "Laplace-transform circuit analysis",
+      "Fourier series analysis of circuits",
+      "frequency response and filters"
+    ],
+    "hours": 40
+  },
+  {
+    "id": "acad.course.nptel-network-analysis",
+    "title": "NPTEL: Network Analysis - Prof. Tapas Kumar Bhattacharya, IIT Kharagpur",
+    "kind": "course",
+    "url": "https://nptel.ac.in/courses/108105159",
+    "free": true,
+    "certificate": {
+      "issuer": "NPTEL / SWAYAM (IIT Kharagpur)",
+      "cost_inr": 1000,
+      "credibility": 4
+    },
+    "covers": [
+      "network theorems",
+      "transient and steady-state response",
+      "impulse response",
+      "s-domain circuit representation"
+    ],
+    "hours": 30
+  },
+  {
+    "id": "acad.course.nptel-networks-systems-murti",
+    "title": "NPTEL: Networks and Systems - Prof. V.G.K. Murti, IIT Madras (classic video course)",
+    "kind": "course",
+    "url": "https://nptel.ac.in/courses/108106075",
+    "free": true,
+    "covers": [
+      "network functions",
+      "poles and zeros",
+      "two-port parameters",
+      "driving-point functions"
+    ],
+    "hours": 40
+  },
+  {
+    "id": "acad.pyq.aktu-nas",
+    "title": "AKTU Network Analysis and Synthesis previous papers (Notes Gallery)",
+    "kind": "pyq",
+    "url": "https://notesgallery.com/ece-2nd-year-aktu-pyqs-nas/",
+    "free": true,
+    "covers": [
+      "Thevenin/Norton",
+      "two-port parameters",
+      "Laplace transients with initial conditions",
+      "Hurwitz polynomials",
+      "Foster and Cauer forms",
+      "filters"
+    ]
+  },
+  {
+    "id": "acad.course.nptel-iot-misra",
+    "title": "NPTEL: Introduction to Internet of Things - Prof. Sudip Misra, IIT Kharagpur (the course linked in the IoT syllabus)",
+    "kind": "course",
+    "url": "https://nptel.ac.in/courses/106105166",
+    "free": true,
+    "certificate": {
+      "issuer": "NPTEL / SWAYAM (IIT Kharagpur)",
+      "cost_inr": 1000,
+      "credibility": 4
+    },
+    "covers": [
+      "IoT architecture",
+      "sensors and actuators",
+      "gateways and cloud",
+      "wireless sensor networks",
+      "IoT communication protocols",
+      "Raspberry Pi and Arduino",
+      "IoT case studies (smart cities, agriculture, healthcare)"
+    ],
+    "hours": 30
+  },
+  {
+    "id": "acad.notes.hivemq-mqtt-essentials",
+    "title": "HiveMQ - MQTT Essentials (free article series)",
+    "kind": "notes",
+    "url": "https://www.hivemq.com/mqtt/",
+    "free": true,
+    "covers": [
+      "MQTT publish/subscribe",
+      "broker",
+      "topics",
+      "QoS levels",
+      "retained messages",
+      "last will"
+    ],
+    "hours": 3
+  },
+  {
+    "id": "acad.notes.lora-alliance-lorawan",
+    "title": "LoRa Alliance - About LoRaWAN",
+    "kind": "notes",
+    "url": "https://lora-alliance.org/about-lorawan/",
+    "free": true,
+    "covers": [
+      "LoRa vs LoRaWAN",
+      "LPWAN network architecture",
+      "device classes"
+    ],
+    "hours": 1
+  },
+  {
+    "id": "acad.video.3b1b-neural-networks",
+    "title": "3Blue1Brown - Neural Networks series",
+    "kind": "video",
+    "url": "https://www.3blue1brown.com/topics/neural-networks",
+    "free": true,
+    "covers": [
+      "neurons and layers",
+      "gradient descent",
+      "backpropagation"
+    ],
+    "hours": 2
+  },
+  {
+    "id": "acad.book.d2l",
+    "title": "Dive into Deep Learning (free open textbook)",
+    "kind": "book",
+    "url": "https://d2l.ai/",
+    "free": true,
+    "covers": [
+      "neural network basics",
+      "convolutional networks for vision"
+    ],
+    "hours": 10
+  },
+  {
+    "id": "acad.pyq.aktu-iot",
+    "title": "AKTU IoT previous papers (Notes Gallery) - check each PDF's subject header, one sampled file was a different subject",
+    "kind": "pyq",
+    "url": "https://notesgallery.com/ece-3rd-year-aktu-pyqs-iot/",
+    "free": true,
+    "covers": [
+      "IoT architecture",
+      "IoT protocols",
+      "WSN"
+    ]
+  },
+  {
+    "id": "acad.course.nptel-digicomm-dixit",
+    "title": "NPTEL: Principles of Digital Communication - Prof. Abhishek Dixit, IIT Delhi (listed in the DC syllabus)",
+    "kind": "course",
+    "url": "https://nptel.ac.in/courses/108102120",
+    "free": true,
+    "certificate": {
+      "issuer": "NPTEL / SWAYAM (IIT Delhi)",
+      "cost_inr": 1000,
+      "credibility": 4
+    },
+    "covers": [
+      "geometric representation of signals",
+      "Gram-Schmidt orthogonalization",
+      "random processes",
+      "waveform coding",
+      "ASK, FSK, PSK, QAM",
+      "optimum detection",
+      "error probability"
+    ],
+    "hours": 30
+  },
+  {
+    "id": "acad.course.nptel-digicomm-prasad",
+    "title": "NPTEL: Digital Communication - Prof. Surendra Prasad, IIT Delhi (classic video course)",
+    "kind": "course",
+    "url": "https://nptel.ac.in/courses/108102096",
+    "free": true,
+    "covers": [
+      "line codes and their spectra",
+      "pulse shaping and ISI",
+      "eye diagram",
+      "matched filter",
+      "digital modulation"
+    ],
+    "hours": 30
+  },
+  {
+    "id": "acad.course.mit-6-450",
+    "title": "MIT OCW 6.450 Principles of Digital Communications I - Gallager (free lecture notes)",
+    "kind": "notes",
+    "url": "https://ocw.mit.edu/courses/6-450-principles-of-digital-communications-i-fall-2006/pages/lecture-notes/",
+    "free": true,
+    "covers": [
+      "signal space",
+      "detection theory",
+      "matched filter",
+      "random processes and noise"
+    ],
+    "hours": 20
+  },
+  {
+    "id": "acad.course.mit-6-02",
+    "title": "MIT OCW 6.02 Introduction to EECS II: Digital Communication Systems (listed in the DC syllabus)",
+    "kind": "course",
+    "url": "https://ocw.mit.edu/courses/6-02-introduction-to-eecs-ii-digital-communication-systems-fall-2012/",
+    "free": true,
+    "covers": [
+      "modulation and demodulation",
+      "noise and bit errors",
+      "channel coding",
+      "media access"
+    ],
+    "hours": 30
+  },
+  {
+    "id": "acad.course.nptel-modern-digicomm-das",
+    "title": "NPTEL: Modern Digital Communication Techniques - Prof. Suvra Sekhar Das, IIT Kharagpur (PG-level; use only for MIMO/5G)",
+    "kind": "course",
+    "url": "https://nptel.ac.in/courses/117105144",
+    "free": true,
+    "certificate": {
+      "issuer": "NPTEL / SWAYAM (IIT Kharagpur)",
+      "cost_inr": 1000,
+      "credibility": 4
+    },
+    "covers": [
+      "MIMO",
+      "OFDM",
+      "modern wireless receivers"
+    ],
+    "hours": 40
+  },
+  {
+    "id": "acad.pyq.aktu-digital-communication",
+    "title": "AKTU Digital Communication previous papers (Notes Gallery)",
+    "kind": "pyq",
+    "url": "https://notesgallery.com/ece-3rd-year-pyqs-digital-communication/",
+    "free": true,
+    "covers": [
+      "line coding",
+      "matched filter",
+      "BER of BASK/BFSK/BPSK",
+      "QPSK",
+      "spread spectrum"
+    ]
+  },
+  {
+    "id": "acad.course.nptel-analog-circuits-krishnapura",
+    "title": "NPTEL: Analog Circuits - Prof. Nagendra Krishnapura, IIT Madras (the course linked in the Microelectronics syllabus)",
+    "kind": "course",
+    "url": "https://nptel.ac.in/courses/108106084",
+    "free": true,
+    "certificate": {
+      "issuer": "NPTEL / SWAYAM (IIT Madras)",
+      "cost_inr": 1000,
+      "credibility": 4
+    },
+    "covers": [
+      "MOSFET characteristics",
+      "biasing",
+      "small-signal models",
+      "common source, common gate, common drain stages"
+    ],
+    "hours": 30
+  },
+  {
+    "id": "acad.course.mit-6-012",
+    "title": "MIT OCW 6.012 Microelectronic Devices and Circuits (lecture notes, problem sets, exams)",
+    "kind": "course",
+    "url": "https://ocw.mit.edu/courses/6-012-microelectronic-devices-and-circuits-fall-2009/",
+    "free": true,
+    "covers": [
+      "MOSFET I-V",
+      "single-stage amplifiers",
+      "cascode",
+      "current sources and mirrors",
+      "differential amplifiers",
+      "frequency response"
+    ],
+    "hours": 40
+  },
+  {
+    "id": "acad.notes.aicdesign-allen",
+    "title": "aicdesign.org - Phillip Allen's CMOS analog design lecture notes (author-hosted; lecture 24 is linked in the syllabus)",
+    "kind": "notes",
+    "url": "https://aicdesign.org/",
+    "free": true,
+    "covers": [
+      "current mirrors",
+      "cascode current mirrors",
+      "differential amplifiers",
+      "noise in MOSFETs",
+      "cascode, telescopic and folded-cascode op amps"
+    ],
+    "hours": 15
+  },
+  {
+    "id": "acad.course.nptel-analog-ic-design",
+    "title": "NPTEL: Analog IC Design - Dr. Nagendra Krishnapura, IIT Madras (PG-level video course)",
+    "kind": "course",
+    "url": "https://nptel.ac.in/courses/117106030",
+    "free": true,
+    "covers": [
+      "op-amp design",
+      "folded cascode",
+      "feedback and stability"
+    ],
+    "hours": 40
+  },
+  {
+    "id": "acad.book.hu-ch6-mosfet",
+    "title": "Chenming Hu, Modern Semiconductor Devices for ICs - Ch. 6 MOS Transistor (author-hosted free chapter)",
+    "kind": "book",
+    "url": "https://www.chu.berkeley.edu/modern-semiconductor-devices-for-integrated-circuits-chenming-calvin-hu-2010/",
+    "free": true,
+    "legal_pdf_url": "https://www.chu.berkeley.edu/wp-content/uploads/2020/01/Chenming-Hu_ch6-1.pdf",
+    "covers": [
+      "MOSFET structure",
+      "threshold voltage",
+      "I-V derivation",
+      "body effect",
+      "channel-length modulation",
+      "velocity saturation"
+    ],
+    "hours": 4
+  },
+  {
+    "id": "acad.pyq.aktu-cmos-analog",
+    "title": "AKTU CMOS Analog VLSI Design previous papers (Notes Gallery)",
+    "kind": "pyq",
+    "url": "https://notesgallery.com/ece-3rd-year-aktu-pyqs-cmos/",
+    "free": true,
+    "covers": [
+      "MOS amplifiers",
+      "current mirrors",
+      "differential pair",
+      "op amps"
+    ]
+  },
+  {
+    "id": "acad.course.nptel-vlsi-technology",
+    "title": "NPTEL: VLSI Technology - Prof. Nandita DasGupta, IIT Madras",
+    "kind": "course",
+    "url": "https://nptel.ac.in/courses/117106093",
+    "free": true,
+    "certificate": {
+      "issuer": "NPTEL / SWAYAM (IIT Madras)",
+      "cost_inr": 1000,
+      "credibility": 4
+    },
+    "covers": [
+      "crystal growth",
+      "oxidation",
+      "diffusion",
+      "ion implantation",
+      "lithography",
+      "metallization",
+      "MOSFET and CMOS process flow"
+    ],
+    "hours": 30
+  },
+  {
+    "id": "acad.book.hu-ch3-fabrication",
+    "title": "Chenming Hu, Modern Semiconductor Devices for ICs - Ch. 3 Device Fabrication Technology (author-hosted free chapter)",
+    "kind": "book",
+    "url": "https://www.chu.berkeley.edu/modern-semiconductor-devices-for-integrated-circuits-chenming-calvin-hu-2010/",
+    "free": true,
+    "legal_pdf_url": "https://www.chu.berkeley.edu/wp-content/uploads/2020/01/Chenming-Hu_ch3.pdf",
+    "covers": [
+      "oxidation",
+      "lithography",
+      "etching",
+      "doping and diffusion",
+      "thin-film deposition",
+      "interconnects",
+      "fabrication example"
+    ],
+    "hours": 4
+  },
+  {
+    "id": "acad.course.mit-6-152j",
+    "title": "MIT OCW 6.152J Micro/Nano Processing Technology",
+    "kind": "course",
+    "url": "https://ocw.mit.edu/courses/6-152j-micro-nano-processing-technology-fall-2005/",
+    "free": true,
+    "covers": [
+      "wafer cleaning",
+      "epitaxy",
+      "CVD and sputtering",
+      "plasma etching",
+      "metallization"
+    ],
+    "hours": 25
+  },
+  {
+    "id": "acad.pyq.aktu-vlsi-technology",
+    "title": "AKTU VLSI Technology previous papers (Notes Gallery)",
+    "kind": "pyq",
+    "url": "https://notesgallery.com/ece-3rd-year-aktu-pyqs-vlsi/",
+    "free": true,
+    "covers": [
+      "Czochralski growth",
+      "oxidation kinetics",
+      "diffusion",
+      "ion implantation",
+      "lithography",
+      "CMOS process"
+    ]
+  },
+  {
+    "id": "acad.video.neso-control-systems",
+    "title": "Neso Academy - Control Systems (YouTube playlist)",
+    "kind": "video",
+    "url": "https://www.youtube.com/playlist?list=PLBlnK6fEyqRhqzJT87LsdQKYZBC93ezDo",
+    "free": true,
+    "covers": [
+      "transfer functions",
+      "block diagrams and signal flow graphs",
+      "time response",
+      "stability and Routh-Hurwitz",
+      "root locus",
+      "frequency response"
+    ]
+  },
+  {
+    "id": "acad.course.nptel-control-engineering",
+    "title": "NPTEL: Control Engineering - Prof. Ramkrishna Pasumarthy, IIT Madras",
+    "kind": "course",
+    "url": "https://nptel.ac.in/courses/108106098",
+    "free": true,
+    "certificate": {
+      "issuer": "NPTEL / SWAYAM (IIT Madras)",
+      "cost_inr": 1000,
+      "credibility": 4
+    },
+    "covers": [
+      "modelling of LTI systems",
+      "Laplace-domain analysis",
+      "stability",
+      "root locus",
+      "frequency-domain design"
+    ],
+    "hours": 30
+  },
+  {
+    "id": "acad.book.astrom-murray-feedback-systems",
+    "title": "Feedback Systems - Astrom and Murray (author-hosted free PDF, Caltech)",
+    "kind": "book",
+    "url": "https://www.cds.caltech.edu/~murray/books/AM08/pdf/am08-complete_22Feb09.pdf",
+    "free": true,
+    "legal_pdf_url": "https://www.cds.caltech.edu/~murray/books/AM08/pdf/am08-complete_22Feb09.pdf",
+    "covers": [
+      "state-space models",
+      "transfer functions",
+      "frequency response",
+      "PID control",
+      "loop shaping"
+    ],
+    "hours": 30
+  },
+  {
+    "id": "acad.pyq.aktu-control-system",
+    "title": "AKTU Control System previous papers (Notes Gallery)",
+    "kind": "pyq",
+    "url": "https://notesgallery.com/ece-3rd-year-pyqs-control-system/",
+    "free": true,
+    "covers": [
+      "signal flow graphs",
+      "time response",
+      "Routh-Hurwitz",
+      "root locus",
+      "Bode and Nyquist plots"
+    ]
+  },
+  {
+    "id": "acad.course.nptel-entrepreneurship",
+    "title": "NPTEL: Entrepreneurship - Prof. C. Bhaktavatsala Rao, IIT Madras",
+    "kind": "course",
+    "url": "https://nptel.ac.in/courses/110106141",
+    "free": true,
+    "certificate": {
+      "issuer": "NPTEL / SWAYAM (IIT Madras)",
+      "cost_inr": 1000,
+      "credibility": 4
+    },
+    "covers": [
+      "entrepreneurship and the economy",
+      "opportunity identification",
+      "business models",
+      "funding",
+      "venture growth"
+    ],
+    "hours": 30
+  },
+  {
+    "id": "acad.course.mit-15-390",
+    "title": "MIT OCW 15.390 New Enterprises (Bill Aulet's course; free alternative to his textbook)",
+    "kind": "course",
+    "url": "https://ocw.mit.edu/courses/15-390-new-enterprises-spring-2013/",
+    "free": true,
+    "covers": [
+      "market segmentation",
+      "beachhead market",
+      "customer persona",
+      "value proposition",
+      "go-to-market",
+      "business model"
+    ],
+    "hours": 20
+  },
+  {
+    "id": "acad.notes.strategyzer-bmc",
+    "title": "Strategyzer - Business Model Canvas (official free template)",
+    "kind": "notes",
+    "url": "https://www.strategyzer.com/library/the-business-model-canvas",
+    "free": true,
+    "covers": [
+      "business model canvas"
+    ],
+    "hours": 1
+  },
+  {
+    "id": "acad.notes.startup-india",
+    "title": "Startup India portal (Government of India) - incubators, funding schemes, incorporation",
+    "kind": "notes",
+    "url": "https://www.startupindia.gov.in/",
+    "free": true,
+    "covers": [
+      "startup ecosystem",
+      "incubators",
+      "funding sources",
+      "startup incorporation"
+    ],
+    "hours": 2
+  },
+  {
+    "id": "acad.pyq.aktu-idea-to-business-model",
+    "title": "AKTU Idea to Business Model previous papers (Notes Gallery; partial overlap)",
+    "kind": "pyq",
+    "url": "https://notesgallery.com/oe-3rd-year-pyqs-idea-to-business-model/",
+    "free": true,
+    "covers": [
+      "business model",
+      "market analysis",
+      "funding"
+    ]
+  },
+  {
+    "id": "acad.book.constitution-of-india-2024",
+    "title": "The Constitution of India, as on 1 May 2024 - Legislative Department, Government of India (official PDF)",
+    "kind": "book",
+    "url": "https://www.legislative.gov.in/constitution-of-india",
+    "free": true,
+    "legal_pdf_url": "https://cdnbbsr.s3waas.gov.in/s380537a945c7aaa788ccfcdf1b99b5d8f/uploads/2024/07/20240716890312078.pdf",
+    "covers": [
+      "Preamble",
+      "Fundamental Rights",
+      "Fundamental Duties",
+      "Directive Principles",
+      "Union executive",
+      "State executive",
+      "local government",
+      "Election Commission"
+    ]
+  },
+  {
+    "id": "acad.course.nptel-constitutional-studies",
+    "title": "NPTEL: Constitutional Studies - Prof. Sudhir Krishnaswamy, NLSIU",
+    "kind": "course",
+    "url": "https://nptel.ac.in/courses/129106003",
+    "free": true,
+    "certificate": {
+      "issuer": "NPTEL / SWAYAM (NLSIU Bengaluru)",
+      "cost_inr": 1000,
+      "credibility": 4
+    },
+    "covers": [
+      "making of the Constitution",
+      "basic structure",
+      "fundamental rights",
+      "parliamentary system",
+      "federalism"
+    ],
+    "hours": 30
+  },
+  {
+    "id": "acad.pyq.aktu-coi",
+    "title": "AKTU Constitution of India previous papers (Notes Gallery)",
+    "kind": "pyq",
+    "url": "https://notesgallery.com/3rd-year-aktu-pyqs-coi-2",
+    "free": true,
+    "covers": [
+      "Preamble",
+      "Fundamental Rights and Duties",
+      "DPSP",
+      "President and Prime Minister",
+      "Governor",
+      "Election Commission"
+    ]
+  }
+]

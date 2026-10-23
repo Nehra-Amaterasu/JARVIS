@@ -1,0 +1,2987 @@
+{
+  "version": 1,
+  "diagnostic": [
+    {
+      "q": "Compute 47 x 23 without paper.",
+      "a": "1081",
+      "level": 1,
+      "node": "math.arithmetic_mental"
+    },
+    {
+      "q": "15% of 640?",
+      "a": "96",
+      "level": 1,
+      "node": "math.arithmetic_mental"
+    },
+    {
+      "q": "3/4 - 2/3 = ?",
+      "a": "1/12",
+      "level": 1,
+      "node": "math.arithmetic_mental"
+    },
+    {
+      "q": "Solve 3(x - 2) = 2x + 5.",
+      "a": "x = 11",
+      "level": 2,
+      "node": "math.algebra"
+    },
+    {
+      "q": "Factorise x^2 - 5x + 6.",
+      "a": "(x - 2)(x - 3)",
+      "level": 2,
+      "node": "math.algebra"
+    },
+    {
+      "q": "Expand (2a - 3b)^2.",
+      "a": "4a^2 - 12ab + 9b^2",
+      "level": 2,
+      "node": "math.algebra"
+    },
+    {
+      "q": "Solve x^2 - 4x - 1 = 0.",
+      "a": "x = 2 +/- sqrt(5)",
+      "level": 2,
+      "node": "math.algebra"
+    },
+    {
+      "q": "log2 32 + log10 0.01 = ?",
+      "a": "3",
+      "level": 2,
+      "node": "math.algebra"
+    },
+    {
+      "q": "f(x) = 2x + 1, g(x) = x^2. Find f(g(3)) and g(f(3)).",
+      "a": "19 and 49",
+      "level": 3,
+      "node": "math.functions_graphs"
+    },
+    {
+      "q": "Find the inverse of f(x) = (x - 1)/3.",
+      "a": "f^-1(x) = 3x + 1",
+      "level": 3,
+      "node": "math.functions_graphs"
+    },
+    {
+      "q": "sin 30 deg + cos 60 deg + tan 45 deg = ?",
+      "a": "2",
+      "level": 4,
+      "node": "math.trigonometry"
+    },
+    {
+      "q": "sin t = 3/5 with t in quadrant I. Find cos 2t.",
+      "a": "7/25",
+      "level": 4,
+      "node": "math.trigonometry"
+    },
+    {
+      "q": "Compute (3 + 4i)(1 - 2i) and |3 + 4i|.",
+      "a": "11 - 2i; 5",
+      "level": 5,
+      "node": "math.complex_numbers"
+    },
+    {
+      "q": "Write 1 + i in polar (exponential) form.",
+      "a": "sqrt(2) e^(i pi/4)",
+      "level": 5,
+      "node": "math.complex_numbers"
+    },
+    {
+      "q": "lim x->0 sin(3x)/x = ?",
+      "a": "3",
+      "level": 6,
+      "node": "math.calculus"
+    },
+    {
+      "q": "d/dx [x^2 e^(3x)] = ?",
+      "a": "x e^(3x) (2 + 3x)",
+      "level": 6,
+      "node": "math.calculus"
+    },
+    {
+      "q": "d/dx ln(sin x) = ?",
+      "a": "cot x",
+      "level": 6,
+      "node": "math.calculus"
+    },
+    {
+      "q": "int x e^x dx = ?",
+      "a": "(x - 1) e^x + C",
+      "level": 7,
+      "node": "math.integration"
+    },
+    {
+      "q": "int from 0 to pi/2 of sin^2 x dx = ?",
+      "a": "pi/4",
+      "level": 7,
+      "node": "math.integration"
+    },
+    {
+      "q": "int 0..1 int 0..x xy dy dx = ?",
+      "a": "1/8",
+      "level": 7,
+      "node": "math.multivariable_vector"
+    },
+    {
+      "q": "Solve dy/dx = 2y with y(0) = 3.",
+      "a": "y = 3 e^(2x)",
+      "level": 8,
+      "node": "math.diff_equations"
+    },
+    {
+      "q": "Eigenvalues of [[2,1],[1,2]]?",
+      "a": "1 and 3",
+      "level": 8,
+      "node": "math.linear_algebra"
+    },
+    {
+      "q": "Two fair dice: P(sum = 7)?",
+      "a": "1/6",
+      "level": 9,
+      "node": "math.probability_stats"
+    },
+    {
+      "q": "1% have a disease. Test: 99% sensitive, 5% false positives. P(disease | positive)?",
+      "a": "~0.167 (0.0099/0.0594)",
+      "level": 9,
+      "node": "math.probability_stats"
+    },
+    {
+      "q": "X uniform on [0, 2]. E[X] and Var(X)?",
+      "a": "1 and 1/3",
+      "level": 9,
+      "node": "math.probability_stats"
+    },
+    {
+      "q": "One Newton-Raphson step for x^2 - 2 = 0 from x0 = 1.",
+      "a": "x1 = 1.5",
+      "level": 10,
+      "node": "math.numerical_methods"
+    },
+    {
+      "q": "Simpson 1/3 rule with 2 strips for int 0..2 x^2 dx: result?",
+      "a": "8/3 (exact, Simpson is exact for cubics)",
+      "level": 10,
+      "node": "math.numerical_methods"
+    },
+    {
+      "q": "Laplace transform of e^(-2t)?",
+      "a": "1/(s + 2), for s > -2",
+      "level": 10,
+      "node": "math.signals_transforms"
+    },
+    {
+      "q": "X(t) = A cos(wt), A zero-mean with variance s^2. Mean and R(t1,t2)? Is it WSS?",
+      "a": "Mean 0, R = s^2 cos(w t1) cos(w t2); not WSS",
+      "level": 10,
+      "node": "math.random_processes"
+    },
+    {
+      "q": "Is the function f(x) = x^2 - 4x + 5 convex, and where is its minimum?",
+      "a": "Convex (f'' = 2 > 0); min 1 at x = 2",
+      "level": 10,
+      "node": "math.optimisation"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "math.arithmetic_mental",
+      "name": "Arithmetic and mental maths",
+      "branch": "math",
+      "tier": 0,
+      "prereqs": [],
+      "outcomes": [
+        "Squares 1-25 and tables to 20 recalled instantly",
+        "Two-digit products by splitting and difference of squares",
+        "Fractions, percentages and decimals converted in the head",
+        "Estimate any answer to 1 significant figure before computing",
+        "Powers of 2/10 and decibels without a calculator"
+      ],
+      "hours_est": 15,
+      "resources": [
+        "math.r.khan_arithmetic",
+        "math.r.openstax_prealgebra"
+      ],
+      "certs": [],
+      "project": null,
+      "contracts": [
+        {
+          "id": "math.arithmetic_mental.c01",
+          "title": "Squares 11-25 from memory",
+          "minutes": 8,
+          "context": "Fast number facts free working memory for the real problem (algebra, integrals). Squares come up in every exam.",
+          "steps": [
+            "Write 11 to 25 in a column.",
+            "Say each square aloud and write it, timer running, no checking.",
+            "Check against the key, star every miss.",
+            "Re-test only the starred ones after 10 minutes."
+          ],
+          "hint": "For numbers ending in 5: n5 squared = n(n+1) followed by 25, so 35^2 = 3x4 = 12 -> 1225. Otherwise use (a+b)^2 = a^2 + 2ab + b^2: 17^2 = 289.",
+          "success_check": "15/15 correct in under 3 minutes. Key: 121,144,169,196,225,256,289,324,361,400,441,484,529,576,625.",
+          "xp": 10
+        },
+        {
+          "id": "math.arithmetic_mental.c02",
+          "title": "Two-digit products in your head",
+          "minutes": 10,
+          "context": "Splitting and difference of squares turn hard products into easy ones.",
+          "steps": [
+            "Compute without paper: 47x23, 38x42, 64x15, 99x37, 56x54.",
+            "Say the method you used for each (split, round-and-adjust, or difference of squares).",
+            "Check, then redo misses with a different method."
+          ],
+          "hint": "38x42 = (40-2)(40+2) = 1600-4. 99x37 = 3700-37. 64x15 = 64x10 + 64x5.",
+          "success_check": "All 5 correct: 1081, 1596, 960, 3663, 3024.",
+          "xp": 12
+        },
+        {
+          "id": "math.arithmetic_mental.c03",
+          "title": "Percent, fraction, decimal flips",
+          "minutes": 8,
+          "context": "Probability and circuit questions are full of these conversions.",
+          "steps": [
+            "15% of 640",
+            "12.5% of 88",
+            "3/8 as a decimal",
+            "0.35 of 240",
+            "7/12 - 1/4"
+          ],
+          "hint": "10% then halve for 5%. 12.5% = 1/8. Common denominator 12 for the last one.",
+          "success_check": "96, 11, 0.375, 84, 1/3 - all correct in under 2 minutes.",
+          "xp": 10
+        },
+        {
+          "id": "math.arithmetic_mental.c04",
+          "title": "Estimate first, then compute",
+          "minutes": 7,
+          "context": "Estimation catches the silly errors that cost exam marks.",
+          "steps": [
+            "Estimate to 1 significant figure, then compute: sqrt(50), e^3, 2^10, ln 2, pi^2, 3.9x5.1.",
+            "Write estimate and exact side by side."
+          ],
+          "hint": "sqrt(50) is a bit above 7 (7^2=49). e^3 = e x e x e ~ 2.72 x 7.39.",
+          "success_check": "Exact within 2%: 7.07, 20.1, 1024, 0.693, 9.87, 19.89; every estimate within 20% of exact.",
+          "xp": 8
+        },
+        {
+          "id": "math.arithmetic_mental.c05",
+          "title": "Powers of 2 and decibels (ECE)",
+          "minutes": 8,
+          "context": "dB, bits and memory sizes appear in every ECE paper and in VLSI work.",
+          "steps": [
+            "2^10, 2^16, 10log10(2), 20log10(10), 10log10(1000).",
+            "How many dB is doubling an amplitude? Doubling a power?"
+          ],
+          "hint": "Power uses 10log10, amplitude uses 20log10. log10(2) ~ 0.301.",
+          "success_check": "1024, 65536, ~3 dB, 20 dB, 30 dB; amplitude x2 = ~6.02 dB, power x2 = ~3.01 dB.",
+          "xp": 10
+        },
+        {
+          "id": "math.arithmetic_mental.c06",
+          "title": "Sign and order-of-operations traps",
+          "minutes": 7,
+          "context": "Most of his lost marks are sign slips, not concept gaps.",
+          "steps": [
+            "-3^2, (-3)^2, 2-(-5)x3, 12/3x2, -2^4, (-2)^3.",
+            "For each wrong one, write the rule you broke in the error log."
+          ],
+          "hint": "Exponent binds before the minus sign: -3^2 = -(3^2). Division and multiplication go left to right.",
+          "success_check": "-9, 9, 17, 8, -16, -8: all six right.",
+          "xp": 6
+        },
+        {
+          "id": "math.arithmetic_mental.c07",
+          "title": "Daily 5-minute mixed sprint",
+          "minutes": 5,
+          "context": "The warm-up of every maths session. Mixed and timed, so it is retrieval practice, not rereading.",
+          "steps": [
+            "Generate 20 mixed items (2-digit x 2-digit, fraction add, % of, square, power of 2) or let JARVIS give them.",
+            "5 minutes, no calculator.",
+            "Log score and time."
+          ],
+          "hint": "Skip and come back; do not stall on one item.",
+          "success_check": ">= 18/20, or beat your 7-day median score.",
+          "xp": 5
+        }
+      ]
+    },
+    {
+      "id": "math.algebra",
+      "name": "Algebra",
+      "branch": "math",
+      "tier": 0,
+      "prereqs": [
+        "math.arithmetic_mental"
+      ],
+      "outcomes": [
+        "Solve linear, quadratic and simultaneous equations without sign errors",
+        "Factorise quadratics, cubics and differences of squares/cubes",
+        "Use exponent and log laws fluently",
+        "Split rational functions into partial fractions (needed for integrals and Laplace)",
+        "Solve inequalities and modulus equations"
+      ],
+      "hours_est": 30,
+      "resources": [
+        "math.r.khan_algebra",
+        "math.r.pauls_algebra"
+      ],
+      "certs": [],
+      "project": null,
+      "contracts": [
+        {
+          "id": "math.algebra.c01",
+          "title": "Linear equations clean-up",
+          "minutes": 15,
+          "context": "Class 9 algebra, the floor under everything else.",
+          "steps": [
+            "Solve 3(x-2) = 2x+5.",
+            "Solve (x+1)/2 - (x-1)/3 = 1.",
+            "Solve 5 - 2(3-x) = 4x + 1.",
+            "Substitute each answer back to check."
+          ],
+          "hint": "Clear fractions by multiplying both sides by the LCM (6) first. Expand brackets before moving terms.",
+          "success_check": "x = 11, x = 1, x = -1, each verified by substitution.",
+          "xp": 12
+        },
+        {
+          "id": "math.algebra.c02",
+          "title": "Factorise like a machine",
+          "minutes": 20,
+          "context": "Factorising is the step that unlocks limits, partial fractions and roots.",
+          "steps": [
+            "x^2 - 5x + 6",
+            "6x^2 + x - 2",
+            "x^3 - 8",
+            "x^4 - 16",
+            "2x^2 - 18"
+          ],
+          "hint": "For ax^2+bx+c find two numbers with product ac and sum b (for 6x^2+x-2: 4 and -3). a^3-b^3 = (a-b)(a^2+ab+b^2).",
+          "success_check": "(x-2)(x-3); (2x-1)(3x+2); (x-2)(x^2+2x+4); (x-2)(x+2)(x^2+4); 2(x-3)(x+3). Expand each to check.",
+          "xp": 15
+        },
+        {
+          "id": "math.algebra.c03",
+          "title": "Quadratic formula and discriminant",
+          "minutes": 15,
+          "context": "Second-order ODEs and circuit damping all reduce to a quadratic.",
+          "steps": [
+            "Solve x^2 - 4x - 1 = 0.",
+            "Solve 2x^2 + 3x + 5 = 0 (say what kind of roots).",
+            "Find k so that x^2 + kx + 9 = 0 has equal roots."
+          ],
+          "hint": "Discriminant D = b^2 - 4ac: D>0 two real, D=0 equal, D<0 complex pair.",
+          "success_check": "2 +/- sqrt(5); D = -31 so (-3 +/- i sqrt(31))/4; k = +/- 6.",
+          "xp": 12
+        },
+        {
+          "id": "math.algebra.c04",
+          "title": "Exponents and logarithms",
+          "minutes": 15,
+          "context": "Logs are how dB, entropy and exponential decay are handled.",
+          "steps": [
+            "Simplify (x^3 . x^-5)/x^-4.",
+            "Solve 2^(x+1) = 32.",
+            "Evaluate log2 32 + log10 0.01.",
+            "Solve log3 x + log3 (x-8) = 2."
+          ],
+          "hint": "log a + log b = log ab. Always check the domain: log needs a positive argument.",
+          "success_check": "x^2; x = 4; 3; x = 9 (x = -1 rejected because log of a negative number is undefined).",
+          "xp": 12
+        },
+        {
+          "id": "math.algebra.c05",
+          "title": "Simultaneous equations, 2 and 3 unknowns",
+          "minutes": 20,
+          "context": "This is Gaussian elimination by hand; Unit IV (LU, Gauss-Seidel) builds on it.",
+          "steps": [
+            "Solve 2x + 3y = 12, x - y = 1.",
+            "Solve x+y+z=6, x-y+z=2, 2x+y-z=1.",
+            "Check by substitution."
+          ],
+          "hint": "Subtract the first two 3-variable equations to kill x and z at once.",
+          "success_check": "(x,y) = (3,2); (x,y,z) = (1,2,3).",
+          "xp": 15
+        },
+        {
+          "id": "math.algebra.c06",
+          "title": "Partial fractions",
+          "minutes": 20,
+          "context": "Needed for integration (Unit I-type problems) and inverse Laplace/Z transforms.",
+          "steps": [
+            "Split 1/((x-1)(x+2)).",
+            "Split (3x+5)/(x+1)^2.",
+            "Worked-example fading: copy the cover-up method for the first, do the second alone."
+          ],
+          "hint": "Cover-up: A = value of the rest at x = 1, so A = 1/(1+2). Repeated factor needs A/(x+1) + B/(x+1)^2.",
+          "success_check": "(1/3)/(x-1) - (1/3)/(x+2); 3/(x+1) + 2/(x+1)^2; recombine to verify.",
+          "xp": 15
+        },
+        {
+          "id": "math.algebra.c07",
+          "title": "Inequalities and modulus",
+          "minutes": 15,
+          "context": "Regions of convergence and stability conditions are inequalities.",
+          "steps": [
+            "Solve |2x - 3| < 5.",
+            "Solve x^2 - 5x + 6 > 0.",
+            "Draw both on a number line."
+          ],
+          "hint": "|u| < 5 means -5 < u < 5. For the quadratic, factor and test a point in each interval.",
+          "success_check": "-1 < x < 4; x < 2 or x > 3.",
+          "xp": 10
+        },
+        {
+          "id": "math.algebra.c08",
+          "title": "Productive struggle: JEE-style algebra",
+          "minutes": 25,
+          "context": "Hard problems first, help second. Attempt 15 minutes before opening the hint.",
+          "steps": [
+            "Solve x^4 - 5x^2 + 4 = 0.",
+            "If a+b = 5 and ab = 3, find a^2+b^2 and a^3+b^3.",
+            "If a, b are roots of x^2 - 3x + 1 = 0, find a^2+b^2 and 1/a + 1/b.",
+            "Then try two algebra questions from a JEE Advanced paper (math.r.jee_adv_archive)."
+          ],
+          "hint": "Substitute u = x^2. Use (a+b)^2 = a^2+2ab+b^2 and (a+b)^3 = a^3+b^3+3ab(a+b). For roots, sum = 3 and product = 1.",
+          "success_check": "x = +/-1, +/-2; 19 and 80; 7 and 3. Written attempt of at least 15 minutes on the JEE questions before reading any solution.",
+          "xp": 30
+        }
+      ]
+    },
+    {
+      "id": "math.functions_graphs",
+      "name": "Functions and graphs",
+      "branch": "math",
+      "tier": 1,
+      "prereqs": [
+        "math.algebra"
+      ],
+      "outcomes": [
+        "Compose and invert functions, state domains",
+        "Sketch the 8 parent graphs and their shifts/stretches from memory",
+        "Classify even/odd/periodic functions",
+        "Read exponential decay (RC, tau) and unit-step signals"
+      ],
+      "hours_est": 15,
+      "resources": [
+        "math.r.openstax_precalc",
+        "math.r.khan_algebra2"
+      ],
+      "certs": [],
+      "project": null,
+      "contracts": [
+        {
+          "id": "math.functions_graphs.c01",
+          "title": "Composition, inverse, domain",
+          "minutes": 15,
+          "context": "Function language is how signals and systems are written.",
+          "steps": [
+            "f(x) = 2x+1, g(x) = x^2: find f(g(3)) and g(f(3)).",
+            "Find the inverse of f(x) = (x-1)/3.",
+            "Domain of sqrt(x-2)/(x-5)."
+          ],
+          "hint": "Inside out for composition. For an inverse swap x and y, then solve for y.",
+          "success_check": "19 and 49; f^-1(x) = 3x+1; x >= 2 and x != 5.",
+          "xp": 10
+        },
+        {
+          "id": "math.functions_graphs.c02",
+          "title": "Parent graphs from memory",
+          "minutes": 15,
+          "context": "Seeing the shape before calculating prevents nonsense answers.",
+          "steps": [
+            "Sketch y = x^2, x^3, 1/x, sqrt x, |x|, e^x, ln x, sin x on one sheet without looking.",
+            "Mark intercepts and asymptotes.",
+            "Compare with OpenStax Precalculus chapter 1/6 figures."
+          ],
+          "hint": "e^x passes (0,1) with asymptote y=0; ln x passes (1,0) with asymptote x=0; 1/x has both axes as asymptotes.",
+          "success_check": "All 8 shapes correct with intercepts and asymptotes marked.",
+          "xp": 12
+        },
+        {
+          "id": "math.functions_graphs.c03",
+          "title": "Transformations",
+          "minutes": 12,
+          "context": "Time shift and scaling of signals are graph transformations.",
+          "steps": [
+            "Sketch y = 2(x-3)^2 + 1, y = -|x+2|, y = e^-x.",
+            "Write the vertex/corner and direction for each."
+          ],
+          "hint": "f(x-3) moves right by 3; a minus outside flips vertically; f(-x) flips horizontally.",
+          "success_check": "Vertex (3,1) opening up and narrower; corner at (-2,0) opening down; decaying exponential through (0,1).",
+          "xp": 10
+        },
+        {
+          "id": "math.functions_graphs.c04",
+          "title": "Even, odd, periodic",
+          "minutes": 12,
+          "context": "Fourier series shortcuts depend on symmetry.",
+          "steps": [
+            "Classify x^3, cos x, x^2 + x, |sin x| (give period).",
+            "Split e^x into even and odd parts."
+          ],
+          "hint": "Even part = (f(x)+f(-x))/2, odd part = (f(x)-f(-x))/2.",
+          "success_check": "odd, even, neither, even with period pi; even part cosh x, odd part sinh x.",
+          "xp": 12
+        },
+        {
+          "id": "math.functions_graphs.c05",
+          "title": "Exponential decay in an RC circuit",
+          "minutes": 12,
+          "context": "The single most used function in ECE.",
+          "steps": [
+            "v(t) = 5 e^(-t/tau), R = 1 kOhm, C = 1 uF. Find tau.",
+            "Find v at t = tau.",
+            "Find the time to fall to half."
+          ],
+          "hint": "tau = RC. e^-1 ~ 0.368. Half-life = tau ln 2.",
+          "success_check": "tau = 1 ms; ~1.84 V; ~0.693 ms.",
+          "xp": 12
+        },
+        {
+          "id": "math.functions_graphs.c06",
+          "title": "Unit step, ramp, rectangle",
+          "minutes": 12,
+          "context": "Signals papers build everything from u(t).",
+          "steps": [
+            "Sketch u(t), r(t) = t u(t), u(t) - u(t-1).",
+            "Sketch x(t) = u(t) - 2u(t-1) + u(t-2)."
+          ],
+          "hint": "Each u(t-a) switches on at t = a; add the pieces interval by interval.",
+          "success_check": "x(t) = +1 on [0,1), -1 on [1,2), 0 for t >= 2.",
+          "xp": 10
+        },
+        {
+          "id": "math.functions_graphs.c07",
+          "title": "Productive struggle: count solutions with graphs",
+          "minutes": 20,
+          "context": "Hard-problem habit: draw before you solve.",
+          "steps": [
+            "How many real solutions does e^x = x + 2 have?",
+            "Solve |x-1| + |x-3| = 2."
+          ],
+          "hint": "Study g(x) = e^x - x - 2: where is its minimum and is it negative there? For the modulus, think distance on the number line.",
+          "success_check": "Two solutions (g has a minimum -1 at x = 0 and goes to +infinity both sides); every x in [1,3].",
+          "xp": 20
+        }
+      ]
+    },
+    {
+      "id": "math.trigonometry",
+      "name": "Trigonometry",
+      "branch": "math",
+      "tier": 1,
+      "prereqs": [
+        "math.algebra"
+      ],
+      "outcomes": [
+        "Exact values and radian conversion",
+        "Pythagorean, double- and compound-angle identities",
+        "Product-to-sum (modulation sidebands)",
+        "Solve trig equations on an interval",
+        "Write a sin t + b cos t as R sin(t + phi)"
+      ],
+      "hours_est": 20,
+      "resources": [
+        "math.r.khan_trig",
+        "math.r.openstax_alg_trig"
+      ],
+      "certs": [],
+      "project": null,
+      "contracts": [
+        {
+          "id": "math.trigonometry.c01",
+          "title": "Exact-value table",
+          "minutes": 10,
+          "context": "Every calculus and phasor question uses these values.",
+          "steps": [
+            "Fill sin, cos, tan for 0, 30, 45, 60, 90 degrees from memory.",
+            "Convert each to radians.",
+            "Compute sin 30 + cos 60 + tan 45."
+          ],
+          "hint": "sin goes sqrt(0)/2, sqrt(1)/2, sqrt(2)/2, sqrt(3)/2, sqrt(4)/2; cos is the reverse.",
+          "success_check": "Table fully correct; pi/6, pi/4, pi/3, pi/2; sum = 2.",
+          "xp": 8
+        },
+        {
+          "id": "math.trigonometry.c02",
+          "title": "Pythagorean and double angle",
+          "minutes": 12,
+          "context": "Integrals of sin^2 and cos^2 need these.",
+          "steps": [
+            "sin t = 3/5, t in quadrant I: find cos t, cos 2t, sin 2t.",
+            "Write cos 2t three ways."
+          ],
+          "hint": "cos 2t = 1 - 2 sin^2 t = 2 cos^2 t - 1 = cos^2 t - sin^2 t.",
+          "success_check": "cos t = 4/5, cos 2t = 7/25, sin 2t = 24/25.",
+          "xp": 10
+        },
+        {
+          "id": "math.trigonometry.c03",
+          "title": "Compound angles",
+          "minutes": 12,
+          "context": "Phase shifts are compound angles.",
+          "steps": [
+            "sin 75, cos 15, tan 15 exactly."
+          ],
+          "hint": "75 = 45 + 30, 15 = 45 - 30.",
+          "success_check": "(sqrt6 + sqrt2)/4, (sqrt6 + sqrt2)/4, 2 - sqrt3.",
+          "xp": 10
+        },
+        {
+          "id": "math.trigonometry.c04",
+          "title": "Product-to-sum = AM sidebands",
+          "minutes": 15,
+          "context": "Mixers and AM modulation (Digital Communication this semester) are product-to-sum.",
+          "steps": [
+            "Derive sin A cos B = (1/2)[sin(A+B) + sin(A-B)].",
+            "Expand cos(1000t) cos(100t) and list the output frequencies."
+          ],
+          "hint": "Add the expansions of cos(A+B) and cos(A-B).",
+          "success_check": "(1/2)[cos 1100t + cos 900t]: sidebands at 1100 and 900 rad/s.",
+          "xp": 15
+        },
+        {
+          "id": "math.trigonometry.c05",
+          "title": "Solve trig equations on [0, 2pi)",
+          "minutes": 12,
+          "context": "Typical exam item; tests factorising and the unit circle together.",
+          "steps": [
+            "Solve 2 sin^2 x - sin x - 1 = 0 for x in [0, 2pi)."
+          ],
+          "hint": "Let s = sin x and factorise: (2s + 1)(s - 1) = 0.",
+          "success_check": "x = pi/2, 7pi/6, 11pi/6.",
+          "xp": 12
+        },
+        {
+          "id": "math.trigonometry.c06",
+          "title": "Amplitude-phase form",
+          "minutes": 12,
+          "context": "Two phasors adding is exactly this.",
+          "steps": [
+            "Write 3 sin t + 4 cos t as R sin(t + phi).",
+            "State the max and min of 3 sin t - 4 cos t."
+          ],
+          "hint": "R cos phi = 3, R sin phi = 4, so R = 5.",
+          "success_check": "5 sin(t + 53.13 deg); max 5, min -5.",
+          "xp": 12
+        },
+        {
+          "id": "math.trigonometry.c07",
+          "title": "Productive struggle: find sin 18 deg exactly",
+          "minutes": 25,
+          "context": "A JEE classic: no formula sheet has it, you build it.",
+          "steps": [
+            "Let t = 18 deg so 5t = 90. Work 15 minutes before the hint.",
+            "Then do two trig questions from a JEE Advanced paper."
+          ],
+          "hint": "2t = 90 - 3t, so sin 2t = cos 3t. Expand, divide by cos t, get a quadratic in sin t.",
+          "success_check": "sin 18 = (sqrt5 - 1)/4, with the quadratic 4s^2 + 2s - 1 = 0 shown.",
+          "xp": 30
+        }
+      ]
+    },
+    {
+      "id": "math.complex_numbers",
+      "name": "Complex numbers and phasors",
+      "branch": "math",
+      "tier": 1,
+      "prereqs": [
+        "math.algebra",
+        "math.trigonometry"
+      ],
+      "outcomes": [
+        "Add, multiply, divide and take modulus/argument",
+        "Move between Cartesian, polar and e^(j theta)",
+        "Use De Moivre for powers and roots",
+        "Do AC circuit phasor and impedance arithmetic"
+      ],
+      "hours_est": 10,
+      "resources": [
+        "math.r.pauls_complex",
+        "math.r.khan_precalc_complex"
+      ],
+      "certs": [],
+      "project": null,
+      "contracts": [
+        {
+          "id": "math.complex_numbers.c01",
+          "title": "Complex arithmetic",
+          "minutes": 12,
+          "context": "Every AC circuit, filter and Fourier result is complex arithmetic.",
+          "steps": [
+            "(3+4i)(1-2i)",
+            "(2+i)/(1-i)",
+            "|3+4i| and its conjugate."
+          ],
+          "hint": "Divide by multiplying top and bottom by the conjugate of the bottom.",
+          "success_check": "11 - 2i; (1+3i)/2; 5 and 3 - 4i.",
+          "xp": 10
+        },
+        {
+          "id": "math.complex_numbers.c02",
+          "title": "Polar and Euler form",
+          "minutes": 12,
+          "context": "e^(j theta) is the language of signals.",
+          "steps": [
+            "Write 1+i, -1, sqrt3 + i in polar form.",
+            "Convert 2 e^(i pi/3) to Cartesian."
+          ],
+          "hint": "r = sqrt(a^2+b^2), theta = atan2(b, a). Check the quadrant.",
+          "success_check": "sqrt2 e^(i pi/4), e^(i pi), 2 e^(i pi/6); 1 + i sqrt3.",
+          "xp": 12
+        },
+        {
+          "id": "math.complex_numbers.c03",
+          "title": "De Moivre: powers and roots",
+          "minutes": 15,
+          "context": "Roots of unity are the DFT twiddle factors.",
+          "steps": [
+            "(1+i)^8",
+            "The three cube roots of 1."
+          ],
+          "hint": "Raise r to the power and multiply the angle. Roots: angles 2 pi k / 3.",
+          "success_check": "16; 1, -1/2 + i sqrt3/2, -1/2 - i sqrt3/2.",
+          "xp": 15
+        },
+        {
+          "id": "math.complex_numbers.c04",
+          "title": "Phasor addition",
+          "minutes": 12,
+          "context": "Adding sinusoids of the same frequency is adding complex numbers.",
+          "steps": [
+            "v1 = 10 cos(wt), v2 = 10 cos(wt - 90 deg). Find v1 + v2."
+          ],
+          "hint": "Phasors 10 and -10j.",
+          "success_check": "10 sqrt2 cos(wt - 45 deg).",
+          "xp": 12
+        },
+        {
+          "id": "math.complex_numbers.c05",
+          "title": "Impedance",
+          "minutes": 12,
+          "context": "Network analysis and filters.",
+          "steps": [
+            "R = 3 Ohm in series with X_L = 4 Ohm at 10 V: find Z, |Z|, current and its phase."
+          ],
+          "hint": "Z = R + jX. Current lags in an inductive circuit.",
+          "success_check": "Z = 3 + 4j, |Z| = 5 Ohm, I = 2 A lagging by 53.13 deg.",
+          "xp": 12
+        },
+        {
+          "id": "math.complex_numbers.c06",
+          "title": "Complex roots of a quadratic",
+          "minutes": 10,
+          "context": "Underdamped circuits have complex poles.",
+          "steps": [
+            "Solve z^2 + 2z + 5 = 0 and plot the roots.",
+            "Check sum and product of roots."
+          ],
+          "hint": "Sum of roots = -b/a, product = c/a.",
+          "success_check": "-1 +/- 2i; sum -2, product 5.",
+          "xp": 10
+        },
+        {
+          "id": "math.complex_numbers.c07",
+          "title": "Productive struggle: sum of cosines",
+          "minutes": 25,
+          "context": "This is the DFT/Dirichlet-kernel computation in disguise.",
+          "steps": [
+            "Find cos t + cos 2t + ... + cos nt in closed form.",
+            "Check your formula with n = 1 and n = 2."
+          ],
+          "hint": "It is the real part of the geometric series e^(it) + ... + e^(int). Factor e^(i(n+1)t/2) out of the result.",
+          "success_check": "sin(nt/2) cos((n+1)t/2) / sin(t/2), verified for n = 1 (gives cos t).",
+          "xp": 30
+        }
+      ]
+    },
+    {
+      "id": "math.calculus",
+      "name": "Calculus: limits and differentiation",
+      "branch": "math",
+      "tier": 2,
+      "prereqs": [
+        "math.functions_graphs",
+        "math.trigonometry"
+      ],
+      "outcomes": [
+        "Evaluate standard limits incl. L'Hopital",
+        "Differentiate with product, quotient and chain rules",
+        "Find tangents, rates, maxima and minima",
+        "Write Taylor series of e^x, sin, cos, ln(1+x)",
+        "Take partial derivatives"
+      ],
+      "hours_est": 30,
+      "resources": [
+        "math.r.pauls_calc1",
+        "math.r.yt_3b1b_calculus"
+      ],
+      "certs": [
+        "math.r.nptel_engmath1_iitkgp"
+      ],
+      "project": null,
+      "contracts": [
+        {
+          "id": "math.calculus.c01",
+          "title": "Standard limits",
+          "minutes": 12,
+          "context": "Limits decide continuity, derivatives and convergence.",
+          "steps": [
+            "lim x->0 sin(3x)/x",
+            "lim x->2 (x^2-4)/(x-2)",
+            "lim n->inf (1 + 1/n)^n",
+            "lim x->inf (3x^2+1)/(2x^2 - x)"
+          ],
+          "hint": "sin u / u -> 1; factor and cancel; divide top and bottom by the highest power.",
+          "success_check": "3, 4, e, 3/2.",
+          "xp": 10
+        },
+        {
+          "id": "math.calculus.c02",
+          "title": "Derivative rules drill",
+          "minutes": 15,
+          "context": "Fluency here is half of every engineering maths paper.",
+          "steps": [
+            "d/dx x^2 e^(3x)",
+            "d/dx ln(sin x)",
+            "d/dx (x^2+1)/(x-1)",
+            "d/dx sin(x^2)"
+          ],
+          "hint": "Product: u'v + uv'. Quotient: (u'v - uv')/v^2. Chain: outer' x inner'.",
+          "success_check": "x e^(3x)(2+3x); cot x; (x^2 - 2x - 1)/(x-1)^2; 2x cos(x^2).",
+          "xp": 12
+        },
+        {
+          "id": "math.calculus.c03",
+          "title": "First principles",
+          "minutes": 15,
+          "context": "Knowing where the rules come from (3Blue1Brown ch. 2-3).",
+          "steps": [
+            "Use lim h->0 (f(x+h) - f(x))/h for f = x^2 and f = 1/x."
+          ],
+          "hint": "Expand (x+h)^2; for 1/x put over a common denominator.",
+          "success_check": "2x and -1/x^2 with every step written.",
+          "xp": 12
+        },
+        {
+          "id": "math.calculus.c04",
+          "title": "Tangents and rates",
+          "minutes": 15,
+          "context": "Current is the rate of change of charge.",
+          "steps": [
+            "Tangent to y = x^3 - 3x at x = 2.",
+            "q(t) = CV(1 - e^(-t/RC)): find i = dq/dt."
+          ],
+          "hint": "Slope = y'(2). Point-slope form.",
+          "success_check": "y = 9x - 16; i = (V/R) e^(-t/RC).",
+          "xp": 12
+        },
+        {
+          "id": "math.calculus.c05",
+          "title": "Maxima and minima",
+          "minutes": 20,
+          "context": "Optimisation for ML starts here.",
+          "steps": [
+            "Find max and min of f(x) = x^3 - 6x^2 + 9x + 1.",
+            "Squares of side x cut from a 12 cm square sheet to make an open box: maximise volume."
+          ],
+          "hint": "Set f' = 0, use f'' for the type. V = x(12 - 2x)^2.",
+          "success_check": "Max 5 at x = 1, min 1 at x = 3; x = 2 cm gives 128 cm^3.",
+          "xp": 18
+        },
+        {
+          "id": "math.calculus.c06",
+          "title": "L'Hopital and Taylor series",
+          "minutes": 20,
+          "context": "Taylor series are how calculators, small-signal models and linearisation work.",
+          "steps": [
+            "lim x->0 (1 - cos x)/x^2",
+            "Write e^x, sin x, cos x, ln(1+x) up to x^3.",
+            "Approximate sin(0.1)."
+          ],
+          "hint": "Apply L'Hopital twice, or use cos x ~ 1 - x^2/2.",
+          "success_check": "1/2; series correct; sin(0.1) ~ 0.099833.",
+          "xp": 18
+        },
+        {
+          "id": "math.calculus.c07",
+          "title": "Partial derivatives",
+          "minutes": 12,
+          "context": "The bridge to gradients (Unit II) and to ML.",
+          "steps": [
+            "f(x,y) = x^2 y + sin(xy): find f_x and f_y."
+          ],
+          "hint": "Treat the other variable as a constant.",
+          "success_check": "f_x = 2xy + y cos(xy); f_y = x^2 + x cos(xy).",
+          "xp": 10
+        },
+        {
+          "id": "math.calculus.c08",
+          "title": "Productive struggle: JEE limits and derivatives",
+          "minutes": 25,
+          "context": "15 minutes of real struggle before any hint.",
+          "steps": [
+            "lim x->0 (e^x - 1 - x)/x^2",
+            "d/dx x^x",
+            "Slope of x^2 + y^2 = 25 at (3,4)",
+            "Why is |x| not differentiable at 0?",
+            "Then two calculus questions from JEE Advanced (math.r.jee_adv_archive)."
+          ],
+          "hint": "Taylor-expand e^x. Take logs for x^x. Differentiate implicitly. Compare left and right slopes.",
+          "success_check": "1/2; x^x (1 + ln x); -3/4; left slope -1 != right slope +1.",
+          "xp": 30
+        }
+      ]
+    },
+    {
+      "id": "math.integration",
+      "name": "Integration (incl. Beta and Gamma)",
+      "branch": "math",
+      "tier": 3,
+      "prereqs": [
+        "math.calculus",
+        "math.algebra"
+      ],
+      "outcomes": [
+        "Recall the standard integrals table",
+        "Integrate by substitution, parts and partial fractions",
+        "Use definite-integral properties (odd/even, King's rule)",
+        "Compute area, energy and RMS",
+        "Evaluate Beta and Gamma integrals (JAS 401 Unit I)"
+      ],
+      "hours_est": 30,
+      "resources": [
+        "math.r.mit_1801sc",
+        "math.r.strang_calculus"
+      ],
+      "certs": [
+        "math.r.nptel_engmath1_iitkgp"
+      ],
+      "project": null,
+      "contracts": [
+        {
+          "id": "math.integration.c01",
+          "title": "Standard integrals from memory",
+          "minutes": 10,
+          "context": "Retrieval, not rereading: write the table blank, then check.",
+          "steps": [
+            "Write integrals of x^n, 1/x, e^(ax), sin, cos, sec^2, 1/(1+x^2), 1/sqrt(1-x^2).",
+            "Differentiate each answer to check it."
+          ],
+          "hint": "Every integral can be checked by differentiating.",
+          "success_check": "All 8 correct incl. ln|x|, tan x, arctan x, arcsin x.",
+          "xp": 8
+        },
+        {
+          "id": "math.integration.c02",
+          "title": "Substitution",
+          "minutes": 15,
+          "context": "The most used technique.",
+          "steps": [
+            "int 2x cos(x^2) dx",
+            "int e^(3x+1) dx",
+            "int x/(x^2+1) dx",
+            "int tan x dx"
+          ],
+          "hint": "Pick u as the inside function whose derivative is also present.",
+          "success_check": "sin(x^2); e^(3x+1)/3; (1/2) ln(x^2+1); -ln|cos x| (all + C).",
+          "xp": 12
+        },
+        {
+          "id": "math.integration.c03",
+          "title": "Integration by parts (worked-example fading)",
+          "minutes": 20,
+          "context": "Fading: first problem fully worked in MIT 18.01SC, then you fill the last step, then you do it alone.",
+          "steps": [
+            "int x e^x dx",
+            "int ln x dx",
+            "int x sin x dx",
+            "int e^x sin x dx"
+          ],
+          "hint": "LIATE picks u. For e^x sin x apply parts twice and solve for the integral.",
+          "success_check": "(x-1)e^x; x ln x - x; -x cos x + sin x; e^x (sin x - cos x)/2.",
+          "xp": 18
+        },
+        {
+          "id": "math.integration.c04",
+          "title": "Partial-fraction integrals",
+          "minutes": 12,
+          "context": "Reuses math.algebra.c06.",
+          "steps": [
+            "int dx/((x-1)(x+2))"
+          ],
+          "hint": "Split first: (1/3)/(x-1) - (1/3)/(x+2).",
+          "success_check": "(1/3) ln|(x-1)/(x+2)| + C.",
+          "xp": 10
+        },
+        {
+          "id": "math.integration.c05",
+          "title": "Definite-integral properties",
+          "minutes": 15,
+          "context": "Properties turn monsters into one-liners.",
+          "steps": [
+            "int 0..pi/2 sin^2 x dx",
+            "int -1..1 x^3 cos x dx",
+            "int 0..pi/2 sin x/(sin x + cos x) dx",
+            "Mean of sin^2(wt) over a period; RMS of A sin(wt)."
+          ],
+          "hint": "sin^2 = (1 - cos 2x)/2. Odd integrand over symmetric limits is 0. King's rule: x -> a + b - x.",
+          "success_check": "pi/4; 0; pi/4; 1/2 and A/sqrt2.",
+          "xp": 15
+        },
+        {
+          "id": "math.integration.c06",
+          "title": "Area and signal energy",
+          "minutes": 12,
+          "context": "Energy of a signal is an integral.",
+          "steps": [
+            "Area between y = x^2 and y = x from 0 to 1.",
+            "Energy of x(t) = e^(-t) u(t)."
+          ],
+          "hint": "Area = int (top - bottom). E = int |x|^2 dt.",
+          "success_check": "1/6; 1/2.",
+          "xp": 10
+        },
+        {
+          "id": "math.integration.c07",
+          "title": "Beta and Gamma functions (JAS 401 Unit I)",
+          "minutes": 25,
+          "context": "Guaranteed exam item in Unit I, purely formula-driven, high marks per hour.",
+          "steps": [
+            "State Gamma(n+1) = n!, Gamma(1/2) = sqrt(pi), B(m,n) = Gamma(m)Gamma(n)/Gamma(m+n).",
+            "int 0..inf x^4 e^-x dx",
+            "int 0..inf e^(-x^2) dx",
+            "B(2,3)",
+            "int 0..pi/2 sin^4 x dx"
+          ],
+          "hint": "int 0..inf x^(n-1) e^-x dx = Gamma(n). Substitute t = x^2 for the Gaussian. Wallis for sin^4.",
+          "success_check": "24; sqrt(pi)/2; 1/12; 3 pi/16.",
+          "xp": 25
+        },
+        {
+          "id": "math.integration.c08",
+          "title": "Productive struggle: JEE integrals",
+          "minutes": 30,
+          "context": "Two famous hard integrals. Struggle 15-20 minutes each before the hint.",
+          "steps": [
+            "int 0..pi x sin x/(1 + cos^2 x) dx",
+            "int 0..1 ln(1+x)/(1+x^2) dx",
+            "Then one integral question from JEE Advanced."
+          ],
+          "hint": "First: King's rule x -> pi - x, then u = cos x. Second: x = tan t, then King's rule on t.",
+          "success_check": "pi^2/4; (pi/8) ln 2; full working written.",
+          "xp": 35
+        }
+      ]
+    },
+    {
+      "id": "math.multivariable_vector",
+      "name": "Multiple integrals and vector calculus (JAS 401 Units I-II)",
+      "branch": "math",
+      "tier": 4,
+      "prereqs": [
+        "math.integration",
+        "math.calculus"
+      ],
+      "outcomes": [
+        "Evaluate double and triple integrals, change the order",
+        "Switch to polar and spherical coordinates",
+        "Compute gradient, divergence, curl, directional derivative",
+        "Apply Green, Stokes and Gauss theorems"
+      ],
+      "hours_est": 25,
+      "resources": [
+        "math.r.pauls_calc3",
+        "math.r.mit_1802sc"
+      ],
+      "certs": [
+        "math.r.nptel_engmath1_iitkgp"
+      ],
+      "project": null,
+      "contracts": [
+        {
+          "id": "math.multivariable_vector.c01",
+          "title": "Vector toolkit (do before Unit II)",
+          "minutes": 15,
+          "context": "Unit II assumes dot product, cross product and unit vectors; no other node teaches them.",
+          "steps": [
+            "a = (1,2,2), b = (2,-1,0): a.b, |a|, unit vector along a, a x b.",
+            "Angle between a and b.",
+            "Check a x b is perpendicular to both (dot products 0)."
+          ],
+          "hint": "a x b = (a2 b3 - a3 b2, a3 b1 - a1 b3, a1 b2 - a2 b1).",
+          "success_check": "a.b = 0 (so 90 deg); |a| = 3; (1,2,2)/3; a x b = (2, 4, -5), dot with a and b both 0.",
+          "xp": 12
+        },
+        {
+          "id": "math.multivariable_vector.c02",
+          "title": "Double integrals (Cartesian)",
+          "minutes": 15,
+          "context": "Unit I opener.",
+          "steps": [
+            "int 0..1 int 0..x xy dy dx",
+            "int 0..2 int 0..1 (x + y) dy dx"
+          ],
+          "hint": "Do the inner integral treating the outer variable as constant.",
+          "success_check": "1/8; 3.",
+          "xp": 12
+        },
+        {
+          "id": "math.multivariable_vector.c03",
+          "title": "Change of order of integration",
+          "minutes": 20,
+          "context": "Asked almost every year: sketch the region first.",
+          "steps": [
+            "Evaluate int 0..1 int x..1 e^(y^2) dy dx by reversing the order."
+          ],
+          "hint": "Region: 0 <= x <= y <= 1. New limits: x from 0 to y, then y from 0 to 1.",
+          "success_check": "(e - 1)/2 with the sketch drawn.",
+          "xp": 20
+        },
+        {
+          "id": "math.multivariable_vector.c04",
+          "title": "Polar coordinates",
+          "minutes": 15,
+          "context": "dA = r dr dtheta.",
+          "steps": [
+            "int over x^2+y^2 <= a^2 of e^-(x^2+y^2) dA",
+            "Area of the circle r = a by double integral."
+          ],
+          "hint": "x^2 + y^2 = r^2 and do not forget the extra r.",
+          "success_check": "pi (1 - e^(-a^2)); pi a^2.",
+          "xp": 15
+        },
+        {
+          "id": "math.multivariable_vector.c05",
+          "title": "Triple integrals and spherical coordinates",
+          "minutes": 20,
+          "context": "dV = r^2 sin(theta) dr dtheta dphi.",
+          "steps": [
+            "Volume of a sphere of radius a.",
+            "int over the unit cube of xyz dV."
+          ],
+          "hint": "Limits r 0..a, theta 0..pi, phi 0..2pi. The cube splits into three single integrals.",
+          "success_check": "4 pi a^3 / 3; 1/8.",
+          "xp": 18
+        },
+        {
+          "id": "math.multivariable_vector.c06",
+          "title": "Gradient, divergence, curl, directional derivative",
+          "minutes": 20,
+          "context": "Unit II easy marks.",
+          "steps": [
+            "phi = x^2 y + 2xz at (2,-2,3): grad phi, and its directional derivative along (2,-1,-2).",
+            "div of F = (x^2 y, yz, xz).",
+            "curl of F = (y, -x, 0)."
+          ],
+          "hint": "Normalise the direction vector (length 3).",
+          "success_check": "grad = (-2, 4, 4); D = -16/3; div = 2xy + z + x; curl = (0, 0, -2).",
+          "xp": 18
+        },
+        {
+          "id": "math.multivariable_vector.c07",
+          "title": "Line integral and Green's theorem",
+          "minutes": 20,
+          "context": "Unit II: verify or apply Green.",
+          "steps": [
+            "Compute the circulation of (-y dx + x dy) round the unit circle directly and by Green."
+          ],
+          "hint": "Parametrise x = cos t, y = sin t. Green: dQ/dx - dP/dy = 2.",
+          "success_check": "2 pi both ways.",
+          "xp": 18
+        },
+        {
+          "id": "math.multivariable_vector.c08",
+          "title": "Gauss divergence and Stokes",
+          "minutes": 25,
+          "context": "Unit II long answer.",
+          "steps": [
+            "Verify Gauss for F = (x,y,z) over the sphere of radius a: compute the surface integral directly and the volume integral of div F.",
+            "For F = (-y, x, 0), surface integral of curl F over the upper unit hemisphere (by Stokes)."
+          ],
+          "hint": "On the sphere n = (x,y,z)/a so F.n = a everywhere; div F = 3. Stokes: equals the line integral round the boundary circle.",
+          "success_check": "Both sides of Gauss = 4 pi a^3 (surface: a x 4 pi a^2); Stokes gives 2 pi.",
+          "xp": 22
+        },
+        {
+          "id": "math.multivariable_vector.c09",
+          "title": "Productive struggle: conservative fields (GATE-style)",
+          "minutes": 25,
+          "context": "GATE EC asks this pattern; check math.r.gate2026_ec for a live one.",
+          "steps": [
+            "Is F = (2xy + z^3, x^2, 3xz^2) conservative? Find its potential.",
+            "Work done from (0,0,0) to (1,1,1)."
+          ],
+          "hint": "Show curl F = 0, then integrate component by component.",
+          "success_check": "Yes; phi = x^2 y + x z^3; work = 2.",
+          "xp": 28
+        }
+      ]
+    },
+    {
+      "id": "math.diff_equations",
+      "name": "Differential equations",
+      "branch": "math",
+      "tier": 4,
+      "prereqs": [
+        "math.integration",
+        "math.complex_numbers"
+      ],
+      "outcomes": [
+        "Solve separable, linear first-order and exact ODEs",
+        "Solve constant-coefficient 2nd-order ODEs (CF + PI incl. resonance)",
+        "Solve Cauchy-Euler equations",
+        "Model RC and RLC circuits",
+        "Solve initial value problems with Laplace transforms"
+      ],
+      "hours_est": 30,
+      "resources": [
+        "math.r.mit_1803sc",
+        "math.r.pauls_de"
+      ],
+      "certs": [
+        "math.r.nptel_transform_calculus"
+      ],
+      "project": null,
+      "contracts": [
+        {
+          "id": "math.diff_equations.c01",
+          "title": "Separable equations",
+          "minutes": 12,
+          "context": "The simplest ODEs; watch 3Blue1Brown DE chapter 1 (math.r.yt_3b1b_diffeq) first.",
+          "steps": [
+            "dy/dx = 2y, y(0) = 3",
+            "dy/dx = x/y"
+          ],
+          "hint": "Separate y-terms and x-terms, integrate both sides, then use the initial condition.",
+          "success_check": "y = 3 e^(2x); y^2 = x^2 + C.",
+          "xp": 10
+        },
+        {
+          "id": "math.diff_equations.c02",
+          "title": "Linear first order and the RC circuit",
+          "minutes": 15,
+          "context": "Integrating factor e^(int P dx).",
+          "steps": [
+            "dy/dx + y = e^-x, y(0) = 0",
+            "RC dv/dt + v = V, v(0) = 0"
+          ],
+          "hint": "IF = e^x for the first.",
+          "success_check": "y = x e^-x; v = V(1 - e^(-t/RC)).",
+          "xp": 15
+        },
+        {
+          "id": "math.diff_equations.c03",
+          "title": "Constant-coefficient homogeneous",
+          "minutes": 15,
+          "context": "Auxiliary equation decides everything.",
+          "steps": [
+            "y'' - 5y' + 6y = 0",
+            "y'' + 2y' + y = 0",
+            "y'' + 4y = 0",
+            "y'' + 2y' + 5y = 0"
+          ],
+          "hint": "Real distinct, repeated, pure imaginary, complex pair.",
+          "success_check": "c1 e^(2x) + c2 e^(3x); (c1 + c2 x) e^-x; c1 cos 2x + c2 sin 2x; e^-x (c1 cos 2x + c2 sin 2x).",
+          "xp": 15
+        },
+        {
+          "id": "math.diff_equations.c04",
+          "title": "Particular integrals incl. resonance",
+          "minutes": 20,
+          "context": "Classic first-year LA&DE item; also the base of RLC analysis.",
+          "steps": [
+            "y'' - 3y' + 2y = e^(3x)",
+            "y'' + y = x",
+            "y'' + y = sin x"
+          ],
+          "hint": "1/f(D) e^(ax) = e^(ax)/f(a) if f(a) != 0. For resonance multiply by x.",
+          "success_check": "e^(3x)/2; x; -(x/2) cos x.",
+          "xp": 20
+        },
+        {
+          "id": "math.diff_equations.c05",
+          "title": "RLC as a second-order ODE",
+          "minutes": 15,
+          "context": "Damping = discriminant.",
+          "steps": [
+            "L q'' + R q' + q/C = 0 with L = 1 H, R = 2 Ohm, C = 1 F: classify and solve."
+          ],
+          "hint": "Compare R^2 with 4L/C.",
+          "success_check": "q'' + 2q' + q = 0: critically damped, q = (c1 + c2 t) e^-t.",
+          "xp": 15
+        },
+        {
+          "id": "math.diff_equations.c06",
+          "title": "Cauchy-Euler equation",
+          "minutes": 15,
+          "context": "Appears in first-year LA&DE papers.",
+          "steps": [
+            "x^2 y'' - 2x y' + 2y = 0"
+          ],
+          "hint": "Try y = x^m: m(m-1) - 2m + 2 = 0.",
+          "success_check": "m = 1, 2: y = c1 x + c2 x^2.",
+          "xp": 15
+        },
+        {
+          "id": "math.diff_equations.c07",
+          "title": "Laplace method for IVPs",
+          "minutes": 20,
+          "context": "Bridge to math.signals_transforms.",
+          "steps": [
+            "y' + 2y = 0, y(0) = 1",
+            "y'' + y = 0, y(0) = 0, y'(0) = 1"
+          ],
+          "hint": "L{y'} = sY - y(0), L{y''} = s^2 Y - s y(0) - y'(0).",
+          "success_check": "e^(-2t); sin t.",
+          "xp": 18
+        },
+        {
+          "id": "math.diff_equations.c08",
+          "title": "Productive struggle: exact and Bernoulli",
+          "minutes": 25,
+          "context": "15 minutes before the hint.",
+          "steps": [
+            "(2xy + 3) dx + (x^2 + 4y) dy = 0",
+            "dy/dx + y = y^2"
+          ],
+          "hint": "Check dM/dy = dN/dx. For Bernoulli put v = 1/y.",
+          "success_check": "x^2 y + 3x + 2y^2 = C; y = 1/(1 + C e^x).",
+          "xp": 28
+        }
+      ]
+    },
+    {
+      "id": "math.linear_algebra",
+      "name": "Linear algebra",
+      "branch": "math",
+      "tier": 3,
+      "prereqs": [
+        "math.algebra"
+      ],
+      "outcomes": [
+        "Determinants and inverses",
+        "Rank, echelon form and consistency of Ax = b",
+        "Eigenvalues/eigenvectors, Cayley-Hamilton, diagonalisation",
+        "See matrices as transformations",
+        "Least squares for data fitting"
+      ],
+      "hours_est": 35,
+      "resources": [
+        "math.r.mit_1806sc",
+        "math.r.yt_3b1b_linalg"
+      ],
+      "certs": [
+        "math.r.nptel_applied_la_iitk"
+      ],
+      "project": {
+        "title": "Eigenfaces without faces: PCA on Aankhen CSI windows",
+        "brief": "Run numpy PCA on a day of Aankhen CSI amplitude windows, plot variance explained, and check that the top component separates fan-on from fan-off. RF data only.",
+        "hours": 4
+      },
+      "contracts": [
+        {
+          "id": "math.linear_algebra.c01",
+          "title": "Determinant and inverse",
+          "minutes": 15,
+          "context": "Warm-up for everything below.",
+          "steps": [
+            "det [[1,2],[3,4]] and the inverse.",
+            "det [[2,0,1],[1,3,2],[1,1,1]]: singular or not?"
+          ],
+          "hint": "2x2 inverse: swap diagonal, negate off-diagonal, divide by det.",
+          "success_check": "-2, inverse [[-2,1],[1.5,-0.5]]; det = 0, singular.",
+          "xp": 12
+        },
+        {
+          "id": "math.linear_algebra.c02",
+          "title": "Rank and consistency",
+          "minutes": 20,
+          "context": "Classic first-year item: classify the solution set; also the base of Unit IV linear systems.",
+          "steps": [
+            "x+y+z=6, x+2y+3z=14, x+4y+7z=30: rank, and all solutions."
+          ],
+          "hint": "Row-reduce the augmented matrix. Rank < number of unknowns with consistency means infinitely many solutions.",
+          "success_check": "Rank 2; z = t, y = 8 - 2t, x = t - 2 (check in equation 3).",
+          "xp": 20
+        },
+        {
+          "id": "math.linear_algebra.c03",
+          "title": "Eigenvalues and eigenvectors",
+          "minutes": 20,
+          "context": "Core of PCA, stability and Markov chains.",
+          "steps": [
+            "[[2,1],[1,2]]",
+            "[[4,1],[2,3]]"
+          ],
+          "hint": "det(A - lambda I) = 0, then solve (A - lambda I) v = 0.",
+          "success_check": "1 with (1,-1), 3 with (1,1); 2 with (1,-2), 5 with (1,1).",
+          "xp": 18
+        },
+        {
+          "id": "math.linear_algebra.c04",
+          "title": "Cayley-Hamilton",
+          "minutes": 15,
+          "context": "Classic exam question.",
+          "steps": [
+            "A = [[1,2],[2,1]]: verify Cayley-Hamilton and find A^-1 from it."
+          ],
+          "hint": "Characteristic polynomial lambda^2 - 2 lambda - 3.",
+          "success_check": "A^2 - 2A - 3I = 0, A^-1 = (A - 2I)/3 = [[-1,2],[2,-1]]/3.",
+          "xp": 15
+        },
+        {
+          "id": "math.linear_algebra.c05",
+          "title": "Diagonalisation and powers",
+          "minutes": 20,
+          "context": "Fast powers = fast Markov chains and recurrences.",
+          "steps": [
+            "Diagonalise A = [[2,1],[1,2]] and find A^n."
+          ],
+          "hint": "A = P D P^-1 with eigenvectors as columns of P.",
+          "success_check": "A^n = (1/2)[[3^n + 1, 3^n - 1],[3^n - 1, 3^n + 1]], checked at n = 1.",
+          "xp": 20
+        },
+        {
+          "id": "math.linear_algebra.c06",
+          "title": "Matrices as transformations",
+          "minutes": 15,
+          "context": "3Blue1Brown chapters 1-6: intuition before more rules.",
+          "steps": [
+            "Watch chapters 3 and 6.",
+            "Draw what [[0,-1],[1,0]] and [[2,0],[0,1]] do to the unit square.",
+            "Explain det as area scaling in one sentence."
+          ],
+          "hint": "Columns are where i-hat and j-hat land.",
+          "success_check": "Rotation by 90 deg; horizontal stretch by 2; det = signed area scale factor, explained in own words.",
+          "xp": 10
+        },
+        {
+          "id": "math.linear_algebra.c07",
+          "title": "Least squares fit",
+          "minutes": 20,
+          "context": "Linear regression = the first ML model.",
+          "steps": [
+            "Fit y = a + bx to (0,1), (1,2), (2,4) with the normal equations."
+          ],
+          "hint": "[[n, sum x],[sum x, sum x^2]] [a,b] = [sum y, sum xy].",
+          "success_check": "a = 5/6, b = 3/2.",
+          "xp": 20
+        },
+        {
+          "id": "math.linear_algebra.c08",
+          "title": "Productive struggle: GATE EC eigen tricks",
+          "minutes": 25,
+          "context": "GATE EC asks eigenvalue properties almost every year (math.r.gate2026_ec, math.r.gate2025_ec).",
+          "steps": [
+            "A is 3x3 with eigenvalues 1, 2, 3: det A, trace A, eigenvalues of A^-1 and of A^2 + I.",
+            "Then solve every linear-algebra question in the GATE 2026 EC paper and check with the key (math.r.gate2026_ec_key)."
+          ],
+          "hint": "det = product, trace = sum; f(A) has eigenvalues f(lambda).",
+          "success_check": "6; 6; 1, 1/2, 1/3; 2, 5, 10; GATE linear-algebra items attempted and marked against the official key.",
+          "xp": 30
+        }
+      ]
+    },
+    {
+      "id": "math.probability_stats",
+      "name": "Probability and statistics",
+      "branch": "math",
+      "tier": 3,
+      "prereqs": [
+        "math.algebra",
+        "math.integration"
+      ],
+      "outcomes": [
+        "Count outcomes and use addition/multiplication rules",
+        "Tell mutually exclusive from independent",
+        "Apply conditional probability and Bayes",
+        "Work with discrete and continuous random variables, CDFs",
+        "Handle joint, marginal and conditional distributions (JAS 401 Unit V)",
+        "Summarise data: mean, variance, normal tables"
+      ],
+      "hours_est": 30,
+      "resources": [
+        "math.r.mit_6041sc",
+        "math.r.openstax_intro_stats"
+      ],
+      "certs": [
+        "math.r.nptel_prp_iitg"
+      ],
+      "project": null,
+      "contracts": [
+        {
+          "id": "math.probability_stats.c01",
+          "title": "Counting and sample spaces",
+          "minutes": 15,
+          "context": "Unit V starts here.",
+          "steps": [
+            "P(sum = 7) with two dice.",
+            "P(at least one six in 4 rolls).",
+            "Committees of 3 from 10 people."
+          ],
+          "hint": "Complement for 'at least one'.",
+          "success_check": "1/6; 1 - (5/6)^4 = 671/1296 ~ 0.518; 120.",
+          "xp": 12
+        },
+        {
+          "id": "math.probability_stats.c02",
+          "title": "Mutually exclusive vs independent",
+          "minutes": 12,
+          "context": "The most confused pair in the syllabus.",
+          "steps": [
+            "P(A) = 0.5, P(B) = 0.4, P(A and B) = 0.2: independent? mutually exclusive? P(A or B)?"
+          ],
+          "hint": "Independent: P(AB) = P(A)P(B). Mutually exclusive: P(AB) = 0.",
+          "success_check": "Independent yes, mutually exclusive no, P(A or B) = 0.7.",
+          "xp": 10
+        },
+        {
+          "id": "math.probability_stats.c03",
+          "title": "Bayes' theorem",
+          "minutes": 20,
+          "context": "Guaranteed Unit V question. Watch math.r.yt_3b1b_bayes first.",
+          "steps": [
+            "Disease prevalence 1%, sensitivity 99%, false-positive rate 5%: P(disease | positive).",
+            "Machines make 50/30/20% of output with defect rates 1/2/3%: P(defective) and P(machine 3 | defective)."
+          ],
+          "hint": "Draw a tree; numerator is one branch, denominator is all branches ending in the evidence.",
+          "success_check": "~0.167; 0.017 and ~0.353.",
+          "xp": 20
+        },
+        {
+          "id": "math.probability_stats.c04",
+          "title": "Binomial and Poisson",
+          "minutes": 15,
+          "context": "Bit errors and packet arrivals.",
+          "steps": [
+            "Binomial n = 10, p = 0.2: mean, variance, P(X = 0).",
+            "Poisson lambda = 3: P(X = 0)."
+          ],
+          "hint": "Binomial mean np, variance np(1-p).",
+          "success_check": "2, 1.6, 0.8^10 ~ 0.107; e^-3 ~ 0.0498.",
+          "xp": 15
+        },
+        {
+          "id": "math.probability_stats.c05",
+          "title": "Continuous random variable and CDF",
+          "minutes": 15,
+          "context": "PDF/CDF are explicitly in the JAS 401 syllabus.",
+          "steps": [
+            "f(x) = kx on [0,2]: find k, the CDF, P(X > 1), E[X]."
+          ],
+          "hint": "Total probability 1 fixes k. F(x) = int f.",
+          "success_check": "k = 1/2; F(x) = x^2/4; 3/4; 4/3.",
+          "xp": 15
+        },
+        {
+          "id": "math.probability_stats.c06",
+          "title": "Joint, marginal, conditional",
+          "minutes": 20,
+          "context": "Unit V names these three explicitly.",
+          "steps": [
+            "f(x,y) = x + y on the unit square: check it is a pdf, find f_X, f(y|x), and test independence."
+          ],
+          "hint": "Marginal: integrate out the other variable.",
+          "success_check": "Integrates to 1; f_X = x + 1/2; f(y|x) = (x+y)/(x+1/2); not independent.",
+          "xp": 20
+        },
+        {
+          "id": "math.probability_stats.c07",
+          "title": "Descriptive statistics and the normal curve",
+          "minutes": 15,
+          "context": "Needed for ML and lab reports.",
+          "steps": [
+            "Mean, population variance and SD of {2,4,4,4,5,5,7,9}.",
+            "State P(|Z| < 1.96)."
+          ],
+          "hint": "Variance = mean of squared deviations.",
+          "success_check": "5, 4, 2; 0.95.",
+          "xp": 12
+        },
+        {
+          "id": "math.probability_stats.c08",
+          "title": "Productive struggle: classic puzzles",
+          "minutes": 30,
+          "context": "Brilliant-style puzzles for free: Grinstead & Snell exercises (math.r.grinstead_snell) and AoPS Alcumus.",
+          "steps": [
+            "Monty Hall: should you switch?",
+            "Birthday problem with 23 people.",
+            "Expected number of rolls to get a six.",
+            "Then one probability question from JEE Advanced and one from GATE EC."
+          ],
+          "hint": "Enumerate cases for Monty Hall. Birthday: compute P(all different). Geometric distribution mean 1/p.",
+          "success_check": "Switch wins 2/3; ~0.507; 6; written attempts on both exam questions.",
+          "xp": 30
+        }
+      ]
+    },
+    {
+      "id": "math.random_processes",
+      "name": "Random processes",
+      "branch": "math",
+      "tier": 5,
+      "prereqs": [
+        "math.probability_stats",
+        "math.trigonometry"
+      ],
+      "outcomes": [
+        "Classify random processes by time index, state and statistical dependence (JAS 401 Unit V)",
+        "Compute mean and autocorrelation, test WSS",
+        "Use Bernoulli and Poisson processes",
+        "Find a Markov chain's stationary distribution",
+        "Link autocorrelation to PSD (Wiener-Khinchin)"
+      ],
+      "hours_est": 20,
+      "resources": [
+        "math.r.nptel_prp_iitg",
+        "math.r.mit_6041_2010"
+      ],
+      "certs": [
+        "math.r.nptel_prp_iitg"
+      ],
+      "project": {
+        "title": "Fan fingerprint",
+        "brief": "Estimate the PSD of CSI amplitude with fan on vs off and find the fan peak.",
+        "hours": 3
+      },
+      "contracts": [
+        {
+          "id": "math.random_processes.c01",
+          "title": "Classification table (exam short answer)",
+          "minutes": 15,
+          "context": "JAS 401 Unit V lists 'types based on time index and on statistical dependence': a safe 5-mark answer.",
+          "steps": [
+            "Make a 2x2 table: discrete/continuous time x discrete/continuous state, one example each.",
+            "List by statistical dependence: independent (iid), Markov, stationary (SSS, WSS), ergodic, with one-line definitions.",
+            "Recall it blank the next day."
+          ],
+          "hint": "Bernoulli process, random telegraph signal, thermal noise voltage, sampled noise sequence.",
+          "success_check": "Table and definitions reproduced from memory with 4 correct examples.",
+          "xp": 12
+        },
+        {
+          "id": "math.random_processes.c02",
+          "title": "Mean, autocorrelation, WSS",
+          "minutes": 20,
+          "context": "The standard random-phase sinusoid.",
+          "steps": [
+            "X(t) = A cos(wt + Theta), Theta uniform on [0, 2pi), A constant: mean and R(t, t+tau). WSS?",
+            "Now Y(t) = B cos(wt) with B zero-mean, variance s^2: WSS?"
+          ],
+          "hint": "Average over Theta: E[cos(wt + Theta)] = 0. Use cos a cos b = (1/2)[cos(a-b) + cos(a+b)].",
+          "success_check": "Mean 0, R = (A^2/2) cos(w tau), WSS; Y: mean 0 but R = s^2 cos(w t1) cos(w t2) depends on t1, t2, so not WSS.",
+          "xp": 20
+        },
+        {
+          "id": "math.random_processes.c03",
+          "title": "Bernoulli counting process",
+          "minutes": 12,
+          "context": "Bit streams.",
+          "steps": [
+            "S_n = sum of n Bernoulli(p): mean and variance."
+          ],
+          "hint": "Sum of independent variables: variances add.",
+          "success_check": "np and np(1-p).",
+          "xp": 10
+        },
+        {
+          "id": "math.random_processes.c04",
+          "title": "Poisson process",
+          "minutes": 15,
+          "context": "Packet and photon arrivals.",
+          "steps": [
+            "Rate 2 per minute: P(no arrival in 1 minute), mean arrivals in 3 minutes, mean inter-arrival time."
+          ],
+          "hint": "N(t) ~ Poisson(lambda t); inter-arrival ~ exponential(lambda).",
+          "success_check": "e^-2 ~ 0.135; 6; 0.5 minute.",
+          "xp": 12
+        },
+        {
+          "id": "math.random_processes.c05",
+          "title": "Markov chain stationary distribution",
+          "minutes": 20,
+          "context": "Markov = 'based on statistical dependence'.",
+          "steps": [
+            "Two-state chain P = [[0.9, 0.1],[0.5, 0.5]]: find pi."
+          ],
+          "hint": "Solve pi = pi P with pi1 + pi2 = 1.",
+          "success_check": "pi = (5/6, 1/6).",
+          "xp": 18
+        },
+        {
+          "id": "math.random_processes.c06",
+          "title": "Autocorrelation to PSD",
+          "minutes": 20,
+          "context": "Bridge to Digital Communication noise analysis.",
+          "steps": [
+            "R(tau) = e^(-a|tau|): find S(w) by Fourier transform."
+          ],
+          "hint": "Split the integral at tau = 0.",
+          "success_check": "S(w) = 2a/(a^2 + w^2).",
+          "xp": 20
+        },
+        {
+          "id": "math.random_processes.c07",
+          "title": "Project contract: autocorrelation of live CSI",
+          "minutes": 45,
+          "context": "Real data from his own Aankhen board; RF only.",
+          "steps": [
+            "Load 60 s of CSI amplitude for one subcarrier (fan off) and 60 s (fan on).",
+            "Compute the sample autocorrelation with numpy for lags 0..200.",
+            "Plot both and explain the difference in two sentences."
+          ],
+          "hint": "Subtract the mean first; R(0) is the variance.",
+          "success_check": "Two plots saved; R(0) equals np.var of the series; fan-on shows a periodic ripple at the fan's rate.",
+          "xp": 45
+        }
+      ]
+    },
+    {
+      "id": "math.signals_transforms",
+      "name": "Signals and transforms (Fourier, Laplace, Z)",
+      "branch": "math",
+      "tier": 5,
+      "prereqs": [
+        "math.diff_equations",
+        "math.complex_numbers",
+        "math.integration"
+      ],
+      "outcomes": [
+        "Compute Fourier series of standard waves",
+        "Use Laplace pairs and properties, invert with partial fractions",
+        "Read poles, stability and frequency response",
+        "Use Fourier transform pairs",
+        "Use the Z-transform for difference equations",
+        "Convolve by hand"
+      ],
+      "hours_est": 30,
+      "resources": [
+        "math.r.mit_6003",
+        "math.r.nptel_transform_calculus"
+      ],
+      "certs": [
+        "math.r.nptel_ss_iitk",
+        "math.r.nptel_transform_calculus"
+      ],
+      "project": {
+        "title": "FFT of a real signal",
+        "brief": "FFT one minute of Aankhen CSI amplitude, find the fan's spectral line, and design a 1st-order IIR to suppress it.",
+        "hours": 4
+      },
+      "contracts": [
+        {
+          "id": "math.signals_transforms.c01",
+          "title": "Fourier series of a square wave",
+          "minutes": 20,
+          "context": "Watch math.r.yt_3b1b_fourier first.",
+          "steps": [
+            "Odd square wave, +1 on (0, pi), -1 on (-pi, 0): find b_n."
+          ],
+          "hint": "Odd function: only sine terms; b_n = (2/pi) int 0..pi sin(nx) dx.",
+          "success_check": "b_n = 4/(n pi) for odd n, 0 for even n.",
+          "xp": 20
+        },
+        {
+          "id": "math.signals_transforms.c02",
+          "title": "Laplace pairs and shifting",
+          "minutes": 15,
+          "context": "Watch math.r.yt_3b1b_laplace.",
+          "steps": [
+            "Write L{1}, L{t}, L{e^(at)}, L{sin wt}, L{cos wt} from memory.",
+            "L{e^(-2t) sin 3t}"
+          ],
+          "hint": "Multiplying by e^(-2t) replaces s with s + 2.",
+          "success_check": "1/s, 1/s^2, 1/(s-a), w/(s^2+w^2), s/(s^2+w^2); 3/((s+2)^2 + 9).",
+          "xp": 12
+        },
+        {
+          "id": "math.signals_transforms.c03",
+          "title": "Inverse Laplace",
+          "minutes": 20,
+          "context": "Uses math.algebra.c06.",
+          "steps": [
+            "1/((s+1)(s+2))",
+            "(s+3)/(s^2 + 4s + 13)"
+          ],
+          "hint": "Complete the square: (s+2)^2 + 9, and write s + 3 = (s+2) + 1.",
+          "success_check": "e^-t - e^-2t; e^(-2t)(cos 3t + (1/3) sin 3t).",
+          "xp": 20
+        },
+        {
+          "id": "math.signals_transforms.c04",
+          "title": "Transfer function of an RC low-pass",
+          "minutes": 15,
+          "context": "Poles = behaviour.",
+          "steps": [
+            "H(s) = 1/(1 + sRC): pole, step response, -3 dB frequency."
+          ],
+          "hint": "Step response = inverse Laplace of H(s)/s.",
+          "success_check": "Pole at -1/RC; 1 - e^(-t/RC); w = 1/RC.",
+          "xp": 15
+        },
+        {
+          "id": "math.signals_transforms.c05",
+          "title": "Fourier transform pairs",
+          "minutes": 15,
+          "context": "Spectrum of a pulse = bandwidth of a bit.",
+          "steps": [
+            "FT of rect(t/T).",
+            "FT of e^(-at) u(t).",
+            "What does a time shift do?"
+          ],
+          "hint": "Use sinc(x) = sin(pi x)/(pi x).",
+          "success_check": "T sinc(fT); 1/(a + j 2 pi f); multiplies by e^(-j 2 pi f t0) (phase only).",
+          "xp": 15
+        },
+        {
+          "id": "math.signals_transforms.c06",
+          "title": "Z-transform and a first-order filter",
+          "minutes": 20,
+          "context": "DSP and the IIR filters inside Aankhen.",
+          "steps": [
+            "Z{a^n u[n]} and its ROC.",
+            "y[n] = 0.5 y[n-1] + x[n]: H(z), stability, impulse response."
+          ],
+          "hint": "Geometric series in z^-1.",
+          "success_check": "1/(1 - a z^-1), |z| > |a|; H = 1/(1 - 0.5 z^-1), stable (pole 0.5 inside unit circle), h[n] = 0.5^n u[n].",
+          "xp": 18
+        },
+        {
+          "id": "math.signals_transforms.c07",
+          "title": "Convolution by hand",
+          "minutes": 15,
+          "context": "Output = input * impulse response.",
+          "steps": [
+            "{1,2,1} * {1,1}",
+            "u(t) * e^-t u(t)"
+          ],
+          "hint": "Flip and slide, or multiply the polynomials 1 + 2z + z^2 and 1 + z.",
+          "success_check": "{1,3,3,1}; (1 - e^-t) u(t).",
+          "xp": 15
+        },
+        {
+          "id": "math.signals_transforms.c08",
+          "title": "Productive struggle: GATE EC system question",
+          "minutes": 30,
+          "context": "Then do every signals question in math.r.gate2026_ec and mark with math.r.gate2026_ec_key.",
+          "steps": [
+            "H(s) = (s+1)/(s^2 + 5s + 6): poles, stability, impulse response, final value of the step response."
+          ],
+          "hint": "Partial fractions with cover-up; final value theorem = H(0) for a unit step.",
+          "success_check": "Poles -2, -3, stable; h(t) = (2e^(-3t) - e^(-2t)) u(t); 1/6.",
+          "xp": 32
+        }
+      ]
+    },
+    {
+      "id": "math.discrete",
+      "name": "Discrete mathematics",
+      "branch": "math",
+      "tier": 2,
+      "prereqs": [
+        "math.algebra"
+      ],
+      "outcomes": [
+        "Logic and De Morgan (digital design link)",
+        "Sets and inclusion-exclusion",
+        "Permutations and combinations",
+        "Proof by induction",
+        "Modular arithmetic and two's complement",
+        "Linear recurrences",
+        "Graph basics and pigeonhole"
+      ],
+      "hours_est": 20,
+      "resources": [
+        "math.r.mit_mcs",
+        "math.r.levin_discrete"
+      ],
+      "certs": [
+        "math.r.nptel_discrete_iiitb"
+      ],
+      "project": null,
+      "contracts": [
+        {
+          "id": "math.discrete.c01",
+          "title": "Logic and De Morgan",
+          "minutes": 12,
+          "context": "Same algebra as logic gates.",
+          "steps": [
+            "Truth table for p -> q and its contrapositive.",
+            "Show not(p and q) = (not p) or (not q)."
+          ],
+          "hint": "p -> q is false only when p is true and q is false.",
+          "success_check": "Tables correct; contrapositive identical to p -> q.",
+          "xp": 10
+        },
+        {
+          "id": "math.discrete.c02",
+          "title": "Inclusion-exclusion",
+          "minutes": 12,
+          "context": "Counting overlaps.",
+          "steps": [
+            "How many of 1..100 are divisible by 2 or 3?"
+          ],
+          "hint": "|A or B| = |A| + |B| - |A and B|; divisible by both means by 6.",
+          "success_check": "50 + 33 - 16 = 67.",
+          "xp": 10
+        },
+        {
+          "id": "math.discrete.c03",
+          "title": "Permutations and combinations",
+          "minutes": 15,
+          "context": "Probability and coding theory need these.",
+          "steps": [
+            "Arrangements of LEVEL.",
+            "8-bit strings with exactly three 1s.",
+            "8-bit strings with at least one 1."
+          ],
+          "hint": "Divide by repeats. Complement for at least one.",
+          "success_check": "30; 56; 255.",
+          "xp": 12
+        },
+        {
+          "id": "math.discrete.c04",
+          "title": "Induction",
+          "minutes": 15,
+          "context": "The proof pattern behind recursion.",
+          "steps": [
+            "Prove 1 + 2 + ... + n = n(n+1)/2.",
+            "Prove 2^n > n^2 for n >= 5."
+          ],
+          "hint": "Base case, assume for k, show for k+1.",
+          "success_check": "Both proofs complete with base case and step.",
+          "xp": 15
+        },
+        {
+          "id": "math.discrete.c05",
+          "title": "Modular arithmetic and two's complement",
+          "minutes": 15,
+          "context": "Hardware arithmetic.",
+          "steps": [
+            "7^100 mod 5.",
+            "-5 in 8-bit two's complement."
+          ],
+          "hint": "7 = 2 mod 5 and 2^4 = 1 mod 5. Invert 00000101 and add 1.",
+          "success_check": "1; 11111011.",
+          "xp": 12
+        },
+        {
+          "id": "math.discrete.c06",
+          "title": "Linear recurrences",
+          "minutes": 15,
+          "context": "Same method as constant-coefficient ODEs.",
+          "steps": [
+            "a_n = 3a_(n-1) - 2a_(n-2), a_0 = 0, a_1 = 1."
+          ],
+          "hint": "Characteristic equation r^2 - 3r + 2 = 0.",
+          "success_check": "a_n = 2^n - 1.",
+          "xp": 15
+        },
+        {
+          "id": "math.discrete.c07",
+          "title": "Graphs and pigeonhole",
+          "minutes": 15,
+          "context": "Networks, routing, scheduling.",
+          "steps": [
+            "Can 5 vertices all have degree 3?",
+            "Why must two of 13 people share a birth month?",
+            "Then one Project Euler problem (math.r.project_euler) from the first 20."
+          ],
+          "hint": "Sum of degrees = 2 x edges, so it must be even.",
+          "success_check": "No (sum 15 is odd); 13 people into 12 months; one Project Euler answer accepted.",
+          "xp": 18
+        }
+      ]
+    },
+    {
+      "id": "math.numerical_methods",
+      "name": "Numerical methods (JAS 401 Units III-IV)",
+      "branch": "math",
+      "tier": 4,
+      "prereqs": [
+        "math.calculus",
+        "math.linear_algebra"
+      ],
+      "outcomes": [
+        "Find roots by bisection, regula falsi and Newton-Raphson",
+        "Interpolate with Newton forward/backward, Lagrange and divided differences",
+        "Solve linear systems by LU, Jacobi and Gauss-Seidel",
+        "Integrate with trapezoidal, Simpson 1/3 and 3/8",
+        "Solve ODEs with RK4"
+      ],
+      "hours_est": 20,
+      "resources": [
+        "math.r.nptel_numerical_iitr",
+        "math.r.mit_18330"
+      ],
+      "certs": [
+        "math.r.nptel_numerical_iitr"
+      ],
+      "project": {
+        "title": "Numerical toolkit",
+        "brief": "Python file implementing all JAS 401 Unit III-IV methods with self-tests against the contract answers.",
+        "hours": 4
+      },
+      "contracts": [
+        {
+          "id": "math.numerical_methods.c01",
+          "title": "Bisection",
+          "minutes": 20,
+          "context": "Unit III, pure procedure: tabulate and you get full marks.",
+          "steps": [
+            "f(x) = x^3 - x - 1 on [1,2]: four bisection steps in a table (a, b, mid, f(mid))."
+          ],
+          "hint": "Keep the half where f changes sign.",
+          "success_check": "Mids 1.5, 1.25, 1.375, 1.3125; root bracket [1.3125, 1.375]; true root ~ 1.3247.",
+          "xp": 18
+        },
+        {
+          "id": "math.numerical_methods.c02",
+          "title": "Regula falsi",
+          "minutes": 20,
+          "context": "Unit III.",
+          "steps": [
+            "Same f on [1,2]: two regula falsi steps."
+          ],
+          "hint": "x = (a f(b) - b f(a))/(f(b) - f(a)).",
+          "success_check": "x1 = 7/6 ~ 1.1667 (f ~ -0.579), x2 ~ 1.2531.",
+          "xp": 18
+        },
+        {
+          "id": "math.numerical_methods.c03",
+          "title": "Newton-Raphson",
+          "minutes": 20,
+          "context": "Unit III; also how computers take square roots.",
+          "steps": [
+            "sqrt 2 from x0 = 1, three steps.",
+            "x^3 - x - 1 = 0 from x0 = 1.5, two steps."
+          ],
+          "hint": "x_(n+1) = x_n - f(x_n)/f'(x_n).",
+          "success_check": "1.5, 1.41667, 1.414216; 1.34783, 1.32517.",
+          "xp": 18
+        },
+        {
+          "id": "math.numerical_methods.c04",
+          "title": "Newton forward and backward interpolation",
+          "minutes": 25,
+          "context": "Unit III: build the difference table once, use it twice.",
+          "steps": [
+            "Data x = 1,2,3,4; y = 1,8,27,64. Build the forward difference table.",
+            "Estimate y(1.5) by the forward formula and y(3.5) by the backward formula."
+          ],
+          "hint": "p = (x - x0)/h. Forward: y0 + p D + p(p-1)/2! D^2 + p(p-1)(p-2)/3! D^3.",
+          "success_check": "Differences 7,19,37 / 12,18 / 6; y(1.5) = 3.375; y(3.5) = 42.875 (both exact for x^3).",
+          "xp": 25
+        },
+        {
+          "id": "math.numerical_methods.c05",
+          "title": "Lagrange and divided differences (unequal intervals)",
+          "minutes": 25,
+          "context": "Unit III.",
+          "steps": [
+            "Points (0,1), (1,3), (3,13): Lagrange polynomial and value at x = 2.",
+            "Same points by Newton's divided differences."
+          ],
+          "hint": "f[0,1] = 2, f[1,3] = 5, f[0,1,3] = 1.",
+          "success_check": "P(x) = x^2 + x + 1 both ways; P(2) = 7.",
+          "xp": 25
+        },
+        {
+          "id": "math.numerical_methods.c06",
+          "title": "Trapezoidal, Simpson 1/3 and 3/8",
+          "minutes": 25,
+          "context": "Unit IV, almost certain to appear.",
+          "steps": [
+            "int 0..1 dx/(1+x^2) with h = 0.25 by trapezoidal and Simpson 1/3.",
+            "Same integral with h = 1/3 by Simpson 3/8.",
+            "Compare with pi/4 = 0.785398."
+          ],
+          "hint": "Simpson 1/3 needs an even number of strips; 3/8 needs a multiple of 3.",
+          "success_check": "Trapezoidal 0.782794; Simpson 1/3 0.785392; Simpson 3/8 0.784615.",
+          "xp": 25
+        },
+        {
+          "id": "math.numerical_methods.c07",
+          "title": "Gauss-Seidel, Jacobi, LU",
+          "minutes": 25,
+          "context": "Unit IV.",
+          "steps": [
+            "10x+y+z=12, x+10y+z=12, x+y+10z=12: two Gauss-Seidel iterations from (0,0,0) and one Jacobi iteration.",
+            "Doolittle LU of [[2,3],[4,7]]."
+          ],
+          "hint": "Gauss-Seidel uses each new value immediately; Jacobi waits for the whole sweep.",
+          "success_check": "GS: (1.2, 1.08, 0.972) then (0.9948, 1.0033, 1.0002); Jacobi: (1.2, 1.2, 1.2); L = [[1,0],[2,1]], U = [[2,3],[0,1]].",
+          "xp": 25
+        },
+        {
+          "id": "math.numerical_methods.c08",
+          "title": "RK4",
+          "minutes": 25,
+          "context": "Unit IV: one full step must be perfect.",
+          "steps": [
+            "dy/dx = x + y, y(0) = 1, h = 0.1: one RK4 step.",
+            "Compare with the exact 2e^x - x - 1."
+          ],
+          "hint": "k1 = h f(x,y), k2 = h f(x+h/2, y+k1/2), k3 = h f(x+h/2, y+k2/2), k4 = h f(x+h, y+k3).",
+          "success_check": "k1 = 0.1, k2 = 0.11, k3 = 0.1105, k4 = 0.12105; y(0.1) = 1.110342 = exact to 6 places.",
+          "xp": 25
+        },
+        {
+          "id": "math.numerical_methods.c09",
+          "title": "Project contract: code the methods",
+          "minutes": 60,
+          "context": "Turn Units III-IV into Python so every hand answer has a checker.",
+          "steps": [
+            "Write bisection, newton, simpson13, rk4 in one Python file.",
+            "Run them on c01, c03, c06 and c08 inputs.",
+            "Print hand vs code side by side."
+          ],
+          "hint": "Keep each function under 15 lines; no libraries except math.",
+          "success_check": "All four functions reproduce the success values above to 4 decimals.",
+          "xp": 60
+        },
+        {
+          "id": "math.numerical_methods.c10",
+          "title": "RK4 for a second-order ODE (system form)",
+          "minutes": 30,
+          "context": "Unit IV names second-order and simultaneous ODEs explicitly.",
+          "steps": [
+            "Write y'' + y = 0, y(0) = 0, y'(0) = 1 as y' = z, z' = -y.",
+            "One RK4 step with h = 0.1 for both y and z, in a table.",
+            "Compare with sin(0.1) and cos(0.1)."
+          ],
+          "hint": "Compute k1 for y and z together, then k2 for both using the k1 values, and so on.",
+          "success_check": "k(y) = 0.1, 0.1, 0.09975, 0.0995; k(z) = 0, -0.005, -0.005, -0.009975; y(0.1) = 0.0998333, z(0.1) = 0.9950042 (sin and cos to 6 places).",
+          "xp": 30
+        }
+      ]
+    },
+    {
+      "id": "math.optimisation",
+      "name": "Optimisation for ML",
+      "branch": "math",
+      "tier": 6,
+      "prereqs": [
+        "math.calculus",
+        "math.linear_algebra",
+        "math.multivariable_vector"
+      ],
+      "outcomes": [
+        "Test convexity and second-order conditions",
+        "Find critical points with gradient and Hessian",
+        "Run gradient descent and pick a learning rate",
+        "Solve constrained problems with Lagrange multipliers",
+        "Derive least squares as an optimisation",
+        "Backpropagate through one neuron"
+      ],
+      "hours_est": 25,
+      "resources": [
+        "math.r.mml_book",
+        "math.r.boyd_cvx"
+      ],
+      "certs": [
+        "math.r.nptel_ess_math_ml_iitr"
+      ],
+      "project": {
+        "title": "Regression from scratch",
+        "brief": "numpy gradient descent vs closed form on Aankhen features, with a learning-rate sweep plot.",
+        "hours": 3
+      },
+      "contracts": [
+        {
+          "id": "math.optimisation.c01",
+          "title": "Convexity check",
+          "minutes": 12,
+          "context": "Convex = any local minimum is global.",
+          "steps": [
+            "f(x) = x^2 - 4x + 5: minimum and value, convex?"
+          ],
+          "hint": "f'' >= 0 everywhere means convex.",
+          "success_check": "Min 1 at x = 2; convex.",
+          "xp": 10
+        },
+        {
+          "id": "math.optimisation.c02",
+          "title": "Gradient and Hessian",
+          "minutes": 15,
+          "context": "Multivariable version.",
+          "steps": [
+            "f(x,y) = x^2 + 3y^2 - 2x + 6y: critical point, Hessian, minimum value."
+          ],
+          "hint": "Hessian positive definite means a minimum.",
+          "success_check": "(1, -1); Hessian diag(2, 6); f = -4.",
+          "xp": 15
+        },
+        {
+          "id": "math.optimisation.c03",
+          "title": "Gradient descent by hand",
+          "minutes": 15,
+          "context": "Watch math.r.yt_3b1b_gradient.",
+          "steps": [
+            "f(x) = x^2, x0 = 4: three steps with lr 0.25, two with lr 1.0, two with lr 1.25."
+          ],
+          "hint": "x <- x - lr x 2x.",
+          "success_check": "4 -> 2 -> 1 -> 0.5; 4 -> -4 -> 4 (oscillates); 4 -> -6 -> 9 (diverges).",
+          "xp": 15
+        },
+        {
+          "id": "math.optimisation.c04",
+          "title": "Lagrange multipliers",
+          "minutes": 20,
+          "context": "Constrained optimisation, the base of SVMs.",
+          "steps": [
+            "Maximise xy subject to x + y = 10.",
+            "Minimise x^2 + y^2 subject to x + 2y = 5."
+          ],
+          "hint": "grad f = lambda grad g.",
+          "success_check": "25 at (5,5); 5 at (1,2).",
+          "xp": 20
+        },
+        {
+          "id": "math.optimisation.c05",
+          "title": "Least squares as optimisation",
+          "minutes": 15,
+          "context": "Ties to math.linear_algebra.c07.",
+          "steps": [
+            "Differentiate ||Ax - b||^2 and set it to zero."
+          ],
+          "hint": "||v||^2 = v^T v.",
+          "success_check": "A^T A x = A^T b derived.",
+          "xp": 15
+        },
+        {
+          "id": "math.optimisation.c06",
+          "title": "Backprop through one neuron",
+          "minutes": 20,
+          "context": "The chain rule is all of deep learning.",
+          "steps": [
+            "y = sigmoid(wx + b), L = (y - t)^2/2, w = 0.5, b = 0, x = 2, t = 1: compute dL/dw."
+          ],
+          "hint": "sigmoid' = sigmoid (1 - sigmoid).",
+          "success_check": "z = 1, y = 0.731059, dL/dw = -0.105754.",
+          "xp": 20
+        },
+        {
+          "id": "math.optimisation.c07",
+          "title": "Project contract: gradient descent regression",
+          "minutes": 60,
+          "context": "Real ML on his own data.",
+          "steps": [
+            "Fit linear regression with numpy gradient descent on 3 Aankhen features.",
+            "Sweep lr over 5 values and plot loss curves.",
+            "Compare with the normal-equation solution."
+          ],
+          "hint": "Standardise features first or the learning rate will not behave.",
+          "success_check": "Loss falls monotonically for the chosen lr; weights match the closed form within 1e-3.",
+          "xp": 60
+        }
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "id": "math.r.khan_arithmetic",
+      "title": "Khan Academy: Arithmetic",
+      "kind": "course",
+      "url": "https://www.khanacademy.org/math/arithmetic",
+      "free": true,
+      "covers": [
+        "math.arithmetic_mental"
+      ],
+      "hours": 20
+    },
+    {
+      "id": "math.r.openstax_prealgebra",
+      "title": "OpenStax Prealgebra 2e",
+      "kind": "textbook",
+      "url": "https://openstax.org/details/books/prealgebra-2e",
+      "free": true,
+      "covers": [
+        "math.arithmetic_mental"
+      ],
+      "legal_pdf_url": "https://assets.openstax.org/oscms-prodcms/media/documents/prealgebra-2e_-_WEB.pdf"
+    },
+    {
+      "id": "math.r.khan_algebra",
+      "title": "Khan Academy: Algebra 1",
+      "kind": "course",
+      "url": "https://www.khanacademy.org/math/algebra",
+      "free": true,
+      "covers": [
+        "math.algebra"
+      ],
+      "hours": 40
+    },
+    {
+      "id": "math.r.pauls_algebra",
+      "title": "Paul's Online Notes: Algebra (notes + practice problems with solutions)",
+      "kind": "notes",
+      "url": "https://tutorial.math.lamar.edu/Classes/Alg/Alg.aspx",
+      "free": true,
+      "covers": [
+        "math.algebra",
+        "math.functions_graphs"
+      ]
+    },
+    {
+      "id": "math.r.openstax_precalc",
+      "title": "OpenStax Precalculus 2e (functions, exponentials, logs)",
+      "kind": "textbook",
+      "url": "https://openstax.org/details/books/precalculus-2e",
+      "free": true,
+      "covers": [
+        "math.functions_graphs"
+      ],
+      "legal_pdf_url": "https://assets.openstax.org/oscms-prodcms/media/documents/precalculus-2e_-_WEB.pdf"
+    },
+    {
+      "id": "math.r.khan_algebra2",
+      "title": "Khan Academy: Algebra 2",
+      "kind": "course",
+      "url": "https://www.khanacademy.org/math/algebra2",
+      "free": true,
+      "covers": [
+        "math.functions_graphs"
+      ],
+      "hours": 40
+    },
+    {
+      "id": "math.r.khan_trig",
+      "title": "Khan Academy: Trigonometry",
+      "kind": "course",
+      "url": "https://www.khanacademy.org/math/trigonometry",
+      "free": true,
+      "covers": [
+        "math.trigonometry"
+      ],
+      "hours": 20
+    },
+    {
+      "id": "math.r.openstax_alg_trig",
+      "title": "OpenStax Algebra and Trigonometry 2e",
+      "kind": "textbook",
+      "url": "https://openstax.org/details/books/algebra-and-trigonometry-2e",
+      "free": true,
+      "covers": [
+        "math.trigonometry",
+        "math.algebra"
+      ],
+      "legal_pdf_url": "https://assets.openstax.org/oscms-prodcms/media/documents/algebra-and-trigonometry-2e_-_WEB.pdf"
+    },
+    {
+      "id": "math.r.pauls_complex",
+      "title": "Paul's Online Notes: Complex Numbers Primer",
+      "kind": "notes",
+      "url": "https://tutorial.math.lamar.edu/Extras/ComplexPrimer/ComplexNumbers.aspx",
+      "free": true,
+      "covers": [
+        "math.complex_numbers"
+      ],
+      "hours": 4
+    },
+    {
+      "id": "math.r.khan_precalc_complex",
+      "title": "Khan Academy Precalculus: Complex numbers unit",
+      "kind": "course",
+      "url": "https://www.khanacademy.org/math/precalculus/x9e81a4f98389efdf:complex",
+      "free": true,
+      "covers": [
+        "math.complex_numbers"
+      ],
+      "hours": 8
+    },
+    {
+      "id": "math.r.pauls_calc1",
+      "title": "Paul's Online Notes: Calculus I (limits, derivatives, applications)",
+      "kind": "notes",
+      "url": "https://tutorial.math.lamar.edu/Classes/CalcI/CalcI.aspx",
+      "free": true,
+      "covers": [
+        "math.calculus"
+      ]
+    },
+    {
+      "id": "math.r.yt_3b1b_calculus",
+      "title": "3Blue1Brown: Essence of calculus (playlist)",
+      "kind": "video",
+      "url": "https://www.youtube.com/playlist?list=PLZHQObOWTQDMsr9K-rj53DwVRMYO3t5Yr",
+      "free": true,
+      "covers": [
+        "math.calculus",
+        "math.integration"
+      ],
+      "hours": 4
+    },
+    {
+      "id": "math.r.mit_1801sc",
+      "title": "MIT OCW 18.01SC Single Variable Calculus (lectures, recitations, problem sets with solutions)",
+      "kind": "course",
+      "url": "https://ocw.mit.edu/courses/18-01sc-single-variable-calculus-fall-2010/",
+      "free": true,
+      "covers": [
+        "math.integration",
+        "math.calculus"
+      ],
+      "hours": 60
+    },
+    {
+      "id": "math.r.strang_calculus",
+      "title": "Gilbert Strang, Calculus (3rd ed., free on MIT OCW RES.18-001, CC BY-NC-SA)",
+      "kind": "textbook",
+      "url": "https://ocw.mit.edu/courses/res-18-001-calculus-fall-2023/",
+      "free": true,
+      "covers": [
+        "math.integration",
+        "math.calculus"
+      ],
+      "legal_pdf_url": "https://ocw.mit.edu/courses/res-18-001-calculus-fall-2023/download/"
+    },
+    {
+      "id": "math.r.pauls_calc3",
+      "title": "Paul's Online Notes: Calculus III (multiple integrals, line/surface integrals, Green, Stokes, divergence)",
+      "kind": "notes",
+      "url": "https://tutorial.math.lamar.edu/Classes/CalcIII/CalcIII.aspx",
+      "free": true,
+      "covers": [
+        "math.multivariable_vector"
+      ]
+    },
+    {
+      "id": "math.r.mit_1802sc",
+      "title": "MIT OCW 18.02SC Multivariable Calculus",
+      "kind": "course",
+      "url": "https://ocw.mit.edu/courses/18-02sc-multivariable-calculus-fall-2010/",
+      "free": true,
+      "covers": [
+        "math.multivariable_vector"
+      ],
+      "hours": 60
+    },
+    {
+      "id": "math.r.mit_1803sc",
+      "title": "MIT OCW 18.03SC Differential Equations",
+      "kind": "course",
+      "url": "https://ocw.mit.edu/courses/18-03sc-differential-equations-fall-2011/",
+      "free": true,
+      "covers": [
+        "math.diff_equations"
+      ],
+      "hours": 60
+    },
+    {
+      "id": "math.r.pauls_de",
+      "title": "Paul's Online Notes: Differential Equations (incl. Laplace transforms)",
+      "kind": "notes",
+      "url": "https://tutorial.math.lamar.edu/Classes/DE/DE.aspx",
+      "free": true,
+      "covers": [
+        "math.diff_equations",
+        "math.signals_transforms"
+      ]
+    },
+    {
+      "id": "math.r.mit_1806sc",
+      "title": "MIT OCW 18.06SC Linear Algebra (Gilbert Strang)",
+      "kind": "course",
+      "url": "https://ocw.mit.edu/courses/18-06sc-linear-algebra-fall-2011/",
+      "free": true,
+      "covers": [
+        "math.linear_algebra"
+      ],
+      "hours": 60
+    },
+    {
+      "id": "math.r.yt_3b1b_linalg",
+      "title": "3Blue1Brown: Essence of linear algebra (playlist)",
+      "kind": "video",
+      "url": "https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab",
+      "free": true,
+      "covers": [
+        "math.linear_algebra"
+      ],
+      "hours": 4
+    },
+    {
+      "id": "math.r.mit_6041sc",
+      "title": "MIT OCW 6.041SC Probabilistic Systems Analysis and Applied Probability (2013, recitations + solved problems)",
+      "kind": "course",
+      "url": "https://ocw.mit.edu/courses/6-041sc-probabilistic-systems-analysis-and-applied-probability-fall-2013/",
+      "free": true,
+      "covers": [
+        "math.probability_stats"
+      ],
+      "hours": 60
+    },
+    {
+      "id": "math.r.openstax_intro_stats",
+      "title": "OpenStax Introductory Statistics 2e",
+      "kind": "textbook",
+      "url": "https://openstax.org/details/books/introductory-statistics-2e",
+      "free": true,
+      "covers": [
+        "math.probability_stats"
+      ],
+      "legal_pdf_url": "https://assets.openstax.org/oscms-prodcms/media/documents/introductory-statistics-2e_-_WEB.pdf"
+    },
+    {
+      "id": "math.r.nptel_prp_iitg",
+      "title": "NPTEL: Probability and Random Processes (IIT Guwahati, Prof. Prabin K. Bora)",
+      "kind": "course",
+      "url": "https://nptel.ac.in/courses/117103067",
+      "free": true,
+      "covers": [
+        "math.random_processes",
+        "math.probability_stats"
+      ],
+      "certificate": {
+        "provider": "NPTEL / SWAYAM",
+        "exam_fee_inr": 1000,
+        "note": "Course is free; the certificate needs the in-person proctored exam, Rs 1000 per course (50% waiver for SC/ST/PwD). Check the current run and dates on the course page before registering."
+      }
+    },
+    {
+      "id": "math.r.mit_6041_2010",
+      "title": "MIT OCW 6.041 Probabilistic Systems Analysis (2010; Bernoulli, Poisson, Markov lectures)",
+      "kind": "course",
+      "url": "https://ocw.mit.edu/courses/6-041-probabilistic-systems-analysis-and-applied-probability-fall-2010/",
+      "free": true,
+      "covers": [
+        "math.random_processes"
+      ]
+    },
+    {
+      "id": "math.r.mit_6003",
+      "title": "MIT OCW 6.003 Signals and Systems (2011; Laplace, Z, Fourier)",
+      "kind": "course",
+      "url": "https://ocw.mit.edu/courses/6-003-signals-and-systems-fall-2011/",
+      "free": true,
+      "covers": [
+        "math.signals_transforms"
+      ],
+      "hours": 60
+    },
+    {
+      "id": "math.r.nptel_transform_calculus",
+      "title": "NPTEL: Transform Calculus and its applications in Differential Equations (IIT Kharagpur, Prof. Adrijit Goswami)",
+      "kind": "course",
+      "url": "https://nptel.ac.in/courses/111105123",
+      "free": true,
+      "covers": [
+        "math.signals_transforms",
+        "math.diff_equations"
+      ],
+      "certificate": {
+        "provider": "NPTEL / SWAYAM",
+        "exam_fee_inr": 1000,
+        "note": "Course is free; the certificate needs the in-person proctored exam, Rs 1000 per course (50% waiver for SC/ST/PwD). Check the current run and dates on the course page before registering."
+      }
+    },
+    {
+      "id": "math.r.mit_mcs",
+      "title": "Lehman, Leighton, Meyer: Mathematics for Computer Science (MIT 6.042J text, free)",
+      "kind": "textbook",
+      "url": "https://ocw.mit.edu/courses/6-042j-mathematics-for-computer-science-fall-2010/",
+      "free": true,
+      "covers": [
+        "math.discrete"
+      ],
+      "legal_pdf_url": "https://courses.csail.mit.edu/6.042/spring18/mcs.pdf"
+    },
+    {
+      "id": "math.r.levin_discrete",
+      "title": "Oscar Levin: Discrete Mathematics, An Open Introduction (free online)",
+      "kind": "textbook",
+      "url": "https://discrete.openmathbooks.org/",
+      "free": true,
+      "covers": [
+        "math.discrete"
+      ]
+    },
+    {
+      "id": "math.r.nptel_numerical_iitr",
+      "title": "NPTEL: Numerical Methods (IIT Roorkee, Prof. Ameeya Kumar Nayak, Prof. Sanjeev Kumar)",
+      "kind": "course",
+      "url": "https://nptel.ac.in/courses/111107105",
+      "free": true,
+      "covers": [
+        "math.numerical_methods"
+      ],
+      "certificate": {
+        "provider": "NPTEL / SWAYAM",
+        "exam_fee_inr": 1000,
+        "note": "Course is free; the certificate needs the in-person proctored exam, Rs 1000 per course (50% waiver for SC/ST/PwD). Check the current run and dates on the course page before registering."
+      }
+    },
+    {
+      "id": "math.r.mit_18330",
+      "title": "MIT OCW 18.330 Introduction to Numerical Analysis",
+      "kind": "course",
+      "url": "https://ocw.mit.edu/courses/18-330-introduction-to-numerical-analysis-spring-2012/",
+      "free": true,
+      "covers": [
+        "math.numerical_methods"
+      ]
+    },
+    {
+      "id": "math.r.mml_book",
+      "title": "Deisenroth, Faisal, Ong: Mathematics for Machine Learning (free PDF from the authors)",
+      "kind": "textbook",
+      "url": "https://mml-book.github.io/",
+      "free": true,
+      "covers": [
+        "math.optimisation",
+        "math.linear_algebra",
+        "math.probability_stats"
+      ],
+      "legal_pdf_url": "https://mml-book.github.io/book/mml-book.pdf"
+    },
+    {
+      "id": "math.r.boyd_cvx",
+      "title": "Boyd & Vandenberghe: Convex Optimization (free PDF from the authors)",
+      "kind": "textbook",
+      "url": "https://web.stanford.edu/~boyd/cvxbook/",
+      "free": true,
+      "covers": [
+        "math.optimisation"
+      ],
+      "legal_pdf_url": "https://web.stanford.edu/~boyd/cvxbook/bv_cvxbook.pdf"
+    },
+    {
+      "id": "math.r.nptel_engmath1_iitkgp",
+      "title": "NPTEL: Engineering Mathematics - I (IIT Kharagpur, Prof. Jitendra Kumar; calculus, multiple integrals, matrices, ODE)",
+      "kind": "course",
+      "url": "https://nptel.ac.in/courses/111105121",
+      "free": true,
+      "covers": [
+        "math.calculus",
+        "math.integration",
+        "math.multivariable_vector"
+      ],
+      "certificate": {
+        "provider": "NPTEL / SWAYAM",
+        "exam_fee_inr": 1000,
+        "note": "Course is free; the certificate needs the in-person proctored exam, Rs 1000 per course (50% waiver for SC/ST/PwD). Check the current run and dates on the course page before registering."
+      }
+    },
+    {
+      "id": "math.r.nptel_applied_la_iitk",
+      "title": "NPTEL: Applied Linear Algebra for Signal Processing, Data Analytics and Machine Learning (IIT Kanpur, Prof. Aditya K. Jagannatham)",
+      "kind": "course",
+      "url": "https://nptel.ac.in/courses/108104174",
+      "free": true,
+      "covers": [
+        "math.linear_algebra"
+      ],
+      "certificate": {
+        "provider": "NPTEL / SWAYAM",
+        "exam_fee_inr": 1000,
+        "note": "Course is free; the certificate needs the in-person proctored exam, Rs 1000 per course (50% waiver for SC/ST/PwD). Check the current run and dates on the course page before registering."
+      }
+    },
+    {
+      "id": "math.r.nptel_ess_math_ml_iitr",
+      "title": "NPTEL: Essential Mathematics for Machine Learning (IIT Roorkee, Prof. S. K. Gupta, Prof. Sanjeev Kumar)",
+      "kind": "course",
+      "url": "https://nptel.ac.in/courses/111107137",
+      "free": true,
+      "covers": [
+        "math.optimisation"
+      ],
+      "certificate": {
+        "provider": "NPTEL / SWAYAM",
+        "exam_fee_inr": 1000,
+        "note": "Course is free; the certificate needs the in-person proctored exam, Rs 1000 per course (50% waiver for SC/ST/PwD). Check the current run and dates on the course page before registering."
+      }
+    },
+    {
+      "id": "math.r.nptel_discrete_iiitb",
+      "title": "NPTEL: Discrete Mathematics (IIIT Bangalore, Prof. Ashish Choudhury)",
+      "kind": "course",
+      "url": "https://nptel.ac.in/courses/106108227",
+      "free": true,
+      "covers": [
+        "math.discrete"
+      ],
+      "certificate": {
+        "provider": "NPTEL / SWAYAM",
+        "exam_fee_inr": 1000,
+        "note": "Course is free; the certificate needs the in-person proctored exam, Rs 1000 per course (50% waiver for SC/ST/PwD). Check the current run and dates on the course page before registering."
+      }
+    },
+    {
+      "id": "math.r.nptel_ss_iitk",
+      "title": "NPTEL: Signals and Systems (IIT Kanpur, Prof. K. S. Venkatesh)",
+      "kind": "course",
+      "url": "https://nptel.ac.in/courses/117104074",
+      "free": true,
+      "covers": [
+        "math.signals_transforms"
+      ],
+      "certificate": {
+        "provider": "NPTEL / SWAYAM",
+        "exam_fee_inr": 1000,
+        "note": "Course is free; the certificate needs the in-person proctored exam, Rs 1000 per course (50% waiver for SC/ST/PwD). Check the current run and dates on the course page before registering."
+      }
+    },
+    {
+      "id": "math.r.jee_adv_archive",
+      "title": "JEE (Advanced) official past papers 2007-2025 (Paper 1 + 2)",
+      "kind": "problems",
+      "url": "https://jeeadv.ac.in/archive.html",
+      "free": true,
+      "covers": [
+        "math.algebra",
+        "math.trigonometry",
+        "math.calculus",
+        "math.integration",
+        "math.complex_numbers",
+        "math.probability_stats"
+      ],
+      "legal_pdf_url": "https://jeeadv.ac.in/past_qps/2025_1_English.pdf"
+    },
+    {
+      "id": "math.r.gate2026_ec",
+      "title": "GATE 2026 EC master question paper (official, IIT Guwahati)",
+      "kind": "problems",
+      "url": "https://gate2026.iitg.ac.in/QPs-answer-keys.html",
+      "free": true,
+      "covers": [
+        "math.linear_algebra",
+        "math.calculus",
+        "math.diff_equations",
+        "math.complex_numbers",
+        "math.probability_stats",
+        "math.signals_transforms",
+        "math.numerical_methods"
+      ],
+      "legal_pdf_url": "https://gate2026.iitg.ac.in/doc/download/2026/QPs/EC.pdf"
+    },
+    {
+      "id": "math.r.gate2026_ec_key",
+      "title": "GATE 2026 EC answer key (official)",
+      "kind": "answer_key",
+      "url": "https://gate2026.iitg.ac.in/QPs-answer-keys.html",
+      "free": true,
+      "covers": [
+        "math.linear_algebra",
+        "math.signals_transforms"
+      ],
+      "legal_pdf_url": "https://gate2026.iitg.ac.in/doc/download/2026/Keys/EC_Keys.pdf"
+    },
+    {
+      "id": "math.r.gate2025_ec",
+      "title": "GATE 2025 EC question paper + key (official, IIT Roorkee)",
+      "kind": "problems",
+      "url": "https://gate2025.iitr.ac.in/question-papers.html",
+      "free": true,
+      "covers": [
+        "math.linear_algebra",
+        "math.probability_stats",
+        "math.signals_transforms"
+      ],
+      "legal_pdf_url": "https://gate2025.iitr.ac.in/doc/2025/2025_QP/EC.pdf"
+    },
+    {
+      "id": "math.r.project_euler",
+      "title": "Project Euler (maths + code puzzles)",
+      "kind": "problems",
+      "url": "https://projecteuler.net/",
+      "free": true,
+      "covers": [
+        "math.discrete",
+        "math.arithmetic_mental"
+      ]
+    },
+    {
+      "id": "math.r.aops_alcumus",
+      "title": "Art of Problem Solving: Alcumus (free adaptive contest problems, needs a free account)",
+      "kind": "problems",
+      "url": "https://artofproblemsolving.com/alcumus",
+      "free": true,
+      "covers": [
+        "math.algebra",
+        "math.discrete",
+        "math.probability_stats"
+      ]
+    },
+    {
+      "id": "math.r.brilliant",
+      "title": "Brilliant (puzzle-style courses; freemium, most courses paid)",
+      "kind": "problems",
+      "url": "https://brilliant.org/",
+      "free": false,
+      "covers": [
+        "math.algebra",
+        "math.probability_stats",
+        "math.discrete"
+      ]
+    },
+    {
+      "id": "math.r.grinstead_snell",
+      "title": "Grinstead & Snell: Introduction to Probability (free PDF, Dartmouth/AMS)",
+      "kind": "textbook",
+      "url": "https://math.dartmouth.edu/~prob/prob/prob.pdf",
+      "free": true,
+      "covers": [
+        "math.probability_stats",
+        "math.random_processes"
+      ],
+      "legal_pdf_url": "https://math.dartmouth.edu/~prob/prob/prob.pdf"
+    },
+    {
+      "id": "math.r.yt_3b1b_fourier",
+      "title": "3Blue1Brown: But what is the Fourier Transform? A visual introduction",
+      "kind": "video",
+      "url": "https://www.youtube.com/watch?v=spUNpyF58BY",
+      "free": true,
+      "covers": [
+        "math.signals_transforms"
+      ],
+      "hours": 0.5
+    },
+    {
+      "id": "math.r.yt_3b1b_laplace",
+      "title": "3Blue1Brown: But what is a Laplace Transform?",
+      "kind": "video",
+      "url": "https://www.youtube.com/watch?v=j0wJBEZdwLs",
+      "free": true,
+      "covers": [
+        "math.signals_transforms"
+      ],
+      "hours": 0.5
+    },
+    {
+      "id": "math.r.yt_3b1b_bayes",
+      "title": "3Blue1Brown: Bayes theorem, the geometry of changing beliefs",
+      "kind": "video",
+      "url": "https://www.youtube.com/watch?v=HZGCoVF3YvM",
+      "free": true,
+      "covers": [
+        "math.probability_stats"
+      ],
+      "hours": 0.3
+    },
+    {
+      "id": "math.r.yt_3b1b_gradient",
+      "title": "3Blue1Brown: Gradient descent, how neural networks learn",
+      "kind": "video",
+      "url": "https://www.youtube.com/watch?v=IHZwWFHWa-w",
+      "free": true,
+      "covers": [
+        "math.optimisation"
+      ],
+      "hours": 0.4
+    },
+    {
+      "id": "math.r.yt_3b1b_diffeq",
+      "title": "3Blue1Brown: Differential equations (playlist)",
+      "kind": "video",
+      "url": "https://www.youtube.com/playlist?list=PLZHQObOWTQDNPOjrT6KVlfJuKtYTftqH6",
+      "free": true,
+      "covers": [
+        "math.diff_equations"
+      ],
+      "hours": 2
+    },
+    {
+      "id": "math.r.anki",
+      "title": "Anki (free spaced-repetition flashcards; desktop and Android free)",
+      "kind": "tool",
+      "url": "https://apps.ankiweb.net/",
+      "free": true,
+      "covers": [
+        "practice_engine"
+      ]
+    },
+    {
+      "id": "math.r.fsrs",
+      "title": "FSRS scheduler for Anki (open-source spaced-repetition algorithm)",
+      "kind": "tool",
+      "url": "https://github.com/open-spaced-repetition/fsrs4anki",
+      "free": true,
+      "covers": [
+        "practice_engine"
+      ]
+    }
+  ],
+  "practice_engine": {
+    "rules": {
+      "placement": {
+        "how": "Take the 30-question diagnostic on paper, no calculator, 45 minutes max. Mark each item right/wrong. Skip, do not guess.",
+        "place_at": "The lowest level (1-10) where you got fewer than 2 out of every 3 items right. Every node at or below that level starts at contract c01; nodes above it stay locked until their prereqs pass the mastery gate.",
+        "retake": "Retake the diagnostic every 4 weeks; never study from its answers."
+      },
+      "daily_session": {
+        "library_maths_day_180min": [
+          "5-10 min mental sprint (math.arithmetic_mental.c07)",
+          "15 min spaced review: due flashcards + 3 old problems from the error log",
+          "60 min new contract(s) with worked-example fading",
+          "10 min break",
+          "45 min productive-struggle set (hard problems, hint ladder)",
+          "30 min interleaved mixed set of 6-10 problems from all unlocked nodes",
+          "5 min: log score, add misses to error log, make 2-5 new cards"
+        ],
+        "evening_home_30_45min": [
+          "5 min mental sprint",
+          "15-20 min due reviews (cards + 2 old problems)",
+          "10-20 min one short contract or redo of yesterday's misses"
+        ],
+        "why_evening_matters": "With maths only one library day in five, the evening reviews are what keeps the spacing intervals alive between library days."
+      },
+      "spacing": {
+        "schedule_days": [
+          1,
+          3,
+          7,
+          14,
+          30,
+          60
+        ],
+        "rule": "A problem or card you get right moves to the next interval; a miss returns it to day 1. Use Anki with FSRS (math.r.anki, math.r.fsrs) for formula and method cards; use the error log for whole problems.",
+        "evidence": "Cepeda et al. 2008: for tests 7/35/70/350 days away the best review gaps were about 3/8/12/27 days (43/23/17/8% of the delay). Distributed practice is one of two 'high utility' techniques in Dunlosky et al. 2013."
+      },
+      "retrieval": {
+        "rule": "Every session starts from a blank page: write the formula/method/definition before looking. Rereading notes does not count as study time.",
+        "evidence": "Testing beat restudy at 1 week (Roediger & Karpicke 2006); meta-analyses: testing vs restudy g = 0.50 (Rowland 2014) and practice testing g ~ 0.5-0.6 (Adesope et al. 2017); retrieval beat concept mapping (Karpicke & Blunt 2011)."
+      },
+      "interleaving": {
+        "rule": "Once a node has 2+ finished contracts, its practice sets mix problem types from that node and older nodes. Before solving, write which method the problem needs. Expect practice scores to drop; that is the point.",
+        "evidence": "Rohrer & Taylor 2007: mixed practice scored 60% vs 89% during practice but 63% vs 20% on the test a week later. Rohrer et al. 2020 (787 students, 54 classes, preregistered RCT): 61% vs 38% on an unannounced test, d = 0.83."
+      },
+      "productive_struggle": {
+        "rule": "Each hard problem gets 15 minutes of genuine attempt (written, any idea counts) before the first hint. Hint ladder: (1) name the method, (2) first step, (3) full worked solution, then redo the problem from blank the next day.",
+        "evidence": "Sinha & Kapur 2021 meta-analysis (53 studies, 166 comparisons): problem solving before instruction beat instruction-first, g = 0.36, up to 0.58 when the struggle is well designed. It did not help grade 2-5 children or weak prior knowledge with no follow-up instruction, so the struggle always ends with a worked solution."
+      },
+      "worked_example_fading": {
+        "stages": [
+          "S1: study a complete worked example and explain each step aloud",
+          "S2: same type, last step blank",
+          "S3: middle steps blank",
+          "S4: problem only"
+        ],
+        "advance_when": "2 correct in a row at the current stage.",
+        "stop_when": "You solve S4 problems correctly; from then on examples slow you down (expertise reversal).",
+        "evidence": "Sweller & Cooper 1985 (algebra); Renkl et al. 2002 and Atkinson, Renkl & Merrill 2003 (fading steps helps transfer); Kalyuga et al. 2003 (examples help novices, hurt experts)."
+      },
+      "mental_maths": {
+        "daily_minutes": "5-10",
+        "rule": "Timed, mixed, no calculator, scored. Target 18/20 in 5 minutes before moving the sprint up a difficulty."
+      },
+      "error_log": {
+        "fields": [
+          "date",
+          "contract id",
+          "problem",
+          "my wrong step",
+          "error type: concept | method choice | algebra/sign slip | arithmetic | misread",
+          "fix rule in one line",
+          "next review date"
+        ],
+        "rule": "Every miss goes in. Sign slips and arithmetic errors are counted separately because they are his main mark-loser."
+      },
+      "mastery_gate": "A node passes when an interleaved mixed set of 10 problems from it scores >= 8/10 on two different days at least 3 days apart, with no worked examples open.",
+      "xp": "Contract xp is roughly its minutes; productive-struggle and project contracts carry extra. XP counts only when the success_check is met. Daily streak needs the mental sprint + reviews, not new material.",
+      "honest_timeline": "The 16 nodes total about 385 hours; at about 6 hours a week that is over a year, so an exam plan (served privately by the app) may override the node order until a given exam."
+    }
+  }
+}

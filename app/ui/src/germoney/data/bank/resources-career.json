@@ -1,0 +1,1307 @@
+[
+ {
+  "id": "car.nptel_digital_circuits_kgp",
+  "title": "NPTEL Digital Electronic Circuits (IIT Kharagpur)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/108105132",
+  "free": true,
+  "covers": "Boolean algebra, K-maps, combinational blocks, flip-flops, counters",
+  "certificate": "nptel.digital_circuits",
+  "skip_topics": [
+   "TTL/ECL logic-family internals (skim only)"
+  ],
+  "hours": 40
+ },
+ {
+  "id": "car.nand2tetris",
+  "title": "Nand2Tetris part 1 (projects 1-3)",
+  "kind": "course",
+  "url": "https://www.nand2tetris.org/",
+  "free": true,
+  "covers": "Build gates -> ALU -> RAM yourself in the HDL simulator (projects 1-3 only)",
+  "skip_topics": [
+   "projects 4-12 (assembler/VM/compiler) unless curious"
+  ],
+  "hours": 20
+ },
+ {
+  "id": "car.ethz_ddca",
+  "title": "ETH Zurich Digital Design and Computer Architecture (Onur Mutlu) lectures",
+  "kind": "course",
+  "url": "https://safari.ethz.ch/digitaltechnik/",
+  "free": true,
+  "covers": "Sequential logic, FSMs, timing, then the single-cycle/multi-cycle/pipelined MIPS-RISC-V lectures",
+  "hours": 60
+ },
+ {
+  "id": "car.mit_6004_ocw",
+  "title": "MIT 6.004 Computation Structures (OCW, Spring 2017)",
+  "kind": "course",
+  "url": "https://ocw.mit.edu/courses/6-004-computation-structures-spring-2017/",
+  "free": true,
+  "covers": "Sequential logic, synchronisation, finite state machines units only",
+  "skip_topics": [
+   "Beta ISA units (use RISC-V instead)"
+  ],
+  "hours": 15
+ },
+ {
+  "id": "car.parhami_arith",
+  "title": "Parhami, Computer Arithmetic: author's lecture slides",
+  "kind": "slides",
+  "url": "https://web.ece.ucsb.edu/~parhami/text_comp_arit.htm",
+  "free": true,
+  "covers": "Number representation, fast adders, multipliers, fixed/floating point",
+  "skip_topics": [
+   "Residue number systems",
+   "division algorithms (skim)"
+  ],
+  "hours": 20
+ },
+ {
+  "id": "car.projectf_fixed_point",
+  "title": "Project F: Fixed-point numbers in Verilog",
+  "kind": "article",
+  "url": "https://projectf.io/posts/fixed-point-numbers-in-verilog/",
+  "free": true,
+  "covers": "Q-format fixed point, rounding, saturation in RTL",
+  "hours": 3
+ },
+ {
+  "id": "car.hdlbits_lang",
+  "title": "HDLBits sections 1-2: Getting Started + Verilog Language",
+  "kind": "practice",
+  "url": "https://hdlbits.01xz.net/wiki/Problem_sets",
+  "free": true,
+  "covers": "Basics, Vectors, Modules: Hierarchy, Procedures, More Verilog Features (~43 problems)",
+  "hours": 15
+ },
+ {
+  "id": "car.nptel_verilog_kgp",
+  "title": "NPTEL Hardware Modeling using Verilog (IIT Kharagpur)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/106105165",
+  "free": true,
+  "covers": "Verilog syntax, behavioural vs structural modelling, testbenches, small processor case study",
+  "certificate": "nptel.verilog",
+  "hours": 30
+ },
+ {
+  "id": "car.hdlbits_circuits",
+  "title": "HDLBits section 3: Circuits",
+  "kind": "practice",
+  "url": "https://hdlbits.01xz.net/wiki/Problem_sets",
+  "free": true,
+  "covers": "Combinational (gates, muxes, arithmetic, K-maps), sequential (FFs, counters, shift registers, FSMs), larger circuits (~120 problems)",
+  "hours": 40
+ },
+ {
+  "id": "car.chipverify_verilog",
+  "title": "ChipVerify Verilog tutorial",
+  "kind": "docs",
+  "url": "https://www.chipverify.com/tutorials/verilog",
+  "free": true,
+  "covers": "Reference reading for each Verilog construct with examples",
+  "hours": 10
+ },
+ {
+  "id": "car.cummings_papers",
+  "title": "Clifford Cummings (Sunburst Design) papers: nonblocking assignments, CDC, resets, FIFOs",
+  "kind": "paper",
+  "url": "http://www.sunburst-design.com/papers/",
+  "free": true,
+  "covers": "Industry RTL coding rules: blocking vs nonblocking, reset styles, async FIFO, CDC",
+  "hours": 15
+ },
+ {
+  "id": "car.nptel_system_design_verilog_iitg",
+  "title": "NPTEL System Design through Verilog (IIT Guwahati)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/108103179",
+  "free": true,
+  "covers": "Datapath/controller partitioning, RTL design of larger systems",
+  "certificate": "nptel.system_design_verilog",
+  "hours": 30
+ },
+ {
+  "id": "car.chipverify_sv",
+  "title": "ChipVerify SystemVerilog tutorial (design constructs part)",
+  "kind": "docs",
+  "url": "https://www.chipverify.com/tutorials/systemverilog",
+  "free": true,
+  "covers": "logic, enums, structs, packages, interfaces, always_ff/always_comb",
+  "skip_topics": [
+   "classes/randomization pages: they belong to ver.sv_verification"
+  ],
+  "hours": 10
+ },
+ {
+  "id": "car.ieee1800_lrm",
+  "title": "IEEE 1800-2023 SystemVerilog standard (free via IEEE GET program)",
+  "kind": "standard",
+  "url": "https://ieeexplore.ieee.org/document/10458102",
+  "free": true,
+  "covers": "Reference only: look up exact semantics when tools disagree",
+  "skip_topics": [
+   "reading it cover to cover"
+  ]
+ },
+ {
+  "id": "car.verilator_docs",
+  "title": "Verilator documentation + example",
+  "kind": "docs",
+  "url": "https://verilator.org/guide/latest/",
+  "free": true,
+  "covers": "Lint, C++/SystemC simulation, waveform tracing, Makefile flow",
+  "hours": 6
+ },
+ {
+  "id": "car.edaplayground",
+  "title": "EDA Playground (browser simulators incl. commercial ones)",
+  "kind": "tool",
+  "url": "https://www.edaplayground.com/",
+  "free": true,
+  "covers": "Run Verilog/SV/UVM in the browser; share runnable links in your README",
+  "hours": 2
+ },
+ {
+  "id": "car.cs61c",
+  "title": "UC Berkeley CS61C Great Ideas in Computer Architecture",
+  "kind": "course",
+  "url": "https://cs61c.org/",
+  "free": true,
+  "covers": "C memory model, RISC-V assembly, datapath, caches; labs + projects",
+  "skip_topics": [
+   "parallelism/OpenMP week (optional)"
+  ],
+  "hours": 60
+ },
+ {
+  "id": "car.lfd110",
+  "title": "Linux Foundation LFD110x Introduction to RISC-V",
+  "kind": "course",
+  "url": "https://training.linuxfoundation.org/training/introduction-to-riscv-lfd110x/",
+  "free": true,
+  "covers": "RISC-V ecosystem, ISA, assembly with Venus, toolchains",
+  "certificate": "lf.lfd110",
+  "hours": 18
+ },
+ {
+  "id": "car.riscv_spec",
+  "title": "RISC-V ratified specifications (unprivileged ISA)",
+  "kind": "standard",
+  "url": "https://riscv.org/specifications/ratified/",
+  "free": true,
+  "covers": "RV32I base chapter + M extension only",
+  "skip_topics": [
+   "privileged spec until you build an SoC",
+   "vector extension until aihw"
+  ],
+  "hours": 8
+ },
+ {
+  "id": "car.lfd111",
+  "title": "Linux Foundation LFD111x Building a RISC-V CPU Core (Makerchip)",
+  "kind": "course",
+  "url": "https://training.linuxfoundation.org/training/building-a-riscv-cpu-core-lfd111x/",
+  "free": true,
+  "covers": "Logic -> pipelined RV32I core in TL-Verilog in the browser",
+  "certificate": "lf.lfd111",
+  "hours": 25
+ },
+ {
+  "id": "car.learn_fpga_levy",
+  "title": "Bruno Levy, learn-fpga: From Blinker to RISC-V",
+  "kind": "tutorial",
+  "url": "https://github.com/BrunoLevy/learn-fpga",
+  "free": true,
+  "covers": "Step-by-step plain-Verilog RV32I core (FemtoRV) runnable on cheap FPGAs or simulation",
+  "hours": 25
+ },
+ {
+  "id": "car.nptel_comp_arch_iitm",
+  "title": "NPTEL Computer Architecture (IIT Madras, Madhu Mutyam)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/106106134",
+  "free": true,
+  "covers": "Caches, main memory, pipelining, ILP, out-of-order, multicore, coherence",
+  "certificate": "nptel.comp_arch_iitm",
+  "hours": 40
+ },
+ {
+  "id": "car.mit_6823",
+  "title": "MIT 6.823 Computer System Architecture (OCW)",
+  "kind": "course",
+  "url": "https://ocw.mit.edu/courses/6-823-computer-system-architecture-fall-2005/",
+  "free": true,
+  "covers": "Problem sets on caches, branch prediction, OoO, VLIW, vector",
+  "skip_topics": [
+   "microprogramming lecture"
+  ],
+  "hours": 20
+ },
+ {
+  "id": "car.arm_amba",
+  "title": "Arm AMBA AXI protocol specification (IHI0022)",
+  "kind": "standard",
+  "url": "https://support.arm.com/documentation/ihi0022/latest/",
+  "free": true,
+  "covers": "APB and AXI4-Lite chapters first, then AXI4 bursts",
+  "hours": 10
+ },
+ {
+  "id": "car.amd_ug1037",
+  "title": "AMD/Xilinx UG1037 Vivado AXI Reference Guide",
+  "kind": "docs",
+  "url": "https://docs.amd.com/v/u/en-US/ug1037-vivado-axi-reference-guide",
+  "free": true,
+  "covers": "Plain-language AXI handshakes, AXI-Stream, interconnect",
+  "hours": 6
+ },
+ {
+  "id": "car.gem5_learning",
+  "title": "Learning gem5 (official tutorial)",
+  "kind": "docs",
+  "url": "https://www.gem5.org/documentation/learning_gem5/introduction/",
+  "free": true,
+  "covers": "Build gem5, run a simple config, read stats, change cache sizes",
+  "skip_topics": [
+   "Ruby coherence protocols (later)"
+  ],
+  "hours": 15
+ },
+ {
+  "id": "car.roofline_paper",
+  "title": "Williams, Waterman, Patterson: Roofline (Berkeley tech report EECS-2008-134)",
+  "kind": "paper",
+  "url": "https://www2.eecs.berkeley.edu/Pubs/TechRpts/2008/EECS-2008-134.html",
+  "free": true,
+  "covers": "Operational intensity, compute vs memory bound, roofline plots",
+  "legal_pdf_url": "https://www2.eecs.berkeley.edu/Pubs/TechRpts/2008/EECS-2008-134.pdf",
+  "hours": 3
+ },
+ {
+  "id": "car.nandland",
+  "title": "Nandland FPGA tutorials",
+  "kind": "tutorial",
+  "url": "https://nandland.com/",
+  "free": true,
+  "covers": "FPGA flow, constraints, UART, debouncing, 7-segment on a small board",
+  "hours": 15
+ },
+ {
+  "id": "car.projectf",
+  "title": "Project F FPGA tutorials (beginning FPGA graphics)",
+  "kind": "tutorial",
+  "url": "https://projectf.io/tutorials/",
+  "free": true,
+  "covers": "Open toolchain FPGA projects (VGA/HDMI graphics) with clean RTL",
+  "hours": 15
+ },
+ {
+  "id": "car.kastner_hls_book",
+  "title": "Kastner et al., Parallel Programming for FPGAs (free book)",
+  "kind": "book",
+  "url": "https://kastner.ucsd.edu/hlsbook/",
+  "free": true,
+  "covers": "HLS pragmas: pipeline, unroll, array partition; FIR, matrix multiply, FFT case studies",
+  "legal_pdf_url": "https://kastner.ucsd.edu/hlsbook/",
+  "hours": 25
+ },
+ {
+  "id": "car.vitis_tutorials",
+  "title": "AMD Vitis tutorials (GitHub)",
+  "kind": "tutorial",
+  "url": "https://github.com/Xilinx/Vitis-Tutorials",
+  "free": true,
+  "covers": "Vitis HLS getting-started and optimisation labs",
+  "hours": 10
+ },
+ {
+  "id": "car.hdlbits_verif",
+  "title": "HDLBits sections 4-5: Reading Simulations + Writing Testbenches",
+  "kind": "practice",
+  "url": "https://hdlbits.01xz.net/wiki/Problem_sets",
+  "free": true,
+  "covers": "Find bugs, build circuits from waveforms, write clocks and testbenches (~20 problems)",
+  "hours": 8
+ },
+ {
+  "id": "car.cocotb_docs",
+  "title": "cocotb documentation (Python testbenches)",
+  "kind": "docs",
+  "url": "https://docs.cocotb.org/en/stable/",
+  "free": true,
+  "covers": "Python coroutine testbenches for Icarus/Verilator; quickstart + examples",
+  "hours": 8
+ },
+ {
+  "id": "car.verificationguide_sv",
+  "title": "Verification Guide: SystemVerilog testbench tutorial",
+  "kind": "docs",
+  "url": "https://verificationguide.com/systemverilog/systemverilog-tutorial/",
+  "free": true,
+  "covers": "Classes, randomization, constraints, mailboxes, covergroups, layered TB",
+  "hours": 20
+ },
+ {
+  "id": "car.va_sv_oop",
+  "title": "Siemens Verification Academy: SystemVerilog OOP for UVM verification",
+  "kind": "course",
+  "url": "https://verificationacademy.com/",
+  "free": true,
+  "covers": "OOP concepts exactly as UVM uses them (free account)",
+  "hours": 8
+ },
+ {
+  "id": "car.va_uvm",
+  "title": "Siemens Verification Academy: UVM basics + UVM Cookbook",
+  "kind": "course",
+  "url": "https://verificationacademy.com/cookbook/",
+  "free": true,
+  "covers": "UVM components, phases, sequences, TLM, config_db, factory",
+  "hours": 25
+ },
+ {
+  "id": "car.accellera_uvm",
+  "title": "Accellera UVM (IEEE 1800.2) library and user guide",
+  "kind": "standard",
+  "url": "https://www.accellera.org/downloads/standards/uvm",
+  "free": true,
+  "covers": "Reference implementation + user guide; run on EDA Playground",
+  "hours": 6
+ },
+ {
+  "id": "car.symbiyosys",
+  "title": "YosysHQ SymbiYosys (SBY) documentation",
+  "kind": "docs",
+  "url": "https://yosyshq.readthedocs.io/projects/sby/en/latest/",
+  "free": true,
+  "covers": "Open-source formal: bounded model check, cover, induction on your RTL",
+  "hours": 8
+ },
+ {
+  "id": "car.zipcpu_formal",
+  "title": "ZipCPU formal verification tutorial",
+  "kind": "tutorial",
+  "url": "https://zipcpu.com/tutorial/formal.html",
+  "free": true,
+  "covers": "Writing assertions/assumptions, proving FIFOs and bus slaves",
+  "hours": 10
+ },
+ {
+  "id": "car.nptel_vlsi_flow_front",
+  "title": "NPTEL VLSI Design Flow: RTL to GDS (IIIT Delhi, Sneh Saurabh) weeks 1-6",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/108106191",
+  "free": true,
+  "covers": "Weeks 1-6 only: flow overview, RTL synthesis, logic optimisation, formal/equivalence checking, cell libraries",
+  "certificate": "nptel.vlsi_design_flow",
+  "hours": 30
+ },
+ {
+  "id": "car.yosys_docs",
+  "title": "Yosys documentation",
+  "kind": "docs",
+  "url": "https://yosyshq.readthedocs.io/projects/yosys/en/latest/",
+  "free": true,
+  "covers": "Synthesis scripts, stat, ABC mapping to a liberty file",
+  "hours": 6
+ },
+ {
+  "id": "car.nptel_vlsi_flow_sta",
+  "title": "NPTEL VLSI Design Flow weeks 7-9 (first half): STA, constraints, power",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/108106191",
+  "free": true,
+  "covers": "Weeks 7-9 STA + SDC constraints + timing-driven/power optimisation",
+  "hours": 15
+ },
+ {
+  "id": "car.opensta",
+  "title": "OpenSTA (GitHub) README and examples",
+  "kind": "tool",
+  "url": "https://github.com/The-OpenROAD-Project/OpenSTA",
+  "free": true,
+  "covers": "Read liberty + netlist + SDC, report_checks, fix a violating path",
+  "hours": 5
+ },
+ {
+  "id": "car.nptel_vlsi_flow_pd",
+  "title": "NPTEL VLSI Design Flow weeks 10-12: physical design",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/108106191",
+  "free": true,
+  "covers": "Weeks 10-12 only: FEOL/BEOL, floorplan, placement, CTS, routing, sign-off",
+  "hours": 15
+ },
+ {
+  "id": "car.openlane2_docs",
+  "title": "OpenLane 2 documentation (SKY130/GF180 RTL-to-GDS)",
+  "kind": "docs",
+  "url": "https://openlane2.readthedocs.io/en/latest/",
+  "free": true,
+  "covers": "Run the full open-source flow on your design, read the reports",
+  "hours": 10
+ },
+ {
+  "id": "car.nptel_vlsi_testing",
+  "title": "NPTEL Digital VLSI Testing (IIT Kharagpur)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/117105137",
+  "free": true,
+  "covers": "Fault models, fault simulation, ATPG, scan, BIST",
+  "certificate": "nptel.digital_vlsi_testing",
+  "hours": 30
+ },
+ {
+  "id": "car.nptel_vlsi_flow_dft",
+  "title": "NPTEL VLSI Design Flow weeks 9-10 (DFT part only)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/108106191",
+  "free": true,
+  "covers": "DFT basics, fault models, scan design, ATPG, BIST overview",
+  "hours": 5
+ },
+ {
+  "id": "car.tinytapeout_docs",
+  "title": "Tiny Tapeout: digital design guides and template repo",
+  "kind": "docs",
+  "url": "https://tinytapeout.com/digital_design/",
+  "free": true,
+  "covers": "Template repo, GitHub Actions hardening, tile limits, submitting to a shuttle",
+  "certificate": "tinytapeout.tile",
+  "hours": 10
+ },
+ {
+  "id": "car.sscs_pico",
+  "title": "IEEE SSCS PICO Open-Source Chipathon",
+  "kind": "competition",
+  "url": "https://sscs.ieee.org/technical-committees/tc-ose/sscs-pico-design-contest/",
+  "free": true,
+  "covers": "Yearly open-source chip design contest with fabrication for selected teams",
+  "certificate": "sscs.pico"
+ },
+ {
+  "id": "car.nptel_analog_iitd",
+  "title": "NPTEL Analog Electronic Circuit (IIT Delhi)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/108102112",
+  "free": true,
+  "covers": "Diodes, BJT/MOSFET biasing, small-signal amplifiers, feedback, op-amps",
+  "certificate": "nptel.analog_circuits",
+  "hours": 40
+ },
+ {
+  "id": "car.mit_6002",
+  "title": "MIT 6.002 Circuits and Electronics (OCW)",
+  "kind": "course",
+  "url": "https://ocw.mit.edu/courses/6-002-circuits-and-electronics-spring-2007/",
+  "free": true,
+  "covers": "Problem sets on MOSFET amplifiers, small signal, op-amp circuits",
+  "skip_topics": [
+   "lumped-circuit basics you already did in sem 1-2"
+  ],
+  "hours": 15
+ },
+ {
+  "id": "car.nptel_cmos_vlsi_roorkee",
+  "title": "NPTEL CMOS Digital VLSI Design (IIT Roorkee)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/108107129",
+  "free": true,
+  "covers": "MOSFET models, CMOS inverter, static/dynamic logic, delay, power, memories",
+  "certificate": "nptel.cmos_digital_vlsi",
+  "hours": 40
+ },
+ {
+  "id": "car.nptel_vlsi_circuits_iitm",
+  "title": "NPTEL VLSI Circuits (IIT Madras)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/117106092",
+  "free": true,
+  "covers": "Logical effort, sizing, interconnect: watch only the delay/sizing lectures",
+  "hours": 10
+ },
+ {
+  "id": "car.nptel_analog_ic_iitm",
+  "title": "NPTEL Analog IC Design (IIT Madras)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/117106030",
+  "free": true,
+  "covers": "Current mirrors, differential pairs, two-stage op-amp, compensation",
+  "hours": 40
+ },
+ {
+  "id": "car.xschem_sky130",
+  "title": "Xschem + ngspice with the SKY130 open PDK",
+  "kind": "tool",
+  "url": "https://xschem.sourceforge.io/stefan/xschem_man/xschem_man.html",
+  "free": true,
+  "covers": "Schematic capture and simulation of a real-PDK amplifier",
+  "hours": 10
+ },
+ {
+  "id": "car.nptel_semidev_iisc",
+  "title": "NPTEL Semiconductor Devices and Circuits (IISc)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/108108112",
+  "free": true,
+  "covers": "Band theory, carriers, pn junction, MOS capacitor, MOSFET",
+  "certificate": "nptel.semiconductor_devices",
+  "hours": 40
+ },
+ {
+  "id": "car.nptel_microelectronics_roorkee",
+  "title": "NPTEL Microelectronics: Devices to Circuits (IIT Roorkee)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/108107142",
+  "free": true,
+  "covers": "Second explanation of pn junction and MOSFET operation, bridging into circuits (matches his microelectronics course)",
+  "hours": 20
+ },
+ {
+  "id": "car.nptel_vlsi_tech_iitm",
+  "title": "NPTEL VLSI Technology (IIT Madras)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/117106093",
+  "free": true,
+  "covers": "Crystal growth, oxidation, diffusion, implantation, lithography, CMOS process flow",
+  "certificate": "nptel.vlsi_technology",
+  "hours": 30
+ },
+ {
+  "id": "car.mit_6152j",
+  "title": "MIT 6.152J Micro/Nano Processing Technology (OCW)",
+  "kind": "course",
+  "url": "https://ocw.mit.edu/courses/6-152j-micro-nano-processing-technology-fall-2005/",
+  "free": true,
+  "covers": "Lecture notes on process modules; use as a second explanation",
+  "hours": 10
+ },
+ {
+  "id": "car.nptel_embedded_arm_kgp",
+  "title": "NPTEL Embedded System Design with ARM (IIT Kharagpur)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/106105193",
+  "free": true,
+  "covers": "ARM Cortex-M, GPIO, timers, interrupts, serial buses, hands-on",
+  "certificate": "nptel.embedded_arm",
+  "hours": 30
+ },
+ {
+  "id": "car.esp_idf_docs",
+  "title": "Espressif ESP-IDF programming guide (ESP32-S3)",
+  "kind": "docs",
+  "url": "https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/",
+  "free": true,
+  "covers": "Peripheral drivers, build system, logging on the board he already owns",
+  "hours": 10
+ },
+ {
+  "id": "car.freertos_book",
+  "title": "Mastering the FreeRTOS Real Time Kernel (free book)",
+  "kind": "book",
+  "url": "https://www.freertos.org/Documentation/02-Kernel/07-Books-and-manual/01-RTOS_book",
+  "free": true,
+  "covers": "Tasks, queues, semaphores, timers, interrupts under an RTOS",
+  "hours": 15
+ },
+ {
+  "id": "car.nptel_iot_kgp",
+  "title": "NPTEL Introduction to Internet of Things (IIT Kharagpur)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/106105166",
+  "free": true,
+  "covers": "Sensing, protocols (MQTT/CoAP), IoT architectures",
+  "certificate": "nptel.iot",
+  "hours": 30
+ },
+ {
+  "id": "car.cs50x",
+  "title": "Harvard CS50x (C weeks 1-5)",
+  "kind": "course",
+  "url": "https://cs50.harvard.edu/x/",
+  "free": true,
+  "covers": "C, pointers, memory, data structures in C (weeks 1-5)",
+  "certificate": "cs50.cs50x",
+  "skip_topics": [
+   "web weeks (Flask/JS) for this tree"
+  ],
+  "hours": 40
+ },
+ {
+  "id": "car.beej_c",
+  "title": "Beej's Guide to C Programming (free)",
+  "kind": "book",
+  "url": "https://beej.us/guide/bgc/",
+  "free": true,
+  "covers": "Pointers, structs, bit ops, files, the C memory model",
+  "legal_pdf_url": "https://beej.us/guide/bgc/",
+  "hours": 15
+ },
+ {
+  "id": "car.python_tutorial",
+  "title": "Official Python tutorial",
+  "kind": "docs",
+  "url": "https://docs.python.org/3/tutorial/",
+  "free": true,
+  "covers": "Syntax, data structures, modules, classes, standard library tour",
+  "hours": 15
+ },
+ {
+  "id": "car.automate_boring",
+  "title": "Automate the Boring Stuff with Python (free online)",
+  "kind": "book",
+  "url": "https://automatetheboringstuff.com/",
+  "free": true,
+  "covers": "Files, regex, CSV/JSON, scripting tasks: the EDA-log-parsing skill set",
+  "hours": 15
+ },
+ {
+  "id": "car.tlcl",
+  "title": "The Linux Command Line (William Shotts, free PDF)",
+  "kind": "book",
+  "url": "https://linuxcommand.org/tlcl.php",
+  "free": true,
+  "covers": "Shell, files, permissions, processes, pipes, bash scripting",
+  "legal_pdf_url": "https://linuxcommand.org/tlcl.php",
+  "hours": 20
+ },
+ {
+  "id": "car.missing_semester",
+  "title": "MIT The Missing Semester of Your CS Education",
+  "kind": "course",
+  "url": "https://missing.csail.mit.edu/",
+  "free": true,
+  "covers": "Shell, vim, data wrangling, make, debugging",
+  "hours": 12
+ },
+ {
+  "id": "car.tcl_tutorial",
+  "title": "Official Tcl tutorial",
+  "kind": "docs",
+  "url": "https://www.tcl-lang.org/man/tcl/tutorial/tcltutorial.html",
+  "free": true,
+  "covers": "Variables, lists, procs, file I/O: what EDA tool scripts use",
+  "hours": 6
+ },
+ {
+  "id": "car.perl_learn",
+  "title": "learn.perl.org",
+  "kind": "docs",
+  "url": "https://learn.perl.org/",
+  "free": true,
+  "covers": "Enough Perl to read legacy flow scripts and regexes",
+  "skip_topics": [
+   "writing new Perl; use Python unless the team uses Perl"
+  ],
+  "hours": 4
+ },
+ {
+  "id": "car.pro_git",
+  "title": "Pro Git book (free)",
+  "kind": "book",
+  "url": "https://git-scm.com/book/en/v2",
+  "free": true,
+  "covers": "Chapters 1-3 (basics, branching) and 6 (GitHub)",
+  "legal_pdf_url": "https://git-scm.com/book/en/v2",
+  "hours": 8
+ },
+ {
+  "id": "car.github_skills",
+  "title": "GitHub Skills interactive courses",
+  "kind": "practice",
+  "url": "https://skills.github.com/",
+  "free": true,
+  "covers": "Intro to GitHub, pull requests, GitHub Actions",
+  "hours": 4
+ },
+ {
+  "id": "car.learncpp",
+  "title": "LearnCpp.com",
+  "kind": "tutorial",
+  "url": "https://www.learncpp.com/",
+  "free": true,
+  "covers": "Classes, references, STL containers, templates basics",
+  "skip_topics": [
+   "chapters on advanced templates and move semantics until needed"
+  ],
+  "hours": 30
+ },
+ {
+  "id": "car.cppreference",
+  "title": "cppreference.com",
+  "kind": "docs",
+  "url": "https://en.cppreference.com/w/",
+  "free": true,
+  "covers": "Reference for STL and language rules"
+ },
+ {
+  "id": "car.nptel_pdsa",
+  "title": "NPTEL Programming, Data Structures and Algorithms using Python (Madhavan Mukund)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/106106145",
+  "free": true,
+  "covers": "Complexity, sorting, searching, dictionaries, stacks/queues/heaps, trees, graphs, DP",
+  "certificate": "nptel.pdsa_python",
+  "hours": 40
+ },
+ {
+  "id": "car.cp_handbook",
+  "title": "Laaksonen, Competitive Programmer's Handbook (free PDF)",
+  "kind": "book",
+  "url": "https://cses.fi/book/book.pdf",
+  "free": true,
+  "covers": "Concise algorithms reference with C++ code",
+  "legal_pdf_url": "https://cses.fi/book/book.pdf",
+  "hours": 15
+ },
+ {
+  "id": "car.neetcode",
+  "title": "NeetCode roadmap (NeetCode 150)",
+  "kind": "practice",
+  "url": "https://neetcode.io/roadmap",
+  "free": true,
+  "covers": "Pattern-ordered interview problems with video solutions",
+  "hours": 80
+ },
+ {
+  "id": "car.cses",
+  "title": "CSES Problem Set",
+  "kind": "practice",
+  "url": "https://cses.fi/problemset/",
+  "free": true,
+  "covers": "Graded algorithm problems for extra practice"
+ },
+ {
+  "id": "car.bit_hacks",
+  "title": "Bit Twiddling Hacks (Sean Anderson, Stanford)",
+  "kind": "article",
+  "url": "https://graphics.stanford.edu/~seander/bithacks.html",
+  "free": true,
+  "covers": "Bit tricks asked in hardware/embedded interviews",
+  "hours": 3
+ },
+ {
+  "id": "car.leetcode",
+  "title": "LeetCode (bit manipulation + design tags)",
+  "kind": "practice",
+  "url": "https://leetcode.com/problemset/",
+  "free": true,
+  "covers": "Bit manipulation tag, then company-tagged lists if you get premium via a friend"
+ },
+ {
+  "id": "car.coursera_ml_spec",
+  "title": "Machine Learning Specialization (Stanford + DeepLearning.AI, Andrew Ng)",
+  "kind": "course",
+  "url": "https://www.coursera.org/specializations/machine-learning-introduction",
+  "free": true,
+  "covers": "Regression, classification, neural nets intro, trees, unsupervised, recommenders, RL intro",
+  "certificate": "coursera.ml_spec",
+  "hours": 90
+ },
+ {
+  "id": "car.nptel_intro_ml_iitm",
+  "title": "NPTEL Introduction to Machine Learning (IIT Madras)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/106106139",
+  "free": true,
+  "covers": "Same topics with more maths; take its exam if you want an IIT-branded ML certificate",
+  "certificate": "nptel.intro_ml",
+  "hours": 50
+ },
+ {
+  "id": "car.kaggle_learn",
+  "title": "Kaggle Learn micro-courses",
+  "kind": "course",
+  "url": "https://www.kaggle.com/learn",
+  "free": true,
+  "covers": "Pandas, Intro/Intermediate ML, Feature Engineering, Data Visualization",
+  "certificate": "kaggle.learn",
+  "hours": 25
+ },
+ {
+  "id": "car.islp",
+  "title": "An Introduction to Statistical Learning with Python (free PDF)",
+  "kind": "book",
+  "url": "https://www.statlearning.com/",
+  "free": true,
+  "covers": "Chapters 2-6, 8: evaluation, resampling, regularisation, trees",
+  "legal_pdf_url": "https://www.statlearning.com/",
+  "hours": 25
+ },
+ {
+  "id": "car.coursera_dl_spec",
+  "title": "Deep Learning Specialization (DeepLearning.AI)",
+  "kind": "course",
+  "url": "https://www.coursera.org/specializations/deep-learning",
+  "free": true,
+  "covers": "Courses 1-2 for this node: neural nets, backprop, initialisation, optimisers, regularisation",
+  "certificate": "coursera.dl_spec",
+  "skip_topics": [
+   "course 3 (structuring ML projects) can be skimmed"
+  ],
+  "hours": 40
+ },
+ {
+  "id": "car.karpathy_zth",
+  "title": "Andrej Karpathy, Neural Networks: Zero to Hero (micrograd + makemore parts)",
+  "kind": "video",
+  "url": "https://karpathy.ai/zero-to-hero.html",
+  "free": true,
+  "covers": "micrograd and makemore videos only: autograd and MLP by hand",
+  "skip_topics": [
+   "the GPT/tokenizer videos here; LLMs come from dl.transformers_llm resources"
+  ],
+  "hours": 15
+ },
+ {
+  "id": "car.d2l",
+  "title": "Dive into Deep Learning (d2l.ai, free)",
+  "kind": "book",
+  "url": "https://d2l.ai/",
+  "free": true,
+  "covers": "PyTorch chapters: CNNs, modern CNNs, optimisation, computational performance",
+  "legal_pdf_url": "https://d2l.ai/",
+  "hours": 40
+ },
+ {
+  "id": "car.fastai",
+  "title": "fast.ai Practical Deep Learning for Coders",
+  "kind": "course",
+  "url": "https://course.fast.ai/",
+  "free": true,
+  "covers": "Top-down practical training, transfer learning, deployment",
+  "hours": 20
+ },
+ {
+  "id": "car.nptel_intro_llm",
+  "title": "NPTEL Introduction to Large Language Models (IIT Delhi / IIT Bombay)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/106102576",
+  "free": true,
+  "covers": "Language modelling, transformers, pretraining, prompting, PEFT, alignment",
+  "certificate": "nptel.intro_llm",
+  "hours": 50
+ },
+ {
+  "id": "car.hf_llm_course",
+  "title": "Hugging Face LLM course",
+  "kind": "course",
+  "url": "https://huggingface.co/learn/llm-course",
+  "free": true,
+  "covers": "Tokenizers, transformers library, fine-tuning, sharing models",
+  "hours": 20
+ },
+ {
+  "id": "car.efficientml",
+  "title": "MIT 6.5940 TinyML and Efficient Deep Learning (efficientml.ai)",
+  "kind": "course",
+  "url": "https://efficientml.ai/",
+  "free": true,
+  "covers": "Pruning, quantization, NAS, distillation, efficient LLM inference; labs",
+  "hours": 40
+ },
+ {
+  "id": "car.pytorch_quant",
+  "title": "PyTorch quantization docs (torch.ao / torchao)",
+  "kind": "docs",
+  "url": "https://pytorch.org/docs/stable/quantization.html",
+  "free": true,
+  "covers": "Post-training static quantization and QAT on a small CNN",
+  "hours": 5
+ },
+ {
+  "id": "car.harvard_tinyml",
+  "title": "HarvardX Tiny Machine Learning (edX)",
+  "kind": "course",
+  "url": "https://www.edx.org/certificates/professional-certificate/harvardx-tiny-machine-learning",
+  "free": true,
+  "covers": "Keyword spotting, visual wake words, TFLite Micro deployment",
+  "certificate": "harvardx.tinyml",
+  "hours": 40
+ },
+ {
+  "id": "car.tflm",
+  "title": "TensorFlow Lite Micro (LiteRT for microcontrollers) GitHub",
+  "kind": "tool",
+  "url": "https://github.com/tensorflow/tflite-micro",
+  "free": true,
+  "covers": "Interpreter, op resolver, int8 kernels; ESP32 examples",
+  "hours": 6
+ },
+ {
+  "id": "car.sze_tutorial",
+  "title": "Sze et al., Efficient Processing of DNNs tutorial (MIT Eyeriss)",
+  "kind": "slides",
+  "url": "http://eyeriss.mit.edu/tutorial.html",
+  "free": true,
+  "covers": "Dataflows (WS/OS/RS), data reuse, energy per access, sparsity",
+  "hours": 15
+ },
+ {
+  "id": "car.tpu_paper",
+  "title": "Jouppi et al., In-Datacenter Performance Analysis of a TPU (ISCA 2017)",
+  "kind": "paper",
+  "url": "https://arxiv.org/abs/1704.04760",
+  "free": true,
+  "covers": "Systolic matrix unit, roofline of real workloads, why int8",
+  "legal_pdf_url": "https://arxiv.org/pdf/1704.04760",
+  "hours": 3
+ },
+ {
+  "id": "car.gemmini",
+  "title": "Berkeley Gemmini systolic-array generator (GitHub)",
+  "kind": "tool",
+  "url": "https://github.com/ucb-bar/gemmini",
+  "free": true,
+  "covers": "Read the architecture section as a reference design; do not try to build Chipyard on a 6 GB laptop",
+  "hours": 6
+ },
+ {
+  "id": "car.cornell_ece5545",
+  "title": "Cornell ECE 5545 Machine Learning Hardware and Systems",
+  "kind": "course",
+  "url": "https://abdelfattah-class.github.io/ece5545/",
+  "free": true,
+  "covers": "Lectures + assignments on DNN hardware, quantisation, compilers",
+  "hours": 25
+ },
+ {
+  "id": "car.scalesim",
+  "title": "SCALE-Sim v2 systolic array simulator (GitHub)",
+  "kind": "tool",
+  "url": "https://github.com/scalesim-project/scale-sim-v2",
+  "free": true,
+  "covers": "Cycle and memory-traffic estimates for conv/GEMM layers on systolic arrays",
+  "hours": 6
+ },
+ {
+  "id": "car.timeloop",
+  "title": "Timeloop / Accelergy",
+  "kind": "tool",
+  "url": "https://timeloop.csail.mit.edu/",
+  "free": true,
+  "covers": "Mapping-space search and energy estimation for accelerators",
+  "hours": 10
+ },
+ {
+  "id": "car.cuda_guide",
+  "title": "NVIDIA CUDA C++ Programming Guide",
+  "kind": "docs",
+  "url": "https://docs.nvidia.com/cuda/cuda-c-programming-guide/",
+  "free": true,
+  "covers": "Programming model, memory hierarchy, shared memory, performance guidelines",
+  "hours": 15
+ },
+ {
+  "id": "car.nptel_applied_accel_ai",
+  "title": "NPTEL Applied Accelerated Artificial Intelligence (IIT Guwahati)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/106106238",
+  "free": true,
+  "covers": "GPU-accelerated AI pipelines and profiling",
+  "certificate": "nptel.applied_accelerated_ai",
+  "hours": 30
+ },
+ {
+  "id": "car.mlc_ai",
+  "title": "Machine Learning Compilation (mlc.ai, Tianqi Chen)",
+  "kind": "course",
+  "url": "https://mlc.ai/",
+  "free": true,
+  "covers": "Tensor programs, scheduling transforms, graph optimisation, TVM",
+  "hours": 25
+ },
+ {
+  "id": "car.dlsys",
+  "title": "CMU Deep Learning Systems (dlsyscourse.org)",
+  "kind": "course",
+  "url": "https://dlsyscourse.org/",
+  "free": true,
+  "covers": "Build a mini framework: autodiff, ops, GPU backend",
+  "hours": 40
+ },
+ {
+  "id": "car.hls4ml",
+  "title": "hls4ml documentation",
+  "kind": "docs",
+  "url": "https://fastmachinelearning.org/hls4ml/",
+  "free": true,
+  "covers": "Convert a small quantised Keras/PyTorch model to FPGA firmware via HLS",
+  "hours": 10
+ },
+ {
+  "id": "car.finn",
+  "title": "AMD FINN (quantised NN dataflow on FPGA)",
+  "kind": "tool",
+  "url": "https://github.com/Xilinx/finn",
+  "free": true,
+  "covers": "Brevitas QNN -> streaming dataflow accelerator; read the end-to-end examples",
+  "hours": 8
+ },
+ {
+  "id": "car.thm_presecurity",
+  "title": "TryHackMe Pre Security path",
+  "kind": "practice",
+  "url": "https://tryhackme.com/path/outline/presecurity",
+  "free": true,
+  "covers": "Networking, how the web works, Linux and Windows basics in a browser lab",
+  "hours": 30
+ },
+ {
+  "id": "car.overthewire",
+  "title": "OverTheWire wargames (Bandit)",
+  "kind": "practice",
+  "url": "https://overthewire.org/wargames/",
+  "free": true,
+  "covers": "Linux shell skills through legal practice levels",
+  "hours": 15
+ },
+ {
+  "id": "car.cryptopals",
+  "title": "Cryptopals crypto challenges",
+  "kind": "practice",
+  "url": "https://cryptopals.com/",
+  "free": true,
+  "covers": "Sets 1-2: XOR, AES-ECB/CBC, padding: learn crypto by implementing",
+  "hours": 20
+ },
+ {
+  "id": "car.boneh_crypto",
+  "title": "Stanford Cryptography I (Dan Boneh, Coursera)",
+  "kind": "course",
+  "url": "https://www.coursera.org/learn/crypto",
+  "free": true,
+  "covers": "Block ciphers, MACs, authenticated encryption, public key basics",
+  "certificate": "coursera.crypto1",
+  "hours": 25
+ },
+ {
+  "id": "car.nptel_ethical_hacking",
+  "title": "NPTEL Ethical Hacking (IIT Kharagpur)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/106105217",
+  "free": true,
+  "covers": "Networking refresher, scanning, vulnerability assessment, cryptography, web/network attacks in labs",
+  "certificate": "nptel.ethical_hacking",
+  "hours": 40
+ },
+ {
+  "id": "car.cisco_ethical_hacker",
+  "title": "Cisco Networking Academy Ethical Hacker course",
+  "kind": "course",
+  "url": "https://www.netacad.com/courses/ethical-hacker",
+  "free": true,
+  "covers": "Pentest planning/scoping, recon, exploitation in labs, reporting",
+  "certificate": "cisco.ethical_hacker",
+  "hours": 70
+ },
+ {
+  "id": "car.portswigger_academy",
+  "title": "PortSwigger Web Security Academy",
+  "kind": "practice",
+  "url": "https://portswigger.net/web-security",
+  "free": true,
+  "covers": "Free labs: SQLi, XSS, CSRF, SSRF, access control, auth",
+  "certificate": "portswigger.bscp",
+  "hours": 60
+ },
+ {
+  "id": "car.owasp_top10",
+  "title": "OWASP Top 10",
+  "kind": "docs",
+  "url": "https://owasp.org/www-project-top-ten/",
+  "free": true,
+  "covers": "The 10 categories, how to explain each in an interview",
+  "hours": 3
+ },
+ {
+  "id": "car.htb_academy",
+  "title": "Hack The Box Academy (free tier modules)",
+  "kind": "course",
+  "url": "https://academy.hackthebox.com/",
+  "free": true,
+  "covers": "Penetration Tester path modules: enumeration, privesc, AD intro, reporting",
+  "certificate": "htb.cpts",
+  "hours": 120
+ },
+ {
+  "id": "car.offsec_pg_play",
+  "title": "OffSec Proving Grounds Play (free lab machines)",
+  "kind": "practice",
+  "url": "https://www.offsec.com/labs/individual/",
+  "free": true,
+  "covers": "OSCP-style boxes, free tier with limited daily hours",
+  "hours": 40
+ },
+ {
+  "id": "car.nptel_hw_security",
+  "title": "NPTEL Hardware Security (IIT Kharagpur, Debdeep Mukhopadhyay)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/106105194",
+  "free": true,
+  "covers": "AES/ECC hardware, side-channel analysis, fault attacks, countermeasures, PUFs, micro-architectural attacks",
+  "certificate": "nptel.hardware_security",
+  "hours": 50
+ },
+ {
+  "id": "car.chipwhisperer",
+  "title": "NewAE ChipWhisperer Jupyter tutorials",
+  "kind": "tutorial",
+  "url": "https://github.com/newaetech/chipwhisperer-jupyter",
+  "free": true,
+  "covers": "Power-analysis and fault labs; run the simulated-trace notebooks without hardware",
+  "hours": 15
+ },
+ {
+  "id": "car.trust_hub",
+  "title": "Trust-Hub (hardware trojan benchmarks, NSF)",
+  "kind": "dataset",
+  "url": "https://trust-hub.org/",
+  "free": true,
+  "covers": "Trojan-inserted RTL benchmarks and taxonomy",
+  "hours": 8
+ },
+ {
+  "id": "car.cwe_hw",
+  "title": "MITRE CWE-1194 Hardware Design view",
+  "kind": "docs",
+  "url": "https://cwe.mitre.org/data/definitions/1194.html",
+  "free": true,
+  "covers": "Catalogue of hardware weakness classes used in Hack@DAC-style bug hunts",
+  "hours": 4
+ },
+ {
+  "id": "car.keshav_read",
+  "title": "S. Keshav, How to Read a Paper",
+  "kind": "paper",
+  "url": "http://ccr.sigcomm.org/online/files/p83-keshavA.pdf",
+  "free": true,
+  "covers": "Three-pass method",
+  "legal_pdf_url": "http://ccr.sigcomm.org/online/files/p83-keshavA.pdf",
+  "hours": 1
+ },
+ {
+  "id": "car.arxiv_cs_ar",
+  "title": "arXiv cs.AR (Hardware Architecture) new submissions",
+  "kind": "community",
+  "url": "https://arxiv.org/list/cs.AR/recent",
+  "free": true,
+  "covers": "Daily stream of architecture/accelerator preprints to practise skimming"
+ },
+ {
+  "id": "car.sciwrite",
+  "title": "Stanford Writing in the Sciences (Coursera)",
+  "kind": "course",
+  "url": "https://www.coursera.org/learn/sciwrite",
+  "free": true,
+  "covers": "Cutting clutter, active voice, paragraph flow, structure of a paper, peer review",
+  "certificate": "coursera.sciwrite",
+  "hours": 15
+ },
+ {
+  "id": "car.overleaf_learn",
+  "title": "Overleaf Learn LaTeX",
+  "kind": "docs",
+  "url": "https://www.overleaf.com/learn",
+  "free": true,
+  "covers": "LaTeX basics, IEEEtran template, figures, BibTeX",
+  "hours": 6
+ },
+ {
+  "id": "car.spj_paper",
+  "title": "Simon Peyton Jones, How to write a great research paper (Microsoft Research)",
+  "kind": "video",
+  "url": "https://www.microsoft.com/en-us/research/academic-program/write-great-research-paper/",
+  "free": true,
+  "covers": "Seven suggestions: write first, one clear idea, contributions up front",
+  "hours": 1
+ },
+ {
+  "id": "car.ieee_author_center",
+  "title": "IEEE Author Center",
+  "kind": "docs",
+  "url": "https://journals.ieeeauthorcenter.ieee.org/",
+  "free": true,
+  "covers": "Templates, submission, reviews, ethics for IEEE conferences/journals",
+  "hours": 3
+ },
+ {
+  "id": "car.nptel_tech_english",
+  "title": "NPTEL Technical English for Engineers (IIT Madras)",
+  "kind": "course",
+  "url": "https://nptel.ac.in/courses/109106094",
+  "free": true,
+  "covers": "Technical vocabulary, report writing, presentations",
+  "certificate": "nptel.technical_english",
+  "hours": 30
+ },
+ {
+  "id": "car.google_tech_writing",
+  "title": "Google Technical Writing One + Two",
+  "kind": "course",
+  "url": "https://developers.google.com/tech-writing",
+  "free": true,
+  "covers": "Short sentences, lists, documenting design: perfect for READMEs",
+  "hours": 6
+ },
+ {
+  "id": "car.github_profile_docs",
+  "title": "GitHub Docs: managing your profile README",
+  "kind": "docs",
+  "url": "https://docs.github.com/en/account-and-profile/setting-up-and-managing-your-github-profile/customizing-your-profile/managing-your-profile-readme",
+  "free": true,
+  "covers": "Profile README, pinned repos",
+  "hours": 1
+ },
+ {
+  "id": "car.github_pages",
+  "title": "GitHub Pages",
+  "kind": "docs",
+  "url": "https://pages.github.com/",
+  "free": true,
+  "covers": "Free portfolio site for project write-ups",
+  "hours": 2
+ },
+ {
+  "id": "car.jake_resume",
+  "title": "Jake's Resume (Overleaf LaTeX template)",
+  "kind": "template",
+  "url": "https://www.overleaf.com/latex/templates/jakes-resume/syzfjbzwjncs",
+  "free": true,
+  "covers": "One-page ATS-friendly resume",
+  "hours": 2
+ },
+ {
+  "id": "car.vlsiverify_career",
+  "title": "VLSI Verify: steps to start a VLSI career",
+  "kind": "article",
+  "url": "https://vlsiverify.com/blogs/career-in-vlsi/steps-to-start-vlsi-career/",
+  "free": true,
+  "covers": "Role overview, GitHub portfolio, referral etiquette (send job ID/link)",
+  "hours": 1
+ },
+ {
+  "id": "car.tech_interview_handbook",
+  "title": "Tech Interview Handbook",
+  "kind": "docs",
+  "url": "https://www.techinterviewhandbook.org/",
+  "free": true,
+  "covers": "Resume, behavioural (STAR), negotiation sections",
+  "skip_topics": [
+   "front-end interview sections"
+  ],
+  "hours": 8
+ },
+ {
+  "id": "car.asic_world",
+  "title": "ASIC World Verilog/SystemVerilog examples",
+  "kind": "docs",
+  "url": "https://www.asic-world.com/",
+  "free": true,
+  "covers": "Classic interview-style RTL examples (FIFOs, arbiters, counters)",
+  "hours": 6
+ }
+]

@@ -1,0 +1,1030 @@
+[
+ {
+  "id": "nptel.verilog",
+  "name": "NPTEL Hardware Modeling using Verilog",
+  "issuer": "NPTEL / IIT Kharagpur",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 40,
+  "credibility": 4,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "hdl.verilog_basics"
+  ],
+  "url": "https://nptel.ac.in/courses/106105165",
+  "credibility_by_career": {
+   "vlsi_design": 4,
+   "ai_hw_architect": 3
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester."
+ },
+ {
+  "id": "nptel.vlsi_design_flow",
+  "name": "NPTEL VLSI Design Flow: RTL to GDS",
+  "issuer": "NPTEL / IIIT Delhi (Sneh Saurabh)",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 60,
+  "credibility": 4,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "pd.synthesis",
+   "pd.sta",
+   "pd.physical_design",
+   "pd.dft"
+  ],
+  "url": "https://nptel.ac.in/courses/108106191",
+  "credibility_by_career": {
+   "vlsi_design": 5,
+   "ai_hw_architect": 3
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester. Taught by an ex-Cadence/Synopsys engineer; best single VLSI certificate for a fresher CV."
+ },
+ {
+  "id": "nptel.cmos_digital_vlsi",
+  "name": "NPTEL CMOS Digital VLSI Design",
+  "issuer": "NPTEL / IIT Roorkee",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 40,
+  "credibility": 4,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "ana.cmos_vlsi"
+  ],
+  "url": "https://nptel.ac.in/courses/108107129",
+  "credibility_by_career": {
+   "vlsi_design": 4,
+   "ai_hw_architect": 2
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester."
+ },
+ {
+  "id": "nptel.digital_vlsi_testing",
+  "name": "NPTEL Digital VLSI Testing",
+  "issuer": "NPTEL / IIT Kharagpur",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 30,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "pd.dft"
+  ],
+  "url": "https://nptel.ac.in/courses/117105137",
+  "credibility_by_career": {
+   "vlsi_design": 4,
+   "ai_hw_architect": 1
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester. Only if he leans to DFT roles."
+ },
+ {
+  "id": "nptel.vlsi_physical_design",
+  "name": "NPTEL VLSI Physical Design",
+  "issuer": "NPTEL / IIT Kharagpur",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 40,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "pd.physical_design"
+  ],
+  "url": "https://nptel.ac.in/courses/106105161",
+  "credibility_by_career": {
+   "vlsi_design": 4,
+   "ai_hw_architect": 1
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester. Overlaps the RTL-to-GDS course; take one, not both, unless targeting PD."
+ },
+ {
+  "id": "nptel.comp_arch_iitm",
+  "name": "NPTEL Computer Architecture",
+  "issuer": "NPTEL / IIT Madras",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 40,
+  "credibility": 4,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "arch.microarch_advanced"
+  ],
+  "url": "https://nptel.ac.in/courses/106106134",
+  "credibility_by_career": {
+   "vlsi_design": 4,
+   "ai_hw_architect": 5
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester. Core for the AI-hardware branch."
+ },
+ {
+  "id": "nptel.system_design_verilog",
+  "name": "NPTEL System Design through Verilog",
+  "issuer": "NPTEL / IIT Guwahati",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 30,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "hdl.rtl_design_style"
+  ],
+  "url": "https://nptel.ac.in/courses/108103179",
+  "credibility_by_career": {
+   "vlsi_design": 3,
+   "ai_hw_architect": 2
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester. Optional second Verilog certificate; skip if the Kharagpur one is done."
+ },
+ {
+  "id": "nptel.semiconductor_devices",
+  "name": "NPTEL Semiconductor Devices and Circuits",
+  "issuer": "NPTEL / IISc Bangalore",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 40,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "dev.semiconductor"
+  ],
+  "url": "https://nptel.ac.in/courses/108108112",
+  "credibility_by_career": {
+   "vlsi_design": 3,
+   "ai_hw_architect": 1
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester. Doubles as GATE/MS-Germany preparation."
+ },
+ {
+  "id": "nptel.vlsi_technology",
+  "name": "NPTEL VLSI Technology",
+  "issuer": "NPTEL / IIT Madras",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 30,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "dev.fab_process"
+  ],
+  "url": "https://nptel.ac.in/courses/117106093",
+  "credibility_by_career": {
+   "vlsi_design": 3,
+   "ai_hw_architect": 1
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester. Valuable for fab/process roles (Tata-PSMC Dholera, Micron Sanand), less for design."
+ },
+ {
+  "id": "nptel.analog_circuits",
+  "name": "NPTEL Analog Electronic Circuit",
+  "issuer": "NPTEL / IIT Delhi",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 40,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "ana.circuits"
+  ],
+  "url": "https://nptel.ac.in/courses/108102112",
+  "credibility_by_career": {
+   "vlsi_design": 3,
+   "ai_hw_architect": 1
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester."
+ },
+ {
+  "id": "nptel.digital_circuits",
+  "name": "NPTEL Digital Electronic Circuits",
+  "issuer": "NPTEL / IIT Kharagpur",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 40,
+  "credibility": 3,
+  "linkedin_worthy": false,
+  "node_ids": [
+   "dig.logic"
+  ],
+  "url": "https://nptel.ac.in/courses/108105132",
+  "credibility_by_career": {
+   "vlsi_design": 3,
+   "ai_hw_architect": 2
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester. Mostly repeats his college syllabus: take the exam only if a cheap win is wanted."
+ },
+ {
+  "id": "nptel.embedded_arm",
+  "name": "NPTEL Embedded System Design with ARM",
+  "issuer": "NPTEL / IIT Kharagpur",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 30,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "emb.mcu_c"
+  ],
+  "url": "https://nptel.ac.in/courses/106105193",
+  "credibility_by_career": {
+   "vlsi_design": 3,
+   "ai_hw_architect": 2
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester."
+ },
+ {
+  "id": "nptel.iot",
+  "name": "NPTEL Introduction to Internet of Things",
+  "issuer": "NPTEL / IIT Kharagpur",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 30,
+  "credibility": 2,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "emb.iot_rtos"
+  ],
+  "url": "https://nptel.ac.in/courses/106105166",
+  "credibility_by_career": {
+   "vlsi_design": 2,
+   "ai_hw_architect": 1
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester. Very common certificate; low signal for chip roles."
+ },
+ {
+  "id": "nptel.intro_ml",
+  "name": "NPTEL Introduction to Machine Learning",
+  "issuer": "NPTEL / IIT Madras",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 50,
+  "credibility": 4,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "ml.foundations"
+  ],
+  "url": "https://nptel.ac.in/courses/106106139",
+  "credibility_by_career": {
+   "vlsi_design": 2,
+   "ai_hw_architect": 4
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester. The IIT-branded alternative to the Coursera ML Specialization."
+ },
+ {
+  "id": "nptel.deep_learning_ropar",
+  "name": "NPTEL Deep Learning (IIT Ropar)",
+  "issuer": "NPTEL / IIT Ropar",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 50,
+  "credibility": 4,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "dl.foundations"
+  ],
+  "url": "https://nptel.ac.in/courses/106106184",
+  "credibility_by_career": {
+   "vlsi_design": 2,
+   "ai_hw_architect": 4
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester."
+ },
+ {
+  "id": "nptel.intro_llm",
+  "name": "NPTEL Introduction to Large Language Models",
+  "issuer": "NPTEL / IIT Delhi + IIT Bombay",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 50,
+  "credibility": 4,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "dl.transformers_llm"
+  ],
+  "url": "https://nptel.ac.in/courses/106102576",
+  "credibility_by_career": {
+   "vlsi_design": 2,
+   "ai_hw_architect": 4
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester. About 14k enrolled, 4k registered for the exam in one run."
+ },
+ {
+  "id": "nptel.applied_accelerated_ai",
+  "name": "NPTEL Applied Accelerated Artificial Intelligence",
+  "issuer": "NPTEL / IIT Guwahati",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 30,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "aihw.gpu_cuda"
+  ],
+  "url": "https://nptel.ac.in/courses/106106238",
+  "credibility_by_career": {
+   "vlsi_design": 1,
+   "ai_hw_architect": 3
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester."
+ },
+ {
+  "id": "nptel.pdsa_python",
+  "name": "NPTEL Programming, Data Structures and Algorithms using Python",
+  "issuer": "NPTEL / CMI (Madhavan Mukund)",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 40,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "dsa.foundations"
+  ],
+  "url": "https://nptel.ac.in/courses/106106145",
+  "credibility_by_career": {
+   "vlsi_design": 2,
+   "ai_hw_architect": 3
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester. Interviews test DSA by solving, not by certificate; this is a bonus."
+ },
+ {
+  "id": "nptel.hardware_security",
+  "name": "NPTEL Hardware Security",
+  "issuer": "NPTEL / IIT Kharagpur (Debdeep Mukhopadhyay)",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 50,
+  "credibility": 4,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "sec.hw_security"
+  ],
+  "url": "https://nptel.ac.in/courses/106105194",
+  "credibility_by_career": {
+   "vlsi_design": 4,
+   "ai_hw_architect": 3
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester. Rare on fresher CVs; pairs with a ChipWhisperer or Hack@DAC-style project."
+ },
+ {
+  "id": "nptel.ethical_hacking",
+  "name": "NPTEL Ethical Hacking",
+  "issuer": "NPTEL / IIT Kharagpur (Indranil Sengupta)",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 40,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "sec.pentest_foundations"
+  ],
+  "url": "https://nptel.ac.in/courses/106105217",
+  "credibility_by_career": {
+   "vlsi_design": 1,
+   "ai_hw_architect": 1
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester. Cheapest credible security certificate in India."
+ },
+ {
+  "id": "nptel.technical_english",
+  "name": "NPTEL Technical English for Engineers",
+  "issuer": "NPTEL / IIT Madras",
+  "cost_inr": 1000,
+  "free_option": "Enrol and learn free; only the proctored exam (about Rs 1,000) earns the certificate",
+  "time_hours": 30,
+  "credibility": 2,
+  "linkedin_worthy": false,
+  "node_ids": [
+   "soft.communication"
+  ],
+  "url": "https://nptel.ac.in/courses/109106094",
+  "credibility_by_career": {
+   "vlsi_design": 2,
+   "ai_hw_architect": 2
+  },
+  "price_status": "reported by 2+ sources",
+  "notes": "Proctored, IIT-run exam; recognised by Indian hiring managers and usable for college credit transfer. Aim for Elite (60%+) or Elite+Silver/Gold. Next registration window: Jan-Apr 2027 semester. Do it for the skill; the certificate adds little."
+ },
+ {
+  "id": "coursera.ml_spec",
+  "name": "Machine Learning Specialization (Andrew Ng)",
+  "issuer": "Coursera / Stanford + DeepLearning.AI",
+  "cost_inr": 5100,
+  "free_option": "Audit free (no certificate); Coursera financial aid covers up to ~90%; Rs 1,699/month in India (about 3 months)",
+  "time_hours": 90,
+  "credibility": 4,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "ml.foundations"
+  ],
+  "url": "https://www.coursera.org/specializations/machine-learning-introduction",
+  "credibility_by_career": {
+   "vlsi_design": 2,
+   "ai_hw_architect": 4
+  },
+  "price_status": "India pricing from Coursera announcement; aid % from forum reports",
+  "notes": "Most recognised ML starter credential worldwide. Apply for aid per course; approval takes ~2 weeks."
+ },
+ {
+  "id": "coursera.dl_spec",
+  "name": "Deep Learning Specialization",
+  "issuer": "Coursera / DeepLearning.AI",
+  "cost_inr": 6800,
+  "free_option": "Audit free; financial aid up to ~90%; Rs 1,699/month (about 4 months)",
+  "time_hours": 120,
+  "credibility": 4,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "dl.foundations",
+   "dl.pytorch_cnn"
+  ],
+  "url": "https://www.coursera.org/specializations/deep-learning",
+  "credibility_by_career": {
+   "vlsi_design": 2,
+   "ai_hw_architect": 4
+  },
+  "price_status": "India pricing from Coursera announcement",
+  "notes": "Strong ML/DL CV line. Assignments are TensorFlow/Keras; redo one in PyTorch for the portfolio."
+ },
+ {
+  "id": "coursera.genai_llms",
+  "name": "Generative AI with Large Language Models",
+  "issuer": "Coursera / DeepLearning.AI + AWS",
+  "cost_inr": 1700,
+  "free_option": "Audit free; financial aid available",
+  "time_hours": 16,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "dl.transformers_llm"
+  ],
+  "url": "https://www.coursera.org/learn/generative-ai-with-llms",
+  "credibility_by_career": {
+   "vlsi_design": 1,
+   "ai_hw_architect": 3
+  },
+  "price_status": "estimated from Coursera per-month price",
+  "notes": "Short and recognisable; take after the NPTEL LLM course only if a quick extra badge is wanted."
+ },
+ {
+  "id": "coursera.sciwrite",
+  "name": "Writing in the Sciences",
+  "issuer": "Coursera / Stanford",
+  "cost_inr": 1700,
+  "free_option": "Audit free; financial aid available",
+  "time_hours": 15,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "res.writing_latex"
+  ],
+  "url": "https://www.coursera.org/learn/sciwrite",
+  "credibility_by_career": {
+   "vlsi_design": 2,
+   "ai_hw_architect": 3
+  },
+  "price_status": "estimated from Coursera per-month price",
+  "notes": "Helps the Germany MS Statement of Purpose and any paper."
+ },
+ {
+  "id": "coursera.crypto1",
+  "name": "Cryptography I",
+  "issuer": "Coursera / Stanford (Dan Boneh)",
+  "cost_inr": 1700,
+  "free_option": "Audit free; financial aid available",
+  "time_hours": 25,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "sec.crypto_basics"
+  ],
+  "url": "https://www.coursera.org/learn/crypto",
+  "credibility_by_career": {
+   "vlsi_design": 2,
+   "ai_hw_architect": 2
+  },
+  "price_status": "estimated from Coursera per-month price",
+  "notes": "Respected in security; needed background for side-channel work."
+ },
+ {
+  "id": "lf.lfd110",
+  "name": "LFD110 Introduction to RISC-V (badge)",
+  "issuer": "Linux Foundation + RISC-V International",
+  "cost_inr": 0,
+  "free_option": "Fully free; Credly badge after 70% on the final exam",
+  "time_hours": 18,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "arch.riscv_isa"
+  ],
+  "url": "https://training.linuxfoundation.org/training/introduction-to-riscv-lfd110x/",
+  "credibility_by_career": {
+   "vlsi_design": 3,
+   "ai_hw_architect": 3
+  },
+  "price_status": "confirmed free",
+  "notes": "Free, verifiable Credly badge; good LinkedIn post. Low effort, real signal for RISC-V startups (InCore, Mindgrove)."
+ },
+ {
+  "id": "lf.lfd111",
+  "name": "LFD111x Building a RISC-V CPU Core (edX verified)",
+  "issuer": "Linux Foundation / edX",
+  "cost_inr": 13000,
+  "free_option": "Audit free on edX; paid verified certificate",
+  "time_hours": 25,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "arch.riscv_core"
+  ],
+  "url": "https://training.linuxfoundation.org/training/building-a-riscv-cpu-core-lfd111x/",
+  "credibility_by_career": {
+   "vlsi_design": 3,
+   "ai_hw_architect": 3
+  },
+  "price_status": "verified-certificate price NOT confirmed this session (edX typical ~US$149)",
+  "notes": "Do the course free; the core you build on GitHub matters more than the paid certificate. Skip the paid track."
+ },
+ {
+  "id": "nvidia.dli_cuda",
+  "name": "NVIDIA DLI Fundamentals of Accelerated Computing with CUDA C/C++",
+  "issuer": "NVIDIA Deep Learning Institute",
+  "cost_inr": 7900,
+  "free_option": "Several DLI self-paced courses are free; this one is paid (self-paced courses start at US$30)",
+  "time_hours": 8,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "aihw.gpu_cuda"
+  ],
+  "url": "https://www.nvidia.com/en-in/training/",
+  "credibility_by_career": {
+   "vlsi_design": 1,
+   "ai_hw_architect": 4
+  },
+  "price_status": "third-party guide: paid DLI self-paced courses are US$30 or US$90; exact price of this course not confirmed",
+  "notes": "Hands-on GPU lab with certificate; directly relevant to NVIDIA/AI-hardware interviews."
+ },
+ {
+  "id": "nvidia.dli_dl_fundamentals",
+  "name": "NVIDIA DLI Getting Started with Deep Learning",
+  "issuer": "NVIDIA Deep Learning Institute",
+  "cost_inr": 7900,
+  "free_option": "Check the DLI catalogue for the free variants first",
+  "time_hours": 8,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "dl.pytorch_cnn"
+  ],
+  "url": "https://www.nvidia.com/en-in/training/",
+  "credibility_by_career": {
+   "vlsi_design": 1,
+   "ai_hw_architect": 3
+  },
+  "price_status": "price class (US$90) from third-party guide",
+  "notes": "Nice-to-have; Coursera DL Specialization is the stronger DL line."
+ },
+ {
+  "id": "nvidia.nca_genl",
+  "name": "NVIDIA-Certified Associate: Generative AI LLMs",
+  "issuer": "NVIDIA",
+  "cost_inr": 11000,
+  "free_option": "No free option",
+  "time_hours": 30,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "dl.transformers_llm"
+  ],
+  "url": "https://www.nvidia.com/en-in/learn/certification/",
+  "credibility_by_career": {
+   "vlsi_design": 1,
+   "ai_hw_architect": 3
+  },
+  "price_status": "Associate exams reported at US$125 by a third-party guide",
+  "notes": "Proctored vendor exam, valid 2 years. Only after the LLM node is done; not needed for a fresher."
+ },
+ {
+  "id": "aws.mla_c01",
+  "name": "AWS Certified Machine Learning Engineer - Associate",
+  "issuer": "Amazon Web Services",
+  "cost_inr": 13200,
+  "free_option": "No free exam; AWS sometimes gives 50% vouchers via challenges",
+  "time_hours": 60,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "ml.practical"
+  ],
+  "url": "https://aws.amazon.com/certification/certified-machine-learning-engineer-associate/",
+  "credibility_by_career": {
+   "vlsi_design": 1,
+   "ai_hw_architect": 2
+  },
+  "price_status": "US$150",
+  "notes": "Cloud MLOps credential. Useful for ML-engineer jobs, almost irrelevant for chip roles: skip unless he pivots to pure ML."
+ },
+ {
+  "id": "google.pmle",
+  "name": "Google Cloud Professional Machine Learning Engineer",
+  "issuer": "Google Cloud",
+  "cost_inr": 17600,
+  "free_option": "No free exam",
+  "time_hours": 80,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "ml.practical"
+  ],
+  "url": "https://cloud.google.com/learn/certification/machine-learning-engineer",
+  "credibility_by_career": {
+   "vlsi_design": 1,
+   "ai_hw_architect": 2
+  },
+  "price_status": "about US$200 per third-party sources",
+  "notes": "Same verdict as AWS: strong for cloud ML roles, low value for hardware. The TensorFlow Developer Certificate was retired; ignore it."
+ },
+ {
+  "id": "microsoft.ai_900",
+  "name": "Microsoft Azure AI Fundamentals (AI-900)",
+  "issuer": "Microsoft",
+  "cost_inr": 3700,
+  "free_option": "Microsoft Virtual Training Days sometimes give free vouchers",
+  "time_hours": 15,
+  "credibility": 2,
+  "linkedin_worthy": false,
+  "node_ids": [
+   "ml.foundations"
+  ],
+  "url": "https://learn.microsoft.com/en-us/credentials/certifications/azure-ai-fundamentals/",
+  "credibility_by_career": {
+   "vlsi_design": 1,
+   "ai_hw_architect": 1
+  },
+  "price_status": "INR figure inferred from AZ-900 India price (US$99 exams)",
+  "notes": "Entry-level; recruiters for chip roles ignore it. Only if free."
+ },
+ {
+  "id": "kaggle.learn",
+  "name": "Kaggle Learn course certificates",
+  "issuer": "Kaggle",
+  "cost_inr": 0,
+  "free_option": "Free",
+  "time_hours": 25,
+  "credibility": 2,
+  "linkedin_worthy": false,
+  "node_ids": [
+   "ml.practical"
+  ],
+  "url": "https://www.kaggle.com/learn",
+  "credibility_by_career": {
+   "vlsi_design": 1,
+   "ai_hw_architect": 2
+  },
+  "price_status": "confirmed free",
+  "notes": "Free completion certificates; better value is a Kaggle competition medal or a public notebook."
+ },
+ {
+  "id": "harvardx.tinyml",
+  "name": "HarvardX Tiny Machine Learning Professional Certificate",
+  "issuer": "edX / Harvard",
+  "cost_inr": 35000,
+  "free_option": "Audit all 3 courses free",
+  "time_hours": 40,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "ml.tinyml_edge"
+  ],
+  "url": "https://www.edx.org/certificates/professional-certificate/harvardx-tiny-machine-learning",
+  "credibility_by_career": {
+   "vlsi_design": 2,
+   "ai_hw_architect": 3
+  },
+  "price_status": "price NOT confirmed this session (edX verified tracks are typically ~US$100-200 per course)",
+  "notes": "Content is excellent and free to audit; the paid certificate is optional. His Aankhen ESP32 1D-CNN is the better proof."
+ },
+ {
+  "id": "cs50.cs50x",
+  "name": "CS50x certificate",
+  "issuer": "Harvard CS50",
+  "cost_inr": 0,
+  "free_option": "Free CS50 certificate (paid edX verified certificate optional)",
+  "time_hours": 100,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "prog.c"
+  ],
+  "url": "https://cs50.harvard.edu/x/",
+  "credibility_by_career": {
+   "vlsi_design": 2,
+   "ai_hw_architect": 2
+  },
+  "price_status": "confirmed free",
+  "notes": "Free and widely known; the C weeks matter, the certificate is a bonus."
+ },
+ {
+  "id": "tinytapeout.tile",
+  "name": "Tiny Tapeout: your design on a real chip",
+  "issuer": "Tiny Tapeout",
+  "cost_inr": 7000,
+  "free_option": "Design and harden free in GitHub Actions; paying is only for fabrication. University/subsidised options may exist",
+  "time_hours": 60,
+  "credibility": 5,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "pd.tapeout"
+  ],
+  "url": "https://tinytapeout.com/",
+  "credibility_by_career": {
+   "vlsi_design": 5,
+   "ai_hw_architect": 4
+  },
+  "price_status": "2025 projection: ~EUR 70 per tile, ~EUR 300 devkit; use the official calculator",
+  "notes": "A taped-out tile with a public GDS is the strongest proof a tier-3 fresher can show. Shuttles SKY26d and GF26c listed as open on 2026-10-23."
+ },
+ {
+  "id": "sscs.pico",
+  "name": "IEEE SSCS PICO Open-Source Chipathon",
+  "issuer": "IEEE Solid-State Circuits Society",
+  "cost_inr": 0,
+  "free_option": "Free; open to anyone; selected designs are fabricated",
+  "time_hours": 100,
+  "credibility": 5,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "pd.tapeout",
+   "ana.analog_ic"
+  ],
+  "url": "https://sscs.ieee.org/technical-committees/tc-ose/sscs-pico-design-contest/",
+  "credibility_by_career": {
+   "vlsi_design": 5,
+   "ai_hw_architect": 4
+  },
+  "price_status": "free",
+  "notes": "IEEE-backed contest with silicon and a write-up. 2026 sign-up closed 1 May 2026; plan for the 2027 call (watch from Feb 2027)."
+ },
+ {
+  "id": "dac.hackatdac",
+  "name": "Hack@DAC hardware security CTF result",
+  "issuer": "Design Automation Conference",
+  "cost_inr": 0,
+  "free_option": "Free team entry",
+  "time_hours": 60,
+  "credibility": 4,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "sec.hw_trojans_bugs"
+  ],
+  "url": "https://dac.com/2026/hack-at-dac",
+  "credibility_by_career": {
+   "vlsi_design": 4,
+   "ai_hw_architect": 3
+  },
+  "price_status": "free",
+  "notes": "Competition rank, not a certificate; student teams (incl. IIT Kharagpur) have placed. Strong hardware-security signal."
+ },
+ {
+  "id": "maven.vlsi_pg",
+  "name": "Maven Silicon job-oriented VLSI programme (e.g. with iHUB IIT Roorkee)",
+  "issuer": "Maven Silicon",
+  "cost_inr": 236000,
+  "free_option": "Free alternatives cover the same syllabus (NPTEL + HDLBits + open tools)",
+  "time_hours": 1000,
+  "credibility": 2,
+  "linkedin_worthy": false,
+  "node_ids": [
+   "ver.uvm",
+   "hdl.systemverilog"
+  ],
+  "url": "https://www.maven-silicon.com/",
+  "credibility_by_career": {
+   "vlsi_design": 3,
+   "ai_hw_architect": 1
+  },
+  "price_status": "Careers360 listing",
+  "notes": "Rs 2,00,000 + GST, 9 months. What you pay for: commercial-tool lab access and the placement pipeline, not the certificate. No independent placement audit found. Consider only after graduation, only with batch-level placement data in writing."
+ },
+ {
+  "id": "chipedge.vlsi",
+  "name": "ChipEdge VLSI training",
+  "issuer": "ChipEdge (Bangalore)",
+  "cost_inr": 105000,
+  "free_option": "Same as above",
+  "time_hours": 800,
+  "credibility": 2,
+  "linkedin_worthy": false,
+  "node_ids": [
+   "ver.uvm",
+   "pd.physical_design"
+  ],
+  "url": "https://chipedge.com/",
+  "credibility_by_career": {
+   "vlsi_design": 3,
+   "ai_hw_architect": 1
+  },
+  "price_status": "self-reported by provider",
+  "notes": "Rs 90k-1.2L per ChipEdge's own blog (promotional). Same verdict: tool access + placement network; ask for audited placement numbers."
+ },
+ {
+  "id": "vsd.courses",
+  "name": "VLSI System Design (VSD) workshops",
+  "issuer": "VLSI System Design (Kunal Ghosh)",
+  "cost_inr": 3000,
+  "free_option": "Many sessions and open-source flow content are free",
+  "time_hours": 30,
+  "credibility": 2,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "pd.physical_design"
+  ],
+  "url": "https://www.vlsisystemdesign.com/",
+  "credibility_by_career": {
+   "vlsi_design": 3,
+   "ai_hw_architect": 1
+  },
+  "price_status": "price varies by workshop; not confirmed",
+  "notes": "Low-cost, open-tool (OpenLane/SKY130) workshops; fine for hands-on practice, the certificate itself carries little weight."
+ },
+ {
+  "id": "siemens.va",
+  "name": "Siemens Verification Academy courses",
+  "issuer": "Siemens EDA",
+  "cost_inr": 0,
+  "free_option": "Free with registration",
+  "time_hours": 30,
+  "credibility": 2,
+  "linkedin_worthy": false,
+  "node_ids": [
+   "ver.uvm"
+  ],
+  "url": "https://verificationacademy.com/",
+  "credibility_by_career": {
+   "vlsi_design": 3,
+   "ai_hw_architect": 1
+  },
+  "price_status": "free",
+  "notes": "Top-quality material, but completion records are not a recognised credential; list the UVM testbench project instead."
+ },
+ {
+  "id": "cisco.ethical_hacker",
+  "name": "Cisco Ethical Hacker badge / Cisco Certificate in Ethical Hacking",
+  "issuer": "Cisco Networking Academy",
+  "cost_inr": 0,
+  "free_option": "Course + badge free (70% on final); the full certificate also needs a Cisco U. CTF, listed as paid",
+  "time_hours": 70,
+  "credibility": 2,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "sec.pentest_foundations"
+  ],
+  "url": "https://www.netacad.com/courses/ethical-hacker",
+  "credibility_by_career": {
+   "vlsi_design": 1,
+   "ai_hw_architect": 1
+  },
+  "price_status": "badge free; CTF cost unclear",
+  "notes": "Free and structured; badge is fine for LinkedIn, not a hiring filter."
+ },
+ {
+  "id": "ine.ejpt",
+  "name": "eJPT (eLearnSecurity Junior Penetration Tester)",
+  "issuer": "INE",
+  "cost_inr": 22000,
+  "free_option": "Free INE starter pass content; voucher paid",
+  "time_hours": 60,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "sec.pentest_foundations"
+  ],
+  "url": "https://ine.com/learning/certifications/internal/elearnsecurity-junior-penetration-tester-v2",
+  "credibility_by_career": {
+   "vlsi_design": 1,
+   "ai_hw_architect": 1
+  },
+  "price_status": "US$249 voucher (2026 sources)",
+  "notes": "Practical entry exam; good first hands-on security cert."
+ },
+ {
+  "id": "portswigger.bscp",
+  "name": "Burp Suite Certified Practitioner",
+  "issuer": "PortSwigger",
+  "cost_inr": 8700,
+  "free_option": "All training labs free; exam paid and needs Burp Suite Pro (trial/licence)",
+  "time_hours": 80,
+  "credibility": 4,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "sec.web_security"
+  ],
+  "url": "https://portswigger.net/web-security/certification",
+  "credibility_by_career": {
+   "vlsi_design": 1,
+   "ai_hw_architect": 1
+  },
+  "price_status": "US$99 exam",
+  "notes": "Best value-per-rupee practical web-security exam; respected by AppSec teams."
+ },
+ {
+  "id": "comptia.secplus",
+  "name": "CompTIA Security+ (SY0-701)",
+  "issuer": "CompTIA",
+  "cost_inr": 37400,
+  "free_option": "No free exam",
+  "time_hours": 80,
+  "credibility": 3,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "sec.networking_linux",
+   "sec.pentest_foundations"
+  ],
+  "url": "https://www.comptia.org/certifications/security",
+  "credibility_by_career": {
+   "vlsi_design": 1,
+   "ai_hw_architect": 1
+  },
+  "price_status": "US$425 voucher (2026 sources)",
+  "notes": "HR/government filter credential, theory-heavy. Low priority for him."
+ },
+ {
+  "id": "ecc.ceh",
+  "name": "Certified Ethical Hacker (CEH v13)",
+  "issuer": "EC-Council",
+  "cost_inr": 40000,
+  "free_option": "No free exam",
+  "time_hours": 60,
+  "credibility": 2,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "sec.pentest_advanced"
+  ],
+  "url": "https://www.eccouncil.org/train-certify/certified-ethical-hacker-ceh/",
+  "credibility_by_career": {
+   "vlsi_design": 1,
+   "ai_hw_architect": 1
+  },
+  "price_status": "India voucher Rs 35-45k per training-provider blogs (unofficial)",
+  "notes": "Known to Indian HR, weak among practitioners (multiple-choice). Not worth Rs 35-45k for his goals."
+ },
+ {
+  "id": "htb.cpts",
+  "name": "HTB Certified Penetration Testing Specialist (CPTS)",
+  "issuer": "Hack The Box",
+  "cost_inr": 18000,
+  "free_option": "Academy has free modules; exam voucher paid (student subscriptions discounted)",
+  "time_hours": 300,
+  "credibility": 4,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "sec.pentest_advanced"
+  ],
+  "url": "https://academy.hackthebox.com/preview/certifications/htb-certified-penetration-testing-specialist",
+  "credibility_by_career": {
+   "vlsi_design": 1,
+   "ai_hw_architect": 1
+  },
+  "price_status": "price NOT confirmed this session",
+  "notes": "Harder and more practical than CEH at a fraction of OSCP price."
+ },
+ {
+  "id": "offsec.oscp",
+  "name": "OSCP+ (PEN-200)",
+  "issuer": "OffSec",
+  "cost_inr": 154000,
+  "free_option": "No free option (Proving Grounds Play gives free practice boxes)",
+  "time_hours": 300,
+  "credibility": 5,
+  "linkedin_worthy": true,
+  "node_ids": [
+   "sec.pentest_advanced"
+  ],
+  "url": "https://www.offsec.com/courses/pen-200/",
+  "credibility_by_career": {
+   "vlsi_design": 1,
+   "ai_hw_architect": 1
+  },
+  "price_status": "US$1,749 bundle (2026 sources)",
+  "notes": "Gold-standard practical pentest cert, but US$1,749 is about Rs 1.5 lakh. Only if security becomes the job; not before mid-2027."
+ }
+]

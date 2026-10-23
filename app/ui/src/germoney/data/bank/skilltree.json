@@ -1,0 +1,3639 @@
+{
+ "version": 1,
+ "careers": [
+  {
+   "id": "vlsi_design",
+   "name": "VLSI / Digital Design & Verification Engineer",
+   "summary": "RTL design, design verification (UVM), synthesis, STA, physical design and DFT. The highest-odds off-campus trunk for an Indian ECE fresher: large, growing hiring (NVIDIA, Qualcomm, Intel, AMD, TI, MediaTek, Samsung, Synopsys, Cadence, Siemens EDA, Arm, plus startups InCore, Mindgrove, Netrasemi). Proof travels as open-source RTL, UVM testbenches and a taped-out tile.",
+   "weights": {
+    "aihw.accelerator": 0.15,
+    "aihw.efficiency": 0.15,
+    "aihw.fpga_ml": 0.15,
+    "aihw.gpu_cuda": 0.15,
+    "aihw.ml_compiler": 0.15,
+    "ana.analog_ic": 0.45,
+    "ana.circuits": 0.45,
+    "ana.cmos_vlsi": 0.6,
+    "arch.foundations": 0.8,
+    "arch.microarch_advanced": 0.45,
+    "arch.riscv_core": 0.7,
+    "arch.riscv_isa": 0.7,
+    "arch.soc_bus": 0.7,
+    "career.interview_offcampus": 0.6,
+    "career.portfolio": 0.6,
+    "dev.fab_process": 0.45,
+    "dev.semiconductor": 0.6,
+    "dig.arithmetic": 0.8,
+    "dig.logic": 1.0,
+    "dl.foundations": 0.15,
+    "dl.pytorch_cnn": 0.15,
+    "dl.transformers_llm": 0.15,
+    "dsa.foundations": 0.6,
+    "dsa.interview": 0.7,
+    "emb.iot_rtos": 0.3,
+    "emb.mcu_c": 0.3,
+    "fpga.basics": 0.7,
+    "fpga.hls": 0.45,
+    "hdl.rtl_design_style": 1.0,
+    "hdl.systemverilog": 1.0,
+    "hdl.verilog_basics": 1.0,
+    "ml.foundations": 0.3,
+    "ml.practical": 0.15,
+    "ml.tinyml_edge": 0.15,
+    "pd.dft": 0.8,
+    "pd.physical_design": 0.8,
+    "pd.sta": 0.95,
+    "pd.synthesis": 0.95,
+    "pd.tapeout": 0.7,
+    "prog.c": 0.8,
+    "prog.cpp": 0.6,
+    "prog.python": 0.6,
+    "prog.scripting": 0.7,
+    "res.paper_reading": 0.3,
+    "res.writing_latex": 0.3,
+    "sec.crypto_basics": 0.3,
+    "sec.hw_security": 0.45,
+    "sec.hw_trojans_bugs": 0.3,
+    "sec.networking_linux": 0.3,
+    "sec.pentest_advanced": 0.15,
+    "sec.pentest_foundations": 0.3,
+    "sec.web_security": 0.15,
+    "soft.communication": 0.6,
+    "tools.git": 0.8,
+    "ver.formal": 0.8,
+    "ver.sim_basics": 0.95,
+    "ver.uvm": 0.95
+   }
+  },
+  {
+   "id": "ai_hw_architect",
+   "name": "AI/ML Hardware Architect & Accelerator Engineer",
+   "summary": "Computer architecture, accelerator design (systolic arrays, dataflows), quantisation, GPU/CUDA, performance modelling and ML compilers / HW-SW co-design. Fewer fresher openings and more often gated on an MS, but reachable by branching off the VLSI trunk once architecture + efficient-ML + a modelling project are in place (Google silicon, NVIDIA, AMD, Tenstorrent, SiMa, Krutrim).",
+   "weights": {
+    "aihw.accelerator": 1.0,
+    "aihw.efficiency": 1.0,
+    "aihw.fpga_ml": 0.8,
+    "aihw.gpu_cuda": 1.0,
+    "aihw.ml_compiler": 0.9,
+    "ana.analog_ic": 0.15,
+    "ana.circuits": 0.15,
+    "ana.cmos_vlsi": 0.3,
+    "arch.foundations": 1.0,
+    "arch.microarch_advanced": 1.0,
+    "arch.riscv_core": 0.9,
+    "arch.riscv_isa": 0.9,
+    "arch.soc_bus": 0.8,
+    "career.interview_offcampus": 0.65,
+    "career.portfolio": 0.65,
+    "dev.fab_process": 0.15,
+    "dev.semiconductor": 0.45,
+    "dig.arithmetic": 0.65,
+    "dig.logic": 0.9,
+    "dl.foundations": 0.9,
+    "dl.pytorch_cnn": 0.9,
+    "dl.transformers_llm": 0.8,
+    "dsa.foundations": 0.65,
+    "dsa.interview": 0.8,
+    "emb.iot_rtos": 0.15,
+    "emb.mcu_c": 0.3,
+    "fpga.basics": 0.65,
+    "fpga.hls": 0.65,
+    "hdl.rtl_design_style": 0.8,
+    "hdl.systemverilog": 0.65,
+    "hdl.verilog_basics": 0.9,
+    "ml.foundations": 0.8,
+    "ml.practical": 0.65,
+    "ml.tinyml_edge": 0.8,
+    "pd.dft": 0.3,
+    "pd.physical_design": 0.3,
+    "pd.sta": 0.45,
+    "pd.synthesis": 0.45,
+    "pd.tapeout": 0.3,
+    "prog.c": 0.9,
+    "prog.cpp": 0.9,
+    "prog.python": 0.65,
+    "prog.scripting": 0.65,
+    "res.paper_reading": 0.65,
+    "res.writing_latex": 0.65,
+    "sec.crypto_basics": 0.15,
+    "sec.hw_security": 0.15,
+    "sec.hw_trojans_bugs": 0.15,
+    "sec.networking_linux": 0.15,
+    "sec.pentest_advanced": 0.15,
+    "sec.pentest_foundations": 0.15,
+    "sec.web_security": 0.15,
+    "soft.communication": 0.65,
+    "tools.git": 0.8,
+    "ver.formal": 0.45,
+    "ver.sim_basics": 0.65,
+    "ver.uvm": 0.45
+   }
+  }
+ ],
+ "nodes": [
+  {
+   "id": "prog.c",
+   "name": "C programming & memory model",
+   "branch": "programming",
+   "tier": 2,
+   "prereqs": [
+    "math.discrete"
+   ],
+   "outcomes": [
+    "Write C with pointers, structs, arrays and manual memory",
+    "Reason about stack vs heap and bit-level layout",
+    "Read embedded/driver C"
+   ],
+   "hours_est": 55,
+   "resources": [
+    "car.cs50x",
+    "car.beej_c"
+   ],
+   "certs": [
+    "cs50.cs50x"
+   ],
+   "project": {
+    "title": "csim: a tiny C utility set",
+    "deliverable": "GitHub repo with a bitfield parser and a fixed-point calculator in C, with a Makefile and tests",
+    "linkedin_line": "Built a small C toolkit (pointers, bit ops, fixed-point) with tests and a clean Makefile."
+   },
+   "contracts": [
+    {
+     "id": "prog.c.ptr",
+     "title": "Pointers you can draw",
+     "minutes": 40,
+     "context": "Read Beej's Guide chapter on pointers before touching code.",
+     "steps": [
+      "Write swap(int*,int*) and test it",
+      "Draw the stack with addresses for two ints",
+      "Break it on purpose: pass by value and see swap fail"
+     ],
+     "hint": "A pointer holds an address; *p reads through it. Draw boxes and arrows.",
+     "success_check": "swap() exchanges two ints and you can explain why pass-by-value failed",
+     "xp": 8
+    },
+    {
+     "id": "prog.c.bits",
+     "title": "Bit operations drill",
+     "minutes": 35,
+     "context": "Open Bit Twiddling Hacks; you only need AND/OR/XOR/shift today.",
+     "steps": [
+      "Set, clear and toggle bit n of a uint32",
+      "Count set bits two ways",
+      "Extract bits [7:4] of a byte"
+     ],
+     "hint": "mask = 1u<<n; set |= mask; clear &= ~mask; toggle ^= mask.",
+     "success_check": "All three bit functions pass your printf checks",
+     "xp": 8
+    },
+    {
+     "id": "prog.c.struct",
+     "title": "Structs and a fixed-point type",
+     "minutes": 45,
+     "context": "Skim Project F fixed-point while coding.",
+     "steps": [
+      "Define a Q8.8 type as int16_t",
+      "Write fp_mul with an intermediate int32_t",
+      "Print 1.5 * 2.25"
+     ],
+     "hint": "Multiply the raw ints, then shift right by the fraction width (8).",
+     "success_check": "fp_mul(1.5,2.25) prints 3.375 within rounding",
+     "xp": 10
+    },
+    {
+     "id": "prog.c.make",
+     "title": "A Makefile that builds and tests",
+     "minutes": 30,
+     "context": "Read the CS50 note on compiling with make.",
+     "steps": [
+      "Write a Makefile with all/clean/test",
+      "gcc with -Wall -Wextra and fix every warning",
+      "make test runs your asserts"
+     ],
+     "hint": "A rule is target: deps <tab> command. The tab is mandatory.",
+     "success_check": "make && make test is green with zero warnings",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "prog.python",
+   "name": "Python & scripting",
+   "branch": "programming",
+   "tier": 2,
+   "prereqs": [
+    "math.discrete"
+   ],
+   "outcomes": [
+    "Write Python for data wrangling and automation",
+    "Parse logs/CSV/JSON",
+    "Use it as glue for EDA flows and ML"
+   ],
+   "hours_est": 30,
+   "resources": [
+    "car.python_tutorial",
+    "car.automate_boring"
+   ],
+   "certs": [],
+   "project": {
+    "title": "flowparse: EDA log parser",
+    "deliverable": "GitHub CLI that extracts timing/area numbers from synthesis logs into CSV/JSON",
+    "linkedin_line": "Wrote a Python CLI that turns messy EDA logs into clean CSV/JSON reports."
+   },
+   "contracts": [
+    {
+     "id": "prog.python.basics",
+     "title": "Types, lists, dicts",
+     "minutes": 35,
+     "context": "Work through the Python tutorial sections on data structures.",
+     "steps": [
+      "Load a text file into a list of lines",
+      "Count word frequencies into a dict",
+      "Sort items by value"
+     ],
+     "hint": "collections.Counter does the counting in one line once you understand the manual way.",
+     "success_check": "Script prints the top 5 words of any text file",
+     "xp": 6
+    },
+    {
+     "id": "prog.python.regex",
+     "title": "Regex on a real log",
+     "minutes": 40,
+     "context": "Read the Automate the Boring Stuff regex chapter.",
+     "steps": [
+      "Write a regex for 'slack: -0.42 ns'",
+      "Pull all violations from a sample log",
+      "Emit rows as CSV"
+     ],
+     "hint": "Use re.findall with a capture group for the number.",
+     "success_check": "CSV has one row per violating path",
+     "xp": 8
+    },
+    {
+     "id": "prog.python.cli",
+     "title": "Make it a CLI",
+     "minutes": 30,
+     "context": "Look up argparse in the standard library docs.",
+     "steps": [
+      "Add argparse for input/output paths",
+      "Support --json flag",
+      "Exit non-zero on no matches"
+     ],
+     "hint": "argparse gives you --flags and help for free.",
+     "success_check": "flowparse log.txt -o out.csv --json works end to end",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "prog.cpp",
+   "name": "C++ for modelling & tooling",
+   "branch": "programming",
+   "tier": 3,
+   "prereqs": [
+    "prog.c",
+    "dsa.foundations"
+   ],
+   "outcomes": [
+    "Write modern C++ with STL and classes",
+    "Build cycle/performance models and SystemC-style testbenches",
+    "Pass C++ screening for verification/architecture roles"
+   ],
+   "hours_est": 40,
+   "resources": [
+    "car.learncpp",
+    "car.cppreference"
+   ],
+   "certs": [],
+   "project": {
+    "title": "cachesim in C++",
+    "deliverable": "GitHub cache simulator (direct-mapped + set-associative) reading an address trace, reporting miss rate",
+    "linkedin_line": "Built a configurable cache simulator in modern C++ with STL and unit tests."
+   },
+   "contracts": [
+    {
+     "id": "prog.cpp.stl",
+     "title": "STL containers",
+     "minutes": 45,
+     "context": "Read the LearnCpp chapters on vector and map.",
+     "steps": [
+      "Store a trace in std::vector",
+      "Build an LRU with std::list + unordered_map",
+      "Print hit/miss counts"
+     ],
+     "hint": "unordered_map<addr, list_iterator> plus a list gives O(1) LRU.",
+     "success_check": "Your LRU evicts the right line on a tiny trace",
+     "xp": 10
+    },
+    {
+     "id": "prog.cpp.class",
+     "title": "A class with an invariant",
+     "minutes": 35,
+     "context": "LearnCpp: classes and access specifiers.",
+     "steps": [
+      "Wrap the cache in a class",
+      "Keep sets private, expose access(addr)",
+      "Add a reset()"
+     ],
+     "hint": "The public method is access(); everything else is private state.",
+     "success_check": "main() only calls access() and reset()",
+     "xp": 8
+    },
+    {
+     "id": "prog.cpp.bench",
+     "title": "Measure it",
+     "minutes": 30,
+     "context": "Read the LearnCpp note on <chrono>.",
+     "steps": [
+      "Time 1M accesses with steady_clock",
+      "Report accesses/second",
+      "Try -O0 vs -O2"
+     ],
+     "hint": "steady_clock::now() before and after; subtract and cast to ms.",
+     "success_check": "You can state the speedup from -O2",
+     "xp": 6
+    }
+   ]
+  },
+  {
+   "id": "prog.scripting",
+   "name": "Shell, Tcl & flow scripting",
+   "branch": "programming",
+   "tier": 2,
+   "prereqs": [
+    "prog.python"
+   ],
+   "outcomes": [
+    "Live in the Linux shell",
+    "Write Tcl for EDA tools (SDC, run scripts)",
+    "Read legacy Perl/bash flow scripts"
+   ],
+   "hours_est": 30,
+   "resources": [
+    "car.tlcl",
+    "car.missing_semester",
+    "car.tcl_tutorial",
+    "car.perl_learn"
+   ],
+   "certs": [],
+   "project": {
+    "title": "one-key RTL flow",
+    "deliverable": "GitHub bash+Tcl scripts that lint, simulate and synthesise a design with one command",
+    "linkedin_line": "Automated an RTL lint-sim-synth flow with bash and Tcl, one command to green."
+   },
+   "contracts": [
+    {
+     "id": "prog.scripting.shell",
+     "title": "Shell survival",
+     "minutes": 40,
+     "context": "Read The Linux Command Line chapters on navigation and pipes.",
+     "steps": [
+      "Find all .v files and count lines",
+      "grep errors out of a log and pipe to wc",
+      "Write a 5-line bash script with a loop"
+     ],
+     "hint": "find . -name '*.v' | xargs wc -l; pipe with |.",
+     "success_check": "Your bash script loops over files and prints a summary",
+     "xp": 6
+    },
+    {
+     "id": "prog.scripting.tcl",
+     "title": "First Tcl script",
+     "minutes": 35,
+     "context": "Open the official Tcl tutorial sections on variables and procs.",
+     "steps": [
+      "Write a proc that prints a greeting",
+      "Read a file line by line in Tcl",
+      "Build an SDC-like list of clock names"
+     ],
+     "hint": "set x 5; proc f {a} { ... }; puts to print.",
+     "success_check": "Your Tcl proc runs under tclsh and prints per-line output",
+     "xp": 8
+    },
+    {
+     "id": "prog.scripting.perl",
+     "title": "Read, don't write, Perl",
+     "minutes": 25,
+     "context": "Skim learn.perl.org intro; the goal is reading comprehension.",
+     "steps": [
+      "Read a 20-line Perl flow script and comment each line",
+      "Identify the regex and the file loop",
+      "Rewrite it in Python"
+     ],
+     "hint": "$_ is the default variable; =~ is a regex match.",
+     "success_check": "You can explain what each Perl line does and have a Python twin",
+     "xp": 6
+    }
+   ]
+  },
+  {
+   "id": "tools.git",
+   "name": "Git & GitHub workflow",
+   "branch": "programming",
+   "tier": 1,
+   "prereqs": [],
+   "outcomes": [
+    "Version code, branch, resolve conflicts",
+    "Maintain a credible public GitHub",
+    "Use GitHub Actions CI"
+   ],
+   "hours_est": 10,
+   "resources": [
+    "car.pro_git",
+    "car.github_skills"
+   ],
+   "certs": [],
+   "project": {
+    "title": "profile README + pinned repos",
+    "deliverable": "A GitHub profile README and 3 pinned repos with real commit history",
+    "linkedin_line": "Set up a GitHub profile with pinned hardware projects and green CI."
+   },
+   "contracts": [
+    {
+     "id": "tools.git.basics",
+     "title": "Commit and branch",
+     "minutes": 30,
+     "context": "Read Pro Git chapters 2-3.",
+     "steps": [
+      "init a repo, make 3 real commits",
+      "Create a feature branch and merge it",
+      "Write a .gitignore for build artifacts"
+     ],
+     "hint": "add -> commit -> branch -> checkout -> merge.",
+     "success_check": "git log shows a branch merged back to main",
+     "xp": 6
+    },
+    {
+     "id": "tools.git.ci",
+     "title": "First GitHub Action",
+     "minutes": 35,
+     "context": "Do the GitHub Skills 'hello GitHub Actions' course.",
+     "steps": [
+      "Add a workflow that runs make test on push",
+      "Make it fail, then fix it",
+      "Add a passing badge to the README"
+     ],
+     "hint": "Workflows live in .github/workflows/*.yml.",
+     "success_check": "A green check appears on your latest commit",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "dig.logic",
+   "name": "Digital logic & Boolean algebra",
+   "branch": "digital_logic",
+   "tier": 1,
+   "prereqs": [
+    "math.discrete"
+   ],
+   "outcomes": [
+    "Minimise logic with Boolean algebra and K-maps",
+    "Design combinational and sequential blocks on paper",
+    "Explain setup/hold and FSMs"
+   ],
+   "hours_est": 40,
+   "resources": [
+    "car.nptel_digital_circuits_kgp",
+    "car.mit_6004_ocw",
+    "car.nand2tetris"
+   ],
+   "certs": [
+    "nptel.digital_circuits"
+   ],
+   "project": {
+    "title": "logic cheat-sheet + solved set",
+    "deliverable": "GitHub repo of 15 solved combinational/sequential problems with K-maps and waveforms",
+    "linkedin_line": "Published a worked digital-logic problem set (K-maps, FSMs, timing)."
+   },
+   "contracts": [
+    {
+     "id": "dig.logic.kmap",
+     "title": "K-map minimisation",
+     "minutes": 35,
+     "context": "Watch the NPTEL K-map lectures first.",
+     "steps": [
+      "Minimise a 4-variable function by K-map",
+      "Verify with a truth table",
+      "Note the don't-cares you used"
+     ],
+     "hint": "Group the largest power-of-two blocks of 1s, wrapping edges.",
+     "success_check": "Your minimised expression matches the truth table on all 16 rows",
+     "xp": 8
+    },
+    {
+     "id": "dig.logic.fsm",
+     "title": "Moore vs Mealy on paper",
+     "minutes": 40,
+     "context": "Read the MIT 6.004 FSM notes.",
+     "steps": [
+      "Draw a 1101 sequence detector as Moore",
+      "Redraw as Mealy",
+      "Count the states and flip-flops each needs"
+     ],
+     "hint": "Moore output depends on state only; Mealy on state and input.",
+     "success_check": "Both machines detect 1101 and you can state the trade-off",
+     "xp": 8
+    },
+    {
+     "id": "dig.logic.timing",
+     "title": "Setup, hold, Fmax",
+     "minutes": 30,
+     "context": "Read the setup/hold section of the NPTEL notes.",
+     "steps": [
+      "Write the Fmax inequality from Tclk-q, Tlogic, Tsetup",
+      "Compute Fmax for sample numbers",
+      "Explain a hold violation in one sentence"
+     ],
+     "hint": "Tclk >= Tclk-q + Tlogic + Tsetup.",
+     "success_check": "You compute Fmax and explain hold correctly",
+     "xp": 6
+    }
+   ]
+  },
+  {
+   "id": "dig.arithmetic",
+   "name": "Computer arithmetic hardware",
+   "branch": "digital_logic",
+   "tier": 2,
+   "prereqs": [
+    "dig.logic",
+    "prog.c"
+   ],
+   "outcomes": [
+    "Design adders, multipliers, fixed/floating point units",
+    "Reason about carry and critical path",
+    "Implement rounding/saturation"
+   ],
+   "hours_est": 20,
+   "resources": [
+    "car.parhami_arith",
+    "car.projectf_fixed_point"
+   ],
+   "certs": [],
+   "project": {
+    "title": "pipelined multiplier",
+    "deliverable": "GitHub Verilog signed fixed-point multiplier with a self-checking testbench",
+    "linkedin_line": "Designed and verified a pipelined fixed-point multiplier in Verilog."
+   },
+   "contracts": [
+    {
+     "id": "dig.arith.adder",
+     "title": "Ripple vs carry-lookahead",
+     "minutes": 40,
+     "context": "Read the Parhami slides on fast adders.",
+     "steps": [
+      "Draw a 4-bit ripple adder delay path",
+      "Write the CLA generate/propagate equations",
+      "Compare the critical paths"
+     ],
+     "hint": "g=a&b, p=a^b; carry chains define the delay.",
+     "success_check": "You can state why CLA is faster and its area cost",
+     "xp": 8
+    },
+    {
+     "id": "dig.arith.fp",
+     "title": "Float layout",
+     "minutes": 30,
+     "context": "Parhami slides on floating point.",
+     "steps": [
+      "Write the IEEE-754 single-precision fields",
+      "Encode 1.5 and -0.25 by hand",
+      "Explain one rounding mode"
+     ],
+     "hint": "sign(1) exponent(8, bias 127) mantissa(23).",
+     "success_check": "Your hex encodings match a reference tool",
+     "xp": 6
+    }
+   ]
+  },
+  {
+   "id": "hdl.verilog_basics",
+   "name": "Verilog fundamentals (HDLBits)",
+   "branch": "hdl",
+   "tier": 2,
+   "prereqs": [
+    "dig.logic",
+    "tools.git"
+   ],
+   "outcomes": [
+    "Write synthesisable Verilog for combinational and sequential logic",
+    "Pass HDLBits language + circuits sections",
+    "Build and test FSMs"
+   ],
+   "hours_est": 55,
+   "resources": [
+    "car.hdlbits_lang",
+    "car.nptel_verilog_kgp",
+    "car.hdlbits_circuits",
+    "car.chipverify_verilog",
+    "car.edaplayground"
+   ],
+   "certs": [
+    "nptel.verilog"
+   ],
+   "project": {
+    "title": "HDLBits run + FSM library",
+    "deliverable": "GitHub repo tracking HDLBits progress plus 5 reusable FSM modules with testbenches",
+    "linkedin_line": "Solved 150+ HDLBits problems and published a reusable Verilog FSM library."
+   },
+   "contracts": [
+    {
+     "id": "hdl.vb.start",
+     "title": "HDLBits section 1-2.1: wires and gates",
+     "minutes": 35,
+     "context": "Open HDLBits 'Problem sets'. Section 2.1 Basics maps to dig.logic combinational gates. Start at 'Simple wire'.",
+     "steps": [
+      "Solve Wire, Four wires, Inverter, AND/OR/XOR",
+      "Read each model answer even when yours passes",
+      "Note assign vs always @(*)"
+     ],
+     "hint": "assign out = a & b; for pure combinational. One module, one assign to begin.",
+     "success_check": "Section 2.1 Basics is all green on HDLBits",
+     "xp": 8
+    },
+    {
+     "id": "hdl.vb.vectors",
+     "title": "Section 2.2 Vectors",
+     "minutes": 35,
+     "context": "Vectors map to dig.arithmetic bit-slicing. Read 'Vectors in more detail' before solving.",
+     "steps": [
+      "Solve Vectors, part select, vector gates",
+      "Do the bit-reversal problem",
+      "Use concatenation { } once"
+     ],
+     "hint": "wire [7:0] v; v[3:0] is the low nibble; {a,b} concatenates.",
+     "success_check": "Section 2.2 is green and you used a part-select and a concat",
+     "xp": 8
+    },
+    {
+     "id": "hdl.vb.proc",
+     "title": "Section 2.4 Procedures: always blocks",
+     "minutes": 40,
+     "context": "This maps to dig.logic FSM groundwork. Read the Cummings blocking/nonblocking paper first.",
+     "steps": [
+      "Solve the combinational and clocked always problems",
+      "Use <= in clocked, = in combinational",
+      "Build the if/case problems"
+     ],
+     "hint": "always @(posedge clk) uses <=; always @(*) uses =. Never mix.",
+     "success_check": "Section 2.4 is green with correct blocking/nonblocking usage",
+     "xp": 10
+    },
+    {
+     "id": "hdl.vb.fsm",
+     "title": "Section 3.2.5 Finite State Machines",
+     "minutes": 45,
+     "context": "Maps to dig.logic.fsm. Start with 'Simple FSM 1 (synchronous reset)'.",
+     "steps": [
+      "Solve the first 5 FSM problems",
+      "Separate next-state logic from the state register",
+      "Draw the state diagram before coding each"
+     ],
+     "hint": "Three blocks: state register (clocked), next-state (comb), output (comb).",
+     "success_check": "First 5 FSM problems green, each with a drawn diagram",
+     "xp": 10
+    },
+    {
+     "id": "hdl.vb.tb",
+     "title": "Write a self-checking testbench",
+     "minutes": 40,
+     "context": "Read the HDLBits 'Writing Testbenches' intro and ChipVerify testbench page.",
+     "steps": [
+      "Write a TB for your sequence detector",
+      "Drive inputs, check outputs with $error",
+      "Run it on EDA Playground and save the link"
+     ],
+     "hint": "Compare DUT output to an expected value each clock; $error on mismatch.",
+     "success_check": "TB prints PASS and the EDA Playground link is in your README",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "hdl.rtl_design_style",
+   "name": "RTL design discipline",
+   "branch": "hdl",
+   "tier": 3,
+   "prereqs": [
+    "hdl.verilog_basics"
+   ],
+   "outcomes": [
+    "Write clean, lint-safe, synthesisable RTL",
+    "Partition datapath and controller",
+    "Avoid latches, races and CDC bugs"
+   ],
+   "hours_est": 30,
+   "resources": [
+    "car.nptel_system_design_verilog_iitg",
+    "car.cummings_papers",
+    "car.verilator_docs"
+   ],
+   "certs": [
+    "nptel.system_design_verilog"
+   ],
+   "project": {
+    "title": "UART with datapath/controller split",
+    "deliverable": "GitHub UART TX/RX with a clean FSM controller and a Verilator lint-clean build",
+    "linkedin_line": "Designed a lint-clean UART in Verilog with a proper datapath/controller split."
+   },
+   "contracts": [
+    {
+     "id": "hdl.rtl.lint",
+     "title": "Lint with Verilator",
+     "minutes": 35,
+     "context": "Read the Verilator guide quickstart.",
+     "steps": [
+      "Run verilator --lint-only on an old design",
+      "Fix every WIDTH and UNUSED warning",
+      "Document what each warning meant"
+     ],
+     "hint": "verilator --lint-only -Wall top.v.",
+     "success_check": "Lint is clean and you noted each fix",
+     "xp": 8
+    },
+    {
+     "id": "hdl.rtl.cdc",
+     "title": "Two-flop synchroniser",
+     "minutes": 30,
+     "context": "Read the Cummings CDC paper section on synchronisers.",
+     "steps": [
+      "Code a 2-FF synchroniser for one bit",
+      "Explain why you never sync a bus this way",
+      "Note when you'd need a handshake/FIFO"
+     ],
+     "hint": "Two flops in the destination clock domain for a single control bit.",
+     "success_check": "You can explain metastability and when a FIFO is required",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "hdl.systemverilog",
+   "name": "SystemVerilog for design",
+   "branch": "hdl",
+   "tier": 3,
+   "prereqs": [
+    "hdl.rtl_design_style"
+   ],
+   "outcomes": [
+    "Use SV design constructs (logic, structs, interfaces, packages)",
+    "Write cleaner, more typed RTL",
+    "Bridge to UVM verification"
+   ],
+   "hours_est": 20,
+   "resources": [
+    "car.chipverify_sv",
+    "car.ieee1800_lrm"
+   ],
+   "certs": [
+    "maven.vlsi_pg"
+   ],
+   "project": {
+    "title": "AXI4-Lite slave in SV",
+    "deliverable": "GitHub AXI4-Lite register slave using interfaces and packages, with a testbench",
+    "linkedin_line": "Implemented an AXI4-Lite register slave in SystemVerilog using interfaces."
+   },
+   "contracts": [
+    {
+     "id": "hdl.sv.types",
+     "title": "logic, enum, struct",
+     "minutes": 35,
+     "context": "ChipVerify SV data types page.",
+     "steps": [
+      "Rewrite an FSM using an enum state type",
+      "Group control signals into a struct",
+      "Replace reg/wire with logic"
+     ],
+     "hint": "typedef enum logic [1:0] {IDLE, RUN, DONE} state_t;",
+     "success_check": "FSM uses an enum and compiles clean",
+     "xp": 8
+    },
+    {
+     "id": "hdl.sv.iface",
+     "title": "An interface",
+     "minutes": 35,
+     "context": "ChipVerify interfaces page; read the AMBA APB chapter for the signal list.",
+     "steps": [
+      "Define an apb_if interface",
+      "Connect master and slave through it",
+      "Use a modport for direction"
+     ],
+     "hint": "interface apb_if; logic psel, penable...; modport slave(...);",
+     "success_check": "Two modules talk over your interface in simulation",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "ver.sim_basics",
+   "name": "Verification fundamentals",
+   "branch": "verification",
+   "tier": 2,
+   "prereqs": [
+    "hdl.verilog_basics",
+    "prog.python"
+   ],
+   "outcomes": [
+    "Read waveforms and find bugs from simulation",
+    "Write directed testbenches",
+    "Use coverage thinking"
+   ],
+   "hours_est": 15,
+   "resources": [
+    "car.hdlbits_verif",
+    "car.cocotb_docs"
+   ],
+   "certs": [],
+   "project": {
+    "title": "cocotb test suite",
+    "deliverable": "GitHub Python (cocotb) testbench for an FIFO with random reads/writes and a scoreboard",
+    "linkedin_line": "Wrote a Python cocotb verification suite with a scoreboard for a FIFO."
+   },
+   "contracts": [
+    {
+     "id": "ver.sim.wave",
+     "title": "Build a circuit from a waveform",
+     "minutes": 35,
+     "context": "HDLBits section 4.2 maps straight here. Open 'Combinational circuit 1'.",
+     "steps": [
+      "Solve the first 3 waveform-to-circuit problems",
+      "Write down the truth table you inferred",
+      "Check against the sim"
+     ],
+     "hint": "Read the output column for every input combination, then minimise.",
+     "success_check": "First 3 waveform problems green",
+     "xp": 8
+    },
+    {
+     "id": "ver.sim.cocotb",
+     "title": "First cocotb test",
+     "minutes": 40,
+     "context": "Read the cocotb quickstart.",
+     "steps": [
+      "Install cocotb + Icarus/Verilator",
+      "Drive an adder with @cocotb.test()",
+      "assert dut.sum.value == a+b"
+     ],
+     "hint": "await Timer or RisingEdge, then read dut.signal.value.",
+     "success_check": "cocotb reports 1 test passed on your adder",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "ver.uvm",
+   "name": "UVM & constrained-random verification",
+   "branch": "verification",
+   "tier": 4,
+   "prereqs": [
+    "ver.sim_basics",
+    "hdl.systemverilog",
+    "prog.cpp"
+   ],
+   "outcomes": [
+    "Build a layered UVM testbench",
+    "Use constrained-random stimulus, scoreboards, coverage",
+    "Speak the language of a DV interview"
+   ],
+   "hours_est": 45,
+   "resources": [
+    "car.va_uvm",
+    "car.verificationguide_sv",
+    "car.va_sv_oop",
+    "car.accellera_uvm"
+   ],
+   "certs": [
+    "maven.vlsi_pg",
+    "siemens.va"
+   ],
+   "project": {
+    "title": "UVM env for a protocol block",
+    "deliverable": "GitHub UVM testbench (agent, driver, monitor, scoreboard, coverage) for an APB or FIFO DUT",
+    "linkedin_line": "Built a full UVM testbench with coverage closure for a protocol block."
+   },
+   "contracts": [
+    {
+     "id": "ver.uvm.oop",
+     "title": "SV OOP for UVM",
+     "minutes": 45,
+     "context": "Do the Verification Academy SV-OOP module; it teaches only what UVM needs.",
+     "steps": [
+      "Write a transaction class with rand fields",
+      "Add a constraint and randomize()",
+      "Print it with a UVM-style field macro idea"
+     ],
+     "hint": "class txn; rand bit [7:0] data; constraint c { data < 128; } endclass",
+     "success_check": "randomize() gives legal values you can print",
+     "xp": 10
+    },
+    {
+     "id": "ver.uvm.agent",
+     "title": "Driver + monitor",
+     "minutes": 45,
+     "context": "Verification Academy UVM Cookbook: agent page.",
+     "steps": [
+      "Sketch the agent: sequencer, driver, monitor",
+      "Code the driver's drive_item task",
+      "Have the monitor broadcast via an analysis port"
+     ],
+     "hint": "Driver pulls from the sequencer; monitor samples pins and writes to the scoreboard.",
+     "success_check": "Transactions flow DUT-in and DUT-out in simulation",
+     "xp": 12
+    },
+    {
+     "id": "ver.uvm.scoreboard",
+     "title": "Scoreboard + coverage",
+     "minutes": 40,
+     "context": "Cookbook: scoreboard and coverage pages.",
+     "steps": [
+      "Compare expected vs actual in the scoreboard",
+      "Add a covergroup on key fields",
+      "Report coverage %"
+     ],
+     "hint": "Reference model computes expected; compare on each monitored txn.",
+     "success_check": "Sim ends with a coverage number and zero mismatches",
+     "xp": 12
+    }
+   ]
+  },
+  {
+   "id": "ver.formal",
+   "name": "Formal verification (open tools)",
+   "branch": "verification",
+   "tier": 4,
+   "prereqs": [
+    "ver.sim_basics",
+    "hdl.rtl_design_style"
+   ],
+   "outcomes": [
+    "Write SVA-style assertions",
+    "Prove properties with SymbiYosys",
+    "Catch corner cases simulation misses"
+   ],
+   "hours_est": 15,
+   "resources": [
+    "car.symbiyosys",
+    "car.zipcpu_formal"
+   ],
+   "certs": [],
+   "project": {
+    "title": "formally-proven FIFO",
+    "deliverable": "GitHub FIFO with assertions proven by SymbiYosys (bounded + induction), results in the README",
+    "linkedin_line": "Formally proved a FIFO's safety properties with open-source SymbiYosys."
+   },
+   "contracts": [
+    {
+     "id": "ver.formal.assert",
+     "title": "First assertion",
+     "minutes": 40,
+     "context": "Read the ZipCPU formal tutorial intro.",
+     "steps": [
+      "Add an assert that a counter never exceeds MAX",
+      "Run SymbiYosys in bmc mode",
+      "Read the trace when it fails"
+     ],
+     "hint": "assert property (@(posedge clk) count <= MAX);",
+     "success_check": "SBY reports PASS, or a VCD trace you can read when it fails",
+     "xp": 10
+    },
+    {
+     "id": "ver.formal.induct",
+     "title": "Prove, don't just test",
+     "minutes": 35,
+     "context": "ZipCPU section on induction.",
+     "steps": [
+      "Switch the FIFO proof to prove mode",
+      "Add the needed invariants",
+      "Explain bmc vs induction in one line"
+     ],
+     "hint": "Induction proves for all time; it needs invariants bmc doesn't.",
+     "success_check": "The FIFO property passes in prove mode",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "arch.foundations",
+   "name": "Computer organisation & assembly",
+   "branch": "architecture",
+   "tier": 2,
+   "prereqs": [
+    "prog.c",
+    "dig.logic"
+   ],
+   "outcomes": [
+    "Explain ISA, datapath, memory hierarchy",
+    "Read and write RISC-V assembly",
+    "Connect C to machine code"
+   ],
+   "hours_est": 55,
+   "resources": [
+    "car.cs61c",
+    "car.ethz_ddca"
+   ],
+   "certs": [],
+   "project": {
+    "title": "RISC-V assembly programs",
+    "deliverable": "GitHub repo of 6 RISC-V assembly programs (string, sort, recursion) run on a simulator",
+    "linkedin_line": "Wrote and ran RISC-V assembly programs on a simulator, mapping C to machine code."
+   },
+   "contracts": [
+    {
+     "id": "arch.found.asm",
+     "title": "First RISC-V assembly",
+     "minutes": 40,
+     "context": "CS61C RISC-V reading; use the Venus web simulator.",
+     "steps": [
+      "Write a loop that sums 1..n",
+      "Translate a C if/else to branches",
+      "Watch the registers change"
+     ],
+     "hint": "add/addi/beq/blt; x0 is always zero.",
+     "success_check": "Venus shows the correct sum in a register",
+     "xp": 8
+    },
+    {
+     "id": "arch.found.cache",
+     "title": "Why caches exist",
+     "minutes": 35,
+     "context": "CS61C caches lecture.",
+     "steps": [
+      "Compute hit rate for a given access pattern",
+      "Explain spatial vs temporal locality",
+      "State the AMAT formula"
+     ],
+     "hint": "AMAT = hit time + miss rate * miss penalty.",
+     "success_check": "You compute AMAT for sample numbers",
+     "xp": 8
+    },
+    {
+     "id": "arch.found.datapath",
+     "title": "Single-cycle datapath",
+     "minutes": 40,
+     "context": "ETH DDCA single-cycle lecture (also a backup for this branch).",
+     "steps": [
+      "Trace an add instruction through the datapath",
+      "Mark which control signals are set",
+      "Note where the critical path is"
+     ],
+     "hint": "Fetch, decode, execute, memory, writeback; control drives the muxes.",
+     "success_check": "You can walk one instruction through every stage",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "arch.riscv_isa",
+   "name": "RISC-V ISA",
+   "branch": "architecture",
+   "tier": 2,
+   "prereqs": [
+    "arch.foundations"
+   ],
+   "outcomes": [
+    "Know RV32I + M cold",
+    "Navigate the RISC-V spec",
+    "Earn a free, verifiable RISC-V badge"
+   ],
+   "hours_est": 18,
+   "resources": [
+    "car.lfd110",
+    "car.riscv_spec"
+   ],
+   "certs": [
+    "lf.lfd110"
+   ],
+   "project": {
+    "title": "LFD110 badge + ISA notes",
+    "deliverable": "LinkedIn Credly badge plus a GitHub cheat-sheet of RV32I instruction formats",
+    "linkedin_line": "Earned the Linux Foundation RISC-V (LFD110) badge and published an ISA cheat-sheet."
+   },
+   "contracts": [
+    {
+     "id": "arch.isa.formats",
+     "title": "Instruction formats",
+     "minutes": 40,
+     "context": "LFD110 module on the ISA; keep the spec open.",
+     "steps": [
+      "Hand-encode add, lw, beq to hex",
+      "Identify R/I/S/B types",
+      "Decode one word back to assembly"
+     ],
+     "hint": "Opcode + funct3/funct7 pick the operation; immediates are split in S/B.",
+     "success_check": "Your hex matches the Venus assembler",
+     "xp": 8
+    },
+    {
+     "id": "arch.isa.badge",
+     "title": "Pass the LFD110 exam",
+     "minutes": 30,
+     "context": "Finish the LFD110 course quizzes.",
+     "steps": [
+      "Take the final exam (need 70%)",
+      "Claim the Credly badge",
+      "Post it with one honest sentence"
+     ],
+     "hint": "70% passes; retakes are allowed.",
+     "success_check": "Badge is on your LinkedIn and linked from your GitHub",
+     "xp": 6
+    }
+   ]
+  },
+  {
+   "id": "arch.riscv_core",
+   "name": "Build a RISC-V CPU core",
+   "branch": "architecture",
+   "tier": 3,
+   "prereqs": [
+    "arch.riscv_isa",
+    "hdl.rtl_design_style"
+   ],
+   "outcomes": [
+    "Implement a pipelined RV32I core",
+    "Handle hazards and forwarding",
+    "Show a working CPU on GitHub"
+   ],
+   "hours_est": 35,
+   "resources": [
+    "car.lfd111",
+    "car.learn_fpga_levy"
+   ],
+   "certs": [
+    "lf.lfd111"
+   ],
+   "project": {
+    "title": "rv32i-core",
+    "deliverable": "GitHub pipelined RV32I core that runs a compiled C program in simulation, with a testbench",
+    "linkedin_line": "Built a pipelined RV32I CPU core from scratch that runs compiled C in simulation."
+   },
+   "contracts": [
+    {
+     "id": "arch.core.alu",
+     "title": "ALU + register file",
+     "minutes": 45,
+     "context": "LFD111 early modules in Makerchip.",
+     "steps": [
+      "Build the ALU for add/sub/and/or/slt",
+      "Build a 32x32 register file (x0=0)",
+      "Test both standalone"
+     ],
+     "hint": "x0 reads as zero no matter what is written.",
+     "success_check": "ALU and regfile pass directed tests",
+     "xp": 10
+    },
+    {
+     "id": "arch.core.hazard",
+     "title": "Hazards and forwarding",
+     "minutes": 45,
+     "context": "learn-fpga notes on the pipeline, as the backup path.",
+     "steps": [
+      "Create a data hazard with two dependent adds",
+      "Add forwarding for EX/MEM->EX",
+      "Verify the result is correct"
+     ],
+     "hint": "Forward the newer value from a later stage instead of stalling.",
+     "success_check": "The dependent sequence gives the right register value",
+     "xp": 12
+    }
+   ]
+  },
+  {
+   "id": "arch.microarch_advanced",
+   "name": "Advanced microarchitecture",
+   "branch": "architecture",
+   "tier": 4,
+   "prereqs": [
+    "arch.riscv_core",
+    "prog.cpp"
+   ],
+   "outcomes": [
+    "Reason about OoO, branch prediction, multicore, coherence",
+    "Use a simulator to study trade-offs",
+    "Carry a strong architecture interview"
+   ],
+   "hours_est": 50,
+   "resources": [
+    "car.nptel_comp_arch_iitm",
+    "car.mit_6823",
+    "car.gem5_learning"
+   ],
+   "certs": [
+    "nptel.comp_arch_iitm"
+   ],
+   "project": {
+    "title": "gem5 micro-study",
+    "deliverable": "GitHub report + configs studying cache size / branch predictor impact in gem5 with plots",
+    "linkedin_line": "Ran a gem5 microarchitecture study (caches, branch prediction) with measured results and plots."
+   },
+   "contracts": [
+    {
+     "id": "arch.ua.gem5",
+     "title": "Run gem5",
+     "minutes": 45,
+     "context": "Follow Learning gem5 part 1.",
+     "steps": [
+      "Build gem5 (or use a prebuilt)",
+      "Run a simple binary in SE mode",
+      "Find IPC in stats.txt"
+     ],
+     "hint": "stats.txt holds every counter; grep for ipc.",
+     "success_check": "You report IPC for one run",
+     "xp": 10
+    },
+    {
+     "id": "arch.ua.sweep",
+     "title": "Sweep a parameter",
+     "minutes": 45,
+     "context": "Learning gem5 config section.",
+     "steps": [
+      "Sweep L1 size over 3 values",
+      "Plot miss rate vs size",
+      "Write one paragraph of conclusions"
+     ],
+     "hint": "Change the cache param in the config script, re-run, collect stats.",
+     "success_check": "A plot plus a short, honest conclusion in the README",
+     "xp": 10
+    },
+    {
+     "id": "arch.ua.bp",
+     "title": "Branch prediction",
+     "minutes": 40,
+     "context": "NPTEL ILP/branch lectures.",
+     "steps": [
+      "Compare two predictors in gem5",
+      "Explain a 2-bit saturating counter",
+      "Relate misprediction to IPC"
+     ],
+     "hint": "A taken/not-taken counter saturates before it flips.",
+     "success_check": "You show which predictor won and why",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "arch.soc_bus",
+   "name": "SoC integration & buses",
+   "branch": "architecture",
+   "tier": 3,
+   "prereqs": [
+    "hdl.systemverilog",
+    "arch.foundations"
+   ],
+   "outcomes": [
+    "Integrate IP over AXI/APB",
+    "Build a simple SoC fabric",
+    "Speak to SoC-integration roles (InCore-style)"
+   ],
+   "hours_est": 16,
+   "resources": [
+    "car.arm_amba",
+    "car.amd_ug1037"
+   ],
+   "certs": [],
+   "project": {
+    "title": "mini-SoC",
+    "deliverable": "GitHub RV32I core + AXI-Lite interconnect + a peripheral (GPIO/UART), booting a tiny program",
+    "linkedin_line": "Integrated a RISC-V core, AXI-Lite interconnect and peripherals into a mini-SoC."
+   },
+   "contracts": [
+    {
+     "id": "arch.soc.axi",
+     "title": "AXI-Lite handshake",
+     "minutes": 40,
+     "context": "Read the AMD UG1037 AXI handshake section.",
+     "steps": [
+      "Draw the VALID/READY handshake",
+      "Write the read-channel timing",
+      "List the 5 AXI channels"
+     ],
+     "hint": "Transfer happens on the cycle both VALID and READY are high.",
+     "success_check": "You can draw a correct read and write handshake",
+     "xp": 8
+    },
+    {
+     "id": "arch.soc.map",
+     "title": "Address map",
+     "minutes": 35,
+     "context": "AMBA APB chapter for the decode idea.",
+     "steps": [
+      "Assign base addresses to 3 peripherals",
+      "Write the address decoder",
+      "Route one write to the right slave"
+     ],
+     "hint": "Decode the upper address bits to select a slave.",
+     "success_check": "A write lands in the correct peripheral in simulation",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "fpga.basics",
+   "name": "FPGA prototyping",
+   "branch": "fpga",
+   "tier": 3,
+   "prereqs": [
+    "hdl.rtl_design_style"
+   ],
+   "outcomes": [
+    "Take RTL onto an FPGA (or sim) with constraints",
+    "Debug on hardware",
+    "Show working demos"
+   ],
+   "hours_est": 20,
+   "resources": [
+    "car.nandland",
+    "car.projectf"
+   ],
+   "certs": [],
+   "project": {
+    "title": "FPGA demo",
+    "deliverable": "GitHub project driving UART + 7-seg (or VGA) on a cheap FPGA, with a short demo video/GIF",
+    "linkedin_line": "Brought an RTL design onto an FPGA with UART and display output."
+   },
+   "contracts": [
+    {
+     "id": "fpga.basics.flow",
+     "title": "Synthesise and constrain",
+     "minutes": 40,
+     "context": "Nandland FPGA getting-started tutorial.",
+     "steps": [
+      "Blink an LED from RTL",
+      "Write the pin constraints",
+      "Explain what the bitstream is"
+     ],
+     "hint": "Constraints map top-level ports to physical pins.",
+     "success_check": "LED blinks on hardware or in the vendor simulator",
+     "xp": 8
+    },
+    {
+     "id": "fpga.basics.uart",
+     "title": "UART on FPGA",
+     "minutes": 40,
+     "context": "Nandland UART tutorial.",
+     "steps": [
+      "Instantiate your UART from hdl.rtl_design_style",
+      "Echo a typed character back",
+      "Capture it on a terminal"
+     ],
+     "hint": "Baud = clock / divisor; sample mid-bit.",
+     "success_check": "Typing in a terminal echoes back through the FPGA",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "fpga.hls",
+   "name": "High-level synthesis",
+   "branch": "fpga",
+   "tier": 4,
+   "prereqs": [
+    "fpga.basics",
+    "prog.cpp"
+   ],
+   "outcomes": [
+    "Write C/C++ that synthesises to hardware",
+    "Use pipeline/unroll/partition pragmas",
+    "Bridge software and RTL for accelerators"
+   ],
+   "hours_est": 25,
+   "resources": [
+    "car.kastner_hls_book",
+    "car.vitis_tutorials"
+   ],
+   "certs": [],
+   "project": {
+    "title": "HLS FIR/matmul accelerator",
+    "deliverable": "GitHub HLS matrix-multiply or FIR with a pragma-tuning table (II, latency, resources)",
+    "linkedin_line": "Accelerated matrix-multiply with HLS and documented the pipeline/unroll trade-offs."
+   },
+   "contracts": [
+    {
+     "id": "fpga.hls.pipeline",
+     "title": "Pipeline a loop",
+     "minutes": 45,
+     "context": "Read the Kastner HLS book chapter on pipelining.",
+     "steps": [
+      "Write a FIR filter in C",
+      "Add #pragma HLS pipeline",
+      "Record II before and after"
+     ],
+     "hint": "Pipelining lowers the initiation interval toward 1.",
+     "success_check": "You report II dropping after the pragma",
+     "xp": 10
+    },
+    {
+     "id": "fpga.hls.array",
+     "title": "Partition memory",
+     "minutes": 40,
+     "context": "Kastner chapter on array partitioning.",
+     "steps": [
+      "Partition the coefficient array",
+      "Observe the resource/throughput change",
+      "Note the BRAM vs FF trade-off"
+     ],
+     "hint": "Partitioning gives parallel ports at the cost of resources.",
+     "success_check": "A table shows the throughput gain and resource cost",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "pd.synthesis",
+   "name": "Logic synthesis",
+   "branch": "implementation",
+   "tier": 3,
+   "prereqs": [
+    "hdl.rtl_design_style"
+   ],
+   "outcomes": [
+    "Synthesise RTL to a gate netlist",
+    "Read area/timing reports",
+    "Run open-source Yosys"
+   ],
+   "hours_est": 30,
+   "resources": [
+    "car.nptel_vlsi_flow_front",
+    "car.yosys_docs"
+   ],
+   "certs": [
+    "nptel.vlsi_design_flow"
+   ],
+   "project": {
+    "title": "synth report study",
+    "deliverable": "GitHub repo synthesising a design with Yosys across constraints, with an area/timing table",
+    "linkedin_line": "Synthesised RTL to gates with Yosys and analysed area/timing trade-offs."
+   },
+   "contracts": [
+    {
+     "id": "pd.synth.yosys",
+     "title": "First synthesis",
+     "minutes": 40,
+     "context": "NPTEL VLSI Design Flow week 4 (RTL synthesis) + Yosys docs.",
+     "steps": [
+      "Synthesise your ALU with Yosys",
+      "Run 'stat' for gate/area counts",
+      "Map to a liberty cell library"
+     ],
+     "hint": "read_verilog; synth; abc -liberty lib; stat.",
+     "success_check": "You get a gate count and cell list",
+     "xp": 10
+    },
+    {
+     "id": "pd.synth.opt",
+     "title": "Area vs delay",
+     "minutes": 35,
+     "context": "NPTEL week 5 (logic optimisation).",
+     "steps": [
+      "Synthesise once for area, once for speed",
+      "Compare the two reports",
+      "Explain one optimisation Yosys did"
+     ],
+     "hint": "Constraints steer the tool toward area or timing.",
+     "success_check": "You can name the trade-off you saw",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "pd.sta",
+   "name": "Static timing analysis",
+   "branch": "implementation",
+   "tier": 3,
+   "prereqs": [
+    "pd.synthesis"
+   ],
+   "outcomes": [
+    "Run STA and read slack reports",
+    "Write SDC constraints",
+    "Fix setup/hold violations"
+   ],
+   "hours_est": 20,
+   "resources": [
+    "car.nptel_vlsi_flow_sta",
+    "car.opensta"
+   ],
+   "certs": [
+    "nptel.vlsi_design_flow"
+   ],
+   "project": {
+    "title": "STA fix log",
+    "deliverable": "GitHub repo with a failing path, the SDC, and the RTL change that closed timing, documented",
+    "linkedin_line": "Closed a timing violation using OpenSTA and documented the before/after slack."
+   },
+   "contracts": [
+    {
+     "id": "pd.sta.sdc",
+     "title": "Write an SDC",
+     "minutes": 40,
+     "context": "NPTEL VLSI Design Flow week 8 (constraints).",
+     "steps": [
+      "create_clock on your design",
+      "Set input/output delays",
+      "Report the worst path"
+     ],
+     "hint": "create_clock -period 10 [get_ports clk].",
+     "success_check": "report_checks shows a real slack number",
+     "xp": 10
+    },
+    {
+     "id": "pd.sta.fix",
+     "title": "Close a violation",
+     "minutes": 40,
+     "context": "NPTEL STA week 7 + OpenSTA examples.",
+     "steps": [
+      "Tighten the clock until a path fails",
+      "Read the slack breakdown",
+      "Pipeline or simplify to fix it"
+     ],
+     "hint": "Negative slack = too slow; cut logic depth or add a register.",
+     "success_check": "Slack goes from negative to positive and you logged the change",
+     "xp": 12
+    }
+   ]
+  },
+  {
+   "id": "pd.physical_design",
+   "name": "Physical design (RTL-to-GDS)",
+   "branch": "implementation",
+   "tier": 4,
+   "prereqs": [
+    "pd.sta"
+   ],
+   "outcomes": [
+    "Run floorplan, placement, CTS, routing",
+    "Take a design to GDS with open tools",
+    "Read physical-verification sign-off"
+   ],
+   "hours_est": 25,
+   "resources": [
+    "car.nptel_vlsi_flow_pd",
+    "car.openlane2_docs"
+   ],
+   "certs": [
+    "nptel.vlsi_design_flow",
+    "nptel.vlsi_physical_design",
+    "vsd.courses",
+    "chipedge.vlsi"
+   ],
+   "project": {
+    "title": "RTL-to-GDS run",
+    "deliverable": "GitHub OpenLane run of a small design with floorplan/route screenshots and sign-off reports",
+    "linkedin_line": "Took a design from RTL to GDS with OpenLane and SKY130 and read the sign-off reports."
+   },
+   "contracts": [
+    {
+     "id": "pd.phys.openlane",
+     "title": "First OpenLane run",
+     "minutes": 45,
+     "context": "NPTEL weeks 10-12 + OpenLane 2 quickstart.",
+     "steps": [
+      "Run OpenLane on a simple design",
+      "Find the GDS output",
+      "Open the layout viewer"
+     ],
+     "hint": "Configure the design, run the flow, inspect runs/ for reports.",
+     "success_check": "A GDS file exists and you viewed the layout",
+     "xp": 12
+    },
+    {
+     "id": "pd.phys.reports",
+     "title": "Read sign-off",
+     "minutes": 40,
+     "context": "OpenLane docs on reports.",
+     "steps": [
+      "Find the DRC/LVS results",
+      "Locate the final timing",
+      "Note core utilisation"
+     ],
+     "hint": "LVS compares layout to netlist; DRC checks geometry rules.",
+     "success_check": "You can state DRC/LVS pass and the utilisation",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "pd.dft",
+   "name": "Design for test (DFT)",
+   "branch": "implementation",
+   "tier": 3,
+   "prereqs": [
+    "pd.synthesis"
+   ],
+   "outcomes": [
+    "Insert scan chains",
+    "Understand fault models, ATPG, BIST",
+    "Speak to DFT roles"
+   ],
+   "hours_est": 30,
+   "resources": [
+    "car.nptel_vlsi_testing",
+    "car.nptel_vlsi_flow_dft"
+   ],
+   "certs": [
+    "nptel.digital_vlsi_testing"
+   ],
+   "project": {
+    "title": "scan + ATPG note",
+    "deliverable": "GitHub write-up inserting a scan chain on a small design and explaining the ATPG pattern count",
+    "linkedin_line": "Inserted scan and analysed ATPG fault coverage on a small design."
+   },
+   "contracts": [
+    {
+     "id": "pd.dft.fault",
+     "title": "Stuck-at faults",
+     "minutes": 35,
+     "context": "NPTEL Digital VLSI Testing: fault models.",
+     "steps": [
+      "List stuck-at-0/1 faults for a gate",
+      "Find a test vector that detects one",
+      "Define fault coverage"
+     ],
+     "hint": "A test detects a fault if the output differs from fault-free.",
+     "success_check": "You produce a detecting vector and define coverage",
+     "xp": 8
+    },
+    {
+     "id": "pd.dft.scan",
+     "title": "Scan chain idea",
+     "minutes": 35,
+     "context": "NPTEL scan design lecture.",
+     "steps": [
+      "Convert FFs to scan FFs on paper",
+      "Draw the scan-in/scan-out chain",
+      "Explain shift vs capture"
+     ],
+     "hint": "Scan stitches flip-flops into a shift register for test access.",
+     "success_check": "You can draw the chain and name both modes",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "pd.tapeout",
+   "name": "Tape out a chip",
+   "branch": "implementation",
+   "tier": 5,
+   "prereqs": [
+    "pd.physical_design"
+   ],
+   "outcomes": [
+    "Submit a real design to a shuttle",
+    "Harden a design through CI",
+    "Show silicon-level proof"
+   ],
+   "hours_est": 60,
+   "resources": [
+    "car.tinytapeout_docs",
+    "car.sscs_pico"
+   ],
+   "certs": [
+    "tinytapeout.tile",
+    "sscs.pico"
+   ],
+   "project": {
+    "title": "taped-out tile",
+    "deliverable": "GitHub Tiny Tapeout project (passing GDS in CI), ready to submit or already on a shuttle",
+    "linkedin_line": "Hardened a design through Tiny Tapeout's flow to a submittable GDS (a taped-out tile)."
+   },
+   "contracts": [
+    {
+     "id": "pd.tape.template",
+     "title": "Clone the template",
+     "minutes": 40,
+     "context": "Read the Tiny Tapeout digital design guide.",
+     "steps": [
+      "Fork the TT template repo",
+      "Drop in your design within the tile limits",
+      "Push and watch the CI harden it"
+     ],
+     "hint": "The GitHub Action runs the flow; green means a valid GDS.",
+     "success_check": "CI produces a GDS and a rendered layout",
+     "xp": 10
+    },
+    {
+     "id": "pd.tape.plan",
+     "title": "Plan a submission",
+     "minutes": 35,
+     "context": "Tiny Tapeout pricing/calculator + SSCS PICO page.",
+     "steps": [
+      "Check which shuttle is open and its deadline",
+      "Estimate tiles and cost on the calculator",
+      "Decide: pay, wait for PICO, or keep it as a verified GDS"
+     ],
+     "hint": "A hardened GDS in CI is strong proof even before you pay to fabricate.",
+     "success_check": "You have a dated plan (shuttle, cost, or PICO timeline)",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "dev.semiconductor",
+   "name": "Semiconductor device physics",
+   "branch": "devices",
+   "tier": 2,
+   "prereqs": [
+    "math.calculus"
+   ],
+   "outcomes": [
+    "Explain carriers, pn junction, MOS capacitor, MOSFET",
+    "Connect device physics to circuit behaviour",
+    "Support MS-Germany / GATE prep"
+   ],
+   "hours_est": 40,
+   "resources": [
+    "car.nptel_semidev_iisc",
+    "car.nptel_microelectronics_roorkee"
+   ],
+   "certs": [
+    "nptel.semiconductor_devices"
+   ],
+   "project": {
+    "title": "device notes + I-V plots",
+    "deliverable": "GitHub notes deriving MOSFET I-V with plotted curves from a simple model in Python",
+    "linkedin_line": "Published derived MOSFET I-V characteristics with Python-plotted curves."
+   },
+   "contracts": [
+    {
+     "id": "dev.semi.pn",
+     "title": "pn junction",
+     "minutes": 40,
+     "context": "NPTEL Semiconductor Devices: pn junction lectures.",
+     "steps": [
+      "Sketch the depletion region and built-in potential",
+      "Explain forward vs reverse bias",
+      "Write the diode equation"
+     ],
+     "hint": "Built-in field opposes diffusion; bias tilts the balance.",
+     "success_check": "You can sketch and explain both bias directions",
+     "xp": 8
+    },
+    {
+     "id": "dev.semi.mos",
+     "title": "MOS capacitor to MOSFET",
+     "minutes": 45,
+     "context": "NPTEL MOS capacitor + MOSFET lectures.",
+     "steps": [
+      "Explain accumulation/depletion/inversion",
+      "Define threshold voltage",
+      "Plot Id vs Vgs in Python"
+     ],
+     "hint": "Inversion forms the channel once Vgs exceeds Vt.",
+     "success_check": "Your Id-Vgs plot shows a clear threshold",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "dev.fab_process",
+   "name": "Fabrication & process",
+   "branch": "devices",
+   "tier": 2,
+   "prereqs": [
+    "dev.semiconductor"
+   ],
+   "outcomes": [
+    "Explain CMOS process flow",
+    "Know lithography, implantation, oxidation, etch",
+    "Speak to fab/process roles (Dholera, Micron Sanand)"
+   ],
+   "hours_est": 30,
+   "resources": [
+    "car.nptel_vlsi_tech_iitm",
+    "car.mit_6152j"
+   ],
+   "certs": [
+    "nptel.vlsi_technology"
+   ],
+   "project": {
+    "title": "CMOS process flow poster",
+    "deliverable": "GitHub illustrated step-by-step CMOS inverter fabrication flow",
+    "linkedin_line": "Documented the full CMOS inverter fabrication flow step by step."
+   },
+   "contracts": [
+    {
+     "id": "dev.fab.flow",
+     "title": "CMOS flow",
+     "minutes": 40,
+     "context": "NPTEL VLSI Technology: process integration lectures.",
+     "steps": [
+      "List the steps to make a CMOS inverter",
+      "Mark where each mask is used",
+      "Explain self-aligned gate"
+     ],
+     "hint": "Well -> active -> gate -> implant -> contacts -> metal.",
+     "success_check": "Your flow names each mask and step in order",
+     "xp": 8
+    },
+    {
+     "id": "dev.fab.litho",
+     "title": "Lithography limits",
+     "minutes": 30,
+     "context": "NPTEL lithography lecture.",
+     "steps": [
+      "Write the resolution/wavelength relation",
+      "Explain why EUV matters",
+      "Define overlay"
+     ],
+     "hint": "Smaller features need shorter wavelength or tricks (multi-patterning).",
+     "success_check": "You can explain the wavelength-resolution link",
+     "xp": 6
+    }
+   ]
+  },
+  {
+   "id": "ana.circuits",
+   "name": "Analog circuits",
+   "branch": "analog",
+   "tier": 2,
+   "prereqs": [
+    "dev.semiconductor",
+    "math.calculus"
+   ],
+   "outcomes": [
+    "Analyse amplifiers, biasing, feedback, op-amps",
+    "Do small-signal analysis",
+    "Read analog datasheets"
+   ],
+   "hours_est": 40,
+   "resources": [
+    "car.nptel_analog_iitd",
+    "car.mit_6002"
+   ],
+   "certs": [
+    "nptel.analog_circuits"
+   ],
+   "project": {
+    "title": "amplifier analysis set",
+    "deliverable": "GitHub worked small-signal analyses of 4 amplifier stages with SPICE plots",
+    "linkedin_line": "Worked through small-signal analysis of amplifier stages with SPICE verification."
+   },
+   "contracts": [
+    {
+     "id": "ana.circ.ss",
+     "title": "Small-signal model",
+     "minutes": 45,
+     "context": "NPTEL Analog: small-signal lectures.",
+     "steps": [
+      "Draw the small-signal model of a CS amplifier",
+      "Derive the gain",
+      "Check the sign"
+     ],
+     "hint": "gm and ro set the gain; -gm*ro for a simple CS stage.",
+     "success_check": "Your derived gain matches a SPICE sweep",
+     "xp": 10
+    },
+    {
+     "id": "ana.circ.opamp",
+     "title": "Op-amp basics",
+     "minutes": 35,
+     "context": "NPTEL op-amp lectures.",
+     "steps": [
+      "Analyse an inverting amplifier",
+      "Explain virtual short",
+      "State one real-world non-ideality"
+     ],
+     "hint": "Ideal op-amp: inputs draw no current, Vin+ = Vin-.",
+     "success_check": "You compute the gain and name a non-ideality",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "ana.cmos_vlsi",
+   "name": "CMOS digital VLSI",
+   "branch": "analog",
+   "tier": 3,
+   "prereqs": [
+    "dig.logic",
+    "dev.semiconductor"
+   ],
+   "outcomes": [
+    "Analyse CMOS inverter delay, power, noise margins",
+    "Size gates with logical effort",
+    "Understand static vs dynamic logic"
+   ],
+   "hours_est": 40,
+   "resources": [
+    "car.nptel_cmos_vlsi_roorkee",
+    "car.nptel_vlsi_circuits_iitm"
+   ],
+   "certs": [
+    "nptel.cmos_digital_vlsi"
+   ],
+   "project": {
+    "title": "inverter characterisation",
+    "deliverable": "GitHub SPICE study of inverter VTC, delay and power vs sizing, with plots",
+    "linkedin_line": "Characterised a CMOS inverter's delay, power and noise margins in SPICE."
+   },
+   "contracts": [
+    {
+     "id": "ana.cmos.vtc",
+     "title": "Inverter VTC",
+     "minutes": 40,
+     "context": "NPTEL CMOS: inverter lectures.",
+     "steps": [
+      "Simulate the inverter transfer curve",
+      "Extract switching threshold",
+      "Find the noise margins"
+     ],
+     "hint": "VM is where Vout=Vin; noise margins come from the VTC corners.",
+     "success_check": "You report VM and both noise margins",
+     "xp": 10
+    },
+    {
+     "id": "ana.cmos.le",
+     "title": "Logical effort",
+     "minutes": 40,
+     "context": "NPTEL VLSI Circuits sizing lectures (backup).",
+     "steps": [
+      "Compute logical effort of NAND vs inverter",
+      "Size a 3-stage path",
+      "Explain the delay units"
+     ],
+     "hint": "Delay = g*h + p, in units of an inverter delay.",
+     "success_check": "You size a path and justify it",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "ana.analog_ic",
+   "name": "Analog IC design",
+   "branch": "analog",
+   "tier": 4,
+   "prereqs": [
+    "ana.circuits",
+    "ana.cmos_vlsi"
+   ],
+   "outcomes": [
+    "Design current mirrors, diff pairs, a two-stage op-amp",
+    "Compensate for stability",
+    "Use an open PDK in SPICE"
+   ],
+   "hours_est": 40,
+   "resources": [
+    "car.nptel_analog_ic_iitm",
+    "car.xschem_sky130"
+   ],
+   "certs": [],
+   "project": {
+    "title": "two-stage op-amp on SKY130",
+    "deliverable": "GitHub two-stage op-amp schematic + ngspice results (gain, phase margin) on the open PDK",
+    "linkedin_line": "Designed a compensated two-stage op-amp on the SKY130 open PDK with measured gain and phase margin."
+   },
+   "contracts": [
+    {
+     "id": "ana.aic.mirror",
+     "title": "Current mirror",
+     "minutes": 40,
+     "context": "NPTEL Analog IC: current mirror lectures.",
+     "steps": [
+      "Build a simple mirror in xschem/ngspice",
+      "Measure the mirrored current",
+      "Note the output resistance"
+     ],
+     "hint": "Matched transistors mirror the reference current.",
+     "success_check": "Mirrored current tracks the reference in simulation",
+     "xp": 10
+    },
+    {
+     "id": "ana.aic.opamp",
+     "title": "Diff pair to op-amp",
+     "minutes": 45,
+     "context": "NPTEL two-stage op-amp lectures.",
+     "steps": [
+      "Build the differential pair",
+      "Add the second stage + Miller cap",
+      "Measure gain and phase margin"
+     ],
+     "hint": "The Miller capacitor sets the dominant pole for stability.",
+     "success_check": "Phase margin is positive and gain is as designed",
+     "xp": 12
+    }
+   ]
+  },
+  {
+   "id": "emb.mcu_c",
+   "name": "Microcontrollers & embedded C",
+   "branch": "embedded",
+   "tier": 2,
+   "prereqs": [
+    "prog.c",
+    "dig.logic"
+   ],
+   "outcomes": [
+    "Program an MCU bare-metal (GPIO, timers, interrupts, UART/SPI/I2C)",
+    "Read datasheets and reference manuals",
+    "Debug on real hardware"
+   ],
+   "hours_est": 30,
+   "resources": [
+    "car.nptel_embedded_arm_kgp",
+    "car.esp_idf_docs"
+   ],
+   "certs": [
+    "nptel.embedded_arm"
+   ],
+   "project": {
+    "title": "sensor logger on ESP32-S3",
+    "deliverable": "GitHub firmware reading a sensor over I2C/SPI and streaming over UART, on the board he owns",
+    "linkedin_line": "Wrote bare-metal firmware for an ESP32-S3 reading sensors over I2C and streaming over UART."
+   },
+   "contracts": [
+    {
+     "id": "emb.mcu.gpio",
+     "title": "Blink from registers",
+     "minutes": 35,
+     "context": "ESP-IDF GPIO docs (he already has the S3).",
+     "steps": [
+      "Toggle a GPIO from code",
+      "Add a timer-based blink",
+      "Read a button with debounce"
+     ],
+     "hint": "Set direction, then write the output register in a loop.",
+     "success_check": "LED blinks on a timer and the button is read cleanly",
+     "xp": 8
+    },
+    {
+     "id": "emb.mcu.bus",
+     "title": "Talk to a sensor",
+     "minutes": 45,
+     "context": "ESP-IDF I2C/SPI docs.",
+     "steps": [
+      "Init I2C and scan for a device",
+      "Read a register from a sensor",
+      "Print the value over UART"
+     ],
+     "hint": "I2C: start, address+R/W, register, repeated start, read.",
+     "success_check": "A real sensor value prints over serial",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "emb.iot_rtos",
+   "name": "RTOS & IoT",
+   "branch": "embedded",
+   "tier": 3,
+   "prereqs": [
+    "emb.mcu_c"
+   ],
+   "outcomes": [
+    "Use an RTOS (tasks, queues, semaphores)",
+    "Connect devices with MQTT/CoAP",
+    "Design small networked systems"
+   ],
+   "hours_est": 25,
+   "resources": [
+    "car.freertos_book",
+    "car.nptel_iot_kgp"
+   ],
+   "certs": [
+    "nptel.iot"
+   ],
+   "project": {
+    "title": "MQTT sensor node",
+    "deliverable": "GitHub FreeRTOS firmware publishing sensor data over MQTT with a task/queue design",
+    "linkedin_line": "Built a FreeRTOS sensor node publishing over MQTT with a clean task/queue design."
+   },
+   "contracts": [
+    {
+     "id": "emb.rtos.task",
+     "title": "Tasks and queues",
+     "minutes": 40,
+     "context": "Mastering FreeRTOS: tasks and queues chapters.",
+     "steps": [
+      "Create two tasks at different priorities",
+      "Pass data through a queue",
+      "Observe preemption"
+     ],
+     "hint": "A higher-priority ready task preempts a lower one.",
+     "success_check": "Producer task feeds a consumer task via a queue",
+     "xp": 10
+    },
+    {
+     "id": "emb.rtos.mqtt",
+     "title": "Publish over MQTT",
+     "minutes": 40,
+     "context": "NPTEL IoT MQTT lecture + your MCU stack.",
+     "steps": [
+      "Connect to a broker",
+      "Publish a sensor reading on a topic",
+      "Subscribe from your laptop"
+     ],
+     "hint": "MQTT: connect, publish to a topic, a client subscribes.",
+     "success_check": "Your laptop sees the device's messages",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "dsa.foundations",
+   "name": "Data structures & algorithms",
+   "branch": "dsa",
+   "tier": 2,
+   "prereqs": [
+    "prog.python",
+    "math.discrete"
+   ],
+   "outcomes": [
+    "Know core data structures and algorithms with complexity",
+    "Solve medium problems reliably",
+    "Pass DSA screening rounds"
+   ],
+   "hours_est": 50,
+   "resources": [
+    "car.nptel_pdsa",
+    "car.cp_handbook"
+   ],
+   "certs": [
+    "nptel.pdsa_python"
+   ],
+   "project": {
+    "title": "DSA solutions repo",
+    "deliverable": "GitHub repo of solved problems grouped by pattern, each with a complexity note",
+    "linkedin_line": "Published a pattern-organised DSA solutions repo with complexity analysis."
+   },
+   "contracts": [
+    {
+     "id": "dsa.found.complexity",
+     "title": "Big-O by hand",
+     "minutes": 35,
+     "context": "NPTEL PDSA complexity lecture.",
+     "steps": [
+      "State the complexity of 3 loops you write",
+      "Explain O(n log n) sorting",
+      "Compare array vs list ops"
+     ],
+     "hint": "Nested loops multiply; halving each step gives log n.",
+     "success_check": "You label each snippet with correct Big-O",
+     "xp": 8
+    },
+    {
+     "id": "dsa.found.hash",
+     "title": "Hashing patterns",
+     "minutes": 40,
+     "context": "cp_handbook chapter on data structures (backup).",
+     "steps": [
+      "Solve two-sum with a dict",
+      "Detect duplicates in O(n)",
+      "State the space cost"
+     ],
+     "hint": "Store seen values in a dict for O(1) lookup.",
+     "success_check": "Both problems solved in linear time",
+     "xp": 8
+    },
+    {
+     "id": "dsa.found.graph",
+     "title": "BFS/DFS",
+     "minutes": 45,
+     "context": "NPTEL PDSA graph lectures.",
+     "steps": [
+      "Implement BFS on an adjacency list",
+      "Find shortest path in an unweighted graph",
+      "Explain the queue's role"
+     ],
+     "hint": "BFS uses a queue and visits level by level.",
+     "success_check": "BFS returns correct distances on a sample graph",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "dsa.interview",
+   "name": "Interview problem solving",
+   "branch": "dsa",
+   "tier": 3,
+   "prereqs": [
+    "dsa.foundations",
+    "prog.cpp"
+   ],
+   "outcomes": [
+    "Solve LeetCode-medium under time pressure",
+    "Recognise patterns fast",
+    "Handle bit-manipulation and design questions common in hardware interviews"
+   ],
+   "hours_est": 80,
+   "resources": [
+    "car.neetcode",
+    "car.cses",
+    "car.leetcode",
+    "car.bit_hacks"
+   ],
+   "certs": [
+    "nptel.pdsa_python"
+   ],
+   "project": {
+    "title": "150-problem streak",
+    "deliverable": "GitHub log of NeetCode-150 progress + a page of bit-manipulation problems for hardware roles",
+    "linkedin_line": "Worked through the NeetCode 150 with a focus on bit-manipulation for hardware interviews."
+   },
+   "contracts": [
+    {
+     "id": "dsa.iv.pattern",
+     "title": "One pattern a day",
+     "minutes": 45,
+     "context": "NeetCode roadmap: pick the next unlocked pattern.",
+     "steps": [
+      "Watch the pattern explainer",
+      "Solve 2 problems in that pattern",
+      "Re-solve one from memory tomorrow"
+     ],
+     "hint": "Patterns (two-pointer, sliding window, BFS) repeat across problems.",
+     "success_check": "2 problems solved and committed with notes",
+     "xp": 10
+    },
+    {
+     "id": "dsa.iv.bits",
+     "title": "Bit tricks for hardware interviews",
+     "minutes": 40,
+     "context": "Bit Twiddling Hacks + LeetCode bit-manipulation tag.",
+     "steps": [
+      "Solve single-number (XOR)",
+      "Count bits for 0..n",
+      "Explain each trick in a comment"
+     ],
+     "hint": "XOR cancels pairs; x & (x-1) clears the lowest set bit.",
+     "success_check": "3 bit problems solved with explained tricks",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "ml.foundations",
+   "name": "Machine learning foundations",
+   "branch": "ml",
+   "tier": 3,
+   "prereqs": [
+    "math.linear_algebra",
+    "math.probability_stats",
+    "prog.python"
+   ],
+   "outcomes": [
+    "Train and evaluate regression/classification models",
+    "Avoid overfitting; validate properly",
+    "Explain the ML workflow"
+   ],
+   "hours_est": 90,
+   "resources": [
+    "car.coursera_ml_spec",
+    "car.islp",
+    "car.nptel_intro_ml_iitm"
+   ],
+   "certs": [
+    "coursera.ml_spec",
+    "nptel.intro_ml",
+    "microsoft.ai_900"
+   ],
+   "project": {
+    "title": "ML from scratch + sklearn",
+    "deliverable": "GitHub repo with linear/logistic regression coded from scratch and an sklearn project with honest metrics",
+    "linkedin_line": "Implemented core ML algorithms from scratch and shipped an evaluated sklearn project."
+   },
+   "contracts": [
+    {
+     "id": "ml.found.linreg",
+     "title": "Linear regression by hand",
+     "minutes": 45,
+     "context": "Machine Learning Specialization course 1 (regression).",
+     "steps": [
+      "Code gradient descent for 1 feature",
+      "Plot the loss going down",
+      "Compare to sklearn's fit"
+     ],
+     "hint": "theta := theta - alpha * gradient; watch the loss curve.",
+     "success_check": "Your weights match sklearn within tolerance",
+     "xp": 10
+    },
+    {
+     "id": "ml.found.eval",
+     "title": "Validate honestly",
+     "minutes": 40,
+     "context": "ISLP chapter on resampling (backup).",
+     "steps": [
+      "Split train/val/test properly",
+      "Report accuracy and one more metric",
+      "Show an over-fit then fix it"
+     ],
+     "hint": "Never tune on the test set; watch train vs val gap.",
+     "success_check": "You demonstrate and fix an overfit case",
+     "xp": 10
+    },
+    {
+     "id": "ml.found.cert",
+     "title": "Claim an ML credential",
+     "minutes": 30,
+     "context": "Finish a Specialization course or register the NPTEL ML exam.",
+     "steps": [
+      "Complete the graded items",
+      "Decide: Coursera certificate (aid) or NPTEL exam",
+      "Add it to LinkedIn with an honest line"
+     ],
+     "hint": "Coursera financial aid covers up to ~90%; NPTEL exam is ~Rs 1,000.",
+     "success_check": "One recognised ML credential is on your profile",
+     "xp": 6
+    }
+   ]
+  },
+  {
+   "id": "ml.practical",
+   "name": "Applied ML & data",
+   "branch": "ml",
+   "tier": 3,
+   "prereqs": [
+    "ml.foundations"
+   ],
+   "outcomes": [
+    "Do end-to-end ML: data, features, model, evaluation",
+    "Work in pandas/sklearn fluently",
+    "Compete on Kaggle"
+   ],
+   "hours_est": 25,
+   "resources": [
+    "car.kaggle_learn"
+   ],
+   "certs": [
+    "kaggle.learn",
+    "aws.mla_c01",
+    "google.pmle"
+   ],
+   "project": {
+    "title": "Kaggle notebook",
+    "deliverable": "A public Kaggle notebook (bronze-level effort) with EDA, features and a validated model",
+    "linkedin_line": "Published a Kaggle notebook with full EDA, feature engineering and validation."
+   },
+   "contracts": [
+    {
+     "id": "ml.prac.pandas",
+     "title": "Pandas on real data",
+     "minutes": 40,
+     "context": "Kaggle Learn Pandas micro-course.",
+     "steps": [
+      "Load a dataset and profile it",
+      "Handle missing values",
+      "Engineer one new feature"
+     ],
+     "hint": "groupby + agg answers most profiling questions.",
+     "success_check": "A clean dataframe and one engineered feature",
+     "xp": 8
+    },
+    {
+     "id": "ml.prac.submit",
+     "title": "First Kaggle submission",
+     "minutes": 45,
+     "context": "Kaggle Learn Intro to ML.",
+     "steps": [
+      "Train a baseline model",
+      "Make a valid submission",
+      "Iterate once to beat the baseline"
+     ],
+     "hint": "Start simple; a validated baseline beats a fancy untested model.",
+     "success_check": "Your submission scores and your second beats the first",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "dl.foundations",
+   "name": "Deep learning foundations",
+   "branch": "deep_learning",
+   "tier": 3,
+   "prereqs": [
+    "ml.foundations"
+   ],
+   "outcomes": [
+    "Understand and train neural nets (backprop, optimisers, regularisation)",
+    "Build autograd intuition",
+    "Read DL papers"
+   ],
+   "hours_est": 40,
+   "resources": [
+    "car.coursera_dl_spec",
+    "car.karpathy_zth"
+   ],
+   "certs": [
+    "coursera.dl_spec",
+    "nptel.deep_learning_ropar"
+   ],
+   "project": {
+    "title": "micrograd + MLP",
+    "deliverable": "GitHub tiny autograd engine and an MLP trained on a toy dataset, from scratch",
+    "linkedin_line": "Built a tiny autograd engine and trained an MLP from scratch to understand backprop."
+   },
+   "contracts": [
+    {
+     "id": "dl.found.backprop",
+     "title": "Backprop by hand",
+     "minutes": 45,
+     "context": "Karpathy micrograd video (backup, but best for this).",
+     "steps": [
+      "Compute gradients for a 2-layer net on paper",
+      "Code a scalar autograd Value class",
+      "Check against finite differences"
+     ],
+     "hint": "Chain rule: each node passes its local gradient backward.",
+     "success_check": "Your autograd matches numerical gradients",
+     "xp": 12
+    },
+    {
+     "id": "dl.found.train",
+     "title": "Train and regularise",
+     "minutes": 40,
+     "context": "Deep Learning Specialization course 2.",
+     "steps": [
+      "Train an MLP, watch it overfit",
+      "Add dropout or L2",
+      "Compare val curves"
+     ],
+     "hint": "Regularisation trades a bit of train accuracy for generalisation.",
+     "success_check": "Val loss improves after regularisation",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "dl.pytorch_cnn",
+   "name": "PyTorch & CNNs",
+   "branch": "deep_learning",
+   "tier": 3,
+   "prereqs": [
+    "dl.foundations"
+   ],
+   "outcomes": [
+    "Build and train CNNs in PyTorch",
+    "Use transfer learning",
+    "Deploy a trained model"
+   ],
+   "hours_est": 40,
+   "resources": [
+    "car.d2l",
+    "car.fastai"
+   ],
+   "certs": [
+    "nvidia.dli_dl_fundamentals"
+   ],
+   "project": {
+    "title": "image classifier",
+    "deliverable": "GitHub PyTorch image classifier with training curves, confusion matrix and a saved model",
+    "linkedin_line": "Trained a PyTorch CNN image classifier with transfer learning and honest evaluation."
+   },
+   "contracts": [
+    {
+     "id": "dl.torch.loop",
+     "title": "A real training loop",
+     "minutes": 45,
+     "context": "Dive into Deep Learning PyTorch basics.",
+     "steps": [
+      "Write the forward/loss/backward/step loop",
+      "Add a validation pass",
+      "Log loss and accuracy"
+     ],
+     "hint": "optimizer.zero_grad(); loss.backward(); optimizer.step().",
+     "success_check": "Training and validation curves are logged",
+     "xp": 10
+    },
+    {
+     "id": "dl.torch.transfer",
+     "title": "Transfer learning",
+     "minutes": 40,
+     "context": "fast.ai lesson on transfer learning (backup).",
+     "steps": [
+      "Load a pretrained backbone",
+      "Replace and train the head",
+      "Compare to training from scratch"
+     ],
+     "hint": "Freeze the backbone, train the new classifier head first.",
+     "success_check": "Transfer beats from-scratch on your small dataset",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "dl.transformers_llm",
+   "name": "Transformers & LLMs",
+   "branch": "deep_learning",
+   "tier": 4,
+   "prereqs": [
+    "dl.pytorch_cnn"
+   ],
+   "outcomes": [
+    "Explain attention and the transformer",
+    "Fine-tune and prompt LLMs",
+    "Reason about LLM inference cost (ties to AI hardware)"
+   ],
+   "hours_est": 50,
+   "resources": [
+    "car.nptel_intro_llm",
+    "car.hf_llm_course"
+   ],
+   "certs": [
+    "nptel.intro_llm",
+    "coursera.genai_llms",
+    "nvidia.nca_genl"
+   ],
+   "project": {
+    "title": "fine-tuned small LLM",
+    "deliverable": "GitHub notebook fine-tuning a small open model (LoRA) with before/after examples and cost notes",
+    "linkedin_line": "Fine-tuned a small open LLM with LoRA and documented the compute and memory cost."
+   },
+   "contracts": [
+    {
+     "id": "dl.llm.attn",
+     "title": "Attention by hand",
+     "minutes": 45,
+     "context": "NPTEL Intro to LLMs: attention/transformer lectures.",
+     "steps": [
+      "Compute scaled dot-product attention on tiny matrices",
+      "Explain Q,K,V in words",
+      "State why it's O(n^2)"
+     ],
+     "hint": "softmax(QK^T/sqrt(d)) V.",
+     "success_check": "You hand-compute one attention step correctly",
+     "xp": 12
+    },
+    {
+     "id": "dl.llm.lora",
+     "title": "LoRA fine-tune",
+     "minutes": 45,
+     "context": "Hugging Face LLM course: fine-tuning chapter (backup).",
+     "steps": [
+      "Load a small model + a tiny dataset",
+      "Fine-tune with LoRA",
+      "Compare outputs and note VRAM used"
+     ],
+     "hint": "LoRA trains small rank updates, not the whole model: fits his 6 GB ceiling.",
+     "success_check": "Before/after outputs differ and you report VRAM",
+     "xp": 12
+    }
+   ]
+  },
+  {
+   "id": "aihw.efficiency",
+   "name": "Efficient ML: quantisation & pruning",
+   "branch": "ai_hardware",
+   "tier": 4,
+   "prereqs": [
+    "dl.pytorch_cnn"
+   ],
+   "outcomes": [
+    "Quantise and prune models",
+    "Reason about int8 vs fp16 trade-offs",
+    "Prepare models for hardware"
+   ],
+   "hours_est": 40,
+   "resources": [
+    "car.efficientml",
+    "car.pytorch_quant"
+   ],
+   "certs": [],
+   "project": {
+    "title": "int8 model study",
+    "deliverable": "GitHub repo quantising a CNN to int8 with an accuracy-vs-size-vs-latency table",
+    "linkedin_line": "Quantised a CNN to int8 and measured the accuracy, size and latency trade-offs."
+   },
+   "contracts": [
+    {
+     "id": "aihw.eff.quant",
+     "title": "Post-training quantisation",
+     "minutes": 45,
+     "context": "MIT 6.5940 quantisation lecture + PyTorch quant docs.",
+     "steps": [
+      "Quantise a trained CNN to int8",
+      "Measure accuracy drop and size drop",
+      "Explain per-channel vs per-tensor"
+     ],
+     "hint": "int8 cuts size ~4x; per-channel keeps more accuracy.",
+     "success_check": "A table shows size down, accuracy nearly held",
+     "xp": 12
+    },
+    {
+     "id": "aihw.eff.prune",
+     "title": "Prune and compare",
+     "minutes": 40,
+     "context": "MIT 6.5940 pruning lecture.",
+     "steps": [
+      "Prune 50% of weights",
+      "Fine-tune to recover accuracy",
+      "Plot accuracy vs sparsity"
+     ],
+     "hint": "Magnitude pruning zeros the smallest weights, then you retrain.",
+     "success_check": "A sparsity-accuracy curve is in the README",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "ml.tinyml_edge",
+   "name": "TinyML & edge AI",
+   "branch": "ai_hardware",
+   "tier": 4,
+   "prereqs": [
+    "aihw.efficiency",
+    "emb.mcu_c"
+   ],
+   "outcomes": [
+    "Deploy ML on microcontrollers",
+    "Fit models into KB of RAM",
+    "Ship a real edge-AI demo (ties to Aankhen)"
+   ],
+   "hours_est": 40,
+   "resources": [
+    "car.harvard_tinyml",
+    "car.tflm"
+   ],
+   "certs": [
+    "harvardx.tinyml"
+   ],
+   "project": {
+    "title": "keyword spotter on ESP32-S3",
+    "deliverable": "GitHub TinyML model deployed on the ESP32-S3 with latency/RAM measured on-device",
+    "linkedin_line": "Deployed a TinyML keyword spotter on an ESP32-S3 with measured on-device latency and RAM."
+   },
+   "contracts": [
+    {
+     "id": "tinyml.train",
+     "title": "Train a tiny model",
+     "minutes": 45,
+     "context": "HarvardX TinyML course 2 (applications).",
+     "steps": [
+      "Train a small keyword/gesture model",
+      "Quantise to int8",
+      "Check it still works"
+     ],
+     "hint": "Small model + int8 is the whole TinyML game.",
+     "success_check": "A small int8 model hits usable accuracy",
+     "xp": 10
+    },
+    {
+     "id": "tinyml.deploy",
+     "title": "Deploy to the board",
+     "minutes": 45,
+     "context": "TensorFlow Lite Micro ESP32 example (backup).",
+     "steps": [
+      "Convert to a TFLite Micro model",
+      "Flash it to the ESP32-S3",
+      "Measure inference time and RAM"
+     ],
+     "hint": "He already runs this board for Aankhen; reuse that setup.",
+     "success_check": "Inference runs on-device and you report ms and RAM",
+     "xp": 12
+    }
+   ]
+  },
+  {
+   "id": "aihw.gpu_cuda",
+   "name": "GPU programming & CUDA",
+   "branch": "ai_hardware",
+   "tier": 4,
+   "prereqs": [
+    "prog.cpp",
+    "arch.foundations"
+   ],
+   "outcomes": [
+    "Write basic CUDA kernels",
+    "Reason about memory hierarchy and occupancy",
+    "Profile GPU code"
+   ],
+   "hours_est": 20,
+   "resources": [
+    "car.cuda_guide",
+    "car.nptel_applied_accel_ai"
+   ],
+   "certs": [
+    "nvidia.dli_cuda",
+    "nptel.applied_accelerated_ai"
+   ],
+   "project": {
+    "title": "CUDA matmul",
+    "deliverable": "GitHub tiled matrix-multiply CUDA kernel with a naive-vs-tiled speedup table",
+    "linkedin_line": "Wrote a tiled CUDA matrix-multiply kernel and measured the shared-memory speedup."
+   },
+   "contracts": [
+    {
+     "id": "aihw.cuda.kernel",
+     "title": "First kernel",
+     "minutes": 45,
+     "context": "CUDA C++ Programming Guide: programming model.",
+     "steps": [
+      "Write a vector-add kernel",
+      "Launch with a sensible grid/block",
+      "Verify against CPU"
+     ],
+     "hint": "Each thread handles one index: i = blockIdx*blockDim + threadIdx.",
+     "success_check": "GPU result matches the CPU result",
+     "xp": 10
+    },
+    {
+     "id": "aihw.cuda.tile",
+     "title": "Tiling with shared memory",
+     "minutes": 45,
+     "context": "CUDA guide: shared memory + the matmul example.",
+     "steps": [
+      "Write naive matmul",
+      "Add a shared-memory tiled version",
+      "Time both"
+     ],
+     "hint": "Tiling reuses data in shared memory to cut global loads.",
+     "success_check": "Tiled version is measurably faster",
+     "xp": 12
+    }
+   ]
+  },
+  {
+   "id": "aihw.accelerator",
+   "name": "AI accelerator architecture",
+   "branch": "ai_hardware",
+   "tier": 5,
+   "prereqs": [
+    "arch.microarch_advanced",
+    "aihw.efficiency"
+   ],
+   "outcomes": [
+    "Explain systolic arrays and dataflows",
+    "Model an accelerator's performance/energy",
+    "Reason about the memory wall and roofline"
+   ],
+   "hours_est": 40,
+   "resources": [
+    "car.sze_tutorial",
+    "car.scalesim",
+    "car.tpu_paper",
+    "car.roofline_paper",
+    "car.cornell_ece5545",
+    "car.timeloop",
+    "car.gemmini"
+   ],
+   "certs": [],
+   "project": {
+    "title": "systolic-array model",
+    "deliverable": "GitHub systolic-array matmul model (or SCALE-Sim study) with a roofline plot for real layers",
+    "linkedin_line": "Modelled a systolic-array accelerator and placed real DNN layers on a roofline."
+   },
+   "contracts": [
+    {
+     "id": "aihw.acc.systolic",
+     "title": "Systolic array",
+     "minutes": 45,
+     "context": "Read the TPU paper (in the architecture branch) then the Sze dataflow tutorial.",
+     "steps": [
+      "Draw data movement through a 3x3 PE array",
+      "Explain weight-stationary dataflow",
+      "Count MACs per cycle at steady state"
+     ],
+     "hint": "Each PE does a MAC and passes operands to its neighbour.",
+     "success_check": "You can trace one matmul through the array",
+     "xp": 12
+    },
+    {
+     "id": "aihw.acc.roofline",
+     "title": "Roofline a layer",
+     "minutes": 45,
+     "context": "Roofline report (architecture branch) + SCALE-Sim.",
+     "steps": [
+      "Compute operational intensity for a conv layer",
+      "Place it on a roofline",
+      "Say if it's compute- or memory-bound"
+     ],
+     "hint": "Intensity = FLOPs / bytes moved; compare to the ridge point.",
+     "success_check": "You classify a real layer correctly",
+     "xp": 12
+    },
+    {
+     "id": "aihw.acc.sim",
+     "title": "Simulate an accelerator",
+     "minutes": 40,
+     "context": "SCALE-Sim v2 README.",
+     "steps": [
+      "Run SCALE-Sim on a sample layer",
+      "Change the array size",
+      "Read cycles and memory traffic"
+     ],
+     "hint": "SCALE-Sim reports cycles and SRAM traffic per config.",
+     "success_check": "You report how array size changed the cycle count",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "aihw.ml_compiler",
+   "name": "ML compilers & HW-SW co-design",
+   "branch": "ai_hardware",
+   "tier": 5,
+   "prereqs": [
+    "aihw.accelerator",
+    "aihw.gpu_cuda"
+   ],
+   "outcomes": [
+    "Understand ML graph compilation and scheduling",
+    "Map models onto hardware",
+    "Speak to ML-compiler / co-design roles"
+   ],
+   "hours_est": 30,
+   "resources": [
+    "car.mlc_ai",
+    "car.dlsys"
+   ],
+   "certs": [],
+   "project": {
+    "title": "schedule-tuning study",
+    "deliverable": "GitHub TVM/MLC study showing a scheduling transform's speedup on one operator, with numbers",
+    "linkedin_line": "Used an ML compiler (TVM/MLC) to tune an operator's schedule and measured the speedup."
+   },
+   "contracts": [
+    {
+     "id": "aihw.mlc.graph",
+     "title": "Graph to tensor program",
+     "minutes": 45,
+     "context": "MLC.ai first chapters.",
+     "steps": [
+      "Express matmul as a tensor program",
+      "Apply a loop-reordering transform",
+      "Measure the effect"
+     ],
+     "hint": "The same computation has many schedules; the compiler searches them.",
+     "success_check": "A transform changes measured runtime",
+     "xp": 12
+    },
+    {
+     "id": "aihw.mlc.map",
+     "title": "Map to hardware",
+     "minutes": 40,
+     "context": "MLC.ai hardware-mapping chapter (or dlsys backup).",
+     "steps": [
+      "Target CPU then GPU for one op",
+      "Compare the generated schedules",
+      "Note what the compiler specialised"
+     ],
+     "hint": "Backends get different lowerings of the same tensor program.",
+     "success_check": "You compare two backends for one operator",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "aihw.fpga_ml",
+   "name": "ML on FPGA",
+   "branch": "ai_hardware",
+   "tier": 5,
+   "prereqs": [
+    "fpga.hls",
+    "aihw.efficiency"
+   ],
+   "outcomes": [
+    "Deploy quantised NNs to FPGA via HLS/dataflow",
+    "Trade off throughput, latency, resources",
+    "Bridge ML and RTL"
+   ],
+   "hours_est": 18,
+   "resources": [
+    "car.hls4ml",
+    "car.finn"
+   ],
+   "certs": [],
+   "project": {
+    "title": "NN on FPGA",
+    "deliverable": "GitHub hls4ml/FINN project putting a small quantised model on FPGA with a latency/resource report",
+    "linkedin_line": "Deployed a quantised neural network to FPGA with hls4ml and reported latency and resource use."
+   },
+   "contracts": [
+    {
+     "id": "aihw.fml.convert",
+     "title": "Model to firmware",
+     "minutes": 45,
+     "context": "hls4ml getting-started docs.",
+     "steps": [
+      "Train/quantise a tiny model",
+      "Run it through hls4ml",
+      "Read the generated HLS"
+     ],
+     "hint": "hls4ml turns a quantised Keras model into HLS you can synthesise.",
+     "success_check": "HLS is generated and C-simulates correctly",
+     "xp": 12
+    },
+    {
+     "id": "aihw.fml.tune",
+     "title": "Tune the trade-off",
+     "minutes": 40,
+     "context": "hls4ml reuse-factor docs (FINN as backup).",
+     "steps": [
+      "Change the reuse factor",
+      "Observe latency vs resources",
+      "Pick a sensible point"
+     ],
+     "hint": "Higher reuse = fewer resources, more latency.",
+     "success_check": "A table shows the latency/resource trade-off",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "sec.networking_linux",
+   "name": "Networking & Linux security base",
+   "branch": "security",
+   "tier": 2,
+   "prereqs": [
+    "prog.scripting"
+   ],
+   "outcomes": [
+    "Understand TCP/IP, DNS, HTTP, how the web works",
+    "Be comfortable on Linux for security",
+    "Have the base for pentesting"
+   ],
+   "hours_est": 30,
+   "resources": [
+    "car.thm_presecurity",
+    "car.overthewire"
+   ],
+   "certs": [
+    "comptia.secplus"
+   ],
+   "project": {
+    "title": "OverTheWire Bandit writeup",
+    "deliverable": "GitHub writeup of OverTheWire Bandit levels with the technique for each",
+    "linkedin_line": "Completed OverTheWire Bandit and documented each level's technique."
+   },
+   "contracts": [
+    {
+     "id": "sec.net.model",
+     "title": "How the web works",
+     "minutes": 35,
+     "context": "TryHackMe Pre Security: networking + web rooms.",
+     "steps": [
+      "Trace a request from URL to response",
+      "Explain DNS and a TCP handshake",
+      "Name 3 HTTP methods"
+     ],
+     "hint": "DNS resolves the name, TCP connects, HTTP carries the request.",
+     "success_check": "You can narrate a page load end to end",
+     "xp": 6
+    },
+    {
+     "id": "sec.net.bandit",
+     "title": "Bandit levels",
+     "minutes": 40,
+     "context": "OverTheWire Bandit (legal practice).",
+     "steps": [
+      "Clear Bandit levels 0-10",
+      "Write the command for each",
+      "Note the Linux skill each taught"
+     ],
+     "hint": "ssh in, then use ls/cat/find/grep tricks per level.",
+     "success_check": "Levels 0-10 cleared with notes",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "sec.crypto_basics",
+   "name": "Applied cryptography",
+   "branch": "security",
+   "tier": 3,
+   "prereqs": [
+    "math.discrete",
+    "prog.python"
+   ],
+   "outcomes": [
+    "Understand symmetric/asymmetric crypto and MACs",
+    "Implement attacks on weak crypto",
+    "Ground for side-channel work"
+   ],
+   "hours_est": 25,
+   "resources": [
+    "car.boneh_crypto",
+    "car.cryptopals"
+   ],
+   "certs": [
+    "coursera.crypto1"
+   ],
+   "project": {
+    "title": "Cryptopals set 1-2",
+    "deliverable": "GitHub solutions to Cryptopals sets 1-2 with explanations",
+    "linkedin_line": "Solved Cryptopals sets 1-2, implementing and breaking block-cipher modes."
+   },
+   "contracts": [
+    {
+     "id": "sec.crypto.xor",
+     "title": "XOR and frequency",
+     "minutes": 40,
+     "context": "Cryptopals set 1 challenges 1-3.",
+     "steps": [
+      "Hex-to-base64",
+      "Fixed XOR",
+      "Break single-byte XOR by frequency"
+     ],
+     "hint": "English text has a telltale letter frequency; score candidates.",
+     "success_check": "You recover a single-byte-XOR plaintext",
+     "xp": 8
+    },
+    {
+     "id": "sec.crypto.aes",
+     "title": "AES modes",
+     "minutes": 40,
+     "context": "Cryptopals set 2 + Boneh block-cipher lectures.",
+     "steps": [
+      "Detect ECB by repeated blocks",
+      "Implement CBC from ECB",
+      "Explain why ECB leaks structure"
+     ],
+     "hint": "ECB maps equal plaintext blocks to equal ciphertext blocks.",
+     "success_check": "You detect ECB and your CBC round-trips",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "sec.pentest_foundations",
+   "name": "Ethical hacking foundations",
+   "branch": "security",
+   "tier": 3,
+   "prereqs": [
+    "sec.networking_linux"
+   ],
+   "outcomes": [
+    "Run recon, scanning, vuln assessment, basic exploitation in labs",
+    "Follow a pentest methodology",
+    "Write findings reports"
+   ],
+   "hours_est": 40,
+   "resources": [
+    "car.nptel_ethical_hacking",
+    "car.cisco_ethical_hacker"
+   ],
+   "certs": [
+    "nptel.ethical_hacking",
+    "cisco.ethical_hacker",
+    "ine.ejpt"
+   ],
+   "project": {
+    "title": "lab pentest report",
+    "deliverable": "GitHub (sanitised) pentest report from a legal lab box: recon, exploit, remediation",
+    "linkedin_line": "Completed NPTEL Ethical Hacking and wrote a methodology-driven lab pentest report."
+   },
+   "contracts": [
+    {
+     "id": "sec.pf.recon",
+     "title": "Scan and enumerate",
+     "minutes": 40,
+     "context": "NPTEL Ethical Hacking: scanning lectures; use a legal lab only.",
+     "steps": [
+      "nmap a lab target",
+      "Identify open services and versions",
+      "Map the attack surface"
+     ],
+     "hint": "nmap -sV finds service versions; only ever on authorised targets.",
+     "success_check": "You produce a service map of a lab box",
+     "xp": 8
+    },
+    {
+     "id": "sec.pf.report",
+     "title": "Write the finding",
+     "minutes": 35,
+     "context": "Cisco Ethical Hacker reporting module (backup).",
+     "steps": [
+      "Document one vuln: impact, evidence, fix",
+      "Rate its severity",
+      "Write it for a non-expert"
+     ],
+     "hint": "A finding is: what, proof, impact, how to fix.",
+     "success_check": "A clear one-page finding with a remediation",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "sec.web_security",
+   "name": "Web application security",
+   "branch": "security",
+   "tier": 3,
+   "prereqs": [
+    "sec.pentest_foundations"
+   ],
+   "outcomes": [
+    "Find and exploit web vulns (SQLi, XSS, CSRF, SSRF, access control)",
+    "Use Burp Suite",
+    "Earn a practical web-security cert"
+   ],
+   "hours_est": 60,
+   "resources": [
+    "car.portswigger_academy",
+    "car.owasp_top10"
+   ],
+   "certs": [
+    "portswigger.bscp"
+   ],
+   "project": {
+    "title": "Web Security Academy streak",
+    "deliverable": "GitHub log of solved PortSwigger labs grouped by vulnerability class",
+    "linkedin_line": "Solved PortSwigger Web Security Academy labs across SQLi, XSS and access-control classes."
+   },
+   "contracts": [
+    {
+     "id": "sec.web.sqli",
+     "title": "SQL injection",
+     "minutes": 45,
+     "context": "PortSwigger Academy SQLi learning path (free).",
+     "steps": [
+      "Solve the first 3 SQLi labs",
+      "Explain the fix (parameterised queries)",
+      "Map it to OWASP Top 10"
+     ],
+     "hint": "Untrusted input concatenated into SQL is the root cause.",
+     "success_check": "3 SQLi labs solved with a fix explained",
+     "xp": 10
+    },
+    {
+     "id": "sec.web.xss",
+     "title": "XSS",
+     "minutes": 40,
+     "context": "PortSwigger Academy XSS labs.",
+     "steps": [
+      "Solve reflected and stored XSS labs",
+      "Explain output encoding as the fix",
+      "Note the difference from CSRF"
+     ],
+     "hint": "XSS runs attacker JS in a victim's browser; encode output.",
+     "success_check": "Reflected and stored XSS labs solved",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "sec.hw_security",
+   "name": "Hardware security & side channels",
+   "branch": "security",
+   "tier": 4,
+   "prereqs": [
+    "sec.crypto_basics",
+    "arch.foundations",
+    "dig.logic"
+   ],
+   "outcomes": [
+    "Understand side-channel and fault attacks, PUFs, HW trojans",
+    "Run power-analysis labs",
+    "Speak to hardware-security roles"
+   ],
+   "hours_est": 50,
+   "resources": [
+    "car.nptel_hw_security",
+    "car.chipwhisperer"
+   ],
+   "certs": [
+    "nptel.hardware_security"
+   ],
+   "project": {
+    "title": "side-channel lab",
+    "deliverable": "GitHub ChipWhisperer notebook recovering an AES key byte from power traces, with plots",
+    "linkedin_line": "Recovered an AES key byte from power traces in a ChipWhisperer side-channel lab."
+   },
+   "contracts": [
+    {
+     "id": "sec.hw.sca",
+     "title": "Power side-channel",
+     "minutes": 45,
+     "context": "NPTEL Hardware Security: side-channel lectures + ChipWhisperer simulated traces.",
+     "steps": [
+      "Run the CW notebook on captured/sim traces",
+      "Correlate a key-byte guess",
+      "Plot the winning guess"
+     ],
+     "hint": "The correct key byte gives the highest correlation peak.",
+     "success_check": "You recover one AES key byte",
+     "xp": 12
+    },
+    {
+     "id": "sec.hw.puf",
+     "title": "PUFs and trojans",
+     "minutes": 40,
+     "context": "NPTEL lectures on PUFs and hardware trojans.",
+     "steps": [
+      "Explain what a PUF guarantees",
+      "Describe one hardware-trojan trigger",
+      "Relate to the Trust-Hub benchmarks idea"
+     ],
+     "hint": "A PUF derives a key from manufacturing variation; a trojan hides until triggered.",
+     "success_check": "You can explain both in an interview",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "sec.hw_trojans_bugs",
+   "name": "Hardware bug hunting (Hack@DAC-style)",
+   "branch": "security",
+   "tier": 5,
+   "prereqs": [
+    "sec.hw_security",
+    "hdl.systemverilog",
+    "ver.formal"
+   ],
+   "outcomes": [
+    "Find security bugs in RTL",
+    "Use CWE-HW taxonomy and formal/sim to catch them",
+    "Compete in hardware-security CTFs"
+   ],
+   "hours_est": 30,
+   "resources": [
+    "car.cwe_hw",
+    "car.trust_hub"
+   ],
+   "certs": [
+    "dac.hackatdac"
+   ],
+   "project": {
+    "title": "RTL bug-hunt writeup",
+    "deliverable": "GitHub writeup finding and fixing seeded security bugs in an open SoC, mapped to CWE-HW",
+    "linkedin_line": "Hunted and fixed security bugs in an open SoC's RTL, mapped to the hardware CWE taxonomy."
+   },
+   "contracts": [
+    {
+     "id": "sec.hwb.cwe",
+     "title": "Learn the weakness classes",
+     "minutes": 35,
+     "context": "Read MITRE CWE-1194 hardware design view.",
+     "steps": [
+      "Pick 3 hardware CWEs",
+      "Describe how each shows up in RTL",
+      "Note how you'd detect each"
+     ],
+     "hint": "e.g. improper access control to a debug register.",
+     "success_check": "You can describe 3 HW CWEs and their detection",
+     "xp": 8
+    },
+    {
+     "id": "sec.hwb.hunt",
+     "title": "Find a seeded bug",
+     "minutes": 45,
+     "context": "Use a Trust-Hub benchmark or an open SoC with known issues.",
+     "steps": [
+      "Read an RTL block for an access-control flaw",
+      "Write an assertion that catches it",
+      "Propose the fix"
+     ],
+     "hint": "An assertion that must always hold turns a silent bug loud.",
+     "success_check": "You catch one bug with an assertion and fix it",
+     "xp": 12
+    }
+   ]
+  },
+  {
+   "id": "sec.pentest_advanced",
+   "name": "Advanced penetration testing",
+   "branch": "security",
+   "tier": 5,
+   "prereqs": [
+    "sec.web_security"
+   ],
+   "outcomes": [
+    "Chain exploits across a network",
+    "Do privilege escalation and lateral movement in labs",
+    "Target OSCP/CPTS-level work"
+   ],
+   "hours_est": 120,
+   "resources": [
+    "car.htb_academy",
+    "car.offsec_pg_play"
+   ],
+   "certs": [
+    "htb.cpts",
+    "ecc.ceh",
+    "offsec.oscp"
+   ],
+   "project": {
+    "title": "multi-box lab report",
+    "deliverable": "GitHub (sanitised) report chaining recon-to-root across several legal lab machines",
+    "linkedin_line": "Rooted multiple legal lab machines and wrote OSCP-style reports (recon to privilege escalation)."
+   },
+   "contracts": [
+    {
+     "id": "sec.pa.privesc",
+     "title": "Privilege escalation",
+     "minutes": 45,
+     "context": "HTB Academy privesc modules; legal labs only.",
+     "steps": [
+      "Enumerate a foothold for privesc vectors",
+      "Escalate on one lab box",
+      "Document the exact steps"
+     ],
+     "hint": "Check sudo rights, SUID binaries, cron, and kernel version.",
+     "success_check": "You go from user to root on one box with notes",
+     "xp": 12
+    },
+    {
+     "id": "sec.pa.plan",
+     "title": "Decide the cert path",
+     "minutes": 30,
+     "context": "Compare CPTS, CEH and OSCP honestly for his budget.",
+     "steps": [
+      "List cost and value of each",
+      "Decide: CPTS now vs OSCP later",
+      "Note that OSCP (~Rs 1.5L) waits until security is the job"
+     ],
+     "hint": "CPTS is far cheaper and more practical than CEH; OSCP is the gold standard but expensive.",
+     "success_check": "A written, budget-aware security-cert decision",
+     "xp": 6
+    }
+   ]
+  },
+  {
+   "id": "res.paper_reading",
+   "name": "Reading research papers",
+   "branch": "research",
+   "tier": 2,
+   "prereqs": [
+    "math.linear_algebra"
+   ],
+   "outcomes": [
+    "Skim and extract a paper's contribution fast",
+    "Follow the architecture/accelerator literature",
+    "Build a reading habit"
+   ],
+   "hours_est": 10,
+   "resources": [
+    "car.keshav_read",
+    "car.arxiv_cs_ar"
+   ],
+   "certs": [],
+   "project": {
+    "title": "paper-notes repo",
+    "deliverable": "GitHub repo of 10 three-pass summaries of architecture/ML-hardware papers",
+    "linkedin_line": "Published three-pass summaries of 10 computer-architecture papers."
+   },
+   "contracts": [
+    {
+     "id": "res.read.threepass",
+     "title": "The three-pass method",
+     "minutes": 40,
+     "context": "Read Keshav's 'How to Read a Paper'.",
+     "steps": [
+      "First-pass a cs.AR paper (title/abstract/headings)",
+      "Write 3 sentences: problem, idea, result",
+      "Decide if a second pass is worth it"
+     ],
+     "hint": "Pass 1 is 5-10 minutes: get the gist, not the detail.",
+     "success_check": "A 3-sentence summary of one paper is committed",
+     "xp": 6
+    },
+    {
+     "id": "res.read.habit",
+     "title": "Build the stream",
+     "minutes": 30,
+     "context": "Open arXiv cs.AR recent.",
+     "steps": [
+      "Pick one paper a week to first-pass",
+      "Log it in the repo",
+      "After a month, spot a trend"
+     ],
+     "hint": "Consistency beats depth early; one paper a week compounds.",
+     "success_check": "Your repo has weekly entries",
+     "xp": 4
+    }
+   ]
+  },
+  {
+   "id": "res.writing_latex",
+   "name": "Research writing & LaTeX",
+   "branch": "research",
+   "tier": 3,
+   "prereqs": [
+    "res.paper_reading",
+    "soft.communication"
+   ],
+   "outcomes": [
+    "Write a clear technical report/paper in LaTeX",
+    "Structure an argument and cite properly",
+    "Prepare an MS-application-grade writeup"
+   ],
+   "hours_est": 20,
+   "resources": [
+    "car.sciwrite",
+    "car.overleaf_learn",
+    "car.spj_paper",
+    "car.ieee_author_center"
+   ],
+   "certs": [
+    "coursera.sciwrite"
+   ],
+   "project": {
+    "title": "project tech report",
+    "deliverable": "An IEEE-format PDF (Overleaf) writing up one of his hardware projects, on GitHub",
+    "linkedin_line": "Wrote an IEEE-format technical report of a hardware project in LaTeX."
+   },
+   "contracts": [
+    {
+     "id": "res.write.latex",
+     "title": "First IEEE-format doc",
+     "minutes": 40,
+     "context": "Overleaf Learn + the IEEEtran template.",
+     "steps": [
+      "Start from IEEEtran on Overleaf",
+      "Add a figure and a BibTeX citation",
+      "Compile to PDF"
+     ],
+     "hint": "\\documentclass{IEEEtran}; \\cite{} pulls from your .bib.",
+     "success_check": "A compiled 2-column PDF with a cited figure",
+     "xp": 8
+    },
+    {
+     "id": "res.write.clear",
+     "title": "Cut the clutter",
+     "minutes": 40,
+     "context": "Writing in the Sciences: cutting clutter lecture.",
+     "steps": [
+      "Rewrite your abstract in active voice",
+      "Cut 20% of the words",
+      "Put the contribution in sentence one"
+     ],
+     "hint": "Lead with the result; delete throat-clearing.",
+     "success_check": "A tighter abstract that states the contribution first",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "soft.communication",
+   "name": "Communication & presentation",
+   "branch": "soft_skills",
+   "tier": 1,
+   "prereqs": [],
+   "outcomes": [
+    "Explain technical work clearly in writing and speech",
+    "Write strong READMEs and docs",
+    "Present a project"
+   ],
+   "hours_est": 12,
+   "resources": [
+    "car.google_tech_writing",
+    "car.nptel_tech_english"
+   ],
+   "certs": [
+    "nptel.technical_english"
+   ],
+   "project": {
+    "title": "project README + demo",
+    "deliverable": "A polished README and a 3-minute demo video for one project",
+    "linkedin_line": "Wrote a clear project README and recorded a concise demo walkthrough."
+   },
+   "contracts": [
+    {
+     "id": "soft.comm.readme",
+     "title": "Write a README that sells",
+     "minutes": 35,
+     "context": "Google Technical Writing One.",
+     "steps": [
+      "Write what/why/how/results for a project",
+      "Add a diagram or GIF",
+      "Use short sentences and lists"
+     ],
+     "hint": "Lead with what it does and the result, then how to run it.",
+     "success_check": "A reader understands your project in 60 seconds",
+     "xp": 8
+    },
+    {
+     "id": "soft.comm.demo",
+     "title": "Three-minute demo",
+     "minutes": 30,
+     "context": "Google Technical Writing Two (structure).",
+     "steps": [
+      "Script a 3-minute demo",
+      "Record it",
+      "Cut filler"
+     ],
+     "hint": "Problem, demo, result: no setup rambling.",
+     "success_check": "A tight 3-minute video is linked in the README",
+     "xp": 6
+    }
+   ]
+  },
+  {
+   "id": "career.portfolio",
+   "name": "Portfolio & GitHub presence",
+   "branch": "soft_skills",
+   "tier": 2,
+   "prereqs": [
+    "tools.git",
+    "soft.communication"
+   ],
+   "outcomes": [
+    "Present projects as a coherent portfolio",
+    "Make a recruiter-ready GitHub + site",
+    "Turn work into LinkedIn signal"
+   ],
+   "hours_est": 12,
+   "resources": [
+    "car.github_pages",
+    "car.github_profile_docs"
+   ],
+   "certs": [
+    "cs50.cs50x"
+   ],
+   "project": {
+    "title": "portfolio site",
+    "deliverable": "A GitHub Pages site indexing his projects with the LinkedIn line for each",
+    "linkedin_line": "Launched a GitHub Pages portfolio indexing my hardware and ML projects."
+   },
+   "contracts": [
+    {
+     "id": "career.port.pin",
+     "title": "Curate the profile",
+     "minutes": 35,
+     "context": "GitHub Docs: profile README.",
+     "steps": [
+      "Write a profile README",
+      "Pin your 6 best repos",
+      "Make sure each has a real README"
+     ],
+     "hint": "Pin the repos that match the job you want.",
+     "success_check": "Profile reads like a focused hardware engineer's",
+     "xp": 8
+    },
+    {
+     "id": "career.port.page",
+     "title": "Publish the site",
+     "minutes": 40,
+     "context": "GitHub Pages quickstart.",
+     "steps": [
+      "Turn on Pages for a portfolio repo",
+      "Add a project card per project",
+      "Link each to its repo and LinkedIn line"
+     ],
+     "hint": "Pages serves a repo as a site for free.",
+     "success_check": "A live URL lists your projects",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "career.interview_offcampus",
+   "name": "Off-campus job hunt & interviews",
+   "branch": "soft_skills",
+   "tier": 3,
+   "prereqs": [
+    "career.portfolio",
+    "dsa.interview"
+   ],
+   "outcomes": [
+    "Run an off-campus pipeline (referrals, applications)",
+    "Pass resume screens and interviews",
+    "Negotiate a fair offer despite a tier-3 tag"
+   ],
+   "hours_est": 20,
+   "resources": [
+    "car.tech_interview_handbook",
+    "car.vlsiverify_career",
+    "car.asic_world",
+    "car.jake_resume"
+   ],
+   "certs": [],
+   "project": {
+    "title": "off-campus tracker",
+    "deliverable": "A private tracker of referral requests/applications + an ATS-friendly resume on GitHub",
+    "linkedin_line": "Ran a structured off-campus search with referrals and an ATS-optimised resume."
+   },
+   "contracts": [
+    {
+     "id": "career.iv.resume",
+     "title": "One-page resume",
+     "minutes": 40,
+     "context": "Jake's Resume template + Tech Interview Handbook resume section.",
+     "steps": [
+      "Fill Jake's Resume with real projects",
+      "Quantify two bullets with numbers",
+      "Check it is one page, ATS-safe"
+     ],
+     "hint": "Each bullet: did X using Y, result Z. Numbers beat adjectives.",
+     "success_check": "A one-page PDF that names tools and results",
+     "xp": 8
+    },
+    {
+     "id": "career.iv.referral",
+     "title": "Ask for a referral right",
+     "minutes": 35,
+     "context": "VLSI Verify career article (referral etiquette).",
+     "steps": [
+      "Find a specific open role + its job ID",
+      "Write a 4-line referral request",
+      "Attach resume and the exact link"
+     ],
+     "hint": "Give them the job ID and link so referring is one click.",
+     "success_check": "You send 3 targeted, specific referral requests",
+     "xp": 8
+    },
+    {
+     "id": "career.iv.behav",
+     "title": "STAR stories",
+     "minutes": 30,
+     "context": "Tech Interview Handbook behavioural section.",
+     "steps": [
+      "Write 3 STAR stories from your projects",
+      "Practise one aloud",
+      "Tie each to a real repo"
+     ],
+     "hint": "Situation, Task, Action, Result: keep it concrete.",
+     "success_check": "3 STAR stories ready, each backed by a repo",
+     "xp": 6
+    }
+   ]
+  }
+ ]
+}

@@ -1,44 +1,46 @@
 /**
- * The Mission section: loads every Germoney store once, shows the sub-navigation,
- * and renders the current Mission tab. Mounted for any tab in the 'mission' group.
+ * The Mission section: loads every Germoney store once, shows the five-screen
+ * navigation, and renders the current screen. Mounted for any tab in the
+ * 'mission' group; old tab ids land on the screen that absorbed them (ui.tsx).
+ *
+ *   Today   contracts + the day's blocks + the Floor + latest findings
+ *   Tree    the skill tree (a DAG), career overlay, node details
+ *   Focus   the Crucible and Drill
+ *   Log     one log form, the gym, "what got in the way", GitHub
+ *   Road    campaigns, certificates, the parking lot, trials, the War Chest
+ *   (Settings in a drawer)
  */
 import { useEffect } from 'react'
 import { useStore } from '../lib/store'
+import { usePlan } from './game/plan'
 import { useGame } from './game/store'
 import { useMissionLoaded } from './hooks'
-import { ArmoryPage } from './pages/Armory'
-import { CampaignPage } from './pages/Campaign'
-import { DrillPage } from './pages/Drill'
-import { TrialsPage } from './pages/Trials'
-import { CalibrationPage } from './pages/CalibrationPage'
-import { CommandPage } from './pages/Command'
-import { CruciblePage } from './pages/Crucible'
-import { ForgePage } from './pages/Forge'
-import { InterrogationPage } from './pages/Interrogation'
-import { ProofPage } from './pages/Proof'
-import { QuestsPage } from './pages/Quests'
-import { SchedulePage } from './pages/Schedule'
-import { SyllabusPage } from './pages/Syllabus'
-import { TerminalPage } from './pages/Terminal'
-import { MissionNav } from './ui'
+import { FocusPage } from './pages/Focus'
+import { LogPage } from './pages/Log'
+import { RoadPage } from './pages/Road'
+import { SettingsDrawer } from './pages/Settings'
+import { TodayPage } from './pages/Today'
+import { TreePage } from './pages/Tree'
+import { MissionNav, SCREEN_OF, type MissionScreen } from './ui'
 
-const PAGES: Record<string, React.ComponentType> = {
-  mission: CommandPage, quests: QuestsPage, campaign: CampaignPage, trials: TrialsPage, drill: DrillPage, armory: ArmoryPage, crucible: CruciblePage, forge: ForgePage, syllabus: SyllabusPage,
-  terminal: TerminalPage, interrogation: InterrogationPage, proof: ProofPage, schedule: SchedulePage,
-  calibration: CalibrationPage,
+const PAGES: Record<MissionScreen, React.ComponentType> = {
+  today: TodayPage, tree: TreePage, focus: FocusPage, log: LogPage, road: RoadPage,
 }
 
 export function MissionRoot() {
   const tab = useStore((s) => s.tab)
   const stores = useMissionLoaded()
   const game = useGame((s) => s.loaded)
-  useEffect(() => { void useGame.getState().hydrate() }, [])
+  useEffect(() => {
+    void useGame.getState().hydrate().then(() => usePlan.getState().refresh())
+  }, [])
   const loaded = stores && game
-  const Page = PAGES[tab] ?? CommandPage
+  const Page = PAGES[SCREEN_OF[tab] ?? 'today']
   return (
     <div className="page mission fade-in">
       <MissionNav />
       {loaded ? <Page /> : <div className="empty">Loading your mission…</div>}
+      <SettingsDrawer />
     </div>
   )
 }

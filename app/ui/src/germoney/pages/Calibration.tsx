@@ -1,13 +1,13 @@
 /**
  * Mission → Calibration: the onboarding wizard (onboarding.tsx). Three steps —
- * objective, honest skill ratings, timeline. The ratings weight the daily quest
- * draw toward your weakest skills; German is forced in until you rate it STRONG.
+ * objective, honest skill ratings, timeline. (Mission v2: contracts come from the
+ * skill tree now; the objective is shown on the Road. Lives in the settings drawer.)
  */
 import { useState } from 'react'
 import { useStore } from '../../lib/store'
 import AsyncStorage from '../platform'
 import { ONBOARDING_KEY } from '../hooks'
-import type { GoalPreset, OnboardingData, SkillKey } from '../utils/quest-engine'
+import type { GoalPreset, OnboardingData, SkillKey } from '../hooks'
 import { MissionHeader } from '../ui'
 
 const GOALS: { preset: GoalPreset; label: string; detail: string }[] = [
@@ -41,7 +41,7 @@ export function Calibration({ onDone }: { onDone?: () => void }) {
   const save = async () => {
     const data: OnboardingData = { goal: { preset, label }, skills, targetYear: year, weeklyHours: hours, completedAt: new Date().toISOString() }
     await AsyncStorage.setItem(ONBOARDING_KEY, JSON.stringify(data))
-    toast('System calibrated. Quests now target your weakest skills.', 'live')
+    toast('Calibration saved. Your objective heads the Road.', 'live')
     if (onDone) onDone()
     else setTab('mission')
   }

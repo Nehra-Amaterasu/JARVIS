@@ -6,10 +6,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const kv = new Map<string, string>()
 const writes: Array<[key: string, value: string]> = []          // in the order they LANDED
+const xpPosts: number[] = []
 
 vi.stubGlobal('fetch', async (url: string, init?: { method?: string; body?: string }) => {
   const key = decodeURIComponent(String(url).replace('/api/kv/', ''))
   const method = init?.method ?? 'GET'
+  if (method === 'POST' && String(url) === '/api/mission/xp') xpPosts.push(JSON.parse(init!.body!).amount)
   if (method === 'PUT') {
     const { value } = JSON.parse(init!.body!)
     // Simulate the network delivering an EARLIER write slower than a later one.
@@ -23,30 +25,10 @@ vi.stubGlobal('fetch', async (url: string, init?: { method?: string; body?: stri
   return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
 })
 
-const { generateDailyQuests } = await import('../germoney/utils/quest-engine')
 const { usePlayerStore } = await import('../germoney/stores/player-store')
 const { AsyncStorage } = await import('../germoney/platform')
 
 const fresh = () => JSON.parse(JSON.stringify(usePlayerStore.getState().player))
-
-describe('quest engine', () => {
-  const player = fresh()
-  it('is deterministic per day and rank', () => {
-    const d = new Date(2026, 9, 9)
-    expect(generateDailyQuests(player, null, d).map((q) => q.id)).toEqual(generateDailyQuests(player, null, d).map((q) => q.id))
-    expect(generateDailyQuests(player, null, d).length).toBeGreaterThanOrEqual(3)
-  })
-  it('always includes German while German is weak (10 h/week mandate)', () => {
-    for (let day = 1; day <= 28; day++) {
-      const qs = generateDailyQuests(player, null, new Date(2026, 9, day))
-      expect(qs.some((q) => q.id.startsWith('ger-'))).toBe(true)
-    }
-  })
-  it('surfaces a weekly quest on Mondays', () => {
-    const monday = new Date(2026, 9, 12)
-    expect(generateDailyQuests(player, null, monday).some((q) => q.type === 'weekly')).toBe(true)
-  })
-})
 
 describe('player store', () => {
   beforeEach(() => {
@@ -70,12 +52,34 @@ describe('player store', () => {
     expect(p.xp).toBe(200)
     expect(p.bosses.find((b) => b.id === 'b1')!.completed).toBe(true)
   })
-  it('Rule 1: 14 days without a commit drops a rank and locks Purgatory', () => {
+  it('Rule 1 v2: 14 days without a commit no longer drops a rank; an old Purgatory is lifted and the level given back', () => {
     const old = new Date(Date.now() - 15 * 86_400_000).toISOString()
     usePlayerStore.setState({ player: { ...usePlayerStore.getState().player, level: 3, lastCommitDate: old } })
     usePlayerStore.getState().checkIntegrity()
+    expect(usePlayerStore.getState().player).toMatchObject({ level: 3, isPurgatoryActive: false })
+    usePlayerStore.setState({ player: { ...usePlayerStore.getState().player, level: 2, isPurgatoryActive: true, purgatoryHoursRemaining: 3, levelBeforePurgatory: 3 } })
+    usePlayerStore.getState().checkIntegrity()
+    expect(usePlayerStore.getState().player).toMatchObject({ level: 3, isPurgatoryActive: false, purgatoryHoursRemaining: 0, levelBeforePurgatory: null })
+  })
+
+  it('one XP total: every change made in the window is sent to the server as a delta; the mirror never echoes back', async () => {
+    xpPosts.length = 0
+    usePlayerStore.getState().updateXP(40)
+    usePlayerStore.getState().updateXP(-10)
+    await usePlayerStore.getState().flushXp()
+    expect(xpPosts).toEqual([40, -10])
+    usePlayerStore.getState().syncXP(1234)
+    await usePlayerStore.getState().flushXp()
+    expect(usePlayerStore.getState().player.xp).toBe(1234)
+    expect(xpPosts).toEqual([40, -10])
+  })
+
+  it('recordHours keeps the stats with no XP (the plan log pays it)', () => {
+    usePlayerStore.setState({ player: { ...usePlayerStore.getState().player, germanHours: 0 } })
+    usePlayerStore.getState().recordHours('german', 1.5)
+    usePlayerStore.getState().recordHours('commit', 1)
     const p = usePlayerStore.getState().player
-    expect([p.level, p.isPurgatoryActive, p.purgatoryHoursRemaining, p.levelBeforePurgatory]).toEqual([2, true, 3, 3])
+    expect([p.germanHours, p.xp, p.commitsCount > 0, !!p.lastCommitDate]).toEqual([1.5, 0, true, true])
   })
   it('a real recent commit from GitHub reverses an unjust drop', () => {
     usePlayerStore.setState({ player: { ...usePlayerStore.getState().player, level: 2, isPurgatoryActive: true,
@@ -90,6 +94,7 @@ describe('player store', () => {
     expect(usePlayerStore.getState().player.isPurgatoryActive).toBe(false)
   })
   it('logging German adds hours and the standard 15 XP', () => {
+    usePlayerStore.setState({ player: { ...usePlayerStore.getState().player, germanHours: 0 } })
     usePlayerStore.getState().logExecution('german', 2)
     const p = usePlayerStore.getState().player
     expect([p.germanHours, p.xp]).toEqual([2, 15])

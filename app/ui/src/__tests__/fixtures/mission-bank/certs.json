@@ -1,0 +1,3 @@
+[
+  { "id": "cert-nptel-verilog", "name": "NPTEL Hardware Modeling using Verilog", "issuer": "IIT Kharagpur / NPTEL", "cost_inr": 1000, "free_option": "Audit free", "time_hours": 40, "credibility": 4, "linkedin_worthy": true, "node_ids": ["hdl-verilog", "nope-node"], "url": "https://onlinecourses.nptel.ac.in/" }
+]

@@ -56,6 +56,62 @@ def test_non_commands_are_left_to_the_model(text):
 def test_contract_completion_extracts_the_task_words():
     got = mission.parse("contract done: ripple carry adder")
     assert got["action"] == "complete" and got["args"]["query"] == "ripple carry adder"
+    assert got["via"] == "plan" and got["intent"] == "finish"          # the server finishes it: no window needed
+
+
+@pytest.mark.parametrize("text, intent, args", [
+    ("what's today's contract", "today", {}),
+    ("Jarvis, what is my contract for today?", "today", {}),
+    ("brief me", "today", {}),
+    ("explain this contract", "explain", {}),
+    ("how do I start this", "explain", {}),
+    ("I finished it", "finish", {"query": ""}),
+    ("Jarvis, I've just completed that one", "finish", {"query": ""}),
+    ("ho gaya", "finish", {"query": ""}),
+    ("what's next on the tree?", "next_node", {}),
+    ("what should I learn next", "next_node", {}),
+    ("exam mode for DSP", "exam_mode", {"subject": "DSP"}),
+    ("exam mode on for signals and systems", "exam_mode", {"subject": "signals and systems"}),
+    ("exam mode off", "exam_mode", {"subject": None}),
+    ("how many days to EMT?", "days_to", {"subject": "EMT"}),
+    ("how many days are left until my NAS exam", "days_to", {"subject": "NAS"}),
+    ("how many days to exams", "days_to", {"subject": ""}),
+    ("kitne din bache IoT exam mein", "days_to", {"subject": "IoT"}),
+    ("park an idea: build a GPU in a weekend", "park", {"text": "build a GPU in a weekend"}),
+    ("what internship deadlines are coming up", "deadlines", {}),
+    ("any application deadlines this month?", "deadlines", {}),
+    ("Jarvis, log: watched a lecture on systolic arrays, 40 min", "learning", {"text": "watched a lecture on systolic arrays", "minutes": 40}),
+    ("log: read the Cummings FIFO paper", "learning", {"text": "read the Cummings FIFO paper", "minutes": 0}),
+])
+def test_plan_intents_parse(text, intent, args):
+    got = mission.parse(text)
+    assert got is not None and got.get("via") == "plan" and got["intent"] == intent, got
+    for k, v in args.items():
+        assert got["args"][k] == v
+
+
+@pytest.mark.parametrize("text, action, via", [
+    ("german ho gaya", "log", "plan"),         # a rep's worth of German, not "I finished it"
+    ("gym ho gaya", "log", "plan"),
+    ("log 2 hours of German", "log", "plan"),  # the one log is the server's: no window needed
+    ("what is setup time?", None, None),       # a question for the model
+    ("how many marks do I have", "marks", None),
+    ("start a 50 minute focus on German", "focus", None),   # the Crucible still runs in the window
+])
+def test_plan_intents_do_not_steal_other_commands(text, action, via):
+    got = mission.parse(text) or {}
+    assert got.get("action") == action and got.get("via") == via
+
+
+def test_plan_intents_go_to_the_server_not_the_window(monkeypatch):
+    monkeypatch.setenv("JARVIS_API_URL", "http://x")
+    monkeypatch.setenv("JARVIS_API_TOKEN", "t")
+    sent = {}
+    monkeypatch.setattr(mission, "_post", lambda path, payload, timeout=8.0: sent.update(path=path, payload=payload) or _Resp(200, {"say": "First: HDLBits."}))
+    assert mission.handle("what's today's contract") == "First: HDLBits."
+    assert sent == {"path": "/api/mission/voice", "payload": {"intent": "today", "args": {}}}
+    monkeypatch.setattr(mission, "_post", lambda *a, **k: _Resp(500, {}))
+    assert "couldn't" in mission.handle("explain this contract")
 
 
 def test_outside_the_app_nothing_happens(monkeypatch):
@@ -76,11 +132,11 @@ def test_handle_speaks_the_games_answer(monkeypatch):
     monkeypatch.setenv("JARVIS_API_URL", "http://x")
     monkeypatch.setenv("JARVIS_API_TOKEN", "t")
     sent = {}
-    monkeypatch.setattr(mission, "_post", lambda path, payload, timeout=8.0: sent.update(path=path, payload=payload) or _Resp(200, {"say": "Logged 2 hours of German."}))
-    assert mission.handle("log 2 hours of German") == "Logged 2 hours of German."
-    assert sent["path"] == "/api/game/action" and sent["payload"]["action"] == "log"
+    monkeypatch.setattr(mission, "_post", lambda path, payload, timeout=8.0: sent.update(path=path, payload=payload) or _Resp(200, {"say": "412 Marks."}))
+    assert mission.handle("how many marks do I have") == "412 Marks."
+    assert sent["path"] == "/api/game/action" and sent["payload"]["action"] == "marks"
     monkeypatch.setattr(mission, "_post", lambda *a, **k: _Resp(503, {}))
-    assert "isn't open" in mission.handle("log 2 hours of German")
+    assert "isn't open" in mission.handle("how many marks do I have")
     assert mission.handle("what is a flip flop") is None        # not a command: the model answers
 
 

@@ -6,11 +6,9 @@
  */
 import type { Stats } from './achievements'
 import { seasonBosses, type DatedBoss } from './campaign'
-import { NPCS, type Track } from './characters'
-import { BOOT_CAMP, type DailyContract } from './contracts'
-import { OPERATION_BY_ID, type Metric } from './operations'
+import type { Track } from './characters'
 import { CARDS } from './decks'
-import { addDays, dateKey, daysBetween, inRange, monthStart, rngFor, weekday, weekEnd, weekStart } from './util'
+import { addDays, dateKey, daysBetween, inRange, monthStart, rngFor, weekday, weekStart } from './util'
 
 /* ======================================================================= data */
 export type Rep = 'silicon' | 'deutsch' | 'body'
@@ -94,6 +92,8 @@ export interface GameData {
   warChest: { saved: number; log: { t: number; amount: number; note: string }[]; custom: { id: string; label: string; inr: number; due: string }[] }
   flags: Record<string, boolean>
   nudged: Record<string, boolean>
+  /** Plan events (server, @mission_v2) already applied to the Floor and the ledger. */
+  synced: Record<string, string>
 }
 
 export const DEFAULT_SHOP: ShopItem[] = [
@@ -143,6 +143,7 @@ export function defaultGame(today: string = dateKey()): GameData {
     warChest: { saved: 0, log: [], custom: [] },
     flags: {},
     nudged: {},
+    synced: {},
   }
 }
 
@@ -168,7 +169,7 @@ export function mergeGame(raw: unknown, today: string = dateKey()): GameData {
     settings: { ...d.settings, ...obj(r.settings, {}), targets: { ...d.settings.targets, ...obj(r.settings?.targets, {}) } },
     modes: { exam: arr(r.modes?.exam, []), recovery: arr(r.modes?.recovery, []) },
     warChest: { ...d.warChest, ...obj(r.warChest, {}) },
-    flags: obj(r.flags, {}), nudged: obj(r.nudged, {}),
+    flags: obj(r.flags, {}), nudged: obj(r.nudged, {}), synced: obj(r.synced, {}),
   }
 }
 
@@ -200,7 +201,7 @@ export function levelRewards(from: number, to: number) {
 
 /* ======================================================================= modes */
 export function modeOn(g: GameData, date: string): 'exam' | 'recovery' | null {
-  if (g.modes.exam.some((p) => inRange(date, p.from, p.to))) return 'exam'
+  if (g.flags[`examday:${date}`] || g.modes.exam.some((p) => inRange(date, p.from, p.to))) return 'exam'
   if (g.modes.recovery.some((p) => inRange(date, p.from, p.to))) return 'recovery'
   return null
 }
@@ -298,31 +299,6 @@ export function rollChest(date: string, streak: number): Loot {
   return { marks, shield, booster, card, legendary }
 }
 
-/* ======================================================================= contracts */
-export function comboMult(nth: number): number {
-  return nth <= 1 ? 1 : nth === 2 ? 1.1 : nth === 3 ? 1.25 : 1.5
-}
-
-export function xpMultiplier(g: GameData, date: string): number {
-  let m = 1
-  const recentEscape = Object.values(g.bosses).some((b) => b.escapedAt && daysBetween(b.escapedAt, date) >= 0 && daysBetween(b.escapedAt, date) < 7)
-  if (recentEscape) m *= 0.9
-  if (modeOn(g, date) === 'recovery') m *= 0.6
-  return m
-}
-
-export function contractReward(baseXp: number, opts: { crit: boolean; nth: number; mult: number }) {
-  const crit = opts.crit ? 2 : 1
-  return {
-    xp: Math.round(baseXp * comboMult(opts.nth) * crit * opts.mult),
-    marks: Math.round((baseXp / 2) * crit),
-  }
-}
-
-export function contractsDoneOn(g: GameData, date: string): number {
-  return g.ledger.filter((e) => e.kind === 'contract' && e.date === date).length
-}
-
 /* ======================================================================= bosses */
 export function datedBosses(g: GameData): DatedBoss[] {
   return seasonBosses(g.seasonStart, (from, to) => examDaysBetween(g, from, to))
@@ -398,45 +374,7 @@ export function defeatReward(b: DatedBoss, hp: number, hpMax: number) {
   return { ambush, xp: Math.round(b.reward.xp * k), marks: Math.round(b.reward.marks * k) }
 }
 
-/* ======================================================================= weekly operations */
-
-export function metricValue(g: GameData, metric: Metric, from: string, to: string, today: string): number {
-  const inWeek = (e: LedgerEvent) => e.date >= from && e.date <= to
-  const sum = (f: (e: LedgerEvent) => boolean, v: (e: LedgerEvent) => number = () => 1) =>
-    g.ledger.filter((e) => inWeek(e) && f(e)).reduce((a, e) => a + v(e), 0)
-  const days = (f: (d: string) => boolean) => {
-    let n = 0
-    for (let d = from; d <= to; d = addDays(d, 1)) if (f(d)) n++
-    return n
-  }
-  switch (metric) {
-    case 'floor.secured': return days((d) => d <= today && isKept(g, d))
-    case 'floor.silicon': return days((d) => !!g.days[d]?.reps.silicon)
-    case 'floor.deutsch': return days((d) => !!g.days[d]?.reps.deutsch)
-    case 'floor.body': return days((d) => !!g.days[d]?.reps.body)
-    case 'focus.silicon': return sum((e) => e.kind === 'focus' && e.track === 'silicon', (e) => e.amount ?? 0)
-    case 'focus.any': return sum((e) => e.kind === 'focus', (e) => e.amount ?? 0)
-    case 'contracts.silicon': return sum((e) => e.kind === 'contract' && e.track === 'silicon')
-    case 'contracts.deutsch': return sum((e) => e.kind === 'contract' && e.track === 'deutsch')
-    case 'contracts.capital': return sum((e) => e.kind === 'contract' && e.track === 'capital')
-    case 'contracts.paper': return sum((e) => e.kind === 'contract' && e.track === 'paper')
-    case 'drill.deutsch': return sum((e) => e.kind === 'drill' && e.ref === 'deutsch', (e) => e.amount ?? 0)
-    case 'drill.vlsi': return sum((e) => e.kind === 'drill' && e.ref === 'vlsi', (e) => e.amount ?? 0)
-    case 'drill.any': return sum((e) => e.kind === 'drill', (e) => e.amount ?? 0)
-  }
-}
-
-export function operationProgress(g: GameData, week: string, today: string) {
-  const st = g.operations[week]
-  const def = st?.chosen ? OPERATION_BY_ID[st.chosen] : undefined
-  if (!def) return null
-  const from = weekStart(week)
-  const to = weekEnd(week)
-  if (!def.goal) return { def, st, value: st.proof ? 1 : 0, n: 1, done: !!st.proof }
-  const value = metricValue(g, def.goal.metric, from, to, today)
-  return { def, st, value, n: def.goal.n, done: value >= def.goal.n }
-}
-
+/* ======================================================================= weekly operations (legacy saves) */
 /** Weeks of won operations in a row, ending with the last finished week. */
 export function momentum(g: GameData, today: string): number {
   let n = 0
@@ -518,52 +456,30 @@ export function investment(g: GameData) {
   }
 }
 
-/* ======================================================================= Boot Camp */
-export function bootDay(g: GameData, today: string) {
-  const n = daysBetween(g.firstPlay, today) + 1
-  if (n < 1 || n > BOOT_CAMP.length) return null
-  const day = BOOT_CAMP[n - 1]
-  const L = g.ledger.filter((e) => e.date === today)
-  const auto: Record<string, boolean> = {
-    floor: isSecured(g, today),
-    focus25: L.some((e) => e.kind === 'focus' && (e.amount ?? 0) >= 25),
-    drill20: L.filter((e) => e.kind === 'drill').reduce((a, e) => a + (e.amount ?? 0), 0) >= 20,
-    contract: L.some((e) => e.kind === 'contract'),
-    shop: g.shopEdited,
-    campaign: !!g.flags.campaignSeen,
-    brief: L.some((e) => e.kind === 'brief'),
-  }
-  const done = !!g.ledger.find((e) => e.kind === 'boot' && e.amount === n) || auto[day.auto]
-  return { n, day, done, claimed: !!g.ledger.find((e) => e.kind === 'boot' && e.amount === n) }
-}
+/* ======================================================================= the brief (Today + JARVIS) */
+/** What the brief needs from a plan contract (the server's /api/mission/today). */
+export interface BriefContract { key: string; title: string; minutes: number; node_name?: string | null; done: boolean; source?: string }
 
-/* ======================================================================= the brief (HQ + JARVIS) */
-export function buildBrief(g: GameData, today: string, xp: number, rank: number, contracts: DailyContract[]) {
+export function buildBrief(g: GameData, today: string, xp: number, contracts: BriefContract[]) {
   const s = streakInfo(g, today)
   const day = g.days[today]
   const mode = modeOn(g, today)
   const rest = isRestDay(g, today)
   const reps = REPS.map((r) => ({ rep: r, done: !!day?.reps[r] }))
   const open = reps.filter((r) => !r.done).map((r) => REP_LABEL[r.rep])
-  const boss = currentBoss(g, today)
-  const bs = bossState(boss, g, today)
   const lv = levelInfo(xp)
-  const todo = contracts.filter((c) => !g.contracts[c.key])
-  const week = weekStart(today)
-  const op = operationProgress(g, week, today)
+  const todo = contracts.filter((c) => !c.done)
+  const done = contracts.length - todo.length
   const dayN = daysBetween(g.firstPlay, today) + 1
 
   const parts: string[] = []
   parts.push(`Day ${dayN}. Streak ${s.current}${g.shields ? `, ${g.shields} shield${g.shields > 1 ? 's' : ''}` : ''}.`)
   if (mode === 'exam') parts.push('Exam mode: the floor is your exam study.')
-  if (rest && !s.todaySecured) parts.push('Rest day — the streak is safe.')
-  else if (s.todaySecured || isSecured(g, today)) parts.push('Floor secured.')
+  if (rest && !s.todaySecured) parts.push('Rest day: the streak is safe.')
+  else if (isSecured(g, today)) parts.push('Floor secured.')
   else parts.push(`Floor open: ${open.join(', ')}.`)
-  if (todo.length) parts.push(todo.map((c) => `${NPCS[c.def.npc].name}: ${c.def.title}`).join('. ') + '.')
-  if (bs.status === 'active' || bs.status === 'escaped') {
-    parts.push(`${boss.name}: ${bs.hp} of ${bs.hpMax} HP${bs.status === 'escaped' ? ', escaped and still standing' : `, ${bs.daysLeft} day${bs.daysLeft === 1 ? '' : 's'} left`}.`)
-  }
-  if (op) parts.push(`${op.def.title}: ${op.value} of ${op.n}${op.def.goal ? ` ${op.def.goal.unit}` : ''}${op.st.status === 'won' ? ', won' : ''}.`)
+  if (done) parts.push(`${done} contract${done === 1 ? '' : 's'} done today.`)
+  if (todo.length) parts.push(`Next: ${todo.slice(0, 2).map((c) => `${c.title} (${c.minutes} min)`).join('; ')}.`)
   parts.push(`${g.marks} Marks. Level ${lv.level}.`)
 
   return {
@@ -571,11 +487,8 @@ export function buildBrief(g: GameData, today: string, xp: number, rank: number,
     data: {
       day: dayN, date: today, streak: s.current, shields: g.shields, secured: isSecured(g, today), rest, mode,
       floor: Object.fromEntries(reps.map((r) => [r.rep, r.done])),
-      contracts: contracts.map((c) => ({ key: c.key, title: c.def.title, npc: NPCS[c.def.npc].name, track: c.def.track, minutes: c.def.minutes, done: !!g.contracts[c.key] })),
-      boss: { id: boss.id, name: boss.name, hp: bs.hp, hpMax: bs.hpMax, daysLeft: bs.daysLeft, status: bs.status, deliverable: boss.deliverable,
-        nextStep: boss.steps.find((_, i) => !g.flags[`step:${boss.id}:${i}`]) ?? null, tracks: boss.tracks },
-      operation: op ? { title: op.def.title, value: op.value, n: op.n, done: op.done } : null,
-      marks: g.marks, level: lv.level, xp, rank,
+      contracts: contracts.map((c) => ({ key: c.key, title: c.title, node: c.node_name ?? null, minutes: c.minutes, done: c.done })),
+      marks: g.marks, level: lv.level, xp,
       shop: g.shop.filter((i) => i.kind === 'reward').map((i) => ({ id: i.id, label: i.label, cost: i.cost })),
     },
   }

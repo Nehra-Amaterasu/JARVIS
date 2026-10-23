@@ -1,4 +1,124 @@
-# Mission Germoney — Season One: Year Zero
+# Mission Germoney
+
+## v2 (2026-10-23): the tree, not a list of strings
+
+Season One's labels changed but its data did not: contracts came from a fixed pool
+of strings, the "skill tree" was a reading page, and contracts, bosses and the tree
+were not connected. v2 rebuilds the data model and the engine underneath. Research,
+sources and numbers: `docs/research/2026-10-23-mission-germoney-rebuild.md`.
+
+**The data bank.** `app/ui/src/germoney/data/bank/*.json` (skill tree, careers,
+certificates, resources, the maths track) is written by research agents and loaded by
+two validators that agree: `data/bank.ts` (the window) and `germoney.merge_bank`
+(the server), tested against the same fixtures. Any subset of files works. An
+unknown id is a warning and the reference is dropped, so a typo never locks a node.
+A prerequisite cycle is an error. Private academics (`data/app/germoney/academics/`)
+are served by the server only and never bundled.
+
+**The skill tree is a DAG.** A node is *locked* until every prerequisite is
+*mastered*, then *available*, then *in progress* (at most 3 at once), then
+*mastered* (every contract done, or marked). A node carries what was earned on it:
+certificates, shipped projects and achievements, each with its link. The Tree screen
+draws it the way Assassin's Creed Origins and Cyberpunk 2077 do: a trunk, one branch
+per discipline, tiers as rings, prerequisite edges, and a career overlay (VLSI design
+vs AI-hardware architect) that makes heavily weighted nodes glow. It is one SVG, and
+every node is a focusable button that the arrow keys move between.
+
+**The contract engine** (server, `germoney.py`, "the plan engine") makes the day.
+- *Library block* (3 h, weekdays): the day's rotation track (default Mon digital/HDL,
+  Tue maths, Wed ML/DL, Thu academics, Fri comp-arch/RISC-V/security; editable). It
+  resumes in-progress nodes first, then picks by career weight, membership of an
+  active campaign and staleness. A new node is started only while the WIP cap has
+  room. Next week resumes where this week stopped.
+- *Evening block*: practice questions + JARVIS, i.e. spaced recall on a node from
+  another track (or, in exam mode, the maths rescue's foundation feed or past papers).
+- *Protected slot*: social/rest, never filled. *Weekends*: one small contract.
+- *Every contract carries its context*: what to read first (the node's primary
+  lesson and the lesson of each prerequisite it builds on), a backup resource, legal
+  PDFs, steps, a hint, and a "done when" check.
+- *The day is frozen* once made, so finishing one contract never reshuffles the rest.
+- *Exam mode* comes from academics: the plan's phase for today (internals sprint,
+  internals week, re-sit-first build, re-sit crunch, exam window) sets the library
+  blocks. A maths re-sit is served from the rescue triage as real bank contracts.
+  Without a phase, an exam within 14 days takes over, re-sits first. "Exam mode for
+  <subject>" forces it. Dates he sets (including the re-sit block) live
+  in `overrides.json` and survive a rewrite of academics.json.
+- *Campaigns* are multi-week arcs to a career milestone: a node with a project plus
+  everything it needs, a finish line (the deliverable), and a ship step (GitHub, the
+  LinkedIn line, its certificate). At most 3 run at once, and an active campaign
+  pulls its nodes to the front of the contracts.
+- *Certificates* show their cost against the budget (₹3,000/month; up to ₹5,000 for
+  credibility 4/5 or more).
+
+**Shaped by how he works** (strong starter, weaker finisher, tires of routine): a
+hard cap of three nodes and three campaigns in progress, an explicit finish line and
+ship step on every campaign, a parking lot for new ideas (Today and voice: "park an
+idea: …"), a different track each library day, the day's small wins counted on Today,
+and encouraging copy everywhere. Rule 1 became a nudge: two weeks without a commit
+shows "ship one small commit", with no rank drop and no Purgatory.
+
+**One XP system, one to-do system, one log.** XP is one total, owned by the
+server (`@mission_v2`); it started from the save's XP. Everything the window pays
+(the Floor, Drill, the Crucible) is sent as a delta, and `player.xp` is the window's
+mirror. Rank is retired. The only to-do system is contracts. The only log is the
+plan's log (Log screen, voice, the gym), and its events tick the Floor in the window
+once each.
+
+**Five screens.** Today (contracts + the day's blocks + the Floor + findings), Tree,
+Focus (Crucible + Drill), Log (one form + gym + "what got in the way" + GitHub), Road
+(campaigns, certificates, the parking lot, Trials, the War Chest, rewards, the Season
+One record). Settings live in a drawer.
+
+**Voice, window or no window** (`/api/mission/voice`): "what's today's contract",
+"explain this contract", "I finished it", "what's next on the tree", "exam mode for
+<subject>", "how many days to <exam>", "park an idea: …", "log 2 hours of German".
+Marks, buying and the Crucible still need the window.
+
+**Latest findings.** A small daily digest per active node from arXiv (cs.AR, cs.LG,
+eess.SP, math.HO/math.PR by branch), fetched at most once a day, cached, and shown as
+stale when offline.
+
+**The internship campaign.** Summer 2027 is a pipeline of dated applications: idea →
+preparing → applied → interview → offer / rejected, plus *not eligible* with a reason.
+Research writes the calendar (`internships.json`), his progress lives in
+`applications.json`, and both are private under `data/app/germoney/`. Each application
+shows its countdown. A deadline within 14 days, or a prep task due this week, shows on
+Today. A long-term goal (the ₹1 crore career) has milestones that fill in as their
+linked tree nodes are mastered.
+
+**Real papers.** The academics file now carries the real past papers: a question bank
+per subject, the paper pattern, and the pass rule. Exam contracts ask real questions
+("Solve Jun 2026 SEE Q4a: false position on x − e^−x = 0"), never the same one twice,
+and each re-sit shows the SEE marks still needed (with the internal marks carried
+over). Notes and papers open through a route that serves only files inside the
+academics folder or the OneDrive COLLEGE folder.
+
+**The goal ladder.** Vision (ten years, fixed) → year milestones → quarter → month →
+week → today's contracts. The short-term rungs are re-derived from progress every time.
+Every contract says which milestone it serves ("why this today"). A monthly review
+records what went well and what slipped, and can move milestones; the vision stays.
+
+**Gaps are expected.** After 4 idle days Today opens with "welcome back": no lost-streak
+drama, a plain line on what slipped, the next deadline, and refreshers. Mastered
+nodes untouched for 30 days get a short spaced-review refresher. When he drifts for
+more than 3 days, JARVIS nudges once a day at most, never in quiet hours.
+
+**The profile** (`profile.json`, private, editable, no test scores) sets the style:
+the puzzle before the theory, two or three contracts to choose from, short sprints with
+a finish line, the in-progress cap, quiet hours. JARVIS reads its rules when he talks
+about the mission.
+
+**The learning log.** Anything productive (free text, voice "log: …", files) is saved
+under `learning/YYYY/MM/<date>_<slug>/`, with the files renamed from his explanation and
+a `meta.json`. It is matched to tree nodes (he can correct the match) and paid in XP.
+
+What follows is the Season One design. The Floor, Marks, the Armory, Drill, Trials and
+the War Chest still work as described. Contracts, weekly operations, Boot Camp and
+monthly bosses were replaced as above; the bosses' deliverables live on as tree projects.
+
+---
+
+# Season One: Year Zero
 
 The phone app was never played. Before redesigning it I read why, in my own
 planning notes (`mission_germoney/docs/09, 11, 13` and the ideation chat):

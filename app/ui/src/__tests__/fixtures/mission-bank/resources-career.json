@@ -1,0 +1,7 @@
+[
+  { "id": "r-hdlbits", "title": "HDLBits", "kind": "practice", "url": "https://hdlbits.01xz.net/", "free": true, "covers": ["verilog"] },
+  { "id": "r-chipverify", "title": "ChipVerify Verilog", "kind": "tutorial", "url": "https://www.chipverify.com/verilog/verilog-tutorial", "free": true, "covers": ["verilog"] },
+  { "id": "r-nandland", "title": "Nandland UART", "kind": "tutorial", "url": "https://nandland.com/uart-serial-port-module/", "free": true, "covers": ["uart"] },
+  { "id": "r-riscv-spec", "title": "RISC-V unprivileged spec", "kind": "spec", "url": "https://riscv.org/specifications/ratified/", "free": true, "legal_pdf_url": "https://riscv.org/specifications/ratified/", "covers": ["rv32i"] },
+  { "id": "r-cs229", "title": "Stanford CS229 notes", "kind": "course", "url": "https://cs229.stanford.edu/", "free": true, "covers": ["ml"] }
+]

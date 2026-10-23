@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "semester": "Sem 5 (fixture)",
+  "calendar": {
+    "internals_start": "2026-11-09",
+    "end_sem_start": "2026-12-07",
+    "end_sem_start_approx": true,
+    "backlog_block": { "start": null, "days": 3, "consecutive": true, "status": "TBC" }
+  },
+  "subjects": [
+    { "id": "math-re1", "name": "Engineering Mathematics III", "code": "MTH 201", "kind": "backlog", "exam_date": null, "risk": "highest",
+      "units": [ { "n": 3, "title": "Root finding and interpolation", "topics": ["bisection", "Newton-Raphson"], "exam_weight": "high", "skip_if_short": false,
+        "resources": [ { "local_path": "PAPERS/MTH201_Jun2026.pdf", "title": "MTH 201 SEE June 2026", "role": "primary", "kind": "real past paper" }, "r-khan-calc" ],
+        "pyq_refs": ["2023 Q5"], "must_do": ["Newton-Raphson table"] } ],
+      "question_bank": [
+        { "subject_id": "math-re1", "unit": 3, "topic": "false position", "question": "Find a root of x - e^-x = 0 by the method of false position.", "marks": 10, "source_file": "PAPERS/MTH201_Jun2026.pdf", "type": "pyq_see", "section": "B", "choice_group": "4a", "sitting": "Jun 2026 SEE (QP 90000001)" },
+        { "subject_id": "math-re1", "unit": 3, "topic": "Newton forward", "question": "Interpolate f(1.5) from the table by Newton's forward formula.", "marks": 2, "source_file": "PAPERS/MTH201_Jun2026.pdf", "type": "pyq_see", "section": "A", "choice_group": "1c", "sitting": "Jun 2026 SEE (QP 90000001)" },
+        { "subject_id": "math-re1", "unit": 5, "topic": "Bayes", "question": "State and prove Bayes' theorem.", "marks": 10, "type": "pyq_see", "choice_group": "6a", "sitting": "Jun 2026 SEE (QP 90000001)" }
+      ],
+      "paper_pattern": { "max_marks": 60, "time": "3 h", "sections": [ { "name": "A", "questions": 5, "marks_each": 2 } ] },
+      "pass_rule": { "see_min": 24, "see_max": 60, "cie_min": 20, "cie_max": 40, "aggregate_min_pct": 45, "ia_carried_over": 21 },
+      "strategy": "Procedures first: step marks." },
+    { "id": "nas", "name": "Circuit Theory", "kind": "backlog", "exam_date": null,
+      "units": [ { "n": 4, "title": "Laplace transients", "topics": ["RL", "RC"], "exam_weight": "high", "skip_if_short": false, "resources": [], "pyq_refs": ["2022 Q4"] } ],
+      "question_bank": [
+        { "unit": 4, "topic": "RL transient", "question": "Find i(t) for the RL circuit when the switch closes at t = 0.", "marks": 10, "type": "pyq_see", "choice_group": "5a", "sitting": "Jun 2026 SEE" }
+      ],
+      "pass_rule": { "see_min": 24, "see_max": 60, "cie_min": 20, "cie_max": 40, "aggregate_min_pct": 45, "ia_carried_over": 29 },
+      "strategy": "Clear the backlog first." },
+    { "id": "dsp", "name": "Digital Signal Processing", "kind": "current", "exam_date": null, "internal_from": "2026-11-09", "end_sem_from": "2026-12-07", "end_sem_approx": true,
+      "units": [
+        { "n": 1, "title": "Z-transform", "topics": ["ROC", "inverse Z"], "exam_weight": "med", "skip_if_short": false, "resources": ["r-floyd"], "pyq_refs": ["2024 Q3", "2023 Q2"] },
+        { "n": 2, "title": "FFT", "topics": ["radix-2 DIT"], "exam_weight": "high", "skip_if_short": false, "resources": [], "pyq_refs": ["2024 Q1"] },
+        { "n": 3, "title": "Filter history", "topics": ["trivia"], "exam_weight": "low", "skip_if_short": true, "resources": [], "pyq_refs": [] }
+      ], "strategy": "FFT and Z-transform are most of the paper." },
+    { "id": "vlsi-th", "name": "VLSI Technology", "kind": "current", "exam_date": null, "internal_from": "2026-11-09", "end_sem_from": "2026-12-07",
+      "units": [ { "n": 1, "title": "Oxidation", "topics": ["Deal-Grove"], "exam_weight": "med", "skip_if_short": false, "resources": [], "pyq_refs": [] } ], "strategy": "" }
+  ],
+  "plan": {
+    "rules": ["Backlogs before current subjects"],
+    "by_days_left": [
+      { "phase": 1, "name": "Internals sprint", "anchor": "internals_start", "anchor_date": "2026-11-09", "days_left_from": 14, "days_left_to": 1, "minutes_per_day": 180,
+        "assumption": "Internal syllabus assumed to be Units 1-2.",
+        "days": [ { "days_left": 14, "blocks": [["dsp", 100, "U2 FFT radix-2 by hand"], ["math-re1", 30, "U3 bisection"], ["vlsi-th", 50]] } ],
+        "template": [["dsp", 120, ""], ["math-re1", 60, "U3"]] },
+      { "phase": 2, "name": "Internals week", "anchor": "internals_start", "days_left_from": 0, "days_left_to": null, "minutes_per_day": 180,
+        "template": [["next-internal-paper", 150, "next day's paper only"], ["math-re1", 30, "keep the maths drill"]] },
+      { "phase": 3, "name": "Backlog-first build", "anchor": "end_sem_start", "anchor_date": "2026-12-07", "days_left_from": 24, "days_left_to": 8, "minutes_per_day": 180,
+        "weekly_template": { "mon": [["math-re1", 75, "U3"], ["nas", 60], ["dsp", 45]], "sun": [["mock", 150, "timed full paper"], ["error-log", 30]] },
+        "milestones": [ { "days_left": 24, "goal": "maths U3 done; NAS U4 Laplace done" } ] },
+      { "phase": 5, "name": "Exam window", "anchor": "each_paper", "days_left_from": 1, "days_left_to": 0, "minutes_per_day": 180,
+        "template": [["next-paper", 180, "formula sheet, 2-mark list, one past paper"]] }
+    ]
+  },
+  "unresolved": ["backlog block dates"]
+}

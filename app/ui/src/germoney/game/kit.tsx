@@ -2,10 +2,9 @@
  * The game's small parts: level ring, HP bar, streak flame, Marks, shields,
  * the attribute radar, track tags and the Intel card. Shared by every Mission tab.
  */
-import { Eye, Flame, Lightbulb, Shield } from 'lucide-react'
-import { useState, type CSSProperties } from 'react'
+import { Flame, Shield } from 'lucide-react'
+import type { CSSProperties } from 'react'
 import { TRACKS, type Track } from './characters'
-import type { Intel } from './contracts'
 
 export function Marks({ n, size = 'md' }: { n: number; size?: 'sm' | 'md' | 'lg' }) {
   return (
@@ -88,25 +87,5 @@ export function Radar({ values }: { values: Record<string, number> }) {
         return <text key={k} x={x} y={y + 3} textAnchor="middle" className="radar-k">{k}</text>
       })}
     </svg>
-  )
-}
-
-/** Why it matters · the concept · one resource · a check question you answer before revealing. */
-export function IntelCard({ intel, why }: { intel: Intel; why?: string }) {
-  const [reveal, setReveal] = useState(false)
-  return (
-    <div className="intel-card fade-in">
-      {(intel.why ?? why) && <p className="ic-why"><span className="eyebrow">Why it matters</span>{intel.why ?? why}</p>}
-      <p className="ic-concept"><span className="eyebrow"><Lightbulb size={11} /> Concept</span>{intel.concept}</p>
-      {intel.resource && <a className="ic-res" href={intel.resource.url} target="_blank" rel="noreferrer">{intel.resource.label} ↗</a>}
-      {intel.check && (
-        <div className="ic-check">
-          <span className="eyebrow">Check yourself</span>
-          <p>{intel.check.q}</p>
-          {reveal ? <p className="ic-answer fade-in">{intel.check.a}</p>
-            : <button className="btn sm ghost" onClick={() => setReveal(true)}><Eye size={12} />Answer first in your head — then reveal</button>}
-        </div>
-      )}
-    </div>
   )
 }

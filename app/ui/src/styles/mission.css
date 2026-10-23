@@ -229,3 +229,120 @@
   .cmd-grid { grid-template-columns: 1fr 1fr; }
   .term-grid { grid-template-columns: 1fr; }
 }
+
+/* ==========================================================================
+   Mission v2: Today, Tree, Focus, Log, Road, the settings drawer.
+   ========================================================================== */
+.mn-settings { display: inline-flex; align-items: center; gap: 6px; }
+.embedded .mission-head, .embedded .page-head { display: none; }
+.embedded > .mission-page { padding: 0; }
+.seg { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.chip.on { color: #050506; background: var(--ink); }
+.chip.backlog { box-shadow: inset 0 0 0 1px var(--fault-2); }
+.chip.mastered { box-shadow: inset 0 0 0 1px var(--live); color: var(--live); }
+.chip.in_progress { box-shadow: inset 0 0 0 1px var(--sim); color: var(--sim); }
+.chip.locked { opacity: 0.55; }
+
+/* today */
+.today-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 18px; align-items: start; margin-top: 14px; }
+.today-main, .today-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+@media (max-width: 980px) { .today-grid { grid-template-columns: 1fr; } }
+.wins-row { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 8px; }
+.wins-row > div { display: flex; flex-direction: column; gap: 2px; }
+.wins-row .dot { font-size: 22px; }
+.comeback { display: flex; align-items: center; gap: 12px; margin-top: 12px; box-shadow: inset 0 0 0 1px var(--hair); }
+.comeback > div { flex: 1; }
+.exam-banner { box-shadow: inset 0 0 0 1px rgba(255, 214, 140, 0.25); }
+.exam-queue { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.block-protected { background: rgba(255, 255, 255, 0.02); border: 1px dashed var(--hair); }
+.contract { border-top: 1px solid var(--hair); }
+.contract:first-of-type { border-top: 0; }
+.contract-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 2px; text-align: left; color: var(--ink); }
+.contract-head:hover { background: rgba(255, 255, 255, 0.03); }
+.contract-head:focus-visible { outline: 2px solid var(--ink-3); outline-offset: 2px; border-radius: 8px; }
+.c-dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-3); flex: none; }
+.c-title { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.c-chev { color: var(--ink-3); transition: transform var(--t-fast); flex: none; }
+.contract.open .c-chev { transform: rotate(180deg); }
+.contract.done .c-title b { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--ink-4); }
+.verified { color: var(--live); }
+.claimed { color: var(--sim); }
+.contract-body { padding: 0 2px 14px 20px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.c-sec { display: flex; flex-direction: column; gap: 4px; }
+.c-res { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; color: var(--ink); }
+.c-res:hover { text-decoration: underline; }
+.c-steps { margin: 4px 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
+.c-hint { color: var(--ink-2); }
+.c-check { box-shadow: inset 2px 0 0 var(--live); padding-left: 10px; }
+.floor-row.compact { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.floor-row.compact .rep-tile { min-height: 0; padding: 10px 8px; }
+.floor-card .crate { margin-top: 10px; }
+.finding { display: flex; flex-direction: column; gap: 3px; padding: 6px 0; border-top: 1px solid var(--hair); }
+.finding a { color: var(--ink); }
+.mission-page details > summary { cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.today-cal { margin-top: 18px; }
+
+/* the tree */
+.career-pick { display: flex; gap: 6px; flex-wrap: wrap; }
+.tree-wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); gap: 18px; align-items: start; }
+@media (max-width: 1100px) { .tree-wrap { grid-template-columns: 1fr; } }
+.skill-tree { width: 100%; height: auto; max-height: 78vh; --tree-glow: #a9bfff; border-radius: 20px; background: radial-gradient(ellipse at 50% 100%, rgba(169, 191, 255, 0.08), transparent 70%); }
+.tree-trunk { stroke: var(--ink-3); stroke-width: 10; stroke-linecap: round; }
+.tree-edge { fill: none; stroke: var(--ink-4); stroke-width: 1.4; }
+.tree-edge.root { stroke: var(--ink-3); stroke-width: 2.2; opacity: 0.6; }
+.tree-edge.lit { stroke: var(--live); stroke-width: 2; }
+.tree-edge.sel { stroke: var(--ink); stroke-width: 2.4; }
+.tree-branch { fill: var(--ink-3); font: 600 10px var(--f-mono); letter-spacing: 0.12em; text-transform: uppercase; }
+.tree-node { cursor: pointer; outline: none; }
+.tree-node polygon { fill: #0c0d10; stroke: var(--ink-3); stroke-width: 1.5; transition: stroke var(--t-fast), fill var(--t-fast); }
+.tree-node.locked polygon { stroke: var(--ink-4); stroke-dasharray: 3 3; }
+.tree-node.locked .tn-label { fill: var(--ink-4); }
+.tree-node.available polygon { stroke: var(--ink); }
+.tree-node.in_progress polygon { stroke: var(--sim); fill: rgba(255, 214, 140, 0.12); }
+.tree-node.mastered polygon { stroke: var(--live); fill: rgba(0, 229, 255, 0.14); }
+.tn-core { fill: var(--live); }
+.tn-lock { fill: none; stroke: var(--ink-4); stroke-width: 1.3; }
+.tn-label { fill: var(--ink-2); font: 500 9.5px var(--f-ui); pointer-events: none; }
+.tree-node.sel polygon, .tree-node:focus-visible polygon { stroke-width: 3; stroke: var(--ink); }
+.tree-node.sel .tn-label { fill: var(--ink); font-weight: 700; }
+.node-panel { position: sticky; top: 64px; display: flex; flex-direction: column; gap: 6px; max-height: 80vh; overflow-y: auto; }
+.np-title { margin: 4px 0 0; font-size: 20px; }
+.np-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 8px; }
+.np-list { margin: 0 0 6px; padding-left: 18px; font-size: 12.5px; display: flex; flex-direction: column; gap: 3px; }
+.np-list li.done { color: var(--ink-3); }
+.np-list a { color: var(--ink); }
+
+/* log + road */
+.log-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-3); }
+.log-row { display: grid; grid-template-columns: 90px 1fr auto; gap: 10px; align-items: baseline; padding: 5px 0; border-top: 1px solid var(--hair); }
+.camp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; margin: 8px 0 16px; }
+.campaign.active { box-shadow: inset 0 0 0 1px var(--sim); }
+.campaign.shipped { box-shadow: inset 0 0 0 1px var(--live); }
+.camp-path { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; }
+.cert-table { display: flex; flex-direction: column; }
+.cert-row { display: grid; grid-template-columns: minmax(0, 2fr) 70px 90px minmax(0, 1.4fr) minmax(220px, 1fr); gap: 10px; align-items: center; padding: 7px 0; border-top: 1px solid var(--hair); font-size: 12.5px; }
+@media (max-width: 1100px) { .cert-row { grid-template-columns: 1fr auto; } }
+.cert-row a { color: var(--ink); }
+
+/* the settings drawer */
+.drawer-scrim { position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, 0.45); display: flex; justify-content: flex-end; }
+.drawer { width: min(560px, 96vw); height: 100%; overflow-y: auto; border-radius: 20px 0 0 20px; display: flex; flex-direction: column; gap: 14px; }
+.set-sec { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid var(--hair); }
+.set-sec .field-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* the internship pipeline */
+.pipeline { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 8px; }
+.pipe-col { padding: 6px 8px; border-radius: 10px; background: rgba(255, 255, 255, 0.03); }
+.app-row { display: grid; grid-template-columns: 110px minmax(0, 1fr) 130px; gap: 10px; align-items: start; padding: 8px 0; border-top: 1px solid var(--hair); font-size: 12.5px; }
+.app-row a { color: var(--ink); }
+.deadlines { margin-top: 12px; }
+@media (max-width: 800px) { .pipeline { grid-template-columns: repeat(3, 1fr); } .app-row { grid-template-columns: 1fr; } }
+
+/* the ladder, re-entry, choices */
+.rungs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 1000px) { .rungs { grid-template-columns: 1fr 1fr; } }
+.rung { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.03); }
+.welcome-back { margin-top: 12px; box-shadow: inset 0 0 0 1px var(--live); }
+.c-serves { color: var(--ink-2); }
+.c-hook { color: var(--ink); }
+.alternatives { margin-top: 4px; }

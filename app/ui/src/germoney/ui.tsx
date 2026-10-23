@@ -7,7 +7,7 @@
  *   purgatory / boss / failure red   (fault state)
  *   XP and ranks              chrome (identity)
  */
-import { Check, Image as ImageIcon, Lock, X } from 'lucide-react'
+import { Check, Image as ImageIcon, Lock, Settings2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { create } from 'zustand'
 import { useStore, type Tab } from '../lib/store'
@@ -16,25 +16,48 @@ import { dateKey, usePlayerStore } from './stores/player-store'
 import type { ProofEntry, ProofType } from './stores/proof-store'
 
 /* ------------------------------------------------------------------ sub-navigation */
-export const MISSION_TABS: { id: Tab; label: string }[] = [
-  { id: 'mission', label: 'HQ' }, { id: 'quests', label: 'Contracts' }, { id: 'campaign', label: 'Campaign' },
-  { id: 'trials', label: 'Trials' }, { id: 'drill', label: 'Drill' }, { id: 'armory', label: 'Armory' },
-  { id: 'crucible', label: 'Crucible' }, { id: 'forge', label: 'Forge' }, { id: 'syllabus', label: 'Syllabus' },
-  { id: 'terminal', label: 'Terminal' }, { id: 'interrogation', label: 'Interrogation' }, { id: 'proof', label: 'Proof' },
-  { id: 'schedule', label: 'Schedule' },
+/**
+ * Mission v2: five screens. The Tab ids are the app's (lib/store.ts), reused so
+ * the dock, Ctrl 0 and saved tab choices keep working; every old Mission tab
+ * id lands on the screen that absorbed it.
+ */
+export type MissionScreen = 'today' | 'tree' | 'focus' | 'log' | 'road'
+export const MISSION_TABS: { id: Tab; screen: MissionScreen; label: string }[] = [
+  { id: 'mission', screen: 'today', label: 'Today' },
+  { id: 'syllabus', screen: 'tree', label: 'Tree' },
+  { id: 'crucible', screen: 'focus', label: 'Focus' },
+  { id: 'terminal', screen: 'log', label: 'Log' },
+  { id: 'campaign', screen: 'road', label: 'Road' },
 ]
+/** Where each old tab went (HQ, Contracts and Schedule became Today, and so on). */
+export const SCREEN_OF: Partial<Record<Tab, MissionScreen>> = {
+  mission: 'today', quests: 'today', schedule: 'today',
+  syllabus: 'tree',
+  crucible: 'focus', drill: 'focus',
+  terminal: 'log', forge: 'log', interrogation: 'log', proof: 'log',
+  campaign: 'road', trials: 'road', armory: 'road',
+  calibration: 'today',
+}
+
+export const useDrawer = create<{ open: boolean; toggle: (o?: boolean) => void }>((set, get) => ({
+  open: false,
+  toggle: (o) => set({ open: o ?? !get().open }),
+}))
 
 export function MissionNav() {
   const tab = useStore((s) => s.tab)
   const setTab = useStore((s) => s.setTab)
-  const purgatory = usePlayerStore((s) => s.player.isPurgatoryActive)
+  const toggle = useDrawer((s) => s.toggle)
+  const screen = SCREEN_OF[tab] ?? 'today'
   return (
     <nav className="mission-nav" aria-label="Mission">
       <span className="mn-brand mono">m:ss:on_ger-money</span>
       {MISSION_TABS.map((t) => (
-        <button key={t.id} className={`mn-tab ${tab === t.id ? 'on' : ''} ${t.id === 'crucible' && purgatory ? 'alarm' : ''}`}
+        <button key={t.id} className={`mn-tab ${screen === t.screen ? 'on' : ''}`} aria-current={screen === t.screen ? 'page' : undefined}
           onClick={() => setTab(t.id)}>{t.label}</button>
       ))}
+      <span style={{ flex: 1 }} />
+      <button className="mn-tab mn-settings" onClick={() => toggle()} aria-label="Mission settings"><Settings2 size={14} />Settings</button>
     </nav>
   )
 }

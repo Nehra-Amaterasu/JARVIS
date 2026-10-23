@@ -6,9 +6,13 @@
  *        ▲                                                                   │ runs it
  *        └───────── one spoken line ◀── POST /api/game/result ◀──────────────┘
  *
- * It also keeps the mission brief in the key-value store (JARVIS's prompt reads it
- * when you ask about study, German, bosses or the plan), nudges at the configured
- * hour when the floor is still open, and rolls the day over at midnight.
+ * Since Mission v2 only the window-side game goes this way (the Floor, Marks, the
+ * Armory, the Crucible). The plan (contracts, the tree, exam mode, logging) is
+ * answered by the server itself (/api/mission/voice), window or no window; this
+ * bridge pulls the plan's events in so the Floor ticks for work done by voice.
+ *
+ * It also keeps the brief where JARVIS reads it, nudges at the configured hour
+ * when the floor is still open, and rolls the day over at midnight.
  */
 import { post } from '../../lib/api'
 import { useStore } from '../../lib/store'
@@ -17,8 +21,9 @@ import { usePlayerStore } from '../stores/player-store'
 import { TRACKS, type Track } from './characters'
 import * as E from './engine'
 import { useBanners } from './fx'
+import { usePlan } from './plan'
 import { sfx } from './sfx'
-import { contractsFor, gameBrief, useGame } from './store'
+import { gameBrief, useGame } from './store'
 import { wordScore } from './util'
 
 export const BRIEF_KEY = '@silicon_game_brief'
@@ -32,7 +37,7 @@ function floorLine(): string {
   const { g, today } = useGame.getState()
   const day = g.days[today]
   const open = E.REPS.filter((r) => !day?.reps[r]).map((r) => E.REP_LABEL[r])
-  if (E.isSecured(g, today)) return `Floor secured, streak ${E.streakInfo(g, today).current}.${g.chests[today] ? '' : ' Your supply drop is waiting in HQ.'}`
+  if (E.isSecured(g, today)) return `Floor secured, streak ${E.streakInfo(g, today).current}.${g.chests[today] ? '' : ' Your supply drop is waiting on Today.'}`
   return `Floor: ${3 - open.length} of 3. Still open: ${open.join(', ')}.`
 }
 
@@ -50,18 +55,18 @@ export function runAction(action: string, args: Args = {}): ActionResult {
       return { ok: true, say: `Streak ${s.current}, best ${s.best}. ${g.shields} shield${g.shields === 1 ? '' : 's'}. ${floorLine()}` }
     }
     case 'log': {
+      // The one log is the plan's (it pays the XP); the Floor ticks when its event comes back.
       const track = String(args.track ?? '') as Track
       const minutes = Math.max(1, Math.min(600, Number(args.minutes) || 0))
-      if (track === 'deutsch') st.recordLog('german', minutes / 60)
-      else if (track === 'silicon') st.recordLog('stamina', minutes / 60)
-      else if (track === 'body') st.recordLog('workout', 1)
-      else return { ok: false, say: 'Log what — German, Silicon or a workout?' }
+      if (!['deutsch', 'silicon', 'body'].includes(track)) return { ok: false, say: 'Log what: German, Silicon or a workout?' }
+      void usePlan.getState().log({ minutes, track, note: 'voice' })
+      usePlayerStore.getState().recordHours(track === 'deutsch' ? 'german' : track === 'body' ? 'workout' : 'stamina', minutes / 60)
       const what = track === 'body' ? 'a training session' : `${hm(minutes)} of ${TRACKS[track].label}`
-      return { ok: true, say: `Logged ${what}. ${floorLine()}` }
+      return { ok: true, say: `Logging ${what}.` }
     }
     case 'rep': {
       const rep = String(args.rep) as E.Rep
-      if (!E.REPS.includes(rep)) return { ok: false, say: 'Which rep — Silicon, Deutsch or Body?' }
+      if (!E.REPS.includes(rep)) return { ok: false, say: 'Which rep: Silicon, Deutsch or Body?' }
       st.markRep(rep, 'voice', false)
       return { ok: true, say: `${E.REP_LABEL[rep]} claimed. ${floorLine()}` }
     }
@@ -70,21 +75,7 @@ export function runAction(action: string, args: Args = {}): ActionResult {
       const track = (['silicon', 'deutsch', 'capital', 'paper', 'academy'].includes(String(args.track)) ? args.track : 'silicon') as Track
       st.requestFocus(minutes, track)
       useStore.getState().setTab('crucible')
-      return { ok: true, say: `Crucible armed: ${minutes} minutes on ${TRACKS[track].label}. Distractions in front for twenty seconds forfeit it. Go.` }
-    }
-    case 'complete': {
-      const query = String(args.query ?? '').trim()
-      const rank = usePlayerStore.getState().player.level
-      const open = contractsFor(g, today, rank).filter((c) => !g.contracts[c.key])
-      if (!open.length) return { ok: false, say: 'No open contracts today.' }
-      const scored = open.map((c) => ({ c, s: Math.max(wordScore(query, c.def.title), wordScore(query, `${c.def.title} ${c.def.task}`) * 0.8) })).sort((a, b) => b.s - a.s)
-      if (!query || scored[0].s < 0.5) {
-        return { ok: false, say: `Which one? Open: ${open.map((c) => c.def.title).join('; ')}.` }
-      }
-      const c = scored[0].c
-      const r = st.completeContract(c.key, { type: 'text', value: `Voice report: "${String(args.utterance ?? query).slice(0, 200)}"` })
-      if (!r) return { ok: false, say: 'That contract is already done.' }
-      return { ok: true, say: `${c.def.title}: done. Plus ${r.xp} XP and ${r.marks} Marks${r.crit ? ' — critical hit' : ''}${r.nth > 1 ? `, combo ${E.comboMult(r.nth)}` : ''}. Drawn amber: a voice report is a claim — add a link in Contracts to verify it. ${floorLine()}` }
+      return { ok: true, say: `Focus armed: ${minutes} minutes on ${TRACKS[track].label}. A distraction in front for twenty seconds ends it. Go.` }
     }
     case 'marks': {
       const rewards = g.shop.filter((i) => i.kind === 'reward').sort((a, b) => a.cost - b.cost)
@@ -97,7 +88,7 @@ export function runAction(action: string, args: Args = {}): ActionResult {
       if (!best || best.s < 0.5) return { ok: false, say: `Buy what? The Armory has: ${g.shop.filter((i) => i.kind === 'reward').map((i) => i.label).join(', ')}.` }
       const err = st.buy(best.i.id)
       if (err) return { ok: false, say: err }
-      return { ok: true, say: `${best.i.label}: bought for ${best.i.cost} Marks. ${useGame.getState().g.marks} left. Enjoy it — you paid for it with work.` }
+      return { ok: true, say: `${best.i.label}: bought for ${best.i.cost} Marks. ${useGame.getState().g.marks} left. Enjoy it, you paid for it with work.` }
     }
     default:
       return { ok: false, say: `I don't know the game action "${action}".` }
@@ -112,6 +103,11 @@ export async function startBridge(): Promise<void> {
   started = true
   await useGame.getState().hydrate()
 
+  // 0. The plan: pulled now, every minute, and whenever the server says it changed
+  //    (a contract done by voice with the window closed shows up within seconds).
+  void usePlan.getState().refresh()
+  window.setInterval(() => void usePlan.getState().refresh(), 60_000)
+
   // 1. Keep the brief where JARVIS reads it.
   let timer: number | null = null
   const writeBrief = () => {
@@ -123,14 +119,21 @@ export async function startBridge(): Promise<void> {
   }
   useGame.subscribe(writeBrief)
   usePlayerStore.subscribe(writeBrief)
+  usePlan.subscribe(writeBrief)
   writeBrief()
 
-  // 2. Actions from JARVIS arrive as ephemeral bus events.
+  // 2. Actions from JARVIS arrive as ephemeral bus events; plan updates as "mission".
   const seen = new Set<string>()
   const t0 = Date.now() / 1000 - 5
+  let lastMission = t0
   useStore.subscribe((s, prev) => {
     if (s.events === prev.events) return
     for (const ev of s.events) {
+      if (ev.source === 'mission' && ev.ts > lastMission) {
+        lastMission = ev.ts
+        void usePlan.getState().refresh()
+        continue
+      }
       if (ev.source !== 'game' || ev.kind !== 'action' || ev.ts < t0) continue
       const id = String(ev.action_id ?? '')
       if (!id || seen.has(id)) continue
@@ -145,7 +148,7 @@ export async function startBridge(): Promise<void> {
     }
   })
 
-  // 3. Midnight roll-over and the evening nudge.
+  // 3. Midnight roll-over and the evening nudge (a reminder, never a scolding).
   const tick = () => {
     const st = useGame.getState()
     st.tickDay()
@@ -157,11 +160,11 @@ export async function startBridge(): Promise<void> {
     if (!rep) return
     const left = 24 * 60 - (now.getHours() * 60 + now.getMinutes())
     const streak = E.streakInfo(g, today).current
-    const text = `Floor not secured. ${hm(left)} to midnight. ${E.REP_LABEL[rep]}: ${E.REP_HINT[rep].split(' — ')[0]}. ${streak ? `That saves a ${streak}-day streak${g.shields ? `, or burns one of your ${g.shields} shields` : ''}.` : 'Start the streak tonight.'}`
+    const text = `The floor is still open, ${hm(left)} to midnight. Quickest win: ${E.REP_LABEL[rep]}, ${E.REP_HINT[rep].split(' — ')[0]}. ${streak ? `That keeps a ${streak}-day streak going${g.shields ? `, and you have ${g.shields} shield${g.shields > 1 ? 's' : ''} in reserve` : ''}.` : 'A good night to start a streak.'}`
     st.markNudged()
     sfx.warn()
-    useBanners.getState().show({ kicker: 'JARVIS', title: 'Floor open', sub: text, tone: 'fault' })
-    useStore.getState().toast(text, 'fault')
+    useBanners.getState().show({ kicker: 'JARVIS', title: 'Floor open', sub: text, tone: 'sim' })
+    useStore.getState().toast(text, 'info')
     if (g.settings.voiceNudges && useStore.getState().core?.running) void post('/api/core/speak', { text }).catch(() => {})
   }
   window.setInterval(tick, 30_000)

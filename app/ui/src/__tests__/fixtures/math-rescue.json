@@ -1,0 +1,13 @@
+{
+  "exam_rescue": {
+    "target": "MTH 201 Numerical Methods (backlog). Exam in December, date to confirm.",
+    "window": "2026-10-24 to the first backlog day",
+    "triage": [
+      { "unit": "III", "title": "Root finding", "rescue_tier": "A1", "contracts": ["m-calc.c01", "m-calc.c02"] }
+    ],
+    "foundation_feed": { "rule": "Foundations in the evenings of the week before.", "III": ["m-calc.c03"] },
+    "week_plan": [ { "week": "1 (Oct 24-30)", "library": "Diagnostic + Unit III bisection", "evenings": "Feed III; mental sprint" } ],
+    "exam_day_rules": ["Formula sheet the night before"]
+  },
+  "honest_timeline": "The maths nodes take over a year; until December the rescue sets the order."
+}

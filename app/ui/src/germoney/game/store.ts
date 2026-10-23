@@ -1,57 +1,32 @@
 /**
  * The game store: GameData + every action, persisted to the JARVIS key-value store.
  *
- * Actions are thin: the rules are in engine.ts (pure, tested). This file applies
- * them, writes the ledger, pays rewards through the player store (XP and rank stay
- * where the rest of Mission Germoney reads them), and makes each moment felt
- * (sound, a banner, a burst) — once.
+ * Mission v2 split the game in two:
+ *   - the PLAN (skill tree, contracts, exam mode, campaigns, XP) runs in the server
+ *     (game/plan.ts is its client), so the voice works with the window closed;
+ *   - the GAME here keeps the habit layer: the Floor and the streak, Marks and the
+ *     Armory, the supply drop, Drill, Trials, the War Chest and the settings.
+ * Plan events (a contract done, time logged) are applied here once each by
+ * syncPlan: they tick the Floor, pay Marks and enter the ledger. XP is never
+ * paid twice: the server already counted it.
  */
-import { useMemo } from 'react'
 import { create } from 'zustand'
 import { useStore as useApp } from '../../lib/store'
 import AsyncStorage from '../platform'
 import { usePlayerStore } from '../stores/player-store'
-import { useProofStore, type ProofType } from '../stores/proof-store'
-import { useFx } from '../ui'
+import { useProofStore } from '../stores/proof-store'
 import { ACHIEVEMENTS } from './achievements'
-import { NPCS, npcLine, type Track } from './characters'
-import { dailyContracts, type ContractDef, type DailyContract } from './contracts'
+import type { Track } from './characters'
 import { CARDS, DECKS, INTERVALS, NEW_PER_DAY, type Card, type DeckId } from './decks'
 import * as E from './engine'
 import { useBanners } from './fx'
-import { OPERATION_BY_ID, STAKE, weeklyOffers } from './operations'
+import { onPlanEvents, usePlan, type PlanEvent } from './plan'
 import { setSound, sfx } from './sfx'
 import { TRIALS } from './trials'
 import { addDays, dateKey, inRange, weekStart } from './util'
 
 export const GAME_KEY = '@silicon_game_v1'
 type NewEvent = Omit<E.LedgerEvent, 't' | 'date'> & { date?: string }
-
-/* ------------------------------------------------------------------ contracts for a day */
-function examContract(g: E.GameData, today: string): DailyContract {
-  const p = g.modes.exam.find((x) => inRange(today, x.from, x.to))
-  const def: ContractDef = {
-    id: 'exam', npc: 'jarvis', track: 'academy', title: `Exam block${p?.label ? `: ${p.label}` : ''}`, minutes: 120, xp: 40,
-    task: 'Two 50-minute blocks on the exam syllabus, then one past-paper question set under time. Phone in another room.',
-    intel: { why: 'German admissions are decided mainly by your grades. This week the exam is the boss.', concept: 'Retrieval practice — testing yourself — beats re-reading; past papers show what the examiner rewards.' },
-  }
-  return { key: `${today}:exam:exam`, slot: 'silicon', def, crit: false }
-}
-
-export function contractsFor(g: E.GameData, today: string, liveRank: number): DailyContract[] {
-  // The day keeps the rank it started with: defeating a boss must not reshuffle today's contracts.
-  const rank = g.dayRank[today] ?? liveRank
-  const mode = E.modeOn(g, today)
-  if (mode === 'exam') return [examContract(g, today)]
-  const list = dailyContracts({
-    date: today, rank, seasonMonth: E.seasonMonth(g, today),
-    activeBossIds: E.activeBosses(g, today).map((b) => b.id),
-    rerolls: g.rerolls[today], rest: E.isRestDay(g, today),
-  })
-  return mode === 'recovery' ? list.slice(0, 1) : list
-}
-
-const REP_FOR: Partial<Record<Track, E.Rep>> = { silicon: 'silicon', deutsch: 'deutsch', body: 'body', academy: 'silicon' }
 
 /* ------------------------------------------------------------------ persistence */
 let saveTimer: number | null = null
@@ -63,32 +38,38 @@ function persist(g: E.GameData) {
   }, 250)
 }
 
-/* ------------------------------------------------------------------ the store */
-export interface CompleteResult { xp: number; marks: number; crit: boolean; nth: number }
+/** A plan event's floor rep, and whether it was enough to count. */
+function repFor(e: PlanEvent): E.Rep | null {
+  const rep = e.rep ?? null
+  if (!rep) return null
+  if (e.kind === 'contract') return rep
+  const m = e.minutes ?? 0
+  if (rep === 'silicon') return m >= 25 ? rep : null
+  if (rep === 'deutsch') return m >= 15 ? rep : null
+  return rep
+}
 
+const TRACK_OF: Record<string, Track> = { silicon: 'silicon', deutsch: 'deutsch', body: 'body' }
+
+/* ------------------------------------------------------------------ the store */
 interface GameStore {
   g: E.GameData
   today: string
   loaded: boolean
-  /** A Crucible requested by voice, waiting for the Crucible page to start it. Not saved. */
+  /** A Crucible requested by voice, waiting for the Focus page to start it. Not saved. */
   pendingFocus: { minutes: number; track: Track } | null
   requestFocus: (minutes: number, track: Track) => void
   clearFocus: () => void
   hydrate: () => Promise<void>
   tickDay: () => void
+  syncPlan: (events: PlanEvent[], examToday: boolean) => void
   markRep: (rep: E.Rep, source: string, verified: boolean) => void
   unmarkRep: (rep: E.Rep) => void
   declareRest: (date: string) => string | null
-  completeContract: (key: string, proof: { type: ProofType; value: string }) => CompleteResult | null
-  reroll: (key: string) => boolean
   openChest: () => E.Loot | null
   recordFocus: (minutes: number, track: Track, verified?: boolean) => void
   useBooster: () => boolean
-  recordLog: (type: 'commit' | 'stamina' | 'german' | 'workout', amount: number) => void
   reviewCard: (cardId: string, correct: boolean) => void
-  chooseOperation: (id: string) => string | null
-  submitOperationProof: (value: string) => void
-  defeatBoss: (id: string, proof: { type: ProofType; value: string }) => { xp: number; marks: number; ambush: boolean } | null
   setTrialStage: (id: string, stage: number) => void
   setTrialDate: (id: string, date: string) => void
   buy: (itemId: string) => string | null
@@ -97,13 +78,10 @@ interface GameStore {
   setCustomCost: (item: { id: string; label: string; inr: number; due: string } | null, removeId?: string) => void
   setSettings: (s: Partial<E.Settings>) => void
   setSeasonStart: (k: string) => void
-  addExam: (p: E.Period) => void
-  removeExam: (i: number) => void
   startRecovery: () => string | null
   endRecovery: () => void
   flag: (name: string) => void
   toggleFlag: (name: string) => void
-  claimBoot: () => boolean
   logBrief: () => void
   markNudged: () => void
 }
@@ -125,11 +103,10 @@ export const useGame = create<GameStore>((set, get) => {
     if (xp) usePlayerStore.getState().updateXP(xp)
   }
 
-  /** Level-ups (paid once, ever), achievements, and a weekly operation that just completed. */
+  /** Level-ups (paid once, ever) and achievements. */
   const followUps = () => {
     const today = get().today
     const xp = usePlayerStore.getState().player.xp
-    // Levels
     const lv = E.levelInfo(xp).level
     const g0 = get().g
     if (lv > g0.levelSeen) {
@@ -139,18 +116,6 @@ export const useGame = create<GameStore>((set, get) => {
       banner({ kicker: 'LEVEL UP', title: `Level ${lv}`, sub: `+${r.marks} DM${r.shields ? ' · +1 shield' : ''}`, tone: 'chrome' })
       sfx.level()
     }
-    // Operation auto-win
-    const week = weekStart(today)
-    const op = E.operationProgress(get().g, week, today)
-    if (op && op.st.status === 'active' && op.done) {
-      const stake = op.st.stake ?? 0
-      commit((g) => ({ ...g, marks: g.marks + stake + op.def.reward.marks, operations: { ...g.operations, [week]: { ...op.st, status: 'won' } } }),
-        [{ kind: 'operation', ref: op.def.id, note: 'won', track: op.def.track, xp: op.def.reward.xp, marks: op.def.reward.marks + stake }])
-      awardXp(op.def.reward.xp)
-      banner({ kicker: 'OPERATION COMPLETE', title: op.def.title, sub: `+${op.def.reward.xp} XP · +${op.def.reward.marks} DM · stake returned`, tone: 'live' })
-      sfx.secure()
-    }
-    // Achievements
     const stats = E.computeStats(get().g, today, usePlayerStore.getState().player.xp)
     const fresh = ACHIEVEMENTS.filter((a) => !get().g.achievements[a.id] && a.test(stats))
     if (fresh.length) {
@@ -158,52 +123,43 @@ export const useGame = create<GameStore>((set, get) => {
         fresh.map((a) => ({ kind: 'achievement' as const, ref: a.id, marks: a.marks })))
       fresh.forEach((a) => banner({ kicker: 'ACHIEVEMENT', title: a.name, sub: `${a.desc} · +${a.marks} DM`, tone: 'gold' }))
     }
-    // XP may have moved again (operation reward) → check levels once more.
-    if (E.levelInfo(usePlayerStore.getState().player.xp).level > get().g.levelSeen) followUps()
   }
 
   const settle = () => {
     const today = get().today
-    let g = get().g
-    const all: E.LedgerEvent[] = []
-    const d = E.settleDays(g, today)
-    g = d.g
-    all.push(...d.events)
-    const b = E.settleBosses(g, today)
-    g = b.g
-    all.push(...b.events)
-    // Operations of finished weeks
-    const thisWeek = weekStart(today)
-    const ops = { ...g.operations }
-    for (const [week, st] of Object.entries(ops)) {
-      if (week >= thisWeek || st.status !== 'active') continue
-      const p = E.operationProgress(g, week, today)
-      const won = !!p?.done
-      ops[week] = { ...st, status: won ? 'won' : 'lost' }
-      if (won && p) {
-        g = { ...g, marks: g.marks + (st.stake ?? 0) + p.def.reward.marks }
-        usePlayerStore.getState().updateXP(p.def.reward.xp)
-      }
-      all.push({ t: Date.now(), date: addDays(week, 6), kind: 'operation', ref: st.chosen, note: won ? 'won' : 'lost', track: p?.def.track })
-    }
-    g = { ...g, operations: ops }
-    if (g.dayRank[today] === undefined) g = { ...g, dayRank: { ...g.dayRank, [today]: usePlayerStore.getState().player.level } }
-    if (all.length || g !== get().g) {
-      set({ g: { ...g, ledger: [...g.ledger, ...all] } })
+    const d = E.settleDays(get().g, today)
+    if (d.events.length || d.g !== get().g) {
+      set({ g: { ...d.g, ledger: [...d.g.ledger, ...d.events] } })
       persist(get().g)
     }
-    for (const e of all) {
-      if (e.kind === 'shield') toast(`Shield burned: ${e.note}.`, 'sim')
+    for (const e of d.events) {
+      if (e.kind === 'shield') toast(`Shield used: ${e.note}.`, 'sim')
       if (e.kind === 'break') {
-        toast(`Streak broken (${e.amount} days). Phoenix armed: the next three secured days pay double.`, 'fault')
-        banner({ kicker: 'STREAK LOST', title: 'Phoenix armed', sub: 'Secure three days in a row — double Marks each.', tone: 'fault' })
+        toast(`New streak starts today. Phoenix is on: the next three secured days pay double.`, 'info')
+        banner({ kicker: 'FRESH START', title: 'Phoenix armed', sub: 'Secure three days in a row: double Marks each.', tone: 'chrome' })
       }
-      if (e.kind === 'escape') {
-        toast(`${e.note}. XP −10% for 7 days; it returns stronger.`, 'fault')
-        sfx.warn()
-      }
-      if (e.kind === 'operation' && e.note === 'lost') toast('Last week\'s operation failed. The stake is gone.', 'fault')
     }
+  }
+
+  /**
+   * Mission v2, once: weekly operations are gone (contracts come from the tree),
+   * so every stake still riding on one is paid back. Nothing else in the save
+   * changes; the old ledger, bosses and contracts stay as the record.
+   */
+  const migrateV2 = () => {
+    const g = get().g
+    if (g.flags.v2) return
+    let refund = 0
+    const ops = { ...g.operations }
+    for (const [week, st] of Object.entries(ops)) {
+      if (st.status === 'active') {
+        refund += st.stake ?? 0
+        ops[week] = { ...st, status: 'lost', proof: st.proof ?? 'refunded: Mission v2 retired weekly operations' }
+      }
+    }
+    commit((x) => ({ ...x, operations: ops, marks: x.marks + refund, flags: { ...x.flags, v2: true } }),
+      refund ? [{ kind: 'buy', ref: 'refund', marks: refund, note: 'Operation stake returned (Mission v2)' }] : [])
+    if (refund) toast(`Mission v2: weekly operations are gone, so your ${refund} DM stake is back.`, 'live')
   }
 
   return {
@@ -228,11 +184,13 @@ export const useGame = create<GameStore>((set, get) => {
         set({ loaded: true })
       }
       setSound(get().g.settings.sound)
+      migrateV2()
       settle()
-      // Level-ups can come from anywhere that pays XP (Crucible, Forge, Terminal…).
+      // Level-ups can come from anywhere that pays XP (the plan, the Crucible, Drill...).
       usePlayerStore.subscribe((s, prev) => {
         if (s.player.xp > prev.player.xp && E.levelInfo(s.player.xp).level > get().g.levelSeen) followUps()
       })
+      onPlanEvents((events, exam) => get().syncPlan(events, exam))
       followUps()
     },
 
@@ -242,6 +200,43 @@ export const useGame = create<GameStore>((set, get) => {
         set({ today: now })
         settle()
       }
+    },
+
+    syncPlan: (events, examToday) => {
+      const today = get().today
+      const g = get().g
+      const fresh = events.filter((e) => (e.kind === 'contract' || e.kind === 'log' || e.kind === 'learning') && !g.synced[e.id] && e.date >= addDays(today, -30))
+      const examFlag = `examday:${today}`
+      if (!fresh.length) {
+        if (!!g.flags[examFlag] !== examToday) commit((x) => ({ ...x, flags: { ...x.flags, [examFlag]: examToday } }))
+        return
+      }
+      const marks = fresh.reduce((a, e) => a + (e.kind === 'contract' ? Math.round((e.xp ?? 0) / 2) : 0), 0)
+      const cutoff = addDays(today, -45)
+      commit((x) => ({
+        ...x,
+        marks: x.marks + marks,
+        flags: { ...x.flags, [examFlag]: examToday },
+        synced: { ...Object.fromEntries(Object.entries(x.synced).filter(([, d]) => d >= cutoff)), ...Object.fromEntries(fresh.map((e) => [e.id, e.date])) },
+      }), fresh.map((e) => ({
+        date: e.date,
+        kind: e.kind === 'contract' ? 'contract' as const : 'log' as const,
+        track: TRACK_OF[e.rep ?? ''] ?? (e.rep ? 'silicon' : undefined),
+        // contracts keep minutes (as before); logs keep hours (as the Terminal did)
+        amount: e.kind === 'contract' ? e.minutes ?? 0 : (e.minutes ?? 0) / 60,
+        ref: e.key ?? e.node ?? undefined,
+        marks: e.kind === 'contract' ? Math.round((e.xp ?? 0) / 2) : undefined,
+        note: e.title ?? e.note,
+        verified: !!e.verified,
+      })))
+      for (const e of fresh) {
+        const rep = e.date === today ? repFor(e) : null
+        if (rep) get().markRep(rep, e.kind === 'contract' ? `contract:${e.key ?? ''}` : 'log', !!e.verified)
+        if (e.kind === 'contract' && e.date === today) {
+          useProofStore.getState().addProof({ questId: e.key ?? e.id, type: 'text', value: e.verified ? 'link on the server' : 'claimed' })
+        }
+      }
+      followUps()
     },
 
     markRep: (rep, source, verified) => {
@@ -307,41 +302,6 @@ export const useGame = create<GameStore>((set, get) => {
       return null
     },
 
-    completeContract: (key, proof) => {
-      const today = get().today
-      const g = get().g
-      const rank = usePlayerStore.getState().player.level
-      const dc = contractsFor(g, today, rank).find((c) => c.key === key)
-      if (!dc || g.contracts[key]) return null
-      const nth = E.contractsDoneOn(g, today) + 1
-      const { xp, marks } = E.contractReward(dc.def.xp, { crit: dc.crit, nth, mult: E.xpMultiplier(g, today) })
-      const verified = proof.type === 'photo' || /^https?:\/\//i.test(proof.value.trim())
-      useProofStore.getState().addProof({ questId: key, type: proof.type, value: proof.value })
-      commit((x) => ({ ...x, marks: x.marks + marks, contracts: { ...x.contracts, [key]: { at: Date.now(), xp, marks, crit: dc.crit, track: dc.def.track, verified } } }),
-        [{ kind: 'contract', track: dc.def.track, amount: dc.def.minutes, ref: dc.def.id, xp, marks, note: dc.crit ? 'crit' : undefined, verified }])
-      awardXp(xp)
-      useFx.getState().burst(`+${xp} XP${dc.crit ? ' · CRIT' : ''}`, dc.crit ? 'sim' : 'live')
-      if (dc.crit) {
-        banner({ kicker: 'CRITICAL', title: '×2', sub: `${NPCS[dc.def.npc].name}: "${npcLine(dc.def.npc, 'praise', nth)}"`, tone: 'sim' })
-        sfx.crit()
-      } else sfx.contract()
-      const rep = REP_FOR[dc.def.track]
-      if (rep && (dc.def.track !== 'academy' || E.modeOn(get().g, today) === 'exam')) get().markRep(rep, `contract:${dc.def.id}`, verified)
-      followUps()
-      return { xp, marks, crit: dc.crit, nth }
-    },
-
-    reroll: (key) => {
-      const today = get().today
-      const g = get().g
-      const slot = key.split(':')[1]
-      if (g.marks < E.REROLL_COST || g.contracts[key] || slot === 'exam') return false
-      commit((x) => ({ ...x, marks: x.marks - E.REROLL_COST, rerolls: { ...x.rerolls, [today]: { ...(x.rerolls[today] ?? {}), [slot]: ((x.rerolls[today] ?? {})[slot] ?? 0) + 1 } } }),
-        [{ kind: 'buy', ref: 'reroll', marks: -E.REROLL_COST, note: slot }])
-      sfx.buy()
-      return true
-    },
-
     openChest: () => {
       const today = get().today
       const g = get().g
@@ -372,23 +332,6 @@ export const useGame = create<GameStore>((set, get) => {
       return true
     },
 
-    recordLog: (type, amount) => {
-      if (type === 'german') {
-        commit((x) => x, [{ kind: 'log', track: 'deutsch', amount }])
-        if (amount >= 0.25) get().markRep('deutsch', 'log', false)
-      } else if (type === 'stamina') {
-        commit((x) => x, [{ kind: 'log', track: 'silicon', amount }])
-        if (amount >= 0.4) get().markRep('silicon', 'log', false)
-      } else if (type === 'commit') {
-        commit((x) => x, [{ kind: 'log', track: 'silicon', amount: 0, note: 'commit' }])
-        get().markRep('silicon', 'commit', false)
-      } else {
-        commit((x) => x, [{ kind: 'log', track: 'body', amount: 1 }])
-        get().markRep('body', 'workout', false)
-      }
-      followUps()
-    },
-
     reviewCard: (cardId, correct) => {
       const today = get().today
       const card = CARDS.find((c) => c.id === cardId)
@@ -409,53 +352,11 @@ export const useGame = create<GameStore>((set, get) => {
       if (events.length) followUps()
     },
 
-    chooseOperation: (id) => {
-      const today = get().today
-      const week = weekStart(today)
-      const g = get().g
-      if (g.operations[week]?.chosen) return 'You already committed this week.'
-      if (!weeklyOffers(week).some((o) => o.id === id)) return 'That operation is not on offer this week.'
-      const stake = Math.min(STAKE, g.marks)
-      commit((x) => ({ ...x, marks: x.marks - stake, operations: { ...x.operations, [week]: { chosen: id, stake, status: 'active' } } }),
-        [{ kind: 'operation', ref: id, note: 'committed', marks: -stake, track: OPERATION_BY_ID[id].track }])
-      sfx.buy()
-      followUps()
-      return null
-    },
-
-    submitOperationProof: (value) => {
-      const week = weekStart(get().today)
-      const st = get().g.operations[week]
-      if (!st?.chosen || st.status !== 'active') return
-      commit((x) => ({ ...x, operations: { ...x.operations, [week]: { ...st, proof: value } } }))
-      followUps()
-    },
-
-    defeatBoss: (id, proof) => {
-      const today = get().today
-      const g = get().g
-      const b = E.datedBosses(g).find((x) => x.id === id)
-      if (!b) return null
-      const st = E.bossState(b, g, today)
-      if (st.status === 'defeated' || st.status === 'upcoming') return null
-      const r = E.defeatReward(b, st.hp, st.hpMax)
-      useProofStore.getState().addProof({ questId: `boss:${id}`, type: proof.type, value: proof.value })
-      commit((x) => ({ ...x, marks: x.marks + r.marks, bosses: { ...x.bosses, [id]: { ...x.bosses[id], defeatedAt: today, ambush: r.ambush } } }),
-        [{ kind: 'boss', ref: id, xp: r.xp, marks: r.marks, note: r.ambush ? 'ambush' : undefined, track: b.tracks[0] }])
-      awardXp(r.xp)
-      if (b.reward.rank) usePlayerStore.getState().promote(b.reward.rank)
-      useFx.getState().boss()
-      sfx.boss()
-      banner({ kicker: r.ambush ? 'AMBUSH — BOSS DEFEATED' : 'BOSS DEFEATED', title: b.name, sub: `"${b.taunts.defeated}" · +${r.xp} XP · +${r.marks} DM · ${b.reward.title}`, tone: 'fault' })
-      followUps()
-      return r
-    },
-
     setTrialStage: (id, stage) => {
       const t = TRIALS.find((x) => x.id === id)
       if (!t) return
       const cur = get().g.trials[id]
-      // Pay only beyond the best stage ever reached: stepping back and forward again is free of charge — and of reward.
+      // Pay only beyond the best stage ever reached: stepping back and forward again is free of charge, and of reward.
       const best = Math.max(cur?.stage ?? -1, cur?.best ?? -1)
       const s = Math.max(-1, Math.min(t.stages.length - 1, stage))
       const events: NewEvent[] = []
@@ -524,13 +425,6 @@ export const useGame = create<GameStore>((set, get) => {
 
     setSeasonStart: (k) => commit((x) => ({ ...x, seasonStart: `${k.slice(0, 7)}-01` })),
 
-    addExam: (p) => {
-      if (!p.from || !p.to || p.to < p.from) return
-      commit((x) => ({ ...x, modes: { ...x.modes, exam: [...x.modes.exam, p] } }))
-    },
-
-    removeExam: (i) => commit((x) => ({ ...x, modes: { ...x.modes, exam: x.modes.exam.filter((_, k) => k !== i) } })),
-
     startRecovery: () => {
       const today = get().today
       const g = get().g
@@ -552,18 +446,6 @@ export const useGame = create<GameStore>((set, get) => {
 
     toggleFlag: (name) => commit((x) => ({ ...x, flags: { ...x.flags, [name]: !x.flags[name] } })),
 
-    claimBoot: () => {
-      const today = get().today
-      const b = E.bootDay(get().g, today)
-      if (!b || b.claimed || !b.done) return false
-      commit((x) => ({ ...x, marks: x.marks + 30 }), [{ kind: 'boot', amount: b.n, xp: 40, marks: 30 }])
-      awardXp(40)
-      banner({ kicker: `BOOT CAMP · DAY ${b.n}`, title: b.day.title, sub: '+40 XP · +30 DM', tone: 'chrome' })
-      sfx.contract()
-      followUps()
-      return true
-    },
-
     logBrief: () => {
       const today = get().today
       if (!get().g.ledger.some((e) => e.kind === 'brief' && e.date === today)) commit((x) => x, [{ kind: 'brief' }])
@@ -576,14 +458,7 @@ export const useGame = create<GameStore>((set, get) => {
   }
 })
 
-/* ------------------------------------------------------------------ hooks */
-export function useTodayContracts(): DailyContract[] {
-  const g = useGame((s) => s.g)
-  const today = useGame((s) => s.today)
-  const rank = usePlayerStore((s) => s.player.level)
-  return useMemo(() => contractsFor(g, today, rank), [g, today, rank])
-}
-
+/* ------------------------------------------------------------------ helpers */
 /** Cards due today in a deck: due reviews first, then up to NEW_PER_DAY new cards. */
 export function dueCards(g: E.GameData, deck: DeckId, today: string): Card[] {
   const inDeck = CARDS.filter((c) => c.deck === deck)
@@ -594,8 +469,9 @@ export function dueCards(g: E.GameData, deck: DeckId, today: string): Card[] {
   return [...due, ...fresh]
 }
 
+/** The brief: the Floor from the game, today's contracts from the plan. */
 export function gameBrief(): ReturnType<typeof E.buildBrief> {
   const { g, today } = useGame.getState()
   const p = usePlayerStore.getState().player
-  return E.buildBrief(g, today, p.xp, p.level, contractsFor(g, today, p.level))
+  return E.buildBrief(g, today, p.xp, usePlan.getState().today?.contracts ?? [])
 }

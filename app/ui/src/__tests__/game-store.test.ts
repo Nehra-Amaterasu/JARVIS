@@ -12,13 +12,12 @@ vi.stubGlobal('fetch', async (url: string, init?: { method?: string; body?: stri
   return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } })
 })
 
-const { useGame, contractsFor } = await import('../germoney/game/store')
+const { useGame } = await import('../germoney/game/store')
 const { usePlayerStore } = await import('../germoney/stores/player-store')
-const { useProofStore } = await import('../germoney/stores/proof-store')
+import type { PlanEvent } from '../germoney/game/plan'
 const E = await import('../germoney/game/engine')
-const { weeklyOffers } = await import('../germoney/game/operations')
 
-const TODAY = '2026-10-07' // a Wednesday in the Boolean Sentinel's month
+const TODAY = '2026-10-07' // a Wednesday
 
 beforeAll(async () => {
   await useGame.getState().hydrate()
@@ -29,24 +28,40 @@ beforeAll(async () => {
 const g = () => useGame.getState().g
 const xp = () => usePlayerStore.getState().player.xp
 
-describe('contracts pay out', () => {
-  it('XP goes to the player, Marks to the game, proof to the proof store; the rep ticks', () => {
-    const [c] = contractsFor(g(), TODAY, 0)
-    const r = useGame.getState().completeContract(c.key, { type: 'text', value: 'https://github.com/me/rca' })!
-    expect(r.nth).toBe(1)
-    expect(xp()).toBeGreaterThanOrEqual(r.xp)
-    expect(g().marks).toBeGreaterThanOrEqual(r.marks)
-    expect(useProofStore.getState().proofs[c.key]?.value).toContain('github.com')
-    expect(g().contracts[c.key].verified).toBe(true) // a link counts as evidence
-    expect(g().days[TODAY].reps.silicon).toBeTruthy()
-    expect(useGame.getState().completeContract(c.key, { type: 'text', value: 'again' })).toBeNull() // never twice
+describe('plan events reach the Floor once', () => {
+  const ev = (id: string, e: Omit<PlanEvent, 'id' | 't' | 'date'>): PlanEvent => ({ id, t: 0, date: TODAY, ...e })
+  it('a contract done on the server ticks its rep, pays Marks (never XP: the server counted it), and enters the ledger', () => {
+    const x0 = xp()
+    const m0 = g().marks
+    useGame.getState().syncPlan([ev(`${TODAY}:1`, { kind: 'contract', key: 'hdl/c1', title: 'HDLBits basics', minutes: 60, xp: 30, rep: 'silicon', verified: true })], false)
+    expect(g().days[TODAY].reps.silicon?.verified).toBe(true)
+    expect(g().marks).toBeGreaterThanOrEqual(m0 + 15)
+    expect(xp()).toBe(x0)
+    expect(g().ledger.filter((e) => e.kind === 'contract')).toHaveLength(1)
+    expect(g().achievements['first-blood']).toBe(TODAY)
   })
 
-  it('the second contract of the day gets the combo', () => {
-    const [, c2] = contractsFor(g(), TODAY, 0)
-    const r = useGame.getState().completeContract(c2.key, { type: 'text', value: 'done' })!
-    expect(r.nth).toBe(2)
-    expect(g().contracts[c2.key].verified).toBe(false) // a bare note is a claim
+  it('is applied once, however often the plan is pulled', () => {
+    useGame.getState().syncPlan([ev(`${TODAY}:1`, { kind: 'contract', key: 'hdl/c1', minutes: 60, xp: 30, rep: 'silicon' })], false)
+    expect(g().ledger.filter((e) => e.kind === 'contract')).toHaveLength(1)
+  })
+
+  it('logged time ticks a rep only when it is enough, and an old day never ticks today', () => {
+    useGame.getState().syncPlan([
+      { id: '2026-10-01:9', t: 0, date: '2026-10-01', kind: 'log', minutes: 60, rep: 'deutsch', track: 'deutsch' },
+      ev(`${TODAY}:2`, { kind: 'log', minutes: 10, rep: 'deutsch', track: 'deutsch' }),
+    ], false)
+    expect(g().days[TODAY].reps.deutsch).toBeUndefined()
+    useGame.getState().syncPlan([ev(`${TODAY}:3`, { kind: 'log', minutes: 20, rep: 'deutsch', track: 'deutsch', note: 'voice' })], false)
+    expect(g().days[TODAY].reps.deutsch?.verified).toBe(false)          // a log without a link is a claim
+    expect(g().ledger.filter((e) => e.kind === 'log').map((e) => e.amount)).toEqual([1, 10 / 60, 20 / 60])   // hours, as before
+  })
+
+  it("the server's exam days put the Floor in exam mode", () => {
+    useGame.getState().syncPlan([], true)
+    expect(E.modeOn(g(), TODAY)).toBe('exam')
+    useGame.getState().syncPlan([], false)
+    expect(E.modeOn(g(), TODAY)).toBeNull()
   })
 })
 
@@ -81,28 +96,7 @@ describe('the Armory', () => {
   })
 })
 
-describe('weekly operations', () => {
-  it('committing stakes Marks; one per week', () => {
-    useGame.setState({ g: { ...g(), marks: 200 } })
-    const week = '2026-10-05'
-    const offer = weeklyOffers(week)[1]
-    expect(useGame.getState().chooseOperation(offer.id)).toBeNull()
-    expect(g().operations[week].stake).toBe(50)
-    expect(useGame.getState().chooseOperation(weeklyOffers(week)[0].id)).toMatch(/already/)
-  })
-})
-
-describe('bosses and rank', () => {
-  it('defeating a boss pays, promotes rank, and is final', () => {
-    const before = xp()
-    const r = useGame.getState().defeatBoss('b1', { type: 'text', value: 'https://github.com/me/rca' })!
-    expect(r.ambush).toBe(true) // most of its HP was still there
-    expect(xp()).toBeGreaterThanOrEqual(before + r.xp)
-    expect(usePlayerStore.getState().player.level).toBe(1)
-    expect(useGame.getState().defeatBoss('b1', { type: 'text', value: 'x' })).toBeNull()
-    expect(useGame.getState().defeatBoss('b6', { type: 'text', value: 'x' })).toBeNull() // not started yet
-  })
-
+describe('levels', () => {
   it('level-ups are paid exactly once', () => {
     const seen = g().levelSeen
     expect(seen).toBe(E.levelInfo(xp()).level)

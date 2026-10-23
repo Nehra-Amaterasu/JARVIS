@@ -1,0 +1,15 @@
+{
+  "version": "fixture-1",
+  "diagnostic": [ { "q": "What is the derivative of x^3?", "a": "3x^2", "level": 1, "node": "m-calc" } ],
+  "nodes": [
+    { "id": "m-calc", "name": "Calculus refresh", "tier": 0, "prereqs": [], "outcomes": ["Derivatives and integrals"], "hours_est": 10, "resources": ["r-khan-calc"], "certs": ["r-khan-calc"], "project": null,
+      "contracts": [
+        { "id": "m-calc.c01", "title": "20 derivatives", "minutes": 20, "context": "Gradient descent needs derivatives.", "steps": ["Do 20 mixed derivatives"], "hint": "Chain rule: outside, then inside.", "success_check": "18/20 correct.", "xp": 20 },
+        { "id": "m-calc.c02", "title": "Newton-Raphson by hand", "minutes": 20, "context": "Root finding is a tangent, repeated.", "steps": ["Three iterations on x^2 - 2"], "hint": "x1 = x0 - f/f'.", "success_check": "1.4142 in 3 steps.", "xp": 15 },
+        { "id": "m-calc.c03", "title": "Tangent lines", "minutes": 15, "context": "The foundation for Newton-Raphson.", "steps": ["Five tangent lines"], "hint": "y - y0 = f'(x0)(x - x0).", "success_check": "5/5.", "xp": 10 }
+      ] },
+    { "id": "m-prob", "name": "Probability", "branch": "math", "tier": 1, "prereqs": ["m-calc"], "outcomes": ["Bayes"], "hours_est": 12, "resources": [], "certs": [], "project": null, "contracts": [] }
+  ],
+  "resources": [ { "id": "r-khan-calc", "title": "Khan Academy Calculus 1", "kind": "course", "url": "https://www.khanacademy.org/math/calculus-1", "free": true, "covers": "derivatives, chain rule", "certificate": { "provider": "Khan Academy", "exam_fee_inr": 0, "note": "No certificate, practice only" } } ],
+  "practice_engine": { "rules": { "daily_session": { "evening_home_30_45min": ["5 min mental sprint", "15 min due reviews"] }, "retrieval": { "rule": "Start from a blank page." } } }
+}

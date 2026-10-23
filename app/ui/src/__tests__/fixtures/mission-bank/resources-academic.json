@@ -1,0 +1,4 @@
+[
+  { "id": "r-nand2tetris", "title": "Nand2Tetris part 1", "kind": "course", "url": "https://www.nand2tetris.org/", "free": true, "certificate": "Coursera (paid, optional)", "covers": ["gates", "adders"], "hours": 20 },
+  { "id": "r-floyd", "title": "Floyd, Digital Fundamentals ch. 4-6", "kind": "book", "url": "https://archive.org/", "free": false, "covers": ["k-maps"], "skip_topics": ["ch. 1"] }
+]

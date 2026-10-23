@@ -1,8 +1,8 @@
 import { Alert } from '../platform';
 import { create } from 'zustand';
+import { post } from '../../lib/api';
 import AsyncStorage from '../platform';
 
-import { GithubConfig } from '../platform';
 
 export type BranchTier = {
   tier: number;
@@ -171,6 +171,22 @@ const persist = (data: PlayerData) => {
   );
 };
 
+/*
+ * ONE XP total (Mission v2). The server's plan engine (@mission_v2) owns it: it
+ * started from this save's XP, contracts and logs add to it there (also by voice,
+ * with the window closed), and every XP change made in the window is sent to it
+ * as a delta. `player.xp` here is the window's mirror of that number, so the rest
+ * of the game (levels, the ring, Core's card) keeps reading it where it always did.
+ */
+let xpChain: Promise<unknown> = Promise.resolve();
+const sendXp = (amount: number, reason: string) => {
+  if (!amount) return;
+  xpChain = xpChain
+    .catch(() => undefined)
+    .then(() => post('/api/mission/xp', { amount, reason }))
+    .catch(() => undefined);
+};
+
 type PlayerStore = {
   player: PlayerData;
   isLoaded: boolean;
@@ -190,6 +206,12 @@ type PlayerStore = {
   updateXP: (amount: number) => void;
   resolvePurgatory: (hours: number) => void;
   triggerPurgatory: () => void;
+  /** Set the mirror to the server's XP total (never sent back). */
+  syncXP: (xp: number) => void;
+  /** Wait until every XP change made here has reached the server. */
+  flushXp: () => Promise<void>;
+  /** Hours and commits for the stats (Core's card, Rule 1), with no XP: the plan's log pays XP. */
+  recordHours: (type: ActivityEntry['type'], amount: number) => void;
 };
 
 export const usePlayerStore = create<PlayerStore>((set, get) => {
@@ -200,6 +222,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => {
     if (updated === prev) return;
     persist(updated);
     set({ player: updated });
+    if (updated.xp !== prev.xp) sendXp(updated.xp - prev.xp, 'window');
   };
 
   return {
@@ -217,41 +240,50 @@ export const usePlayerStore = create<PlayerStore>((set, get) => {
       } finally {
         set({ isLoaded: true });
       }
-      // Rule 1: if GitHub ISN'T linked, evaluate integrity from manual data now.
-      // If it IS linked, the GitHub sync (use-github) evaluates with real commit
-      // dates — avoids a false "CRITICAL FAILURE" alarm + reversible drop on launch.
-      try {
-        const ghUser = await GithubConfig.getUser();
-        if (!ghUser) get().checkIntegrity();
-      } catch {
-        get().checkIntegrity();
-      }
+      // Rule 1 v2: lift any Purgatory an old save still carries (see checkIntegrity).
+      get().checkIntegrity();
     },
 
-    // Rule 1: GitHub Integrity Check. Evidence-preserving + reversible (a later
-    // GitHub sync can undo an unjust drop), and uses Alert (bare alert() crashes
-    // on native and this runs on cold start).
+    // Rule 1, v2: 14 days without a commit is a nudge, not a punishment. The old
+    // rule dropped a rank and locked a 3-hour Purgatory; ranks are retired (one XP
+    // system) and shame stalls him, so now Log shows a friendly "ship one small
+    // commit" card. A Purgatory left over from an old save is lifted, and the
+    // level it took is given back.
     checkIntegrity: () =>
       mutate(prev => {
-        if (!prev.lastCommitDate) return prev;
-        const daysSinceCommit = Math.floor(
-          (new Date().getTime() - new Date(prev.lastCommitDate).getTime()) / (1000 * 3600 * 24)
-        );
-        if (daysSinceCommit >= 14 && prev.level > 0 && !prev.isPurgatoryActive) {
-          Alert.alert(
-            'CRITICAL FAILURE',
-            '14 days without a commit. Rank dropped. You are in PURGATORY. Complete a 3-hour unbroken Crucible to unlock the system.'
-          );
-          return {
-            ...prev,
-            level: Math.max(0, prev.level - 1),
-            levelBeforePurgatory: prev.level, // remember, so a GitHub sync can reverse it
-            // lastCommitDate preserved as evidence — do NOT stamp now()
-            isPurgatoryActive: true,
-            purgatoryHoursRemaining: 3,
-          };
-        }
-        return prev;
+        if (!prev.isPurgatoryActive) return prev;
+        Alert.alert('PURGATORY CLEARED', 'Rule 1 is a nudge now, not a lock. Ship one small commit when you can.');
+        return {
+          ...prev,
+          level: prev.levelBeforePurgatory !== null ? Math.max(prev.level, prev.levelBeforePurgatory) : prev.level,
+          levelBeforePurgatory: null,
+          isPurgatoryActive: false,
+          purgatoryHoursRemaining: 0,
+        };
+      }),
+
+    syncXP: xp => {
+      const prev = get().player;
+      if (typeof xp !== 'number' || !Number.isFinite(xp) || xp === prev.xp) return;
+      const updated = { ...prev, xp: Math.max(0, Math.round(xp)) };
+      persist(updated);
+      set({ player: updated });
+    },
+
+    flushXp: async () => {
+      await xpChain.catch(() => undefined);
+    },
+
+    recordHours: (type, amount) =>
+      mutate(prev => {
+        const today = dateKey();
+        const updated: PlayerData = { ...prev, activityLog: [...prev.activityLog, { date: today, type, amount }] };
+        if (type === 'commit') {
+          updated.commitsCount += Math.max(1, amount);
+          updated.lastCommitDate = new Date().toISOString();
+        } else if (type === 'stamina') updated.staminaHours += amount;
+        else if (type === 'german') updated.germanHours += amount;
+        return updated;
       }),
 
     syncGithub: (lastContribution, totalContributions) =>

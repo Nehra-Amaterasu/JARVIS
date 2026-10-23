@@ -2,14 +2,16 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 const kv = new Map<string, string>()
+const posts: [string, unknown][] = []
 vi.stubGlobal('fetch', async (url: string, init?: { method?: string; body?: string }) => {
   const key = decodeURIComponent(String(url).replace('/api/kv/', ''))
   if (init?.method === 'PUT') kv.set(key, JSON.parse(init.body!).value)
+  if (init?.method === 'POST') posts.push([String(url), JSON.parse(init.body ?? '{}')])
   return new Response(JSON.stringify({ value: kv.get(key) ?? null }), { status: 200, headers: { 'Content-Type': 'application/json' } })
 })
 
 const { runAction } = await import('../germoney/game/bridge')
-const { useGame, contractsFor } = await import('../germoney/game/store')
+const { useGame } = await import('../germoney/game/store')
 const { usePlayerStore } = await import('../germoney/stores/player-store')
 const E = await import('../germoney/game/engine')
 
@@ -21,29 +23,24 @@ beforeAll(async () => {
 })
 
 describe('voice actions', () => {
-  it('brief: the day in one breath, and it counts for Boot Camp day 7', () => {
+  it('brief: the day in one breath', () => {
     const r = runAction('brief')
     expect(r.ok).toBe(true)
     expect(r.say).toMatch(/^Day 1\. Streak 0/)
     expect(useGame.getState().g.ledger.some((e) => e.kind === 'brief')).toBe(true)
   })
 
-  it('log German: hours land in the ledger and tick the Deutsch rep (as a claim)', () => {
+  it("log goes to the plan's one log (it pays the XP; the rep ticks when the event comes back)", async () => {
     const r = runAction('log', { track: 'deutsch', minutes: 45 })
-    expect(r.say).toContain('Logged 45 minutes of Deutsch')
-    const g = useGame.getState().g
-    expect(g.days[TODAY].reps.deutsch?.verified).toBe(false)
-    expect(g.ledger.some((e) => e.kind === 'log' && e.track === 'deutsch' && e.amount === 0.75)).toBe(true)
+    expect(r.say).toContain('Logging 45 minutes of Deutsch')
+    await new Promise((res) => setTimeout(res, 20))
+    expect(posts.find(([u]) => u === '/api/mission/log')?.[1]).toMatchObject({ minutes: 45, track: 'deutsch' })
+    expect(usePlayerStore.getState().player.germanHours).toBeCloseTo(0.75)
+    expect(runAction('log', { track: 'cooking', minutes: 5 }).ok).toBe(false)
   })
 
-  it('complete matches the contract by its words; a vague query asks which one', () => {
-    const open = contractsFor(useGame.getState().g, TODAY, 0)
-    const target = open[0]
-    expect(runAction('complete', { query: 'something unrelated entirely' }).ok).toBe(false)
-    const r = runAction('complete', { query: target.def.title, utterance: `contract done ${target.def.title}` })
-    expect(r.ok).toBe(true)
-    expect(useGame.getState().g.contracts[target.key].verified).toBe(false) // a voice report is a claim
-    expect(runAction('complete', { query: target.def.title }).ok).toBe(false)
+  it('contracts are not a window action any more: the server finishes them (voice works window-closed)', () => {
+    expect(runAction('complete', { query: 'adder' }).ok).toBe(false)
   })
 
   it('focus arms a Crucible for the Crucible page to start', () => {

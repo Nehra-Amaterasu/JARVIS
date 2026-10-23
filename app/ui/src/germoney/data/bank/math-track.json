@@ -813,11 +813,10 @@
       "hours_est": 30,
       "resources": [
         "math.r.pauls_calc1",
-        "math.r.yt_3b1b_calculus"
-      ],
-      "certs": [
+        "math.r.yt_3b1b_calculus",
         "math.r.nptel_engmath1_iitkgp"
       ],
+      "certs": [],
       "project": null,
       "contracts": [
         {
@@ -951,11 +950,10 @@
       "hours_est": 30,
       "resources": [
         "math.r.mit_1801sc",
-        "math.r.strang_calculus"
-      ],
-      "certs": [
+        "math.r.strang_calculus",
         "math.r.nptel_engmath1_iitkgp"
       ],
+      "certs": [],
       "project": null,
       "contracts": [
         {
@@ -1091,11 +1089,10 @@
       "hours_est": 25,
       "resources": [
         "math.r.pauls_calc3",
-        "math.r.mit_1802sc"
-      ],
-      "certs": [
+        "math.r.mit_1802sc",
         "math.r.nptel_engmath1_iitkgp"
       ],
+      "certs": [],
       "project": null,
       "contracts": [
         {
@@ -1236,11 +1233,10 @@
       "hours_est": 30,
       "resources": [
         "math.r.mit_1803sc",
-        "math.r.pauls_de"
-      ],
-      "certs": [
+        "math.r.pauls_de",
         "math.r.nptel_transform_calculus"
       ],
+      "certs": [],
       "project": null,
       "contracts": [
         {
@@ -1368,11 +1364,10 @@
       "hours_est": 35,
       "resources": [
         "math.r.mit_1806sc",
-        "math.r.yt_3b1b_linalg"
-      ],
-      "certs": [
+        "math.r.yt_3b1b_linalg",
         "math.r.nptel_applied_la_iitk"
       ],
+      "certs": [],
       "project": {
         "title": "Eigenfaces without faces: PCA on Aankhen CSI windows",
         "brief": "Run numpy PCA on a day of Aankhen CSI amplitude windows, plot variance explained, and check that the top component separates fan-on from fan-off. RF data only.",
@@ -1502,11 +1497,10 @@
       "hours_est": 30,
       "resources": [
         "math.r.mit_6041sc",
-        "math.r.openstax_intro_stats"
-      ],
-      "certs": [
+        "math.r.openstax_intro_stats",
         "math.r.nptel_prp_iitg"
       ],
+      "certs": [],
       "project": null,
       "contracts": [
         {
@@ -1636,9 +1630,7 @@
         "math.r.nptel_prp_iitg",
         "math.r.mit_6041_2010"
       ],
-      "certs": [
-        "math.r.nptel_prp_iitg"
-      ],
+      "certs": [],
       "project": {
         "title": "Fan fingerprint",
         "brief": "Estimate the PSD of CSI amplitude with fan on vs off and find the fan peak.",
@@ -1757,12 +1749,10 @@
       "hours_est": 30,
       "resources": [
         "math.r.mit_6003",
-        "math.r.nptel_transform_calculus"
+        "math.r.nptel_transform_calculus",
+        "math.r.nptel_ss_iitk"
       ],
-      "certs": [
-        "math.r.nptel_ss_iitk",
-        "math.r.nptel_transform_calculus"
-      ],
+      "certs": [],
       "project": {
         "title": "FFT of a real signal",
         "brief": "FFT one minute of Aankhen CSI amplitude, find the fan's spectral line, and design a 1st-order IIR to suppress it.",
@@ -1893,11 +1883,10 @@
       "hours_est": 20,
       "resources": [
         "math.r.mit_mcs",
-        "math.r.levin_discrete"
-      ],
-      "certs": [
+        "math.r.levin_discrete",
         "math.r.nptel_discrete_iiitb"
       ],
+      "certs": [],
       "project": null,
       "contracts": [
         {
@@ -2014,9 +2003,7 @@
         "math.r.nptel_numerical_iitr",
         "math.r.mit_18330"
       ],
-      "certs": [
-        "math.r.nptel_numerical_iitr"
-      ],
+      "certs": [],
       "project": {
         "title": "Numerical toolkit",
         "brief": "Python file implementing all JAS 401 Unit III-IV methods with self-tests against the contract answers.",
@@ -2177,11 +2164,10 @@
       "hours_est": 25,
       "resources": [
         "math.r.mml_book",
-        "math.r.boyd_cvx"
-      ],
-      "certs": [
+        "math.r.boyd_cvx",
         "math.r.nptel_ess_math_ml_iitr"
       ],
+      "certs": [],
       "project": {
         "title": "Regression from scratch",
         "brief": "numpy gradient descent vs closed form on Aankhen features, with a learning-rate sweep plot.",

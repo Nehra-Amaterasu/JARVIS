@@ -1,9 +1,7 @@
 /** The game's rules (engine.ts) — pure functions, no store, no network. */
 import { describe, expect, it } from 'vitest'
 import { seasonBosses } from '../germoney/game/campaign'
-import { dailyContracts } from '../germoney/game/contracts'
 import * as E from '../germoney/game/engine'
-import { weeklyOffers } from '../germoney/game/operations'
 import { addDays } from '../germoney/game/util'
 
 const MON = '2026-10-05' // a Monday; Sunday is the default rest day
@@ -87,7 +85,14 @@ describe('the floor and the streak', () => {
     secure(g, addDays(MON, 1), ['body'])
     expect(E.isSecured(g, MON)).toBe(true)
     expect(E.isSecured(g, addDays(MON, 1))).toBe(true)
-    expect(E.xpMultiplier(g, addDays(MON, 1))).toBeCloseTo(0.6)
+  })
+
+  it('an exam day announced by the plan (academics) counts as exam mode', () => {
+    const g = E.defaultGame(MON)
+    g.flags[`examday:${MON}`] = true
+    secure(g, MON, ['silicon'])
+    expect(E.modeOn(g, MON)).toBe('exam')
+    expect(E.isSecured(g, MON)).toBe(true)
   })
 
   it('floor reward grows with the streak and doubles under Phoenix; a shield every 7 days', () => {
@@ -108,45 +113,6 @@ describe('supply drop', () => {
     expect(l.marks).toBeGreaterThanOrEqual(2 * (20 + 7))
   })
 })
-
-describe('contracts', () => {
-  const ctx = { date: '2026-10-07', rank: 0, seasonMonth: 1, activeBossIds: ['b1'], rest: false }
-  it('three a day, deterministic, exactly one hidden crit', () => {
-    const a = dailyContracts(ctx)
-    expect(a.map((c) => c.key)).toEqual(dailyContracts(ctx).map((c) => c.key))
-    expect(a).toHaveLength(3)
-    expect(a.filter((c) => c.crit)).toHaveLength(1)
-    expect(new Set(a.map((c) => c.def.npc)).size).toBe(3)
-  })
-  it('the rest day has none', () => {
-    expect(dailyContracts({ ...ctx, rest: true })).toEqual([])
-  })
-  it('a reroll changes only that slot', () => {
-    const a = dailyContracts(ctx)
-    let changed = false
-    for (let n = 1; n < 6 && !changed; n++) {
-      const b = dailyContracts({ ...ctx, rerolls: { deutsch: n } })
-      expect(b[0].key).toBe(a[0].key)
-      changed = b[1].key !== a[1].key
-    }
-    expect(changed).toBe(true)
-  })
-  it('respects the rank band: a rank-0 player never gets a RISC-V contract', () => {
-    for (let d = 0; d < 60; d++) {
-      const day = addDays('2026-10-05', d)
-      for (const c of dailyContracts({ ...ctx, date: day })) expect(['s33', 's34', 's35', 's36']).not.toContain(c.def.id)
-    }
-  })
-  combo()
-})
-
-function combo() {
-  it('combo and crit multiply XP; crit doubles Marks', () => {
-    expect(E.contractReward(20, { crit: false, nth: 1, mult: 1 })).toEqual({ xp: 20, marks: 10 })
-    expect(E.contractReward(20, { crit: false, nth: 3, mult: 1 }).xp).toBe(25)
-    expect(E.contractReward(20, { crit: true, nth: 4, mult: 1 })).toEqual({ xp: 60, marks: 20 })
-  })
-}
 
 describe('bosses', () => {
   it('twelve bosses, one per month from the season start; exam days extend the deadline', () => {
@@ -180,8 +146,6 @@ describe('bosses', () => {
     expect(s.events.map((e) => e.ref)).toEqual(['b1'])
     const b1 = E.datedBosses(g)[0]
     expect(E.bossState(b1, g, '2026-11-02')).toMatchObject({ status: 'escaped', hpMax: 125 })
-    expect(E.xpMultiplier(g, '2026-11-03')).toBeCloseTo(0.9)
-    expect(E.xpMultiplier(g, '2026-11-09')).toBe(1)
   })
 
   it('a kill with more than 25% HP left is an Ambush (+20%)', () => {
@@ -197,28 +161,18 @@ describe('bosses', () => {
   })
 })
 
-describe('operations', () => {
-  it('three offers a week — one Silicon, one Deutsch, one other — fixed for the week', () => {
-    const o = weeklyOffers(MON)
-    expect(o.map((x) => x.track).slice(0, 2)).toEqual(['silicon', 'deutsch'])
-    expect(weeklyOffers(MON)).toEqual(o)
-  })
-  it('progress is measured from the ledger', () => {
-    const g = E.defaultGame(MON)
-    g.operations[MON] = { chosen: 'op-funf', stake: 50, status: 'active' }
-    for (let i = 0; i < 5; i++) g.ledger.push(ev(addDays(MON, i), { kind: 'contract', track: 'deutsch' }))
-    expect(E.operationProgress(g, MON, addDays(MON, 4))).toMatchObject({ value: 5, n: 5, done: true })
-  })
-})
-
 describe('the brief', () => {
-  it('says the streak, the open reps and the boss', () => {
+  it("says the streak, the open reps and the plan's next contracts", () => {
     const g = E.defaultGame('2026-10-08')
     secure(g, '2026-10-08', ['silicon'])
-    const b = E.buildBrief(g, '2026-10-09', 0, 0, [])
+    const b = E.buildBrief(g, '2026-10-09', 0, [
+      { key: 'a/c1', title: 'Full adder', minutes: 45, done: true },
+      { key: 'a/c2', title: 'K-map drill', minutes: 30, done: false },
+    ])
     expect(b.text).toContain('Floor open: Silicon, Deutsch, Body.')
-    expect(b.text).toContain('The Boolean Sentinel')
-    expect(b.data.boss.id).toBe('b1')
+    expect(b.text).toContain('1 contract done today.')
+    expect(b.text).toContain('Next: K-map drill (30 min).')
+    expect(b.data.contracts).toHaveLength(2)
   })
 })
 

@@ -1,38 +1,24 @@
 /**
- * Mission → Armory: spend Marks on rewards you set (earned leisure, not stolen
- * leisure), the achievements, the War Chest — what Germany costs and when — and
- * the game's settings and modes (rest day, exam mode, recovery).
+ * The Armory's pieces, used by the Road (the reward shop, achievements, the War
+ * Chest: what Germany costs and when) and by the settings drawer (rest day,
+ * nudges, targets, recovery). Mission v2 retired the Armory as a tab.
  */
 import { Award, Coins, Lock, Plus, Settings2, ShoppingBag, Trash2, Wallet } from 'lucide-react'
 import { useState } from 'react'
 import { useStore } from '../../lib/store'
 import { ACHIEVEMENTS } from '../game/achievements'
 import * as E from '../game/engine'
-import { Marks, Shields } from '../game/kit'
+import { Marks } from '../game/kit'
 import { useGame } from '../game/store'
 import { CHEST_ITEMS, FUNDING_PATHS, toInr } from '../game/trials'
 import { addDays, fromKey, MONTHS, prettyDate } from '../game/util'
-import { MissionHeader, NeonBar, confirmDialog } from '../ui'
+import { NeonBar, confirmDialog } from '../ui'
 
 const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
-export function ArmoryPage() {
-  const g = useGame((s) => s.g)
-  return (
-    <div className="mission-page armory">
-      <MissionHeader n="M6" title="Armory" sub="Spend what you earned. Rest you paid for with work is not guilt."
-        right={<div className="hq-pills"><Marks n={g.marks} size="lg" /><Shields n={g.shields} /><span className="pill">{g.boosters} booster{g.boosters === 1 ? '' : 's'}</span></div>} />
-      <Shop />
-      <Achievements />
-      <WarChest />
-      <SettingsCard />
-    </div>
-  )
-}
-
 /* ------------------------------------------------------------------ shop */
-function Shop() {
+export function Shop() {
   const g = useGame((s) => s.g)
   const buy = useGame((s) => s.buy)
   const save = useGame((s) => s.saveShop)
@@ -87,7 +73,7 @@ function Shop() {
 }
 
 /* ------------------------------------------------------------------ achievements */
-function Achievements() {
+export function Achievements() {
   const got = useGame((s) => s.g.achievements)
   return (
     <>
@@ -106,7 +92,7 @@ function Achievements() {
 }
 
 /* ------------------------------------------------------------------ war chest */
-function WarChest() {
+export function WarChest() {
   const g = useGame((s) => s.g)
   const today = useGame((s) => s.today)
   const addSavings = useGame((s) => s.addSavings)
@@ -176,18 +162,15 @@ function WarChest() {
 }
 
 /* ------------------------------------------------------------------ settings & modes */
-function SettingsCard() {
+export function SettingsCard() {
   const g = useGame((s) => s.g)
   const today = useGame((s) => s.today)
   const set = useGame((s) => s.setSettings)
   const setSeason = useGame((s) => s.setSeasonStart)
-  const addExam = useGame((s) => s.addExam)
-  const removeExam = useGame((s) => s.removeExam)
   const startRecovery = useGame((s) => s.startRecovery)
   const endRecovery = useGame((s) => s.endRecovery)
   const declareRest = useGame((s) => s.declareRest)
   const toast = useStore((s) => s.toast)
-  const [ex, setEx] = useState({ from: '', to: '', label: '' })
   const s = g.settings
   const mode = E.modeOn(g, today)
   const recUsed = g.modes.recovery.filter((p) => p.from >= g.seasonStart).length
@@ -218,14 +201,8 @@ function SettingsCard() {
         <div className="modes">
           <div>
             <b>Exam mode</b>
-            <p className="muted small">During exams the floor is your exam study, contracts pause, and boss deadlines move back by the exam days. Grades decide German admissions — the game must never punish you for them.</p>
-            {g.modes.exam.map((p, i) => <div key={i} className="mode-row mono small">{p.label || 'Exams'} · {prettyDate(p.from)} → {prettyDate(p.to, true)} <button className="icon-btn" onClick={() => removeExam(i)} aria-label="Remove"><Trash2 size={13} /></button></div>)}
-            <div className="field-row">
-              <input className="field" placeholder="e.g. End-sem exams" value={ex.label} onChange={(e) => setEx({ ...ex, label: e.target.value })} />
-              <input className="field sm" type="date" value={ex.from} onChange={(e) => setEx({ ...ex, from: e.target.value })} />
-              <input className="field sm" type="date" value={ex.to} onChange={(e) => setEx({ ...ex, to: e.target.value })} />
-              <button className="btn sm" disabled={!ex.from || !ex.to || ex.to < ex.from} onClick={() => { addExam(ex); setEx({ from: '', to: '', label: '' }) }}><Plus size={13} />Add</button>
-            </div>
+            <p className="muted small">Exam mode now comes from your academics: the exam dates under Exams, and the plan's phases. On exam days the Floor needs only the study rep. Grades decide German admissions; the game never punishes you for them.</p>
+            {g.modes.exam.length > 0 && <p className="mono muted small">Older exam periods from your save still count: {g.modes.exam.map((p) => `${p.label || 'Exams'} ${prettyDate(p.from)} to ${prettyDate(p.to)}`).join(', ')}</p>}
           </div>
           <div>
             <b>Recovery mode</b> <span className="mono muted small">{recUsed} / 2 used this season</span>

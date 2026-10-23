@@ -1,0 +1,42 @@
+{
+  "version": "fixture-1",
+  "careers": [
+    { "id": "vlsi", "name": "VLSI design engineer", "summary": "RTL to GDS.", "weights": { "dl-basics": 1, "hdl-verilog": 1, "hdlbits": 0.9, "fsm": 0.9, "uart": 0.8, "riscv-core": 0.7, "ml-intro": 0.2, "ghost-node": 0.5 } },
+    { "id": "aihw", "name": "AI-hardware architect", "summary": "Accelerators for ML.", "weights": { "dl-basics": 0.8, "hdl-verilog": 0.7, "ml-intro": 1, "riscv-core": 0.9, "systolic": 1 } }
+  ],
+  "nodes": [
+    { "id": "dl-basics", "name": "Digital logic basics", "branch": "digital", "tier": 0, "prereqs": [],
+      "outcomes": ["Simplify a 4-variable K-map", "Build a full adder from gates"], "hours_est": 8,
+      "resources": ["r-nand2tetris", "r-floyd"], "certs": [], "project": null,
+      "contracts": [
+        { "id": "c1", "title": "Full adder from gates", "minutes": 45, "context": "Every adder in a CPU starts here.", "steps": ["Write the truth table", "Derive sum and carry", "Draw it in Logisim"], "hint": "Sum is a XOR b XOR cin.", "success_check": "All 8 rows match your circuit.", "xp": 25 },
+        { "id": "c2", "title": "K-map drill", "minutes": 30, "context": "K-maps are the fastest path to minimal logic.", "steps": ["Do 5 four-variable K-maps"], "hint": "Group in powers of two, wrap the edges.", "success_check": "5/5 minimal SOP forms.", "xp": 20 }
+      ] },
+    { "id": "hdl-verilog", "name": "Verilog fundamentals", "branch": "digital", "tier": 1, "prereqs": ["dl-basics"],
+      "outcomes": ["Write synthesizable combinational Verilog"], "hours_est": 12,
+      "resources": ["r-hdlbits", "r-chipverify"], "certs": ["cert-nptel-verilog"], "project": null,
+      "contracts": [
+        { "id": "c1", "title": "HDLBits: Basics (8 problems)", "minutes": 60, "context": "HDLBits checks your Verilog against a reference.", "steps": ["Open HDLBits > Verilog Language > Basics", "Solve 8 without the solutions tab"], "hint": "assign is continuous; it is not a statement that runs once.", "success_check": "8 green ticks on your HDLBits profile.", "xp": 30 }
+      ] },
+    { "id": "hdlbits", "name": "HDLBits sequential set", "branch": "digital", "tier": 2, "prereqs": ["hdl-verilog"],
+      "outcomes": ["Flip-flops, counters, shift registers"], "hours_est": 10, "resources": ["r-hdlbits"], "certs": [], "project": null,
+      "contracts": [ { "id": "c1", "title": "HDLBits: Counters", "minutes": 60, "context": "Counters are the heartbeat of sequential logic.", "steps": ["Solve the 5 counter problems"], "hint": "Reset first, then count.", "success_check": "5 green ticks.", "xp": 30 } ] },
+    { "id": "fsm", "name": "Finite state machines", "branch": "digital", "tier": 2, "prereqs": ["hdl-verilog"],
+      "outcomes": ["Moore vs Mealy", "Sequence detector"], "hours_est": 10, "resources": ["r-hdlbits"], "certs": [],
+      "project": { "title": "FSM suite on GitHub", "deliverable": "Traffic light + 1011 detector with testbenches", "linkedin_line": "Built and verified an FSM suite in Verilog." },
+      "contracts": [ { "id": "c1", "title": "1011 detector", "minutes": 60, "context": "The most asked RTL interview question.", "steps": ["Draw the state diagram", "Code it in 3-block style", "Test overlapping input"], "hint": "Overlap means you don't go back to idle.", "success_check": "Detector fires twice on 1011011.", "xp": 35 } ] },
+    { "id": "uart", "name": "UART TX/RX", "branch": "digital", "tier": 3, "prereqs": ["fsm", "hdlbits", "ghost-prereq"],
+      "outcomes": ["Baud generator", "Mid-bit sampling"], "hours_est": 14, "resources": ["r-nandland", "r-missing"], "certs": [],
+      "project": { "title": "UART loopback", "deliverable": "UART TX+RX with a loopback testbench", "linkedin_line": "Designed a UART in Verilog and verified it in loopback." },
+      "contracts": [] },
+    { "id": "riscv-core", "name": "Single-cycle RV32I", "branch": "arch", "tier": 4, "prereqs": ["uart"],
+      "outcomes": ["Datapath", "Control"], "hours_est": 40, "resources": ["r-riscv-spec"], "certs": [], "project": null, "contracts": [] },
+    { "id": "ml-intro", "name": "ML foundations", "branch": "ml", "tier": 0, "prereqs": [],
+      "outcomes": ["Linear regression by hand"], "hours_est": 10, "resources": ["r-cs229"], "certs": [], "project": null,
+      "contracts": [ { "id": "c1", "title": "Gradient descent by hand", "minutes": 50, "context": "Training is just this loop.", "steps": ["Derive the gradient", "Run 3 steps on paper"], "hint": "Learning rate too big diverges.", "success_check": "Loss decreases each step.", "xp": 25 } ] },
+    { "id": "systolic", "name": "Systolic arrays", "branch": "ml", "tier": 2, "prereqs": ["ml-intro", "hdl-verilog"],
+      "outcomes": ["Matrix multiply in a systolic array"], "hours_est": 20, "resources": [], "certs": [],
+      "project": { "title": "4x4 systolic MAC array", "deliverable": "A 4x4 int8 systolic array in Verilog with a testbench", "linkedin_line": "Built a 4x4 systolic array, the core of a TPU." },
+      "contracts": [] }
+  ]
+}

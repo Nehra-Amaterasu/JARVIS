@@ -7,6 +7,7 @@ import { Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { EXERCISES, MUSCLE_GROUPS, generateSession, type MuscleGroup, type SessionExercise } from '../data/exercises'
 import { Alert } from '../platform'
+import { usePlan } from '../game/plan'
 import { useGame } from '../game/store'
 import { usePlayerStore } from '../stores/player-store'
 import { useWorkoutStore, type WorkoutEntry } from '../stores/workout-store'
@@ -15,7 +16,7 @@ import { MissionHeader, NeonBar, useFx } from '../ui'
 type Draft = { sets: string; reps: string; weight: string }
 
 export function ForgePage() {
-  const logExecution = usePlayerStore((s) => s.logExecution)
+  const recordHours = usePlayerStore((s) => s.recordHours)
   const getLast = useWorkoutStore((s) => s.getLast)
   const addSession = useWorkoutStore((s) => s.addSession)
   const sessions = useWorkoutStore((s) => s.sessions)
@@ -54,9 +55,11 @@ export function ForgePage() {
       return { exerciseId: ex.id, sets: parseInt(d?.sets ?? '', 10), reps: parseInt(d?.reps ?? '', 10), weight: parseFloat(d?.weight ?? '') }
     }).filter((e) => Number.isFinite(e.sets) && Number.isFinite(e.reps) && Number.isFinite(e.weight))
     addSession({ muscles: MUSCLE_GROUPS.filter((m) => selected.has(m)), entries })
-    logExecution('workout', 1)
-    useGame.getState().recordLog('workout', 1)
-    burst('+15 XP')
+    // The one log (it pays the XP); the Body rep ticks now, its ledger entry arrives with the plan event.
+    recordHours('workout', 1)
+    void usePlan.getState().log({ minutes: 45, track: 'body', note: `gym: ${entries.length} exercises` })
+    useGame.getState().markRep('body', 'workout', false)
+    burst('+10 XP')
     setSession(null)
     setDrafts({})
     setSelected(new Set())

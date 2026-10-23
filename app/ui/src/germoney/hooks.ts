@@ -1,23 +1,34 @@
 /**
- * Mission Germoney hooks — the phone app's hooks, rewired to the JARVIS server.
+ * Mission Germoney hooks: loading the stores, the calibration answers, GitHub.
  *
- * AI is the LOCAL model now (Qwen3-4B via Ollama, through /api/germoney/ai). When it
- * can't produce valid output the deterministic engine takes over, exactly as the
- * phone app fell back when Gemini failed — and the UI labels which one you got
- * (amber "AI · local" = inferred; plain = the engine's fixed pool).
+ * Mission v2 removed the AI side quests (useDailyQuests) and the syllabus's live
+ * intel (useLiveIntel): contracts come from the skill tree now, and the latest
+ * papers are the plan's daily digest per active node (/api/mission/findings).
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { api, post } from '../lib/api'
+import { useCallback, useEffect, useState } from 'react'
+import { api } from '../lib/api'
 import AsyncStorage, { GithubConfig } from './platform'
 import { useChecklistStore } from './stores/checklist-store'
 import { useFailureStore } from './stores/failure-store'
 import { useLogStore } from './stores/log-store'
-import { LEVELS, dateKey, usePlayerStore, type PlayerData } from './stores/player-store'
+import { usePlayerStore } from './stores/player-store'
 import { useProofStore } from './stores/proof-store'
 import { useWorkoutStore } from './stores/workout-store'
-import { generateDailyQuests, type OnboardingData } from './utils/quest-engine'
 
 export const ONBOARDING_KEY = '@silicon_onboarding_v1'
+
+/** The five self-rated skills captured during calibration (0 = NONE … 3 = STRONG). */
+export type SkillKey = 'digitalLogic' | 'verilog' | 'programming' | 'math' | 'german'
+export type GoalPreset = 'tu9-vlsi' | 'iit-mtech' | 'industry' | 'custom'
+export interface OnboardingGoal { preset: GoalPreset; label: string }
+/** Persisted at '@silicon_onboarding_v1'. */
+export interface OnboardingData {
+  goal: OnboardingGoal
+  skills: Record<SkillKey, number>
+  targetYear: number
+  weeklyHours: number
+  completedAt: string
+}
 
 /** Load every store once; resolves true when all are hydrated. */
 export function useMissionLoaded(): boolean {
@@ -56,75 +67,6 @@ export function useOnboarding(): [OnboardingData | null | undefined, () => void]
   return [ob, () => setTick((t) => t + 1)]
 }
 
-/* ------------------------------------------------------------------ daily quests */
-export interface DisplayQuest { id: string; title: string; desc: string; reward: string }
-
-const SKILL_LABELS: Record<string, string> = {
-  digitalLogic: 'Digital Logic', verilog: 'Verilog/HDL', programming: 'Programming', math: 'Math/GATE', german: 'German',
-}
-
-function weakestSkills(ob: OnboardingData | null): string[] {
-  if (!ob) return []
-  return Object.entries(ob.skills).sort((a, b) => a[1] - b[1]).slice(0, 2).map(([k]) => SKILL_LABELS[k] ?? k)
-}
-
-function deterministic(player: PlayerData, ob: OnboardingData | null): DisplayQuest[] {
-  const today = dateKey()
-  return generateDailyQuests(player, ob, new Date()).map((q) => ({
-    id: `det_${today}_${q.id}`, title: q.title, desc: q.description, reward: `+${q.xp} XP`,
-  }))
-}
-
-export function useDailyQuests() {
-  const player = usePlayerStore((s) => s.player)
-  const [ob, setOb] = useState<OnboardingData | null>(null)
-  const [ai, setAi] = useState<DisplayQuest[] | null>(null)
-  const [state, setState] = useState<'engine' | 'ai' | 'loading'>('engine')
-  const [error, setError] = useState<string | null>(null)
-  useEffect(() => { void getOnboarding().then(setOb) }, [])
-  const fallback = useMemo(() => deterministic(player, ob), [player.level, ob]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const load = useCallback(async (force = false) => {
-    const today = dateKey()
-    const cacheKey = `@silicon_ai_quests_${today}_L${player.level}`
-    if (!force) {
-      const cached = await AsyncStorage.getItem(cacheKey)
-      if (cached) {
-        setAi(JSON.parse(cached))
-        setState('ai')
-        return
-      }
-    }
-    setState('loading')
-    setError(null)
-    try {
-      const o = await getOnboarding()
-      const info = LEVELS.find((l) => l.level === player.level) ?? LEVELS[0]
-      const r = await post<{ quests: { title: string; description: string; xp: number }[] }>('/api/germoney/ai/quests', {
-        level: player.level, rank: info.rank, phase: info.phase, weakestSkills: weakestSkills(o), weeklyHours: o?.weeklyHours ?? 20,
-      })
-      const mapped = r.quests.map((q, i) => ({ id: `ai_${today}_L${player.level}_${i}`, title: q.title, desc: q.description, reward: `+${q.xp} XP` }))
-      await AsyncStorage.setItem(cacheKey, JSON.stringify(mapped))
-      setAi(mapped)
-      setState('ai')
-    } catch (e) {
-      setError((e as Error).message)
-      setState('engine')
-    }
-  }, [player.level])
-
-  useEffect(() => {
-    // Only reuse a cached AI set automatically; generating one is the user's call
-    // (it loads the LLM into VRAM).
-    void (async () => {
-      const cached = await AsyncStorage.getItem(`@silicon_ai_quests_${dateKey()}_L${player.level}`)
-      if (cached) { setAi(JSON.parse(cached)); setState('ai') }
-    })()
-  }, [player.level])
-
-  return { quests: state === 'ai' && ai ? ai : fallback, source: state, error, generate: () => load(true), useEngine: () => { setAi(null); setState('engine') } }
-}
-
 /* ------------------------------------------------------------------ GitHub */
 export interface GithubSummary {
   user: string; source: string; total: number; lastContribution: string | null; currentStreak: number
@@ -155,7 +97,7 @@ export function useGithub() {
       const s = await api<GithubSummary>(`/api/germoney/github?user=${encodeURIComponent(who)}`)
       ghCache = { user: who, at: Date.now(), data: s }
       setSummary(s)
-      // Rule 1 runs on REAL commit data once GitHub is linked (as on the phone).
+      // Rule 1 reads REAL commit data once GitHub is linked (as on the phone).
       syncGithub(s.lastContribution, s.total)
     } catch (e) {
       setError((e as Error).message)
@@ -172,53 +114,4 @@ export function useGithub() {
     await refresh(u)
   }
   return { user, summary, error, loading, refresh: () => { ghCache = null; void refresh() }, link }
-}
-
-/* ------------------------------------------------------------------ live intel */
-export interface ArxivPaper { id: string; title: string; summary: string; published: string; authors: string[]; url: string }
-export interface IntelItem { title: string; why: string; searchQuery: string; type: 'paper' | 'video' | 'article' | 'tool' }
-
-/** Topic tracks the rank: what's worth reading changes as the operative levels up. */
-export function topicForLevel(level: number): string {
-  if (level <= 1) return 'digital logic design fundamentals'
-  if (level <= 3) return 'RTL design Verilog finite state machines'
-  if (level <= 5) return 'SystemVerilog verification UVM coverage'
-  if (level <= 7) return 'RISC-V processor microarchitecture pipeline'
-  return 'VLSI physical design low power CMOS'
-}
-
-export function useLiveIntel() {
-  const level = usePlayerStore((s) => s.player.level)
-  const topic = topicForLevel(level)
-  const [papers, setPapers] = useState<ArxivPaper[] | null>(null)
-  const [items, setItems] = useState<IntelItem[] | null>(null)
-  const [state, setState] = useState<'idle' | 'loading' | 'error'>('idle')
-  const [error, setError] = useState<string | null>(null)
-
-  const loadPapers = useCallback(async () => {
-    setState('loading')
-    try {
-      setPapers(await api<ArxivPaper[]>(`/api/germoney/arxiv?q=${encodeURIComponent(topic)}&max=6`))
-      setState('idle')
-    } catch (e) {
-      setError((e as Error).message)
-      setState('error')
-    }
-  }, [topic])
-
-  const curate = useCallback(async () => {
-    setState('loading')
-    try {
-      const info = LEVELS.find((l) => l.level === level) ?? LEVELS[0]
-      const r = await post<{ items: IntelItem[] }>('/api/germoney/ai/curation', { rank: info.rank, topic })
-      setItems(r.items)
-      setState('idle')
-    } catch (e) {
-      setError((e as Error).message)
-      setState('error')
-    }
-  }, [level, topic])
-
-  useEffect(() => { void loadPapers() }, [loadPapers])
-  return { topic, papers, items, state, error, loadPapers, curate }
 }

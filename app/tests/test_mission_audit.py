@@ -886,3 +886,20 @@ def test_ninety_days_of_realistic_use_keep_track(tmp_path, private):
     assert r["issues"] == []
     assert s["welcome_back"] >= 1 and s["exam_days"] > 0 and s["mastered"] > 0
     assert s["no_goal"] == 0
+
+
+# ------------------------------------------------------------------ 12. the voice parser (core/mission.py)
+def test_voice_parser_never_completes_on_a_question_and_never_raises():
+    import mission                                                       # core/mission.py
+    for q in ("did I finish it?", "have I finished it", "should I finish this one?", "what if I finished it", "can I finish it later"):
+        p = mission.parse_plan(q)
+        assert not p or p.get("action") != "complete", q
+    assert mission.parse_plan("I've finished it")["action"] == "complete"
+    rng = random.Random(9)
+    alphabet = "abcdefghijklmnopqrstuvwxyz :,.?!-0123456789ाकि"
+    words = ["log", "park", "exam", "mode", "off", "days", "to", "finished", "it", "deadline", "internship", "next", "tree", "40", "min"]
+    for _ in range(2000):
+        t = " ".join(rng.choice(words) if rng.random() < 0.7 else "".join(rng.choice(alphabet) for _ in range(rng.randint(1, 6)))
+                     for _ in range(rng.randint(0, 9)))
+        p = mission.parse_plan(t)
+        assert p is None or isinstance(p, dict)

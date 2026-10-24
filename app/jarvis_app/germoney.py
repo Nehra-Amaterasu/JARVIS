@@ -26,6 +26,7 @@ written atomically; the whole folder is snapshotted once a day (14 kept), becaus
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import re
 import shutil
@@ -895,7 +896,16 @@ CALENDAR_KEYS = ("internals_start", "end_sem_start", "backlog_block_start")
 
 
 def _date_or_none(v: Any) -> Optional[str]:
-    return v if isinstance(v, str) and _DATE.match(v) else None
+    # Decision (test audit 2026-10-23): the shape alone let "2026-02-30" through, and
+    # every later date.fromisoformat() then raised inside today(). An impossible date
+    # is treated like "TBC": no date, never a guessed one.
+    if not (isinstance(v, str) and _DATE.match(v)):
+        return None
+    try:
+        date.fromisoformat(v)
+    except ValueError:
+        return None
+    return v
 
 
 def _weight(v: Any) -> float:
@@ -966,11 +976,24 @@ def load_academics(path: Optional[Path] = None, overrides: Optional[Path] = None
             except (TypeError, ValueError):
                 unit = None
             sitting = str(q.get("sitting") or "")
-            qid = f"{sid}:{re.sub(r'[^A-Za-z0-9]+', '-', sitting).strip('-') or 'q'}:{q.get('choice_group') or i}"
+            qid = f"{sid}:{re.sub(r'[^A-Za-z0-9]+', '-', sitting).strip('-') or 'q'}:{q.get('choice_group') or ''}"
             qb.append({"id": qid, "unit": unit, "topic": str(q.get("topic") or ""), "question": str(q["question"]),
                        "marks": _num(q.get("marks")), "type": str(q.get("type") or ""), "section": str(q.get("section") or ""),
                        "choice_group": str(q.get("choice_group") or ""), "sitting": sitting,
                        "file": _clean_file({"local_path": q.get("source_file"), "title": sitting or "past paper"})})
+        # Decision (test audit): a question's id must name that one question, and must
+        # not move when the file is reordered. The real papers use choice groups like
+        # "2 (OR)" for BOTH alternatives, so sitting + group made two questions one id:
+        # doing one ticked off the other unseen. Unique "sitting:group" ids stay as they
+        # were; a missing group or a shared one gets a hash of the question text
+        # (the old fallback was the list index, which shifted on every rewrite).
+        counts: dict[str, int] = {}
+        for q in qb:
+            counts[q["id"]] = counts.get(q["id"], 0) + 1
+        for q in qb:
+            if not q["choice_group"] or counts[q["id"]] > 1:
+                h = hashlib.sha1(" ".join(q["question"].lower().split()).encode("utf-8")).hexdigest()[:8]
+                q["id"] = f"{q['id'].rstrip(':')}:{h}" if q["choice_group"] else f"{q['id']}{h}"
         subjects.append({
             "id": sid, "name": str(s.get("name") or sid), "code": str(s.get("code") or ""), "kind": kind, "units": units,
             "strategy": str(s.get("strategy") or ""), "risk": str(s.get("risk") or ""),
@@ -1051,13 +1074,23 @@ def pass_needs(rule: Any) -> Optional[dict]:
     see_min, see_max = _num(rule.get("see_min")), _num(rule.get("see_max"))
     cie_max, agg = _num(rule.get("cie_max")), _num(rule.get("aggregate_min_pct"))
     ia = _num(rule.get("ia_carried_over"))
+    cie_min = _num(rule.get("cie_min"))
     needed = None
     if ia is not None and see_max and cie_max and agg is not None:
         import math
-        needed = int(max(see_min or 0, math.ceil(agg / 100 * (see_max + cie_max) - ia)))
+        from fractions import Fraction
+        # Decision (test audit): exact arithmetic. agg / 100 * total in floats made
+        # 55 % of 100 come out as 55.000000000000007, one mark too many after ceil().
+        total = Fraction(str(agg)) * (Fraction(str(see_max)) + Fraction(str(cie_max))) / 100
+        needed = int(max(see_min or 0, math.ceil(total - Fraction(str(ia)))))
     elif see_min is not None:
         needed = int(see_min)
-    return {**{k: v for k, v in rule.items() if isinstance(v, (int, float, str, list))}, "see_needed_computed": needed}
+    out = {**{k: v for k, v in rule.items() if isinstance(v, (int, float, str, list))}, "see_needed_computed": needed}
+    # Honest limits: carried-over IA below the CIE minimum, or a SEE target above the
+    # paper's maximum, means the SEE alone cannot pass it; say so instead of a number.
+    out["cie_ok"] = None if ia is None or cie_min is None else ia >= cie_min
+    out["possible"] = None if needed is None or not see_max else (needed <= see_max and out["cie_ok"] is not False)
+    return out
 
 
 def next_exam(ac: dict, s: dict, today: str) -> tuple[Optional[str], str, bool]:
@@ -1151,6 +1184,18 @@ def _anchor_date(ac: dict, phase: dict, today: str) -> Optional[str]:
     return _date_or_none(phase.get("anchor_date"))
 
 
+def papers_ahead(ac: dict, today: str) -> bool:
+    """Is any paper still to come: a dated exam today or later, or a re-sit whose date
+    was never given (TBC: it is still ahead, we just don't know when)?"""
+    for s in ac["subjects"]:
+        if next_exam(ac, s, today)[0]:
+            return True
+        d = s.get("dates") or {}
+        if s["kind"] == "backlog" and not any(d.get(k) for k in ("set_here", "exam", "backlog")):
+            return True
+    return False
+
+
 def active_phase(ac: dict, today: str) -> Optional[dict]:
     """The plan phase today falls in (plan.by_days_left as a list of phases). Later
     phases win where two overlap (an open-ended "internals week" gives way to the
@@ -1171,7 +1216,20 @@ def active_phase(ac: dict, today: str) -> Optional[dict]:
         if (hi is None or left <= hi) and (lo is None or left >= lo) and (hi is not None or lo is not None):
             if lo is None and left < -45:          # an open-ended phase does not last forever
                 continue
-            hit = {"index": i, "phase": ph, "anchor": anchor, "days_left": left}
+            # Decision (test audit, 90-day run): an open-ended phase ("internals week")
+            # also ends when no paper is left: no dated exam ahead and no re-sit still
+            # waiting for its date. It used to run on for 45 days, prepping papers
+            # already written and scheduling "next-internal-paper" with none left.
+            if lo is None and not papers_ahead(ac, today):
+                continue
+            # Honesty (test audit): a backlog phase anchored on the end-sem date while
+            # the backlog block is TBC, or on an approximate end-sem date, counts down
+            # to an assumed day. Label it, so the voice never states it as fact.
+            cal = ac.get("calendar") or {}
+            a = str(ph.get("anchor") or "")
+            assumed = (a.startswith("backlog_block_start") and not cal.get("backlog_block_start")) or \
+                ("end_sem" in a and anchor == cal.get("end_sem_start") and bool(cal.get("end_sem_approx")))
+            hit = {"index": i, "phase": ph, "anchor": anchor, "days_left": left, "assumed": assumed}
     return hit
 
 
@@ -1343,8 +1401,12 @@ def _tree_contract(bank: dict, st: dict, node: dict, c: dict, slot: str, why: st
     done = st["contracts"].get(key)
     return {"key": key, "source": "tree", "slot": slot, "node_id": node["id"], "node_name": node["name"],
             "branch": node["branch"], "title": c["title"], "minutes": c["minutes"], "xp": c["xp"],
-            "context": c["context"], "steps": c["steps"], "hint": c["hint"], "success_check": c["success_check"],
-            "why": why, "done": bool(done), "verified": bool(done and done.get("verified")),
+            # the bank is checked for these (tests/test_mission_audit.py); a hand-edited
+            # bank without them still never shows a blank card
+            "context": c["context"] or f"Part of {node['name']}" + (f": {'; '.join(node['outcomes'][:2])}." if node["outcomes"] else "."),
+            "steps": c["steps"], "hint": c["hint"] or "Try it before you read the answer; then read the main lesson.",
+            "success_check": c["success_check"] or "Every step done, and you can explain it without notes.",
+            "why": why or f"Next on {node['name']}", "done": bool(done), "verified": bool(done and done.get("verified")),
             **contract_context(bank, st, node)}
 
 
@@ -1422,7 +1484,10 @@ def exam_state(ac: Optional[dict], st: dict, today: str, library_minutes: int = 
         blocks = [{"subject": forced["id"], "minutes": library_minutes, "note": ""}]
         subject = forced
     elif phase:
-        blocks = phase_blocks(phase, today)
+        # a "next-paper" block with no paper left to point at is dropped, not shown as
+        # a card titled "next-internal-paper" (test audit)
+        blocks = [b for b in phase_blocks(phase, today)
+                  if b["subject"] not in ("next-paper", "next-internal-paper") or resolve_subject(ac, b["subject"], today)]
         if not blocks:                              # a day the plan leaves empty: the nearest paper, backlog first
             pick = dated[0][2] if dated else next((s for s in ac["subjects"] if s["kind"] == "backlog" and s["units"]), None)
             blocks = [{"subject": pick["id"], "minutes": library_minutes, "note": ""}] if pick else []
@@ -1453,7 +1518,8 @@ def exam_state(ac: Optional[dict], st: dict, today: str, library_minutes: int = 
         milestone = ms[0].get("goal") if ms else None
     return {"subject": subject, "date": d, "days_left": left, "date_kind": kind, "forced": bool(forced), "queue": queue + undated_backlogs,
             "advice": advice, "blocks": blocks, "milestone": milestone,
-            "phase": {"n": ph.get("phase"), "name": ph.get("name"), "days_left": phase["days_left"], "anchor": phase["anchor"]} if ph else None,
+            "phase": {"n": ph.get("phase"), "name": ph.get("name"), "days_left": phase["days_left"], "anchor": phase["anchor"],
+                      "anchor_assumed": bool(phase.get("assumed"))} if ph else None,
             "rescue_week": rescue_week(ac, today)}
 
 
@@ -1486,13 +1552,19 @@ def rescue_week(ac: dict, today: str) -> Optional[dict]:
         m = re.search(r"\((\w{3})\s+(\d+)\s*-\s*(?:(\w{3})\s+)?(\d+)\)", str(w.get("week") or ""))
         if not m:
             continue
-        try:
-            a = datetime.strptime(f"{m.group(1)} {m.group(2)} {year}", "%b %d %Y").date()
-            b = datetime.strptime(f"{m.group(3) or m.group(1)} {m.group(4)} {year}", "%b %d %Y").date()
-        except ValueError:
-            continue
-        if a <= _day(today) <= b:
-            return {"week": w.get("week"), "library": str(w.get("library") or ""), "evenings": str(w.get("evenings") or "")}
+        # Decision (test audit): the lines carry no year. A week that crosses New Year
+        # ("Dec 28-Jan 3") ends in the next year, and on 2 January it started last
+        # year; try both years rather than only today's, which never matched those.
+        for y in (year, year - 1):
+            try:
+                a = datetime.strptime(f"{m.group(1)} {m.group(2)} {y}", "%b %d %Y").date()
+                b = datetime.strptime(f"{m.group(3) or m.group(1)} {m.group(4)} {y}", "%b %d %Y").date()
+            except ValueError:
+                break
+            if b < a:
+                b = b.replace(year=y + 1)
+            if a <= _day(today) <= b:
+                return {"week": w.get("week"), "library": str(w.get("library") or ""), "evenings": str(w.get("evenings") or "")}
     return None
 
 
@@ -1642,6 +1714,13 @@ def _pyq_contract(key: str, slot: str, s: dict, qs: list[dict], minutes: int, st
 def _acad_contract(key: str, slot: str, s: Optional[dict], title: str, minutes: int, context: str, steps: list[str],
                    hint: str, check: str, res: list[dict], pyqs: list[str], st: dict) -> dict:
     done = st["contracts"].get(key)
+    # Constraint: every contract has context, a hint and a success check. A plan block
+    # whose subject isn't in academics.json, or a unit with no weight and no strategy,
+    # left these empty; plain defaults beat a blank card.
+    what = s["name"] if s else (title or "this block")
+    context = context or f"From your exam plan: {what}. Work it closed book, then check against the notes."
+    hint = hint or "Start with what you can do from memory; the gaps you find are the block's real work."
+    check = check or "The block's steps done, and every miss written into the error log."
     return {"key": key, "source": "academics", "slot": slot, "node_id": None, "node_name": s["name"] if s else None,
             "subject_id": s["id"] if s else None, "branch": "academics", "title": title, "minutes": minutes,
             "xp": max(10, min(60, minutes // 4)), "context": context, "steps": steps, "hint": hint, "success_check": check,
@@ -1800,14 +1879,29 @@ def build_day(bank: dict, st: dict, ac: Optional[dict], today: str) -> dict:
             if ac and ac["subjects"]:
                 dated = sorted(((next_exam(ac, s, today)[0], s) for s in ac["subjects"] if next_exam(ac, s, today)[0] and s["units"]),
                                key=lambda x: (x[1]["kind"] != "backlog", x[0]))
-                subj = (dated[0][1] if dated else None) or next((s for s in ac["subjects"] if s["kind"] == "backlog" and s["units"]), None) \
-                    or next((s for s in ac["subjects"] if s["units"]), None)
+                # a re-sit still waiting for its date comes before "any subject"; a paper
+                # already written does not (test audit: Thursdays kept prepping it)
+                undated = lambda s: not any(v for k, v in (s.get("dates") or {}).items() if k != "end_sem_approx")
+                subj = (dated[0][1] if dated else None) \
+                    or next((s for s in ac["subjects"] if s["kind"] == "backlog" and undated(s) and s["units"]), None) \
+                    or next((s for s in ac["subjects"] if undated(s) and s["units"]), None)
+            items = []
             if subj:
                 d = next_exam(ac, subj, today)[0]
                 left = (_day(d) - _day(today)).days if d else None
                 items = unit_contracts(bank, st, subj, left, "library", lib["minutes"])
                 label = f"Academics · {subj['name']}"
-            else:
+            if subj and not items:
+                # every unit of it already done: the block is not left empty (90-day run)
+                items = _fill_from_nodes(bank, st, rank_nodes(bank, st, None, today), lib["minutes"], "library",
+                                         f"Academics day: {subj['name']}'s units are all done, so the best next node")
+                note = f"Every {subj['name']} unit is done; Thursday borrows from the tree."
+            elif not subj and ac and ac["subjects"]:
+                items = _fill_from_nodes(bank, st, rank_nodes(bank, st, None, today), lib["minutes"], "library",
+                                         "Academics day: no paper ahead, so the best next node")
+                label = "Academics (no paper ahead)"
+                note = "No exam is coming up, so Thursday borrows from the tree."
+            elif not subj:
                 items = _fill_from_nodes(bank, st, rank_nodes(bank, st, None, today), lib["minutes"], "library", "Academics day: no academics file yet")
                 label = "Academics (waiting for academics.json)"
                 note = "academics.json isn't there yet, so Thursday borrows from the tree."
@@ -1880,6 +1974,18 @@ def contract_lookup(bank: dict, st: dict, ac: Optional[dict], key: str, today: s
     return None
 
 
+_REBUILT = ("read_first", "depends_on", "primary", "backup", "pdfs")
+
+
+def frozen(c: dict) -> dict:
+    """What a stored day keeps of a contract. A tree contract's reading list is rebuilt
+    from the bank on every read (refresh_contract), so storing it only made the state
+    ~2x larger and every load/save slower (test audit: 12 KB a day, 45 days kept)."""
+    if c.get("source") != "tree":
+        return c
+    return {k: v for k, v in c.items() if k not in _REBUILT}
+
+
 def refresh_contract(bank: dict, st: dict, c: dict) -> dict:
     """A frozen contract with today's done state and the bank's current text."""
     done = st["contracts"].get(c["key"])
@@ -1888,6 +1994,8 @@ def refresh_contract(bank: dict, st: dict, c: dict) -> dict:
         bc = next((x for x in node["contracts"] if f"{node['id']}/{x['id']}" == c["key"]), None)
         if bc:
             c = _tree_contract(bank, st, node, bc, c["slot"], c.get("why", ""))
+    if c["source"] == "tree":                       # gone from the bank: the stored text, no reading list
+        c = {"read_first": [], "depends_on": [], "primary": None, "backup": None, "pdfs": [], **c}
     return {**c, "done": bool(done), "verified": bool(done and done.get("verified"))}
 
 
@@ -2005,7 +2113,7 @@ class Plan:
                 return ((x or {}).get("subject") or {}).get("id")
             if day is None or (not day.get("contracts") and bank["order"]) or sid(day.get("exam")) != sid(exam_now):
                 day = build_day(bank, st, ac, today)
-                st["days"][today] = day
+                st["days"][today] = {**day, "contracts": [frozen(c) for c in day["contracts"]]}
                 self.save(st)
             contracts = [refresh_contract(bank, st, c) for c in day["contracts"]]
             av = None
@@ -2031,10 +2139,15 @@ class Plan:
             alternatives = []
             n_choice = int(profile["style"].get("choices") or 3)
             if n_choice > 1 and any(c["slot"] == "library" and c["source"] == "tree" and not c["done"] for c in contracts):
+                # a new node is offered only while the cap has room beyond the new nodes
+                # already planned today (the same rule choose() enforces)
+                planned_new = {c["node_id"] for c in contracts if c["source"] == "tree" and c.get("node_id") in bank["nodes"]
+                               and node_status(bank, st, c["node_id"]) == "available"}
+                room = st["wip_cap"] - len(wip(bank, st)) - len(planned_new)
                 for _, node in rank_nodes(bank, st, None, today):
                     if len(alternatives) >= n_choice - 1:
                         break
-                    if node_status(bank, st, node["id"]) == "available" and len(wip(bank, st)) >= st["wip_cap"]:
+                    if node_status(bank, st, node["id"]) == "available" and node["id"] not in planned_new and room <= 0:
                         continue
                     oc = next((c for c in open_contracts(st, node) if f"{node['id']}/{c['id']}" not in keys), None)
                     if oc:
@@ -2061,8 +2174,21 @@ class Plan:
             alt = contract_lookup(bank, st, self.academics(), alt_key, today)
             if alt is None or alt_key in st["contracts"] or any(c["key"] == alt_key for c in day["contracts"]):
                 raise KeyError(alt_key)
+            # Decision (test audit): any key could be swapped in, so a locked node, or a
+            # fourth new node past the cap, got into today's plan. An alternative must be
+            # one the engine itself could have offered.
+            an = alt.get("node_id")
+            if an in bank["nodes"]:
+                s = node_status(bank, st, an)
+                room = int(st.get("wip_cap") or WIP_CAP) - len(wip(bank, st))
+                if s == "locked":
+                    raise ValueError(f"{bank['nodes'][an]['name']} is locked: its prerequisites aren't mastered yet")
+                planned_new = {c.get("node_id") for k, c in enumerate(day["contracts"]) if k != i and c.get("source") == "tree"
+                               and c.get("node_id") in bank["nodes"] and node_status(bank, st, c["node_id"]) == "available"}
+                if s == "available" and an not in planned_new and room - len(planned_new) <= 0:
+                    raise ValueError(f"{st['wip_cap']} things are in progress already; finish or pause one first")
             alt = {**alt, "slot": day["contracts"][i]["slot"], "why": "You picked this one"}
-            day["contracts"][i] = alt
+            day["contracts"][i] = frozen(alt)
             self.save(st)
         return {"ok": True, "say": f"Swapped in: {alt['title']}."}
 
@@ -2105,19 +2231,39 @@ class Plan:
             ev = self._event(st, today, "contract", key=key, title=c["title"], minutes=c["minutes"], xp=c["xp"], node=c.get("node_id"),
                              branch=c.get("branch"), rep=rep_for(c.get("branch")), verified=ver, via=via)
             mastered = None
+            queued = None
             nid = c.get("node_id")
             if nid in bank["nodes"]:
+                before = node_status(bank, st, nid)
                 rec = st["nodes"].setdefault(nid, {})
                 rec["last"] = today
                 if c["source"] == "tree":
-                    if rec.get("status") != "mastered":
+                    # Decision (test audit): finishing a contract is always recorded (the
+                    # work happened), but it only moves the NODE when the tree allows it:
+                    # a locked node never becomes in progress or mastered before its
+                    # prerequisites, and a new node never pushes past the in-progress cap
+                    # (a contract picked from the tree, or one frozen into today before
+                    # another node was started). Such a node stays queued, and is mastered
+                    # by its next contract once it is allowed.
+                    cap_full = before == "available" and len(wip(bank, st)) >= int(st.get("wip_cap") or WIP_CAP)
+                    if before == "locked" or cap_full:
+                        queued = "locked" if before == "locked" else "cap"
+                    elif rec.get("status") != "mastered":
                         rec.setdefault("started", today)
                         rec["status"] = "in_progress"
                     track = (st["rotation"].get(str(_day(today).isoweekday())) or {}).get("track")
                     if track:
                         st["resume"][track] = {"node": nid, "at": today}
-                    if not open_contracts(st, bank["nodes"][nid]) and rec.get("status") != "mastered":
+                    if not queued and not open_contracts(st, bank["nodes"][nid]) and rec.get("status") != "mastered":
                         mastered = self._master(st, nid, today)
+                settle = bool(mastered)              # a queued node whose contracts are all done unlocks with it
+                while settle:
+                    settle = False
+                    for other in bank["order"]:
+                        on = bank["nodes"][other]
+                        if on["contracts"] and node_status(bank, st, other) == "available" and not open_contracts(st, on):
+                            self._master(st, other, today)
+                            settle = True
             st["cursor"] = {"key": key, "date": today}
             self.save(st)
         say = f"{c['title']}: done. Plus {c['xp']} XP."
@@ -2125,7 +2271,12 @@ class Plan:
             say += " Logged on your word; add a link later to verify it."
         if mastered:
             say += f" That masters {bank['nodes'][nid]['name']}: plus 50 XP."
-        return {"ok": True, "contract": {**c, "done": True, "verified": ver}, "event": ev, "mastered": mastered, "xp": st["xp"], "say": say}
+        elif queued == "locked":
+            say += f" {bank['nodes'][nid]['name']} stays locked until its prerequisites are mastered; the contract counts."
+        elif queued == "cap":
+            say += f" {bank['nodes'][nid]['name']} waits in the queue: {st['wip_cap']} things are in progress already."
+        return {"ok": True, "contract": {**c, "done": True, "verified": ver}, "event": ev, "mastered": mastered, "queued": queued,
+                "xp": st["xp"], "say": say}
 
     def _master(self, st: dict, nid: str, today: str) -> str:
         rec = st["nodes"].setdefault(nid, {})
@@ -2259,6 +2410,17 @@ class Plan:
 
     def set_settings(self, rotation: Optional[dict] = None, schedule: Optional[dict] = None,
                      window_days: Optional[int] = None, budget: Optional[dict] = None) -> dict:
+        # These values arrive from the app/API.  Reject a wrong JSON shape here so
+        # it becomes a useful 400 response rather than an AttributeError in the
+        # plan worker (and so callers of Plan get the same contract as the route).
+        for name, value in (("rotation", rotation), ("schedule", schedule), ("budget", budget)):
+            if value is not None and not isinstance(value, dict):
+                raise ValueError(f"{name} must be an object")
+        if window_days is not None:
+            try:
+                window_days = int(window_days)
+            except (TypeError, ValueError):
+                raise ValueError("window_days must be a number")
         with self._lock:
             st = self.load()
             for k, v in (rotation or {}).items():
@@ -2274,7 +2436,7 @@ class Plan:
                         cur["minutes"] = int(v["minutes"])
                     st["schedule"][k] = cur
             if window_days is not None:
-                st["exam"]["window_days"] = max(1, min(60, int(window_days)))
+                st["exam"]["window_days"] = max(1, min(60, window_days))
             for k, v in (budget or {}).items():
                 if k in DEFAULT_BUDGET and _num(v) is not None and 0 <= v <= 200_000:
                     st["budget"][k] = int(v)
@@ -2284,6 +2446,10 @@ class Plan:
 
     def exam_focus(self, subject: Optional[str], days: int = 14, today: Optional[str] = None) -> dict:
         today = today or date.today().isoformat()
+        try:
+            days = max(1, min(60, int(days)))
+        except (TypeError, ValueError):
+            raise ValueError("days must be a number")
         with self._lock:
             ac = self.academics()
             st = self.load(today)
@@ -2494,7 +2660,10 @@ def voice(plan: Plan, intent: str, args: dict, today: Optional[str] = None, brie
         if d["exam"]:
             e = d["exam"]
             if e.get("phase"):
-                parts.append(f"Exam plan: {e['phase']['name']}, {e['phase']['days_left']} days to go.")
+                if e["phase"].get("anchor_assumed"):        # counting down to a date that isn't confirmed
+                    parts.append(f"Exam plan: {e['phase']['name']}, probably about {e['phase']['days_left']} days to go; the date isn't confirmed.")
+                else:
+                    parts.append(f"Exam plan: {e['phase']['name']}, {e['phase']['days_left']} days to go.")
             elif e.get("subject"):
                 parts.append(f"Exam mode: {e['subject']['name']}" + (f", {e['days_left']} days left." if e["days_left"] is not None else "."))
         elif d.get("track_label"):
@@ -2955,8 +3124,12 @@ DEFAULT_LADDER = {
             {"id": "backlogs", "title": "Clear the backlogs", "kind": "academics", "match": ["backlog"]},
             {"id": "internship", "title": "A summer-2027 internship", "kind": "internship", "match": ["internship-2027"]},
             {"id": "rtl-portfolio", "title": "An RTL portfolio on GitHub", "kind": "tree",
-             "match": ["digital", "hdl", "verification", "implementation", "fpga", "architecture", "programming", "tools", "career"]},
-            {"id": "ms-apps", "title": "MS applications in Germany", "kind": "road", "match": ["math", "research", "soft"]},
+             # test audit: every branch in the bank maps to a milestone (ai_hardware,
+             # embedded, security and dsa served nothing before, so "why this today" was empty)
+             "match": ["digital", "hdl", "verification", "implementation", "fpga", "architecture", "programming", "tools", "career",
+                       "ai_hardware", "embedded", "security", "dsa"]},
+            {"id": "ms-apps", "title": "MS applications in Germany", "kind": "road",
+             "match": ["math", "research", "soft", "ml", "deep_learning", "analog", "devices"]},
         ]},
         {"year": 2028, "milestones": [
             {"id": "graduate", "title": "Graduate, and start the MS", "kind": "road", "match": []},
@@ -3263,7 +3436,17 @@ def add_learning(plan: "Plan", what: str, minutes: int = 0, note: str = "", tags
     what = " ".join((what or "").split())[:400]
     if not what:
         raise ValueError("say what you did")
+    # every check before anything is written: a bad field never leaves a half entry on disk
+    try:
+        minutes = max(0, min(600, int(minutes or 0)))
+    except (TypeError, ValueError):
+        raise ValueError("minutes must be a number")
+    if not _DATE.match(str(today)) or _date_or_none(today) is None:   # the folder name comes from it
+        raise ValueError("today must be YYYY-MM-DD")
+    note = str(note or "")
     files = files or []
+    if not isinstance(files, list):
+        raise ValueError("files must be a list")
     if len(files) > LEARN_MAX_FILES:
         raise ValueError(f"at most {LEARN_MAX_FILES} files")
     blobs = []
@@ -3297,7 +3480,6 @@ def add_learning(plan: "Plan", what: str, minutes: int = 0, note: str = "", tags
         saved.append(p.name)
     suggested = match_nodes(bank, f"{what} {note} {' '.join(_str_list(tags))}")
     chosen = [n for n in _str_list(nodes) if n in bank["nodes"]] if nodes is not None else [s["id"] for s in suggested[:1]]
-    minutes = max(0, min(600, int(minutes or 0)))
     xp = (min(60, 10 * (minutes // 30)) or 5) + (5 if saved else 0)
     meta = {"id": folder.name, "date": today, "what": what, "minutes": minutes, "tags": _str_list(tags)[:10], "note": note[:2000],
             "files": saved, "suggested_nodes": suggested, "nodes": chosen, "xp": xp, "via": via}

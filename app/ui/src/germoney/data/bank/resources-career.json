@@ -106,9 +106,9 @@
  },
  {
   "id": "car.cummings_papers",
-  "title": "Clifford Cummings (Sunburst Design) papers: nonblocking assignments, CDC, resets, FIFOs",
+  "title": "Clifford Cummings (Sunburst Design) papers, now hosted by Paradigm Works: nonblocking assignments, CDC, resets, FIFOs",
   "kind": "paper",
-  "url": "http://www.sunburst-design.com/papers/",
+  "url": "https://www.paradigm-works.com/technical-library",
   "free": true,
   "covers": "Industry RTL coding rules: blocking vs nonblocking, reset styles, async FIFO, CDC",
   "hours": 15
@@ -935,7 +935,7 @@
   "id": "car.sze_tutorial",
   "title": "Sze et al., Efficient Processing of DNNs tutorial (MIT Eyeriss)",
   "kind": "slides",
-  "url": "http://eyeriss.mit.edu/tutorial.html",
+  "url": "https://eyeriss.mit.edu/tutorial.html",
   "free": true,
   "covers": "Dataflows (WS/OS/RS), data reuse, energy per access, sparsity",
   "hours": 15

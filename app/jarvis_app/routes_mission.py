@@ -239,7 +239,8 @@ def register(app: FastAPI, svc, bus) -> None:
     @app.post("/api/mission/exam")
     async def exam(payload: dict = Body(...)):
         subj = payload.get("subject")
-        return await run_in_threadpool(plan.exam_focus, None if not subj else str(subj), int(payload.get("days") or 14))
+        days = payload.get("days")                    # plan.exam_focus validates it: a wrong shape is a 400, not a 500
+        return await run_in_threadpool(guard, plan.exam_focus, None if not subj else str(subj), 14 if days is None else days)
 
     @app.get("/api/mission/findings")
     async def findings(refresh: bool = False):

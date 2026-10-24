@@ -484,6 +484,22 @@ def test_routes_round_trip_without_a_window(client):
     assert client.post("/api/mission/xp", json={"amount": 10, "reason": "crucible"}).json()["ok"]
 
 
+def test_mission_routes_reject_wrong_json_shapes_instead_of_crashing(client):
+    """BUG-R1: browser or voice clients can send malformed JSON while reconnecting.
+
+    These endpoints must preserve the plan and return a client error, never leak an
+    AttributeError/TypeError as a 500 response from the background plan worker.
+    """
+    assert client.put("/api/mission/settings", json={"rotation": []}).status_code == 400
+    assert client.put("/api/mission/settings", json={"schedule": "later"}).status_code == 400
+    assert client.put("/api/mission/settings", json={"budget": []}).status_code == 400
+    assert client.put("/api/mission/settings", json={"window_days": []}).status_code == 400
+    assert client.post("/api/mission/exam", json={"subject": "math-re1", "days": []}).status_code == 400
+    assert client.post("/api/mission/exam", json={"subject": "math-re1", "days": "soon"}).status_code == 400
+    assert client.post("/api/mission/learning", json={"what": "Read a chapter", "minutes": "ten"}).status_code == 400
+    assert client.post("/api/mission/learning", json={"what": "Read a chapter", "minutes": {"n": 1}}).status_code == 400
+
+
 def test_academics_route_and_exam_date(client):
     ac = client.get("/api/mission/academics").json()
     assert {s["id"] for s in ac["subjects"]} == {"math-re1", "nas", "dsp", "vlsi-th"}

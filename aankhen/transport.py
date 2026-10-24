@@ -782,10 +782,17 @@ class NetSource(Source):
             except nl.LinkError:
                 self.net.bad_tag += 1
                 continue
-            last_rx = now
             self.net.datagrams += 1
+            st = self.reorder.stats
+            stale = st.duplicate + st.late
             for p in self.reorder.push(d.counter, d.payload):
                 self._ingest(p)
+            # Only a NEW counter proves the board is alive. A replayed datagram verifies
+            # (it is the board's own) and is dropped by the reorderer, but it used to
+            # reset the quiet timer too: replaying one old datagram every few seconds kept
+            # a dead board's session "connected" forever and the hub never greeted again.
+            if st.duplicate + st.late == stale:
+                last_rx = now
         with self._lock:
             self._session = None
         self.connected.clear()

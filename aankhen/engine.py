@@ -231,6 +231,14 @@ class Engine:
         (recal.py). None matching: keep the old one and mark it stale, so no zone is named."""
         fs = self._spatial_fs
         self._ref_key = (self.firmware(), self.fan_on)
+        if self.source_kind == "simulation":
+            # The simulator's baseline is made for this very run and always matches. Its
+            # first STATUS ("aankhen-simulator") used to look itself up in the REAL
+            # reference store, find nothing, and mark the reference stale for the rest
+            # of the run: a simulation could never name a zone.
+            self.reference = {"source": "simulated", "matched": True}
+            self.belief.reference_ok = True
+            return
         ref = self.recal.store.load(self.firmware(), self.fan_on)
         if ref is not None and fs is not None:
             fs.ref_shape = np.asarray(ref["shape"], float)
@@ -248,6 +256,8 @@ class Engine:
         """Start ("teachers" | "drill") or stop (None) collecting empty-room windows for
         today's reference under the current firmware and fan."""
         with self.lock:
+            if self.source_kind == "simulation" and source is not None:
+                return      # a simulated empty room is never saved into the real reference store
             self.recal.set_active(source, self.firmware(), self.fan_on)
 
     # A router that changes channel (auto channel selection, a reboot) hands the
@@ -406,8 +416,13 @@ class Engine:
         if self._csi_settling(t):
             ood = ood or "Wi-Fi settling after a fan or channel change"
             coarse_p = zone_p = act_p = None
+        # The coarse model's training priors turn its posterior into a likelihood
+        # (belief.coarse_likelihood): without them "knows nothing" read as "empty".
+        pri = getattr(self.spatial, "priors", None) if coarse_p is not None else None
+        prior = ({c: float(x) for c, x in zip(LEARNED_CLASSES, pri)}
+                 if pri is not None and len(pri) == len(LEARNED_CLASSES) else None)
         self.belief.step(t, mot, coarse_p=coarse_p, zone_p=zone_p, activity_p=act_p, ood=ood,
-                         teacher=self.teacher_hint)
+                         teacher=self.teacher_hint, coarse_prior=prior)
 
     def _on_radar(self, p: RadarPacket) -> None:
         t = p.timestamp_us / 1e6

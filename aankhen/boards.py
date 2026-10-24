@@ -55,6 +55,16 @@ BOOT_GRACE_S = 30.0       # a silent port is re-probed this long after it appear
 SILENT_RETRY_S = 1.0      # ...but not twice in the same second by back-to-back looks
 BUSY_RETRY_S = 10.0       # a port another program holds is tried again this often
 FORCE_FRESH_S = 2.0       # a forced look reuses verdicts younger than this
+# Espressif's own USB (VID 303A: the ESP32-S3's USB-Serial-JTAG) is asked again this often
+# while it is silent or "not Aankhen", for as long as it stays plugged in. WHY (10-25 P0):
+# firmware 3.5.0 blocks loop() for 20 s in every ~35 s inside connectWifi() while it cannot
+# join the Wi-Fi, sending nothing, so a 2 s look misses it ~57 % of the time; a look during
+# its boot reads the ROM's plain-text boot log. Both verdicts used to stick until the cable
+# was pulled, and the hub ran the simulation beside a working board. Re-asking is safe on
+# this port only: it is never an Uno (no DTR reset line), and open_serial deasserts DTR and
+# RTS before opening, so the chip is not reset.
+NATIVE_USB_VIDS = {0x303A}
+NATIVE_RETRY_S = 10.0
 
 BOARD_VERDICTS = ("aankhen",)
 
@@ -170,7 +180,8 @@ class BoardFinder:
     def __init__(self, comports: Optional[Callable] = None, opener: Optional[Callable] = None,
                  window_s: float = PROBE_WINDOW_S, boot_grace_s: float = BOOT_GRACE_S,
                  busy_retry_s: float = BUSY_RETRY_S, silent_retry_s: float = SILENT_RETRY_S,
-                 force_fresh_s: float = FORCE_FRESH_S, clock: Callable[[], float] = time.monotonic):
+                 force_fresh_s: float = FORCE_FRESH_S, clock: Callable[[], float] = time.monotonic,
+                 native_retry_s: float = NATIVE_RETRY_S):
         self.comports = comports              # None -> pyserial's list_ports.comports
         self.opener = opener or open_serial
         self.window_s = window_s
@@ -178,6 +189,7 @@ class BoardFinder:
         self.busy_retry_s = busy_retry_s
         self.silent_retry_s = silent_retry_s
         self.force_fresh_s = force_fresh_s
+        self.native_retry_s = native_retry_s
         self.clock = clock
         self._first_seen: dict[tuple, float] = {}
         self._results: dict[tuple, ProbeResult] = {}
@@ -272,6 +284,8 @@ class BoardFinder:
             return age >= self.force_fresh_s
         if r.verdict == "aankhen":
             return False                        # it said so; SerialSource re-checks on open
+        if r.verdict in ("silent", "foreign") and p.vid in NATIVE_USB_VIDS and age >= self.native_retry_s:
+            return True
         if r.verdict == "silent":
             return now - self._first_seen[p.key] < self.boot_grace_s and age >= self.silent_retry_s
         if r.verdict in ("busy", "error"):

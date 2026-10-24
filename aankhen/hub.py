@@ -126,6 +126,7 @@ class AankhenHub:
         self.net_prober = None                  # (NetConfig) -> Optional[dict]; tests replace it
         self._net_probe_at = float("-inf")
         self.net_last: Optional[dict] = None    # the last HELLO round: {"t", "ok", "ip", "fw", ...}
+        self._last_board_status: Optional[dict] = None   # the board's last STATUS, kept for why()
         self.net_probe_interval_s = NET_PROBE_INTERVAL_S
         self.usb_gone_s = USB_GONE_S
 
@@ -660,9 +661,97 @@ class AankhenHub:
         extra = sorted(ROOM_SCENARIOS) + ["day"] if self.room.house else []
         return sorted(SCENARIOS) + extra
 
+    def why(self) -> dict:
+        """Why the board is (not) being read, in one code and one sentence, from what is
+        already known (no probing). The 10-25 P0: the board worked, the app showed a
+        simulation or a silent sensor, and nothing said which of five causes it was.
+
+        codes: ok | engine_errors | usb_busy | not_aankhen | usb_silent | no_board |
+               board_no_wifi | no_csi | wifi_link_off | wifi_key_mismatch | wifi_no_answer |
+               wifi_not_set_up | simulation | replay | stopped"""
+        from .netlink import fingerprint
+        src, eng, cfg = self.source, self.engine, self._net_cfg()
+        if not self.running:
+            return {"code": "stopped", "text": self.error or "Aankhen is not running."}
+        if eng is not None and eng.errors:
+            le = eng.last_error or {}
+            return {"code": "engine_errors", "text": f"{eng.errors} packets could not be processed "
+                                                     f"(last: {le.get('error')}); reading continues."}
+        if isinstance(src, (SerialSource, NetSource)) and src.connected.is_set():
+            st = self.device_status() or {}
+            wifi, rssi = st.get("wifi"), st.get("rssi")
+            if wifi is not None and wifi != "connected":
+                return {"code": "board_no_wifi",
+                        "text": f"The board is talking over {src.link.upper()} but is not on the Wi-Fi "
+                                f"(it says '{wifi}'{f', signal {rssi} dBm' if rssi is not None else ''}): no "
+                                "Wi-Fi sensing and no Wi-Fi link until it joins. It keeps retrying; move it "
+                                "nearer the router, or check the network name and password in secrets.h."}
+            if st.get("csi_hz") == 0:
+                return {"code": "no_csi", "text": "The board is on the Wi-Fi but captures no CSI (csi_hz 0): "
+                                                  "the router is not answering its pings."}
+            return {"code": "ok", "text": f"Reading the board over {src.link.upper()}"
+                                          + (f" ({src.fw})" if getattr(src, "fw", None) else "") + "."}
+        # Not reading a board: say what USB and Wi-Fi each showed.
+        if self.mode == "replay":
+            return {"code": "replay", "text": "Replaying a recording, as chosen."}
+        seen = [r for r in self._finder().results() if r.port is not None and r.port.vid is not None]
+        idle = next((r for r in seen if r.is_board and not r.in_use), None)
+        if idle is not None and self.mode == "simulation":
+            fw = f" ({idle.fw})" if idle.fw else ""
+            return {"code": "simulation", "text": f"ESP32 found on {idle.device}{fw}: the simulation runs as "
+                                                  "you chose; press ESP32 to use the board."}
+        usb = None
+        for verdict, code in (("busy", "usb_busy"), ("foreign", "not_aankhen"), ("silent", "usb_silent")):
+            r = next((r for r in seen if r.verdict == verdict), None)
+            if r is not None:
+                usb = {"code": code, "text": {
+                    "usb_busy": f"{r.device} is held by another program (Arduino IDE, a serial monitor, a "
+                                "flasher): close it and Aankhen takes the board within seconds.",
+                    "not_aankhen": f"{r.device} talks, but not the Aankhen protocol ({r.detail}): another "
+                                   "sketch, or the board was booting; asked again every few seconds.",
+                    "usb_silent": f"{r.device} sent nothing ({r.detail}): a board still joining Wi-Fi is "
+                                  "silent for up to 20 s; asked again every few seconds."}[code]}
+                break
+        st = self._last_board_status or {}
+        net = st.get("net") if isinstance(st, dict) else None
+        wifi_txt = None
+        if cfg is None or not cfg.configured:
+            wifi = {"code": "wifi_not_set_up", "text": "The Wi-Fi link is not set up (no key or no address)."}
+        elif "net" in st and net is None:
+            wifi = {"code": "wifi_link_off", "text": "The board's firmware was built without LINK_KEY_VALUE: "
+                                                     "the Wi-Fi link is off on it. Flash it once over USB with "
+                                                     "the line Limbs -> Firmware shows."}
+        elif isinstance(net, dict) and net.get("key") and cfg.key and net["key"] != fingerprint(cfg.key):
+            wifi = {"code": "wifi_key_mismatch",
+                    "text": f"The board's link key (fingerprint {net['key']}) is not the app's "
+                            f"({fingerprint(cfg.key)}): flash the line Limbs -> Firmware shows."}
+        elif self.net_last and not self.net_last.get("ok"):
+            on_wifi = st.get("wifi") == "connected"
+            wifi_txt = (f"No answer over Wi-Fi from {', '.join(map(str, cfg.addresses))}"
+                        + (" although the board says it is on the Wi-Fi: Windows Firewall is probably "
+                           f"dropping UDP {cfg.host_port} inbound (add the rule), or the address is stale."
+                           if on_wifi else (": the board says it is not on the Wi-Fi." if st.get("wifi")
+                                            else ": board off, on another network, or the firewall drops "
+                                                 f"UDP {cfg.host_port}.")))
+            wifi = {"code": "wifi_no_answer", "text": wifi_txt}
+        else:
+            wifi = None
+        parts = [p for p in (usb, wifi) if p]
+        if not parts:
+            parts = [{"code": "no_board", "text": self._no_board_message()}]
+        code = parts[0]["code"]
+        lead = "Simulation running because the board is not being read. " if self.mode == "simulation" else ""
+        return {"code": code, "text": lead + " ".join(p["text"] for p in parts),
+                "usb": usb, "wifi": wifi}
+
     def info(self) -> dict:
         src = self.source
+        if isinstance(src, (SerialSource, NetSource)):
+            st = self.device_status()
+            if st:
+                self._last_board_status = dict(st)   # what the board last said, for why()
         return {
+            "why": self.why(),
             "running": self.running,
             "mode": self.mode,
             "kind": getattr(src, "kind", None),

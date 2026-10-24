@@ -403,10 +403,39 @@ class TemporalFilter:
 def _proba_one_thread(clf, X: np.ndarray) -> np.ndarray:
     """predict_proba on OpenMP's single thread. HistGradientBoosting otherwise starts a
     thread per core (12 here) to score ONE row, twice a second, inside the engine lock:
-    766 ms and ~2 cores per pair of predictions on 10-14, against 38 ms on one thread."""
-    from threadpoolctl import threadpool_limits
-    with threadpool_limits(limits=1, user_api="openmp"):
-        return clf.predict_proba(X)
+    766 ms and ~2 cores per pair of predictions on 10-14, against 38 ms on one thread.
+
+    NEVER RAISES BECAUSE OF THE LIMIT. threadpool_limits() lists every DLL in the process
+    on each call; on Windows that listing fails ("OSError: GetModuleFileNameEx failed")
+    when a DLL unloads mid-walk, which the app's web view does. On 10-24 that exception
+    ended the engine's consumer thread: the board kept sending and nothing read it. The
+    controller is now made once and reused, and if limiting fails the prediction runs
+    unlimited (slower, same answer)."""
+    ctl = _openmp_controller()
+    if ctl is not None:
+        try:
+            with ctl.limit(limits=1, user_api="openmp"):
+                return clf.predict_proba(X)
+        except OSError:
+            _CTL["at"], _CTL["ctl"] = time.monotonic(), None     # make a fresh one later
+    return clf.predict_proba(X)
+
+
+_CTL: dict = {"ctl": None, "at": float("-inf")}
+_CTL_RETRY_S = 60.0
+
+
+def _openmp_controller():
+    """One threadpoolctl controller for the process (listing the DLLs costs ~ms), or None
+    while making one fails (retried every _CTL_RETRY_S)."""
+    if _CTL["ctl"] is None and time.monotonic() - _CTL["at"] >= _CTL_RETRY_S:
+        _CTL["at"] = time.monotonic()
+        try:
+            from threadpoolctl import ThreadpoolController
+            _CTL["ctl"] = ThreadpoolController()
+        except Exception:
+            _CTL["ctl"] = None
+    return _CTL["ctl"]
 
 
 # ---------------------------------------------------------------- model

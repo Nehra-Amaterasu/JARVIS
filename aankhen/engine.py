@@ -154,6 +154,8 @@ class Engine:
         # Raw-stream recorder (stream.py), set by the hub on the real board only.
         # Every call into it is one deque append: it never waits on the writer or a disk.
         self.tap = None
+        self.errors = 0                            # packets run_engine could not process
+        self.last_error: Optional[dict] = None
         if source_kind == "simulation":
             # the simulator's baseline is made for this very run: it always matches
             self.reference = {"source": "simulated", "matched": True}
@@ -811,7 +813,19 @@ class Engine:
             return {"type": "status", "source": self.source_kind,
                     "sensors": {"Wi-Fi CSI": csi, "LD2450 radar": radar, "ESP32": esp},
                     "link": link or {}, "room_measured": self.room_measured,
-                    "counters": dict(self.counters)}
+                    "counters": dict(self.counters),
+                    "engine_errors": self.errors,
+                    "engine_last_error": ({k: v for k, v in self.last_error.items() if k != "trace"}
+                                          if self.last_error else None)}
+
+    def note_error(self, e: BaseException, trace: str = "") -> None:
+        """A packet the engine could not process (run_engine): counted and kept, shown in
+        status, so a failure is said instead of silently ending the consumer thread."""
+        self.errors += 1
+        self.last_error = {"t": time.time(), "error": f"{type(e).__name__}: {e}", "trace": trace[-1500:],
+                           "count": self.errors}
+        if self.errors in (1, 10, 100) or self.errors % 1000 == 0:
+            print(f"aankhen engine: packet {self.errors} failed: {type(e).__name__}: {e}", flush=True)
 
     def snapshot(self) -> dict:
         """Compact summary for JARVIS's brain (agent.py presence context)."""
@@ -842,11 +856,18 @@ def _human_band(m) -> Optional[dict]:
 def run_engine(source, engine: Engine, stop: threading.Event) -> None:
     """Consumer loop: drain the source's packet queue into the engine."""
     import queue
+    import traceback
     while not stop.is_set():
         try:
             pkt = source.packets.get(timeout=0.2)
         except queue.Empty:
             engine.publish_frame()               # nothing arriving: the frame still ages
             continue
-        engine.process(pkt)
-        engine.publish_frame()
+        # One bad packet (or a library failing under it) costs that packet, never the
+        # thread: on 10-24 an OSError from threadpoolctl ended this loop, the board kept
+        # sending, the link said "connected", and nothing was read again until a restart.
+        try:
+            engine.process(pkt)
+            engine.publish_frame()
+        except Exception as e:
+            engine.note_error(e, traceback.format_exc(limit=4))

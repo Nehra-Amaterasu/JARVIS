@@ -31,8 +31,10 @@ BUSY = "could not open port '{}': PermissionError(13, 'Access is denied.', None,
 class FakeBoard:
     def __init__(self, device: str, kind: str = "esp32", vid=0x1A86, pid=0x7523,
                  talks_at: float = 0.0, period_s: float = 0.2, fw: str = "aankhen-3.1.0",
-                 radar: bool = False):
+                 radar: bool = False, status: dict = None, preamble: bytes = b""):
         self.device, self.kind, self.vid, self.pid = device, kind, vid, pid
+        self.status = dict(status or {})      # extra STATUS fields (a 3.5.0 board's, say)
+        self.preamble = preamble              # bytes delivered once per open first (a ROM boot log)
         self.talks_at = talks_at              # time.monotonic() from which an esp32 talks
         self.period_s = period_s
         self.fw = fw
@@ -63,7 +65,7 @@ class FakeBoard:
     def frames(self) -> bytes:
         self._seq += 1
         body = json.dumps({"fw": self.fw, "uptime_s": round(time.monotonic(), 1),
-                           "relays": {"light": False, "fan": False}}).encode()
+                           "relays": {"light": False, "fan": False}, **self.status}).encode()
         out = Frame(FrameType.STATUS, self._seq & 0xFFFF, int(time.monotonic() * 1e6), body).encode()
         if self.radar:
             out += Frame(FrameType.RADAR, self._seq & 0xFFFF, int(time.monotonic() * 1e6),
@@ -79,12 +81,16 @@ class FakeSerial:
         # The board's own schedule: frame k leaves at talks_at + k * period_s.
         self.k = max(0, math.ceil((opened - board.talks_at) / board.period_s))
         self.next_text = opened
+        self.preamble = board.preamble
 
     def read(self, n: int) -> bytes:
         if self.closed:
             raise OSError("port is closed")
         if not self.b.plugged:
             raise OSError("ClearCommError failed (device disconnected)")
+        if self.preamble:
+            out, self.preamble = self.preamble, b""
+            return out
         now = time.monotonic()
         b = self.b
         if b.kind == "esp32":

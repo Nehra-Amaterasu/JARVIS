@@ -63,6 +63,7 @@ def _place(recordings, folder: Path, names: dict, board: bool) -> None:
         shutil.copy(src[:-4] + ".labels.json", dst[:-4] + ".labels.json")
 
 
+@pytest.mark.slow
 def test_training_on_labelled_recordings_scores_on_held_out_time(recordings, tmp_path):
     _place(recordings, tmp_path, {"desk": "desk", "empty": "empty"}, board=True)
     t = Teacher(_Hub(tmp_path), model_path=str(tmp_path / "model.joblib"))

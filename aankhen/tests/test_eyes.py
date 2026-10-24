@@ -283,10 +283,15 @@ def test_push_is_cheap_and_allocates_nothing_that_stays():
     t, A = stream(40.0)
     feed(buf, t[:200], A[:200])
     samples = [Sample(float(t[i]), A[i], False) for i in range(200, 3200)]
-    t0 = time.perf_counter()
-    for s in samples[:1500]:
-        buf.push(s)
-    per = (time.perf_counter() - t0) / 1500
+    # Best of five batches of 300: the cost itself. One timed batch of 1500 also timed
+    # the scheduler, and failed twice in the 10-23 audit with the laptop at 99 % CPU
+    # (169 us against 100), the same way the spectrum test below once did.
+    per = float("inf")
+    for b in range(5):
+        t0 = time.perf_counter()
+        for s in samples[300 * b:300 * (b + 1)]:
+            buf.push(s)
+        per = min(per, (time.perf_counter() - t0) / 300)
     tracemalloc.start()                                   # timed apart: tracing slows every call
     before = tracemalloc.take_snapshot()
     for s in samples[1500:]:

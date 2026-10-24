@@ -12,6 +12,7 @@ from aankhen.simulator import Actor, Scenario, Simulator, Step
 from aankhen.validate import PACED_BPM, Metronome, analyse, sigma_env_of, _samples
 
 
+
 def _record(tmp, name, actors, seconds, heading=None, gain=True):
     room = default_room()
     sim = Simulator(room, Scenario(name, actors), seed=3, channel_seed=0, gain_report=gain)
@@ -38,28 +39,33 @@ def session(tmp_path_factory):
     return analyse(paths)
 
 
+@pytest.mark.slow
 def test_the_room_wander_is_measured(session):
     assert session.compensated
     assert session.sigma_env is not None and 0 <= session.sigma_env < 0.05
 
 
+@pytest.mark.slow
 def test_the_gain_compensation_error_is_measured(session):
     """The simulated receiver's compensation error is 0.25 dB per packet; the common
     part of the thermal noise adds a little on top."""
     assert session.comp_err_db is not None and 0.2 <= session.comp_err_db <= 0.45
 
 
+@pytest.mark.slow
 def test_paced_breathing_is_found_at_the_paced_rate(session):
     desk = next(s for s in session.steps if s.step == "desk")
     assert desk.passed is not None and desk.passed >= 0.5
     assert desk.rate_bpm is not None and abs(desk.rate_bpm - PACED_BPM) <= 1.5
 
 
+@pytest.mark.slow
 def test_walking_is_flagged(session):
     walk = next(s for s in session.steps if s.step == "walk")
     assert walk.passed is not None and walk.passed >= 0.7
 
 
+@pytest.mark.slow
 def test_the_verdicts_read_plainly(session):
     lines = session.verdicts()
     assert any(l.startswith("desk") and "SEEN" in l for l in lines)

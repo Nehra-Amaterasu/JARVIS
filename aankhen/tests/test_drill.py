@@ -261,6 +261,7 @@ def write_sim_session(root, day: str, seed: int, seconds: float = 50.0):
     return folder
 
 
+@pytest.mark.slow
 def test_leave_one_day_out_and_versioned_training(tmp_path):
     from aankhen import dayeval
     root = str(tmp_path / "drill")

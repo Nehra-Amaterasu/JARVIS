@@ -20,6 +20,8 @@ from concurrent.futures import ProcessPoolExecutor
 import pytest
 
 
+pytestmark = pytest.mark.slow          # ~50 s: in the merge gate, out of the -m "not slow" loop
+
 # scenario: (seconds, seeds). Shorter than the CLI suite, long enough for each case.
 JOBS = {
     "evening": (120, (1, 2, 3)),     # seed 3: the duplicate-track failure

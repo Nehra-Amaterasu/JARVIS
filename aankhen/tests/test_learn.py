@@ -54,6 +54,7 @@ def _toy_runs(seed):
     return runs
 
 
+@pytest.mark.slow
 def test_train_and_evaluate_on_held_out_runs():
     model = train(_toy_runs(0))
     rep = evaluate(model, _toy_runs(1))

@@ -8,7 +8,7 @@ What it does, in order:
      relays), LISTENS on each until it sees a CRC-valid Aankhen frame. Nothing is written.
   2. Wi-Fi (if no board on USB, or --link wifi): reads the link key from the app's
      data/app/esp32_link.json, greets the board on UDP 47269 and listens on 47270.
-     Every datagram is checked with HMAC-SHA256; ok and failed counts are printed.
+     Every datagram is checked with HMAC-SHA256; accepted and rejected counts are printed.
   3. Counts for --seconds: CSI frames/s, RSSI (min/median/max), subcarrier count,
      frames lost, and what the board's own STATUS says (Wi-Fi state, csi_hz).
 

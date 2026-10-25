@@ -39,6 +39,8 @@ export interface BankNode {
   certs: string[]
   project: BankProject | null
   contracts: BankContract[]
+  /** Skill tree v2: how much of each maths-track node this needs, 0..1 (only non-zero weights kept). */
+  maths: Record<string, number>
 }
 
 export interface BankResource {
@@ -135,8 +137,18 @@ function cleanNode(n: unknown, defaultBranch: string | null, warn: string[]): Ba
     prereqs: strs(n.prereqs), outcomes: strs(n.outcomes), hours_est: Math.max(0, num(n.hours_est) ?? 0),
     resources: strs(n.resources), certs: strs(n.certs),
     project: isObj(p) && p.title ? { title: String(p.title), deliverable: String(p.deliverable ?? ''), linkedin_line: String(p.linkedin_line ?? '') } : null,
-    contracts,
+    contracts, maths: cleanMaths(n.maths, id, warn),
   }
+}
+
+function cleanMaths(v: unknown, id: string, warn: string[]): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const [k, w] of Object.entries(isObj(v) ? v : {})) {
+    const x = num(w)
+    if (x === null) warn.push(`node ${id}: maths weight for ${k} is not a number`)
+    else if (x > 0) out[k] = Math.min(1, x)
+  }
+  return out
 }
 
 /** Every prerequisite cycle as a list of ids (first id repeated at the end). Iterative DFS. */
@@ -271,6 +283,12 @@ export function mergeBank(files: Partial<Record<string, unknown>>): Bank {
   for (const n of Object.values(nodes)) {
     for (const p of n.prereqs) if (!nodes[p]) warn.push(`node ${n.id}: unknown prerequisite ${p} (ignored)`)
     n.prereqs = n.prereqs.filter((p) => nodes[p] && p !== n.id)
+    for (const k of Object.keys(n.maths)) {
+      if (!nodes[k]) {
+        warn.push(`node ${n.id}: unknown maths node ${k} (ignored)`)
+        delete n.maths[k]
+      }
+    }
     for (const r of n.resources) if (!resources[r]) warn.push(`node ${n.id}: unknown resource ${r}`)
     n.resources = n.resources.filter((r) => resources[r])
     if (cf !== undefined) {

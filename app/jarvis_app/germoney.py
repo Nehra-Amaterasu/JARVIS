@@ -673,6 +673,13 @@ def _clean_node(n: Any, default_branch: Optional[str], warn: list[str]) -> Optio
         hours = max(0.0, float(n.get("hours_est") or 0))
     except (TypeError, ValueError):
         tier, hours = 0, 0.0
+    maths: dict[str, float] = {}                     # skill tree v2: how much of each maths node this needs, 0..1
+    for k, v in (n.get("maths") if isinstance(n.get("maths"), dict) else {}).items():
+        w = _num(v)
+        if w is None:
+            warn.append(f"node {nid}: maths weight for {k} is not a number")
+        elif w > 0:
+            maths[str(k)] = max(0.0, min(1.0, w))
     contracts = [x for i, c in enumerate(_as_list(n.get("contracts"))) if (x := _clean_contract(c, nid, i, warn))]
     seen: set[str] = set()
     for c in contracts:                              # contract ids must be unique inside a node
@@ -682,7 +689,7 @@ def _clean_node(n: Any, default_branch: Optional[str], warn: list[str]) -> Optio
     return {"id": nid, "name": str(n["name"]), "branch": str(n.get("branch") or default_branch or "general"),
             "tier": tier, "prereqs": _str_list(n.get("prereqs")), "outcomes": _str_list(n.get("outcomes")),
             "hours_est": hours, "resources": _str_list(n.get("resources")), "certs": _str_list(n.get("certs")),
-            "project": project, "contracts": contracts}
+            "project": project, "contracts": contracts, "maths": maths}
 
 
 def find_cycles(nodes: dict[str, dict]) -> list[list[str]]:
@@ -812,6 +819,9 @@ def merge_bank(files: dict[str, Any]) -> dict:
         for p in [p for p in n["prereqs"] if p not in nodes]:
             warn.append(f"node {n['id']}: unknown prerequisite {p} (ignored)")
         n["prereqs"] = [p for p in n["prereqs"] if p in nodes and p != n["id"]]
+        for k in [k for k in n["maths"] if k not in nodes]:
+            warn.append(f"node {n['id']}: unknown maths node {k} (ignored)")
+            del n["maths"][k]
         for r in [r for r in n["resources"] if r not in resources]:
             warn.append(f"node {n['id']}: unknown resource {r}")
         n["resources"] = [r for r in n["resources"] if r in resources]
@@ -1324,11 +1334,24 @@ def statuses(bank: dict, st: dict) -> dict[str, str]:
     return {nid: node_status(bank, st, nid) for nid in bank["order"]}
 
 
-def career_weight(bank: dict, st: dict, nid: str) -> float:
-    car = next((c for c in bank["careers"] if c["id"] == st.get("career")), None)
+def _direct_weight(bank: dict, car: Optional[dict], nid: str) -> float:
     if car is None:                                   # no career chosen: the best weight any career gives it
         return max([c["weights"].get(nid, 0.0) for c in bank["careers"]] or [0.5])
     return car["weights"].get(nid, 0.0)
+
+
+def career_weight(bank: dict, st: dict, nid: str) -> float:
+    """How much the chosen career wants this node. A maths-track node has no career
+    weight of its own: it is worth what the career nodes that need it are worth,
+    scaled by how much maths they need (skill tree v2's per-node maths weights),
+    summed so a maths node many careers' nodes lean on comes before a niche one."""
+    car = next((c for c in bank["careers"] if c["id"] == st.get("career")), None)
+    if bank["careers"] and not any(nid in c["weights"] for c in bank["careers"]):
+        demand = [_direct_weight(bank, car, k) * n["maths"][nid]
+                  for k, n in bank["nodes"].items() if nid in (n.get("maths") or {})]
+        if demand:
+            return min(1.0, sum(demand) / 2)      # broad needs (probability, linear algebra) rank first
+    return _direct_weight(bank, car, nid)
 
 
 def branch_matches(node: dict, match: list[str]) -> bool:
@@ -1912,6 +1935,16 @@ def build_day(bank: dict, st: dict, ac: Optional[dict], today: str) -> dict:
             if not ranked:
                 ranked = rank_nodes(bank, st, None, today)
                 why = f"{track['label']} day: nothing open on this track, so the best next node anywhere"
+                # skill tree v2: first what unlocks the track (its locked nodes' prerequisites,
+                # usually maths), so a track day is never spent on an unrelated branch
+                unlock: set[str] = set()
+                for k in bank["order"]:
+                    if track["match"] and branch_matches(bank["nodes"][k], track["match"]):
+                        unlock.update(prereq_closure(bank, k))
+                towards = [x for x in ranked if x[1]["id"] in unlock]
+                if towards:
+                    ranked = towards
+                    why = f"{track['label']} day: nothing open on this track yet, so what unlocks it"
                 if ranked:
                     note = f"Nothing is open on the {track['label']} track; today borrows the best next node."
             items = _fill_from_nodes(bank, st, ranked, lib["minutes"], "library", why)

@@ -308,7 +308,7 @@
       "id": "math.algebra",
       "name": "Algebra",
       "branch": "math",
-      "tier": 0,
+      "tier": 1,
       "prereqs": [
         "math.arithmetic_mental"
       ],
@@ -450,7 +450,7 @@
       "id": "math.functions_graphs",
       "name": "Functions and graphs",
       "branch": "math",
-      "tier": 1,
+      "tier": 2,
       "prereqs": [
         "math.algebra"
       ],
@@ -568,7 +568,7 @@
       "id": "math.trigonometry",
       "name": "Trigonometry",
       "branch": "math",
-      "tier": 1,
+      "tier": 2,
       "prereqs": [
         "math.algebra"
       ],
@@ -683,7 +683,7 @@
       "id": "math.complex_numbers",
       "name": "Complex numbers and phasors",
       "branch": "math",
-      "tier": 1,
+      "tier": 3,
       "prereqs": [
         "math.algebra",
         "math.trigonometry"
@@ -798,7 +798,7 @@
       "id": "math.calculus",
       "name": "Calculus: limits and differentiation",
       "branch": "math",
-      "tier": 2,
+      "tier": 3,
       "prereqs": [
         "math.functions_graphs",
         "math.trigonometry"
@@ -935,7 +935,7 @@
       "id": "math.integration",
       "name": "Integration (incl. Beta and Gamma)",
       "branch": "math",
-      "tier": 3,
+      "tier": 4,
       "prereqs": [
         "math.calculus",
         "math.algebra"
@@ -1075,7 +1075,7 @@
       "id": "math.multivariable_vector",
       "name": "Multiple integrals and vector calculus (JAS 401 Units I-II)",
       "branch": "math",
-      "tier": 4,
+      "tier": 5,
       "prereqs": [
         "math.integration",
         "math.calculus"
@@ -1218,7 +1218,7 @@
       "id": "math.diff_equations",
       "name": "Differential equations",
       "branch": "math",
-      "tier": 4,
+      "tier": 5,
       "prereqs": [
         "math.integration",
         "math.complex_numbers"
@@ -1481,7 +1481,7 @@
       "id": "math.probability_stats",
       "name": "Probability and statistics",
       "branch": "math",
-      "tier": 3,
+      "tier": 5,
       "prereqs": [
         "math.algebra",
         "math.integration"
@@ -1613,7 +1613,7 @@
       "id": "math.random_processes",
       "name": "Random processes",
       "branch": "math",
-      "tier": 5,
+      "tier": 6,
       "prereqs": [
         "math.probability_stats",
         "math.trigonometry"
@@ -1732,7 +1732,7 @@
       "id": "math.signals_transforms",
       "name": "Signals and transforms (Fourier, Laplace, Z)",
       "branch": "math",
-      "tier": 5,
+      "tier": 6,
       "prereqs": [
         "math.diff_equations",
         "math.complex_numbers",

@@ -617,6 +617,9 @@ LEGAL_HOSTS = {
     "services.publishing.umich.edu", "www.fulcrum.org", "www.hivemq.com", "lora-alliance.org", "www.3blue1brown.com",
     "aicdesign.org", "www.cds.caltech.edu", "www.strategyzer.com", "www.startupindia.gov.in", "www.legislative.gov.in",
     "cdnbbsr.s3waas.gov.in", "courses.csail.mit.edu",
+    # skill tree v2 (2026-10-25): MIT accelerator course + tools, NVDLA, OpenROAD docs, DAAD and the three MS programmes
+    "csg.csail.mit.edu", "accelergy.mit.edu", "nvdla.org", "openroad.readthedocs.io", "www.daad.de", "tu-dresden.de",
+    "www.tum.de", "www.uni-stuttgart.de",
     # certificate pages
     "www.nvidia.com", "aws.amazon.com", "cloud.google.com", "learn.microsoft.com", "dac.com", "www.maven-silicon.com",
     "chipedge.com", "www.vlsisystemdesign.com", "ine.com", "www.comptia.org", "www.eccouncil.org",
@@ -682,6 +685,82 @@ def test_real_bank_raw_references_resolve():
         assert set(n.get("certs") or []) <= cert_ids | res_ids, n["id"]
     for c in RAW_FILES["certs.json"]:
         assert set(c.get("node_ids") or []) <= node_ids, c["id"]
+
+
+# ------------------------------------------------------------------ 9b. skill tree v2 invariants
+CAREER_NODES = [n["id"] for n in RAW_FILES["skilltree.json"]["nodes"]]
+# Branches whose every node leans on maths: a node there with no maths weight is a data bug.
+MATHS_BRANCHES = {"ml", "deep_learning", "ai_hardware", "analog", "devices"}
+
+
+def test_real_bank_is_a_dag_with_monotonic_tiers():
+    nodes = REAL["nodes"]
+    assert g.find_cycles(nodes) == []
+    for nid, n in nodes.items():
+        for p in n["prereqs"]:
+            assert n["tier"] > nodes[p]["tier"], f"{nid} (tier {n['tier']}) <= its prerequisite {p} (tier {nodes[p]['tier']})"
+
+
+def test_real_bank_has_no_orphan_nodes():
+    nodes = REAL["nodes"]
+    has_dependents = {p for n in nodes.values() for p in n["prereqs"]}
+    for nid in REAL["order"]:
+        assert nodes[nid]["prereqs"] or nid in has_dependents, f"{nid} is isolated: no prerequisites and nothing needs it"
+    for nid in CAREER_NODES:                                         # every career node is wanted by some career
+        assert max(c["weights"].get(nid, 0) for c in REAL["careers"]) > 0, f"{nid}: no career weights it"
+    for c in REAL["careers"]:                                        # and every career weighs every career node
+        assert set(CAREER_NODES) <= set(c["weights"]), (c["id"], set(CAREER_NODES) - set(c["weights"]))
+
+
+def test_real_bank_maths_weights_resolve_and_are_present_where_needed():
+    math_ids = {n["id"] for n in RAW_FILES["math-track.json"]["nodes"]}
+    for raw in RAW_FILES["skilltree.json"]["nodes"]:
+        nid = raw["id"]
+        assert isinstance(raw.get("maths"), dict), f"{nid}: no maths field"
+        assert set(raw["maths"]) <= math_ids, f"{nid}: maths names a non-maths node"
+        assert all(0 < w <= 1 for w in raw["maths"].values()), nid
+        for p in raw["prereqs"]:                                    # a maths prerequisite is always weighted
+            if p in math_ids:
+                assert raw["maths"].get(p, 0) > 0, f"{nid}: needs {p} but gives it no maths weight"
+        if raw["branch"] in MATHS_BRANCHES:
+            assert raw["maths"], f"{nid}: a {raw['branch']} node with no maths weight"
+        assert REAL["nodes"][nid]["maths"] == raw["maths"], nid      # the loader keeps them
+
+
+def test_real_bank_every_cert_link_resolves():
+    certs, nodes = REAL["certs"], REAL["nodes"]
+    for nid, n in nodes.items():
+        for c in n["certs"]:
+            assert c in certs, f"{nid}: certificate {c} does not resolve"
+    for c in RAW_FILES["certs.json"]:
+        assert c["node_ids"], f"{c['id']}: names no node"
+        for nid in c["node_ids"]:
+            assert nid in nodes, f"{c['id']}: unknown node {nid}"
+        assert set(c.get("credibility_by_career") or {}) <= {k["id"] for k in REAL["careers"]}, c["id"]
+        assert c.get("url"), f"{c['id']}: no link"
+
+
+def test_real_bank_third_track_dv_to_ai_accelerator():
+    car = {c["id"]: c for c in REAL["careers"]}["dv_ai_accel"]
+    top = {k for k, w in car["weights"].items() if w >= 0.9}
+    assert {"ver.uvm", "ver.coverage_closure", "ver.sva"} <= top                 # the entry role
+    assert {"aiacc.lowpower_arch", "aiacc.capstone"} <= top                       # the long-term role
+    new = [n for n in REAL["order"] if n.startswith(("aiacc.", "lp.")) or n in
+           {"ver.sva", "ver.cocotb", "ver.coverage_closure", "ver.ref_models", "ver.accel_dv", "ver.lowpower_dv",
+            "career.dv_jobs_india", "career.ms_germany_hw"}]
+    assert len(new) == 17
+    closure = g.prereq_closure(REAL, "aiacc.capstone")
+    assert {"ver.uvm", "lp.power_management", "aihw.accelerator"} <= set(closure)
+
+
+def test_maths_weights_unknown_nodes_and_bad_numbers_warn(tmp_path):
+    (tmp_path / "skilltree.json").write_text(json.dumps({"nodes": [
+        {"id": "a", "name": "A", "branch": "x", "maths": {"m": 0.5, "ghost": 0.4, "bad": "high", "zero": 0}},
+        {"id": "m", "name": "M", "branch": "math"}]}), encoding="utf-8")
+    b = g.load_bank(tmp_path)
+    assert b["nodes"]["a"]["maths"] == {"m": 0.5}
+    w = " | ".join(b["warnings"])
+    assert "unknown maths node ghost" in w and "maths weight for bad is not a number" in w
 
 
 def test_real_bank_resources_have_one_owner():
@@ -773,7 +852,7 @@ def vision_run(tmp_path: Path, career: str | None, weeks: int = 8) -> dict:
             "contracts": len(done), "wip": len(g.wip(REAL, st))}
 
 
-@pytest.mark.parametrize("career", [None, "vlsi_design", "ai_hw_architect"])
+@pytest.mark.parametrize("career", [None, "vlsi_design", "ai_hw_architect", "dv_ai_accel"])
 def test_vision_eight_weeks_cover_the_trunk_and_feed_the_branch(career, tmp_path, private):
     r = vision_run(tmp_path, career)
     m = r["minutes"]

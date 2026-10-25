@@ -320,9 +320,14 @@ def test_campaigns_have_a_finish_line_a_ship_step_and_a_cap(plan):
 
 
 def test_career_weight_and_campaigns_order_the_borrowed_work(plan):
-    # Friday's arch track has nothing open, so it borrows the best node anywhere.
-    plan.set_career("aihw")                                   # ml-intro 1.0 beats dl-basics 0.8
-    assert plan.today(FRI)["contracts"][0]["node_id"] == "ml-intro"
+    # Friday's arch track has nothing open, so it works on what unlocks it (riscv-core
+    # needs dl-basics first), not on the career's favourite node elsewhere.
+    plan.set_career("aihw")
+    fri = plan.today(FRI)["contracts"][0]
+    assert fri["node_id"] == "dl-basics" and "unlocks" in fri["why"]
+    # Anywhere else the career weight orders the work: ml-intro 1.0 beats dl-basics 0.8.
+    ranked = g.rank_nodes(plan.bank(), plan.load(FRI), None, FRI)
+    assert [n["id"] for _, n in ranked][:2] == ["ml-intro", "dl-basics"]
     plan.campaign("camp/uart", "start", today=FRI)            # its path starts at dl-basics
     assert plan.reroll(FRI)["contracts"][0]["node_id"] == "dl-basics"
 

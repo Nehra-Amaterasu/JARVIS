@@ -6,6 +6,12 @@
    "name": "VLSI / Digital Design & Verification Engineer",
    "summary": "RTL design, design verification (UVM), synthesis, STA, physical design and DFT. The highest-odds off-campus trunk for an Indian ECE fresher: large, growing hiring (NVIDIA, Qualcomm, Intel, AMD, TI, MediaTek, Samsung, Synopsys, Cadence, Siemens EDA, Arm, plus startups InCore, Mindgrove, Netrasemi). Proof travels as open-source RTL, UVM testbenches and a taped-out tile.",
    "weights": {
+    "aiacc.capstone": 0.3,
+    "aiacc.dataflow_mapping": 0.15,
+    "aiacc.lowpower_arch": 0.15,
+    "aiacc.perf_energy": 0.15,
+    "aiacc.quant_numerics": 0.2,
+    "aiacc.sparsity": 0.15,
     "aihw.accelerator": 0.15,
     "aihw.efficiency": 0.15,
     "aihw.fpga_ml": 0.15,
@@ -19,7 +25,9 @@
     "arch.riscv_core": 0.7,
     "arch.riscv_isa": 0.7,
     "arch.soc_bus": 0.7,
+    "career.dv_jobs_india": 0.7,
     "career.interview_offcampus": 0.6,
+    "career.ms_germany_hw": 0.5,
     "career.portfolio": 0.6,
     "dev.fab_process": 0.45,
     "dev.semiconductor": 0.6,
@@ -37,6 +45,9 @@
     "hdl.rtl_design_style": 1.0,
     "hdl.systemverilog": 1.0,
     "hdl.verilog_basics": 1.0,
+    "lp.power_analysis": 0.6,
+    "lp.power_fundamentals": 0.7,
+    "lp.power_management": 0.6,
     "ml.foundations": 0.3,
     "ml.practical": 0.15,
     "ml.tinyml_edge": 0.15,
@@ -60,8 +71,14 @@
     "sec.web_security": 0.15,
     "soft.communication": 0.6,
     "tools.git": 0.8,
+    "ver.accel_dv": 0.5,
+    "ver.cocotb": 0.8,
+    "ver.coverage_closure": 0.9,
     "ver.formal": 0.8,
+    "ver.lowpower_dv": 0.6,
+    "ver.ref_models": 0.8,
     "ver.sim_basics": 0.95,
+    "ver.sva": 0.9,
     "ver.uvm": 0.95
    }
   },
@@ -70,6 +87,12 @@
    "name": "AI/ML Hardware Architect & Accelerator Engineer",
    "summary": "Computer architecture, accelerator design (systolic arrays, dataflows), quantisation, GPU/CUDA, performance modelling and ML compilers / HW-SW co-design. Fewer fresher openings and more often gated on an MS, but reachable by branching off the VLSI trunk once architecture + efficient-ML + a modelling project are in place (Google silicon, NVIDIA, AMD, Tenstorrent, SiMa, Krutrim).",
    "weights": {
+    "aiacc.capstone": 0.8,
+    "aiacc.dataflow_mapping": 1.0,
+    "aiacc.lowpower_arch": 0.9,
+    "aiacc.perf_energy": 1.0,
+    "aiacc.quant_numerics": 1.0,
+    "aiacc.sparsity": 0.9,
     "aihw.accelerator": 1.0,
     "aihw.efficiency": 1.0,
     "aihw.fpga_ml": 0.8,
@@ -83,7 +106,9 @@
     "arch.riscv_core": 0.9,
     "arch.riscv_isa": 0.9,
     "arch.soc_bus": 0.8,
+    "career.dv_jobs_india": 0.2,
     "career.interview_offcampus": 0.65,
+    "career.ms_germany_hw": 0.8,
     "career.portfolio": 0.65,
     "dev.fab_process": 0.15,
     "dev.semiconductor": 0.45,
@@ -101,6 +126,9 @@
     "hdl.rtl_design_style": 0.8,
     "hdl.systemverilog": 0.65,
     "hdl.verilog_basics": 0.9,
+    "lp.power_analysis": 0.6,
+    "lp.power_fundamentals": 0.6,
+    "lp.power_management": 0.5,
     "ml.foundations": 0.8,
     "ml.practical": 0.65,
     "ml.tinyml_edge": 0.8,
@@ -124,9 +152,96 @@
     "sec.web_security": 0.15,
     "soft.communication": 0.65,
     "tools.git": 0.8,
+    "ver.accel_dv": 0.6,
+    "ver.cocotb": 0.4,
+    "ver.coverage_closure": 0.3,
     "ver.formal": 0.45,
+    "ver.lowpower_dv": 0.3,
+    "ver.ref_models": 0.4,
     "ver.sim_basics": 0.65,
+    "ver.sva": 0.3,
     "ver.uvm": 0.45
+   }
+  },
+  {
+   "id": "dv_ai_accel",
+   "name": "Design Verification -> AI-Accelerator & Low-Power Architect",
+   "summary": "Enter as a design-verification engineer (SystemVerilog, UVM, SVA, cocotb, coverage closure), the largest fresher intake in Indian VLSI hiring, then grow into AI-accelerator architecture and low-power design: dataflows, number formats, sparsity, energy modelling, UPF/DVFS. Verification of accelerator datapaths is the bridge. Built for an India-first start plus a German chip-design MS (TU Dresden Nanoelectronic Systems, TUM Microelectronics and Chip Design, Stuttgart INFOTECH).",
+   "weights": {
+    "aiacc.capstone": 1.0,
+    "aiacc.dataflow_mapping": 0.9,
+    "aiacc.lowpower_arch": 1.0,
+    "aiacc.perf_energy": 0.9,
+    "aiacc.quant_numerics": 0.9,
+    "aiacc.sparsity": 0.8,
+    "aihw.accelerator": 0.95,
+    "aihw.efficiency": 0.9,
+    "aihw.fpga_ml": 0.6,
+    "aihw.gpu_cuda": 0.5,
+    "aihw.ml_compiler": 0.5,
+    "ana.analog_ic": 0.2,
+    "ana.circuits": 0.3,
+    "ana.cmos_vlsi": 0.7,
+    "arch.foundations": 0.9,
+    "arch.microarch_advanced": 0.8,
+    "arch.riscv_core": 0.6,
+    "arch.riscv_isa": 0.6,
+    "arch.soc_bus": 0.8,
+    "career.dv_jobs_india": 1.0,
+    "career.interview_offcampus": 0.8,
+    "career.ms_germany_hw": 0.9,
+    "career.portfolio": 0.8,
+    "dev.fab_process": 0.2,
+    "dev.semiconductor": 0.4,
+    "dig.arithmetic": 0.9,
+    "dig.logic": 1.0,
+    "dl.foundations": 0.6,
+    "dl.pytorch_cnn": 0.6,
+    "dl.transformers_llm": 0.4,
+    "dsa.foundations": 0.5,
+    "dsa.interview": 0.6,
+    "emb.iot_rtos": 0.2,
+    "emb.mcu_c": 0.3,
+    "fpga.basics": 0.6,
+    "fpga.hls": 0.5,
+    "hdl.rtl_design_style": 0.95,
+    "hdl.systemverilog": 1.0,
+    "hdl.verilog_basics": 1.0,
+    "lp.power_analysis": 0.9,
+    "lp.power_fundamentals": 0.95,
+    "lp.power_management": 0.9,
+    "ml.foundations": 0.6,
+    "ml.practical": 0.3,
+    "ml.tinyml_edge": 0.5,
+    "pd.dft": 0.4,
+    "pd.physical_design": 0.4,
+    "pd.sta": 0.8,
+    "pd.synthesis": 0.8,
+    "pd.tapeout": 0.5,
+    "prog.c": 0.9,
+    "prog.cpp": 0.9,
+    "prog.python": 0.9,
+    "prog.scripting": 0.8,
+    "res.paper_reading": 0.7,
+    "res.writing_latex": 0.7,
+    "sec.crypto_basics": 0.2,
+    "sec.hw_security": 0.3,
+    "sec.hw_trojans_bugs": 0.3,
+    "sec.networking_linux": 0.2,
+    "sec.pentest_advanced": 0.1,
+    "sec.pentest_foundations": 0.1,
+    "sec.web_security": 0.1,
+    "soft.communication": 0.6,
+    "tools.git": 0.9,
+    "ver.accel_dv": 1.0,
+    "ver.cocotb": 0.9,
+    "ver.coverage_closure": 1.0,
+    "ver.formal": 0.8,
+    "ver.lowpower_dv": 0.95,
+    "ver.ref_models": 1.0,
+    "ver.sim_basics": 1.0,
+    "ver.sva": 1.0,
+    "ver.uvm": 1.0
    }
   }
  ],
@@ -135,7 +250,7 @@
    "id": "prog.c",
    "name": "C programming & memory model",
    "branch": "programming",
-   "tier": 2,
+   "tier": 3,
    "prereqs": [
     "math.discrete"
    ],
@@ -214,13 +329,16 @@
      "success_check": "make && make test is green with zero warnings",
      "xp": 8
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.3
+   }
   },
   {
    "id": "prog.python",
    "name": "Python & scripting",
    "branch": "programming",
-   "tier": 2,
+   "tier": 3,
    "prereqs": [
     "math.discrete"
    ],
@@ -283,13 +401,16 @@
      "success_check": "flowparse log.txt -o out.csv --json works end to end",
      "xp": 8
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.2
+   }
   },
   {
    "id": "prog.cpp",
    "name": "C++ for modelling & tooling",
    "branch": "programming",
-   "tier": 3,
+   "tier": 5,
    "prereqs": [
     "prog.c",
     "dsa.foundations"
@@ -353,13 +474,16 @@
      "success_check": "You can state the speedup from -O2",
      "xp": 6
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.3
+   }
   },
   {
    "id": "prog.scripting",
    "name": "Shell, Tcl & flow scripting",
    "branch": "programming",
-   "tier": 2,
+   "tier": 4,
    "prereqs": [
     "prog.python"
    ],
@@ -424,7 +548,8 @@
      "success_check": "You can explain what each Perl line does and have a Python twin",
      "xp": 6
     }
-   ]
+   ],
+   "maths": {}
   },
   {
    "id": "tools.git",
@@ -477,13 +602,14 @@
      "success_check": "A green check appears on your latest commit",
      "xp": 8
     }
-   ]
+   ],
+   "maths": {}
   },
   {
    "id": "dig.logic",
    "name": "Digital logic & Boolean algebra",
    "branch": "digital_logic",
-   "tier": 1,
+   "tier": 3,
    "prereqs": [
     "math.discrete"
    ],
@@ -549,13 +675,16 @@
      "success_check": "You compute Fmax and explain hold correctly",
      "xp": 6
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.8
+   }
   },
   {
    "id": "dig.arithmetic",
    "name": "Computer arithmetic hardware",
    "branch": "digital_logic",
-   "tier": 2,
+   "tier": 4,
    "prereqs": [
     "dig.logic",
     "prog.c"
@@ -605,13 +734,17 @@
      "success_check": "Your hex encodings match a reference tool",
      "xp": 6
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.6,
+    "math.algebra": 0.4
+   }
   },
   {
    "id": "hdl.verilog_basics",
    "name": "Verilog fundamentals (HDLBits)",
    "branch": "hdl",
-   "tier": 2,
+   "tier": 4,
    "prereqs": [
     "dig.logic",
     "tools.git"
@@ -708,13 +841,16 @@
      "success_check": "TB prints PASS and the EDA Playground link is in your README",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.3
+   }
   },
   {
    "id": "hdl.rtl_design_style",
    "name": "RTL design discipline",
    "branch": "hdl",
-   "tier": 3,
+   "tier": 5,
    "prereqs": [
     "hdl.verilog_basics"
    ],
@@ -766,13 +902,16 @@
      "success_check": "You can explain metastability and when a FIFO is required",
      "xp": 8
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.2
+   }
   },
   {
    "id": "hdl.systemverilog",
    "name": "SystemVerilog for design",
    "branch": "hdl",
-   "tier": 3,
+   "tier": 6,
    "prereqs": [
     "hdl.rtl_design_style"
    ],
@@ -823,13 +962,16 @@
      "success_check": "Two modules talk over your interface in simulation",
      "xp": 8
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.2
+   }
   },
   {
    "id": "ver.sim_basics",
    "name": "Verification fundamentals",
    "branch": "verification",
-   "tier": 2,
+   "tier": 5,
    "prereqs": [
     "hdl.verilog_basics",
     "prog.python"
@@ -879,13 +1021,16 @@
      "success_check": "cocotb reports 1 test passed on your adder",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.2
+   }
   },
   {
    "id": "ver.uvm",
    "name": "UVM & constrained-random verification",
    "branch": "verification",
-   "tier": 4,
+   "tier": 7,
    "prereqs": [
     "ver.sim_basics",
     "hdl.systemverilog",
@@ -955,13 +1100,16 @@
      "success_check": "Sim ends with a coverage number and zero mismatches",
      "xp": 12
     }
-   ]
+   ],
+   "maths": {
+    "math.probability_stats": 0.3
+   }
   },
   {
    "id": "ver.formal",
    "name": "Formal verification (open tools)",
    "branch": "verification",
-   "tier": 4,
+   "tier": 6,
    "prereqs": [
     "ver.sim_basics",
     "hdl.rtl_design_style"
@@ -1011,13 +1159,16 @@
      "success_check": "The FIFO property passes in prove mode",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.8
+   }
   },
   {
    "id": "arch.foundations",
    "name": "Computer organisation & assembly",
    "branch": "architecture",
-   "tier": 2,
+   "tier": 4,
    "prereqs": [
     "prog.c",
     "dig.logic"
@@ -1081,13 +1232,17 @@
      "success_check": "You can walk one instruction through every stage",
      "xp": 8
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.4,
+    "math.algebra": 0.2
+   }
   },
   {
    "id": "arch.riscv_isa",
    "name": "RISC-V ISA",
    "branch": "architecture",
-   "tier": 2,
+   "tier": 5,
    "prereqs": [
     "arch.foundations"
    ],
@@ -1138,13 +1293,16 @@
      "success_check": "Badge is on your LinkedIn and linked from your GitHub",
      "xp": 6
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.3
+   }
   },
   {
    "id": "arch.riscv_core",
    "name": "Build a RISC-V CPU core",
    "branch": "architecture",
-   "tier": 3,
+   "tier": 6,
    "prereqs": [
     "arch.riscv_isa",
     "hdl.rtl_design_style"
@@ -1196,13 +1354,16 @@
      "success_check": "The dependent sequence gives the right register value",
      "xp": 12
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.3
+   }
   },
   {
    "id": "arch.microarch_advanced",
    "name": "Advanced microarchitecture",
    "branch": "architecture",
-   "tier": 4,
+   "tier": 7,
    "prereqs": [
     "arch.riscv_core",
     "prog.cpp"
@@ -1269,13 +1430,17 @@
      "success_check": "You show which predictor won and why",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.probability_stats": 0.4,
+    "math.discrete": 0.3
+   }
   },
   {
    "id": "arch.soc_bus",
    "name": "SoC integration & buses",
    "branch": "architecture",
-   "tier": 3,
+   "tier": 7,
    "prereqs": [
     "hdl.systemverilog",
     "arch.foundations"
@@ -1325,13 +1490,16 @@
      "success_check": "A write lands in the correct peripheral in simulation",
      "xp": 8
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.2
+   }
   },
   {
    "id": "fpga.basics",
    "name": "FPGA prototyping",
    "branch": "fpga",
-   "tier": 3,
+   "tier": 6,
    "prereqs": [
     "hdl.rtl_design_style"
    ],
@@ -1380,13 +1548,16 @@
      "success_check": "Typing in a terminal echoes back through the FPGA",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.3
+   }
   },
   {
    "id": "fpga.hls",
    "name": "High-level synthesis",
    "branch": "fpga",
-   "tier": 4,
+   "tier": 7,
    "prereqs": [
     "fpga.basics",
     "prog.cpp"
@@ -1436,13 +1607,17 @@
      "success_check": "A table shows the throughput gain and resource cost",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.linear_algebra": 0.3,
+    "math.discrete": 0.3
+   }
   },
   {
    "id": "pd.synthesis",
    "name": "Logic synthesis",
    "branch": "implementation",
-   "tier": 3,
+   "tier": 6,
    "prereqs": [
     "hdl.rtl_design_style"
    ],
@@ -1493,13 +1668,16 @@
      "success_check": "You can name the trade-off you saw",
      "xp": 8
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.5
+   }
   },
   {
    "id": "pd.sta",
    "name": "Static timing analysis",
    "branch": "implementation",
-   "tier": 3,
+   "tier": 7,
    "prereqs": [
     "pd.synthesis"
    ],
@@ -1550,13 +1728,17 @@
      "success_check": "Slack goes from negative to positive and you logged the change",
      "xp": 12
     }
-   ]
+   ],
+   "maths": {
+    "math.algebra": 0.4,
+    "math.probability_stats": 0.3
+   }
   },
   {
    "id": "pd.physical_design",
    "name": "Physical design (RTL-to-GDS)",
    "branch": "implementation",
-   "tier": 4,
+   "tier": 8,
    "prereqs": [
     "pd.sta"
    ],
@@ -1610,13 +1792,17 @@
      "success_check": "You can state DRC/LVS pass and the utilisation",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.optimisation": 0.3,
+    "math.multivariable_vector": 0.2
+   }
   },
   {
    "id": "pd.dft",
    "name": "Design for test (DFT)",
    "branch": "implementation",
-   "tier": 3,
+   "tier": 7,
    "prereqs": [
     "pd.synthesis"
    ],
@@ -1667,13 +1853,17 @@
      "success_check": "You can draw the chain and name both modes",
      "xp": 8
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.5,
+    "math.probability_stats": 0.3
+   }
   },
   {
    "id": "pd.tapeout",
    "name": "Tape out a chip",
    "branch": "implementation",
-   "tier": 5,
+   "tier": 9,
    "prereqs": [
     "pd.physical_design"
    ],
@@ -1725,13 +1915,14 @@
      "success_check": "You have a dated plan (shuttle, cost, or PICO timeline)",
      "xp": 8
     }
-   ]
+   ],
+   "maths": {}
   },
   {
    "id": "dev.semiconductor",
    "name": "Semiconductor device physics",
    "branch": "devices",
-   "tier": 2,
+   "tier": 4,
    "prereqs": [
     "math.calculus"
    ],
@@ -1782,13 +1973,17 @@
      "success_check": "Your Id-Vgs plot shows a clear threshold",
      "xp": 8
     }
-   ]
+   ],
+   "maths": {
+    "math.calculus": 0.7,
+    "math.diff_equations": 0.5
+   }
   },
   {
    "id": "dev.fab_process",
    "name": "Fabrication & process",
    "branch": "devices",
-   "tier": 2,
+   "tier": 5,
    "prereqs": [
     "dev.semiconductor"
    ],
@@ -1839,13 +2034,17 @@
      "success_check": "You can explain the wavelength-resolution link",
      "xp": 6
     }
-   ]
+   ],
+   "maths": {
+    "math.calculus": 0.3,
+    "math.diff_equations": 0.3
+   }
   },
   {
    "id": "ana.circuits",
    "name": "Analog circuits",
    "branch": "analog",
-   "tier": 2,
+   "tier": 5,
    "prereqs": [
     "dev.semiconductor",
     "math.calculus"
@@ -1897,13 +2096,19 @@
      "success_check": "You compute the gain and name a non-ideality",
      "xp": 8
     }
-   ]
+   ],
+   "maths": {
+    "math.calculus": 0.6,
+    "math.complex_numbers": 0.6,
+    "math.diff_equations": 0.5,
+    "math.signals_transforms": 0.5
+   }
   },
   {
    "id": "ana.cmos_vlsi",
    "name": "CMOS digital VLSI",
    "branch": "analog",
-   "tier": 3,
+   "tier": 5,
    "prereqs": [
     "dig.logic",
     "dev.semiconductor"
@@ -1955,13 +2160,17 @@
      "success_check": "You size a path and justify it",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.algebra": 0.5,
+    "math.calculus": 0.4
+   }
   },
   {
    "id": "ana.analog_ic",
    "name": "Analog IC design",
    "branch": "analog",
-   "tier": 4,
+   "tier": 6,
    "prereqs": [
     "ana.circuits",
     "ana.cmos_vlsi"
@@ -2011,13 +2220,18 @@
      "success_check": "Phase margin is positive and gain is as designed",
      "xp": 12
     }
-   ]
+   ],
+   "maths": {
+    "math.complex_numbers": 0.7,
+    "math.signals_transforms": 0.6,
+    "math.calculus": 0.5
+   }
   },
   {
    "id": "emb.mcu_c",
    "name": "Microcontrollers & embedded C",
    "branch": "embedded",
-   "tier": 2,
+   "tier": 4,
    "prereqs": [
     "prog.c",
     "dig.logic"
@@ -2069,13 +2283,16 @@
      "success_check": "A real sensor value prints over serial",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.2
+   }
   },
   {
    "id": "emb.iot_rtos",
    "name": "RTOS & IoT",
    "branch": "embedded",
-   "tier": 3,
+   "tier": 5,
    "prereqs": [
     "emb.mcu_c"
    ],
@@ -2126,13 +2343,16 @@
      "success_check": "Your laptop sees the device's messages",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.probability_stats": 0.2
+   }
   },
   {
    "id": "dsa.foundations",
    "name": "Data structures & algorithms",
    "branch": "dsa",
-   "tier": 2,
+   "tier": 4,
    "prereqs": [
     "prog.python",
     "math.discrete"
@@ -2198,13 +2418,16 @@
      "success_check": "BFS returns correct distances on a sample graph",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.7
+   }
   },
   {
    "id": "dsa.interview",
    "name": "Interview problem solving",
    "branch": "dsa",
-   "tier": 3,
+   "tier": 6,
    "prereqs": [
     "dsa.foundations",
     "prog.cpp"
@@ -2258,13 +2481,17 @@
      "success_check": "3 bit problems solved with explained tricks",
      "xp": 8
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.7,
+    "math.probability_stats": 0.2
+   }
   },
   {
    "id": "ml.foundations",
    "name": "Machine learning foundations",
    "branch": "ml",
-   "tier": 3,
+   "tier": 6,
    "prereqs": [
     "math.linear_algebra",
     "math.probability_stats",
@@ -2334,13 +2561,19 @@
      "success_check": "One recognised ML credential is on your profile",
      "xp": 6
     }
-   ]
+   ],
+   "maths": {
+    "math.linear_algebra": 0.9,
+    "math.probability_stats": 0.9,
+    "math.calculus": 0.7,
+    "math.optimisation": 0.6
+   }
   },
   {
    "id": "ml.practical",
    "name": "Applied ML & data",
    "branch": "ml",
-   "tier": 3,
+   "tier": 7,
    "prereqs": [
     "ml.foundations"
    ],
@@ -2392,13 +2625,17 @@
      "success_check": "Your submission scores and your second beats the first",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.probability_stats": 0.6,
+    "math.linear_algebra": 0.4
+   }
   },
   {
    "id": "dl.foundations",
    "name": "Deep learning foundations",
    "branch": "deep_learning",
-   "tier": 3,
+   "tier": 7,
    "prereqs": [
     "ml.foundations"
    ],
@@ -2450,13 +2687,19 @@
      "success_check": "Val loss improves after regularisation",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.linear_algebra": 0.9,
+    "math.calculus": 0.8,
+    "math.probability_stats": 0.6,
+    "math.optimisation": 0.6
+   }
   },
   {
    "id": "dl.pytorch_cnn",
    "name": "PyTorch & CNNs",
    "branch": "deep_learning",
-   "tier": 3,
+   "tier": 8,
    "prereqs": [
     "dl.foundations"
    ],
@@ -2507,13 +2750,17 @@
      "success_check": "Transfer beats from-scratch on your small dataset",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.linear_algebra": 0.7,
+    "math.calculus": 0.4
+   }
   },
   {
    "id": "dl.transformers_llm",
    "name": "Transformers & LLMs",
    "branch": "deep_learning",
-   "tier": 4,
+   "tier": 9,
    "prereqs": [
     "dl.pytorch_cnn"
    ],
@@ -2566,13 +2813,17 @@
      "success_check": "Before/after outputs differ and you report VRAM",
      "xp": 12
     }
-   ]
+   ],
+   "maths": {
+    "math.linear_algebra": 0.8,
+    "math.probability_stats": 0.6
+   }
   },
   {
    "id": "aihw.efficiency",
    "name": "Efficient ML: quantisation & pruning",
    "branch": "ai_hardware",
-   "tier": 4,
+   "tier": 9,
    "prereqs": [
     "dl.pytorch_cnn"
    ],
@@ -2621,13 +2872,18 @@
      "success_check": "A sparsity-accuracy curve is in the README",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.numerical_methods": 0.6,
+    "math.linear_algebra": 0.6,
+    "math.probability_stats": 0.4
+   }
   },
   {
    "id": "ml.tinyml_edge",
    "name": "TinyML & edge AI",
    "branch": "ai_hardware",
-   "tier": 4,
+   "tier": 10,
    "prereqs": [
     "aihw.efficiency",
     "emb.mcu_c"
@@ -2679,13 +2935,17 @@
      "success_check": "Inference runs on-device and you report ms and RAM",
      "xp": 12
     }
-   ]
+   ],
+   "maths": {
+    "math.linear_algebra": 0.4,
+    "math.numerical_methods": 0.4
+   }
   },
   {
    "id": "aihw.gpu_cuda",
    "name": "GPU programming & CUDA",
    "branch": "ai_hardware",
-   "tier": 4,
+   "tier": 6,
    "prereqs": [
     "prog.cpp",
     "arch.foundations"
@@ -2738,13 +2998,17 @@
      "success_check": "Tiled version is measurably faster",
      "xp": 12
     }
-   ]
+   ],
+   "maths": {
+    "math.linear_algebra": 0.6,
+    "math.numerical_methods": 0.3
+   }
   },
   {
    "id": "aihw.accelerator",
    "name": "AI accelerator architecture",
    "branch": "ai_hardware",
-   "tier": 5,
+   "tier": 10,
    "prereqs": [
     "arch.microarch_advanced",
     "aihw.efficiency"
@@ -2813,13 +3077,17 @@
      "success_check": "You report how array size changed the cycle count",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.linear_algebra": 0.8,
+    "math.discrete": 0.3
+   }
   },
   {
    "id": "aihw.ml_compiler",
    "name": "ML compilers & HW-SW co-design",
    "branch": "ai_hardware",
-   "tier": 5,
+   "tier": 11,
    "prereqs": [
     "aihw.accelerator",
     "aihw.gpu_cuda"
@@ -2869,13 +3137,17 @@
      "success_check": "You compare two backends for one operator",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.5,
+    "math.linear_algebra": 0.5
+   }
   },
   {
    "id": "aihw.fpga_ml",
    "name": "ML on FPGA",
    "branch": "ai_hardware",
-   "tier": 5,
+   "tier": 10,
    "prereqs": [
     "fpga.hls",
     "aihw.efficiency"
@@ -2925,13 +3197,17 @@
      "success_check": "A table shows the latency/resource trade-off",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.linear_algebra": 0.5,
+    "math.numerical_methods": 0.5
+   }
   },
   {
    "id": "sec.networking_linux",
    "name": "Networking & Linux security base",
    "branch": "security",
-   "tier": 2,
+   "tier": 5,
    "prereqs": [
     "prog.scripting"
    ],
@@ -2982,13 +3258,14 @@
      "success_check": "Levels 0-10 cleared with notes",
      "xp": 8
     }
-   ]
+   ],
+   "maths": {}
   },
   {
    "id": "sec.crypto_basics",
    "name": "Applied cryptography",
    "branch": "security",
-   "tier": 3,
+   "tier": 4,
    "prereqs": [
     "math.discrete",
     "prog.python"
@@ -3040,13 +3317,17 @@
      "success_check": "You detect ECB and your CBC round-trips",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.9,
+    "math.probability_stats": 0.5
+   }
   },
   {
    "id": "sec.pentest_foundations",
    "name": "Ethical hacking foundations",
    "branch": "security",
-   "tier": 3,
+   "tier": 6,
    "prereqs": [
     "sec.networking_linux"
    ],
@@ -3099,13 +3380,14 @@
      "success_check": "A clear one-page finding with a remediation",
      "xp": 8
     }
-   ]
+   ],
+   "maths": {}
   },
   {
    "id": "sec.web_security",
    "name": "Web application security",
    "branch": "security",
-   "tier": 3,
+   "tier": 7,
    "prereqs": [
     "sec.pentest_foundations"
    ],
@@ -3156,13 +3438,14 @@
      "success_check": "Reflected and stored XSS labs solved",
      "xp": 10
     }
-   ]
+   ],
+   "maths": {}
   },
   {
    "id": "sec.hw_security",
    "name": "Hardware security & side channels",
    "branch": "security",
-   "tier": 4,
+   "tier": 5,
    "prereqs": [
     "sec.crypto_basics",
     "arch.foundations",
@@ -3215,13 +3498,17 @@
      "success_check": "You can explain both in an interview",
      "xp": 8
     }
-   ]
+   ],
+   "maths": {
+    "math.probability_stats": 0.5,
+    "math.discrete": 0.5
+   }
   },
   {
    "id": "sec.hw_trojans_bugs",
    "name": "Hardware bug hunting (Hack@DAC-style)",
    "branch": "security",
-   "tier": 5,
+   "tier": 7,
    "prereqs": [
     "sec.hw_security",
     "hdl.systemverilog",
@@ -3274,13 +3561,16 @@
      "success_check": "You catch one bug with an assertion and fix it",
      "xp": 12
     }
-   ]
+   ],
+   "maths": {
+    "math.discrete": 0.4
+   }
   },
   {
    "id": "sec.pentest_advanced",
    "name": "Advanced penetration testing",
    "branch": "security",
-   "tier": 5,
+   "tier": 8,
    "prereqs": [
     "sec.web_security"
    ],
@@ -3333,13 +3623,14 @@
      "success_check": "A written, budget-aware security-cert decision",
      "xp": 6
     }
-   ]
+   ],
+   "maths": {}
   },
   {
    "id": "res.paper_reading",
    "name": "Reading research papers",
    "branch": "research",
-   "tier": 2,
+   "tier": 4,
    "prereqs": [
     "math.linear_algebra"
    ],
@@ -3388,13 +3679,17 @@
      "success_check": "Your repo has weekly entries",
      "xp": 4
     }
-   ]
+   ],
+   "maths": {
+    "math.linear_algebra": 0.3,
+    "math.probability_stats": 0.3
+   }
   },
   {
    "id": "res.writing_latex",
    "name": "Research writing & LaTeX",
    "branch": "research",
-   "tier": 3,
+   "tier": 5,
    "prereqs": [
     "res.paper_reading",
     "soft.communication"
@@ -3448,7 +3743,8 @@
      "success_check": "A tighter abstract that states the contribution first",
      "xp": 8
     }
-   ]
+   ],
+   "maths": {}
   },
   {
    "id": "soft.communication",
@@ -3503,7 +3799,8 @@
      "success_check": "A tight 3-minute video is linked in the README",
      "xp": 6
     }
-   ]
+   ],
+   "maths": {}
   },
   {
    "id": "career.portfolio",
@@ -3561,13 +3858,14 @@
      "success_check": "A live URL lists your projects",
      "xp": 8
     }
-   ]
+   ],
+   "maths": {}
   },
   {
    "id": "career.interview_offcampus",
    "name": "Off-campus job hunt & interviews",
    "branch": "soft_skills",
-   "tier": 3,
+   "tier": 7,
    "prereqs": [
     "career.portfolio",
     "dsa.interview"
@@ -3632,6 +3930,1254 @@
      "hint": "Situation, Task, Action, Result: keep it concrete.",
      "success_check": "3 STAR stories ready, each backed by a repo",
      "xp": 6
+    }
+   ],
+   "maths": {
+    "math.discrete": 0.3
+   }
+  },
+  {
+   "id": "ver.sva",
+   "name": "SystemVerilog assertions (SVA)",
+   "branch": "verification",
+   "tier": 7,
+   "prereqs": [
+    "hdl.systemverilog",
+    "ver.sim_basics"
+   ],
+   "outcomes": [
+    "Write immediate and concurrent assertions",
+    "Build sequences and properties with implication and delays",
+    "Bind assertions to a design without editing it"
+   ],
+   "hours_est": 25,
+   "resources": [
+    "car.chipverify_sva"
+   ],
+   "certs": [],
+   "maths": {
+    "math.discrete": 0.7
+   },
+   "project": {
+    "title": "fifo-sva",
+    "deliverable": "A FIFO with a bound SVA checker: no overflow, no underflow, data-in-order, all passing in simulation",
+    "linkedin_line": "Wrote a bound SVA checker for a FIFO (overflow, underflow, ordering) that catches injected bugs."
+   },
+   "contracts": [
+    {
+     "id": "ver.sva.immediate",
+     "title": "First assertions",
+     "minutes": 35,
+     "context": "ChipVerify SVA page, immediate assertions section.",
+     "steps": [
+      "Add an immediate assert on a counter never exceeding MAX",
+      "Break the counter on purpose",
+      "Read the failure message"
+     ],
+     "hint": "assert (cnt <= MAX) else $error(...); runs whenever the procedural line runs.",
+     "success_check": "The broken counter fails the assertion with a clear message",
+     "xp": 8
+    },
+    {
+     "id": "ver.sva.seq",
+     "title": "Sequences and implication",
+     "minutes": 45,
+     "context": "ChipVerify SVA page, sequences and properties.",
+     "steps": [
+      "Write req |-> ##[1:3] ack",
+      "Drive a passing and a failing waveform",
+      "Use $rose and $past once each"
+     ],
+     "hint": "|-> checks in the same cycle, |=> in the next. ##[1:3] is a window, not a delay.",
+     "success_check": "One property passes on the good stimulus and fails on the bad one",
+     "xp": 10
+    },
+    {
+     "id": "ver.sva.bind",
+     "title": "Bind a checker",
+     "minutes": 40,
+     "context": "Same page, the bind section.",
+     "steps": [
+      "Put FIFO properties in a separate checker module",
+      "bind it to the FIFO",
+      "Inject a bug and see it caught"
+     ],
+     "hint": "bind target_module checker_module inst (.*); keeps the RTL untouched.",
+     "success_check": "The bound checker catches an injected overflow bug",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "ver.cocotb",
+   "name": "cocotb: Python testbenches",
+   "branch": "verification",
+   "tier": 6,
+   "prereqs": [
+    "ver.sim_basics",
+    "prog.python"
+   ],
+   "outcomes": [
+    "Write coroutine-based tests in Python",
+    "Drive clocks, resets and bus transactions",
+    "Run a regression from a runner script"
+   ],
+   "hours_est": 20,
+   "resources": [
+    "car.cocotb_writing_tb"
+   ],
+   "certs": [],
+   "maths": {
+    "math.probability_stats": 0.2,
+    "math.discrete": 0.2
+   },
+   "project": {
+    "title": "cocotb-alu",
+    "deliverable": "A cocotb regression for an ALU with a Python reference model and random stimulus",
+    "linkedin_line": "Built a cocotb regression for an ALU checked against a Python model with random stimulus."
+   },
+   "contracts": [
+    {
+     "id": "ver.cocotb.first",
+     "title": "First cocotb test",
+     "minutes": 40,
+     "context": "cocotb docs, quickstart.",
+     "steps": [
+      "Install cocotb with Icarus or Verilator",
+      "Drive a clock and reset an adder",
+      "Assert one sum"
+     ],
+     "hint": "@cocotb.test() async def; await RisingEdge(dut.clk).",
+     "success_check": "make runs one green test",
+     "xp": 8
+    },
+    {
+     "id": "ver.cocotb.model",
+     "title": "A Python reference model",
+     "minutes": 45,
+     "context": "cocotb docs, writing testbenches.",
+     "steps": [
+      "Write alu_model(a,b,op) in Python",
+      "Compare DUT against the model every cycle",
+      "Randomise 1000 inputs"
+     ],
+     "hint": "Keep the model pure: inputs in, expected out, no DUT access.",
+     "success_check": "1000 random vectors pass and a seeded bug fails",
+     "xp": 10
+    },
+    {
+     "id": "ver.cocotb.regress",
+     "title": "A regression runner",
+     "minutes": 30,
+     "context": "cocotb docs, runners.",
+     "steps": [
+      "Parametrise two tests",
+      "Run them from one script",
+      "Save a pass/fail summary"
+     ],
+     "hint": "Fix the random seed and print it so a failure reproduces.",
+     "success_check": "One command runs every test and prints the seed",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "ver.coverage_closure",
+   "name": "Functional coverage & closure",
+   "branch": "verification",
+   "tier": 8,
+   "prereqs": [
+    "ver.uvm"
+   ],
+   "outcomes": [
+    "Write covergroups, bins and crosses from a test plan",
+    "Read coverage reports and find holes",
+    "Close holes with directed or constrained-random tests"
+   ],
+   "hours_est": 25,
+   "resources": [
+    "car.va_coverage_cookbook",
+    "car.chipverify_fcov"
+   ],
+   "certs": [
+    "siemens.va"
+   ],
+   "maths": {
+    "math.probability_stats": 0.5,
+    "math.discrete": 0.3
+   },
+   "project": {
+    "title": "uart-coverage",
+    "deliverable": "A UART UVM environment with a coverage model tied to a test plan, closed to 100% with the holes documented",
+    "linkedin_line": "Closed functional coverage on a UART UVM environment, documenting every hole and the test that closed it."
+   },
+   "contracts": [
+    {
+     "id": "ver.cov.group",
+     "title": "A covergroup from a test plan",
+     "minutes": 40,
+     "context": "ChipVerify functional coverage page.",
+     "steps": [
+      "List 5 features of a UART in a test plan",
+      "Write one coverpoint per feature",
+      "Sample it from the monitor"
+     ],
+     "hint": "A bin you cannot name a reason for is noise. Map every bin to a plan line.",
+     "success_check": "Coverage report shows all 5 coverpoints with sensible bins",
+     "xp": 10
+    },
+    {
+     "id": "ver.cov.cross",
+     "title": "Crosses and holes",
+     "minutes": 40,
+     "context": "Verification Academy coverage cookbook.",
+     "steps": [
+      "Cross baud rate with parity",
+      "Run random tests and find the empty cells",
+      "Explain each hole"
+     ],
+     "hint": "Crosses grow fast: n x m bins. Use ignore_bins for impossible combinations.",
+     "success_check": "A written list of every hole with its cause",
+     "xp": 10
+    },
+    {
+     "id": "ver.cov.close",
+     "title": "Close the holes",
+     "minutes": 45,
+     "context": "Same cookbook, coverage-driven verification.",
+     "steps": [
+      "Tighten constraints or add a directed sequence per hole",
+      "Re-run",
+      "Reach the target and stop"
+     ],
+     "hint": "Change constraints before writing directed tests: one constraint can close many cells.",
+     "success_check": "The coverage target is met and each fix is a commit",
+     "xp": 12
+    }
+   ]
+  },
+  {
+   "id": "ver.ref_models",
+   "name": "Reference models & scoreboards (DPI-C)",
+   "branch": "verification",
+   "tier": 8,
+   "prereqs": [
+    "ver.uvm",
+    "prog.cpp"
+   ],
+   "outcomes": [
+    "Write a C/C++ golden model",
+    "Call it from SystemVerilog through DPI",
+    "Build a scoreboard that compares in order and out of order"
+   ],
+   "hours_est": 25,
+   "resources": [
+    "car.chipverify_dpi",
+    "car.vlsiverify_uvm"
+   ],
+   "certs": [],
+   "maths": {
+    "math.numerical_methods": 0.5,
+    "math.discrete": 0.2
+   },
+   "project": {
+    "title": "dpi-scoreboard",
+    "deliverable": "A UVM scoreboard calling a C fixed-point MAC model through DPI, catching injected rounding bugs",
+    "linkedin_line": "Built a UVM scoreboard backed by a C golden model via DPI that catches rounding bugs."
+   },
+   "contracts": [
+    {
+     "id": "ver.ref.dpi",
+     "title": "Call C from SystemVerilog",
+     "minutes": 40,
+     "context": "ChipVerify DPI page.",
+     "steps": [
+      "Write int add(int,int) in C",
+      "import \"DPI-C\" it",
+      "Call it from a test and print"
+     ],
+     "hint": "Types must match: int<->int, bit[31:0]<->svBitVecVal.",
+     "success_check": "SV prints the value returned from C",
+     "xp": 8
+    },
+    {
+     "id": "ver.ref.mac",
+     "title": "A fixed-point MAC model",
+     "minutes": 45,
+     "context": "Reuse your Q8.8 type from the C node.",
+     "steps": [
+      "Write mac(acc,a,b) in Q8.8 with saturation",
+      "Unit-test it in C",
+      "Expose it via DPI"
+     ],
+     "hint": "Decide rounding once (truncate or round-half-up) and use it in RTL and model.",
+     "success_check": "C unit tests pass including saturation",
+     "xp": 10
+    },
+    {
+     "id": "ver.ref.sb",
+     "title": "The scoreboard",
+     "minutes": 45,
+     "context": "VLSI Verify UVM scoreboard section.",
+     "steps": [
+      "Feed monitor transactions into a scoreboard",
+      "Compare DUT against the DPI model",
+      "Inject a rounding bug"
+     ],
+     "hint": "Queue expected values on input, pop on output; report mismatches with both values.",
+     "success_check": "The rounding bug fails with a readable mismatch report",
+     "xp": 12
+    }
+   ]
+  },
+  {
+   "id": "lp.power_fundamentals",
+   "name": "Power: dynamic, leakage, clock gating",
+   "branch": "implementation",
+   "tier": 7,
+   "prereqs": [
+    "ana.cmos_vlsi",
+    "pd.synthesis"
+   ],
+   "outcomes": [
+    "Compute dynamic power from activity, capacitance, voltage and frequency",
+    "Explain leakage and its temperature dependence",
+    "Apply clock gating and operand isolation in RTL"
+   ],
+   "hours_est": 35,
+   "resources": [
+    "car.nptel_low_power_vlsi"
+   ],
+   "certs": [
+    "nptel.low_power_vlsi"
+   ],
+   "maths": {
+    "math.algebra": 0.4,
+    "math.calculus": 0.3
+   },
+   "project": {
+    "title": "gated-counter",
+    "deliverable": "A counter bank with and without clock gating, with a written power estimate for each",
+    "linkedin_line": "Cut estimated dynamic power of a counter bank with RTL clock gating and documented the arithmetic."
+   },
+   "contracts": [
+    {
+     "id": "lp.fund.formula",
+     "title": "P = a C V^2 f by hand",
+     "minutes": 35,
+     "context": "NPTEL Low Power VLSI, week 1.",
+     "steps": [
+      "Compute power for 3 activity factors",
+      "Halve V and redo it",
+      "Explain why V matters most"
+     ],
+     "hint": "Power is quadratic in V and linear in f; lowering V usually forces lower f too.",
+     "success_check": "A worked table of 6 power numbers with units",
+     "xp": 8
+    },
+    {
+     "id": "lp.fund.leak",
+     "title": "Leakage",
+     "minutes": 35,
+     "context": "Same course, leakage lectures.",
+     "steps": [
+      "List subthreshold, gate and junction leakage",
+      "Explain why leakage grows with temperature",
+      "Name two leakage fixes"
+     ],
+     "hint": "Subthreshold current is exponential in (Vgs - Vt): small Vt changes matter a lot.",
+     "success_check": "A one-page note naming each mechanism and a fix",
+     "xp": 8
+    },
+    {
+     "id": "lp.fund.gate",
+     "title": "Clock gating in RTL",
+     "minutes": 45,
+     "context": "Same course, clock-gating lecture.",
+     "steps": [
+      "Write an enable-based register bank",
+      "Rewrite it with an integrated clock-gate cell model",
+      "Count toggles in simulation"
+     ],
+     "hint": "Never AND the clock in plain logic: use a latch-based gate so the gated clock has no glitches.",
+     "success_check": "Simulation shows fewer clock toggles with gating",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "lp.power_analysis",
+   "name": "Power estimation & analysis",
+   "branch": "implementation",
+   "tier": 8,
+   "prereqs": [
+    "lp.power_fundamentals",
+    "pd.sta"
+   ],
+   "outcomes": [
+    "Dump switching activity from simulation",
+    "Run gate-level power reports with activity",
+    "Find the top power consumers"
+   ],
+   "hours_est": 25,
+   "resources": [
+    "car.openroad_docs"
+   ],
+   "certs": [],
+   "maths": {
+    "math.probability_stats": 0.4,
+    "math.algebra": 0.3
+   },
+   "project": {
+    "title": "power-report",
+    "deliverable": "An open-flow power report (OpenSTA) for a small design with simulation activity, top-5 consumers explained",
+    "linkedin_line": "Ran activity-annotated power analysis in an open flow and explained the top consumers."
+   },
+   "contracts": [
+    {
+     "id": "lp.ana.vcd",
+     "title": "Activity from simulation",
+     "minutes": 40,
+     "context": "OpenSTA README, power section.",
+     "steps": [
+      "Dump a VCD from a gate-level simulation",
+      "Compute toggle rate of 3 nets by hand",
+      "Compare with the tool"
+     ],
+     "hint": "Activity = toggles per cycle; a clock toggles twice per cycle.",
+     "success_check": "Hand and tool toggle rates agree within 10%",
+     "xp": 10
+    },
+    {
+     "id": "lp.ana.report",
+     "title": "report_power",
+     "minutes": 45,
+     "context": "OpenSTA docs, read_vcd and report_power.",
+     "steps": [
+      "Load Liberty, netlist, SDC",
+      "read_vcd",
+      "report_power and save it"
+     ],
+     "hint": "Default activity is a guess; real VCD activity changes the answer a lot.",
+     "success_check": "A saved report with and without VCD",
+     "xp": 10
+    },
+    {
+     "id": "lp.ana.top",
+     "title": "Top consumers",
+     "minutes": 35,
+     "context": "OpenROAD docs, power grid section for context.",
+     "steps": [
+      "Rank instances by power",
+      "Split internal, switching, leakage",
+      "Propose one fix for the top block"
+     ],
+     "hint": "Clock nets and memories usually top the list; check them first.",
+     "success_check": "A ranked top-5 with one fix each",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "lp.power_management",
+   "name": "Power domains, UPF & DVFS",
+   "branch": "implementation",
+   "tier": 9,
+   "prereqs": [
+    "lp.power_analysis"
+   ],
+   "outcomes": [
+    "Describe power domains, isolation, retention and level shifters in UPF",
+    "Explain DVFS and power states",
+    "Know what power-aware simulation checks"
+   ],
+   "hours_est": 25,
+   "resources": [
+    "car.va_low_power"
+   ],
+   "certs": [],
+   "maths": {
+    "math.algebra": 0.3,
+    "math.calculus": 0.3
+   },
+   "project": {
+    "title": "two-domain-upf",
+    "deliverable": "A two-domain design with a UPF file (isolation + retention) and a written power-state table",
+    "linkedin_line": "Wrote UPF for a two-domain design with isolation and retention and a power-state table."
+   },
+   "contracts": [
+    {
+     "id": "lp.pm.domains",
+     "title": "Power domains on paper",
+     "minutes": 35,
+     "context": "Verification Academy low-power topics, intro.",
+     "steps": [
+      "Split a design into always-on and switchable",
+      "Mark every crossing",
+      "Pick isolation values"
+     ],
+     "hint": "Every signal leaving a switched-off domain needs an isolation cell clamping it to a safe value.",
+     "success_check": "A diagram with every crossing marked",
+     "xp": 8
+    },
+    {
+     "id": "lp.pm.upf",
+     "title": "A first UPF file",
+     "minutes": 45,
+     "context": "Same topics, UPF basics.",
+     "steps": [
+      "create_power_domain for two domains",
+      "Add set_isolation and set_retention",
+      "Write the power-state table"
+     ],
+     "hint": "UPF describes intent; the RTL stays unchanged.",
+     "success_check": "A UPF file that names domains, supplies, isolation, retention",
+     "xp": 10
+    },
+    {
+     "id": "lp.pm.dvfs",
+     "title": "DVFS in numbers",
+     "minutes": 35,
+     "context": "NPTEL Low Power VLSI, voltage-scaling lectures.",
+     "steps": [
+      "Pick 3 V/f operating points",
+      "Compute power and time for one task at each",
+      "Pick the lowest-energy point"
+     ],
+     "hint": "Energy = power x time; the fastest point is rarely the lowest-energy one.",
+     "success_check": "A table of energy per task at 3 points with the winner",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "aiacc.quant_numerics",
+   "name": "Number formats for ML hardware",
+   "branch": "ai_hardware",
+   "tier": 10,
+   "prereqs": [
+    "aihw.efficiency",
+    "dig.arithmetic"
+   ],
+   "outcomes": [
+    "Compare INT8, FP16, bfloat16 and FP8 in range and precision",
+    "Implement a quantised MAC with scaling",
+    "Measure accuracy loss from a format change"
+   ],
+   "hours_est": 25,
+   "resources": [
+    "car.fp8_paper"
+   ],
+   "certs": [],
+   "maths": {
+    "math.numerical_methods": 0.8,
+    "math.probability_stats": 0.4,
+    "math.linear_algebra": 0.3
+   },
+   "project": {
+    "title": "fp8-mac",
+    "deliverable": "An INT8 and an FP8 (E4M3) MAC in RTL with a Python model and an error table",
+    "linkedin_line": "Implemented INT8 and FP8 MAC units in RTL and measured their error against FP32."
+   },
+   "contracts": [
+    {
+     "id": "aiacc.num.formats",
+     "title": "Formats side by side",
+     "minutes": 35,
+     "context": "FP8 Formats paper, section 2.",
+     "steps": [
+      "Tabulate exponent/mantissa bits, range and epsilon for 5 formats",
+      "Encode 0.1 in each",
+      "Note the error"
+     ],
+     "hint": "Range comes from exponent bits, precision from mantissa bits.",
+     "success_check": "A table with range, epsilon and the 0.1 error",
+     "xp": 8
+    },
+    {
+     "id": "aiacc.num.int8",
+     "title": "INT8 quantisation with scale",
+     "minutes": 40,
+     "context": "Reuse the PyTorch quantisation notes from the efficiency node.",
+     "steps": [
+      "Quantise a weight tensor with per-tensor scale",
+      "Dequantise and measure error",
+      "Try per-channel"
+     ],
+     "hint": "scale = max|x| / 127 for symmetric INT8; per-channel cuts error on uneven layers.",
+     "success_check": "Error numbers for per-tensor vs per-channel",
+     "xp": 10
+    },
+    {
+     "id": "aiacc.num.rtl",
+     "title": "A quantised MAC in RTL",
+     "minutes": 45,
+     "context": "Use your dig.arithmetic adder/multiplier.",
+     "steps": [
+      "Write an INT8 x INT8 + INT32 accumulator MAC",
+      "Check against Python on random vectors",
+      "Add saturation"
+     ],
+     "hint": "Accumulate wide (32 bits) and narrow only at the end.",
+     "success_check": "Random vectors match the Python model bit-exactly",
+     "xp": 12
+    }
+   ]
+  },
+  {
+   "id": "aiacc.dataflow_mapping",
+   "name": "Dataflows & mapping",
+   "branch": "ai_hardware",
+   "tier": 11,
+   "prereqs": [
+    "aihw.accelerator"
+   ],
+   "outcomes": [
+    "Write a layer as a loop nest and reorder it",
+    "Explain weight/output/row-stationary dataflows",
+    "Pick tiling for a buffer size and count memory accesses"
+   ],
+   "hours_est": 35,
+   "resources": [
+    "car.mit_65930"
+   ],
+   "certs": [],
+   "maths": {
+    "math.linear_algebra": 0.8,
+    "math.discrete": 0.4,
+    "math.optimisation": 0.4
+   },
+   "project": {
+    "title": "conv-mapper",
+    "deliverable": "A Python script that enumerates tilings for a conv layer and reports DRAM/SRAM accesses per tiling",
+    "linkedin_line": "Wrote a loop-nest mapper that counts memory accesses per tiling for a convolution layer."
+   },
+   "contracts": [
+    {
+     "id": "aiacc.df.loops",
+     "title": "A conv as a loop nest",
+     "minutes": 40,
+     "context": "MIT 6.5930 lecture on loop nests.",
+     "steps": [
+      "Write a 7-loop conv in Python",
+      "Swap two loops and confirm the same output",
+      "Count MACs"
+     ],
+     "hint": "Loop order does not change the answer, only which data stays close.",
+     "success_check": "Two loop orders, identical outputs, MAC count",
+     "xp": 10
+    },
+    {
+     "id": "aiacc.df.stationary",
+     "title": "Stationarity",
+     "minutes": 40,
+     "context": "Same course, dataflow taxonomy lecture.",
+     "steps": [
+      "Classify 3 loop orders as WS/OS/RS",
+      "Explain which operand is reused",
+      "Sketch a PE array for one"
+     ],
+     "hint": "The innermost loops decide what stays in the PE.",
+     "success_check": "A labelled sketch for each dataflow",
+     "xp": 10
+    },
+    {
+     "id": "aiacc.df.tile",
+     "title": "Tiling for a buffer",
+     "minutes": 45,
+     "context": "Same course, tiling lecture.",
+     "steps": [
+      "Pick a 64 KB buffer",
+      "Enumerate tile sizes that fit",
+      "Count DRAM accesses for each"
+     ],
+     "hint": "Accesses ~ data size x reloads; bigger tiles mean fewer reloads until they stop fitting.",
+     "success_check": "A table of tilings with DRAM access counts and the best one",
+     "xp": 12
+    }
+   ]
+  },
+  {
+   "id": "aiacc.perf_energy",
+   "name": "Performance & energy modelling",
+   "branch": "ai_hardware",
+   "tier": 12,
+   "prereqs": [
+    "aiacc.dataflow_mapping",
+    "lp.power_analysis"
+   ],
+   "outcomes": [
+    "Build a roofline for an accelerator",
+    "Estimate energy per inference from access counts",
+    "Use Timeloop/Accelergy-style models to compare designs"
+   ],
+   "hours_est": 30,
+   "resources": [
+    "car.accelergy"
+   ],
+   "certs": [],
+   "maths": {
+    "math.optimisation": 0.5,
+    "math.linear_algebra": 0.5,
+    "math.probability_stats": 0.2
+   },
+   "project": {
+    "title": "energy-model",
+    "deliverable": "An energy model for two dataflows on one layer, with a roofline plot and pJ/MAC per design",
+    "linkedin_line": "Built a roofline and energy model comparing two accelerator dataflows in pJ per MAC."
+   },
+   "contracts": [
+    {
+     "id": "aiacc.pe.roofline",
+     "title": "A roofline",
+     "minutes": 40,
+     "context": "The roofline paper from the accelerator node.",
+     "steps": [
+      "Pick peak MAC/s and DRAM bandwidth",
+      "Plot the roofline",
+      "Place 3 layers by arithmetic intensity"
+     ],
+     "hint": "Intensity = MACs / bytes moved; left of the ridge you are memory-bound.",
+     "success_check": "A plot with 3 layers placed and labelled",
+     "xp": 10
+    },
+    {
+     "id": "aiacc.pe.energy",
+     "title": "Energy from access counts",
+     "minutes": 45,
+     "context": "Accelergy docs, energy tables.",
+     "steps": [
+      "Assign pJ per DRAM/SRAM/RF access and per MAC",
+      "Multiply by your mapper's counts",
+      "Find the dominant term"
+     ],
+     "hint": "A DRAM access costs ~100x a MAC; data movement usually dominates.",
+     "success_check": "pJ/MAC for one mapping with the breakdown",
+     "xp": 10
+    },
+    {
+     "id": "aiacc.pe.compare",
+     "title": "Compare two designs",
+     "minutes": 40,
+     "context": "Accelergy docs, comparing architectures.",
+     "steps": [
+      "Model two dataflows",
+      "Compare energy and cycles",
+      "Write the trade-off in 5 lines"
+     ],
+     "hint": "Report both energy and latency; one design rarely wins both.",
+     "success_check": "A two-row table and a 5-line conclusion",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "aiacc.sparsity",
+   "name": "Sparsity & compression in hardware",
+   "branch": "ai_hardware",
+   "tier": 12,
+   "prereqs": [
+    "aiacc.dataflow_mapping",
+    "aiacc.quant_numerics"
+   ],
+   "outcomes": [
+    "Prune and compress a layer",
+    "Explain sparse formats (CSR, bitmask) and their hardware cost",
+    "Estimate speed-up versus density"
+   ],
+   "hours_est": 25,
+   "resources": [
+    "car.deep_compression",
+    "car.eie_paper"
+   ],
+   "certs": [],
+   "maths": {
+    "math.linear_algebra": 0.6,
+    "math.probability_stats": 0.4
+   },
+   "project": {
+    "title": "sparse-mv",
+    "deliverable": "A sparse matrix-vector unit model (bitmask format) with speed-up and energy versus density",
+    "linkedin_line": "Modelled a bitmask sparse MV unit and charted speed-up and energy against weight density."
+   },
+   "contracts": [
+    {
+     "id": "aiacc.sp.prune",
+     "title": "Prune a layer",
+     "minutes": 40,
+     "context": "Deep Compression paper, pruning section.",
+     "steps": [
+      "Magnitude-prune a layer to 50% and 90%",
+      "Measure accuracy",
+      "Plot accuracy vs density"
+     ],
+     "hint": "Prune, then fine-tune; one-shot heavy pruning hurts.",
+     "success_check": "An accuracy-vs-density plot",
+     "xp": 10
+    },
+    {
+     "id": "aiacc.sp.format",
+     "title": "Sparse formats",
+     "minutes": 35,
+     "context": "EIE paper, compressed format section.",
+     "steps": [
+      "Encode a matrix in CSR and bitmask",
+      "Count storage bits for each",
+      "Find where dense wins"
+     ],
+     "hint": "Index overhead can exceed the zeros you saved at moderate density.",
+     "success_check": "Storage numbers and the crossover density",
+     "xp": 8
+    },
+    {
+     "id": "aiacc.sp.speed",
+     "title": "Speed-up vs density",
+     "minutes": 40,
+     "context": "EIE paper, evaluation.",
+     "steps": [
+      "Model cycles for dense and sparse MV",
+      "Add load-imbalance across PEs",
+      "Plot speed-up vs density"
+     ],
+     "hint": "Load imbalance eats speed-up: the slowest PE sets the pace.",
+     "success_check": "A speed-up plot with and without imbalance",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "ver.accel_dv",
+   "name": "Verifying ML-accelerator datapaths",
+   "branch": "verification",
+   "tier": 11,
+   "prereqs": [
+    "ver.ref_models",
+    "ver.coverage_closure",
+    "aiacc.quant_numerics"
+   ],
+   "outcomes": [
+    "Verify a quantised MAC array against a golden model",
+    "Write coverage for corner numerics (saturation, zero, NaN)",
+    "Read an open accelerator's verification environment"
+   ],
+   "hours_est": 30,
+   "resources": [
+    "car.nvdla"
+   ],
+   "certs": [],
+   "maths": {
+    "math.linear_algebra": 0.6,
+    "math.numerical_methods": 0.5,
+    "math.probability_stats": 0.3
+   },
+   "project": {
+    "title": "mac-array-dv",
+    "deliverable": "A UVM or cocotb environment for a 4x4 INT8 MAC array with a numerics coverage model, closed",
+    "linkedin_line": "Verified a 4x4 INT8 MAC array with a golden model and closed numeric-corner coverage."
+   },
+   "contracts": [
+    {
+     "id": "ver.adv.golden",
+     "title": "Golden model for an array",
+     "minutes": 45,
+     "context": "NVDLA docs, verification overview.",
+     "steps": [
+      "Write a NumPy matmul golden model with INT8 saturation",
+      "Drive a 4x4 tile",
+      "Compare outputs"
+     ],
+     "hint": "Bit-exact means the same rounding, saturation and accumulation width as the RTL.",
+     "success_check": "Random tiles match the golden model bit-exactly",
+     "xp": 12
+    },
+    {
+     "id": "ver.adv.cov",
+     "title": "Numerics coverage",
+     "minutes": 40,
+     "context": "Reuse your coverage-closure covergroups.",
+     "steps": [
+      "Cover saturation, zero operands, max/min values",
+      "Cross with array position",
+      "Find the holes"
+     ],
+     "hint": "Random stimulus almost never hits saturation; you need biased constraints.",
+     "success_check": "A coverage report with holes named",
+     "xp": 10
+    },
+    {
+     "id": "ver.adv.nvdla",
+     "title": "Read a real environment",
+     "minutes": 40,
+     "context": "NVDLA hardware verification docs.",
+     "steps": [
+      "Find how NVDLA checks its convolution core",
+      "List 3 ideas worth stealing",
+      "Apply one"
+     ],
+     "hint": "Look for the trace-based test flow and the reference model boundary.",
+     "success_check": "3 written ideas and one applied",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "ver.lowpower_dv",
+   "name": "Power-aware verification",
+   "branch": "verification",
+   "tier": 10,
+   "prereqs": [
+    "lp.power_management",
+    "ver.uvm"
+   ],
+   "outcomes": [
+    "Run power-aware simulation with a UPF",
+    "Test power-up/down sequences and isolation",
+    "Catch retention and isolation bugs"
+   ],
+   "hours_est": 20,
+   "resources": [],
+   "certs": [],
+   "maths": {
+    "math.discrete": 0.4
+   },
+   "project": {
+    "title": "pa-sim",
+    "deliverable": "A power-aware test suite for the two-domain design: shutdown, isolation, retention restore, with injected bugs caught",
+    "linkedin_line": "Wrote power-aware tests that catch isolation and retention bugs in a two-domain design."
+   },
+   "contracts": [
+    {
+     "id": "ver.lpdv.seq",
+     "title": "Power sequences as tests",
+     "minutes": 40,
+     "context": "Verification Academy low-power topics, power-aware simulation.",
+     "steps": [
+      "Write a shutdown -> isolate -> restore sequence",
+      "Check outputs clamp during shutdown",
+      "Check state after restore"
+     ],
+     "hint": "Order matters: isolate before power-off, restore before de-isolating.",
+     "success_check": "The sequence test passes on the good design",
+     "xp": 10
+    },
+    {
+     "id": "ver.lpdv.bugs",
+     "title": "Inject power bugs",
+     "minutes": 40,
+     "context": "Same topics, common low-power bugs.",
+     "steps": [
+      "Remove an isolation cell",
+      "Skip a retention save",
+      "See both fail"
+     ],
+     "hint": "A missing isolation shows as X propagating into the always-on domain.",
+     "success_check": "Both injected bugs are caught",
+     "xp": 10
+    },
+    {
+     "id": "ver.lpdv.cov",
+     "title": "Power-state coverage",
+     "minutes": 35,
+     "context": "Reuse your coverage-closure skills.",
+     "steps": [
+      "Cover every power-state transition",
+      "Cross with traffic in flight",
+      "Close the holes"
+     ],
+     "hint": "Transitions during traffic are where real bugs hide.",
+     "success_check": "Every legal transition covered",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "aiacc.lowpower_arch",
+   "name": "Low-power accelerator architecture",
+   "branch": "ai_hardware",
+   "tier": 13,
+   "prereqs": [
+    "aiacc.perf_energy",
+    "aiacc.sparsity",
+    "lp.power_management"
+   ],
+   "outcomes": [
+    "Reason about near-memory compute and data-movement energy",
+    "Combine sparsity, low precision and DVFS in one design",
+    "Read and critique an energy-efficient accelerator paper"
+   ],
+   "hours_est": 35,
+   "resources": [
+    "car.eyeriss_v2"
+   ],
+   "certs": [],
+   "maths": {
+    "math.optimisation": 0.5,
+    "math.calculus": 0.3,
+    "math.linear_algebra": 0.3
+   },
+   "project": {
+    "title": "lp-accel-study",
+    "deliverable": "A 4-page design study: an edge accelerator under a 100 mW budget, with modelled energy and a power-state plan",
+    "linkedin_line": "Wrote a modelled design study for a sub-100 mW edge accelerator combining sparsity, INT8 and DVFS."
+   },
+   "contracts": [
+    {
+     "id": "aiacc.lpa.paper",
+     "title": "Read Eyeriss v2",
+     "minutes": 45,
+     "context": "Eyeriss v2 paper.",
+     "steps": [
+      "Summarise the NoC idea in 5 lines",
+      "List where energy is saved",
+      "Name one weakness"
+     ],
+     "hint": "Ask: what data moves less, and what does the flexibility cost in area?",
+     "success_check": "A half-page critique",
+     "xp": 10
+    },
+    {
+     "id": "aiacc.lpa.budget",
+     "title": "A 100 mW budget",
+     "minutes": 45,
+     "context": "Your perf-and-energy model.",
+     "steps": [
+      "Pick a target network and frame rate",
+      "Allocate the power budget to MACs, SRAM, DRAM",
+      "Find what breaks"
+     ],
+     "hint": "Budget DRAM first: it usually blows the budget alone.",
+     "success_check": "A budget table that closes under 100 mW",
+     "xp": 12
+    },
+    {
+     "id": "aiacc.lpa.states",
+     "title": "Power states for the accelerator",
+     "minutes": 35,
+     "context": "Your UPF power-state table.",
+     "steps": [
+      "Define idle, low and peak states",
+      "Pick V/f per state",
+      "Estimate energy per inference per state"
+     ],
+     "hint": "Race-to-idle vs slow-and-low: compute both.",
+     "success_check": "A power-state table with energy per inference",
+     "xp": 10
+    }
+   ]
+  },
+  {
+   "id": "aiacc.capstone",
+   "name": "Capstone: a verified, power-characterised accelerator tile",
+   "branch": "ai_hardware",
+   "tier": 14,
+   "prereqs": [
+    "aiacc.lowpower_arch",
+    "ver.accel_dv",
+    "ver.lowpower_dv"
+   ],
+   "outcomes": [
+    "Design, verify and power-characterise a small accelerator tile end to end",
+    "Report coverage, energy and timing honestly",
+    "Package it as a portfolio and MS-application piece"
+   ],
+   "hours_est": 60,
+   "resources": [],
+   "certs": [],
+   "maths": {
+    "math.linear_algebra": 0.5,
+    "math.numerical_methods": 0.4
+   },
+   "project": {
+    "title": "tile-capstone",
+    "deliverable": "A GitHub repo: INT8 MAC-array tile RTL, cocotb/UVM environment with closed coverage, OpenSTA timing and power reports, a 4-page write-up",
+    "linkedin_line": "Built, verified and power-characterised an INT8 accelerator tile with an open flow, end to end."
+   },
+   "contracts": [
+    {
+     "id": "aiacc.cap.spec",
+     "title": "Write the spec",
+     "minutes": 45,
+     "context": "Your low-power design study.",
+     "steps": [
+      "Fix array size, precision, interface",
+      "Set timing and power targets",
+      "Write a test plan from the spec"
+     ],
+     "hint": "A spec you can verify has numbers in it: MHz, mW, coverage %.",
+     "success_check": "A one-page spec with numeric targets",
+     "xp": 10
+    },
+    {
+     "id": "aiacc.cap.verify",
+     "title": "Verify to closure",
+     "minutes": 60,
+     "context": "Your accelerator-DV environment.",
+     "steps": [
+      "Reuse the golden model and coverage",
+      "Close coverage",
+      "Tag the release"
+     ],
+     "hint": "Freeze the RTL for the sign-off run; log every waiver.",
+     "success_check": "Coverage target met with a tagged commit",
+     "xp": 15
+    },
+    {
+     "id": "aiacc.cap.report",
+     "title": "Timing, power and the write-up",
+     "minutes": 60,
+     "context": "Your power-analysis flow.",
+     "steps": [
+      "Synthesise, run STA and activity-based power",
+      "Compare with the spec",
+      "Write the 4-page report"
+     ],
+     "hint": "Report misses honestly: a missed target with a reason reads better than a hidden one.",
+     "success_check": "A report with measured MHz, mW and coverage against the spec",
+     "xp": 15
+    }
+   ]
+  },
+  {
+   "id": "career.dv_jobs_india",
+   "name": "DV job hunt in India",
+   "branch": "soft_skills",
+   "tier": 9,
+   "prereqs": [
+    "career.interview_offcampus",
+    "ver.coverage_closure"
+   ],
+   "outcomes": [
+    "Target DV roles at Indian design centres and service companies",
+    "Answer standard SV/UVM interview questions",
+    "Present one closed-coverage project in 5 minutes"
+   ],
+   "hours_est": 20,
+   "resources": [],
+   "certs": [],
+   "maths": {
+    "math.discrete": 0.3,
+    "math.probability_stats": 0.2
+   },
+   "project": {
+    "title": "dv-pitch",
+    "deliverable": "A DV-specific resume variant and a 5-minute walkthrough of one closed-coverage project",
+    "linkedin_line": "Prepared a DV-specific resume and project walkthrough for verification roles."
+   },
+   "contracts": [
+    {
+     "id": "career.dvj.list",
+     "title": "A target list",
+     "minutes": 35,
+     "context": "Public careers pages of design centres and EDA/service companies.",
+     "steps": [
+      "List 20 DV openings with job IDs",
+      "Tag each fresher / 0-2 years",
+      "Note the tools each names"
+     ],
+     "hint": "Service companies hire freshers in batches; product companies hire through referrals.",
+     "success_check": "A list of 20 openings with tools noted",
+     "xp": 8
+    },
+    {
+     "id": "career.dvj.qs",
+     "title": "The standard questions",
+     "minutes": 45,
+     "context": "VLSI Verify UVM tutorial, as a checklist.",
+     "steps": [
+      "Answer 15 SV/UVM questions out loud",
+      "Write the 5 you fumbled",
+      "Fix them with a code snippet each"
+     ],
+     "hint": "Phases, factory overrides, sequences vs sequencers and coverage come up every time.",
+     "success_check": "15 answered, 5 fixed with code",
+     "xp": 10
+    },
+    {
+     "id": "career.dvj.pitch",
+     "title": "The 5-minute walkthrough",
+     "minutes": 30,
+     "context": "Your coverage-closure project.",
+     "steps": [
+      "Script: problem, environment, coverage, one bug found",
+      "Record yourself",
+      "Cut it to 5 minutes"
+     ],
+     "hint": "Lead with the bug you found: it proves the environment works.",
+     "success_check": "A 5-minute recording you would send",
+     "xp": 8
+    }
+   ]
+  },
+  {
+   "id": "career.ms_germany_hw",
+   "name": "MS in Germany: TU Dresden NES, TUM MCD, Stuttgart INFOTECH",
+   "branch": "soft_skills",
+   "tier": 6,
+   "prereqs": [
+    "res.writing_latex",
+    "career.portfolio"
+   ],
+   "outcomes": [
+    "Match course content to each programme's prerequisites",
+    "Write a programme-specific SoP backed by projects",
+    "Track deadlines, APS and language tests"
+   ],
+   "hours_est": 30,
+   "resources": [
+    "car.daad_programmes",
+    "car.tud_nes_admission",
+    "car.tum_mcd",
+    "car.stuttgart_infotech"
+   ],
+   "certs": [],
+   "maths": {},
+   "project": {
+    "title": "ms-dossier",
+    "deliverable": "A private application dossier: course-to-prerequisite matrix for 3 programmes, a SoP draft, a deadline sheet",
+    "linkedin_line": "Prepared MS applications for chip-design programmes in Germany backed by hardware projects."
+   },
+   "contracts": [
+    {
+     "id": "career.ms.matrix",
+     "title": "Course-to-prerequisite matrix",
+     "minutes": 45,
+     "context": "TU Dresden NES admission page and TUM MCD programme page.",
+     "steps": [
+      "List each programme's required subjects",
+      "Map your courses and NPTEL certificates to them",
+      "Mark the gaps"
+     ],
+     "hint": "Dresden asks for named prerequisite subjects; TUM weights subject fit far above the grade.",
+     "success_check": "A matrix with every gap marked and a plan for each",
+     "xp": 10
+    },
+    {
+     "id": "career.ms.sop",
+     "title": "A programme-specific SoP",
+     "minutes": 60,
+     "context": "Stuttgart INFOTECH page for its tracks; your capstone write-up.",
+     "steps": [
+      "Write 600 words for one programme",
+      "Tie every claim to a repo",
+      "Get one review"
+     ],
+     "hint": "Name the programme's courses and labs you want, and the project that prepared you.",
+     "success_check": "A 600-word draft with links to 3 repos",
+     "xp": 12
+    },
+    {
+     "id": "career.ms.dates",
+     "title": "The deadline sheet",
+     "minutes": 30,
+     "context": "DAAD programme database for official windows.",
+     "steps": [
+      "Record each window from the official page",
+      "Add APS, IELTS and document lead times",
+      "Set reminders 8 weeks ahead"
+     ],
+     "hint": "Check dates on the official page each cycle; they change.",
+     "success_check": "A sheet with official links and lead times",
+     "xp": 8
     }
    ]
   }

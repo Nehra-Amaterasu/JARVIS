@@ -12,7 +12,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api, post } from '../lib/api'
 import { useNow, usePoll } from '../lib/format'
 import { Presence, Ticker } from '../lib/motion'
-import { countdown, firingTone, fmtClock, fmtDue, fmtRepeat, lastReminderEvent, title, type Reminder,
+import { countdown, firingTone, fmtClock, fmtDue, fmtRepeat, lastReminderEvent, title, upcoming, type Reminder,
   type RemindersView } from '../lib/reminders'
 import { useStore } from '../lib/store'
 import '../styles/reminders.css'
@@ -60,7 +60,7 @@ export function RemindersCard() {
     }, 240)
   }
 
-  const items = view?.items ?? []
+  const items = upcoming(view?.items ?? [])
   const recent = (view?.recent ?? []).filter((r) => r.last_fired).slice(0, 4)
   return (
     <section className="card reminders">

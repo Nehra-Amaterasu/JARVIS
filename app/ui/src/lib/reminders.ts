@@ -120,3 +120,9 @@ export function alertsFrom(events: BusEvent[], afterId: number): Alert[] {
 /** The id of the newest reminders event (a change means: reload the list). */
 export const lastReminderEvent = (events: BusEvent[]) =>
   events.reduce((m, e) => (e.source === 'reminders' && e.id > m ? e.id : m), 0)
+
+/** What is still to come, soonest first: pending only (a done or cancelled one is not
+ *  upcoming even if the server's list still carries it), at most `limit`. */
+export function upcoming(items: Reminder[], limit = Infinity): Reminder[] {
+  return items.filter((r) => r.status === 'pending').sort((a, b) => a.due - b.due).slice(0, limit)
+}

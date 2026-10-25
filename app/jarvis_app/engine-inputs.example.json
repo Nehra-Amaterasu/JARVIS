@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "about": "Fictional example of data/notes/well-wisher/engine-inputs.json (the real file is private and git-ignored). Used when the real one is missing.",
+  "version": 2,
+  "about": "Fictional example of data/notes/well-wisher/engine-inputs.json (the real file is private and git-ignored). Used when the real one is missing. Every number here is made up.",
   "life_goals": [
     {
       "id": "lg-chip-architect",
@@ -21,9 +21,16 @@
       ]
     }
   ],
+  "goals": [
+    {"id": "g-offer", "horizon": "year", "metric": "an accepted summer internship offer", "target": 1, "deadline": "2027-04-30", "kind": "internship"},
+    {"id": "g-ms-apps", "horizon": "2year", "metric": "MS applications sent", "target": 4, "deadline": "2028-04-30", "kind": "ms"},
+    {"id": "g-income", "horizon": "10year", "metric": "total compensation INR per year", "target": 2400000, "deadline": "2035-06-30", "kind": "income"}
+  ],
   "deadlines": [
     {"id": "dl-summer-school", "title": "Example summer research programme closes", "date": "2026-11-30", "kind": "application", "skills": ["hdl-verilog"]},
-    {"id": "dl-internal-test", "title": "Example internal test", "date": "2026-11-02", "kind": "exam", "skills": []}
+    {"id": "dl-internal-test", "title": "Example internal test", "date": "2026-11-02", "kind": "exam", "skills": []},
+    {"id": "dl-open-source", "title": "Example open-source summer proposals close", "date": "2027-03-20", "kind": "gsoc", "skills": ["hdl-verilog"]},
+    {"id": "dl-ms-example", "title": "Example university MS application window closes", "date": "2028-01-15", "kind": "ms", "skills": []}
   ],
   "skills": [
     {"id": "dl-basics", "name": "Digital logic basics", "level": 2, "target": 4, "weight": 0.6},
@@ -31,5 +38,21 @@
     {"id": "fsm", "name": "State machines", "level": 0, "target": 3, "weight": 0.7},
     {"id": "ml-intro", "name": "Machine learning basics", "level": 1, "target": 3, "weight": 0.5}
   ],
+  "income_experiments": [
+    {"id": "ie-tutoring", "type": "side", "inr_per_hour_assumed": [400, 700], "assumption": "fictional local rate", "start": "2026-09", "review_after_weeks": 4},
+    {"id": "ie-freelance", "type": "side", "usd_per_hour_ref": 12, "start": "2026-10", "review_after_weeks": 4},
+    {"id": "ie-internship", "type": "internship", "inr_per_month": [10000, 30000], "probability": 0.3, "start": "2027-05"}
+  ],
+  "money": {"monthly_budget": 6000, "assumptions": {"annual_return_pct": 6, "usd_inr": 80}},
+  "profile": {
+    "traits": ["creative problem solver: open problems, variety, autonomy"],
+    "weak_points": ["follow-through: starts many things"],
+    "prefers": ["a hard challenge that finishes in one sitting"]
+  },
+  "habits": [
+    {"id": "h-practice", "target": "45 min a day, rotating tracks", "days": "Mon-Fri"},
+    {"id": "h-move", "target": "calisthenics 3x a week"}
+  ],
+  "rules": {"max_open_projects": 3, "never_shame": true, "advice_only_health_money": true},
   "week": {"capacity_minutes": 600}
 }

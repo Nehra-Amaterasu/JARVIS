@@ -20,6 +20,8 @@ os.environ["AANKHEN_STREAM"] = "0"           # never record into the real data/a
 os.environ["JARVIS_UNO"] = "0"              # never open the real Uno: opening COM8 resets it and drops the relays
 os.environ["AANKHEN_NET"] = "0"             # never greet a real ESP32 on the LAN over the Wi-Fi link (UDP)
 os.environ["JARVIS_MEDIA_OS"] = "0"          # never open a browser or Spotify, never press a media key
+# never his private Well Wisher inputs: the engines fall back to the fictional example
+os.environ["JARVIS_ENGINE_INPUTS"] = os.path.join(_TMP, "no-engine-inputs.json")
 APP = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(APP))
 warnings.filterwarnings("ignore", category=DeprecationWarning)

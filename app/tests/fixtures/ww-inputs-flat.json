@@ -1,0 +1,33 @@
+{
+  "version": "fictional",
+  "about": "Fictional inputs in the flat shape (goals with horizon/metric, deadlines without ids, skill levels as words). Nothing here is about a real person.",
+  "goals": [
+    {"id": "G-quiz", "horizon": "week", "metric": "class quiz score", "target": ">=7/10", "deadline": "2026-11-03"},
+    {"id": "G-repo", "horizon": "quarter", "metric": "public RTL repo with tests", "target": 1, "deadline": "2027-01-31"},
+    {"id": "G-offer", "horizon": "year", "metric": "accepted summer internship offer", "target": 1, "deadline": "2027-04-30"},
+    {"id": "G-msapps", "horizon": "2year", "metric": "MS applications sent", "target": 5, "deadline": "2028-05-31"},
+    {"id": "G-pay", "horizon": "10year", "metric": "total compensation INR/yr", "target": 3000000, "deadline": "2036-12-31"},
+    {"metric": "no id: dropped"}
+  ],
+  "deadlines": [
+    {"date": "2026-11-03", "item": "Class quiz (example)"},
+    {"date": "2026-11-28", "item": "Example summer internship closes", "kind": "internship"},
+    {"date": "2026-12-12", "item": "Example research fellowship closes"},
+    {"date": "2027-03-25", "item": "Summer of Code proposals (example)"},
+    {"date": "2028-02-15", "item": "Example university MS window", "kind": "ms"},
+    {"date": "not a date", "item": "dropped"}
+  ],
+  "skills": [
+    {"id": "rtl", "level": "beginner"},
+    {"id": "firmware", "level": "strong"},
+    {"id": "maths", "level": "weak"},
+    {"id": "odd", "level": "legendary"}
+  ],
+  "income_experiments": [
+    {"id": "IE-tutor", "type": "side", "inr_per_hour_assumed": [300, 500], "assumption": "fictional rate", "start": "2026-09", "review_after_weeks": 4},
+    {"id": "IE-gig", "type": "side", "usd_per_hour_ref": 10, "start": "2026-10"},
+    {"id": "IE-stipend", "type": "stipend", "inr_total": 50000, "probability": 1.7}
+  ],
+  "habits": [{"id": "H-walk", "target": "20 min a day"}, {"id": "H-opt", "target": "only if he opts in", "opt_in": false}],
+  "rules": {"max_open_projects": 9, "never_shame": false}
+}

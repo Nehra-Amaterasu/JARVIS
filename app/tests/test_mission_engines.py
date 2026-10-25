@@ -146,7 +146,7 @@ def test_the_plan_audit_counts_logged_work_and_not_game_xp(plan, inputs):
     plan.log(60, "silicon", today=MON)
     e = plan.engines(MON, inputs)
     assert e["evidence"]["xp"] == 20 and any("no rule" in r["reason"] for r in e["evidence"]["rejected"])
-    assert e["engines"]["goal_ladder"] == "ok" and e["engines"]["money"] == "not_built" and e["source"] == "example"
+    assert e["engines"]["goal_ladder"] == "ok" and e["engines"]["body"] == "not_built" and e["source"] == "example"
     assert len(e["ladder"]["today"]) <= 3
 
 

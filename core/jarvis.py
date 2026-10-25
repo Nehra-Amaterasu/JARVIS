@@ -420,6 +420,22 @@ def _play_pipe(pipe, gain) -> None:
             os.remove(path)
 
 
+# What he has actually heard of the current reply (10-25): sentences that played to the
+# end, and the one playing now with when it started. A barge-in stores only this part.
+_heard: list = []
+_now_playing: list = [None]          # (text, started_at, pipe or None)
+
+
+def _heard_so_far() -> str:
+    parts = list(_heard)
+    cur = _now_playing[0]
+    if cur is not None:
+        text, started, pipe = cur
+        secs = pipe.played_s if pipe is not None else time.time() - started
+        parts.append(voice_mod.heard_part(text, secs))
+    return voice_mod.strip_tags(" ".join(p for p in parts if p))
+
+
 def _tts_worker():
     global last_interrupted_script
     while True:
@@ -430,13 +446,23 @@ def _tts_worker():
         gain = item[2] if len(item) > 2 else 1.0     # levels accents (voice.py Style gains)
         try:
             appio.emit("state", state="speaking", text=text)
-            if isinstance(audio_file, playback.AudioPipe):
+            is_pipe = isinstance(audio_file, playback.AudioPipe)
+            _now_playing[0] = (text, time.time(), audio_file if is_pipe else None)
+            stopped = _stream_stop.is_set
+            if is_pipe:
                 _play_pipe(audio_file, gain)
+                done = not audio_file.cancelled and not stopped()
             else:
+                _stream_stop.clear()
                 _play_file(audio_file, gain)
+                done = not stopped()
                 if os.path.exists(audio_file):
                     os.remove(audio_file)
+            if done:
+                _heard.append(text)
+            _now_playing[0] = None
         except Exception as e:
+            _now_playing[0] = None
             print(f"\n[voice] playback failed: {type(e).__name__}: {e}")
         if speech_queue.empty() and voice_engine.pending() == 0:
             appio.emit("speech_done")
@@ -555,6 +581,9 @@ def _play(text, audio_file, gain=1.0):
 def _play_stream(text, pipe, gain=1.0):
     speech_queue.put((text, pipe, gain))       # an Edge sentence still downloading
 
+
+# Spoken replies are stored in long-term memory once he has heard them (agent.settle_turn).
+agent.DEFER_LONG_TERM = not TEXT_ONLY
 
 voice_engine = voice_mod.VoiceEngine(play=_play, log=print, enabled=not TEXT_ONLY, on_mark=clock.mark,
                                      play_stream=_play_stream)
@@ -687,8 +716,13 @@ def _interrupt_speech() -> None:
     """Barge-in: stop JARVIS mid-reply and keep what he had not said yet (the same
     continuation buffer record_vad fills)."""
     global last_interrupted_script, was_interrupted
+    heard = _heard_so_far()               # before stopping: the clip's position is still known
     voice_engine.clear()                  # first, so the voice worker stops downloading
     _audio_stop()
+    try:
+        agent.settle_turn(heard)          # history and memory keep only what he heard
+    except Exception as e:
+        print(f"\n[memory] could not trim the interrupted reply: {e}")
     remaining_text = _drain_speech_queue()
     if remaining_text:
         last_interrupted_script = " ".join(remaining_text)
@@ -747,6 +781,11 @@ def _record_silero(followup: bool = False) -> "endpoint.Utterance":
     # suppression off (10-13), room noise and his own voice opened "utterances" that
     # cut him off and were answered as if Aman had spoken ("pravadi aur English
     # donon"). Now such speech is only checked for "stop Jarvis" (wake.is_stop).
+    # TODO(voice, 10-25): free voice barge-in (interrupt on any 2-3+ words of his) needs
+    # echo cancellation first: the played PCM as the reference into speexdsp/pyaec (or
+    # WebRTC AEC) as the first stage on the mic path, before any noise suppression.
+    # Without AEC his own voice through open speakers cuts him off again (the 10-13 bug).
+    # Do not add it until AEC is in; headphones are the only safe workaround meanwhile.
     over = {"jarvis": False}
 
     def on_event(kind, _t, _info):
@@ -893,6 +932,7 @@ def respond(text: str, endpoint_s=None, recorded_at=None) -> None:
     voice_engine.begin_turn(voice_mod.requested_style(text))
     t0 = time.time()
     clock.start(recorded_at=recorded_at, endpoint_s=endpoint_s, t=t0)
+    _heard.clear()
     if not TEXT_ONLY and voice_engine.will_stream():
         threading.Thread(target=_warm_speaker, name="speaker-warm", daemon=True).start()
     full = []

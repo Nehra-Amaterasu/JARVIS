@@ -43,6 +43,24 @@ const STATUS = {
   rule: 'Every stat moves only with a logged action. The System suggests; you decide.',
 }
 
+const THREE = {
+  date: '2026-10-26', mode: 'normal', n: 3, welcome_back: null, source: 'example',
+  picks: [
+    { key: 'pick/one', title: 'Ripple-carry adder', minutes: 45, score: 0.9, serves: 'y26-cpu', why: 'Serves Write a tiny CPU (due 2026-12-20) · Career: Example programme asks for it (35 days left)',
+      frame: 'Contract: Ripple-carry adder. Done when: the testbench passes. One 45-minute sprint with that finish line.', engines: ['goal_ladder', 'career', 'personality'] },
+    { key: 'pick/two', title: 'Karnaugh maps', minutes: 30, score: 0.4, serves: null, why: 'Keeps the plan moving; serves no dated goal',
+      frame: 'Contract: Karnaugh maps. Done when: three maps solved.', engines: ['goal_ladder', 'personality'] },
+  ],
+  cap: { cap: 3, open: 1, room: 2, over: false, say: '1 of 3 projects open: room for 2 more.' },
+  career_next: { title: 'Example programme', action: 'Draft the application', days_left: 35 },
+}
+const WEEKLY = {
+  week: { start: '2026-10-20', end: '2026-10-26' }, totals: '4/7 active days, 180 minutes, 2 contracts finished; last week 3/7 days, 100 minutes',
+  moved: ['Verilog: 2 contracts, 90 min this week (last week 1, 30 min)'], stalled: ['State machines: in progress, 0 min this week'],
+  change: { rule: 'too_much', text: 'Next week: plan two contracts a day instead of three.' },
+  say: 'Weekly review, 2026-10-20 to 2026-10-26: 4/7 active days. Next week: plan two contracts a day instead of three.',
+}
+
 let withStatus = true
 const calls: { method: string; path: string; body: any }[] = []
 function respond(body: unknown, status = 200) {
@@ -54,7 +72,7 @@ vi.stubGlobal('fetch', async (url: string, init?: { method?: string; body?: stri
   calls.push({ method, path, body: init?.body ? JSON.parse(init.body) : null })
   if (path.startsWith('/api/kv')) return respond(path === '/api/kv' ? { keys: [] } : { value: null })
   if (path === '/api/mission/status') return withStatus ? respond(STATUS) : respond({ error: 'gone' }, 404)
-  if (path === '/api/mission/today') return respond({ ...live.today, contracts: [...live.today.contracts, QUEST] })
+  if (path === '/api/mission/today') return respond({ ...live.today, contracts: [...live.today.contracts, QUEST], three: THREE, weekly: WEEKLY })
   if (path === '/api/mission/quest/fitness' && method === 'PUT') return respond({ ok: true, say: 'Body: calisthenics is on.' })
   if (path === '/api/mission/quest/fitness/log') return respond({ ok: true, met: true, say: 'Standard met.' })
   const m = path.match(/^\/api\/mission\/([a-z]+)$/)
@@ -147,5 +165,32 @@ describe('Well Wisher', () => {
     const log = calls.find((c) => c.path === '/api/mission/quest/fitness/log')
     expect(log?.method).toBe('POST')
     expect(log?.body).toEqual({ track: 'push', sets: [15, 16, 14], proof: '' })
+  })
+
+  it("Today shows Today's 3 with each pick's framing and why, from the server", async () => {
+    await show('mission')
+    expect(errors).toEqual([])
+    const card = host.querySelector('[aria-label="Today\'s 3"]')!
+    expect(card).not.toBeNull()
+    expect(card.textContent).toContain("Today's 2")
+    expect([...card.querySelectorAll('li')].map((li) => li.getAttribute('data-key'))).toEqual(['pick/one', 'pick/two'])
+    expect(card.querySelector('.three-frame')!.textContent).toBe(THREE.picks[0].frame)
+    expect(card.querySelector('.three-why')!.textContent).toContain('Career: Example programme asks for it')
+    expect(card.textContent).toContain('Next career step: Draft the application (35 days left).')
+    expect(card.textContent).toContain('From the example inputs')
+    expect(card.textContent).toContain('1 of 3 projects open')
+  })
+
+  it('Today shows the weekly review card, every line with its numbers, and reads it out', async () => {
+    await show('mission')
+    const card = host.querySelector('[aria-label="Weekly review"]')!
+    expect(card).not.toBeNull()
+    expect(card.textContent).toContain('4/7 active days, 180 minutes')
+    expect(card.textContent).toContain('Verilog: 2 contracts, 90 min this week')
+    expect(card.textContent).toContain('State machines: in progress, 0 min this week')
+    expect(card.querySelector('.weekly-change')!.textContent).toBe(WEEKLY.change.text)
+    await act(async () => { button('Read it to me').click() })
+    await flush(2)
+    expect(errors).toEqual([])
   })
 })

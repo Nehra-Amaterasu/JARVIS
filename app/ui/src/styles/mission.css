@@ -343,6 +343,12 @@
 @media (max-width: 1000px) { .rungs { grid-template-columns: 1fr 1fr; } }
 .rung { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.03); }
 .welcome-back { margin-top: 12px; box-shadow: inset 0 0 0 1px var(--live); }
+/* Well Wisher: Today's 3 and the weekly review */
+.three-list { margin: 8px 0; padding-left: 20px; display: grid; gap: 10px; }
+.three-list li.done { opacity: 0.6; }
+.three-list p { margin: 2px 0 0; }
+.weekly .eyebrow { display: block; margin-top: 8px; }
+.weekly-change { margin: 10px 0; }
 .c-serves { color: var(--ink-2); }
 .c-hook { color: var(--ink); }
 .alternatives { margin-top: 4px; }

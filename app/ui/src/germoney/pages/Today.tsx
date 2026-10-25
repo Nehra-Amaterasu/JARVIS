@@ -55,12 +55,14 @@ export function TodayPage() {
       <div className="today-grid">
         <section className="today-main">
           {today?.exam && <ExamBanner />}
+          <TodaysThree />
           <Blocks />
           <QuestCards />
           <ParkIdea />
         </section>
         <aside className="today-side">
           <FloorCard />
+          <WeeklyReview />
           <Brief />
           <Findings />
           <Rituals />
@@ -339,6 +341,64 @@ function SupplyDrop() {
       <div className="loot"><Marks n={loot.marks} />{loot.shield && <span className="pill live">+1 shield</span>}{loot.booster && <span className="pill">+1 booster</span>}</div>
       {card && <div className="loot-intel"><b>{card.front}</b><span>{card.back}</span></div>}
     </div>
+  )
+}
+
+/* ------------------------------------------------------------------ Well Wisher */
+/** Today's 3: chosen on the server by the goal ladder, career and personality engines. */
+function TodaysThree() {
+  const t = usePlan((s) => s.today)
+  const three = t?.three
+  if (!three || !three.picks.length) return null
+  const done = new Set(t.contracts.filter((c) => c.done).map((c) => c.key))
+  return (
+    <section className="card three" aria-label="Today's 3">
+      <div className="card-head">
+        <span className="card-title"><Sparkles size={14} />Today's {three.picks.length}</span>
+        <span className="mono muted small">{three.mode === 'recovery' ? 'easy restart' : 'goal ladder · career · personality'}</span>
+      </div>
+      {three.welcome_back && <p className="small">{three.welcome_back}</p>}
+      {three.source === 'example' && <p className="muted small">From the example inputs: your own engine-inputs.json isn't there yet.</p>}
+      <ol className="three-list">
+        {three.picks.map((p) => (
+          <li key={p.key} className={done.has(p.key) ? 'done' : ''} data-key={p.key}>
+            <div className="log-row small"><b>{done.has(p.key) ? <Check size={12} /> : null}{p.title}</b><span className="mono muted">{mins(p.minutes)}</span></div>
+            <p className="small three-frame">{p.frame}</p>
+            <p className="muted small three-why">{p.why}</p>
+          </li>))}
+      </ol>
+      {three.career_next && <p className="muted small">Next career step: {three.career_next.action} ({three.career_next.days_left} days left).</p>}
+      <p className="muted small">{three.cap.say}</p>
+    </section>
+  )
+}
+
+/** The weekly review (insight engine): every line carries its numbers. */
+function WeeklyReview() {
+  const w = usePlan((s) => s.today?.weekly)
+  const core = useStore((s) => s.core)
+  const toast = useStore((s) => s.toast)
+  if (!w) return null
+  const read = async () => {
+    if (core?.running) {
+      try {
+        await post('/api/core/speak', { text: w.say })
+        return toast('JARVIS is reading the weekly review.', 'live')
+      } catch { /* fall through */ }
+    }
+    toast(w.say, 'info')
+  }
+  return (
+    <section className="card weekly" aria-label="Weekly review">
+      <div className="card-head"><span className="card-title"><CalendarDays size={14} />Weekly review</span>
+        <span className="mono muted small">{prettyDate(w.week.start)} – {prettyDate(w.week.end)}</span></div>
+      <p className="small">{w.totals}.</p>
+      {w.moved.length > 0 && <div className="small"><span className="eyebrow">Moved</span>{w.moved.map((m) => <div key={m}>{m}</div>)}</div>}
+      {w.stalled.length > 0 && <div className="small muted"><span className="eyebrow">Stalled</span>{w.stalled.map((m) => <div key={m}>{m}</div>)}</div>}
+      <p className="small weekly-change"><b>{w.change.text}</b></p>
+      <button className="btn sm" onClick={() => void read()}><Mic size={13} />Read it to me</button>
+      <p className="muted small">By voice: "Jarvis, weekly review".</p>
+    </section>
   )
 }
 

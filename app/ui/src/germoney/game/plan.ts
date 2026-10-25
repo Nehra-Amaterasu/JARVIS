@@ -101,6 +101,16 @@ export interface ExamInfo {
   rescue_week: { week: string; library: string; evenings: string } | null
 }
 export interface Wins { contracts: number; minutes: number; xp: number; nodes: string[]; mastered: number; shipped: number }
+/** Well Wisher: one of Today's 3 (ww_engines.today_three), with the engines behind it. */
+export interface ThreePick { key: string; title: string; minutes: number; score: number; serves: string | null; why: string; frame: string; engines: string[] }
+export interface Three {
+  date: string; mode: 'normal' | 'recovery'; n: number; picks: ThreePick[]; welcome_back: string | null
+  cap: { cap: number; open: number; room: number; over: boolean; say: string }
+  career_next: { title: string; action: string; days_left: number } | null
+  source: 'private' | 'example' | 'none' | null
+}
+/** Well Wisher: the weekly review card (insight engine); `say` is the spoken version. */
+export interface Weekly { week: { start: string; end: string }; totals: string; moved: string[]; stalled: string[]; change: { rule: string; text: string }; say: string }
 export interface Today {
   date: string
   weekday: number
@@ -116,6 +126,10 @@ export interface Today {
   alternatives?: PlanContract[]
   /** Set when he comes back after a gap. */
   welcome_back?: WelcomeBack | null
+  /** Today's 3 from the goal ladder + career + personality engines (null if the inputs can't be read). */
+  three?: Three | null
+  /** The weekly review card (insight engine). */
+  weekly?: Weekly | null
   wins: Wins
   wip: string[]
   wip_cap: number

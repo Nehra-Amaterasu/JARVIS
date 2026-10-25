@@ -4,6 +4,8 @@
  *    sides, dated), with the matched words marked — never a paraphrase.
  *  - "Is this true?": the beliefs JARVIS inferred and wants confirmed. Amber until
  *    you answer, because an inference is not a fact.
+ *  - Learned lately: what JARVIS kept from recent chats, Keep / Wrong each.
+ *  - Reminders: what JARVIS will say and when, soonest first (components/RemindersCard).
  *  - People: closeness by your own rule (longevity over reels).
  *  - Taste: what you engage with, as a trajectory across the years.
  */
@@ -13,6 +15,8 @@ import { api, post } from '../lib/api'
 import { fmt, fmtInt, pad2, usePoll } from '../lib/format'
 import { useStore } from '../lib/store'
 import { PageHeader } from '../components/Shell'
+import { LearnedReviewCard } from '../components/LearnedReviewCard'
+import { RemindersCard } from '../components/RemindersCard'
 
 interface Stats {
   archive_messages: number | null; threads: number | null; people: number | null; people_scored: number | null
@@ -92,6 +96,8 @@ export function YaadashPage() {
         </div>
         <div className="yd-col">
           <BeliefQueue />
+          <LearnedReviewCard />
+          <RemindersCard />
           <People />
           <Taste />
         </div>

@@ -145,6 +145,20 @@ def answer(belief_id: str, verdict: str, correction: str | None = None) -> bool:
     return bool(yb.record(belief_id, verdict, correction or None))
 
 
+def learned_queue(n: int = 8) -> dict:
+    """What JARVIS learned from recent chats that Aman has not judged yet (chat_memory)."""
+    ensure_jarvis_importable()
+    import chat_memory as cm
+    return _clean(cm.review_queue(max(0, min(int(n), 50))))
+
+
+def learned_review(memory_id: str, verdict: str) -> bool:
+    """Keep or Wrong on one learned memory. ValueError for any other verdict."""
+    ensure_jarvis_importable()
+    import chat_memory as cm
+    return bool(cm.review(memory_id, verdict))
+
+
 def teach(question: str, answer: str) -> bool:
     """A reply he flagged as wrong, with what it should have said, kept as a
     correction. JARVIS has it in his system message within ~15 s (yaadash_v2).

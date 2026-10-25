@@ -393,7 +393,7 @@ export class SpatialTwin {
   private heatW = 0
   private heatH = 0
   private heatColors: THREE.Color[] = []
-  private layers: Record<Layer, boolean> = { walls: true, heat: true, fov: true, fresnel: true, trails: true, labels: true, truth: true, house: true, estimate: true, zones: true }
+  private layers: Record<Layer, boolean> = { walls: true, heat: true, fov: false, fresnel: true, trails: true, labels: true, truth: true, house: true, estimate: true, zones: true }
   private accent = SIM.clone()
   private live = false
   private motion = 0

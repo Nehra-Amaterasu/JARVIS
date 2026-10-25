@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { BusEvent } from '../lib/api'
 import {
-  alertsFrom, countdown, firingTone, fmtClock, fmtDue, fmtRepeat, lastReminderEvent, title, type Reminder,
+  alertsFrom, countdown, firingTone, fmtClock, fmtDue, fmtRepeat, lastReminderEvent, title, upcoming, type Reminder,
 } from '../lib/reminders'
 
 const at = (d: number, h: number, m = 0) => new Date(2026, 9, d, h, m).getTime() / 1000
@@ -69,5 +69,20 @@ describe('alerts carry provenance', () => {
     expect(got[0]).toMatchObject({ rid: 'r_b', spoken: false, tone: 'info' })
     expect(got[1].tone).toBe('fault')
     expect(lastReminderEvent(events)).toBe(5)
+  })
+})
+
+describe('upcoming', () => {
+  it('soonest first, pending only, capped', () => {
+    const list = [
+      rem({ id: 'late', due: at(13, 8) }),
+      rem({ id: 'done', due: at(12, 20), status: 'done' }),
+      rem({ id: 'soon', due: at(12, 19, 10) }),
+      rem({ id: 'gone', due: at(12, 19, 5), status: 'cancelled' }),
+      rem({ id: 'mid', due: at(12, 21) }),
+    ]
+    expect(upcoming(list).map((r) => r.id)).toEqual(['soon', 'mid', 'late'])
+    expect(upcoming(list, 2).map((r) => r.id)).toEqual(['soon', 'mid'])
+    expect(upcoming([])).toEqual([])
   })
 })

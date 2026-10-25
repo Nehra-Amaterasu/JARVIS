@@ -16,9 +16,12 @@ transcripts and keeps what matters in a SEPARATE store, data/yaadash/learned/:
     prefs_live.json   standing preferences he gave by voice, written at once by JARVIS's
                       own process ("call me sir, always")
     lancedb/          chat_turns: every turn, embedded, for "what did I tell you about ...?"
+    reviews.json      his Keep / Wrong verdicts on recent memories, from the Yaadash tab;
+                      a memory marked Wrong reads as "rejected" at once (memories())
 
-Two writers, two files: the crew writes memories.json and the turn index, JARVIS's
-process writes only prefs_live.json, so neither can tear the other's file.
+Three writers, three files: the crew writes memories.json and the turn index, JARVIS's
+process writes only prefs_live.json, the app server only reviews.json, so none can tear
+another's file.
 
 This module is what agent.py calls (three small hooks):
     handle_command(text, previous)  "remember that." / "note it" saves HIS previous
@@ -223,6 +226,48 @@ class _Cached:
 
 _memories = _Cached(MEMORIES_FILE, [])
 _prefs = _Cached(PREFS_FILE, {})
+# His Keep / Wrong verdicts from the Yaadash tab: {memory id: {"verdict", "ts"}}. A third
+# file with a third writer (the app server), so the crew's memories.json and JARVIS's
+# prefs_live.json are never written by two processes.
+REVIEWS_FILE = "reviews.json"
+_reviews = _Cached(REVIEWS_FILE, {})
+_reviews_lock = threading.Lock()
+REVIEW_KINDS = ("fact", "preference", "correction", "instruction", "dont", "callback")   # not style exemplars
+REVIEW_DAYS = 14
+
+
+def reviews() -> dict:
+    r = _reviews.read()
+    return r if isinstance(r, dict) else {}
+
+
+def review_queue(n: int = 8, days: float = REVIEW_DAYS, now: Optional[float] = None) -> dict:
+    """What JARVIS learned lately and he has not judged yet, newest first.
+    {"items": [...], "pending": how many in all, "kept": n, "wrong": n}."""
+    now = time.time() if now is None else now
+    done = reviews()
+    since = now - days * 86400
+    todo = [m for m in memories() if m.get("kind") in REVIEW_KINDS and m.get("id") not in done
+            and float(m.get("last_seen") or m.get("first_seen") or 0) >= since]
+    todo.sort(key=lambda m: float(m.get("first_seen") or 0), reverse=True)
+    keep = ("id", "kind", "text", "confidence", "support", "first_seen", "last_seen", "by")
+    items = [{**{k: m.get(k) for k in keep}, "evidence": len(m.get("evidence") or [])} for m in todo[:max(0, n)]]
+    verdicts = [v.get("verdict") for v in done.values()]
+    return {"items": items, "pending": len(todo), "kept": verdicts.count("keep"), "wrong": verdicts.count("wrong")}
+
+
+def review(memory_id: str, verdict: str, now: Optional[float] = None) -> bool:
+    """Keep (it stays, and leaves the queue) or Wrong (JARVIS stops using it now).
+    False for an id that is not a learned memory; ValueError for any other verdict."""
+    if verdict not in ("keep", "wrong"):
+        raise ValueError("verdict must be keep | wrong")
+    if not any(m.get("id") == memory_id for m in memories(active_only=False)):
+        return False
+    with _reviews_lock:
+        cur = dict(reviews())
+        cur[memory_id] = {"verdict": verdict, "ts": time.time() if now is None else now}
+        write_json(learned_dir() / REVIEWS_FILE, cur)
+    return True
 
 
 def write_json(path: Path, obj) -> None:
@@ -234,10 +279,22 @@ def write_json(path: Path, obj) -> None:
 
 
 def memories(active_only: bool = True) -> list:
+    """The learned memories. One he marked Wrong in the app (reviews.json) reads as
+    status "rejected" from the moment he says so: it is never in a reply again, even
+    though memories.json, which only the crew writes, still calls it active."""
     rows = _memories.read()
     if not isinstance(rows, list):
         return []
-    return [m for m in rows if isinstance(m, dict) and (not active_only or m.get("status", "active") == "active")]
+    wrong = {k for k, v in reviews().items() if v.get("verdict") == "wrong"}
+    out = []
+    for m in rows:
+        if not isinstance(m, dict):
+            continue
+        if m.get("id") in wrong and m.get("status", "active") == "active":
+            m = {**m, "status": "rejected"}
+        if not active_only or m.get("status", "active") == "active":
+            out.append(m)
+    return out
 
 
 def live_prefs() -> dict:
@@ -591,7 +648,7 @@ def recall_chats(query: str, k: int = MAX_CHAT_EXCERPTS) -> list:
     # after the correction superseded it).
     every = memories(active_only=False)
     live = {e for m in every if m.get("status", "active") == "active" for e in m.get("evidence") or []}
-    stale = {e for m in every if m.get("status") in ("superseded", "retracted")
+    stale = {e for m in every if m.get("status") in ("superseded", "retracted", "rejected")
              for e in m.get("evidence") or []} - live
     scored = []
     for r in rows:

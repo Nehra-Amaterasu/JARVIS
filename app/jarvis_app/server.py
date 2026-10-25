@@ -303,6 +303,22 @@ def create_app(guard: Guard, autostart_aankhen: str = "auto", features: Optional
                     verdict=verdict)
         return {"ok": True}
 
+    @app.get("/api/memory/learned")
+    async def mem_learned(n: int = 8):
+        return await run_in_threadpool(memory.learned_queue, n)
+
+    @app.post("/api/memory/learned/{memory_id}")
+    async def mem_learned_review(memory_id: str, verdict: str = Body(..., embed=True)):
+        try:
+            ok = await run_in_threadpool(memory.learned_review, memory_id, verdict)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        if not ok:
+            raise HTTPException(404, "no such learned memory")
+        bus.publish("memory", "learned", "Kept a learned memory" if verdict == "keep"
+                    else "Marked a learned memory wrong: JARVIS will not use it", verdict=verdict)
+        return {"ok": True}
+
     @app.post("/api/memory/teach")
     async def mem_teach(answer: str = Body(..., embed=True), question: str = Body("", embed=True)):
         try:

@@ -72,6 +72,8 @@ def stub(monkeypatch):
     monkeypatch.setattr(yr, "_bm25_hits", bm25_hits)
     monkeypatch.setattr(yr, "_vector_hits", vector_hits)
     monkeypatch.setattr(yr, "_excerpt", lambda t, i: f"{t}#{i}")
+    s.strong = []                                  # BM25 hits that hold the question's rare words
+    monkeypatch.setattr(yr, "strong_lexical", lambda q, bm: [h for h in s.strong if h in bm])
     monkeypatch.setattr(yr.yp, "resolve_person", lambda q: s.persons)
     return s
 
@@ -121,3 +123,43 @@ def test_a_year_in_the_question_filters_both_systems(stub):
     stub.vec[frozenset()] = [("A", 1)]
     yr.recall("2021 mein exam ke baare mein kya baat hui thi?")
     assert {c[2] for c in stub.calls} == {frozenset({2021})}
+
+
+# ------------------------------------------- the lexical rescue (2026-10-23 audit)
+def test_a_strong_keyword_hit_passes_a_far_vector_gate_and_only_it(stub):
+    """On the real archive the 0.32 vector gate threw away answers BM25 had at rank 1-2.
+    A hit that holds the question's rare words now comes back; nothing else does."""
+    stub.bm25[frozenset()] = [("A", 5), ("B", 50), ("C", 9)]
+    stub.vec[frozenset()] = [("C", 9)]
+    stub.best = yr.RECALL_MAX_DISTANCE + 0.05
+    assert yr.recall("q") == []                            # no strong hit: abstain as before
+    stub.strong = [("B", 50)]
+    assert yr.recall("q", k=3) == ["B#50"]                 # the strong hit alone, not the fused rest
+
+
+def test_the_rescue_never_reaches_far_off_topic(stub):
+    stub.bm25[frozenset()] = [("B", 50)]
+    stub.vec[frozenset()] = [("C", 9)]
+    stub.strong = [("B", 50)]
+    stub.best = yr.RESCUE_MAX_DISTANCE + 0.01
+    assert yr.recall("q") == []
+
+
+def test_the_best_covering_hit_leads_instead_of_a_one_word_message(stub):
+    """BM25's length normalisation ranks "Not nether wart" above the message that answers
+    the question; the best-covering hit takes the lexical guarantee's place."""
+    stub.bm25[frozenset()] = [("A", 5), ("B", 50)]
+    stub.vec[frozenset()] = [("C", 9)]
+    stub.strong = [("B", 50)]
+    assert yr.recall("q", k=3)[0] == "B#50"
+
+
+def test_coverage_weighs_rare_words(monkeypatch):
+    class BM:
+        idf = {"beard": 8.9, "growth": 10.9, "last": 6.9, "week": 9.0, "fight": 9.3}
+    monkeypatch.setattr(yr, "_load_bm25", lambda: (BM(), None))
+    n, share = yr.coverage("do you remember when I talked about beard growth?", "beard growth aur acchi")
+    assert n == 2 and share == pytest.approx(1.0)
+    n, share = yr.coverage("what did we fight about last week?", "mai toh last week milne aari thi")
+    assert n == 2 and share < yr.RESCUE_MIN_IDF_SHARE    # two common words: not the memory asked for
+    assert yr.coverage("what did you say?", "anything") == (0, 0.0)

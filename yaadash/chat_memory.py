@@ -62,6 +62,9 @@ TURNS_TABLE = "chat_turns"
 
 KINDS = ("fact", "preference", "correction", "instruction", "dont", "callback", "exemplar")
 BLOCK_MAX_CHARS = 1000         # ~250 tokens at ~4 characters a token: the 4B model's prefill is his wait
+# Characters bound English, not Devanagari or emoji, which cost about a token each
+# (2026-10-23 audit: 1,000 characters of Hindi in the block were ~900 tokens). Both hold.
+BLOCK_MAX_TOKENS = 250
 PERSONA_MAX_CHARS = 700        # the static addition (address, instructions, don'ts)
 MAX_RELEVANT = 4               # learned memories per turn
 MAX_EXEMPLARS = 2
@@ -84,7 +87,10 @@ _lock = threading.Lock()
 
 
 # ---------------------------------------------------------------------------- text
-_TOKEN = re.compile(r"[a-z0-9]+")
+# Latin words and Devanagari words (with their vowel signs): until 2026-10-23 a Hindi
+# line in Devanagari had no "content words" at all, so "isko yaad rakhna" after it
+# answered "Remember what?" and the ingest marked it noise.
+_TOKEN = re.compile(r"[a-z0-9]+|[ऀ-ॿ]+")
 STOP = set("""a an the and or but if then so to of in on at for with from by as is are was were be been being
 it its this that these those i me my mine you your yours he him his she her we us our they them their what which
 who whom when where why how do does did done doing have has had can could will would shall should may might must
@@ -111,6 +117,25 @@ def content_words(text: str) -> set:
 
 def lexical_overlap(a: str, b: str) -> int:
     return len(content_words(a) & content_words(b))
+
+
+def approx_tokens(text: str) -> int:
+    """A tokenizer-free upper-ish estimate: ~4 ASCII characters a token, one token for
+    every other character (Devanagari, emoji)."""
+    text = text or ""
+    ascii_chars = sum(1 for c in text if ord(c) < 128)
+    return (ascii_chars + 3) // 4 + (len(text) - ascii_chars)
+
+
+_WORDS = re.compile(r"[a-z']+|[ऀ-ॿ]+")
+
+
+def garbled(text: str) -> bool:
+    """A few words, or one word over and over: speech recognition noise, not a statement."""
+    words = _WORDS.findall((text or "").lower())
+    if len(words) < 3:
+        return True
+    return len(words) >= 4 and len(set(words)) / len(words) < 0.5
 
 
 def clip(text: str, limit: int) -> str:
@@ -328,14 +353,19 @@ def clean_statement(text: str) -> str:
     return t[:1].upper() + t[1:] if t else t
 
 
-def previous_statement(previous: Iterable[str]) -> Optional[str]:
+def previous_statement(previous: Iterable) -> Optional[str]:
     """His last substantive statement before the command: not another memory command,
-    not a question, not a few garbled words."""
+    not a question, not a few garbled words, and not a line JARVIS answered with "I
+    didn't catch that" (it was misheard). Items are his lines, or (his line, JARVIS's
+    reply) pairs; JARVIS's own words are never a candidate."""
     import remember as _rem
-    for said in reversed(list(previous or [])):
+    for item in reversed(list(previous or [])):
+        said, reply = (item[0], item[1]) if isinstance(item, (tuple, list)) else (item, "")
         s = " ".join((said or "").split())
         if not s or is_bare_memory_command(s):
             continue
+        if _GARBLED_REPLY.search(reply or "") or garbled(s):
+            continue                                   # misheard: never a fact (2026-10-23 audit)
         try:
             if _rem.parse(s):
                 continue                               # an explicit "remember that X" is saved already
@@ -379,10 +409,11 @@ def _confirm(statement: str) -> str:
     return _rem._second_person(g) if english else ""
 
 
-def handle_command(text: str, previous: Iterable[str], save: Callable[[str], bool]) -> Optional[Command]:
+def handle_command(text: str, previous: Iterable, save: Callable[[str], bool]) -> Optional[Command]:
     """A memory command about the conversation itself, answered without the model, or None.
 
-    previous: his earlier messages in this conversation, oldest first. save: stores his
+    previous: this conversation so far, oldest first: his messages, or (his message,
+    JARVIS's reply) pairs so a misheard line can be told apart. save: stores his
     words as a told fact (yaadash_v2.remember_told) and says whether they were new."""
     t = " ".join((text or "").split())
     if not t:
@@ -555,8 +586,17 @@ def recall_chats(query: str, k: int = MAX_CHAT_EXCERPTS) -> list:
                 .limit(25).to_list())
     except Exception:
         return []
+    # A line whose only memory was later corrected is not quoted back as if it stood
+    # (2026-10-23 audit: "the ESP32 drives the relays" came back as a dated excerpt
+    # after the correction superseded it).
+    every = memories(active_only=False)
+    live = {e for m in every if m.get("status", "active") == "active" for e in m.get("evidence") or []}
+    stale = {e for m in every if m.get("status") in ("superseded", "retracted")
+             for e in m.get("evidence") or []} - live
     scored = []
     for r in rows:
+        if r.get("id") in stale:
+            continue
         lex = lexical_overlap(query, r["text"])
         if r["_distance"] <= CHAT_MAX_DISTANCE or lex >= 2:
             scored.append((r["_distance"] - 0.04 * lex, r))
@@ -580,35 +620,40 @@ def recall_chats(query: str, k: int = MAX_CHAT_EXCERPTS) -> list:
 
 
 def context_block(query: str) -> tuple[str, bool]:
-    """(the per-turn block, whether it holds excerpts of an earlier chat). At most
-    BLOCK_MAX_CHARS; empty when nothing learned is relevant."""
+    """(the per-turn block, whether it holds something from his chats with JARVIS: an
+    excerpt or a learned memory). agent.py adds "the archive has NO record of this" only
+    when this is False, so a learned memory must count: until 2026-10-23 a question
+    answered by one ("what did I tell you about the ESP32 on COM9?") also got that
+    verdict. At most BLOCK_MAX_CHARS and BLOCK_MAX_TOKENS; empty when nothing is relevant."""
     try:
         sections = []                                  # (header, lines), in priority order
         chats = recall_chats(query) if is_chat_episodic(query) else []
-        if chats:                                      # he asked about an earlier chat: the record first
+        rel = relevant(query)
+        learned = ("LEARNED FROM YOUR CHATS WITH HIM (his corrections override older facts):",
+                   [f"- [{m['kind']}] {clip(m['text'], 200)} ({_when(m.get('last_seen'))})" for m in rel])
+        if rel and any(m.get("kind") == "correction" for m in rel):
+            sections.append(learned)                   # a correction first: an excerpt must not crowd it out
+        if chats:                                      # he asked about an earlier chat: the record next
             sections.append(("EARLIER CHATS WITH HIM (real, dated; answer from these if they fit):",
                              [f"- {c}" for c in chats]))
-        rel = relevant(query)
-        if rel:
-            sections.append(("LEARNED FROM YOUR CHATS WITH HIM (his corrections override older facts):",
-                             [f"- [{m['kind']}] {clip(m['text'], 200)} ({_when(m.get('last_seen'))})" for m in rel]))
+        if rel and learned not in sections:
+            sections.append(learned)
         ex = exemplars(query, MAX_EXEMPLARS if not sections else 1)
         if ex:
             sections.append(("REPLIES HE ENJOYED (match the tone, never reuse the words):",
                              [f"- He: {clip(m['meta']['he'], 90)} / You: {clip(m['meta']['you'], 150)}" for m in ex]))
         out, used_chats = "", False
         for header, lines in sections:                 # whole lines only, until the budget is spent
-            room = BLOCK_MAX_CHARS - len(out) - (2 if out else 0) - len(header) - 1
             kept = []
             for line in lines:
-                if len(line) + 1 > room:
+                trial = (out + "\n\n" if out else "") + header + "\n" + "\n".join(kept + [line])
+                if len(trial) > BLOCK_MAX_CHARS or approx_tokens(trial) > BLOCK_MAX_TOKENS:
                     break
                 kept.append(line)
-                room -= len(line) + 1
             if not kept:
                 break
             out = (out + "\n\n" if out else "") + header + "\n" + "\n".join(kept)
-            used_chats |= header.startswith("EARLIER CHATS")
+            used_chats |= not header.startswith("REPLIES")
         return out, used_chats
     except Exception as e:
         print(f"\n[Chat memory context error: {e}]")

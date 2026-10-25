@@ -4,6 +4,7 @@ Synthetic transcripts only, in a scratch folder: invented people and facts, neve
 The model is a scripted fake (no Ollama); the embedder is conftest's (bge-small offline,
 else the hashing stand-in; nothing here depends on bge distances)."""
 import json
+import os
 import time
 from pathlib import Path
 
@@ -29,8 +30,12 @@ class Transcript:
         obj = {"kind": "turn", "session": session, "id": n, "role": role, "text": text, "ts": self.t, "mode": "voice"}
         if role == "jarvis":
             obj.update(seconds=1.2, timings={"first_token": 0.6})
-        with open(self.root / f"{day}.jsonl", "a", encoding="utf-8") as f:
+        path = self.root / f"{day}.jsonl"
+        with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(obj) + "\n")
+        # The file was last written when the turn was spoken, as in the app: learn_chats
+        # reads a fresh mtime as "he is talking right now" and stays out of the way.
+        os.utime(path, (self.t, self.t))
         return f"{session}#{n}"
 
     def chat(self, session, *pairs, day=DAY):
@@ -53,6 +58,7 @@ def env(tmp_path, monkeypatch, embedder):
     tr = Transcript(tmp_path / "transcripts", time.time() - 3 * 86400)
 
     def learn(llm=None, now=None, use_llm=False, **kw):
+        kw.setdefault("busy", lambda: False)     # the "he is talking" check has tests of its own
         return lc.run(transcripts=tr.root, store_dir=store, llm=llm, use_llm=use_llm or llm is not None,
                       now=now, **kw)
     tr.learn, tr.store = learn, store

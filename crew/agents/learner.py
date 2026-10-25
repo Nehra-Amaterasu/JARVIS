@@ -19,6 +19,11 @@ folder since a pass that left nothing to do (every chat read by the model, none 
 going), the pass is skipped, so an app started at night does not load the embedder until
 there is a conversation to read. The folder's signature and that verdict are kept in
 state_path, so this holds across restarts. Skipped passes count as "idle".
+
+NEVER WHILE HE TALKS (2026-10-23): `busy` (optional) says JARVIS is listening or
+answering; a tick then does nothing, not even the CPU ingest. learn_chats.run checks the
+transcripts itself as well (a line written in the last 45 s, or since its pass began),
+so a pass that started in a quiet spell stops before its next model call.
 """
 from __future__ import annotations
 
@@ -65,8 +70,10 @@ class ChatLearner(Agent):
 
     def __init__(self, learn: Callable[[], dict], start_delay_s: float = START_DELAY_S,
                  clock: Callable[[], float] = time.time, signature: Optional[Callable[[], Optional[list]]] = None,
-                 state_path: Optional[Path] = None):
+                 state_path: Optional[Path] = None, busy: Optional[Callable[[], bool]] = None):
         super().__init__(clock)
+        self.busy = busy
+        self.deferred = 0
         self.learn = learn
         self.started = clock()
         self.start_delay_s = start_delay_s
@@ -96,6 +103,9 @@ class ChatLearner(Agent):
 
     def tick(self, now: float) -> None:
         if now - self.started < self.start_delay_s:
+            return
+        if self.busy is not None and self.busy():
+            self.deferred += 1                     # he is talking: the next tick catches up
             return
         sig = self.signature() if self.signature is not None else None
         if sig is not None and sig == self._done_sig:
@@ -137,4 +147,5 @@ class ChatLearner(Agent):
 
     @property
     def data(self) -> dict:
-        return {"totals": dict(self.totals), "last": dict(self.last or {}), "skipped_unchanged": self.skipped}
+        return {"totals": dict(self.totals), "last": dict(self.last or {}), "skipped_unchanged": self.skipped,
+                "deferred_busy": self.deferred}

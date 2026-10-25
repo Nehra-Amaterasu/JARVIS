@@ -664,7 +664,8 @@ def run_agent(user_input: str) -> str:
     # don't have a record of that"). "Call me sir, always" becomes a standing preference.
     if chat_memory is not None:
         try:
-            got = chat_memory.handle_command(user_input, [u for u, _ in _short_term], yaadash_core.remember_told)
+            # (his line, the reply) pairs: a line answered "I didn't catch that" was misheard
+            got = chat_memory.handle_command(user_input, list(_short_term), yaadash_core.remember_told)
         except Exception as e:
             got = None
             print(f"\n[Chat memory command error: {e}]")

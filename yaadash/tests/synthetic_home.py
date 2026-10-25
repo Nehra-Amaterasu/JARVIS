@@ -117,6 +117,17 @@ THREADS = [
                 (OWNER, "dark souls remastered sale pe hai"),
                 ("Ishaan Bose", "le le, sirf 400 ka hai"),
             ]),
+            # A precise answer inside a chat about cricket (2026-10-23 audit): the window
+            # is about the match, so its vector sits past the 0.32 gate; only BM25 sees
+            # the line, and it holds every rare word of the question (lexical rescue).
+            (_t(2023, 9, 14), [
+                ("Ishaan Bose", "india ne aaj kya match nikala, last over mein six"),
+                (OWNER, "haan bhai highlights dekhe, bumrah ka spell bhi mast tha"),
+                ("Ishaan Bose", "kal nets pe chalega? batting practice karni hai"),
+                (OWNER, "nahi yaar, meri cycle ki chain Lodhi garden ke paas toot gayi, repair pe di hai"),
+                ("Ishaan Bose", "arre, toh metro se aaja, wicket keeping bhi karni hai"),
+                (OWNER, "dekhta hoon, score bata dena"),
+            ]),
         ],
     },
     {

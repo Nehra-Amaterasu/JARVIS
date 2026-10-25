@@ -398,21 +398,26 @@ SIM_NOTE = {"switch": "Virtual room only; no relay board is connected.",
 
 # A sentence end, as voice.split_ready sees it (kept identical on purpose).
 _SENTENCE_END = re.compile(r"(?<!\d)[.?!।…]+[\"')\]]*(?=\s|$)")
-EARLY_FLUSH_WORDS = 8
+EARLY_FLUSH_WORDS = 5
+_CLAUSE_END = re.compile(r"(?:(?<!\d)[,;:]|\s[—–])(?=\s|$)")
 _TAG = re.compile(r"\[/?(?:uk|british|gb|us|american|usa|hi|hindi|in|indian)\]", re.I)
 
 
 def split_ready(buffer: str, first: bool) -> tuple[str, str]:
-    """voice.split_ready, duplicated so this module has no audio imports."""
+    """voice.split_ready, duplicated so this module has no audio imports (a test keeps
+    the two identical)."""
     last = None
     for m in _SENTENCE_END.finditer(buffer):
         last = m
     if last is not None:
         return buffer[:last.end()], buffer[last.end():]
     if first:
-        comma = buffer.rfind(",")
-        if comma > 0 and len(buffer[:comma].split()) >= EARLY_FLUSH_WORDS:
-            return buffer[:comma + 1], buffer[comma + 1:]
+        cut = None
+        for m in _CLAUSE_END.finditer(buffer):
+            if len(buffer[:m.start()].split()) >= EARLY_FLUSH_WORDS:
+                cut = m.end()
+        if cut is not None:
+            return buffer[:cut], buffer[cut:]
     return "", buffer
 
 

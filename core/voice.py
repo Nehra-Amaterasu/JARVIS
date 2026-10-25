@@ -20,7 +20,9 @@ What it does:
     after 60 s, not on every sentence.
   - Non-blocking: say() queues text and returns. One worker thread with one persistent
     event loop synthesises in order while the previous sentence plays, so the model
-    keeps streaming instead of waiting on audio.
+    keeps streaming instead of waiting on audio. Since 10-25 an Edge sentence goes to
+    the player at its first audio bytes and plays while the rest downloads
+    (core/playback.py); Kokoro still hands over one file per sentence.
   - Never fatal: text with no letters or digits is skipped; any synthesis error drops
     that sentence and logs it; the conversation goes on.
   - Chosen in the app (2026-10-13, user_settings.py), read before every sentence: his
@@ -41,6 +43,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
+import playback           # core/playback.py: Edge audio played while it downloads
 import user_settings      # core/user_settings.py: what Aman chose in the app
 from home import MODELS   # data/models, git-ignored
 
@@ -245,22 +248,40 @@ class Segmenter:
 # Until 2026-10-09 the reply was cut whenever a CHUNK contained one of .?!, so a decimal
 # split a sentence, and a chunk of "..." alone reached the voice and crashed it.
 _SENTENCE_END = re.compile(r"(?<!\d)[.?!।…]+[\"')\]]*(?=\s|$)")
-EARLY_FLUSH_WORDS = 8           # first sentence only: speak at a comma once it has 8+ words
+# First piece of a reply only: speak at a clause break once 5+ words come before it.
+# Was 8 words and commas only until 10-25: the first sentence of a typical reply then
+# waited for its full stop, and the voice note found the first sentence plus its TTS was
+# the biggest unexplained share of the 4 s wait. 5 words still reads as a phrase (TTS
+# prosody breaks on 2-3 word fragments). Clause breaks: , ; : and a dash, each followed
+# by a space or the end of what has streamed so far (never "1,000" or "10:30").
+# Trade-off: agent._echoes needs three 4-word runs (6+ words), so a 5-word first clause
+# is not checked for an echo of an earlier reply; a 6+ word one still is.
+EARLY_FLUSH_WORDS = 5
+_CLAUSE_END = re.compile(r"(?:(?<!\d)[,;:]|\s[—–])(?=\s|$)")
+
+
+def _clause_split(buffer: str) -> Optional[int]:
+    """Where a long-enough first clause ends in `buffer` (index after the mark), or None."""
+    cut = None
+    for m in _CLAUSE_END.finditer(buffer):
+        if len(buffer[:m.start()].split()) >= EARLY_FLUSH_WORDS:
+            cut = m.end()
+    return cut
 
 
 def split_ready(buffer: str, first: bool) -> tuple[str, str]:
     """(ready_text, rest): everything up to the last complete sentence end in `buffer`.
-    For the first sentence of a reply, a long clause ending in a comma also counts,
-    so the voice starts sooner."""
+    For the first piece of a reply, a clause of 5+ words ending at , ; : or a dash also
+    counts, so the voice starts sooner."""
     last = None
     for m in _SENTENCE_END.finditer(buffer):
         last = m
     if last is not None:
         return buffer[:last.end()], buffer[last.end():]
     if first:
-        comma = buffer.rfind(",")
-        if comma > 0 and len(buffer[:comma].split()) >= EARLY_FLUSH_WORDS:
-            return buffer[:comma + 1], buffer[comma + 1:]
+        cut = _clause_split(buffer)
+        if cut is not None:
+            return buffer[:cut], buffer[cut:]
     return "", buffer
 
 
@@ -294,7 +315,7 @@ class _Kokoro:
         return path
 
 
-async def _edge_synth(text: str, voice: str, rate: str) -> str:
+async def _edge_synth(text: str, voice: str, rate: str, on_first: Optional[Callable[[], None]] = None) -> str:
     import edge_tts
     path = os.path.join(tempfile.gettempdir(), f"jarvis_{uuid.uuid4().hex[:8]}.mp3")
     comm = edge_tts.Communicate(text, voice, rate=rate, connect_timeout=4, receive_timeout=12)
@@ -302,6 +323,8 @@ async def _edge_synth(text: str, voice: str, rate: str) -> str:
     with open(path, "wb") as f:
         async for chunk in comm.stream():
             if chunk["type"] == "audio":
+                if not got and on_first is not None:
+                    on_first()
                 f.write(chunk["data"])
                 got += len(chunk["data"])
     if got < 200:
@@ -309,16 +332,47 @@ async def _edge_synth(text: str, voice: str, rate: str) -> str:
     return path
 
 
+async def _edge_stream(text: str, voice: str, rate: str, on_chunk: Callable[[bytes], None]) -> int:
+    """Edge TTS, each audio chunk to `on_chunk` as it arrives. Returns the bytes received."""
+    import edge_tts
+    comm = edge_tts.Communicate(text, voice, rate=rate, connect_timeout=4, receive_timeout=12)
+    got = 0
+    async for chunk in comm.stream():
+        if chunk["type"] == "audio" and chunk["data"]:
+            on_chunk(chunk["data"])
+            got += len(chunk["data"])
+    return got
+
+
+# Edge audio plays while it downloads (core/playback.py) when the app gives the engine a
+# play_stream. JARVIS_EDGE_STREAM=0 goes back to whole files.
+EDGE_STREAM = os.environ.get("JARVIS_EDGE_STREAM", "1").strip().lower() not in ("0", "false", "off", "no")
+STREAMED = object()              # _synth: the audio already went to the player
+
+
+class _Cancelled(Exception):
+    """clear() was called while a sentence was still downloading."""
+
+
 class VoiceEngine:
-    """say() queues; one worker synthesises in order and hands files to `play`."""
+    """say() queues; one worker synthesises in order and hands files (or, for Edge, a
+    growing AudioPipe) to the player."""
 
     EDGE_COOLDOWN_S = 60.0
+    EDGE_REJECTED_COOLDOWN_S = 900.0
 
     def __init__(self, play: Callable[[str, str, float], None], log: Callable[[str], None] = print,
                  model_dir: Optional[str] = None, enabled: bool = True,
-                 settings: Optional[Callable[[], dict]] = None):
+                 settings: Optional[Callable[[], dict]] = None,
+                 on_mark: Optional[Callable[..., None]] = None,
+                 play_stream: Optional[Callable[[str, "playback.AudioPipe", float], None]] = None):
         self.play = play                         # play(text, audio_path, gain) — the app's playback queue
+        self.play_stream = play_stream           # play_stream(text, pipe, gain): Edge audio still arriving
         self.log = log
+        # on_mark(stage, **info): latency marks for the turn clock (core/turn_clock.py):
+        # "tts_first_byte" (engine=...) and "tts_ready" for every synthesised piece; the
+        # clock keeps only the first of a turn.
+        self.on_mark = on_mark
         self.enabled = enabled
         self.segmenter = Segmenter()
         self.kokoro = _Kokoro(model_dir or str(MODELS / "kokoro"))   # data/models/kokoro, git-ignored
@@ -373,11 +427,36 @@ class VoiceEngine:
         except queue.Empty:
             pass
 
+    def will_stream(self) -> bool:
+        """Would the next sentence be streamed from Edge? (The player warms its speaker
+        when a turn starts only then.)"""
+        return bool(self.enabled and self.play_stream is not None and EDGE_STREAM
+                    and not self.prefs().offline and time.monotonic() >= self._edge_down_until)
+
     def pending(self) -> int:
         return self._q.qsize()
 
     def close(self) -> None:
         self._q.put(None)
+
+    def _edge_failed(self, e: Exception) -> None:
+        """The cloud voice failed: use the offline one for a while. A refused handshake
+        (HTTP 401/403) is not a network blip: on 10-25 every Edge request got 403 (the
+        installed edge-tts 7.2.8 is refused, probably out of date) and each retry, once a
+        minute, cost the next reply's first sentence about 1.2 s before Kokoro took over.
+        A refusal now waits 15 minutes; anything else still waits 60 s."""
+        rejected = bool(re.search(r"\b40[13]\b", str(e))) or type(e).__name__ == "WSServerHandshakeError"
+        wait = self.EDGE_REJECTED_COOLDOWN_S if rejected else self.EDGE_COOLDOWN_S
+        self._edge_down_until = time.monotonic() + wait
+        hint = " (refused: edge-tts may need an update)" if rejected else ""
+        self.log(f"[voice] online voice failed ({type(e).__name__}: {str(e)[:120]}){hint}; offline voice for {wait:.0f} s")
+
+    def _mark(self, stage: str, **info) -> None:
+        if self.on_mark is not None:
+            try:
+                self.on_mark(stage, **info)
+            except Exception as e:          # timing must never cost a sentence
+                self.log(f"[voice] latency mark failed: {e}")
 
     # -------------------------------------------------------------- worker
     def _worker(self) -> None:
@@ -389,7 +468,9 @@ class VoiceEngine:
             style_key, text, epoch = item
             if epoch != self._epoch:
                 continue
-            result = self._synth(STYLES.get(style_key, STYLES[DEFAULT_STYLE]), text)
+            result = self._synth(STYLES.get(style_key, STYLES[DEFAULT_STYLE]), text, epoch)
+            if result is STREAMED:
+                continue                    # already with the player, which played it as it came
             if result and epoch == self._epoch:
                 path, gain = result
                 try:
@@ -397,8 +478,9 @@ class VoiceEngine:
                 except Exception as e:      # playback is the app's business; never kill the worker
                     self.log(f"[voice] playback hand-off failed: {e}")
 
-    def _synth(self, style: Style, text: str) -> Optional[tuple[str, float]]:
-        """(audio path, playback gain), or None when no engine could say it."""
+    def _synth(self, style: Style, text: str, epoch: Optional[int] = None):
+        """(audio path, playback gain); STREAMED when the audio went to the player as it
+        arrived (play_stream); None when no engine could say it."""
         p = self.prefs()
         spoken = user_settings.apply_pronunciations(text, p.pron)
         if not p.offline and time.monotonic() >= self._edge_down_until:
@@ -406,13 +488,65 @@ class VoiceEngine:
             # default voices only (Style); another voice plays unlevelled (gain 1.0).
             name = p.edge.get(style.key, style.edge)
             rate = user_settings.edge_rate(p.speed) if p.speed != 1.0 else style.rate
+            gain = style.edge_gain if name == style.edge else 1.0
+            if self.play_stream is not None and EDGE_STREAM:
+                done, err = self._edge_streamed(text, spoken, name, rate, gain, epoch)
+                if done:
+                    return STREAMED
+                self._edge_failed(err)
+                return self._offline(style, spoken, p)
             try:
-                path = self._loop.run_until_complete(_edge_synth(spoken, name, rate))
+                path = self._loop.run_until_complete(
+                    _edge_synth(spoken, name, rate, on_first=lambda: self._mark("tts_first_byte", engine="edge")))
+                self._mark("tts_ready")
                 self.stats["edge"] += 1
-                return path, style.edge_gain if name == style.edge else 1.0
+                return path, gain
             except Exception as e:
-                self._edge_down_until = time.monotonic() + self.EDGE_COOLDOWN_S
-                self.log(f"[voice] online voice failed ({type(e).__name__}: {e}); offline voice for {self.EDGE_COOLDOWN_S:.0f} s")
+                self._edge_failed(e)
+        return self._offline(style, spoken, p)
+
+    def _edge_streamed(self, text: str, spoken: str, name: str, rate: str, gain: float,
+                       epoch: Optional[int]) -> tuple[bool, Optional[Exception]]:
+        """Stream one sentence from Edge into an AudioPipe that goes to the player at the
+        first audio bytes, so it starts playing while the rest is still downloading.
+        (True, None) once anything was handed over (even if the stream broke later: what
+        arrived plays); (False, error) when nothing came, so Kokoro can say it instead."""
+        pipe = playback.AudioPipe(text=text, gain=gain)
+        handed = []
+
+        def on_chunk(data: bytes) -> None:
+            if epoch is not None and epoch != self._epoch:
+                raise _Cancelled()                          # barge-in: stop downloading
+            if not handed:
+                handed.append(True)
+                self._mark("tts_first_byte", engine="edge-stream")
+                self.play_stream(text, pipe, gain)
+            pipe.feed(data)
+
+        try:
+            got = self._loop.run_until_complete(_edge_stream(spoken, name, rate, on_chunk))
+            if got < 200 and not handed:
+                return False, RuntimeError("no audio")
+            pipe.close()
+            self._mark("tts_ready")
+            self.stats["edge"] += 1
+            return True, None
+        except _Cancelled:
+            pipe.cancel()
+            return True, None
+        except Exception as e:
+            if handed:
+                pipe.close(error=e)                         # what arrived still plays
+                self.log(f"[voice] online voice broke off mid-sentence: {type(e).__name__}: {e}")
+                self.stats["edge"] += 1
+                return True, None
+            return False, e
+        except BaseException:
+            pipe.cancel()
+            raise
+
+    def _offline(self, style: Style, spoken: str, p: VoicePrefs) -> Optional[tuple[str, float]]:
+        """Kokoro on the CPU (never streamed), or None."""
         # No offline voice for this accent (Indian English): the default one says it.
         offline = style if style.kokoro else STYLES[DEFAULT_STYLE]
         if self.kokoro.available:
@@ -420,6 +554,8 @@ class VoiceEngine:
             try:
                 path = (self.kokoro.synth(spoken, *kv, speed=p.speed) if p.speed != 1.0
                         else self.kokoro.synth(spoken, *kv))
+                self._mark("tts_first_byte", engine="kokoro")    # not streamed: the whole clip at once
+                self._mark("tts_ready")
                 self.stats["kokoro"] += 1
                 if not self._kokoro_said:
                     # The app's Modules card reads this line: the offline voice is in RAM now.

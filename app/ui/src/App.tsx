@@ -6,22 +6,16 @@ import { Dock, TitleBar, Ticker, Toasts, useHotkeys } from './components/Shell'
 import { api } from './lib/api'
 import { startMediaHost } from './lib/media'
 import { startEventStream, useStore } from './lib/store'
-import { ConnectPage } from './pages/Connect'
 import { CorePage } from './pages/Core'
-import { LimbsPage } from './pages/Limbs'
-import { SystemPage } from './pages/System'
-import { YaadashPage } from './pages/Yaadash'
+import { PAGE_LOADERS, prefetchPages } from './pageLoaders'
 
-// The 3D twin pulls in three.js (~600 kB); load it only when Aankhen is opened, so
-// the window paints in a fraction of the time.
-const AankhenPage = lazy(() => import('./pages/Aankhen').then((m) => ({ default: m.AankhenPage })))
-// Mission Germoney carries its whole syllabus (~150 kB of content): loaded on first visit.
-const MissionRoot = lazy(() => import('./germoney/MissionRoot').then((m) => ({ default: m.MissionRoot })))
-
+// Core, the tab the window opens on, is the only page in the entry chunk; every other
+// tab is its own chunk (pageLoaders.ts), so the window paints sooner.
 const PAGES: Record<string, React.ComponentType> = {
-  core: CorePage, yaadash: YaadashPage, aankhen: AankhenPage,
-  limbs: LimbsPage, connect: ConnectPage, system: SystemPage,
+  core: CorePage,
+  ...Object.fromEntries(Object.entries(PAGE_LOADERS).filter(([k]) => k !== 'mission').map(([k, load]) => [k, lazy(load)])),
 }
+const MissionRoot = lazy(PAGE_LOADERS.mission)
 
 export default function App() {
   const tab = useStore((s) => s.tab)
@@ -38,6 +32,9 @@ export default function App() {
 
   // Songs from his music folder play in this window, whatever tab is open (lib/media.ts).
   useEffect(() => startMediaHost(), [])
+
+  // After the first paint, the light tabs load in idle time so opening one is instant.
+  useEffect(() => prefetchPages(), [])
 
   useEffect(() => {
     const stream = startEventStream()

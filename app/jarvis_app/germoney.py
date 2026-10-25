@@ -39,7 +39,7 @@ from typing import Any, Optional
 
 import httpx
 
-from . import wellwisher, ww_engines
+from . import wellwisher, ww_base, ww_engines, ww_money
 from .paths import DATA
 
 ROOT = DATA / "germoney"
@@ -1289,7 +1289,8 @@ def default_plan_state(today: str) -> dict:
             "schedule": json.loads(json.dumps(DEFAULT_SCHEDULE)), "resume": {}, "campaigns": {}, "parking": [],
             "exam": {"focus": None, "window_days": EXAM_WINDOW}, "cursor": None, "wip_cap": WIP_CAP, "seq": 0,
             "budget": dict(DEFAULT_BUDGET), "certs": {}, "questions_done": [], "nudged_drift": None,
-            "quests": {}, "archive": wellwisher.empty_archive()}
+            "quests": {}, "archive": wellwisher.empty_archive(),
+            "money": {"entries": [], "seq": 0}}                # the money log (Well Wisher money engine)
 
 
 def merge_plan_state(raw: Any, today: str) -> dict:
@@ -2200,7 +2201,19 @@ class Plan:
                         alt = _tree_contract(bank, st, node, oc, "library", "An alternative: pick what pulls you today")
                         alt["serves"] = serves_for(alt, ladder, today, ac, app_nodes)
                         alternatives.append(alt)
+            three = weekly = None
+            try:                                      # the Well Wisher read; a bad input file must not take the day down
+                inputs = ww_engines.load_inputs()
+                data = ww_data(bank, st, today, av)
+                three = ww_engines.today_three(inputs, today, candidates=contracts, done=set(st["contracts"]),
+                                               nodes=data["nodes"], applications=data["applications"],
+                                               open_projects=data["open_projects"], active_days=data["active_days"])
+                w = ww_engines.insight(inputs, today, events=data["events"], planned=data["planned"], nodes=data["nodes"])
+                weekly = {k: w[k] for k in ("week", "totals", "moved", "stalled", "change", "say")}
+            except Exception:
+                pass
             return {**day, "contracts": contracts, "alternatives": alternatives, "welcome_back": wb, "deadlines": due,
+                    "three": three, "weekly": weekly,
                     "wins": self.wins(st, today), "wip": wip(bank, st), "wip_cap": st["wip_cap"],
                     "level": level_info(st["xp"]), "xp": st["xp"], "bank_ready": bool(bank["order"]),
                     "academics_ready": ac is not None, "cursor": st.get("cursor")}
@@ -2684,10 +2697,88 @@ class Plan:
         st = self.load(today)
         ladder = ww_engines.goal_ladder(inputs, today, candidates=t["contracts"] + t.get("alternatives", []), done=set(st["contracts"]))
         ev = ww_engines.evidence(inputs, today, ww_engines.actions_from_plan(st))
+        out = {name: self.engine(name, today, inputs) for name in ("career", "money", "personality", "insight")}
         return {"date": today, "source": inputs.get("source"), "warnings": inputs.get("warnings", []), "ladder": ladder,
                 "evidence": {"xp": ev["xp"], "actions": len(ev["ledger"]), "rejected": ev["rejected"][-20:], "rules": ev["rules"]},
-                "engines": {k: f(inputs, today)["status"] if k not in ("goal_ladder", "evidence") else "ok"
+                **out, "three": t.get("three"),
+                "registry": [{"name": d["name"], "version": d["version"], "about": d["about"]} for d in ww_engines.describe()],
+                "engines": {k: (out[k]["status"] if k in out else "ok" if k in ("goal_ladder", "evidence") else f(inputs, today)["status"])
                             for k, f in ww_engines.ENGINES.items()}}
+
+    def engine(self, name: str, today: Optional[str] = None, inputs: Optional[dict] = None) -> dict:
+        """One engine by name over his data, through ww_engines.run (schema checked). Read only."""
+        today = today or date.today().isoformat()
+        if name not in ww_engines.REGISTRY:
+            raise KeyError(f"no engine {name}")
+        inputs = inputs if inputs is not None else ww_engines.load_inputs()
+        bank = self.bank()
+        st = self.load(today)
+        try:
+            av = self.apps.view(today, bank, st)
+        except Exception:
+            av = None
+        d = ww_data(bank, st, today, av)
+        day = st["days"].get(today) or {}
+        args = {"goal_ladder": {"candidates": day.get("contracts") or []},
+                "evidence": {"actions": ww_engines.actions_from_plan(st)},
+                "career": {"nodes": d["nodes"], "applications": d["applications"]},
+                "money": {"entries": d["money"]},
+                "personality": {"contracts": day.get("contracts") or [], "open_projects": d["open_projects"], "active_days": d["active_days"]},
+                "insight": {"events": d["events"], "planned": d["planned"], "nodes": d["nodes"]}}.get(name, {})
+        return {**ww_engines.run(name, inputs, today, **args), "source": inputs.get("source")}
+
+    def weekly(self, today: Optional[str] = None) -> dict:
+        """The weekly review (insight engine); `say` is what JARVIS reads out."""
+        return self.engine("insight", today)
+
+    def money_log(self, entry: dict, today: Optional[str] = None) -> dict:
+        """One money-log entry: {kind, amount, date?, hours?, experiment?, note?}. Private,
+        in the plan state; the money engine reads it. Education only, nothing is advised."""
+        today = today or date.today().isoformat()
+        if not isinstance(entry, dict):
+            raise ValueError("an entry is an object")
+        kind = str(entry.get("kind") or "")
+        if kind not in ww_money.KINDS:
+            raise ValueError(f"kind must be one of {', '.join(ww_money.KINDS)}")
+        amount = _num(entry.get("amount"))
+        if amount is None or not 0 <= amount <= 1e9:
+            raise ValueError("amount must be a number from 0 up")
+        d = str(entry.get("date") or today)
+        if _date_or_none(d) is None or d > today:
+            raise ValueError("date must be a YYYY-MM-DD day, today or earlier")
+        rec = {"date": d, "kind": kind, "amount": round(float(amount), 2)}
+        if entry.get("hours") not in (None, ""):
+            h = _num(entry.get("hours"))
+            if h is None or not 0 <= h <= 1000:
+                raise ValueError("hours must be a number from 0 to 1000")
+            rec["hours"] = round(float(h), 2)
+        if kind == "experiment":
+            xid = re.sub(r"[^\w.\-]", "-", str(entry.get("experiment") or ""))[:60]
+            if not xid:
+                raise ValueError("an experiment entry names its experiment")
+            rec["experiment"] = xid
+        if entry.get("note"):
+            rec["note"] = str(entry["note"])[:200]
+        with self._lock:
+            st = self.load(today)
+            m = st.setdefault("money", {"entries": [], "seq": 0})
+            m["seq"] = int(m.get("seq") or 0) + 1
+            rec["id"] = f"m{m['seq']}"
+            m.setdefault("entries", []).append(rec)
+            m["entries"] = m["entries"][-5000:]
+            self.save(st)
+        return {"ok": True, "entry": rec, "say": f"Logged {kind}: {ww_base.inr(rec['amount'])}"
+                + (f" for {rec['hours']:g} h" if "hours" in rec else "") + "."}
+
+    def money_remove(self, eid: str, today: Optional[str] = None) -> dict:
+        with self._lock:
+            st = self.load(today)
+            ents = (st.get("money") or {}).get("entries") or []
+            if not any(e.get("id") == eid for e in ents):
+                raise KeyError(eid)
+            st["money"]["entries"] = [e for e in ents if e.get("id") != eid]
+            self.save(st)
+        return {"ok": True}
 
     def quests(self, today: Optional[str] = None) -> dict:
         today = today or date.today().isoformat()
@@ -2766,6 +2857,25 @@ class Plan:
 def _pretty(d: str) -> str:
     x = _day(d)
     return f"{x:%A} {x.day} {x:%B}"
+
+
+def ww_data(bank: dict, st: dict, today: str, apps_view: Optional[dict] = None) -> dict:
+    """What the Well Wisher engines read from the plan, gathered in one place (pure):
+    node statuses, the pipeline, open projects (active campaigns), days with a logged
+    action (events + the archive), the events, what each day planned, the money log."""
+    sts = statuses(bank, st)
+    days = {d for d in (st.get("archive") or {}).get("days") or []}
+    days |= {e["date"] for e in st["events"] if e.get("kind") in wellwisher.ACTION_KINDS and e.get("date")}
+    return {"nodes": [{"id": n, "name": bank["nodes"][n]["name"], "status": sts[n], "branch": bank["nodes"][n]["branch"],
+                       "prereqs": list(bank["nodes"][n]["prereqs"])} for n in bank["order"]],
+            "applications": list((apps_view or {}).get("applications") or []),
+            "open_projects": [{"id": cid, "title": (((bank["nodes"].get(cid.split("/", 1)[-1]) or {}).get("project") or {}).get("title")
+                                                    or cid.split("/", 1)[-1])} for cid, cs in sorted(st["campaigns"].items())
+                              if (cs or {}).get("status") == "active"],
+            "active_days": sorted(d for d in days if d <= today),
+            "events": [e for e in st["events"] if e.get("date")],
+            "planned": {d: [c["key"] for c in day.get("contracts") or [] if c.get("key")] for d, day in st["days"].items()},
+            "money": list((st.get("money") or {}).get("entries") or [])}
 
 
 def _say_contract(c: dict) -> str:
@@ -2934,6 +3044,14 @@ def voice(plan: Plan, intent: str, args: dict, today: Optional[str] = None, brie
 
     if intent == "deadlines":
         return {"ok": True, "say": deadlines_say(plan.apps.view(today, plan.bank(), plan.load(today)))}
+
+    if intent == "weekly_review":
+        r = plan.weekly(today)
+        return {"ok": r.get("status") == "ok", "say": r.get("say") or "The weekly review couldn't be built from the inputs right now."}
+
+    if intent == "career_next":
+        r = plan.engine("career", today)
+        return {"ok": r.get("status") == "ok", "say": r.get("say") or "The career engine couldn't read its inputs right now."}
 
     if intent == "park":
         try:

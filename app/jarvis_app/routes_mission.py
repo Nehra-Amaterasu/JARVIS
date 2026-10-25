@@ -41,8 +41,13 @@
     PUT    /api/mission/learning/{entry}/nodes  {nodes}             correct the matched nodes
     GET    /api/mission/status             Well Wisher Status window: rank, stats (each with how it was
                                            computed), what is not counted, advice (wellwisher.py)
-    GET    /api/mission/engines            the Well Wisher engines (ww_engines.py): goal ladder with
-                                           today's 3 contracts and why, the evidence audit, engine status
+    GET    /api/mission/engines            the Well Wisher engines (ww_engines.py): goal ladder, evidence
+                                           audit, career, money, personality, insight, today's 3, the registry
+    GET    /api/mission/engine/{name}      one engine over his data (schema checked; invalid_input if not)
+    GET    /api/mission/weekly             the weekly review (insight engine); `say` is the spoken version
+    GET    /api/mission/money              the money engine: months, experiments in Rs/hour, projection (education)
+    POST   /api/mission/money              {kind, amount, date?, hours?, experiment?, note?}  one money-log entry
+    DELETE /api/mission/money/{id}         remove a money-log entry (a typo)
     GET    /api/mission/quests            the optional quest lines, his record, today's quest contract
     PUT    /api/mission/quest/{line}       {on, levels?}            turn a line on/off, placement levels
     POST   /api/mission/quest/{line}/log   {track, sets: [n, ...], proof?}   one session, set by set
@@ -136,6 +141,28 @@ def register(app: FastAPI, svc, bus) -> None:
     @app.get("/api/mission/engines")
     async def engines():
         return await run_in_threadpool(plan.engines)
+
+    @app.get("/api/mission/engine/{name}")
+    async def engine(name: str):
+        return await run_in_threadpool(guard, plan.engine, name)
+
+    @app.get("/api/mission/weekly")
+    async def weekly():
+        return await run_in_threadpool(plan.weekly)
+
+    @app.get("/api/mission/money")
+    async def money():
+        return await run_in_threadpool(guard, plan.engine, "money")
+
+    @app.post("/api/mission/money")
+    async def money_log(payload: dict = Body(...)):
+        r = await run_in_threadpool(guard, plan.money_log, payload.get("entry") if isinstance(payload.get("entry"), dict) else payload)
+        publish(r["say"])
+        return r
+
+    @app.delete("/api/mission/money/{eid}")
+    async def money_remove(eid: str):
+        return await run_in_threadpool(guard, plan.money_remove, eid)
 
     @app.get("/api/mission/quests")
     async def quests():

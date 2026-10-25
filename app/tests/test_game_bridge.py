@@ -80,6 +80,10 @@ def test_contract_completion_extracts_the_task_words():
     ("park an idea: build a GPU in a weekend", "park", {"text": "build a GPU in a weekend"}),
     ("what internship deadlines are coming up", "deadlines", {}),
     ("any application deadlines this month?", "deadlines", {}),
+    ("Jarvis, weekly review", "weekly_review", {}),
+    ("how did my week go?", "weekly_review", {}),
+    ("hafte ka review do", "weekly_review", {}),
+    ("what's my next career step?", "career_next", {}),
     ("Jarvis, log: watched a lecture on systolic arrays, 40 min", "learning", {"text": "watched a lecture on systolic arrays", "minutes": 40}),
     ("log: read the Cummings FIFO paper", "learning", {"text": "read the Cummings FIFO paper", "minutes": 0}),
 ])

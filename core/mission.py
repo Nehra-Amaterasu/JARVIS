@@ -12,6 +12,8 @@ window closed (POST /api/mission/voice):
     "how many days to EMT"                  -> days left to that exam
     "park an idea: a GPU in a weekend"      -> the parking lot, so the idea stops pulling
     "what internship deadlines are coming up" -> the pipeline's next closing dates
+    "weekly review" / "how did my week go"  -> the Well Wisher weekly review: totals, moved, stalled, one change
+    "what's my next career step"            -> the career engine's top step, with the days left
     "log 2 hours of German"                 -> the one log (XP now; the Deutsch rep ticks when the window syncs)
     "maine 45 minute verilog kiya"          -> 45 min of Silicon logged
 
@@ -85,6 +87,9 @@ _DAYS_TO = re.compile(r"\bhow (?:many|much) days?\s+(?:are\s+)?(?:left\s+)?(?:to
 _PARK = re.compile(r"^\s*(?:jarvis,?\s*)?park\b(?:\s+(?:an?|this|the|my)?\s*idea)?\s*[:,-]?\s*(.+)$", re.I)
 _DEADLINES = re.compile(r"\b(internship|application)s?\b.*\b(deadlines?|due|closing|close)\b|\b(deadlines?)\b.*\b(internship|application)s?\b"
                         r"|\bwhat('?s| is| are)? (coming up|due)\b.*\b(apply|applications?|internships?)\b", re.I)
+_WEEKLY = re.compile(r"\b(weekly review|week(ly)? in review|review (of )?(my|the|this) week|how did (my|the|this) week go|"
+                     r"week ka review|hafte ka review)\b", re.I)
+_CAREER_NEXT = re.compile(r"\b(next career (step|move|action)|what('?s| is) my next career (step|move)|career (step|move) next)\b", re.I)
 _EXAM_FILLER = re.compile(r"\b(my|the|next|exams?|paper|left|mein|me|tak|hain|bache)\b", re.I)
 
 
@@ -107,6 +112,10 @@ def parse_plan(text: str) -> Optional[dict]:
     m = _PARK.match(t)
     if m and m.group(1).strip(" .,:"):
         return _plan("park", "park", text=m.group(1).strip(" .,:"))
+    if _WEEKLY.search(t):
+        return _plan("weekly_review", "weekly_review")
+    if _CAREER_NEXT.search(t):
+        return _plan("career_next", "career_next")
     if _DEADLINES.search(t):
         return _plan("deadlines", "deadlines")
     if _EXPLAIN.search(t):

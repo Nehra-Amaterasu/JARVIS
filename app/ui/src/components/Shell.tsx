@@ -6,7 +6,7 @@
  *   - the ticker is the only place every subsystem reports to, in order
  */
 import {
-  AudioLines, Award, BookOpen, BrainCircuit, Cable, CalendarDays, Dumbbell, Flame, Gauge, Hand, Layers, Map, Maximize2, Minus,
+  Activity, AudioLines, Award, BookOpen, BrainCircuit, Cable, CalendarDays, Dumbbell, Flame, Gauge, Hand, Layers, Map, Maximize2, Minus,
   ScanEye, Search, ShieldCheck, ShoppingBag, Skull, SlidersHorizontal, Swords, Terminal, Trophy, X,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef } from 'react'
@@ -24,6 +24,7 @@ const ICONS: Record<Tab, typeof AudioLines> = {
   core: AudioLines, yaadash: BrainCircuit, aankhen: ScanEye, limbs: Hand, connect: Cable, system: Gauge,
   mission: Trophy, quests: Swords, campaign: Map, trials: Award, drill: Layers, armory: ShoppingBag, crucible: Flame, forge: Dumbbell, syllabus: BookOpen, terminal: Terminal,
   interrogation: Skull, proof: ShieldCheck, schedule: CalendarDays, calibration: SlidersHorizontal,
+  status: Activity,
 }
 
 export const STATE_LABEL: Record<CoreState, string> = {
@@ -98,11 +99,11 @@ export function Dock() {
       {TABS.filter((t) => t.dock).map((t, i, arr) => {
         const Icon = ICONS[t.id]
         const missionTab = TABS.find((x) => x.id === tab)?.group === 'mission'
-        // Mission sub-pages (Terminal, Proof...) light the group's Command icon.
+        // Well Wisher sub-pages (Terminal, Proof...) light the group's Command icon.
         const on = tab === t.id || (t.id === 'mission' && missionTab && !arr.some((x) => x.id === tab))
         return (
           <div key={t.id} className="dock-slot">
-            {i > 0 && arr[i - 1].group !== t.group && <span className="dock-divider mono">mission</span>}
+            {i > 0 && arr[i - 1].group !== t.group && <span className="dock-divider mono">well wisher</span>}
             <button className={`dock-item ${on ? 'on' : ''}`} onClick={() => setTab(t.id)}
               aria-current={on ? 'page' : undefined}>
               <span className="dock-icon"><Icon size={18} strokeWidth={1.75} /></span>
@@ -120,7 +121,7 @@ export function Dock() {
 
 /* ------------------------------------------------------------------ ticker */
 const SOURCE_TAG: Record<string, string> = {
-  core: 'CORE', aankhen: 'EYES', memory: 'MEM', limbs: 'LIMB', system: 'SYS', mission: 'MSN',
+  core: 'CORE', aankhen: 'EYES', memory: 'MEM', limbs: 'LIMB', system: 'SYS', mission: 'WISH',
 }
 
 export function Ticker() {

@@ -39,6 +39,7 @@ from typing import Any, Optional
 
 import httpx
 
+from . import wellwisher, ww_engines
 from .paths import DATA
 
 ROOT = DATA / "germoney"
@@ -1287,7 +1288,8 @@ def default_plan_state(today: str) -> dict:
             "events": [], "days": {}, "rotation": json.loads(json.dumps(DEFAULT_ROTATION)),
             "schedule": json.loads(json.dumps(DEFAULT_SCHEDULE)), "resume": {}, "campaigns": {}, "parking": [],
             "exam": {"focus": None, "window_days": EXAM_WINDOW}, "cursor": None, "wip_cap": WIP_CAP, "seq": 0,
-            "budget": dict(DEFAULT_BUDGET), "certs": {}, "questions_done": [], "nudged_drift": None}
+            "budget": dict(DEFAULT_BUDGET), "certs": {}, "questions_done": [], "nudged_drift": None,
+            "quests": {}, "archive": wellwisher.empty_archive()}
 
 
 def merge_plan_state(raw: Any, today: str) -> dict:
@@ -1981,6 +1983,14 @@ def contract_lookup(bank: dict, st: dict, ac: Optional[dict], key: str, today: s
     for c in (st["days"].get(today) or {}).get("contracts", []):
         if c["key"] == key:
             return refresh_contract(bank, st, c)
+    if key.startswith("quest/"):
+        q = wellwisher.parse_key(key)
+        lines = wellwisher.load_questlines()
+        line = lines["lines"].get(q[0]) if q else None
+        rec = (st.get("quests") or {}).get(q[0]) if q else None
+        if not (line and rec and rec.get("on")) or q[2] != today:     # a quest is for its own day only
+            return None
+        return wellwisher.quest_contract(line, wellwisher.quest_record(st, line), st, q[2], q[1])
     if key.startswith("refresh/"):
         parts = key.split("/")
         if len(parts) == 3 and parts[1] in bank["nodes"]:
@@ -2123,6 +2133,8 @@ class Plan:
         return st
 
     def save(self, st: dict) -> None:
+        if len(st["events"]) > 1500:               # Well Wisher: trimmed events still count (wellwisher.fold_events)
+            st["archive"] = wellwisher.fold_events(st.get("archive") or {}, st["events"][:-1500])
         st["events"] = st["events"][-1500:]
         cutoff = (date.today() - timedelta(days=45)).isoformat()
         st["days"] = {k: v for k, v in st["days"].items() if k >= cutoff}
@@ -2165,6 +2177,7 @@ class Plan:
             keys = {c["key"] for c in contracts}
             refresh = [r for r in refreshers(bank, st, today, profile) if r["key"] not in keys][:1 if not wb else 2]
             contracts += refresh
+            contracts += wellwisher.quest_contracts(wellwisher.load_questlines(), st, today)
             for c in contracts:
                 c["serves"] = serves_for(c, ladder, today, ac, app_nodes)
                 if profile["style"].get("novelty_first") and c["source"] == "tree" and c.get("success_check") and not c["done"]:
@@ -2652,6 +2665,101 @@ class Plan:
                 return n
         avail = [bank["nodes"][n] for n in bank["order"] if node_status(bank, st, n) == "available"]
         return avail[0] if avail else None
+
+    # ---- Well Wisher: the Status window and quest lines (rules in wellwisher.py)
+    def status(self, today: Optional[str] = None) -> dict:
+        """The Status window: rank, stats with how each was computed, advice. Read only."""
+        today = today or date.today().isoformat()
+        bank = self.bank()
+        st = self.load(today)
+        return wellwisher.status_window(bank, st, today, wellwisher.load_questlines(), level_info(st["xp"]))
+
+    def engines(self, today: Optional[str] = None, inputs: Optional[dict] = None) -> dict:
+        """The Well Wisher engines over his data (ww_engines.py): the goal ladder ranks
+        today's offered contracts by the rung they serve; the evidence engine audits
+        every event's XP. Read only (today() may freeze the day, as GET /today does)."""
+        today = today or date.today().isoformat()
+        inputs = inputs if inputs is not None else ww_engines.load_inputs()
+        t = self.today(today)
+        st = self.load(today)
+        ladder = ww_engines.goal_ladder(inputs, today, candidates=t["contracts"] + t.get("alternatives", []), done=set(st["contracts"]))
+        ev = ww_engines.evidence(inputs, today, ww_engines.actions_from_plan(st))
+        return {"date": today, "source": inputs.get("source"), "warnings": inputs.get("warnings", []), "ladder": ladder,
+                "evidence": {"xp": ev["xp"], "actions": len(ev["ledger"]), "rejected": ev["rejected"][-20:], "rules": ev["rules"]},
+                "engines": {k: f(inputs, today)["status"] if k not in ("goal_ladder", "evidence") else "ok"
+                            for k, f in ww_engines.ENGINES.items()}}
+
+    def quests(self, today: Optional[str] = None) -> dict:
+        today = today or date.today().isoformat()
+        lines = wellwisher.load_questlines()
+        st = self.load(today)
+        out = []
+        for lid in lines["order"]:
+            line = lines["lines"][lid]
+            # a copy: reading the lines never writes a record
+            view = wellwisher.quest_record({"quests": {lid: json.loads(json.dumps((st.get("quests") or {}).get(lid) or {}))}}, line)
+            out.append({**line, "record": view, "today": wellwisher.quest_contract(line, view, st, today) if view["on"] else None})
+        return {"lines": out, "warnings": lines["warnings"]}
+
+    def quest_set(self, lid: str, on: bool, levels: Optional[dict] = None, today: Optional[str] = None) -> dict:
+        """Turn a quest line on or off (optional by design), with an optional placement."""
+        today = today or date.today().isoformat()
+        if levels is not None and not isinstance(levels, dict):
+            raise ValueError("levels must be an object {track: level}")
+        line = wellwisher.load_questlines()["lines"].get(lid)
+        if line is None:
+            raise KeyError(f"no quest line {lid}")
+        with self._lock:
+            st = self.load(today)
+            wellwisher.set_line(st, line, on, levels, today)
+            self.save(st)
+        return {"ok": True, "say": f"{line['name']} is {'on: one short session a day' if on else 'off'}."}
+
+    def quest_log(self, lid: str, track: str, sets: Any, proof: str = "", today: Optional[str] = None, via: str = "ui") -> dict:
+        """One logged session: finishes today's quest contract for that track (its XP
+        is the session XP) and moves the level only by the two-day proof rule."""
+        today = today or date.today().isoformat()
+        sets = wellwisher.clean_sets(sets)
+        line = wellwisher.load_questlines()["lines"].get(lid)
+        if line is None:
+            raise KeyError(f"no quest line {lid}")
+        with self._lock:
+            st = self.load(today)
+            if not ((st.get("quests") or {}).get(lid) or {}).get("on"):
+                raise ValueError(f"{line['name']} is off; turn it on first")
+            t = wellwisher._track(line, track)
+            if t is None:
+                raise KeyError(f"no track {track} on {lid}")
+            key = f"quest/{lid}/{track}/{today}"
+            first = key not in st["contracts"]
+            if first:                                 # the session finishes today's contract (its XP, its minutes)
+                self.complete(key, proof, today=today, via=via)
+                st = self.load(today)
+            rec = wellwisher.quest_record(st, line)
+            r = wellwisher.record_session(line, rec, track, sets, today)
+            self._event(st, today, "quest", line=lid, track=track, level=r["level_before"], sets=sets, met=r["met"], xp=0,
+                        verified=bool(re.match(r"^https?://", (proof or "").strip())), rep=rep_for(line["domain"]), via=via)
+            if r["ranked_up"]:
+                st["xp"] += line["rank_up_xp"]
+                self._event(st, today, "rankup", line=lid, track=track, level=r["level_after"], xp=line["rank_up_xp"],
+                            note=f"{t['name']} level {r['level_after']}")
+            self.save(st)
+        std = r["standard"]
+        unit = "s" if std["unit"] == "seconds" else " reps"
+        if r["ranked_up"]:
+            say = (f"{t['name']} level {r['level_after']} unlocked: the standard held on {line['sessions_to_rank']} days. "
+                   f"Plus {line['rank_up_xp']} XP.")
+        elif r["met"] and not r["top"]:
+            left = line["sessions_to_rank"] - len(r["hits"])
+            say = f"Standard met ({std['sets']} x {std['target']}{unit}). {left} more day{'s' if left != 1 else ''} at it unlocks the next level."
+        elif r["met"]:
+            say = f"Top level held: {std['sets']} x {std['target']}{unit}."
+        else:
+            say = (f"Logged. The standard is {std['sets']} x {std['target']}{unit}; the level stays until it is met "
+                   f"on {line['sessions_to_rank']} different days.")
+        if first:
+            say += f" Session: plus {line['session_xp']} XP."
+        return {"ok": True, **r, "xp": st["xp"], "say": say}
 
 
 # ------------------------------------------------------------------ voice lines
@@ -3348,7 +3456,7 @@ def save_review(review: dict, today: Optional[str] = None, path: Optional[Path] 
 
 # ------------------------------------------------------------------ gaps: welcome back, decay, drift
 def last_active(st: dict) -> Optional[str]:
-    dates = [e["date"] for e in st["events"] if e.get("kind") in ("contract", "log", "learning", "node", "ship", "cert", "project")]
+    dates = [e["date"] for e in st["events"] if e.get("kind") in ("contract", "log", "learning", "node", "ship", "cert", "project", "quest")]
     return max(dates) if dates else None
 
 

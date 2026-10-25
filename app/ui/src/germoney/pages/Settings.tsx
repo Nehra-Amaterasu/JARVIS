@@ -182,7 +182,7 @@ function Backup() {
         window.setTimeout(() => window.location.reload(), 900)
       }, false)
     } catch {
-      toast('That file is not a Mission Germoney backup.', 'fault')
+      toast('That file is not a Well Wisher (Mission Germoney) backup.', 'fault')
     }
   }
   return (

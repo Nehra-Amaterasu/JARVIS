@@ -18,7 +18,7 @@ interface State { error: Error | null; stack: string; copied: boolean }
 /** The text that goes on the clipboard: enough to find the bug without asking. */
 export function errorDetails(name: string, error: Error, componentStack: string): string {
   return [
-    `Mission Germoney: "${name}" crashed`,
+    `Well Wisher: "${name}" crashed`,
     `When: ${new Date().toISOString()}`,
     `Where: ${typeof location !== 'undefined' ? location.pathname : ''}`,
     `Error: ${error.name}: ${error.message}`,

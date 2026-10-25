@@ -1,6 +1,6 @@
 /**
- * The Mission section: loads every Germoney store once, shows the five-screen
- * navigation, and renders the current screen. Mounted for any tab in the
+ * The Well Wisher section (was Mission Germoney): loads every Germoney store once,
+ * shows the six-screen navigation, and renders the current screen. Mounted for any tab in the
  * 'mission' group; old tab ids land on the screen that absorbed them (ui.tsx).
  *
  *   Today   contracts + the day's blocks + the Floor + rituals + latest findings
@@ -8,6 +8,7 @@
  *   Focus   the Crucible and Drill
  *   Log     one log form, learning, the gym, "what got in the way", GitHub proof
  *   Road    plan, internships, certificates, Germany, money and rewards, the record
+ *   Status  the System's window: stats from logged work, rank, optional quest lines
  *   (Settings in a drawer)
  *
  * Every screen sits in its own error boundary (Boundary.tsx), keyed by screen, so a
@@ -23,14 +24,15 @@ import { FocusPage } from './pages/Focus'
 import { LogPage } from './pages/Log'
 import { RoadPage } from './pages/Road'
 import { SettingsDrawer } from './pages/Settings'
+import { StatusPage } from './pages/Status'
 import { TodayPage } from './pages/Today'
 import { TreePage } from './pages/Tree'
 import { MissionNav, SCREEN_OF, type MissionScreen } from './ui'
 
 const PAGES: Record<MissionScreen, React.ComponentType> = {
-  today: TodayPage, tree: TreePage, focus: FocusPage, log: LogPage, road: RoadPage,
+  today: TodayPage, tree: TreePage, focus: FocusPage, log: LogPage, road: RoadPage, status: StatusPage,
 }
-const NAMES: Record<MissionScreen, string> = { today: 'Today', tree: 'Tree', focus: 'Focus', log: 'Log', road: 'Road' }
+const NAMES: Record<MissionScreen, string> = { today: 'Today', tree: 'Tree', focus: 'Focus', log: 'Log', road: 'Road', status: 'Status' }
 
 export function MissionRoot() {
   const tab = useStore((s) => s.tab)
@@ -47,7 +49,7 @@ export function MissionRoot() {
       <MissionNav />
       {loaded
         ? <MissionBoundary key={screen} name={NAMES[screen]}><Page /></MissionBoundary>
-        : <div className="empty">Loading your mission…</div>}
+        : <div className="empty">Loading Well Wisher…</div>}
       <MissionBoundary name="Settings"><SettingsDrawer /></MissionBoundary>
     </div>
   )

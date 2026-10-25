@@ -39,6 +39,13 @@
     GET    /api/mission/learning           the learning-log timeline
     POST   /api/mission/learning           {what, minutes?, note?, tags?, nodes?, files?: [{name, data(base64)}]}
     PUT    /api/mission/learning/{entry}/nodes  {nodes}             correct the matched nodes
+    GET    /api/mission/status             Well Wisher Status window: rank, stats (each with how it was
+                                           computed), what is not counted, advice (wellwisher.py)
+    GET    /api/mission/engines            the Well Wisher engines (ww_engines.py): goal ladder with
+                                           today's 3 contracts and why, the evidence audit, engine status
+    GET    /api/mission/quests            the optional quest lines, his record, today's quest contract
+    PUT    /api/mission/quest/{line}       {on, levels?}            turn a line on/off, placement levels
+    POST   /api/mission/quest/{line}/log   {track, sets: [n, ...], proof?}   one session, set by set
 
 A background loop nudges (spoken if JARVIS is awake, else a ticker line) when he has
 drifted for more than the profile's idle days: once a day at most, never in quiet hours.
@@ -120,6 +127,32 @@ def register(app: FastAPI, svc, bus) -> None:
     @app.get("/api/mission/state")
     async def state():
         return await run_in_threadpool(plan.state)
+
+    # ---- Well Wisher (wellwisher.py): the Status window and the optional quest lines
+    @app.get("/api/mission/status")
+    async def status():
+        return await run_in_threadpool(plan.status)
+
+    @app.get("/api/mission/engines")
+    async def engines():
+        return await run_in_threadpool(plan.engines)
+
+    @app.get("/api/mission/quests")
+    async def quests():
+        return await run_in_threadpool(plan.quests)
+
+    @app.put("/api/mission/quest/{lid}")
+    async def quest_set(lid: str, payload: dict = Body(...)):
+        r = await run_in_threadpool(guard, plan.quest_set, lid, bool(payload.get("on")), payload.get("levels"))
+        publish(r["say"])
+        return r
+
+    @app.post("/api/mission/quest/{lid}/log")
+    async def quest_log(lid: str, payload: dict = Body(...)):
+        r = await run_in_threadpool(guard, plan.quest_log, lid, str(payload.get("track") or ""), payload.get("sets"),
+                                    str(payload.get("proof") or ""))
+        publish(r["say"])
+        return r
 
     @app.get("/api/mission/bank")
     async def bank():

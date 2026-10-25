@@ -517,7 +517,7 @@ def create_app(guard: Guard, autostart_aankhen: str = "auto", features: Optional
     @app.post("/api/germoney/import")
     def gm_import(data: dict = Body(...)):
         n = svc.kv.import_all(data)
-        bus.publish("mission", "import", f"Imported {n} Mission Germoney record(s)")
+        bus.publish("mission", "import", f"Imported {n} Well Wisher record(s)")
         return {"imported": n}
 
     @app.post("/api/germoney/ai/{task}")

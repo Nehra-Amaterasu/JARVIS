@@ -20,6 +20,7 @@ import { DAILY_ITEMS, SUNDAY_ITEMS, useChecklistStore } from '../stores/checklis
 import { usePlayerStore } from '../stores/player-store'
 import { CheckRow, daysSince, EMPTY, MissionHeader, NeonBar } from '../ui'
 import { SchedulePage } from './Schedule'
+import { QuestCards } from './Status'
 
 const REP_ICON = { silicon: Zap, deutsch: Languages, body: Dumbbell } as const
 
@@ -55,6 +56,7 @@ export function TodayPage() {
         <section className="today-main">
           {today?.exam && <ExamBanner />}
           <Blocks />
+          <QuestCards />
           <ParkIdea />
         </section>
         <aside className="today-side">

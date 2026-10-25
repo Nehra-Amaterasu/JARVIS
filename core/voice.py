@@ -333,6 +333,7 @@ class VoiceEngine:
     """say() queues; one worker synthesises in order and hands files to `play`."""
 
     EDGE_COOLDOWN_S = 60.0
+    EDGE_REJECTED_COOLDOWN_S = 900.0
 
     def __init__(self, play: Callable[[str, str, float], None], log: Callable[[str], None] = print,
                  model_dir: Optional[str] = None, enabled: bool = True,
@@ -404,6 +405,18 @@ class VoiceEngine:
     def close(self) -> None:
         self._q.put(None)
 
+    def _edge_failed(self, e: Exception) -> None:
+        """The cloud voice failed: use the offline one for a while. A refused handshake
+        (HTTP 401/403) is not a network blip: on 10-25 every Edge request got 403 (the
+        installed edge-tts 7.2.8 is refused, probably out of date) and each retry, once a
+        minute, cost the next reply's first sentence about 1.2 s before Kokoro took over.
+        A refusal now waits 15 minutes; anything else still waits 60 s."""
+        rejected = bool(re.search(r"\b40[13]\b", str(e))) or type(e).__name__ == "WSServerHandshakeError"
+        wait = self.EDGE_REJECTED_COOLDOWN_S if rejected else self.EDGE_COOLDOWN_S
+        self._edge_down_until = time.monotonic() + wait
+        hint = " (refused: edge-tts may need an update)" if rejected else ""
+        self.log(f"[voice] online voice failed ({type(e).__name__}: {str(e)[:120]}){hint}; offline voice for {wait:.0f} s")
+
     def _mark(self, stage: str, **info) -> None:
         if self.on_mark is not None:
             try:
@@ -445,8 +458,7 @@ class VoiceEngine:
                 self.stats["edge"] += 1
                 return path, style.edge_gain if name == style.edge else 1.0
             except Exception as e:
-                self._edge_down_until = time.monotonic() + self.EDGE_COOLDOWN_S
-                self.log(f"[voice] online voice failed ({type(e).__name__}: {e}); offline voice for {self.EDGE_COOLDOWN_S:.0f} s")
+                self._edge_failed(e)
         # No offline voice for this accent (Indian English): the default one says it.
         offline = style if style.kokoro else STYLES[DEFAULT_STYLE]
         if self.kokoro.available:

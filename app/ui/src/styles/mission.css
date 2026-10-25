@@ -349,6 +349,10 @@
 .three-list p { margin: 2px 0 0; }
 .weekly .eyebrow { display: block; margin-top: 8px; }
 .weekly-change { margin: 10px 0; }
+/* Proof of work: 30 squares, one per day, lit when GitHub recorded a push that day. */
+.proof-strip { display: grid; grid-template-columns: repeat(30, 1fr); gap: 3px; margin: 8px 0; }
+.proof-strip i { aspect-ratio: 1; border-radius: 2px; background: rgba(255, 255, 255, 0.06); }
+.proof-strip i.on { background: var(--live, #5eead4); }
 .c-serves { color: var(--ink-2); }
 .c-hook { color: var(--ink); }
 .alternatives { margin-top: 4px; }

@@ -39,7 +39,7 @@ from typing import Any, Optional
 
 import httpx
 
-from . import wellwisher, ww_base, ww_engines, ww_money
+from . import github_activity, wellwisher, ww_base, ww_engines, ww_money
 from .paths import DATA
 
 ROOT = DATA / "germoney"
@@ -2725,6 +2725,13 @@ class Plan:
                 "money": {"entries": d["money"]},
                 "personality": {"contracts": day.get("contracts") or [], "open_projects": d["open_projects"], "active_days": d["active_days"]},
                 "insight": {"events": d["events"], "planned": d["planned"], "nodes": d["nodes"]}}.get(name, {})
+        if name == "proof":
+            # The only engine whose data comes off the network; github_activity caches it for 30 min.
+            user = (inputs.get("profile") or {}).get("github")
+            gh = github_activity.days(user) if user else {"days": [], "fetched": None}
+            args = {"days": gh["days"], "user": user, "fetched": gh.get("fetched")}
+            out = ww_engines.run(name, inputs, today, **args)
+            return {**out, "error": gh.get("error"), "source": inputs.get("source")}
         return {**ww_engines.run(name, inputs, today, **args), "source": inputs.get("source")}
 
     def weekly(self, today: Optional[str] = None) -> dict:

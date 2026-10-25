@@ -56,7 +56,8 @@ def load_inputs(path: Optional[Path] = None) -> dict:
     p = path or inputs_path()
     for src, f in (("private", p), ("example", EXAMPLE)):
         try:
-            raw = json.loads(f.read_text(encoding="utf-8"))
+            # utf-8-sig: Windows tools (PowerShell, Notepad) often save with a BOM; plain utf-8 would reject it.
+            raw = json.loads(f.read_text(encoding="utf-8-sig"))
         except (OSError, ValueError):
             continue
         out = normalize_inputs(raw)
@@ -227,7 +228,9 @@ def normalize_inputs(raw: Any) -> dict:
     pr = raw.get("profile") if isinstance(raw.get("profile"), dict) else {}
     profile = {"traits": _strs(pr.get("traits")), "weak_points": _strs(pr.get("weak_points")), "prefers": _strs(pr.get("prefers")),
                "scores": {str(k): float(v) for k, v in (pr.get("scores") or {}).items() if _opt_num(v) is not None}
-               if isinstance(pr.get("scores"), dict) else {}}
+               if isinstance(pr.get("scores"), dict) else {},
+               # A GitHub username is letters, digits and single hyphens, at most 39 characters.
+               "github": gh if isinstance(gh := pr.get("github"), str) and re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})", gh) else None}
     mr = raw.get("money") if isinstance(raw.get("money"), dict) else {}
     ma = mr.get("assumptions") if isinstance(mr.get("assumptions"), dict) else {}
     ret = _opt_num(ma.get("annual_return_pct"))
@@ -518,6 +521,7 @@ ENGINE_TABLE: list[tuple[str, str]] = [
     ("body", ""),
     ("learning", ""),
     ("insight", "ww_insight"),
+    ("proof", "ww_proof"),
 ]
 
 

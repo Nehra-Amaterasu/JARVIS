@@ -8,7 +8,7 @@
  */
 import { BookOpen, Box, CalendarDays, Check, ChevronDown, Dumbbell, ExternalLink, FileText, Languages, Lightbulb, Lock, Mic, ParkingCircle, RefreshCw, Sparkles, Zap } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { post } from '../../lib/api'
+import { api, post } from '../../lib/api'
 import { useStore } from '../../lib/store'
 import { CARD_BY_ID } from '../game/decks'
 import * as E from '../game/engine'
@@ -63,6 +63,7 @@ export function TodayPage() {
         <aside className="today-side">
           <FloorCard />
           <WeeklyReview />
+          <ProofCard />
           <Brief />
           <Findings />
           <Rituals />
@@ -398,6 +399,38 @@ function WeeklyReview() {
       <p className="small weekly-change"><b>{w.change.text}</b></p>
       <button className="btn sm" onClick={() => void read()}><Mic size={13} />Read it to me</button>
       <p className="muted small">By voice: "Jarvis, weekly review".</p>
+    </section>
+  )
+}
+
+export interface ProofAnswer {
+  status: string; configured?: boolean; say: string; error?: string | null
+  current_streak?: number; today_done?: boolean; active_last_30?: number
+  strip?: { date: string; commits: number }[]; suggestion?: { kind: string; text: string }
+}
+
+/** GitHub proof streak (ww_proof.py): public activity only, and never a generated commit. */
+export function ProofCard() {
+  const [p, setP] = useState<ProofAnswer | null>(null)
+  useEffect(() => {
+    let live = true
+    // The server caches GitHub for 30 min, so opening Today never burns the hourly API allowance.
+    api<ProofAnswer>('/api/mission/engine/proof').then((r) => { if (live) setP(r) }).catch(() => undefined)
+    return () => { live = false }
+  }, [])
+  if (!p || p.status !== 'ok') return null
+  return (
+    <section className="card proof" aria-label="GitHub proof">
+      <div className="card-head"><span className="card-title"><Box size={14} />Proof of work</span>
+        {p.configured && <span className="mono small">{p.current_streak} day streak</span>}</div>
+      {p.strip && (
+        <div className="proof-strip" aria-label="last 30 days">
+          {p.strip.map((d) => <i key={d.date} title={`${d.date}: ${d.commits}`} className={d.commits ? 'on' : ''} />)}
+        </div>
+      )}
+      <p className="small">{p.configured ? (p.today_done ? 'Today is green.' : p.suggestion?.text) : p.say}</p>
+      {p.error && <p className="muted small">{p.error}</p>}
+      {p.configured && <p className="muted small">{p.active_last_30} of the last 30 days active · public repos only</p>}
     </section>
   )
 }

@@ -44,6 +44,7 @@
     GET    /api/mission/engines            the Well Wisher engines (ww_engines.py): goal ladder, evidence
                                            audit, career, money, personality, insight, today's 3, the registry
     GET    /api/mission/engine/{name}      one engine over his data (schema checked; invalid_input if not)
+    GET    /api/mission/engine/proof       GitHub streak from public activity + one real proof idea (ww_proof.py)
     GET    /api/mission/weekly             the weekly review (insight engine); `say` is the spoken version
     GET    /api/mission/money              the money engine: months, experiments in Rs/hour, projection (education)
     POST   /api/mission/money              {kind, amount, date?, hours?, experiment?, note?}  one money-log entry

@@ -2,8 +2,8 @@
  * Aankhen: the spatial twin, full-bleed, with its instruments laid over it.
  *
  *   presence core   72 ticks lit = P(someone is in the room); the two arcs are
- *                   the evidence RIGHT NOW â€” Wi-Fi (for presence) and absence
- *                   (against) â€” so you can see why it believes what it does. There is
+ *                   the evidence RIGHT NOW — Wi-Fi (for presence) and absence
+ *                   (against) — so you can see why it believes what it does. There is
  *                   no radar in this project: no radar arc, chip or rate.
  *   zones           shown and named only when the readiness check trusts them
  *                   (measured room + baselines + 7 drill days + day-7 test); before
@@ -18,9 +18,9 @@
  *   channel         51 subcarrier amplitudes as a dot matrix (Nothing-style: the
  *                   unlit dots are the scale)
  *   sim check       only in simulation: live error between the tracked and the
- *                   true positions â€” the twin grades itself
+ *                   true positions — the twin grades itself
  *   belief          the dot cloud in the twin is where movement / presence probably
- *                   is (twin/BeliefCloud.ts): dots per zone âˆ probability, no body,
+ *                   is (twin/BeliefCloud.ts): dots per zone ∝ probability, no body,
  *                   because Aankhen sees none; the legend says so, and the zone map
  *                   (circles with names) shows the zones I train against
  *
@@ -75,14 +75,14 @@ interface TeachStatus {
 }
 
 const SOURCE: Record<string, { label: string; cls: string }> = {
-  hardware: { label: 'LIVE Â· ESP32 hardware', cls: 'live' },
-  simulation: { label: 'SIMULATION Â· not measured', cls: 'sim' },
-  replay: { label: 'REPLAY Â· recorded data', cls: 'sim' },
+  hardware: { label: 'LIVE · ESP32 hardware', cls: 'live' },
+  simulation: { label: 'SIMULATION · not measured', cls: 'sim' },
+  replay: { label: 'REPLAY · recorded data', cls: 'sim' },
 }
 const LAYOUT: Record<string, { label: string; cls: string; hint: string }> = {
-  measured: { label: 'Layout Â· measured', cls: 'live', hint: 'room.json measured with a tape' },
-  estimated: { label: 'Layout Â· estimated', cls: 'sim', hint: 'read off a sketch and photos; measure it and set "measured": true' },
-  default: { label: 'Layout Â· default 4Ã—4 m', cls: '', hint: 'no room.json yet: copy aankhen/room.example.json to data/aankhen/room.json' },
+  measured: { label: 'Layout · measured', cls: 'live', hint: 'room.json measured with a tape' },
+  estimated: { label: 'Layout · estimated', cls: 'sim', hint: 'read off a sketch and photos; measure it and set "measured": true' },
+  default: { label: 'Layout · default 4×4 m', cls: '', hint: 'no room.json yet: copy aankhen/room.example.json to data/aankhen/room.json' },
 }
 // The learned model's five states, as I would say them.
 const STATES: { id: string; name: string }[] = [
@@ -111,7 +111,7 @@ export function AankhenPage() {
   const [framing, setFramingState] = useState<Framing>('room')
   const [heatLayer, setHeatLayer] = useState<'live' | 'learned'>('live')
   const [layers, setLayers] = useState<Record<Layer, boolean>>(DEFAULT_LAYERS)
-  // What the belief cloud says ("probably: at the desk chair Â· 62 %"), or null with no belief.
+  // What the belief cloud says ("probably: at the desk chair · 62 %"), or null with no belief.
   const [est, setEst] = useState<BeliefSummary | null>(null)
   const [hist, setHist] = useState<{ score: number; thr: number }[]>([])
   const [teachOpen, setTeachOpen] = useState(false)
@@ -216,8 +216,8 @@ export function AankhenPage() {
             <h1 className="display chrome-text">Aankhen</h1>
           </div>
           <div className="hud-pills rise" style={{ ['--i' as string]: 1 }}>
-            <span className={`pill ${src.cls} big`}><i className={`led ${!stale && src.cls !== 'fault' ? 'breathe' : ''}`} />{stale ? 'DISCONNECTED â€” showing last data' : src.label}</span>
-            <button className={`pill ${layout.cls}`} title={`${layout.hint} Â· click to measure`} onClick={() => { setTeachOpen(false); setFlOpen(false); setMeasureOpen(true) }}>{layout.label}</button>
+            <span className={`pill ${src.cls} big`}><i className={`led ${!stale && src.cls !== 'fault' ? 'breathe' : ''}`} />{stale ? 'DISCONNECTED — showing last data' : src.label}</span>
+            <button className={`pill ${layout.cls}`} title={`${layout.hint} · click to measure`} onClick={() => { setTeachOpen(false); setFlOpen(false); setMeasureOpen(true) }}>{layout.label}</button>
           </div>
           <SourceCard hub={hub} frame={frame} room={room} onStart={startSource} />
           <SensorsCard status={status} />
@@ -234,7 +234,7 @@ export function AankhenPage() {
               <b>{est?.label}</b>
               <span>{est?.label === NOT_SURE_WHERE
                 ? 'zones are not trusted yet: measure the room and drill 7 days'
-                : <>dots = probability, not a person{est?.fallback ? ' Â· from the learned states' : ''}</>}</span>
+                : <>dots = probability, not a person{est?.fallback ? ' · from the learned states' : ''}</>}</span>
             </div>
           </div>
         </Presence>
@@ -351,7 +351,7 @@ function TeachSheet({ t, onClose }: { t: Teach; onClose: () => void }) {
         <div className="ts-title">
           {s?.recording ? <i className="rec-dot" /> : <GraduationCap size={16} />}
           <b>{s?.recording ? 'Recording what you label' : 'Teach Aankhen your room'}</b>
-          {s?.simulated && <span className="pill sim" title="Sessions recorded from the simulator are named teach-sim-* and never trained on">Practice Â· simulator</span>}
+          {s?.simulated && <span className="pill sim" title="Sessions recorded from the simulator are named teach-sim-* and never trained on">Practice · simulator</span>}
         </div>
         <div className="ts-actions">
           {s?.recording && <button className="btn sm ghost" onClick={() => void stop()}><Square size={12} />End session</button>}
@@ -379,17 +379,17 @@ function TeachSheet({ t, onClose }: { t: Teach; onClose: () => void }) {
       </div>
       <div className="ts-train">
         <div className="ts-train-text">
-          {tr?.state === 'running' && <span className="scan ts-step">{tr.step ?? 'training'}â€¦</span>}
+          {tr?.state === 'running' && <span className="scan ts-step">{tr.step ?? 'training'}…</span>}
           {tr?.state === 'done' && (
             <span className="rise">Held-out score: occupancy <b className="dot"><Ticker value={(tr.occupancy_accuracy ?? 0) * 100} fmt={(n) => `${n.toFixed(1)}%`} /></b>
-              {' Â· '}five states <b className="dot"><Ticker value={(tr.five_way_accuracy ?? 0) * 100} fmt={(n) => `${n.toFixed(1)}%`} /></b>
-              <span className="muted"> on {tr.held_out_windows?.toLocaleString()} windows it never saw Â· now live</span></span>
+              {' · '}five states <b className="dot"><Ticker value={(tr.five_way_accuracy ?? 0) * 100} fmt={(n) => `${n.toFixed(1)}%`} /></b>
+              <span className="muted"> on {tr.held_out_windows?.toLocaleString()} windows it never saw · now live</span></span>
           )}
           {tr?.state === 'error' && <span className="fault">{tr.error}</span>}
-          {(!tr || tr.state === 'idle') && <span className="muted">{learned > 0 ? `${fmtDur(learned)} labelled in your room so far.` : 'Nothing labelled in your room yet â€” simulator practice never counts.'}</span>}
+          {(!tr || tr.state === 'idle') && <span className="muted">{learned > 0 ? `${fmtDur(learned)} labelled in your room so far.` : 'Nothing labelled in your room yet — simulator practice never counts.'}</span>}
         </div>
         <button className="btn sm primary" disabled={tr?.state === 'running' || learned <= 0} onClick={() => void t.train()}>
-          <Sparkles size={13} />{tr?.state === 'running' ? 'Trainingâ€¦' : 'Train on my labels'}
+          <Sparkles size={13} />{tr?.state === 'running' ? 'Training…' : 'Train on my labels'}
         </button>
       </div>
     </div>
@@ -411,7 +411,7 @@ function SourceCard({ hub, frame, room, onStart }: { hub?: HubInfo; frame: Frame
       </div>
       {frame?.scenario && (
         <div className="mono muted scen-t">t <Ticker value={frame.scenario.t} /> s{frame.scenario.period_s ? ` / ${frame.scenario.period_s} s loop` : ''}
-          {room && ` Â· ${room.width}Ã—${room.depth} m`}</div>
+          {room && ` · ${room.width}×${room.depth} m`}</div>
       )}
     </div>
   )
@@ -457,8 +457,8 @@ function PresenceCore({ frame }: { frame: FrameMsg | null }) {
         })}
       </svg>
       <div className="pc-center">
-        <div key={p?.state ?? '-'} className="display pc-state pop">{p ? p.state : 'â€”'}</div>
-        <div className="pc-count dot">{p?.count ?? 'â€”'}</div>
+        <div key={p?.state ?? '-'} className="display pc-state pop">{p ? p.state : '—'}</div>
+        <div className="pc-count dot">{p?.count ?? '—'}</div>
         <div className="mono pc-sub">{p ? <>P <Ticker value={prob} fmt={(n) => n.toFixed(2)} /></> : 'no data'}</div>
       </div>
       <div className="pc-legend mono">
@@ -485,15 +485,15 @@ function MotionCard({ frame, hist }: { frame: FrameMsg | null; hist: { score: nu
     g.scale(dpr, dpr)
     g.clearRect(0, 0, W, H)
     if (!hist.length) {
-      g.fillStyle = 'rgba(255,255,255,0.3)'; g.font = '12px Inter Variable'; g.fillText('waiting for CSIâ€¦', 8, H / 2); return
+      g.fillStyle = 'rgba(255,255,255,0.3)'; g.font = '12px Inter Variable'; g.fillText('waiting for CSI…', 8, H / 2); return
     }
-    // log scale: the empty room (1Ã—) and a walking person (50Ã—+) both stay readable
+    // log scale: the empty room (1×) and a walking person (50×+) both stay readable
     const lo = Math.log10(0.5), hi = Math.log10(Math.max(20, ...hist.map((h) => h.score)) * 1.2)
     const y = (v: number) => H - ((Math.log10(Math.max(v, 0.5)) - lo) / (hi - lo)) * (H - 6) - 3
     for (const ref1 of [1, 10, 100]) {
       if (Math.log10(ref1) > hi) break
       g.strokeStyle = 'rgba(255,255,255,0.06)'; g.beginPath(); g.moveTo(0, y(ref1)); g.lineTo(W, y(ref1)); g.stroke()
-      g.fillStyle = 'rgba(255,255,255,0.3)'; g.font = '9px Geist Mono Variable'; g.fillText(`${ref1}Ã—`, 3, y(ref1) - 3)
+      g.fillStyle = 'rgba(255,255,255,0.3)'; g.font = '9px Geist Mono Variable'; g.fillText(`${ref1}×`, 3, y(ref1) - 3)
     }
     const thr = hist[hist.length - 1].thr
     if (thr) {
@@ -521,21 +521,21 @@ function MotionCard({ frame, hist }: { frame: FrameMsg | null; hist: { score: nu
   return (
     <div className="hud-card glass-thin rise" style={{ ['--i' as string]: 1 }}>
       <div className="hc-head"><span className="eyebrow">Wi-Fi motion</span>
-        <span key={md?.state ?? '-'} className={`pill pop ${md?.state === 'motion' ? (sim ? 'sim' : 'live') : ''}`}>{md?.state ?? 'â€”'}</span></div>
-      <div className="hc-big"><span className="dot"><Ticker value={md?.score} fmt={(n) => `${fmt(n, 1)}Ã—`} /></span>
-        <span className="muted mono">threshold {md?.threshold != null ? `${fmt(md.threshold, 2)}Ã—` : 'â€”'}</span></div>
+        <span key={md?.state ?? '-'} className={`pill pop ${md?.state === 'motion' ? (sim ? 'sim' : 'live') : ''}`}>{md?.state ?? '—'}</span></div>
+      <div className="hc-big"><span className="dot"><Ticker value={md?.score} fmt={(n) => `${fmt(n, 1)}×`} /></span>
+        <span className="muted mono">threshold {md?.threshold != null ? `${fmt(md.threshold, 2)}×` : '—'}</span></div>
       <canvas ref={ref} className="hc-chart" />
-      <div className="hb" title="Human-band energy: power at body speeds (0.4â€“4 Hz) across smooth subcarrier patterns, in units of the window's own noise. It can start motion when the last second is above the start gate.">
+      <div className="hb" title="Human-band energy: power at body speeds (0.4–4 Hz) across smooth subcarrier patterns, in units of the window's own noise. It can start motion when the last second is above the start gate.">
         <div className="hb-head mono"><span>human band</span>
-          <span>{calibrated ? <><Ticker value={hb!.ratio} fmt={(n) => `${n.toFixed(2)}Ã—`} /> its threshold</>
-            : hb ? <><Ticker value={hb.energy} fmt={(n) => `${n.toFixed(1)}Ã—`} /> noise Â· uncalibrated</> : 'â€”'}</span></div>
+          <span>{calibrated ? <><Ticker value={hb!.ratio} fmt={(n) => `${n.toFixed(2)}×`} /> its threshold</>
+            : hb ? <><Ticker value={hb.energy} fmt={(n) => `${n.toFixed(1)}×`} /> noise · uncalibrated</> : '—'}</span></div>
         <div className={`meter ${sim ? 'sim' : 'live'}`}><i style={{ width: `${hbPct}%` }} /><b style={{ left: `${gatePct}%` }} /></div>
-        <div className="hb-foot mono muted">last 1 s {hb ? `${fmt(hb.recent, 2)}Ã— noise` : 'â€”'} Â· starts at {hb ? `${hb.start_gate}Ã—` : 'â€”'}</div>
+        <div className="hb-foot mono muted">last 1 s {hb ? `${fmt(hb.recent, 2)}× noise` : '—'} · starts at {hb ? `${hb.start_gate}×` : '—'}</div>
       </div>
       <div className="hc-foot mono muted">
-        baseline: {md?.baseline ?? 'â€”'}
+        baseline: {md?.baseline ?? '—'}
         <span className="breath">
-          breathing {md?.breathing_bpm ? `${fmt(md.breathing_bpm, 1)}/min` : 'â€”'}
+          breathing {md?.breathing_bpm ? `${fmt(md.breathing_bpm, 1)}/min` : '—'}
           <span className="sticker"><b>Experimental</b><i><span>lab grade</span></i></span>
         </span>
       </div>
@@ -556,11 +556,11 @@ function LearnedCard({ frame, trusted, onTeach }: { frame: FrameMsg | null; trus
       <div className="hc-head"><span className="eyebrow">Spatial model</span>
         <span className="pill" title="Shown, not used: fusion ignores it until its score on my own recordings beats the engine">advisory</span></div>
       {!l ? (
-        <div className="muted lc-empty">{frame ? 'No trained model yet.' : 'Waiting for dataâ€¦'}</div>
+        <div className="muted lc-empty">{frame ? 'No trained model yet.' : 'Waiting for data…'}</div>
       ) : (
         <>
           <div className="lc-top">
-            <span key={view!.top} className="display lc-state pop">{!trusted && view!.top === 'room' ? 'In my room Â· not sure where' : top?.name ?? view!.top}</span>
+            <span key={view!.top} className="display lc-state pop">{!trusted && view!.top === 'room' ? 'In my room · not sure where' : top?.name ?? view!.top}</span>
             <span className="mono muted">occupied <b className="dot"><Ticker value={view!.occupied * 100} fmt={(n) => `${Math.round(n)}%`} /></b></span>
           </div>
           <div className="lc-rows">
@@ -591,8 +591,8 @@ function LearnedCard({ frame, trusted, onTeach }: { frame: FrameMsg | null; trus
         </>
       )}
       <div className="hc-foot mono muted">
-        <span title="What it measures change against: the calibrated empty room, or â€” before calibration â€” whatever the first seconds saw">
-          trained: {l?.trained ?? 'â€”'}{l?.reference ? <> Â· ref: <b className={l.reference === 'calibrated' ? '' : 'sim'}>{l.reference}</b></> : null}
+        <span title="What it measures change against: the calibrated empty room, or — before calibration — whatever the first seconds saw">
+          trained: {l?.trained ?? '—'}{l?.reference ? <> · ref: <b className={l.reference === 'calibrated' ? '' : 'sim'}>{l.reference}</b></> : null}
         </span>
         <button className="btn sm ghost" onClick={onTeach}><GraduationCap size={12} />Teach it my room</button>
       </div>
@@ -627,8 +627,8 @@ function ChannelCard({ frame }: { frame: FrameMsg | null }) {
   }, [amps, sim])
   return (
     <div className="hud-card glass-thin rise" style={{ ['--i' as string]: 2 }}>
-      <div className="hc-head"><span className="eyebrow">Channel Â· 51 subcarriers</span>
-        <span className="mono muted">{frame ? `${fmt(frame.csi.rate_hz, 0)} Hz Â· ${frame.csi.rssi ?? 'â€”'} dBm` : 'â€”'}</span></div>
+      <div className="hc-head"><span className="eyebrow">Channel · 51 subcarriers</span>
+        <span className="mono muted">{frame ? `${fmt(frame.csi.rate_hz, 0)} Hz · ${frame.csi.rssi ?? '—'} dBm` : '—'}</span></div>
       <canvas ref={ref} className="hc-matrix" />
       <div className="hc-foot mono muted">{frame ? `${fmt(frame.csi.fill_ratio * 100, 1)}% gaps filled` : ''}</div>
     </div>
@@ -649,7 +649,7 @@ function SensorsCard({ status }: { status: StatusMsg | null }) {
         </div>
       ))}
       {status?.link?.frames_ok !== undefined && (
-        <div className="hc-foot mono muted"><span><Ticker value={status.link.frames_ok} fmt={(n) => Math.round(n).toLocaleString()} /> frames Â· {status.link.crc_errors} CRC rejected Â· {fmt((status.link.loss_ratio ?? 0) * 100, 1)}% lost</span></div>
+        <div className="hc-foot mono muted"><span><Ticker value={status.link.frames_ok} fmt={(n) => Math.round(n).toLocaleString()} /> frames · {status.link.crc_errors} CRC rejected · {fmt((status.link.loss_ratio ?? 0) * 100, 1)}% lost</span></div>
       )}
     </div>
   )
@@ -664,7 +664,7 @@ function SimCheck({ frame }: { frame: FrameMsg }) {
       <div className="kv" style={{ marginTop: 6 }}>
         <span>People (truth)</span><span className="mono">{m.truth_n}</span>
         <span>Tracked</span><span className="mono">{m.tracked_n}</span>
-        {m.pairs.map((p) => [<span key={p.truth + 'a'}>{p.truth} â†’ {p.track}</span>, <span key={p.truth + 'b'} className="mono">{Math.round(p.error_m * 100)} cm</span>])}
+        {m.pairs.map((p) => [<span key={p.truth + 'a'}>{p.truth} → {p.track}</span>, <span key={p.truth + 'b'} className="mono">{Math.round(p.error_m * 100)} cm</span>])}
       </div>
     </div>
   )

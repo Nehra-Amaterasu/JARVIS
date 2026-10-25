@@ -619,7 +619,7 @@ def today_three(inputs: dict, today: str, candidates: Optional[list[dict]] = Non
     for i, r in enumerate(picks):
         f = frame(r, per["style"], inputs.get("rules", {}).get("sprint_minutes", 45), short=recovery and i == 0)
         out.append({"key": r["key"], "title": r["title"], "minutes": f["minutes"], "score": r["score"], "serves": r.get("serves"),
-                    "chain": r.get("chain", []), "why": " Ã‚Â· ".join(r["why_lines"]), "frame": f["frame"],
+                    "chain": r.get("chain", []), "why": " · ".join(r["why_lines"]), "frame": f["frame"],
                     "engines": r["engines"] + ["personality"]})
     return {"date": today, "mode": per["gap"]["mode"], "n": per["n_today"], "picks": out,
             "welcome_back": per["gap"]["say"], "cap": per["cap"], "career_next": car["next"],

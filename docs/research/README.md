@@ -1,4 +1,4 @@
-﻿# Research notes
+# Research notes
 
 One line per note (CLAUDE.md: research is never lost). Private notes live in
 `data/notes/research/`, not here.

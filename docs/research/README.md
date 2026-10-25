@@ -1,6 +1,6 @@
 # Research notes
 
-One line per note (CLAUDE.md: research is never lost). Private notes live in
+One line per file (CLAUDE.md: research is never lost). Since 2026-10-26 each topic has one running file, newest section on top; the dated notes below stay. Private notes live in
 `data/notes/research/`, not here.
 
 - [2026-10-12-agents-and-media.md](2026-10-12-agents-and-media.md): agents, skills, music, Obsidian, graph viz.
@@ -44,3 +44,4 @@ One line per note (CLAUDE.md: research is never lost). Private notes live in
 - [2026-10-25-voice-latency.md](2026-10-25-voice-latency.md): where the first-audio wait goes (TTS+playback 1.73 s median after the first token; Edge TTS refused with 403, needs an edge-tts update), per-stage turn clock, 5-word first clause, streamed Edge playback on a warm stream (sound 25 ms after first byte), cut-off replies stored as heard.
 - [2026-10-25-well-wisher-engines.md](2026-10-25-well-wisher-engines.md): Well Wisher engines 1-4: career (urgency x unmastered share x kind weight, a gate for exams within 7 days), money (Rs/hour scored after 4 weeks, projection at 0% plus the stated return, unknowns shown as unknown, education only), personality (framing from the profile, hard cap of 3 projects, 2-contract recovery after 2 idle days; fresh-start and self-compassion research), insight (weekly review with one rule-based change); Today's 3 composed from ladder + career + personality.
 - [2026-10-25-ui-speed.md](2026-10-25-ui-speed.md): UI bundle and first paint: every tab but Core split into its own chunk (first-load JS 403.9 -> 305.9 kB, gzip 126.9 -> 100.1 kB; CSS 125.5 -> 110.2 kB), idle prefetch of the light tabs only; no measurable first-paint change on the busy laptop (noise > effect); Radar chip removed from Aankhen.
+- [aankhen.md](aankhen.md): running Aankhen log (newest first). 2026-10-26: the kNN and CNN shown to really learn (held-out 100 %, shuffled labels at chance), and narrated routines turned into labels (sync chirps matched to 1 ms, 6/6 places from a phone-style recording).

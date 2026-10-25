@@ -44,6 +44,7 @@ import { FirstLightSheet } from '../components/FirstLight'
 import { MeasureSheet, ReadinessCard, useReadiness } from '../components/MeasureRoom'
 import { learnedView } from '../lib/roomMeasure'
 import { NOT_SURE_WHERE } from '../lib/belief'
+import { GlassDefs, useGlassTier } from '../lib/liquidGlass'
 import { DEFAULT_LAYERS, LAYERS } from '../twin/layers'
 import { SpatialTwin, type BeliefSummary, type FrameMsg, type Framing, type HeatMsg, type Layer, type RoomSpec } from '../twin/SpatialTwin'
 
@@ -105,6 +106,7 @@ export function AankhenPage() {
   const [room, setRoom] = useState<RoomSpec | null>(null)
   const [online, setOnline] = useState(false)
   const [view, setViewState] = useState<View>(savedView)
+  const glass = useGlassTier()
   const viewRef = useRef<View>(view)
   // The eyes stream (10 Hz) goes straight to EyesView's drawing loop, never through React state.
   const eyesSink = useRef<((m: EyesMsg) => void) | null>(null)
@@ -203,7 +205,8 @@ export function AankhenPage() {
   const hasHouse = !!room?.house && (room.house.areas.length > 0 || room.house.fixtures.length > 0)
   const eyes = view === 'eyes'
   return (
-    <div className={`page full aankhen-page fade-in ${sim ? 'is-sim' : 'is-live'} ${eyes ? 'view-eyes' : ''}`}>
+    <div className={`page full aankhen-page fade-in ${sim ? 'is-sim' : 'is-live'} ${eyes ? 'view-eyes' : ''}`} data-glass={glass}>
+      {glass === 'refract' && <GlassDefs />}
       <div className="twin-stage">
         <div ref={host} className={`twin-host ${stale ? 'stale' : ''}`} aria-hidden={eyes} />
         <Presence show={eyes}>

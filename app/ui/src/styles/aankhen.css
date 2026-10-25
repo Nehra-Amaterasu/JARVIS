@@ -110,6 +110,46 @@
 .tw-fixture span { font: 600 8.5px var(--f-mono); letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 255, 255, 0.4); }
 
 .hud-card { padding: 14px 16px; border-radius: 18px; background: rgba(12, 13, 16, 0.62); width: 100%; }
+
+/* Liquid glass over the twin (lib/liquidGlass.tsx picks the tier by measured fps).
+   Was: glass-thin's 28 px blur under a 62 %-opaque fill, so the cost of glass with none
+   of the look. Now a 12 px blur (cost grows with the radius) under a fill thin enough to
+   see the room through, a light rim brighter at the top-left like a lit edge, and, on
+   the "refract" tier, the rim bending the scene behind it. */
+.aankhen-page[data-glass] .hud-card,
+.aankhen-page[data-glass] .hud-bl .seg {
+  position: relative;
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.075) 0%, rgba(255, 255, 255, 0.018) 38%, rgba(255, 255, 255, 0) 60%),
+    rgba(10, 12, 16, 0.34);
+  backdrop-filter: blur(12px) saturate(185%) brightness(1.06);
+  -webkit-backdrop-filter: blur(12px) saturate(185%) brightness(1.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),          /* the lit top edge */
+    inset 0 -14px 28px rgba(0, 0, 0, 0.14),           /* thickness: darker towards the bottom */
+    0 10px 30px rgba(0, 0, 0, 0.28);
+}
+/* the rim: a 1 px gradient border drawn by a masked pseudo-element (no extra layout) */
+.aankhen-page[data-glass] .hud-card::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0.06) 35%,
+                                      rgba(255, 255, 255, 0.02) 65%, rgba(255, 255, 255, 0.16));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+/* refraction: the lens map bends the backdrop at the rim, then the same blur.
+   A browser without url() in backdrop-filter drops this line and keeps the blur above. */
+.aankhen-page[data-glass='refract'] .hud-card {
+  backdrop-filter: url(#lg-refract) blur(10px) saturate(185%) brightness(1.06);
+}
+/* flat: the machine could not hold the frame rate; no backdrop work at all */
+.aankhen-page[data-glass='flat'] .hud-card,
+.aankhen-page[data-glass='flat'] .hud-bl .seg {
+  backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(12, 13, 16, 0.86);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .aankhen-page[data-glass] .hud-card { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(12, 13, 16, 0.9); }
+}
 .hc-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
 .hc-head .eyebrow.sim { color: var(--sim); }
 .hc-big { display: flex; align-items: baseline; gap: 10px; }

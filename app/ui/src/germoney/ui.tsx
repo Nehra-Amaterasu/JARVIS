@@ -26,13 +26,15 @@ export const EMPTY: readonly never[] = Object.freeze([])
 
 /* ------------------------------------------------------------------ sub-navigation */
 /**
- * Mission v2: five screens. The Tab ids are the app's (lib/store.ts), reused so
- * the dock, Ctrl 0 and saved tab choices keep working; every old Mission tab
- * id lands on the screen that absorbed it.
+ * Well Wisher (was Mission v2): six screens. The Tab ids are the app's (lib/store.ts),
+ * reused so the dock, Ctrl 0 and saved tab choices keep working; every old Mission
+ * tab id lands on the screen that absorbed it. Status is the System's window
+ * (stats derived server-side from logged work, docs/well-wisher-v1.md).
  */
-export type MissionScreen = 'today' | 'tree' | 'focus' | 'log' | 'road'
+export type MissionScreen = 'today' | 'tree' | 'focus' | 'log' | 'road' | 'status'
 export const MISSION_TABS: { id: Tab; screen: MissionScreen; label: string }[] = [
   { id: 'mission', screen: 'today', label: 'Today' },
+  { id: 'status', screen: 'status', label: 'Status' },
   { id: 'syllabus', screen: 'tree', label: 'Tree' },
   { id: 'crucible', screen: 'focus', label: 'Focus' },
   { id: 'terminal', screen: 'log', label: 'Log' },
@@ -46,6 +48,7 @@ export const SCREEN_OF: Partial<Record<Tab, MissionScreen>> = {
   terminal: 'log', forge: 'log', interrogation: 'log', proof: 'log',
   campaign: 'road', trials: 'road', armory: 'road',
   calibration: 'today',
+  status: 'status',
 }
 
 export const useDrawer = create<{ open: boolean; toggle: (o?: boolean) => void }>((set, get) => ({
@@ -59,14 +62,14 @@ export function MissionNav() {
   const toggle = useDrawer((s) => s.toggle)
   const screen = SCREEN_OF[tab] ?? 'today'
   return (
-    <nav className="mission-nav" aria-label="Mission">
-      <span className="mn-brand mono">m:ss:on_ger-money</span>
+    <nav className="mission-nav" aria-label="Well Wisher">
+      <span className="mn-brand mono">well_wisher</span>
       {MISSION_TABS.map((t) => (
         <button key={t.id} className={`mn-tab ${screen === t.screen ? 'on' : ''}`} aria-current={screen === t.screen ? 'page' : undefined}
           onClick={() => setTab(t.id)}>{t.label}</button>
       ))}
       <span style={{ flex: 1 }} />
-      <button className="mn-tab mn-settings" onClick={() => toggle()} aria-label="Mission settings"><Settings2 size={14} />Settings</button>
+      <button className="mn-tab mn-settings" onClick={() => toggle()} aria-label="Well Wisher settings"><Settings2 size={14} />Settings</button>
     </nav>
   )
 }

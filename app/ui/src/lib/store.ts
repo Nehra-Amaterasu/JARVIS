@@ -9,9 +9,9 @@ import { switchView } from './motion'
 
 export type Tab =
   | 'core' | 'yaadash' | 'aankhen' | 'limbs' | 'connect' | 'system'
-  // Mission Germoney (src/germoney): the whole phone app, as tabs.
+  // Well Wisher (was Mission Germoney; the code stays in src/germoney): the whole phone app, as tabs.
   | 'mission' | 'quests' | 'campaign' | 'trials' | 'drill' | 'armory'
-  | 'crucible' | 'forge' | 'syllabus' | 'terminal' | 'interrogation' | 'proof' | 'schedule' | 'calibration'
+  | 'crucible' | 'forge' | 'syllabus' | 'terminal' | 'interrogation' | 'proof' | 'schedule' | 'calibration' | 'status'
 
 export const TABS: { id: Tab; n: string; title: string; sub: string; group: 'jarvis' | 'mission'; dock?: boolean }[] = [
   { id: 'core', n: '01', title: 'Core', sub: 'JARVIS himself — wake him, talk, watch him think.', group: 'jarvis', dock: true },
@@ -34,6 +34,7 @@ export const TABS: { id: Tab; n: string; title: string; sub: string; group: 'jar
   { id: 'proof', n: 'M12', title: 'Proof', sub: 'Now part of Log.', group: 'mission' },
   { id: 'schedule', n: 'M13', title: 'Schedule', sub: 'Now part of Today.', group: 'mission' },
   { id: 'calibration', n: 'M0', title: 'Settings', sub: 'Exams, profile and calibration.', group: 'mission' },
+  { id: 'status', n: 'M14', title: 'Status', sub: 'Stats from logged work only, rank, optional quest lines.', group: 'mission', dock: true },
 ]
 
 export interface Toast { id: number; text: string; tone: 'live' | 'sim' | 'fault' | 'info' }

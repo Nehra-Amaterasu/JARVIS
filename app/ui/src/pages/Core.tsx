@@ -378,7 +378,7 @@ function MissionCard() {
   return (
     <section className={`card mission ${player.isPurgatoryActive ? 'warn' : ''}`}>
       <div className="card-head">
-        <span className="card-title"><span className="track">B2</span>Mission · Germoney</span>
+        <span className="card-title"><span className="track">B2</span>Well Wisher</span>
         <button className="btn sm ghost" onClick={() => setTab('mission')}>Open</button>
       </div>
       <div className="mission-sum">

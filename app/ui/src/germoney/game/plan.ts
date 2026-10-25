@@ -11,11 +11,17 @@ import { api, post } from '../../lib/api'
 import { usePlayerStore } from '../stores/player-store'
 import type { NodeRecord } from './tree'
 
+export interface QuestInfo {
+  line: string; track: string; track_name: string; level: number; max_level: number
+  sets: number; target: number; unit: 'reps' | 'seconds'; hits: string[]; need: number; top: boolean
+}
 export interface Res { id: string; title: string; kind: string; url: string; free: boolean; legal_pdf_url: string | null; why?: string }
 export interface PlanContract {
   key: string
-  source: 'tree' | 'academics' | 'practice'
-  slot: 'library' | 'evening' | 'weekend' | 'extra'
+  source: 'tree' | 'academics' | 'practice' | 'quest'
+  slot: 'library' | 'evening' | 'weekend' | 'extra' | 'quest'
+  /** Well Wisher quest lines (wellwisher.py): the level, its standard, days still needed at it. */
+  quest?: QuestInfo
   node_id: string | null
   node_name: string | null
   branch: string | null

@@ -39,7 +39,7 @@ from typing import Any, Optional
 
 import httpx
 
-from . import wellwisher
+from . import wellwisher, ww_engines
 from .paths import DATA
 
 ROOT = DATA / "germoney"
@@ -2673,6 +2673,21 @@ class Plan:
         bank = self.bank()
         st = self.load(today)
         return wellwisher.status_window(bank, st, today, wellwisher.load_questlines(), level_info(st["xp"]))
+
+    def engines(self, today: Optional[str] = None, inputs: Optional[dict] = None) -> dict:
+        """The Well Wisher engines over his data (ww_engines.py): the goal ladder ranks
+        today's offered contracts by the rung they serve; the evidence engine audits
+        every event's XP. Read only (today() may freeze the day, as GET /today does)."""
+        today = today or date.today().isoformat()
+        inputs = inputs if inputs is not None else ww_engines.load_inputs()
+        t = self.today(today)
+        st = self.load(today)
+        ladder = ww_engines.goal_ladder(inputs, today, candidates=t["contracts"] + t.get("alternatives", []), done=set(st["contracts"]))
+        ev = ww_engines.evidence(inputs, today, ww_engines.actions_from_plan(st))
+        return {"date": today, "source": inputs.get("source"), "warnings": inputs.get("warnings", []), "ladder": ladder,
+                "evidence": {"xp": ev["xp"], "actions": len(ev["ledger"]), "rejected": ev["rejected"][-20:], "rules": ev["rules"]},
+                "engines": {k: f(inputs, today)["status"] if k not in ("goal_ladder", "evidence") else "ok"
+                            for k, f in ww_engines.ENGINES.items()}}
 
     def quests(self, today: Optional[str] = None) -> dict:
         today = today or date.today().isoformat()

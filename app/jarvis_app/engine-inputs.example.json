@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "about": "Fictional example of data/notes/well-wisher/engine-inputs.json (the real file is private and git-ignored). Used when the real one is missing.",
+  "life_goals": [
+    {
+      "id": "lg-chip-architect",
+      "title": "Design low-power AI chips that matter",
+      "why": "Hardware that makes AI cheaper to run is useful to many people and pays well.",
+      "five_year": [
+        {"id": "fy-ms", "title": "Finish an MS in embedded or chip design", "by": "2030-09-30"},
+        {"id": "fy-dv-job", "title": "Work as a design-verification engineer", "by": "2031-06-30"}
+      ],
+      "years": [
+        {"year": 2026, "milestones": [
+          {"id": "y26-verilog", "title": "Write and test a small CPU in Verilog", "by": "2026-12-20", "skills": ["hdl-verilog", "fsm", "uart"], "five_year": "fy-ms"}
+        ]},
+        {"year": 2027, "milestones": [
+          {"id": "y27-intern", "title": "Land a hardware internship", "by": "2027-05-31", "skills": ["hdlbits", "riscv-core"], "five_year": "fy-dv-job"},
+          {"id": "y27-ml", "title": "Run a small model on an FPGA", "by": "2027-11-30", "skills": ["ml-intro", "systolic"], "five_year": "fy-ms"}
+        ]}
+      ]
+    }
+  ],
+  "deadlines": [
+    {"id": "dl-summer-school", "title": "Example summer research programme closes", "date": "2026-11-30", "kind": "application", "skills": ["hdl-verilog"]},
+    {"id": "dl-internal-test", "title": "Example internal test", "date": "2026-11-02", "kind": "exam", "skills": []}
+  ],
+  "skills": [
+    {"id": "dl-basics", "name": "Digital logic basics", "level": 2, "target": 4, "weight": 0.6},
+    {"id": "hdl-verilog", "name": "Verilog", "level": 1, "target": 4, "weight": 0.9},
+    {"id": "fsm", "name": "State machines", "level": 0, "target": 3, "weight": 0.7},
+    {"id": "ml-intro", "name": "Machine learning basics", "level": 1, "target": 3, "weight": 0.5}
+  ],
+  "week": {"capacity_minutes": 600}
+}

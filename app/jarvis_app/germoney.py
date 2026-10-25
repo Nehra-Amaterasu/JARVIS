@@ -39,7 +39,7 @@ from typing import Any, Optional
 
 import httpx
 
-from . import github_activity, wellwisher, ww_base, ww_engines, ww_money
+from . import github_activity, learn_bank, wellwisher, ww_base, ww_engines, ww_money
 from .paths import DATA
 
 ROOT = DATA / "germoney"
@@ -2725,6 +2725,10 @@ class Plan:
                 "money": {"entries": d["money"]},
                 "personality": {"contracts": day.get("contracts") or [], "open_projects": d["open_projects"], "active_days": d["active_days"]},
                 "insight": {"events": d["events"], "planned": d["planned"], "nodes": d["nodes"]}}.get(name, {})
+        if name == "learning":
+            bank_ = learn_bank.load()
+            out = ww_engines.run(name, inputs, today, concepts=bank_["concepts"], record=st.get("learn") or {})
+            return {**out, "source": bank_["source"]}
         if name == "proof":
             # The only engine whose data comes off the network; github_activity caches it for 30 min.
             user = (inputs.get("profile") or {}).get("github")
@@ -2737,6 +2741,33 @@ class Plan:
     def weekly(self, today: Optional[str] = None) -> dict:
         """The weekly review (insight engine); `say` is what JARVIS reads out."""
         return self.engine("insight", today)
+
+    def learn_mark(self, concept_id: str, op: str, ok: Optional[bool] = None, today: Optional[str] = None) -> dict:
+        """The daily knowledge program: op "seen" marks today's new concept as taught;
+        op "recall" records a recall answer (ok true/false) for the Leitner schedule.
+        Only concept ids that exist in the bank are accepted."""
+        today = today or date.today().isoformat()
+        ids = {c["id"] for c in learn_bank.load()["concepts"]}
+        if concept_id not in ids:
+            raise ValueError("no such concept")
+        if op not in ("seen", "recall"):
+            raise ValueError("op is seen or recall")
+        if op == "recall" and not isinstance(ok, bool):
+            raise ValueError("a recall needs ok: true or false")
+        with self._lock:
+            st = self.load(today)
+            rec = st.setdefault("learn", {"seen": {}, "reviews": {}})
+            if op == "seen":
+                rec["seen"].setdefault(concept_id, today)
+            else:
+                if concept_id not in rec["seen"]:
+                    raise ValueError("a concept is recalled only after it was taught")
+                revs = rec["reviews"].setdefault(concept_id, [])
+                revs[:] = [r for r in revs if r["date"] != today]   # one answer per day counts; a retry replaces it
+                revs.append({"date": today, "ok": ok})
+                revs[:] = revs[-50:]
+            self.save(st)
+        return self.engine("learning", today)
 
     def money_log(self, entry: dict, today: Optional[str] = None) -> dict:
         """One money-log entry: {kind, amount, date?, hours?, experiment?, note?}. Private,

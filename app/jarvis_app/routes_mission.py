@@ -44,6 +44,9 @@
     GET    /api/mission/engines            the Well Wisher engines (ww_engines.py): goal ladder, evidence
                                            audit, career, money, personality, insight, today's 3, the registry
     GET    /api/mission/engine/{name}      one engine over his data (schema checked; invalid_input if not)
+    GET    /api/mission/learn              daily knowledge program: today's concept + recalls due (ww_learning.py)
+    POST   /api/mission/learn/{id}/seen    mark today's concept taught
+    POST   /api/mission/learn/{id}/recall  {ok: true|false}  one recall answer (Leitner schedule)
     GET    /api/mission/engine/proof       GitHub streak from public activity + one real proof idea (ww_proof.py)
     GET    /api/mission/weekly             the weekly review (insight engine); `say` is the spoken version
     GET    /api/mission/money              the money engine: months, experiments in Rs/hour, projection (education)
@@ -150,6 +153,15 @@ def register(app: FastAPI, svc, bus) -> None:
     @app.get("/api/mission/weekly")
     async def weekly():
         return await run_in_threadpool(plan.weekly)
+
+    @app.get("/api/mission/learn")
+    async def learn():
+        return await run_in_threadpool(guard, plan.engine, "learning")
+
+    @app.post("/api/mission/learn/{cid}/{op}")
+    async def learn_mark(cid: str, op: str, payload: Optional[dict] = Body(None)):
+        ok = (payload or {}).get("ok")
+        return await run_in_threadpool(guard, plan.learn_mark, cid, op, ok)
 
     @app.get("/api/mission/money")
     async def money():

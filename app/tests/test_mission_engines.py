@@ -165,3 +165,11 @@ def test_engines_route(tmp_path, monkeypatch):
         c.app.state.svc.plan.kv = c.app.state.svc.kv
         r = c.get("/api/mission/engines").json()
         assert r["source"] == "example" and "today" in r["ladder"] and set(r["engines"]) == set(we.ENGINES)
+        # the daily knowledge program: taught first, then recalled; bad input is a 400, not a crash
+        learn = c.get("/api/mission/learn").json()
+        cid = learn["new"]["id"]
+        assert learn["source"] == "example"
+        assert c.post(f"/api/mission/learn/{cid}/recall", json={"ok": True}).status_code == 400   # not taught yet
+        assert c.post(f"/api/mission/learn/{cid}/seen").status_code == 200
+        assert c.post("/api/mission/learn/zzz/seen").status_code == 400
+        assert c.post(f"/api/mission/learn/{cid}/recall", json={"ok": "yes"}).status_code == 400

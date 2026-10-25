@@ -493,9 +493,7 @@ def _not_built(name: str, needs: list[str], plan: str) -> Callable[..., dict]:
 
 
 _BODY_NEEDS = ["quest sessions", "sleep (Aankhen night data)", "checklists"]
-_LEARNING_NEEDS = ["learning log", "Yaadash facts"]
 body = _not_built("body", _BODY_NEEDS, "Calisthenics is live as a quest line; sleep and the checklists come next. Advice only.")
-learning = _not_built("learning", _LEARNING_NEEDS, "Spaced review and explain-it-back quizzes on what he logged.")
 
 _LOCAL = {
     "goal_ladder": EngineSpec("goal_ladder", 2, goal_ladder, "Life goals down to this week; ranks today's offered contracts by the rung they serve.",
@@ -507,7 +505,6 @@ _LOCAL = {
     "evidence": EngineSpec("evidence", 1, evidence, "No action, no XP: each action's XP by its rule, or 0 with the reason.",
                            ("logged actions",), {}, {"actions": {"type": "list"}}),
     "body": EngineSpec("body", 0, body, "Interface only.", tuple(_BODY_NEEDS)),
-    "learning": EngineSpec("learning", 0, learning, "Interface only.", tuple(_LEARNING_NEEDS)),
 }
 
 # ------------------------------------------------------------------ the registry: one line per engine
@@ -519,7 +516,7 @@ ENGINE_TABLE: list[tuple[str, str]] = [
     ("money", "ww_money"),
     ("personality", "ww_personality"),
     ("body", ""),
-    ("learning", ""),
+    ("learning", "ww_learning"),
     ("insight", "ww_insight"),
     ("proof", "ww_proof"),
 ]

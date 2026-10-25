@@ -63,6 +63,7 @@ export function TodayPage() {
         <aside className="today-side">
           <FloorCard />
           <WeeklyReview />
+          <LearnCard />
           <ProofCard />
           <Brief />
           <Findings />
@@ -399,6 +400,58 @@ function WeeklyReview() {
       <p className="small weekly-change"><b>{w.change.text}</b></p>
       <button className="btn sm" onClick={() => void read()}><Mic size={13} />Read it to me</button>
       <p className="muted small">By voice: "Jarvis, weekly review".</p>
+    </section>
+  )
+}
+
+export interface LearnAnswer {
+  status: string; say: string; source?: string
+  new: { id: string; title: string; body: string; quiz: string[] } | null
+  due: { id: string; title: string; question: string; box: number }[]
+  progress?: { seen: number; total: number }
+}
+
+/** Daily knowledge program (ww_learning.py): one new concept, then spaced recall.
+ *  Answer the recall from memory first; reading the answer is not the exercise. */
+export function LearnCard() {
+  const [l, setL] = useState<LearnAnswer | null>(null)
+  const toast = useStore((s) => s.toast)
+  useEffect(() => {
+    let live = true
+    api<LearnAnswer>('/api/mission/learn').then((r) => { if (live) setL(r) }).catch(() => undefined)
+    return () => { live = false }
+  }, [])
+  if (!l || l.status !== 'ok') return null
+  const mark = async (id: string, op: 'seen' | 'recall', ok?: boolean) => {
+    try {
+      setL(await post<LearnAnswer>(`/api/mission/learn/${id}/${op}`, op === 'recall' ? { ok } : {}))
+    } catch {
+      toast('Could not save that answer.', 'fault')
+    }
+  }
+  return (
+    <section className="card learn" aria-label="Knowledge of the day">
+      <div className="card-head"><span className="card-title"><Lightbulb size={14} />Knowledge of the day</span>
+        {l.progress && <span className="mono muted small">{l.progress.seen}/{l.progress.total}</span>}</div>
+      {l.new && (
+        <div className="learn-new">
+          <b>{l.new.title}</b>
+          <p className="small">{l.new.body}</p>
+          <button className="btn sm" onClick={() => void mark(l.new!.id, 'seen')}><Check size={13} />Read it</button>
+        </div>
+      )}
+      {l.due.map((d) => (
+        <div key={d.id} className="learn-due small">
+          <span className="eyebrow">Recall · {d.title}</span>
+          <div>{d.question}</div>
+          <div className="row">
+            <button className="btn sm" onClick={() => void mark(d.id, 'recall', true)}>I knew it</button>
+            <button className="btn sm ghost" onClick={() => void mark(d.id, 'recall', false)}>I didn't</button>
+          </div>
+        </div>
+      ))}
+      {!l.new && l.due.length === 0 && <p className="muted small">{l.say}</p>}
+      {l.source === 'example' && <p className="muted small">Example concepts: add LEARN.md to use your own.</p>}
     </section>
   )
 }

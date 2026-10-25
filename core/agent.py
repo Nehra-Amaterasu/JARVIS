@@ -940,6 +940,34 @@ def run_agent(user_input: str) -> str:
     # becomes a memory.
     spoken = voice_mod.strip_tags(final_text)       # tags are for the voice, not for memory
     _remember_turn(user_input, spoken)
+    if DEFER_LONG_TERM:
+        settle_turn()                               # an earlier reply never settled: keep it whole
+        _pending_store[0] = (user_input, spoken)
+    else:
+        threading.Thread(target=yaadash_core.store_interaction, args=(user_input, spoken), daemon=True).start()
+
+
+# Voice mode (10-25): long-term memory waits until the reply has been played, so a reply
+# he cut off is stored as far as he heard it, not as if all of it had been said.
+DEFER_LONG_TERM = False
+_pending_store: list = [None]
+INTERRUPTED_MARK = " [he cut me off here]"
+
+
+def settle_turn(heard: Optional[str] = None) -> None:
+    """The last reply finished playing (heard=None: all of it) or was cut off after
+    `heard`. The short-term history and long-term memory then hold only what he heard."""
+    pending, _pending_store[0] = _pending_store[0], None
+    if pending is None:
+        return
+    user_input, spoken = pending
+    if heard is not None:
+        heard = heard.strip()
+        if _short_term and _short_term[-1][0] == user_input[:SHORT_TERM_CLIP_CHARS].strip():
+            _short_term[-1] = (_short_term[-1][0], (heard + INTERRUPTED_MARK).strip()[:SHORT_TERM_CLIP_CHARS])
+        if not heard:
+            return                                  # nothing was heard: nothing to remember
+        spoken = heard + INTERRUPTED_MARK
     threading.Thread(target=yaadash_core.store_interaction, args=(user_input, spoken), daemon=True).start()
 
 if __name__ == "__main__":

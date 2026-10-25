@@ -96,7 +96,7 @@ def engine(monkeypatch):
     state = {"edge_ok": True, "kokoro_ok": True}
     settings = {}                                   # what the app chose (user_settings format)
 
-    async def fake_edge(text, voice_name, rate):
+    async def fake_edge(text, voice_name, rate, on_first=None):
         calls["edge"].append(voice_name)
         calls["rate"].append(rate)
         if not state["edge_ok"]:

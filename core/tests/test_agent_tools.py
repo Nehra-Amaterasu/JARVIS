@@ -699,3 +699,51 @@ def test_the_brain_is_asked_to_stay_resident(agent):
     assert agent.KEEP_ALIVE == -1
     assert agent.llm.keep_alive == -1 and agent.llm_precise.keep_alive == -1
     assert agent.remark_llm.num_ctx == agent.llm.num_ctx and agent.remark_llm.num_predict == 60
+
+
+# ------------------------------------------------------------------ cut off mid-reply (10-25)
+class _SyncThread:
+    def __init__(self, target=None, args=(), daemon=None, **k):
+        self.target, self.args = target, args
+
+    def start(self):
+        self.target(*self.args)
+
+
+def test_a_reply_he_cut_off_is_remembered_only_as_far_as_he_heard(agent, monkeypatch):
+    monkeypatch.setattr(agent.threading, "Thread", _SyncThread)
+    agent.reset_conversation()
+    agent.yaadash_core.stored.clear()
+    agent._remember_turn("tell me about VLSI", "VLSI is chip design. It has three stages. First, ...")
+    agent._pending_store[0] = ("tell me about VLSI", "VLSI is chip design. It has three stages. First, ...")
+    agent.settle_turn("VLSI is chip design.")
+    assert agent._short_term[-1][1] == "VLSI is chip design." + agent.INTERRUPTED_MARK
+    assert agent.yaadash_core.stored[-1] == ("tell me about VLSI", "VLSI is chip design." + agent.INTERRUPTED_MARK)
+    agent.settle_turn("again")                      # settled once only
+    assert len(agent.yaadash_core.stored) == 1
+
+
+def test_a_reply_played_to_the_end_is_stored_whole_and_nothing_heard_stores_nothing(agent, monkeypatch):
+    monkeypatch.setattr(agent.threading, "Thread", _SyncThread)
+    agent.yaadash_core.stored.clear()
+    agent._pending_store[0] = ("hi", "Hello, sir.")
+    agent.settle_turn()
+    assert agent.yaadash_core.stored == [("hi", "Hello, sir.")]
+    agent._remember_turn("what time", "It is five.")
+    agent._pending_store[0] = ("what time", "It is five.")
+    agent.settle_turn("")
+    assert len(agent.yaadash_core.stored) == 1
+    assert agent._short_term[-1][1] == agent.INTERRUPTED_MARK.strip()
+
+
+def test_voice_mode_defers_the_long_term_store_until_settled(brain, monkeypatch):
+    agent = brain.agent
+    monkeypatch.setattr(agent.threading, "Thread", _SyncThread)
+    monkeypatch.setattr(agent, "DEFER_LONG_TERM", True)
+    agent._pending_store[0] = None
+    agent.yaadash_core.stored.clear()
+    brain.plain.rounds.append(words("Rain is lovely, sir."))
+    "".join(agent.run_agent("what do you think about rain"))
+    assert agent.yaadash_core.stored == [] and agent._pending_store[0] is not None
+    agent.settle_turn()
+    assert len(agent.yaadash_core.stored) == 1

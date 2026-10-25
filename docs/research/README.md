@@ -39,4 +39,8 @@ One line per note (CLAUDE.md: research is never lost). Private notes live in
 - [memory-feasibility.md](memory-feasibility.md): personal memory at N = 1.
 - [2026-10-25-yaadash-test-audit.md](2026-10-25-yaadash-test-audit.md): Yaadash test audit: two attribution loopholes fixed (a place name let a sister's move be stored as his; Hinglish "bhai" dropped his own fact), privacy and Keep/Wrong tests added, hallucination eval 8/8 hit@3, 0/10 false memories, 0 invented stored.
 - [2026-10-23-test-audit-jarvis.md](2026-10-23-test-audit-jarvis.md): constraint-to-test matrix for core, crew and app (tautologies and gaps fixed), suite timings, and the three 10-25 P0s: Whisper CPU fallback, supervisor retry after the hourly cap, dead WebSocket clients dropped, scipy lazy import (app import 4.9 -> 2.8 s).
+<<<<<<< HEAD
 - [2026-10-25-well-wisher-v1.md](2026-10-25-well-wisher-v1.md): Well Wisher v1: Status-window stats derived from logged actions only (window-game XP and unproven mastery shown as not counted), proof-gated ranks E-S, an event archive so trimming never drops a stat, and an optional calisthenics quest line (4 tracks, level up only on the standard held on two days; WHO 2x/week basis).
+=======
+- [2026-10-25-voice-latency.md](2026-10-25-voice-latency.md): where the first-audio wait goes (TTS+playback 1.73 s median after the first token; Edge TTS refused with 403, needs an edge-tts update), per-stage turn clock, 5-word first clause, streamed Edge playback on a warm stream (sound 25 ms after first byte), cut-off replies stored as heard.
+>>>>>>> worktree-agent-aef48cd24fcf86599

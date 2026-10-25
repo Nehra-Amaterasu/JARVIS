@@ -82,3 +82,11 @@ def test_the_guard_still_holds_a_claiming_clause_for_its_whole_sentence():
 def honesty_registry():
     from tools.builtin import default_registry
     return default_registry()
+
+
+def test_heard_part_counts_whole_words_by_speaking_rate():
+    text = "one two three four five six seven"
+    assert voice.heard_part(text, 0.0) == ""
+    assert voice.heard_part(text, 1.0) == "one two"            # 2.8 words a second
+    assert voice.heard_part(text, 60.0) == text
+    assert voice.heard_part("", 3.0) == ""

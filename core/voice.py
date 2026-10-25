@@ -130,6 +130,17 @@ def resolve_prefs(settings: dict, now: Optional[float] = None) -> VoicePrefs:
     return VoicePrefs(default_key, edge, kokoro, offline, speed, pron)
 
 
+HEARD_WORDS_PER_S = 2.8        # his voice at +15%: about 2.8 words a second (estimate)
+
+
+def heard_part(text: str, seconds: float, words_per_s: float = HEARD_WORDS_PER_S) -> str:
+    """The words of `text` he heard if it was cut off after `seconds` of playback (an
+    estimate from the speaking rate; whole words only, never more than the text)."""
+    words = (text or "").split()
+    n = max(0, min(len(words), int(max(0.0, seconds) * words_per_s)))
+    return " ".join(words[:n])
+
+
 def strip_tags(text: str) -> str:
     """The text without voice tags — for screens, transcripts and memory."""
     return re.sub(r"[ \t]{2,}", " ", _TAG.sub("", text or "")).strip()

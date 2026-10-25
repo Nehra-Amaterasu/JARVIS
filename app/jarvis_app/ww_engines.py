@@ -16,8 +16,8 @@ function, and a schema for the input sections and data it reads. run() checks th
 inputs against that schema first. Adding an engine is one file + one line in
 ENGINE_TABLE (docs/well-wisher-v1.md, "Adding an engine").
 
-Built: goal_ladder, evidence (this file), career (ww_career.py), money (ww_money.py).
-Interfaces only: personality, insight, body, learning.
+Built: goal_ladder, evidence (this file), career (ww_career.py), money (ww_money.py), personality (ww_personality.py).
+Interfaces only: insight, body, learning.
 
 Inputs come from data/notes/well-wisher/engine-inputs.json (private, git-ignored),
 else from the fictional engine-inputs.example.json next to this file. Only
@@ -502,7 +502,6 @@ _LOCAL = {
                               {"candidates": {"type": "list", "items": {"type": "dict"}}, "n": {"type": "int"}}),
     "evidence": EngineSpec("evidence", 1, evidence, "No action, no XP: each action's XP by its rule, or 0 with the reason.",
                            ("logged actions",), {}, {"actions": {"type": "list"}}),
-    "personality": EngineSpec("personality", 0, _not_built("personality", ["profile traits and style rules", "missed-day history"], "Framing (puzzle first), variety and novelty budget, re-entry after a gap."), "Interface only.", tuple(["profile traits and style rules", "missed-day history"])),
     "insight": EngineSpec("insight", 0, _not_built("insight", ["a week of events", "the ladder"], "Weekly: what moved, what stalled, one change, each citing data."), "Interface only.", tuple(["a week of events", "the ladder"])),
     "body": EngineSpec("body", 0, body, "Interface only.", tuple(_BODY_NEEDS)),
     "learning": EngineSpec("learning", 0, learning, "Interface only.", tuple(_LEARNING_NEEDS)),
@@ -515,7 +514,7 @@ ENGINE_TABLE: list[tuple[str, str]] = [
     ("evidence", ""),
     ("career", "ww_career"),
     ("money", "ww_money"),
-    ("personality", ""),
+    ("personality", "ww_personality"),
     ("body", ""),
     ("learning", ""),
     ("insight", ""),

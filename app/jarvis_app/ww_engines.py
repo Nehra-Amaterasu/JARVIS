@@ -16,8 +16,8 @@ function, and a schema for the input sections and data it reads. run() checks th
 inputs against that schema first. Adding an engine is one file + one line in
 ENGINE_TABLE (docs/well-wisher-v1.md, "Adding an engine").
 
-Built: goal_ladder, evidence (this file).
-Interfaces only: career, money, personality, insight, body, learning.
+Built: goal_ladder, evidence (this file), career (ww_career.py).
+Interfaces only: money, personality, insight, body, learning.
 
 Inputs come from data/notes/well-wisher/engine-inputs.json (private, git-ignored),
 else from the fictional engine-inputs.example.json next to this file. Only
@@ -502,7 +502,6 @@ _LOCAL = {
                               {"candidates": {"type": "list", "items": {"type": "dict"}}, "n": {"type": "int"}}),
     "evidence": EngineSpec("evidence", 1, evidence, "No action, no XP: each action's XP by its rule, or 0 with the reason.",
                            ("logged actions",), {}, {"actions": {"type": "list"}}),
-    "career": EngineSpec("career", 0, _not_built("career", ["skill tree v2 node statuses", "applications pipeline", "deadlines"], "Rank internships by deadline and the nodes they ask for; say which node unlocks most."), "Interface only.", tuple(["skill tree v2 node statuses", "applications pipeline", "deadlines"])),
     "money": EngineSpec("money", 0, _not_built("money", ["income entries", "monthly budget", "savings entries"], "Savings rate and a projection with its assumptions stated; side income scored by rupees per hour after 4 weeks. Education only."), "Interface only.", tuple(["income entries", "monthly budget", "savings entries"])),
     "personality": EngineSpec("personality", 0, _not_built("personality", ["profile traits and style rules", "missed-day history"], "Framing (puzzle first), variety and novelty budget, re-entry after a gap."), "Interface only.", tuple(["profile traits and style rules", "missed-day history"])),
     "insight": EngineSpec("insight", 0, _not_built("insight", ["a week of events", "the ladder"], "Weekly: what moved, what stalled, one change, each citing data."), "Interface only.", tuple(["a week of events", "the ladder"])),
@@ -515,7 +514,7 @@ _LOCAL = {
 ENGINE_TABLE: list[tuple[str, str]] = [
     ("goal_ladder", ""),
     ("evidence", ""),
-    ("career", ""),
+    ("career", "ww_career"),
     ("money", ""),
     ("personality", ""),
     ("body", ""),

@@ -509,15 +509,28 @@ def cmd_evaluate(a) -> int:
 
 
 def cmd_fingerprint(a) -> int:
-    """kNN fingerprint vs CNN on the raw signal: evaluate (leave-one-day-out) or train."""
-    from .fingerprint import CnnFingerprint, _cat, format_report, leave_one_day_out, load_days
+    """kNN fingerprint vs CNN on the raw signal: evaluate (50/50 or leave-one-day-out) or train."""
+    from .fingerprint import (MODEL_ROOT, CnnFingerprint, _cat, evaluate_half, format_half, format_report,
+                              leave_one_day_out, load_days, plot_history)
     days = load_days(a.root)
     if not days:
-        print("No drill sessions yet. Record one with: python -m aankhen drill")
+        print("No drill or narrated sessions yet. Record one with: python -m aankhen narrate record")
         return 1
     if a.action == "evaluate":
-        rep = leave_one_day_out(days, epochs=a.epochs)
-        print(format_report(rep))
+        split = a.split or ("day" if len(days) >= 3 else "half")
+        if split == "half":
+            rep = evaluate_half(days, epochs=a.epochs)
+            print(format_half(rep))
+            if rep.get("history"):
+                os.makedirs(os.path.join(MODEL_ROOT, "reports"), exist_ok=True)
+                stamp = time.strftime("%Y%m%d-%H%M%S")
+                png = plot_history(rep, os.path.join(MODEL_ROOT, "reports", f"half-{stamp}.png"))
+                with open(os.path.join(MODEL_ROOT, "reports", f"half-{stamp}.json"), "w", encoding="utf-8") as fh:
+                    json.dump(rep, fh, indent=1, default=float)
+                print(f"  training record: {png} (+ .json)")
+        else:
+            rep = leave_one_day_out(days, epochs=a.epochs)
+            print(format_report(rep))
         if a.json:
             with open(a.json, "w", encoding="utf-8") as fh:
                 json.dump(rep, fh, indent=1, default=float)
@@ -788,6 +801,9 @@ def main(argv=None) -> int:
     fp.add_argument("action", choices=["evaluate", "train"])
     fp.add_argument("--root", help="drill folder (default data/aankhen/drill)")
     fp.add_argument("--epochs", type=int, default=30)
+    fp.add_argument("--split", choices=["half", "day"],
+                    help="evaluate: half = 50 %% train / 50 %% verify by visits; day = leave one day out "
+                         "(default: day once there are 3+ days, else half)")
     fp.add_argument("--json", help="evaluate: also write the report as JSON")
 
     l1 = sub.add_parser("lesson1", help="see your own signal: heatmap, motion energy, a fingerprint per label (PNG)")

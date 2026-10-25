@@ -201,18 +201,29 @@ class CnnFingerprint:
     def __init__(self, epochs: int = 30, seed: int = 0, augment: bool = True):
         self.epochs, self.seed, self.augment = epochs, seed, augment
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> "CnnFingerprint":
+    def fit(self, X: np.ndarray, y: np.ndarray, X_val: Optional[np.ndarray] = None,
+            y_val: Optional[np.ndarray] = None) -> "CnnFingerprint":
+        """Train. With a validation set, self.history records every epoch: the loss, the
+        accuracy on the training and the validation windows, and how hard backpropagation
+        pushed each layer (the gradient's size per layer, averaged over the epoch's steps)."""
         import torch
         # Tiny tensors: 8 threads spent more time coordinating than computing (one fit:
         # 11.2 s on 8 threads, 0.6 s on 2, 2026-10-26). Same lesson as the sklearn lag fix.
         threads = torch.get_num_threads()
         torch.set_num_threads(min(2, threads))
         try:
-            return self._fit(X, y)
+            return self._fit(X, y, X_val, y_val)
         finally:
             torch.set_num_threads(threads)
 
-    def _fit(self, X: np.ndarray, y: np.ndarray) -> "CnnFingerprint":
+    def _accuracy(self, X: np.ndarray, y: np.ndarray) -> float:
+        was = self.net.training
+        self.net.eval()
+        acc = float((self.predict(X) == y).mean()) if len(y) else float("nan")
+        self.net.train(was)
+        return acc
+
+    def _fit(self, X: np.ndarray, y: np.ndarray, X_val=None, y_val=None) -> "CnnFingerprint":
         import torch
         torch.manual_seed(self.seed)
         rng = np.random.default_rng(self.seed)
@@ -226,9 +237,13 @@ class CnnFingerprint:
         self.net = _net(len(self.classes))
         opt = torch.optim.Adam(self.net.parameters(), lr=1e-3, weight_decay=1e-4)
         loss_fn = torch.nn.CrossEntropyLoss(weight=w)
+        # the layers that learn, by name, for the gradient record
+        layers = {name: m for name, m in (("conv1", self.net[0]), ("conv2", self.net[4]), ("linear", self.net[-1]))}
+        self.history: list[dict] = []
         self.net.train()
-        for _ in range(self.epochs):
+        for epoch in range(self.epochs):
             order = rng.permutation(len(yi))
+            losses, grads = [], {k: [] for k in layers}
             for s in range(0, len(order), 64):
                 b = order[s:s + 64]
                 xb = Xn[b].copy()
@@ -237,9 +252,17 @@ class CnnFingerprint:
                     xb += rng.normal(0, 0.3, (len(b), N_SUB, 1)).astype(np.float32)
                     xb = np.roll(xb, int(rng.integers(-5, 6)), axis=2)
                 opt.zero_grad()
-                loss = loss_fn(self.net(torch.from_numpy(xb)), torch.from_numpy(yi[b]))
-                loss.backward()
-                opt.step()
+                loss = loss_fn(self.net(torch.from_numpy(xb)), torch.from_numpy(yi[b]))   # how wrong, on this batch
+                loss.backward()                                                            # backpropagation: d(loss)/d(every weight)
+                for k, m in layers.items():
+                    grads[k].append(float(m.weight.grad.norm()))
+                opt.step()                                                                 # move every weight a step downhill
+                losses.append(float(loss))
+            if X_val is not None:
+                self.history.append({"epoch": epoch + 1, "loss": round(float(np.mean(losses)), 4),
+                                     "train_acc": round(self._accuracy(X, y), 4),
+                                     "val_acc": round(self._accuracy(X_val, y_val), 4),
+                                     "grad": {k: round(float(np.mean(v)), 4) for k, v in grads.items()}})
         self.net.eval()
         return self
 
@@ -292,6 +315,129 @@ def leave_one_day_out(days: dict, epochs: int = 30) -> dict:
     return {"days": names, "per_day": per_day, "mean": mean,
             "winner": max(mean, key=mean.get) if mean else None,
             "note": None if len(names) >= 3 else "fewer than 3 days: these numbers say little; keep drilling"}
+
+
+GUARD_S = WIN / RATE_HZ      # windows are 2 s long: keep 2 s between a train and a test window
+
+
+def visits(t: np.ndarray, zone: np.ndarray, max_gap_s: float = 3.0) -> np.ndarray:
+    """Visit id per window: consecutive windows (in time) of the same zone, no gap over
+    max_gap_s. A visit is one time he was at that place."""
+    order = np.argsort(t)
+    vid = np.empty(len(t), int)
+    cur = -1
+    for k, i in enumerate(order):
+        if k == 0 or zone[i] != zone[order[k - 1]] or t[i] - t[order[k - 1]] > max_gap_s:
+            cur += 1
+        vid[i] = cur
+    return vid
+
+
+def half_split(t: np.ndarray, zone: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """(train mask, test mask), about half each, with no leakage between them.
+
+    Neighbouring windows overlap by 1.5 s, so a random 50/50 split would test on near-copies
+    of training windows and report accuracy the room never gives. Instead: a place visited
+    two or more times gives alternate visits to train and test (a new visit is the honest
+    test); a place visited once is cut at the middle of its time, and windows within
+    GUARD_S of the cut belong to neither side."""
+    vid = visits(t, zone)
+    train = np.zeros(len(t), bool)
+    test = np.zeros(len(t), bool)
+    for z in sorted(set(zone.tolist())):
+        zv = sorted(set(vid[zone == z].tolist()), key=lambda v: t[vid == v].min())
+        if len(zv) >= 2:
+            for k, v in enumerate(zv):
+                (train if k % 2 == 0 else test)[vid == v] = True
+        else:
+            m = zone == z
+            mid = np.median(t[m])
+            train |= m & (t < mid - GUARD_S / 2)
+            test |= m & (t >= mid + GUARD_S / 2)
+    return train, test
+
+
+def evaluate_half(days: dict, epochs: int = 30) -> dict:
+    """Every labelled window there is, 50 % to train and 50 % to verify (half_split per
+    day, so each day's own drift is on both sides). kNN and CNN, per-zone accuracy, a
+    confusion table, and the CNN's epoch-by-epoch training record."""
+    runs = [r for d in sorted(days) for r in days[d]]
+    X, y, t = _cat(runs, "X"), _cat(runs, "zone"), _cat(runs, "t")
+    if len(set(y.tolist())) < 2:
+        return {"error": "need at least two different places labelled"}
+    tr, te = np.zeros(len(y), bool), np.zeros(len(y), bool)
+    off = 0
+    for r in runs:                                   # split each session on its own clock
+        n = len(r["zone"])
+        a, b = half_split(r["t"], r["zone"])
+        tr[off:off + n], te[off:off + n] = a, b
+        off += n
+    zones_test = sorted(set(y[te].tolist()))
+    missing = sorted(set(y.tolist()) - set(y[tr].tolist()))
+    knn = KnnFingerprint().fit(X[tr], y[tr])
+    cnn = CnnFingerprint(epochs=epochs).fit(X[tr], y[tr], X[te], y[te])
+    pk, pc = knn.predict(X[te]), cnn.predict(X[te])
+    labels = sorted(set(y.tolist()))
+    conf = {a: {b: int(((y[te] == a) & (pc == b)).sum()) for b in labels} for a in zones_test}
+    return {"split": "half", "days": sorted(days), "windows": {"train": int(tr.sum()), "test": int(te.sum())},
+            "chance": round(1 / len(labels), 4),
+            "knn": round(float((pk == y[te]).mean()), 4), "cnn": round(float((pc == y[te]).mean()), 4),
+            "per_zone": {z: {"windows": int((y[te] == z).sum()),
+                             "knn": round(float((pk[y[te] == z] == z).mean()), 4),
+                             "cnn": round(float((pc[y[te] == z] == z).mean()), 4)} for z in zones_test},
+            "cnn_confusion": conf, "history": cnn.history, "not_in_training": missing,
+            "note": ("one session: the test half is the same day, so this is an upper bound; "
+                     "only held-out DAYS say how it does tomorrow") if len(days) < 2 else None}
+
+
+def format_half(rep: dict) -> str:
+    if "error" in rep:
+        return "  " + rep["error"]
+    w = rep["windows"]
+    lines = [f"  50/50 split: {w['train']} windows to train, {w['test']} to verify  (chance {rep['chance']:.0%})",
+             f"  kNN {rep['knn']:.0%}   CNN {rep['cnn']:.0%}", "",
+             "  place                          windows   kNN    CNN"]
+    for z, v in rep["per_zone"].items():
+        lines.append(f"  {z:<30} {v['windows']:>7}  {v['knn']:>4.0%}  {v['cnn']:>5.0%}")
+    if rep["history"]:
+        h = rep["history"]
+        lines += ["", "  CNN training (epoch: loss, train acc, verify acc)"]
+        for e in h[::max(1, len(h) // 6)] + ([h[-1]] if len(h) % 6 else []):
+            lines.append(f"    {e['epoch']:>3}: {e['loss']:.3f}  {e['train_acc']:.0%}  {e['val_acc']:.0%}")
+    if rep.get("not_in_training"):
+        lines.append(f"  never in the training half (can't be learned yet): {rep['not_in_training']}")
+    if rep.get("note"):
+        lines.append("  " + rep["note"])
+    return "\n".join(lines)
+
+
+def plot_history(rep: dict, out: str) -> str:
+    """The training record as a picture: loss, train vs verify accuracy, gradient size per layer."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    h = rep["history"]
+    ep = [e["epoch"] for e in h]
+    fig, ax = plt.subplots(1, 3, figsize=(14, 4))
+    ax[0].plot(ep, [e["loss"] for e in h], color="black")
+    ax[0].set_title("loss (how wrong, on training batches)", fontsize=10)
+    ax[1].plot(ep, [e["train_acc"] for e in h], label="train half")
+    ax[1].plot(ep, [e["val_acc"] for e in h], label="verify half")
+    ax[1].axhline(rep["chance"], color="grey", ls="--", lw=1, label="chance")
+    ax[1].set_ylim(0, 1.02)
+    ax[1].legend(fontsize=8)
+    ax[1].set_title("accuracy: a widening gap = memorising, not learning", fontsize=10)
+    for k in h[0]["grad"]:
+        ax[2].plot(ep, [e["grad"][k] for e in h], label=k)
+    ax[2].set_yscale("log")
+    ax[2].legend(fontsize=8)
+    ax[2].set_title("gradient size per layer (how hard backprop pushed it)", fontsize=10)
+    for a in ax:
+        a.set_xlabel("epoch")
+    fig.tight_layout()
+    fig.savefig(out, dpi=100)
+    plt.close(fig)
+    return out
 
 
 def format_report(rep: dict) -> str:

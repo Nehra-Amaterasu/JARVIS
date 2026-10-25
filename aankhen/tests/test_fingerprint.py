@@ -88,3 +88,33 @@ def test_the_cnn_is_small_enough_for_the_esp32(days):
 def test_one_day_is_flagged_as_saying_little():
     rep = fp.leave_one_day_out({"2026-11-01": [synthetic_day(1)]}, epochs=1)
     assert rep["note"] and "error" in rep["per_day"]["2026-11-01"]
+
+
+def test_half_split_alternates_visits_and_never_leaks():
+    # desk visited twice, bed once; windows every 0.5 s
+    t = np.concatenate([np.arange(0, 30, 0.5), np.arange(60, 90, 0.5), np.arange(120, 160, 0.5)])
+    z = np.array(["desk"] * 60 + ["bed"] * 60 + ["desk"] * 80)
+    tr, te = fp.half_split(t, z)
+    assert not (tr & te).any()
+    # desk: first visit trains, second visit verifies
+    assert tr[:60].all() and te[120:].all()
+    # bed (one visit): cut at its middle with a 2 s guard on neither side
+    bt, bte = t[60:120][tr[60:120]], t[60:120][te[60:120]]
+    assert len(bt) and len(bte) and bte.min() - bt.max() >= fp.GUARD_S
+
+
+def test_evaluate_half_records_the_training():
+    rng = np.random.default_rng(0)
+    pat = {z: rng.normal(0, 0.5, fp.N_SUB) for z in ("desk", "bed", "wardrobe")}
+    X, Z, T = [], [], []
+    t = 0.0
+    for z in ("desk", "bed", "wardrobe", "desk", "bed", "wardrobe"):
+        for _ in range(40):
+            X.append(pat[z][:, None] + rng.normal(0, 0.3, (fp.N_SUB, 50))); Z.append(z); T.append(t); t += 0.5
+        t += 10
+    run = {"X": np.asarray(X, np.float32), "zone": np.asarray(Z), "t": np.asarray(T)}
+    rep = fp.evaluate_half({"2026-10-26": [run]}, epochs=5)
+    assert rep["windows"]["train"] == rep["windows"]["test"] == 120
+    assert rep["knn"] > 0.9 and rep["cnn"] > 0.9
+    assert len(rep["history"]) == 5 and set(rep["history"][0]["grad"]) == {"conv1", "conv2", "linear"}
+    assert "upper bound" in rep["note"]

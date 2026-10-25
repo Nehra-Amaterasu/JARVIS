@@ -8,7 +8,16 @@
  * "south" is the y = 0 wall, "north" y = depth, "west" x = 0, "east" x = width.
  */
 export type Wall = 'south' | 'north' | 'west' | 'east'
-export const WALLS: readonly Wall[] = ['south', 'north', 'west', 'east']
+export const WALLS: readonly Wall[] = ['south', 'west', 'north', 'east']
+/** How each wall is named on screen, and which end its "from" distance starts at. */
+export const WALL_NAME: Record<Wall, { short: string; long: string; from: string }> = {
+  south: { short: 'A', long: 'Wall A (right of corner 0)', from: 'from the corner-0 end' },
+  west: { short: 'B', long: 'Wall B (left of corner 0)', from: 'from the corner-0 end' },
+  north: { short: 'C', long: 'Wall C (opposite A)', from: 'from the end touching Wall B' },
+  east: { short: 'D', long: 'Wall D (opposite B)', from: 'from the end touching Wall A' },
+}
+/** Metres (server) <-> centimetres (form). One decimal of a centimetre is plenty. */
+export const toCm = (m: number) => String(Math.round(m * 1000) / 10)
 export const RECTS = ['bed', 'desk', 'wardrobe'] as const
 export const DOORS = ['door', 'balcony_door'] as const
 export const POINTS = ['board', 'router'] as const
@@ -27,33 +36,36 @@ export interface FormText {
 }
 export interface FieldError { field: string; error: string }
 
-const s = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? String(v) : '')
+const s = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? toCm(v) : '')
 
 /** Prefill from the server's form (the current room.json, maybe estimated). */
 export function fromServer(f: Record<string, any> | null | undefined): FormText {
   const r = (k: string) => ({ x: s(f?.[k]?.x), y: s(f?.[k]?.y), w: s(f?.[k]?.w), d: s(f?.[k]?.d) })
   const p = (k: string) => ({ x: s(f?.[k]?.x), y: s(f?.[k]?.y), z: s(f?.[k]?.z) })
+  const door = (d: any, dflt: Wall) => ({ wall: (WALLS.includes(d?.wall) ? d.wall : dflt) as Wall, offset: s(d?.offset), width: s(d?.width) })
   return {
     width: s(f?.width), depth: s(f?.depth), height: s(f?.height),
     rects: { bed: r('bed'), desk: r('desk'), wardrobe: r('wardrobe') },
-    doors: { door: { wall: 'north', offset: '', width: '' }, balcony_door: { wall: 'east', offset: '', width: '' } },
+    doors: { door: door(f?.door, 'north'), balcony_door: door(f?.balcony_door, 'east') },
     points: { board: p('board'), router: p('router') },
   }
 }
 
+/** A typed centimetre value as metres for the server (null when it isn't a number). */
 const n = (t: string): number | null => {
   const v = Number(t.trim().replace(',', '.'))
-  return t.trim() !== '' && Number.isFinite(v) ? v : null
+  return t.trim() !== '' && Number.isFinite(v) ? Math.round(v * 10) / 1000 : null
 }
+const NUM = 'a number in centimetres'
 const blank = (o: Record<string, string>) => Object.entries(o).every(([k, v]) => k === 'wall' || v.trim() === '')
 
 /** The JSON body for POST /api/aankhen/room-measure, and the errors that stop it. */
 export function toPayload(t: FormText): { body: Record<string, unknown>; errors: FieldError[] } {
   const errors: FieldError[] = []
   const body: Record<string, unknown> = {}
-  const need = (field: string, v: number | null, lo: number, hi: number, unit = 'm') => {
-    if (v === null) errors.push({ field, error: 'a number in metres' })
-    else if (v < lo || v > hi) errors.push({ field, error: `between ${lo} and ${hi} ${unit}` })
+  const need = (field: string, v: number | null, lo: number, hi: number) => {
+    if (v === null) errors.push({ field, error: NUM })
+    else if (v < lo || v > hi) errors.push({ field, error: `between ${lo * 100} and ${hi * 100} cm` })
     return v
   }
   body.width = need('width', n(t.width), 1.5, 12)
@@ -63,21 +75,21 @@ export function toPayload(t: FormText): { body: Record<string, unknown>; errors:
     const r = t.rects[k]
     if (OPTIONAL.has(k) && blank(r)) continue
     const v = { x: n(r.x), y: n(r.y), w: n(r.w), d: n(r.d) }
-    for (const [a, x] of Object.entries(v)) if (x === null) errors.push({ field: `${k}.${a}`, error: 'a number in metres' })
+    for (const [a, x] of Object.entries(v)) if (x === null) errors.push({ field: `${k}.${a}`, error: NUM })
     body[k] = v
   }
   for (const k of DOORS) {
     const d = t.doors[k]
     if (OPTIONAL.has(k) && blank(d)) continue
     const v = { wall: d.wall, offset: n(d.offset), width: n(d.width) }
-    if (v.offset === null) errors.push({ field: `${k}.offset`, error: 'a number in metres' })
-    if (v.width === null) errors.push({ field: `${k}.width`, error: 'a number in metres' })
+    if (v.offset === null) errors.push({ field: `${k}.offset`, error: NUM })
+    if (v.width === null) errors.push({ field: `${k}.width`, error: NUM })
     body[k] = v
   }
   for (const k of POINTS) {
     const p = t.points[k]
     const v = { x: n(p.x), y: n(p.y), z: n(p.z) }
-    for (const [a, x] of Object.entries(v)) if (x === null) errors.push({ field: `${k}.${a}`, error: 'a number in metres' })
+    for (const [a, x] of Object.entries(v)) if (x === null) errors.push({ field: `${k}.${a}`, error: NUM })
     body[k] = v
   }
   return { body, errors }

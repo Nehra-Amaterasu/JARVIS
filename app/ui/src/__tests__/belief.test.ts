@@ -140,7 +140,10 @@ describe('fallback from the learned states (older hub)', () => {
     expect(b.state).toBe('in_room')
     expect(b.confidence).toBeCloseTo(0.8, 6)
     expect(b.updated).toBe(5)
-    expect(beliefLabel(b)).toBe('probably: at the desk chair · 62 %')
+    // an untrained model's place is never named (2026-10-25 honesty rule)
+    expect(b.zonesTrusted).toBe(false)
+    expect(beliefLabel(b)).toBe('in the room, not sure where')
+    expect(beliefLabel({ ...b, zonesTrusted: true })).toBe('probably: at the desk chair · 62 %')
   })
 
   it('reads in_room / unsure / empty off occupied_p', () => {

@@ -29,6 +29,9 @@ export interface Belief {
   motion: number
   activity: { state: string; p: number } | null
   updated: number
+  /** false: the layout is estimated or no zone model has passed the day-7 drill test, so
+   *  no zone may be shown or named: the cloud covers the room, "not sure where". */
+  zonesTrusted?: boolean
 }
 
 const num = (v: unknown, d = 0): number => (typeof v === 'number' && Number.isFinite(v) ? v : d)
@@ -58,6 +61,7 @@ export function readBelief(raw: unknown): Belief | null {
     motion: clamp01(num(b.motion)),
     activity: a && typeof a === 'object' && typeof a.state === 'string' ? { state: a.state, p: clamp01(num(a.p)) } : null,
     updated: num(b.updated),
+    zonesTrusted: b.zones_trusted !== false,
   }
 }
 
@@ -107,6 +111,7 @@ export function fallbackBelief(
     motion: clamp01(motion),
     activity: a ? { state: a, p: actP } : null,
     updated: num(l.t),
+    zonesTrusted: false,         // an untrained model's place is never shown as a zone
   }
 }
 
@@ -200,10 +205,28 @@ export function topZone(b: Belief | null): BeliefZone | null {
 export const TELL_P = 0.3
 
 /** "probably: at the desk chair · 62 %", "probably: nobody in the room · 80 %", or "can't tell". */
+export const NOT_SURE_WHERE = 'in the room, not sure where'
+/** An untrained model never shows more than this. */
+export const UNTRAINED_CAP = 0.9
+
+/** The zones to draw: the belief's own when trusted, else ONE room-wide zone at the
+ *  probability-weighted centre, so dots never pile on a place nobody has verified. */
+export function shownZones(b: Belief | null): BeliefZone[] {
+  if (!b) return []
+  if (b.zonesTrusted !== false || !b.zones.length) return b.zones
+  const sum = b.zones.reduce((s, z) => s + z.p, 0)
+  if (sum <= 0) return []
+  const x = b.zones.reduce((s, z) => s + z.p * z.x, 0) / sum
+  const y = b.zones.reduce((s, z) => s + z.p * z.y, 0) / sum
+  return [{ id: 'room', name: NOT_SURE_WHERE, p: Math.min(1, sum), x, y, r: 1.1 }]
+}
+
 export function beliefLabel(b: Belief | null): string {
   if (!b) return "can't tell"
   const pct = (v: number) => `${Math.round(clamp01(v) * 100)} %`
-  if (b.state === 'empty') return `probably: nobody in the room · ${pct(b.confidence)}`
+  const untrusted = b.zonesTrusted === false
+  if (b.state === 'empty') return `probably: nobody in the room · ${pct(untrusted ? Math.min(b.confidence, UNTRAINED_CAP) : b.confidence)}`
+  if (untrusted) return b.state === 'in_room' ? NOT_SURE_WHERE : "can't tell"
   const top = topZone(b)
   if (!top || top.p < TELL_P) return "can't tell"
   return `probably: ${top.name} · ${pct(top.p)}`

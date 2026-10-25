@@ -1,9 +1,13 @@
 /**
  * Aankhen: the spatial twin, full-bleed, with its instruments laid over it.
  *
- *   presence core   72 ticks lit = P(someone is in the room); the three arcs are
- *                   the evidence RIGHT NOW — radar, Wi-Fi (both for presence) and
- *                   absence (against) — so you can see why it believes what it does
+ *   presence core   72 ticks lit = P(someone is in the room); the two arcs are
+ *                   the evidence RIGHT NOW — Wi-Fi (for presence) and absence
+ *                   (against) — so you can see why it believes what it does. There is
+ *                   no radar in this project: no radar arc, chip or rate.
+ *   zones           shown and named only when the readiness check trusts them
+ *                   (measured room + baselines + 7 drill days + day-7 test); before
+ *                   that "in the room, not sure where" (lib/belief.ts shownZones)
  *   Wi-Fi motion    the motion score over 30 s on a log scale, with the decision
  *                   threshold drawn, and the human-band test (body-speed movement)
  *                   as a meter against its own threshold
@@ -37,6 +41,9 @@ import { useStore, type Toast } from '../lib/store'
 import type { EyesMsg } from '../lib/eyes'
 import { EyesView } from '../components/EyesView'
 import { FirstLightSheet } from '../components/FirstLight'
+import { MeasureSheet, ReadinessCard, useReadiness } from '../components/MeasureRoom'
+import { learnedView } from '../lib/roomMeasure'
+import { NOT_SURE_WHERE } from '../lib/belief'
 import { SpatialTwin, type BeliefSummary, type FrameMsg, type Framing, type HeatMsg, type Layer, type RoomSpec } from '../twin/SpatialTwin'
 
 type View = '3d' | 'plan' | 'eyes'
@@ -77,7 +84,7 @@ const LAYOUT: Record<string, { label: string; cls: string; hint: string }> = {
   default: { label: 'Layout · default 4×4 m', cls: '', hint: 'no room.json yet: copy aankhen/room.example.json to data/aankhen/room.json' },
 }
 const LAYERS: { id: Layer; label: string }[] = [
-  { id: 'walls', label: 'Walls' }, { id: 'house', label: 'House' }, { id: 'heat', label: 'Heat' }, { id: 'fov', label: 'Radar' },
+  { id: 'walls', label: 'Walls' }, { id: 'house', label: 'House' }, { id: 'heat', label: 'Heat' },
   { id: 'fresnel', label: 'Wi-Fi zone' }, { id: 'trails', label: 'Trails' }, { id: 'labels', label: 'Labels' },
   { id: 'truth', label: 'Truth' }, { id: 'estimate', label: 'Belief' }, { id: 'zones', label: 'Zone map' },
 ]
@@ -107,18 +114,21 @@ export function AankhenPage() {
   const eyesSink = useRef<((m: EyesMsg) => void) | null>(null)
   const [framing, setFramingState] = useState<Framing>('room')
   const [heatLayer, setHeatLayer] = useState<'live' | 'learned'>('live')
-  const [layers, setLayers] = useState<Record<Layer, boolean>>({ walls: true, heat: true, fov: true, fresnel: true, trails: true, labels: true, truth: true, house: true, estimate: true, zones: true })
+  const [layers, setLayers] = useState<Record<Layer, boolean>>({ walls: true, heat: true, fov: false, fresnel: true, trails: true, labels: true, truth: true, house: true, estimate: true, zones: true })
   // What the belief cloud says ("probably: at the desk chair · 62 %"), or null with no belief.
   const [est, setEst] = useState<BeliefSummary | null>(null)
   const [hist, setHist] = useState<{ score: number; thr: number }[]>([])
   const [teachOpen, setTeachOpen] = useState(false)
   const [flOpen, setFlOpen] = useState(false)
+  const [measureOpen, setMeasureOpen] = useState(false)
+  const { readiness, reload: reloadReadiness } = useReadiness()
   const lastUi = useRef(0)
 
   useEffect(() => {
     const t = new SpatialTwin(host.current!)
     twin.current = t
     t.onEstimate = setEst
+    t.setLayer('fov', false)            // no radar: never draw a field of view
     if (viewRef.current === 'plan') t.setView('plan')
     t.setPaused(viewRef.current === 'eyes')
     ;(window as unknown as { __twin: () => unknown }).__twin = () => t.probe()
@@ -192,7 +202,8 @@ export function AankhenPage() {
   const stale = !online
   const hub = status?.hub
   const sim = !!frame && frame.source !== 'hardware'
-  const layout = LAYOUT[hub?.layout ?? (status?.room_measured ? 'measured' : 'default')] ?? LAYOUT.default
+  const layout = LAYOUT[readiness?.layout_measured ? 'measured' : hub?.layout ?? (status?.room_measured ? 'measured' : 'default')] ?? LAYOUT.default
+  const zonesTrusted = (frame as unknown as { belief?: { zones_trusted?: boolean } } | null)?.belief?.zones_trusted !== false
   const hasHouse = !!room?.house && (room.house.areas.length > 0 || room.house.fixtures.length > 0)
   const eyes = view === 'eyes'
   return (
@@ -210,11 +221,12 @@ export function AankhenPage() {
           </div>
           <div className="hud-pills rise" style={{ ['--i' as string]: 1 }}>
             <span className={`pill ${src.cls} big`}><i className={`led ${!stale && src.cls !== 'fault' ? 'breathe' : ''}`} />{stale ? 'DISCONNECTED — showing last data' : src.label}</span>
-            <span className={`pill ${layout.cls}`} title={layout.hint}>{layout.label}</span>
+            <button className={`pill ${layout.cls}`} title={`${layout.hint} · click to measure`} onClick={() => { setTeachOpen(false); setFlOpen(false); setMeasureOpen(true) }}>{layout.label}</button>
           </div>
           <SourceCard hub={hub} frame={frame} room={room} onStart={startSource} />
           <SensorsCard status={status} />
-          <LearnedCard frame={frame} onTeach={() => setTeachOpen(true)} />
+          <ReadinessCard r={readiness} onMeasure={() => { setTeachOpen(false); setFlOpen(false); setMeasureOpen(true) }} />
+          <LearnedCard frame={frame} trusted={zonesTrusted} onTeach={() => setTeachOpen(true)} />
           {frame?.metrics && <SimCheck frame={frame} />}
         </div>
 
@@ -224,7 +236,9 @@ export function AankhenPage() {
               title="Aankhen sees no body, only where movement probably is. Each zone gets dots in proportion to its probability; the cloud spreads and jitters with motion and fades when the model is unsure.">
               <i className="est-swatch" aria-hidden />
               <b>{est?.label}</b>
-              <span>dots = probability, not a person{est?.fallback ? ' · from the learned states' : ''}</span>
+              <span>{est?.label === NOT_SURE_WHERE
+                ? 'zones are not trusted yet: measure the room and drill 7 days'
+                : <>dots = probability, not a person{est?.fallback ? ' · from the learned states' : ''}</>}</span>
             </div>
           </div>
         </Presence>
@@ -280,6 +294,9 @@ export function AankhenPage() {
         </Presence>
         <Presence show={teachOpen && !eyes}>
           <TeachSheet t={teach} onClose={() => setTeachOpen(false)} />
+        </Presence>
+        <Presence show={measureOpen && !eyes}>
+          <MeasureSheet onClose={() => setMeasureOpen(false)} onSaved={() => { void reloadReadiness(); toast('Room saved as measured') }} />
         </Presence>
         <Presence show={flOpen && !eyes}>
           <FirstLightSheet frame={frame} live={frame?.source === 'hardware' && online} onClose={() => setFlOpen(false)} toast={toast} />
@@ -412,9 +429,8 @@ function PresenceCore({ frame }: { frame: FrameMsg | null }) {
   const lit = Math.round(prob * N)
   const ev = p?.evidence ?? {}
   const arcs = [
-    { k: 'radar', label: 'RADAR', max: 4, start: -150, against: false },
-    { k: 'wifi', label: 'WI-FI', max: 1, start: -30, against: false },
-    { k: 'absence', label: 'QUIET', max: 0.15, start: 90, against: true },
+    { k: 'wifi', label: 'WI-FI', max: 1, start: -150, against: false },
+    { k: 'absence', label: 'QUIET', max: 0.15, start: 30, against: true },
   ]
   const sim = frame && frame.source !== 'hardware'
   const tone = !p ? 'off' : p.state === 'empty' ? 'empty' : p.state === 'uncertain' ? 'unsure' : sim ? 'sim' : 'live'
@@ -450,7 +466,6 @@ function PresenceCore({ frame }: { frame: FrameMsg | null }) {
         <div className="mono pc-sub">{p ? <>P <Ticker value={prob} fmt={(n) => n.toFixed(2)} /></> : 'no data'}</div>
       </div>
       <div className="pc-legend mono">
-        <span className={(ev.radar ?? 0) > 0 ? 'on' : ''}>RADAR</span>
         <span className={(ev.wifi ?? 0) > 0 ? 'on' : ''}>WI-FI</span>
         <span className={(ev.absence ?? 0) < 0 ? 'against' : ''}>QUIET</span>
       </div>
@@ -533,10 +548,13 @@ function MotionCard({ frame, hist }: { frame: FrameMsg | null; hist: { score: nu
 }
 
 /* ------------------------------------------------------------------ the learned model */
-function LearnedCard({ frame, onTeach }: { frame: FrameMsg | null; onTeach: () => void }) {
+function LearnedCard({ frame, trusted, onTeach }: { frame: FrameMsg | null; trusted: boolean; onTeach: () => void }) {
   const l = frame?.learned
   const sim = frame && frame.source !== 'hardware'
-  const top = STATES.find((s) => s.id === l?.state)
+  // Untrusted zones: desk / bed fold into "In my room", nothing above 90 % (lib/roomMeasure).
+  const view = learnedView(l, trusted)
+  const shownStates = trusted ? STATES : STATES.filter((s) => s.id !== 'desk' && s.id !== 'bed')
+  const top = STATES.find((s) => s.id === view?.top)
   return (
     <div className="hud-card glass-thin learned-card rise" style={{ ['--i' as string]: 4 }}>
       <div className="hc-head"><span className="eyebrow">Spatial model</span>
@@ -546,16 +564,16 @@ function LearnedCard({ frame, onTeach }: { frame: FrameMsg | null; onTeach: () =
       ) : (
         <>
           <div className="lc-top">
-            <span key={l.state} className="display lc-state pop">{top?.name ?? l.state}</span>
-            <span className="mono muted">occupied <b className="dot"><Ticker value={l.occupied_p * 100} fmt={(n) => `${Math.round(n)}%`} /></b></span>
+            <span key={view!.top} className="display lc-state pop">{!trusted && view!.top === 'room' ? 'In my room · not sure where' : top?.name ?? view!.top}</span>
+            <span className="mono muted">occupied <b className="dot"><Ticker value={view!.occupied * 100} fmt={(n) => `${Math.round(n)}%`} /></b></span>
           </div>
           <div className="lc-rows">
-            {STATES.map((s) => {
-              const p = l.p[s.id] ?? 0
+            {shownStates.map((s) => {
+              const p = view!.rows.find((r) => r.id === s.id)?.p ?? 0
               return (
-                <div key={s.id} className={`lc-row ${s.id === l.state ? 'on' : ''}`}>
+                <div key={s.id} className={`lc-row ${s.id === view!.top ? 'on' : ''}`}>
                   <span>{s.name}</span>
-                  <div className={`bar ${s.id === l.state ? (sim ? 'sim' : 'live') : ''}`}><i style={{ width: `${p * 100}%` }} /></div>
+                  <div className={`bar ${s.id === view!.top ? (sim ? 'sim' : 'live') : ''}`}><i style={{ width: `${p * 100}%` }} /></div>
                   <em className="mono">{Math.round(p * 100)}</em>
                 </div>
               )
@@ -616,7 +634,7 @@ function ChannelCard({ frame }: { frame: FrameMsg | null }) {
       <div className="hc-head"><span className="eyebrow">Channel · 51 subcarriers</span>
         <span className="mono muted">{frame ? `${fmt(frame.csi.rate_hz, 0)} Hz · ${frame.csi.rssi ?? '—'} dBm` : '—'}</span></div>
       <canvas ref={ref} className="hc-matrix" />
-      <div className="hc-foot mono muted">{frame ? `${fmt(frame.csi.fill_ratio * 100, 1)}% gaps filled · radar ${fmt(frame.rates.radar_hz, 0)} Hz` : ''}</div>
+      <div className="hc-foot mono muted">{frame ? `${fmt(frame.csi.fill_ratio * 100, 1)}% gaps filled` : ''}</div>
     </div>
   )
 }

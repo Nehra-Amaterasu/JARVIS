@@ -28,7 +28,7 @@
 import * as THREE from 'three'
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
 import {
-  BELIEF_COLOR, DOTS, beliefLabel, confidenceAlpha, dotOffsets, fallbackBelief, layoutDots, readBelief, topZone,
+  BELIEF_COLOR, DOTS, beliefLabel, confidenceAlpha, dotOffsets, fallbackBelief, layoutDots, readBelief, shownZones, topZone,
   type Belief, type LearnedLike,
 } from '../lib/belief'
 import { roomPlaces, type Places, type RoomLike } from './places'
@@ -215,7 +215,8 @@ export class BeliefCloud {
   /** New dot targets for the current belief (or none). */
   private relayout(snap: boolean) {
     const b = this.belief
-    const drawn = b && BELIEF_COLOR[b.state] ? b.zones : []
+    // untrusted zones: one room-wide cloud, never a pile on an unverified place
+    const drawn = b && BELIEF_COLOR[b.state] ? shownZones(b) : []
     layoutDots(drawn, b?.motion ?? 0, this.offsets, this.target, this.targetLit, this.n)
     if (b && BELIEF_COLOR[b.state]) this.colTarget.set(BELIEF_COLOR[b.state]!)
     if (snap) {
@@ -263,7 +264,7 @@ export class BeliefCloud {
     const b = this.belief
     const text = beliefLabel(b)
     this.labelText.textContent = text
-    const top = b && BELIEF_COLOR[b.state] ? topZone(b) : null
+    const top = b && BELIEF_COLOR[b.state] ? topZone({ ...b, zones: shownZones(b) }) : null
     this.labelShown = !!b
     if (top) this.labelTarget.set(top.x, top.y, 0.35 + 0.9 * (b?.motion ?? 0) * 0.6)
     else if (this.places) this.labelTarget.set(this.places.room.x, this.places.room.y, 0.3)

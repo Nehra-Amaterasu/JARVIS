@@ -245,22 +245,40 @@ class Segmenter:
 # Until 2026-10-09 the reply was cut whenever a CHUNK contained one of .?!, so a decimal
 # split a sentence, and a chunk of "..." alone reached the voice and crashed it.
 _SENTENCE_END = re.compile(r"(?<!\d)[.?!।…]+[\"')\]]*(?=\s|$)")
-EARLY_FLUSH_WORDS = 8           # first sentence only: speak at a comma once it has 8+ words
+# First piece of a reply only: speak at a clause break once 5+ words come before it.
+# Was 8 words and commas only until 10-25: the first sentence of a typical reply then
+# waited for its full stop, and the voice note found the first sentence plus its TTS was
+# the biggest unexplained share of the 4 s wait. 5 words still reads as a phrase (TTS
+# prosody breaks on 2-3 word fragments). Clause breaks: , ; : and a dash, each followed
+# by a space or the end of what has streamed so far (never "1,000" or "10:30").
+# Trade-off: agent._echoes needs three 4-word runs (6+ words), so a 5-word first clause
+# is not checked for an echo of an earlier reply; a 6+ word one still is.
+EARLY_FLUSH_WORDS = 5
+_CLAUSE_END = re.compile(r"(?:(?<!\d)[,;:]|\s[—–])(?=\s|$)")
+
+
+def _clause_split(buffer: str) -> Optional[int]:
+    """Where a long-enough first clause ends in `buffer` (index after the mark), or None."""
+    cut = None
+    for m in _CLAUSE_END.finditer(buffer):
+        if len(buffer[:m.start()].split()) >= EARLY_FLUSH_WORDS:
+            cut = m.end()
+    return cut
 
 
 def split_ready(buffer: str, first: bool) -> tuple[str, str]:
     """(ready_text, rest): everything up to the last complete sentence end in `buffer`.
-    For the first sentence of a reply, a long clause ending in a comma also counts,
-    so the voice starts sooner."""
+    For the first piece of a reply, a clause of 5+ words ending at , ; : or a dash also
+    counts, so the voice starts sooner."""
     last = None
     for m in _SENTENCE_END.finditer(buffer):
         last = m
     if last is not None:
         return buffer[:last.end()], buffer[last.end():]
     if first:
-        comma = buffer.rfind(",")
-        if comma > 0 and len(buffer[:comma].split()) >= EARLY_FLUSH_WORDS:
-            return buffer[:comma + 1], buffer[comma + 1:]
+        cut = _clause_split(buffer)
+        if cut is not None:
+            return buffer[:cut], buffer[cut:]
     return "", buffer
 
 

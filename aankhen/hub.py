@@ -748,6 +748,17 @@ class AankhenHub:
         return {"code": code, "text": lead + " ".join(p["text"] for p in parts),
                 "usb": usb, "wifi": wifi}
 
+    def measured_room(self, room_dict: dict) -> None:
+        """The Measure-my-room form saved room.json: the badge says MEASURED now, and zones
+        may be named once the rest of readiness holds. The running engine keeps its
+        geometry until the source restarts (the twin redraws on the next start)."""
+        self.room = Room.from_dict(room_dict)
+        self.room_measured, self.layout = True, "measured"
+        eng = self.engine
+        if eng is not None:
+            eng.room_measured = True
+            eng.belief.layout_measured = True
+
     def info(self) -> dict:
         src = self.source
         if isinstance(src, (SerialSource, NetSource)):

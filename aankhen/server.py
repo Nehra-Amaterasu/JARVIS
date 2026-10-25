@@ -190,7 +190,45 @@ def attach(app, hub: AankhenHub, path: str = "/ws",
             return
         await streamer.serve(ws)
 
+    attach_room_routes(app, hub)
     return streamer
+
+
+def attach_room_routes(app, hub: AankhenHub, room_file: Optional[str] = None, data_dir: Optional[str] = None) -> None:
+    """Measure my room + drill readiness, under /api/aankhen/ (the JARVIS app's token
+    middleware guards every /api/ route, these included: test_room_routes)."""
+    from fastapi import Body, HTTPException
+
+    from . import DATA_DIR, measure, readiness
+    from .room import ROOM_FILE
+    rf, dd = room_file or ROOM_FILE, data_dir or DATA_DIR
+
+    def _room() -> Optional[dict]:
+        try:
+            with open(rf, encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, ValueError):
+            return None
+
+    @app.get("/api/aankhen/readiness")
+    def _readiness():
+        return readiness.check(dd)
+
+    @app.get("/api/aankhen/room-measure")
+    def _room_get():
+        return {"form": measure.form_from_room(_room()), "readiness": readiness.check(dd)}
+
+    @app.post("/api/aankhen/room-measure")
+    def _room_post(form: dict = Body(...)):
+        errs = measure.validate(form)
+        if errs:
+            raise HTTPException(422, {"errors": errs})
+        try:
+            new = measure.save(form, rf)
+        except ValueError as e:
+            raise HTTPException(422, {"errors": [{"field": "", "error": str(e)}]})
+        hub.measured_room(new)
+        return {"ok": True, "layout": "measured", "readiness": readiness.check(dd)}
 
 
 def local_origin_only(ws) -> bool:

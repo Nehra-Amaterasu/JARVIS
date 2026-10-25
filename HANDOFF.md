@@ -1,33 +1,53 @@
 # HANDOFF: Aankhen latency + honesty (2026-10-25)
 
-## Done (investigation only, no code changed yet)
-- Latency cause found in aankhen/motion.py MotionConfig: window_s=1.0, hop_s=0.25, on_count=4.
-  Onset delay is about 0.75 s (hysteresis) + 0.125 s (hop wait) + time to cross the threshold, so about 1 s. This matches the screenshot.
-- The recordings live in data/aankhen/recordings (*.akr + labels). data/app has none.
-  Empty-room recording: 20261012-201420-empty.akr (150 s). firstlight-*.akr have move/walk segments on the host clock.
-- Replay tools already exist: bench.calibrate_from_bytes (it uses the default MotionConfig, so it needs a cfg param),
-  bench.bench_recording, bench.bench_simulation (exact motion_latency_s from the simulator).
-- Honesty: belief.honest() already names a zone only at ZONE_FLOOR 0.6 with a same-firmware reference.
-  It does NOT check whether the layout is measured. core speaks snapshot["learned"].state and p
-  (core/tools/builtin.py _learned_presence), which is where "desk 100 %" comes from. The fix goes in
-  aankhen engine.snapshot/frame: sanitise `learned` (state -> "room", p capped) unless the zones are trusted.
-- UI: radar arc + legend in PresenceCore, 'fov' "Radar" layer chip, "radar Hz" in ChannelCard
-  (app/ui/src/pages/Aankhen.tsx); the "LD2450 radar" sensor row comes from engine.status_message.
-- The zone label in the UI comes from beliefLabel (lib/belief.ts) and LearnedCard bars.
-- Routes: the app's routes are in app/jarvis_app/server.py (not owned by me). New HTTP routes can be added in
-  aankhen/server.py attach() (it gets the FastAPI app; the token middleware still applies).
+## Done and committed
+1. **Latency (4ba7d59).** MotionConfig now uses a 0.1 s hop, on_count 2 and off_count 8 (was 0.25 s / 4 / 3).
+   The new tool `python -m aankhen.tools.latency` measures it on data/aankhen/recordings (read-only).
+   - Real recordings, median onset from the label start: 0.79 s -> 0.30 s. This includes the person's
+     reaction to the prompt, so it compares settings rather than giving an absolute delay.
+   - False motion on the held-out half of the empty-room recording: 0.00 % before and after.
+   - The hysteresis alone used to hold an onset back 0.75 s; now it holds it 0.1 s.
+   - Simulator, median of 3 seeds:
+     - walk: latency 0.55 -> 0.50 s, Wi-Fi recall 83 -> 94 %, no steady false alarms in either.
+     - evening: latency 0.85 -> 0.70 s, steady false alarms 1.2 -> 2.0 %.
+     - empty and still: 0 % Wi-Fi false alarms before and after.
+     - Stop lag unchanged (walk 1.05 s; evening 1.8 -> 1.9 s).
+   - Tests: test_latency.py.
+2. **Honesty + readiness (dcd9e2f).**
+   - belief.py: `layout_measured` and `zone_floor`. A zone is named only when the layout is measured and the
+     floor has been calibrated. Otherwise the answer is "in the room, not sure where" with the reason.
+   - The contract now carries `zones_trusted`.
+   - engine.py (hardware only) takes the floor from `readiness.zone_floor()`.
+   - Removed the LD2450 row when no radar is configured.
+   - `snapshot()["learned"]` goes through `honest_learned()`: desk/bed collapse to "room" and
+     probabilities are capped at 0.9. core speaks this.
+   - readiness.py checks the measured layout, the fan-off and fan-on baselines (baseline.json and
+     baseline_fan.json), drill days from drill/index.jsonl, and the zone gate from models/drill/lodo.json.
+   - Tests: test_zone_trust.py. The honesty, zones_belief, engine, hub, journal and drill tests are green.
 
-## Next steps (in order)
-1. Add tools/latency.py: replay the akr files with a MotionConfig, recalibrate from the empty recording with
-   the same cfg, report onset latency (simulator truth plus an oracle onset) and false motion on the empty file.
-   Try hop 0.1 / on_count 2-3 / window 0.5-1.0. Commit.
-2. honest(): add a layout_measured flag and a calibrated floor from drill days (none -> no zone).
-   Sanitise the snapshot learned. Remove the LD2450 row. Write tests. Commit.
-3. aankhen/measure.py: validate the form and merge into room.json (measured: true, backup first),
-   plus GET/POST /api/aankhen/room-measure in attach(). Write tests.
-4. aankhen/readiness.py: measured layout, fan-off and fan-on baselines, drill-day count. Add a route.
-5. UI: remove the radar bits, add the honest label, MeasureRoom sheet, readiness card, vitest.
-6. Write docs/research/2026-10-25-aankhen-latency-honesty.md and add its index line.
+## Written, NOT yet tested or committed (included in the WIP commit)
+- aankhen/measure.py: form validation, merge into room.json (backup first, measured: true), form_from_room.
+- aankhen/hub.py: `measured_room()`.
+- aankhen/server.py: `attach_room_routes()` adds GET /api/aankhen/readiness, GET /api/aankhen/room-measure and
+  POST /api/aankhen/room-measure (422 with {errors:[{field,error}]}).
+
+## Exact next step
+1. Write aankhen/tests/test_measure.py covering valid saves, each error field, the backup and the zones written.
+2. Write app/tests/test_room_routes.py on the model of app/tests/test_crew_routes.py:
+   `create_app(Guard(8782, TOKEN, extra_hosts=["testserver"]), autostart_aankhen="off", features=[])`.
+   Assert 401 without the token and 200/422 with it. Point attach_room_routes at tmp files through
+   monkeypatched ROOM_FILE/DATA_DIR.
+3. app/tests/test_aankhen_drill_routes.py line ~45 asserts the exact belief keys. Add "zones_trusted" there.
+4. UI in app/ui/src/pages/Aankhen.tsx:
+   - remove the radar arc and legend from PresenceCore, the 'fov' Radar chip and "radar Hz" in ChannelCard;
+   - when `belief.zones_trusted === false`: the est legend says "in the room, not sure where", LearnedCard hides
+     the desk/bed bars and caps at 90 %; also guard beliefLabel in lib/belief.ts;
+   - add a MeasureRoom sheet (POST /api/aankhen/room-measure) and a Readiness card
+     (GET /api/aankhen/readiness);
+   - write vitest tests.
+5. Write docs/research/2026-10-25-aankhen-latency-honesty.md using the numbers above, and add its index line.
 
 ## Tests
-None run yet.
+Green: test_latency, test_zone_trust, test_honesty, test_zones_belief, test_engine, test_hub,
+test_journal, test_drill, test_motion, test_hbe, test_fusion, test_end_to_end.
+Not run: anything for measure.py and the routes, the app tests, vitest.

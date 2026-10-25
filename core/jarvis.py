@@ -304,6 +304,38 @@ def stop_hum():
         try: hum_sound.stop()
         except Exception: pass
 
+# --- Where the wait goes (core/turn_clock.py, 2026-10-25) ---
+# Every spoken turn is timed stage by stage: his last word -> recording closed -> text
+# ready -> first token -> first sentence to the voice -> first audio bytes -> speaker on.
+# Each stage goes to the app as a "timing" event (so /api/system's core.timings shows
+# the latest), and one line per turn goes to the log with the running median and p90.
+import turn_clock
+clock = turn_clock.TurnClock()
+
+
+def _report_latency(rep) -> None:
+    if not rep:
+        return
+    summ = clock.summary()
+    if "turn_to_audio" in rep:
+        appio.emit("timing", stage="first_audio", seconds=rep["turn_to_audio"])   # the app's old contract
+    for stage, key in (("first_sentence", "first_sentence_wait"), ("tts_first_byte", "tts_first_byte"),
+                       ("tts_full", "tts_full"), ("play_start", "play_start"),
+                       ("speech_to_audio", "speech_to_audio")):
+        if key in rep:
+            appio.emit("timing", stage=stage, seconds=rep[key], engine=rep.get("engine"))
+    if summ:
+        appio.emit("timing", stage="speech_to_audio_p50", seconds=summ["median"], n=summ["n"])
+        appio.emit("timing", stage="speech_to_audio_p90", seconds=summ["p90"], n=summ["n"])
+    print("\n" + turn_clock.line(rep, summ))
+
+
+def _playback_started() -> None:
+    """The speaker has just started: the first one in a turn closes the turn's timing."""
+    if clock.mark("playback_start"):
+        _report_latency(clock.finish())
+
+
 # --- SEQUENTIAL SPEECH AUDIO QUEUE (PREVENTS WORD-EATING & TRUNCATION) ---
 import queue
 speech_queue = queue.Queue()
@@ -318,13 +350,10 @@ def _tts_worker():
         gain = item[2] if len(item) > 2 else 1.0     # levels accents (voice.py Style gains)
         try:
             appio.emit("state", state="speaking", text=text)
-            global _first_audio_pending
-            if _first_audio_pending:
-                _first_audio_pending = False
-                appio.emit("timing", stage="first_audio", seconds=round(time.time() - _turn_started, 3))
             pygame.mixer.music.load(audio_file)
             pygame.mixer.music.set_volume(gain)
             pygame.mixer.music.play()
+            _playback_started()
             while pygame.mixer.music.get_busy():
                 time.sleep(0.05)
             pygame.mixer.music.unload()
@@ -446,7 +475,7 @@ def _play(text, audio_file, gain=1.0):
     speech_queue.put((text, audio_file, gain))
 
 
-voice_engine = voice_mod.VoiceEngine(play=_play, log=print, enabled=not TEXT_ONLY)
+voice_engine = voice_mod.VoiceEngine(play=_play, log=print, enabled=not TEXT_ONLY, on_mark=clock.mark)
 
 
 def speak(text):
@@ -458,6 +487,7 @@ def speak(text):
     """
     if TEXT_ONLY or not text:
         return
+    clock.mark("first_sentence")          # only the first of a turn counts
     voice_engine.say(text)
 
 
@@ -735,10 +765,6 @@ def transcribe(audio) -> str:
     return text if len(text) >= 2 else ""
 
 
-_turn_started = 0.0             # when the current reply began (for the first_audio timing)
-_first_audio_pending = False
-
-
 def _stream_reply(text: str, t0: float, full: list) -> None:
     """Stream one reply from the agent into the voice queue and the app."""
     sentence_buffer = ""
@@ -748,6 +774,7 @@ def _stream_reply(text: str, t0: float, full: list) -> None:
         if first_token:
             stop_hum()
             first_token = False
+            clock.mark("first_token")
             appio.emit("timing", stage="first_token", seconds=round(time.time() - t0, 3))
             appio.emit("state", state="replying")
         sys.stdout.write(chunk)
@@ -763,7 +790,7 @@ def _stream_reply(text: str, t0: float, full: list) -> None:
         speak(sentence_buffer.strip())
 
 
-def respond(text: str, endpoint_s=None) -> None:
+def respond(text: str, endpoint_s=None, recorded_at=None) -> None:
     """One full turn: think, stream the reply, speak it sentence by sentence.
 
     Speech is queued (voice.py synthesises on its own thread), so the model streams
@@ -771,9 +798,9 @@ def respond(text: str, endpoint_s=None) -> None:
     American accent", "Hindi mein") becomes the reply's default voice.
     `endpoint_s` (silence waited before the recording was closed) is reported after
     "heard" so the app files it with this turn: end of speech -> first audio is
-    endpoint + stt + first_audio.
+    endpoint + stt + first_audio. `recorded_at` (when the recording closed) lets the turn
+    clock time the whole chain from his last word (turn_clock.py).
     """
-    global _turn_started, _first_audio_pending
     print(f"\nYou said: {text}")
     _last_heard_at[0] = time.time()
     appio.emit("heard", text=text)
@@ -785,7 +812,7 @@ def respond(text: str, endpoint_s=None) -> None:
     appio.emit("state", state="thinking")
     voice_engine.begin_turn(voice_mod.requested_style(text))
     t0 = time.time()
-    _turn_started, _first_audio_pending = t0, True
+    clock.start(recorded_at=recorded_at, endpoint_s=endpoint_s, t=t0)
     full = []
     try:
         print("JARVIS: ", end="")
@@ -909,6 +936,7 @@ def main_loop():
                 respond(typed)                 # typed in the app while asleep
                 continue
             utt = record_utterance()
+            recorded_at = time.time()          # the end-pointer closed the recording (turn clock)
             if not utt.has_speech:
                 continue                       # woken, then nothing said: back to sleep
 
@@ -930,7 +958,7 @@ def main_loop():
                 stop_hum()
                 continue
 
-            respond(text, endpoint_s=utt.endpoint_s)
+            respond(text, endpoint_s=utt.endpoint_s, recorded_at=recorded_at)
 
             # Active Follow-Up Conversation Loop: wait for follow-up speech before
             # returning to wake-word sleep. With Silero the follow-up IS the recording
@@ -938,11 +966,12 @@ def main_loop():
             # stream opening after the sound that triggered it; and the 5 s only run
             # once JARVIS has stopped talking.
             utt = record_utterance(followup=True)
+            recorded_at = time.time()
             if utt.has_speech:
                 start_hum()
                 text = transcribe_utterance(utt)
                 if text:
-                    respond(text, endpoint_s=utt.endpoint_s)
+                    respond(text, endpoint_s=utt.endpoint_s, recorded_at=recorded_at)
                 else:
                     stop_hum()
 

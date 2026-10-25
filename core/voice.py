@@ -294,7 +294,7 @@ class _Kokoro:
         return path
 
 
-async def _edge_synth(text: str, voice: str, rate: str) -> str:
+async def _edge_synth(text: str, voice: str, rate: str, on_first: Optional[Callable[[], None]] = None) -> str:
     import edge_tts
     path = os.path.join(tempfile.gettempdir(), f"jarvis_{uuid.uuid4().hex[:8]}.mp3")
     comm = edge_tts.Communicate(text, voice, rate=rate, connect_timeout=4, receive_timeout=12)
@@ -302,6 +302,8 @@ async def _edge_synth(text: str, voice: str, rate: str) -> str:
     with open(path, "wb") as f:
         async for chunk in comm.stream():
             if chunk["type"] == "audio":
+                if not got and on_first is not None:
+                    on_first()
                 f.write(chunk["data"])
                 got += len(chunk["data"])
     if got < 200:
@@ -316,9 +318,14 @@ class VoiceEngine:
 
     def __init__(self, play: Callable[[str, str, float], None], log: Callable[[str], None] = print,
                  model_dir: Optional[str] = None, enabled: bool = True,
-                 settings: Optional[Callable[[], dict]] = None):
+                 settings: Optional[Callable[[], dict]] = None,
+                 on_mark: Optional[Callable[..., None]] = None):
         self.play = play                         # play(text, audio_path, gain) — the app's playback queue
         self.log = log
+        # on_mark(stage, **info): latency marks for the turn clock (core/turn_clock.py):
+        # "tts_first_byte" (engine=...) and "tts_ready" for every synthesised piece; the
+        # clock keeps only the first of a turn.
+        self.on_mark = on_mark
         self.enabled = enabled
         self.segmenter = Segmenter()
         self.kokoro = _Kokoro(model_dir or str(MODELS / "kokoro"))   # data/models/kokoro, git-ignored
@@ -379,6 +386,13 @@ class VoiceEngine:
     def close(self) -> None:
         self._q.put(None)
 
+    def _mark(self, stage: str, **info) -> None:
+        if self.on_mark is not None:
+            try:
+                self.on_mark(stage, **info)
+            except Exception as e:          # timing must never cost a sentence
+                self.log(f"[voice] latency mark failed: {e}")
+
     # -------------------------------------------------------------- worker
     def _worker(self) -> None:
         asyncio.set_event_loop(self._loop)
@@ -407,7 +421,9 @@ class VoiceEngine:
             name = p.edge.get(style.key, style.edge)
             rate = user_settings.edge_rate(p.speed) if p.speed != 1.0 else style.rate
             try:
-                path = self._loop.run_until_complete(_edge_synth(spoken, name, rate))
+                path = self._loop.run_until_complete(
+                    _edge_synth(spoken, name, rate, on_first=lambda: self._mark("tts_first_byte", engine="edge")))
+                self._mark("tts_ready")
                 self.stats["edge"] += 1
                 return path, style.edge_gain if name == style.edge else 1.0
             except Exception as e:
@@ -420,6 +436,8 @@ class VoiceEngine:
             try:
                 path = (self.kokoro.synth(spoken, *kv, speed=p.speed) if p.speed != 1.0
                         else self.kokoro.synth(spoken, *kv))
+                self._mark("tts_first_byte", engine="kokoro")    # not streamed: the whole clip at once
+                self._mark("tts_ready")
                 self.stats["kokoro"] += 1
                 if not self._kokoro_said:
                     # The app's Modules card reads this line: the offline voice is in RAM now.

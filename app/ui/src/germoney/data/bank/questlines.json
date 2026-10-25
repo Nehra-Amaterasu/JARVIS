@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "about": "Well Wisher quest lines: optional life domains beyond study. Each level has a standard (sets x target). A level goes up only when the standard is logged on two different days. No content here is about a real person.",
+  "lines": [
+    {
+      "id": "fitness",
+      "name": "Body: calisthenics",
+      "domain": "fitness",
+      "optional": true,
+      "minutes": 15,
+      "session_xp": 10,
+      "rank_up_xp": 25,
+      "proof_rule": {"sessions": 2, "distinct_days": true},
+      "why": "Muscle-strengthening work on two or more days a week is the WHO adult guideline; 15 minutes at home needs no gym.",
+      "safety": "Stop on sharp or joint pain. Warm up for two minutes first. This is general guidance, not medical advice.",
+      "tracks": [
+        {
+          "id": "push",
+          "name": "Push",
+          "levels": [
+            {"n": 1, "name": "Wall push-up", "sets": 3, "target": 15, "unit": "reps", "cue": "Body in one line, chest to the wall, elbows at 45 degrees."},
+            {"n": 2, "name": "Incline push-up (hands on a table)", "sets": 3, "target": 12, "unit": "reps", "cue": "Sturdy table against a wall. Chest touches the edge."},
+            {"n": 3, "name": "Knee push-up", "sets": 3, "target": 12, "unit": "reps", "cue": "Hips stay in line with knees and shoulders."},
+            {"n": 4, "name": "Push-up", "sets": 3, "target": 8, "unit": "reps", "cue": "Full range: chest a fist above the floor, arms straight at the top."},
+            {"n": 5, "name": "Push-up", "sets": 3, "target": 15, "unit": "reps", "cue": "Same form as level 4, more reps. Two seconds down."},
+            {"n": 6, "name": "Diamond push-up", "sets": 3, "target": 8, "unit": "reps", "cue": "Hands close under the chest; elbows brush the ribs."},
+            {"n": 7, "name": "Archer push-up", "sets": 3, "target": 5, "unit": "reps", "cue": "Per side. One arm bends, the other stays almost straight."}
+          ]
+        },
+        {
+          "id": "pull",
+          "name": "Pull",
+          "levels": [
+            {"n": 1, "name": "Towel row (door)", "sets": 3, "target": 12, "unit": "reps", "cue": "Towel around a closed door's handles, lean back, pull chest to the door. Check the door is locked and solid."},
+            {"n": 2, "name": "Inverted row, knees bent (under a sturdy table)", "sets": 3, "target": 10, "unit": "reps", "cue": "Only under a heavy table that cannot tip. Squeeze shoulder blades at the top."},
+            {"n": 3, "name": "Inverted row, legs straight", "sets": 3, "target": 10, "unit": "reps", "cue": "Body rigid like a plank."},
+            {"n": 4, "name": "Dead hang (pull-up bar)", "sets": 3, "target": 30, "unit": "seconds", "cue": "Needs a bar. Shoulders active, not shrugged into the ears."},
+            {"n": 5, "name": "Negative pull-up", "sets": 3, "target": 5, "unit": "reps", "cue": "Jump to the top, lower for five slow seconds."},
+            {"n": 6, "name": "Pull-up", "sets": 3, "target": 3, "unit": "reps", "cue": "From a dead hang, chin over the bar."},
+            {"n": 7, "name": "Pull-up", "sets": 3, "target": 8, "unit": "reps", "cue": "Same as level 6, more reps."}
+          ]
+        },
+        {
+          "id": "legs",
+          "name": "Legs",
+          "levels": [
+            {"n": 1, "name": "Assisted squat (hold a door frame)", "sets": 3, "target": 15, "unit": "reps", "cue": "Hips back, heels down, as deep as is comfortable."},
+            {"n": 2, "name": "Bodyweight squat", "sets": 3, "target": 20, "unit": "reps", "cue": "Thighs at least parallel, knees track the toes."},
+            {"n": 3, "name": "Split squat", "sets": 3, "target": 10, "unit": "reps", "cue": "Per leg. Back knee lowers to just above the floor."},
+            {"n": 4, "name": "Bulgarian split squat (rear foot on a chair)", "sets": 3, "target": 10, "unit": "reps", "cue": "Per leg. Front shin stays roughly vertical."},
+            {"n": 5, "name": "Assisted shrimp squat", "sets": 3, "target": 5, "unit": "reps", "cue": "Per leg, holding a wall for balance."}
+          ]
+        },
+        {
+          "id": "core",
+          "name": "Core",
+          "levels": [
+            {"n": 1, "name": "Plank", "sets": 3, "target": 20, "unit": "seconds", "cue": "Forearms under shoulders, glutes squeezed, no sagging hips."},
+            {"n": 2, "name": "Plank", "sets": 3, "target": 45, "unit": "seconds", "cue": "Same form, longer hold."},
+            {"n": 3, "name": "Tuck hollow hold", "sets": 3, "target": 20, "unit": "seconds", "cue": "Lower back pressed into the floor, knees to chest."},
+            {"n": 4, "name": "Hollow hold", "sets": 3, "target": 30, "unit": "seconds", "cue": "Legs and arms extended, lower back still on the floor."},
+            {"n": 5, "name": "Side plank", "sets": 3, "target": 30, "unit": "seconds", "cue": "Per side. Body in one straight line."}
+          ]
+        }
+      ]
+    }
+  ]
+}

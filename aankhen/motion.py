@@ -20,7 +20,8 @@ DETECTOR (parameters from ESPectre's documented pipeline)
                   evaluated every 250 ms
   score         = feature / median(feature in the empty room)   -> "x empty"
   threshold     = 1.2 x 99.5th percentile of the empty-room feature, same unit
-  hysteresis    = 4 consecutive windows above to switch on, 3 below to switch off
+  hysteresis    = 2 consecutive windows above to switch on, 8 below to switch off
+                  (evaluated every 100 ms since 2026-10-25; was 250 ms, 4 on / 3 off)
   NOTE: windows overlap (1 s window, 0.25 s hop), so one corrupted sample sits in
   four consecutive windows and would satisfy "4 in a row" on its own. Hysteresis
   does NOT reject single-packet glitches — the Hampel filter in csi.py does, and
@@ -62,9 +63,14 @@ STATE_QUIET = "quiet"
 class MotionConfig:
     rate_hz: float = 100.0
     window_s: float = 1.0
-    hop_s: float = 0.25
-    on_count: int = 4
-    off_count: int = 3
+    # LATENCY (2026-10-25, docs/research/2026-10-25-aankhen-latency-honesty.md): the old
+    # 0.25 s hop x 4 windows held every onset back ~0.9 s before the threshold was even
+    # crossed. 0.1 s x 2 holds it 0.1-0.2 s; on the real recordings the median onset
+    # fell 0.79 -> 0.30 s with 0.0 % false motion on the held-out empty room either way.
+    # off_count 8 x 0.1 s keeps the old ~0.75 s release, so stop lag is unchanged.
+    hop_s: float = 0.1
+    on_count: int = 2
+    off_count: int = 8
     hold_s: float = 90.0                 # "recent" lasts this long after motion
     baseline_min_s: float = 60.0         # minimum empty-room calibration
     threshold_quantile: float = 0.995

@@ -286,7 +286,7 @@ CALIBRATION_QUIET_HBE = 3.0     # x noise; an empty, still room sits near 1
 
 
 def calibrate_from_bytes(chunks, device_offset_s: float = 0.0, skip_s: float = 0.0,
-                         fan: bool = False) -> Baseline:
+                         fan: bool = False, cfg: Optional[MotionConfig] = None) -> Baseline:
     """Empty-room baseline from a byte stream (simulated or recorded).
 
     fan=True calibrates the FAN-ON baseline: the fan must be running, the first
@@ -302,7 +302,7 @@ def calibrate_from_bytes(chunks, device_offset_s: float = 0.0, skip_s: float = 0
     baseline_min_s of quiet windows remain, every window is used and the note says so.
     """
     dec, cond = StreamDecoder(), CsiConditioner()
-    cfg = MotionConfig()
+    cfg = cfg or MotionConfig()
     det, cal = MotionDetector(cfg), Calibrator(cfg)
     resp = RespirationDetector()                 # its empty-room floor, from the same capture
     from .learn import FeatureStream, reference_from

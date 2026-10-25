@@ -111,6 +111,13 @@ class Engine:
         from .zones import load_zones
         self.zmap = zone_map if zone_map is not None else load_zones(room)
         self.belief = BeliefTracker(self.zmap)
+        if source_kind == "hardware":
+            # Real room: a zone is named only with a measured layout and a floor that a
+            # passed day-7 drill test calibrated (readiness.py). The simulator knows its
+            # own truth and keeps the default floor; it is labelled simulated everywhere.
+            from .readiness import zone_floor
+            self.belief.layout_measured = bool(room_measured)
+            self.belief.zone_floor = zone_floor()
         guard_model = zone_model if zone_model is not None else spatial_model
         self.ood = OodGuard(getattr(guard_model, "features", None) or LEARNED_FEATURES,
                             feature_ranges_from_model(guard_model))
@@ -810,8 +817,12 @@ class Engine:
             dev = self.device_status
             esp = sensor("status", True,
                          f"{dev.get('fw', '?')} · up {dev.get('uptime_s', 0):.0f} s" if dev else "")
+            # No radar in this project: its row appears only if a layout still lists one.
+            sensors = {"Wi-Fi CSI": csi, "ESP32": esp}
+            if self.radar_sensor is not None:
+                sensors = {"Wi-Fi CSI": csi, "LD2450 radar": radar, "ESP32": esp}
             return {"type": "status", "source": self.source_kind,
-                    "sensors": {"Wi-Fi CSI": csi, "LD2450 radar": radar, "ESP32": esp},
+                    "sensors": sensors,
                     "link": link or {}, "room_measured": self.room_measured,
                     "counters": dict(self.counters),
                     "engine_errors": self.errors,
@@ -833,10 +844,33 @@ class Engine:
         return {"source": f["source"], "presence": f["presence"],
                 "people": [{"id": t["id"], "zone": t["zone"], "still": t["still"]} for t in f["tracks"]],
                 "motion": f["motion_detail"]["state"],
-                "learned": f.get("learned"),
+                "learned": honest_learned(f.get("learned"), (f.get("belief") or {}).get("zones_trusted", True)),
                 "belief": f.get("belief"),
                 "honest": f.get("honest"),
                 "human_band": f["motion_detail"].get("human_band")}
+
+
+UNTRAINED_CAP = 0.9     # an untrained model never says 100 %
+
+
+def honest_learned(learned: Optional[dict], zones_trusted: bool) -> Optional[dict]:
+    """What JARVIS may SAY from the learned model. Untrusted zones: desk / bed collapse
+    to "room" (in the room, not sure where), and no probability above UNTRAINED_CAP."""
+    if not learned or zones_trusted:
+        return learned
+    out = dict(learned)
+    st = out.get("state")
+    occ = float(out.get("occupied_p") or 0.0)
+    if st in ("desk", "bed", "room"):
+        out["state"] = "room"
+        out["p"] = {"room": round(min(occ, UNTRAINED_CAP), 3)}
+    else:
+        p = dict(out.get("p") or {})
+        out["p"] = {k: round(min(float(v), UNTRAINED_CAP), 3) for k, v in p.items() if k not in ("desk", "bed")}
+    out["occupied_p"] = round(min(occ, UNTRAINED_CAP), 3)
+    out["zones_trusted"] = False
+    out["note"] = "in the room, not sure where: zones are not trusted yet (measure the room, drill 7 days)"
+    return out
 
 
 def _human_band(m) -> Optional[dict]:

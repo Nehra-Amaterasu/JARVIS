@@ -46,6 +46,9 @@ LEARNED_WEIGHT = 0.3       # the CSI models' evidence is tempered: ~50 % across 
 ZONE_MODEL_WEIGHT = 0.5    # a zone model trained on drills, once one exists
 TEACHER_FRESH_S = 15.0     # a free-teacher hint older than this is ignored
 MIN_P = 1e-6
+NOT_SURE_WHERE = "in the room, not sure where"
+NOT_MEASURED = NOT_SURE_WHERE + ": the room layout is estimated, not measured"
+NOT_CALIBRATED = NOT_SURE_WHERE + ": no zone model has passed the day-7 drill test yet"
 NO_REFERENCE = ("no empty-room reference for this firmware and fan yet: run the drill, "
                 "or let the daily recalibration capture one while the room is empty")
 
@@ -271,6 +274,11 @@ class BeliefTracker:
         self.activity_p: Optional[dict] = None       # new-vocabulary activity probabilities
         self.unsure_reason: Optional[str] = "no evidence yet"
         self.reference_ok = True                     # a same-firmware empty-room reference
+        # ZONE TRUST (readiness.py): the engine sets these. A zone is named only with a
+        # measured layout AND a floor calibrated by a passed day-7 zone test; zone_floor
+        # None means no zone model has earned one, so no zone is named at all.
+        self.layout_measured = True
+        self.zone_floor: Optional[float] = ZONE_FLOOR
         self.updated: Optional[float] = None
 
     # ---------------------------------------------------------- evidence
@@ -362,6 +370,8 @@ class BeliefTracker:
                            "x": z.x, "y": z.y, "r": z.r} for i, z in enumerate(self.zmap.zones)],
                 "motion": None if self.motion is None else round(self.motion, 3),
                 "activity": self._activity(state),
+                # False: draw the room, never a zone (the UI says "not sure where")
+                "zones_trusted": bool(self.layout_measured and self.zone_floor is not None),
                 "updated": round(self.updated if self.updated is not None else self.clock(), 3)}
 
     def honest(self) -> dict:
@@ -370,13 +380,16 @@ class BeliefTracker:
         state, conf = self.state()
         zone = None
         i = int(np.argmax(self.belief.p))
-        if state == "in_room" and self.belief.p[i] >= ZONE_FLOOR and self.reference_ok \
+        floor = self.zone_floor
+        trusted = self.layout_measured and floor is not None
+        if state == "in_room" and trusted and self.belief.p[i] >= floor and self.reference_ok \
                 and self.zmap.zones[i].in_room:
             zone = self.zmap.zones[i].id
         act = self._activity(state)
         why = self.unsure_reason
         if why is None and state == "in_room" and zone is None:
-            why = NO_REFERENCE if not self.reference_ok else "no zone is sure enough"
+            why = (NOT_MEASURED if not self.layout_measured else NOT_CALIBRATED if floor is None
+                   else NO_REFERENCE if not self.reference_ok else "no zone is sure enough")
         if why is None and state == "unsure":
             # every "unsure" says why: here the evidence is real but not strong enough
             why = f"not sure enough: in the room {self.belief.p_in_room():.0%}, floor {STATE_FLOOR:.0%}"

@@ -192,7 +192,8 @@ def test_no_zone_after_a_firmware_change_without_its_reference(tmp_path):
     from aankhen.recal import ReferenceStore
     ReferenceStore(str(tmp_path)).save("aankhen-3.5.0", False, {"shape": [0.0] * 6, "level": 1.0, "rssi": -60.0,
                                                                "windows": 300}, "drill", "2026-10-20")
-    eng = Engine(default_room(), "hardware", references=str(tmp_path))
+    eng = Engine(default_room(), "hardware", room_measured=True, references=str(tmp_path))
+    eng.belief.zone_floor = 0.6          # as if the day-7 zone test had passed (test_zone_trust)
     eng.process(_status(1.0, "aankhen-3.5.0", fan=False))
     assert eng.reference["matched"] and eng.belief.reference_ok
     _sure_zone_steps(eng, 2.0)

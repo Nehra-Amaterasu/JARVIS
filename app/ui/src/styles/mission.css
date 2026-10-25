@@ -350,6 +350,9 @@
 .weekly .eyebrow { display: block; margin-top: 8px; }
 .weekly-change { margin: 10px 0; }
 .learn-new p { margin: 4px 0 8px; }
+.habit-row { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 4px 0; cursor: pointer; }
+.habit-row.behind .mono { color: var(--sim, #f5b84a); }
+.habits .eyebrow { display: block; margin-top: 8px; }
 .learn-due { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
 .learn-due .row { display: flex; gap: 6px; margin-top: 6px; }
 /* Proof of work: 30 squares, one per day, lit when GitHub recorded a push that day. */

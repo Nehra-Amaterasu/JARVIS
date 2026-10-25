@@ -6,7 +6,7 @@
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { LearnCard, ProofCard, type LearnAnswer, type ProofAnswer } from '../germoney/pages/Today'
+import { HabitsCard, LearnCard, ProofCard, type BodyAnswer, type LearnAnswer, type ProofAnswer } from '../germoney/pages/Today'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -25,7 +25,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-async function render(answer: ProofAnswer | LearnAnswer, card: () => unknown = ProofCard) {
+async function render(answer: ProofAnswer | LearnAnswer | BodyAnswer, card: () => unknown = ProofCard) {
   vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(answer), { status: 200, headers: { 'content-type': 'application/json' } })))
   await act(async () => { root.render(createElement(card as () => null)) })
   await act(async () => { await new Promise((r) => setTimeout(r, 0)) })
@@ -49,6 +49,18 @@ describe('<ProofCard />', () => {
     expect(host.textContent).toContain('What is V when')
     expect([...host.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Read it', 'I knew it', "I didn't"])
     expect(host.textContent).toContain('Example concepts')
+  })
+
+  it('This week lists each habit with its count and marks one that is behind', async () => {
+    await render({ status: 'ok', say: '', focus: { id: 'skin', name: 'Skin', text: 'Two minutes, morning and night.' },
+      habits: [
+        { id: 'H-a', target: '20 min daily', per_week: 7, done_this_week: 2, today_done: true, on_track: true, met: false },
+        { id: 'H-b', target: '3x/week', per_week: 3, done_this_week: 0, today_done: false, on_track: false, met: false },
+      ] }, HabitsCard)
+    expect(host.querySelectorAll('.habit-row').length).toBe(2)
+    expect(host.querySelectorAll('.habit-row.behind').length).toBe(1)
+    expect(host.textContent).toContain('2/7')
+    expect(host.textContent).toContain('Upgrade · Skin')
   })
 
   it('says how to set it up when no username is known', async () => {

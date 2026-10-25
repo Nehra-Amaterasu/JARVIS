@@ -17,7 +17,7 @@ inputs against that schema first. Adding an engine is one file + one line in
 ENGINE_TABLE (docs/well-wisher-v1.md, "Adding an engine").
 
 Built: goal_ladder, evidence (this file), career (ww_career.py), money (ww_money.py),
-personality (ww_personality.py), insight (ww_insight.py). Interfaces only: body, learning.
+personality (ww_personality.py), insight (ww_insight.py), learning (ww_learning.py), body (ww_body.py), proof (ww_proof.py).
 today_three() composes Today's 3 contracts from the goal ladder, career and personality.
 
 Inputs come from data/notes/well-wisher/engine-inputs.json (private, git-ignored),
@@ -492,8 +492,6 @@ def _not_built(name: str, needs: list[str], plan: str) -> Callable[..., dict]:
     return engine
 
 
-_BODY_NEEDS = ["quest sessions", "sleep (Aankhen night data)", "checklists"]
-body = _not_built("body", _BODY_NEEDS, "Calisthenics is live as a quest line; sleep and the checklists come next. Advice only.")
 
 _LOCAL = {
     "goal_ladder": EngineSpec("goal_ladder", 2, goal_ladder, "Life goals down to this week; ranks today's offered contracts by the rung they serve.",
@@ -504,7 +502,6 @@ _LOCAL = {
                               {"candidates": {"type": "list", "items": {"type": "dict"}}, "n": {"type": "int"}}),
     "evidence": EngineSpec("evidence", 1, evidence, "No action, no XP: each action's XP by its rule, or 0 with the reason.",
                            ("logged actions",), {}, {"actions": {"type": "list"}}),
-    "body": EngineSpec("body", 0, body, "Interface only.", tuple(_BODY_NEEDS)),
 }
 
 # ------------------------------------------------------------------ the registry: one line per engine
@@ -515,7 +512,7 @@ ENGINE_TABLE: list[tuple[str, str]] = [
     ("career", "ww_career"),
     ("money", "ww_money"),
     ("personality", "ww_personality"),
-    ("body", ""),
+    ("body", "ww_body"),
     ("learning", "ww_learning"),
     ("insight", "ww_insight"),
     ("proof", "ww_proof"),
@@ -622,7 +619,7 @@ def today_three(inputs: dict, today: str, candidates: Optional[list[dict]] = Non
     for i, r in enumerate(picks):
         f = frame(r, per["style"], inputs.get("rules", {}).get("sprint_minutes", 45), short=recovery and i == 0)
         out.append({"key": r["key"], "title": r["title"], "minutes": f["minutes"], "score": r["score"], "serves": r.get("serves"),
-                    "chain": r.get("chain", []), "why": " · ".join(r["why_lines"]), "frame": f["frame"],
+                    "chain": r.get("chain", []), "why": " Ã‚Â· ".join(r["why_lines"]), "frame": f["frame"],
                     "engines": r["engines"] + ["personality"]})
     return {"date": today, "mode": per["gap"]["mode"], "n": per["n_today"], "picks": out,
             "welcome_back": per["gap"]["say"], "cap": per["cap"], "career_next": car["next"],

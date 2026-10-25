@@ -44,6 +44,8 @@
     GET    /api/mission/engines            the Well Wisher engines (ww_engines.py): goal ladder, evidence
                                            audit, career, money, personality, insight, today's 3, the registry
     GET    /api/mission/engine/{name}      one engine over his data (schema checked; invalid_input if not)
+    GET    /api/mission/body               body & life: habits this week + this week's upgrade focus (ww_body.py)
+    POST   /api/mission/habit/{id}         {done?: false to undo}  tap a habit done for today
     GET    /api/mission/learn              daily knowledge program: today's concept + recalls due (ww_learning.py)
     POST   /api/mission/learn/{id}/seen    mark today's concept taught
     POST   /api/mission/learn/{id}/recall  {ok: true|false}  one recall answer (Leitner schedule)
@@ -153,6 +155,14 @@ def register(app: FastAPI, svc, bus) -> None:
     @app.get("/api/mission/weekly")
     async def weekly():
         return await run_in_threadpool(plan.weekly)
+
+    @app.get("/api/mission/body")
+    async def body():
+        return await run_in_threadpool(guard, plan.engine, "body")
+
+    @app.post("/api/mission/habit/{hid}")
+    async def habit(hid: str, payload: Optional[dict] = Body(None)):
+        return await run_in_threadpool(guard, plan.habit_mark, hid, (payload or {}).get("done", True) is not False)
 
     @app.get("/api/mission/learn")
     async def learn():

@@ -2725,6 +2725,10 @@ class Plan:
                 "money": {"entries": d["money"]},
                 "personality": {"contracts": day.get("contracts") or [], "open_projects": d["open_projects"], "active_days": d["active_days"]},
                 "insight": {"events": d["events"], "planned": d["planned"], "nodes": d["nodes"]}}.get(name, {})
+        if name == "body":
+            qdays = sorted({e["date"] for e in d["events"] if e.get("kind") == "quest"})
+            return {**ww_engines.run(name, inputs, today, habit_log=(st.get("habits") or {}), quest_days=qdays),
+                    "source": inputs.get("source")}
         if name == "learning":
             bank_ = learn_bank.load()
             out = ww_engines.run(name, inputs, today, concepts=bank_["concepts"], record=st.get("learn") or {})
@@ -2741,6 +2745,25 @@ class Plan:
     def weekly(self, today: Optional[str] = None) -> dict:
         """The weekly review (insight engine); `say` is what JARVIS reads out."""
         return self.engine("insight", today)
+
+    def habit_mark(self, habit_id: str, done: bool = True, today: Optional[str] = None) -> dict:
+        """Tap a habit done (or undo it) for today. Only habits in his inputs, and only
+        ones he opted in to, can be logged; the body engine reads the log."""
+        today = today or date.today().isoformat()
+        habits = {h["id"]: h for h in ww_engines.load_inputs().get("habits") or []}
+        h = habits.get(habit_id)
+        if not h or not h.get("opt_in", True):
+            raise ValueError("no such habit (or not opted in)")
+        with self._lock:
+            st = self.load(today)
+            days = st.setdefault("habits", {}).setdefault(habit_id, [])
+            if done and today not in days:
+                days.append(today)
+            elif not done and today in days:
+                days.remove(today)
+            days[:] = sorted(days)[-400:]
+            self.save(st)
+        return self.engine("body", today)
 
     def learn_mark(self, concept_id: str, op: str, ok: Optional[bool] = None, today: Optional[str] = None) -> dict:
         """The daily knowledge program: op "seen" marks today's new concept as taught;

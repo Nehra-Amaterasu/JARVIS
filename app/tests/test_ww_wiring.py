@@ -122,7 +122,7 @@ def test_the_money_log_feeds_the_money_engine_and_the_evidence(plan):
 def test_engines_report_every_engine_and_one_runs_by_name(plan):
     e = plan.engines(MON, we.load_inputs(Path("no-such-inputs.json")))
     assert {e["engines"][k] for k in ("career", "money", "personality", "insight")} == {"ok"}
-    assert e["engines"]["body"] == "not_built" and e["career"]["next"]["id"] == "dl-summer-school"
+    assert e["engines"]["body"] == "ok" and e["career"]["next"]["id"] == "dl-summer-school"
     assert [r["name"] for r in e["registry"]] == list(we.REGISTRY) and e["three"]["picks"]
     assert plan.engine("insight", MON)["status"] == "ok"
     with pytest.raises(KeyError):

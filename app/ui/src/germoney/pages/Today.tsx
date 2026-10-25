@@ -64,6 +64,7 @@ export function TodayPage() {
           <FloorCard />
           <WeeklyReview />
           <LearnCard />
+          <HabitsCard />
           <ProofCard />
           <Brief />
           <Findings />
@@ -400,6 +401,44 @@ function WeeklyReview() {
       <p className="small weekly-change"><b>{w.change.text}</b></p>
       <button className="btn sm" onClick={() => void read()}><Mic size={13} />Read it to me</button>
       <p className="muted small">By voice: "Jarvis, weekly review".</p>
+    </section>
+  )
+}
+
+export interface BodyAnswer {
+  status: string; say: string
+  habits: { id: string; target: string; per_week: number; done_this_week: number; today_done: boolean; on_track: boolean; met: boolean }[]
+  focus: { id: string; name: string; text: string }
+}
+
+/** Body & life (ww_body.py): habits counted per week from taps, plus this week's upgrade. */
+export function HabitsCard() {
+  const [b, setB] = useState<BodyAnswer | null>(null)
+  const toast = useStore((s) => s.toast)
+  useEffect(() => {
+    let live = true
+    api<BodyAnswer>('/api/mission/body').then((r) => { if (live) setB(r) }).catch(() => undefined)
+    return () => { live = false }
+  }, [])
+  if (!b || b.status !== 'ok') return null
+  const tap = async (id: string, done: boolean) => {
+    try {
+      setB(await post<BodyAnswer>(`/api/mission/habit/${encodeURIComponent(id)}`, { done }))
+    } catch {
+      toast('Could not save that habit.', 'fault')
+    }
+  }
+  return (
+    <section className="card habits" aria-label="This week">
+      <div className="card-head"><span className="card-title"><Dumbbell size={14} />This week</span></div>
+      {b.habits.map((h) => (
+        <label key={h.id} className={`habit-row small ${h.on_track ? '' : 'behind'}`}>
+          <input type="checkbox" checked={h.today_done} onChange={(e) => void tap(h.id, e.target.checked)} />
+          <span className="habit-name">{h.target || h.id}</span>
+          <span className="mono">{h.done_this_week}/{h.per_week}</span>
+        </label>
+      ))}
+      <p className="small"><span className="eyebrow">Upgrade · {b.focus.name}</span>{b.focus.text}</p>
     </section>
   )
 }

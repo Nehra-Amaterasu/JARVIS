@@ -39,6 +39,8 @@ ANSWERABLE = [
      "[20 Nov 2021 - chat with Tanvi Rao]", "setup and hold", 1, "person + year", 0.264),
     ("Kabir ne biryani recipe ke baare mein kya bola tha?", "[02 Oct 2022 - chat with Hostel Wing B]",
      "kewra water", 1, "named person has nothing: fall back to everyone", 0.274),
+    ("yaad hai jab meri cycle ki chain Lodhi garden ke paas toot gayi thi?", "[14 Sep 2023 - chat with Ishaan Bose]",
+     "Lodhi garden", 1, "lexical rescue: every rare word, window about cricket", 0.358),
 ]
 
 # Nothing in the history is about these. Recall must return nothing, not the nearest chat.

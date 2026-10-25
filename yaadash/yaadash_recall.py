@@ -51,6 +51,20 @@ CLUSTER_RADIUS = 8    # hits this close in one thread are the same moment
 # model with an explicit instruction to say "not found" rather than stretch an
 # excerpt to fit. Without any gate, recall always returns *something*.
 RECALL_MAX_DISTANCE = 0.32
+# Lexical rescue (2026-10-23). The gate above reads only the vector distance, and on
+# the real archive (14 Oct probes) it threw away good keyword hits: three of seven
+# misses had the answer at BM25 rank 1-2 with the best window at 0.32-0.41. BM25 alone
+# is no gate either: its length normalisation puts one-word messages ("BEARD", "Dv")
+# first. What separates them is COVERAGE: the answer holds most of the question's
+# rare words. A BM25 hit passes when it holds >= 2 distinct query terms carrying
+# >= 70 % of the query's IDF mass, and the best window is not far off topic.
+# Measured on the real archive: answers 0.73-1.00; the nearest unanswerable ("what did
+# we fight about last week?" matching "last week") 0.63. The margin is thin, so the
+# rescue only lets in a few BM25 hits; it never relaxes the vector gate itself.
+RESCUE_MIN_TERMS = 2
+RESCUE_MIN_IDF_SHARE = 0.70
+RESCUE_MAX_DISTANCE = 0.45
+RESCUE_SCAN = 15      # BM25 hits looked at for coverage
 # Substring agent.py looks for to know recall came back empty. Kept as a constant
 # so the two files cannot drift apart silently.
 RECALL_NOT_FOUND = "nothing matching was found in his Instagram"
@@ -192,6 +206,45 @@ def _bm25_hits(query, threads=None, years=None, n=40):
     return out[:n]
 
 
+# Short English words the Hinglish stop list above does not hold; they are not search
+# terms for the coverage check (BM25 itself still sees them).
+_COVER_STOP = set("in on at of is it an to do so we me my he be or if no up go us am as by".split())
+_texts_for = None     # (the _msgs frame it was built from, {(thread, idx): text})
+
+
+def _text_of(hit) -> str:
+    global _texts_for
+    m = _load_msgs()
+    if _texts_for is None or _texts_for[0] is not m:
+        t = m[m.kind == "text"]
+        _texts_for = (m, dict(zip(zip(t.thread, t.idx), t.text)))
+    return str(_texts_for[1].get((hit[0], int(hit[1])), "") or "")
+
+
+def coverage(query: str, text: str) -> tuple:
+    """(distinct query terms in `text`, their share of the query's IDF mass)."""
+    bm, _ = _load_bm25()
+    idf = getattr(bm, "idf", {}) or {}
+    top = max(idf.values(), default=1.0)
+    terms = {t for t in _tok(query) if t not in _QUERY_STOP and t not in _COVER_STOP}
+    if not terms:
+        return 0, 0.0
+    weight = {t: idf.get(t, top) for t in terms}     # a word the archive never saw is maximally specific
+    have = set(_tok(text))
+    got = [t for t in terms if t in have]
+    return len(got), sum(weight[t] for t in got) / (sum(weight.values()) or 1.0)
+
+
+def strong_lexical(query: str, bm: list) -> list:
+    """BM25 hits that hold most of the question's rare words, best coverage first."""
+    out = []
+    for rank, h in enumerate(bm[:RESCUE_SCAN]):
+        n, share = coverage(query, _text_of(h))
+        if n >= RESCUE_MIN_TERMS and share >= RESCUE_MIN_IDF_SHARE:
+            out.append((-share, -n, rank, h))
+    return [h for *_, h in sorted(out)]
+
+
 def _vector_hits(query, threads=None, years=None, n=30):
     tbl = _windows_table()
     if tbl is None:
@@ -283,7 +336,18 @@ def recall(query: str, k: int = 3, verbose: bool = False):
         clusters = _fuse(bm, vec)
 
     best = getattr(_vector_hits, "best_distance", 1.0)
+    try:
+        strong = strong_lexical(query, bm) if bm else []
+    except Exception:                    # no BM25 index: the vector gate alone, as before
+        strong = []
     if best > RECALL_MAX_DISTANCE:
+        if strong and best <= RESCUE_MAX_DISTANCE:
+            # The vectors found nothing close, but BM25 found the question's own rare
+            # words in his messages: those messages, and only those, come back.
+            if verbose:
+                print(f"  [recall: best match d={best:.3f} > {RECALL_MAX_DISTANCE}; lexical rescue "
+                      f"{len(strong)} hit(s)]")
+            return [ex for ex in (_excerpt(t, i) for t, i in strong[:k]) if ex]
         if verbose:
             print(f"  [recall: best match d={best:.3f} > {RECALL_MAX_DISTANCE} -> nothing found]")
         return []
@@ -293,8 +357,10 @@ def recall(query: str, k: int = 3, verbose: bool = False):
     # line inside a window about something else ("Btw i completed one piece" at
     # the end of a chat about anime recommendations). Vectors cannot see that line;
     # only BM25 can — so fusion alone kept ranking it below topical matches.
+    # "Best" is the best-covering hit when one holds most of the question's rare words:
+    # BM25's own first is often a one-word message ("Not nether wart" over the answer).
     if bm:
-        bt, bi = bm[0]
+        bt, bi = strong[0] if strong else bm[0]
         lead = [c for c in clusters if c[0] == bt and abs(c[1] - bi) <= CLUSTER_RADIUS]
         rest = [c for c in clusters if c not in lead]
         clusters = [(bt, bi, 0.0)] + rest

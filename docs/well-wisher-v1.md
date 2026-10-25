@@ -2,7 +2,7 @@
 
 Mission Germoney is now called **Well Wisher**. It works like the "System" in Solo Leveling, with one difference: it **advises and never decides**. It shows the record, suggests a next step and opens optional quest lines. The player chooses what to do.
 
-Code: `app/jarvis_app/wellwisher.py` (the rules), `germoney.Plan` (the only code that writes the plan state), `routes_mission.py` (the API), `app/ui/src/germoney/pages/Status.tsx` (the screen). Code ids such as `mission` and `germoney` stay as they are, so saved tabs and the voice intents keep working. Only the labels the player sees changed.
+Code: `app/jarvis_app/wellwisher.py` (the rules), `ww_engines.py` + `ww_*.py` (the engines, section 5), `germoney.Plan` (the only code that writes the plan state), `routes_mission.py` (the API), `app/ui/src/germoney/pages/Status.tsx` (the screen). Code ids such as `mission` and `germoney` stay as they are, so saved tabs and the voice intents keep working. Only the labels the player sees changed.
 
 ## 1. Rules
 
@@ -78,9 +78,66 @@ PUT  /api/mission/quest/{line}        {on, levels?}         on/off + placement
 POST /api/mission/quest/{line}/log    {track, sets:[n..], proof?}
 ```
 
-## 5. Deferred (not in v1)
+```
+GET    /api/mission/engines           every engine over his data: ladder, evidence, career, money, personality,
+                                      insight, today's 3, the registry (name, version, about), each engine's status
+GET    /api/mission/engine/{name}     one engine by name, schema checked (status "invalid_input" + problems if not)
+GET    /api/mission/weekly            the weekly review; `say` is what JARVIS reads
+GET    /api/mission/money             the money engine (education, not investment advice)
+POST   /api/mission/money             {kind: income|expense|saving|budget|experiment, amount, date?, hours?, experiment?, note?}
+DELETE /api/mission/money/{id}        remove one money-log entry
+GET    /api/mission/today             now also carries `three` (Today's 3) and `weekly` (the review card)
+```
 
-- **Money / skills for income.** First it needs an evidence source: a paid gig, an invoice or a portfolio link. Until then it would only count claims. The research is in the private 1-crore and internship notes (G-011).
+Voice (core/mission.py, answered by `POST /api/mission/voice`): "Jarvis, weekly review" / "how did my week go" → `weekly_review`; "what's my next career step" → `career_next`.
+
+## 5. Engines
+
+Every engine is a pure function `engine(inputs, today, **data) -> dict`: no file, clock or network inside it, the same arguments give the same answer, and the arguments are never changed. Every answer carries `engine`, `version` and `status` (`ok`, `not_built`, or `invalid_input` from `run()`). The System advises: engines rank and explain, they never change the plan.
+
+| Engine | File | Version | What it says |
+|---|---|---|---|
+| goal_ladder | ww_engines.py | 2 | life goals (or flat dated goals) → this quarter → this week; scores each offered contract by the rung it serves (a listed skill 1.0, an exam contract for an exam 1.0, a shared word 0.6) |
+| evidence | ww_engines.py | 1 | each action's XP by its rule, or 0 with the reason; no action, no XP |
+| career | ww_career.py | 1 | career deadlines + pipeline + dated career goals ranked by urgency × (1 + share of asked-for nodes not mastered) × kind weight; one step from a template, why, days left; an exam within a week is a gate |
+| money | ww_money.py | 1 | months (income, spent, saved, savings rate, budget left), income experiments in Rs/hour after their review weeks (4), a projection at 0% plus the stated return with every assumption printed; unknowns stay unknown; education only |
+| personality | ww_personality.py | 1 | framing from the profile lines (puzzle first, finish lines, variety, stretch), the hard cap of 3 open projects, recovery after 2+ idle days (2 contracts, the first 15 minutes) |
+| body | ww_engines.py | 0 | interface only |
+| learning | ww_engines.py | 0 | interface only |
+| insight | ww_insight.py | 1 | the weekly review: totals, what moved, what stalled, one change by a fixed rule list, each line with its numbers; `weekly_say()` speaks it |
+
+**Today's 3** (`ww_engines.today_three`): the goal ladder scores every open contract on today's list; career adds the score of a top-3 career step that asks for the contract's node; personality decides how many (3, or 2 after a gap), keeps one per node, puts the shortest first after a gap and writes each pick's framing. Each pick lists the engines behind it. `Plan.today()` attaches it as `three`. If the inputs can't be read, `three` and `weekly` are `null` and the day is unchanged.
+
+**Inputs** (`load_inputs`): `data/notes/well-wisher/engine-inputs.json` (private, git-ignored; `JARVIS_ENGINE_INPUTS` overrides the path), else the fictional `engine-inputs.example.json`. The answer's `source` says which. Schema 2 reads life goals and flat goals (`horizon`, `metric`, `target`, `deadline`), deadlines with or without ids (`title` or `item`), skill levels as numbers or words, `income_experiments`, `money.assumptions`, `profile` (traits, weak_points, prefers; no test scores) and `rules`. A missing `kind` is inferred from the words (`KIND_WORDS`). `max_open_projects` is capped at 3 and `never_shame` cannot be turned off. The test setup points the path at a missing file, so tests always use the example.
+
+The money log is `st["money"]["entries"]` in the plan state; only `Plan` writes it.
+
+## 6. Adding an engine
+
+1. Write one file, `app/jarvis_app/ww_<name>.py`, with a pure function and an `ENGINE` spec:
+
+   ```python
+   from .ww_base import EngineSpec
+
+   def sleep(inputs: dict, today: str, nights=None) -> dict:
+       ...
+       return {"engine": "sleep", "version": 1, "status": "ok", "date": today, ...}
+
+   ENGINE = EngineSpec(
+       name="sleep", version=1, fn=sleep, about="One line on what it says.",
+       needs=("nights from Aankhen",),
+       inputs={"habits": {"type": "list"}},                     # sections of the normalized inputs it reads
+       data={"nights": {"type": "list", "items": {"type": "dict", "required": {"date": {"type": "date"}}}}},
+   )
+   ```
+
+2. Add one line to `ENGINE_TABLE` in `ww_engines.py`: `("sleep", "ww_sleep"),`.
+
+That's all. `run("sleep", inputs, today, nights=...)` now checks the schema before it calls the function, `/api/mission/engine/sleep` serves it (add its data to the `args` table in `Plan.engine` if it needs plan data), `/api/mission/engines` lists it, and `test_mission_engines.py` checks that it is pure. Bump `version` whenever the same input would give a different answer. Schemas use the small checker in `ww_base.check` (`str`, `num`, `int`, `bool`, `date`, `month`, `list` with `items`, `dict` with `required`/`values`, `optional`). Put its tests in `app/tests/test_ww_<name>.py` with fictional data only.
+
+## 7. Deferred (not in v1)
+
+- **Money as a quest line / stat.** The money engine reads the money log (education only), but no stat or XP moves on money yet beyond the evidence audit's `money_saved` rule; a stat needs an outside source of evidence: a paid gig, an invoice or a portfolio link. The research is in the private 1-crore and internship notes (G-011).
 - **Social / articulation.** First it needs a way to log a real conversation or a recorded explanation without storing anyone else's words.
 - **Style and brain quiz (G-012).** These have no real action that could be logged yet.
 - Voice intents for the Status window and quest logging ("Jarvis, log push: 15, 15, 14").

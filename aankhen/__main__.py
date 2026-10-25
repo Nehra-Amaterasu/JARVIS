@@ -440,7 +440,9 @@ def _app_api() -> tuple:
         return None, "no app runtime file"
     try:
         req = urllib.request.Request(rt["base"] + "/api/aankhen", headers={"x-jarvis-token": rt["token"]})
-        with urllib.request.urlopen(req, timeout=2) as r:
+        # 6 s, not 2: on 2026-10-26 the busy app (0.5 GB RAM free) took over 2 s, so the CLI
+        # decided "not running" and tried to open COM9, which the app holds
+        with urllib.request.urlopen(req, timeout=6) as r:
             info = json.loads(r.read().decode())
         return (rt["base"], rt["token"], info), None
     except Exception as e:
@@ -564,6 +566,31 @@ def cmd_narrate(a) -> int:
     """Record a real routine with sync chirps, then turn the phone's narration into labels."""
     import threading
     from . import narrate as nr
+    if a.action == "check":
+        # a live meter for placing the board: move it, watch the rate and RSSI settle
+        backend, why = _recording_backend(a.port)
+        if backend is None:
+            print(f"  {why}")
+            return 1
+        print("  Move the board slowly; each line is 2 s. Good enough to record: >= 150 CSI/s and RSSI >= -80 dBm."
+              " Ctrl+C to stop.")
+        try:
+            prev = backend.sample()
+            while True:
+                time.sleep(2.0)
+                cur = backend.sample()
+                rate = (cur.get("csi_packets", 0) - prev.get("csi_packets", 0)) / max(cur.get("t", 0) - prev.get("t", 0), 1e-3)
+                rssi = cur.get("rssi")
+                ok = rate >= 150 and rssi is not None and rssi >= -80
+                bar = "#" * int(min(rate, 400) / 20)
+                print(f"  {time.strftime('%H:%M:%S')}  {rate:5.0f} CSI/s  RSSI {rssi} dBm  {bar:<20}  {'GOOD' if ok else 'too weak'}",
+                      flush=True)
+                prev = cur
+        except KeyboardInterrupt:
+            pass
+        finally:
+            backend.close()
+        return 0
     if a.action == "list":
         for s in nr.sessions():
             mins = sum(l["t_end"] - l["t_start"] for l in s["labels"]) / 60
@@ -811,7 +838,7 @@ def main(argv=None) -> int:
     l1.add_argument("--out", help="PNG path (default data/aankhen/lessons/lesson1-<name>.png)")
 
     nar = sub.add_parser("narrate", help="label a real routine: board recording + phone narration + sync chirps")
-    nar.add_argument("action", choices=["record", "label", "list"])
+    nar.add_argument("action", choices=["check", "record", "label", "list"])
     nar.add_argument("folder", nargs="?", help="(label) session folder, or 'latest'")
     nar.add_argument("audio", nargs="?", help="(label) the phone's recording (m4a, mp3, wav, opus)")
     nar.add_argument("--fan", choices=["on", "off"], default="off", help="(record) fan state at the start")

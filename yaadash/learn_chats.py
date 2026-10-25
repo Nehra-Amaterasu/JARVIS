@@ -65,6 +65,9 @@ MERGE_DISTANCE = 0.10         # bge cosine distance: the same memory said again
 RELATED_DISTANCE = 0.35       # close enough to ask whether the new one replaces the old
 MAX_EVIDENCE = 12
 LOCK_STALE_S = 1800
+# He is talking when a transcript line was written in the last BUSY_S seconds (the app
+# writes his line the moment it is heard, before JARVIS answers) or since the pass began.
+BUSY_S = 45.0
 OLLAMA = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
 DEFAULT_MODEL = "qwen3:4b-instruct-2507-q4_K_M"
 CURSOR_FILE = "cursor.json"
@@ -156,7 +159,15 @@ class Store:
     def _load(p: Path, default):
         try:
             return json.loads(p.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return default
         except Exception:
+            # Unreadable (an edit by hand gone wrong): set aside, never overwritten by the
+            # next save, which would lose every memory in it (2026-10-23 audit).
+            try:
+                os.replace(p, p.with_name(f"{p.name}.unreadable-{int(time.time())}"))
+            except OSError:
+                pass
             return default
 
     def save(self) -> None:
@@ -236,15 +247,7 @@ def _since_day(since: Optional[str]) -> Optional[str]:
     return datetime.strptime(since.strip(), "%Y-%m-%d").strftime("%Y-%m-%d")
 
 
-_REPEATED = re.compile(r"[a-z']+")
-
-
-def garbled(text: str) -> bool:
-    """A few words, or one word over and over: speech recognition noise, not a statement."""
-    words = _REPEATED.findall((text or "").lower())
-    if len(words) < 3:
-        return True
-    return len(words) >= 4 and len(set(words)) / len(words) < 0.5
+garbled = cm.garbled      # one definition: "remember that." skips the same noise at reply time
 
 
 def ingest(store: Store, tdir: Path, since: Optional[str] = None, embed=None) -> dict:
@@ -264,6 +267,10 @@ def ingest(store: Store, tdir: Path, since: Optional[str] = None, embed=None) ->
                 continue
             rid = f"{r['session']}#{int(r['id'])}"
             if rid in known:
+                # Indexed by a pass that died before saving the cursor (the app closed
+                # mid-distillation): the turn is in the table but its session may be
+                # missing from the cursor, and would never be read over (2026-10-23 audit).
+                _note_session(store, str(r["session"]), int(r["id"]), float(r.get("ts") or 0))
                 continue
             known.add(rid)
             new.append({"id": rid, "session": str(r["session"]), "turn": int(r["id"]), "role": r["role"],
@@ -292,10 +299,14 @@ def ingest(store: Store, tdir: Path, since: Optional[str] = None, embed=None) ->
         store.table().add([{**t, "vector": [float(x) for x in v]} for t, v in zip(new, vecs)])
         store.mark_noise(late)
         for t in new:
-            s = store.cursor["sessions"].setdefault(t["session"], {"upto": 0, "by": None, "last_ts": 0, "last_id": 0})
-            s["last_ts"] = max(s["last_ts"], t["ts"])
-            s["last_id"] = max(s["last_id"], t["turn"])
+            _note_session(store, t["session"], t["turn"], t["ts"])
     return {"files": files_read, "new_turns": len(new)}
+
+
+def _note_session(store: Store, session: str, turn: int, ts: float) -> None:
+    s = store.cursor["sessions"].setdefault(session, {"upto": 0, "by": None, "last_ts": 0, "last_id": 0})
+    s["last_ts"] = max(s["last_ts"], ts)
+    s["last_id"] = max(s["last_id"], turn)
 
 
 # --------------------------------------------------------------------- the rules
@@ -436,7 +447,46 @@ def _chunks(turns: list) -> list:
     return chunks
 
 
-def llm_candidates(turns: list, upto: int, llm: Callable[[str], str]) -> list:
+# Who else a line can be about. A 4B model reading "my friend Kabir is allergic to
+# peanuts" writes "He is allergic to peanuts": the evidence check passes (the words are
+# his), and a friend's fact becomes Aman's (2026-10-23 audit, cross-person probes).
+_OTHERS = re.compile(r"\b(?:friend|friends|dost|sister|brother|bhai|didi|mother|mom|mum|maa|mummy|father|dad|papa|"
+                     r"cousin|uncle|aunt|aunty|chacha|mama|nana|nani|dada|dadi|wife|husband|girlfriend|boyfriend|"
+                     r"roommate|flatmate|classmate|colleague|teacher|professor|boss|neighbou?r|he|she|they|his|her|"
+                     r"their)\b", re.I)
+_ABOUT_HIM = re.compile(r"^\s*(?:he|his|aman)\b", re.I)
+_PRONOUNS = {"he", "she", "they", "his", "her", "their"}
+# "yaad rakhna bhai" is "remember it, bro", not his brother: a relation word said as an
+# address (after a comma, or ending the clause) names nobody.
+_VOCATIVE = re.compile(r"(?:^|[,;])\s*(?:bhai|dost|yaar|bro|bhaiya)\b|\b(?:bhai|dost|yaar|bro|bhaiya)\s*(?=[,.!?;]|$)", re.I)
+_NAME_AFTER = re.compile(r"\b(?:friend|friends|dost|sister|brother|bhai|didi|mother|mom|mum|father|dad|cousin|uncle|"
+                         r"aunt|wife|husband|girlfriend|boyfriend|roommate|flatmate|classmate|colleague|teacher|"
+                         r"professor|boss|neighbou?r)\s+([A-Z][a-z]+)")
+
+
+def misattributed(text: str, src: str) -> bool:
+    """A memory written about HIM ("He ...", "His ...") from a line that is about someone
+    else, when the memory names none of the people the line names. Conservative: a fact of
+    his own told in the same breath as a friend is dropped too, and the line stays in the
+    chat index, where "what did I tell you about ...?" still finds it."""
+    if not _ABOUT_HIM.match(text or ""):
+        return False
+    src = _VOCATIVE.sub(" ", src or "")
+    people = {m.group(0).lower() for m in _OTHERS.finditer(src)}
+    # Who the line is about: the relation words and the name after them ("sister Tara").
+    # A place or a month ("Lisbon", "January") is not a person: before 10-25 naming one
+    # let "He is moving to Lisbon" pass for his sister's move.
+    people |= {m.group(1).lower() for m in _NAME_AFTER.finditer(src)}
+    if not people - _PRONOUNS:
+        people |= {e.lower() for e in entities(src)}    # no relation word: a bare name (Kabir) is the other
+    if not people:
+        return False
+    said = {w.lower() for w in re.findall(r"[A-Za-z]+", text)}
+    return not ((people - _PRONOUNS) & said)
+
+
+def llm_candidates(turns: list, upto: int, llm: Callable[[str], str],
+                   busy: Callable[[], bool] = lambda: False) -> list:
     """The model's memories for the turns after `upto` (two earlier turns ride along as
     context), each checked against the HE line it names."""
     start = next((i for i, t in enumerate(turns) if t["turn"] > upto), len(turns))
@@ -446,6 +496,8 @@ def llm_candidates(turns: list, upto: int, llm: Callable[[str], str]) -> list:
         mine = {t["turn"]: t for t, _ in chunk if t["role"] == "you" and t["turn"] > upto}
         if not mine:
             continue
+        if busy():
+            raise Busy()                              # he started talking: the GPU is his
         got = _json(llm(DISTIL_PROMPT.format(lines="\n".join(line for _, line in chunk))))
         items = got.get("memories") if isinstance(got, dict) else got if isinstance(got, list) else []
         for it in items or []:
@@ -464,6 +516,8 @@ def llm_candidates(turns: list, upto: int, llm: Callable[[str], str]) -> list:
                 continue
             if cm.lexical_overlap(text, src["text"]) < (1 if kind == "instruction" else 2):
                 continue                              # it must say something he said
+            if misattributed(text, src["text"]):
+                continue                              # his friend's fact, written up as his
             try:
                 conf = float(it.get("confidence", 0.6))
             except Exception:
@@ -511,11 +565,16 @@ def rule_judge(old: dict, new: dict) -> bool:
     return False
 
 
-def llm_judge(llm: Callable[[str], str]) -> Callable[[dict, dict], bool]:
+def llm_judge(llm: Callable[[str], str], busy: Callable[[], bool] = lambda: False) -> Callable[[dict, dict], bool]:
     def judge(old: dict, new: dict) -> bool:
+        if busy():
+            return rule_judge(old, new)            # he is talking: no model call for a yes/no
         if (new.get("meta") or {}).get("address") or (old.get("meta") or {}).get("address"):
             return rule_judge(old, new)            # the address is parsed, not judged: only a new address replaces it
-        got = _json(llm(JUDGE_PROMPT.format(old=old["text"], new=new["text"])))
+        try:
+            got = _json(llm(JUDGE_PROMPT.format(old=old["text"], new=new["text"])))
+        except Exception:                          # Ollama went away mid-pass: the rule, not a crashed pass
+            got = None
         if isinstance(got, dict) and isinstance(got.get("replaces"), bool):
             return got["replaces"]
         return rule_judge(old, new)
@@ -546,6 +605,13 @@ def add_memory(store: Store, cand: dict, judge: Callable[[dict, dict], bool], em
             return (cand.get("meta") or {}) == (m.get("meta") or {})
         return _norm(m["text"]) == _norm(cand["text"]) or dist.get(m["id"], 1.0) <= MERGE_DISTANCE
 
+    # Already learned from this very line and since replaced or retracted: re-reading an
+    # old session (the model catching up on a rules-only pass, a lost cursor) must not
+    # bring it back as active (2026-10-23 audit).
+    for m in store.memories:
+        if (m.get("status", "active") != "active" and cand["evidence"] in (m.get("evidence") or [])
+                and _FAMILY.get(m["kind"]) == fam and _norm(m["text"]) == _norm(cand["text"])):
+            return "merged"
     for m in active:
         if same(m):
             if cand["evidence"] not in m["evidence"]:
@@ -576,8 +642,19 @@ def add_memory(store: Store, cand: dict, judge: Callable[[dict, dict], bool], em
                 continue
             related = (dist.get(m["id"], 1.0) <= RELATED_DISTANCE or bool(entities(m["text"]) & entities(new["text"]))
                        or bool((m.get("meta") or {}).get("address") and (new.get("meta") or {}).get("address")))
-            if not related or m["last_seen"] > new["last_seen"]:
-                continue                              # an older memory never replaces a newer one
+            if not related:
+                continue
+            if m["last_seen"] > new["last_seen"]:
+                # An older memory never replaces a newer one, but a newer one may already
+                # replace it: an old session read late (the model catching up after a
+                # rules-only pass) brought "the ESP32 drives the relays" back as active
+                # beside the correction that replaced it (2026-10-23 audit).
+                if new["status"] == "active" and judge(new, m):
+                    new["status"], new["superseded_by"], new["superseded_at"] = "superseded", m["id"], time.time()
+                    result = "added+superseded"
+                continue
+            if new["status"] != "active":
+                continue
             if judge(m, new):
                 m["status"], m["superseded_by"], m["superseded_at"] = "superseded", new["id"], time.time()
                 result = "added+superseded"
@@ -663,13 +740,37 @@ class _RunLock:
                 pass
 
 
+class Busy(Exception):
+    """He started talking during a pass: stop asking the model; the session is read later."""
+
+
+def last_written(tdir: Path) -> float:
+    """mtime of the newest day file (0 when there is none)."""
+    best = 0.0
+    try:
+        for p in tdir.glob("*.jsonl"):
+            if DAY_FILE.match(p.name):
+                best = max(best, p.stat().st_mtime)
+    except OSError:
+        pass
+    return best
+
+
 def run(transcripts: Optional[Path] = None, now: Optional[float] = None, idle_s: float = IDLE_S,
         since: Optional[str] = None, use_llm: bool = True, llm: Optional[Callable[[str], str]] = None,
-        store_dir: Optional[Path] = None) -> dict:
-    """One pass: ingest, flags, and distil every session that has gone quiet."""
+        store_dir: Optional[Path] = None, busy: Optional[Callable[[], bool]] = None) -> dict:
+    """One pass: ingest, flags, and distil every session that has gone quiet.
+
+    busy() says he is talking to JARVIS right now (default: a transcript line written in
+    the last BUSY_S seconds or since this pass began). The pass then does nothing at all,
+    or, if he starts mid-pass, stops before its next model call: the learner never runs
+    while JARVIS is answering (2026-10-23 audit: a pass that began in a quiet spell kept
+    calling Ollama for minutes after he spoke)."""
     t0 = time.time()
     now = time.time() if now is None else now
     tdir = Path(transcripts) if transcripts else transcripts_dir()
+    if busy is None:
+        busy = lambda: last_written(tdir) > t0 - BUSY_S        # noqa: E731
     store = Store(store_dir)
     stats = {"new_turns": 0, "sessions": 0, "added": 0, "merged": 0, "superseded": 0, "retracted": 0,
              "by": "rules", "skipped": None}
@@ -677,8 +778,12 @@ def run(transcripts: Optional[Path] = None, now: Optional[float] = None, idle_s:
         if not lock.held:
             stats["skipped"] = "another run holds the lock"
             return stats
+        if busy():
+            stats["skipped"] = "he is talking"
+            return stats
         if tdir.exists():
             stats.update(ingest(store, tdir, since=since))
+            store.save()                               # indexed turns and their sessions, before any distilling
         flags, misheard_new = read_flags(store, tdir)
         noise = _misheard_ids(flags)
         if misheard_new:
@@ -690,7 +795,7 @@ def run(transcripts: Optional[Path] = None, now: Optional[float] = None, idle_s:
             llm = ollama_llm()
         model_ok = use_llm and llm is not None and quiet_all
         stats["by"] = "llm+rules" if model_ok else "rules"
-        judge = llm_judge(llm) if model_ok else rule_judge
+        judge = llm_judge(llm, busy) if model_ok else rule_judge
         for sid, s in sorted(sessions.items(), key=lambda kv: kv[1]["last_ts"]):
             if now - s["last_ts"] < idle_s:
                 continue                              # still talking
@@ -705,7 +810,10 @@ def run(transcripts: Optional[Path] = None, now: Optional[float] = None, idle_s:
             cands = [] if redo else rules_candidates(turns, upto, flags)
             if model_ok:
                 try:
-                    cands += llm_candidates(turns, upto, llm)
+                    cands += llm_candidates(turns, upto, llm, busy)
+                except Busy:
+                    stats["skipped"] = "he started talking"
+                    break                              # this session and the rest are read next time
                 except Exception as e:
                     print(f"[learn_chats] model failed on {sid}: {e}")
                     model_ok, judge, stats["by"] = False, rule_judge, "rules"

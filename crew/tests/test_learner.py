@@ -46,3 +46,28 @@ def test_a_failing_pass_is_recorded_not_raised():
     a = ChatLearner(boom, start_delay_s=0)
     a.board = Blackboard()
     assert a.run() is False and a.health.errors == 1
+
+
+def test_never_runs_while_jarvis_is_listening_or_answering():
+    """2026-10-23 audit: a tick while he talks does nothing at all (not even the CPU
+    ingest); the next quiet tick catches up."""
+    clock, calls, talking = Clock(), [], [True]
+
+    def learn():
+        calls.append(clock.t)
+        return {"new_turns": 2, "sessions": 0, "added": 0, "by": "rules"}
+    a = ChatLearner(learn, start_delay_s=0, clock=clock, busy=lambda: talking[0])
+    a.board = Blackboard()
+    a.run()
+    assert calls == [] and a.data["deferred_busy"] == 1 and a.idle
+    talking[0] = False
+    clock.t += 120
+    a.run()
+    assert calls == [clock.t] and a.totals["turns"] == 2
+
+
+def test_a_pass_that_stopped_because_he_spoke_is_not_counted():
+    a = ChatLearner(lambda: {"skipped": "he started talking", "new_turns": 3}, start_delay_s=0)
+    a.board = Blackboard()
+    a.run()
+    assert a.totals["passes"] == 0 and a.board.since(0) == []

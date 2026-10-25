@@ -42,7 +42,7 @@ def test_belief_zones_and_plan_routes(data_dir):
             if b.get("zones"):
                 break
             time.sleep(0.2)
-        assert set(b) == {"state", "confidence", "zones", "motion", "activity", "updated"}
+        assert set(b) == {"state", "confidence", "zones", "motion", "activity", "zones_trusted", "updated"}
         assert set(b["zones"][0]) == {"id", "name", "p", "x", "y", "r"}
         st = hub.status()
         assert "belief" in st and "honest" in st

@@ -11,6 +11,7 @@
     python -m aankhen evaluate --leave-one-day-out    judge drill-trained models by days they never saw
     python -m aankhen train                           train zones + activities on every drill day
     python -m aankhen zones [--write]                 the zone map (write data/aankhen/zones.json to edit)
+    python -m aankhen narrate record|label|list       label a real routine by narrating into the phone
 
 Run from the JARVIS folder with the project venv (.venv). Layout, baselines,
 recordings and models live in data/aankhen/.
@@ -527,6 +528,106 @@ def cmd_fingerprint(a) -> int:
     return 0
 
 
+def _recording_backend(port):
+    """Through the running app if it is on the board, else the board directly. (backend, why-not)."""
+    from . import drill as dr
+    app, why = _app_api()
+    if app is not None:
+        base, token, info = app
+        if info.get("mode") != "hardware":
+            return None, (f"The JARVIS app is running but Aankhen is on {info.get('mode')!r}, not the board."
+                          " Press ESP32 on the Aankhen tab, then try again.")
+        print(f"  Recording through the running app ({base}).")
+        return dr.HttpBackend(base, token), None
+    print(f"  The JARVIS app is not running ({why}): opening the board directly.")
+    try:
+        return dr.DirectBackend(port), None
+    except RuntimeError as e:
+        return None, str(e)
+
+
+def cmd_narrate(a) -> int:
+    """Record a real routine with sync chirps, then turn the phone's narration into labels."""
+    import threading
+    from . import narrate as nr
+    if a.action == "list":
+        for s in nr.sessions():
+            mins = sum(l["t_end"] - l["t_start"] for l in s["labels"]) / 60
+            print(f"  {s['day']}  {s['session']}  {len(s['labels'])} stretches, {mins:.1f} min labelled")
+        unlabelled = [f for f in [nr.latest()] if f and not os.path.exists(os.path.join(f, "labels.jsonl"))]
+        for f in unlabelled:
+            print(f"  not labelled yet: {f}")
+        return 0
+    if a.action == "label":
+        if not a.folder or not a.audio:
+            print("  usage: python -m aankhen narrate label <session folder | latest> <audio file>")
+            return 2
+        folder = nr.latest() if a.folder == "latest" else a.folder
+        if not folder:
+            print("  No narration session found.")
+            return 1
+        try:
+            rep = nr.label_session(folder, a.audio, language=None if a.language == "auto" else a.language, dry_run=a.dry_run)
+        except ValueError as e:
+            print(f"  {e}")
+            return 1
+        info = nr.load_session(folder)
+        print(f"  sync sounds found at {[s['audio_s'] for s in rep['syncs']]} s of the audio")
+        print(nr.format_labels(rep, info.host_start_sync))
+        print("  (dry run: nothing written)" if a.dry_run else
+              f"\n  Wrote {os.path.join(folder, 'labels.jsonl')}: fix any wrong line by hand, then run"
+              " python -m aankhen fingerprint evaluate")
+        return 0
+    # record
+    backend, why = _recording_backend(a.port)
+    if backend is None:
+        print(f"  {why}")
+        return 1
+    info = nr.new_session(fan=(a.fan == "on"), note=a.note or "")
+    info.backend = backend.kind
+    try:
+        info.firmware = backend.firmware()
+    except Exception:
+        pass
+    raw = os.path.join(info.folder, "raw.akr")
+    backend.start_recording(raw, {"label": "narrate", "session": info.session})
+    nr.save_session(info)
+    try:
+        s0 = backend.sample()
+        time.sleep(2.0)
+        s1 = backend.sample()
+        rate = (s1.get("csi_packets", 0) - s0.get("csi_packets", 0)) / max(s1.get("t", 1) - s0.get("t", 0), 1e-3)
+        print(f"  Board: {rate:.0f} CSI packets/s, RSSI {s1.get('rssi')} dBm.")
+        if rate < 50:
+            print("  Warning: almost no CSI is arriving. Check the board before you go on.")
+        spk, spk_name = nr.pick_speaker(a.speaker)
+        print(f"  Chirps play on: {spk_name}" + ("   <- headphones? the phone will not hear it: unplug them or use --speaker"
+                                                if any(w in spk_name.lower() for w in ("headphone", "headset", "bt-", "buds")) else ""))
+        input("  1) Start the phone's voice recorder NOW, hold it near the laptop, then press Enter here.")
+        info.host_start_sync = nr.play_sync(a.volume, spk)
+        nr.save_session(info)
+        print("  Chirp played. Keep the phone recording, put it in your pocket and go about your routine.\n"
+              "  Say where you are as you move: 'desk chair', 'wardrobe', 'bathroom', 'on the bed', 'leaving the room'...\n"
+              "  When you are back at the laptop, press Enter here (the end chirp fixes the phone's clock drift).\n"
+              f"  If you never press it, recording stops by itself after {a.max_minutes:.0f} min (no end chirp).")
+        done = threading.Event()
+        threading.Thread(target=lambda: (input(), done.set()), daemon=True).start()
+        pressed = done.wait(timeout=a.max_minutes * 60)
+        if pressed:
+            info.host_end_sync = nr.play_sync(a.volume, spk)
+            print("  End chirp played. You can stop the phone recording now.")
+    except KeyboardInterrupt:
+        print("\n  Stopped (no end chirp).")
+    finally:
+        backend.stop_recording()
+        info.stopped = time.time()
+        nr.save_session(info)
+        backend.close()
+    print(f"\n  Saved {info.folder}\n  Next: copy the phone's audio file to the laptop and run\n"
+          "    .venv\\Scripts\\python.exe -m aankhen narrate label latest <path to the audio file>")
+    return 0
+
+
 def cmd_train(a) -> int:
     from .dayeval import MODEL_ROOT, load_days, train_all
     days = load_days(a.root)
@@ -688,6 +789,19 @@ def main(argv=None) -> int:
     fp.add_argument("--epochs", type=int, default=30)
     fp.add_argument("--json", help="evaluate: also write the report as JSON")
 
+    nar = sub.add_parser("narrate", help="label a real routine: board recording + phone narration + sync chirps")
+    nar.add_argument("action", choices=["record", "label", "list"])
+    nar.add_argument("folder", nargs="?", help="(label) session folder, or 'latest'")
+    nar.add_argument("audio", nargs="?", help="(label) the phone's recording (m4a, mp3, wav, opus)")
+    nar.add_argument("--fan", choices=["on", "off"], default="off", help="(record) fan state at the start")
+    nar.add_argument("--max-minutes", type=float, default=120.0, help="(record) stop by itself after this")
+    nar.add_argument("--volume", type=float, default=0.8, help="(record) chirp volume 0-1")
+    nar.add_argument("--port", help="(record) serial port when the app is not running")
+    nar.add_argument("--speaker", default="speaker", help="(record) part of the output device's name for the chirps")
+    nar.add_argument("--note", help="(record) free text saved with the session (no names)")
+    nar.add_argument("--language", default="en", help="(label) Whisper language; 'auto' to detect")
+    nar.add_argument("--dry-run", action="store_true", help="(label) print the labels, write nothing")
+
     zn = sub.add_parser("zones", help="show the zone map; --write saves it for editing")
     zn.add_argument("--write", action="store_true")
     zn.add_argument("--force", action="store_true")
@@ -697,7 +811,7 @@ def main(argv=None) -> int:
             "calibrate": cmd_calibrate, "bench": cmd_bench, "simulate": cmd_simulate,
             "physics": cmd_physics, "validate": cmd_validate, "learn": cmd_learn, "worldmodel": cmd_worldmodel,
             "drill": cmd_drill, "evaluate": cmd_evaluate, "train": cmd_train, "zones": cmd_zones,
-            "fingerprint": cmd_fingerprint,
+            "fingerprint": cmd_fingerprint, "narrate": cmd_narrate,
             "learnroom": lambda a: print(__import__("aankhen.firstlight", fromlist=["x"]).run_room_session(a.port, not a.no_voice, a.rounds)) or 0,
             "firstlight": lambda a: __import__("aankhen.firstlight", fromlist=["main"]).main(a.port, not a.no_voice)}[a.cmd](a)
 

@@ -76,10 +76,13 @@ def windows(samples: Iterable[tuple[float, np.ndarray, bool]]) -> Iterable[tuple
             yield t, w.reshape(N_SUB, WIN // POOL, POOL).mean(axis=2)  # [51, 50]
 
 
-def label_windows(wins: list[tuple[float, np.ndarray]], labels: list[dict], purge_s: float = PURGE_S) -> dict:
+def label_windows(wins: list[tuple[float, np.ndarray]], labels: list[dict], purge_s: float = PURGE_S,
+                  fallback_refs: Optional[dict] = None) -> dict:
     """Attach drill labels by TIME: a window counts for a block only if it ends inside
     the block, after the settling seconds. Empty-room blocks give the day's reference
-    per fan state; every window has it subtracted. Pure."""
+    per fan state; every window has it subtracted. A session with no empty block of its
+    own (a narrated evening he never left) uses fallback_refs, the same day's from
+    another session. Pure."""
     good = sorted([l for l in labels if l.get("verdict") == "ok"], key=lambda l: l["t_start"])
 
     def block_at(t: float) -> Optional[dict]:
@@ -94,6 +97,9 @@ def label_windows(wins: list[tuple[float, np.ndarray]], labels: list[dict], purg
         e = [w for _, w, l in tagged if l and l.get("kind") == "empty" and bool(l.get("fan")) == fan]
         if e:
             refs[fan] = np.mean(e, axis=(0, 2))                         # [51]: the empty room's level
+    own = dict(refs)
+    for fan, r in (fallback_refs or {}).items():
+        refs.setdefault(fan, r)
     X, Z, A, F, T = [], [], [], [], []
     for t, w, l in tagged:
         if l is None or l.get("kind") == "empty":
@@ -103,11 +109,11 @@ def label_windows(wins: list[tuple[float, np.ndarray]], labels: list[dict], purg
             continue                                                    # no empty block that day: can't clean
         X.append(w - ref[:, None]); Z.append(l["zone"]); A.append(l.get("activity")); F.append(bool(l.get("fan"))); T.append(t)
     return {"X": np.asarray(X, np.float32).reshape(-1, N_SUB, WIN // POOL), "zone": np.asarray(Z),
-            "activity": np.asarray(A), "fan": np.asarray(F, bool), "t": np.asarray(T)}
+            "activity": np.asarray(A), "fan": np.asarray(F, bool), "t": np.asarray(T), "refs": own}
 
 
-def session_tensors(folder: str, labels: list[dict]) -> dict:
-    """One drill session's labelled, cleaned windows, read from its raw.akr."""
+def session_windows(folder: str) -> list[tuple[float, np.ndarray]]:
+    """One session's raw.akr as (host end time, window) pairs, unlabelled."""
     from .csi import CsiConditioner
     from .protocol import CsiPacket, StreamDecoder, decode_packet
     from .transport import iter_recording
@@ -121,17 +127,38 @@ def session_tensors(folder: str, labels: list[dict]) -> dict:
                     for s in cond.push(p.timestamp_us / 1e6, p.raw, p.rssi, gain_comp_db=p.gain_comp_db):
                         # host time keeps the labels' clock; the board's clock spaces the samples
                         yield host_t + (s.t - p.timestamp_us / 1e6), s.amp, s.filled
-    return label_windows(list(windows(stream())), labels)
+    return list(windows(stream()))
 
 
-def load_days(root: Optional[str] = None) -> dict:
-    """{day: [session tensors]} for every drill session on disk."""
+def session_tensors(folder: str, labels: list[dict], fallback_refs: Optional[dict] = None) -> dict:
+    """One session's labelled, cleaned windows, read from its raw.akr."""
+    return label_windows(session_windows(folder), labels, fallback_refs=fallback_refs)
+
+
+def load_days(root: Optional[str] = None, narrate_root: Optional[str] = None) -> dict:
+    """{day: [session tensors]} for every drill AND narrated session on disk. Sessions
+    without an empty-room stretch borrow the reference of another session that day."""
+    from . import narrate
     from .drill import DRILL_DIR, sessions
+    found = sessions(root or DRILL_DIR) + (narrate.sessions(narrate_root or narrate.NARRATE_DIR)
+                                           if root is None or narrate_root else [])
+    by_day: dict = {}
+    for s in found:
+        by_day.setdefault(s["day"], []).append((s, session_windows(s["folder"])))
     out: dict = {}
-    for s in sessions(root or DRILL_DIR):
-        d = session_tensors(s["folder"], s["labels"])
-        if len(d["zone"]):
-            out.setdefault(s["day"], []).append(d)
+    for day, runs in by_day.items():
+        day_refs: dict = {}
+        first = []
+        for s, wins in runs:
+            d = label_windows(wins, s["labels"])
+            for fan, r in d["refs"].items():
+                day_refs.setdefault(fan, r)
+            first.append((s, wins, d))
+        for s, wins, d in first:
+            if len(d["zone"]) == 0 or not d["refs"]:
+                d = label_windows(wins, s["labels"], fallback_refs=day_refs)
+            if len(d["zone"]):
+                out.setdefault(day, []).append(d)
     return out
 
 

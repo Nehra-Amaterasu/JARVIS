@@ -107,3 +107,6 @@ app/ui/node_modules/
 
 # never again: the app state moved to data/app
 app/data/
+
+# agent handoff notes live in worktrees only
+HANDOFF.md

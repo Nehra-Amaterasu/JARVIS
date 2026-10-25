@@ -15,6 +15,15 @@ import { useDialog } from './platform'
 import { dateKey, usePlayerStore } from './stores/player-store'
 import type { ProofEntry, ProofType } from './stores/proof-store'
 
+/**
+ * One frozen empty list for selector fallbacks. A zustand 5 selector must return the
+ * same reference while the store is unchanged: `(s) => s.x ?? []` builds a new array on
+ * every call, React sees a changed snapshot on every render and stops with "Maximum
+ * update depth exceeded" (the blank Road of 2026-10-25). Default OUTSIDE the selector:
+ * `usePlan((s) => s.x) ?? EMPTY`.
+ */
+export const EMPTY: readonly never[] = Object.freeze([])
+
 /* ------------------------------------------------------------------ sub-navigation */
 /**
  * Mission v2: five screens. The Tab ids are the app's (lib/store.ts), reused so

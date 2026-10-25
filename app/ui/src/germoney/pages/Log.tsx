@@ -14,7 +14,7 @@ import { loadBank } from '../data/bank'
 import { mins, usePlan } from '../game/plan'
 import { useLogStore } from '../stores/log-store'
 import { usePlayerStore } from '../stores/player-store'
-import { daysSince, MissionHeader } from '../ui'
+import { daysSince, EMPTY, MissionHeader } from '../ui'
 import { ForgePage } from './Forge'
 import { InterrogationPage } from './Interrogation'
 import { ProofPage } from './Proof'
@@ -160,7 +160,7 @@ function LogForm() {
 }
 
 function History_() {
-  const events = usePlan((s) => s.state?.events ?? [])
+  const events = usePlan((s) => s.state?.events) ?? EMPTY
   const legacy = useLogStore((s) => s.entries)
   const rows = [...events].filter((e) => e.kind === 'log' || e.kind === 'contract' || e.kind === 'ship' || e.kind === 'node').reverse().slice(0, 25)
   return (

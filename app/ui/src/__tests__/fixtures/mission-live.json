@@ -1,0 +1,1397 @@
+{
+ "applications": {
+  "date": "2026-10-25",
+  "applications": [
+   {
+    "id": "summer-epfl-2027",
+    "org": "text 1",
+    "programme": "text 2",
+    "url": "https://example.org/42",
+    "opens": null,
+    "closes": "2026-11-29",
+    "status": "preparing",
+    "requirements": [
+     "text 3",
+     "text 4",
+     "text 5"
+    ],
+    "linked_nodes": [
+     "career.portfolio"
+    ],
+    "prep_contracts": [],
+    "stipend": "text 6",
+    "notes": "text 7",
+    "reason": "",
+    "verified": false,
+    "source": "you",
+    "days_left": 35,
+    "opens_in": null,
+    "open_now": true,
+    "prep": [],
+    "nodes": [
+     {
+      "id": "career.portfolio",
+      "name": "text 8",
+      "status": "locked"
+     }
+    ]
+   },
+   {
+    "id": "srfp-2027",
+    "org": "text 9",
+    "programme": "text 10",
+    "url": "https://example.org/22",
+    "opens": null,
+    "closes": "2026-11-30",
+    "status": "preparing",
+    "requirements": [
+     "text 11",
+     "text 12",
+     "text 13"
+    ],
+    "linked_nodes": [
+     "res.paper_reading",
+     "res.writing_latex"
+    ],
+    "prep_contracts": [],
+    "stipend": "text 14",
+    "notes": "text 15",
+    "reason": "",
+    "verified": false,
+    "source": "you",
+    "days_left": 36,
+    "opens_in": null,
+    "open_now": true,
+    "prep": [],
+    "nodes": [
+     {
+      "id": "res.paper_reading",
+      "name": "text 16",
+      "status": "locked"
+     },
+     {
+      "id": "res.writing_latex",
+      "name": "text 17",
+      "status": "locked"
+     }
+    ]
+   },
+   {
+    "id": "eth-ssrf-2027",
+    "org": "text 18",
+    "programme": "text 19",
+    "url": "https://example.org/72",
+    "opens": "2026-11-01",
+    "closes": "2026-12-16",
+    "status": "preparing",
+    "requirements": [
+     "text 20",
+     "text 21",
+     "text 22"
+    ],
+    "linked_nodes": [
+     "career.portfolio",
+     "res.writing_latex"
+    ],
+    "prep_contracts": [],
+    "stipend": "text 23",
+    "notes": "text 24",
+    "reason": "",
+    "verified": true,
+    "source": "you",
+    "days_left": 52,
+    "opens_in": 7,
+    "open_now": false,
+    "prep": [],
+    "nodes": [
+     {
+      "id": "career.portfolio",
+      "name": "text 25",
+      "status": "locked"
+     },
+     {
+      "id": "res.writing_latex",
+      "name": "text 26",
+      "status": "locked"
+     }
+    ]
+   },
+   {
+    "id": "charpak-2027",
+    "org": "text 27",
+    "programme": "text 28",
+    "url": "https://example.org/41",
+    "opens": "2026-11-15",
+    "closes": "2027-01-25",
+    "status": "preparing",
+    "requirements": [
+     "text 29",
+     "text 30"
+    ],
+    "linked_nodes": [
+     "soft.communication"
+    ],
+    "prep_contracts": [],
+    "stipend": "text 31",
+    "notes": "text 32",
+    "reason": "",
+    "verified": false,
+    "source": "you",
+    "days_left": 92,
+    "opens_in": 21,
+    "open_now": false,
+    "prep": [],
+    "nodes": [
+     {
+      "id": "soft.communication",
+      "name": "text 33",
+      "status": "available"
+     }
+    ]
+   }
+  ],
+  "pipeline": {
+   "idea": [],
+   "preparing": [
+    "summer-epfl-2027",
+    "srfp-2027",
+    "eth-ssrf-2027",
+    "charpak-2027"
+   ],
+   "applied": [],
+   "interview": [],
+   "offer": [],
+   "rejected": [],
+   "not_eligible": [
+    "daad-wise",
+    "daad-rise",
+    "hft-india",
+    "text 34"
+   ]
+  },
+  "due_soon": [],
+  "tasks": [
+   {
+    "id": "transcript-bonafide",
+    "title": "text 35",
+    "due": "2026-10-30",
+    "done": false,
+    "application": "eth-ssrf-2027",
+    "days_left": 5
+   },
+   {
+    "id": "referee",
+    "title": "text 36",
+    "due": "2026-10-30",
+    "done": false,
+    "application": "srfp-2027",
+    "days_left": 5
+   }
+  ],
+  "due_tasks": [
+   {
+    "id": "transcript-bonafide",
+    "title": "text 37",
+    "due": "2026-10-30",
+    "done": false,
+    "application": "eth-ssrf-2027",
+    "days_left": 5
+   },
+   {
+    "id": "referee",
+    "title": "text 38",
+    "due": "2026-10-30",
+    "done": false,
+    "application": "srfp-2027",
+    "days_left": 5
+   }
+  ],
+  "goals": [
+   {
+    "id": "internship-2027",
+    "title": "text 39",
+    "target": "text 40",
+    "kind": "campaign",
+    "milestones": []
+   },
+   {
+    "id": "one-crore",
+    "title": "text 41",
+    "target": "text 42",
+    "kind": "long_term",
+    "milestones": []
+   }
+  ]
+ },
+ "campaigns": {
+  "campaigns": [
+   {
+    "id": "camp/dig.logic",
+    "node_id": "dig.logic",
+    "title": "text 43",
+    "finish_line": "text 44",
+    "linkedin_line": "text 45",
+    "ship_steps": [
+     "text 46",
+     "text 47",
+     "text 48"
+    ],
+    "path": [
+     {
+      "id": "math.arithmetic_mental",
+      "name": "text 49",
+      "status": "available"
+     },
+     {
+      "id": "math.algebra",
+      "name": "text 50",
+      "status": "locked"
+     },
+     {
+      "id": "math.discrete",
+      "name": "text 51",
+      "status": "locked"
+     },
+     {
+      "id": "dig.logic",
+      "name": "text 52",
+      "status": "locked"
+     }
+    ],
+    "left": 4,
+    "hours_left": 105.0,
+    "weeks": 18,
+    "weight": 1.0,
+    "status": "suggested",
+    "started": null,
+    "shipped": null,
+    "url": null,
+    "ready_to_ship": false
+   },
+   {
+    "id": "camp/hdl.verilog_basics",
+    "node_id": "hdl.verilog_basics",
+    "title": "text 53",
+    "finish_line": "text 54",
+    "linkedin_line": "text 55",
+    "ship_steps": [
+     "text 56",
+     "text 57",
+     "text 58"
+    ],
+    "path": [
+     {
+      "id": "math.arithmetic_mental",
+      "name": "text 59",
+      "status": "available"
+     },
+     {
+      "id": "math.algebra",
+      "name": "text 60",
+      "status": "locked"
+     },
+     {
+      "id": "math.discrete",
+      "name": "text 61",
+      "status": "locked"
+     },
+     {
+      "id": "dig.logic",
+      "name": "text 62",
+      "status": "locked"
+     }
+    ],
+    "left": 6,
+    "hours_left": 170.0,
+    "weeks": 28,
+    "weight": 1.0,
+    "status": "suggested",
+    "started": null,
+    "shipped": null,
+    "url": null,
+    "ready_to_ship": false
+   },
+   {
+    "id": "camp/hdl.rtl_design_style",
+    "node_id": "hdl.rtl_design_style",
+    "title": "text 63",
+    "finish_line": "text 64",
+    "linkedin_line": "text 65",
+    "ship_steps": [
+     "text 66",
+     "text 67",
+     "text 68"
+    ],
+    "path": [
+     {
+      "id": "math.arithmetic_mental",
+      "name": "text 69",
+      "status": "available"
+     },
+     {
+      "id": "math.algebra",
+      "name": "text 70",
+      "status": "locked"
+     },
+     {
+      "id": "math.discrete",
+      "name": "text 71",
+      "status": "locked"
+     },
+     {
+      "id": "dig.logic",
+      "name": "text 72",
+      "status": "locked"
+     }
+    ],
+    "left": 7,
+    "hours_left": 200.0,
+    "weeks": 33,
+    "weight": 1.0,
+    "status": "suggested",
+    "started": null,
+    "shipped": null,
+    "url": null,
+    "ready_to_ship": false
+   },
+   {
+    "id": "camp/arch.foundations",
+    "node_id": "arch.foundations",
+    "title": "text 73",
+    "finish_line": "text 74",
+    "linkedin_line": "text 75",
+    "ship_steps": [
+     "text 76",
+     "text 77"
+    ],
+    "path": [
+     {
+      "id": "math.arithmetic_mental",
+      "name": "text 78",
+      "status": "available"
+     },
+     {
+      "id": "math.algebra",
+      "name": "text 79",
+      "status": "locked"
+     },
+     {
+      "id": "math.discrete",
+      "name": "text 80",
+      "status": "locked"
+     },
+     {
+      "id": "prog.c",
+      "name": "text 81",
+      "status": "locked"
+     }
+    ],
+    "left": 6,
+    "hours_left": 215.0,
+    "weeks": 36,
+    "weight": 1.0,
+    "status": "suggested",
+    "started": null,
+    "shipped": null,
+    "url": null,
+    "ready_to_ship": false
+   }
+  ],
+  "active": 0,
+  "cap": 3
+ },
+ "certs": {
+  "certs": [
+   {
+    "id": "lf.lfd110",
+    "name": "text 82",
+    "issuer": "text 83",
+    "cost_inr": 0.0,
+    "free_option": "text 84",
+    "time_hours": 18.0,
+    "credibility": 3,
+    "credibility_by_career": {
+     "vlsi_design": 3,
+     "ai_hw_architect": 3
+    },
+    "linkedin_worthy": true,
+    "node_ids": [
+     "arch.riscv_isa"
+    ],
+    "url": "https://example.org/76",
+    "notes": "text 85",
+    "price_status": "confirmed free",
+    "earned": null,
+    "budget_fit": "free"
+   },
+   {
+    "id": "kaggle.learn",
+    "name": "text 86",
+    "issuer": "text 87",
+    "cost_inr": 0.0,
+    "free_option": "text 88",
+    "time_hours": 25.0,
+    "credibility": 2,
+    "credibility_by_career": {
+     "vlsi_design": 1,
+     "ai_hw_architect": 2
+    },
+    "linkedin_worthy": false,
+    "node_ids": [
+     "ml.practical"
+    ],
+    "url": "https://example.org/28",
+    "notes": "text 89",
+    "price_status": "confirmed free",
+    "earned": null,
+    "budget_fit": "free"
+   },
+   {
+    "id": "cs50.cs50x",
+    "name": "text 90",
+    "issuer": "text 91",
+    "cost_inr": 0.0,
+    "free_option": "text 92",
+    "time_hours": 100.0,
+    "credibility": 3,
+    "credibility_by_career": {
+     "vlsi_design": 2,
+     "ai_hw_architect": 2
+    },
+    "linkedin_worthy": true,
+    "node_ids": [
+     "prog.c"
+    ],
+    "url": "https://example.org/27",
+    "notes": "text 93",
+    "price_status": "confirmed free",
+    "earned": null,
+    "budget_fit": "free"
+   },
+   {
+    "id": "sscs.pico",
+    "name": "text 94",
+    "issuer": "text 95",
+    "cost_inr": 0.0,
+    "free_option": "text 96",
+    "time_hours": 100.0,
+    "credibility": 5,
+    "credibility_by_career": {
+     "vlsi_design": 5,
+     "ai_hw_architect": 4
+    },
+    "linkedin_worthy": true,
+    "node_ids": [
+     "pd.tapeout",
+     "ana.analog_ic"
+    ],
+    "url": "https://example.org/75",
+    "notes": "text 97",
+    "price_status": "free",
+    "earned": null,
+    "budget_fit": "free"
+   }
+  ],
+  "budget": {
+   "cert_inr_month": 3000,
+   "cert_stretch_inr": 5000
+  }
+ },
+ "findings": {
+  "date": "2026-10-25",
+  "nodes": [
+   {
+    "node_id": "math.numerical_methods",
+    "name": "text 98",
+    "cats": [
+     "text 99",
+     "text 100"
+    ],
+    "papers": [
+     {
+      "id": "http://arxiv.org/abs/2610.31648v1",
+      "title": "text 101",
+      "summary": "text 102",
+      "published": "2026-10-22T17:56:41Z",
+      "url": "https://example.org/34"
+     },
+     {
+      "id": "http://arxiv.org/abs/2610.31241v1",
+      "title": "text 103",
+      "summary": "text 104",
+      "published": "2026-10-22T13:24:22Z",
+      "url": "https://example.org/34"
+     },
+     {
+      "id": "http://arxiv.org/abs/2610.30889v1",
+      "title": "text 105",
+      "summary": "text 106",
+      "published": "2026-10-22T08:06:48Z",
+      "url": "https://example.org/34"
+     }
+    ],
+    "fetched": "2026-10-25",
+    "stale": false,
+    "error": null
+   }
+  ]
+ },
+ "ladder": {
+  "vision": {
+   "title": "text 107",
+   "horizon": "text 108",
+   "band": "text 109"
+  },
+  "years": [
+   {
+    "year": 2027,
+    "milestones": [
+     {
+      "id": "backlogs",
+      "title": "text 110",
+      "kind": "academics",
+      "match": [
+       "text 111"
+      ]
+     },
+     {
+      "id": "internship",
+      "title": "text 112",
+      "kind": "internship",
+      "match": [
+       "internship-2027"
+      ]
+     },
+     {
+      "id": "rtl-portfolio",
+      "title": "text 113",
+      "kind": "tree",
+      "match": [
+       "text 114",
+       "text 115",
+       "text 116",
+       "text 117"
+      ]
+     },
+     {
+      "id": "ms-apps",
+      "title": "text 118",
+      "kind": "road",
+      "match": [
+       "text 119",
+       "text 120",
+       "text 121"
+      ]
+     }
+    ]
+   },
+   {
+    "year": 2028,
+    "milestones": [
+     {
+      "id": "graduate",
+      "title": "text 122",
+      "kind": "road",
+      "match": []
+     }
+    ]
+   }
+  ],
+  "year": 2027,
+  "quarter": {
+   "label": "text 123",
+   "ends": "2026-12-31",
+   "goals": [
+    {
+     "serves": "text 124",
+     "title": "text 125"
+    },
+    {
+     "serves": "text 126",
+     "title": "text 127"
+    },
+    {
+     "serves": "text 128",
+     "title": "text 129"
+    },
+    {
+     "serves": "text 130",
+     "title": "text 131"
+    }
+   ]
+  },
+  "month": {
+   "label": "text 132",
+   "ends": "2026-10-31",
+   "goals": []
+  },
+  "week": {
+   "ends": "2026-10-25",
+   "goals": [
+    {
+     "serves": "text 133",
+     "title": "text 134"
+    },
+    {
+     "serves": "text 135",
+     "title": "text 136"
+    },
+    {
+     "serves": null,
+     "title": "text 137"
+    },
+    {
+     "serves": null,
+     "title": "text 138"
+    }
+   ]
+  },
+  "reviews": [],
+  "review_due": true
+ },
+ "learning": {
+  "entries": []
+ },
+ "parking": {
+  "parking": []
+ },
+ "profile": {
+  "traits": [
+   "text 139",
+   "text 140",
+   "text 141"
+  ],
+  "style": {
+   "novelty_first": true,
+   "choices": 3,
+   "sprint_minutes": 45,
+   "wip_cap": 3,
+   "quiet_hours": [
+    "23:00",
+    "08:00"
+   ],
+   "nudge_after_idle_days": 3,
+   "welcome_back_after_days": 4,
+   "refresh_after_days": 30
+  },
+  "rules": [
+   "text 142",
+   "text 143",
+   "text 144",
+   "text 145"
+  ]
+ },
+ "state": {
+  "xp": 20,
+  "level": {
+   "level": 1,
+   "into": 20,
+   "need": 100
+  },
+  "career": null,
+  "statuses": {
+   "prog.c": "text 146",
+   "prog.python": "text 147",
+   "prog.cpp": "text 148",
+   "prog.scripting": "text 149",
+   "tools.git": "text 150",
+   "dig.logic": "text 151",
+   "dig.arithmetic": "text 152",
+   "hdl.verilog_basics": "text 153",
+   "hdl.rtl_design_style": "text 154",
+   "hdl.systemverilog": "text 155",
+   "ver.sim_basics": "text 156",
+   "ver.uvm": "text 157",
+   "ver.formal": "text 158",
+   "arch.foundations": "text 159",
+   "arch.riscv_isa": "text 160",
+   "arch.riscv_core": "text 161",
+   "arch.microarch_advanced": "text 162",
+   "arch.soc_bus": "text 163",
+   "fpga.basics": "text 164",
+   "fpga.hls": "text 165",
+   "pd.synthesis": "text 166",
+   "pd.sta": "text 167",
+   "pd.physical_design": "text 168",
+   "pd.dft": "text 169",
+   "pd.tapeout": "text 170",
+   "dev.semiconductor": "text 171",
+   "dev.fab_process": "text 172",
+   "ana.circuits": "text 173",
+   "ana.cmos_vlsi": "text 174",
+   "ana.analog_ic": "text 175",
+   "emb.mcu_c": "text 176",
+   "emb.iot_rtos": "text 177",
+   "dsa.foundations": "text 178",
+   "dsa.interview": "text 179",
+   "ml.foundations": "text 180",
+   "ml.practical": "text 181",
+   "dl.foundations": "text 182",
+   "dl.pytorch_cnn": "text 183",
+   "dl.transformers_llm": "text 184",
+   "aihw.efficiency": "text 185",
+   "ml.tinyml_edge": "text 186",
+   "aihw.gpu_cuda": "text 187",
+   "aihw.accelerator": "text 188",
+   "aihw.ml_compiler": "text 189",
+   "aihw.fpga_ml": "text 190",
+   "sec.networking_linux": "text 191",
+   "sec.crypto_basics": "text 192",
+   "sec.pentest_foundations": "text 193",
+   "sec.web_security": "text 194",
+   "sec.hw_security": "text 195",
+   "sec.hw_trojans_bugs": "text 196",
+   "sec.pentest_advanced": "text 197",
+   "res.paper_reading": "text 198",
+   "res.writing_latex": "text 199",
+   "soft.communication": "text 200",
+   "career.portfolio": "text 201",
+   "career.interview_offcampus": "text 202",
+   "math.arithmetic_mental": "text 203",
+   "math.algebra": "text 204",
+   "math.functions_graphs": "text 205",
+   "math.trigonometry": "text 206",
+   "math.complex_numbers": "text 207",
+   "math.calculus": "text 208",
+   "math.integration": "text 209",
+   "math.multivariable_vector": "text 210",
+   "math.diff_equations": "text 211",
+   "math.linear_algebra": "text 212",
+   "math.probability_stats": "text 213",
+   "math.random_processes": "text 214",
+   "math.signals_transforms": "text 215",
+   "math.discrete": "text 216",
+   "math.numerical_methods": "text 217",
+   "math.optimisation": "text 218"
+  },
+  "nodes": {},
+  "contracts": {},
+  "events": [
+   {
+    "id": "2026-10-25:0",
+    "t": 1792870645.8806424,
+    "date": "2026-10-25",
+    "kind": "migrate",
+    "xp": 0,
+    "note": "text 219"
+   },
+   {
+    "id": "2026-10-25:1",
+    "t": 1792871382.4304779,
+    "date": "2026-10-25",
+    "kind": "xp",
+    "xp": 20,
+    "note": "text 220"
+   }
+  ],
+  "rotation": {
+   "1": {
+    "track": "digital",
+    "label": "text 221",
+    "match": [
+     "text 222",
+     "text 223",
+     "text 224",
+     "text 225"
+    ]
+   },
+   "2": {
+    "track": "math",
+    "label": "text 226",
+    "match": [
+     "text 227"
+    ]
+   },
+   "3": {
+    "track": "ml",
+    "label": "text 228",
+    "match": [
+     "text 229",
+     "text 230",
+     "text 231",
+     "text 232"
+    ]
+   },
+   "4": {
+    "track": "academics",
+    "label": "text 233",
+    "match": []
+   },
+   "5": {
+    "track": "arch",
+    "label": "text 234",
+    "match": [
+     "text 235",
+     "text 236",
+     "text 237",
+     "text 238"
+    ]
+   }
+  },
+  "schedule": {
+   "library": {
+    "start": "10:00",
+    "minutes": 180
+   },
+   "evening": {
+    "start": "19:30",
+    "minutes": 60
+   },
+   "protected": {
+    "start": "17:30",
+    "minutes": 90,
+    "label": "text 239"
+   },
+   "weekend": {
+    "start": "11:00",
+    "minutes": 60
+   }
+  },
+  "exam": {
+   "focus": null,
+   "window_days": 14
+  },
+  "parking": [],
+  "campaigns": {},
+  "wip": [],
+  "wip_cap": 3,
+  "resume": {},
+  "budget": {
+   "cert_inr_month": 3000,
+   "cert_stretch_inr": 5000
+  },
+  "certs": {},
+  "xp_migrated_from": 0,
+  "bank": {
+   "files": [
+    "certs.json",
+    "math-track.json",
+    "resources-academic.json",
+    "resources-career.json"
+   ],
+   "warnings": [],
+   "errors": [],
+   "nodes": 73
+  }
+ },
+ "today": {
+  "date": "2026-10-25",
+  "weekday": 7,
+  "track": "weekend",
+  "track_label": "text 240",
+  "blocks": [
+   {
+    "id": "weekend",
+    "kind": "weekend",
+    "label": "text 241",
+    "start": "11:00",
+    "minutes": 60
+   },
+   {
+    "id": "protected",
+    "kind": "protected",
+    "label": "text 242",
+    "start": "18:00",
+    "minutes": 240
+   }
+  ],
+  "contracts": [
+   {
+    "key": "acad/modern-control/2026-10-25/0",
+    "source": "academics",
+    "slot": "weekend",
+    "node_id": null,
+    "node_name": "text 243",
+    "subject_id": "modern-control",
+    "branch": "academics",
+    "title": "text 244",
+    "minutes": 100,
+    "xp": 25,
+    "context": "text 245",
+    "steps": [
+     "text 246",
+     "text 247",
+     "text 248"
+    ],
+    "hint": "text 249",
+    "success_check": "text 250",
+    "why": "text 251",
+    "done": false,
+    "verified": false,
+    "read_first": [
+     {
+      "id": "acad.video.neso-control-systems",
+      "title": "text 252",
+      "kind": "video",
+      "url": "https://example.org/72",
+      "free": true,
+      "legal_pdf_url": null,
+      "certificate": null,
+      "covers": [
+       "text 253",
+       "text 254",
+       "text 255",
+       "text 256"
+      ],
+      "skip_topics": [],
+      "hours": null,
+      "why": "text 257"
+     },
+     {
+      "id": "acad.course.nptel-control-engineering",
+      "title": "text 258",
+      "kind": "course",
+      "url": "https://example.org/37",
+      "free": true,
+      "legal_pdf_url": null,
+      "certificate": {
+       "issuer": "text 259",
+       "cost_inr": 1000,
+       "credibility": 4
+      },
+      "covers": [
+       "text 260",
+       "text 261",
+       "text 262",
+       "text 263"
+      ],
+      "skip_topics": [],
+      "hours": 30.0,
+      "why": "text 264"
+     }
+    ],
+    "depends_on": [],
+    "primary": {
+     "id": "acad.video.neso-control-systems",
+     "title": "text 265",
+     "kind": "video",
+     "url": "https://example.org/72",
+     "free": true,
+     "legal_pdf_url": null,
+     "certificate": null,
+     "covers": [
+      "text 266",
+      "text 267",
+      "text 268",
+      "text 269"
+     ],
+     "skip_topics": [],
+     "hours": null
+    },
+    "backup": {
+     "id": "acad.course.nptel-control-engineering",
+     "title": "text 270",
+     "kind": "course",
+     "url": "https://example.org/37",
+     "free": true,
+     "legal_pdf_url": null,
+     "certificate": {
+      "issuer": "text 271",
+      "cost_inr": 1000,
+      "credibility": 4
+     },
+     "covers": [
+      "text 272",
+      "text 273",
+      "text 274",
+      "text 275"
+     ],
+     "skip_topics": [],
+     "hours": 30.0
+    },
+    "pdfs": [],
+    "pyq_refs": [
+     "acad.pyq.aktu-control-system",
+     "text 276"
+    ],
+    "files": [],
+    "questions": [],
+    "pass": null,
+    "serves": {
+     "id": "ms-apps",
+     "title": "text 277",
+     "why": "text 278"
+    }
+   },
+   {
+    "key": "math.numerical_methods/math.numerical_methods.c01",
+    "source": "tree",
+    "slot": "weekend",
+    "node_id": "math.numerical_methods",
+    "node_name": "text 279",
+    "branch": "math",
+    "title": "text 280",
+    "minutes": 20,
+    "xp": 18,
+    "context": "text 281",
+    "steps": [
+     "text 282"
+    ],
+    "hint": "text 283",
+    "success_check": "text 284",
+    "why": "text 285",
+    "done": false,
+    "verified": false,
+    "read_first": [
+     {
+      "id": "math.r.nptel_numerical_iitr",
+      "title": "text 286",
+      "kind": "course",
+      "url": "https://example.org/37",
+      "free": true,
+      "legal_pdf_url": null,
+      "certificate": {
+       "provider": "text 287",
+       "exam_fee_inr": 1000,
+       "note": "text 288"
+      },
+      "covers": [
+       "math.numerical_methods"
+      ],
+      "skip_topics": [],
+      "hours": null,
+      "why": "text 289"
+     },
+     {
+      "id": "math.r.pauls_calc1",
+      "title": "text 290",
+      "kind": "notes",
+      "url": "https://example.org/56",
+      "free": true,
+      "legal_pdf_url": null,
+      "certificate": null,
+      "covers": [
+       "math.calculus"
+      ],
+      "skip_topics": [],
+      "hours": null,
+      "why": "text 291"
+     },
+     {
+      "id": "math.r.mit_1806sc",
+      "title": "text 292",
+      "kind": "course",
+      "url": "https://example.org/61",
+      "free": true,
+      "legal_pdf_url": null,
+      "certificate": null,
+      "covers": [
+       "math.linear_algebra"
+      ],
+      "skip_topics": [],
+      "hours": 60.0,
+      "why": "text 293"
+     }
+    ],
+    "depends_on": [
+     {
+      "id": "math.calculus",
+      "name": "text 294",
+      "status": "locked",
+      "resource": {
+       "id": "math.r.pauls_calc1",
+       "title": "text 295",
+       "kind": "notes",
+       "url": "https://example.org/56",
+       "free": true,
+       "legal_pdf_url": null,
+       "certificate": null,
+       "covers": [
+        "math.calculus"
+       ],
+       "skip_topics": [],
+       "hours": null
+      }
+     },
+     {
+      "id": "math.linear_algebra",
+      "name": "text 296",
+      "status": "locked",
+      "resource": {
+       "id": "math.r.mit_1806sc",
+       "title": "text 297",
+       "kind": "course",
+       "url": "https://example.org/61",
+       "free": true,
+       "legal_pdf_url": null,
+       "certificate": null,
+       "covers": [
+        "math.linear_algebra"
+       ],
+       "skip_topics": [],
+       "hours": 60.0
+      }
+     }
+    ],
+    "primary": {
+     "id": "math.r.nptel_numerical_iitr",
+     "title": "text 298",
+     "kind": "course",
+     "url": "https://example.org/37",
+     "free": true,
+     "legal_pdf_url": null,
+     "certificate": {
+      "provider": "text 299",
+      "exam_fee_inr": 1000,
+      "note": "text 300"
+     },
+     "covers": [
+      "math.numerical_methods"
+     ],
+     "skip_topics": [],
+     "hours": null
+    },
+    "backup": {
+     "id": "math.r.mit_18330",
+     "title": "text 301",
+     "kind": "course",
+     "url": "https://example.org/82",
+     "free": true,
+     "legal_pdf_url": null,
+     "certificate": null,
+     "covers": [
+      "math.numerical_methods"
+     ],
+     "skip_topics": [],
+     "hours": null
+    },
+    "pdfs": [],
+    "serves": {
+     "id": "backlogs",
+     "title": "text 302",
+     "why": "text 303"
+    },
+    "hook": "text 304"
+   },
+   {
+    "key": "acad/product-innovation/2026-10-25/2",
+    "source": "academics",
+    "slot": "weekend",
+    "node_id": null,
+    "node_name": "text 305",
+    "subject_id": "product-innovation",
+    "branch": "academics",
+    "title": "text 306",
+    "minutes": 50,
+    "xp": 12,
+    "context": "text 307",
+    "steps": [
+     "text 308",
+     "text 309",
+     "text 310"
+    ],
+    "hint": "text 311",
+    "success_check": "text 312",
+    "why": "text 313",
+    "done": false,
+    "verified": false,
+    "read_first": [
+     {
+      "id": "acad.course.nptel-entrepreneurship",
+      "title": "text 314",
+      "kind": "course",
+      "url": "https://example.org/37",
+      "free": true,
+      "legal_pdf_url": null,
+      "certificate": {
+       "issuer": "text 315",
+       "cost_inr": 1000,
+       "credibility": 4
+      },
+      "covers": [
+       "text 316",
+       "text 317",
+       "text 318",
+       "text 319"
+      ],
+      "skip_topics": [],
+      "hours": 30.0,
+      "why": "text 320"
+     },
+     {
+      "id": "acad.course.mit-15-390",
+      "title": "text 321",
+      "kind": "course",
+      "url": "https://example.org/63",
+      "free": true,
+      "legal_pdf_url": null,
+      "certificate": null,
+      "covers": [
+       "text 322",
+       "text 323",
+       "text 324",
+       "text 325"
+      ],
+      "skip_topics": [],
+      "hours": 20.0,
+      "why": "text 326"
+     }
+    ],
+    "depends_on": [],
+    "primary": {
+     "id": "acad.course.nptel-entrepreneurship",
+     "title": "text 327",
+     "kind": "course",
+     "url": "https://example.org/37",
+     "free": true,
+     "legal_pdf_url": null,
+     "certificate": {
+      "issuer": "text 328",
+      "cost_inr": 1000,
+      "credibility": 4
+     },
+     "covers": [
+      "text 329",
+      "text 330",
+      "text 331",
+      "text 332"
+     ],
+     "skip_topics": [],
+     "hours": 30.0
+    },
+    "backup": {
+     "id": "acad.course.mit-15-390",
+     "title": "text 333",
+     "kind": "course",
+     "url": "https://example.org/63",
+     "free": true,
+     "legal_pdf_url": null,
+     "certificate": null,
+     "covers": [
+      "text 334",
+      "text 335",
+      "text 336",
+      "text 337"
+     ],
+     "skip_topics": [],
+     "hours": 20.0
+    },
+    "pdfs": [],
+    "pyq_refs": [
+     "acad.pyq.aktu-idea-to-business-model"
+    ],
+    "files": [],
+    "questions": [],
+    "pass": null,
+    "serves": {
+     "id": "ms-apps",
+     "title": "text 338",
+     "why": "text 339"
+    }
+   }
+  ],
+  "exam": {
+   "subject": {
+    "id": "modern-control",
+    "name": "text 340",
+    "kind": "current",
+    "exam_date": "2026-11-02",
+    "strategy": "text 341"
+   },
+   "days_left": 8,
+   "date_kind": "text 342",
+   "forced": false,
+   "queue": [
+    {
+     "id": "microelectronic-circuits",
+     "name": "text 343",
+     "kind": "current",
+     "days_left": 8,
+     "date_kind": "text 344",
+     "approx": false,
+     "see_needed": null,
+     "see_max": null
+    },
+    {
+     "id": "digital-communication",
+     "name": "text 345",
+     "kind": "current",
+     "days_left": 8,
+     "date_kind": "text 346",
+     "approx": false,
+     "see_needed": null,
+     "see_max": null
+    },
+    {
+     "id": "icft",
+     "name": "text 347",
+     "kind": "current",
+     "days_left": 8,
+     "date_kind": "text 348",
+     "approx": false,
+     "see_needed": null,
+     "see_max": null
+    },
+    {
+     "id": "modern-control",
+     "name": "text 349",
+     "kind": "current",
+     "days_left": 8,
+     "date_kind": "text 350",
+     "approx": false,
+     "see_needed": null,
+     "see_max": null
+    }
+   ],
+   "advice": "text 351",
+   "phase": {
+    "n": 1,
+    "name": "text 352",
+    "days_left": 8,
+    "anchor": "2026-11-02"
+   },
+   "milestone": null,
+   "rescue_week": {
+    "week": "text 353",
+    "library": "text 354",
+    "evenings": "text 355"
+   }
+  },
+  "note": null,
+  "alternatives": [],
+  "welcome_back": null,
+  "deadlines": [
+   {
+    "id": "transcript-bonafide",
+    "org": "text 356",
+    "programme": "text 357",
+    "closes": "2026-10-30",
+    "days_left": 5,
+    "status": "task",
+    "url": "",
+    "prep": [],
+    "verified": true
+   },
+   {
+    "id": "referee",
+    "org": "text 358",
+    "programme": "text 359",
+    "closes": "2026-10-30",
+    "days_left": 5,
+    "status": "task",
+    "url": "",
+    "prep": [],
+    "verified": true
+   }
+  ],
+  "wins": {
+   "contracts": 0,
+   "minutes": 0,
+   "xp": 20,
+   "nodes": [],
+   "mastered": 0,
+   "shipped": 0
+  },
+  "wip": [],
+  "wip_cap": 3,
+  "level": {
+   "level": 1,
+   "into": 20,
+   "need": 100
+  },
+  "xp": 20,
+  "bank_ready": true,
+  "academics_ready": true,
+  "cursor": null
+ }
+}

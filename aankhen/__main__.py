@@ -12,6 +12,7 @@
     python -m aankhen train                           train zones + activities on every drill day
     python -m aankhen zones [--write]                 the zone map (write data/aankhen/zones.json to edit)
     python -m aankhen narrate record|label|list       label a real routine by narrating into the phone
+    python -m aankhen lesson1 <session | .akr>        see your own signal before any model (PNG)
 
 Run from the JARVIS folder with the project venv (.venv). Layout, baselines,
 recordings and models live in data/aankhen/.
@@ -789,6 +790,10 @@ def main(argv=None) -> int:
     fp.add_argument("--epochs", type=int, default=30)
     fp.add_argument("--json", help="evaluate: also write the report as JSON")
 
+    l1 = sub.add_parser("lesson1", help="see your own signal: heatmap, motion energy, a fingerprint per label (PNG)")
+    l1.add_argument("target", help="a session folder (raw.akr + labels.jsonl) or a recording .akr")
+    l1.add_argument("--out", help="PNG path (default data/aankhen/lessons/lesson1-<name>.png)")
+
     nar = sub.add_parser("narrate", help="label a real routine: board recording + phone narration + sync chirps")
     nar.add_argument("action", choices=["record", "label", "list"])
     nar.add_argument("folder", nargs="?", help="(label) session folder, or 'latest'")
@@ -812,6 +817,7 @@ def main(argv=None) -> int:
             "physics": cmd_physics, "validate": cmd_validate, "learn": cmd_learn, "worldmodel": cmd_worldmodel,
             "drill": cmd_drill, "evaluate": cmd_evaluate, "train": cmd_train, "zones": cmd_zones,
             "fingerprint": cmd_fingerprint, "narrate": cmd_narrate,
+            "lesson1": lambda a: print(__import__("aankhen.lesson1", fromlist=["write"]).write(a.target, a.out)) or 0,
             "learnroom": lambda a: print(__import__("aankhen.firstlight", fromlist=["x"]).run_room_session(a.port, not a.no_voice, a.rounds)) or 0,
             "firstlight": lambda a: __import__("aankhen.firstlight", fromlist=["main"]).main(a.port, not a.no_voice)}[a.cmd](a)
 

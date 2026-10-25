@@ -45,6 +45,7 @@ scikit-learn==1.9.0              # topics, closeness validation, Aankhen model
 scipy==1.17.1
 joblib==1.5.3                    # trained room model on disk
 pyserial==3.5                    # ESP32-S3 over USB
+matplotlib==3.11.2               # aankhen/lesson1.py plots (owner OK 2026-10-26)
 
 # --- App: app/
 fastapi==0.139.2

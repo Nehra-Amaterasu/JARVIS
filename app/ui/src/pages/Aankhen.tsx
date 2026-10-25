@@ -37,6 +37,7 @@ import { useStore, type Toast } from '../lib/store'
 import type { EyesMsg } from '../lib/eyes'
 import { EyesView } from '../components/EyesView'
 import { FirstLightSheet } from '../components/FirstLight'
+import { DEFAULT_LAYERS, LAYERS } from '../twin/layers'
 import { SpatialTwin, type BeliefSummary, type FrameMsg, type Framing, type HeatMsg, type Layer, type RoomSpec } from '../twin/SpatialTwin'
 
 type View = '3d' | 'plan' | 'eyes'
@@ -76,11 +77,6 @@ const LAYOUT: Record<string, { label: string; cls: string; hint: string }> = {
   estimated: { label: 'Layout · estimated', cls: 'sim', hint: 'read off a sketch and photos; measure it and set "measured": true' },
   default: { label: 'Layout · default 4×4 m', cls: '', hint: 'no room.json yet: copy aankhen/room.example.json to data/aankhen/room.json' },
 }
-const LAYERS: { id: Layer; label: string }[] = [
-  { id: 'walls', label: 'Walls' }, { id: 'house', label: 'House' }, { id: 'heat', label: 'Heat' }, { id: 'fov', label: 'Radar' },
-  { id: 'fresnel', label: 'Wi-Fi zone' }, { id: 'trails', label: 'Trails' }, { id: 'labels', label: 'Labels' },
-  { id: 'truth', label: 'Truth' }, { id: 'estimate', label: 'Belief' }, { id: 'zones', label: 'Zone map' },
-]
 // The learned model's five states, as I would say them.
 const STATES: { id: string; name: string }[] = [
   { id: 'empty', name: 'Room empty' }, { id: 'outside', name: 'Outside my room' }, { id: 'room', name: 'In my room' },
@@ -107,7 +103,7 @@ export function AankhenPage() {
   const eyesSink = useRef<((m: EyesMsg) => void) | null>(null)
   const [framing, setFramingState] = useState<Framing>('room')
   const [heatLayer, setHeatLayer] = useState<'live' | 'learned'>('live')
-  const [layers, setLayers] = useState<Record<Layer, boolean>>({ walls: true, heat: true, fov: true, fresnel: true, trails: true, labels: true, truth: true, house: true, estimate: true, zones: true })
+  const [layers, setLayers] = useState<Record<Layer, boolean>>(DEFAULT_LAYERS)
   // What the belief cloud says ("probably: at the desk chair · 62 %"), or null with no belief.
   const [est, setEst] = useState<BeliefSummary | null>(null)
   const [hist, setHist] = useState<{ score: number; thr: number }[]>([])

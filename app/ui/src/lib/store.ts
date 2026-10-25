@@ -16,7 +16,7 @@ export type Tab =
 export const TABS: { id: Tab; n: string; title: string; sub: string; group: 'jarvis' | 'mission'; dock?: boolean }[] = [
   { id: 'core', n: '01', title: 'Core', sub: 'JARVIS himself — wake him, talk, watch him think.', group: 'jarvis', dock: true },
   { id: 'yaadash', n: '02', title: 'Yaadash', sub: 'Memory — every conversation, every person, every taste.', group: 'jarvis', dock: true },
-  { id: 'aankhen', n: '03', title: 'Aankhen', sub: 'Eyes — the room in 3D, sensed through Wi-Fi and radar.', group: 'jarvis', dock: true },
+  { id: 'aankhen', n: '03', title: 'Aankhen', sub: 'Eyes — the room in 3D, sensed through Wi-Fi alone: no radar, no camera.', group: 'jarvis', dock: true },
   { id: 'limbs', n: '04', title: 'Limbs', sub: 'Hands — what JARVIS can switch in the room.', group: 'jarvis', dock: true },
   { id: 'connect', n: '05', title: 'Connect', sub: 'His brain, his voice, modules for a moment, fresh memory. Choose and test.', group: 'jarvis', dock: true },
   { id: 'system', n: '06', title: 'System', sub: 'Is he answering you, and how fast. Fix it from here.', group: 'jarvis', dock: true },

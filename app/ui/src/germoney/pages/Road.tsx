@@ -10,12 +10,14 @@ import { Award, Flag, GraduationCap, Map as MapIcon, ParkingCircle, Rocket, Tras
 import { useEffect, useState } from 'react'
 import { useStore } from '../../lib/store'
 import { BOSSES } from '../game/campaign'
-import { Marks } from '../game/kit'
+import * as E from '../game/engine'
+import { Marks, Radar } from '../game/kit'
+import { MissionBoundary } from '../Boundary'
 import { usePlan, type Campaign } from '../game/plan'
 import { useGame } from '../game/store'
 import { prettyDate } from '../game/util'
 import { TARGET_UNIVERSITIES } from '../data/universities'
-import { MissionHeader, NeonBar } from '../ui'
+import { EMPTY, MissionHeader, NeonBar } from '../ui'
 import { Achievements, Shop, WarChest } from './Armory'
 import { TrialsPage } from './Trials'
 
@@ -28,19 +30,20 @@ export function RoadPage() {
   return (
     <div className="mission-page road">
       <MissionHeader n="M5" title="Road" sub="Campaigns to a career milestone, certificates, Germany, the money." right={<Marks n={g.marks} size="lg" />} />
-      <LadderView />
-      <Internship />
-      <Campaigns />
-      <Goals />
-      <Certs />
-      <Parking />
+      <MissionBoundary small name="Ladder"><LadderView /></MissionBoundary>
+      <MissionBoundary small name="Internships"><Internship /></MissionBoundary>
+      <MissionBoundary small name="Campaigns"><Campaigns /></MissionBoundary>
+      <MissionBoundary small name="Goals"><Goals /></MissionBoundary>
+      <MissionBoundary small name="Certificates"><Certs /></MissionBoundary>
+      <MissionBoundary small name="Parking lot"><Parking /></MissionBoundary>
       <div className="sec-title"><GraduationCap size={15} /><span>Germany paperwork and exams</span></div>
-      <div className="embedded"><TrialsPage /></div>
-      <WarChest />
-      <Shop />
-      <Achievements />
-      <Universities />
-      <SeasonOne />
+      <MissionBoundary small name="Trials"><div className="embedded"><TrialsPage /></div></MissionBoundary>
+      <MissionBoundary small name="War Chest"><WarChest /></MissionBoundary>
+      <MissionBoundary small name="Shop"><Shop /></MissionBoundary>
+      <MissionBoundary small name="The record"><Record /></MissionBoundary>
+      <MissionBoundary small name="Achievements"><Achievements /></MissionBoundary>
+      <MissionBoundary small name="Universities"><Universities /></MissionBoundary>
+      <MissionBoundary small name="Season one"><SeasonOne /></MissionBoundary>
     </div>
   )
 }
@@ -185,7 +188,7 @@ function Internship() {
 
 /** Long-term goals (e.g. the ₹1 crore career): milestones that fill in as their tree nodes are mastered. */
 function Goals() {
-  const goals = usePlan((s) => s.applications?.goals ?? []).filter((x) => x.kind === 'long_term')
+  const goals = (usePlan((s) => s.applications?.goals) ?? EMPTY).filter((x) => x.kind === 'long_term')
   if (!goals.length) return null
   return (
     <>{goals.map((gl) => (
@@ -233,7 +236,7 @@ function Certs() {
 }
 
 function Parking() {
-  const parking = usePlan((s) => s.state?.parking ?? [])
+  const parking = usePlan((s) => s.state?.parking) ?? EMPTY
   const unpark = usePlan((s) => s.unpark)
   return (
     <>
@@ -271,5 +274,33 @@ function SeasonOne() {
       <p className="small">{won.length ? `Defeated: ${won.map((b) => `${b.name} (${prettyDate(g.bosses[b.id].defeatedAt!)})`).join(', ')}.` : 'No bosses defeated in the old season.'} {contracts} contracts in the ledger.</p>
       <p className="muted small">Bosses were replaced by campaigns built from the skill tree. Their deliverables (an adder, an ALU, a UART, a RISC-V core) are projects on tree nodes now.</p>
     </details>
+  )
+}
+
+/* ------------------------------------------------------------------ the record (restored from the old HQ) */
+/** Attributes over the last 28 days (the radar) and everything invested so far. */
+function Record() {
+  const g = useGame((s) => s.g)
+  const today = useGame((s) => s.today)
+  const a = E.attributes(g, today)
+  const inv = E.investment(g)
+  const rows: [keyof typeof a, string][] = [['SIL', 'Silicon hours vs target'], ['DEU', 'German hours vs target'], ['VIT', 'Training days vs target'], ['CAP', 'Career and paperwork actions'], ['WIL', 'Days the system was honoured']]
+  return (
+    <section className="card">
+      <div className="card-head"><span className="card-title">The record · last 28 days</span></div>
+      <div className="attr-wrap">
+        <Radar values={a} />
+        <div className="attr-rows">
+          {rows.map(([k, label]) => (
+            <div key={k} className="attr-row"><span className="mono">{k}</span><NeonBar progress={a[k] / 100} tone={a[k] >= 70 ? 'live' : 'chrome'} /><span className="dot small">{a[k]}</span><span className="muted small">{label}</span></div>
+          ))}
+        </div>
+      </div>
+      <span className="eyebrow">Invested so far</span>
+      <div className="metrics">
+        {[{ v: `${inv.hours}h`, l: 'Hours' }, { v: inv.contracts, l: 'Contracts' }, { v: inv.days, l: 'Days secured' }, { v: inv.bosses, l: 'Bosses' }, { v: inv.cards, l: 'Drill cards' }]
+          .map((m) => <div key={m.l}><span className="dot">{m.v}</span><span className="eyebrow">{m.l}</span></div>)}
+      </div>
+    </section>
   )
 }

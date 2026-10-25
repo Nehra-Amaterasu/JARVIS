@@ -16,8 +16,9 @@ import { Marks, Shields, StreakFlame } from '../game/kit'
 import { endOf, mins, openStudyFile, usePlan, type PlanContract } from '../game/plan'
 import { gameBrief, useGame } from '../game/store'
 import { prettyDate } from '../game/util'
+import { DAILY_ITEMS, SUNDAY_ITEMS, useChecklistStore } from '../stores/checklist-store'
 import { usePlayerStore } from '../stores/player-store'
-import { daysSince, MissionHeader, NeonBar } from '../ui'
+import { CheckRow, daysSince, EMPTY, MissionHeader, NeonBar } from '../ui'
 import { SchedulePage } from './Schedule'
 
 const REP_ICON = { silicon: Zap, deutsch: Languages, body: Dumbbell } as const
@@ -60,6 +61,7 @@ export function TodayPage() {
           <FloorCard />
           <Brief />
           <Findings />
+          <Rituals />
         </aside>
       </div>
       <details className="card today-cal">
@@ -113,7 +115,7 @@ function WelcomeBackCard() {
 
 /** Internship deadlines within 14 days, and prep tasks due this week. */
 function Deadlines() {
-  const d = usePlan((s) => s.today?.deadlines ?? [])
+  const d = usePlan((s) => s.today?.deadlines) ?? EMPTY
   const setTask = usePlan((s) => s.setTask)
   const setTab = useStore((s) => s.setTab)
   if (!d.length) return null
@@ -381,5 +383,26 @@ function Findings() {
           {f.papers.slice(0, 2).map((p) => <a key={p.id} href={p.url} target="_blank" rel="noreferrer" className="small">{p.title}</a>)}
         </div>))}
     </section>
+  )
+}
+
+/* ------------------------------------------------------------------ rituals (restored from the old HQ) */
+/** Overdrive (optional stretch items, reset daily) and the Sunday debrief (reset weekly). Collapsed by default. */
+function Rituals() {
+  const daily = useChecklistStore((s) => s.daily)
+  const weekly = useChecklistStore((s) => s.weekly)
+  const toggleDaily = useChecklistStore((s) => s.toggleDaily)
+  const toggleWeekly = useChecklistStore((s) => s.toggleWeekly)
+  const dDone = DAILY_ITEMS.filter((i) => daily[i.id]).length
+  const wDone = SUNDAY_ITEMS.filter((i) => weekly[i.id]).length
+  return (
+    <details className="card">
+      <summary className="card-title">Rituals · Overdrive {dDone}/{DAILY_ITEMS.length} · Sunday debrief {wDone}/{SUNDAY_ITEMS.length}</summary>
+      <p className="muted small">Overdrive is optional: the Floor keeps the streak. It resets at midnight; the Sunday debrief resets weekly.</p>
+      <span className="eyebrow">Overdrive</span>
+      {DAILY_ITEMS.map((i) => <CheckRow key={i.id} label={i.label} checked={!!daily[i.id]} onToggle={() => toggleDaily(i.id)} />)}
+      <span className="eyebrow">Sunday debrief</span>
+      {SUNDAY_ITEMS.map((i) => <CheckRow key={i.id} label={i.label} checked={!!weekly[i.id]} onToggle={() => toggleWeekly(i.id)} />)}
+    </details>
   )
 }

@@ -3,15 +3,19 @@
  * navigation, and renders the current screen. Mounted for any tab in the
  * 'mission' group; old tab ids land on the screen that absorbed them (ui.tsx).
  *
- *   Today   contracts + the day's blocks + the Floor + latest findings
- *   Tree    the skill tree (a DAG), career overlay, node details
+ *   Today   contracts + the day's blocks + the Floor + rituals + latest findings
+ *   Tree    the skill tree (a layered DAG you can pan, zoom and search), node details
  *   Focus   the Crucible and Drill
- *   Log     one log form, the gym, "what got in the way", GitHub
- *   Road    campaigns, certificates, the parking lot, trials, the War Chest
+ *   Log     one log form, learning, the gym, "what got in the way", GitHub proof
+ *   Road    plan, internships, certificates, Germany, money and rewards, the record
  *   (Settings in a drawer)
+ *
+ * Every screen sits in its own error boundary (Boundary.tsx), keyed by screen, so a
+ * bug shows a readable card on that screen instead of blanking the app.
  */
 import { useEffect } from 'react'
 import { useStore } from '../lib/store'
+import { MissionBoundary } from './Boundary'
 import { usePlan } from './game/plan'
 import { useGame } from './game/store'
 import { useMissionLoaded } from './hooks'
@@ -26,6 +30,7 @@ import { MissionNav, SCREEN_OF, type MissionScreen } from './ui'
 const PAGES: Record<MissionScreen, React.ComponentType> = {
   today: TodayPage, tree: TreePage, focus: FocusPage, log: LogPage, road: RoadPage,
 }
+const NAMES: Record<MissionScreen, string> = { today: 'Today', tree: 'Tree', focus: 'Focus', log: 'Log', road: 'Road' }
 
 export function MissionRoot() {
   const tab = useStore((s) => s.tab)
@@ -35,12 +40,15 @@ export function MissionRoot() {
     void useGame.getState().hydrate().then(() => usePlan.getState().refresh())
   }, [])
   const loaded = stores && game
-  const Page = PAGES[SCREEN_OF[tab] ?? 'today']
+  const screen = SCREEN_OF[tab] ?? 'today'
+  const Page = PAGES[screen]
   return (
     <div className="page mission fade-in">
       <MissionNav />
-      {loaded ? <Page /> : <div className="empty">Loading your mission…</div>}
-      <SettingsDrawer />
+      {loaded
+        ? <MissionBoundary key={screen} name={NAMES[screen]}><Page /></MissionBoundary>
+        : <div className="empty">Loading your mission…</div>}
+      <MissionBoundary name="Settings"><SettingsDrawer /></MissionBoundary>
     </div>
   )
 }

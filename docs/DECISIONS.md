@@ -674,7 +674,7 @@ before moving on.
 
 - **No automatic cross-account merging.** The thread folder prefix looked like a
   username, but it is derived from the display name: five different threads were all
-  "abhay", three inside the same account. Merging on that key would invent people.
+  one first name, three inside the same account. Merging on that key would invent people.
   Name collisions are surfaced as candidates instead of guessed.
 
 - **Tie strength.** My working hypothesis: *forwarding someone lots of reels does not
@@ -729,7 +729,7 @@ before moving on.
   thin — ~10k of the 110k).
 
 - **Perspective bugs.** Hinglish questions in the first person ("*mera* naam kya
-  hai?") were echoed back in the first person ("*mera* naam Amreesh hai"), and
+  hai?") were echoed back in the first person ("*mera* naam <my father's name> hai"), and
   excerpts labelled "Me:" were read as the assistant's own memories. Fixes: label my
   lines by name, an explicit perspective rule in the prompt, and a low-temperature
   model for memory-grounded turns. Mostly fixed; a 4B model still occasionally slips

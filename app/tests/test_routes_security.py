@@ -39,7 +39,7 @@ class FakeRun:
 @pytest.fixture
 def app_and_net(tmp_path, monkeypatch):
     monkeypatch.setattr(routes_security, "ROOT", tmp_path / "security")
-    app = create_app(Guard(8778, TOKEN, extra_hosts=["testserver"]), autostart_aankhen="off")
+    app = create_app(Guard(8778, TOKEN, extra_hosts=["testserver"]), autostart_aankhen="off", features=['security'])
     sec = app.state.security
     net = FakeRun()
     sec.checker.run = sec.run_cmd = net
@@ -129,9 +129,10 @@ def test_check_now_and_neighbors_use_the_lan(app_and_net):
 
 def test_the_loop_runs_with_the_app_and_never_touches_the_network_without_phones(app_and_net):
     app, net = app_and_net
+    app.state.security.TICK_S = 0.05                     # the loop's 1 s tick, shortened: same checks, 3 s less
     with TestClient(app) as c:
         c.headers.update({"X-Jarvis-Token": TOKEN})
-        time.sleep(1.5)
+        time.sleep(0.3)                                  # several ticks
         assert net.calls == []                           # nothing listed: nothing run
         net.home.add("192.168.1.23")
         c.post("/api/security/phones", json={"name": "Papa", "mac": PAPA_MAC})
@@ -140,7 +141,7 @@ def test_the_loop_runs_with_the_app_and_never_touches_the_network_without_phones
             time.sleep(0.1)
         assert app.state.security.checker.last is not None   # the background loop checked
     n = len(net.calls)
-    time.sleep(1.5)
+    time.sleep(0.3)
     assert len(net.calls) == n                           # and stopped with the app
 
 

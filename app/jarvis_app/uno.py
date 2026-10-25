@@ -171,8 +171,9 @@ class UnoRelays:
             self.state = {str(d): bool(v) for d, v in msg.items()}
         return msg
 
-    def _exchange(self, command: str, timeout: float = REPLY_S) -> Optional[dict]:
+    def _exchange(self, command: str, timeout: Optional[float] = None) -> Optional[dict]:
         """Write one command; the first state or error line that comes back."""
+        timeout = REPLY_S if timeout is None else timeout      # read at call time: tests shorten it
         try:
             self.ser.reset_input_buffer()
             self.ser.write((command + "\n").encode())

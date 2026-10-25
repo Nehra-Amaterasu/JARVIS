@@ -32,7 +32,7 @@ _I_DID = r"\bI(?:'ve| have)(?:\s+(?:just|now|already|also|successfully|gone ahea
 _I_WILL = (r"(?:\bI(?:'ll| will| shall)|\bI(?:'m| am) (?:going|about) to|\blet me)"
            r"(?:\s+(?:just|now|also|go ahead and|quickly|right away|immediately|happily|gladly|definitely|"
            r"certainly|make sure to|be sure to))*\s+")
-_I_PAST = r"\bI(?:\s+(?:just|also|already))?\s+"
+_I_PAST = r"\bI(?:\s+(?:just|also|already|went ahead and))?\s+"
 _I_ING = r"\bI(?:'m| am)(?:\s+(?:now|currently|already|also))*\s+"
 _I_CAN = (r"(?:\bI can|\bI could|\bI'd be happy to|\bhappy to|\bshall I|\bshould I|\bwant me to|"
           r"\bwould you like me to|\bdo you want me to|\bI(?:'m| am) able to)\s+(?:also\s+|just\s+)?")
@@ -42,7 +42,9 @@ _DEV = (r"(?:\s+(?:off|on|down|up))?\s+(?:(?:the|your|all\s+the|both(?:\s+the)?|
         r"geyser|heater|everything|it|them)\b)")
 # The only things a switch tool can reach. A switch claim about anything else (the AC,
 # the TV, the geyser) gets "I can't control that", not "say 'light off'".
-_REACHABLE = re.compile(r"\b(?:lights?|lamps?|bulbs?|fans?|scene|mode)\b", re.I)
+# "everything" is the set_device "all" target; pankha/batti are the Hinglish fan/light
+# (10-23 suite: "I've switched everything off" earned "I can't control that").
+_REACHABLE = re.compile(r"\b(?:lights?|lamps?|bulbs?|fans?|scene|mode|everything|pankha|pankhe|batti)\b", re.I)
 _REM = r"(?:\s+(?:up|you))?\s+(?:a|an|the|your|that|this|one)?\s*(?:[\w-]+\s+){0,2}?(?:reminders?|alarms?|timers?)\b"
 _MEDIA = (r"(?=.{0,40}\b(?:music|songs?|tracks?|playlists?|albums?|videos?|something|lo-?fi|beats|radio|"
           r"podcasts?|spotify|youtube|for you)\b)")
@@ -53,8 +55,12 @@ _MEDIA_FAR = (r"(?=.{0,90}\b(?:music|songs?|tracks?|playlists?|albums?|videos?|s
 # "Promise" claims: work JARVIS would do on his own, later, or on hardware no tool reaches.
 # 10-14: a reply promised to run a diagnostic on a board and to report back in a few
 # minutes; he has no background jobs and no follow-ups: a reply ends and nothing more happens.
-_LATER = (r"(?:in|within|after)\s+(?:a\s+(?:few|couple(?:\s+of)?)\s+|\d+\s+|one\s+|two\s+|three\s+|five\s+|"
-          r"ten\s+|a\s+)?(?:minutes?|mins?|seconds?|secs?|hours?|moments?)\b")
+_LATER = (r"(?:(?:in|within|after)\s+(?:a\s+(?:few|couple(?:\s+of)?)\s+|\d+\s+|one\s+|two\s+|three\s+|five\s+|"
+          r"ten\s+|a\s+)?(?:minutes?|mins?|seconds?|secs?|hours?|moments?)\b"
+          # 10-23 adversarial suite: "I'll get back to you tomorrow" was caught by its verb,
+          # but "I'll ask you about it tomorrow" and "I'll look into it overnight" were not.
+          r"|tomorrow\b|tonight\b|overnight\b|later(?!\s+than)\b|next\s+time\b|"
+          r"(?:in\s+the|this)\s+(?:morning|afternoon|evening)\b|when\s+(?:it'?s|that'?s|I'?m)\s+(?:done|finished|ready)\b)")
 _FIX_VERB = (r"(?:reset|reboot|restart|reflash|repair|fix|update|upgrade|reprogram|recalibrate|adjust|tune|"
              r"reconfigure)")
 # Control claims ("I've paused the music", "Skipped to the next track") name what they
@@ -73,6 +79,19 @@ _BODY = (r"(?:elbows?|knees?|shoulders?|wrists?|fingers?|thumbs?|palms?|fists?|n
 # degrees", "ideally, knees at 90 degrees", "if your back is at 30 degrees...".
 _NOT_ADVICE = (r"^(?!\W*(?:keep|hold|try|make sure|bend|raise|lower|sit|stand|put|place|rest|aim|set|stretch|"
                r"ideally|if|when|while|always|never|don't|do not|you should|you could|it helps)\b)[^.?!]*?\b")
+# Hinglish replies (10-23 suite): "maine light band kar di", "message bhej diya", "reminder
+# laga diya" claim the same actions in romanised Hindi; a "nahi"/"mat" anywhere is a negation.
+_HI_NEG = r"^(?!.*\b(?:nahi|nahin|nhi|mat|na)\b)"
+_HI_DONE = r"\s*(?:kar\s*)?(?:di|diya|diye|dia|dee|de\s+di(?:ya)?|chuka|chuki|chuke)\b"
+_HI_DEV = r"\b(?:lights?|fans?|pankha|pankhe|bulb|batti|sab\s*kuch|sab)\b"
+# Speech that names a command for him to say is an instruction, not a claim: 'If you say
+# "fan on", I'll switch it on' and 'Say "remind me at 9" and I'll set it' were replaced
+# by "I haven't switched anything yet" (10-23 suite). Only this instruction form is spared;
+# "When you're back, I'll turn the light on" stays a promise.
+_INSTRUCTION = re.compile(r"^\W*(?:(?:if|when|whenever|once|as soon as)\s+you\s+(?:say|tell me|ask|type|press|tap|click)"
+                          r"|(?:just\s+)?(?:say|tell me|ask me|type)\s+[\"“'])", re.I)
+_LEVEL = (r"(?:\d{1,3}\s*(?:%|per\s?cent\b)|(?:speed|level|setting|notch)\s+\d\b|\d\b|half\b|low\b|medium\b|"
+          r"max(?:imum)?\b|full\s+speed\b|full\s+brightness\b)")
 
 
 def _rx(*parts: str) -> list:
@@ -82,12 +101,15 @@ def _rx(*parts: str) -> list:
 # kind -> (assertion patterns, offer patterns)
 KINDS: dict[str, tuple[list, list]] = {
     "switch": (_rx(
-        _I_DID + r"(?:turned|switched|shut|dimmed|brightened|powered|set)" + _DEV,
-        _I_WILL + r"(?:turn|switch|shut|dim|brighten|power|set)" + _DEV,
-        _I_PAST + r"(?:turned|switched|dimmed|brightened|powered)" + _DEV,
+        _I_DID + r"(?:turned|switched|shut|dimmed|brightened|powered|set|killed|flipped)" + _DEV,
+        _I_WILL + r"(?:turn|switch|shut|dim|brighten|power|set|flip)" + _DEV,
+        _I_PAST + r"(?:turned|switched|dimmed|brightened|powered|killed|flipped)" + _DEV,
         _I_ING + r"(?:turning|switching|shutting|dimming|brightening|powering|setting)" + _DEV,
-        r"^\W*(?:lights?|fan|lamp|everything)\s+(?:off|on)\b[.!]*\s*$",
-        r"\b(?:lights?|lamp|fan|ac|tv)\s+(?:has|have)\s+been\s+(?:turned|switched|set|dimmed)\b",
+        r"^\W*(?:(?:ok(?:ay)?|sure|right|alright|done|there you go|ho gaya|theek hai)\W+)?"
+        r"(?:lights?|fan|lamp|everything)\s+(?:off|on|band|chalu)\b(?:\s*,?\s*sir)?[.!]*\s*$",
+        r"\b(?:lights?|lamp|fan|ac|tv)(?:\s+(?:has|have)|'s|'ve)\s+been\s+(?:turned|switched|set|dimmed)\b",
+        _HI_NEG + r".*" + _HI_DEV + r"[^.?!]{0,25}?\b(?:band|chalu|on|off|bujha|jala)" + _HI_DONE,
+        _HI_NEG + r".*" + _HI_DEV + r"[^.?!]{0,25}?\b(?:band|chalu|on|off)\s+ho\s+(?:gaya|gayi|gaye|chuka|chuki)\b",
         # Narrated as done, no "I": "Set the air conditioner to 24 degrees." (live run, 10-12)
         r"^\W*(?:turned|switched|set|dimmed|brightened)\s+(?:off\s+|on\s+)?(?:the\s+|your\s+)?"
         r"(?:lights?|lamps?|fans?|ac|air[- ]?conditioner|tv|television|geyser|heater)\b",
@@ -105,12 +127,21 @@ KINDS: dict[str, tuple[list, list]] = {
         r"^\W*(?!if\b|when\b|once\b|whenever\b|while\b|unless\b|until\b).{0,30}?\b(?:the|your)\s+room"
         r"(?:\s+temperature)?\s+(?:is|should|will|would)\s+(?:now\s+)?(?:be\s+)?(?:now\s+)?(?:\w+\s+)?"
         r"(?:cool|cooler|warm|warmer|dark|darker|bright|brighter|lit|dim|dimmer|regulated|comfortable)\b",
+        # 10-23 suite: "The fan's off now.", "Lights are off now, sir.", "Your light is switched
+        # off.", "Everything's off now." said the same without "is" or without "the".
+        r"^\W*(?:(?:ok(?:ay)?|sure|right|alright|all done|done|good news|great)\W+)?(?:(?:the|your)\s+)?(?:room\s+)?"
+        r"(?:both\s+)?(?:lights?|lamps?|fans?|everything)(?:\s+and\s+(?:the\s+)?(?:lights?|fans?))?"
+        r"(?:\s+(?:is|are)|'s|'re|\s+(?:has|have)\s+been|'s\s+been)\s+(?:now\s+|already\s+|all\s+|both\s+)?"
+        r"(?:(?:switched|turned|shut)\s+(?:off|on)\b|out\b(?!\s+of)|(?:off|on)\b(?!\s+(?:a|an|the|your|my|his|its|this|"
+        r"that|our|one|two|track|schedule|time|hold|it|me|you)\b))",
         # "The room will dim and the fan will slow" (live run, 10-12)
         r"^\W*(?!if\b|when\b|once\b|whenever\b|while\b|unless\b|until\b).{0,30}?\b(?:the|your)\s+"
         r"(?:room|lights?|lamp|fan)\s+will\s+(?:now\s+)?(?:dim|brighten|slow|speed up|turn|switch|go)\b",
     ), []),
     "reminder": (_rx(
-        _I_DID + r"(?:set|added|created|scheduled|made|put in|saved|booked)" + _REM,
+        _I_DID + r"(?:set|added|created|scheduled|made|put in|put|saved|booked)" + _REM,
+        _HI_NEG + r".*\b(?:reminders?|alarms?|timers?)\b[^.?!]{0,25}?\b(?:laga|lag|set|bana)\s*(?:kar\s*)?"
+        r"(?:di|diya|dia|diye|gaya|gayi|chuka|chuki)\b",
         _I_WILL + r"(?:remind|wake|ping|nudge|alert|notify|buzz)\s+you\b",
         _I_WILL + r"(?:set|add|create|schedule|make|put in|start)" + _REM,
         _I_WILL + r"(?:let you know|tell you)\s+(?:at|when|in|tomorrow|tonight|later|before|after)\b",
@@ -120,6 +151,8 @@ KINDS: dict[str, tuple[list, list]] = {
     ), _rx(_I_CAN + r"(?:remind|wake|set|add|create|schedule)\b")),
     "schedule": (_rx(
         _I_DID + r"(?:scheduled|arranged|booked in|lined up|queued up)\b",
+        _I_DID + r"(?:added|put|saved|entered|pencilled)\s+(?:it|that|this|them)\s+(?:in\s+)?(?:to|in|on|into)\s+"
+        r"(?:your|the|my)\s+(?:calendar|diary|schedule|planner|to-?do(?:\s+list)?)\b",
         _I_WILL + r"(?:schedule|arrange|line up)\b",
         _I_ING + r"(?:scheduling|arranging)\b",
         r"\b(?:is|are|has been|have been)\s+(?:now\s+)?scheduled\b",
@@ -138,6 +171,7 @@ KINDS: dict[str, tuple[list, list]] = {
         _I_DID + r"passed\s+(?:it|that|this|the message|your message)(?:\s+on)?\b",
         _I_ING + r"(?:sending|messaging|texting|emailing|forwarding|calling|phoning)" + _NOT_YOU,
         r"\b(?:message|text|email|e-mail|whatsapp|sms)\s+(?:has\s+been\s+|was\s+|is\s+)?(?:sent|delivered)\b",
+        _HI_NEG + r".*\b(?:message|msg|text|sms|whatsapp|mail|email)\b[^.?!]{0,25}?\b(?:bhej|send|forward)" + _HI_DONE,
     ), _rx(_I_CAN + r"(?:send|message|text|email|e-mail|forward|call|ring|phone|whatsapp|" + _TELL + r"|inform|"
            r"notify|let\s+(?!you\b)\w+(?:\s+\w+)?\s+know)\b" + _NOT_YOU)),
     "track": (_rx(
@@ -214,6 +248,9 @@ KINDS: dict[str, tuple[list, list]] = {
         # Live run, 10-14, with no sensor line in the prompt: "By my sensors, you're at your
         # desk, typing" — the persona's hedge, used to report what nothing reported.
         r"\b(?:by my sensors|aankhen (?:reckons|confirms|reports|says))\b[^.?!]{0,30}?\byou(?:'re|\s+are|\s+were)\b",
+        # 10-23 suite: "You're standing by the window." reported where he is with no "I see".
+        r"^\W*(?:(?:sir|aman)\W+)?you(?:'re|\s+are)\s+(?:now\s+|still\s+|currently\s+|probably\s+)?(?:sitting|standing|"
+        r"lying|lounging|pacing|asleep|sleeping|at\s+(?:the|your)\s+desk|in\s+bed|on\s+the\s+(?:bed|sofa))\b",
     ), []),
     "lookup": (_rx(
         r"\blet me (?:just\s+)?(?:check|find out|have a look|take a look|look into|pull (?:that|it) up)\b[^.?!,]*[,.]?",
@@ -243,6 +280,39 @@ KINDS: dict[str, tuple[list, list]] = {
         r"\b(?:aankhen|my sensors|the sensors|my staff|I can see|I see|I notice|I spot|I detect)\b[^.?!]{0,80}?"
         r"\b(?:head is|head's|eyes are|eyes fixed|eyes glued|gaze|staring|tilted|leaning|slouch\w*|hunch\w*|"
         r"frown\w*|smil\w*|fingers?|elbows?|posture|face)\b",
+        # Distances (10-23 suite): "You're about 2 metres from the router." One Wi-Fi link
+        # gives a zone at best, never a range in metres.
+        r"\byou(?:'re|\s+are)\s+(?:\w+\s+){0,2}?(?:about\s+|around\s+|roughly\s+|nearly\s+|only\s+|just\s+|"
+        r"less\s+than\s+|more\s+than\s+|under\s+|over\s+)?(?:\d+(?:\.\d+)?|one|two|three|four|five|six|half\s+a|a)\s*"
+        r"(?:m|metres?|meters?|cm|centimetres?|centimeters?|feet|foot|ft|steps?)\b(?:\s+away)?\s+(?:from|away|to|of)\b",
+        # Postures: which side he lies on, legs crossed, slouching.
+        r"^(?!\W*(?:if|when|while|whenever)\b)[^.?!]*\byou(?:'re|\s+are)\s+(?:\w+\s+){0,2}?(?:lying|sleeping|sitting|"
+        r"lounging)\s+(?:on\s+your\s+(?:left|right|back|front|side|stomach|belly)\b|cross-?legged\b|with\s+your\s+"
+        r"(?:legs|arms|feet)\s+(?:crossed|up|out)\b)",
+        r"^(?!\W*(?:if|when|while|whenever)\b)[^.?!]*\byou(?:'re|\s+are)\s+(?:\w+\s+)?(?:slouch\w*|hunch\w*|"
+        r"leaning\s+(?:back|forward|left|right|in)\b|curled\s+up\b)",
+    ), []),
+    # A level the relays cannot set. They only SWITCH (limbs.py): no brightness, no fan
+    # speed; the fan's speed is its wall regulator's. No tool backs this kind, so even a
+    # real switch receipt never makes "I've dimmed the light to 40 percent" true.
+    "level": (_rx(
+        _NOT_ADVICE + r"(?:brightness|fan(?:'s)?\s+speed|speed\s+of\s+the\s+fan)\s+(?:is\s+(?:now\s+)?(?:set\s+)?|"
+        r"has\s+been\s+(?:set|changed|lowered|raised|reduced|increased)\s+|(?:now\s+)?set\s+|now\s+)(?:to\s+|at\s+)?"
+        r"(?:about\s+)?" + _LEVEL,
+        r"(?:" + _I_DID + r"|" + _I_WILL + r"|" + _I_PAST + r"|" + _I_ING + r")(?:lowered|raised|reduced|increased|changed|"
+        r"adjusted|dropped|bumped(?:\s+up)?|turned\s+(?:up|down)|lower|raise|reduce|increase|change|adjust|drop|bump|"
+        r"turn\s+(?:up|down)|lowering|raising|reducing|increasing|adjusting)\s+(?:the\s+|your\s+)?(?:room'?s?\s+)?"
+        r"(?:fan(?:'s)?\s+speed|speed\s+of\s+the\s+fan|brightness|light(?:'s)?\s+brightness)\b",
+        r"(?:" + _I_DID + r"|" + _I_WILL + r"|" + _I_PAST + r"|" + _I_ING + r")(?:set|dimmed|dim|dimming|turned|turn|"
+        r"turning|brought|bring|put|setting)\s+(?:the\s+|your\s+)?(?:lights?|lamp|fan)\s+(?:down\s+|up\s+)?(?:to|at)\s+"
+        r"(?:about\s+|around\s+)?" + _LEVEL,
+        r"(?:" + _I_DID + r"|" + _I_PAST + r")(?:turned|brought)\s+(?:the\s+|your\s+)?(?:lights?|lamp|fan)\s+(?:down|up)\s+"
+        r"(?:a\s+(?:notch|bit|little|touch)|slightly)\b",
+        r"(?:" + _I_DID + r"|" + _I_WILL + r"|" + _I_PAST + r")(?:turned|brought|turn|bring|knocked|knock)\s+(?:the\s+|your\s+)?"
+        r"(?:brightness|fan(?:'s)?\s+speed)\s+(?:down|up)\b",
+        r"^\W*(?!if\b|when\b|once\b|whenever\b|while\b|unless\b|until\b).{0,30}?\b(?:the|your)\s+(?:lights?|lamp|fan)"
+        r"(?:\s+(?:is|are)|'s)\s+(?:now\s+)?(?:on\s+)?(?:at|on|running\s+at|set\s+to|spinning\s+at)\s+(?:about\s+)?"
+        + _LEVEL,
     ), []),
     # Work on his own, later, or on hardware no tool reaches. No tool backs this kind, so a
     # claim is always replaced (registry.CANNOT puts the same rule in the persona).
@@ -257,8 +327,12 @@ KINDS: dict[str, tuple[list, list]] = {
         _I_DID + r"(?:checked|scanned|tested|probed|pinged)\s+(?:the|your)\s+(?:[\w-]+\s+){0,2}?(?:ports?|boards?|"
         r"devices?|connection|firmware|esp32[\w-]*|uno|arduino|sensors?|drivers?|serial|com\s?\d+|wiring|relays?)\b",
         # "I'll ... in two minutes", unless it is a reminder or a timed switch a tool sets.
-        r"\b(?:I'll|I will|I shall)\b(?![^.?!]{0,60}\b(?:remind|wake|alert|ping|notify|alarm|timer|turn|switch|set)\b)"
-        r"[^.?!]{0,60}\b" + _LATER,
+        r"\b(?:I'll|I will|I shall)\b(?![^.?!]{0,60}\b(?:remind(?!\s+myself)|wake|alert|ping|notify|alarm|timer|turn|"
+        r"switch|set)\b)[^.?!]{0,60}\b" + _LATER,
+        # Hinglish: "main baad mein check karke bataunga".
+        r"\b(?:baad\s+mein|baad\s+me|kal|thodi\s+der\s+(?:mein|me)|shaam\s+ko|raat\s+ko)\b[^.?!]{0,40}?\b\w+(?:unga|ungi|"
+        r"denge|dunga|dungi)\b",
+        r"\b(?:check|pata)\s+kar\s*(?:ke|key)\s+bata(?:unga|ungi|denge|ta\s+hoon)\b",
     ), []),
     "generic": (_rx(
         r"^\W*(?:done|all done|all set|consider it done|sorted|right away|on it|will do|it'?s done|that'?s done|"
@@ -285,6 +359,8 @@ HAVENT = {
     "media": "I haven't played or changed anything yet; say \"play\" and the song, for example \"play Blinding "
              "Lights\".",
     "web": "I haven't done that.",
+    "level": "The relays only switch the light and fan on or off; there is no dimmer, and the fan's speed is on "
+             "your wall regulator.",
     "generic": "I haven't done anything yet.",
     "lookup": "",
 }
@@ -305,12 +381,17 @@ CANNOT_SAY = {
            "online is a song: say \"play\" and its name.",
     "media": "I can't play music or videos yet.",
     "promise": "I can't do that on my own or come back to you later; I only act while you're talking to me.",
+    "level": "The relays only switch the light and fan on or off; there is no dimmer, and the fan's speed is on "
+             "your wall regulator.",
     "memory": "I haven't saved that. Say \"remember that …\" and I'll keep it.",
     "presence": "I can't see who is in the room right now.",
     "generic": "I haven't done anything yet.",
     "lookup": "",
 }
 UNREACHABLE = "I can't control that from here; I can only switch the room's light and fan."
+# kind -> kinds whose correction, in the same sentence, already covers it (check()).
+SUBSUMED_BY = {"switch_state": {"switch", "level"}, "switch": {"level"}, "presence": {"perception"},
+               "promise": {"track"}}
 _LIGHTISH = re.compile(r"\b(?:dark|darker|bright|brighter|lit|dim|dimmer)\b", re.I)   # "the room is dark": the light
 SIM_NOTE = {"switch": "Virtual room only; no relay board is connected.",
             "switch_state": "Virtual room only; no relay board is connected."}
@@ -368,6 +449,8 @@ def claims(sentence: str) -> list[tuple[str, str]]:
     if not s:
         return []
     question = s.rstrip().endswith("?")
+    if _INSTRUCTION.search(s):
+        s = re.sub(r"\bI(?:'ll| will| shall)\b", "I would", s)   # a promise on his word, not a claim
     found = []
     for kind, (asserts, offers) in KINDS.items():
         if not question and any(p.search(s) for p in asserts):
@@ -556,6 +639,12 @@ def check(text: str, registry: Registry, receipts: list[Receipt], log: Optional[
             # "Done" next to a specific correction (or after one) adds nothing but noise.
             if len(replace) > 1 or state.get("corrected"):
                 replace = [(k, ln) for k, ln in replace if k != "generic"] or []
+            # One sentence, one correction: the more specific line already says the rest
+            # ("Fan's been turned off" is a switch AND a state claim; "lying on your left
+            # side" is presence AND perception). Two lines for one sentence read as nagging.
+            kinds = {k for k, _ in replace}
+            # A rescue's line (what the board really says) is news and always stays.
+            replace = [(k, ln) for k, ln in replace if ln in fresh or not (SUBSUMED_BY.get(k, set()) & kinds)]
             lines = [ln for ln in dict.fromkeys(ln for _, ln in replace)
                      if ln and ln not in said and (ln in fresh or not _said_lately(ln))]
             said.update(lines)

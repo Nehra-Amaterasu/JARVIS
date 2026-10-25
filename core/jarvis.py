@@ -157,7 +157,14 @@ print("1. Loading Whisper STT (large-v3-turbo on GPU, int8_float16)...")
 # which the room-command keyword matching in agent.py depends on ("turn off light").
 # Pinning hi would render those in Devanagari and silently break light control.
 appio.emit("boot", step="whisper", text_only=TEXT_ONLY)
-model = None if TEXT_ONLY else WhisperModel("large-v3-turbo", device="cuda", compute_type="int8_float16")
+# 10-25: CUDA failing to start (the dGPU powered down at boot) killed this import every
+# restart. whisper_load falls back to the CPU and retries the GPU every 10 min; the app
+# shows "voice on CPU (GPU unavailable)" from the stt event.
+import whisper_load
+model = None if TEXT_ONLY else whisper_load.WhisperOnDevice(WhisperModel)
+if model is not None:
+    appio.emit("stt", **model.status())
+    model.start_gpu_retry(lambda m: appio.emit("stt", **m.status()))
 
 def _hear_phone(cmd: dict) -> None:
     """A recording from his phone (the app's /api/phone/hear): transcribe it with the

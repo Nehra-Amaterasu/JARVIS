@@ -185,7 +185,9 @@ def test_a_virtual_room_is_said_once_at_the_end():
 
 def test_no_virtual_note_when_the_reply_already_says_so():
     r = [ok("set_device", ("switch", "switch_state"), simulated=True)]
-    text = "The light is now at 60 per cent. This was simulated in the virtual room."
+    # (Was "now at 60 per cent" until 10-23: the relays are on/off only, so a level is
+    # never true, and the "level" kind now replaces it whatever the receipt.)
+    text = "The light is now on. This was simulated in the virtual room."
     assert honesty.check(text, REG, r) == text
     g = honesty.Guard(REG, r)
     assert feed_all(g, text) == text

@@ -32,7 +32,7 @@ def setup(tmp_path, monkeypatch):
     monkeypatch.setattr(phone, "DEVICES_FILE", tmp_path / "devices.json")
     monkeypatch.setattr(phone, "INBOX", tmp_path / "inbox")
     guard = Guard(8777, TOKEN, extra_hosts=["testserver"])
-    app = create_app(guard, autostart_aankhen="off")
+    app = create_app(guard, autostart_aankhen="off", features=['phone', 'security'])
     access = app.state.phone
     access.config_path = tmp_path / "config.json"
     access.devices = phone.DeviceStore(tmp_path / "devices.json")

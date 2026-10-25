@@ -311,6 +311,15 @@ def set_scene(ctx: ToolContext, scene: str) -> Receipt:
         shown = list(mode.get("resolved") or state)
         did = f"{mode.get('name') or _SCENE_SAY.get(scene, scene)}: " + " ".join(
             _say_device(d, state.get(d, {})) for d in shown)
+        # The same rule as set_device: with a board linked, a relay the board did not
+        # confirm makes the receipt a failure (until 10-23 a mode's receipt was ok here,
+        # so "I've set Deep focus" was backed while a relay had not moved).
+        delivered = res.get("delivered") or {}
+        failed = [d for d, ok in delivered.items() if not ok]
+        if failed and usb:
+            return Receipt("set_scene", "T1", False, did + f" Saved, but the relay board did not take it for "
+                           f"{', '.join(failed)}.", source="app · Limbs (relay board over USB)",
+                           error="relay not delivered", data={"state": state, "delivered": delivered})
         return Receipt("set_scene", "T1", True, did + ("" if usb else " " + VIRTUAL_NOTE),
                        source="app · Limbs " + ("(relay board over USB)" if usb else "(virtual room)"),
                        simulated=not usb, backs=("switch", "switch_state"), data={"state": state})

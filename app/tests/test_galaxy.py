@@ -504,6 +504,6 @@ def test_growth_route(client):
 def test_the_app_discovers_the_galaxy_routes():
     from jarvis_app.security import Guard
     from jarvis_app.server import create_app
-    app = create_app(Guard(8777, "t" * 20, extra_hosts=["testserver"]), autostart_aankhen="off")
+    app = create_app(Guard(8777, "t" * 20, extra_hosts=["testserver"]), autostart_aankhen="off", features=['galaxy'])
     paths = {getattr(r, "path", "") for r in app.routes}
     assert {"/api/galaxy", "/api/galaxy/node", "/api/galaxy/growth"} <= paths

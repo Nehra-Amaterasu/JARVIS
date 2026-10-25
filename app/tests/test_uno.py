@@ -11,6 +11,14 @@ from jarvis_app.limbs import Limbs
 
 
 @pytest.fixture(autouse=True)
+def _short_waits(monkeypatch):
+    """A deaf fake answers nothing at once; waiting the real 4 s banner and 1.5 s reply
+    windows for that cost 7 s a run (10-23 audit). The logic is the same with 50 ms."""
+    monkeypatch.setattr(uno, "BANNER_S", 0.05)
+    monkeypatch.setattr(uno, "REPLY_S", 0.05)
+
+
+@pytest.fixture(autouse=True)
 def _no_claims_leak():
     from aankhen import transport
     transport.CLAIMED_PORTS.clear()

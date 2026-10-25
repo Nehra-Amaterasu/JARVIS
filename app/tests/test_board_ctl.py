@@ -481,7 +481,7 @@ TOKEN = "test-token-board"
 
 @pytest.fixture
 def client(tmp_path, fw):
-    app = create_app(Guard(8781, TOKEN, extra_hosts=["testserver"]), autostart_aankhen="off")
+    app = create_app(Guard(8781, TOKEN, extra_hosts=["testserver"]), autostart_aankhen="off", features=['board_ctl'])
     with TestClient(app) as c:
         c.headers.update({"X-Jarvis-Token": TOKEN})
         ctl = c.app.state.board_ctl

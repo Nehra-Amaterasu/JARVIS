@@ -90,6 +90,9 @@ class CoreProcess:
         self.stop_hooks: list = []               # called after a deliberate stop (routes_alwayson)
         self._restart_timer = None
         self.schedule = _timer
+        # Where his Whisper runs (core/whisper_load.py): {"device": "cuda"|"cpu", "gpu_error"}.
+        # On the CPU the UI says "voice on CPU (GPU unavailable)" instead of a bare state.
+        self.stt: Optional[dict] = None
 
     # ------------------------------------------------------------ control
     @property
@@ -174,9 +177,17 @@ class CoreProcess:
             self._log(f"[app] crash log write failed: {e}")
         delay = self.budget.next_delay(ran)
         if delay is None:
+            # The hourly cap is spent. Until 10-25 that was the end: a boot-time fault that
+            # cleared later (the GPU waking up) left him dead until someone pressed Start.
+            # One more try once the oldest restart leaves the hour keeps the cap of
+            # max_per_hour and still brings him back without a person.
             self.gave_up_at = now
+            wait = max(300.0, self.budget.wait_until_allowed())
+            self.restart_due_at = now + wait
             self.bus.publish("core", "gave_up", f"JARVIS keeps crashing: {self.budget.max_per_hour} restarts in an "
-                             "hour. Not restarting; see core_crashes.log", exit_code=code)
+                             f"hour. Trying again in {wait / 60:.0f} min; see core_crashes.log", exit_code=code,
+                             retry_s=round(wait))
+            self._restart_timer = self.schedule(wait, self._auto_restart)
             return
         self.restart_due_at = now + delay
         self.bus.publish("core", "restarting", f"JARVIS exited ({code}); restarting in {delay:.0f} s",
@@ -315,6 +326,14 @@ class CoreProcess:
                                  mode=ev.get("mode"), boot_s=round(took, 1))
             elif kind == "state":
                 self._set_state(ev.get("state", "idle"), saying=ev.get("text"))
+            elif kind == "stt":
+                was = (self.stt or {}).get("device")
+                self.stt = {"device": ev.get("device"), "gpu_error": ev.get("gpu_error"), "model": ev.get("model")}
+                if self.stt["device"] == "cpu":
+                    self.bus.publish("core", "stt_cpu", "Voice on CPU (GPU unavailable): hearing is slower until "
+                                     "the GPU is back", error=ev.get("gpu_error"))
+                elif was == "cpu":
+                    self.bus.publish("core", "stt_gpu", "The GPU is back: voice on the GPU again")
             elif kind == "wake":
                 self.bus.publish("core", "wake", "Wake word heard", score=ev.get("score"))
             elif kind == "level":
@@ -408,10 +427,22 @@ class CoreProcess:
                 "room": dict(self.room),
                 "mqtt": self.mqtt,
                 "session": self.session,
+                "stt": dict(self.stt) if self.stt and self.running else None,
+                "status_line": self._status_line(),
                 "supervisor": {"on": self.supervise, "wanted": self.wanted, "restarts": self.restarts,
                                "restarts_last_hour": self.budget.used_last_hour(),
                                "restart_due_at": self.restart_due_at, "gave_up_at": self.gave_up_at},
             }
+
+    def _status_line(self) -> str:
+        """What the window says about him, in words (the caller holds the lock)."""
+        if not self.running:
+            if self.restart_due_at:
+                return f"Offline: restarting in {max(0, round(self.restart_due_at - time.time()))} s"
+            return "Offline" + (": " + self.last_error[:120] if self.last_error else "")
+        if self.stt and self.stt.get("device") == "cpu":
+            return "Voice on CPU (GPU unavailable)"
+        return self.state
 
     def note_remark(self, text: str, reason: str = "proactive") -> dict:
         """A line JARVIS said on his own (an unprompted remark): kept in the transcript

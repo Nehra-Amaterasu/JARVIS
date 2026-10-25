@@ -1,0 +1,25 @@
+# Reviewed exceptions for tests/repo_privacy.py, one per line:
+#   <kind> <hash12> [path]     a path limits the exception to that one file
+# Hashes only (sha256 of the lower-cased value, first 12 hex): never the value itself.
+# Reviewed 2026-10-23 by hand against the private store.
+
+# His own first name (the repo's author and subject; public)
+name 180d803a580f
+
+# Matched a public name, not a contact: an Edge TTS voice, singers and textbook authors
+name ee30c7e3b7fd core/voice.py
+name ee30c7e3b7fd app/tests/test_voice.py
+name ee30c7e3b7fd docs/DECISIONS.md
+name f4d25158ccdd
+name 61fbd0ff6853
+name ebe475f8e605 app/ui/src/germoney/data/bank/math-track.json
+name 265719f4e7ee app/ui/src/germoney/data/bank/math-track.json
+name e0d768097109
+# an English word in prose ("paragraphs"), same spelling as a contact's name
+name 04c013432ea3 yaadash/library.py
+name 04c013432ea3 yaadash/tests/library_corpus.py
+
+# Still to remove (marked P-E-N-D-I-N-G): real personal data in files another workstream owns; remove the value, then the line here
+name 1e0c88e6f39b yaadash/legacy/ingest_project_ground_truths.py   # PENDING a friend's first name (2 lines)
+name 1e0c88e6f39b yaadash/legacy/mine_agent_transcripts.py         # PENDING the same first name (1 line)
+name 4f7b590b3017 yaadash/yaadash_archive.py                       # PENDING a friend's username prefix in a comment

@@ -286,7 +286,7 @@ def test_state_says_what_windows_says(player):
 # ------------------------------------------------------------------ over HTTP
 @pytest.fixture
 def client(tmp_path):
-    app = create_app(Guard(8778, TOKEN, extra_hosts=["testserver"]), autostart_aankhen="off")
+    app = create_app(Guard(8778, TOKEN, extra_hosts=["testserver"]), autostart_aankhen="off", features=['media'])
     p = app.state.media
     p.library = MusicLibrary(tmp_path / "media" / "library.json")
     p.root = tmp_path / "media"

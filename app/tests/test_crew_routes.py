@@ -27,7 +27,7 @@ def ollama(monkeypatch):
 
 @pytest.fixture
 def client(ollama):
-    app = create_app(Guard(8779, TOKEN, extra_hosts=["testserver"]), autostart_aankhen="off")
+    app = create_app(Guard(8779, TOKEN, extra_hosts=["testserver"]), autostart_aankhen="off", features=['crew'])
     with TestClient(app) as c:
         c.headers.update({"X-Jarvis-Token": TOKEN})
         yield c
@@ -121,7 +121,7 @@ def test_errors_in_the_transcripts_reach_the_steward(client):
 
 
 def test_the_crew_starts_and_stops_with_the_app(ollama):
-    app = create_app(Guard(8779, TOKEN, extra_hosts=["testserver"]), autostart_aankhen="off")
+    app = create_app(Guard(8779, TOKEN, extra_hosts=["testserver"]), autostart_aankhen="off", features=['crew'])
     crew = app.state.svc.crew
     assert not crew.running
     with TestClient(app):

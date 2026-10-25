@@ -32,7 +32,11 @@ from dataclasses import dataclass, field
 from typing import Callable, Optional
 
 import numpy as np
-from scipy.optimize import linear_sum_assignment
+# Imported on first use, not here: scipy.optimize costs ~1.4 s of the app's start
+# (measured 10-25 with -X importtime) and the matcher only runs once a board streams.
+def linear_sum_assignment(cost):
+    from scipy.optimize import linear_sum_assignment as lsa
+    return lsa(cost)
 
 CHI2_2DOF_99 = 9.21
 

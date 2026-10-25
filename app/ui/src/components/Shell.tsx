@@ -53,9 +53,10 @@ export function TitleBar() {
     <header className="titlebar pywebview-drag-region">
       <div className="tb-left">
         <span className="wordmark display">Jarvis</span>
-        <span className={`core-chip ${tone}`} title="JARVIS state">
+        <span className={`core-chip ${tone}`} title={core?.status_line || 'JARVIS state'}>
           <i className="led" />
           {core ? STATE_LABEL[core.state] ?? core.state : 'Connecting'}
+          {core?.running && core.stt?.device === 'cpu' && <em title={core.stt.gpu_error ?? ''}>voice on CPU (GPU unavailable)</em>}
           {core?.running && core.mode && <em>{core.mode}</em>}
         </span>
       </div>

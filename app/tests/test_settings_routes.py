@@ -107,7 +107,7 @@ def client(ollama, monkeypatch, tmp_path):
     opened = []
     monkeypatch.setattr("webbrowser.open", lambda url: opened.append(url))
     guard = Guard(8778, TOKEN, extra_hosts=["testserver"])
-    app = create_app(guard, autostart_aankhen="off")
+    app = create_app(guard, autostart_aankhen="off", features=['settings'])
     svc = app.state.svc
     svc.modules.background = False                          # GPU work inline, no timers
     svc.core.transcripts = TranscriptStore(tmp_path / "transcripts", tmp_path / "reviews")   # this test's own

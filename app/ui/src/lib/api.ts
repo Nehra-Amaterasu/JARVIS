@@ -117,6 +117,10 @@ export interface CoreInfo {
   timings: Record<string, number>
   room: Record<string, { on: boolean }>
   mqtt: boolean | null
+  /** Where Whisper runs (core/whisper_load.py); cpu when CUDA would not start. */
+  stt?: { device: 'cuda' | 'cpu' | null; gpu_error: string | null; model: string | null } | null
+  /** The state in words, e.g. "Voice on CPU (GPU unavailable)", "Offline: restarting in 15 s". */
+  status_line?: string
 }
 
 export interface Turn { id: number; role: 'you' | 'jarvis'; text: string; t: number; done: boolean; seconds?: number }

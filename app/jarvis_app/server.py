@@ -22,7 +22,7 @@ import json
 import re
 import threading
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Iterable, Optional
 
 from fastapi import Body, FastAPI, HTTPException, Request, WebSocket
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
@@ -35,6 +35,7 @@ from .core import CoreProcess
 from .limbs import Limbs
 from .paths import DATA, DOCS, UI_DIST, ensure_jarvis_importable
 from .security import Guard
+from .wsutil import serve_until_gone
 
 ensure_jarvis_importable()
 from aankhen.hub import AankhenHub          # noqa: E402  (needs the JARVIS root on the path)
@@ -67,15 +68,22 @@ class Services:
         self._seen_aankhen_event = 0
 
 
-def register_feature_routes(app: FastAPI, svc: "Services", bus: EventBus) -> list[tuple[str, str]]:
+def register_feature_routes(app: FastAPI, svc: "Services", bus: EventBus,
+                            only: Optional[Iterable[str]] = None) -> list[tuple[str, str]]:
     """Import every jarvis_app/routes_*.py and call its register(app, svc, bus).
-    Returns (module, error) for the ones that failed, in name order."""
+    Returns (module, error) for the ones that failed, in name order.
+
+    `only` (tests): register just these features ("settings" for routes_settings.py).
+    FastAPI builds a pydantic model per route, ~200 routes in all, and that was 40 % of
+    the app suite's time (10-23 audit: about 1 s per create_app on this laptop)."""
     import importlib
     import pkgutil
     from . import __path__ as pkg_path
     failed = []
     for m in sorted(pkgutil.iter_modules(pkg_path), key=lambda m: m.name):
         if not m.name.startswith("routes_"):
+            continue
+        if only is not None and m.name[len("routes_"):] not in only:
             continue
         try:
             importlib.import_module(f"{__package__}.{m.name}").register(app, svc, bus)
@@ -84,7 +92,7 @@ def register_feature_routes(app: FastAPI, svc: "Services", bus: EventBus) -> lis
     return failed
 
 
-def create_app(guard: Guard, autostart_aankhen: str = "auto") -> FastAPI:
+def create_app(guard: Guard, autostart_aankhen: str = "auto", features: Optional[Iterable[str]] = None) -> FastAPI:
     bus = EventBus()
     svc = Services(bus, guard)
 
@@ -584,13 +592,14 @@ def create_app(guard: Guard, autostart_aankhen: str = "auto") -> FastAPI:
             return
         await ws.accept()
         q = bus.subscribe()
-        try:
+
+        async def send_loop():
             await ws.send_text(json.dumps({"kind": "history", "events": bus.history(80)}))
             while True:
                 ev = await q.get()
                 await ws.send_text(json.dumps(ev, ensure_ascii=False))
-        except Exception:
-            pass
+        try:
+            await serve_until_gone(ws, send_loop)      # ends on the disconnect, not on a dead send
         finally:
             bus.unsubscribe(q)
 
@@ -598,7 +607,7 @@ def create_app(guard: Guard, autostart_aankhen: str = "auto") -> FastAPI:
     # Each feature keeps its routes in its own module, jarvis_app/routes_<area>.py,
     # with register(app, svc, bus). Adding a feature never edits this file, and a
     # feature that fails to load is reported instead of taking the server down.
-    for name, err in register_feature_routes(app, svc, bus):
+    for name, err in register_feature_routes(app, svc, bus, only=None if features is None else set(features)):
         bus.publish("system", "error", f"Feature routes {name} failed to load: {err}")
 
     # ------------------------------------------------------------- UI

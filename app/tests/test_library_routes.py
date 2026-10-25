@@ -47,7 +47,7 @@ def write_notes(folder: Path) -> Path:
 @pytest.fixture
 def client(tmp_path):
     guard = Guard(8778, TOKEN, extra_hosts=["testserver"])
-    app = create_app(guard, autostart_aankhen="off")
+    app = create_app(guard, autostart_aankhen="off", features=['library'])
     app.state.library = library.Library(tmp_path / "lib", embedder=None, llm=fake_llm)
     with TestClient(app) as c:
         c.headers.update({"X-Jarvis-Token": TOKEN})
@@ -169,7 +169,7 @@ def test_ask_validation_and_a_model_that_is_down(client, tmp_path):
 
 def test_without_an_injected_library_the_default_folder_is_used(tmp_path):
     guard = Guard(8779, TOKEN, extra_hosts=["testserver"])
-    app = create_app(guard, autostart_aankhen="off")
+    app = create_app(guard, autostart_aankhen="off", features=['library'])
     with TestClient(app) as c:
         c.headers.update({"X-Jarvis-Token": TOKEN})
         v = c.get("/api/library").json()

@@ -98,8 +98,46 @@ def test_backoff_grows_then_gives_up(tmp_path):
     c.budget = RestartBudget((5, 15, 60, 300), max_per_hour=3)
     for _ in range(4):
         _crash(c)
-    assert [d for d, _ in c.scheduled] == [5.0, 15.0, 60.0]
+    assert [d for d, _ in c.scheduled][:3] == [5.0, 15.0, 60.0]
     assert c.gave_up_at is not None and any(e["kind"] == "gave_up" for e in bus.history())
+    # 10-25: given up is not forever. One more try once the oldest restart leaves the hour
+    # (the cap of 3 an hour still holds: that try is granted from the budget again).
+    assert len(c.scheduled) == 4 and 3500 <= c.scheduled[3][0] <= 3600
+    assert "Trying again" in [e for e in bus.history() if e["kind"] == "gave_up"][-1]["text"]
+
+
+def test_a_cuda_crash_at_boot_is_restarted_by_the_supervisor(tmp_path, monkeypatch):
+    """The 10-22 crash, verbatim: the core died at import with no CUDA device. The
+    supervisor logs it and schedules the restart (restarts counts it when it fires)."""
+    c, bus = _core(tmp_path)
+    proc = FakeProc(1, lines=(b"1. Loading Whisper STT (large-v3-turbo on GPU, int8_float16)...\n",
+                              b"RuntimeError: CUDA failed with error no CUDA-capable device is detected\n"))
+    c.proc, c.mode, c.wanted, c.started_at = proc, "voice", True, time.time() - 19
+    c._read(proc)
+    assert "no CUDA-capable device" in c.crash_log.read_text(encoding="utf-8")
+    assert [d for d, _ in c.scheduled] == [5.0]
+    monkeypatch.setattr(c, "start", lambda mode="voice", _auto=False: c.starts.append((mode, _auto)) or {})
+    c.scheduled[0][1]()
+    assert c.starts == [("voice", True)] and c.restarts == 1
+
+
+def test_voice_on_the_cpu_is_said_in_the_status(tmp_path):
+    c, bus = _core(tmp_path)
+    c.proc = FakeProc(None, lines=())                    # running
+    c._on_event({"kind": "stt", "device": "cpu", "gpu_error": "RuntimeError: CUDA failed", "model": "large-v3-turbo"})
+    info = c.info()
+    assert info["stt"]["device"] == "cpu" and info["status_line"] == "Voice on CPU (GPU unavailable)"
+    assert any(e["kind"] == "stt_cpu" for e in bus.history())
+    c._on_event({"kind": "stt", "device": "cuda", "gpu_error": None, "model": "large-v3-turbo"})
+    assert c.info()["status_line"] != "Voice on CPU (GPU unavailable)"
+    assert any(e["kind"] == "stt_gpu" for e in bus.history())
+
+
+def test_offline_says_why_and_when_it_comes_back(tmp_path):
+    c, _ = _core(tmp_path)
+    assert c.info()["status_line"] == "Offline" and c.info()["stt"] is None
+    _crash(c)
+    assert c.info()["status_line"].startswith("Offline: restarting in ")
 
 
 def test_a_deliberate_stop_is_never_restarted(tmp_path):

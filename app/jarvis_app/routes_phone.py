@@ -33,6 +33,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
 from . import phone, qr
+from .wsutil import serve_until_gone
 
 PAGE_DIR = Path(__file__).resolve().parent / "phone_page"
 MAX_CLIP_BYTES = 8 * 2**20
@@ -329,7 +330,8 @@ def register(app: FastAPI, svc, bus) -> None:
         key = dev["id"] if dev else "desktop"
         access.sockets.setdefault(key, set()).add(ws)
         q = bus.subscribe()
-        try:
+
+        async def send_loop():
             hello = {"kind": "hello", "device": dev, "limbs": await run_in_threadpool(_limbs_view, svc),
                      "core": _core_view(svc), "turns": svc.core.transcript(16)}
             await ws.send_text(json.dumps(hello, ensure_ascii=False))
@@ -340,8 +342,8 @@ def register(app: FastAPI, svc, bus) -> None:
                     if src == "limbs":
                         ev = {**ev, "limbs": await run_in_threadpool(_limbs_view, svc)}
                     await ws.send_text(json.dumps(ev, ensure_ascii=False))
-        except Exception:
-            pass
+        try:
+            await serve_until_gone(ws, send_loop)      # a phone that left is dropped at once (wsutil.py)
         finally:
             bus.unsubscribe(q)
             access.sockets.get(key, set()).discard(ws)

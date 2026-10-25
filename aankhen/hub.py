@@ -38,7 +38,11 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
-from scipy.optimize import linear_sum_assignment
+# Imported on first use, not here: scipy.optimize costs ~1.4 s of the app's start
+# (measured 10-25 with -X importtime) and the matcher only runs once a board streams.
+def linear_sum_assignment(cost):
+    from scipy.optimize import linear_sum_assignment as lsa
+    return lsa(cost)
 
 from .engine import Engine, run_engine
 from .motion import Baseline

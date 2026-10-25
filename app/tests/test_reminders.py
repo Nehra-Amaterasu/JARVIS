@@ -215,7 +215,7 @@ def test_lines_for_every_kind(clock):
 @pytest.fixture
 def client():
     guard = Guard(8777, TOKEN, extra_hosts=["testserver"])
-    app = create_app(guard, autostart_aankhen="off")
+    app = create_app(guard, autostart_aankhen="off", features=['reminders'])
     with TestClient(app) as c:
         c.headers.update({"X-Jarvis-Token": TOKEN})
         for r in app.state.svc.reminders.pending():          # each test starts with an empty list

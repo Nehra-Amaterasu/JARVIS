@@ -49,6 +49,29 @@ describe('the bank loader', () => {
     expect(careerWeight(bank, 'vlsi', 'ml-intro')).toBe(0.2)
     expect(careerWeight(bank, null, 'ml-intro')).toBe(1)
   })
+  it('maths weights: kept when they name a node, warned and dropped otherwise', () => {
+    const b = mergeBank({ 'skilltree.json': { nodes: [
+      { id: 'a', name: 'A', branch: 'x', maths: { m: 0.5, ghost: 0.4, bad: 'high', zero: 0 } }, { id: 'm', name: 'M', branch: 'math' }] } })
+    expect(b.nodes.a.maths).toEqual({ m: 0.5 })
+    expect(b.warnings.join(' | ')).toContain('unknown maths node ghost')
+    expect(b.warnings.join(' | ')).toContain('maths weight for bad is not a number')
+  })
+  it('the real bank v2: a DAG, monotonic tiers, no orphans, maths weights and cert links resolve', () => {
+    const real = loadBank()
+    if (!real.order.length) return
+    expect(findCycles(real.nodes)).toEqual([])
+    const needed = new Set(real.order.flatMap((id) => real.nodes[id].prereqs))
+    for (const id of real.order) {
+      const n = real.nodes[id]
+      for (const p of n.prereqs) expect(n.tier, `${id} vs ${p}`).toBeGreaterThan(real.nodes[p].tier)
+      expect(n.prereqs.length > 0 || needed.has(id), `${id} is isolated`).toBe(true)
+      for (const k of Object.keys(n.maths)) expect(real.nodes[k]?.branch, `${id}: ${k}`).toBe('math')
+      if (n.branch !== 'math') for (const p of n.prereqs) if (real.nodes[p].branch === 'math') expect(n.maths[p], `${id} needs ${p}`).toBeGreaterThan(0)
+      for (const c of n.certs) expect(real.certs[c], `${id}: cert ${c}`).toBeTruthy()
+    }
+    for (const c of Object.values(real.certs)) for (const id of c.node_ids) expect(real.nodes[id], `${c.id}: ${id}`).toBeTruthy()
+    expect(real.careers.map((c) => c.id)).toContain('dv_ai_accel')
+  })
   it('the real bank (data/bank, committed 2026-10-23) loads with no errors', () => {
     const real = loadBank()
     if (!real.order.length) return            // the bank is optional at build time

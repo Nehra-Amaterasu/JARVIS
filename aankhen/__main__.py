@@ -506,6 +506,27 @@ def cmd_evaluate(a) -> int:
     return 0
 
 
+def cmd_fingerprint(a) -> int:
+    """kNN fingerprint vs CNN on the raw signal: evaluate (leave-one-day-out) or train."""
+    from .fingerprint import CnnFingerprint, _cat, format_report, leave_one_day_out, load_days
+    days = load_days(a.root)
+    if not days:
+        print("No drill sessions yet. Record one with: python -m aankhen drill")
+        return 1
+    if a.action == "evaluate":
+        rep = leave_one_day_out(days, epochs=a.epochs)
+        print(format_report(rep))
+        if a.json:
+            with open(a.json, "w", encoding="utf-8") as fh:
+                json.dump(rep, fh, indent=1, default=float)
+        return 0
+    runs = [r for d in sorted(days) for r in days[d]]
+    m = CnnFingerprint(epochs=a.epochs).fit(_cat(runs, "X"), _cat(runs, "zone"))
+    out = m.save(meta={"days": sorted(days), "windows": int(len(_cat(runs, "zone")))})
+    print(f"CNN ({m.weights()} weights) on {len(days)} day(s) -> {out}")
+    return 0
+
+
 def cmd_train(a) -> int:
     from .dayeval import MODEL_ROOT, load_days, train_all
     days = load_days(a.root)
@@ -661,6 +682,12 @@ def main(argv=None) -> int:
     tr.add_argument("--root", help="drill folder (default data/aankhen/drill)")
     tr.add_argument("--out", help="model folder (default data/aankhen/models/drill)")
 
+    fp = sub.add_parser("fingerprint", help="kNN fingerprint vs CNN on the raw signal, judged on held-out days")
+    fp.add_argument("action", choices=["evaluate", "train"])
+    fp.add_argument("--root", help="drill folder (default data/aankhen/drill)")
+    fp.add_argument("--epochs", type=int, default=30)
+    fp.add_argument("--json", help="evaluate: also write the report as JSON")
+
     zn = sub.add_parser("zones", help="show the zone map; --write saves it for editing")
     zn.add_argument("--write", action="store_true")
     zn.add_argument("--force", action="store_true")
@@ -670,6 +697,7 @@ def main(argv=None) -> int:
             "calibrate": cmd_calibrate, "bench": cmd_bench, "simulate": cmd_simulate,
             "physics": cmd_physics, "validate": cmd_validate, "learn": cmd_learn, "worldmodel": cmd_worldmodel,
             "drill": cmd_drill, "evaluate": cmd_evaluate, "train": cmd_train, "zones": cmd_zones,
+            "fingerprint": cmd_fingerprint,
             "learnroom": lambda a: print(__import__("aankhen.firstlight", fromlist=["x"]).run_room_session(a.port, not a.no_voice, a.rounds)) or 0,
             "firstlight": lambda a: __import__("aankhen.firstlight", fromlist=["main"]).main(a.port, not a.no_voice)}[a.cmd](a)
 

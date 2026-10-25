@@ -7,11 +7,9 @@ import time
 import pytest
 
 from aankhen import hub as hub_mod
-from aankhen.bench import simulated_baseline
 from aankhen.hub import AankhenHub
 from aankhen.journal import ActivityJournal
 from aankhen.netlink import NetConfig
-from aankhen.room import load_room
 from aankhen.transport import NetSource, SerialSource, probe_board
 
 from .fakenet import FakeNetBoard
@@ -29,10 +27,7 @@ def wait_for(cond, timeout=6.0, step=0.02):
     return cond()
 
 
-@pytest.fixture(scope="module")
-def sim_baseline():
-    room, _ = load_room()
-    return simulated_baseline(room)
+# sim_baseline: conftest.py, once per session
 
 
 @pytest.fixture

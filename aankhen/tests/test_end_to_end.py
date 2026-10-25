@@ -8,17 +8,19 @@ empty room as occupied 53 % of the time (a duplicate track; see tracker.py).
 
 The bounds sit just inside what the pipeline measured on these seeds when they
 were written, so a change that makes things worse fails here. Runs go in
-parallel processes to keep this file well under a minute.
+parallel processes (one pool) to keep this file near the length of its longest run.
 
 Passing proves the pipeline is internally consistent with the simulator's physics.
 It does NOT prove real-world accuracy; that comes from `python -m aankhen bench` on
 labelled recordings of the real room, which are meant to join these tests.
 """
 import os
+from concurrent.futures import ProcessPoolExecutor
 
 import pytest
 
-from aankhen.bench import run_jobs
+
+pytestmark = pytest.mark.slow          # ~50 s: in the merge gate, out of the -m "not slow" loop
 
 # scenario: (seconds, seeds). Shorter than the CLI suite, long enough for each case.
 JOBS = {
@@ -30,30 +32,42 @@ JOBS = {
 }
 
 
+def _job(args):
+    """One bench run in a worker process, with gain compensation set for THIS job.
+    engine.GAIN_COMP is read on every packet, so setting it here is enough; a module
+    function so the process pool can pickle it."""
+    gain, job = args
+    from aankhen import engine
+    from aankhen.bench import _suite_job
+    engine.GAIN_COMP = gain
+    return _suite_job(job)
+
+
 @pytest.fixture(scope="module")
 def runs():
-    jobs = [(s, secs, seed, 0) for s, (secs, seeds) in JOBS.items() for seed in seeds]
-    workers = min(len(jobs), max(1, (os.cpu_count() or 2) - 1))
-    out = {}
-    for r in run_jobs(jobs, workers=workers):
-        out.setdefault(r.scenario, []).append(r)
     # The sleeper is held by breathing, and breathing survives only on gain-compensated
     # CSI (the simulator's board reports its gain). Compensation is off by default
     # since 10-13 (engine.GAIN_COMP: on the real board it broke stillness under models
-    # trained without it), so this case runs with it switched on, in fresh worker
-    # processes that read the switch at import. Off, the worst seed reads 22 % false
-    # "empty": the real board can lose a still sleeper until a compensated session is
-    # calibrated (docs/research/2026-10-14-spatial-intelligence-brainstorm.md).
-    before = os.environ.get("AANKHEN_GAIN_COMP")
-    os.environ["AANKHEN_GAIN_COMP"] = "1"
-    try:
-        for r in run_jobs([("sleep", 200, seed, 0) for seed in (1, 2)], workers=2):
-            out.setdefault(r.scenario, []).append(r)
-    finally:
-        if before is None:
-            os.environ.pop("AANKHEN_GAIN_COMP", None)
-        else:
-            os.environ["AANKHEN_GAIN_COMP"] = before
+    # trained without it), so the sleep runs switch it on for themselves. Off, the
+    # worst seed reads 22 % false "empty": the real board can lose a still sleeper until
+    # a compensated session is calibrated
+    # (docs/research/2026-10-14-spatial-intelligence-brainstorm.md).
+    #
+    # SPEED: every run goes into ONE pool, longest first. The sleep runs used to wait
+    # for a second pool after all the others had finished (an environment switch read
+    # at import), so the file took the longest normal run PLUS the longest sleep run.
+    # Workers are capped at 6: each is a full numpy/scipy process, and on a laptop
+    # with little free memory more of them page instead of running.
+    jobs = [(False, (s, secs, seed, 0)) for s, (secs, seeds) in JOBS.items() for seed in seeds]
+    jobs += [(True, ("sleep", 200, seed, 0)) for seed in (1, 2)]
+    jobs.sort(key=lambda j: -j[1][1])
+    workers = min(len(jobs), 6, max(1, (os.cpu_count() or 2) - 1))
+    with ProcessPoolExecutor(max_workers=workers) as ex:
+        results = list(ex.map(_job, jobs))
+    out = {}
+    for r in results:
+        out.setdefault(r.scenario, []).append(r)
+    assert sorted(len(v) for v in out.values()) == sorted([len(v[1]) for v in JOBS.values()] + [2])
     return out
 
 

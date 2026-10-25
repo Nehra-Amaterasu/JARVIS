@@ -37,7 +37,7 @@ from typing import Optional
 
 import numpy as np
 
-from .zones import ACTIVITIES, OLD_ACTIVITY, ZoneMap
+from .zones import ACTIVITIES, COARSE, OLD_ACTIVITY, ZoneMap
 
 STATE_FLOOR = 0.8          # P(in room) or P(empty) needed to say so; else "unsure"
 ZONE_FLOOR = 0.6           # a zone is named only this sure
@@ -66,7 +66,16 @@ class ZoneBelief:
         self.zmap = zmap
         n = len(zmap)
         self.n = n
-        self.p = np.full(n, 1.0 / n)
+        # The prior says "don't know" about PRESENCE, not "every zone equally likely":
+        # half the mass in the room, half out of it. Uniform over zones made the prior
+        # itself the answer: 12 of the 15 zones are in the room, so P(in room) started
+        # at 0.7999999 against STATE_FLOOR 0.8, one rounding away from "in_room" with no
+        # evidence at all, and a zone file with one zone fewer outside crossed it.
+        inside = zmap.in_room_mask()
+        if inside.all() or not inside.any():
+            self.p = np.full(n, 1.0 / n)
+        else:
+            self.p = np.where(inside, 0.5 / inside.sum(), 0.5 / (~inside).sum())
         self.age = np.zeros(n)                       # expected seconds spent in each zone so far
         self.dwell = np.array([max(5.0, z.dwell_s) for z in zmap.zones])
         # Weibull shape per zone: < 1 (hazard falls with time) for places one settles in.
@@ -91,7 +100,9 @@ class ZoneBelief:
             return
         dt = min(dt, 5.0)                            # a gap is not evidence of movement
         self.t = t
-        m = 0.5 if motion is None else motion
+        # No reading (None, or a NaN/inf that slipped past motion01) is "maybe moving",
+        # never NaN: one NaN here would turn every zone's probability into NaN.
+        m = 0.5 if motion is None or not np.isfinite(motion) else min(1.0, max(0.0, float(motion)))
         leave = 1.0 - np.exp(-self.hazard() * (0.03 + 0.97 * m) * dt)
         stay = self.p * (1.0 - leave)
         moved = np.zeros(self.n)
@@ -105,28 +116,45 @@ class ZoneBelief:
         self.age = np.where(new > 0, stay * (self.age + dt) / np.maximum(new, 1e-12), 0.0)
         self.p = new / new.sum()
 
-    def update(self, lik: np.ndarray, weight: float, t: Optional[float] = None) -> None:
-        lik = np.maximum(np.asarray(lik, float), MIN_P)
+    def update(self, lik: np.ndarray, weight: float, t: Optional[float] = None) -> bool:
+        """Apply one likelihood; False (and nothing changed) when it is not usable:
+        a NaN or infinite value anywhere is a broken model output, not evidence."""
+        lik = np.asarray(lik, float)
+        if lik.shape != self.p.shape or not np.all(np.isfinite(lik)):
+            return False
+        lik = np.maximum(lik, MIN_P)
         b = self.p * lik ** weight
         s = b.sum()
         if not np.isfinite(s) or s <= 0:
-            return
+            return False
         self.p = np.maximum(b / s, MIN_P)
         self.p /= self.p.sum()
         if t is not None:
             self.evidence_at = t
+        return True
 
     def p_in_room(self) -> float:
         return float(self.p[self.in_room].sum())
 
 
-def coarse_likelihood(zmap: ZoneMap, coarse_p: dict) -> np.ndarray:
+def coarse_likelihood(zmap: ZoneMap, coarse_p: dict, priors: Optional[dict] = None) -> np.ndarray:
     """The old five-class output as a likelihood over zones: every zone of a class gets
-    that class's probability ("empty" and "outside" both mean: not in the room)."""
+    that class's probability over its training prior ("empty" and "outside" both mean:
+    not in the room, so they are pooled, prior and all).
+
+    WHY THE PRIOR. The model outputs a posterior P(class | window); the filter needs a
+    likelihood P(window | class), which is the posterior over the prior (a scaled
+    likelihood, as learn.TemporalFilter already does). Without the division a model that
+    knows nothing, and so answers its prior (0.2 each), counted twice for "gone" (empty +
+    outside = 0.4 against 0.2): 20 such windows said "empty" at 94 %. `priors` defaults
+    to uniform over the five classes."""
+    pri = {c: 1.0 / len(COARSE) for c in COARSE}
+    if priors:
+        pri.update({c: float(v) for c, v in priors.items() if c in pri})
     out = np.empty(len(zmap))
-    gone = float(coarse_p.get("empty", 0.0)) + float(coarse_p.get("outside", 0.0))
+    gone = (float(coarse_p.get("empty", 0.0)) + float(coarse_p.get("outside", 0.0))) /         max(pri["empty"] + pri["outside"], 1e-6)
     for i, z in enumerate(zmap.zones):
-        out[i] = gone if z.coarse in ("empty", "outside") else float(coarse_p.get(z.coarse, 0.0))
+        out[i] = gone if z.coarse in ("empty", "outside") else             float(coarse_p.get(z.coarse, 0.0)) / max(pri.get(z.coarse, 0.2), 1e-6)
     return out
 
 
@@ -183,10 +211,10 @@ class OodGuard:
                     continue
                 lo, hi = self.ranges[k]
                 x = v[self.features.index(k)]
-                if not np.isfinite(x):
-                    continue
+                if np.isnan(x):
+                    continue                          # missing (no reference yet), not out of range
                 pad = self.margin * max(hi - lo, 1e-6)
-                if x < lo - pad or x > hi + pad:
+                if not np.isfinite(x) or x < lo - pad or x > hi + pad:
                     reason = f"{k} {x:.0f} outside the trained range {lo:.0f}..{hi:.0f}"
                     break
         self.last_reason = reason
@@ -248,7 +276,10 @@ class BeliefTracker:
     # ---------------------------------------------------------- evidence
     def step(self, t: float, motion: Optional[float] = None, coarse_p: Optional[dict] = None,
              zone_p: Optional[dict] = None, activity_p: Optional[dict] = None,
-             ood: Optional[str] = None, teacher: Optional[dict] = None) -> None:
+             ood: Optional[str] = None, teacher: Optional[dict] = None,
+             coarse_prior: Optional[dict] = None) -> None:
+        if motion is not None and not np.isfinite(motion):
+            motion = None                    # NaN would also reach the contract as invalid JSON
         self.motion = motion
         self.belief.predict(t, motion)
         used = False
@@ -257,12 +288,12 @@ class BeliefTracker:
             # against another firmware's or fan state's empty room they are not evidence.
             ood = NO_REFERENCE
         if ood is None:
+            # `used` only when the update really applied: a NaN model output changes
+            # nothing, so it must not clear "no evidence yet" either.
             if zone_p:
-                self.belief.update(zone_model_likelihood(self.zmap, zone_p), ZONE_MODEL_WEIGHT, t)
-                used = True
+                used = self.belief.update(zone_model_likelihood(self.zmap, zone_p), ZONE_MODEL_WEIGHT, t)
             elif coarse_p:
-                self.belief.update(coarse_likelihood(self.zmap, coarse_p), LEARNED_WEIGHT, t)
-                used = True
+                used = self.belief.update(coarse_likelihood(self.zmap, coarse_p, coarse_prior), LEARNED_WEIGHT, t)
             if activity_p is not None:
                 a = activity_p if set(activity_p) <= set(ACTIVITIES) else map_old_activity(activity_p)
                 prev = self.activity_p
@@ -346,5 +377,8 @@ class BeliefTracker:
         why = self.unsure_reason
         if why is None and state == "in_room" and zone is None:
             why = NO_REFERENCE if not self.reference_ok else "no zone is sure enough"
+        if why is None and state == "unsure":
+            # every "unsure" says why: here the evidence is real but not strong enough
+            why = f"not sure enough: in the room {self.belief.p_in_room():.0%}, floor {STATE_FLOOR:.0%}"
         return {"state": state, "zone": zone, "activity": act["state"] if act else None,
                 "confidence": conf, "why": why}

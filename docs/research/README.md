@@ -1,4 +1,4 @@
-# Research notes
+﻿# Research notes
 
 One line per note (CLAUDE.md: research is never lost). Private notes live in
 `data/notes/research/`, not here.
@@ -33,5 +33,7 @@ One line per note (CLAUDE.md: research is never lost). Private notes live in
 - [2026-10-23-mission-germoney-rebuild.md](2026-10-23-mission-germoney-rebuild.md): Mission Germoney rebuilt on the skill-tree bank: two agreeing loaders (73 nodes, 0 errors), a DAG tree drawn Origins/Cyberpunk-style, server-side contracts with read-first context, exam mode with real past-paper questions and SEE marks needed, the internship pipeline, a goal ladder, gap re-entry, a private profile and a learning log; 14 screens to 5, one XP, one to-do system.
 - [2026-10-25-readme-refresh.md](2026-10-25-readme-refresh.md): public docs refresh: stale claims (Aankhen never on the real board, relay wiring in progress, an LD2450 never bought, "0.6 s to first spoken word" that was the text first token) checked against git and the 10-13 to 10-23 notes; README rewritten as works / experimental / not done with measured numbers, a Mermaid diagram, mains safety and privacy.
 - [2026-10-23-test-audit-mission.md](2026-10-23-test-audit-mission.md): Mission Germoney test audit: constraint-to-test matrix, property tests on random DAGs, real-bank integrity, 12 engine fixes (exact marks-needed maths, one id per OR question, no locked or over-cap node via complete/choose, assumed countdowns labelled, the exam phase ends with the last paper, no empty Thursdays), an 8-week vision run and a 90-day simulation with no lost track after the fixes.
+- [2026-10-23-test-audit-aankhen.md](2026-10-23-test-audit-aankhen.md): the Aankhen test audit (7 bugs fixed, 31 tests added, scratch data folder, shared process pool) and the 10-25 "board not read" P0 on firmware 3.5.0.
+- [2026-10-25-board-350-smoke.md](2026-10-25-board-350-smoke.md): smoke test on the real 3.5.0 board: USB PASS at 341 CSI frames/s, 64 subcarriers, RSSI -88 dBm; the Wi-Fi link fails on the LAN (host unreachable, keys match), not on HMAC.
 - [memory-feasibility.md](memory-feasibility.md): personal memory at N = 1.
 - [2026-10-25-yaadash-test-audit.md](2026-10-25-yaadash-test-audit.md): Yaadash test audit: two attribution loopholes fixed (a place name let a sister's move be stored as his; Hinglish "bhai" dropped his own fact), privacy and Keep/Wrong tests added, hallucination eval 8/8 hit@3, 0/10 false memories, 0 invented stored.

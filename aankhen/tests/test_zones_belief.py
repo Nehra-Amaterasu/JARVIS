@@ -87,8 +87,13 @@ def test_coarse_classes_spread_evenly_over_their_zones():
     zm = zmap()
     lik = coarse_likelihood(zm, {"desk": 0.7, "bed": 0.1, "room": 0.1, "empty": 0.05, "outside": 0.05})
     i = zm.index
-    assert lik[i["at_desk_chair"]] == lik[i["desk_standing"]] == pytest.approx(0.7)
-    assert lik[i["out_of_room"]] == lik[i["balcony"]] == pytest.approx(0.1)
+    # posterior over the (uniform) prior: desk 0.7 / 0.2, gone (0.05 + 0.05) / (0.2 + 0.2)
+    assert lik[i["at_desk_chair"]] == lik[i["desk_standing"]] == pytest.approx(3.5)
+    assert lik[i["out_of_room"]] == lik[i["balcony"]] == pytest.approx(0.25)
+    # a model that answers its own prior says nothing: the likelihood is flat
+    pri = {"empty": 0.1, "outside": 0.3, "room": 0.2, "desk": 0.25, "bed": 0.15}
+    flat = coarse_likelihood(zm, pri, pri)
+    assert np.allclose(flat, flat[0])
 
 
 def test_belief_is_a_distribution_and_moves_only_along_the_graph():

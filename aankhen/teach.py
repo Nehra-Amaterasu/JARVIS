@@ -33,6 +33,32 @@ HOLDOUT = 0.3
 MIN_LABEL_S = 30.0
 
 
+def is_simulated(path: str) -> bool:
+    """A teach recording that must never train the model of HIS room: named teach-sim-*
+    (the hub's name while it runs the simulator), or whose own header or labels say it
+    is simulated. The name alone was the only check: a simulated recording copied or
+    renamed to teach-*.akr trained the real model, which then reported "includes your
+    recordings". `path` is the .akr or its .labels.json."""
+    base = os.path.basename(path)
+    if base.startswith("teach-sim-"):
+        return True
+    stem = path[:-len(".labels.json")] if path.endswith(".labels.json") else path[:-len(".akr")]
+    try:
+        from .transport import read_recording_meta
+        meta = read_recording_meta(stem + ".akr")
+        if meta.get("source") == "simulation" or meta.get("simulated"):
+            return True
+    except (OSError, ValueError):
+        pass
+    try:
+        with open(stem + ".labels.json", encoding="utf-8") as f:
+            if json.load(f).get("simulated"):
+                return True
+    except (OSError, ValueError, AttributeError):
+        pass
+    return False
+
+
 class Teacher:
     def __init__(self, hub, model_path: Optional[str] = None):
         self.hub = hub
@@ -114,7 +140,7 @@ class Teacher:
         """Seconds labelled per label across all real (non-simulated) teach recordings."""
         out = {k: 0.0 for k in LABELS}
         for lp in glob.glob(str(self.hub.recordings_dir / "teach-*.labels.json")):
-            if os.path.basename(lp).startswith("teach-sim-"):
+            if is_simulated(lp):
                 continue
             try:
                 segs = json.load(open(lp, encoding="utf-8")).get("segments", [])
@@ -144,7 +170,7 @@ class Teacher:
         try:
             real = []
             for akr in sorted(glob.glob(str(self.hub.recordings_dir / "teach-*.akr"))):
-                if os.path.basename(akr).startswith("teach-sim-"):
+                if is_simulated(akr):
                     continue
                 if self.session and os.path.abspath(akr) == os.path.abspath(self.session["path"]):
                     continue                     # still being written

@@ -234,8 +234,11 @@ def test_reference_store_is_keyed_by_firmware_and_fan_once_a_day(tmp_path):
 
 
 # ---------------------------------------------------------------- evaluator / trainer
-def write_sim_session(root, day: str, seed: int, seconds: float = 80.0):
-    """A drill session made by the simulator: raw.akr with host times + labels.jsonl."""
+def write_sim_session(root, day: str, seed: int, seconds: float = 50.0):
+    """A drill session made by the simulator: raw.akr with host times + labels.jsonl.
+    50 s, four blocks of ~11 s: the test checks the plumbing (windows labelled by
+    block, leave-one-day-out, versioned saving), not accuracy, so 80 s bought nothing
+    but simulation time (it was the slowest test of the suite)."""
     from aankhen.room import default_room
     from aankhen.simulator import Simulator, scenario_evening
     from aankhen.transport import Recorder
@@ -249,8 +252,8 @@ def write_sim_session(root, day: str, seed: int, seconds: float = 80.0):
         rec.write(ch, base + sim.t)
     rec.close()
     t0 = base + sim.boot_us / 1e6
-    blocks = [("out_of_room", "none", "empty", 4, 24), ("at_desk_chair", "still", "zone", 24, 44),
-              ("bed_lying", "lying", "zone", 44, 62), ("beside_bed_desk_side", "moving", "zone", 62, 79)]
+    blocks = [("out_of_room", "none", "empty", 4, 15), ("at_desk_chair", "still", "zone", 15, 26),
+              ("bed_lying", "lying", "zone", 26, 37), ("beside_bed_desk_side", "moving", "zone", 37, 49)]
     with open(os.path.join(folder, "labels.jsonl"), "w") as f:
         for i, (z, a, kind, s, e) in enumerate(blocks):
             f.write(json.dumps({"block": i, "kind": kind, "zone": z, "activity": a, "fan": False,
@@ -258,6 +261,7 @@ def write_sim_session(root, day: str, seed: int, seconds: float = 80.0):
     return folder
 
 
+@pytest.mark.slow
 def test_leave_one_day_out_and_versioned_training(tmp_path):
     from aankhen import dayeval
     root = str(tmp_path / "drill")
@@ -284,11 +288,13 @@ def test_leave_one_day_out_and_versioned_training(tmp_path):
     loaded = dayeval.ZoneModel.load_current(models)
     p = loaded.zone_proba(w["X"][0])
     assert abs(sum(p.values()) - 1) < 1e-6 and set(p) <= set(ZONE_IDS)
-    # a second training keeps the first
-    import time as _t
-    _t.sleep(1.1)
-    dayeval.train_all(days, models)
+    # a second save (a later training) keeps the first and becomes current; saving is
+    # what versions a model, so the second fit (and the 1.1 s wait for a new
+    # timestamp) is not needed to check it
+    m.save(models, version="99991231-235959")
     assert len([d for d in os.listdir(models) if os.path.isdir(os.path.join(models, d))]) == 2
+    assert os.path.exists(os.path.join(folder, "model.joblib"))
+    assert json.load(open(os.path.join(models, "current.json")))["version"] == "99991231-235959"
 
 
 def test_gates_logic():

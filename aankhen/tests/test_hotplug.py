@@ -7,9 +7,7 @@ import time
 
 import pytest
 
-from aankhen.bench import simulated_baseline
 from aankhen.hub import HOTPLUG_INTERVAL_S, AankhenHub
-from aankhen.room import load_room
 
 from .fakeserial import FakeBoard, FakeUsb
 
@@ -23,10 +21,7 @@ def wait_for(cond, timeout=8.0, step=0.02):
     return cond()
 
 
-@pytest.fixture(scope="module")
-def sim_baseline():
-    room, _ = load_room()
-    return simulated_baseline(room)                  # ~4 s; once for the whole module
+# sim_baseline: conftest.py, once per session
 
 
 @pytest.fixture

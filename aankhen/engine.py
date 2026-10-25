@@ -154,6 +154,8 @@ class Engine:
         # Raw-stream recorder (stream.py), set by the hub on the real board only.
         # Every call into it is one deque append: it never waits on the writer or a disk.
         self.tap = None
+        self.errors = 0                            # packets run_engine could not process
+        self.last_error: Optional[dict] = None
         if source_kind == "simulation":
             # the simulator's baseline is made for this very run: it always matches
             self.reference = {"source": "simulated", "matched": True}
@@ -231,6 +233,14 @@ class Engine:
         (recal.py). None matching: keep the old one and mark it stale, so no zone is named."""
         fs = self._spatial_fs
         self._ref_key = (self.firmware(), self.fan_on)
+        if self.source_kind == "simulation":
+            # The simulator's baseline is made for this very run and always matches. Its
+            # first STATUS ("aankhen-simulator") used to look itself up in the REAL
+            # reference store, find nothing, and mark the reference stale for the rest
+            # of the run: a simulation could never name a zone.
+            self.reference = {"source": "simulated", "matched": True}
+            self.belief.reference_ok = True
+            return
         ref = self.recal.store.load(self.firmware(), self.fan_on)
         if ref is not None and fs is not None:
             fs.ref_shape = np.asarray(ref["shape"], float)
@@ -248,6 +258,8 @@ class Engine:
         """Start ("teachers" | "drill") or stop (None) collecting empty-room windows for
         today's reference under the current firmware and fan."""
         with self.lock:
+            if self.source_kind == "simulation" and source is not None:
+                return      # a simulated empty room is never saved into the real reference store
             self.recal.set_active(source, self.firmware(), self.fan_on)
 
     # A router that changes channel (auto channel selection, a reboot) hands the
@@ -406,8 +418,13 @@ class Engine:
         if self._csi_settling(t):
             ood = ood or "Wi-Fi settling after a fan or channel change"
             coarse_p = zone_p = act_p = None
+        # The coarse model's training priors turn its posterior into a likelihood
+        # (belief.coarse_likelihood): without them "knows nothing" read as "empty".
+        pri = getattr(self.spatial, "priors", None) if coarse_p is not None else None
+        prior = ({c: float(x) for c, x in zip(LEARNED_CLASSES, pri)}
+                 if pri is not None and len(pri) == len(LEARNED_CLASSES) else None)
         self.belief.step(t, mot, coarse_p=coarse_p, zone_p=zone_p, activity_p=act_p, ood=ood,
-                         teacher=self.teacher_hint)
+                         teacher=self.teacher_hint, coarse_prior=prior)
 
     def _on_radar(self, p: RadarPacket) -> None:
         t = p.timestamp_us / 1e6
@@ -796,7 +813,19 @@ class Engine:
             return {"type": "status", "source": self.source_kind,
                     "sensors": {"Wi-Fi CSI": csi, "LD2450 radar": radar, "ESP32": esp},
                     "link": link or {}, "room_measured": self.room_measured,
-                    "counters": dict(self.counters)}
+                    "counters": dict(self.counters),
+                    "engine_errors": self.errors,
+                    "engine_last_error": ({k: v for k, v in self.last_error.items() if k != "trace"}
+                                          if self.last_error else None)}
+
+    def note_error(self, e: BaseException, trace: str = "") -> None:
+        """A packet the engine could not process (run_engine): counted and kept, shown in
+        status, so a failure is said instead of silently ending the consumer thread."""
+        self.errors += 1
+        self.last_error = {"t": time.time(), "error": f"{type(e).__name__}: {e}", "trace": trace[-1500:],
+                           "count": self.errors}
+        if self.errors in (1, 10, 100) or self.errors % 1000 == 0:
+            print(f"aankhen engine: packet {self.errors} failed: {type(e).__name__}: {e}", flush=True)
 
     def snapshot(self) -> dict:
         """Compact summary for JARVIS's brain (agent.py presence context)."""
@@ -827,11 +856,18 @@ def _human_band(m) -> Optional[dict]:
 def run_engine(source, engine: Engine, stop: threading.Event) -> None:
     """Consumer loop: drain the source's packet queue into the engine."""
     import queue
+    import traceback
     while not stop.is_set():
         try:
             pkt = source.packets.get(timeout=0.2)
         except queue.Empty:
             engine.publish_frame()               # nothing arriving: the frame still ages
             continue
-        engine.process(pkt)
-        engine.publish_frame()
+        # One bad packet (or a library failing under it) costs that packet, never the
+        # thread: on 10-24 an OSError from threadpoolctl ended this loop, the board kept
+        # sending, the link said "connected", and nothing was read again until a restart.
+        try:
+            engine.process(pkt)
+            engine.publish_frame()
+        except Exception as e:
+            engine.note_error(e, traceback.format_exc(limit=4))

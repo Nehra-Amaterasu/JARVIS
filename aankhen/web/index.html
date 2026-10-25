@@ -727,6 +727,13 @@ function renderPanel() {
   }
   if (lastStatus) {
     const kv = [];
+    // Why the board is (not) being read, as the hub says it (hub.why): one plain sentence.
+    const why = lastStatus.hub?.why;
+    if (why?.text) {
+      const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+      const cls = why.code === 'ok' ? 'on' : why.code === 'simulation' || why.code === 'replay' ? 'sim' : 'bad';
+      kv.push(`<span>board</span><span><span class="pill ${cls}">${esc(why.code)}</span> ${esc(why.text)}</span>`);
+    }
     for (const [k, v] of Object.entries(lastStatus.sensors || {})) {
       const cls = v.state === 'live' ? 'on' : v.state === 'simulated' || v.state === 'replay' ? 'sim' : v.state === 'absent' ? 'off' : 'bad';
       kv.push(`<span>${k}</span><span><span class="pill ${cls}">${v.state}</span>${v.detail ? ' ' + v.detail : ''}</span>`);

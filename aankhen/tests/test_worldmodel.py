@@ -101,6 +101,7 @@ def _small_train(pics, seed=0):
                     eval_every=30, minutes=2.0, val_windows=200, log=lambda s: None)
 
 
+@pytest.mark.slow
 def test_periodic_signal_is_predictable_and_a_novel_burst_is_a_surprise():
     train_pic = wm.change_picture(stream(90.0, ripple(1.3, 0.05), seed=3))
     model = _small_train([train_pic])
@@ -116,6 +117,7 @@ def test_periodic_signal_is_predictable_and_a_novel_burst_is_a_surprise():
     assert np.median(calm) < 0.5 * np.median(s["zero_amp"][(rel > 10) & (rel < 22)])
 
 
+@pytest.mark.slow
 def test_shapes_seeding_and_saving(tmp_path):
     pics = [wm.change_picture(stream(60.0, ripple(0.8, 0.03), seed=5))]
     a, b = _small_train(pics, seed=7), _small_train(pics, seed=7)

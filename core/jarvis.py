@@ -340,6 +340,86 @@ def _playback_started() -> None:
 import queue
 speech_queue = queue.Queue()
 
+# Edge audio that is still downloading (core/playback.py) plays through sounddevice, not
+# pygame, as it is decoded. These say whether it is playing and stop it on a barge-in.
+import playback
+_stream_playing = threading.Event()
+_stream_stop = threading.Event()
+_current_pipe = [None]
+
+
+def _audio_busy() -> bool:
+    try:
+        music = pygame.mixer.music.get_busy()
+    except Exception:
+        music = False
+    return bool(music or _stream_playing.is_set())
+
+
+def _audio_stop() -> None:
+    """Silence whatever is playing now: the pygame file or the streamed sentence."""
+    try:
+        pygame.mixer.music.stop()
+    except Exception:
+        pass
+    _stream_stop.set()
+    pipe = _current_pipe[0]
+    if pipe is not None:
+        pipe.cancel()
+    # (The player thread drops the speaker's buffer itself within one frame: aborting a
+    # PortAudio stream from here while that thread is inside write() is not safe.)
+
+
+# One output stream kept warm between sentences ("low" latency: ~0.09 s of buffer on MME).
+_speaker = playback.Speaker(lambda rate: sd.OutputStream(samplerate=rate, channels=1, dtype="float32",
+                                                          latency="low"))
+
+
+def _warm_speaker() -> None:
+    """Open the output stream while the model thinks (Edge sends 24 kHz mono)."""
+    try:
+        _speaker.warm(24000)
+    except Exception as e:
+        print(f"\n[voice] could not open the speaker early: {e}")
+
+
+def _play_file(audio_file, gain) -> None:
+    pygame.mixer.music.load(audio_file)
+    pygame.mixer.music.set_volume(gain)
+    pygame.mixer.music.play()
+    _playback_started()
+    while pygame.mixer.music.get_busy():
+        time.sleep(0.05)
+    pygame.mixer.music.unload()
+
+
+def _play_pipe(pipe, gain) -> None:
+    """A sentence still arriving from Edge: play it as it decodes. If that fails before
+    anything is heard, wait for the whole clip and play it as a file (the old way)."""
+    _current_pipe[0] = pipe
+    _stream_stop.clear()
+    _stream_playing.set()
+    try:
+        result = playback.play_pipe(pipe, _speaker, stop=_stream_stop, on_start=_playback_started, log=print)
+    finally:
+        _stream_playing.clear()
+        _current_pipe[0] = None
+    if result != playback.FAILED or pipe.cancelled:
+        return
+    pipe.wait_closed(timeout=15.0)
+    data = pipe.data()
+    if pipe.cancelled or len(data) < 200:
+        return
+    path = os.path.join(tempfile.gettempdir(), f"jarvis_{uuid.uuid4().hex[:8]}.mp3")
+    with open(path, "wb") as f:
+        f.write(data)
+    try:
+        _play_file(path, gain)
+    finally:
+        if os.path.exists(path):
+            os.remove(path)
+
+
 def _tts_worker():
     global last_interrupted_script
     while True:
@@ -350,17 +430,14 @@ def _tts_worker():
         gain = item[2] if len(item) > 2 else 1.0     # levels accents (voice.py Style gains)
         try:
             appio.emit("state", state="speaking", text=text)
-            pygame.mixer.music.load(audio_file)
-            pygame.mixer.music.set_volume(gain)
-            pygame.mixer.music.play()
-            _playback_started()
-            while pygame.mixer.music.get_busy():
-                time.sleep(0.05)
-            pygame.mixer.music.unload()
-            if os.path.exists(audio_file):
-                os.remove(audio_file)
-        except Exception:
-            pass
+            if isinstance(audio_file, playback.AudioPipe):
+                _play_pipe(audio_file, gain)
+            else:
+                _play_file(audio_file, gain)
+                if os.path.exists(audio_file):
+                    os.remove(audio_file)
+        except Exception as e:
+            print(f"\n[voice] playback failed: {type(e).__name__}: {e}")
         if speech_queue.empty() and voice_engine.pending() == 0:
             appio.emit("speech_done")
         speech_queue.task_done()
@@ -475,7 +552,12 @@ def _play(text, audio_file, gain=1.0):
     speech_queue.put((text, audio_file, gain))
 
 
-voice_engine = voice_mod.VoiceEngine(play=_play, log=print, enabled=not TEXT_ONLY, on_mark=clock.mark)
+def _play_stream(text, pipe, gain=1.0):
+    speech_queue.put((text, pipe, gain))       # an Edge sentence still downloading
+
+
+voice_engine = voice_mod.VoiceEngine(play=_play, log=print, enabled=not TEXT_ONLY, on_mark=clock.mark,
+                                     play_stream=_play_stream)
 
 
 def speak(text):
@@ -517,29 +599,11 @@ def record_vad():
         if volume_norm > SILENCE_THRESHOLD:
             # [PHASE 4: FULL-DUPLEX INTERRUPTION]
             # Instantly stop playback and save un-spoken text into the continuation buffer if user speaks
-            if pygame.mixer.music.get_busy() or not speech_queue.empty() or voice_engine.pending():
-                pygame.mixer.music.stop()
-                voice_engine.clear()          # sentences not yet synthesised are dropped too
-                
-                # Gather remaining un-spoken text for seamless continuation
-                remaining_text = []
-                while not speech_queue.empty():
-                    try:
-                        queued = speech_queue.get_nowait()
-                        txt, f_path = queued[0], queued[1]
-                        remaining_text.append(txt)
-                        if os.path.exists(f_path):
-                            os.remove(f_path)
-                    except Exception: pass
-                
-                if remaining_text:
-                    global last_interrupted_script, was_interrupted
-                    last_interrupted_script = " ".join(remaining_text)
-                    was_interrupted = True
-                    
-                sys.stdout.write("\n[System: Interrupted by User Voice — Script Saved to Continuation Buffer]\n")
-                sys.stdout.flush()
-                
+            # (Energy end-pointer only: JARVIS_ENDPOINTER=energy. The default Silero path
+            # never interrupts on sound, only on "stop Jarvis"; see _record_silero.)
+            if _jarvis_talking():
+                _interrupt_speech()
+
             is_speaking = True
             silence_frames = 0
             # Compact single-line overwriting indicator (|iI|iI|iI|iI|)
@@ -590,26 +654,42 @@ def _followup_energy() -> bool:
 def _jarvis_talking() -> bool:
     """True while a reply is still playing or queued (the follow-up clock waits)."""
     try:
-        return bool(pygame.mixer.music.get_busy() or not speech_queue.empty() or voice_engine.pending())
+        return bool(_audio_busy() or not speech_queue.empty() or voice_engine.pending())
     except Exception:
         return False
+
+
+def _drain_speech_queue() -> list:
+    """Take every sentence still waiting for the speaker; their files are deleted and
+    streams cancelled. Returns their texts, in order."""
+    texts = []
+    while True:
+        try:
+            queued = speech_queue.get_nowait()
+        except queue.Empty:
+            break
+        if queued is None:
+            continue
+        texts.append(queued[0])
+        src = queued[1]
+        try:
+            if isinstance(src, playback.AudioPipe):
+                src.cancel()
+            elif os.path.exists(src):
+                os.remove(src)
+        except Exception:
+            pass
+        speech_queue.task_done()
+    return texts
 
 
 def _interrupt_speech() -> None:
     """Barge-in: stop JARVIS mid-reply and keep what he had not said yet (the same
     continuation buffer record_vad fills)."""
     global last_interrupted_script, was_interrupted
-    pygame.mixer.music.stop()
-    voice_engine.clear()
-    remaining_text = []
-    while not speech_queue.empty():
-        try:
-            queued = speech_queue.get_nowait()
-            remaining_text.append(queued[0])
-            if os.path.exists(queued[1]):
-                os.remove(queued[1])
-        except Exception:
-            pass
+    voice_engine.clear()                  # first, so the voice worker stops downloading
+    _audio_stop()
+    remaining_text = _drain_speech_queue()
     if remaining_text:
         last_interrupted_script = " ".join(remaining_text)
         was_interrupted = True
@@ -813,6 +893,8 @@ def respond(text: str, endpoint_s=None, recorded_at=None) -> None:
     voice_engine.begin_turn(voice_mod.requested_style(text))
     t0 = time.time()
     clock.start(recorded_at=recorded_at, endpoint_s=endpoint_s, t=t0)
+    if not TEXT_ONLY and voice_engine.will_stream():
+        threading.Thread(target=_warm_speaker, name="speaker-warm", daemon=True).start()
     full = []
     try:
         print("JARVIS: ", end="")

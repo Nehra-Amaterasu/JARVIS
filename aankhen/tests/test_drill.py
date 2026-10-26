@@ -306,3 +306,36 @@ def test_gates_logic():
     per["d1"]["zone_top1"] = 0.1
     g = gates(per, 7)
     assert g["in_room"]["verdict"] == "FAIL" and g["zone"]["verdict"] == "FAIL"
+
+
+def test_dayeval_stamps_windows_by_the_board_clock_not_chunk_arrival(tmp_path):
+    """Regression (2026-10-26): dayeval stamped every sample with its chunk's ARRIVAL
+    time, the bug fingerprint.akr_stream had fixed. On a weak link chunks come in
+    bursts up to ~1 s late, so windows jittered and could take the next block's label."""
+    from aankhen import dayeval
+    from aankhen.tests.test_links import _csi_pkt
+    from aankhen.transport import Recorder
+    rng = np.random.default_rng(0)
+    folder = tmp_path / "s1"
+    folder.mkdir()
+    rec = Recorder(str(folder / "raw.akr"), {"label": "test"})
+    host0 = 1_700_000_000.0
+    pkts = [_csi_pkt(5.0 + i * 0.005, rng, seq=i) for i in range(6000)]       # 30 s at 200 Hz
+    for k in range(0, len(pkts), 20):                                          # 100 ms chunks...
+        late = 0.0 if k == 0 else rng.uniform(0.0, 0.8)                        # ...up to 0.8 s late
+        chunk = b"".join(p.to_frame().encode() for p in pkts[k:k + 20])
+        rec.write(chunk, host0 + pkts[k + 19].timestamp_us / 1e6 - 5.0 + 0.01 + late)
+    rec.close()
+    labels = [{"block": i, "kind": "zone", "zone": z, "activity": "still", "fan": False,
+               "t_start": host0 + s, "t_end": host0 + e, "verdict": "ok"}
+              for i, (z, s, e) in enumerate([("at_desk_chair", 0.0, 15.0), ("bed_lying", 15.0, 30.0)])]
+    w = dayeval.session_windows(str(folder), labels)
+    t = w["t"]
+    assert len(t) >= 30
+    # The first chunk was on time, so the offset is host0 - 4.99 from then on: each window
+    # sits at its board time, exactly one 0.5 s hop after the previous one in its block.
+    board = t - (host0 - 4.99)
+    assert np.allclose(board, np.round(board / 0.01) * 0.01, atol=1e-5)
+    d = np.diff(t)
+    assert np.allclose(d[d < 1.0], 0.5, atol=1e-5)
+    assert all((z == "at_desk_chair") == (x < host0 + 15.0) for z, x in zip(w["zone"], t))

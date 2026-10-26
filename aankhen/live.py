@@ -62,23 +62,28 @@ def follow(path: str, stop: Optional[callable] = None, idle_s: float = 0.05) -> 
         if stop and stop():
             return
         time.sleep(idle_s)
+    # An offset into the buffer, trimmed once per read: slicing the buffer after every
+    # record copied the rest of it each time (council 2026-10-26: 24.4 s on a 9 MB file,
+    # against 0.015 s for iter_recording).
     with open(path, "rb") as f:
-        buf, header = b"", False
+        buf, pos, header = b"", 0, False
         while True:
             data = f.read()
-            buf += data
-            if not header and len(buf) >= 8:
-                if buf[:4] != RECORD_MAGIC:
+            if data:
+                buf = buf[pos:] + data
+                pos = 0
+            if not header and len(buf) - pos >= 8:
+                if buf[pos:pos + 4] != RECORD_MAGIC:
                     raise ValueError(f"{path} is not an Aankhen recording")
-                (n,) = struct.unpack("<I", buf[4:8])
-                if len(buf) >= 8 + n:
-                    buf, header = buf[8 + n:], True
-            while header and len(buf) >= 12:
-                t, size = struct.unpack("<dI", buf[:12])
-                if len(buf) < 12 + size:
+                (n,) = struct.unpack_from("<I", buf, pos + 4)
+                if len(buf) - pos >= 8 + n:
+                    pos, header = pos + 8 + n, True
+            while header and len(buf) - pos >= 12:
+                t, size = struct.unpack_from("<dI", buf, pos)
+                if len(buf) - pos < 12 + size:
                     break                                   # the rest of this record is not written yet
-                yield t, buf[12:12 + size]
-                buf = buf[12 + size:]
+                yield t, buf[pos + 12:pos + 12 + size]
+                pos += 12 + size
             if stop and stop():
                 return
             if not data:

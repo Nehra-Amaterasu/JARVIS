@@ -46,6 +46,9 @@
 // channel at 500. Must divide 1000 (the ping interval is a whole number of ms):
 // 100, 125, 200, 250 or 500.
 #define CSI_RATE_HZ 500
+// How long one router ping waits for its reply before the next may go (ms). Short,
+// so a lost reply on a weak link costs one slot, not a second of CSI (3.5.1).
+#define CSI_PING_TIMEOUT_MS 10
 
 // ---- Receiver gain (README.md, section 3) ------------------------------------
 // 1: link Espressif's esp_csi_gain_ctrl (vendored in libraries/), so both links send

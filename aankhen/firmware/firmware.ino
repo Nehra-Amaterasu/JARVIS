@@ -111,7 +111,7 @@ static_assert(AkText::hex(LINK_KEY_VALUE), "LINK_KEY_VALUE (secrets.h) must be h
 #endif
 
 // ------------------------------------------------------------------ config
-#define FW_VERSION "aankhen-3.5.0"
+#define FW_VERSION "aankhen-3.5.1"
 #define STATUS_MAX 1000                 // the STATUS JSON's buffer: under the host's 1024-byte limit
 // CSI_RATE_HZ (router pings = CSI captures per second) lives in config.h, where the app's
 // firmware form can set it. The ping interval is 1000 / CSI_RATE_HZ whole milliseconds.
@@ -404,7 +404,11 @@ static void startPing() {
   cfg.target_addr.u_addr.ip4.addr = (uint32_t)gw;
   cfg.count = ESP_PING_COUNT_INFINITE;
   cfg.interval_ms = 1000 / CSI_RATE_HZ;
-  cfg.timeout_ms = 1000;
+  // 3.5.1: esp_ping waits for each reply (or this timeout) before the next ping, so a
+  // 1000 ms timeout froze CSI for up to a second per lost reply on a weak link, then
+  // fired a catch-up burst (2026-10-26: 0-370 CSI/s at -90 dBm). The CSI callback still
+  // sees replies that arrive after the timeout.
+  cfg.timeout_ms = CSI_PING_TIMEOUT_MS;
   cfg.data_size = 1;
   cfg.task_stack_size = 3072;
   esp_ping_callbacks_t cbs = {};

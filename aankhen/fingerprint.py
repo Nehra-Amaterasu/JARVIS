@@ -33,6 +33,7 @@ THE TWO MODELS
 from __future__ import annotations
 
 import copy
+import struct
 import json
 import os
 import time
@@ -192,7 +193,12 @@ def csi_stream(records: Iterable[tuple[float, bytes]]) -> Iterable[tuple[float, 
     off: Optional[float] = None
     for host_t, chunk in records:
         for fr in dec.feed(chunk):
-            p = decode_packet(fr)
+            try:
+                p = decode_packet(fr)
+            except (ValueError, struct.error):
+                # a frame with a valid CRC but a malformed payload: skip it, never lose
+                # the session (council 2026-10-26: one truncated packet aborted a whole run)
+                continue
             if not isinstance(p, CsiPacket):
                 continue
             o = host_t - p.timestamp_us / 1e6

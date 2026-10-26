@@ -77,6 +77,8 @@ class FanLines:
         self.lines: list[float] = []          # locked line frequencies (Hz, folded)
         self.hits = 0
         self.estimates = 0
+        self._design_key: Optional[tuple] = None
+        self._design_AP: tuple = ()
 
     def push(self, turb: float) -> None:
         self._buf.append(turb)
@@ -157,22 +159,38 @@ class FanLines:
                 self.locked, self.f0, self.lines = False, None, []
 
     # ------------------------------------------------------------ cancellation
+    def _design(self, n: int) -> tuple[np.ndarray, np.ndarray]:
+        """(A, pinv(A)) for an n-sample window and the current lines, cached.
+
+        HBE removes the lines from the 6 coefficient series of one 300-sample window,
+        and FeatureStream asks for 5 bands of that window every 0.5 s; the lines change
+        at most once per estimate (0.5 s). Rebuilding A and solving one least-squares
+        problem per column cost 0.56 ms a window; one cached pseudo-inverse applied to
+        the whole matrix costs 0.03 ms (19x, council review 2026-10-26) and agrees with
+        lstsq to ~1e-16. The cutoff is lstsq's own (eps x max(n, columns)), so a
+        rank-deficient A (two lines closer than the window resolves) is cut the same way."""
+        key = (n, tuple(self.lines))
+        if self._design_key != key:
+            t = np.arange(n) / FS
+            cols = [np.ones(n)]
+            for f in self.lines:
+                if MIN_LINE_HZ <= f < FS / 2 - 0.5:
+                    w = 2 * np.pi * f * t
+                    cols += [np.cos(w), np.sin(w)]
+            A = np.stack(cols, axis=1)
+            P = np.linalg.pinv(A, rcond=np.finfo(float).eps * max(A.shape))
+            self._design_key, self._design_AP = key, (A, P)
+        return self._design_AP
+
     def remove_lines(self, x: np.ndarray) -> np.ndarray:
-        """x (100 Hz samples) with the locked lines fitted and subtracted (the same
-        least-squares notch as residual_variance, keeping the series)."""
+        """x (100 Hz samples: one series, or a matrix with one series per column) with
+        the locked lines fitted and subtracted (the same least-squares notch as
+        residual_variance, keeping the series)."""
         x = np.asarray(x, float)
         if not self.locked or not self.lines:
             return x
-        n = x.size
-        t = np.arange(n) / FS
-        cols = [np.ones(n)]
-        for f in self.lines:
-            if MIN_LINE_HZ <= f < FS / 2 - 0.5:
-                w = 2 * np.pi * f * t
-                cols += [np.cos(w), np.sin(w)]
-        A = np.stack(cols, axis=1)
-        coef, *_ = np.linalg.lstsq(A, x, rcond=None)
-        return x - A @ coef
+        A, P = self._design(x.shape[0])
+        return x - A @ (P @ x)
 
     def residual_variance(self, x: np.ndarray) -> float:
         """Variance of x (100 Hz samples) after removing the locked lines."""
@@ -180,13 +198,7 @@ class FanLines:
         if not self.locked or not self.lines:
             return float(x.var())
         n = x.size
-        t = np.arange(n) / FS
-        cols = [np.ones(n)]
-        for f in self.lines:
-            if MIN_LINE_HZ <= f < FS / 2 - 0.5:
-                w = 2 * np.pi * f * t
-                cols += [np.cos(w), np.sin(w)]
-        A = np.stack(cols, axis=1)
+        A, _ = self._design(n)
         coef, _, rank, _ = np.linalg.lstsq(A, x, rcond=None)
         r = x - A @ coef
         dof = max(n - rank, 1)

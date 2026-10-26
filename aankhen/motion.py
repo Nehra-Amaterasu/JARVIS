@@ -249,7 +249,7 @@ def human_band_energy(amps: np.ndarray, filled: Optional[np.ndarray] = None,
     C = C - C.mean(axis=0)
     C = C - np.outer(t, (t @ C) / (t @ t))
     if fan is not None and fan.locked and fan.lines:
-        C = np.stack([fan.remove_lines(C[:, j]) for j in range(C.shape[1])], axis=1)
+        C = fan.remove_lines(C)            # all columns at once (one cached pinv)
     pair = real[1:] & real[:-1]
     if pair.sum() < 8:
         return None

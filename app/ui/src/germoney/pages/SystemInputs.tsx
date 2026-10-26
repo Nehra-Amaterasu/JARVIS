@@ -61,27 +61,33 @@ function DateSheet({ rows, subjects, onSave }: { rows: ExamRow[]; subjects: { id
   return (
     <details open={!rows.length}>
       <summary className="small"><b>Date sheet</b> · {rows.length} paper{rows.length === 1 ? '' : 's'}</summary>
-      {r.map((x, i) => (
-        <div key={i} className="field-row sys-row">
-          <select className="field sm" value={x.subject} aria-label="subject"
-            onChange={(e) => set(i, { subject: e.target.value, title: subjects.find((s) => s.id === e.target.value)?.name ?? x.title })}>
-            <option value="">subject…</option>
-            {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-          <input className="field sm" type="date" value={x.date} onChange={(e) => set(i, { date: e.target.value })} aria-label="date" />
-          <input className="field sm" type="time" value={x.start ?? ''} onChange={(e) => set(i, { start: e.target.value || null })} aria-label="starts" />
-          <input className="field sm" type="time" value={x.end ?? ''} onChange={(e) => set(i, { end: e.target.value || null })} aria-label="ends" />
-          <input className="field sm" value={x.units.join(',')} placeholder="units 3,4" aria-label="units"
-            onChange={(e) => set(i, { units: e.target.value.split(/[,\s]+/).map(Number).filter((n) => n > 0) })} />
-          <select className="field sm" value={x.difficulty ?? 'normal'} aria-label="how hard" onChange={(e) => set(i, { difficulty: e.target.value as ExamRow['difficulty'] })}>
-            <option value="easy">easy</option><option value="normal">normal</option><option value="hard">hard</option>
-          </select>
-          <input className="field sm" type="number" min={0} max={x.max ?? 20} value={x.target ?? ''} placeholder="target" aria-label="target marks"
-            onChange={(e) => set(i, { target: e.target.value === '' ? null : Number(e.target.value) })} />
-          <label className="check small"><input type="checkbox" checked={!!x.may_miss} onChange={(e) => set(i, { may_miss: e.target.checked })} />may not sit</label>
-          <button className="icon-btn" aria-label="Remove paper" onClick={() => setR(r.filter((_, j) => j !== i))}><Trash2 size={13} /></button>
-        </div>))}
-      <div className="row">
+      <div className="sys-grid exams-grid" role="group" aria-label="date sheet">
+        {r.length > 0 && (
+          <div className="sys-row sys-head" aria-hidden>
+            {['Subject', 'Date', 'Starts', 'Ends', 'Units', 'How hard', 'Target', 'Sit?', ''].map((h, j) => <span key={j}>{h}</span>)}
+          </div>)}
+        {r.map((x, i) => (
+          <div key={i} className="sys-row">
+            <select className="field sm" value={x.subject} aria-label="subject" title={x.title || undefined}
+              onChange={(e) => set(i, { subject: e.target.value, title: subjects.find((s) => s.id === e.target.value)?.name ?? x.title })}>
+              <option value="">subject…</option>
+              {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <input className="field sm" type="date" value={x.date} onChange={(e) => set(i, { date: e.target.value })} aria-label="date" />
+            <input className="field sm" type="time" value={x.start ?? ''} onChange={(e) => set(i, { start: e.target.value || null })} aria-label="starts" />
+            <input className="field sm" type="time" value={x.end ?? ''} onChange={(e) => set(i, { end: e.target.value || null })} aria-label="ends" />
+            <input className="field sm" value={x.units.join(',')} placeholder="3,4" aria-label="units"
+              onChange={(e) => set(i, { units: e.target.value.split(/[,\s]+/).map(Number).filter((n) => n > 0) })} />
+            <select className="field sm" value={x.difficulty ?? 'normal'} aria-label="how hard" onChange={(e) => set(i, { difficulty: e.target.value as ExamRow['difficulty'] })}>
+              <option value="easy">easy</option><option value="normal">normal</option><option value="hard">hard</option>
+            </select>
+            <input className="field sm" type="number" min={0} max={x.max ?? 20} value={x.target ?? ''} placeholder={`/${x.max ?? 20}`} aria-label="target marks"
+              onChange={(e) => set(i, { target: e.target.value === '' ? null : Number(e.target.value) })} />
+            <label className="check small"><input type="checkbox" checked={!!x.may_miss} onChange={(e) => set(i, { may_miss: e.target.checked })} />may not sit</label>
+            <button className="icon-btn" aria-label="Remove paper" onClick={() => setR(r.filter((_, j) => j !== i))}><Trash2 size={13} /></button>
+          </div>))}
+      </div>
+      <div className="sys-actions">
         <button className="btn sm ghost" onClick={() => setR([...r, { subject: '', title: '', date: '', units: [] }])}><Plus size={13} />Paper</button>
         <button className="btn sm" onClick={() => onSave(r.filter((x) => x.subject && x.date))}><Save size={13} />Save date sheet</button>
       </div>
@@ -128,17 +134,23 @@ function Deadlines({ rows, onSave }: { rows: DeadlineRow[]; onSave: (v: Deadline
   return (
     <details>
       <summary className="small"><b>Deadlines</b> · {rows.length}</summary>
-      {r.map((x, i) => (
-        <div key={i} className="field-row sys-row">
-          <input className="field" value={x.title ?? x.item ?? ''} placeholder="what" aria-label="deadline" onChange={(e) => set(i, { title: e.target.value, item: undefined })} />
-          <input className="field sm" type="date" value={x.date} onChange={(e) => set(i, { date: e.target.value })} aria-label="date" />
-          <select className="field sm" value={x.kind ?? ''} onChange={(e) => set(i, { kind: e.target.value || undefined })} aria-label="kind">
-            <option value="">kind: guess</option>
-            {['exam', 'internship', 'application', 'ms', 'gsoc', 'income', 'other'].map((k) => <option key={k} value={k}>{k}</option>)}
-          </select>
-          <button className="icon-btn" aria-label="Remove deadline" onClick={() => setR(r.filter((_, j) => j !== i))}><Trash2 size={13} /></button>
-        </div>))}
-      <div className="row">
+      <div className="sys-grid dead-grid" role="group" aria-label="deadlines">
+        {r.length > 0 && (
+          <div className="sys-row sys-head" aria-hidden>
+            {['What', 'Date', 'Kind', ''].map((h, j) => <span key={j}>{h}</span>)}
+          </div>)}
+        {r.map((x, i) => (
+          <div key={i} className="sys-row">
+            <input className="field" value={x.title ?? x.item ?? ''} placeholder="what" aria-label="deadline" onChange={(e) => set(i, { title: e.target.value, item: undefined })} />
+            <input className="field sm" type="date" value={x.date} onChange={(e) => set(i, { date: e.target.value })} aria-label="date" />
+            <select className="field sm" value={x.kind ?? ''} onChange={(e) => set(i, { kind: e.target.value || undefined })} aria-label="kind">
+              <option value="">kind: guess</option>
+              {['exam', 'internship', 'application', 'ms', 'gsoc', 'income', 'other'].map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+            <button className="icon-btn" aria-label="Remove deadline" onClick={() => setR(r.filter((_, j) => j !== i))}><Trash2 size={13} /></button>
+          </div>))}
+      </div>
+      <div className="sys-actions">
         <button className="btn sm ghost" onClick={() => setR([...r, { title: '', date: '' }])}><Plus size={13} />Deadline</button>
         <button className="btn sm" onClick={() => onSave(r.filter((x) => (x.title || x.item) && x.date))}><Save size={13} />Save deadlines</button>
       </div>

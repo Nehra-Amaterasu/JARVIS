@@ -1,65 +1,142 @@
-/* Internals card (Exams.tsx). Uses the app tokens only: ink, hair, live, sim, fault. */
-.card.exams { display: flex; flex-direction: column; gap: 10px; }
-.ex-papers { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+/* Internals card (Exams.tsx). App tokens only; one accent (--live) on the card.
+   Motion is transform/opacity only, 140 ms (--t-fast), and off under reduced motion. */
+.card.exams { display: flex; flex-direction: column; gap: 12px; }
+.card.exams .card-head { margin-bottom: 0; min-width: 0; }
+.ex-next { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+
+/* The strip: seven tiles in one row. 124 px is the narrowest tile that still holds
+   "→ 50–90%" and "14/20 · aim 16" on one line; below that the strip scrolls sideways
+   instead of wrapping text (7 × 124 + gaps = 904 px, inside the 1120 px window's card). */
+.ex-papers {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(124px, 1fr); gap: 6px;
+  margin: 0; padding: 0 0 2px; list-style: none; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: thin;
+}
+.ex-papers > li { display: flex; min-width: 0; scroll-snap-align: start; }
 .ex-paper {
-  display: flex; flex-direction: column; gap: 5px; align-items: stretch; text-align: left;
-  padding: 10px 11px; border-radius: var(--r-sm); border: 0; cursor: pointer; color: var(--ink);
-  background: rgba(255, 255, 255, 0.035); box-shadow: inset 0 0 0 1px var(--hair);
-  transition: background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; align-items: stretch; text-align: left;
+  padding: 10px 11px 9px; border: 0; border-radius: var(--r-sm); cursor: pointer; color: var(--ink);
+  background: rgba(255, 255, 255, 0.03); box-shadow: inset 0 0 0 1px var(--hair);
+  transition: transform var(--t-fast) var(--ease);
 }
-.ex-paper:hover { background: rgba(255, 255, 255, 0.06); transform: translateY(-1px); }
+.ex-paper > span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ex-paper:hover { background: rgba(255, 255, 255, 0.055); transform: translateY(-1px); }
+.ex-paper:active { transform: scale(0.98); }
 .ex-paper:focus-visible { outline: 2px solid var(--live); outline-offset: 2px; }
-.ex-paper.on { box-shadow: inset 0 0 0 1px var(--live); background: rgba(255, 255, 255, 0.07); }
-.ex-when { font-size: 10.5px; color: var(--ink-3); letter-spacing: 0.04em; text-transform: uppercase; }
-.ex-name { font-size: 13px; font-weight: 600; line-height: 1.25; min-height: 2.5em; }
-.ex-nums b { font-family: var(--f-mono); }
-.ex-paper .chip { align-self: flex-start; height: 20px; padding: 0 8px; font-size: 10.5px; }
-.chip.live-chip { color: var(--live); box-shadow: inset 0 0 0 1px var(--live); background: transparent; }
+.ex-paper.on { box-shadow: inset 0 0 0 1px var(--live); background: rgba(255, 255, 255, 0.06); }
+.ex-paper.miss { box-shadow: inset 0 0 0 1px var(--hair), inset 3px 0 0 var(--hair-3); }
+.ex-paper.miss.on { box-shadow: inset 0 0 0 1px var(--live), inset 3px 0 0 var(--hair-3); }
+.ex-when { font-size: 10px; line-height: 1; color: var(--ink-3); letter-spacing: 0.06em; text-transform: uppercase; }
+.ex-name { font-size: 13px; font-weight: 600; line-height: 1.25; }
+.ex-bar { display: block; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.ex-bar i { display: block; height: 100%; background: var(--ink-2); transform-origin: left center; transition: transform var(--t-fast) var(--ease); }
+.ex-bar.hi i { background: var(--live); }
+.ex-nums { display: flex; align-items: baseline; gap: 6px; font-size: 12px; }
+.ex-nums b { font-size: 13px; font-weight: 600; }
+.ex-fc { font-size: 11px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; }
+.ex-foot { display: flex; align-items: center; gap: 6px; font-size: 10.5px; line-height: 1; }
+.ex-score { color: var(--ink); font-weight: 600; font-size: 11px; }
+.ex-score.ok { color: var(--live); }
+.ex-aim { color: var(--ink-3); }
+.ex-miss { flex: none; padding: 3px 6px; border-radius: var(--r-pill); color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--hair-3); font: 600 9.5px/1 var(--f-mono); letter-spacing: 0.02em; }
+.ex-legend { margin: -4px 0 0 !important; font-size: 11px; line-height: 1.4; }
 
-.ex-topics { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: var(--r-sm); background: rgba(255, 255, 255, 0.025); box-shadow: inset 0 0 0 1px var(--hair); }
-.ex-topics-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; }
-.ex-unit { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.ex-unit .eyebrow { flex-basis: 100%; }
-.ex-w { margin-left: 6px; font-family: var(--f-mono); font-size: 10px; padding: 1px 6px; border-radius: var(--r-pill); box-shadow: inset 0 0 0 1px var(--hair-3); }
-.ex-w.high { color: var(--fault); box-shadow: inset 0 0 0 1px var(--fault-2); }
-.ex-w.med { color: var(--sim); }
+/* The open paper's topics. */
+.ex-topics { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: var(--r-sm); background: rgba(255, 255, 255, 0.025); box-shadow: inset 0 0 0 1px var(--hair); }
+.ex-topics-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; min-width: 0; }
+.ex-topics-title { min-width: 0; max-width: 100%; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-unit { display: grid; grid-template-columns: minmax(120px, 200px) minmax(0, 1fr); gap: 6px 14px; align-items: start; padding-top: 8px; border-top: 1px solid var(--hair); }
+.ex-unit-head { display: flex; align-items: center; gap: 6px; min-width: 0; padding-top: 6px; font-size: 12px; color: var(--ink-2); }
+.ex-u { flex: none; font-size: 10.5px; color: var(--ink-3); }
+.ex-unit-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-w { flex: none; font: 600 9.5px/1 var(--f-mono); padding: 3px 6px; border-radius: var(--r-pill); color: var(--ink-3); box-shadow: inset 0 0 0 1px var(--hair-2); text-transform: uppercase; letter-spacing: 0.04em; }
+.ex-w.high { color: var(--ink); box-shadow: inset 0 0 0 1px var(--hair-3); }
+.ex-w.med { color: var(--ink-2); }
+.ex-chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+@media (max-width: 1180px) { .ex-unit { grid-template-columns: 1fr; } .ex-unit-head { padding-top: 0; } }
+
 .ex-topic {
-  display: inline-flex; align-items: center; gap: 7px; min-height: 30px; padding: 4px 11px; border: 0; cursor: pointer;
-  border-radius: var(--r-pill); font-size: 12px; color: var(--ink-2); background: transparent; box-shadow: inset 0 0 0 1px var(--hair);
-  transition: color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+  display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-height: 30px; padding: 4px 12px 4px 9px; border: 0; cursor: pointer;
+  border-radius: var(--r-pill); font: 500 12px/1.2 var(--f-ui); color: var(--ink-2); background: transparent; box-shadow: inset 0 0 0 1px var(--hair);
+  transition: transform var(--t-fast) var(--ease);
 }
-.ex-topic i { width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-4); flex: none; }
-.ex-topic .mono { font-size: 10px; color: var(--ink-3); }
-.ex-topic:hover { color: var(--ink); }
+.ex-topic > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-topic:hover { color: var(--ink); background: rgba(255, 255, 255, 0.04); }
+.ex-topic:active { transform: scale(0.96); }
 .ex-topic:focus-visible { outline: 2px solid var(--live); outline-offset: 2px; }
-.ex-topic.learned { color: var(--ink); box-shadow: inset 0 0 0 1px var(--sim); }
-.ex-topic.learned i { background: var(--sim); box-shadow: none; }
-.ex-topic.solid { color: var(--ink); box-shadow: inset 0 0 0 1px var(--live); background: rgba(255, 255, 255, 0.04); }
-.ex-topic.solid i { background: var(--live); box-shadow: 0 0 8px var(--live); }
+.ex-topic.learned { color: var(--ink); box-shadow: inset 0 0 0 1px var(--hair-3); }
+.ex-topic.solid { color: var(--ink); box-shadow: inset 0 0 0 1px var(--live); }
 
+/* The three-state dot: a ring (to do), a centre (learned), full (solid). The fill is a
+   scaled circle, so the change is a transform and nothing re-lays out. */
+.ex-topic i, .ex-dot { position: relative; flex: none; width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-4); }
+.ex-topic i::after, .ex-dot::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--ink-2);
+  transform: scale(0); transition: transform var(--t-fast) var(--ease);
+}
+.ex-topic.learned i, .ex-dot.learned { box-shadow: inset 0 0 0 1.5px var(--ink-2); }
+.ex-topic.learned i::after, .ex-dot.learned::after { transform: scale(0.45); }
+.ex-topic.solid i, .ex-dot.solid { box-shadow: none; }
+.ex-topic.solid i::after, .ex-dot.solid::after { transform: scale(1); background: var(--live); }
+.ex-dot { display: inline-block; vertical-align: -1px; margin: 0 2px 0 8px; }
+.ex-dot:first-child { margin-left: 0; }
+.ex-key { margin: 0 !important; }
+
+.ex-practice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px solid var(--hair); }
+.ex-practice svg { color: var(--ink-3); }
+.ex-practice .field.sm { width: 76px; height: 30px; padding: 0 10px; }
+.ex-files { display: flex; flex-wrap: wrap; gap: 6px; }
+.ex-files .btn { text-transform: none; max-width: 260px; }
+.ex-files .btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Today: a short timeline, one dot per slot on a hairline rail. */
 .ex-today { display: flex; flex-direction: column; gap: 8px; }
 .ex-today .eyebrow { display: inline-flex; gap: 6px; align-items: center; }
-.ex-slot { display: flex; flex-direction: column; gap: 6px; padding-left: 10px; border-left: 2px solid var(--hair-3); }
-.ex-slot.light { opacity: 0.75; }
-.ex-slot-head, .ex-block-head { display: flex; justify-content: space-between; gap: 8px; }
-.ex-block { display: flex; flex-direction: column; gap: 4px; }
-.ex-focus { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
-.ex-focus li.paper { color: var(--live); }
-.ex-focus li.solid { color: var(--sim); }
-.ex-risks { display: flex; flex-direction: column; gap: 4px; color: var(--ink-2); }
-.ex-risks svg { color: var(--sim); vertical-align: -2px; }
+.ex-line { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ex-slot { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 0 0 10px 18px; }
+.ex-slot::before { content: ''; position: absolute; left: 3px; top: 6px; bottom: -6px; width: 1px; background: var(--hair-2); }
+.ex-slot:last-child::before { display: none; }
+.ex-slot::after { content: ''; position: absolute; left: 0; top: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--ink-2); }
+.ex-slot:first-child::after { background: var(--live); }
+.ex-slot.light { opacity: 0.7; }
+.ex-slot-head { display: flex; align-items: baseline; gap: 8px; line-height: 1.1; }
+.ex-block {
+  display: grid; grid-template-columns: minmax(70px, 150px) minmax(0, 1fr) auto auto; gap: 10px; align-items: center;
+  min-height: 30px; padding: 2px 0; color: var(--ink-2);
+}
+.ex-b-title { min-width: 0; color: var(--ink); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-b-focus { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-b-focus .f.paper { color: var(--ink); font-weight: 600; }
+.ex-b-min { white-space: nowrap; }
+.ex-b-act { display: flex; gap: 2px; }
+.ex-b-act .btn { padding: 0 9px; gap: 4px; }
+
+/* Risks: one line, opens to the list and the rule. */
+.ex-risks { color: var(--ink-2); padding-top: 8px; border-top: 1px solid var(--hair); }
+.ex-risks > summary { min-width: 0; list-style: none; }
+.ex-risks > summary::-webkit-details-marker { display: none; }
+.ex-risks > summary svg { flex: none; color: var(--ink-2); }
+.ex-risks > summary b { flex: none; color: var(--ink); }
+.ex-risk-first { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-3); }
+.ex-risks[open] .ex-risk-first { visibility: hidden; }
+.ex-risks ul { margin: 6px 0 4px; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .ex-paper, .ex-topic { transition: none; }
-  .ex-paper:hover { transform: none; }
+  .ex-paper, .ex-topic, .ex-bar i, .ex-topic i::after, .ex-dot::after { transition: none; }
+  .ex-paper:hover, .ex-paper:active, .ex-topic:active { transform: none; }
 }
 
-/* Settings → What the System knows (SystemInputs.tsx) */
+/* Settings → What the System knows (SystemInputs.tsx). The date sheet and the deadlines
+   are aligned grids: one template for the header and every row, so columns line up. */
 .sys-inputs details { padding: 4px 0; }
 .sys-inputs summary { cursor: pointer; padding: 4px 0; }
+.sys-grid { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; overflow-x: auto; padding-bottom: 2px; }
+.sys-grid .sys-row { display: grid; gap: 6px; align-items: center; min-width: max-content; }
+.sys-grid.exams-grid .sys-row { grid-template-columns: minmax(170px, 1.6fr) 140px 96px 96px 84px 96px 72px 96px 30px; }
+.sys-grid.dead-grid .sys-row { grid-template-columns: minmax(220px, 2fr) 140px 150px 30px; }
+.sys-grid .sys-head { font: 600 9.5px/1 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); padding: 2px 0; }
+.sys-grid .field, .sys-grid .field.sm { width: 100%; min-width: 0 !important; height: 32px; padding: 0 10px; border-radius: var(--r-sm); font-size: 12.5px; }
+.sys-grid .check { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .sys-row .field.sm { min-width: 0; flex: 0 1 auto; }
-.sys-row select.field.sm { flex: 1 1 180px; }
 .sys-area { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
 .sys-area textarea { resize: vertical; font: inherit; }
-.ex-files { display: flex; flex-wrap: wrap; gap: 6px; }
-.ex-files .btn { text-transform: none; }
+.sys-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }

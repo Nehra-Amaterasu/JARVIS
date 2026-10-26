@@ -21,8 +21,18 @@ describe('renderMarkdown', () => {
     expect(h).toContain('<th>a</th>')
     expect(h).toContain('<td>2</td>')
   })
+  it('renders fenced code verbatim, quotes and rules', () => {
+    const h = md('Intro\n\n```\nfor i in range(3):\n    print(**i**)\n```\n\n> a quoted *line*\n\n---\n\nafter')
+    expect(h).toContain('<pre class="rd-code"><code>for i in range(3):\n    print(**i**)</code></pre>')
+    expect(h).toContain('<blockquote>a quoted <i>line</i></blockquote>')
+    expect(h).toContain('<hr/>')
+    expect(h).toContain('<p>after</p>')
+  })
   it('never turns text into HTML', () => {
     expect(md('<img src=x onerror=alert(1)>')).toContain('&lt;img')
+    expect(md('```\n<script>alert(1)</script>\n```')).toContain('&lt;script&gt;')
+    expect(md('> <b onclick=x>hi</b>')).not.toContain('<b onclick')
+    expect(md('| <i>x</i> |\n|---|\n| y |')).toContain('&lt;i&gt;')
   })
 })
 

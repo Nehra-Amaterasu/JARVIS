@@ -317,11 +317,13 @@ class Engine:
         self.eyes.push_raw(t, p.raw)                 # phase needs the packet itself
         tap = self.tap
         if tap is not None:
-            tap.raw(t, p.raw, p.channel, self.fan_relay)
+            # stream v2 keeps rssi/gain per row: without them every hour recorded is useless
+            # for the level tests the council asked for (hearing 2, 2026-10-27)
+            tap.raw(t, p.raw, p.channel, self.fan_relay, rssi=p.rssi, gain_comp_db=p.gain_comp_db)
         for s in self.cond.push(t, p.raw, p.rssi, gain_comp_db=p.gain_comp_db if GAIN_COMP else None):
             self.eyes.push(s)
             if tap is not None:
-                tap.sample(s.t, s.amp, s.filled)
+                tap.sample(s.t, s.amp, s.filled, s.level_db)
             self.resp.push(s)
             if self.fingerprint is not None:
                 zp = self.fingerprint.push(s.t, s.amp, s.filled, bool(self.fan_on))

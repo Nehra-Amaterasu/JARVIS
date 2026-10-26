@@ -63,6 +63,15 @@ class WindowApi:
     def close(self):
         self._win().destroy()
 
+    def open_url(self, url: str) -> bool:
+        """Open a web page in a second app window (Well Wisher links), so a resource
+        opens inside JARVIS instead of the system browser. Only http(s) URLs."""
+        import webview
+        if not isinstance(url, str) or not url.startswith(("https://", "http://")) or len(url) > 2000:
+            return False
+        webview.create_window(url.split("/")[2][:60], url, width=1100, height=800)
+        return True
+
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="JARVIS desktop app")

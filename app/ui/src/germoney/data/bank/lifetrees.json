@@ -1,0 +1,64 @@
+{
+  "version": "2026-10-27",
+  "about": "Parallel progression trees beside the skill tree. Every node is verified by evidence the app can count (links he files, public GitHub days, building hours from commits, money-log income, mastered skill nodes, Life points), never by a button press. Thresholds are first steps for a third-year ECE student, meant to be raised later.",
+  "trees": [
+    {
+      "id": "github", "name": "GitHub", "about": "A profile a hiring engineer can read in two minutes.",
+      "nodes": [
+        {"id": "gh.readme", "name": "Profile README", "tier": 0, "prereqs": [], "outcomes": ["A README that says who you are, what you build, and links three projects"], "proof": {"kind": "link", "need": 1, "text": "Paste the link to your profile README."}},
+        {"id": "gh.pinned", "name": "Pin your best three", "tier": 1, "prereqs": ["gh.readme"], "outcomes": ["Three pinned repos, each with a one-paragraph README and a screenshot or plot"], "proof": {"kind": "link", "need": 3, "text": "One link per pinned repo with a real README."}},
+        {"id": "gh.week", "name": "Seven active days", "tier": 1, "prereqs": ["gh.readme"], "outcomes": ["Real work pushed on 7 different days"], "proof": {"kind": "github_days", "need": 7, "text": "Days with public commits in the last 30, counted from GitHub."}},
+        {"id": "gh.month", "name": "Twenty days in thirty", "tier": 2, "prereqs": ["gh.week"], "outcomes": ["A habit, not a burst: 20 active days out of the last 30"], "proof": {"kind": "github_days", "need": 20, "text": "Days with public commits in the last 30, counted from GitHub."}},
+        {"id": "gh.ci", "name": "A repo with tests and CI", "tier": 2, "prereqs": ["gh.pinned"], "outcomes": ["One project whose tests run on every push (GitHub Actions)"], "proof": {"kind": "link", "need": 1, "text": "Link to a green Actions run."}},
+        {"id": "gh.ledger", "name": "The daily ledger repo", "tier": 3, "prereqs": ["gh.month"], "outcomes": ["A public notes repo: what you learned, committed the day you learned it"], "proof": {"kind": "link", "need": 1, "text": "Link to the ledger repo."}},
+        {"id": "gh.oss", "name": "First merged PR elsewhere", "tier": 3, "prereqs": ["gh.ci"], "outcomes": ["A pull request merged into someone else's open-source project"], "proof": {"kind": "link", "need": 1, "text": "Link to the merged PR."}}
+      ]
+    },
+    {
+      "id": "linkedin", "name": "LinkedIn", "about": "Being findable by the people who hire for chips.",
+      "nodes": [
+        {"id": "li.basics", "name": "Profile that says ECE + VLSI", "tier": 0, "prereqs": [], "outcomes": ["Photo, headline (ECE, VLSI / embedded), location, open to internships"], "proof": {"kind": "link", "need": 1, "text": "Link to your profile."}},
+        {"id": "li.about", "name": "About + featured projects", "tier": 1, "prereqs": ["li.basics"], "outcomes": ["An About in five lines and two featured projects with links"], "proof": {"kind": "link", "need": 1, "text": "Link to the profile section."}},
+        {"id": "li.posts", "name": "Three build posts", "tier": 2, "prereqs": ["li.about"], "outcomes": ["Three posts showing something you built, with what you learned"], "proof": {"kind": "link", "need": 3, "text": "One link per post."}},
+        {"id": "li.network", "name": "Fifty people in the field", "tier": 2, "prereqs": ["li.about"], "outcomes": ["Connections with engineers at chip and embedded companies, each with a note"], "proof": {"kind": "link", "need": 1, "text": "A screenshot link or a note with the count."}},
+        {"id": "li.reco", "name": "A recommendation", "tier": 3, "prereqs": ["li.posts", "li.network"], "outcomes": ["One recommendation from a teacher, mentor or lead"], "proof": {"kind": "link", "need": 1, "text": "Link to the recommendation."}}
+      ]
+    },
+    {
+      "id": "content", "name": "Content (Insta / YouTube)", "about": "Teach what you learn: explaining is the fastest way to learn it twice.",
+      "nodes": [
+        {"id": "ct.first", "name": "First explainer reel", "tier": 0, "prereqs": [], "outcomes": ["One 30-60 s reel that explains one concept you studied"], "proof": {"kind": "link", "need": 1, "text": "Link to the reel."}},
+        {"id": "ct.series", "name": "A five-part series", "tier": 1, "prereqs": ["ct.first"], "outcomes": ["Five reels on one topic (for example the MOSFET, or Wi-Fi sensing)"], "proof": {"kind": "link", "need": 5, "text": "One link per reel."}},
+        {"id": "ct.build", "name": "Show a build", "tier": 1, "prereqs": ["ct.first"], "outcomes": ["One video of a real project working (Aankhen, JARVIS)"], "proof": {"kind": "link", "need": 1, "text": "Link to the video."}},
+        {"id": "ct.habit", "name": "Twenty posts", "tier": 2, "prereqs": ["ct.series", "ct.build"], "outcomes": ["Twenty posts, one a week or better"], "proof": {"kind": "link", "need": 20, "text": "One link per post."}}
+      ]
+    },
+    {
+      "id": "money", "name": "Money", "about": "Income from skills first; investing education only, never tips.",
+      "nodes": [
+        {"id": "mn.track", "name": "Track a month", "tier": 0, "prereqs": [], "outcomes": ["Every expense and income for 30 days in the money log"], "proof": {"kind": "money_entries", "need": 20, "text": "Entries in the money log (Career, Money)."}},
+        {"id": "mn.first", "name": "First paid work", "tier": 1, "prereqs": ["mn.track"], "outcomes": ["Any paid work from a skill: tutoring, a PCB, a script"], "proof": {"kind": "money_income", "need": 1, "unit": "Rs", "text": "Income entries in the money log, in rupees."}},
+        {"id": "mn.10k", "name": "Rs 10,000 earned", "tier": 2, "prereqs": ["mn.first"], "outcomes": ["Rs 10,000 earned in total from skills"], "proof": {"kind": "money_income", "need": 10000, "unit": "Rs", "text": "Income entries in the money log, in rupees."}},
+        {"id": "mn.buffer", "name": "An emergency buffer", "tier": 2, "prereqs": ["mn.first"], "outcomes": ["Savings that cover one month of your spending"], "proof": {"kind": "link", "need": 1, "text": "A note with the amount and the month it covers."}},
+        {"id": "mn.50k", "name": "Rs 50,000 earned", "tier": 3, "prereqs": ["mn.10k"], "outcomes": ["Rs 50,000 earned in total; a second income source"], "proof": {"kind": "money_income", "need": 50000, "unit": "Rs", "text": "Income entries in the money log, in rupees."}}
+      ]
+    },
+    {
+      "id": "embedded", "name": "Second career: embedded / IoT", "about": "The fallback that also pays: products on microcontrollers.",
+      "nodes": [
+        {"id": "em.hours", "name": "Twenty building hours", "tier": 0, "prereqs": [], "outcomes": ["Twenty hours of real building, counted from commits"], "proof": {"kind": "build_hours", "need": 20, "unit": "h", "text": "Building hours in the last 14 days, from your commits."}},
+        {"id": "em.board", "name": "A board you designed", "tier": 1, "prereqs": ["em.hours"], "outcomes": ["A PCB you laid out, ordered and brought up"], "proof": {"kind": "link", "need": 1, "text": "Link to the repo or photos."}},
+        {"id": "em.skills", "name": "Five skill nodes mastered", "tier": 1, "prereqs": ["em.hours"], "outcomes": ["Five nodes of the skill tree mastered with their contracts"], "proof": {"kind": "skill_nodes", "need": 5, "text": "Mastered skill-tree nodes with a finished contract."}},
+        {"id": "em.product", "name": "A product someone uses", "tier": 2, "prereqs": ["em.board", "em.skills"], "outcomes": ["A device another person uses every week"], "proof": {"kind": "link", "need": 1, "text": "A link or a note with who uses it."}}
+      ]
+    },
+    {
+      "id": "discipline", "name": "Discipline", "about": "The base everything else stands on: the Life page, measured.",
+      "nodes": [
+        {"id": "ds.log", "name": "Log seven days", "tier": 0, "prereqs": [], "outcomes": ["Seven days logged on the Life page"], "proof": {"kind": "life_points", "need": 7, "text": "Life points over the last 4 weeks."}},
+        {"id": "ds.line", "name": "Thirty points", "tier": 1, "prereqs": ["ds.log"], "outcomes": ["Thirty points: on or under your lines on most days"], "proof": {"kind": "life_points", "need": 30, "text": "Life points over the last 4 weeks."}},
+        {"id": "ds.eighty", "name": "Eighty points", "tier": 2, "prereqs": ["ds.line"], "outcomes": ["Eighty points in four weeks: the lines are becoming habits"], "proof": {"kind": "life_points", "need": 80, "text": "Life points over the last 4 weeks."}}
+      ]
+    }
+  ]
+}

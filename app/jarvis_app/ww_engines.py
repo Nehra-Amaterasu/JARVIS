@@ -607,6 +607,7 @@ ENGINE_TABLE: list[tuple[str, str]] = [
     ("director", "ww_director"),
     ("study", "ww_study"),
     ("life", "ww_life"),
+    ("trees", "ww_trees"),
 ]
 
 

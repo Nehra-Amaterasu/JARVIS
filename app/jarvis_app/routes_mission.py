@@ -53,6 +53,8 @@
     POST   /api/mission/study/{node}/{op}  op primary {resource} | review {ok}
     GET    /api/mission/life               the day: counters with taper lines, items, reels to explain (ww_life.py)
     POST   /api/mission/life/{op}          op count {id, value|delta} | item {kind, text, minutes?, url?} | explained {date, index}
+    GET    /api/mission/trees              the life trees with each node's status and evidence (ww_trees.py)
+    POST   /api/mission/trees/{tree}/{node}/proof  {url?, note?}  file a link for a "link" node
     GET    /api/mission/inputs             the engine inputs: as written, normalized, and the editable sections
     PUT    /api/mission/inputs/{section}   {value}  replace one section of engine-inputs.json (Settings)
     GET    /api/mission/body               body & life: habits this week + this week's upgrade focus (ww_body.py)
@@ -221,6 +223,14 @@ def register(app: FastAPI, svc, bus) -> None:
     @app.post("/api/mission/life/{op}")
     async def life_tap(op: str, payload: dict = Body(...)):
         return await run_in_threadpool(guard, plan.life_tap, op, payload)
+
+    @app.get("/api/mission/trees")
+    async def life_trees():
+        return await run_in_threadpool(guard, plan.trees_view)
+
+    @app.post("/api/mission/trees/{tree}/{node}/proof")
+    async def life_tree_proof(tree: str, node: str, payload: dict = Body(...)):
+        return await run_in_threadpool(guard, plan.tree_proof, tree, node, payload)
 
     @app.get("/api/mission/inputs")
     async def inputs_get():

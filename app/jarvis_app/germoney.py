@@ -1056,6 +1056,15 @@ COLLEGE = Path.home() / "OneDrive" / "Documents" / "COLLEGE"
 FILE_EXTS = {".pdf", ".png", ".jpg", ".jpeg", ".txt", ".md"}
 
 
+def load_lifetrees(directory: Optional[Path] = None) -> dict:
+    """lifetrees.json from the bank folder; a missing or broken file means no life trees."""
+    try:
+        raw = json.loads(((directory or bank_dir()) / "lifetrees.json").read_text(encoding="utf-8"))
+        return raw if isinstance(raw, dict) else {"trees": []}
+    except (OSError, ValueError):
+        return {"trees": []}
+
+
 def work_repos(inputs: dict) -> list[dict]:
     """The repos whose commits count as building time: Settings' list, else this repo."""
     repos = inputs.get("work_repos") or []
@@ -1321,7 +1330,7 @@ def default_plan_state(today: str) -> dict:
             # merge_plan_state keeps only keys listed here: habit taps, recalls and exam taps were
             # dropped on every reload until these three were added (found 2026-10-26).
             "habits": {}, "learn": {"seen": {}, "reviews": {}}, "exam_prep": {}, "work_sessions": {},
-            "study": {}, "life": {}}
+            "study": {}, "life": {}, "tree_proofs": {}}
 
 
 def merge_plan_state(raw: Any, today: str) -> dict:
@@ -2947,6 +2956,61 @@ class Plan:
                 log.pop(old_day)
             self.save(st)
         return self.life_view(today)
+
+    # ---- life trees: GitHub, LinkedIn, content, money, second career, discipline
+    def tree_measures(self, today: str) -> dict:
+        """The numbers the life trees are verified with, each from the engine that
+        already counts it (nothing is counted twice)."""
+        st = self.load(today)
+        bank = self.bank()
+        money = (st.get("money") or {}).get("entries") or []
+        out = {"money_income": sum(float(e.get("amount") or 0) for e in money if e.get("kind") == "income"),
+               "money_entries": len(money),
+               "skill_nodes": wellwisher.evidence(bank, st, today)["mastered_proven"]}
+        try:
+            out["life_points"] = sum(w["points"] for w in self.life_view(today)["weeks"])
+        except Exception:
+            out["life_points"] = 0
+        try:
+            out["build_hours"] = round(sum(d["minutes"] for d in self.engine("sessions", today)["days"]) / 60, 1)
+        except Exception:
+            out["build_hours"] = 0
+        try:
+            out["github_days"] = int(self.engine("proof", today).get("active_last_30") or 0)
+        except Exception:
+            out["github_days"] = 0
+        return out
+
+    def trees_view(self, today: Optional[str] = None) -> dict:
+        today = today or date.today().isoformat()
+        bank = load_lifetrees()
+        st = self.load(today)
+        return ww_engines.run("trees", ww_engines.load_inputs(), today, bank=bank, proofs=st.get("tree_proofs") or {},
+                              measures=self.tree_measures(today))
+
+    def tree_proof(self, tree: str, node: str, payload: dict, today: Optional[str] = None) -> dict:
+        """File one link as proof for a "link" node of a life tree. Measured nodes take
+        no manual proof: their numbers come from the app."""
+        today = today or date.today().isoformat()
+        t = next((x for x in load_lifetrees().get("trees") or [] if x.get("id") == tree), None)
+        n = next((x for x in (t or {}).get("nodes") or [] if x.get("id") == node), None)
+        if n is None:
+            raise KeyError(f"no node {tree}/{node}")
+        if ((n.get("proof") or {}).get("kind") or "link") != "link":
+            raise ValueError("this node is measured by the app, not by a link")
+        url = str(payload.get("url") or "").strip()
+        note = str(payload.get("note") or "").strip()[:300]
+        if url and not re.match(r"^https?://", url):
+            raise ValueError("a proof link starts with http:// or https://")
+        if not url and not note:
+            raise ValueError("a proof needs a link or a note")
+        with self._lock:
+            st = self.load(today)
+            lst = st.setdefault("tree_proofs", {}).setdefault(tree, {}).setdefault(node, [])
+            lst.append({"date": today, "url": url[:500] or None, "note": note})
+            del lst[:-50]
+            self.save(st)
+        return self.trees_view(today)
 
     def import_sessions(self, today: Optional[str] = None) -> dict:
         """Log every building session of the last 14 days that is not logged yet, as a

@@ -76,16 +76,22 @@ def _paper_topics(paper: dict, subject: Optional[dict], rec: dict) -> list[dict]
     return out
 
 
-def _work_items(topics: list[dict], paper_done: bool) -> list[dict]:
+# His own read of a subject (Settings): an easy paper's topics take less time to learn.
+DIFFICULTY = {"easy": 0.7, "normal": 1.0, "hard": 1.3}
+
+
+def _work_items(topics: list[dict], paper_done: bool, difficulty: str = "normal") -> list[dict]:
     """What is left, in the order it should be done: unseen topics (heaviest units
     first), then a timed paper, then turning 'learned' into 'solid'."""
+    k = DIFFICULTY.get(difficulty, 1.0)
+    learn = {w: round(m * k / 5) * 5 for w, m in LEARN_MIN.items()}
     unseen = sorted((t for t in topics if t["state"] == "none"), key=lambda t: (-WEIGHT[t["weight"]], t["unit"]))
-    items = [{"kind": "learn", "title": t["topic"], "unit": t["unit"], "minutes": LEARN_MIN[t["weight"]]} for t in unseen]
+    items = [{"kind": "learn", "title": t["topic"], "unit": t["unit"], "minutes": learn[t["weight"]]} for t in unseen]
     if not paper_done and topics:
         items.append({"kind": "paper", "title": "Timed practice paper, then mark it and log the lost marks", "unit": None,
                       "minutes": PAPER_MIN})
     items += [{"kind": "solid", "title": f"Redo closed book: {t['topic']}", "unit": t["unit"],
-               "minutes": round(LEARN_MIN[t["weight"]] * SOLIDIFY)}
+               "minutes": round(learn[t["weight"]] * SOLIDIFY)}
               for t in sorted((t for t in topics if t["state"] == "learned"), key=lambda t: (-WEIGHT[t["weight"]], t["unit"]))]
     return items
 
@@ -227,7 +233,7 @@ def exams(inputs: dict, today: str, subjects: Optional[list[dict]] = None, prep:
         rec = prep.get(p["subject"]) or {}
         topics = _paper_topics(p, subs.get(p["subject"]), rec)
         scores = [x for x in rec.get("papers") or [] if x.get("max")]
-        its = _work_items(topics, bool(scores))
+        its = _work_items(topics, bool(scores), p.get("difficulty", "normal"))
         items[p["id"]], titles[p["id"]] = its, p["title"]
         work[p["id"]] = sum(x["minutes"] for x in its)
         logged = sum(int(m.get("minutes") or 0) for m in rec.get("minutes") or [])
@@ -236,7 +242,9 @@ def exams(inputs: dict, today: str, subjects: Optional[list[dict]] = None, prep:
         rows.append({**p, "days_left": days_between(today, p["date"]), "subject_known": p["subject"] in subs,
                      "coverage": _coverage(topics), "topics": topics, "work_minutes": work[p["id"]],
                      "logged_minutes": logged,
-                     "paper_score": {"score": last["score"], "max": last["max"], "date": last["date"]} if last else None,
+                     "paper_score": {"score": last["score"], "max": last["max"], "date": last["date"],
+                                     "on_target": (last["score"] / last["max"] >= p["target"] / (p.get("max") or 20))
+                                     if p.get("target") is not None else None} if last else None,
                      "counts": {s: sum(1 for t in topics if t["state"] == s) for s in STATES}})
     plan = _allocate(_slots(papers, today, study, logged_today), papers, work)
     days = _fill(plan, items, titles)

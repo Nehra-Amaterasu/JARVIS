@@ -18,7 +18,7 @@ ENGINE_TABLE (docs/well-wisher-v1.md, "Adding an engine").
 
 Built: goal_ladder, evidence (this file), career (ww_career.py), money (ww_money.py),
 personality (ww_personality.py), insight (ww_insight.py), learning (ww_learning.py), body (ww_body.py), proof (ww_proof.py),
-exams (ww_exams.py).
+exams (ww_exams.py), sessions (ww_sessions.py), director (ww_director.py: merges the others).
 today_three() composes Today's 3 contracts from the goal ladder, career and personality.
 
 Inputs come from data/notes/well-wisher/engine-inputs.json (private, git-ignored),
@@ -69,7 +69,8 @@ def load_inputs(path: Optional[Path] = None) -> dict:
 
 # Sections Settings may rewrite, and the JSON type each must be.
 EDITABLE = {"exams": list, "study": dict, "deadlines": list, "habits": list, "profile": dict, "goals": list,
-            "skills": list, "money": dict, "week": dict, "rules": dict, "income_experiments": list}
+            "skills": list, "money": dict, "week": dict, "rules": dict, "income_experiments": list,
+            "work_repos": list}
 
 
 def raw_inputs(path: Optional[Path] = None) -> dict:
@@ -296,20 +297,35 @@ def normalize_inputs(raw: Any) -> dict:
         hm = {k: x[k] if isinstance(x.get(k), str) and re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", x[k]) else None
               for k in ("start", "end")}
         units = sorted({int(u) for u in x.get("units") or [] if isinstance(u, (int, float)) and not isinstance(u, bool) and 1 <= u <= 10})
+        mx = _num(x.get("max"), 1, 200, 20)
+        tgt = _opt_num(x.get("target"))
         exams.append({"id": eid, "subject": str(x["subject"])[:60], "title": str(x.get("title") or x["subject"])[:120],
                       "code": str(x.get("code") or "")[:20], "date": x["date"], **hm, "units": units,
-                      "may_miss": bool(x.get("may_miss"))})
+                      "may_miss": bool(x.get("may_miss")),
+                      "difficulty": x["difficulty"] if x.get("difficulty") in ("easy", "normal", "hard") else "normal",
+                      "max": mx, "target": max(0.0, min(mx, tgt)) if tgt is not None else None})
     sr = raw.get("study") if isinstance(raw.get("study"), dict) else {}
     # Defaults: the 3-hour library block + a 60-minute evening (sprint plan, 2026-10-25);
     # weekends a little more; the evening after a paper, about 2.5 hours.
     study = {"weekday_minutes": int(_num(sr.get("weekday_minutes"), 0, 900, 240)),
              "weekend_minutes": int(_num(sr.get("weekend_minutes"), 0, 900, 300)),
-             "exam_evening_minutes": int(_num(sr.get("exam_evening_minutes"), 0, 600, 150))}
+             "exam_evening_minutes": int(_num(sr.get("exam_evening_minutes"), 0, 600, 150)),
+             # Building (JARVIS, Aankhen, Well Wisher) per day: capped in exam week until study is logged.
+             "build_cap_exam": int(_num(sr.get("build_cap_exam"), 0, 900, 60)),
+             "build_cap": int(_num(sr.get("build_cap"), 0, 900, 180))}
+    repos = []
+    for r in raw.get("work_repos") or []:
+        if isinstance(r, dict) and isinstance(r.get("path"), str) and r["path"].strip():
+            repos.append({"path": r["path"].strip()[:300], "name": str(r.get("name") or Path(r["path"].strip()).name)[:40],
+                          "url": r["url"] if isinstance(r.get("url"), str) and r["url"].startswith("https://") else None})
+        else:
+            warn.append("a work repo without a path dropped")
     return {"schema": INPUTS_SCHEMA, "life_goals": goals, "goals": sorted(flat, key=lambda g: (g["deadline"] or "9999", g["id"])),
             "deadlines": sorted(deadlines, key=lambda x: (x["date"], x["id"])), "skills": skills,
             "income_experiments": exps, "habits": habits, "rules": rules, "profile": profile, "money": money,
             "week": {"capacity_minutes": int(_num(week.get("capacity_minutes"), 0, 6000, 600))},
-            "exams": sorted(exams, key=lambda e: (e["date"], e["start"] or "", e["id"])), "study": study, "warnings": warn}
+            "exams": sorted(exams, key=lambda e: (e["date"], e["start"] or "", e["id"])), "study": study,
+            "work_repos": repos[:10], "warnings": warn}
 
 
 # ------------------------------------------------------------------ 1. goal ladder
@@ -583,6 +599,8 @@ ENGINE_TABLE: list[tuple[str, str]] = [
     ("insight", "ww_insight"),
     ("proof", "ww_proof"),
     ("exams", "ww_exams"),
+    ("sessions", "ww_sessions"),
+    ("director", "ww_director"),
 ]
 
 

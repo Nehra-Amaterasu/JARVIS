@@ -12,10 +12,10 @@ import { useStore } from '../../lib/store'
 import { usePlan } from '../game/plan'
 import './exams.css'
 
-interface ExamRow { id?: string; subject: string; title: string; code?: string; date: string; start?: string | null; end?: string | null; units: number[]; may_miss?: boolean }
+interface ExamRow { id?: string; subject: string; title: string; code?: string; date: string; start?: string | null; end?: string | null; units: number[]; may_miss?: boolean; difficulty?: 'easy' | 'normal' | 'hard'; target?: number | null; max?: number }
 interface DeadlineRow { id?: string; title?: string; item?: string; date: string; kind?: string }
 interface Profile { traits?: string[]; weak_points?: string[]; prefers?: string[]; github?: string | null; [k: string]: unknown }
-interface Study { weekday_minutes?: number; weekend_minutes?: number; exam_evening_minutes?: number }
+interface Study { weekday_minutes?: number; weekend_minutes?: number; exam_evening_minutes?: number; build_cap_exam?: number; build_cap?: number }
 interface InputsAnswer { raw: { exams?: ExamRow[]; deadlines?: DeadlineRow[]; profile?: Profile; study?: Study }; inputs: { source: string; warnings: string[] } }
 interface SaveAnswer { saved: string; dropped: string[] }
 
@@ -73,6 +73,11 @@ function DateSheet({ rows, subjects, onSave }: { rows: ExamRow[]; subjects: { id
           <input className="field sm" type="time" value={x.end ?? ''} onChange={(e) => set(i, { end: e.target.value || null })} aria-label="ends" />
           <input className="field sm" value={x.units.join(',')} placeholder="units 3,4" aria-label="units"
             onChange={(e) => set(i, { units: e.target.value.split(/[,\s]+/).map(Number).filter((n) => n > 0) })} />
+          <select className="field sm" value={x.difficulty ?? 'normal'} aria-label="how hard" onChange={(e) => set(i, { difficulty: e.target.value as ExamRow['difficulty'] })}>
+            <option value="easy">easy</option><option value="normal">normal</option><option value="hard">hard</option>
+          </select>
+          <input className="field sm" type="number" min={0} max={x.max ?? 20} value={x.target ?? ''} placeholder="target" aria-label="target marks"
+            onChange={(e) => set(i, { target: e.target.value === '' ? null : Number(e.target.value) })} />
           <label className="check small"><input type="checkbox" checked={!!x.may_miss} onChange={(e) => set(i, { may_miss: e.target.checked })} />may not sit</label>
           <button className="icon-btn" aria-label="Remove paper" onClick={() => setR(r.filter((_, j) => j !== i))}><Trash2 size={13} /></button>
         </div>))}
@@ -94,6 +99,7 @@ function StudyTime({ s, onSave }: { s: Study; onSave: (v: Study) => void }) {
     <details>
       <summary className="small"><b>Study time</b> · minutes you really have</summary>
       <div className="field-row">{f('weekday_minutes', 'Weekday ', 240)}{f('weekend_minutes', 'Weekend day ', 300)}{f('exam_evening_minutes', 'Evening after a paper ', 150)}</div>
+      <div className="field-row">{f('build_cap_exam', 'Building per day, exam week ', 60)}{f('build_cap', 'Building per day, otherwise ', 180)}</div>
       <button className="btn sm" onClick={() => onSave(v)}><Save size={13} />Save study time</button>
     </details>
   )

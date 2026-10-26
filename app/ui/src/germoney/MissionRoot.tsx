@@ -15,6 +15,7 @@
  * bug shows a readable card on that screen instead of blanking the app.
  */
 import { useEffect } from 'react'
+import { useGlassTier } from '../lib/liquidGlass'
 import { useStore } from '../lib/store'
 import { MissionBoundary } from './Boundary'
 import { usePlan } from './game/plan'
@@ -41,11 +42,12 @@ export function MissionRoot() {
   useEffect(() => {
     void useGame.getState().hydrate().then(() => usePlan.getState().refresh())
   }, [])
+  const glass = useGlassTier()            // the same per-machine frame-rate verdict as Aankhen
   const loaded = stores && game
   const screen = SCREEN_OF[tab] ?? 'today'
   const Page = PAGES[screen]
   return (
-    <div className="page mission fade-in">
+    <div className="page mission fade-in" data-glass={glass}>
       <MissionNav />
       {loaded
         ? <MissionBoundary key={screen} name={NAMES[screen]}><Page /></MissionBoundary>

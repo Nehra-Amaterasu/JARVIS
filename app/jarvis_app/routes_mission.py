@@ -46,6 +46,9 @@
     GET    /api/mission/engine/{name}      one engine over his data (schema checked; invalid_input if not)
     GET    /api/mission/exams              papers ahead: coverage, the block plan to the last paper, a forecast (ww_exams.py)
     POST   /api/mission/exams/{subject}/{op}  op topic {key, state} | minutes {minutes} | paper {score, max}
+    GET    /api/mission/sessions           building hours from local commits (ww_sessions.py)
+    POST   /api/mission/sessions/import    log the new sessions as "build" time with the commit as proof
+    GET    /api/mission/director           today's ordered steps, merged from exams, sessions, learning, body
     GET    /api/mission/inputs             the engine inputs: as written, normalized, and the editable sections
     PUT    /api/mission/inputs/{section}   {value}  replace one section of engine-inputs.json (Settings)
     GET    /api/mission/body               body & life: habits this week + this week's upgrade focus (ww_body.py)
@@ -184,6 +187,20 @@ def register(app: FastAPI, svc, bus) -> None:
     @app.post("/api/mission/exams/{subject}/{op}")
     async def exam_prep(subject: str, op: str, payload: Optional[dict] = Body(None)):
         return await run_in_threadpool(guard, plan.exam_prep, op, subject, payload or {})
+
+    @app.get("/api/mission/sessions")
+    async def work_sessions():
+        return await run_in_threadpool(guard, plan.engine, "sessions")
+
+    @app.post("/api/mission/sessions/import")
+    async def work_sessions_import():
+        r = await run_in_threadpool(guard, plan.import_sessions)
+        publish(r["say"])
+        return r
+
+    @app.get("/api/mission/director")
+    async def director():
+        return await run_in_threadpool(guard, plan.engine, "director")
 
     @app.get("/api/mission/inputs")
     async def inputs_get():

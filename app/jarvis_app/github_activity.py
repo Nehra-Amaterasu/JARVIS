@@ -82,3 +82,29 @@ def days(user: str, now: Optional[float] = None, fetch: Optional[Callable[[str],
     except OSError:
         pass
     return out
+
+
+# ------------------------------------------------------------------ local commits (work sessions)
+def local_commits(repos: list[dict], since_days: int = 14, run: Optional[Callable] = None) -> list[dict]:
+    """Commits from local git repos for ww_sessions: [{sha, ts, repo, subject, url}].
+    Reads `git log` on the checked-out branch only; a missing or broken repo is
+    skipped, never an error. Nothing leaves the laptop."""
+    import subprocess
+    run = run or (lambda args, cwd: subprocess.run(args, cwd=cwd, capture_output=True, text=True, encoding="utf-8",
+                                                   timeout=10, check=False).stdout)
+    out: list[dict] = []
+    for r in repos:
+        path = Path(r.get("path") or "")
+        if not (path / ".git").exists():
+            continue
+        try:
+            text = run(["git", "log", f"--since={since_days} days ago", "--format=%H%x1f%at%x1f%s"], str(path))
+        except Exception:
+            continue
+        for line in (text or "").splitlines():
+            parts = line.split("\x1f")
+            if len(parts) != 3 or not parts[1].isdigit():
+                continue
+            url = f"{r['url'].rstrip('/')}/commit/{parts[0]}" if r.get("url") else None
+            out.append({"sha": parts[0], "ts": int(parts[1]), "repo": r.get("name") or path.name, "subject": parts[2], "url": url})
+    return out

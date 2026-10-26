@@ -44,7 +44,7 @@ def test_coverage_is_weighted_and_learned_counts_part():
 def test_a_practice_paper_is_the_measured_number_and_leaves_the_work_list():
     prep = {"alpha": {"papers": [{"date": TODAY, "score": 14, "max": 20}]}}
     a = exams(inp(), TODAY, subjects=SUBJ, prep=prep)["papers"][0]
-    assert a["paper_score"] == {"score": 14, "max": 20, "date": TODAY}
+    assert a["paper_score"] == {"score": 14, "max": 20, "date": TODAY, "on_target": None}
     assert a["work_minutes"] == 2 * LEARN_MIN["high"] + LEARN_MIN["low"]
 
 
@@ -124,7 +124,7 @@ def test_normalize_cleans_the_date_sheet():
         {"subject": "beta"}]})                                     # no date: dropped
     assert len(n["exams"]) == 1 and n["exams"][0]["start"] is None and n["exams"][0]["units"] == [3, 4]
     assert len(n["warnings"]) == 2
-    assert n["study"] == {"weekday_minutes": 240, "weekend_minutes": 300, "exam_evening_minutes": 150}
+    assert n["study"] == {"weekday_minutes": 240, "weekend_minutes": 300, "exam_evening_minutes": 150, "build_cap_exam": 60, "build_cap": 180}
 
 
 # ------------------------------------------------------------------ Settings writes the inputs

@@ -1056,6 +1056,15 @@ COLLEGE = Path.home() / "OneDrive" / "Documents" / "COLLEGE"
 FILE_EXTS = {".pdf", ".png", ".jpg", ".jpeg", ".txt", ".md"}
 
 
+def work_repos(inputs: dict) -> list[dict]:
+    """The repos whose commits count as building time: Settings' list, else this repo."""
+    repos = inputs.get("work_repos") or []
+    if repos:
+        return repos
+    root = Path(__file__).resolve().parents[2]
+    return [{"path": str(root), "name": root.name, "url": None}]
+
+
 def exam_notes() -> Path:
     """The private exam packs (revision sheets, practice papers, keys): data/notes/exams."""
     env = os.environ.get("JARVIS_EXAM_NOTES")
@@ -1311,7 +1320,7 @@ def default_plan_state(today: str) -> dict:
             "money": {"entries": [], "seq": 0},                # the money log (Well Wisher money engine)
             # merge_plan_state keeps only keys listed here: habit taps, recalls and exam taps were
             # dropped on every reload until these three were added (found 2026-10-26).
-            "habits": {}, "learn": {"seen": {}, "reviews": {}}, "exam_prep": {}}
+            "habits": {}, "learn": {"seen": {}, "reviews": {}}, "exam_prep": {}, "work_sessions": {}}
 
 
 def merge_plan_state(raw: Any, today: str) -> dict:
@@ -2760,6 +2769,13 @@ class Plan:
             for p in out.get("papers") or []:
                 p["files"] = study_files(p["subject"])
             return {**out, "source": inputs.get("source")}
+        if name == "sessions":
+            return {**ww_engines.run(name, inputs, today, commits=github_activity.local_commits(work_repos(inputs)),
+                                     imported=sorted((st.get("work_sessions") or {}).keys())), "source": inputs.get("source")}
+        if name == "director":
+            parts = {k: self.engine(k, today, inputs) for k in ("exams", "sessions", "learning", "body")}
+            parts = {k: v for k, v in parts.items() if v.get("status") == "ok"}
+            return {**ww_engines.run(name, inputs, today, **parts), "source": inputs.get("source")}
         if name == "proof":
             # The only engine whose data comes off the network; github_activity caches it for 30 min.
             user = (inputs.get("profile") or {}).get("github")
@@ -2818,6 +2834,29 @@ class Plan:
                 revs[:] = revs[-50:]
             self.save(st)
         return self.engine("learning", today)
+
+    def import_sessions(self, today: Optional[str] = None) -> dict:
+        """Log every building session of the last 14 days that is not logged yet, as a
+        normal log (track "build") with its last commit as the proof link, so Focus,
+        Consistency and Proof move from real commits. Each session is logged once."""
+        today = today or date.today().isoformat()
+        ans = self.engine("sessions", today)
+        added = []
+        with self._lock:
+            st = self.load(today)
+            seen = st.setdefault("work_sessions", {})
+            for r in ans.get("sessions") or []:
+                if r["id"] in seen or r["date"] > today:
+                    continue
+                seen[r["id"]] = {"date": r["date"], "minutes": r["minutes"]}
+                added.append(r)
+            self.save(st)
+        for r in added:
+            self.log(r["minutes"], "build", note=f"building session {r['start']}-{r['end']}: {r['main_area']} ({r['commits']} commits)",
+                     proof=r.get("link") or "", today=r["date"], via="git")
+        out = self.engine("sessions", today)
+        n = sum(r["minutes"] for r in added)
+        return {**out, "added": len(added), "say": f"Logged {len(added)} building session{'' if len(added) == 1 else 's'}, {n} minutes."}
 
     def exam_prep(self, op: str, subject: str, payload: dict, today: Optional[str] = None) -> dict:
         """Exam preparation, one tap at a time (the exams engine reads it):

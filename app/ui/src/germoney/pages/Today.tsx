@@ -19,6 +19,7 @@ import { prettyDate } from '../game/util'
 import { DAILY_ITEMS, SUNDAY_ITEMS, useChecklistStore } from '../stores/checklist-store'
 import { usePlayerStore } from '../stores/player-store'
 import { CheckRow, daysSince, EMPTY, MissionHeader, NeonBar } from '../ui'
+import { DirectionCard, SessionsCard } from './Direction'
 import { ExamsCard } from './Exams'
 import { SchedulePage } from './Schedule'
 import { QuestCards } from './Status'
@@ -53,6 +54,7 @@ export function TodayPage() {
       <Wins />
       <Deadlines />
       <Comeback />
+      <DirectionCard />
       <div className="today-grid">
         <section className="today-main">
           <ExamsCard />
@@ -63,6 +65,7 @@ export function TodayPage() {
           <ParkIdea />
         </section>
         <aside className="today-side">
+          <SessionsCard />
           <FloorCard />
           <WeeklyReview />
           <LearnCard />

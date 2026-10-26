@@ -1,0 +1,46 @@
+/* Direction + Building cards (Direction.tsx). App tokens only. */
+.card.direction { display: flex; flex-direction: column; gap: 10px; }
+.card.direction .pill.exam { color: var(--sim); }
+.dir-say { margin: 0; font-size: 15px; line-height: 1.45; color: var(--ink); }
+.dir-split { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: rgba(255, 255, 255, 0.05); gap: 2px; }
+.dir-split i { display: block; min-width: 0; transition: flex-grow var(--t-slow) var(--ease); }
+.dir-split .study, .dir-legend b.study { background: var(--live); }
+.dir-split .built, .dir-legend b.built { background: var(--ink-3); }
+.dir-split .build, .dir-legend b.build { background: var(--sim); opacity: 0.75; }
+.dir-legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--ink-3); }
+.dir-legend b { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
+.dir-note { margin: 0; padding: 8px 10px; border-radius: var(--r-sm); background: rgba(255, 176, 32, 0.07); box-shadow: inset 0 0 0 1px var(--sim-2); }
+.dir-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.dir-step { display: grid; grid-template-columns: 18px 1fr auto; gap: 10px; align-items: baseline; padding: 7px 4px; border-bottom: 1px solid var(--hair); }
+.dir-step:last-child { border-bottom: 0; }
+.dir-step:first-child .dir-title { font-weight: 600; }
+.dir-step svg { color: var(--ink-3); transform: translateY(2px); }
+.dir-step.study svg { color: var(--live); }
+.dir-step.build svg { color: var(--sim); }
+.dir-title { font-size: 13px; line-height: 1.4; }
+
+.card.sessions { display: flex; flex-direction: column; gap: 8px; }
+.ses-bars { display: flex; align-items: flex-end; gap: 3px; height: 48px; }
+.ses-bars i { flex: 1; border-radius: 2px; background: rgba(255, 255, 255, 0.06); }
+.ses-bars i.on { background: var(--sim); opacity: 0.8; }
+.ses-areas { display: flex; flex-wrap: wrap; gap: 6px; }
+.ses-area { display: inline-flex; gap: 6px; padding: 2px 9px; border-radius: var(--r-pill); box-shadow: inset 0 0 0 1px var(--hair); }
+.ses-row { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; color: var(--ink-2); }
+.ses-what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Glass on Well Wisher cards: the Aankhen tier (lib/liquidGlass.tsx) decides per machine.
+   Mission uses blur at most: 15+ cards with refraction would cost frames for little gain. */
+.page.mission[data-glass='refract'] .card,
+.page.mission[data-glass='blur'] .card {
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.015) 40%, rgba(255, 255, 255, 0) 62%),
+    rgba(12, 14, 18, 0.5);
+  backdrop-filter: blur(12px) saturate(170%);
+  -webkit-backdrop-filter: blur(12px) saturate(170%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 -12px 24px rgba(0, 0, 0, 0.12), 0 8px 26px rgba(0, 0, 0, 0.24);
+}
+.page.mission[data-glass] .card .card,
+.page.mission[data-glass] .embedded .card { backdrop-filter: none; -webkit-backdrop-filter: none; }
+@media (prefers-reduced-transparency: reduce) {
+  .page.mission[data-glass] .card { backdrop-filter: none; -webkit-backdrop-filter: none; }
+}

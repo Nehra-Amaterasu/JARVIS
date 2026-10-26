@@ -13,8 +13,12 @@
  *                   as a meter against its own threshold
  *   spatial model   the learned model's belief over five states (advisory: it never
  *                   drives presence until its score on my own recordings earns it)
- *   teach           label what I am doing while Aankhen records; train; the score
- *                   is measured on time the model never saw
+ *   teach · train   components/TeachTrainPanel: a mini drill at the laptop (tap the
+ *                   place as I move), a phone recording's narration labelled in the
+ *                   background, and one Train button with the report in plain words
+ *   prediction      components/PredictionBar: "Predicting: <place>" until the backend
+ *                   says answering, a ✓ and a "No, I'm at…" that label the last 10 s,
+ *                   and the fan as the engine reports it, with a manual override
  *   channel         51 subcarrier amplitudes as a dot matrix (Nothing-style: the
  *                   unlit dots are the scale)
  *   sim check       only in simulation: live error between the tracked and the
@@ -32,15 +36,17 @@
  *
  * Colour is provenance everywhere: cyan measured by the ESP32, amber simulated.
  */
-import { Box, Crosshair, GraduationCap, Home, Layers, Map as MapIcon, Pause, RotateCcw, ScanEye, Square, Sparkles, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { api, openSocket, post } from '../lib/api'
-import { fmt, fmtDur } from '../lib/format'
+import { Box, Crosshair, GraduationCap, Home, Layers, Map as MapIcon, RotateCcw, ScanEye, Sparkles } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { openSocket, post } from '../lib/api'
+import { fmt } from '../lib/format'
 import { Presence, Ticker } from '../lib/motion'
-import { useStore, type Toast } from '../lib/store'
+import { useStore } from '../lib/store'
 import type { EyesMsg } from '../lib/eyes'
 import { EyesView } from '../components/EyesView'
 import { FirstLightSheet } from '../components/FirstLight'
+import { PredictionBar } from '../components/PredictionBar'
+import { TeachTrainPanel, useTrain, useZones } from '../components/TeachTrainPanel'
 import { MeasureSheet, ReadinessCard, useReadiness } from '../components/MeasureRoom'
 import { learnedView } from '../lib/roomMeasure'
 import { NOT_SURE_WHERE } from '../lib/belief'
@@ -68,13 +74,6 @@ interface StatusMsg {
   hub?: HubInfo
   belief?: unknown
 }
-interface TeachStatus {
-  recording: boolean; simulated: boolean
-  current: { label: string; name: string; seconds: number } | null
-  labels: Record<string, string>; totals: Record<string, number>
-  training: { state: 'idle' | 'running' | 'done' | 'error'; step?: string; error?: string; occupancy_accuracy?: number; five_way_accuracy?: number; zone_accuracy?: number; held_out_windows?: number }
-}
-
 const SOURCE: Record<string, { label: string; cls: string }> = {
   hardware: { label: 'LIVE · ESP32 hardware', cls: 'live' },
   simulation: { label: 'SIMULATION · not measured', cls: 'sim' },
@@ -91,10 +90,6 @@ const STATES: { id: string; name: string }[] = [
   { id: 'desk', name: 'At my desk' }, { id: 'bed', name: 'In bed' },
 ]
 const ACT_NAMES: Record<string, string> = { none: 'Not in the room', still: 'Still', typing: 'Typing', waving: 'Waving', walking: 'Walking' }
-// Teach labels and their keys (teach.py LABELS).
-const TEACH_KEYS: { id: string; key: string }[] = [
-  { id: 'desk', key: 'D' }, { id: 'bed', key: 'B' }, { id: 'walk', key: 'W' }, { id: 'hallway', key: 'O' }, { id: 'empty', key: 'E' },
-]
 
 export function AankhenPage() {
   const host = useRef<HTMLDivElement>(null)
@@ -194,7 +189,8 @@ export function AankhenPage() {
     }
   }
 
-  const teach = useTeach(teachOpen, toast)
+  const zones = useZones()
+  const train = useTrain(teachOpen)
 
   const src = SOURCE[frame?.source ?? status?.source ?? ''] ?? { label: online ? 'NO SOURCE' : 'DISCONNECTED', cls: 'fault' }
   const stale = !online
@@ -244,6 +240,13 @@ export function AankhenPage() {
           </div>
         </Presence>
 
+        {!eyes && (
+          <div className="hud hud-pred">
+            <PredictionBar belief={frame?.belief ?? status?.belief} fan={(frame?.motion_detail as { fan?: unknown } | undefined)?.fan}
+              live={frame?.source === 'hardware' && online} zones={zones} status={train.view?.status ?? 'predicting'} toast={toast} />
+          </div>
+        )}
+
         <div className="hud hud-col-right">
           <PresenceCore frame={frame} />
           <MotionCard frame={frame} hist={hist} />
@@ -277,9 +280,9 @@ export function AankhenPage() {
           <button className={`btn sm teach-btn ${frame?.source === 'hardware' ? 'live' : ''}`} onClick={() => { setTeachOpen(false); setFlOpen((o) => !o) }} aria-expanded={flOpen}>
             <Sparkles size={14} />First light
           </button>
-          <button className={`btn sm ${teach.status?.recording ? 'recording-btn' : ''}`} onClick={() => { setFlOpen(false); setTeachOpen((o) => !o) }} aria-expanded={teachOpen}>
-            {teach.status?.recording ? <i className="rec-dot" /> : <GraduationCap size={14} />}
-            {teach.status?.recording ? 'Teaching' : 'Teach'}
+          <button className={`btn sm ${train.view?.job.state === 'running' ? 'recording-btn' : ''}`} onClick={() => { setFlOpen(false); setTeachOpen((o) => !o) }} aria-expanded={teachOpen}>
+            {train.view?.job.state === 'running' ? <i className="rec-dot" /> : <GraduationCap size={14} />}
+            {train.view?.job.state === 'running' ? 'Training' : 'Teach · Train'}
           </button>
           </>}
         </div>
@@ -294,7 +297,7 @@ export function AankhenPage() {
           </div>
         </Presence>
         <Presence show={teachOpen && !eyes}>
-          <TeachSheet t={teach} onClose={() => setTeachOpen(false)} />
+          <TeachTrainPanel zones={zones} train={train} live={frame?.source === 'hardware' && online} toast={toast} onClose={() => setTeachOpen(false)} />
         </Presence>
         <Presence show={measureOpen && !eyes}>
           <MeasureSheet onClose={() => setMeasureOpen(false)} onSaved={() => { void reloadReadiness(); toast('Room saved as measured') }} />
@@ -302,100 +305,6 @@ export function AankhenPage() {
         <Presence show={flOpen && !eyes}>
           <FirstLightSheet frame={frame} live={frame?.source === 'hardware' && online} onClose={() => setFlOpen(false)} toast={toast} />
         </Presence>
-      </div>
-    </div>
-  )
-}
-
-/* ------------------------------------------------------------------ teach state */
-type Teach = ReturnType<typeof useTeach>
-function useTeach(open: boolean, toast: (m: string, tone?: Toast['tone']) => void) {
-  const [status, setStatus] = useState<TeachStatus | null>(null)
-  const busy = !!status && (status.recording || status.training.state === 'running')
-  const load = useCallback(async () => {
-    try { setStatus(await api<TeachStatus>('/api/aankhen/teach')) } catch { /* keep the last */ }
-  }, [])
-  useEffect(() => {
-    void load()
-    if (!open && !busy) return
-    const id = window.setInterval(load, 1000)
-    return () => window.clearInterval(id)
-  }, [open, busy, load])
-  const act = useCallback(async (path: string, body: unknown = {}) => {
-    try { setStatus(await post<TeachStatus>(path, body)) } catch (e) { toast((e as Error).message, 'fault') }
-  }, [toast])
-  const label = useCallback((l: string | null) => act('/api/aankhen/teach/label', { label: l }), [act])
-  const stop = useCallback(() => act('/api/aankhen/teach/stop'), [act])
-  const train = useCallback(async () => {
-    try { await post('/api/aankhen/learn/train', { include_sim: true }); await load() } catch (e) { toast((e as Error).message, 'fault') }
-  }, [load, toast])
-  return { status, label, stop, train }
-}
-
-function TeachSheet({ t, onClose }: { t: Teach; onClose: () => void }) {
-  const s = t.status
-  const { label, stop } = t
-  // Keys while the sheet is open: D B W O E label, P pauses, Esc closes.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey || (e.target as HTMLElement)?.closest?.('input, textarea')) return
-      const k = e.key.toUpperCase()
-      const hit = TEACH_KEYS.find((x) => x.key === k)
-      if (hit) { e.preventDefault(); void label(hit.id) }
-      else if (k === 'P') { e.preventDefault(); void label(null) }
-      else if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [label, onClose])
-  const tr = s?.training
-  const learned = Object.values(s?.totals ?? {}).reduce((a, b) => a + b, 0)
-  return (
-    <div className="teach-sheet glass slide-up" role="dialog" aria-label="Teach Aankhen">
-      <div className="ts-head">
-        <div className="ts-title">
-          {s?.recording ? <i className="rec-dot" /> : <GraduationCap size={16} />}
-          <b>{s?.recording ? 'Recording what you label' : 'Teach Aankhen your room'}</b>
-          {s?.simulated && <span className="pill sim" title="Sessions recorded from the simulator are named teach-sim-* and never trained on">Practice · simulator</span>}
-        </div>
-        <div className="ts-actions">
-          {s?.recording && <button className="btn sm ghost" onClick={() => void stop()}><Square size={12} />End session</button>}
-          <button className="btn icon sm ghost" aria-label="Close" onClick={onClose}><X size={15} /></button>
-        </div>
-      </div>
-      <p className="ts-sub muted">Tap what you are doing right now, or press its key. Each label holds until the next; a few minutes of each, on different days, teaches it best.</p>
-      <div className="ts-tiles">
-        {TEACH_KEYS.map((k, i) => {
-          const on = s?.current?.label === k.id
-          return (
-            <button key={k.id} className={`ts-tile pop ${on ? 'on' : ''}`} style={{ ['--i' as string]: i }} onClick={() => void label(on ? null : k.id)} aria-pressed={on}>
-              <kbd>{k.key}</kbd>
-              <span className="ts-name">{s?.labels?.[k.id] ?? k.id}</span>
-              <span className="ts-time mono">
-                {on ? <>now <Ticker value={s?.current?.seconds ?? 0} fmt={(n) => fmtDur(n)} /></> : <>learned <Ticker value={s?.totals?.[k.id] ?? 0} fmt={(n) => fmtDur(n)} /></>}
-              </span>
-              <i className="ts-fill" style={{ width: `${Math.min(100, ((s?.totals?.[k.id] ?? 0) / 600) * 100)}%` }} />
-            </button>
-          )
-        })}
-        <button className={`ts-tile pause pop ${s?.recording && !s.current ? 'on' : ''}`} style={{ ['--i' as string]: 5 }} onClick={() => void label(null)} disabled={!s?.recording}>
-          <kbd>P</kbd><span className="ts-name"><Pause size={13} /> Pause</span><span className="ts-time mono">unlabelled</span>
-        </button>
-      </div>
-      <div className="ts-train">
-        <div className="ts-train-text">
-          {tr?.state === 'running' && <span className="scan ts-step">{tr.step ?? 'training'}…</span>}
-          {tr?.state === 'done' && (
-            <span className="rise">Held-out score: occupancy <b className="dot"><Ticker value={(tr.occupancy_accuracy ?? 0) * 100} fmt={(n) => `${n.toFixed(1)}%`} /></b>
-              {' · '}five states <b className="dot"><Ticker value={(tr.five_way_accuracy ?? 0) * 100} fmt={(n) => `${n.toFixed(1)}%`} /></b>
-              <span className="muted"> on {tr.held_out_windows?.toLocaleString()} windows it never saw · now live</span></span>
-          )}
-          {tr?.state === 'error' && <span className="fault">{tr.error}</span>}
-          {(!tr || tr.state === 'idle') && <span className="muted">{learned > 0 ? `${fmtDur(learned)} labelled in your room so far.` : 'Nothing labelled in your room yet — simulator practice never counts.'}</span>}
-        </div>
-        <button className="btn sm primary" disabled={tr?.state === 'running' || learned <= 0} onClick={() => void t.train()}>
-          <Sparkles size={13} />{tr?.state === 'running' ? 'Training…' : 'Train on my labels'}
-        </button>
       </div>
     </div>
   )

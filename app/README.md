@@ -7,7 +7,7 @@ starts and supervises the voice core, owns the boards, and serves the UI.
 |---|---|
 | **Core** | wake JARVIS (voice, or text only), live state, the conversation, measured latency; flag any turn (wrong / slow / misheard) and export a review file |
 | **Yaadash** | memory search that returns the real conversation (both sides, dated), beliefs to confirm or correct, closest people, taste over the years, the study library |
-| **Aankhen** | the room as a 3D twin: where movement probably is, drawn as a dot cloud over 15 zones; human-band motion; the honest state (`in_room` / `empty` / `unsure`, with the reason); the daily drill; simulator / replay / board sources |
+| **Aankhen** | the room as a 3D twin: where movement probably is, drawn as a dot cloud over 15 zones; human-band motion; the honest state (`in_room` / `empty` / `unsure`, with the reason); the daily drill; Teach · Train (a mini drill tapped at the laptop, a phone narration labelled in the background, one Train button with the report in plain words); "Predicting: <place>" with ✓ and "No, I'm at…" corrections; simulator / replay / board sources |
 | **Limbs** | the light and fan, switched through the board that owns each one (the Uno over USB today); a device shows "confirmed" only when the board's reply agrees; editable on/off modes; the ESP32's firmware, relays and Wi-Fi link |
 | **Connect** | every sensor, model and data source, detected live, each with its next step; the brain and voice to choose and test; phone access; the Remarks switch |
 | **System** | VRAM against the 6 GB ceiling, loaded models, models on disk, JARVIS's log, the wake log, the engineering log |
@@ -134,6 +134,8 @@ JARVIS.pyw ─▶ jarvis_app (FastAPI on 127.0.0.1, per-launch token) ─▶ Web
 watchdog.pyw     ├─ routes_crew       movement watcher, chat learner, steward, task ledger
 (login, opt-in)  ├─ memory.py         yaadash (search, beliefs, people, taste, library)
                  ├─ /ws/aankhen       aankhen hub: engine, zone belief, drill, teachers
+                 ├─ routes_aankhen_train  mini drill, phone narration, Train, ✓ / corrections
+                 │    └─ aankhen_training.py  the one touch point with aankhen's dataset + fingerprint
                  ├─ limbs.py          the single writer for every device (devices.json)
                  │    ├─ uno.py         the Uno on USB; a switch counts on its JSON reply
                  │    └─ esp32_link.py  the ESP32's key; relays over USB or signed UDP

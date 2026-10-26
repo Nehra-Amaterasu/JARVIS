@@ -75,13 +75,16 @@ class WindowBuilder:
     real packet. Silences up to MAX_GAP_S are bridged as empty steps; a longer one starts
     over. Push-based so the live engine and the file readers share one implementation."""
 
-    def __init__(self):
+    def __init__(self, on_step=None, emit: bool = True):
         self.done: deque = deque(maxlen=NB)    # finished steps: (value[51] or None, real?, last time)
         self.cur_k: Optional[int] = None
         self.real_sum = self.all_sum = None
         self.n_real = self.n_all = 0
         self.last_t: Optional[float] = None
         self.last_emit = -1e18
+        # on_step(value, real, last_t, gap) sees every closed step: the step-series cache
+        # records them, so windows can be rebuilt later without decoding the raw file again
+        self.on_step, self.emit = on_step, emit
 
     def push(self, t: float, amp, was_filled: bool) -> Optional[tuple[float, np.ndarray]]:
         k = int(round(t * RATE_HZ)) // POOL
@@ -98,18 +101,28 @@ class WindowBuilder:
         return out
 
     def _close_step(self, k: int) -> Optional[tuple[float, np.ndarray]]:
-        done = self.done
         v = self.real_sum / self.n_real if self.n_real else (self.all_sum / self.n_all if self.n_all else None)
-        done.append((v, self.n_real > 0, self.last_t))
+        real = self.n_real > 0
         self.real_sum = self.all_sum = None
         self.n_real = self.n_all = 0
         gap = k - self.cur_k - 1
         if k < self.cur_k or gap * BIN_S > MAX_GAP_S:
+            gap = -1                                   # the clock went back or a long silence: start over
+        if self.on_step is not None:
+            self.on_step(v, real, self.last_t, gap)
+        return self.step(v, real, self.last_t, gap) if self.emit else None
+
+    def step(self, v, real: bool, last_t: float, gap: int) -> Optional[tuple[float, np.ndarray]]:
+        """One closed step (and `gap` empty ones after it; -1 = start over): the window
+        that ends here, if one is due. A cached step series replays through this."""
+        done = self.done
+        done.append((v, real, last_t))
+        if gap < 0:
             done.clear()
             self.last_emit = -1e18
             return None
         for _ in range(gap):
-            done.append((None, False, self.last_t))
+            done.append((None, False, last_t))
         # a window ends at every step boundary once full; one goes out every 0.5 s
         if len(done) < NB or done[-1][2] - self.last_emit < HOP / RATE_HZ - 0.03:
             return None
@@ -216,6 +229,87 @@ def session_windows(folder: str) -> list[tuple[float, np.ndarray]]:
     log-amplitude needs no more than 7 digits, and the 2 h sleep session alone is about
     14,000 windows, 290 MB as float64, on a laptop with under 1 GB free (2026-10-26)."""
     return [(t, w.astype(np.float32)) for t, w in windows(akr_stream(os.path.join(folder, "raw.akr")))]
+
+
+# ---------------------------------------------------------------- the step-series cache
+# Decoding is the slow part of every training run: 0.52 s per MB of raw (council
+# 2026-10-26, hearing 2 seat 5), so the 116 MB sleep session took about a minute each
+# time. Its 40 ms steps are 37 MB as float32, and the windows are only views over them
+# (50 steps, a new one every 12.5): caching the steps is 4.1x less RAM than caching
+# windows, and a second load is one file read. Keyed by the raw file's SHA-256 and this
+# version, so a changed recording or a changed conditioner never reuses stale steps.
+STEP_CACHE_VERSION = 1
+STEP_CACHE_DIR = os.path.join(DATA_DIR, "cache", "steps")
+
+
+def file_sha256(path: str, chunk: int = 1 << 20) -> str:
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for b in iter(lambda: f.read(chunk), b""):
+            h.update(b)
+    return h.hexdigest()
+
+
+def steps_of(samples: Iterable[tuple[float, np.ndarray, bool]]) -> dict:
+    """(time, amp[51], filled) at 100 Hz -> the closed 40 ms steps, as WindowBuilder sees them:
+    v [n, 51] float32 (NaN rows: a step with no value), real, t (its last sample), gap
+    (empty steps after it; -1 = the builder starts over there)."""
+    v, real, t, gap = [], [], [], []
+
+    def keep(val, r, lt, g):
+        v.append(np.full(N_SUB, np.nan, np.float32) if val is None else np.asarray(val, np.float32))
+        real.append(r); t.append(lt); gap.append(g)
+
+    wb = WindowBuilder(on_step=keep, emit=False)
+    for s_t, amp, filled in samples:
+        wb.push(s_t, amp, filled)
+    return {"v": np.asarray(v, np.float32).reshape(-1, N_SUB), "real": np.asarray(real, bool),
+            "t": np.asarray(t, np.float64), "gap": np.asarray(gap, np.int32)}
+
+
+def iter_windows_from_steps(steps: dict, want=None) -> Iterable[tuple[float, Optional[np.ndarray]]]:
+    """(end time, float32 window) for every window of a step series, as session_windows
+    gives them. want(t) -> False yields (t, None): the time without building the window."""
+    wb = WindowBuilder()
+    v, real, ts, gap = steps["v"], steps["real"], steps["t"], steps["gap"]
+    nan = np.isnan(v[:, 0]) if len(v) else np.zeros(0, bool)
+    for i in range(len(ts)):
+        w = wb.step(None if nan[i] else v[i], bool(real[i]), float(ts[i]), int(gap[i]))
+        if w is not None:
+            yield (w[0], w[1].astype(np.float32)) if want is None or want(w[0]) else (w[0], None)
+
+
+def windows_from_steps(steps: dict) -> list[tuple[float, np.ndarray]]:
+    """The same (end time, float32 window) pairs session_windows gives, rebuilt from a step series."""
+    return list(iter_windows_from_steps(steps))
+
+
+def recording_steps(path: str, cache: bool = True, cache_dir: Optional[str] = None) -> dict:
+    """A raw recording's step series, from the cache when its hash matches."""
+    sha = file_sha256(path)
+    d = cache_dir or STEP_CACHE_DIR
+    f = os.path.join(d, f"{sha[:32]}-v{STEP_CACHE_VERSION}.npz")
+    if cache and os.path.exists(f):
+        try:
+            with np.load(f, allow_pickle=False) as z:
+                if str(z["sha256"]) == sha:
+                    return {k: z[k] for k in ("v", "real", "t", "gap")} | {"sha256": sha, "cached": True}
+        except (OSError, ValueError, KeyError):
+            pass                                        # a broken cache file: decode again
+    st = steps_of(akr_stream(path))
+    if cache:
+        os.makedirs(d, exist_ok=True)
+        tmp = f + ".tmp"
+        with open(tmp, "wb") as fh:
+            np.savez(fh, sha256=np.array(sha), version=np.array(STEP_CACHE_VERSION), **st)
+        os.replace(tmp, f)
+    return {**st, "sha256": sha, "cached": False}
+
+
+def recording_windows(path: str, cache: bool = True, cache_dir: Optional[str] = None) -> list[tuple[float, np.ndarray]]:
+    """session_windows for any .akr, through the step cache."""
+    return windows_from_steps(recording_steps(path, cache, cache_dir))
 
 
 def session_tensors(folder: str, labels: list[dict], fallback_refs: Optional[dict] = None) -> dict:
@@ -511,6 +605,30 @@ class CnnFingerprint:
     def predict(self, X: np.ndarray) -> np.ndarray:
         return np.asarray(self.classes)[self.proba(X).argmax(1)]
 
+    def adapt_bn(self, X: np.ndarray, batch: int = 256) -> "CnnFingerprint":
+        """AdaBN (Li et al., arXiv 1603.04779): a copy whose BatchNorm means and variances
+        are re-estimated on the windows X of a new session, labels unused. The weights hold
+        what a place looks like; the BN statistics hold the session. On 2026-10-26 it was
+        the only method that moved: 30-39 % balanced against an 18 % shuffled-label control
+        with the same AdaBN and a 25 % baseline, every lower CI still under 25 % (council
+        hearing 2, seat 1). So it runs behind a flag, always beside that control."""
+        import torch
+        m = copy.copy(self)
+        m.net = copy.deepcopy(self.net)
+        bns = [mod for mod in m.net if isinstance(mod, torch.nn.BatchNorm1d)]
+        for b in bns:
+            b.reset_running_stats()
+            b.momentum = None                      # a plain average over the batches, not an EMA
+        m.net.eval()
+        for b in bns:
+            b.train()                              # only BN collects statistics; dropout stays off
+        xn = ((np.asarray(X) - self.mu) / self.sd).astype(np.float32)
+        with torch.no_grad():
+            for s in range(0, len(xn), batch):
+                m.net(torch.from_numpy(xn[s:s + batch]))
+        m.net.eval()
+        return m
+
     def weights(self) -> int:
         return sum(p.numel() for p in self.net.parameters())
 
@@ -518,6 +636,9 @@ class CnnFingerprint:
         import torch
         version = time.strftime("%Y%m%d-%H%M%S")
         out = os.path.join(root, version)
+        while os.path.exists(out):                 # two saves in one second must not share a folder
+            version += "b"
+            out = os.path.join(root, version)
         os.makedirs(out, exist_ok=True)
         torch.save(self.net.state_dict(), os.path.join(out, "model.pt"))
         with open(os.path.join(out, "manifest.json"), "w", encoding="utf-8") as f:
@@ -543,8 +664,101 @@ class CnnFingerprint:
         return m
 
 
+# ---------------------------------------------------------------- inference without torch
+# The running app only ever needs the forward pass of ~19k weights, but importing the
+# CUDA build of torch alone costs 488 MB of RAM (council 2026-10-26, hearing 2, MEASURED)
+# on a laptop with under 1 GB free. So the live path reads model.pt with a pickle reader
+# that knows only tensors and dicts, and runs Conv1d+BN+ReLU+pool+linear in numpy.
+_STORAGE_DTYPES = {"FloatStorage": np.float32, "DoubleStorage": np.float64, "HalfStorage": np.float16,
+                   "LongStorage": np.int64, "IntStorage": np.int32, "ShortStorage": np.int16,
+                   "CharStorage": np.int8, "ByteStorage": np.uint8, "BoolStorage": np.bool_}
+
+
+def read_state_dict(path: str) -> dict:
+    """{name: numpy array} from a torch.save()d state_dict, without torch. A restricted
+    unpickler: only OrderedDict, the tensor rebuild and the storage types can be named,
+    so a model file can't run code (stricter than torch.load(weights_only=True))."""
+    import collections
+    import pickle
+    import zipfile
+
+    def rebuild(storage, offset, size, stride, *_):
+        item = storage.itemsize
+        return np.lib.stride_tricks.as_strided(storage[offset:], shape=tuple(size),
+                                               strides=tuple(s * item for s in stride)).copy()
+
+    with zipfile.ZipFile(path) as z:
+        pkl = next(n for n in z.namelist() if n.endswith("data.pkl"))
+        prefix = pkl[:-len("data.pkl")]
+
+        class _Reader(pickle.Unpickler):
+            def find_class(self, mod, name):
+                if (mod, name) == ("collections", "OrderedDict"):
+                    return collections.OrderedDict
+                if (mod, name) == ("torch._utils", "_rebuild_tensor_v2"):
+                    return rebuild
+                if mod == "torch" and name in _STORAGE_DTYPES:
+                    return _STORAGE_DTYPES[name]
+                raise pickle.UnpicklingError(f"refusing {mod}.{name} in a model file")
+
+            def persistent_load(self, pid):
+                _, dtype, key, _loc, _n = pid
+                return np.frombuffer(z.read(f"{prefix}data/{key}"), dtype=dtype)
+
+        with z.open(pkl) as f:
+            return dict(_Reader(f).load())
+
+
+def _conv1d(x: np.ndarray, W: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """[N, C, L] * [O, C, K] -> [N, O, L], 'same' padding (K odd), as nn.Conv1d(padding=K//2)."""
+    k = W.shape[2]
+    xp = np.pad(x, ((0, 0), (0, 0), (k // 2, k // 2)))
+    win = np.lib.stride_tricks.sliding_window_view(xp, k, axis=2)          # [N, C, L, K]
+    return np.tensordot(win, W, axes=([1, 3], [1, 2])).transpose(0, 2, 1) + b[None, :, None]
+
+
+class NumpyCnn:
+    """CnnFingerprint's eval-mode forward pass (and its temperature) in numpy. The same
+    interface the live path uses: classes, logits, proba, predict. BatchNorm is folded
+    into the convolution before it, exact in eval mode."""
+
+    BN_EPS = 1e-5
+
+    def __init__(self, state: dict, classes: list, mu: float, sd: float, temperature: float = 1.0):
+        self.classes, self.mu, self.sd, self.temperature = list(classes), float(mu), float(sd), float(temperature)
+        f64 = lambda k: np.asarray(state[k], np.float64)
+        self.layers = []
+        for conv, bn in (("0", "1"), ("4", "5")):
+            s = f64(f"{bn}.weight") / np.sqrt(f64(f"{bn}.running_var") + self.BN_EPS)
+            self.layers.append((f64(f"{conv}.weight") * s[:, None, None],
+                                (f64(f"{conv}.bias") - f64(f"{bn}.running_mean")) * s + f64(f"{bn}.bias")))
+        self.Wl, self.bl = f64("10.weight"), f64("10.bias")
+
+    @classmethod
+    def load(cls, folder: str) -> "NumpyCnn":
+        with open(os.path.join(folder, "manifest.json"), encoding="utf-8") as f:
+            man = json.load(f)
+        return cls(read_state_dict(os.path.join(folder, "model.pt")), man["classes"], man["mu"], man["sd"],
+                   man.get("temperature", 1.0))
+
+    def logits(self, X: np.ndarray) -> np.ndarray:
+        x = (np.asarray(X, np.float64) - self.mu) / self.sd
+        (W1, b1), (W2, b2) = self.layers
+        h = np.maximum(_conv1d(x, W1, b1), 0.0)
+        n, c, length = h.shape
+        h = h[:, :, :length // 2 * 2].reshape(n, c, length // 2, 2).max(axis=3)   # MaxPool1d(2)
+        h = np.maximum(_conv1d(h, W2, b2), 0.0).mean(axis=2)                      # AdaptiveAvgPool1d(1)
+        return h @ self.Wl.T + self.bl                                            # Dropout is off in eval
+
+    def proba(self, X: np.ndarray) -> np.ndarray:
+        return _softmax(self.logits(X) / self.temperature)
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        return np.asarray(self.classes)[self.proba(X).argmax(1)]
+
+
 # ---------------------------------------------------------------- splits
-GUARD_S = WIN / RATE_HZ      # windows are 2 s long: keep 2 s between a train and a test window
+GUARD_S = WIN / RATE_HZ     # windows are 2 s long: keep 2 s between a train and a test window
 
 
 def visits(t: np.ndarray, zone: np.ndarray, max_gap_s: float = 3.0) -> np.ndarray:
@@ -705,8 +919,27 @@ def _visit_boot(right: dict, vid: np.ndarray, y: np.ndarray, mask: np.ndarray, p
     return out
 
 
+def _hour_of(t: np.ndarray) -> np.ndarray:
+    """Local hour of day of each host epoch time."""
+    return np.array([time.localtime(float(x)).tm_hour for x in np.asarray(t, float)], int)
+
+
+def _prior_predict(y_tr: np.ndarray, h_tr: np.ndarray, h_te: np.ndarray) -> np.ndarray:
+    """The time-of-day prior alone, no sensing: the commonest training place in the test
+    window's hour, else the commonest overall. A night-means-bed rule scored 93.7 % on the
+    sleep session with zero sensing (council hearing 2), so a model is only worth its
+    sensing by what it adds over this."""
+    common = max(set(y_tr.tolist()), key=lambda z: int((y_tr == z).sum()))
+    by_hour = {}
+    for h in set(h_te.tolist()):
+        yy = y_tr[h_tr == h]
+        by_hour[h] = max(set(yy.tolist()), key=lambda z: int((yy == z).sum())) if len(yy) else common
+    return np.array([by_hour[h] for h in h_te.tolist()], object)
+
+
 def evaluate_held_out(days: dict, by: str = "session", epochs: int = 30, seed: int = 0, n_boot: int = N_BOOT,
-                      control: bool = True, min_windows: int = MIN_TEST_WINDOWS, min_visits: int = MIN_VISITS) -> dict:
+                      control: bool = True, min_windows: int = MIN_TEST_WINDOWS, min_visits: int = MIN_VISITS,
+                      adabn: bool = False, prior: bool = True, progress=None) -> dict:
     """Leave one SESSION (or one DAY) out: train on the rest, predict every window of the
     held-out one, pool the predictions, then score.
 
@@ -714,9 +947,21 @@ def evaluate_held_out(days: dict, by: str = "session", epochs: int = 30, seed: i
     folds whose training had the place (a place absent from training can't be named; it is
     listed apart, not scored as a model's 0 %). Per model: balanced accuracy with a 95 %
     visit-bootstrap interval, plain accuracy, recall per place. Beside them the
-    always-the-commonest-place baseline and the shuffled-label control (the same models
-    trained on visit-shuffled places): a model is learning place only if it clears both by
-    more than the interval. For the CNN, ECE before and after its temperature."""
+    always-the-commonest-place baseline, the time-of-day prior alone, and the shuffled-label
+    control (the same models trained on visit-shuffled places): a model is learning place
+    only if it clears all of them by more than the interval. For the CNN, ECE before and
+    after its temperature.
+
+    Evaluator v2 (council hearing 2 ruling, code item 3):
+      - a run may carry "stay" ids (dataset.build): they are the visits, so a stay is never
+        split and the bootstrap resamples real stays;
+      - a run may carry "dominant", its session's commonest place: recall on the windows of
+        every OTHER place is reported apart, because a session that is 94 % bed scores
+        well by naming the session (2 of 26 non-dominant stays named right, MEASURED);
+      - a run may carry "ref_source": a session that borrowed another's empty reference is
+        flagged (it injects a 0.38 rms offset by construction, MEASURED);
+      - adabn=True adds the CNN with AdaBN on the held-out group's windows, and with
+        control, the shuffled-label CNN with the same AdaBN."""
     runs = [r for d in sorted(days) for r in days[d]]
     if by == "day":
         group = [r.get("day") for d in sorted(days) for r in days[d]]
@@ -725,18 +970,28 @@ def evaluate_held_out(days: dict, by: str = "session", epochs: int = 30, seed: i
     X, y, t = _cat(runs, "X"), _cat(runs, "zone"), _cat(runs, "t")
     g = np.concatenate([[gr] * len(r["zone"]) for gr, r in zip(group, runs)]) if runs else np.asarray([])
     vid, off = np.empty(len(y), int), 0
-    for r in runs:                                    # visits on each session's own clock, ids global
-        v = visits(r["t"], r["zone"], STAY_GAP_S)
-        vid[off:off + len(v)] = v + (vid[:off].max() + 1 if off else 0)
-        off += len(v)
+    if runs and all("stay" in r for r in runs):
+        _, vid = np.unique(np.concatenate([np.asarray(r["stay"], str) for r in runs]), return_inverse=True)
+    else:
+        for r in runs:                                # visits on each session's own clock, ids global
+            v = visits(r["t"], r["zone"], STAY_GAP_S)
+            vid[off:off + len(v)] = v + (vid[:off].max() + 1 if off else 0)
+            off += len(v)
+    dom = (np.concatenate([[r.get("dominant")] * len(r["zone"]) for r in runs]).astype(object)
+           if runs else np.asarray([], object))
     names = list(dict.fromkeys(group))
     rng = np.random.default_rng(seed)
-    kinds = ["knn", "cnn", "majority"] + (["knn_shuffled", "cnn_shuffled"] if control else [])
+    kinds = (["knn", "cnn"] + (["cnn_adabn"] if adabn else []) + ["majority"] + (["prior"] if prior else [])
+             + (["knn_shuffled", "cnn_shuffled"] if control else [])
+             + (["cnn_adabn_shuffled"] if control and adabn else []))
+    hours = _hour_of(t) if prior and len(t) else np.zeros(len(t), int)
     pred = {k: np.full(len(y), None, object) for k in kinds}
     tested = np.zeros(len(y), bool)                   # held out in a fold that could name its place
     conf_raw, conf_cal, right_cal = [], [], []
     folds, temps = {}, []
-    for G in names:
+    for gi, G in enumerate(names):
+        if progress:
+            progress(gi / max(1, len(names)))
         te, tr = g == G, g != G
         known = set(y[tr].tolist())
         if len(known) < 2:
@@ -745,17 +1000,26 @@ def evaluate_held_out(days: dict, by: str = "session", epochs: int = 30, seed: i
         m = fit_models(X, y, t, np.flatnonzero(tr), epochs, seed)
         pred["knn"][te] = m["knn"].predict(X[te])
         pred["cnn"][te] = m["cnn"].predict(X[te])
+        if adabn:
+            pred["cnn_adabn"][te] = m["cnn"].adapt_bn(X[te]).predict(X[te])
         common = max(known, key=lambda z: int((y[tr] == z).sum()))
         pred["majority"][te] = common
+        if prior:
+            pred["prior"][te] = _prior_predict(y[tr], hours[tr], hours[te])
         if control:
             ys = _shuffle_visits(y, vid, np.flatnonzero(tr), rng)
             ms = fit_models(X, ys, t, np.flatnonzero(tr), epochs, seed)
             pred["knn_shuffled"][te] = ms["knn"].predict(X[te])
             pred["cnn_shuffled"][te] = ms["cnn"].predict(X[te])
+            if adabn:
+                pred["cnn_adabn_shuffled"][te] = ms["cnn"].adapt_bn(X[te]).predict(X[te])
         ok = te & np.isin(y, list(known))
         tested |= ok
         cnn = m["cnn"]
-        if ok.any():
+        # a class whose stays all fell in the early-stop carve is unknown to the CNN itself
+        ok_cnn = ok & np.isin(y, cnn.classes)
+        if ok_cnn.any():
+            ok = ok_cnn
             yi = np.array([cnn.classes.index(c) for c in y[ok]])
             Z = cnn.logits(X[ok])
             P0, P1 = _softmax(Z), _softmax(Z / cnn.temperature)
@@ -790,6 +1054,23 @@ def evaluate_held_out(days: dict, by: str = "session", epochs: int = 30, seed: i
         "per_place": {z: {"windows": count[z][0], "visits": count[z][1],
                           **{k: recall[k][z] for k in kinds}} for z in scored},
     })
+    nd = mask & (dom != None) & (y != dom)                                  # noqa: E711 (elementwise)
+    if nd.any():
+        nd_places = [z for z in scored if (nd & (y == z)).any()]
+        nd_rec = {k: {z: round(float(right[k][nd & (y == z)].mean()), 4) for z in nd_places} for k in kinds}
+        rep["non_dominant"] = {
+            "windows": int(nd.sum()), "stays": len(set(vid[nd].tolist())), "places": nd_places,
+            "balanced": {k: round(float(np.mean(list(nd_rec[k].values()))), 4) for k in kinds},
+            "recall": nd_rec,
+            "note": "only windows whose place is NOT its session's commonest: a model that names "
+                    "the session instead of the place scores near 0 here"}
+    srcs = {}
+    for gr, r in zip(group, runs):
+        if r.get("ref_source"):
+            srcs[r.get("session") or gr] = r["ref_source"]
+    if srcs:
+        rep["reference"] = srcs
+        rep["borrowed_reference"] = sorted(s for s, v in srcs.items() if v != "own")
     if conf_raw:
         # pooled over folds whose class lists differ: ECE and NLL need only each window's
         # top probability and its true class's, so each fold is scored on its own rows
@@ -802,6 +1083,156 @@ def evaluate_held_out(days: dict, by: str = "session", epochs: int = 30, seed: i
     if len(names) < 2 or (by == "day" and len(names) < 3):
         rep["note"] = f"only {len(names)} {by}s: one fold's luck moves the mean; the intervals say how much"
     return rep
+
+
+# ---------------------------------------------------------------- one training job (CLI and app)
+# "predicting" until the model has earned "answering" (Aman, 2026-10-27): at least
+# MIN_DAYS_ANSWER distinct labelled days, AND on leave-one-day-out the CNN's balanced
+# accuracy's lower 95 % bound is above always-the-commonest-place. One day of drift
+# (0.28 rms between sessions, 2.4x the place signal, council hearing 2) is not a test of
+# the next day; four days are the least that puts a day's luck inside the interval.
+MIN_DAYS_ANSWER = 4
+EVAL_MIN_WINDOWS = 20     # a balanced set holds ~60 windows per class per day, split over sessions
+
+
+def decide_status(days: int, by_day: Optional[dict]) -> dict:
+    """{"status": "predicting" | "answering", "why"} from the labelled day count and the
+    leave-one-day-out report."""
+    if days < MIN_DAYS_ANSWER:
+        return {"status": "predicting",
+                "why": f"{days} labelled day(s); {MIN_DAYS_ANSWER} are needed before a held-out day can be trusted"}
+    if not by_day or "ci95" not in by_day or "cnn" not in by_day["ci95"]:
+        return {"status": "predicting", "why": "no leave-one-day-out score yet"}
+    lo, base = by_day["ci95"]["cnn"][0], by_day["balanced"]["majority"]
+    if lo > base:
+        return {"status": "answering",
+                "why": f"{days} days; held-out-day balanced lower bound {lo:.0%} above the {base:.0%} baseline"}
+    return {"status": "predicting",
+            "why": f"held-out-day balanced lower bound {lo:.0%} is not above the {base:.0%} baseline"}
+
+
+def _jsonable(o):
+    if isinstance(o, dict):
+        return {str(k): _jsonable(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_jsonable(v) for v in o]
+    if isinstance(o, np.ndarray):
+        return o.tolist()
+    if isinstance(o, np.generic):
+        return o.item()
+    return o
+
+
+def train_job(per_place_s: float = 30, progress=None, adabn: bool = False, *, epochs: int = 30, seed: int = 0,
+              n_boot: int = N_BOOT, model_root: Optional[str] = None, save: bool = True, control: bool = True,
+              dataset_kw: Optional[dict] = None, log=print) -> dict:
+    """The one training path for the CLI and the app: dataset.build -> leave one session
+    out and leave one day out (evaluator v2) -> fit the shipped model the same way -> save
+    it with the report and its status. progress(stage, fraction) drives a progress bar:
+    stages "dataset", "evaluate-session", "evaluate-day", "fit", "save", "done"."""
+    from . import dataset
+    prog = (lambda stage, f: progress(stage, max(0.0, min(1.0, float(f))))) if progress else (lambda *_: None)
+    prog("dataset", 0.0)
+    ds = dataset.build(per_place_s=per_place_s, seed=seed, progress=lambda f: prog("dataset", f), log=log,
+                       **(dataset_kw or {}))
+    summ = dataset.summary(ds)
+    report = {"trained": time.strftime("%Y-%m-%dT%H:%M:%S"), "dataset": summ, "adabn": bool(adabn)}
+    days = dataset.as_days(ds)
+    if len(set(ds["y"].tolist())) < 2:
+        report.update({"error": "fewer than two classes have labelled data: nothing to train",
+                       **decide_status(len(ds["days"]), None)})
+        prog("done", 1.0)
+        return report
+    kw = dict(epochs=epochs, seed=seed, n_boot=n_boot, control=control, adabn=adabn, min_windows=EVAL_MIN_WINDOWS)
+    prog("evaluate-session", 0.0)
+    n_sess = sum(len(v) for v in days.values())
+    report["by_session"] = (evaluate_held_out(days, by="session", progress=lambda f: prog("evaluate-session", f), **kw)
+                            if n_sess >= 2 else {"error": "one session only: nothing to hold out"})
+    prog("evaluate-day", 0.0)
+    report["by_day"] = (evaluate_held_out(days, by="day", progress=lambda f: prog("evaluate-day", f), **kw)
+                        if len(days) >= 2 else {"error": "one labelled day only: no day to hold out yet"})
+    report.update(decide_status(len(ds["days"]), report["by_day"] if len(days) >= 2 else None))
+    # flat keys for the app's plain report: the held-out-day score when there is one,
+    # else the held-out-session one (the nested reports stay as they are)
+    for split in ("by_day", "by_session"):
+        r = report.get(split) or {}
+        if "balanced" in r:
+            report.update({"split": split, "balanced_accuracy": r["balanced"]["cnn"],
+                           "baseline": r["balanced"]["majority"], "prior": r["balanced"].get("prior"),
+                           "interval": r["ci95"]["cnn"], "recall": {z: v["cnn"] for z, v in r["per_place"].items()}})
+            break
+    prog("fit", 0.0)
+    fm = fit_models(ds["X"], ds["y"], ds["t"], np.arange(len(ds["y"])), epochs=epochs, seed=seed)
+    m = fm["cnn"]
+    report["model"] = {"weights": m.weights(), "windows": int(len(fm["fit_idx"])), "best_epoch": m.best_epoch,
+                       "calibration": fm["calibration"], "classes": m.classes}
+    if save:
+        prog("save", 0.0)
+        root = model_root or MODEL_ROOT
+        sess_days = {s: str(ds["day"][ds["session"] == s][0]) for s in set(ds["session"].tolist())}
+        meta = {"status": report["status"], "status_why": report["why"], "days": ds["days"],
+                "sessions": sorted(sess_days), "windows": int(len(fm["fit_idx"])),
+                "seconds_per_place": {c: v["used_s"] for c, v in ds["per_class"].items()},
+                "calibration": fm["calibration"], "best_epoch": m.best_epoch, "dropped": ds["dropped"],
+                "report": "report.json", "trained": report["trained"], "dataset_params": ds["params"]}
+        out = m.save(root=root, meta=meta)
+        # live cleaning: the newest session's own empty room, else the newest borrowed one
+        order = sorted(ds["refs"], key=lambda s: (ds["refs"][s]["source"] == "own", sess_days.get(s, "")))
+        if order:
+            r = ds["refs"][order[-1]]
+            np.savez(os.path.join(out, "ref.npz"), **{k: v for k, v in r.items() if k != "source"})
+            report["live_reference"] = {"session": order[-1], "source": r["source"]}
+        import joblib
+        joblib.dump(fm["knn"], os.path.join(out, "knn.joblib"))
+        report["folder"] = out
+        report["report_path"] = os.path.join(out, "report.json")
+        with open(report["report_path"], "w", encoding="utf-8") as f:
+            json.dump(_jsonable(report), f, indent=1, default=float)
+    prog("done", 1.0)
+    return report
+
+
+def model_status(root: Optional[str] = None) -> dict:
+    """The current saved model's status for the UI: {status, days, sessions,
+    seconds_per_place, last_trained, report_path}. "untrained" without one; a model saved
+    before statuses existed is "predicting"."""
+    root = root or MODEL_ROOT
+    empty = {"status": "untrained", "days": 0, "sessions": 0, "seconds_per_place": {}, "last_trained": None,
+             "report_path": None}
+    try:
+        with open(os.path.join(root, "current.json"), encoding="utf-8") as f:
+            folder = os.path.join(root, json.load(f)["version"])
+        with open(os.path.join(folder, "manifest.json"), encoding="utf-8") as f:
+            man = json.load(f)
+    except (OSError, ValueError, KeyError):
+        return empty
+    rp = os.path.join(folder, man["report"]) if man.get("report") else None
+    days = man.get("days") or []
+    sessions = man.get("sessions") or []
+    return {"status": man.get("status") if man.get("status") in ("predicting", "answering") else "predicting",
+            "why": man.get("status_why", "trained before the answering gate existed"),
+            "days": len(days), "sessions": len(sessions),
+            "seconds_per_place": man.get("seconds_per_place") or {}, "last_trained": man.get("trained")
+            or os.path.basename(folder), "report_path": rp if rp and os.path.exists(rp) else None,
+            "version": os.path.basename(folder)}
+
+
+def format_train(rep: dict) -> str:
+    lines = []
+    d = rep.get("dataset", {})
+    if d:
+        lines.append(f"  balanced set: {d['windows']} windows, {len(d['classes'])} classes, {len(d['days'])} day(s), "
+                     f"{len(d['sessions'])} session(s), {d['stays']} stays")
+    if rep.get("error"):
+        return "\n".join(lines + ["  " + rep["error"], f"  status: {rep.get('status')} ({rep.get('why')})"])
+    for k, title in (("by_session", "LEAVE ONE SESSION OUT"), ("by_day", "LEAVE ONE DAY OUT")):
+        r = rep.get(k) or {}
+        lines += ["", f"  {title}"]
+        lines.append(format_held_out(r) if "folds" in r else "  " + r.get("error", "not run"))
+    lines += ["", f"  status: {rep['status'].upper()}  ({rep['why']})"]
+    if rep.get("folder"):
+        lines.append(f"  saved: {rep['folder']}  (report: {rep['report_path']})")
+    return "\n".join(lines)
 
 
 def _pooled_ece(parts: list, bins: int = 15) -> float:
@@ -833,11 +1264,15 @@ def format_held_out(rep: dict) -> str:
     lines += ["", f"  scored: {len(rep['scored_places'])} places with {r['min_windows']}+ test windows and "
                   f"{r['min_visits']}+ visits ({rep['windows']['scored']} windows; chance {rep['chance']:.0%})",
               "  balanced accuracy (each place counts the same), 95 % interval from resampling visits:"]
-    names = {"knn": "kNN", "cnn": "CNN", "majority": "always the commonest place",
-             "knn_shuffled": "kNN, shuffled labels (control)", "cnn_shuffled": "CNN, shuffled labels (control)"}
+    names = {"knn": "kNN", "cnn": "CNN", "cnn_adabn": "CNN + AdaBN (experimental)",
+             "majority": "always the commonest place", "prior": "time-of-day prior alone",
+             "knn_shuffled": "kNN, shuffled labels (control)", "cnn_shuffled": "CNN, shuffled labels (control)",
+             "cnn_adabn_shuffled": "CNN + AdaBN, shuffled (control)"}
     for k in b:
         iv = f"[{ci[k][0]:.0%}, {ci[k][1]:.0%}]" if k in ci else ""
-        lines.append(f"    {names[k]:<32} {b[k]:>4.0%}  {iv:<12}  plain {rep['accuracy'][k]:.0%}")
+        lines.append(f"    {names.get(k, k):<32} {b[k]:>4.0%}  {iv:<12}  plain {rep['accuracy'][k]:.0%}")
+    if "prior" in b:
+        lines.append(f"    over the time-of-day prior: kNN {b['knn'] - b['prior']:+.0%}, CNN {b['cnn'] - b['prior']:+.0%}")
     if "cnn_minus_knn" in ci:
         lines.append(f"    CNN minus kNN: [{ci['cnn_minus_knn'][0]:+.0%}, {ci['cnn_minus_knn'][1]:+.0%}]"
                      + ("  (includes 0: no winner)" if ci["cnn_minus_knn"][0] <= 0 <= ci["cnn_minus_knn"][1] else ""))
@@ -846,6 +1281,18 @@ def format_held_out(rep: dict) -> str:
         if k in ci:
             verdict = "clears" if ci[k][0] > ctrl else "does NOT clear"
             lines.append(f"    {names[k]} {verdict} the baseline and the control")
+    if "cnn_adabn" in ci:
+        actrl = max(b["majority"], ci.get("cnn_adabn_shuffled", [0, 0])[1])
+        lines.append(f"    CNN + AdaBN {'clears' if ci['cnn_adabn'][0] > actrl else 'does NOT clear'} "
+                     "the baseline and its own shuffled-AdaBN control")
+    nd = rep.get("non_dominant")
+    if nd:
+        lines.append(f"  non-dominant stays only ({nd['windows']} windows, {nd['stays']} stays; a session's "
+                     "commonest place left out): " + ", ".join(f"{names.get(k, k)} {v:.0%}"
+                                                              for k, v in nd["balanced"].items()))
+    if rep.get("borrowed_reference"):
+        lines.append("  FLAG: borrowed empty-room reference (an offset by construction): "
+                     + ", ".join(f"{s} ({rep['reference'][s]})" for s in rep["borrowed_reference"]))
     lines += ["", "  place                              windows visits   kNN    CNN   control(CNN)"]
     for z, v in rep["per_place"].items():
         lines.append(f"  {z:<34} {v['windows']:>7} {v['visits']:>6}  {v['knn']:>4.0%}  {v['cnn']:>5.0%}"

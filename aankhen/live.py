@@ -25,26 +25,42 @@ from typing import Iterable, Iterator, Optional
 import numpy as np
 
 from .drill import DRILL_DIR
-from .fingerprint import MODEL_ROOT, CnnFingerprint, csi_stream, expand_places, windows
+from .fingerprint import MODEL_ROOT, NumpyCnn, csi_stream, expand_places, windows
 
 LIVE_DIR = os.path.join(DRILL_DIR, "live")
 UNSURE_P = 0.5
 SMOOTH = 3
 
 
-def load_current(root: str = MODEL_ROOT) -> tuple[CnnFingerprint, Optional[object], dict, str]:
-    """(cnn, knn or None, refs {fan_on/fan_off: [51]}, folder) of the current saved model."""
-    import joblib
+def load_current(root: str = MODEL_ROOT, with_knn: bool = True) -> tuple[NumpyCnn, Optional[object], dict, str]:
+    """(cnn, knn or None, refs {fan_on/fan_off: [51]}, folder) of the current saved model.
+
+    The CNN runs in numpy (fingerprint.NumpyCnn, the same answers as torch to 1e-5): the
+    running app must never import torch, whose CUDA build costs ~488 MB of RAM just to
+    import (council hearing 2, MEASURED). with_knn=False also skips sklearn."""
     with open(os.path.join(root, "current.json"), encoding="utf-8") as f:
         folder = os.path.join(root, json.load(f)["version"])
-    m = CnnFingerprint.load(folder)        # with its fitted temperature (1.0 on older models)
+    m = NumpyCnn.load(folder)              # with its fitted temperature (1.0 on older models)
+    knn = None
     knn_p = os.path.join(folder, "knn.joblib")
-    # joblib unpickles: safe only because this folder is written by `fingerprint train` on
-    # this machine (data/ never leaves it); never point it at a model from elsewhere
-    knn = joblib.load(knn_p) if os.path.exists(knn_p) else None
+    if with_knn and os.path.exists(knn_p):
+        import joblib
+        # joblib unpickles: safe only because this folder is written by `fingerprint train` on
+        # this machine (data/ never leaves it); never point it at a model from elsewhere
+        knn = joblib.load(knn_p)
     ref_p = os.path.join(folder, "ref.npz")
     refs = dict(np.load(ref_p)) if os.path.exists(ref_p) else {}
     return m, knn, refs, folder
+
+
+def model_status(folder: str) -> str:
+    """"predicting" or "answering", from the model's manifest (older models: predicting)."""
+    try:
+        with open(os.path.join(folder, "manifest.json"), encoding="utf-8") as f:
+            s = json.load(f).get("status")
+    except (OSError, ValueError):
+        s = None
+    return s if s in ("predicting", "answering") else "predicting"
 
 
 def follow(path: str, stop: Optional[callable] = None, idle_s: float = 0.05) -> Iterator[tuple[float, bytes]]:
@@ -97,18 +113,21 @@ class FingerprintZones:
     Until the model passes a held-out day, the belief carries EXPERIMENTAL and the UI
     says so next to the dots."""
 
-    def __init__(self, cnn: CnnFingerprint, refs: dict, folder: str = "", smooth: int = 1):
+    def __init__(self, cnn, refs: dict, folder: str = "", smooth: int = 1):
         from .fingerprint import WindowBuilder
         self.cnn, self.refs, self.folder = cnn, refs, folder
         self.wb = WindowBuilder()
         self.recent: deque = deque(maxlen=smooth)
         self.windows = 0
+        # "predicting" until the model has passed a held-out day on 4+ labelled days
+        self.status = model_status(folder) if folder else "predicting"
 
     @classmethod
-    def load(cls) -> Optional["FingerprintZones"]:
+    def load(cls, root: str = MODEL_ROOT) -> Optional["FingerprintZones"]:
+        import zipfile
         try:
-            cnn, _, refs, folder = load_current()
-        except (OSError, KeyError, ValueError, RuntimeError):
+            cnn, _, refs, folder = load_current(root, with_knn=False)
+        except (OSError, KeyError, ValueError, RuntimeError, StopIteration, zipfile.BadZipFile):
             return None
         return cls(cnn, refs, folder) if refs else None
 
@@ -127,7 +146,7 @@ class FingerprintZones:
         return expand_places({z: float(v) for z, v in zip(self.cnn.classes, ps)})
 
 
-def predict_stream(wins: Iterable[tuple[float, np.ndarray]], cnn: CnnFingerprint, knn, ref: np.ndarray,
+def predict_stream(wins: Iterable[tuple[float, np.ndarray]], cnn, knn, ref: np.ndarray,
                    smooth: int = SMOOTH) -> Iterator[dict]:
     """Windows -> one prediction dict per window (pure apart from the models)."""
     recent: deque = deque(maxlen=smooth)

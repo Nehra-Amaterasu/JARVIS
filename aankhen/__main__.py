@@ -559,13 +559,50 @@ def _fingerprint_live(a) -> int:
     return 0
 
 
+def _fingerprint_dataset(a) -> int:
+    """catalog | build | train on the balanced, labelled-only set (dataset.py)."""
+    from . import dataset as ds
+    from . import fingerprint as fpm
+    cat_kw = {"drill_root": a.root} if a.root else {}
+    if a.action == "catalog":
+        cat = ds.catalog(**cat_kw)
+        print(ds.format_catalog(cat))
+        if a.json:
+            with open(a.json, "w", encoding="utf-8") as fh:
+                json.dump({k: v for k, v in cat.items() if k != "spans"} | {"spans": len(cat["spans"])}, fh, indent=1)
+        return 0
+    if a.action == "build":
+        d = ds.build(per_place_s=a.per_place_s, min_place_s=a.min_place_s, seed=a.seed, **cat_kw)
+        print(ds.format_build(d))
+        if a.json:
+            with open(a.json, "w", encoding="utf-8") as fh:
+                json.dump(fpm._jsonable(ds.summary(d)), fh, indent=1, default=float)
+        return 0 if len(d["y"]) else 1
+    last = [None]
+
+    def progress(stage, f):
+        if stage != last[0] or f >= 1.0:
+            print(f"  [{stage}] {f:.0%}", flush=True)
+            last[0] = stage
+    rep = fpm.train_job(per_place_s=a.per_place_s, progress=progress, adabn=a.adabn, epochs=a.epochs, seed=a.seed,
+                        model_root=a.out, save=not a.no_save,
+                        dataset_kw={"min_place_s": a.min_place_s, **cat_kw})
+    print(fpm.format_train(rep))
+    if a.json:
+        with open(a.json, "w", encoding="utf-8") as fh:
+            json.dump(fpm._jsonable(rep), fh, indent=1, default=float)
+    return 1 if rep.get("error") else 0
+
+
 def cmd_fingerprint(a) -> int:
     """kNN fingerprint vs CNN on the raw signal: evaluate (held-out sessions/days, or the
     same-session half split as an upper bound) or train."""
-    from .fingerprint import (MODEL_ROOT, PLACE_MAP, CnnFingerprint, _cat, evaluate_half, evaluate_held_out,
-                              fit_models, format_half, format_held_out, load_days, plot_history, scope_places)
+    from .fingerprint import (MODEL_ROOT, PLACE_MAP, evaluate_half, evaluate_held_out, format_half,
+                              format_held_out, load_days, plot_history, scope_places)
     if a.action == "live":
         return _fingerprint_live(a)
+    if a.action in ("catalog", "build", "train"):
+        return _fingerprint_dataset(a)
     days = load_days(a.root)
     if not days:
         print("No drill or narrated sessions yet. Record one with: python -m aankhen narrate record")
@@ -602,38 +639,6 @@ def cmd_fingerprint(a) -> int:
             with open(a.json, "w", encoding="utf-8") as fh:
                 json.dump(rep, fh, indent=1, default=float)
         return 0
-    runs = [r for d in sorted(days) for r in days[d]]
-    import numpy as np
-    X, y, t = _cat(runs, "X"), _cat(runs, "zone"), _cat(runs, "t")
-    # the shipped model is trained exactly as evaluate trains it: the same cap, the same
-    # early-stopping carve, and the temperature fitted on that carve
-    fm = fit_models(X, y, t, np.arange(len(y)), epochs=a.epochs)
-    m, keep = fm["cnn"], fm["fit_idx"]
-    counts = {z: int((y[keep] == z).sum()) for z in sorted(set(y[keep].tolist()))}
-    out = m.save(meta={"days": sorted(days), "windows": int(len(keep)), "windows_before_cap": int(len(y)),
-                       "per_place": counts, "calibration": fm["calibration"], "best_epoch": m.best_epoch,
-                       "left_out": dropped})
-    print(f"CNN ({m.weights()} weights) on {len(days)} day(s), {len(keep)} windows after the cap -> {out}")
-    print("  per place: " + ", ".join(f"{z} {n}" for z, n in counts.items()))
-    if fm["calibration"]:
-        c = fm["calibration"]
-        print(f"  temperature {c['temperature']} on {c['windows']} held-back windows: "
-              f"ECE {c['ece_before']:.1%} -> {c['ece_after']:.1%}")
-    # what live prediction needs besides the CNN: the newest day's empty-room level (to
-    # clean new windows the same way) and the kNN's labelled database
-    import joblib
-    last = days[sorted(days)[-1]]
-    refs = {}
-    for fan in (False, True):
-        own = [r["refs"][fan] for r in last if fan in r.get("refs", {})]
-        if own:
-            refs["fan_on" if fan else "fan_off"] = np.mean(own, axis=0)
-    if refs:
-        np.savez(os.path.join(out, "ref.npz"), **refs)
-        print(f"  empty-room reference saved for: {', '.join(refs)}")
-    else:
-        print("  no empty-room stretch on the newest day: live prediction will use its first 30 s as the reference")
-    joblib.dump(fm["knn"], os.path.join(out, "knn.joblib"))
     return 0
 
 
@@ -922,7 +927,18 @@ def main(argv=None) -> int:
     tr.add_argument("--out", help="model folder (default data/aankhen/models/drill)")
 
     fp = sub.add_parser("fingerprint", help="kNN fingerprint vs CNN on the raw signal, judged on held-out sessions and days")
-    fp.add_argument("action", choices=["evaluate", "train", "live"])
+    fp.add_argument("action", choices=["catalog", "build", "train", "evaluate", "live"],
+                    help="catalog = seconds per label per day from every source; build = the balanced, "
+                         "labelled-only window set; train = build + held-out report + saved model with its "
+                         "status (predicting until 4+ days pass a held-out day); evaluate = the older "
+                         "all-windows evaluator; live = watch the saved model")
+    fp.add_argument("--per-place-s", type=float, default=30.0,
+                    help="(build/train) seconds per class per day, spread over its stays")
+    fp.add_argument("--min-place-s", type=float, default=10.0, help="(build/train) drop classes with less")
+    fp.add_argument("--seed", type=int, default=0)
+    fp.add_argument("--adabn", action="store_true", help="(train) also score CNN + AdaBN with its shuffled control")
+    fp.add_argument("--out", help="(train) model folder (default data/aankhen/models/cnn)")
+    fp.add_argument("--no-save", action="store_true", help="(train) report only, keep the current model")
     fp.add_argument("--fan", choices=["on", "off"], default="on", help="(live) the fan state now, to pick the reference")
     fp.add_argument("--minutes", type=float, default=10.0, help="(live) stop by itself after this")
     fp.add_argument("--port", help="(live) serial port when the app is not running")
@@ -934,7 +950,7 @@ def main(argv=None) -> int:
                          "of the same sessions, an UPPER BOUND only")
     fp.add_argument("--no-merge", action="store_true",
                     help="keep bed_lying and bed_sitting apart (to compare with the merged score)")
-    fp.add_argument("--json", help="evaluate: also write the report as JSON")
+    fp.add_argument("--json", help="catalog/build/train/evaluate: also write the report as JSON")
 
     l1 = sub.add_parser("lesson1", help="see your own signal: heatmap, motion energy, a fingerprint per label (PNG)")
     l1.add_argument("target", help="a session folder (raw.akr + labels.jsonl) or a recording .akr")

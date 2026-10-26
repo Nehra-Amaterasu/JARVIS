@@ -2,6 +2,23 @@
 
 One file for the Well Wisher topic, newest section on top. Older dated notes stay as they are (2026-10-23-mission-germoney-rebuild.md, 2026-10-25-well-wisher-v1.md, 2026-10-25-well-wisher-engines.md).
 
+## 2026-10-28: Tree v2, one canvas for seven trees
+
+**Question.** Can the skill tree and the six life trees share one canvas and one interaction model, stay at frame rate, and prove in tests that no node or label overlaps?
+
+**What was built (app/ui/src/germoney/tree/, Tree.tsx).**
+- A switcher: Skills plus every tree from `GET /api/mission/trees`; life trees pass through an adapter into the same layout engine.
+- Spatial arrow keys: Left/Right along a tier, Up/Down to the nearest node by x in the next tier; Enter opens the panel, Esc closes.
+- Selection pans the view to the node in 240 ms (ease-out, transform only, jump under reduced motion) and lights the prerequisite path and what the node unlocks; other nodes dim by opacity with no re-render of the node layer.
+- Zoom glides toward the pointer; a sensitivity slider (0.5x-2x) is remembered.
+- The panel is the only glass element, and only on the refract/blur tiers. Life nodes show a proof meter (have/need), the evidence list and, for link nodes only, the URL proof form; measured nodes get no button.
+- Links: node links select, page links switch tabs, URLs open through `pywebview.api.open_url` (a second JARVIS window) with `window.open` as the fallback.
+- Branch captions moved from 52 px to 80 px below the lowest node because they sat on 3-line labels.
+
+**Tests.** `tree-v2.test.ts`: the real skills bank and five fictional life trees have no overlapping node areas and no label overflowing its box (labels cap at 3 lines); neighbour picking on a small DAG; the panel's meter, evidence, form-only-for-link and POST; the switcher; the three link kinds. UI suite 352 passed, tsc clean, dist rebuilt with the app closed.
+
+**Not measured.** 60 fps, the glide feel and the glass were not seen in the real window by anyone yet.
+
 ## 2026-10-27 (night): life trees verified by evidence, and a UI pass by four agents
 
 **Question.** Can progression in GitHub, LinkedIn, content, money, a second career and discipline be drawn as trees like the skill tree, without a single node that is "done" because a button was pressed?

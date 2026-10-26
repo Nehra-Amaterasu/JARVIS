@@ -435,9 +435,7 @@ class Engine:
         if not force and t - self._belief_at < self.BELIEF_EVERY_S:
             return
         self._belief_at = t
-        m = self.motion.last
-        f = m.features if m else {}
-        mot = motion01(f.get("hbe"), f.get("hbe_threshold"))
+        mot = self._belief_motion(t)
         if self._csi_settling(t):
             ood = ood or "Wi-Fi settling after a fan or channel change"
             coarse_p = zone_p = act_p = None
@@ -448,6 +446,26 @@ class Engine:
                  if pri is not None and len(pri) == len(LEARNED_CLASSES) else None)
         self.belief.step(t, mot, coarse_p=coarse_p, zone_p=zone_p, activity_p=act_p, ood=ood,
                          teacher=self.teacher_hint, coarse_prior=prior)
+
+    # A motion reading older than this is not "now": the belief gets None (unknown).
+    MOTION_STALE_S = 2.0
+
+    def _belief_motion(self, t: float) -> Optional[float]:
+        """The motion the belief's leave rate is scaled by, or None when nothing measures it.
+
+        None is "maybe moving" (0.5 in belief.predict), never 0. Before this, a detector
+        with no baseline for the context (the fan on with no fan-on calibration: every
+        10-26 session) still handed over its raw HBE against no threshold, hbe / 3 / 4,
+        a number on no scale that mostly read as "still" and held the belief in place.
+        Without an HBE threshold but with a calibrated score, the score's own 0..1 stands
+        in (MotionReading.motion01)."""
+        m = self.motion.last
+        if m is None or m.state == STATE_UNCALIBRATED or t - m.t > self.MOTION_STALE_S:
+            return None
+        f = m.features or {}
+        if f.get("hbe_threshold") is not None:
+            return motion01(f.get("hbe"), f.get("hbe_threshold"))
+        return float(m.motion01) if m.score is not None and np.isfinite(m.motion01) else None
 
     def _on_radar(self, p: RadarPacket) -> None:
         t = p.timestamp_us / 1e6

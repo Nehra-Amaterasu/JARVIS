@@ -212,6 +212,12 @@ export const TELL_P = 0.3
 export const NOT_SURE_WHERE = 'in the room, not sure where'
 /** An untrained model never shows more than this. */
 export const UNTRAINED_CAP = 0.9
+/** The experimental fingerprint CNN's place never shows more than this. Held out a whole
+ *  session it named about 26 % of windows right (council 2026-10-26), so a "90 %" beside
+ *  its dot would claim far more than it has earned. 60 % still ranks a clear favourite
+ *  above the 30 % "can't tell" line, and stays there until a held-out DAY clears the
+ *  shuffled-label control by more than its interval. */
+export const EXPERIMENTAL_CAP = 0.6
 
 /** The zones to draw: the belief's own when trusted, else ONE room-wide zone at the
  *  probability-weighted centre, so dots never pile on a place nobody has verified. */
@@ -232,7 +238,7 @@ export function beliefLabel(b: Belief | null): string {
   if (b.state === 'empty') return `probably: nobody in the room · ${pct(untrusted ? Math.min(b.confidence, UNTRAINED_CAP) : b.confidence)}`
   if (untrusted && b.experimental) {
     const top = topZone(b)
-    return top && top.p >= TELL_P ? `maybe: ${top.name} · ${pct(Math.min(top.p, UNTRAINED_CAP))} (experimental)` : NOT_SURE_WHERE
+    return top && top.p >= TELL_P ? `maybe: ${top.name} · ${pct(Math.min(top.p, EXPERIMENTAL_CAP))} (experimental)` : NOT_SURE_WHERE
   }
   if (untrusted) return b.state === 'in_room' ? NOT_SURE_WHERE : "can't tell"
   const top = topZone(b)

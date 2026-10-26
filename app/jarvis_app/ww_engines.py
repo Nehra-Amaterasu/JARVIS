@@ -17,7 +17,8 @@ inputs against that schema first. Adding an engine is one file + one line in
 ENGINE_TABLE (docs/well-wisher-v1.md, "Adding an engine").
 
 Built: goal_ladder, evidence (this file), career (ww_career.py), money (ww_money.py),
-personality (ww_personality.py), insight (ww_insight.py), learning (ww_learning.py), body (ww_body.py), proof (ww_proof.py).
+personality (ww_personality.py), insight (ww_insight.py), learning (ww_learning.py), body (ww_body.py), proof (ww_proof.py),
+exams (ww_exams.py).
 today_three() composes Today's 3 contracts from the goal ladder, career and personality.
 
 Inputs come from data/notes/well-wisher/engine-inputs.json (private, git-ignored),
@@ -64,6 +65,48 @@ def load_inputs(path: Optional[Path] = None) -> dict:
         out["source"] = src
         return out
     return {**normalize_inputs({}), "source": "none"}
+
+
+# Sections Settings may rewrite, and the JSON type each must be.
+EDITABLE = {"exams": list, "study": dict, "deadlines": list, "habits": list, "profile": dict, "goals": list,
+            "skills": list, "money": dict, "week": dict, "rules": dict, "income_experiments": list}
+
+
+def raw_inputs(path: Optional[Path] = None) -> dict:
+    """His private file as written (not normalized), for Settings to show and edit."""
+    p = path or inputs_path()
+    try:
+        raw = json.loads(p.read_text(encoding="utf-8-sig"))
+        return raw if isinstance(raw, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_section(section: str, value: Any, path: Optional[Path] = None, today: Optional[str] = None) -> dict:
+    """Replace one section of the private inputs file (the second place with I/O).
+    Unknown sections and wrong types are refused; the rest of the file is kept as it
+    was. The first save of a day keeps a copy (engine-inputs.json.bak-YYYYMMDD).
+    Answers the normalized inputs and what normalization dropped, so Settings can
+    show 'saved, but this line was ignored: ...'."""
+    if section not in EDITABLE:
+        raise ValueError(f"{section} is not a section Settings can edit")
+    if not isinstance(value, EDITABLE[section]):
+        raise ValueError(f"{section} must be a {EDITABLE[section].__name__}")
+    p = path or inputs_path()
+    raw = raw_inputs(p)
+    before = normalize_inputs(raw)["warnings"]
+    raw[section] = value
+    norm = normalize_inputs(raw)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    day = (today or date.today().isoformat()).replace("-", "")
+    bak = p.with_name(f"{p.name}.bak-{day}")
+    if p.exists() and not bak.exists():
+        bak.write_bytes(p.read_bytes())
+    tmp = p.with_name(p.name + ".tmp")
+    tmp.write_text(json.dumps(raw, indent=1, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, p)
+    return {"saved": section, "inputs": {**norm, "source": "private"},
+            "dropped": [w for w in norm["warnings"] if w not in before]}
 
 
 def _d(v: Any) -> Optional[str]:
@@ -240,10 +283,33 @@ def normalize_inputs(raw: Any) -> dict:
              "assumptions": {"annual_return_pct": ret if ret is not None and -50 <= ret <= 50 else None,
                              "usd_inr": fx if fx is not None and fx > 0 else None}}
     week = raw.get("week") if isinstance(raw.get("week"), dict) else {}
+    exams, eseen = [], set()
+    for x in raw.get("exams") or []:
+        if not isinstance(x, dict) or not x.get("subject") or not _d(x.get("date")):
+            warn.append("an exam without subject/date dropped")
+            continue
+        eid = str(x.get("id") or f"{_slug(str(x['subject']))}-{x['date']}")
+        if eid in eseen:
+            warn.append(f"exam {eid} twice: the second dropped")
+            continue
+        eseen.add(eid)
+        hm = {k: x[k] if isinstance(x.get(k), str) and re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", x[k]) else None
+              for k in ("start", "end")}
+        units = sorted({int(u) for u in x.get("units") or [] if isinstance(u, (int, float)) and not isinstance(u, bool) and 1 <= u <= 10})
+        exams.append({"id": eid, "subject": str(x["subject"])[:60], "title": str(x.get("title") or x["subject"])[:120],
+                      "code": str(x.get("code") or "")[:20], "date": x["date"], **hm, "units": units,
+                      "may_miss": bool(x.get("may_miss"))})
+    sr = raw.get("study") if isinstance(raw.get("study"), dict) else {}
+    # Defaults: the 3-hour library block + a 60-minute evening (sprint plan, 2026-10-25);
+    # weekends a little more; the evening after a paper, about 2.5 hours.
+    study = {"weekday_minutes": int(_num(sr.get("weekday_minutes"), 0, 900, 240)),
+             "weekend_minutes": int(_num(sr.get("weekend_minutes"), 0, 900, 300)),
+             "exam_evening_minutes": int(_num(sr.get("exam_evening_minutes"), 0, 600, 150))}
     return {"schema": INPUTS_SCHEMA, "life_goals": goals, "goals": sorted(flat, key=lambda g: (g["deadline"] or "9999", g["id"])),
             "deadlines": sorted(deadlines, key=lambda x: (x["date"], x["id"])), "skills": skills,
             "income_experiments": exps, "habits": habits, "rules": rules, "profile": profile, "money": money,
-            "week": {"capacity_minutes": int(_num(week.get("capacity_minutes"), 0, 6000, 600))}, "warnings": warn}
+            "week": {"capacity_minutes": int(_num(week.get("capacity_minutes"), 0, 6000, 600))},
+            "exams": sorted(exams, key=lambda e: (e["date"], e["start"] or "", e["id"])), "study": study, "warnings": warn}
 
 
 # ------------------------------------------------------------------ 1. goal ladder
@@ -516,6 +582,7 @@ ENGINE_TABLE: list[tuple[str, str]] = [
     ("learning", "ww_learning"),
     ("insight", "ww_insight"),
     ("proof", "ww_proof"),
+    ("exams", "ww_exams"),
 ]
 
 

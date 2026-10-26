@@ -1,7 +1,8 @@
 /**
  * Mission settings, in a drawer (not a tab): the career, the weekly library
  * rotation and the day's times, exam dates (internals, end-sem, the backlog block
- * TBC), the certificate budget, the game's own settings (rest day, nudges,
+ * TBC), what the System knows (the engine inputs: date sheet, study time, profile,
+ * deadlines), the certificate budget, the game's own settings (rest day, nudges,
  * recovery), calibration, and backup / restore.
  */
 import { Download, Upload, X } from 'lucide-react'
@@ -14,6 +15,7 @@ import { usePlayerStore } from '../stores/player-store'
 import { confirmDialog, useDrawer } from '../ui'
 import { SettingsCard } from './Armory'
 import { Calibration } from './Calibration'
+import { SystemInputs } from './SystemInputs'
 
 const DAYS = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
 
@@ -36,6 +38,7 @@ export function SettingsDrawer() {
         <Career />
         <Rotation />
         <Exams />
+        <SystemInputs />
         <Budget />
         <ProfileSec />
         <SettingsCard />

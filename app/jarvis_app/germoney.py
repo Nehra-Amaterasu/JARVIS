@@ -28,6 +28,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import os
 import re
 import shutil
 import threading
@@ -39,7 +40,7 @@ from typing import Any, Optional
 
 import httpx
 
-from . import github_activity, learn_bank, wellwisher, ww_base, ww_engines, ww_money
+from . import github_activity, learn_bank, wellwisher, ww_base, ww_engines, ww_exams, ww_money
 from .paths import DATA
 
 ROOT = DATA / "germoney"
@@ -1055,8 +1056,25 @@ COLLEGE = Path.home() / "OneDrive" / "Documents" / "COLLEGE"
 FILE_EXTS = {".pdf", ".png", ".jpg", ".jpeg", ".txt", ".md"}
 
 
+def exam_notes() -> Path:
+    """The private exam packs (revision sheets, practice papers, keys): data/notes/exams."""
+    env = os.environ.get("JARVIS_EXAM_NOTES")
+    return Path(env) if env else DATA.parent / "notes" / "exams"
+
+
 def file_roots() -> list[Path]:
-    return [ACADEMICS.parent, COLLEGE]
+    return [ACADEMICS.parent, COLLEGE, exam_notes()]
+
+
+def study_files(subject: str, root: Optional[Path] = None) -> list[dict]:
+    """Markdown files in the exam packs whose name carries the subject id
+    (01-microelectronic-circuits-revision.md, u34-icft-revision.md...), newest first."""
+    root = root or exam_notes()
+    if not subject or not root.is_dir():
+        return []
+    hits = [f for f in root.rglob(f"*{subject}*.md") if f.is_file()]
+    hits.sort(key=lambda f: (-f.stat().st_mtime, f.name))
+    return [{"name": f.stem, "path": str(f), "folder": f.parent.name} for f in hits[:12]]
 
 
 def file_allowed(path: str) -> Optional[Path]:
@@ -1290,7 +1308,10 @@ def default_plan_state(today: str) -> dict:
             "exam": {"focus": None, "window_days": EXAM_WINDOW}, "cursor": None, "wip_cap": WIP_CAP, "seq": 0,
             "budget": dict(DEFAULT_BUDGET), "certs": {}, "questions_done": [], "nudged_drift": None,
             "quests": {}, "archive": wellwisher.empty_archive(),
-            "money": {"entries": [], "seq": 0}}                # the money log (Well Wisher money engine)
+            "money": {"entries": [], "seq": 0},                # the money log (Well Wisher money engine)
+            # merge_plan_state keeps only keys listed here: habit taps, recalls and exam taps were
+            # dropped on every reload until these three were added (found 2026-10-26).
+            "habits": {}, "learn": {"seen": {}, "reviews": {}}, "exam_prep": {}}
 
 
 def merge_plan_state(raw: Any, today: str) -> dict:
@@ -2733,6 +2754,12 @@ class Plan:
             bank_ = learn_bank.load()
             out = ww_engines.run(name, inputs, today, concepts=bank_["concepts"], record=st.get("learn") or {})
             return {**out, "source": bank_["source"]}
+        if name == "exams":
+            ac = self.academics()
+            out = ww_engines.run(name, inputs, today, subjects=(ac or {}).get("subjects") or [], prep=st.get("exam_prep") or {})
+            for p in out.get("papers") or []:
+                p["files"] = study_files(p["subject"])
+            return {**out, "source": inputs.get("source")}
         if name == "proof":
             # The only engine whose data comes off the network; github_activity caches it for 30 min.
             user = (inputs.get("profile") or {}).get("github")
@@ -2791,6 +2818,52 @@ class Plan:
                 revs[:] = revs[-50:]
             self.save(st)
         return self.engine("learning", today)
+
+    def exam_prep(self, op: str, subject: str, payload: dict, today: Optional[str] = None) -> dict:
+        """Exam preparation, one tap at a time (the exams engine reads it):
+          op "topic": {key, state} marks a topic none / learned / solid (key "<unit>|<topic>");
+          op "minutes": {minutes} logs study time for the subject (it is also a normal log,
+                        so Focus and Consistency move);
+          op "paper": {score, max} records a timed practice paper, the one measured number.
+        Only subjects in academics.json and topics of that subject are accepted."""
+        today = today or date.today().isoformat()
+        ac = self.academics() or {}
+        sub = next((x for x in ac.get("subjects") or [] if x.get("id") == subject), None)
+        if sub is None:
+            raise ValueError("no such subject")
+        with self._lock:
+            st = self.load(today)
+            rec = st.setdefault("exam_prep", {}).setdefault(subject, {})
+            if op == "topic":
+                key, state = str(payload.get("key") or ""), str(payload.get("state") or "")
+                keys = {ww_exams.topic_key(int(u["n"]), str(t)) for u in sub.get("units") or [] for t in u.get("topics") or []}
+                if key not in keys:
+                    raise ValueError("no such topic in this subject")
+                if state not in ww_exams.STATES:
+                    raise ValueError("state is none, learned or solid")
+                topics = rec.setdefault("topics", {})
+                if state == "none":
+                    topics.pop(key, None)
+                else:
+                    topics[key] = {"state": state, "date": today}
+            elif op == "minutes":
+                m = _num(payload.get("minutes"))
+                if m is None or not 1 <= m <= 600:
+                    raise ValueError("minutes must be 1 to 600")
+                rec.setdefault("minutes", []).append({"date": today, "minutes": int(m)})
+                rec["minutes"] = rec["minutes"][-400:]
+            elif op == "paper":
+                sc, mx = _num(payload.get("score")), _num(payload.get("max"))
+                if mx is None or not 0 < mx <= 200 or sc is None or not 0 <= sc <= mx:
+                    raise ValueError("score must be from 0 to max, and max from 1 to 200")
+                rec.setdefault("papers", []).append({"date": today, "score": sc, "max": mx})
+                rec["papers"] = rec["papers"][-50:]
+            else:
+                raise ValueError("op is topic, minutes or paper")
+            self.save(st)
+        if op == "minutes":
+            self.log(int(m), "exams", note=f"exam prep: {sub.get('name') or subject}", today=today)
+        return self.engine("exams", today)
 
     def money_log(self, entry: dict, today: Optional[str] = None) -> dict:
         """One money-log entry: {kind, amount, date?, hours?, experiment?, note?}. Private,

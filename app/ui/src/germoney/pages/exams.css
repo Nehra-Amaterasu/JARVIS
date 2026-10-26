@@ -1,0 +1,65 @@
+/* Internals card (Exams.tsx). Uses the app tokens only: ink, hair, live, sim, fault. */
+.card.exams { display: flex; flex-direction: column; gap: 10px; }
+.ex-papers { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.ex-paper {
+  display: flex; flex-direction: column; gap: 5px; align-items: stretch; text-align: left;
+  padding: 10px 11px; border-radius: var(--r-sm); border: 0; cursor: pointer; color: var(--ink);
+  background: rgba(255, 255, 255, 0.035); box-shadow: inset 0 0 0 1px var(--hair);
+  transition: background var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+.ex-paper:hover { background: rgba(255, 255, 255, 0.06); transform: translateY(-1px); }
+.ex-paper:focus-visible { outline: 2px solid var(--live); outline-offset: 2px; }
+.ex-paper.on { box-shadow: inset 0 0 0 1px var(--live); background: rgba(255, 255, 255, 0.07); }
+.ex-when { font-size: 10.5px; color: var(--ink-3); letter-spacing: 0.04em; text-transform: uppercase; }
+.ex-name { font-size: 13px; font-weight: 600; line-height: 1.25; min-height: 2.5em; }
+.ex-nums b { font-family: var(--f-mono); }
+.ex-paper .chip { align-self: flex-start; height: 20px; padding: 0 8px; font-size: 10.5px; }
+.chip.live-chip { color: var(--live); box-shadow: inset 0 0 0 1px var(--live); background: transparent; }
+
+.ex-topics { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: var(--r-sm); background: rgba(255, 255, 255, 0.025); box-shadow: inset 0 0 0 1px var(--hair); }
+.ex-topics-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; }
+.ex-unit { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ex-unit .eyebrow { flex-basis: 100%; }
+.ex-w { margin-left: 6px; font-family: var(--f-mono); font-size: 10px; padding: 1px 6px; border-radius: var(--r-pill); box-shadow: inset 0 0 0 1px var(--hair-3); }
+.ex-w.high { color: var(--fault); box-shadow: inset 0 0 0 1px var(--fault-2); }
+.ex-w.med { color: var(--sim); }
+.ex-topic {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 30px; padding: 4px 11px; border: 0; cursor: pointer;
+  border-radius: var(--r-pill); font-size: 12px; color: var(--ink-2); background: transparent; box-shadow: inset 0 0 0 1px var(--hair);
+  transition: color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+.ex-topic i { width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-4); flex: none; }
+.ex-topic .mono { font-size: 10px; color: var(--ink-3); }
+.ex-topic:hover { color: var(--ink); }
+.ex-topic:focus-visible { outline: 2px solid var(--live); outline-offset: 2px; }
+.ex-topic.learned { color: var(--ink); box-shadow: inset 0 0 0 1px var(--sim); }
+.ex-topic.learned i { background: var(--sim); box-shadow: none; }
+.ex-topic.solid { color: var(--ink); box-shadow: inset 0 0 0 1px var(--live); background: rgba(255, 255, 255, 0.04); }
+.ex-topic.solid i { background: var(--live); box-shadow: 0 0 8px var(--live); }
+
+.ex-today { display: flex; flex-direction: column; gap: 8px; }
+.ex-today .eyebrow { display: inline-flex; gap: 6px; align-items: center; }
+.ex-slot { display: flex; flex-direction: column; gap: 6px; padding-left: 10px; border-left: 2px solid var(--hair-3); }
+.ex-slot.light { opacity: 0.75; }
+.ex-slot-head, .ex-block-head { display: flex; justify-content: space-between; gap: 8px; }
+.ex-block { display: flex; flex-direction: column; gap: 4px; }
+.ex-focus { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
+.ex-focus li.paper { color: var(--live); }
+.ex-focus li.solid { color: var(--sim); }
+.ex-risks { display: flex; flex-direction: column; gap: 4px; color: var(--ink-2); }
+.ex-risks svg { color: var(--sim); vertical-align: -2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ex-paper, .ex-topic { transition: none; }
+  .ex-paper:hover { transform: none; }
+}
+
+/* Settings → What the System knows (SystemInputs.tsx) */
+.sys-inputs details { padding: 4px 0; }
+.sys-inputs summary { cursor: pointer; padding: 4px 0; }
+.sys-row .field.sm { min-width: 0; flex: 0 1 auto; }
+.sys-row select.field.sm { flex: 1 1 180px; }
+.sys-area { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.sys-area textarea { resize: vertical; font: inherit; }
+.ex-files { display: flex; flex-wrap: wrap; gap: 6px; }
+.ex-files .btn { text-transform: none; }

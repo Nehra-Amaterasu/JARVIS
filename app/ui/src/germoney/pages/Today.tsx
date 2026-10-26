@@ -19,6 +19,7 @@ import { prettyDate } from '../game/util'
 import { DAILY_ITEMS, SUNDAY_ITEMS, useChecklistStore } from '../stores/checklist-store'
 import { usePlayerStore } from '../stores/player-store'
 import { CheckRow, daysSince, EMPTY, MissionHeader, NeonBar } from '../ui'
+import { ExamsCard } from './Exams'
 import { SchedulePage } from './Schedule'
 import { QuestCards } from './Status'
 
@@ -54,6 +55,7 @@ export function TodayPage() {
       <Comeback />
       <div className="today-grid">
         <section className="today-main">
+          <ExamsCard />
           {today?.exam && <ExamBanner />}
           <TodaysThree />
           <Blocks />

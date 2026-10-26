@@ -44,6 +44,10 @@
     GET    /api/mission/engines            the Well Wisher engines (ww_engines.py): goal ladder, evidence
                                            audit, career, money, personality, insight, today's 3, the registry
     GET    /api/mission/engine/{name}      one engine over his data (schema checked; invalid_input if not)
+    GET    /api/mission/exams              papers ahead: coverage, the block plan to the last paper, a forecast (ww_exams.py)
+    POST   /api/mission/exams/{subject}/{op}  op topic {key, state} | minutes {minutes} | paper {score, max}
+    GET    /api/mission/inputs             the engine inputs: as written, normalized, and the editable sections
+    PUT    /api/mission/inputs/{section}   {value}  replace one section of engine-inputs.json (Settings)
     GET    /api/mission/body               body & life: habits this week + this week's upgrade focus (ww_body.py)
     POST   /api/mission/habit/{id}         {done?: false to undo}  tap a habit done for today
     GET    /api/mission/learn              daily knowledge program: today's concept + recalls due (ww_learning.py)
@@ -73,7 +77,7 @@ from typing import Any, Optional
 from fastapi import Body, FastAPI, HTTPException
 from starlette.concurrency import run_in_threadpool
 
-from . import germoney
+from . import germoney, ww_engines
 
 
 def _chain_lifespan(app: FastAPI, start) -> None:
@@ -172,6 +176,27 @@ def register(app: FastAPI, svc, bus) -> None:
     async def learn_mark(cid: str, op: str, payload: Optional[dict] = Body(None)):
         ok = (payload or {}).get("ok")
         return await run_in_threadpool(guard, plan.learn_mark, cid, op, ok)
+
+    @app.get("/api/mission/exams")
+    async def exams():
+        return await run_in_threadpool(guard, plan.engine, "exams")
+
+    @app.post("/api/mission/exams/{subject}/{op}")
+    async def exam_prep(subject: str, op: str, payload: Optional[dict] = Body(None)):
+        return await run_in_threadpool(guard, plan.exam_prep, op, subject, payload or {})
+
+    @app.get("/api/mission/inputs")
+    async def inputs_get():
+        def view():
+            return {"raw": ww_engines.raw_inputs(), "inputs": ww_engines.load_inputs(), "editable": sorted(ww_engines.EDITABLE)}
+        return await run_in_threadpool(view)
+
+    @app.put("/api/mission/inputs/{section}")
+    async def inputs_put(section: str, payload: dict = Body(...)):
+        r = await run_in_threadpool(guard, ww_engines.save_section, section, payload.get("value"))
+        if section == "exams":
+            await run_in_threadpool(plan.reroll)      # the day may switch into exam mode
+        return r
 
     @app.get("/api/mission/money")
     async def money():

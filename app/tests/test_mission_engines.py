@@ -28,7 +28,7 @@ def inputs():
 
 # ------------------------------------------------------------------ the contract every engine keeps
 def test_the_registry_holds_the_engines_and_each_is_pure(inputs):
-    assert list(we.ENGINES) == ["goal_ladder", "evidence", "career", "money", "personality", "body", "learning", "insight", "proof"]
+    assert list(we.ENGINES) == ["goal_ladder", "evidence", "career", "money", "personality", "body", "learning", "insight", "proof", "exams"]
     for name, f in we.ENGINES.items():
         before = copy.deepcopy(inputs)
         a, b = f(inputs, MON), f(copy.deepcopy(inputs), MON)

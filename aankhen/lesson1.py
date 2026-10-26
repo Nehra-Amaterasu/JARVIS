@@ -35,17 +35,11 @@ PALETTE = ["#4e79a7", "#f28e2b", "#59a14f", "#e15759", "#b07aa1", "#76b7b2", "#e
 
 def akr_samples(path: str) -> Iterable[tuple[float, np.ndarray]]:
     """(host time, amplitude[51]) at 100 Hz from a raw recording, through the same
-    conditioner the live engine uses (decode, gain undo, resample, Hampel)."""
-    from .csi import CsiConditioner
-    from .protocol import CsiPacket, StreamDecoder, decode_packet
-    from .transport import iter_recording
-    cond, dec = CsiConditioner(), StreamDecoder()
-    for host_t, chunk in iter_recording(path):
-        for fr in dec.feed(chunk):
-            p = decode_packet(fr)
-            if isinstance(p, CsiPacket):
-                for s in cond.push(p.timestamp_us / 1e6, p.raw, p.rssi, gain_comp_db=p.gain_comp_db):
-                    yield host_t + (s.t - p.timestamp_us / 1e6), np.asarray(s.amp, float)
+    conditioner the live engine uses (decode, gain undo, resample, Hampel), timed by the
+    board's clock (fingerprint.akr_stream explains why not by chunk arrival)."""
+    from .fingerprint import akr_stream
+    for t, amp, _ in akr_stream(path):
+        yield t, np.asarray(amp, float)
 
 
 def load_labels(path: str, t_first: float) -> list[dict]:

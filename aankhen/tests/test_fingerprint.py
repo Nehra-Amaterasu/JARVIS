@@ -118,3 +118,24 @@ def test_evaluate_half_records_the_training():
     assert rep["knn"] > 0.9 and rep["cnn"] > 0.9
     assert len(rep["history"]) == 5 and set(rep["history"][0]["grad"]) == {"conv1", "conv2", "linear"}
     assert "upper bound" in rep["note"]
+
+
+def test_jittery_chunk_arrival_still_gives_windows(tmp_path):
+    """Regression (2026-10-26): with a weak link, chunks reach the host in bursts. Timing
+    samples by chunk arrival made them jump and restarted every window (197,945 samples,
+    0 windows). The board's clock must space them."""
+    from aankhen.tests.test_links import _csi_pkt
+    from aankhen.transport import Recorder
+    rng = np.random.default_rng(0)
+    rec = Recorder(str(tmp_path / "raw.akr"), {"label": "test"})
+    host0 = 1_700_000_000.0
+    pkts = [_csi_pkt(5.0 + i * 0.005, rng, seq=i) for i in range(6000)]      # 30 s at 200 Hz
+    for k in range(0, len(pkts), 20):                                         # 100 ms chunks...
+        chunk = b"".join(p.to_frame().encode() for p in pkts[k:k + 20])
+        late = rng.uniform(0.0, 0.4)                                          # ...arriving up to 0.4 s late
+        rec.write(chunk, host0 + pkts[k + 19].timestamp_us / 1e6 - 5.0 + 0.01 + late)
+    rec.close()
+    w = fp.session_windows(str(tmp_path))
+    assert len(w) >= 50                                  # ~ (30 - 2) / 0.5 windows
+    ts = np.array([t for t, _ in w])
+    assert np.all(np.diff(ts) > 0) and ts[0] - host0 < 3.5   # on the host clock, in order

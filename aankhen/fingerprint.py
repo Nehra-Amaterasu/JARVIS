@@ -50,6 +50,7 @@ N_SUB = 51
 MAX_FILLED = 0.2     # a window with more than 20 % forward-filled samples is dropped
 PURGE_S = 5.0        # first seconds of a block are settling, not the pose
 MODEL_ROOT = os.path.join(DATA_DIR, "models", "cnn")
+OUT_ZONES = ("inside_bathroom", "balcony")   # out of the sensed room through another door
 
 
 # ---------------------------------------------------------------- windows
@@ -112,22 +113,38 @@ def label_windows(wins: list[tuple[float, np.ndarray]], labels: list[dict], purg
             "activity": np.asarray(A), "fan": np.asarray(F, bool), "t": np.asarray(T), "refs": own}
 
 
-def session_windows(folder: str) -> list[tuple[float, np.ndarray]]:
-    """One session's raw.akr as (host end time, window) pairs, unlabelled."""
+def akr_stream(path: str) -> Iterable[tuple[float, np.ndarray, bool]]:
+    """(host time, amplitude[51], filled) at 100 Hz from a raw recording.
+
+    The board's clock spaces the samples; ONE offset per stretch puts them on the host's
+    clock. The offset is the smallest (host arrival - board time) seen so far, because
+    USB/HTTP delay only ever adds. Stamping each sample with its chunk's arrival time
+    instead (the first version) made consecutive samples jump by the arrival jitter, and
+    on the first real narrated session (2026-10-26, a weak link, chunks arriving in
+    bursts) every jump restarted the 2 s window: 197,945 good samples, 0 windows. A jump
+    of more than 1 s in the offset means the board restarted: a new stretch."""
     from .csi import CsiConditioner
     from .protocol import CsiPacket, StreamDecoder, decode_packet
     from .transport import iter_recording
+    cond, dec = CsiConditioner(), StreamDecoder()
+    off: Optional[float] = None
+    for host_t, chunk in iter_recording(path):
+        for fr in dec.feed(chunk):
+            p = decode_packet(fr)
+            if not isinstance(p, CsiPacket):
+                continue
+            o = host_t - p.timestamp_us / 1e6
+            if off is None or abs(o - off) > 1.0:
+                off = o
+            else:
+                off = min(off, o)
+            for s in cond.push(p.timestamp_us / 1e6, p.raw, p.rssi, gain_comp_db=p.gain_comp_db):
+                yield s.t + off, s.amp, s.filled
 
-    def stream():
-        cond, dec = CsiConditioner(), StreamDecoder()
-        for host_t, chunk in iter_recording(os.path.join(folder, "raw.akr")):
-            for fr in dec.feed(chunk):
-                p = decode_packet(fr)
-                if isinstance(p, CsiPacket):
-                    for s in cond.push(p.timestamp_us / 1e6, p.raw, p.rssi, gain_comp_db=p.gain_comp_db):
-                        # host time keeps the labels' clock; the board's clock spaces the samples
-                        yield host_t + (s.t - p.timestamp_us / 1e6), s.amp, s.filled
-    return list(windows(stream()))
+
+def session_windows(folder: str) -> list[tuple[float, np.ndarray]]:
+    """One session's raw.akr as (host end time, window) pairs, unlabelled."""
+    return list(windows(akr_stream(os.path.join(folder, "raw.akr"))))
 
 
 def session_tensors(folder: str, labels: list[dict], fallback_refs: Optional[dict] = None) -> dict:
@@ -154,6 +171,29 @@ def load_days(root: Optional[str] = None, narrate_root: Optional[str] = None) ->
             for fan, r in d["refs"].items():
                 day_refs.setdefault(fan, r)
             first.append((s, wins, d))
+        if not day_refs:
+            # No "leaving the room" stretch. Next best: time he spent OUT of the sensed room
+            # through another door, the bathroom or the balcony (Aman, 2026-10-26: "when I
+            # was in the bathroom I left the room"); those zones lie off the router-board line.
+            outside = []
+            for s, wins in runs:
+                spans = [(l["t_start"] + PURGE_S, l["t_end"]) for l in s["labels"]
+                         if l.get("verdict") == "ok" and l.get("zone") in OUT_ZONES]
+                outside += [w for t, w in wins if any(a <= t < b for a, b in spans)]
+            if len(outside) >= 20:
+                m = np.mean(outside, axis=(0, 2))
+                day_refs = {False: m, True: m}
+                print(f"  {day}: no empty-room stretch; using {len(outside)} windows from the bathroom/balcony as the reference")
+        if not day_refs:
+            # Nobody left the room all day (the first narrated session, 2026-10-26: he fell
+            # asleep): no empty reference exists. The day's own average level stands in.
+            # It removes the same constant per subcarrier from every window, so places stay
+            # comparable within the day; across days it is weaker than a true empty room.
+            allw = [w for _, wins in runs for _, w in wins]
+            if allw:
+                m = np.mean(allw, axis=(0, 2))
+                day_refs = {False: m, True: m}
+                print(f"  {day}: no empty-room stretch; using the day's average level as the reference")
         for s, wins, d in first:
             if len(d["zone"]) == 0 or not d["refs"]:
                 d = label_windows(wins, s["labels"], fallback_refs=day_refs)
@@ -379,8 +419,15 @@ def evaluate_half(days: dict, epochs: int = 30) -> dict:
     pk, pc = knn.predict(X[te]), cnn.predict(X[te])
     labels = sorted(set(y.tolist()))
     conf = {a: {b: int(((y[te] == a) & (pc == b)).sum()) for b in labels} for a in zones_test}
+    # Plain accuracy flatters a lopsided session: the first real one was 98 % asleep on the
+    # bed, where "always say bed" scores 97.8 % and a 95 % kNN is worse than guessing.
+    # So: the always-the-commonest-place score, and balanced accuracy (mean per-place recall).
+    common = max(set(y[tr].tolist()), key=lambda z: int((y[tr] == z).sum()))
+    bal = lambda p: round(float(np.mean([(p[y[te] == z] == z).mean() for z in zones_test])), 4)
     return {"split": "half", "days": sorted(days), "windows": {"train": int(tr.sum()), "test": int(te.sum())},
             "chance": round(1 / len(labels), 4),
+            "majority": {"place": common, "acc": round(float((y[te] == common).mean()), 4)},
+            "balanced": {"knn": bal(pk), "cnn": bal(pc)},
             "knn": round(float((pk == y[te]).mean()), 4), "cnn": round(float((pc == y[te]).mean()), 4),
             "per_zone": {z: {"windows": int((y[te] == z).sum()),
                              "knn": round(float((pk[y[te] == z] == z).mean()), 4),
@@ -395,7 +442,9 @@ def format_half(rep: dict) -> str:
         return "  " + rep["error"]
     w = rep["windows"]
     lines = [f"  50/50 split: {w['train']} windows to train, {w['test']} to verify  (chance {rep['chance']:.0%})",
-             f"  kNN {rep['knn']:.0%}   CNN {rep['cnn']:.0%}", "",
+             f"  kNN {rep['knn']:.0%}   CNN {rep['cnn']:.0%}    (always saying '{rep['majority']['place']}': "
+             f"{rep['majority']['acc']:.0%}; a model must beat that)",
+             f"  balanced (each place counts the same): kNN {rep['balanced']['knn']:.0%}   CNN {rep['balanced']['cnn']:.0%}", "",
              "  place                          windows   kNN    CNN"]
     for z, v in rep["per_zone"].items():
         lines.append(f"  {z:<30} {v['windows']:>7}  {v['knn']:>4.0%}  {v['cnn']:>5.0%}")

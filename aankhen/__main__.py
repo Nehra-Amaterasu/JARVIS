@@ -600,15 +600,19 @@ def cmd_narrate(a) -> int:
             print(f"  not labelled yet: {f}")
         return 0
     if a.action == "label":
-        if not a.folder or not a.audio:
-            print("  usage: python -m aankhen narrate label <session folder | latest> <audio file>")
+        if not a.folder:
+            print("  usage: python -m aankhen narrate label <session folder | latest> [audio file]"
+                  "  (no audio: label again from the saved transcript)")
             return 2
         folder = nr.latest() if a.folder == "latest" else a.folder
         if not folder:
             print("  No narration session found.")
             return 1
         try:
-            rep = nr.label_session(folder, a.audio, language=None if a.language == "auto" else a.language, dry_run=a.dry_run)
+            if a.audio:
+                rep = nr.label_session(folder, a.audio, language=None if a.language == "auto" else a.language, dry_run=a.dry_run)
+            else:
+                rep = nr.relabel(folder, dry_run=a.dry_run)
         except ValueError as e:
             print(f"  {e}")
             return 1

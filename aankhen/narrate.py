@@ -192,16 +192,24 @@ def _p(kind: str, value: str, *texts: str) -> None:
         PHRASES[t] = (kind, value)
 
 
-_p("zone", "at_desk_chair", "desk chair", "sitting at the desk", "sitting at desk", "at the desk", "at desk", "desk")
-_p("zone", "desk_standing", "standing at the desk", "standing at desk", "standing near the desk")
-_p("zone", "beside_bed_desk_side", "beside the bed desk side", "between bed and desk", "between the bed and the desk")
-_p("zone", "bed_lying", "lying on the bed", "lying on bed", "lying down", "on the bed lying", "bistar")
+_p("zone", "at_desk_chair", "desk chair", "sitting at the desk", "sitting at desk", "at the desk", "at desk", "desk",
+   "sitting on chair", "sitting on the chair", "on the chair", "chair in front of desk")
+_p("zone", "desk_standing", "standing at the desk", "standing at desk", "standing near the desk",
+   "standing behind the chair", "behind the chair")
+_p("zone", "beside_bed_desk_side", "beside the bed desk side", "between bed and desk", "between the bed and the desk",
+   "between the bed and the chair", "between bed and chair")
+_p("zone", "bed_lying", "lying on the bed", "lying on bed", "lying down", "on the bed lying", "bistar",
+   "lying still on the bed", "lying still in the bed", "lying in the bed")
 _p("zone", "bed_sitting", "sitting on the bed", "sitting on bed", "edge of the bed", "on the bed", "bed")
 _p("zone", "standing_on_bed", "standing on the bed", "standing on bed")
-_p("zone", "beside_bed_bathroom_wall", "bathroom wall", "beside the bed bathroom side")
-_p("zone", "outside_bathroom", "outside the bathroom", "outside bathroom", "bathroom door")
-_p("zone", "inside_bathroom", "in the bathroom", "inside the bathroom", "inside bathroom", "bathroom", "washroom")
-_p("zone", "between_bed_and_balcony_door", "between bed and balcony", "between the bed and the balcony")
+_p("zone", "beside_bed_bathroom_wall", "bathroom wall", "beside the bed bathroom side",
+   "between the bathroom wall and the bed", "between the bed and the bathroom wall")
+_p("zone", "outside_bathroom", "outside the bathroom", "outside bathroom", "bathroom door", "doormat", "door mat",
+   "in front of the bathroom door", "in front of bathroom door", "on the doormat", "on the door mat")
+_p("zone", "inside_bathroom", "in the bathroom", "inside the bathroom", "inside bathroom", "bathroom", "washroom",
+   "wash basin", "sink")
+_p("zone", "between_bed_and_balcony_door", "between bed and balcony", "between the bed and the balcony",
+   "between balcony door and bed", "between the balcony door and the bed")
 _p("zone", "at_balcony_door", "balcony door", "at the balcony door")
 _p("zone", "balcony", "on the balcony", "balcony")
 _p("zone", "room_door", "room door", "at the door")
@@ -231,9 +239,21 @@ def _norm(w: str) -> str:
     return re.sub(r"[^a-z0-9 ]", "", w.lower().strip())
 
 
+# A place named as a DIRECTION, not where he is: "looking towards the wardrobe", "moving
+# towards the bathroom", "the bed is in front of me". From the first real session
+# (2026-10-26): 312 keywords in 15 min, most of them directions, which the first parser
+# turned into 44 fragments of 4-15 s, wardrobe and balcony stretches he never stood in.
+_DIRECTION_BEFORE = {"looking", "look", "looks", "towards", "toward", "facing", "face", "staring", "pointing",
+                     "rotating", "turning", "opening", "open", "closing", "close"}
+_DIRECTION_AFTER = {"is", "are", "was"}
+
+
 def find_events(words: list[dict]) -> list[dict]:
-    """Words [{t, w}] (host time) -> events [{t, kind, value, text}], greedy longest match."""
-    toks = [(w["t"], _norm(w["w"])) for w in words if _norm(w["w"])]
+    """Words [{t, w}] (host time) -> events [{t, kind, value, text}], greedy longest match.
+    A place word with a direction word in the 6 words before it, or followed by "is",
+    is skipped: it says where something is, not where he is."""
+    # Whisper sometimes gives "the bed" as one word: split so phrases match word by word
+    toks = [(w["t"], x) for w in words for x in _norm(w["w"]).split()]
     out, i = [], 0
     while i < len(toks):
         hit = None
@@ -245,6 +265,11 @@ def find_events(words: list[dict]) -> list[dict]:
         if hit:
             n, text = hit
             kind, value = PHRASES[text]
+            before = {w for _, w in toks[max(0, i - 6):i]}
+            after = toks[i + n][1] if i + n < len(toks) else ""
+            if kind == "zone" and (before & _DIRECTION_BEFORE or after in _DIRECTION_AFTER):
+                i += n
+                continue
             out.append({"t": toks[i][0], "kind": kind, "value": value, "text": text})
             i += n
         else:
@@ -274,13 +299,23 @@ def events_to_labels(events: list[dict], t_end: float, fan: bool) -> list[dict]:
 
     for e in sorted(events, key=lambda e: e["t"]):
         if e["kind"] == "zone":
+            # "lying still on the bed" said 20 times is one stretch, not 20 that each lose 5 s
+            if e["value"] == zone or (zone == "bed_lying" and e["value"] == "bed_sitting"):
+                continue
             close(e["t"])
             zone, start, act, explicit_act = e["value"], e["t"], None, False
         elif e["kind"] == "act":
-            if zone is not None:
-                close(e["t"])
-                start, act, explicit_act = e["t"], e["value"], True
+            v = "lying" if zone == "bed_lying" and e["value"] == "still" else e["value"]   # lying still = lying
+            if zone is None or v == (act or DEFAULT_ACT.get(zone, "still")):
+                continue
+            e = {**e, "value": v}
+            close(e["t"])
+            if e["value"] == "lying" and zone == "bed_sitting":
+                zone = "bed_lying"                      # "on the bed ... lying": he lay down
+            start, act, explicit_act = e["t"], e["value"], True
         elif e["kind"] == "fan":
+            if (e["value"] == "on") == fan:
+                continue                                # "fan is on" again: nothing changed
             close(e["t"])
             fan = e["value"] == "on"
             start = e["t"] if zone is not None else None
@@ -381,6 +416,27 @@ def label_session(folder: str, audio_path: str, language: Optional[str] = "en", 
                        for z in sorted({l["zone"] for l in labels})}}
     if not dry_run:
         _write(os.path.join(folder, "transcript.json"), {"clock": cm, "words": words, "events": events})
+        with open(os.path.join(folder, "labels.jsonl"), "w", encoding="utf-8") as f:
+            for l in labels:
+                f.write(json.dumps(l) + "\n")
+    return rep
+
+
+def relabel(folder: str, dry_run: bool = False) -> dict:
+    """Labels again from the saved transcript.json (words already in host time): after the
+    parser improves, or after correcting a misheard word in the transcript by hand. No
+    audio, no Whisper."""
+    info = load_session(folder)
+    with open(os.path.join(folder, "transcript.json"), encoding="utf-8") as f:
+        tr = json.load(f)
+    events = find_events(tr["words"])
+    end = info.stopped or (tr["words"][-1]["t"] if tr["words"] else info.started)
+    labels = events_to_labels(events, end, info.fan)
+    rep = {"syncs": [], "clock": tr.get("clock", {"note": "from transcript.json"}), "words": len(tr["words"]),
+           "events": events, "labels": labels,
+           "minutes": {z: round(sum(l["t_end"] - l["t_start"] for l in labels if l["zone"] == z) / 60, 2)
+                       for z in sorted({l["zone"] for l in labels})}}
+    if not dry_run:
         with open(os.path.join(folder, "labels.jsonl"), "w", encoding="utf-8") as f:
             for l in labels:
                 f.write(json.dumps(l) + "\n")

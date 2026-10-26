@@ -3,7 +3,9 @@
  * shows the six-screen navigation, and renders the current screen. Mounted for any tab in the
  * 'mission' group; old tab ids land on the screen that absorbed them (ui.tsx).
  *
- *   Today   contracts + the day's blocks + the Floor + rituals + latest findings
+ *   Today   direction, today's 3, the day's blocks (contracts), building hours
+ *   Study   internals, one node from resource to recall, the daily concept
+ *   Life    the day in taps (counters, meals, media, reels), habits, quests
  *   Tree    the skill tree (a layered DAG you can pan, zoom and search), node details
  *   Focus   the Crucible and Drill
  *   Log     one log form, learning, the gym, "what got in the way", GitHub proof
@@ -21,7 +23,10 @@ import { MissionBoundary } from './Boundary'
 import { usePlan } from './game/plan'
 import { useGame } from './game/store'
 import { useMissionLoaded } from './hooks'
+import { ReaderDrawer } from './Reader'
 import { FocusPage } from './pages/Focus'
+import { LifePage } from './pages/Life'
+import { StudyPage } from './pages/Study'
 import { LogPage } from './pages/Log'
 import { RoadPage } from './pages/Road'
 import { SettingsDrawer } from './pages/Settings'
@@ -31,9 +36,9 @@ import { TreePage } from './pages/Tree'
 import { MissionNav, SCREEN_OF, type MissionScreen } from './ui'
 
 const PAGES: Record<MissionScreen, React.ComponentType> = {
-  today: TodayPage, tree: TreePage, focus: FocusPage, log: LogPage, road: RoadPage, status: StatusPage,
+  today: TodayPage, study: StudyPage, life: LifePage, tree: TreePage, focus: FocusPage, log: LogPage, road: RoadPage, status: StatusPage,
 }
-const NAMES: Record<MissionScreen, string> = { today: 'Today', tree: 'Tree', focus: 'Focus', log: 'Log', road: 'Road', status: 'Status' }
+const NAMES: Record<MissionScreen, string> = { today: 'Today', study: 'Study', life: 'Life', tree: 'Tree', focus: 'Focus', log: 'Log', road: 'Road', status: 'Status' }
 
 export function MissionRoot() {
   const tab = useStore((s) => s.tab)
@@ -53,6 +58,7 @@ export function MissionRoot() {
         ? <MissionBoundary key={screen} name={NAMES[screen]}><Page /></MissionBoundary>
         : <div className="empty">Loading Well Wisher…</div>}
       <MissionBoundary name="Settings"><SettingsDrawer /></MissionBoundary>
+      <MissionBoundary name="Reader"><ReaderDrawer /></MissionBoundary>
     </div>
   )
 }

@@ -21,7 +21,7 @@ import { ProofPage } from './Proof'
 
 type Section = 'log' | 'learning' | 'gym' | 'missed' | 'proof'
 
-const toB64 = (f: File) => new Promise<string>((res, rej) => {
+export const toB64 = (f: File) => new Promise<string>((res, rej) => {
   const r = new FileReader()
   r.onload = () => res(String(r.result).split(',')[1] ?? '')
   r.onerror = () => rej(r.error)

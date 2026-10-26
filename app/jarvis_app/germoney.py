@@ -40,7 +40,7 @@ from typing import Any, Optional
 
 import httpx
 
-from . import github_activity, learn_bank, wellwisher, ww_base, ww_engines, ww_exams, ww_money
+from . import github_activity, learn_bank, wellwisher, ww_base, ww_engines, ww_exams, ww_life, ww_money
 from .paths import DATA
 
 ROOT = DATA / "germoney"
@@ -1072,7 +1072,7 @@ def exam_notes() -> Path:
 
 
 def file_roots() -> list[Path]:
-    return [ACADEMICS.parent, COLLEGE, exam_notes()]
+    return [ACADEMICS.parent, COLLEGE, exam_notes(), LEARNING]   # LEARNING: notes he filed with a study entry
 
 
 def study_files(subject: str, root: Optional[Path] = None) -> list[dict]:
@@ -1320,7 +1320,8 @@ def default_plan_state(today: str) -> dict:
             "money": {"entries": [], "seq": 0},                # the money log (Well Wisher money engine)
             # merge_plan_state keeps only keys listed here: habit taps, recalls and exam taps were
             # dropped on every reload until these three were added (found 2026-10-26).
-            "habits": {}, "learn": {"seen": {}, "reviews": {}}, "exam_prep": {}, "work_sessions": {}}
+            "habits": {}, "learn": {"seen": {}, "reviews": {}}, "exam_prep": {}, "work_sessions": {},
+            "study": {}, "life": {}}
 
 
 def merge_plan_state(raw: Any, today: str) -> dict:
@@ -2834,6 +2835,118 @@ class Plan:
                 revs[:] = revs[-50:]
             self.save(st)
         return self.engine("learning", today)
+
+    # ---- the study engine: one node, resource -> study -> contracts -> follow-ups
+    def study_view(self, node_id: str, today: Optional[str] = None) -> dict:
+        today = today or date.today().isoformat()
+        bank = self.bank()
+        node = bank["nodes"].get(node_id)
+        if node is None:
+            raise KeyError(f"no node {node_id}")
+        st = self.load(today)
+        res = [bank["resources"][r] for r in node.get("resources") or [] if r in bank["resources"]]
+        cons = []
+        for c in node.get("contracts") or []:
+            key = f"{node_id}/{c['id']}"
+            cons.append({**c, "key": key, "done": key in st["contracts"]})
+        entries = []
+        for m in learning_timeline(limit=400):
+            if node_id not in (m.get("nodes") or []):
+                continue
+            d = str(m.get("date", ""))
+            folder = LEARNING / d[:4] / d[5:7] / str(m.get("id", ""))
+            names = [f if isinstance(f, str) else (f.get("name") if isinstance(f, dict) else None) for f in m.get("files") or []]
+            entries.append({"id": m.get("id"), "date": d, "what": m.get("what"), "minutes": m.get("minutes"), "note": m.get("note"),
+                            "files": [{"name": f, "path": str(folder / f)} for f in names if f]})
+        choice = (st.get("study") or {}).get(node_id) or {}
+        return ww_engines.run("study", ww_engines.load_inputs(), today, node=node, resources=res, contracts=cons,
+                              entries=entries, choice=choice)
+
+    def study_set(self, node_id: str, op: str, payload: dict, today: Optional[str] = None) -> dict:
+        """op "primary" {resource}: the resource he studies from (one of the node's);
+        op "review" {ok}: a follow-up explain-back, answered from memory."""
+        today = today or date.today().isoformat()
+        node = self.bank()["nodes"].get(node_id)
+        if node is None:
+            raise KeyError(f"no node {node_id}")
+        with self._lock:
+            st = self.load(today)
+            rec = st.setdefault("study", {}).setdefault(node_id, {})
+            if op == "primary":
+                rid = str(payload.get("resource") or "")
+                if rid not in (node.get("resources") or []):
+                    raise ValueError("that resource is not listed for this node")
+                rec.update(primary=rid, since=rec.get("since") or today)
+            elif op == "review":
+                if not isinstance(payload.get("ok"), bool):
+                    raise ValueError("a review needs ok: true or false")
+                rec.setdefault("reviews", []).append({"date": today, "ok": payload["ok"]})
+                rec["reviews"] = rec["reviews"][-20:]
+            else:
+                raise ValueError("op is primary or review")
+            self.save(st)
+        return self.study_view(node_id, today)
+
+    # ---- the life log: counters, meals, media, reels
+    def life_view(self, today: Optional[str] = None) -> dict:
+        today = today or date.today().isoformat()
+        return ww_engines.run("life", ww_engines.load_inputs(), today, log=self.load(today).get("life") or {})
+
+    def life_tap(self, op: str, payload: dict, today: Optional[str] = None) -> dict:
+        """op "count" {id, value | delta}: set or nudge a counter for today;
+        op "item" {kind, text, minutes?, url?}: a meal, an anime / movie / series, a reel, a note;
+        op "explained" {date, index, text?}: a reel he has now explained in his own words."""
+        today = today or date.today().isoformat()
+        inputs = ww_engines.load_inputs()
+        ids = {c["id"] for c in ((inputs.get("life") or {}).get("counters") or ww_life.DEFAULT_COUNTERS)}
+        with self._lock:
+            st = self.load(today)
+            log = st.setdefault("life", {})
+            if op == "count":
+                cid = str(payload.get("id") or "")
+                if cid not in ids:
+                    raise ValueError("no such counter")
+                counts = log.setdefault(today, {}).setdefault("counts", {})
+                if "value" in payload:
+                    v = _num(payload.get("value"))
+                else:
+                    dv = _num(payload.get("delta"))
+                    v = None if dv is None else (counts.get(cid) or 0) + dv
+                if v is None or not 0 <= v <= 500:
+                    raise ValueError("a count is 0 to 500")
+                counts[cid] = int(v)
+            elif op == "item":
+                kind = str(payload.get("kind") or "")
+                text = str(payload.get("text") or "").strip()
+                if kind not in ww_life.ITEM_KINDS or not text:
+                    raise ValueError(f"an item needs a kind ({', '.join(ww_life.ITEM_KINDS)}) and some text")
+                it = {"kind": kind, "text": text[:500]}
+                mins = _num(payload.get("minutes"))
+                if mins is not None and 0 < mins <= 1440:
+                    it["minutes"] = int(mins)
+                url = str(payload.get("url") or "")
+                if re.match(r"^https?://", url):
+                    it["url"] = url[:400]
+                items = log.setdefault(today, {}).setdefault("items", [])
+                items.append(it)
+                del items[:-100]
+            elif op == "explained":
+                d, i = str(payload.get("date") or ""), payload.get("index")
+                reels = [x for x in (log.get(d) or {}).get("items") or [] if x.get("kind") == "reel"]
+                if not isinstance(i, int) or isinstance(i, bool) or not 0 <= i < len(reels):
+                    raise ValueError("no such reel")
+                reels[i]["explained"] = today
+                if payload.get("text"):
+                    reels[i]["explanation"] = str(payload["text"])[:1000]
+            else:
+                raise ValueError("op is count, item or explained")
+            # The day's points are kept, so the 4-week trend never recomputes old lines.
+            ans = ww_engines.run("life", inputs, today, log=log)
+            log.setdefault(today, {})["points"] = ans["points_today"]
+            for old_day in sorted(log)[:-400]:
+                log.pop(old_day)
+            self.save(st)
+        return self.life_view(today)
 
     def import_sessions(self, today: Optional[str] = None) -> dict:
         """Log every building session of the last 14 days that is not logged yet, as a

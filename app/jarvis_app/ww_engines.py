@@ -70,7 +70,7 @@ def load_inputs(path: Optional[Path] = None) -> dict:
 # Sections Settings may rewrite, and the JSON type each must be.
 EDITABLE = {"exams": list, "study": dict, "deadlines": list, "habits": list, "profile": dict, "goals": list,
             "skills": list, "money": dict, "week": dict, "rules": dict, "income_experiments": list,
-            "work_repos": list}
+            "work_repos": list, "life": dict}
 
 
 def raw_inputs(path: Optional[Path] = None) -> dict:
@@ -320,7 +320,11 @@ def normalize_inputs(raw: Any) -> dict:
                           "url": r["url"] if isinstance(r.get("url"), str) and r["url"].startswith("https://") else None})
         else:
             warn.append("a work repo without a path dropped")
-    return {"schema": INPUTS_SCHEMA, "life_goals": goals, "goals": sorted(flat, key=lambda g: (g["deadline"] or "9999", g["id"])),
+    lr = raw.get("life") if isinstance(raw.get("life"), dict) else {}
+    counters = [{"id": str(c["id"])[:30], "name": str(c.get("name") or c["id"])[:40],
+                 "want": c["want"] if c.get("want") in ("less", "more", "yes") else "less"}
+                for c in lr.get("counters") or [] if isinstance(c, dict) and c.get("id")][:20]
+    return {"schema": INPUTS_SCHEMA, "life": {"counters": counters}, "life_goals": goals, "goals": sorted(flat, key=lambda g: (g["deadline"] or "9999", g["id"])),
             "deadlines": sorted(deadlines, key=lambda x: (x["date"], x["id"])), "skills": skills,
             "income_experiments": exps, "habits": habits, "rules": rules, "profile": profile, "money": money,
             "week": {"capacity_minutes": int(_num(week.get("capacity_minutes"), 0, 6000, 600))},
@@ -601,6 +605,8 @@ ENGINE_TABLE: list[tuple[str, str]] = [
     ("exams", "ww_exams"),
     ("sessions", "ww_sessions"),
     ("director", "ww_director"),
+    ("study", "ww_study"),
+    ("life", "ww_life"),
 ]
 
 

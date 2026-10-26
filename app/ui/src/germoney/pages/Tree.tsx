@@ -7,7 +7,8 @@
  * outcomes, resources (primary, backup, legal PDFs), certificates, the project,
  * its contracts, and what you've earned on it (certs, projects, achievements).
  */
-import { Award, ExternalLink, FolderGit2, Lock, Maximize2, Pause, Play, Star, Trophy, ZoomIn, ZoomOut } from 'lucide-react'
+import { Award, BookMarked, ExternalLink, FolderGit2, Lock, Maximize2, Pause, Play, Star, Trophy, ZoomIn, ZoomOut } from 'lucide-react'
+import { useStudyNode } from './Study'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent as RMouseEvent, type PointerEvent as RPointerEvent } from 'react'
 import { useStore } from '../../lib/store'
 import { careerWeight, loadBank, type BankNode } from '../data/bank'
@@ -216,6 +217,7 @@ function NodePanel({ id, status, onPick }: { id: string | null; status: NodeStat
         {status === 'available' && <button className="btn sm primary" onClick={() => void run('start')}><Play size={13} />Start</button>}
         {status === 'in_progress' && <button className="btn sm" onClick={() => void run('pause')}><Pause size={13} />Pause (frees a slot)</button>}
         {(status === 'available' || status === 'in_progress') && <button className="btn sm ghost" onClick={() => void run('master')}><Star size={13} />Mark mastered</button>}
+        {status !== 'locked' && <button className="btn sm ghost" onClick={() => { useStudyNode.getState().set(id); useStore.getState().setTab('schedule') }}><BookMarked size={13} />Study this</button>}
         {status === 'locked' && <span className="muted small"><Lock size={12} /> Opens after: {n.prereqs.filter((p) => (state?.statuses[p] ?? '') !== 'mastered').map((p) => bank.nodes[p]?.name).join(', ')}</span>}
       </div>
       {n.outcomes.length > 0 && <><span className="eyebrow">You'll be able to</span><ul className="np-list">{n.outcomes.map((o) => <li key={o}>{o}</li>)}</ul></>}

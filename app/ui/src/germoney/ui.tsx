@@ -31,18 +31,20 @@ export const EMPTY: readonly never[] = Object.freeze([])
  * tab id lands on the screen that absorbed it. Status is the System's window
  * (stats derived server-side from logged work, docs/well-wisher-v1.md).
  */
-export type MissionScreen = 'today' | 'tree' | 'focus' | 'log' | 'road' | 'status'
-export const MISSION_TABS: { id: Tab; screen: MissionScreen; label: string }[] = [
+export type MissionScreen = 'today' | 'study' | 'tree' | 'life' | 'focus' | 'log' | 'road' | 'status'
+export const MISSION_TABS: { id: Tab; screen: MissionScreen; label: string; minor?: boolean }[] = [
   { id: 'mission', screen: 'today', label: 'Today' },
-  { id: 'status', screen: 'status', label: 'Status' },
+  { id: 'schedule', screen: 'study', label: 'Study' },
   { id: 'syllabus', screen: 'tree', label: 'Tree' },
-  { id: 'crucible', screen: 'focus', label: 'Focus' },
-  { id: 'terminal', screen: 'log', label: 'Log' },
-  { id: 'campaign', screen: 'road', label: 'Road' },
+  { id: 'quests', screen: 'life', label: 'Life' },
+  { id: 'campaign', screen: 'road', label: 'Career' },
+  { id: 'status', screen: 'status', label: 'Status' },
+  { id: 'crucible', screen: 'focus', label: 'Focus', minor: true },
+  { id: 'terminal', screen: 'log', label: 'Log', minor: true },
 ]
-/** Where each old tab went (HQ, Contracts and Schedule became Today, and so on). */
+/** Where each old tab went (HQ and Contracts became Today; Schedule is Study; Quests is Life). */
 export const SCREEN_OF: Partial<Record<Tab, MissionScreen>> = {
-  mission: 'today', quests: 'today', schedule: 'today',
+  mission: 'today', quests: 'life', schedule: 'study',
   syllabus: 'tree',
   crucible: 'focus', drill: 'focus',
   terminal: 'log', forge: 'log', interrogation: 'log', proof: 'log',
@@ -65,7 +67,7 @@ export function MissionNav() {
     <nav className="mission-nav" aria-label="Well Wisher">
       <span className="mn-brand mono">well_wisher</span>
       {MISSION_TABS.map((t) => (
-        <button key={t.id} className={`mn-tab ${screen === t.screen ? 'on' : ''}`} aria-current={screen === t.screen ? 'page' : undefined}
+        <button key={t.id} className={`mn-tab ${screen === t.screen ? 'on' : ''} ${t.minor ? 'minor' : ''}`} aria-current={screen === t.screen ? 'page' : undefined}
           onClick={() => setTab(t.id)}>{t.label}</button>
       ))}
       <span style={{ flex: 1 }} />

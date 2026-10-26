@@ -20,7 +20,6 @@ import { DAILY_ITEMS, SUNDAY_ITEMS, useChecklistStore } from '../stores/checklis
 import { usePlayerStore } from '../stores/player-store'
 import { CheckRow, daysSince, EMPTY, MissionHeader, NeonBar } from '../ui'
 import { DirectionCard, SessionsCard } from './Direction'
-import { ExamsCard } from './Exams'
 import { SchedulePage } from './Schedule'
 import { QuestCards } from './Status'
 
@@ -57,7 +56,6 @@ export function TodayPage() {
       <DirectionCard />
       <div className="today-grid">
         <section className="today-main">
-          <ExamsCard />
           {today?.exam && <ExamBanner />}
           <TodaysThree />
           <Blocks />
@@ -68,8 +66,6 @@ export function TodayPage() {
           <SessionsCard />
           <FloorCard />
           <WeeklyReview />
-          <LearnCard />
-          <HabitsCard />
           <ProofCard />
           <Brief />
           <Findings />

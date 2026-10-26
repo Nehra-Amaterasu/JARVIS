@@ -82,10 +82,9 @@ export interface ApplicationsView {
 
 /** Open a local study file: the API needs the token header, so fetch it and show the blob. */
 export async function openStudyFile(path: string): Promise<void> {
-  const { TOKEN } = await import('../../lib/api')
-  const r = await fetch(`/api/mission/academics/file?path=${encodeURIComponent(path)}`, { headers: { 'X-Jarvis-Token': TOKEN } })
-  if (!r.ok) throw new Error('That file is not available.')
-  window.open(URL.createObjectURL(await r.blob()), '_blank', 'noopener')
+  // The desktop window cannot open blob: links in another app; the in-app reader shows them.
+  const { useReader } = await import('../Reader')
+  useReader.getState().open(path)
 }
 export interface Block { id: string; kind: 'library' | 'evening' | 'protected' | 'weekend'; label: string; start: string; minutes: number; track?: string }
 export interface ExamInfo {

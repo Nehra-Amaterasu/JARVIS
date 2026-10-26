@@ -2,6 +2,37 @@
 
 One file for the Well Wisher topic, newest section on top. Older dated notes stay as they are (2026-10-23-mission-germoney-rebuild.md, 2026-10-25-well-wisher-v1.md, 2026-10-25-well-wisher-engines.md).
 
+## 2026-10-27: sections, a study engine, a life log, and why logging apps die
+
+**Question.** The app had grown to 30+ cards on one Today page. How should it be split so it stays usable? And how do you get a person to log his day for months without the logging itself killing it?
+
+**What changed.**
+- **Sections, one job each:**
+  - Today: direction, today's 3, the blocks with their contracts;
+  - Study: internals, one node, the daily concept;
+  - Tree;
+  - Life: the day in taps, habits, quests;
+  - Career (was Road);
+  - Status;
+  - Focus and Log as minor tabs.
+  The exam card had pushed the contracts off Today; it now lives in Study.
+- **ww_study.py (engine 13):** a node moves through choose → study → contracts → review → mastered, always with one next step.
+  - "Mastered" needs every contract done, a filed note, and three explain-backs from memory at 1, 3 and 7 days after the last entry.
+- **ww_life.py (engine 14):** one tap per counter.
+  - A "less" counter gets a line: the median of the last 7 logged days minus 10 %. On or under the line earns a point.
+  - A day over it is information, never a reset.
+  - The public defaults are generic placeholders; the real counters live in the private inputs file.
+- **The in-app Reader:** the desktop window (WebView2) cannot hand a `blob:` URL to another app ("Get an app to open this blob link"). Study files now render inside the app: Markdown as React elements (never injected HTML), PDFs in a frame.
+
+**Why logging apps fail and what that dictated** (cited from memory, not re-fetched on 27 Oct):
+- **The attrition law:** in digital-health trials, most users stop logging within weeks (Eysenbach 2005, "The Law of Attrition", https://www.jmir.org/2005/1/e11/). So every log is one tap, and the plan is to move to passive sources (commits, presence) and one end-of-day voice check-in.
+- **Behaviour = motivation × ability × prompt** (Fogg, https://behaviormodel.org): make the act tiny (ability) and put the prompt where he already is (Today and Life, voice).
+- **The abstinence violation effect** (Marlatt and Gordon, *Relapse Prevention*, 1985): a slip framed as failure tends to become a full relapse. Hence no zero-resets, no red, no blame wording (ww_base.no_shame).
+- **Gradual reduction:** for cutting down a habit, gradual reduction gives quit rates similar to stopping at once (Cochrane review CD008033, Lindson-Hawley et al. 2016, https://www.cochranelibrary.com/cdsr/doi/10.1002/14651858.CD008033.pub4). Hence the 10 %-a-week taper.
+- **Streak protection:** loss of a long streak makes people quit. Streak "freezes" are how Duolingo keeps them (https://blog.duolingo.com/how-duolingo-streak-builds-habit/). The planned v2 reward uses 4-week trends and a freeze, not streaks that break.
+
+**Tests.** 8 new backend tests (stages, taper lines, reels, custom counters, plan taps), 3 new UI tests (the renderer never turns text into HTML, the counters tap). The UI suite passed: 325 tests before these 3 were added, all 3 new ones pass.
+
 ## 2026-10-26 (later): building hours from commits, and a director over the engines
 
 **Question.** Can the hours spent building (with an AI pair, commits every 20–60 min) be counted from real evidence? And can the engines feed one ordered answer instead of six cards?

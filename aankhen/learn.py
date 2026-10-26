@@ -44,7 +44,7 @@ import numpy as np
 from . import DATA_DIR
 from .csi import CsiConditioner, Sample
 from .fan import FanLines
-from .motion import HBE_BAND_HZ, _bridge_gaps, _smooth_basis, human_band_energy, turbulence
+from .motion import HBE_BAND_HZ, HbeWindow, _bridge_gaps, _smooth_basis, hbe_window, turbulence
 from .protocol import CsiPacket, StreamDecoder, decode_packet
 from .room import Room
 
@@ -142,9 +142,12 @@ class FeatureStream:
             yy = y - y.mean()
             yy = yy - tt * (tt @ yy) / (tt @ tt)
             lv = float(yy.var())
-        r = human_band_energy(A, F, self.rate, fan=self.fan if self.fan.locked else None, detail=True)
+        # One cleaning of the 3 s window serves the human band and all 4 SUB_BANDS:
+        # five separate human_band_energy calls redid it five times (6 ms each).
+        hw = hbe_window(A, F, self.rate, fan=self.fan if self.fan.locked else None)
+        r = None if hw is None else hw.energy(HBE_BAND_HZ, detail=True)
         hbe, per, recent = (None, np.full(6, np.nan), None) if r is None else r
-        bands = self._sub_bands(A, F)
+        bands = self._sub_bands(hw)
         C = A[-self.n1:] @ _smooth_basis(A.shape[1])
         shape = C.mean(axis=0)
         level = float(np.nanmean(y)) if np.isfinite(y).any() else None
@@ -188,11 +191,12 @@ class FeatureStream:
               1.0 if fan_on else 0.0]
         return np.asarray(f, float)
 
-    def _sub_bands(self, A: np.ndarray, F: np.ndarray) -> list[float]:
+    @staticmethod
+    def _sub_bands(hw: Optional[HbeWindow]) -> list[float]:
         """Human-band-style power of the smooth patterns in each SUB_BANDS range."""
         out = []
         for band in SUB_BANDS:
-            v = human_band_energy(A, F, self.rate, band=band, fan=self.fan if self.fan.locked else None)
+            v = None if hw is None else hw.energy(band)
             out.append(v if v is not None else np.nan)
         return out
 

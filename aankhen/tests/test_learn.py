@@ -113,3 +113,28 @@ def test_the_activity_model_learns_separable_rhythms():
     m = train_activity([{"X": np.concatenate(X), "activity": np.array(a)}])
     pred = np.array(ACTIVITIES)[m.proba(np.concatenate(X)).argmax(1)]
     assert (pred == np.array(a)).mean() > 0.9
+
+
+def test_feature_stream_hbe_features_equal_one_call_per_band():
+    """FeatureStream cleans each 3 s window once for the human band and the 4 sub-bands
+    (2026-10-26); every HBE feature must equal the five separate calls it replaced."""
+    from aankhen.learn import SUB_BANDS, _log
+    from aankhen.tests.test_motion import _hbe_before_sharing, synthetic_csi
+    fs = FeatureStream()
+    samples = list(synthetic_csi(6.0, moving=True, seed=3))
+    for i in range(310, 330):
+        samples[i] = Sample(samples[i].t, samples[i - 1].amp, True)     # a forward-filled gap
+    checked = 0
+    for s in samples:
+        v = fs.push(s, -60.0)
+        if v is None:
+            continue
+        A, F = np.stack(fs.amps), np.fromiter(fs.filled, bool)
+        fan = fs.fan if fs.fan.locked else None
+        hbe, per, recent = _hbe_before_sharing(A, F, fan=fan, detail=True)
+        want = [_log(hbe), _log(recent)] + [_log(x) for x in per] + \
+               [_log(_hbe_before_sharing(A, F, band=b, fan=fan)) for b in SUB_BANDS]
+        got = v[FEATURES.index("log_hbe"):FEATURES.index("log_band_4_10") + 1]
+        assert np.array_equal(got, np.asarray(want))
+        checked += 1
+    assert checked >= 6

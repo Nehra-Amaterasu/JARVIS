@@ -270,3 +270,102 @@ def test_broadband_movement_is_not_a_fan():
     for v in x:
         fl.push(v)
     assert not fl.locked
+
+
+# ------------------------------------------------- shared HBE cleaning (2026-10-26)
+def _hbe_before_sharing(amps, filled=None, rate_hz=100.0, band=(0.4, 4.0), fan=None, detail=False):
+    """human_band_energy exactly as it was before the cleaning was shared between bands
+    (council review 2026-10-26), fan lines removed one column at a time with lstsq."""
+    from aankhen.fan import FS, MIN_LINE_HZ
+    from aankhen.motion import (HBE_MIN_REAL, HBE_RECENT_S, HBE_STEP_SIGMA, _bridge_gaps,
+                                _smooth_basis)
+    A = np.asarray(amps, float)
+    n = A.shape[0]
+    real = np.ones(n, bool) if filled is None else ~np.asarray(filled, bool)
+    if n < 16 or real.mean() < HBE_MIN_REAL:
+        return None
+    C = A @ _smooth_basis(A.shape[1])
+    if not real.all():
+        C = _bridge_gaps(C, real)
+    t = np.arange(n) - (n - 1) / 2.0
+    C = C - C.mean(axis=0)
+    C = C - np.outer(t, (t @ C) / (t @ t))
+    if fan is not None and fan.locked and fan.lines:
+        tt = np.arange(n) / FS
+        cols = [np.ones(n)]
+        for f in fan.lines:
+            if MIN_LINE_HZ <= f < FS / 2 - 0.5:
+                w = 2 * np.pi * f * tt
+                cols += [np.cos(w), np.sin(w)]
+        M = np.stack(cols, axis=1)
+        C = np.stack([C[:, j] - M @ np.linalg.lstsq(M, C[:, j], rcond=None)[0]
+                      for j in range(C.shape[1])], axis=1)
+    pair = real[1:] & real[:-1]
+    if pair.sum() < 8:
+        return None
+    D = np.diff(C, axis=0)
+    d = D[pair]
+    med = np.median(d, axis=0)
+    sd = np.maximum(1.4826 * np.median(np.abs(d - med), axis=0), 1e-12)
+    sigma2 = sd ** 2 / 2.0
+    jump = np.abs(D - med) > HBE_STEP_SIGMA * sd
+    if jump.any():
+        D = np.where(jump, med, D)
+        C = np.vstack([np.zeros((1, C.shape[1])), np.cumsum(D, axis=0)])
+        C = C - C.mean(axis=0)
+        C = C - np.outer(t, (t @ C) / (t @ t))
+    w = np.hanning(n)
+    X = np.fft.rfft(C * w[:, None], axis=0)
+    f = np.fft.rfftfreq(n, 1.0 / rate_hz)
+    sel = (f >= band[0]) & (f <= band[1])
+    if not sel.any():
+        return None
+    p = (np.abs(X[sel]) ** 2).mean(axis=0) / (sigma2 * float(w @ w))
+    if not detail:
+        return float(p.mean())
+    Y = np.fft.rfft(C, axis=0)
+    Y[~sel] = 0.0
+    y = np.fft.irfft(Y, n=n, axis=0)
+    k = max(2, int(round(HBE_RECENT_S * rate_hz)))
+    frac = sel.sum() / len(f)
+    recent = float(((y[-k:] ** 2).mean(axis=0) / (sigma2 * frac)).mean())
+    return float(p.mean()), p, recent
+
+
+def _awkward_window(seed=7):
+    """3 s of moving CSI with a 12-sample gap, two lone filled samples and a gain step."""
+    A = np.stack([s.amp for s in synthetic_csi(3.0, moving=True, seed=seed)])
+    A[150:] *= 1.04
+    filled = np.zeros(len(A), bool)
+    filled[40:52] = True
+    filled[[200, 260]] = True
+    idx = np.flatnonzero(filled)
+    for i in idx:
+        A[i] = A[i - 1]                                 # the resampler forward-fills
+    return A, filled
+
+
+@pytest.mark.parametrize("fan_lines", [None, [3.1, 7.7, 11.9, 23.0]])
+def test_shared_hbe_window_equals_one_call_per_band(fan_lines):
+    from aankhen.fan import FanLines
+    from aankhen.learn import SUB_BANDS
+    from aankhen.motion import HBE_BAND_HZ, hbe_window, human_band_energy
+    A, filled = _awkward_window()
+    fan = None
+    if fan_lines:
+        fan = FanLines()
+        fan.locked, fan.lines = True, list(fan_lines)
+    tol = 0.0 if fan is None else 1e-12          # pinv vs lstsq differ by rounding only
+    hw = hbe_window(A, filled, fan=fan)
+    v, p, rec = hw.energy(HBE_BAND_HZ, detail=True)
+    v0, p0, rec0 = _hbe_before_sharing(A, filled, fan=fan, detail=True)
+    assert np.allclose([v, rec], [v0, rec0], rtol=tol, atol=0)
+    assert np.allclose(p, p0, rtol=tol, atol=0)
+    for band in SUB_BANDS:
+        new = hw.energy(band)
+        assert np.isclose(new, _hbe_before_sharing(A, filled, band=band, fan=fan), rtol=tol, atol=0)
+        assert human_band_energy(A, filled, band=band, fan=fan) == new
+    assert hw.energy((60.0, 70.0)) is None                  # no bin in the band
+    many = np.zeros(len(A), bool)
+    many[:100] = True                                       # a third filled: no window, as before
+    assert hbe_window(A, many) is None and _hbe_before_sharing(A, many) is None

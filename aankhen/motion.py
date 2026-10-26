@@ -236,7 +236,55 @@ def human_band_energy(amps: np.ndarray, filled: Optional[np.ndarray] = None,
     """HBE of one window: in-band power / white-noise power, averaged over the
     smooth-subspace coefficients (~1 in an empty room). None if the window has too
     many filled samples to trust. detail=True returns (value, per-coefficient).
-    order=None keeps every subcarrier (no projection), for comparison."""
+    order=None keeps every subcarrier (no projection), for comparison.
+    Several bands of one window: hbe_window() once, then .energy(band) per band."""
+    w = hbe_window(amps, filled, rate_hz, fan=fan, order=order)
+    return None if w is None else w.energy(band, detail)
+
+
+class HbeWindow:
+    """One window cleaned for HBE: projected, gap-bridged, detrended, fan lines and
+    steps removed, its noise level measured and its spectrum taken.
+
+    WHY SEPARATE: learn.FeatureStream reads 5 bands of the SAME 3 s window every 0.5 s
+    (the human band with detail, plus SUB_BANDS). Calling human_band_energy 5 times
+    redid all of the cleaning 5 times: 31 s of a 76 s engine replay, 6 ms a call
+    (council review 2026-10-26). Only the band selection differs between them, so the
+    cleaning runs once here and energy() is the cheap part. Same operations in the
+    same order, so the values are bit-identical to the one-call path."""
+
+    __slots__ = ("n", "rate_hz", "C", "sigma2", "X", "ww", "f")
+
+    def __init__(self, n, rate_hz, C, sigma2, X, ww, f):
+        self.n, self.rate_hz, self.C, self.sigma2, self.X, self.ww, self.f = \
+            n, rate_hz, C, sigma2, X, ww, f
+
+    def energy(self, band: tuple = HBE_BAND_HZ, detail: bool = False):
+        """human_band_energy of this window in `band` (None if no bin falls in it)."""
+        f, n, sigma2 = self.f, self.n, self.sigma2
+        sel = (f >= band[0]) & (f <= band[1])
+        if not sel.any():
+            return None
+        p = (np.abs(self.X[sel]) ** 2).mean(axis=0) / (sigma2 * self.ww)
+        value = float(p.mean())
+        if not detail:
+            return value
+        # RECENT: the same band, but only the window's last HBE_RECENT_S. The full window
+        # finds weak movement; this says whether it is still going on (see HBE_RECENT_GATE).
+        Y = np.fft.rfft(self.C, axis=0)
+        Y[~sel] = 0.0
+        y = np.fft.irfft(Y, n=n, axis=0)
+        k = max(2, int(round(HBE_RECENT_S * self.rate_hz)))
+        frac = sel.sum() / len(f)                    # share of white-noise power in the band
+        recent = float(((y[-k:] ** 2).mean(axis=0) / (sigma2 * frac)).mean())
+        return value, p, recent
+
+
+def hbe_window(amps: np.ndarray, filled: Optional[np.ndarray] = None,
+               rate_hz: float = 100.0, fan: Optional["FanLines"] = None,
+               order: Optional[int] = HBE_ORDER) -> Optional[HbeWindow]:
+    """The band-independent part of human_band_energy (see HbeWindow). None if the
+    window has too many filled samples to trust."""
     A = np.asarray(amps, float)
     n = A.shape[0]
     real = np.ones(n, bool) if filled is None else ~np.asarray(filled, bool)
@@ -275,22 +323,7 @@ def human_band_energy(amps: np.ndarray, filled: Optional[np.ndarray] = None,
     w = np.hanning(n)
     X = np.fft.rfft(C * w[:, None], axis=0)
     f = np.fft.rfftfreq(n, 1.0 / rate_hz)
-    sel = (f >= band[0]) & (f <= band[1])
-    if not sel.any():
-        return None
-    p = (np.abs(X[sel]) ** 2).mean(axis=0) / (sigma2 * float(w @ w))
-    value = float(p.mean())
-    if not detail:
-        return value
-    # RECENT: the same band, but only the window's last HBE_RECENT_S. The full window
-    # finds weak movement; this says whether it is still going on (see HBE_RECENT_GATE).
-    Y = np.fft.rfft(C, axis=0)
-    Y[~sel] = 0.0
-    y = np.fft.irfft(Y, n=n, axis=0)
-    k = max(2, int(round(HBE_RECENT_S * rate_hz)))
-    frac = sel.sum() / len(f)                    # share of white-noise power in the band
-    recent = float(((y[-k:] ** 2).mean(axis=0) / (sigma2 * frac)).mean())
-    return value, p, recent
+    return HbeWindow(n, rate_hz, C, sigma2, X, float(w @ w), f)
 
 
 # -------------------------------------------------------------- baseline

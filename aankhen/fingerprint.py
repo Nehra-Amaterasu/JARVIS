@@ -32,6 +32,7 @@ THE TWO MODELS
 """
 from __future__ import annotations
 
+import copy
 import json
 import os
 import time
@@ -54,27 +55,66 @@ OUT_ZONES = ("inside_bathroom", "balcony")   # out of the sensed room through an
 
 
 # ---------------------------------------------------------------- windows
+NB = WIN // POOL               # 50 steps of 40 ms in a window
+BIN_S = POOL / RATE_HZ         # 0.04 s
+MAX_EMPTY_BINS = 0.2           # a window may have at most 20 % of its 40 ms steps with no real packet
+MAX_GAP_S = 0.5                # a longer silence starts the window over
+
+
 def windows(samples: Iterable[tuple[float, np.ndarray, bool]]) -> Iterable[tuple[float, np.ndarray]]:
     """(time, amp[51], filled) at 100 Hz -> (end time, log-amp window [51, 50]). Pure.
 
-    A gap in time (the conditioner restarted its grid) starts a new window, so a
-    window never spans two pieces of the stream."""
-    buf: deque = deque(maxlen=WIN)
-    filled: deque = deque(maxlen=WIN)
-    last_t, since = None, 0
+    Judged per 40 ms step, the resolution the models see, not per 10 ms sample. The
+    first version dropped a window when over 20 % of its 100 Hz samples were filled in.
+    On the real link (2026-10-26: 40-100 packets/s at -90 dBm) that dropped nearly all of
+    them, although a 40 ms step needs only one real packet to be measured. A step's value
+    is the mean of its real samples (the filled-in ones only if it has none, the previous
+    step's if it has nothing at all); a window counts if at least 80 % of its steps hold a
+    real packet. Silences up to MAX_GAP_S are bridged as empty steps; a longer one starts over."""
+    done: deque = deque(maxlen=NB)            # finished steps: (value[51] or None, real?, last time)
+    cur_k = None
+    real_sum = all_sum = None
+    n_real = n_all = 0
+    last_t = None
+    last_emit = -1e18
+
+    def finish():
+        v = real_sum / n_real if n_real else (all_sum / n_all if n_all else None)
+        done.append((v, n_real > 0, last_t))
+
     for t, amp, was_filled in samples:
-        if last_t is not None and t - last_t > 1.5 / RATE_HZ:
-            buf.clear(); filled.clear(); since = 0
+        k = int(round(t * RATE_HZ)) // POOL
+        a = np.log(np.maximum(np.asarray(amp, float), 1e-6))
+        if cur_k is not None and k != cur_k:
+            finish()
+            gap = k - cur_k - 1
+            if k < cur_k or gap * BIN_S > MAX_GAP_S:
+                done.clear()
+                last_emit = -1e18
+            else:
+                for _ in range(gap):
+                    done.append((None, False, last_t))
+            # a window ends at every step boundary once full; emit every 0.5 s
+            if len(done) == NB and done[-1][2] - last_emit >= HOP / RATE_HZ - 0.03:
+                if sum(1 for _, r, _ in done if not r) / NB <= MAX_EMPTY_BINS:
+                    vals = [v for v, _, _ in done]
+                    first = next((v for v in vals if v is not None), None)
+                    if first is not None:
+                        prev, cols = first, []
+                        for v in vals:
+                            prev = v if v is not None else prev
+                            cols.append(prev)
+                        last_emit = done[-1][2]
+                        yield done[-1][2], np.stack(cols, axis=1)    # [51, 50]
+            real_sum = all_sum = None
+            n_real = n_all = 0
+        cur_k = k
         last_t = t
-        buf.append(np.log(np.maximum(np.asarray(amp, float), 1e-6)))
-        filled.append(bool(was_filled))
-        since += 1
-        if len(buf) == WIN and since >= HOP:
-            since = 0
-            if sum(filled) / WIN > MAX_FILLED:
-                continue
-            w = np.stack(buf, axis=1)                                  # [51, 200]
-            yield t, w.reshape(N_SUB, WIN // POOL, POOL).mean(axis=2)  # [51, 50]
+        all_sum = a if all_sum is None else all_sum + a
+        n_all += 1
+        if not was_filled:
+            real_sum = a if real_sum is None else real_sum + a
+            n_real += 1
 
 
 def label_windows(wins: list[tuple[float, np.ndarray]], labels: list[dict], purge_s: float = PURGE_S,
@@ -242,17 +282,20 @@ class CnnFingerprint:
         self.epochs, self.seed, self.augment = epochs, seed, augment
 
     def fit(self, X: np.ndarray, y: np.ndarray, X_val: Optional[np.ndarray] = None,
-            y_val: Optional[np.ndarray] = None) -> "CnnFingerprint":
+            y_val: Optional[np.ndarray] = None, X_stop: Optional[np.ndarray] = None,
+            y_stop: Optional[np.ndarray] = None) -> "CnnFingerprint":
         """Train. With a validation set, self.history records every epoch: the loss, the
         accuracy on the training and the validation windows, and how hard backpropagation
-        pushed each layer (the gradient's size per layer, averaged over the epoch's steps)."""
+        pushed each layer (the gradient's size per layer, averaged over the epoch's steps).
+        With an early-stopping set (carved from the TRAINING data), the weights of the epoch
+        with the best balanced accuracy on it are kept."""
         import torch
         # Tiny tensors: 8 threads spent more time coordinating than computing (one fit:
         # 11.2 s on 8 threads, 0.6 s on 2, 2026-10-26). Same lesson as the sklearn lag fix.
         threads = torch.get_num_threads()
         torch.set_num_threads(min(2, threads))
         try:
-            return self._fit(X, y, X_val, y_val)
+            return self._fit(X, y, X_val, y_val, X_stop, y_stop)
         finally:
             torch.set_num_threads(threads)
 
@@ -263,7 +306,7 @@ class CnnFingerprint:
         self.net.train(was)
         return acc
 
-    def _fit(self, X: np.ndarray, y: np.ndarray, X_val=None, y_val=None) -> "CnnFingerprint":
+    def _fit(self, X: np.ndarray, y: np.ndarray, X_val=None, y_val=None, X_stop=None, y_stop=None) -> "CnnFingerprint":
         import torch
         torch.manual_seed(self.seed)
         rng = np.random.default_rng(self.seed)
@@ -280,6 +323,8 @@ class CnnFingerprint:
         # the layers that learn, by name, for the gradient record
         layers = {name: m for name, m in (("conv1", self.net[0]), ("conv2", self.net[4]), ("linear", self.net[-1]))}
         self.history: list[dict] = []
+        self.best_epoch = None
+        best = None
         self.net.train()
         for epoch in range(self.epochs):
             order = rng.permutation(len(yi))
@@ -298,13 +343,28 @@ class CnnFingerprint:
                     grads[k].append(float(m.weight.grad.norm()))
                 opt.step()                                                                 # move every weight a step downhill
                 losses.append(float(loss))
+            stop = self._balanced(X_stop, y_stop) if X_stop is not None and len(y_stop) else None
+            if stop is not None and (best is None or stop > best[0]):
+                best = (stop, epoch + 1, copy.deepcopy(self.net.state_dict()))
             if X_val is not None:
                 self.history.append({"epoch": epoch + 1, "loss": round(float(np.mean(losses)), 4),
                                      "train_acc": round(self._accuracy(X, y), 4),
                                      "val_acc": round(self._accuracy(X_val, y_val), 4),
+                                     **({"stop_bal": round(stop, 4)} if stop is not None else {}),
                                      "grad": {k: round(float(np.mean(v)), 4) for k, v in grads.items()}})
+        if best is not None:
+            # early stopping: keep the epoch the INNER check liked best, never the verify half
+            self.net.load_state_dict(best[2])
+            self.best_epoch = best[1]
         self.net.eval()
         return self
+
+    def _balanced(self, X: np.ndarray, y: np.ndarray) -> float:
+        was = self.net.training
+        self.net.eval()
+        p = self.predict(X)
+        self.net.train(was)
+        return float(np.mean([(p[y == z] == z).mean() for z in set(y.tolist())]))
 
     def proba(self, X: np.ndarray) -> np.ndarray:
         import torch
@@ -397,6 +457,23 @@ def half_split(t: np.ndarray, zone: np.ndarray) -> tuple[np.ndarray, np.ndarray]
     return train, test
 
 
+CAP_X_MEDIAN = 4     # no place may bring more than 4x the median place's windows to training
+
+
+def cap_per_place(idx: np.ndarray, y: np.ndarray, t: np.ndarray, cap_x: float = CAP_X_MEDIAN) -> np.ndarray:
+    """Indices with each place capped at cap_x times the median place's count, kept evenly
+    spaced in time. The first real day was 110 min asleep on the bed and minutes of
+    everything else; uncapped, the cheapest way to be right is to say "bed"."""
+    counts = {z: int((y[idx] == z).sum()) for z in set(y[idx].tolist())}
+    cap = max(1, int(cap_x * float(np.median(list(counts.values())))))
+    keep = []
+    for z, n in counts.items():
+        zi = idx[y[idx] == z]
+        zi = zi[np.argsort(t[zi])]
+        keep.append(zi if n <= cap else zi[np.linspace(0, n - 1, cap).round().astype(int)])
+    return np.sort(np.concatenate(keep))
+
+
 def evaluate_half(days: dict, epochs: int = 30) -> dict:
     """Every labelled window there is, 50 % to train and 50 % to verify (half_split per
     day, so each day's own drift is on both sides). kNN and CNN, per-zone accuracy, a
@@ -414,8 +491,16 @@ def evaluate_half(days: dict, epochs: int = 30) -> dict:
         off += n
     zones_test = sorted(set(y[te].tolist()))
     missing = sorted(set(y.tolist()) - set(y[tr].tolist()))
-    knn = KnnFingerprint().fit(X[tr], y[tr])
-    cnn = CnnFingerprint(epochs=epochs).fit(X[tr], y[tr], X[te], y[te])
+    fit_idx = cap_per_place(np.flatnonzero(tr), y, t)
+    # the CNN's early-stopping check is carved from the TRAINING half (by visits again),
+    # so the verify half never decides anything
+    inner_a, inner_b = half_split(t[fit_idx], y[fit_idx])
+    use_stop = len(set(y[fit_idx][inner_b].tolist())) >= 2
+    fit_cnn = fit_idx[inner_a] if use_stop else fit_idx
+    stop_idx = fit_idx[inner_b] if use_stop else np.array([], int)
+    knn = KnnFingerprint().fit(X[fit_idx], y[fit_idx])
+    cnn = CnnFingerprint(epochs=epochs).fit(X[fit_cnn], y[fit_cnn], X[te], y[te],
+                                            X[stop_idx] if use_stop else None, y[stop_idx] if use_stop else None)
     pk, pc = knn.predict(X[te]), cnn.predict(X[te])
     labels = sorted(set(y.tolist()))
     conf = {a: {b: int(((y[te] == a) & (pc == b)).sum()) for b in labels} for a in zones_test}
@@ -433,6 +518,8 @@ def evaluate_half(days: dict, epochs: int = 30) -> dict:
                              "knn": round(float((pk[y[te] == z] == z).mean()), 4),
                              "cnn": round(float((pc[y[te] == z] == z).mean()), 4)} for z in zones_test},
             "cnn_confusion": conf, "history": cnn.history, "not_in_training": missing,
+            "trained_on": {"windows": int(len(fit_idx)), "capped_from": int(tr.sum()),
+                           "cnn_best_epoch": cnn.best_epoch, "early_stop_windows": int(len(stop_idx))},
             "note": ("one session: the test half is the same day, so this is an upper bound; "
                      "only held-out DAYS say how it does tomorrow") if len(days) < 2 else None}
 
@@ -441,7 +528,10 @@ def format_half(rep: dict) -> str:
     if "error" in rep:
         return "  " + rep["error"]
     w = rep["windows"]
+    to = rep.get("trained_on", {})
     lines = [f"  50/50 split: {w['train']} windows to train, {w['test']} to verify  (chance {rep['chance']:.0%})",
+             f"  trained on {to.get('windows')} after the per-place cap; CNN kept epoch {to.get('cnn_best_epoch')}"
+             f" (chosen on {to.get('early_stop_windows')} windows held back from training)",
              f"  kNN {rep['knn']:.0%}   CNN {rep['cnn']:.0%}    (always saying '{rep['majority']['place']}': "
              f"{rep['majority']['acc']:.0%}; a model must beat that)",
              f"  balanced (each place counts the same): kNN {rep['balanced']['knn']:.0%}   CNN {rep['balanced']['cnn']:.0%}", "",

@@ -172,13 +172,25 @@ def load_audio(path: str, rate: int = DETECT_RATE) -> np.ndarray:
     which faster-whisper already depends on."""
     import av
     chunks = []
+    bad = 0
     with av.open(path) as f:
+        stream = f.streams.audio[0]
         rs = av.AudioResampler(format="flt", layout="mono", rate=rate)
-        for frame in f.decode(audio=0):
-            for o in rs.resample(frame):
-                chunks.append(o.to_ndarray().reshape(-1))
+        # packet by packet: the second real recording (2026-10-26) had a corrupt frame
+        # and decode() gave up on the whole file ("Invalid data ... avcodec_send_packet")
+        for packet in f.demux(stream):
+            try:
+                frames = packet.decode()
+            except av.error.InvalidDataError:
+                bad += 1
+                continue
+            for frame in frames:
+                for o in rs.resample(frame):
+                    chunks.append(o.to_ndarray().reshape(-1))
         for o in rs.resample(None):
             chunks.append(o.to_ndarray().reshape(-1))
+    if bad:
+        print(f"  {bad} unreadable audio packet(s) skipped")
     return np.concatenate(chunks).astype(np.float32) if chunks else np.zeros(0, np.float32)
 
 
@@ -209,13 +221,15 @@ _p("zone", "outside_bathroom", "outside the bathroom", "outside bathroom", "bath
 _p("zone", "inside_bathroom", "in the bathroom", "inside the bathroom", "inside bathroom", "bathroom", "washroom",
    "wash basin", "sink")
 _p("zone", "between_bed_and_balcony_door", "between bed and balcony", "between the bed and the balcony",
-   "between balcony door and bed", "between the balcony door and the bed")
+   "between balcony door and bed", "between the balcony door and the bed", "between balcony and bed",
+   "bed footer", "foot of the bed", "between bed footer and balcony door")
 _p("zone", "at_balcony_door", "balcony door", "at the balcony door")
 _p("zone", "balcony", "on the balcony", "balcony")
 _p("zone", "room_door", "room door", "at the door")
 _p("zone", "wardrobe", "wardrobe", "almirah", "cupboard")
 _p("zone", "out_of_room", "leaving the room", "left the room", "out of the room", "outside the room",
-   "room empty", "leaving room", "kitchen", "living room", "going out")
+   "room empty", "leaving room", "kitchen", "living room", "going out",
+   "outside of the room", "the room is empty", "room is empty", "room beside my room", "in room b", "room b")
 _p("act", "still", "still", "sitting", "sitting still", "not moving")
 _p("act", "standing", "standing")
 _p("act", "lying", "lying")
@@ -223,7 +237,9 @@ _p("act", "moving", "walking", "moving", "getting ready", "dressing")
 _p("act", "typing", "typing")
 _p("fan", "on", "fan on", "fan is on", "fan chalu")
 _p("fan", "off", "fan off", "fan is off", "fan band")
-_p("pause", "pause", "pause", "ignore this", "ignore that", "scratch that")
+_p("pause", "pause", "pause", "ignore this", "ignore that", "scratch that",
+   # someone else in the room: their movement is in the signal, so nothing is labelled until he names a place again
+   "two people", "second person", "another person", "someone else", "someone came in", "somebody came")
 
 _MAX_WORDS = max(len(k.split()) for k in PHRASES)
 
@@ -396,6 +412,41 @@ def latest(root: str = NARRATE_DIR) -> Optional[str]:
     return max(found) if found else None
 
 
+def apply_corrections(folder: str, labels: list[dict], t0: float) -> list[dict]:
+    """Hand corrections that survive relabelling: <session>/corrections.json, a list of
+        {"from_min": 10.35, "to_min": 11.3, "drop": true, "why": "a second person in the room"}
+        {"from_min": 12.6, "to_min": 13.8, "zone": "between_bed_and_balcony_door", "activity": "still"}
+    in minutes from the start chirp. A stretch partly inside a range is cut at its edges."""
+    p = os.path.join(folder, "corrections.json")
+    if not os.path.exists(p):
+        return labels
+    with open(p, encoding="utf-8") as f:
+        fixes = json.load(f)
+    out = list(labels)
+    for fx in fixes:
+        a, b = t0 + 60 * float(fx["from_min"]), t0 + 60 * float(fx["to_min"])
+        nxt = []
+        for l in out:
+            s, e = l["t_start"], l["t_end"]
+            if e <= a or s >= b:
+                nxt.append(l)
+                continue
+            if s < a:
+                nxt.append({**l, "t_end": round(a, 3)})
+            if not fx.get("drop"):
+                inner = {**l, "t_start": round(max(s, a), 3), "t_end": round(min(e, b), 3), "corrected": True}
+                for k in ("zone", "activity", "fan", "kind"):
+                    if k in fx:
+                        inner[k] = fx[k]
+                if "zone" in fx and "kind" not in fx:
+                    inner["kind"] = "empty" if fx["zone"] == "out_of_room" else "zone"
+                nxt.append(inner)
+            if e > b:
+                nxt.append({**l, "t_start": round(b, 3)})
+        out = sorted((l for l in nxt if l["t_end"] - l["t_start"] >= MIN_LABEL_S), key=lambda l: l["t_start"])
+    return out
+
+
 def label_session(folder: str, audio_path: str, language: Optional[str] = "en", dry_run: bool = False,
                   words_audio: Optional[list[dict]] = None, audio: Optional[np.ndarray] = None) -> dict:
     """Sync, transcribe, parse, write labels.jsonl + transcript.json. Returns a report."""
@@ -409,7 +460,7 @@ def label_session(folder: str, audio_path: str, language: Optional[str] = "en", 
     words = [{"t": round(to_host(w["a"]), 3), "a": round(w["a"], 3), "w": w["w"]} for w in words_audio]
     events = find_events(words)
     end = info.stopped or (to_host(len(audio) / DETECT_RATE))
-    labels = events_to_labels(events, end, info.fan)
+    labels = apply_corrections(folder, events_to_labels(events, end, info.fan), info.host_start_sync)
     rep = {"syncs": [{"audio_s": round(t, 3), "ratio": round(r, 1)} for t, r in sorted(syncs)], "clock": cm,
            "words": len(words), "events": events, "labels": labels,
            "minutes": {z: round(sum(l["t_end"] - l["t_start"] for l in labels if l["zone"] == z) / 60, 2)
@@ -431,7 +482,7 @@ def relabel(folder: str, dry_run: bool = False) -> dict:
         tr = json.load(f)
     events = find_events(tr["words"])
     end = info.stopped or (tr["words"][-1]["t"] if tr["words"] else info.started)
-    labels = events_to_labels(events, end, info.fan)
+    labels = apply_corrections(folder, events_to_labels(events, end, info.fan), info.host_start_sync or info.started)
     rep = {"syncs": [], "clock": tr.get("clock", {"note": "from transcript.json"}), "words": len(tr["words"]),
            "events": events, "labels": labels,
            "minutes": {z: round(sum(l["t_end"] - l["t_start"] for l in labels if l["zone"] == z) / 60, 2)

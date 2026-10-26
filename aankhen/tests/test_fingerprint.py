@@ -18,18 +18,32 @@ def stream(seconds, t0=0.0, amp_fn=None, filled_every=None):
 
 def test_one_window_every_half_second_after_two_seconds():
     w = list(fp.windows(stream(4.0)))
-    assert len(w) == 5                                   # at 2.0, 2.5, 3.0, 3.5, 4.0 s (last sample 3.99)
+    ends = [t for t, _ in w]
+    assert len(w) in (4, 5) and abs(ends[0] - 1.99) < 0.01
+    assert np.allclose(np.diff(ends), 0.5, atol=0.03)
     assert w[0][1].shape == (fp.N_SUB, fp.WIN // fp.POOL)
 
 
-def test_a_gap_restarts_the_window():
-    s = list(stream(2.5)) + list(stream(2.5, t0=10.0))
-    ends = [round(t, 2) for t, _ in fp.windows(s)]
-    assert ends == [1.99, 2.49, 11.99, 12.49]            # the second piece starts over: nothing spans the gap
+def test_a_long_gap_restarts_the_window():
+    s = list(stream(2.5)) + list(stream(2.6, t0=10.0))
+    ends = [t for t, _ in fp.windows(s)]
+    assert len(ends) == 4 and all(e < 2.6 or e > 11.9 for e in ends)   # nothing spans the 7.5 s gap
 
 
-def test_windows_with_too_many_filled_samples_are_dropped():
-    assert list(fp.windows(stream(3.0, filled_every=2))) == []
+def test_a_short_gap_is_bridged():
+    s = list(stream(1.5)) + list(stream(1.6, t0=1.8))                  # 0.3 s of silence
+    assert len(list(fp.windows(s))) >= 1
+
+
+def test_weak_link_half_filled_samples_still_count():
+    # every other 10 ms sample filled in: each 40 ms step still holds 2 real packets
+    assert len(list(fp.windows(stream(3.0, filled_every=2)))) >= 2
+
+
+def test_windows_with_too_many_empty_steps_are_dropped():
+    # whole 40 ms steps with no real packet, 1 in 2: 50 % empty steps
+    s = [(t, a, f or (int(round(t * fp.RATE_HZ)) // fp.POOL) % 2 == 0) for t, a, f in stream(3.0)]
+    assert list(fp.windows(s)) == []
 
 
 def _block(zone, t0, t1, kind=None, fan=False):

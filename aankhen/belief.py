@@ -18,6 +18,10 @@ HOW (docs/research/2026-10-14-spatial-intelligence-brainstorm.md, idea 2, in sof
     (beside the bed, the door) have a rising one. Leaving also needs movement: the rate
     is scaled by the measured motion, so with nothing moving the belief stays put.
     That is object permanence: the old 0.999/s fade kept 55 % after 10 minutes.
+    No move is ever impossible: a small LEAK to every zone (LEAK_PER_S) lets a missed
+    transition recover, and a long SILENCE (the link dead for minutes) is not "nothing
+    moved": past GAP_FREE_S the time runs with motion unknown, and past GAP_FORGET_S
+    the belief also forgets towards the prior (GAP_FORGET_TAU_S).
   - UPDATE with each evidence source as a tempered likelihood (weight <= 1): the learned
     models (coarse classes spread evenly over their zones until zone models exist, weight
     0.3 because they score ~50 % across days), and the free teachers (keyboard in the last
@@ -46,6 +50,24 @@ LEARNED_WEIGHT = 0.3       # the CSI models' evidence is tempered: ~50 % across 
 ZONE_MODEL_WEIGHT = 0.5    # a zone model trained on drills, once one exists
 EXPERIMENTAL_WEIGHT = 0.3  # the day-1 fingerprint CNN, before it passes a held-out day
 TEACHER_FRESH_S = 15.0     # a free-teacher hint older than this is ignored
+# TIME RULES (council 2026-10-26, sequence seat; plan item 5)
+TRANSIT_DWELL_S = 5.0      # a zone with a dwell prior this short is passed through:
+#   Weibull shape 1 (memoryless) instead of 1.5. Shape 1.5 starts its hazard near zero,
+#   so at age 1 s a 20 s transit zone left at 0.014/s and the belief expected him to
+#   linger at a spot he crosses in 1-3 s.
+MIN_DWELL_S = 2.0          # was 5 s, which floored exactly the 2-4 s transit priors away
+LEAK_PER_S = 2e-4          # to ANY zone, scaled by motion like a move: 1e-4 per 0.5 s step
+#   at full motion. Hard zeros between non-neighbours locked a missed transition (the
+#   evidence skipped a transit zone) in the wrong zone; at motion 0 it is 6e-6/s, so a
+#   still sleeper loses about 6 % of the bed over 3 h to the leak and keeps the rest.
+GAP_FREE_S = 5.0           # a silence this short is packet loss: the motion reading stands
+GAP_STEP_S = 5.0           # a longer silence is run in steps this long (one hop per step)
+GAP_MAX_STEPS = 120        # ... at most this many (a 10 h gap: 5 min steps)
+GAP_FORGET_S = 30.0        # past this the silence also forgets towards the prior:
+GAP_FORGET_TAU_S = 1800.0  #   1 - exp(-(gap - 30 s) / 1800 s): 27 % after a 10 min dead link,
+#   85 % after an hour. 1800 s is the desk's dwell prior, the longest in-room stay after the
+#   bed's: a silence that long says little about where he went. The old 5 s cap kept the
+#   belief exactly where it was through the real 10+ min dead stretches of 10-26.
 MIN_P = 1e-6
 NOT_SURE_WHERE = "in the room, not sure where"
 NOT_MEASURED = NOT_SURE_WHERE + ": the room layout is estimated, not measured"
@@ -81,9 +103,11 @@ class ZoneBelief:
         else:
             self.p = np.where(inside, 0.5 / inside.sum(), 0.5 / (~inside).sum())
         self.age = np.zeros(n)                       # expected seconds spent in each zone so far
-        self.dwell = np.array([max(5.0, z.dwell_s) for z in zmap.zones])
-        # Weibull shape per zone: < 1 (hazard falls with time) for places one settles in.
-        self.shape = np.where(self.dwell >= 300.0, 0.6, 1.5)
+        self.prior = self.p.copy()                   # what a long silence forgets towards
+        self.dwell = np.array([max(MIN_DWELL_S, z.dwell_s) for z in zmap.zones])
+        # Weibull shape per zone: < 1 (hazard falls with time) for places one settles in,
+        # 1 (constant) for places passed through, 1.5 (rising) for short stops.
+        self.shape = np.where(self.dwell >= 300.0, 0.6, np.where(self.dwell <= TRANSIT_DWELL_S, 1.0, 1.5))
         self.scale = self.dwell / np.array([math.gamma(1.0 + 1.0 / k) for k in self.shape])
         self.nbr = [[zmap.index[j] for j in z.neighbours if j in zmap.index] for z in zmap.zones]
         self.in_room = zmap.in_room_mask()
@@ -102,19 +126,47 @@ class ZoneBelief:
         dt = t - self.t
         if dt <= 0:
             return
-        dt = min(dt, 5.0)                            # a gap is not evidence of movement
         self.t = t
         # No reading (None, or a NaN/inf that slipped past motion01) is "maybe moving",
         # never NaN: one NaN here would turn every zone's probability into NaN.
         m = 0.5 if motion is None or not np.isfinite(motion) else min(1.0, max(0.0, float(motion)))
-        leave = 1.0 - np.exp(-self.hazard() * (0.03 + 0.97 * m) * dt)
-        stay = self.p * (1.0 - leave)
+        self._flow(min(dt, GAP_FREE_S), m)
+        rest = dt - GAP_FREE_S
+        if rest <= 0:
+            return
+        # A longer silence: nothing measured the motion, so it runs as unknown (0.5), in
+        # steps short enough that probability moves one neighbour per step, as it would
+        # have in the live ticks.
+        n = min(GAP_MAX_STEPS, int(math.ceil(rest / GAP_STEP_S)))
+        for _ in range(n):
+            self._flow(rest / n, 0.5)
+        if dt > GAP_FORGET_S:
+            a = 1.0 - math.exp(-(dt - GAP_FORGET_S) / GAP_FORGET_TAU_S)
+            new = (1.0 - a) * self.p + a * self.prior
+            # the forgotten mass is "just arrived": its age starts again
+            self.age = (1.0 - a) * self.p * self.age / np.maximum(new, 1e-12)
+            self.p = new / new.sum()
+
+    def _flow(self, dt: float, m: float) -> None:
+        """dt seconds of movement at motion m: along the graph by the dwell hazard, plus
+        the small leak to every zone."""
+        rate = 0.03 + 0.97 * m
+        leave = 1.0 - np.exp(-self.hazard() * rate * dt)
+        leak = 1.0 - math.exp(-LEAK_PER_S * rate * dt)
+        p = self.p
+        stay = p * (1.0 - leave) * (1.0 - leak)
         moved = np.zeros(self.n)
         for i, nb in enumerate(self.nbr):
+            go = p[i] * leave[i] * (1.0 - leak)
             if nb:
-                moved[nb] += self.p[i] * leave[i] / len(nb)
+                moved[nb] += go / len(nb)
             else:
-                stay[i] += self.p[i] * leave[i]
+                stay[i] += go
+        if self.n > 1:
+            out = p * leak
+            moved += (out.sum() - out) / (self.n - 1)
+        else:
+            stay += p * leak
         new = stay + moved
         # mean-field ages: mass that stayed got older, mass that arrived is new
         self.age = np.where(new > 0, stay * (self.age + dt) / np.maximum(new, 1e-12), 0.0)

@@ -104,9 +104,11 @@ def test_belief_is_a_distribution_and_moves_only_along_the_graph():
     for k in range(1, 40):
         b.predict(k * 0.5, 1.0)
     assert b.p.sum() == pytest.approx(1.0)
-    # in 20 s of full motion, mass reached the neighbour but never jumped to the balcony
+    # in 20 s of full motion, mass reached the neighbour; the balcony, five steps away,
+    # only got the leak (about 2e-4/s * 20 s spread over 14 zones), never a real move
     assert b.p[zm.index["desk_standing"]] > 0.001
-    assert b.p[zm.index["balcony"]] < 1e-6
+    assert 0 < b.p[zm.index["balcony"]] < 1e-3
+    assert b.p[zm.index["desk_standing"]] > 20 * b.p[zm.index["balcony"]]
 
 
 def test_object_permanence_a_still_sleeper_stays_on_the_bed_for_hours():
@@ -121,6 +123,100 @@ def test_object_permanence_a_still_sleeper_stays_on_the_bed_for_hours():
         b.predict(t, 0.0)
     bed = sum(b.p[zm.index[z]] for z in ("bed_lying", "bed_sitting", "standing_on_bed"))
     assert bed > 0.8
+
+
+def _at(zm, zid, age=600.0):
+    b = ZoneBelief(zm)
+    b.p = np.full(len(zm), 1e-6); b.p[zm.index[zid]] = 1.0; b.p /= b.p.sum()
+    b.age[:] = age
+    return b
+
+
+def test_transit_zones_are_passed_through_in_seconds_not_twenty():
+    zm = zmap()
+    b = ZoneBelief(zm)
+    i = zm.index["beside_bed_desk_side"]
+    # 4 s, shape 1 (constant hazard): no longer floored to 5 s or given a rising hazard
+    assert b.dwell[i] == pytest.approx(4.0) and b.shape[i] == 1.0
+    assert b.dwell[zm.index["room_door"]] == pytest.approx(3.0)
+    assert b.shape[zm.index["bed_lying"]] < 1 and b.shape[zm.index["desk_standing"]] == 1.5
+    b = _at(zm, "beside_bed_desk_side", age=0.0)
+    b.predict(0.0, 1.0)
+    for k in range(1, 11):                    # 5 s walking
+        b.predict(k * 0.5, 1.0)
+    # most of him has moved on to a neighbour (the old 20 s, shape 1.5 prior kept ~95 %)
+    assert b.p[i] < 0.4
+    # the desk chair, a long stay, barely moves in the same 5 s
+    c = _at(zm, "at_desk_chair")
+    c.predict(0.0, 1.0)
+    for k in range(1, 11):
+        c.predict(k * 0.5, 1.0)
+    assert c.p[zm.index["at_desk_chair"]] > 0.99
+
+
+def test_a_long_dead_link_spreads_the_belief_instead_of_freezing_it():
+    zm = zmap()
+    b = _at(zm, "at_desk_chair")
+    b.predict(0.0, 0.0)
+    b.predict(600.0, 0.0)                     # ten minutes without one packet
+    i = zm.index["at_desk_chair"]
+    # the old 5 s cap kept 0.99999; now the silence counts: motion unknown and the forget
+    # towards the prior (27 % after 10 min)
+    assert 0.3 < b.p[i] < 0.75
+    assert b.p.sum() == pytest.approx(1.0)
+    assert b.p[zm.index["bed_sitting"]] > 0.01           # three hops away: reachable now
+    # a short drop (<= 5 s) is packet loss: nothing is forgotten
+    s = _at(zm, "at_desk_chair")
+    s.predict(0.0, 0.0)
+    s.predict(4.0, 0.0)
+    assert s.p[i] > 0.999
+
+
+def test_after_a_ten_minute_gap_new_evidence_takes_over_within_five_seconds():
+    zm = zmap()
+    bt = BeliefTracker(zm, clock=lambda: 0.0)
+    bt.experimental = "test"
+    zp_desk = {"at_desk_chair": 0.6, "bed_sitting": 0.1, "bed_lying": 0.1, "at_balcony_door": 0.1,
+               "inside_bathroom": 0.1}
+    for k in range(120):                      # a minute of the CNN saying desk
+        bt.step(k * 0.5, 0.0, zone_p=zp_desk)
+    assert int(np.argmax(bt.belief.p)) == zm.index["at_desk_chair"]
+    zp_bed = {"at_desk_chair": 0.1, "bed_sitting": 0.6, "bed_lying": 0.1, "at_balcony_door": 0.1,
+              "inside_bathroom": 0.1}
+    t0 = 60.0 + 600.0                         # the link died for ten minutes
+    named = None
+    for k in range(20):
+        t = t0 + k * 0.5
+        bt.step(t, None, zone_p=zp_bed)
+        if named is None and int(np.argmax(bt.belief.p)) == zm.index["bed_sitting"]:
+            named = t - t0
+    assert named is not None and named <= 5.0
+
+
+def test_a_missed_transit_recovers_through_the_leak_and_short_transit_priors():
+    """Evidence jumps desk -> balcony door with no window in between (the CNN never saw
+    the zones on the way): a hard-zero graph had to walk the mass four hops first, two
+    of them through 20 s transit zones. Measured on main: 36.5 s; now 20.5 s."""
+    zm = zmap()
+    bt = BeliefTracker(zm, clock=lambda: 0.0)
+    bt.experimental = "test"
+    for k in range(120):                      # a minute of the CNN saying desk
+        bt.step(k * 0.5, 0.0, zone_p={"at_desk_chair": 0.8, "at_balcony_door": 0.1, "bed_lying": 0.1})
+    zp = {"at_desk_chair": 0.2, "at_balcony_door": 0.5, "bed_lying": 0.3}
+    named = None
+    for k in range(120):
+        bt.step(60.0 + k * 0.5, 1.0, zone_p=zp)
+        if named is None and int(np.argmax(bt.belief.p)) == zm.index["at_balcony_door"]:
+            named = k * 0.5
+    assert named is not None and named <= 25.0
+
+
+def test_a_sleeper_keeps_the_bed_through_a_ten_minute_dead_link():
+    zm = zmap()
+    b = _at(zm, "bed_lying", age=1800.0)
+    b.predict(0.0, 0.0)
+    b.predict(600.0, None)
+    assert int(np.argmax(b.p)) == zm.index["bed_lying"] and b.p[zm.index["bed_lying"]] > 0.5
 
 
 def test_state_is_unsure_until_evidence_and_floors_hold():

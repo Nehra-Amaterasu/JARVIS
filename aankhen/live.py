@@ -97,10 +97,13 @@ class FingerprintZones:
     """The engine's live zone evidence from the saved CNN.
 
     push() takes each conditioned sample; every 0.5 s (a new 2 s window) it returns the
-    CNN's probability per zone id, averaged over the last 3 windows. The engine feeds
-    that to the zone belief (belief.py), whose dwell times and neighbour graph are the
-    'rules' that stop the answer from jumping through walls. Until the model passes a
-    held-out day, the belief carries EXPERIMENTAL and the UI says so next to the dots."""
+    CNN's probability per zone id for that one window (smooth=1). No averaging here: 3
+    windows overlapping by 75 % share most of their samples and add almost no evidence,
+    and the belief already tempers each window to weight 0.3 for that overlap. The
+    engine feeds it to the zone belief (belief.py), whose dwell times, neighbour graph
+    and motion gating are the 'rules' that stop the answer from jumping through walls.
+    Until the model passes a held-out day, the belief carries EXPERIMENTAL and the UI
+    says so next to the dots."""
 
     def __init__(self, cnn: CnnFingerprint, refs: dict, folder: str = "", smooth: int = 1):
         from .fingerprint import WindowBuilder

@@ -1,0 +1,150 @@
+/* Life: today in taps (Life.tsx). Overrides the first pass under "Life: today in taps"
+   in sections.css. Language: Nothing-OS dot matrix. Dot-font numbers, a dot-grid
+   ground, seven-dot weeks, and a white plus as the one loud control. The accent is
+   cyan, and only for "on the line"; nothing here is ever red.
+   Rules: no new glass, blur or animated shadows. Motion is transform and opacity
+   only, 120-200 ms, and off under prefers-reduced-motion. */
+
+.mission-page.life .card.day { display: flex; flex-direction: column; gap: 14px; }
+
+/* Head: a still glyph dot, the title, and the points as two dot-font numbers. */
+.day-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.day-title { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.day-glyph { width: 8px; height: 8px; border-radius: 50%; background: var(--live); flex: none; }
+.day-pts { display: inline-flex; gap: 18px; }
+.day-pts > span { display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.day-pts b { font: 700 24px/1 var(--f-dot); color: var(--ink); font-variant-numeric: tabular-nums; }
+.day-pts em { font: 500 10px var(--f-mono); font-style: normal; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-3); }
+
+/* Counter tiles: square, on a static dot grid (one gradient, painted once).
+   156 px holds two 44 px targets side by side (44 + 44 + 8 + 2 x 12 = 120) with the
+   52 px number and the week dots above them. */
+.mission-page.life .taps { display: grid; grid-template-columns: repeat(auto-fill, minmax(156px, 1fr)); gap: 10px; }
+.mission-page.life .tap {
+  position: relative; display: grid; grid-template-rows: auto 1fr auto auto; align-items: center; justify-items: stretch;
+  gap: 8px; padding: 12px; aspect-ratio: 1 / 1; min-width: 0; overflow: hidden;
+  border-radius: 18px; transition: none;
+  background: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.07) 1px, transparent 1.4px) 0 0 / 10px 10px, rgba(255, 255, 255, 0.025);
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+/* On the line: a cyan hairline and a corner notch. Over the line stays neutral, never
+   red: a slip is information, not a verdict. */
+.mission-page.life .tap.ok { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--live) 50%, transparent); }
+.mission-page.life .tap.ok::after { content: ''; position: absolute; top: 0; right: 0; width: 22px; height: 22px;
+  background: linear-gradient(225deg, var(--live) 0 50%, transparent 50%); opacity: 0.85; }
+.mission-page.life .tap.over { box-shadow: inset 0 0 0 1px var(--hair-2); }
+
+.tap-top { display: flex; align-items: baseline; gap: 6px; min-width: 0; padding-right: 10px; }
+.tap-idx { flex: none; font-size: 9.5px; color: var(--ink-4); letter-spacing: 0.04em; }
+.mission-page.life .tap-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 12px var(--f-ui); color: var(--ink-2); text-align: left; }
+.mission-page.life .tap-line { flex: none; font-size: 10.5px; color: var(--ink-4); }
+.mission-page.life .tap.ok .tap-line { color: var(--live); }
+
+.tap-mid { position: relative; display: grid; place-items: center; }
+.mission-page.life .tap-n {
+  font: 700 52px/1 var(--f-dot); font-variant-numeric: tabular-nums; color: var(--ink);
+  min-width: 2ch; text-align: center; animation: tap-pop 180ms var(--ease);
+}
+.mission-page.life .tap.over .tap-n { color: var(--ink-2); }
+/* One ring per tap: remounted by key, plays once, then sits at opacity 0. */
+.tap-ring { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%;
+  box-shadow: inset 0 0 0 1.5px var(--ink-3); opacity: 0; pointer-events: none; animation: tap-ring 200ms var(--ease); }
+.mission-page.life .tap.ok .tap-ring { box-shadow: inset 0 0 0 1.5px var(--live); }
+
+/* Seven-dot week: met = filled, missed = ring, no line yet = faint. Today larger. */
+.week-dots { display: flex; justify-content: center; align-items: center; gap: 5px; height: 8px; }
+.week-dots i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, 0.12); flex: none; }
+.week-dots i.met { background: var(--ink-2); }
+.mission-page.life .tap.ok .week-dots i.met { background: var(--live); }
+.week-dots i.miss { background: transparent; box-shadow: inset 0 0 0 1px var(--ink-3); }
+.week-dots i.today { width: 8px; height: 8px; }
+
+.mission-page.life .tap-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tap-btn {
+  height: 44px; min-width: 44px; display: grid; place-items: center; border-radius: 12px;
+  color: var(--ink-2); background: rgba(255, 255, 255, 0.05); box-shadow: inset 0 0 0 1px var(--hair);
+  transition: transform 120ms var(--ease);
+}
+.tap-btn:hover:not(:disabled) { color: var(--ink); background: rgba(255, 255, 255, 0.09); }
+.tap-btn:active:not(:disabled) { transform: scale(0.9); }
+.tap-btn:disabled { opacity: 0.25; cursor: default; }
+/* The plus is the one loud control: white, like a Nothing hardware key. */
+.tap-btn.plus { color: #050506; background: var(--ink); box-shadow: none; }
+.tap-btn.plus:hover { background: #fff; color: #050506; }
+
+/* Yes counters: the lower tile is one big switch. */
+.mission-page.life .tap.is-yes { grid-template-rows: auto 1fr; }
+.mission-page.life .tap-yes {
+  height: 100%; min-height: 96px; width: 100%; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  border-radius: 12px; font: 600 10.5px var(--f-mono); text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-3);
+  background: rgba(255, 255, 255, 0.03); box-shadow: inset 0 0 0 1px var(--hair); transition: transform 140ms var(--ease);
+}
+.mission-page.life .tap-yes:hover { color: var(--ink); }
+.mission-page.life .tap-yes:active { transform: scale(0.96); }
+.tap-tick { position: relative; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center;
+  box-shadow: inset 0 0 0 1.5px var(--hair-3); background: radial-gradient(circle, rgba(255, 255, 255, 0.08) 1px, transparent 1.4px) 0 0 / 6px 6px; }
+.mission-page.life .tap-yes.on { color: var(--live); background: var(--live-2); box-shadow: none; }
+.mission-page.life .tap-yes.on .tap-tick { color: #021318; background: var(--live); box-shadow: none; animation: tap-pop 180ms var(--ease); }
+.mission-page.life .tap-yes .tap-ring { width: 72px; height: 72px; margin: -36px 0 0 -36px; }
+
+@keyframes tap-pop { from { transform: scale(0.8); opacity: 0.35; } to { transform: scale(1); opacity: 1; } }
+@keyframes tap-ring { from { transform: scale(0.7); opacity: 0.9; } to { transform: scale(1.35); opacity: 0; } }
+
+/* Quick add: one row that submits on Enter. The kind picker drops its labels when the
+   card is narrow (container query), so the row does not wrap at 1120 px. */
+.mission-page.life .quick { display: flex; align-items: center; gap: 8px; flex-direction: row; container-type: inline-size;
+  padding: 6px; border-radius: var(--r-pill); background: rgba(255, 255, 255, 0.03); box-shadow: inset 0 0 0 1px var(--hair); }
+.life-kinds { display: inline-flex; flex: none; gap: 2px; }
+.life-kinds button {
+  display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: var(--r-pill);
+  font: 600 11.5px var(--f-ui); color: var(--ink-3); transition: transform 120ms var(--ease);
+}
+.life-kinds button:hover:not(.on) { color: var(--ink); }
+.life-kinds button:active { transform: scale(0.94); }
+.life-kinds button.on { color: #050506; background: var(--ink); }
+.mission-page.life .quick .field { height: 34px; font-size: 13px; padding: 0 12px; min-width: 0; border-radius: var(--r-pill); background: transparent; box-shadow: none; }
+.mission-page.life .quick .field:focus { background: rgba(255, 255, 255, 0.04); }
+.mission-page.life .quick .q-text { flex: 1 1 auto; }
+.mission-page.life .quick .q-extra { flex: 0 0 76px; width: 76px; border-left: 1px solid var(--hair); border-radius: 0; }
+.mission-page.life .quick .q-add { flex: none; height: 34px; }
+@container (max-width: 660px) {
+  .life-kinds button { padding: 0 10px; }
+  .life-kinds .lk-label { display: none; }
+}
+@media (max-width: 760px) { .mission-page.life .quick { flex-wrap: wrap; border-radius: 18px; } }
+
+/* Today's items: small chips, one line each. */
+.mission-page.life .items { display: flex; flex-wrap: wrap; gap: 6px; }
+.life-chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 220px; height: 26px; padding: 0 11px 0 9px;
+  border-radius: var(--r-pill); font-size: 11.5px; color: var(--ink-2); background: rgba(255, 255, 255, 0.04); box-shadow: inset 0 0 0 1px var(--hair);
+  animation: tap-pop 160ms var(--ease);
+}
+.life-chip svg { flex: none; color: var(--ink-3); }
+.lc-kind { flex: none; font: 600 9.5px var(--f-mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); }
+.lc-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The reel explain-back: calm, a dotted left rule instead of a colour. */
+.mission-page.life .reel-explain { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 12px 18px; border-radius: 14px; position: relative;
+  background: rgba(255, 255, 255, 0.025); box-shadow: inset 0 0 0 1px var(--hair); }
+.mission-page.life .reel-explain::before { content: ''; position: absolute; left: 8px; top: 12px; bottom: 12px; width: 2px;
+  background: radial-gradient(circle, var(--ink-3) 1px, transparent 1.3px) 0 0 / 2px 6px; }
+.re-head, .re-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.re-what { margin: 0 !important; font-size: 13px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.re-what b { color: var(--ink); font-weight: 600; }
+.mission-page.life .reel-explain a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--ink-4); text-underline-offset: 3px; }
+.mission-page.life .reel-explain textarea.field { height: auto; min-height: 64px; padding: 10px 12px; resize: vertical; line-height: 1.45; font-size: 13px; }
+
+.day-rule summary { font-size: 11.5px; color: var(--ink-3); }
+.day-rule p { max-width: 70ch; }
+
+/* QuestCards on Life: the set inputs in one tidy row. */
+.mission-page.life .quest-sets { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.mission-page.life .quest-sets label { display: flex; flex-direction: column; gap: 4px; color: var(--ink-3); }
+.mission-page.life .quest-sets .input.sm { width: 76px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mission-page.life .tap-n, .mission-page.life .tap-yes.on .tap-tick, .life-chip { animation: none; }
+  .tap-ring { display: none; }
+  .tap-btn, .life-kinds button, .mission-page.life .tap-yes { transition: none; }
+}

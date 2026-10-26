@@ -474,6 +474,12 @@ class MotionDetector:
         # Set by the engine before each push: seconds the radar has been live and
         # empty (None = no radar, or it sees someone). Gates the adaptation below.
         self.radar_empty_s: Optional[float] = None
+        # Set by the engine: seconds an independent source OTHER than the radar has called
+        # the room empty (the drill's empty blocks, the teachers' "away"; None = nobody
+        # says so). Only the fan-on baseline learner reads it: there is no radar in this
+        # room since 10-13, so the learner below waited for one forever and with the fan
+        # on Wi-Fi motion stayed "unknown" 100 % of the time (council hearing 2).
+        self.empty_s: Optional[float] = None
         # Set by the engine for 30 s after the fan relay switches: the fan is
         # spinning up or down and its signal sweeps through every frequency.
         self.settling = False
@@ -653,10 +659,12 @@ class MotionDetector:
 
     def _learn_fan_baseline(self, t: float, mvs: float, feats: dict) -> MotionReading:
         """With the fan on and no fan-on baseline (none from `calibrate --fan`),
-        Wi-Fi makes no decisions until the radar has seen the room empty — with the
-        fan running — long enough to measure one."""
-        if (not self.settling and self.radar_empty_s is not None
-                and self.radar_empty_s >= self.cfg.fan_learn_after_s):
+        Wi-Fi makes no decisions until an independent source (the radar, the drill's
+        empty block, the teachers' "away") has called the room empty, with the fan
+        running, long enough to measure one."""
+        known_empty = max(self.radar_empty_s if self.radar_empty_s is not None else -1.0,
+                          self.empty_s if self.empty_s is not None else -1.0)
+        if not self.settling and known_empty >= self.cfg.fan_learn_after_s:
             self._fan_learn.append(mvs)
             self._fan_learn_level.append(feats.get("level_var"))
             self._fan_learn_hbe.append(feats.get("hbe"))
@@ -664,7 +672,8 @@ class MotionDetector:
         if len(self._fan_learn) >= need:
             b = Baseline.from_values(self._fan_learn, self.cfg.threshold_quantile,
                                      "learned (fan on)",
-                                     f"{self.cfg.fan_learn_s:.0f} s of radar-confirmed empty room, fan running",
+                                     f"{self.cfg.fan_learn_s:.0f} s of confirmed empty room (radar, drill or "
+                                     f"teachers), fan running",
                                      levels=self._fan_learn_level, level_fine=self._level_fine,
                                      hbes=self._fan_learn_hbe)
             self._baselines[self.FAN_ON] = b
@@ -674,7 +683,8 @@ class MotionDetector:
             self._fan_learn_hbe.clear()
         reading = MotionReading(t, STATE_UNCALIBRATED, None, None, 0.0, 0.0,
                                 f"fan on: learning its baseline ({len(self._fan_learn) * self.cfg.hop_s:.0f}"
-                                f" of {self.cfg.fan_learn_s:.0f} s with the radar seeing an empty room)",
+                                f" of {self.cfg.fan_learn_s:.0f} s while the drill or the teachers say the room"
+                                f" is empty)",
                                 feats, "none")
         self.last = reading
         return reading

@@ -2,6 +2,41 @@
 
 Newest first. One section per question; older dated notes (`2026-10-*-aankhen-*.md`) stay as they were.
 
+## 2026-10-26: a five-expert review of Aankhen, and its verdict
+
+**Question.** After one day of narrated data (3 sessions), what actually limits Aankhen, and what should be built next? Five independent reviews (deep learning, sequence models and rules, Wi-Fi CSI physics, firmware and link, code quality), then a judge who ruled where they disagreed. The full reports are private notes; the public-safe findings are below.
+
+**The honest accuracy.**
+- Same day, 50/50 by visits (an upper bound): the CNN and kNN tie. On the 4 places with 40+ test windows, kNN 78 %, CNN 71 %. The earlier "CNN 70 % vs kNN 44 % balanced" came from places with 1–6 test windows.
+- Across sessions (train on two, test on the third): 26 % accuracy, 23.7 % balanced, near chance. Temporal filtering adds about 2 points.
+- Across days: not measurable yet, with one day.
+- **Verdict: Aankhen cannot yet be said to locate anyone.** The limits are the link and the single day of labels, not the model.
+
+**Findings that changed the code.**
+1. **Firmware.** The router ping timeout was 1000 ms at a 2 ms ping interval, and esp_ping waits for each reply. One lost reply froze CSI for up to a second, which explains the 0–370 CSI/s swings. Now 10 ms (firmware 3.5.1, compiled, not yet flashed).
+2. **Physics.**
+   - The conditioner removes the overall signal level, the strongest location cue one link has (a body near the line of sight drops the channel 3–10 dB).
+   - 51 subcarriers at 20 MHz carry only about 3–6 independent numbers in a 4 m room.
+   - Proposed: keep the level as its own feature against a fixed daily empty reference, and use about 12 physics features instead of 102.
+3. **Rules over RNNs.** With about 6 measurable transitions in one day, an LSTM/GRU/CRF would memorise the routine. The existing semi-Markov belief (dwell times, neighbour graph) is the right place for "rules". In a replay it cut flicker from 89 to 10 segments (20 true), but it cannot create evidence.
+4. **Calibrate before showing.** An uncalibrated softmax behind a 90 % display cap overstates a model that scores 26 % across sessions.
+5. **Speed.** `live.follow` was quadratic (24 s → 0.15 s, fixed). Fan-line removal can be 19× faster with one cached pseudo-inverse; human-band energy is recomputed 5× per window.
+
+**Rejected for now.** Transformers or bigger nets, an end-to-end RNN or CRF before 5+ labelled days, phase as input on one antenna, simulated data scored as real, concatenating many links into one model, trusting same-day scores.
+
+**The plan.**
+- **In code now (in progress):**
+  - one honest evaluator (leave one session or day out, visit-bootstrap intervals, baselines);
+  - lying and sitting on the bed merged into one place;
+  - temperature calibration;
+  - the belief's dwell, gap and leak fixes;
+  - the speed fixes;
+  - firmware link-quality counters and a non-blocking reconnect.
+- **Needs the owner:**
+  - flash 3.5.1/3.6.0;
+  - the in-room access point on a fixed channel (target RSSI −40 to −60 dBm, ≥ 300 CSI/s);
+  - 3+ days of drills with a real empty room, ≥ 2 visits of ≥ 30 s per place, both chirps.
+
 ## 2026-10-26: the first real narrated session, and what it taught
 
 **What was recorded.** 120 min on the real board over USB, at the desk, fan on throughout. About 15 min of narrated movement: desk, bed, balcony side, bathroom doormat, bathroom, beside the bed. Then asleep on the bed. The phone recording synced by its start chirp (found at 2.47 s); no end chirp.

@@ -365,3 +365,43 @@
 .lc-act-bars i { display: block; width: 8px; border-radius: 3px; background: var(--ink-4); transition: height 600ms var(--spring-calm), background var(--t); }
 .lc-act-bars span.on i { background: var(--acc); }
 .lc-act-bars em { font-style: normal; font-size: 8.5px; color: var(--ink-3); }
+
+/* ---------------------------------------------------------------- prediction bar + teach/train panel */
+/* Under the belief legend, plain: no blur, no animation (it updates at 5 Hz). */
+.hud-pred { top: 52px; left: 330px; right: 330px; justify-content: center; }
+.pred-bar {
+  pointer-events: auto; display: inline-flex; align-items: center; gap: 8px; max-width: 100%;
+  padding: 4px 6px 4px 12px; border-radius: 999px; font-size: 12px; background: rgba(12, 13, 16, 0.72);
+}
+.pred-text { font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pred-text.answering { color: var(--live); }
+.pred-pick { height: 24px; border-radius: 999px; padding: 0 8px; font-size: 11.5px; color: var(--ink); background: rgba(255, 255, 255, 0.06); border: 1px solid var(--hair); }
+.pred-fan { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--ink-2); white-space: nowrap; }
+.pred-fan-seg button { height: 22px; padding: 0 8px; font-size: 10.5px; }
+.tt-sheet { max-height: calc(100% - 160px); overflow-y: auto; }
+.tt-sheet .seg button { gap: 5px; display: inline-flex; align-items: center; }
+.tt-places { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; }
+.tt-places .ts-tile { min-height: 64px; }
+.tt-transit-row .ts-tile { min-height: 44px; padding: 8px 10px; }
+.tt-transit .ts-name { font-size: 11.5px; font-weight: 550; }
+.tt-sub { margin: 12px 0 6px; }
+.tt-form { display: flex; gap: 10px; flex-wrap: wrap; }
+.tt-field { display: flex; flex-direction: column; gap: 4px; }
+.tt-field.grow { flex: 1; min-width: 220px; }
+.tt-field input, .tt-field select { height: 30px; border-radius: 10px; padding: 0 10px; font-size: 12px; color: var(--ink); background: rgba(255, 255, 255, 0.05); border: 1px solid var(--hair); }
+.tt-audio { margin-top: 8px; }
+.tt-result { margin-top: 12px; font-size: 12.5px; }
+.tt-rows { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0; font-size: 11px; color: var(--ink-2); }
+.tt-progress { margin: 10px 0; }
+.tt-progress-head { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-2); margin-bottom: 4px; }
+.tt-status { display: flex; align-items: center; gap: 10px; font-size: 12px; margin: 10px 0; }
+.tt-missing { font-size: 12px; }
+.tt-score { display: flex; gap: 28px; margin: 6px 0 8px; }
+.tt-score > div { display: flex; flex-direction: column; gap: 2px; }
+.tt-score b { font-size: 22px; }
+.tt-line { margin: 3px 0; font-size: 12.5px; line-height: 1.45; }
+.tt-report .lc-row { grid-template-columns: minmax(150px, 1.4fr) 1fr 40px; }
+@media (max-width: 980px) {
+  .hud-pred { order: 2; justify-content: flex-start; margin-top: 8px; }
+  .pred-bar { flex-wrap: wrap; border-radius: 14px; }
+}

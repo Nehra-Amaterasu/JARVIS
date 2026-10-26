@@ -1,12 +1,13 @@
 /**
- * The Internals card on Today (Exams.tsx): one tile per paper with coverage and the
- * forecast range, today's blocks with what to do, and a topic tap that cycles
- * none → learned → solid. Server answers are fictional.
+ * The Internals card on Study (Exams.tsx): a strip of paper tiles with coverage, the
+ * forecast range and the measured practice score against the target, today's blocks
+ * as a timeline, and a topic tap that cycles none → learned → solid. Server answers
+ * are fictional.
  */
 import { act, createElement } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { ExamsCard, type ExamPaper, type ExamsAnswer } from '../germoney/pages/Exams'
+import { _test, ExamsCard, type ExamPaper, type ExamsAnswer } from '../germoney/pages/Exams'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -20,7 +21,7 @@ const paper = (id: string, extra: Partial<ExamPaper> = {}): ExamPaper => ({
 
 const ANSWER: ExamsAnswer = {
   status: 'ok', date: '2026-10-30', say: '', rule: 'the rule', risks: ['A and B on one day, so the day before is shared.'],
-  papers: [paper('a'), paper('b', { may_miss: true, paper_score: { score: 14, max: 20, date: '2026-10-30' } })],
+  papers: [paper('a'), paper('b', { may_miss: true, target: 16, max: 20, paper_score: { score: 14, max: 20, date: '2026-10-30', on_target: false } })],
   days: [{ date: '2026-10-30', slots: [{ label: 'Study day', minutes: 240, light: false, reserved: false,
     blocks: [{ paper: 'a', title: 'Paper a', minutes: 90, focus: [{ kind: 'learn', title: 'Topic one', unit: 3, minutes: 45 }] }] }] }],
 }
@@ -50,20 +51,26 @@ async function render() {
 }
 
 describe('<ExamsCard />', () => {
-  it('shows each paper with coverage, the range, a measured score and the may-not-sit tag', async () => {
+  it('shows each paper with coverage, the range, a measured score against the target and the may-not-sit tag', async () => {
     await render()
-    expect(host.querySelectorAll('.ex-paper').length).toBe(2)
+    const tiles = host.querySelectorAll('.ex-paper')
+    expect(tiles.length).toBe(2)
     expect(host.textContent).toContain('25%')
-    expect(host.textContent).toContain('on the day 50%–90%')
-    expect(host.textContent).toContain('paper 14/20')
-    expect(host.textContent).toContain('may not sit')
+    expect(tiles[0].querySelector('.ex-fc')?.textContent).toBe('→ 50–90%')
+    expect(tiles[0].querySelector('.ex-fc')?.getAttribute('title')).toContain('50% with half the planned minutes, 90% with all')
+    expect(tiles[1].querySelector('.ex-score')?.textContent).toBe('14/20')
+    expect(tiles[1].querySelector('.ex-score')?.classList.contains('ok')).toBe(false)   // 14 < target 16
+    expect(tiles[1].querySelector('.ex-aim')?.textContent).toBe('aim 16')
+    expect(tiles[1].querySelector('.ex-miss')?.textContent).toBe('may not sit')
+    expect(tiles[0].querySelector('.ex-miss')).toBeNull()
+    expect(tiles[0].querySelector('.ex-name')?.getAttribute('title')).toBe('Paper a')   // long names truncate; the full one is the tooltip
     expect(host.textContent).toContain('on one day')
   })
 
   it("lists today's block with its first task and logs minutes against the paper's subject", async () => {
     await render()
     expect(host.querySelector('.ex-block')?.textContent).toContain('Topic one')
-    const btn = [...host.querySelectorAll('button')].find((b) => b.textContent?.includes('30 min done'))!
+    const btn = host.querySelector<HTMLButtonElement>('[aria-label="Log 30 min on Paper a"]')!
     await act(async () => { btn.click() })
     expect(calls.at(-1)?.url).toContain('/api/mission/exams/s-a/minutes')
     expect(JSON.parse(calls.at(-1)!.body!)).toEqual({ minutes: 30 })
@@ -72,9 +79,20 @@ describe('<ExamsCard />', () => {
   it('opens a paper and cycles a topic to its next state', async () => {
     await render()
     await act(async () => { (host.querySelector('.ex-paper') as HTMLButtonElement).click() })
+    expect(host.querySelector('.ex-paper')?.getAttribute('aria-expanded')).toBe('true')
     const topics = host.querySelectorAll<HTMLButtonElement>('.ex-topic')
     expect(topics.length).toBe(2)
+    expect(topics[1].getAttribute('aria-label')).toBe('Topic two: learned. Tap for solid.')
+    expect(host.querySelector('.ex-w')?.textContent).toBe('high')
     await act(async () => { topics[1].click() })                     // learned -> solid
     expect(JSON.parse(calls.at(-1)!.body!)).toEqual({ key: '3|t2', state: 'solid' })
+  })
+
+  it('moves a chip at once and recounts the paper before the server answers', () => {
+    const next = _test.patchTopic(ANSWER, 's-a', '3|t1', 'solid')
+    expect(next.papers[0].topics[0].state).toBe('solid')
+    expect(next.papers[0].counts).toEqual({ none: 0, learned: 1, solid: 1 })
+    expect(next.papers[1]).toBe(ANSWER.papers[1])                    // other papers keep their identity, so their tiles skip a render
+    expect(_test.range({ half_plan: 0.5, full_plan: 0.9, assumption: '' })).toBe('50–90%')
   })
 })

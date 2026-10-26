@@ -71,20 +71,27 @@ class ZoneSpec:
 
 
 # The names Aman sees, and the dwell prior per zone (seconds he usually stays once there).
+# TRANSIT ZONES (beside the bed on either side, between the bed and the balcony door, the
+# room door) are places he walks through: 3-4 s, not 20 s (council 2026-10-26). At about
+# 1 m/s a 0.6-0.7 m zone circle takes under a second to cross; the rest is a turn or a
+# pause. The 10-26 narrations do not measure a pass: he stopped to say each place, so
+# their visits there ran 4.0-36 s (median 15 s), and the shortest, 4.0-4.8 s with the
+# speech in them, bound the stop from above. Doorways where the drills show him
+# standing (outside the bathroom, median 18.7 s; the balcony door, 14.6 s) keep 15 s.
 NAMES = {
     "at_desk_chair": ("Sitting at the desk", 1800.0),
     "desk_standing": ("Standing at the desk", 60.0),
-    "beside_bed_desk_side": ("Beside the bed, desk side", 20.0),
+    "beside_bed_desk_side": ("Beside the bed, desk side", 4.0),
     "bed_lying": ("Lying on the bed", 3600.0),
     "bed_sitting": ("Sitting on the bed", 600.0),
     "standing_on_bed": ("Standing on the bed", 30.0),
-    "beside_bed_bathroom_wall": ("Beside the bed, bathroom wall", 20.0),
+    "beside_bed_bathroom_wall": ("Beside the bed, bathroom wall", 4.0),
     "outside_bathroom": ("Outside the bathroom", 15.0),
     "inside_bathroom": ("In the bathroom", 600.0),
-    "between_bed_and_balcony_door": ("Between the bed and the balcony door", 20.0),
+    "between_bed_and_balcony_door": ("Between the bed and the balcony door", 4.0),
     "at_balcony_door": ("At the balcony door", 15.0),
     "balcony": ("On the balcony", 600.0),
-    "room_door": ("At the room door", 10.0),
+    "room_door": ("At the room door", 3.0),
     "wardrobe": ("At the wardrobe", 60.0),
     "out_of_room": ("Out of the room", 1800.0),
 }

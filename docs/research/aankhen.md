@@ -2,6 +2,16 @@
 
 Newest first. One section per question; older dated notes (`2026-10-*-aankhen-*.md`) stay as they were.
 
+## 2026-10-27: the transmitter moves into the room, and the link is fixed
+
+**Measured** (firmware 3.6.0, spare router as a standalone 2.4 GHz transmitter on a fixed 20 MHz channel about 1 m high by the door, board on USB; 120 s check, twice):
+- RSSI median **−59 dBm** (was −84 to −95 through the wall).
+- **220 CSI/s** steady; frame loss 0.0 %; longest gap **34 ms**, by both the board's clock and the host's (before: holes of 10 s to 25 min).
+- Router ping timeouts 3.7 %, PHY 65 Mbit/s (11n), 0 reconnects.
+- One earlier run had a single 19.5 s hole on the laptop's USB reader (13 % loss) that did not recur; the board's own gap in that run was 29 ms.
+
+**What it changed.** The council's first ruling is done: the link is no longer the limit. Every session from here is recorded on this link, so earlier sessions are a different channel and are kept apart in the evaluator.
+
 ## 2026-10-27: training only on labelled time, and why the model kept saying "bed"
 
 **Question.** Live, three walks to the bookshelf gave one "bookshelf" and two "bed". Why, and what training fixes it?

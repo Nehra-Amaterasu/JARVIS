@@ -1,7 +1,8 @@
 """Where am I in the room, learned from the raw Wi-Fi signal: a fingerprint matcher
 (kNN) and a small 1D convolutional network (CNN), both scored on days they never saw.
 
-    python -m aankhen fingerprint evaluate    # leave-one-day-out: kNN vs CNN, per day
+    python -m aankhen fingerprint evaluate    # leave one session out (+ one day out at 2+ days)
+    python -m aankhen fingerprint evaluate --split half   # same-session halves: an upper bound only
     python -m aankhen fingerprint train       # CNN on every drill day -> versioned model
 
 THE IDEA (Aman's Shazam analogy, and where it holds)
@@ -211,8 +212,10 @@ def csi_stream(records: Iterable[tuple[float, bytes]]) -> Iterable[tuple[float, 
 
 
 def session_windows(folder: str) -> list[tuple[float, np.ndarray]]:
-    """One session's raw.akr as (host end time, window) pairs, unlabelled."""
-    return list(windows(akr_stream(os.path.join(folder, "raw.akr"))))
+    """One session's raw.akr as (host end time, window) pairs, unlabelled. float32: a
+    log-amplitude needs no more than 7 digits, and the 2 h sleep session alone is about
+    14,000 windows, 290 MB as float64, on a laptop with under 1 GB free (2026-10-26)."""
+    return [(t, w.astype(np.float32)) for t, w in windows(akr_stream(os.path.join(folder, "raw.akr")))]
 
 
 def session_tensors(folder: str, labels: list[dict], fallback_refs: Optional[dict] = None) -> dict:
@@ -266,12 +269,70 @@ def load_days(root: Optional[str] = None, narrate_root: Optional[str] = None) ->
             if len(d["zone"]) == 0 or not d["refs"]:
                 d = label_windows(wins, s["labels"], fallback_refs=day_refs)
             if len(d["zone"]):
+                d["day"], d["session"] = day, s.get("session", s["folder"])   # the evaluator holds out by these
                 out.setdefault(day, []).append(d)
     return out
 
 
 def _cat(runs: list[dict], key: str) -> np.ndarray:
     return np.concatenate([r[key] for r in runs]) if runs else np.asarray([])
+
+
+# ---------------------------------------------------------------- what counts as a place
+# Raw narrated labels -> the places the models learn. One explicit table, applied at load
+# for training and evaluation alike; the labels on disk keep the raw names.
+# bed_lying and bed_sitting are the same spot. On 2026-10-26 lying lived in the 2 h sleep
+# session and sitting in the evening ones, so the pair mostly taught WHICH SESSION, not
+# where (council 2026-10-26, 1.8.1: the 7 % fold was the model trained on lying asked to
+# name sitting). Posture can return as a second head once one session holds both.
+PLACE_MAP = {"bed_lying": "bed", "bed_sitting": "bed"}
+MIN_VISITS = 2           # a place seen once can't be learned on one visit and tested on another
+MIN_TEST_WINDOWS = 40    # ~20 s; at ~25 windows one place's recall is +-10 points of noise (council)
+
+
+def place_of(zone: np.ndarray, merge: bool = True) -> np.ndarray:
+    """Raw zone labels -> places, through PLACE_MAP."""
+    zone = np.asarray(zone)
+    if not merge or not len(zone):
+        return zone
+    return np.asarray([PLACE_MAP.get(z, z) for z in zone.tolist()])
+
+
+def expand_places(p: dict) -> dict:
+    """A model's {place: p} back over the raw zone ids the belief and the floor plan know:
+    each member of a merged place gets the merged place's probability (the evidence can't
+    tell them apart, so as a likelihood it is the same for both)."""
+    out = {}
+    for c, v in p.items():
+        for z in [z for z, m in PLACE_MAP.items() if m == c] or [c]:
+            out[z] = v
+    return out
+
+
+def visit_counts(runs: list[dict]) -> dict:
+    """{place: visits} over all runs, each run's visits on its own clock."""
+    n: dict = {}
+    for r in runs:
+        vid = visits(r["t"], r["zone"])
+        for z in set(r["zone"].tolist()):
+            n[z] = n.get(z, 0) + len(set(vid[r["zone"] == z].tolist()))
+    return n
+
+
+def scope_places(days: dict, merge: bool = True, min_visits: int = MIN_VISITS) -> tuple[dict, dict]:
+    """(days with zones mapped to places and thin places removed, {removed place: visits}).
+    Pure: the runs are copied, never edited in place."""
+    mapped = {d: [{**r, "zone": place_of(r["zone"], merge)} for r in runs] for d, runs in days.items()}
+    n = visit_counts([r for runs in mapped.values() for r in runs])
+    drop = {z: v for z, v in sorted(n.items()) if v < min_visits}
+    out: dict = {}
+    for d, runs in mapped.items():
+        for r in runs:
+            keep = ~np.isin(r["zone"], list(drop))
+            if keep.any():
+                out.setdefault(d, []).append({**r, **{k: np.asarray(r[k])[keep] for k in
+                                                      ("X", "zone", "activity", "fan", "t") if k in r}})
+    return out, drop
 
 
 # ---------------------------------------------------------------- the fingerprint matcher
@@ -305,9 +366,25 @@ def _net(n_classes: int):
         nn.AdaptiveAvgPool1d(1), nn.Flatten(), nn.Dropout(0.3), nn.Linear(64, n_classes))
 
 
+def _softmax(Z: np.ndarray) -> np.ndarray:
+    e = np.exp(Z - Z.max(axis=1, keepdims=True))
+    return e / e.sum(axis=1, keepdims=True)
+
+
+def _nll(P: np.ndarray, yi: np.ndarray) -> float:
+    return float(-np.mean(np.log(np.maximum(P[np.arange(len(yi)), yi], 1e-12))))
+
+
+def ece(P: np.ndarray, yi: np.ndarray, bins: int = 15) -> float:
+    """Expected calibration error, top label, 15 equal-width bins (Guo et al. 2017): the
+    window-weighted gap between how sure the model said it was and how often it was right."""
+    return _pooled_ece([(P, yi)], bins) if len(yi) else float("nan")
+
+
 class CnnFingerprint:
     def __init__(self, epochs: int = 30, seed: int = 0, augment: bool = True):
         self.epochs, self.seed, self.augment = epochs, seed, augment
+        self.temperature = 1.0
 
     def fit(self, X: np.ndarray, y: np.ndarray, X_val: Optional[np.ndarray] = None,
             y_val: Optional[np.ndarray] = None, X_stop: Optional[np.ndarray] = None,
@@ -394,11 +471,37 @@ class CnnFingerprint:
         self.net.train(was)
         return float(np.mean([(p[y == z] == z).mean() for z in set(y.tolist())]))
 
-    def proba(self, X: np.ndarray) -> np.ndarray:
+    def logits(self, X: np.ndarray) -> np.ndarray:
         import torch
         with torch.no_grad():
-            z = self.net(torch.from_numpy(((X - self.mu) / self.sd).astype(np.float32)))
-            return torch.softmax(z, dim=1).numpy()
+            return self.net(torch.from_numpy(((X - self.mu) / self.sd).astype(np.float32))).numpy().astype(float)
+
+    def proba(self, X: np.ndarray) -> np.ndarray:
+        """Softmax of logits / temperature. A model loaded from an older manifest has no
+        temperature and keeps 1.0, its raw softmax."""
+        return _softmax(self.logits(X) / getattr(self, "temperature", 1.0))
+
+    def calibrate(self, X: np.ndarray, y: np.ndarray) -> Optional[dict]:
+        """Fit ONE temperature on held-back training windows (Guo et al. 2017, arXiv
+        1706.04599: ECE 16.5 -> 1.3 % on CIFAR-100 at unchanged accuracy). It only rescales
+        the logits, so the argmax, and every accuracy, stays exactly the same. The
+        class-weighted loss pushes mass towards rare places and the 0.5 "unsure" line sat on
+        those raw numbers (council 2026-10-26, 1.5). None when no window's place is known."""
+        known = np.isin(y, self.classes)
+        if not known.any():
+            return None
+        from scipy.optimize import minimize_scalar
+        Z = self.logits(X[known])
+        yi = np.array([self.classes.index(c) for c in y[known]])
+        nll = lambda logT: _nll(_softmax(Z / np.exp(logT)), yi)
+        # log T in [-3, 3]: T from 0.05 to 20, far wider than any sane fit
+        logT = float(minimize_scalar(nll, bounds=(-3.0, 3.0), method="bounded").x)
+        before = _softmax(Z)
+        self.temperature = float(np.exp(logT))
+        after = _softmax(Z / self.temperature)
+        return {"temperature": round(self.temperature, 4), "windows": int(known.sum()),
+                "nll_before": round(_nll(before, yi), 4), "nll_after": round(_nll(after, yi), 4),
+                "ece_before": round(ece(before, yi), 4), "ece_after": round(ece(after, yi), 4)}
 
     def predict(self, X: np.ndarray) -> np.ndarray:
         return np.asarray(self.classes)[self.proba(X).argmax(1)]
@@ -414,37 +517,28 @@ class CnnFingerprint:
         torch.save(self.net.state_dict(), os.path.join(out, "model.pt"))
         with open(os.path.join(out, "manifest.json"), "w", encoding="utf-8") as f:
             json.dump({"classes": self.classes, "mu": self.mu, "sd": self.sd, "weights": self.weights(),
+                       "temperature": getattr(self, "temperature", 1.0), "place_map": PLACE_MAP,
                        "input": [N_SUB, WIN // POOL], "window_s": WIN / RATE_HZ, **(meta or {})}, f, indent=2)
         with open(os.path.join(root, "current.json"), "w", encoding="utf-8") as f:
             json.dump({"version": version}, f)
         return out
 
-
-# ---------------------------------------------------------------- judged by days
-def leave_one_day_out(days: dict, epochs: int = 30) -> dict:
-    """For each day: train both models on the OTHER days, score zone accuracy on this one."""
-    names = sorted(days)
-    per_day = {}
-    for d in names:
-        train = [r for k in names if k != d for r in days[k]]
-        X, y = _cat(train, "X"), _cat(train, "zone")
-        Xt, yt = _cat(days[d], "X"), _cat(days[d], "zone")
-        if len(set(y.tolist())) < 2 or not len(yt):
-            per_day[d] = {"error": "need at least two zones in the other days"}
-            continue
-        knn = KnnFingerprint().fit(X, y)
-        cnn = CnnFingerprint(epochs=epochs).fit(X, y)
-        per_day[d] = {"windows": int(len(yt)),
-                      "knn": round(float((knn.predict(Xt) == yt).mean()), 4),
-                      "cnn": round(float((cnn.predict(Xt) == yt).mean()), 4),
-                      "chance": round(1 / len(set(y.tolist())), 4)}
-    ok = [v for v in per_day.values() if "knn" in v]
-    mean = {m: round(float(np.mean([v[m] for v in ok])), 4) for m in ("knn", "cnn")} if ok else {}
-    return {"days": names, "per_day": per_day, "mean": mean,
-            "winner": max(mean, key=mean.get) if mean else None,
-            "note": None if len(names) >= 3 else "fewer than 3 days: these numbers say little; keep drilling"}
+    @classmethod
+    def load(cls, folder: str) -> "CnnFingerprint":
+        """A saved model with its temperature (1.0 for a manifest written before it existed)."""
+        import torch
+        with open(os.path.join(folder, "manifest.json"), encoding="utf-8") as f:
+            man = json.load(f)
+        m = cls()
+        m.classes, m.mu, m.sd = man["classes"], man["mu"], man["sd"]
+        m.temperature = float(man.get("temperature", 1.0))
+        m.net = _net(len(m.classes))
+        m.net.load_state_dict(torch.load(os.path.join(folder, "model.pt"), weights_only=True))
+        m.net.eval()
+        return m
 
 
+# ---------------------------------------------------------------- splits
 GUARD_S = WIN / RATE_HZ      # windows are 2 s long: keep 2 s between a train and a test window
 
 
@@ -502,10 +596,29 @@ def cap_per_place(idx: np.ndarray, y: np.ndarray, t: np.ndarray, cap_x: float = 
     return np.sort(np.concatenate(keep))
 
 
+def fit_models(X: np.ndarray, y: np.ndarray, t: np.ndarray, idx: np.ndarray, epochs: int = 30, seed: int = 0,
+               X_val: Optional[np.ndarray] = None, y_val: Optional[np.ndarray] = None) -> dict:
+    """Both models on the windows idx, the way they ship: the per-place cap; the CNN's
+    early-stopping set carved from those training windows by visits (so no held-out
+    window ever decides anything); one temperature fitted on that same set."""
+    fit_idx = cap_per_place(idx, y, t)
+    inner_a, inner_b = half_split(t[fit_idx], y[fit_idx])
+    use_stop = len(set(y[fit_idx][inner_b].tolist())) >= 2
+    fit_cnn = fit_idx[inner_a] if use_stop else fit_idx
+    stop_idx = fit_idx[inner_b] if use_stop else np.array([], int)
+    knn = KnnFingerprint().fit(X[fit_idx], y[fit_idx])
+    cnn = CnnFingerprint(epochs=epochs, seed=seed).fit(
+        X[fit_cnn], y[fit_cnn], X_val, y_val,
+        X[stop_idx] if use_stop else None, y[stop_idx] if use_stop else None)
+    cal = cnn.calibrate(X[stop_idx], y[stop_idx]) if use_stop else None
+    return {"knn": knn, "cnn": cnn, "fit_idx": fit_idx, "stop_idx": stop_idx, "calibration": cal}
+
+
 def evaluate_half(days: dict, epochs: int = 30) -> dict:
     """Every labelled window there is, 50 % to train and 50 % to verify (half_split per
     day, so each day's own drift is on both sides). kNN and CNN, per-zone accuracy, a
-    confusion table, and the CNN's epoch-by-epoch training record."""
+    confusion table, and the CNN's epoch-by-epoch training record. Same day on both
+    sides: always an UPPER BOUND, never the score to choose a model by."""
     runs = [r for d in sorted(days) for r in days[d]]
     X, y, t = _cat(runs, "X"), _cat(runs, "zone"), _cat(runs, "t")
     if len(set(y.tolist())) < 2:
@@ -519,16 +632,8 @@ def evaluate_half(days: dict, epochs: int = 30) -> dict:
         off += n
     zones_test = sorted(set(y[te].tolist()))
     missing = sorted(set(y.tolist()) - set(y[tr].tolist()))
-    fit_idx = cap_per_place(np.flatnonzero(tr), y, t)
-    # the CNN's early-stopping check is carved from the TRAINING half (by visits again),
-    # so the verify half never decides anything
-    inner_a, inner_b = half_split(t[fit_idx], y[fit_idx])
-    use_stop = len(set(y[fit_idx][inner_b].tolist())) >= 2
-    fit_cnn = fit_idx[inner_a] if use_stop else fit_idx
-    stop_idx = fit_idx[inner_b] if use_stop else np.array([], int)
-    knn = KnnFingerprint().fit(X[fit_idx], y[fit_idx])
-    cnn = CnnFingerprint(epochs=epochs).fit(X[fit_cnn], y[fit_cnn], X[te], y[te],
-                                            X[stop_idx] if use_stop else None, y[stop_idx] if use_stop else None)
+    m = fit_models(X, y, t, np.flatnonzero(tr), epochs, X_val=X[te], y_val=y[te])
+    knn, cnn, fit_idx, stop_idx = m["knn"], m["cnn"], m["fit_idx"], m["stop_idx"]
     pk, pc = knn.predict(X[te]), cnn.predict(X[te])
     labels = sorted(set(y.tolist()))
     conf = {a: {b: int(((y[te] == a) & (pc == b)).sum()) for b in labels} for a in zones_test}
@@ -546,10 +651,208 @@ def evaluate_half(days: dict, epochs: int = 30) -> dict:
                              "knn": round(float((pk[y[te] == z] == z).mean()), 4),
                              "cnn": round(float((pc[y[te] == z] == z).mean()), 4)} for z in zones_test},
             "cnn_confusion": conf, "history": cnn.history, "not_in_training": missing,
+            "calibration": m["calibration"],
             "trained_on": {"windows": int(len(fit_idx)), "capped_from": int(tr.sum()),
                            "cnn_best_epoch": cnn.best_epoch, "early_stop_windows": int(len(stop_idx))},
-            "note": ("one session: the test half is the same day, so this is an upper bound; "
-                     "only held-out DAYS say how it does tomorrow") if len(days) < 2 else None}
+            # Alternate visits of the SAME session sit on both sides: the link's state, the
+            # reference and the posture are shared, and temporal rules see fake teleports
+            # (council 2026-10-26, 1.4). Only held-out sessions and days are honest.
+            "note": "UPPER BOUND: the verify half is the same session(s) as the training half; "
+                    "choose models by the held-out-session/day score"}
+
+
+# ---------------------------------------------------------------- the honest evaluator
+N_BOOT = 2000
+
+
+def _shuffle_visits(y: np.ndarray, vid: np.ndarray, idx: np.ndarray, rng) -> np.ndarray:
+    """The labels with the training visits' places dealt out again at random, whole
+    visits at a time. Shuffling single windows would also break the 1.5 s overlap between
+    neighbours, a weaker control: whole visits keep every time structure except place."""
+    y2 = y.copy()
+    vs = np.array(sorted(set(vid[idx].tolist())))
+    lab = np.array([y[idx][vid[idx] == v][0] for v in vs])
+    for v, z in zip(vs, rng.permutation(lab)):
+        y2[idx[vid[idx] == v]] = z
+    return y2
+
+
+def _visit_boot(right: dict, vid: np.ndarray, y: np.ndarray, mask: np.ndarray, places: list, n_boot: int,
+                rng) -> dict:
+    """Balanced accuracy's 95 % interval by resampling VISITS within each place, the same
+    resample for every model so their difference is paired. Windows of one visit are
+    near-copies (1.5 s overlap, one posture), so resampling windows would claim far more
+    certainty than the handful of visits gives."""
+    draws = {k: np.zeros((n_boot, len(places))) for k in right}
+    for j, z in enumerate(places):
+        m = mask & (y == z)
+        vs = np.array(sorted(set(vid[m].tolist())))
+        n = np.array([int((m & (vid == v)).sum()) for v in vs], float)
+        c = {k: np.array([int((m & (vid == v) & r).sum()) for v in vs], float) for k, r in right.items()}
+        pick = rng.integers(0, len(vs), (n_boot, len(vs)))
+        for k in right:
+            draws[k][:, j] = c[k][pick].sum(1) / n[pick].sum(1)
+    bal = {k: d.mean(1) for k, d in draws.items()}
+    ci = lambda a: [round(float(np.percentile(a, 2.5)), 4), round(float(np.percentile(a, 97.5)), 4)]
+    out = {k: ci(b) for k, b in bal.items()}
+    if "cnn" in bal and "knn" in bal:
+        out["cnn_minus_knn"] = ci(bal["cnn"] - bal["knn"])
+    return out
+
+
+def evaluate_held_out(days: dict, by: str = "session", epochs: int = 30, seed: int = 0, n_boot: int = N_BOOT,
+                      control: bool = True, min_windows: int = MIN_TEST_WINDOWS, min_visits: int = MIN_VISITS) -> dict:
+    """Leave one SESSION (or one DAY) out: train on the rest, predict every window of the
+    held-out one, pool the predictions, then score.
+
+    Scored places: at least min_windows test windows and min_visits visits, counting only
+    folds whose training had the place (a place absent from training can't be named; it is
+    listed apart, not scored as a model's 0 %). Per model: balanced accuracy with a 95 %
+    visit-bootstrap interval, plain accuracy, recall per place. Beside them the
+    always-the-commonest-place baseline and the shuffled-label control (the same models
+    trained on visit-shuffled places): a model is learning place only if it clears both by
+    more than the interval. For the CNN, ECE before and after its temperature."""
+    runs = [r for d in sorted(days) for r in days[d]]
+    if by == "day":
+        group = [r.get("day") for d in sorted(days) for r in days[d]]
+    else:
+        group = [r.get("session") or f"{r.get('day')}#{k}" for k, r in enumerate(runs)]
+    X, y, t = _cat(runs, "X"), _cat(runs, "zone"), _cat(runs, "t")
+    g = np.concatenate([[gr] * len(r["zone"]) for gr, r in zip(group, runs)]) if runs else np.asarray([])
+    vid, off = np.empty(len(y), int), 0
+    for r in runs:                                    # visits on each session's own clock, ids global
+        v = visits(r["t"], r["zone"])
+        vid[off:off + len(v)] = v + (vid[:off].max() + 1 if off else 0)
+        off += len(v)
+    names = list(dict.fromkeys(group))
+    rng = np.random.default_rng(seed)
+    kinds = ["knn", "cnn", "majority"] + (["knn_shuffled", "cnn_shuffled"] if control else [])
+    pred = {k: np.full(len(y), None, object) for k in kinds}
+    tested = np.zeros(len(y), bool)                   # held out in a fold that could name its place
+    conf_raw, conf_cal, right_cal = [], [], []
+    folds, temps = {}, []
+    for G in names:
+        te, tr = g == G, g != G
+        known = set(y[tr].tolist())
+        if len(known) < 2:
+            folds[G] = {"error": "the other folds hold fewer than two places"}
+            continue
+        m = fit_models(X, y, t, np.flatnonzero(tr), epochs, seed)
+        pred["knn"][te] = m["knn"].predict(X[te])
+        pred["cnn"][te] = m["cnn"].predict(X[te])
+        common = max(known, key=lambda z: int((y[tr] == z).sum()))
+        pred["majority"][te] = common
+        if control:
+            ys = _shuffle_visits(y, vid, np.flatnonzero(tr), rng)
+            ms = fit_models(X, ys, t, np.flatnonzero(tr), epochs, seed)
+            pred["knn_shuffled"][te] = ms["knn"].predict(X[te])
+            pred["cnn_shuffled"][te] = ms["cnn"].predict(X[te])
+        ok = te & np.isin(y, list(known))
+        tested |= ok
+        cnn = m["cnn"]
+        if ok.any():
+            yi = np.array([cnn.classes.index(c) for c in y[ok]])
+            Z = cnn.logits(X[ok])
+            P0, P1 = _softmax(Z), _softmax(Z / cnn.temperature)
+            conf_raw.append((P0, yi)); conf_cal.append((P1, yi))
+        temps.append(cnn.temperature)
+        folds[G] = {"test_windows": int(te.sum()), "trained_on": int(len(m["fit_idx"])),
+                    "unknown_places": sorted(set(y[te].tolist()) - known),
+                    "majority": common, "cnn_best_epoch": cnn.best_epoch,
+                    "calibration": m["calibration"],
+                    "knn": round(float((pred["knn"][te] == y[te]).mean()), 4),
+                    "cnn": round(float((pred["cnn"][te] == y[te]).mean()), 4)}
+    places_all = sorted(set(y.tolist()))
+    count = {z: (int((tested & (y == z)).sum()), len(set(vid[tested & (y == z)].tolist()))) for z in places_all}
+    scored = [z for z in places_all if count[z][0] >= min_windows and count[z][1] >= min_visits]
+    apart = {z: {"windows": count[z][0], "visits": count[z][1],
+                 "untested_windows": int(((y == z) & ~tested).sum())} for z in places_all if z not in scored}
+    mask = tested & np.isin(y, scored)
+    right = {k: (pred[k] == y) for k in kinds}
+    rep = {"split": by, "folds": folds, "groups": names, "scored_places": scored, "listed_apart": apart,
+           "rule": {"min_windows": min_windows, "min_visits": min_visits}, "chance": None,
+           "windows": {"scored": int(mask.sum()), "all": int(len(y))}}
+    if not scored:
+        rep["error"] = (f"no place has {min_windows}+ test windows and {min_visits}+ visits in folds that "
+                        "trained on it: nothing can be scored honestly yet")
+        return rep
+    recall = {k: {z: round(float(right[k][mask & (y == z)].mean()), 4) for z in scored} for k in kinds}
+    rep.update({
+        "chance": round(1 / len(scored), 4),
+        "balanced": {k: round(float(np.mean(list(recall[k].values()))), 4) for k in kinds},
+        "accuracy": {k: round(float(right[k][mask].mean()), 4) for k in kinds},
+        "ci95": _visit_boot(right, vid, y, mask, scored, n_boot, np.random.default_rng(seed + 1)),
+        "per_place": {z: {"windows": count[z][0], "visits": count[z][1],
+                          **{k: recall[k][z] for k in kinds}} for z in scored},
+    })
+    if conf_raw:
+        # pooled over folds whose class lists differ: ECE and NLL need only each window's
+        # top probability and its true class's, so each fold is scored on its own rows
+        n = sum(len(q) for _, q in conf_raw)
+        nll = lambda parts: round(sum(_nll(p, q) * len(q) for p, q in parts) / n, 4)
+        rep["cnn_calibration_held_out"] = {
+            "temperature": [round(float(x), 3) for x in temps], "windows": int(n),
+            "ece_before": round(_pooled_ece(conf_raw), 4), "ece_after": round(_pooled_ece(conf_cal), 4),
+            "nll_before": nll(conf_raw), "nll_after": nll(conf_cal)}
+    if len(names) < 2 or (by == "day" and len(names) < 3):
+        rep["note"] = f"only {len(names)} {by}s: one fold's luck moves the mean; the intervals say how much"
+    return rep
+
+
+def _pooled_ece(parts: list, bins: int = 15) -> float:
+    """ECE over several (probabilities, true index) blocks, one bin set for all."""
+    conf = np.concatenate([p.max(1) for p, _ in parts])
+    right = np.concatenate([(p.argmax(1) == q).astype(float) for p, q in parts])
+    k = np.minimum((conf * bins).astype(int), bins - 1)
+    return float(sum(abs(conf[k == b].mean() - right[k == b].mean()) * (k == b).mean()
+                     for b in range(bins) if (k == b).any()))
+
+
+def format_held_out(rep: dict) -> str:
+    by = rep.get("split", "session")
+    lines = [f"  leave one {by} out: {len(rep.get('groups', []))} {by}s, each predicted by models that never saw it"]
+    for G, f in rep.get("folds", {}).items():
+        if "error" in f:
+            lines.append(f"    {G}: {f['error']}")
+        else:
+            un = f"; not in its training: {', '.join(f['unknown_places'])}" if f["unknown_places"] else ""
+            lines.append(f"    {G}: {f['test_windows']} windows, trained on {f['trained_on']}  "
+                         f"kNN {f['knn']:.0%}  CNN {f['cnn']:.0%}{un}")
+    if "error" in rep:
+        return "\n".join(lines + ["  " + rep["error"]])
+    ci, b = rep["ci95"], rep["balanced"]
+    r = rep["rule"]
+    lines += ["", f"  scored: {len(rep['scored_places'])} places with {r['min_windows']}+ test windows and "
+                  f"{r['min_visits']}+ visits ({rep['windows']['scored']} windows; chance {rep['chance']:.0%})",
+              "  balanced accuracy (each place counts the same), 95 % interval from resampling visits:"]
+    names = {"knn": "kNN", "cnn": "CNN", "majority": "always the commonest place",
+             "knn_shuffled": "kNN, shuffled labels (control)", "cnn_shuffled": "CNN, shuffled labels (control)"}
+    for k in b:
+        iv = f"[{ci[k][0]:.0%}, {ci[k][1]:.0%}]" if k in ci else ""
+        lines.append(f"    {names[k]:<32} {b[k]:>4.0%}  {iv:<12}  plain {rep['accuracy'][k]:.0%}")
+    if "cnn_minus_knn" in ci:
+        lines.append(f"    CNN minus kNN: [{ci['cnn_minus_knn'][0]:+.0%}, {ci['cnn_minus_knn'][1]:+.0%}]"
+                     + ("  (includes 0: no winner)" if ci["cnn_minus_knn"][0] <= 0 <= ci["cnn_minus_knn"][1] else ""))
+    ctrl = max(ci.get("knn_shuffled", [0, 0])[1], ci.get("cnn_shuffled", [0, 0])[1], b["majority"])
+    for k in ("knn", "cnn"):
+        if k in ci:
+            verdict = "clears" if ci[k][0] > ctrl else "does NOT clear"
+            lines.append(f"    {names[k]} {verdict} the baseline and the control")
+    lines += ["", "  place                              windows visits   kNN    CNN   control(CNN)"]
+    for z, v in rep["per_place"].items():
+        lines.append(f"  {z:<34} {v['windows']:>7} {v['visits']:>6}  {v['knn']:>4.0%}  {v['cnn']:>5.0%}"
+                     f"  {v.get('cnn_shuffled', float('nan')):>6.0%}")
+    if rep["listed_apart"]:
+        lines.append("  not scored (too few testable windows or visits): " + ", ".join(
+            f"{z} ({v['windows']} w, {v['visits']} v)" for z, v in rep["listed_apart"].items()))
+    cal = rep.get("cnn_calibration_held_out")
+    if cal:
+        lines.append(f"  CNN calibration on the held-out {by}s: temperature {', '.join(map(str, cal['temperature']))}; "
+                     f"ECE {cal['ece_before']:.1%} -> {cal['ece_after']:.1%}, NLL {cal['nll_before']:.2f} -> "
+                     f"{cal['nll_after']:.2f} (argmax, so accuracy, unchanged)")
+    if rep.get("note"):
+        lines.append("  " + rep["note"])
+    return "\n".join(lines)
 
 
 def format_half(rep: dict) -> str:
@@ -573,6 +876,10 @@ def format_half(rep: dict) -> str:
             lines.append(f"    {e['epoch']:>3}: {e['loss']:.3f}  {e['train_acc']:.0%}  {e['val_acc']:.0%}")
     if rep.get("not_in_training"):
         lines.append(f"  never in the training half (can't be learned yet): {rep['not_in_training']}")
+    cal = rep.get("calibration")
+    if cal:
+        lines.append(f"  CNN temperature {cal['temperature']} (on the early-stopping windows): "
+                     f"ECE {cal['ece_before']:.1%} -> {cal['ece_after']:.1%}")
     if rep.get("note"):
         lines.append("  " + rep["note"])
     return "\n".join(lines)
@@ -605,18 +912,3 @@ def plot_history(rep: dict, out: str) -> str:
     fig.savefig(out, dpi=100)
     plt.close(fig)
     return out
-
-
-def format_report(rep: dict) -> str:
-    lines = ["held-out day      windows   kNN     CNN     chance"]
-    for d in rep["days"]:
-        v = rep["per_day"].get(d, {})
-        if "error" in v:
-            lines.append(f"{d:<16}  {v['error']}")
-        elif v:
-            lines.append(f"{d:<16}  {v['windows']:>7}   {v['knn']:.0%}   {v['cnn']:.0%}   {v['chance']:.0%}")
-    if rep["mean"]:
-        lines.append(f"mean              kNN {rep['mean']['knn']:.0%}   CNN {rep['mean']['cnn']:.0%}   winner: {rep['winner']}")
-    if rep.get("note"):
-        lines.append(rep["note"])
-    return "\n".join(lines)

@@ -560,17 +560,25 @@ def _fingerprint_live(a) -> int:
 
 
 def cmd_fingerprint(a) -> int:
-    """kNN fingerprint vs CNN on the raw signal: evaluate (50/50 or leave-one-day-out) or train."""
-    from .fingerprint import (MODEL_ROOT, CnnFingerprint, _cat, evaluate_half, format_half, format_report,
-                              leave_one_day_out, load_days, plot_history)
+    """kNN fingerprint vs CNN on the raw signal: evaluate (held-out sessions/days, or the
+    same-session half split as an upper bound) or train."""
+    from .fingerprint import (MODEL_ROOT, PLACE_MAP, CnnFingerprint, _cat, evaluate_half, evaluate_held_out,
+                              fit_models, format_half, format_held_out, load_days, plot_history, scope_places)
     if a.action == "live":
         return _fingerprint_live(a)
     days = load_days(a.root)
     if not days:
         print("No drill or narrated sessions yet. Record one with: python -m aankhen narrate record")
         return 1
+    merge = not getattr(a, "no_merge", False)
+    days, dropped = scope_places(days, merge=merge)
+    if merge:
+        print("  places: " + ", ".join(f"{k} -> {v}" for k, v in PLACE_MAP.items()) + " (one spot on the floor)")
+    if dropped:
+        print("  left out (fewer than 2 visits: can't learn on one visit and test on another): "
+              + ", ".join(f"{z} ({n})" for z, n in dropped.items()))
     if a.action == "evaluate":
-        split = a.split or ("day" if len(days) >= 3 else "half")
+        split = a.split or "session"
         if split == "half":
             rep = evaluate_half(days, epochs=a.epochs)
             print(format_half(rep))
@@ -582,27 +590,38 @@ def cmd_fingerprint(a) -> int:
                     json.dump(rep, fh, indent=1, default=float)
                 print(f"  training record: {png} (+ .json)")
         else:
-            rep = leave_one_day_out(days, epochs=a.epochs)
-            print(format_report(rep))
+            rep = {"session": evaluate_held_out(days, by="session", epochs=a.epochs)}
+            print(format_held_out(rep["session"]))
+            if split == "day" or len(days) >= 2:
+                if len(days) >= 2:
+                    rep["day"] = evaluate_held_out(days, by="day", epochs=a.epochs)
+                    print("\n" + format_held_out(rep["day"]))
+                else:
+                    print("\n  leave one day out: only one day recorded, nothing to hold out yet")
         if a.json:
             with open(a.json, "w", encoding="utf-8") as fh:
                 json.dump(rep, fh, indent=1, default=float)
         return 0
     runs = [r for d in sorted(days) for r in days[d]]
     import numpy as np
-    from .fingerprint import cap_per_place
     X, y, t = _cat(runs, "X"), _cat(runs, "zone"), _cat(runs, "t")
-    keep = cap_per_place(np.arange(len(y)), y, t)          # same per-place cap as evaluate
-    m = CnnFingerprint(epochs=a.epochs).fit(X[keep], y[keep])
+    # the shipped model is trained exactly as evaluate trains it: the same cap, the same
+    # early-stopping carve, and the temperature fitted on that carve
+    fm = fit_models(X, y, t, np.arange(len(y)), epochs=a.epochs)
+    m, keep = fm["cnn"], fm["fit_idx"]
     counts = {z: int((y[keep] == z).sum()) for z in sorted(set(y[keep].tolist()))}
     out = m.save(meta={"days": sorted(days), "windows": int(len(keep)), "windows_before_cap": int(len(y)),
-                       "per_place": counts})
+                       "per_place": counts, "calibration": fm["calibration"], "best_epoch": m.best_epoch,
+                       "left_out": dropped})
     print(f"CNN ({m.weights()} weights) on {len(days)} day(s), {len(keep)} windows after the cap -> {out}")
     print("  per place: " + ", ".join(f"{z} {n}" for z, n in counts.items()))
+    if fm["calibration"]:
+        c = fm["calibration"]
+        print(f"  temperature {c['temperature']} on {c['windows']} held-back windows: "
+              f"ECE {c['ece_before']:.1%} -> {c['ece_after']:.1%}")
     # what live prediction needs besides the CNN: the newest day's empty-room level (to
     # clean new windows the same way) and the kNN's labelled database
     import joblib
-    from .fingerprint import KnnFingerprint
     last = days[sorted(days)[-1]]
     refs = {}
     for fan in (False, True):
@@ -614,7 +633,7 @@ def cmd_fingerprint(a) -> int:
         print(f"  empty-room reference saved for: {', '.join(refs)}")
     else:
         print("  no empty-room stretch on the newest day: live prediction will use its first 30 s as the reference")
-    joblib.dump(KnnFingerprint().fit(X[keep], y[keep]), os.path.join(out, "knn.joblib"))
+    joblib.dump(fm["knn"], os.path.join(out, "knn.joblib"))
     return 0
 
 
@@ -902,16 +921,19 @@ def main(argv=None) -> int:
     tr.add_argument("--root", help="drill folder (default data/aankhen/drill)")
     tr.add_argument("--out", help="model folder (default data/aankhen/models/drill)")
 
-    fp = sub.add_parser("fingerprint", help="kNN fingerprint vs CNN on the raw signal, judged on held-out days")
+    fp = sub.add_parser("fingerprint", help="kNN fingerprint vs CNN on the raw signal, judged on held-out sessions and days")
     fp.add_argument("action", choices=["evaluate", "train", "live"])
     fp.add_argument("--fan", choices=["on", "off"], default="on", help="(live) the fan state now, to pick the reference")
     fp.add_argument("--minutes", type=float, default=10.0, help="(live) stop by itself after this")
     fp.add_argument("--port", help="(live) serial port when the app is not running")
     fp.add_argument("--root", help="drill folder (default data/aankhen/drill)")
     fp.add_argument("--epochs", type=int, default=30)
-    fp.add_argument("--split", choices=["half", "day"],
-                    help="evaluate: half = 50 %% train / 50 %% verify by visits; day = leave one day out "
-                         "(default: day once there are 3+ days, else half)")
+    fp.add_argument("--split", choices=["session", "day", "half"],
+                    help="evaluate: session = leave one session out (the default; adds leave one day out "
+                         "at 2+ days); day = the same and insists on the day split; half = alternate visits "
+                         "of the same sessions, an UPPER BOUND only")
+    fp.add_argument("--no-merge", action="store_true",
+                    help="keep bed_lying and bed_sitting apart (to compare with the merged score)")
     fp.add_argument("--json", help="evaluate: also write the report as JSON")
 
     l1 = sub.add_parser("lesson1", help="see your own signal: heatmap, motion energy, a fingerprint per label (PNG)")

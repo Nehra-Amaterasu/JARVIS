@@ -213,10 +213,11 @@ export const NOT_SURE_WHERE = 'in the room, not sure where'
 /** An untrained model never shows more than this. */
 export const UNTRAINED_CAP = 0.9
 /** The experimental fingerprint CNN's place never shows more than this. Held out a whole
- *  session it named about 26 % of windows right (council 2026-10-26), so a "90 %" beside
- *  its dot would claim far more than it has earned. 60 % still ranks a clear favourite
- *  above the 30 % "can't tell" line, and stays there until a held-out DAY clears the
- *  shuffled-label control by more than its interval. */
+ *  session (2026-10-26, bed merged, 3 seeds) its balanced accuracy was 5-12 %, below the
+ *  25 % of always saying "bed", and its held-out calibration error was 44-80 % even after
+ *  temperature scaling: a "90 %" beside its dot claimed far more than it has earned. 60 %
+ *  still ranks a clear favourite above the 30 % "can't tell" line; it stays until a
+ *  held-out DAY clears the shuffled-label control by more than its interval. */
 export const EXPERIMENTAL_CAP = 0.6
 
 /** The zones to draw: the belief's own when trusted, else ONE room-wide zone at the

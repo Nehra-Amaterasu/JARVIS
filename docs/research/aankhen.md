@@ -2,6 +2,31 @@
 
 Newest first. One section per question; older dated notes (`2026-10-*-aankhen-*.md`) stay as they were.
 
+## 2026-10-26: the council's plan, built, and what it measured
+
+**Question.** Does building the council's plan (honest evaluator, merged bed, calibration, belief rules, speed, link-aware firmware) make Aankhen locate anyone?
+
+**Answer: no, not yet, and now the evaluator says so plainly.**
+
+Leave one session out, 3 sessions, 4 places with 40+ windows and 2+ stays, 7,775 windows, chance 25 %:
+
+| | balanced | 95 % interval (resampling stays) |
+|---|---|---|
+| kNN | 15 % | 1–34 % |
+| CNN | 11 % | 2–18 % |
+| always "bed" | 25 % | — |
+| shuffled-label control | 5–7 % | 0–29 % |
+
+- **A visit is now a stay**, ended only by another place, never by a silence: the weak link's dead stretches had cut 5 bed stays into 93 "visits", which would have made the interval far too narrow.
+- **Merging lying and sitting on the bed did not help.** The council's idea that the session-confounded bed labels caused the low score is not supported.
+- **What the confusion shows instead:** each held-out session collapses onto one label (3,384 bed windows mostly called "between bed and balcony door"; 2,754 of 2,766 called "desk"). This points to a per-session common-mode offset. That is a hypothesis to test next, not yet measured.
+- **Temperature scaling** (T = 0.84–1.36) cut calibration error on same-session data (7 → 6 % at worst) but not across sessions (about 80 % → 80 %). The model is confidently wrong on a new session, so the UI caps the experimental place at 60 %.
+- **Belief rules** (transit zones 3–4 s with constant hazard, dead-link time run as "motion unknown", forgetting towards the prior after 30 s, a small leak), replayed on the real stream: balanced 25.7 → 28.6 %, transitions caught 7 → 9 of 34, false switches 14.9/h either way. After a 10 min dead link the bed is named in 2.0 s instead of 12.5 s (synthetic). The rules cannot create evidence the CNN does not have.
+- **Speed** (same output, checked against frozen old code): fan-line removal about 50× (one cached pseudo-inverse), Hampel about 10× (a median-of-7 sorting network), per-window features 2.8× (cleaned once for 5 bands). Day evaluation 2.3×, and its timestamps were 72 ms (median) to 21 s late; now board-clock.
+- **Firmware 3.6.0** (compiled, 76 %, not flashed): STATUS reports ping ok/lost, the longest capture gap, PHY rate, reconnects, the disconnect reason and the AP; Wi-Fi reconnects without blocking (1–15 s backoff) and can pin the AP's BSSID; the watchdog covers loop().
+
+**What it changed.** The limits are the link and the session-to-session offset, not the model or the filter. Next: test removing the common mode per session; flash 3.6.0 and measure the link; the in-room AP; more days.
+
 ## 2026-10-26: a five-expert review of Aankhen, and its verdict
 
 **Question.** After one day of narrated data (3 sessions), what actually limits Aankhen, and what should be built next? Five independent reviews (deep learning, sequence models and rules, Wi-Fi CSI physics, firmware and link, code quality), then a judge who ruled where they disagreed. The full reports are private notes; the public-safe findings are below.

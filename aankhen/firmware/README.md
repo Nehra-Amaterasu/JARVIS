@@ -1,6 +1,6 @@
 # Aankhen firmware v3 (ESP32-S3)
 
-Firmware 3.5.0. The sensor board for JARVIS's eyes, and since 3.5.0 the room's relay board.
+Firmware 3.6.0. The sensor board for JARVIS's eyes, and since 3.5.0 the room's relay board.
 It streams raw Wi-Fi CSI to the laptop as CRC-checked binary frames, over USB and, from a box
 on the wall with no cable, over Wi-Fi (section 4c): the router link at up to 500 captures a
 second, and optionally a second link from a phone (section 7). Aankhen senses from radio
@@ -233,6 +233,70 @@ the handshake. Nothing is sent to a port before that, so an Uno plugged in besid
 ESP32 never receives a relay command. A board plugged in while the app runs is picked
 up within a few seconds of its first STATUS frame (`aankhen/boards.py`).
 
+## 4d. Link quality and staying on the Wi-Fi (3.6.0)
+
+**Why.** The council's link review (2026-10-26) explained the board's "40-370 CSI/s with
+long dead stretches" from the code (the 1 s ping stall fixed in 3.5.1) and an airtime
+model (500 pings/s at -88 dBm is ~43 % of the channel). Neither was measured. 3.6.0 makes
+the board report what is needed to measure them, and fixes three ways the Wi-Fi could
+silently stop CSI.
+
+**STATUS `lq`** (every STATUS, ~1 s):
+
+| Field | Meaning | Good |
+|---|---|---|
+| `ping_ok`, `ping_lost` | router pings answered / timed out since boot. A timeout is a reply later than `CSI_PING_TIMEOUT_MS` (10 ms); a late reply is still captured as CSI, so this is not lost CSI | timeouts < 5 % |
+| `gap_ms` | the longest stretch between two router captures since the last 1 s STATUS, including the one still open: a dead link shows a growing number, not 0. Capped at 65535 | < 50 ms (USB), < 250 ms always |
+| `rate` | the PHY rate of the latest router reply: 0-31 the legacy 11b/g code (`wifi_phy_rate_t`, 11 = 6 Mbit/s), 128 + n = 11n MCS n. `null` before the first reply. Tells you whether the airtime model's 6 Mbit/s is real. That the S3 uses this code table is assumed until a capture at a known rate confirms it | higher = less airtime per ping |
+| `reconn`, `disc` | rejoins since boot; the last disconnect's ESP-IDF reason (200 beacon timeout, 201 no AP found, 202 wrong password, 8 left on purpose) | 0, `null` |
+| `ap` | the last 3 bytes of the access point's BSSID, the one the board is pinned to | unchanged |
+
+The block costs up to 121 bytes; the longest STATUS (five relays, a phone, a session, every
+counter at its widest) is 993 bytes, under the 1000-byte buffer and the 1024 bytes every
+deployed host accepts, so 3.6.0 needs no host update to keep working
+(`aankhen/tests/test_status_lq.py` rebuilds that worst case from the format string). The host
+reads the block as `StatusPacket.link_quality` (`None` from older firmware), and
+`python -m aankhen.tools.smoke_board` prints it with a verdict: the longest gap between
+captures (from the board's own timestamps) must stay under 50 ms on USB and under 250 ms
+on Wi-Fi (past 250 ms the host's resampler breaks the stream), and frame loss must stay at
+or under 5 %.
+
+**No more 20 s freeze on reconnect.** 3.5.1's `connectWifi()` waited in a `delay(250)` loop
+for up to 20 s whenever the Wi-Fi dropped: nothing drained the CSI queues, read a USB relay
+command or served OTA. 3.6.0 calls `WiFi.begin()` and returns; Wi-Fi events set flags and
+`loop()` reacts. Retries back off 1, 2, 4, 8, 15 s. A USB relay command answers during an
+outage.
+
+**The ping target and the CSI filter follow every join.** The core's own auto-reconnect could
+rejoin before the old 15 s check ran, and then the gateway the board pings and the router
+BSSID the CSI filter accepts were never refreshed: after a join to another access point
+with the same name, every capture was rejected, forever, silently. Now each `GOT_IP` copies
+the new BSSID, restarts the ping to the new gateway, and counts a reconnect.
+
+**Pinned to one access point.** Once joined, the board rejoins only that BSSID
+(`WIFI_PIN_BSSID 1` in `config.h`; the core's auto-reconnect is off so every rejoin goes
+through the pin). A second access point with the same SSID, such as the planned in-room AP,
+cannot take the board over and change link 1's geometry under the learned models. If the
+pinned AP is gone for `WIFI_PIN_GIVEUP_S` (300 s: longer than a router reboot) the pin is
+dropped, the board joins whatever answers, pins that, and STATUS `ap` shows the change.
+To choose the access point yourself, add to `secrets.h` (a MAC stays out of git):
+
+```c
+#define WIFI_BSSID_VALUE "aa:bb:cc:dd:ee:ff"   // the in-room AP; never given up
+```
+
+**Loop watchdog.** `loop()` is on the ESP-IDF task watchdog with a `LOOP_WDT_S` (15 s)
+timeout. No legitimate step takes that long: the slowest are the web server's 5 s client
+timeouts and OTA, which feeds the watchdog on every chunk. A real hang restarts the board
+(STATUS `reset: "watchdog"`). The relays then start OFF, like after any crash: whether they
+should be restored after a watchdog reset, as after an OTA update, is the owner's decision
+and is not changed here.
+
+**Check it after flashing** (app closed, board on USB):
+`.venv\Scripts\python.exe -m aankhen.tools.smoke_board --link usb --seconds 120`. Then switch
+the router off for 30 s and on again: CSI must resume within 10 s of the board's IP, `reconn`
+goes up by one, `disc` says 200 (beacon timeout), `ap` stays the same.
+
 ## 5. Check it
 
 ```bash
@@ -356,3 +420,9 @@ anyone opens `/beacon`.
 | plain-text prints mixed into the data stream | log lines are frames too, so the stream never desynchronises |
 | (3.4.0) USB-only updates | OTA with a password (or none at all), `/status` over Wi-Fi, relays kept across an update |
 | (3.5.0) USB-only data and commands; two relays | the Wi-Fi link (batched, HMAC-SHA256, replay-checked UDP) beside USB; a relay table of up to 8 (5 by default) with names and pins in STATUS; mDNS `aankhen.local`; MQTT only with a login |
+| (3.5.1) router ping timeout 1000 ms: one lost reply froze link 1 for 1 s, then a catch-up burst | `CSI_PING_TIMEOUT_MS 10`: a lost reply costs one slot |
+| (3.6.0) link quality inferred, never measured | STATUS `lq`: ping answers / timeouts, the longest CSI gap per second, the router's PHY rate, reconnects, last disconnect reason, the AP's BSSID tail (section 4d) |
+| (3.6.0) a Wi-Fi drop blocked `loop()` up to 20 s | non-blocking reconnect driven by Wi-Fi events, backoff 1-15 s |
+| (3.6.0) ping target and CSI BSSID filter set once, at the first join | refreshed on every join: an AP change no longer means zero CSI forever |
+| (3.6.0) any AP with the SSID could take the board | pinned to the AP it joined (or `WIFI_BSSID_VALUE` in `secrets.h`); a learnt pin is dropped only after 300 s without that AP |
+| (3.6.0) a hung `loop()` hung forever | task watchdog on `loop()`, 15 s; OTA feeds it per chunk; relays start OFF after it, as after any crash |

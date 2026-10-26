@@ -237,6 +237,8 @@ export function AankhenPage() {
               <b>{est?.label}</b>
               <span>{est?.label === NOT_SURE_WHERE
                 ? 'zones are not trusted yet: measure the room and drill 7 days'
+                : est?.label?.endsWith('(experimental)')
+                ? 'day-1 CNN: dots go where it points; not yet tested on a day it never saw'
                 : <>dots = probability, not a person{est?.fallback ? ' · from the learned states' : ''}</>}</span>
             </div>
           </div>

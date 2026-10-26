@@ -510,10 +510,61 @@ def cmd_evaluate(a) -> int:
     return 0
 
 
+def _fingerprint_live(a) -> int:
+    """Stream the board, print what the saved CNN and kNN think, twice a second."""
+    import threading
+    import numpy as np
+    from . import live as lv
+    from .fingerprint import csi_stream, windows
+    try:
+        cnn, knn, refs, folder = lv.load_current()
+    except (OSError, KeyError) as e:
+        print(f"  No saved model ({e}). Run: python -m aankhen fingerprint train")
+        return 1
+    key = "fan_on" if a.fan == "on" else "fan_off"
+    ref = refs.get(key, refs.get("fan_on" if key == "fan_off" else "fan_off"))
+    print(f"  model {os.path.basename(folder)}: {len(cnn.classes)} places; reference: "
+          f"{key if key in refs else ('the other fan state' if ref is not None else 'none saved: first 30 s')}")
+    backend, why = _recording_backend(a.port)
+    if backend is None:
+        print(f"  {why}")
+        return 1
+    os.makedirs(lv.LIVE_DIR, exist_ok=True)
+    path = os.path.join(lv.LIVE_DIR, time.strftime("%Y%m%d-%H%M%S") + ".akr")
+    backend.start_recording(path, {"label": "live"})
+    done = threading.Event()
+    deadline = time.time() + a.minutes * 60
+    stop = lambda: done.is_set() or time.time() > deadline
+    print("  Walk around. Each line: time | CNN's place (smoothed over 1.5 s) and its probability | "
+          "runner-up | kNN. Ctrl+C to stop.\n")
+    try:
+        wins = windows(csi_stream(lv.follow(path, stop)))
+        if ref is None:                      # no saved reference: the first 30 s of windows stand in
+            first = []
+            for t, w in wins:
+                first.append(w)
+                if len(first) >= 60:
+                    break
+            ref = np.mean(first, axis=(0, 2)) if first else np.zeros(51)
+        for r in lv.predict_stream(wins, cnn, knn, ref):
+            print(f"  {time.strftime('%H:%M:%S', time.localtime(r['t']))}  {r['cnn']:<30} {r['p']:4.0%}   "
+                  f"({r['second']} {r['p2']:.0%})   kNN: {r['knn']}", flush=True)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        done.set()
+        backend.stop_recording()
+        backend.close()
+    print(f"\n  Recording kept: {path}")
+    return 0
+
+
 def cmd_fingerprint(a) -> int:
     """kNN fingerprint vs CNN on the raw signal: evaluate (50/50 or leave-one-day-out) or train."""
     from .fingerprint import (MODEL_ROOT, CnnFingerprint, _cat, evaluate_half, format_half, format_report,
                               leave_one_day_out, load_days, plot_history)
+    if a.action == "live":
+        return _fingerprint_live(a)
     days = load_days(a.root)
     if not days:
         print("No drill or narrated sessions yet. Record one with: python -m aankhen narrate record")
@@ -548,6 +599,22 @@ def cmd_fingerprint(a) -> int:
                        "per_place": counts})
     print(f"CNN ({m.weights()} weights) on {len(days)} day(s), {len(keep)} windows after the cap -> {out}")
     print("  per place: " + ", ".join(f"{z} {n}" for z, n in counts.items()))
+    # what live prediction needs besides the CNN: the newest day's empty-room level (to
+    # clean new windows the same way) and the kNN's labelled database
+    import joblib
+    from .fingerprint import KnnFingerprint
+    last = days[sorted(days)[-1]]
+    refs = {}
+    for fan in (False, True):
+        own = [r["refs"][fan] for r in last if fan in r.get("refs", {})]
+        if own:
+            refs["fan_on" if fan else "fan_off"] = np.mean(own, axis=0)
+    if refs:
+        np.savez(os.path.join(out, "ref.npz"), **refs)
+        print(f"  empty-room reference saved for: {', '.join(refs)}")
+    else:
+        print("  no empty-room stretch on the newest day: live prediction will use its first 30 s as the reference")
+    joblib.dump(KnnFingerprint().fit(X[keep], y[keep]), os.path.join(out, "knn.joblib"))
     return 0
 
 
@@ -836,7 +903,10 @@ def main(argv=None) -> int:
     tr.add_argument("--out", help="model folder (default data/aankhen/models/drill)")
 
     fp = sub.add_parser("fingerprint", help="kNN fingerprint vs CNN on the raw signal, judged on held-out days")
-    fp.add_argument("action", choices=["evaluate", "train"])
+    fp.add_argument("action", choices=["evaluate", "train", "live"])
+    fp.add_argument("--fan", choices=["on", "off"], default="on", help="(live) the fan state now, to pick the reference")
+    fp.add_argument("--minutes", type=float, default=10.0, help="(live) stop by itself after this")
+    fp.add_argument("--port", help="(live) serial port when the app is not running")
     fp.add_argument("--root", help="drill folder (default data/aankhen/drill)")
     fp.add_argument("--epochs", type=int, default=30)
     fp.add_argument("--split", choices=["half", "day"],

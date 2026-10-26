@@ -32,6 +32,9 @@ export interface Belief {
   /** false: the layout is estimated or no zone model has passed the day-7 drill test, so
    *  no zone may be shown or named: the cloud covers the room, "not sure where". */
   zonesTrusted?: boolean
+  /** set when an untested model (the day-1 fingerprint CNN) drives the zones: the dots
+   *  follow it anyway, and every label says "experimental" */
+  experimental?: string | null
 }
 
 const num = (v: unknown, d = 0): number => (typeof v === 'number' && Number.isFinite(v) ? v : d)
@@ -62,6 +65,7 @@ export function readBelief(raw: unknown): Belief | null {
     activity: a && typeof a === 'object' && typeof a.state === 'string' ? { state: a.state, p: clamp01(num(a.p)) } : null,
     updated: num(b.updated),
     zonesTrusted: b.zones_trusted !== false,
+    experimental: typeof b.experimental === 'string' && b.experimental ? b.experimental : null,
   }
 }
 
@@ -213,7 +217,7 @@ export const UNTRAINED_CAP = 0.9
  *  probability-weighted centre, so dots never pile on a place nobody has verified. */
 export function shownZones(b: Belief | null): BeliefZone[] {
   if (!b) return []
-  if (b.zonesTrusted !== false || !b.zones.length) return b.zones
+  if (b.zonesTrusted !== false || b.experimental || !b.zones.length) return b.zones
   const sum = b.zones.reduce((s, z) => s + z.p, 0)
   if (sum <= 0) return []
   const x = b.zones.reduce((s, z) => s + z.p * z.x, 0) / sum
@@ -226,6 +230,10 @@ export function beliefLabel(b: Belief | null): string {
   const pct = (v: number) => `${Math.round(clamp01(v) * 100)} %`
   const untrusted = b.zonesTrusted === false
   if (b.state === 'empty') return `probably: nobody in the room · ${pct(untrusted ? Math.min(b.confidence, UNTRAINED_CAP) : b.confidence)}`
+  if (untrusted && b.experimental) {
+    const top = topZone(b)
+    return top && top.p >= TELL_P ? `maybe: ${top.name} · ${pct(Math.min(top.p, UNTRAINED_CAP))} (experimental)` : NOT_SURE_WHERE
+  }
   if (untrusted) return b.state === 'in_room' ? NOT_SURE_WHERE : "can't tell"
   const top = topZone(b)
   if (!top || top.p < TELL_P) return "can't tell"

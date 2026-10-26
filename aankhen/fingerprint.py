@@ -61,8 +61,8 @@ MAX_EMPTY_BINS = 0.2           # a window may have at most 20 % of its 40 ms ste
 MAX_GAP_S = 0.5                # a longer silence starts the window over
 
 
-def windows(samples: Iterable[tuple[float, np.ndarray, bool]]) -> Iterable[tuple[float, np.ndarray]]:
-    """(time, amp[51], filled) at 100 Hz -> (end time, log-amp window [51, 50]). Pure.
+class WindowBuilder:
+    """Push one 100 Hz sample at a time; get a 2 s window back every 0.5 s (or None).
 
     Judged per 40 ms step, the resolution the models see, not per 10 ms sample. The
     first version dropped a window when over 20 % of its 100 Hz samples were filled in.
@@ -70,51 +70,68 @@ def windows(samples: Iterable[tuple[float, np.ndarray, bool]]) -> Iterable[tuple
     them, although a 40 ms step needs only one real packet to be measured. A step's value
     is the mean of its real samples (the filled-in ones only if it has none, the previous
     step's if it has nothing at all); a window counts if at least 80 % of its steps hold a
-    real packet. Silences up to MAX_GAP_S are bridged as empty steps; a longer one starts over."""
-    done: deque = deque(maxlen=NB)            # finished steps: (value[51] or None, real?, last time)
-    cur_k = None
-    real_sum = all_sum = None
-    n_real = n_all = 0
-    last_t = None
-    last_emit = -1e18
+    real packet. Silences up to MAX_GAP_S are bridged as empty steps; a longer one starts
+    over. Push-based so the live engine and the file readers share one implementation."""
 
-    def finish():
-        v = real_sum / n_real if n_real else (all_sum / n_all if n_all else None)
-        done.append((v, n_real > 0, last_t))
+    def __init__(self):
+        self.done: deque = deque(maxlen=NB)    # finished steps: (value[51] or None, real?, last time)
+        self.cur_k: Optional[int] = None
+        self.real_sum = self.all_sum = None
+        self.n_real = self.n_all = 0
+        self.last_t: Optional[float] = None
+        self.last_emit = -1e18
 
-    for t, amp, was_filled in samples:
+    def push(self, t: float, amp, was_filled: bool) -> Optional[tuple[float, np.ndarray]]:
         k = int(round(t * RATE_HZ)) // POOL
         a = np.log(np.maximum(np.asarray(amp, float), 1e-6))
-        if cur_k is not None and k != cur_k:
-            finish()
-            gap = k - cur_k - 1
-            if k < cur_k or gap * BIN_S > MAX_GAP_S:
-                done.clear()
-                last_emit = -1e18
-            else:
-                for _ in range(gap):
-                    done.append((None, False, last_t))
-            # a window ends at every step boundary once full; emit every 0.5 s
-            if len(done) == NB and done[-1][2] - last_emit >= HOP / RATE_HZ - 0.03:
-                if sum(1 for _, r, _ in done if not r) / NB <= MAX_EMPTY_BINS:
-                    vals = [v for v, _, _ in done]
-                    first = next((v for v in vals if v is not None), None)
-                    if first is not None:
-                        prev, cols = first, []
-                        for v in vals:
-                            prev = v if v is not None else prev
-                            cols.append(prev)
-                        last_emit = done[-1][2]
-                        yield done[-1][2], np.stack(cols, axis=1)    # [51, 50]
-            real_sum = all_sum = None
-            n_real = n_all = 0
-        cur_k = k
-        last_t = t
-        all_sum = a if all_sum is None else all_sum + a
-        n_all += 1
+        out = None
+        if self.cur_k is not None and k != self.cur_k:
+            out = self._close_step(k)
+        self.cur_k, self.last_t = k, t
+        self.all_sum = a if self.all_sum is None else self.all_sum + a
+        self.n_all += 1
         if not was_filled:
-            real_sum = a if real_sum is None else real_sum + a
-            n_real += 1
+            self.real_sum = a if self.real_sum is None else self.real_sum + a
+            self.n_real += 1
+        return out
+
+    def _close_step(self, k: int) -> Optional[tuple[float, np.ndarray]]:
+        done = self.done
+        v = self.real_sum / self.n_real if self.n_real else (self.all_sum / self.n_all if self.n_all else None)
+        done.append((v, self.n_real > 0, self.last_t))
+        self.real_sum = self.all_sum = None
+        self.n_real = self.n_all = 0
+        gap = k - self.cur_k - 1
+        if k < self.cur_k or gap * BIN_S > MAX_GAP_S:
+            done.clear()
+            self.last_emit = -1e18
+            return None
+        for _ in range(gap):
+            done.append((None, False, self.last_t))
+        # a window ends at every step boundary once full; one goes out every 0.5 s
+        if len(done) < NB or done[-1][2] - self.last_emit < HOP / RATE_HZ - 0.03:
+            return None
+        if sum(1 for _, r, _ in done if not r) / NB > MAX_EMPTY_BINS:
+            return None
+        vals = [v for v, _, _ in done]
+        prev = next((v for v in vals if v is not None), None)
+        if prev is None:
+            return None
+        cols = []
+        for v in vals:
+            prev = v if v is not None else prev
+            cols.append(prev)
+        self.last_emit = done[-1][2]
+        return done[-1][2], np.stack(cols, axis=1)                 # [51, 50]
+
+
+def windows(samples: Iterable[tuple[float, np.ndarray, bool]]) -> Iterable[tuple[float, np.ndarray]]:
+    """(time, amp[51], filled) at 100 Hz -> (end time, log-amp window [51, 50]). WindowBuilder over an iterable."""
+    wb = WindowBuilder()
+    for t, amp, was_filled in samples:
+        w = wb.push(t, amp, was_filled)
+        if w is not None:
+            yield w
 
 
 def label_windows(wins: list[tuple[float, np.ndarray]], labels: list[dict], purge_s: float = PURGE_S,
@@ -163,12 +180,17 @@ def akr_stream(path: str) -> Iterable[tuple[float, np.ndarray, bool]]:
     on the first real narrated session (2026-10-26, a weak link, chunks arriving in
     bursts) every jump restarted the 2 s window: 197,945 good samples, 0 windows. A jump
     of more than 1 s in the offset means the board restarted: a new stretch."""
+    from .transport import iter_recording
+    return csi_stream(iter_recording(path))
+
+
+def csi_stream(records: Iterable[tuple[float, bytes]]) -> Iterable[tuple[float, np.ndarray, bool]]:
+    """akr_stream on any (host time, bytes) records: a finished file or one still growing."""
     from .csi import CsiConditioner
     from .protocol import CsiPacket, StreamDecoder, decode_packet
-    from .transport import iter_recording
     cond, dec = CsiConditioner(), StreamDecoder()
     off: Optional[float] = None
-    for host_t, chunk in iter_recording(path):
+    for host_t, chunk in records:
         for fr in dec.feed(chunk):
             p = decode_packet(fr)
             if not isinstance(p, CsiPacket):

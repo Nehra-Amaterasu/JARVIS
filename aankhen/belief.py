@@ -44,6 +44,7 @@ ZONE_FLOOR = 0.6           # a zone is named only this sure
 ACTIVITY_FLOOR = 0.7       # an activity is named only this sure
 LEARNED_WEIGHT = 0.3       # the CSI models' evidence is tempered: ~50 % across days
 ZONE_MODEL_WEIGHT = 0.5    # a zone model trained on drills, once one exists
+EXPERIMENTAL_WEIGHT = 0.3  # the day-1 fingerprint CNN, before it passes a held-out day
 TEACHER_FRESH_S = 15.0     # a free-teacher hint older than this is ignored
 MIN_P = 1e-6
 NOT_SURE_WHERE = "in the room, not sure where"
@@ -280,6 +281,9 @@ class BeliefTracker:
         self.layout_measured = True
         self.zone_floor: Optional[float] = ZONE_FLOOR
         self.updated: Optional[float] = None
+        # set when an untested model drives the zones (live.EXPERIMENTAL): the UI then
+        # draws the dots where it points, with this sentence beside them
+        self.experimental: Optional[str] = None
 
     # ---------------------------------------------------------- evidence
     def step(self, t: float, motion: Optional[float] = None, coarse_p: Optional[dict] = None,
@@ -291,7 +295,9 @@ class BeliefTracker:
         self.motion = motion
         self.belief.predict(t, motion)
         used = False
-        if ood is None and not self.reference_ok:
+        if ood is None and not self.reference_ok and not (self.experimental and zone_p):
+            # (the fingerprint CNN cleans its windows with its own saved empty room, so the
+            # engine's reference does not gate it)
             # Place and presence features are deviations from the empty room. Measured
             # against another firmware's or fan state's empty room they are not evidence.
             ood = NO_REFERENCE
@@ -299,7 +305,10 @@ class BeliefTracker:
             # `used` only when the update really applied: a NaN model output changes
             # nothing, so it must not clear "no evidence yet" either.
             if zone_p:
-                used = self.belief.update(zone_model_likelihood(self.zmap, zone_p), ZONE_MODEL_WEIGHT, t)
+                # the untested fingerprint CNN counts less: 0.3 (council 2026-10-26: across
+                # sessions it scored 26 %, and 0.3 cut its flicker from 89 to 10 segments)
+                w = EXPERIMENTAL_WEIGHT if self.experimental else ZONE_MODEL_WEIGHT
+                used = self.belief.update(zone_model_likelihood(self.zmap, zone_p), w, t)
             elif coarse_p:
                 used = self.belief.update(coarse_likelihood(self.zmap, coarse_p, coarse_prior), LEARNED_WEIGHT, t)
             if activity_p is not None:
@@ -372,6 +381,7 @@ class BeliefTracker:
                 "activity": self._activity(state),
                 # False: draw the room, never a zone (the UI says "not sure where")
                 "zones_trusted": bool(self.layout_measured and self.zone_floor is not None),
+                "experimental": self.experimental,
                 "updated": round(self.updated if self.updated is not None else self.clock(), 3)}
 
     def honest(self) -> dict:

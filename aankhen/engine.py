@@ -118,6 +118,18 @@ class Engine:
             from .readiness import zone_floor
             self.belief.layout_measured = bool(room_measured)
             self.belief.zone_floor = zone_floor()
+        # The fingerprint CNN (fingerprint.py, live.py) as live zone evidence on the real
+        # board, labelled experimental until it passes a held-out day. AANKHEN_FINGERPRINT=0
+        # turns it off; the simulator never uses it (it would be judging fake CSI).
+        self.fingerprint = None
+        if source_kind == "hardware" and _os.environ.get("AANKHEN_FINGERPRINT", "1") != "0":
+            try:
+                from .live import EXPERIMENTAL, FingerprintZones
+                self.fingerprint = FingerprintZones.load()
+                if self.fingerprint is not None:
+                    self.belief.experimental = EXPERIMENTAL
+            except Exception:              # torch missing or a bad file: the engine must still run
+                self.fingerprint = None
         guard_model = zone_model if zone_model is not None else spatial_model
         self.ood = OodGuard(getattr(guard_model, "features", None) or LEARNED_FEATURES,
                             feature_ranges_from_model(guard_model))
@@ -311,6 +323,10 @@ class Engine:
             if tap is not None:
                 tap.sample(s.t, s.amp, s.filled)
             self.resp.push(s)
+            if self.fingerprint is not None:
+                zp = self.fingerprint.push(s.t, s.amp, s.filled, bool(self.fan_on))
+                if zp is not None:
+                    self._belief_step(s.t, zone_p=zp, force=True)
             if self._spatial_fs is not None:
                 v = self._spatial_fs.push(s, p.rssi, self._fan_feature())
                 if v is not None:

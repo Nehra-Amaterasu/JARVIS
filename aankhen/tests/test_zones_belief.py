@@ -128,7 +128,7 @@ def test_state_is_unsure_until_evidence_and_floors_hold():
     bt = BeliefTracker(zm, clock=lambda: 100.0)
     c = bt.contract()
     assert c["state"] == "unsure" and len(c["zones"]) == len(zm)
-    assert set(c) == {"state", "confidence", "zones", "motion", "activity", "zones_trusted", "updated"}
+    assert set(c) == {"state", "confidence", "zones", "motion", "activity", "zones_trusted", "experimental", "updated"}
     assert set(c["zones"][0]) == {"id", "name", "p", "x", "y", "r"}
     for k in range(60):                       # 30 s of the coarse model saying "desk"
         bt.step(k * 0.5, motion=0.05, coarse_p={"desk": 0.9, "bed": 0.04, "room": 0.04, "empty": 0.01,
@@ -233,7 +233,7 @@ def test_engine_frames_carry_the_belief_contract_and_honest_output():
         eng.process(p)
     f = eng.frame_message()
     b = f["belief"]
-    assert set(b) == {"state", "confidence", "zones", "motion", "activity", "zones_trusted", "updated"}
+    assert set(b) == {"state", "confidence", "zones", "motion", "activity", "zones_trusted", "experimental", "updated"}
     assert b["state"] in ("in_room", "empty", "unsure")
     assert abs(sum(z["p"] for z in b["zones"]) - 1.0) < 1e-2
     assert {z["id"] for z in b["zones"]} == set(ZONE_IDS)

@@ -21,6 +21,8 @@
 //   8. (3.5.0) Streams the same frames to JARVIS over Wi-Fi when the laptop opens an
 //      authenticated session (WI-FI LINK below), several frames per datagram, and
 //      answers to aankhen.local (mDNS).
+//   9. (3.6.0) Reports link quality in STATUS ("lq"), rejoins the Wi-Fi without blocking,
+//      stays pinned to the access point it joined, and runs loop() under a watchdog.
 // Everything goes to the laptop as CRC-checked binary frames over native USB (see
 // aankhen_protocol.h), and, with a session, over Wi-Fi as well. The laptop does all the
 // maths, so a recording made today can be re-analysed by tomorrow's algorithm.
@@ -40,6 +42,7 @@
 #include <esp_wifi.h>
 #include <esp_timer.h>
 #include <esp_random.h>
+#include <esp_task_wdt.h>
 #include "ping/ping_sock.h"
 #include "mqtt_client.h"
 #include "lwip/etharp.h"
@@ -111,7 +114,7 @@ static_assert(AkText::hex(LINK_KEY_VALUE), "LINK_KEY_VALUE (secrets.h) must be h
 #endif
 
 // ------------------------------------------------------------------ config
-#define FW_VERSION "aankhen-3.5.1"
+#define FW_VERSION "aankhen-3.6.0"
 #define STATUS_MAX 1000                 // the STATUS JSON's buffer: under the host's 1024-byte limit
 // CSI_RATE_HZ (router pings = CSI captures per second) lives in config.h, where the app's
 // firmware form can set it. The ping interval is 1000 / CSI_RATE_HZ whole milliseconds.
@@ -175,6 +178,26 @@ static bool webUp = false;         // the server itself: always on, for /beacon 
 static bool otaUp = false;         // ArduinoOTA is listening (STATUS "ota")
 static int8_t otaLastTenth = -1;   // progress, logged every 10 %
 static bool mdnsUp = false;        // aankhen.local answers (STATUS "mdns")
+
+// LINK QUALITY (3.6.0, STATUS "lq"). The council's link review explained the dead
+// stretches from code and an airtime model; these make the board measure them. Written by
+// the ping task and the Wi-Fi task, read by loop(): 32-bit values, so every read is whole.
+static volatile uint32_t pingOk = 0, pingLost = 0;   // link-1 pings answered / timed out
+static volatile uint32_t csiLastUs = 0;              // low 32 bits of esp_timer at the last router capture
+static volatile bool csiSeen = false;
+static volatile uint32_t gapMaxUs = 0;               // longest gap between router captures, this STATUS second
+static volatile uint8_t csiRateCode = 0xFF;          // latest router reply: legacy rate code, 128 + MCS, 0xFF none
+#define RATE_HT 128
+
+// Wi-Fi state (WI-FI below). The event task only sets these flags; loop() acts on them.
+static volatile bool wifiGotIp = false;
+static volatile uint8_t wifiDiscReason = 0;          // the last disconnect's reason code; 0 = none yet
+static bool wifiUp = false;                          // loop()'s view: joined and set up
+static uint32_t wifiJoins = 0;                       // STATUS lq "reconn" = joins after the first
+static uint32_t wifiLostMs = 0, wifiNextTryMs = 0, wifiBackoffMs = 1000;
+static uint8_t pinBssid[6];
+static bool pinned = false, pinFixed = false;        // pinFixed: from secrets.h, never given up
+static bool wdtOn = false;
 
 // The Wi-Fi link's state (WI-FI LINK below). Sessions are touched by loop() only; the
 // batch and the socket's sends belong to txLock, like the USB writer.
@@ -325,8 +348,21 @@ static void IRAM_ATTR onCsi(void *ctx, wifi_csi_info_t *info) {
     csiRejected++;
     return;
   }
+  int64_t now = esp_timer_get_time();
+  // Link quality: the gap since the previous router capture, measured here, before the
+  // queue, so it is the radio's gap (a full queue is csi_dropped, counted apart). The low
+  // 32 bits wrap every 71 min; a difference of them is right for any gap shorter than that.
+  uint32_t now32 = (uint32_t)now;
+  if (csiSeen) {
+    uint32_t gap = now32 - csiLastUs;
+    if (gap > gapMaxUs) gapMaxUs = gap;
+  }
+  csiLastUs = now32;
+  csiSeen = true;
+  csiRateCode = info->rx_ctrl.sig_mode == 0 ? (uint8_t)info->rx_ctrl.rate
+              : info->rx_ctrl.sig_mode == 1 ? (uint8_t)(RATE_HT + info->rx_ctrl.mcs) : 0xFF;
   CsiItem item;
-  fillItem(item, info, AK_LINK_ROUTER, esp_timer_get_time());
+  fillItem(item, info, AK_LINK_ROUTER, now);
   if (xQueueSendFromISR(csiQueue, &item, nullptr) == pdTRUE) csiCaptured++;
   else csiDropped++;                                     // counted, reported, never silent
 }
@@ -391,13 +427,22 @@ static void drainCsi(QueueHandle_t q, int burst) {
   }
 }
 
-// Traffic generator: ICMP echo to the gateway. Each reply is one CSI capture.
+// Link-1 ping outcomes (STATUS lq), from the ping task.
+static void onRouterPingOk(esp_ping_handle_t, void *) { pingOk++; }
+static void onRouterPingLost(esp_ping_handle_t, void *) { pingLost++; }
+
+static void stopPing() {
+  if (!pingHandle) return;
+  esp_ping_stop(pingHandle);
+  esp_ping_delete_session(pingHandle);
+  pingHandle = nullptr;
+}
+
+// Traffic generator: ICMP echo to the gateway. Each reply is one CSI capture. Called on
+// every join (3.6.0): a rejoin may bring another gateway, and pinging the old one would
+// leave link 1 with no replies.
 static void startPing() {
-  if (pingHandle) {
-    esp_ping_stop(pingHandle);
-    esp_ping_delete_session(pingHandle);
-    pingHandle = nullptr;
-  }
+  stopPing();
   esp_ping_config_t cfg = ESP_PING_DEFAULT_CONFIG();
   IPAddress gw = WiFi.gatewayIP();
   cfg.target_addr.type = IPADDR_TYPE_V4;
@@ -412,8 +457,15 @@ static void startPing() {
   cfg.data_size = 1;
   cfg.task_stack_size = 3072;
   esp_ping_callbacks_t cbs = {};
-  if (esp_ping_new_session(&cfg, &cbs, &pingHandle) == ESP_OK) esp_ping_start(pingHandle);
-  else logf("ping session failed");
+  cbs.on_ping_success = onRouterPingOk;
+  cbs.on_ping_timeout = onRouterPingLost;
+  if (esp_ping_new_session(&cfg, &cbs, &pingHandle) == ESP_OK) {
+    esp_ping_start(pingHandle);
+    logf("ping: gateway %s at %d Hz", gw.toString().c_str(), CSI_RATE_HZ);
+  } else {
+    pingHandle = nullptr;
+    logf("ping session failed");
+  }
 }
 
 // ------------------------------------------------------------------ LINK 2: your phone
@@ -1260,9 +1312,36 @@ static void startMdns() {
 // The STATUS JSON, for the USB frame, the Wi-Fi link and GET /status with the token.
 // Under 1024 bytes (protocol.py MAX_PAYLOAD_BY_TYPE[STATUS]): 3.5.0 at its longest with
 // the default relay table (five relays, a phone, a session, every counter at 10 digits)
-// is 872 bytes; the tests rebuild that worst case (aankhen/tests/test_netlink.py).
+// is 872 bytes; 3.6.0's "lq" adds at most 121, so 993 (aankhen/tests/test_status_lq.py
+// rebuilds it from the format string below). Kept under 1000, not raised toward the
+// host's 1024, so a 3.6.0 board still talks to every host already deployed.
 // STATUS_MAX: config above. A longer table that would not fit sends a short STATUS that
 // still carries the relays, never a cut-off JSON.
+static void buildLinkQuality(char *lq, size_t n) {
+  uint32_t last = csiLastUs;                    // first, then the clock: never "last" after "now"
+  uint32_t now32 = (uint32_t)esp_timer_get_time();
+  uint32_t gapUs = gapMaxUs;
+  // The gap still open counts too: with no capture at all, gap_ms grows instead of
+  // reading 0. Before the first capture since boot it reads the cap, 65535.
+  if (!csiSeen) {
+    gapUs = 0xFFFFFFFFu;
+  } else {
+    uint32_t open = now32 - last;
+    if ((int32_t)open > 0 && open > gapUs) gapUs = open;   // < 0: a capture landed between the two reads
+  }
+  uint32_t gapMs = gapUs / 1000;
+  if (gapMs > 65535) gapMs = 65535;             // 5 digits: "over a minute" is all it needs to say
+  uint32_t reconn = wifiJoins > 1 ? wifiJoins - 1 : 0;
+  if (reconn > 65535) reconn = 65535;
+  char rate[6] = "null", disc[6] = "null", ap[12] = "null";
+  uint8_t code = csiRateCode;
+  if (code != 0xFF) snprintf(rate, sizeof(rate), "%u", code);
+  if (wifiDiscReason) snprintf(disc, sizeof(disc), "%u", wifiDiscReason);
+  if (haveBssid) snprintf(ap, sizeof(ap), "\"%02x:%02x:%02x\"", routerBssid[3], routerBssid[4], routerBssid[5]);
+  snprintf(lq, n, "{\"ping_ok\":%lu,\"ping_lost\":%lu,\"gap_ms\":%u,\"rate\":%s,\"reconn\":%u,\"disc\":%s,\"ap\":%s}",
+           (unsigned long)pingOk, (unsigned long)pingLost, (unsigned)gapMs, rate, (unsigned)reconn, disc, ap);
+}
+
 static void buildStatus(char *js, size_t jsLen) {
   uint32_t nowMs = millis();
   csiRate.update(csiCaptured, nowMs);
@@ -1298,13 +1377,15 @@ static void buildStatus(char *js, size_t jsLen) {
            phoneIp, beaconMacSlot >= 0 ? "true" : "false", (unsigned long)beaconPingsOk,
            (unsigned long)(beaconIp ? beaconRate.hz + 0.5f : 0.0f), rssi,
            (unsigned long)beaconDropped, (unsigned long)beaconRejected, beaconFallback ? "true" : "false");
+  char lq[128];
+  buildLinkQuality(lq, sizeof(lq));
   int n = snprintf(js, jsLen,
            "{\"fw\":\"%s\",\"uptime_s\":%.1f,\"relays\":%s,\"relay_pins\":%s,\"wifi\":\"%s\",\"ip\":\"%s\","
            "\"mdns\":%s,\"rssi\":%d,"
            "\"channel\":%d,\"csi_hz\":%lu,\"csi_dropped\":%lu,\"csi_rejected\":%lu,"
            "\"radar_frames\":%lu,\"radar_bad\":%lu,\"mqtt\":%s,\"http\":%s,"
            "\"heap_free\":%lu,\"crc_ok\":%s,\"gain\":\"%s\",\"ota\":%s,\"reset\":\"%s\","
-           "\"beacon_enabled\":%s,\"beacon\":%s,\"net\":%s}",
+           "\"beacon_enabled\":%s,\"beacon\":%s,\"net\":%s,\"lq\":%s}",
            FW_VERSION, esp_timer_get_time() / 1e6, relays, pins,
            WiFi.status() == WL_CONNECTED ? "connected" : "connecting",
            WiFi.localIP().toString().c_str(), mdnsUp ? "\"" OTA_HOSTNAME ".local\"" : "null", WiFi.RSSI(), WiFi.channel(),
@@ -1313,7 +1394,7 @@ static void buildStatus(char *js, size_t jsLen) {
            mqttUp ? "true" : "false", httpEnabled ? "true" : "false",
            (unsigned long)ESP.getFreeHeap(), ak_crc_self_test() ? "true" : "false",
            !AK_GAIN_CTRL ? "unavailable" : gainRecorded < GAIN_BASELINE_PACKETS ? "recording" : "compensated",
-           otaUp ? "true" : "false", resetReason(), BEACON_ENABLED ? "true" : "false", beacon, net);
+           otaUp ? "true" : "false", resetReason(), BEACON_ENABLED ? "true" : "false", beacon, net, lq);
   if (n < 0 || (size_t)n >= jsLen) {
     snprintf(js, jsLen, "{\"fw\":\"%s\",\"relays\":%s,\"ip\":\"%s\",\"note\":\"STATUS too long: shorten the relay names\"}",
              FW_VERSION, relays, WiFi.localIP().toString().c_str());
@@ -1354,6 +1435,7 @@ static void resumeSensing() {
   sensingPaused = false;
   esp_wifi_set_csi(true);
   if (pingHandle) esp_ping_start(pingHandle);
+  else if (wifiUp) startPing();                // the Wi-Fi rejoined meanwhile and found no session
 }
 
 static void startOta() {
@@ -1368,6 +1450,9 @@ static void startOta() {
     logf("ota: receiving new firmware; sensing paused");
   });
   ArduinoOTA.onProgress([](unsigned int done, unsigned int total) {
+    // The whole 10-30 s transfer runs inside one loop() pass: feed the loop watchdog
+    // (LOOP_WDT_S) per chunk, or a good update would end in a watchdog reset.
+    if (wdtOn) esp_task_wdt_reset();
     int8_t tenth = total ? (int8_t)(10ull * done / total) : 0;
     if (tenth != otaLastTenth) {
       otaLastTenth = tenth;
@@ -1392,31 +1477,139 @@ static void startOta() {
 }
 
 // ------------------------------------------------------------------ Wi-Fi
-static void connectWifi() {
-  WiFi.mode(WIFI_STA);
-  esp_wifi_get_mac(WIFI_IF_STA, ownMac);
-  WiFi.setSleep(false);
-  WiFi.begin(WIFI_SSID_VALUE, WIFI_PASS_VALUE);
-  logf("joining %s", WIFI_SSID_VALUE);
-  uint32_t t0 = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) delay(250);
-  if (WiFi.status() != WL_CONNECTED) {
-    logf("wifi: not connected yet, will keep trying (no access point fallback)");
-    return;
+// NON-BLOCKING (3.6.0). 3.5.x waited in a delay(250) loop for up to 20 s on every
+// reconnect: no CSI drained, no USB relay command read, no OTA served. Now WiFi.begin()
+// returns at once, the core's event task only sets flags (onWifiEvent), and wifiTick() in
+// loop() does the rest: set up after each join, retry with a 1, 2, 4, 8, 15 s backoff.
+//
+// EVERY JOIN REFRESHES LINK 1. The core's auto-reconnect could rejoin before 3.5.x's 15 s
+// check ran, and the gateway pinged and the BSSID the CSI filter accepts were then never
+// updated: on another AP with the same SSID, zero CSI, silently. onWifiJoined() runs on
+// each GOT_IP and copies both.
+//
+// PINNED TO ONE AP. The core's auto-reconnect is off, so every rejoin goes through
+// beginWifi(), which names the pinned BSSID (WIFI_PIN_BSSID in config.h).
+#define WIFI_RETRY_MAX_MS 15000
+
+static bool parseBssid(const char *s, uint8_t out[6]) {
+  unsigned v[6];
+  if (sscanf(s, "%2x:%2x:%2x:%2x:%2x:%2x", &v[0], &v[1], &v[2], &v[3], &v[4], &v[5]) != 6) return false;
+  for (int i = 0; i < 6; i++) out[i] = (uint8_t)v[i];
+  return true;
+}
+
+// Runs in the core's event task: flags only. haveBssid goes false at once so the CSI
+// callback stops matching an AP the board has left.
+static void onWifiEvent(arduino_event_id_t event, arduino_event_info_t info) {
+  if (event == ARDUINO_EVENT_WIFI_STA_GOT_IP) {
+    wifiGotIp = true;
+  } else if (event == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
+    uint8_t r = info.wifi_sta_disconnected.reason;
+    wifiDiscReason = r ? r : WIFI_REASON_UNSPECIFIED;
+    haveBssid = false;
   }
+}
+
+static void beginWifi() {
+  WiFi.begin(WIFI_SSID_VALUE, WIFI_PASS_VALUE, 0, pinned ? pinBssid : nullptr);   // channel 0: scan them all
+  if (pinned) logf("wifi: joining %s, only AP ..:%02x:%02x:%02x%s", WIFI_SSID_VALUE, pinBssid[3], pinBssid[4],
+                   pinBssid[5], pinFixed ? " (WIFI_BSSID_VALUE)" : "");
+  else logf("wifi: joining %s", WIFI_SSID_VALUE);
+}
+
+static void onWifiJoined() {
+  if (!wifiUp) wifiJoins++;                        // a new address while up is not a reconnect
+  wifiUp = true;
+  wifiBackoffMs = 1000;
   esp_wifi_set_ps(WIFI_PS_NONE);                    // power save would starve CSI
-  memcpy(routerBssid, WiFi.BSSID(), 6);
-  haveBssid = true;
-  logf("wifi: %s ch %d rssi %d bssid %02x:%02x:%02x:%02x:%02x:%02x", WiFi.localIP().toString().c_str(),
+  const uint8_t *b = WiFi.BSSID();
+  if (b) {
+    memcpy(routerBssid, b, 6);
+    haveBssid = true;
+  }
+#if WIFI_PIN_BSSID
+  if (!pinned && haveBssid) {
+    memcpy(pinBssid, routerBssid, 6);
+    pinned = true;
+  }
+#endif
+  logf("wifi: %s ch %d rssi %d bssid %02x:%02x:%02x:%02x:%02x:%02x%s (join %lu)", WiFi.localIP().toString().c_str(),
        WiFi.channel(), WiFi.RSSI(), routerBssid[0], routerBssid[1], routerBssid[2], routerBssid[3],
-       routerBssid[4], routerBssid[5]);
+       routerBssid[4], routerBssid[5], pinned ? ", pinned" : "", (unsigned long)wifiJoins);
 #if BEACON_ENABLED
   logf("link 2: a phone on this Wi-Fi (2.4 GHz) can open http://%s/beacon", WiFi.localIP().toString().c_str());
 #endif
-  startPing();
+  if (!sensingPaused) startPing();                 // the gateway of THIS join
   startOta();
   startMdns();
   startLink();
+}
+
+static void onWifiLost(uint32_t now) {
+  wifiUp = false;
+  haveBssid = false;
+  stopPing();                                      // nothing to ping; the next join starts it afresh
+  wifiLostMs = now;
+  wifiBackoffMs = 1000;
+  wifiNextTryMs = now + wifiBackoffMs;
+  logf("wifi: lost (reason %u, %s); retrying without blocking", wifiDiscReason,
+       wifiDiscReason ? WiFi.STA.disconnectReasonName((wifi_err_reason_t)wifiDiscReason) : "no event");
+}
+
+static void wifiTick(uint32_t now) {
+  bool conn = WiFi.status() == WL_CONNECTED;
+  // conn and not yet set up covers a GOT_IP flag seen before the core marked the link
+  // connected; a GOT_IP while up is a new address or a rejoin between two ticks.
+  if (conn && (wifiGotIp || !wifiUp)) {
+    wifiGotIp = false;
+    onWifiJoined();
+    return;
+  }
+  if (wifiUp && !conn) onWifiLost(now);
+  if (conn || (int32_t)(now - wifiNextTryMs) < 0) return;
+  if (pinned && !pinFixed && now - wifiLostMs > WIFI_PIN_GIVEUP_S * 1000UL) {
+    pinned = false;                                // a replaced router must not strand the board
+    logf("wifi: pinned AP gone for %d s; joining any AP named %s", WIFI_PIN_GIVEUP_S, WIFI_SSID_VALUE);
+  }
+  beginWifi();
+  wifiBackoffMs = wifiBackoffMs * 2 > WIFI_RETRY_MAX_MS ? WIFI_RETRY_MAX_MS : wifiBackoffMs * 2;
+  wifiNextTryMs = now + wifiBackoffMs;
+}
+
+static void startWifi() {
+  WiFi.onEvent(onWifiEvent);
+  WiFi.mode(WIFI_STA);
+  esp_wifi_get_mac(WIFI_IF_STA, ownMac);
+  WiFi.setSleep(false);
+  WiFi.setAutoReconnect(false);                    // every rejoin goes through beginWifi() and the pin
+#ifdef WIFI_BSSID_VALUE
+  if (parseBssid(WIFI_BSSID_VALUE, pinBssid)) {
+    pinned = pinFixed = true;
+  } else {
+    logf("wifi: WIFI_BSSID_VALUE is not aa:bb:cc:dd:ee:ff; not pinned");
+  }
+#endif
+  beginWifi();
+  wifiLostMs = millis();
+  wifiBackoffMs = WIFI_RETRY_MAX_MS;               // the first join scans every channel: give it 15 s
+  wifiNextTryMs = wifiLostMs + WIFI_RETRY_MAX_MS;
+}
+
+// The loop watchdog (LOOP_WDT_S). The core starts the task watchdog at 5 s watching only
+// core 0's idle task (sdkconfig); this lengthens it and adds loop(), which the core then
+// feeds once per pass.
+static void startWatchdog() {
+  esp_task_wdt_config_t cfg = {};
+  cfg.timeout_ms = LOOP_WDT_S * 1000u;
+  cfg.idle_core_mask = 1u << 0;
+  cfg.trigger_panic = true;
+  if (esp_task_wdt_reconfigure(&cfg) == ESP_OK) {
+    enableLoopWDT();
+    wdtOn = true;
+    logf("watchdog: loop() restarts the board after %d s stalled", LOOP_WDT_S);
+  } else {
+    logf("watchdog: could not configure; running without the loop watchdog");
+  }
 }
 
 // ------------------------------------------------------------------ main
@@ -1436,10 +1629,11 @@ void setup() {
   logf("reset: %s; relays %s", resetReason(), relaysAtBoot);
   Serial1.begin(RADAR_BAUD, SERIAL_8N1, RADAR_RX_PIN, RADAR_TX_PIN);
 
-  connectWifi();
+  startWifi();                     // returns at once; loop() finishes the join (wifiTick)
   startCsi();
   startMqtt();
   startHttp();
+  startWatchdog();
 }
 
 void loop() {
@@ -1454,18 +1648,15 @@ void loop() {
   if (otaUp) ArduinoOTA.handle();
 #endif
 
-  static uint32_t lastStatus = 0, lastWifiTry = 0;
+  static uint32_t lastStatus = 0;
   uint32_t now = millis();
   phoneTick(now);                  // before any reconnect: a lost link drops the phone first
   linkTick(now);
   if (now - lastStatus >= 1000) {
     lastStatus = now;
     sendStatus();
+    gapMaxUs = 0;                  // lq gap_ms is per periodic STATUS; a command's STATUS does not reset it
   }
-  if (WiFi.status() != WL_CONNECTED && now - lastWifiTry > 15000) {
-    lastWifiTry = now;
-    haveBssid = false;
-    connectWifi();
-  }
+  wifiTick(now);
   delay(1);
 }

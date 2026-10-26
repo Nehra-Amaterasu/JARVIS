@@ -50,6 +50,20 @@
 // so a lost reply on a weak link costs one slot, not a second of CSI (3.5.1).
 #define CSI_PING_TIMEOUT_MS 10
 
+// ---- Staying on the Wi-Fi (3.6.0; README.md, section 4d) -----------------------
+// 1: once joined, the board rejoins only that access point (its BSSID), so a second AP
+// with the same SSID (the planned in-room AP) cannot take it over and move link 1 under
+// the learned models. 0: any AP with the SSID, strongest first (3.5.x behaviour).
+// To name the AP yourself put WIFI_BSSID_VALUE "aa:bb:cc:dd:ee:ff" in secrets.h (a MAC
+// stays out of git); that pin is never given up.
+#define WIFI_PIN_BSSID 1
+// A learnt pin is dropped after this many seconds without its AP, so a replaced router
+// does not strand the board. 300: longer than a router's 1-2 minute reboot.
+#define WIFI_PIN_GIVEUP_S 300
+// The longest loop() may stall before the task watchdog restarts the board. 15: three
+// times the web server's 5 s client timeout, the slowest legitimate step (OTA feeds it).
+#define LOOP_WDT_S 15
+
 // ---- Receiver gain (README.md, section 3) ------------------------------------
 // 1: link Espressif's esp_csi_gain_ctrl (vendored in libraries/), so both links send
 // their per-packet gain and the host undoes it. Needs the library on the build's path:

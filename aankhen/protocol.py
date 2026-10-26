@@ -312,6 +312,107 @@ class RadarPacket:
         return cls(f.timestamp_us, f.seq, f.payload)
 
 
+# ------------------------------------------------------------ link quality (3.6.0)
+# Firmware 3.6.0 adds an "lq" object to STATUS, so a weak or stalling router link can be
+# read from the board itself (council 2026-10-26: the ping stall and the -88 dBm airtime
+# budget were inferred from code and a model; these counters measure them):
+#   "lq": {"ping_ok": u32, "ping_lost": u32, "gap_ms": u16, "rate": u8|null,
+#          "reconn": u16, "disc": u8|null, "ap": "xx:xx:xx"|null}
+# ping_ok / ping_lost  link-1 router pings answered / timed out since boot. A "lost" ping
+#                      is one whose reply missed CSI_PING_TIMEOUT_MS (10 ms); a late reply
+#                      is still captured as CSI, so this counts timeouts, not lost CSI.
+# gap_ms               the longest stretch between two link-1 CSI captures since the last
+#                      periodic STATUS (about 1 s), including the stretch still open now:
+#                      a dead link shows a growing gap instead of a quiet 0. Capped 65535,
+#                      which is also what it reads before the first capture since boot.
+# rate                 the PHY rate code of the latest router reply: 0-31 = the legacy
+#                      (11b/g) code ESP-IDF calls wifi_phy_rate_t, 128 + n = HT MCS n.
+# reconn / disc        rejoins since boot; the last disconnect's ESP-IDF reason code.
+# ap                   the last 3 bytes of the access point's BSSID: the board pins it.
+# Old firmware has no "lq"; StatusPacket.link_quality is then None, never zeros.
+
+# wifi_phy_rate_t's legacy codes (esp_wifi_types_generic.h), in Mbit/s. The ESP32-S3's
+# rx_ctrl.rate is documented as "PHY rate encoding" for non-HT packets; that it uses
+# this same table is an assumption until a capture at a known rate confirms it.
+LEGACY_RATE_MBPS = {0x00: 1.0, 0x01: 2.0, 0x02: 5.5, 0x03: 11.0, 0x05: 2.0, 0x06: 5.5,
+                    0x07: 11.0, 0x08: 48.0, 0x09: 24.0, 0x0A: 12.0, 0x0B: 6.0, 0x0C: 54.0,
+                    0x0D: 36.0, 0x0E: 18.0, 0x0F: 9.0}
+# 802.11n, one spatial stream, 20 MHz, long guard interval: MCS 0-7.
+HT20_MCS_MBPS = (6.5, 13.0, 19.5, 26.0, 39.0, 52.0, 58.5, 65.0)
+RATE_HT = 128
+
+# The disconnect reasons worth a word (esp_wifi_types_generic.h wifi_err_reason_t).
+DISCONNECT_REASONS = {
+    1: "unspecified", 2: "auth expired", 3: "auth left", 4: "assoc expired",
+    8: "left on purpose", 15: "4-way handshake timeout", 200: "beacon timeout (AP lost)",
+    201: "no AP found", 202: "auth failed (password?)", 203: "assoc failed",
+    204: "handshake timeout", 205: "connection failed",
+}
+
+
+def phy_rate_mbps(code: Optional[int]) -> Optional[float]:
+    """Mbit/s for a STATUS lq "rate" code; None when unknown. HT assumes 20 MHz, long GI."""
+    if code is None:
+        return None
+    if code >= RATE_HT:
+        mcs = code - RATE_HT
+        return HT20_MCS_MBPS[mcs] if mcs < len(HT20_MCS_MBPS) else None
+    return LEGACY_RATE_MBPS.get(code)
+
+
+def disconnect_reason(code: Optional[int]) -> Optional[str]:
+    if code is None:
+        return None
+    return DISCONNECT_REASONS.get(code, f"reason {code}")
+
+
+def _int(v) -> Optional[int]:
+    # bool is an int in Python; a true/false here is a malformed field, not 1/0.
+    return int(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+
+@dataclass(frozen=True)
+class LinkQuality:
+    ping_ok: Optional[int]
+    ping_lost: Optional[int]
+    gap_ms: Optional[int]
+    rate: Optional[int]
+    reconnects: Optional[int]
+    disconnect: Optional[int]
+    ap: Optional[str]
+
+    @classmethod
+    def from_fields(cls, fields: dict) -> Optional["LinkQuality"]:
+        lq = fields.get("lq") if isinstance(fields, dict) else None
+        if not isinstance(lq, dict):
+            return None
+        ap = lq.get("ap")
+        return cls(_int(lq.get("ping_ok")), _int(lq.get("ping_lost")), _int(lq.get("gap_ms")),
+                   _int(lq.get("rate")), _int(lq.get("reconn")), _int(lq.get("disc")),
+                   ap if isinstance(ap, str) else None)
+
+    @property
+    def rate_mbps(self) -> Optional[float]:
+        return phy_rate_mbps(self.rate)
+
+    @property
+    def disconnect_name(self) -> Optional[str]:
+        return disconnect_reason(self.disconnect)
+
+
+def ping_loss(first: Optional[LinkQuality], last: Optional[LinkQuality]) -> Optional[float]:
+    """Fraction of link-1 pings that timed out between two STATUS reports; None if unknown.
+
+    Counters are since boot, so the difference spans the window. A board that rebooted in
+    between (counters went down) gives None rather than a negative rate."""
+    if not first or not last or None in (first.ping_ok, first.ping_lost, last.ping_ok, last.ping_lost):
+        return None
+    ok, lost = last.ping_ok - first.ping_ok, last.ping_lost - first.ping_lost
+    if ok < 0 or lost < 0 or ok + lost == 0:
+        return None
+    return lost / (ok + lost)
+
+
 @dataclass
 class StatusPacket:
     timestamp_us: int
@@ -325,6 +426,11 @@ class StatusPacket:
         except json.JSONDecodeError:
             data = {"unparsed": f.payload.decode("utf-8", "replace")}
         return cls(f.timestamp_us, f.seq, data)
+
+    @property
+    def link_quality(self) -> Optional[LinkQuality]:
+        """The 3.6.0 "lq" block, or None from older firmware."""
+        return LinkQuality.from_fields(self.fields)
 
 
 # ------------------------------------------------------------- stream decoding

@@ -1,31 +1,42 @@
-/* Direction + Building cards (Direction.tsx). App tokens only. */
+/* Direction + Building cards (Direction.tsx). App tokens plus the Well Wisher ones (theme.css). */
 .card.direction { display: flex; flex-direction: column; gap: 10px; }
 .card.direction .pill.exam { color: var(--sim); }
-.dir-say { margin: 0; font-size: 15px; line-height: 1.45; color: var(--ink); }
-.dir-split { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: rgba(255, 255, 255, 0.05); gap: 2px; }
-.dir-split i { display: block; min-width: 0; transition: flex-grow var(--t-slow) var(--ease); }
+.dir-main { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+/* the sentence that says what the day is for: the first thing read on Today */
+.card.direction .dir-say { margin: 0; font-size: 19px; font-weight: 500; line-height: 1.4; letter-spacing: -0.012em; color: var(--ink); text-wrap: pretty; }
+.dir-split { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: rgba(255, 255, 255, 0.05); gap: 2px; }
+.dir-split i { display: block; min-width: 0; }   /* no flex-grow transition: it would re-lay-out the card every frame */
 .dir-split .study, .dir-legend b.study { background: var(--live); }
 .dir-split .built, .dir-legend b.built { background: var(--ink-3); }
 .dir-split .build, .dir-legend b.build { background: var(--sim); opacity: 0.75; }
-.dir-legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--ink-3); }
+.dir-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--ink-3); }
 .dir-legend b { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
-.dir-note { margin: 0; padding: 8px 10px; border-radius: var(--r-sm); background: rgba(255, 176, 32, 0.07); box-shadow: inset 0 0 0 1px var(--sim-2); }
-.dir-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.dir-step { display: grid; grid-template-columns: 18px 1fr auto; gap: 10px; align-items: baseline; padding: 7px 4px; border-bottom: 1px solid var(--hair); }
-.dir-step:last-child { border-bottom: 0; }
-.dir-step:first-child .dir-title { font-weight: 600; }
+.card.direction .dir-note { margin: 0; padding: 8px 12px; border-radius: var(--ww-r-sm, var(--r-sm)); background: rgba(255, 176, 32, 0.06); box-shadow: inset 0 0 0 1px var(--sim-2); }
+.dir-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.dir-rule p { margin: 6px 0 0; max-width: 70ch; }
+.dir-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; min-width: 0; }
+.dir-step { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 12px; align-items: baseline; padding: 10px 4px 10px 10px; border-top: 1px solid var(--hair); }
+.dir-step:first-child { border-top: 0; }
 .dir-step svg { color: var(--ink-3); transform: translateY(2px); }
 .dir-step.study svg { color: var(--live); }
 .dir-step.build svg { color: var(--sim); }
-.dir-title { font-size: 13px; line-height: 1.4; }
+.dir-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13.5px; line-height: 1.4; overflow-wrap: anywhere; }
+.dir-why { line-height: 1.4; }
+.dir-min { color: var(--ink-2); white-space: nowrap; }
+/* the one next step on the page: a saffron rule and the weight, nothing louder */
+.dir-step:first-child { border-radius: var(--ww-r-sm, 10px); background: var(--ww-accent-2, rgba(255, 122, 46, 0.12)); box-shadow: inset 2px 0 0 var(--ww-accent, #ff7a2e); }
+.dir-step:first-child .dir-title { font-weight: 600; color: var(--ink); }
+.dir-step:first-child .dir-why { font-weight: 400; }
+.dir-step:first-child svg { color: var(--ww-accent, #ff7a2e); }
+.dir-step:first-child + .dir-step { border-top: 0; }
 
-.card.sessions { display: flex; flex-direction: column; gap: 8px; }
-.ses-bars { display: flex; align-items: flex-end; gap: 3px; height: 48px; }
+.card.sessions { display: flex; flex-direction: column; gap: 10px; }
+.ses-bars { display: flex; align-items: flex-end; gap: 3px; height: 44px; }
 .ses-bars i { flex: 1; border-radius: 2px; background: rgba(255, 255, 255, 0.06); }
 .ses-bars i.on { background: var(--sim); opacity: 0.8; }
 .ses-areas { display: flex; flex-wrap: wrap; gap: 6px; }
 .ses-area { display: inline-flex; gap: 6px; padding: 2px 9px; border-radius: var(--r-pill); box-shadow: inset 0 0 0 1px var(--hair); }
-.ses-row { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; color: var(--ink-2); }
+.ses-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; color: var(--ink-2); }
 .ses-what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Glass on Well Wisher cards: the Aankhen tier (lib/liquidGlass.tsx) decides per machine.
@@ -41,6 +52,17 @@
 }
 .page.mission[data-glass] .card .card,
 .page.mission[data-glass] .embedded .card { backdrop-filter: none; -webkit-backdrop-filter: none; }
+/* The sticky bar takes the same tier: blur only where the machine keeps its frames. */
+.page.mission[data-glass='refract'] .mission-nav,
+.page.mission[data-glass='blur'] .mission-nav {
+  background: rgba(10, 11, 13, 0.72);
+  backdrop-filter: blur(12px) saturate(170%);
+  -webkit-backdrop-filter: blur(12px) saturate(170%);
+}
+/* Flat tier: no backdrop-filter at all. base.css gives every .card a 28 px blur; on a
+   machine already below 38 fps (lib/liquidGlass.tsx) that is the cost to drop. */
+.page.mission[data-glass='flat'] .card { background: rgba(15, 16, 19, 0.94); backdrop-filter: none; -webkit-backdrop-filter: none; }
 @media (prefers-reduced-transparency: reduce) {
-  .page.mission[data-glass] .card { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .page.mission[data-glass] .card,
+  .page.mission[data-glass] .mission-nav { backdrop-filter: none; -webkit-backdrop-filter: none; }
 }

@@ -7,6 +7,7 @@ import { BookOpen, Brain, Code2, Compass, GitCommit, HeartPulse, Mic } from 'luc
 import { useEffect, useState } from 'react'
 import { api, post } from '../../lib/api'
 import { useStore } from '../../lib/store'
+import { Deva } from '../ui'
 import './direction.css'
 
 interface Step { kind: 'study' | 'recall' | 'habit' | 'build'; title: string; minutes: number; why: string }
@@ -38,39 +39,43 @@ export function DirectionCard() {
   const read = async () => {
     try { await post('/api/core/speak', { text: d.say }) } catch { toast(d.say, 'info') }
   }
+  // Full width on Today: what to do with the day on the left, the ordered steps on
+  // the right, so the first step (the one saffron mark on the page) reads in a glance.
   return (
     <section className="card direction" aria-label="Direction">
       <div className="card-head">
-        <span className="card-title"><Compass size={14} />Direction</span>
+        <span className="card-title"><Compass size={14} />Direction<Deva>दिशा</Deva></span>
         <span className={`pill small ${d.mode === 'exam' ? 'exam' : ''}`}>{d.mode === 'exam' ? 'Exam week' : 'Build week'}</span>
       </div>
-      <p className="dir-say">{d.say}</p>
-      <div className="dir-split" aria-label="Today's minutes">
-        <i className="study" style={{ flexGrow: d.split.study / total }} title={`study left ${hm(d.split.study)}`} />
-        <i className="built" style={{ flexGrow: d.split.built_today / total }} title={`built today ${hm(d.split.built_today)}`} />
-        <i className="build" style={{ flexGrow: d.split.build / total }} title={`build budget left ${hm(d.split.build)}`} />
+      <div className="dir-main">
+        <p className="dir-say">{d.say}</p>
+        <div className="dir-split" aria-label="Today's minutes">
+          <i className="study" style={{ flexGrow: d.split.study / total }} title={`study left ${hm(d.split.study)}`} />
+          <i className="built" style={{ flexGrow: d.split.built_today / total }} title={`built today ${hm(d.split.built_today)}`} />
+          <i className="build" style={{ flexGrow: d.split.build / total }} title={`build budget left ${hm(d.split.build)}`} />
+        </div>
+        <div className="dir-legend small mono">
+          <span><b className="study" />study {hm(d.split.study)}</span>
+          <span><b className="built" />built {hm(d.split.built_today)}</span>
+          <span><b className="build" />build room {hm(d.split.build)}</span>
+        </div>
+        {d.note && <p className="small dir-note">{d.note}</p>}
+        <div className="dir-foot">
+          {core?.running && <button className="btn sm ghost" onClick={() => void read()}><Mic size={13} />Read it to me</button>}
+          <details className="small muted dir-rule"><summary>The rule</summary><p>{d.rule}</p></details>
+        </div>
       </div>
-      <div className="dir-legend small mono">
-        <span><b className="study" />study {hm(d.split.study)}</span>
-        <span><b className="built" />built {hm(d.split.built_today)}</span>
-        <span><b className="build" />build room {hm(d.split.build)}</span>
-      </div>
-      {d.note && <p className="small dir-note">{d.note}</p>}
       <ol className="dir-steps">
         {d.steps.map((s, i) => {
           const Icon = ICON[s.kind]
           return (
             <li key={i} className={`dir-step ${s.kind}`}>
               <Icon size={14} aria-hidden />
-              <span className="dir-title">{s.title}<span className="muted small"> · {s.why}</span></span>
-              <span className="mono small">{hm(s.minutes)}</span>
+              <span className="dir-title">{s.title}<span className="dir-why muted small">{s.why}</span></span>
+              <span className="mono small dir-min">{hm(s.minutes)}</span>
             </li>)
         })}
       </ol>
-      <div className="row">
-        {core?.running && <button className="btn sm ghost" onClick={() => void read()}><Mic size={13} />Read it to me</button>}
-        <details className="small muted"><summary>The rule</summary><p>{d.rule}</p></details>
-      </div>
     </section>
   )
 }
@@ -98,7 +103,7 @@ export function SessionsCard() {
   const wk = Object.values(s.week_areas).reduce((a, b) => a + b, 0) || 1
   return (
     <section className="card sessions" aria-label="Building hours">
-      <div className="card-head"><span className="card-title"><GitCommit size={14} />Building</span>
+      <div className="card-head"><span className="card-title"><GitCommit size={14} />Building<Deva>निर्माण</Deva></span>
         <span className="mono small">{hm(s.today_minutes)} today · {(s.week_minutes / 60).toFixed(1)} h week</span></div>
       <div className="ses-bars" aria-label="last 14 days">
         {s.days.map((d) => <i key={d.date} title={`${d.date}: ${hm(d.minutes)}`} style={{ height: `${Math.max(3, (d.minutes / max) * 100)}%` }} className={d.minutes ? 'on' : ''} />)}

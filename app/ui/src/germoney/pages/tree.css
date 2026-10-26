@@ -63,7 +63,7 @@
 
 /* overlay rings: selection, search hits, what's next */
 .tree-rings { pointer-events: none; }
-.ring-sel { fill: none; stroke: var(--ink); stroke-width: 1.6; }
+.ring-sel { fill: none; stroke: var(--ww-accent, var(--ink)); stroke-width: 2; }
 .ring-hit { fill: none; stroke: var(--sim); stroke-width: 2; }
 .ring-next circle { fill: none; stroke: var(--ink-2); stroke-width: 1.4; stroke-dasharray: 2 4; }
 .ring-next text { fill: var(--ink-2); font: 600 9px var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase; }
@@ -140,5 +140,5 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .tree-panel { animation: none; }
-  .tree-edges, .tree-node polygon, .tb-btn, .tree-page .link-btn { transition: none; }
+  .tree-edges, .tree-node, .tree-node polygon, .tb-btn, .tree-page .link-btn, .tp-meter-bar span, .tp-tab, .ts-item { transition: none; }
 }

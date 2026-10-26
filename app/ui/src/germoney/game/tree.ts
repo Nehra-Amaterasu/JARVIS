@@ -140,7 +140,8 @@ export function layoutTree(bank: Bank): Layout {
     const low = Math.max(...mine.map((p) => p.y))
     const atLow = mine.filter((p) => p.y === low)
     const x = Math.round(atLow.reduce((a, p) => a + p.x, 0) / atLow.length)
-    return { name, angle: 0, x, y: low + 52 }
+    // Under the lowest row's 3-line label boxes (they end at y+61), above the row below (its areas start at y+133).
+    return { name, angle: 0, x, y: low + 80 }
   })
   const trunk = { x: 0, y: 40 }
   const edges: Edge[] = []

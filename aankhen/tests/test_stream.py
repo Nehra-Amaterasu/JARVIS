@@ -72,7 +72,7 @@ def test_synthetic_packets_become_an_hour_chunk_with_rows_at_20_hz(tmp_path):
     eng.process(_status(9.5, True))
     _feed(eng, 10.0)
     rec.stop()
-    parts = sorted((tmp_path / "2026-10-13").glob("14.part-*.npz"))
+    parts = sorted((tmp_path / "2026-10-13").glob("14.part-*.npy"))
     assert len(parts) == 1                               # stopping writes one small part
     h = st.load_hour(tmp_path, "2026-10-13", 14)
     n = len(h["t"])
@@ -127,23 +127,24 @@ def test_an_hour_that_ends_is_merged_into_hh_npz(tmp_path):
         t += 0.01
     rec.stop()
     day = tmp_path / "2026-10-13"
-    assert (day / "14.npz").exists() and not list(day.glob("14.part-*"))
-    assert list(day.glob("15.part-*.npz"))               # the current hour waits for its end
+    assert (day / "14.npy").exists() and not list(day.glob("14.part-*"))
+    assert list(day.glob("15.part-*.npy"))               # the current hour waits for its end
+    man = st.read_manifest(day)
+    assert set(man) == {"14.npy"} and man["14.npy"]["rows"] == 40   # only the finished hour is claimed
+    assert st.verify_day(tmp_path, "2026-10-13") == {"14.npy": True}
     a, b = st.load_hour(tmp_path, "2026-10-13", 14), st.load_hour(tmp_path, "2026-10-13", 15)
     assert len(a["t"]) == 40 and len(b["t"]) == 40          # 2 s each side of 15:00, at 20 Hz
     # a new session merges what an earlier one left of any hour, the current one too
     st.StreamRecorder(tmp_path, clock=clock).start().stop()
-    assert (day / "15.npz").exists() and not list(day.glob("15.part-*"))
+    assert (day / "15.npy").exists() and not list(day.glob("15.part-*"))
     assert len(st.load_hour(tmp_path, "2026-10-13", 15)["t"]) == len(b["t"])
-    # an interrupted merge (HH.npz written, a part not yet deleted) is not counted twice
-    part = day / "15.part-1.npz"
-    st._save(part, st._read(day / "15.npz"))
-    x = st._read(day / "15.npz")
-    x["parts"] = np.array(sorted(set(x["parts"].tolist()) | {part.name}))
-    st._save(day / "15.npz", x)
+    # an interrupted merge (HH.npy renamed, a part not yet deleted) is not counted twice
+    part = day / "15.part-1.npy"
+    np.save(part, np.load(day / "15.npy"))
     assert len(st.load_hour(tmp_path, "2026-10-13", 15)["t"]) == len(b["t"])
     st.merge_hour(day, 15)
     assert not part.exists() and len(st.load_hour(tmp_path, "2026-10-13", 15)["t"]) == len(b["t"])
+    assert all(st.verify_day(tmp_path, "2026-10-13").values())
 
 
 # ------------------------------------------------------------------ retention

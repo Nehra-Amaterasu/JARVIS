@@ -234,3 +234,22 @@ def test_board_time_samples_skip_a_malformed_payload():
     frame.payload = frame.payload[:-1]                     # shorter than its metadata
     recs.insert(3, (recs[3][0], frame.encode()))
     assert len(list(board_time_samples(recs))) > 100
+
+
+def test_the_gain_branch_median_by_partition_is_bit_identical():
+    """np.partition for the 51-value median (council hearing 2, code item 2): same bits as
+    np.median for odd n, so every level and normalised amplitude is unchanged."""
+    import numpy as np
+    from aankhen.csi import CsiConditioner
+    rng = np.random.default_rng(3)
+    for _ in range(2000):
+        a = np.abs(rng.normal(30, 9, 51)) * 10 ** (rng.uniform(-3, 9) / 20)
+        assert np.array_equal(np.partition(a, 25)[25], np.median(a))
+    c = CsiConditioner()
+    out = []
+    for k in range(300):
+        iq = rng.integers(-40, 40, 128).astype(np.int8).tobytes()
+        out += c.push(10 + k / 100, iq, -60, gain_comp_db=float(k % 7))
+    # levels are 20 log10 of a median amplitude (~30-50 counts) plus the 0-6 dB gain
+    assert out and all(25 < s.level_db < 45 for s in out)
+    assert all(s.level_fine for s in out)

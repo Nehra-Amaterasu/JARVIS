@@ -217,7 +217,8 @@ _p("zone", "standing_on_bed", "standing on the bed", "standing on bed")
 _p("zone", "beside_bed_bathroom_wall", "bathroom wall", "beside the bed bathroom side",
    "between the bathroom wall and the bed", "between the bed and the bathroom wall")
 _p("zone", "outside_bathroom", "outside the bathroom", "outside bathroom", "bathroom door", "doormat", "door mat",
-   "in front of the bathroom door", "in front of bathroom door", "on the doormat", "on the door mat")
+   "in front of the bathroom door", "in front of bathroom door", "on the doormat", "on the door mat",
+   "in front of bathroom", "in front of the bathroom")
 _p("zone", "inside_bathroom", "in the bathroom", "inside the bathroom", "inside bathroom", "bathroom", "washroom",
    "wash basin", "sink")
 _p("zone", "between_bed_and_balcony_door", "between bed and balcony", "between the bed and the balcony",
@@ -229,7 +230,8 @@ _p("zone", "room_door", "room door", "at the door")
 _p("zone", "wardrobe", "wardrobe", "almirah", "cupboard")
 _p("zone", "out_of_room", "leaving the room", "left the room", "out of the room", "outside the room",
    "room empty", "leaving room", "kitchen", "living room", "going out",
-   "outside of the room", "the room is empty", "room is empty", "room beside my room", "in room b", "room b")
+   "outside of the room", "the room is empty", "room is empty", "room beside my room", "in room b", "room b",
+   "outside room door", "outside the room door", "in the hallway", "hallway", "in the kitchen")
 _p("act", "still", "still", "sitting", "sitting still", "not moving")
 _p("act", "standing", "standing")
 _p("act", "lying", "lying")

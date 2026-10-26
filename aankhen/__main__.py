@@ -538,9 +538,16 @@ def cmd_fingerprint(a) -> int:
                 json.dump(rep, fh, indent=1, default=float)
         return 0
     runs = [r for d in sorted(days) for r in days[d]]
-    m = CnnFingerprint(epochs=a.epochs).fit(_cat(runs, "X"), _cat(runs, "zone"))
-    out = m.save(meta={"days": sorted(days), "windows": int(len(_cat(runs, "zone")))})
-    print(f"CNN ({m.weights()} weights) on {len(days)} day(s) -> {out}")
+    import numpy as np
+    from .fingerprint import cap_per_place
+    X, y, t = _cat(runs, "X"), _cat(runs, "zone"), _cat(runs, "t")
+    keep = cap_per_place(np.arange(len(y)), y, t)          # same per-place cap as evaluate
+    m = CnnFingerprint(epochs=a.epochs).fit(X[keep], y[keep])
+    counts = {z: int((y[keep] == z).sum()) for z in sorted(set(y[keep].tolist()))}
+    out = m.save(meta={"days": sorted(days), "windows": int(len(keep)), "windows_before_cap": int(len(y)),
+                       "per_place": counts})
+    print(f"CNN ({m.weights()} weights) on {len(days)} day(s), {len(keep)} windows after the cap -> {out}")
+    print("  per place: " + ", ".join(f"{z} {n}" for z, n in counts.items()))
     return 0
 
 

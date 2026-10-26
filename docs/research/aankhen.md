@@ -2,6 +2,30 @@
 
 Newest first. One section per question; older dated notes (`2026-10-*-aankhen-*.md`) stay as they were.
 
+## 2026-10-27: a second expert hearing, and its ruling
+
+**Question.** Why does a single-link ESP32 Wi-Fi fingerprint fail on a new session, and what is the cheapest honest way forward?
+
+**What was measured** (one through-wall link, three sessions, one day):
+- Across sessions, no method beats always naming the commonest place (kNN 15 %, CNN 11 %, baseline 25 % balanced).
+- The session-to-session change is not the overall signal level: that is 3 % of it. It is the shape across subcarriers, mostly one tilt-like component, and it is 2.4× larger than the difference between places.
+- One session's channel was about 6 dB weaker, with new multipath, and the receiver's gain bookkeeping checked out. So the radio paths themselves changed, most likely a door, the board's pose, or the hall path.
+- Centring each session on its own median fails, because each session is mostly one place. That leaks "the usual place" into the score.
+- Re-estimating batch-norm statistics on the new session (AdaBN) is the only lead: 30-39 % against an 18 % shuffled control. Its lower confidence bound is still below the baseline, so it is not a claim.
+- Change-point detection finds a third of the transitions, at about 5× the false alarms.
+- The live path costs about 0.1 ms per packet.
+
+**Ruling.**
+1. Move the transmitter into the room (a spare router as a dedicated transmitter, on a fixed channel and power), so the line of sight dominates the through-wall paths.
+2. Keep the signal level in the 7-day store; it was being dropped.
+3. Presence first, from band-limited variance against a self-updating empty reference, scored against empty time at matched hours.
+4. A few short mixed-place sessions, so adaptation can be tested at all.
+5. Zones only after presence passes.
+
+**Large-area idea.** A transmitter at the centre of four corner reflectors senses only four thin strips. In simulation it is no better than guessing the middle at 10-30 m, and passive reflectors add paths 20-40 dB weaker. The established design is radio tomographic imaging: a perimeter mesh of cheap active nodes, every pair a link, taking millisecond turns, no precise clocks needed. It grows rung by rung, starting with a free single-link crossing test, with no spending before each rung passes.
+
+**Owner's load before exams end:** about 75 min, ₹0 (flash 3.6.0, door/fan checks, the spare router as an in-room transmitter). First purchase (two ESP32-C3/C6, about ₹500–900) only after the free crossing test passes.
+
 ## 2026-10-26: the council's plan, built, and what it measured
 
 **Question.** Does building the council's plan (honest evaluator, merged bed, calibration, belief rules, speed, link-aware firmware) make Aankhen locate anyone?

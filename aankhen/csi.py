@@ -228,6 +228,101 @@ class HampelFilter:
             return Sample(centre.t, amp, centre.filled, centre.level_db, centre.level_fine)
         return centre
 
+    def push_many(self, samples: list[Sample]) -> list[Optional[Sample]]:
+        """[push(s) for s in samples], vectorised: same outputs, same counters, and the
+        filter is left in the same state, so push() and push_many() can be mixed.
+
+        For readers that condition a whole recording: per sample, push() is ~30 us of
+        which the two column sorts are only ~13 us (Python overhead is the rest), so the
+        speed has to come from doing many rows per numpy call (hampel_array)."""
+        if not samples:
+            return []
+        size = samples[0].amp.size
+        if any(s.amp.size != size for s in samples) or \
+                (self._arr is not None and self._arr.shape[1] != size):
+            return [self.push(s) for s in samples]   # a width change resets: keep it simple
+        tail = list(self._buf)[1:] if len(self._buf) == self.window else list(self._buf)
+        seq = tail + list(samples)
+        out: list[Optional[Sample]] = [None] * len(samples)
+        if len(seq) >= self.window:
+            X = np.stack([s.amp for s in seq])
+            Y, bad = hampel_array(X, self.window, self.k)
+            mid = self.window // 2
+            first = len(seq) - len(samples)              # seq index of samples[0]
+            for r in range(Y.shape[0]):
+                j = r + self.window - 1                  # the push that emits row r
+                centre = seq[r + mid]
+                self.seen += centre.amp.size
+                nb = int(bad[r].sum())
+                if nb:
+                    self.replaced += nb
+                    out[j - first] = Sample(centre.t, Y[r].copy(), centre.filled,
+                                            centre.level_db, centre.level_fine)
+                else:
+                    out[j - first] = centre
+        # the state push() would have: the last `window` samples, in a fresh ring
+        keep = seq[-self.window:]
+        self._arr, self._i = np.empty((self.window, size)), 0
+        self._buf.clear()
+        for s in keep:
+            self._buf.append(s)
+            self._arr[self._i % self.window] = s.amp
+            self._i += 1
+        return out
+
+
+# Median of 7 as a min/max network: the 16-comparator sorting network for 7 inputs,
+# pruned to the comparisons the middle output depends on (22 min/max). Each entry is
+# (a, b, keep low, keep high). It picks one of the inputs, so it is exactly what the
+# middle row of np.sort gives (for finite values; amplitudes always are).
+_MEDIAN7 = [(0, 6, 1, 1), (2, 3, 1, 1), (4, 5, 1, 1), (0, 2, 1, 1), (1, 4, 1, 1), (3, 6, 1, 1),
+            (0, 1, 0, 1), (2, 5, 1, 1), (3, 4, 1, 1), (1, 2, 0, 1), (4, 6, 1, 0), (2, 3, 0, 1),
+            (4, 5, 1, 0), (3, 4, 1, 0)]
+_HAMPEL_CHUNK = 256
+
+
+def _median7(rows: list) -> np.ndarray:
+    v = list(rows)
+    for a, b, lo, hi in _MEDIAN7:
+        x, y = v[a], v[b]
+        if lo:
+            v[a] = np.minimum(x, y)
+        if hi:
+            v[b] = np.maximum(x, y)
+    return v[3]
+
+
+def hampel_array(X: np.ndarray, window: int = 7, k: float = 5.0) -> tuple[np.ndarray, np.ndarray]:
+    """HampelFilter over the rows of X (n, subcarriers) at once: (filtered centre rows
+    X[mid:n-mid], replaced mask), bit-identical to pushing the rows one by one.
+
+    Measured on the 12 Oct teach-room recording (51,711 x 51), see the council review
+    of 2026-10-26: streaming 2.14 s, np.median over a sliding_window_view 2.6-3.9 s (it
+    copies a 148 MB strided view), this network in 256-row chunks 0.34 s. The chunk
+    size matters more than the algorithm (4,096 rows: 1.46 s): the temporaries must stay
+    in cache, and they keep the memory under 1 MB whatever the length."""
+    X = np.asarray(X, float)
+    n = X.shape[0]
+    mid = window // 2
+    m = max(n - window + 1, 0)
+    Y = np.empty((m,) + X.shape[1:])
+    bad = np.zeros((m,) + X.shape[1:], bool)
+    for c0 in range(0, m, _HAMPEL_CHUNK):
+        c1 = min(c0 + _HAMPEL_CHUNK, m)
+        rows = [X[c0 + s:c1 + s] for s in range(window)]          # views, no copy
+        if window == 7:
+            med = _median7(rows)
+            mad = 1.4826 * _median7([np.abs(r - med) for r in rows])
+        else:
+            st = np.stack(rows)
+            med = np.sort(st, axis=0)[mid]
+            mad = 1.4826 * np.sort(np.abs(st - med), axis=0)[mid]
+        centre = rows[mid]
+        b = np.abs(centre - med) > k * np.maximum(mad, 1e-9)
+        bad[c0:c1] = b
+        Y[c0:c1] = np.where(b, med, centre)
+    return Y, bad
+
 
 class RateMeter:
     """Measured packet rate (EMA over inter-arrival times)."""
@@ -271,7 +366,10 @@ class CsiConditioner:
         return self.gain_packets > 0
 
     def push(self, t: float, raw: bytes, rssi: Optional[int] = None,
-             rx_ok: bool = True, gain_comp_db: Optional[float] = None) -> list[Sample]:
+             rx_ok: bool = True, gain_comp_db: Optional[float] = None,
+             hampel: bool = True) -> list[Sample]:
+        """Clean samples this packet completes. hampel=False returns the resampler's
+        samples instead, for a caller that runs self.hampel.push_many on a batch."""
         if not rx_ok:
             self.rejected += 1
             return []
@@ -304,9 +402,59 @@ class CsiConditioner:
         self.rate.tick(t)
         self.last_rssi = rssi
         self.last_raw_amp = amp
+        if not hampel:
+            return self.resampler.push(t, norm, level, fine)
         out = []
         for s in self.resampler.push(t, norm, level, fine):
             clean = self.hampel.push(s)
             if clean is not None:
                 out.append(clean)
         return out
+
+
+def board_time_samples(records, batch: int = 256):
+    """(host time, Sample, rssi) for every conditioned sample of (host time, bytes)
+    records (transport.iter_recording), in order, for readers of a whole recording.
+
+    TIME. The board's clock spaces the samples; ONE offset per stretch puts them on the
+    host's clock: the smallest (host arrival - board time) seen so far, because USB/HTTP
+    delay only ever adds; a jump of more than 1 s means the board restarted. This is
+    fingerprint.csi_stream's rule (it found arrival-time stamps jumping by the arrival
+    jitter, up to ~1 s in bursts on a weak link), so both readers put a sample at the
+    same host time. The rssi is the latest packet's when the sample came out, as with
+    a CsiConditioner fed packet by packet.
+
+    SPEED. The Hampel stage runs on `batch` resampled samples at a time (push_many),
+    with the same output as packet-by-packet filtering."""
+    import struct
+    from .protocol import CsiPacket, StreamDecoder, decode_packet
+    cond, dec = CsiConditioner(), StreamDecoder()     # one decoder: frames span chunks
+    off: Optional[float] = None
+    pend: list = []                                   # (resampled sample, offset, rssi)
+
+    def drain():
+        outs = cond.hampel.push_many([p[0] for p in pend])
+        for (_, o, rssi), s in zip(pend, outs):
+            if s is not None:
+                yield s.t + o, s, rssi
+        pend.clear()
+
+    for host_t, chunk in records:
+        for fr in dec.feed(chunk):
+            try:
+                p = decode_packet(fr)
+            except (ValueError, struct.error):
+                continue        # a valid CRC around a malformed payload: skip, keep the session
+            if not isinstance(p, CsiPacket):
+                continue
+            o = host_t - p.timestamp_us / 1e6
+            if off is None or abs(o - off) > 1.0:
+                off = o
+            else:
+                off = min(off, o)
+            for s in cond.push(p.timestamp_us / 1e6, p.raw, p.rssi,
+                               gain_comp_db=p.gain_comp_db, hampel=False):
+                pend.append((s, off, p.rssi))
+        if len(pend) >= batch:
+            yield from drain()
+    yield from drain()

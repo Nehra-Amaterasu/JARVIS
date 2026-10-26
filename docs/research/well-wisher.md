@@ -2,6 +2,16 @@
 
 One file for the Well Wisher topic, newest section on top. Older dated notes stay as they are (2026-10-23-mission-germoney-rebuild.md, 2026-10-25-well-wisher-v1.md, 2026-10-25-well-wisher-engines.md).
 
+## 2026-10-27 (night): life trees verified by evidence, and a UI pass by four agents
+
+**Question.** Can progression in GitHub, LinkedIn, content, money, a second career and discipline be drawn as trees like the skill tree, without a single node that is "done" because a button was pressed?
+
+**Design (ww_trees.py, 28 nodes in lifetrees.json).** Each node names its proof kind and threshold. Link nodes count links he files (README, pinned repos, a merged PR, a recommendation, posts). Measured nodes read numbers the app already counts: public commit days (proof engine), building hours (sessions engine), money-log income and entry counts, skill nodes mastered with a contract, Life points. Status: locked until every prerequisite is mastered; mastered at have >= need; in progress above zero; else available. A test loads the shipped file and checks it is a set of DAGs (prerequisites exist and sit in a higher tier), that every node has outcomes and a proof sentence, and that nothing is mastered with no evidence.
+
+**The UI pass.** Four agents in worktrees, one slice each (shell + Today; Study + Reader; Life + Status + Career; Tree). Rules given to all: transform/opacity only, 120-200 ms, no new backdrop-filter or SVG filters, no dependencies, no fonts. All four were green on tsc and vitest (330 UI tests after merge) and none could look at the running app, so widths and smoothness are reasoned from the CSS, not seen. The Tree slice moves pan/zoom to one transform written at most once per frame; a v2 (tree switcher, spatial arrow keys, glass panel, in-app links, animated zoom, overlap tests) is in progress.
+
+**Numbers.** Backend 1254 passed; UI 330 passed. dist rebuilt once with the app closed.
+
 ## 2026-10-27: sections, a study engine, a life log, and why logging apps die
 
 **Question.** The app had grown to 30+ cards on one Today page. How should it be split so it stays usable? And how do you get a person to log his day for months without the logging itself killing it?

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  BELIEF_COLOR, DOTS, MIN_P, beliefLabel, confidenceAlpha, dotCounts, dotOffsets, fallbackBelief, heightFor, layoutDots,
+  BELIEF_COLOR, DOTS, EXPERIMENTAL_CAP, MIN_P, UNTRAINED_CAP, beliefLabel, confidenceAlpha, dotCounts, dotOffsets, fallbackBelief, heightFor, layoutDots,
   readBelief, spreadFor, topZone, type Belief, type BeliefZone,
 } from '../lib/belief'
 import { roomPlaces, type RoomLike } from '../twin/places'
@@ -175,6 +175,15 @@ describe('words and colour', () => {
     expect(beliefLabel(B({ state: 'unsure', zones: [Z('at the desk', 0.41, 0, 0)] }))).toBe('probably: at the desk · 41 %')
     expect(beliefLabel(B({ state: 'empty', confidence: 0.8 }))).toBe('probably: nobody in the room · 80 %')
     expect(topZone(B({ zones: [Z('a', 0.2, 0, 0), Z('b', 0.5, 1, 1)] }))!.id).toBe('b')
+  })
+
+  it('caps the experimental CNN far below the untrained cap', () => {
+    // ~26 % right on a held-out session (council 2026-10-26): never show it as 90 % sure
+    const exp = (p: number) => B({ zonesTrusted: false, experimental: 'fingerprint CNN', zones: [Z('bed', p, 0, 0)] })
+    expect(EXPERIMENTAL_CAP).toBeLessThan(UNTRAINED_CAP)
+    expect(beliefLabel(exp(0.95))).toBe('maybe: bed · 60 % (experimental)')
+    expect(beliefLabel(exp(0.45))).toBe('maybe: bed · 45 % (experimental)')
+    expect(beliefLabel(exp(0.2))).toBe('in the room, not sure where')
   })
 
   it('is copper in the room, grey unsure, nothing when empty, and fades with confidence', () => {

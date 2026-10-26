@@ -379,7 +379,11 @@ class CsiConditioner:
             return []
         if gain_comp_db is not None:
             absolute = amp * 10 ** (gain_comp_db / 20)
-            med = float(np.median(absolute))
+            # 51 values (odd): the middle of a partition IS the median, identical bits, but
+            # O(n) introselect without np.median's overhead: 2.4 against 21.6 us, and the
+            # median was half the conditioner's time (council hearing 2, seat 5, MEASURED)
+            n = absolute.size
+            med = float(np.partition(absolute, n // 2)[n // 2]) if n % 2 else float(np.median(absolute))
             if med <= 1e-9:
                 self.rejected += 1
                 return []

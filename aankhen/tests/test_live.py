@@ -68,3 +68,45 @@ def test_fingerprint_zones_names_every_class_once_per_window():
     assert out and all(r == {"bed_lying": 0.3, "bed_sitting": 0.3, "desk": 0.7} for _, r in out)
     assert 1.9 <= out[0][0] <= 2.2 and all(abs(b[0] - a[0] - 0.5) < 0.05 for a, b in zip(out, out[1:]))
     assert all(abs(m) < 1e-6 for m in seen)  # log(1) minus the fan-on reference (0), not fan-off's 5
+
+
+def test_numpy_cnn_matches_torch_and_live_never_imports_torch(tmp_path):
+    """The live path runs the saved CNN in numpy: the same logits as torch to 1e-5 on
+    random inputs, and loading it for the engine leaves torch unimported (its CUDA build
+    costs ~488 MB of RAM just to import)."""
+    import json
+    import os
+    import subprocess
+    import sys
+    rng = np.random.default_rng(0)
+    X = rng.normal(0, 0.6, (90, fp.N_SUB, 50)).astype(np.float32)
+    y = np.repeat(["bed", "desk", "door"], 30)
+    m = fp.CnnFingerprint(epochs=2).fit(X, y)
+    m.temperature = 1.7
+    out = m.save(root=str(tmp_path))
+    np.savez(os.path.join(out, "ref.npz"), fan_on=np.zeros(fp.N_SUB), fan_off=np.zeros(fp.N_SUB))
+    npm = fp.NumpyCnn.load(out)
+    Z = rng.normal(0, 1.0, (64, fp.N_SUB, 50)).astype(np.float32)
+    assert np.abs(npm.logits(Z) - m.logits(Z)).max() < 1e-5
+    assert np.abs(npm.proba(Z) - m.proba(Z)).max() < 1e-5 and npm.classes == m.classes
+    code = ("import sys; from aankhen import live; fz = live.FingerprintZones.load(sys.argv[1]); "
+            "assert fz is not None and fz.status == 'predicting'; "
+            "import numpy as np; [fz.push(i / 100, np.ones(51), False, True) for i in range(300)]; "
+            "assert 'torch' not in sys.modules, 'torch was imported'; print('ok')")
+    here = os.path.dirname(os.path.dirname(os.path.abspath(fp.__file__)))     # this checkout, not the .pth one
+    env = {**os.environ, "AANKHEN_DATA_DIR": str(tmp_path / "data"), "PYTHONPATH": here}
+    r = subprocess.run([sys.executable, "-c", code, str(tmp_path)], capture_output=True, text=True, env=env,
+                       cwd=here)
+    assert r.returncode == 0 and "ok" in r.stdout, r.stderr[-2000:]
+
+
+def test_a_model_file_cannot_run_code(tmp_path):
+    """read_state_dict knows only tensors and dicts: anything else in the pickle is refused."""
+    import pickle
+    import zipfile
+    import pytest
+    p = tmp_path / "evil.pt"
+    with zipfile.ZipFile(p, "w") as z:
+        z.writestr("archive/data.pkl", pickle.dumps({"x": print}))
+    with pytest.raises(pickle.UnpicklingError):
+        fp.read_state_dict(str(p))

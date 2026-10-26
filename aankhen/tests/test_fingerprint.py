@@ -248,3 +248,74 @@ def test_jittery_chunk_arrival_still_gives_windows(tmp_path):
     assert len(w) >= 50                                  # ~ (30 - 2) / 0.5 windows
     ts = np.array([t for t, _ in w])
     assert np.all(np.diff(ts) > 0) and ts[0] - host0 < 3.5   # on the host clock, in order
+
+
+# ---------------------------------------------------------------- evaluator v2 and the training job
+def _leaky(sid, dom, other, offset, seed):
+    """No place signal at all, only a session offset: a session that is mostly `dom`."""
+    rng = np.random.default_rng(seed)
+    Z, X, T, t = [], [], [], 1000.0 * seed
+    for z, n in ((dom, 50), (other, 10), (dom, 50), (other, 10)):
+        for _ in range(n):
+            X.append(offset + rng.normal(0, 0.3, (fp.N_SUB, 50))); Z.append(z); T.append(t); t += 0.5
+        t += 10
+    return {"X": np.asarray(X, np.float32), "zone": np.asarray(Z), "t": np.asarray(T), "day": "d1",
+            "session": sid, "dominant": dom}
+
+
+def test_non_dominant_recall_exposes_a_model_that_names_the_session():
+    runs = [_leaky("a1", "desk", "bed", 1.0, 1), _leaky("a2", "desk", "bed", 1.0, 2),
+            _leaky("b1", "bed", "desk", -1.0, 3), _leaky("b2", "bed", "desk", -1.0, 4)]
+    rep = fp.evaluate_held_out({"d1": runs}, epochs=3, n_boot=50, control=False, min_windows=20)
+    assert rep["balanced"]["knn"] > 0.7                     # looks like it knows desk from bed...
+    nd = rep["non_dominant"]
+    assert nd["balanced"]["knn"] < 0.3 and nd["windows"] == 80   # ...but only names the session
+    assert "prior" in rep["balanced"] and "names the session" in nd["note"] or "session" in nd["note"]
+    assert "non-dominant" in fp.format_held_out(rep)
+
+
+def test_adabn_and_its_shuffled_control_are_scored(sessions3):
+    runs = [{**r, "ref_source": "own" if k else "borrowed:s2"} for k, r in enumerate(sessions3["d1"])]
+    rep = fp.evaluate_held_out({"d1": runs}, epochs=2, n_boot=50, adabn=True)
+    assert {"cnn_adabn", "cnn_adabn_shuffled", "prior"} <= set(rep["balanced"])
+    assert rep["borrowed_reference"] == ["s1"]
+    text = fp.format_held_out(rep)
+    assert "AdaBN" in text and "FLAG" in text
+
+
+def test_the_answering_gate():
+    ok = {"ci95": {"cnn": [0.40, 0.6]}, "balanced": {"majority": 0.25}}
+    assert fp.decide_status(3, ok)["status"] == "predicting"          # too few days, however good
+    assert fp.decide_status(4, ok)["status"] == "answering"
+    assert fp.decide_status(5, {"ci95": {"cnn": [0.2, 0.6]}, "balanced": {"majority": 0.25}})["status"] == "predicting"
+    assert fp.decide_status(6, None)["status"] == "predicting"
+
+
+def test_train_job_reports_saves_and_says_predicting(tmp_path):
+    import json
+    import os
+    from aankhen.tests.test_dataset import HOST0, narrate_session
+    roots = {"drill_root": str(tmp_path / "drill"), "narrate_root": str(tmp_path / "n"),
+             "recordings_dir": str(tmp_path / "rec"), "spans_path": str(tmp_path / "spans.jsonl"),
+             "cache_dir": str(tmp_path / "cache")}
+    plan = [(8, "out_of_room"), (12, "at_desk_chair"), (12, "wardrobe"), (12, "at_desk_chair"), (12, "wardrobe")]
+    for k, (day_off, sid) in enumerate([(0, "090000-narrate"), (0, "110000-narrate"), (1, "090000-narrate")]):
+        host = HOST0 + day_off * 86400 + k * 3600
+        day = fp.time.strftime("%Y-%m-%d", fp.time.localtime(host))
+        narrate_session(roots["narrate_root"], day, sid, plan, host, seed=k)
+    stages = []
+    rep = fp.train_job(per_place_s=8, progress=lambda s, f: stages.append((s, f)), epochs=3, n_boot=50,
+                       model_root=str(tmp_path / "models"), dataset_kw={"min_place_s": 2, **roots}, log=lambda *_: None)
+    assert rep["status"] == "predicting" and "day" in rep["why"]
+    assert rep["dataset"]["days"] and len(rep["dataset"]["days"]) == 2
+    assert "balanced" in rep["by_session"] and "balanced" in rep["by_day"]
+    assert {"balanced_accuracy", "baseline", "interval", "recall"} <= set(rep) and rep["split"] == "by_day"
+    assert [s for s, _ in stages][0] == "dataset" and stages[-1] == ("done", 1.0)
+    assert {"evaluate-session", "evaluate-day", "fit", "save"} <= {s for s, _ in stages}
+    st = fp.model_status(str(tmp_path / "models"))
+    assert st["status"] == "predicting" and st["days"] == 2 and st["sessions"] == 3
+    assert set(st["seconds_per_place"]) == {"at_desk_chair", "wardrobe"} and os.path.exists(st["report_path"])
+    man = json.load(open(os.path.join(rep["folder"], "manifest.json"), encoding="utf-8"))
+    assert man["status"] == "predicting" and man["report"] == "report.json"
+    assert fp.model_status(str(tmp_path / "none"))["status"] == "untrained"
+    assert "PREDICTING" in fp.format_train(rep)

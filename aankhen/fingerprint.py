@@ -288,6 +288,11 @@ def _cat(runs: list[dict], key: str) -> np.ndarray:
 PLACE_MAP = {"bed_lying": "bed", "bed_sitting": "bed"}
 MIN_VISITS = 2           # a place seen once can't be learned on one visit and tested on another
 MIN_TEST_WINDOWS = 40    # ~20 s; at ~25 windows one place's recall is +-10 points of noise (council)
+# What the evaluator counts as ONE visit: a stay, ended only by another place's window,
+# never by a silence. On the weak link (2026-10-26) dead stretches of 3 s to 25 min cut
+# the 3 s-gap visits into pieces: the bed counted 93 "visits" where he made 5 stays, and
+# a bootstrap over 93 near-copies would claim an interval far narrower than 5 stays give.
+STAY_GAP_S = float("inf")
 
 
 def place_of(zone: np.ndarray, merge: bool = True) -> np.ndarray:
@@ -313,7 +318,7 @@ def visit_counts(runs: list[dict]) -> dict:
     """{place: visits} over all runs, each run's visits on its own clock."""
     n: dict = {}
     for r in runs:
-        vid = visits(r["t"], r["zone"])
+        vid = visits(r["t"], r["zone"], STAY_GAP_S)
         for z in set(r["zone"].tolist()):
             n[z] = n.get(z, 0) + len(set(vid[r["zone"] == z].tolist()))
     return n
@@ -721,7 +726,7 @@ def evaluate_held_out(days: dict, by: str = "session", epochs: int = 30, seed: i
     g = np.concatenate([[gr] * len(r["zone"]) for gr, r in zip(group, runs)]) if runs else np.asarray([])
     vid, off = np.empty(len(y), int), 0
     for r in runs:                                    # visits on each session's own clock, ids global
-        v = visits(r["t"], r["zone"])
+        v = visits(r["t"], r["zone"], STAY_GAP_S)
         vid[off:off + len(v)] = v + (vid[:off].max() + 1 if off else 0)
         off += len(v)
     names = list(dict.fromkeys(group))
@@ -816,8 +821,11 @@ def format_held_out(rep: dict) -> str:
             lines.append(f"    {G}: {f['error']}")
         else:
             un = f"; not in its training: {', '.join(f['unknown_places'])}" if f["unknown_places"] else ""
+            c = f.get("calibration")
+            cal = (f"; T {c['temperature']} (ECE on its own early-stop windows {c['ece_before']:.0%} -> "
+                   f"{c['ece_after']:.0%})") if c else ""
             lines.append(f"    {G}: {f['test_windows']} windows, trained on {f['trained_on']}  "
-                         f"kNN {f['knn']:.0%}  CNN {f['cnn']:.0%}{un}")
+                         f"kNN {f['knn']:.0%}  CNN {f['cnn']:.0%} (plain){un}{cal}")
     if "error" in rep:
         return "\n".join(lines + ["  " + rep["error"]])
     ci, b = rep["ci95"], rep["balanced"]
@@ -843,8 +851,9 @@ def format_held_out(rep: dict) -> str:
         lines.append(f"  {z:<34} {v['windows']:>7} {v['visits']:>6}  {v['knn']:>4.0%}  {v['cnn']:>5.0%}"
                      f"  {v.get('cnn_shuffled', float('nan')):>6.0%}")
     if rep["listed_apart"]:
-        lines.append("  not scored (too few testable windows or visits): " + ", ".join(
-            f"{z} ({v['windows']} w, {v['visits']} v)" for z, v in rep["listed_apart"].items()))
+        lines.append("  not scored (testable windows, stays; + windows whose fold never trained on the place): "
+                     + ", ".join(f"{z} ({v['windows']} w, {v['visits']} v; +{v['untested_windows']})"
+                                 for z, v in rep["listed_apart"].items()))
     cal = rep.get("cnn_calibration_held_out")
     if cal:
         lines.append(f"  CNN calibration on the held-out {by}s: temperature {', '.join(map(str, cal['temperature']))}; "

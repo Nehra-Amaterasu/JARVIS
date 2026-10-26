@@ -4,7 +4,9 @@
                                  -> RespirationDetector            │
     RadarPacket -> parse_frame -> to_room -> Tracker ──────────────┼─> PresenceFusion -> messages
                                           -> Occupancy             ┘
-    StatusPacket -> device health, fan relay (selects the Wi-Fi baseline)
+    StatusPacket -> device health, fan relay
+    CSI samples  -> FanDetector (fan on/off from the fan's own lines) -> which baseline
+                 -> PresenceDetector (body-band variance, drift monitor; experimental)
 
 The engine knows nothing about where packets come from (serial, replay or the
 simulator); the caller passes `source_kind`, and it is stamped on every message so
@@ -31,6 +33,7 @@ import numpy as np
 
 from .csi import CsiConditioner
 from .eyes import EyesBuffer
+from .fan import FanDetector
 from .fusion import Evidence, FusionConfig, PresenceFusion
 from .belief import BeliefTracker, OodGuard, feature_ranges_from_model, motion01
 from .learn import CLASSES as LEARNED_CLASSES, FEATURES as LEARNED_FEATURES, OCCUPIED as LEARNED_OCCUPIED, \
@@ -38,6 +41,7 @@ from .learn import CLASSES as LEARNED_CLASSES, FEATURES as LEARNED_FEATURES, OCC
 from .motion import HBE_RECENT_GATE, STATE_MOTION, STATE_UNCALIBRATED, Baseline, MotionConfig, \
     MotionDetector, RespirationDetector
 from .occupancy import OccupancyMap
+from .presence import PresenceDetector
 from .protocol import CsiPacket, RadarPacket, StatusPacket
 from .radar import FrameError, parse_frame, to_room
 from .room import TORSO_HEIGHT_M, Room
@@ -53,6 +57,9 @@ LIVE_WINDOW_S = 2.0          # a sensor is "live" if a packet arrived this recen
 # shown better on the same moments. AANKHEN_GAIN_COMP=1 turns it on.
 import os as _os
 GAIN_COMP = _os.environ.get("AANKHEN_GAIN_COMP", "0") == "1"
+# The fan read from the CSI itself (fan.FanDetector). AANKHEN_FAN_AUTO=0 turns it off:
+# the fan is then only what the relay reports or the owner sets by hand.
+FAN_AUTO = _os.environ.get("AANKHEN_FAN_AUTO", "1") != "0"
 
 
 @dataclass
@@ -138,6 +145,14 @@ class Engine:
         self.reference: dict = {"source": "baseline" if baseline is not None and baseline.ref else "none",
                                 "matched": False}
         self.fan_external: Optional[bool] = None      # the fan as the Uno reports it (hub.note_fan)
+        # The fan from the CSI (fan.FanDetector), and the owner's hand-set override.
+        self.fan_auto = FanDetector()
+        self.fan_manual: Optional[bool] = None
+        self._fan_applied: object = "never"            # the fan state last handed to the detectors
+        # Variance presence and the drift monitor (presence.py), experimental: shown, not acted on.
+        self.presence_wifi = PresenceDetector()
+        self._empty_since: Optional[float] = None      # device time an independent source said "empty"
+        self._hour_at = float("-inf")
         self.teacher_hint: Optional[dict] = None      # free teachers' current hint (hub)
         self._belief_at = float("-inf")
         self._ref_key: Optional[tuple] = None
@@ -198,6 +213,10 @@ class Engine:
     # A fan spinning up or down sweeps through every frequency on its way, which no
     # baseline describes: Wi-Fi is ignored for this long after the relay switches.
     FAN_SETTLE_S = 30.0
+    # The first seconds after "empty" are him walking out of the door: presence's empty
+    # reference starts capturing only after this. (The fan-on baseline learner waits its
+    # own fan_learn_after_s, 20 s.)
+    EMPTY_AFTER_S = 20.0
 
     def _on_status(self, p: StatusPacket) -> None:
         """The board reports its relays in every STATUS frame (firmware sendStatus).
@@ -215,16 +234,65 @@ class Engine:
                 self._event(t, "fan", f"Fan switched {'on' if fan else 'off'}: "
                                       f"Wi-Fi ignored for {self.FAN_SETTLE_S:.0f} s while it settles")
             self.fan_relay = fan
-            if self.fan_external is None:
-                self.motion.set_fan(fan)
+            self._apply_fan(t)
         if self._ref_key != (self.firmware(), self.fan_on):
             self._match_reference()
 
     @property
     def fan_on(self) -> Optional[bool]:
-        """The fan as best known: the Uno's report (the switch that really drives it since
-        10-13) over the ESP32's own relay, which nothing is wired to any more."""
-        return self.fan_external if self.fan_external is not None else self.fan_relay
+        """The fan as best known, and fan_source says who knows it:
+          1. the owner's hand-set state (set_fan_manual), always first;
+          2. the CSI's own "on" (FanDetector): the fan's lines are there, whatever any
+             switch reports (a wall switch or the regulator also runs it);
+          3. the Uno's report (it drives the fan since 10-13), then the ESP32's relay;
+          4. the CSI's "off", only when no switch reports at all: fan-off was never
+             recorded with a known state (data/notes/research/aankhen-presence-fan.md),
+             so the detector's "off" does not overrule a switch that says "on"."""
+        return self._fan_decision()[0]
+
+    @property
+    def fan_source(self) -> Optional[str]:
+        return self._fan_decision()[1]
+
+    def _fan_decision(self) -> tuple[Optional[bool], Optional[str]]:
+        if self.fan_manual is not None:
+            return self.fan_manual, "manual"
+        auto = self.fan_auto.on if FAN_AUTO else None
+        if auto is True:
+            return True, "auto"
+        if self.fan_external is not None:
+            return self.fan_external, "relay board"
+        if self.fan_relay is not None:
+            return self.fan_relay, "esp32 relay"
+        if auto is False:
+            return False, "auto"
+        return None, None
+
+    def _apply_fan(self, t: Optional[float] = None) -> None:
+        """Hand the current fan decision to the detectors (baseline, presence reference,
+        empty-room reference) when it changed. No settling pause here: a relay switch
+        starts one itself, and the CSI decides only after the fan has run for ~30 s."""
+        on, src = self._fan_decision()
+        if on == self._fan_applied:
+            return
+        first = self._fan_applied == "never"
+        self._fan_applied = on
+        if on is not None:
+            self.motion.set_fan(on)
+        self.presence_wifi.set_fan(None if on is None else ("on" if on else "off"))
+        if src == "auto" and not first and t is not None:
+            r = self.fan_auto.reading()
+            line = f" (a line at {r['line_hz']:.1f} Hz)" if r.get("line_hz") else ""
+            self._event(t, "fan", f"The fan looks {'on' if on else 'off'} from the Wi-Fi itself{line}: "
+                                  f"using the fan-{'on' if on else 'off'} baseline")
+        if self._ref_key is not None and self._ref_key != (self.firmware(), on):
+            self._match_reference()
+
+    def set_fan_manual(self, on: Optional[bool]) -> None:
+        """The owner's own word on the fan (None hands it back to the CSI and the relays)."""
+        with self.lock:
+            self.fan_manual = None if on is None else bool(on)
+            self._apply_fan(self.device_t)
 
     def set_fan_external(self, on: Optional[bool], t: Optional[float] = None) -> None:
         """The hub tells the engine what the Uno says the fan is doing. A switch starts the
@@ -232,6 +300,7 @@ class Engine:
         with self.lock:
             if on is None:
                 self.fan_external = None
+                self._apply_fan(self.device_t)
                 return
             on = bool(on)
             t = self.device_t if t is None else t
@@ -240,7 +309,7 @@ class Engine:
                 self._event(t, "fan", f"Fan switched {'on' if on else 'off'} (relay board): "
                                       f"Wi-Fi ignored for {self.FAN_SETTLE_S:.0f} s while it settles")
             self.fan_external = on
-            self.motion.set_fan(on)
+            self._apply_fan(t)
             self._match_reference()
 
     def firmware(self) -> Optional[str]:
@@ -291,6 +360,8 @@ class Engine:
         self.cond = CsiConditioner()
         self.eyes.reset()
         self.motion.restart()
+        self.fan_auto.restart()
+        self.presence_wifi.restart()
         self.resp = RespirationDetector(floor=self.resp.floor)
         self._csi_settle_until = max(self._csi_settle_until, t + self.CHANNEL_SETTLE_S)
         self._event(t, "channel", f"Wi-Fi moved from channel {old} to {new}: "
@@ -314,6 +385,22 @@ class Engine:
         self.motion.radar_empty_s = (t - self._radar_empty_since
                                      if radar_up and self._radar_empty_since is not None else None)
         self.motion.settling = self._csi_settling(t)
+        # Independent "the room is empty": the drill's empty block or the teachers' away
+        # (both run the recalibrator). It feeds the fan-on baseline and presence's reference.
+        if self.recal.active_source is not None:
+            if self._empty_since is None:
+                self._empty_since = t
+        else:
+            self._empty_since = None
+        empty_s = None if self._empty_since is None else t - self._empty_since
+        self.motion.empty_s = empty_s
+        self.presence_wifi.empty = (empty_s is not None and empty_s >= self.EMPTY_AFTER_S
+                                    and not self._csi_settling(t))
+        now = time.time()
+        if now - self._hour_at > 60.0:
+            # sleep stretches (presence.py) need the local hour; the simulator has none
+            self.presence_wifi.hour = time.localtime(now).tm_hour if self.source_kind == "hardware" else None
+            self._hour_at = now
         self.eyes.push_raw(t, p.raw)                 # phase needs the packet itself
         tap = self.tap
         if tap is not None:
@@ -325,6 +412,10 @@ class Engine:
             if tap is not None:
                 tap.sample(s.t, s.amp, s.filled, s.level_db)
             self.resp.push(s)
+            if FAN_AUTO and self.fan_auto.push(s.amp, comb_locked=self.motion.fan.locked) is not None:
+                self._apply_fan(s.t)
+            if not self._csi_settling(s.t):
+                self.presence_wifi.push(s.t, s.amp)
             if self.fingerprint is not None:
                 zp = self.fingerprint.push(s.t, s.amp, s.filled, bool(self.fan_on))
                 if zp is not None:
@@ -737,6 +828,10 @@ class Engine:
                 "belief": self.belief.contract(),
                 "honest": self.belief.honest(),
                 "reference": dict(self.reference),
+                "fan_auto": self.fan_auto.reading(),
+                "fan_on": self.fan_on,
+                "fan_source": self.fan_source,
+                "presence_wifi": self.presence_wifi.summary(),
                 "motion_detail": {
                     "state": m.state if m else None,
                     "score": m.score if m else None,
@@ -754,6 +849,7 @@ class Engine:
                     "context": self.motion.context,
                     "settling": self._csi_settling(t),
                     "fan": {"relay": self.fan_relay, "board": self.fan_external, "on": self.fan_on,
+                            "manual": self.fan_manual, "auto": self.fan_auto.state, "source": self.fan_source,
                             **self.motion.fan.summary()},
                     # Human-band energy (motion.py): power at body speeds (0.4-4 Hz)
                     # over the last 3 s / 1 s, in units of the window's own noise.
@@ -883,7 +979,11 @@ class Engine:
                 "learned": honest_learned(f.get("learned"), (f.get("belief") or {}).get("zones_trusted", True)),
                 "belief": f.get("belief"),
                 "honest": f.get("honest"),
-                "human_band": f["motion_detail"].get("human_band")}
+                "human_band": f["motion_detail"].get("human_band"),
+                "fan_auto": f.get("fan_auto"),
+                "fan_on": f.get("fan_on"),
+                "fan_source": f.get("fan_source"),
+                "presence_wifi": f.get("presence_wifi")}
 
 
 UNTRAINED_CAP = 0.9     # an untrained model never says 100 %

@@ -94,3 +94,95 @@ def test_belief_motion_is_unknown_without_a_baseline_or_when_stale():
     eng.motion.last = MotionReading(10.0, STATE_QUIET, 0.5, 2.0, 0.1, 0.5, "quiet",
                                     {"hbe": None, "hbe_threshold": None}, "calibrated")
     assert eng._belief_motion(10.2) == 0.1             # no HBE calibration: the score's own 0..1
+
+
+# ------------------------------------------------------- the fan from the CSI, presence
+def _fan_csi(t, rng, fan_hz=9.08, phases=None, depth=0.25):
+    """A packet whose 64 bins swing at a fan's blade-pass, each bin with its own phase
+    (so the per-packet median stays put and the line survives normalisation)."""
+    ph = phases if phases is not None else np.zeros(64)
+    swing = depth * np.sin(2 * np.pi * fan_hz * t + ph) if fan_hz else 0.0
+    amp = 40.0 * (1.0 + swing) + rng.normal(0, 0.6, 64)
+    iq = np.zeros(128, np.int8)
+    iq[1::2] = np.clip(np.rint(amp), -127, 127).astype(np.int8)     # real; imaginary (first) left 0
+    return CsiPacket(int(t * 1e6), 0, -50, -92, 6, 0, 1, 0, 0, 1, b"\x02\0\0\0\0\x01", iq.tobytes())
+
+
+def _feed_csi(eng, t0, seconds, rng, **kw):
+    ph = np.random.default_rng(99).uniform(0, 2 * np.pi, 64)
+    n = int(seconds * 100)
+    for i in range(n):
+        eng.process(_fan_csi(t0 + i * 0.01, rng, phases=ph, **kw))
+    return t0 + n * 0.01
+
+
+def test_the_fan_is_read_from_the_csi_and_picks_the_fan_on_baseline():
+    rng = np.random.default_rng(1)
+    eng = _engine()
+    assert eng.fan_on is None and eng.fan_source is None
+    _feed_csi(eng, 1.0, 60, rng)
+    assert eng.fan_auto.state == "on"
+    assert eng.fan_on is True and eng.fan_source == "auto"
+    assert eng.motion.context == MotionDetector.FAN_ON
+    assert eng.presence_wifi.fan == "on"
+    assert any(e.kind == "fan" and "from the Wi-Fi itself" in e.text for e in eng.events)
+    f = eng.frame_message()
+    assert f["fan_auto"]["fan"] == "on" and f["fan_on"] is True and f["fan_source"] == "auto"
+    assert f["motion_detail"]["fan"]["auto"] == "on" and f["motion_detail"]["fan"]["source"] == "auto"
+    snap = eng.snapshot()
+    for k in ("fan_auto", "fan_on", "fan_source", "presence_wifi"):
+        assert k in snap
+    assert set(snap["presence_wifi"]) >= {"present", "p", "why", "ref_age_s", "drift"}
+    # the owner's own word overrides the CSI, and None hands it back
+    eng.set_fan_manual(False)
+    assert eng.fan_on is False and eng.fan_source == "manual"
+    assert eng.motion.context == MotionDetector.FAN_OFF and eng.presence_wifi.fan == "off"
+    eng.set_fan_manual(None)
+    assert eng.fan_on is True and eng.fan_source == "auto"
+    assert eng.motion.context == MotionDetector.FAN_ON
+
+
+def test_the_csi_saying_off_never_overrules_a_relay_saying_on():
+    # fan-off was never recorded with a known state, so an "off" from the CSI is the
+    # weaker word: a switch that reports "on" wins, and the CSI's "off" counts only alone
+    rng = np.random.default_rng(2)
+    eng = _engine()
+    _feed_csi(eng, 1.0, 60, rng, fan_hz=None)
+    assert eng.fan_auto.state == "off"
+    assert eng.fan_on is False and eng.fan_source == "auto"
+    eng.process(_status(62.0, True))
+    assert eng.fan_on is True and eng.fan_source == "esp32 relay"
+    assert eng.motion.context == MotionDetector.FAN_ON
+
+
+def test_empty_evidence_learns_the_fan_on_baseline_and_presences_reference():
+    # no radar in this room: the drill's empty block (the recalibrator running) is the
+    # independent "empty" that ends the fan-on "unknown"
+    rng = np.random.default_rng(3)
+    eng = _engine()
+    t = _feed_csi(eng, 1.0, 50, rng)
+    assert eng.motion.context == MotionDetector.FAN_ON and eng.motion.fan_baseline is None
+    assert eng.motion.last.state == "uncalibrated"
+    assert eng.presence_wifi.summary()["present"] is None
+    eng.recal.active_source = "drill"
+    t = _feed_csi(eng, t, 90, rng)
+    assert eng.motion.empty_s is not None and eng.motion.empty_s > 80
+    assert eng.motion.fan_baseline is not None and eng.motion.fan_baseline.source == "learned (fan on)"
+    assert eng.motion.last.state != "uncalibrated"
+    assert eng.presence_wifi.ref is not None and eng.presence_wifi.ref.ready
+    assert eng.presence_wifi.ref.source == "empty"
+    eng.recal.active_source = None
+    _feed_csi(eng, t, 5, rng)
+    assert eng.motion.empty_s is None and eng.presence_wifi.empty is False
+    p = eng.snapshot()["presence_wifi"]
+    assert p["p"] is not None and p["validated"] is False
+
+
+def test_a_channel_change_keeps_the_fan_and_restarts_presence():
+    rng = np.random.default_rng(4)
+    eng = _engine()
+    t = _feed_csi(eng, 1.0, 60, rng)
+    assert eng.fan_on is True
+    eng.process(_csi(t, channel=11))
+    assert eng.fan_auto.state == "on" and eng.fan_on is True
+    assert eng.presence_wifi._x_lo is None              # the filters start again on the new channel

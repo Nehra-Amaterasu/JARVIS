@@ -8,11 +8,12 @@
  * QuestCards is also shown on Today: one small session a day, logged set by set.
  */
 import { Activity, Check, Dumbbell, Lightbulb, Lock } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, post } from '../../lib/api'
 import { useStore } from '../../lib/store'
 import { usePlan, type PlanContract } from '../game/plan'
-import { EMPTY, MissionHeader, NeonBar } from '../ui'
+import { EMPTY, MissionHeader } from '../ui'
+import './status-career.css'
 
 export interface Stat { id: string; name: string; value: number; unit?: string; explain: string; inputs: Record<string, number> }
 export interface StatusView {
@@ -57,77 +58,140 @@ export function StatusPage() {
           <span className="pill">Level {view.level.level} · {view.xp} XP</span></div>} />
       {error && <div className="card warn small">The System is not answering ({error}). Your logged work is safe on the server.</div>}
       {!view && !error && <div className="card"><div className="empty">Reading your record…</div></div>}
-      {view && <>
-        <RankCard view={view} />
-        <section className="card status-stats" aria-label="Stats">
-          <div className="card-head"><span className="card-title"><Activity size={14} />Stats</span><span className="mono muted small">from logged work, {view.date}</span></div>
-          <div className="stat-grid">
-            {view.stats.map((s) => (
-              <div key={s.id} className="stat" data-stat={s.id}>
-                <div className="stat-head"><b>{s.name}</b> <span className="mono stat-value">{s.value}{s.unit ? ` ${s.unit}` : ''}</span></div>
-                <p className="small muted stat-explain">{s.explain}</p>
-              </div>
-            ))}
+      {view && (
+        <div className="status-grid">
+          <div className="status-main">
+            <RankCard view={view} />
+            <StatsCard view={view} />
+            <QuestCards onLogged={load} />
           </div>
-        </section>
-        {view.advice.length > 0 && (
-          <section className="card status-advice">
-            <div className="card-head"><span className="card-title"><Lightbulb size={14} />The System suggests</span></div>
-            <ul>{view.advice.map((a) => <li key={a}>{a}</li>)}</ul>
-            <p className="small muted">Suggestions only. Nothing changes until you act on one.</p>
-          </section>
-        )}
-        <QuestCards onLogged={load} />
-        <section className="card status-domains">
-          <div className="card-head"><span className="card-title"><Dumbbell size={14} />Quest lines</span><span className="mono muted small">optional</span></div>
-          {view.domains.map((d) => (
-            <div key={d.id} className={`domain domain-${d.status}`}>
-              <div className="domain-head">
-                <b>{d.name}</b> <span className="mono muted small">{d.status}</span>
-                {d.status !== 'planned' && (
-                  <button className="btn sm ghost" onClick={() => void toggle(d.id, d.status !== 'on')}>{d.status === 'on' ? 'Turn off' : 'Turn on'}</button>
-                )}
-              </div>
-              {d.status === 'planned' && <p className="small muted"><Lock size={12} /> {d.why}</p>}
-              {d.tracks && d.status === 'on' && (
-                <ul className="small">
-                  {d.tracks.map((t) => (
-                    <li key={t.id}>{t.name}: level {t.level}/{t.max_level} ({t.level_name}) · earned {t.earned}
-                      {t.start_level > 1 ? <span className="muted"> · started at {t.start_level}</span> : null}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ))}
-        </section>
-        <section className="card small status-not-counted">
-          <div className="card-head"><span className="card-title">Not counted</span></div>
-          <p className="muted">{view.not_counted.explain}</p>
-          <p className="mono">{view.not_counted.xp_from_games} XP from games · {view.not_counted.xp_carried_over} XP carried over
-            {view.not_counted.nodes_claimed.length > 0 && ` · claimed without a contract: ${view.not_counted.nodes_claimed.join(', ')}`}</p>
-        </section>
-      </>}
+          <aside className="status-side">
+            {view.advice.length > 0 && (
+              <section className="card status-advice">
+                <div className="card-head"><span className="card-title"><Lightbulb size={14} />The System suggests</span></div>
+                <ul>{view.advice.map((a) => <li key={a}>{a}</li>)}</ul>
+                <p className="small muted">Suggestions only. Nothing changes until you act on one.</p>
+              </section>
+            )}
+            <section className="card status-domains">
+              <div className="card-head"><span className="card-title"><Dumbbell size={14} />Quest lines</span><span className="mono muted small">optional</span></div>
+              {view.domains.map((d) => (
+                <div key={d.id} className={`domain domain-${d.status}`}>
+                  <div className="domain-head">
+                    <b className="domain-name" title={d.name}>{d.name}</b>
+                    <span className={`domain-state mono ${d.status}`}>{d.status}</span>
+                    {d.status !== 'planned' && (
+                      <button className="btn sm ghost" onClick={() => void toggle(d.id, d.status !== 'on')}>{d.status === 'on' ? 'Turn off' : 'Turn on'}</button>
+                    )}
+                  </div>
+                  {d.status === 'planned' && d.why && <p className="small muted domain-why"><Lock size={11} /> {d.why}</p>}
+                  {d.tracks && d.status === 'on' && d.tracks.length > 0 && (
+                    <ul className="domain-tracks small">
+                      {d.tracks.map((t) => (
+                        <li key={t.id} title={`${t.name}: ${t.level_name}`}>
+                          <span className="dt-name">{t.name}</span>
+                          <span className="mono">{t.level}/{t.max_level}</span>
+                          <span className="muted dt-level">{t.level_name} · earned {t.earned}{t.start_level > 1 ? ` · started at ${t.start_level}` : ''}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </section>
+            <details className="card small status-not-counted">
+              <summary><span className="card-title">Not counted</span>
+                <span className="mono muted">{view.not_counted.xp_from_games + view.not_counted.xp_carried_over} XP</span></summary>
+              <p className="muted">{view.not_counted.explain}</p>
+              <p className="mono">{view.not_counted.xp_from_games} XP from games · {view.not_counted.xp_carried_over} XP carried over
+                {view.not_counted.nodes_claimed.length > 0 && ` · claimed without a contract: ${view.not_counted.nodes_claimed.join(', ')}`}</p>
+            </details>
+          </aside>
+        </div>
+      )}
     </div>
   )
 }
 
+/** The System window: the rank big and calm, the level as one thin line, and what the next rank still needs. */
 function RankCard({ view }: { view: StatusView }) {
   const nxt = view.rank.next
+  const lv = view.level
+  const met = nxt ? nxt.missing.filter((m) => m.have >= m.need).length : 0
   return (
     <section className="card status-rank" aria-label="Rank">
-      <div className="card-head"><span className="card-title">Rank {view.rank.rank}</span>
-        <span className="mono muted small">{nxt ? `next: ${nxt.rank}` : 'top rank'}</span></div>
-      {nxt ? (
-        <ul className="rank-missing">
-          {nxt.missing.map((m) => (
-            <li key={m.req}>
-              <span className="small">{m.name}: <b className="mono">{m.have}/{m.need}</b></span>
-              <NeonBar progress={Math.min(1, m.have / m.need)} />
-            </li>
-          ))}
-        </ul>
-      ) : <p className="small">Every requirement met.</p>}
-      <p className="small muted">A rank needs proof. XP raises the level, never the rank.</p>
+      <div className="sw-rank">
+        <span className="eyebrow">Rank</span>
+        <span className="sw-dial">
+          <DotRing progress={lv.need ? lv.into / lv.need : 0} />
+          <b className="sw-letter">{view.rank.rank}</b>
+        </span>
+        <span className="sw-level mono"><b>LV {lv.level}</b> · {lv.into}/{lv.need} XP to {lv.level + 1}</span>
+      </div>
+      <div className="sw-next">
+        <div className="sw-next-head"><span className="eyebrow">{nxt ? `Next: rank ${nxt.rank}` : 'Top rank'}</span>
+          {nxt && <span className="mono muted small">{met}/{nxt.missing.length} met</span>}</div>
+        {nxt ? (
+          <ul className="rank-missing">
+            {nxt.missing.map((m) => {
+              const done = m.have >= m.need
+              return (
+                <li key={m.req} className={done ? 'met' : ''}>
+                  <span className="rm-box" aria-hidden>{done ? <Check size={12} strokeWidth={2.6} /> : null}</span>
+                  <span className="rm-text" title={m.name}>{m.name}: <b className="mono">{m.have}/{m.need}</b></span>
+                  <DotMeter progress={m.need ? m.have / m.need : 1} />
+                </li>
+              )
+            })}
+          </ul>
+        ) : <p className="small">Every requirement met.</p>}
+        <p className="small muted sw-rule">A rank needs proof. XP raises the level, never the rank.</p>
+      </div>
+    </section>
+  )
+}
+
+/**
+ * The level as a ring of 40 dots around the rank letter, Nothing-glyph style: lit dots
+ * are XP into this level. Static SVG, so it costs one paint; no animation of its own.
+ */
+const RING = 40
+const RING_DOTS = Array.from({ length: RING }, (_, i) => {
+  const a = (i / RING) * Math.PI * 2 - Math.PI / 2
+  return { x: 60 + Math.cos(a) * 54, y: 60 + Math.sin(a) * 54 }
+})
+function DotRing({ progress }: { progress: number }) {
+  const lit = Math.round(Math.max(0, Math.min(1, progress)) * RING)
+  return (
+    <svg className="sw-ring" viewBox="0 0 120 120" aria-hidden>
+      {RING_DOTS.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={i < lit ? 2.4 : 1.6} className={i < lit ? 'lit' : ''} />)}
+    </svg>
+  )
+}
+
+/** Progress as twelve dots (lit = done), the dot-matrix twin of a bar. */
+function DotMeter({ progress, n = 12 }: { progress: number; n?: number }) {
+  const lit = Math.round(Math.max(0, Math.min(1, progress)) * n)
+  return <span className="dot-meter" aria-hidden>{Array.from({ length: n }, (_, i) => <i key={i} className={i < lit ? 'lit' : ''} />)}</span>
+}
+
+/** Stat tiles: the value at a glance, how it was computed one tap away. */
+function StatsCard({ view }: { view: StatusView }) {
+  return (
+    <section className="card status-stats" aria-label="Stats">
+      <div className="card-head"><span className="card-title"><Activity size={14} />Stats</span><span className="mono muted small">from logged work, {view.date}</span></div>
+      <div className="stat-grid">
+        {view.stats.map((s, i) => (
+          <details key={s.id} className="stat" data-stat={s.id}>
+            <summary>
+              <span className="stat-name eyebrow" title={s.name}><i className="mono">{String(i + 1).padStart(2, '0')}</i>{s.name}</span>
+              <span className="stat-value"><b>{s.value}</b>{s.unit && <em className="mono">{s.unit}</em>}</span>
+              <span className="stat-how mono">how</span>
+            </summary>
+            <p className="small muted stat-explain">{s.explain}</p>
+          </details>
+        ))}
+      </div>
     </section>
   )
 }
@@ -135,7 +199,7 @@ function RankCard({ view }: { view: StatusView }) {
 /** Today's quest contracts (slot 'quest'), each with a set-by-set log. */
 export function QuestCards({ onLogged }: { onLogged?: () => void | Promise<void> }) {
   const contracts = usePlan((s) => s.today?.contracts) ?? EMPTY
-  const quests = contracts.filter((c) => c.source === 'quest' && c.quest)
+  const quests = useMemo(() => contracts.filter((c) => c.source === 'quest' && c.quest), [contracts])
   if (!quests.length) return null
   return (
     <section className="card quest-cards" aria-label="Today's quest">

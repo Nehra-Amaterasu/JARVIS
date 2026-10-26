@@ -2,6 +2,30 @@
 
 One file for the Well Wisher topic, newest section on top. Older dated notes stay as they are (2026-10-23-mission-germoney-rebuild.md, 2026-10-25-well-wisher-v1.md, 2026-10-25-well-wisher-engines.md).
 
+## 2026-10-26 (later): building hours from commits, and a director over the engines
+
+**Question.** Can the hours spent building (with an AI pair, commits every 20–60 min) be counted from real evidence? And can the engines feed one ordered answer instead of six cards?
+
+**Sessions model (ww_sessions.py).**
+- Commits less than **90 min** apart form one session; each session adds **30 min** of lead-in before its first commit; a session is capped at 8 h.
+- The area of a commit comes from its conventional-commit scope, with old names merged (mission / germoney / wellwisher become well-wisher).
+- On this repo (26 Oct): **166 commits in 14 days**, **15.5 h of building in 7 days**, 4 h 52 min on the day.
+- The commits are real; the minutes are an estimate from timestamps, and the card says so.
+- Importing logs each session once (keyed by its first commit) as a "build" log, with the last commit's URL as proof.
+
+**Director (ww_director.py).**
+- It takes only the other engines' answers and adds no new model of him.
+- In exam week (a paper within 14 days), today's study blocks come first, and building is capped at 60 min a day until today's study is logged; otherwise up to 180 min. Both caps are in Settings.
+- Then the due recall and the unticked habits, then the build block.
+- A practice paper under its target moves that paper up and names the gap.
+
+**Exams: difficulty and targets.**
+- Per-paper difficulty scales the learn time: easy 0.7, hard 1.3.
+- The target is checked against the latest practice paper.
+- On the real sheet (target 16/20; three papers easy, four hard) the plan is **about 10 h short**, up from 4 h with no difficulty set.
+
+**Tests.** 14 new (sessions grouping, lead-in, aliases, import idempotence through the plan, the git-log parser, the director's caps and ordering, the difficulty scaling, target clamping); app 1240 passed, UI 324 passed.
+
 ## 2026-10-26: an exams engine, and Settings the engines actually read
 
 **Question.** The owner's internals are 7 papers over 4 days, each on two units of the syllabus. Can Well Wisher turn a typed date sheet into a block-by-block plan to the last paper that stays honest? And can it use what he types in Settings at all?

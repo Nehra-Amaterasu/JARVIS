@@ -167,7 +167,8 @@ def test_the_firmware_and_the_host_agree_on_the_wire():
     assert {n: i + 1 for i, n in enumerate(names)} == {k.name: int(k) for k in nl.Kind}
     assert '"AKN1 session", 12' in ino and nl.SESSION_LABEL == b"AKN1 session"
     assert '"AKN1 fingerprint", 16' in ino
-    assert re.search(r'#define FW_VERSION "aankhen-3\.5\.0"', ino)
+    # any 3.x: the wire format above has not changed since 3.5.0 (3.5.1 ping timeout, 3.6.0 "lq")
+    assert re.search(r'#define FW_VERSION "aankhen-3\.\d+\.\d+"', ino)
 
 
 # ------------------------------------------------------------------ order

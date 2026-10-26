@@ -143,16 +143,22 @@ def test_coarse_likelihood_uses_the_prior():
 
 
 def test_a_long_packet_gap_is_not_read_as_movement():
-    """Silence never counts as "something happened": a 25 s hole (the real board had
-    21-30 s stalls) moves the belief no more than 5 s of the same motion would."""
-    def after(dt):
+    """Silence never counts as "something happened": past 5 s a hole (the real board had
+    21-30 s stalls) runs with motion unknown, so a 25 s hole after a moving reading moves
+    the belief less than 25 s of seen movement does (council 2026-10-26 replaced the old
+    hard 5 s cap, which froze the belief through 10 min dead links)."""
+    def start():
         b = ZoneBelief(ZM)
         b.p = np.full(len(ZM), 1e-6); b.p[ZM.index["at_desk_chair"]] = 1; b.p /= b.p.sum()
         b.predict(0.0, 1.0)
-        b.predict(dt, 1.0)
-        return b.p.copy()
-    assert np.allclose(after(25.0), after(5.0))
-    assert after(25.0)[ZM.index["at_desk_chair"]] > 0.5
+        return b
+    hole = start(); hole.predict(25.0, 1.0)
+    seen = start()
+    for k in range(1, 6):
+        seen.predict(5.0 * k, 1.0)
+    desk = ZM.index["at_desk_chair"]
+    assert hole.p[desk] > seen.p[desk]
+    assert hole.p[desk] > 0.5
 
 
 def test_the_guard_refuses_infinite_features_and_lets_missing_ones_pass():
@@ -392,7 +398,8 @@ def test_firmware_boots_every_relay_off_before_the_network_starts():
     assert init.index("digitalWrite(") < init.index("pinMode(")    # off level latched before OUTPUT
     assert "r.on = false" in init
     setup = _body(ino, "void setup()")
-    assert setup.index("bootRelays()") < setup.index("connectWifi()") < setup.index("startHttp()")
+    # 3.6.0: startWifi() returns at once and loop() finishes the join, so relays are off first
+    assert setup.index("bootRelays()") < setup.index("startWifi()") < setup.index("startHttp()")
     boot = _body(ino, "static const char *bootRelays()")
     # kept ON only across a software reset that the OTA path marked: never a power cut
     assert "esp_reset_reason() == ESP_RST_SW && relayKeepMagic == RELAY_KEEP_MAGIC" in boot

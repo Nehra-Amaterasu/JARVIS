@@ -1,0 +1,212 @@
+/* ==========================================================================
+   Well Wisher: the theme. Ash and saffron, Nothing-OS quiet.
+
+   Imported last by MissionRoot.tsx, so it sits after every page's own sheet.
+   Selectors start with :where(.page.mission) where they restyle a shared
+   primitive (.card, .card-head, .btn.primary): :where() adds no specificity, so a
+   page's own `.card.foo { padding }` still wins over the default here.
+
+   Saffron is identity, never data. Provenance keeps its colours (tokens.css):
+   cyan confirmed, amber inferred or claimed, red fault. Saffron (#ff7a2e, hue 22)
+   sits clear of the amber (#ffb020, hue 40) and marks at most one thing per
+   screen: the active tab, the primary button, the one next step.
+
+   Motion: transform and opacity only, 160 ms, off under prefers-reduced-motion.
+   No backdrop-filter here: glass stays in direction.css behind [data-glass].
+   ========================================================================== */
+.page.mission {
+  --ww-accent: #ff7a2e;
+  --ww-accent-hi: #ff9454;
+  --ww-accent-2: rgba(255, 122, 46, 0.14);
+  --ww-accent-ink: #1c0b00;
+  --ww-ash: #b8b1a6;                         /* vibhuti grey, warm: the Devanagari labels */
+  --ww-ash-2: rgba(184, 177, 166, 0.07);
+  --ww-deva: 'Nirmala UI', 'Nirmala Text', 'Mangal', 'Kohinoor Devanagari', 'Noto Sans Devanagari', sans-serif;
+
+  /* one radius, one padding scale, one gap scale */
+  --ww-r: 18px;
+  --ww-r-sm: 12px;
+  --ww-pad: 20px;
+  --ww-pad-sm: 14px;
+  --ww-gap: 16px;
+  --ww-gap-lg: 28px;
+  --ww-max: 1600px;                          /* past 1600 px lines get too long to read */
+  --ww-t: 160ms;
+}
+
+/* ------------------------------------------------------------------ width and rhythm */
+.page.mission > .mission-nav,
+.page.mission .mission-page { max-width: var(--ww-max); margin-inline: auto; }
+.page.mission .embedded > .mission-page { max-width: none; }
+
+/* ------------------------------------------------------------------ Devanagari */
+.ww-deva {
+  font-family: var(--ww-deva); font-size: 12.5px; font-weight: 400; line-height: 1;
+  letter-spacing: 0; text-transform: none; color: var(--ww-ash); opacity: 0.8;
+}
+.card-title .ww-deva { margin-left: 4px; font-size: 12px; opacity: 0.6; }
+
+/* ------------------------------------------------------------------ the segmented bar */
+.page.mission .mission-nav {
+  position: sticky; top: -10px; z-index: 5;
+  display: flex; align-items: center; gap: 2px;
+  padding: 5px; margin-top: -2px; margin-bottom: var(--ww-gap-lg);
+  border-radius: 14px;
+  background: rgba(10, 11, 13, 0.9);
+  box-shadow: inset 0 0 0 1px var(--hair);
+  overflow-x: auto; scrollbar-width: none;
+}
+.page.mission .mission-nav::-webkit-scrollbar { display: none; }
+.mission-nav .mn-brand { display: inline-flex; align-items: baseline; gap: 8px; padding: 0 16px 0 10px; white-space: nowrap; }
+.mission-nav .mn-brand .mono { font-size: 11px; color: var(--ink-2); letter-spacing: 0.04em; }
+.mission-nav .mn-tab {
+  position: relative; flex: none; display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 14px; border-radius: 10px;
+  font: 500 12.5px/1 var(--f-ui); letter-spacing: -0.005em; white-space: nowrap;
+  color: var(--ink-3); background: transparent; opacity: 1;
+}
+.mission-nav .mn-tab:hover { color: var(--ink); }
+.mission-nav .mn-tab.on { color: var(--ink); font-weight: 600; background: rgba(255, 255, 255, 0.07); }
+/* the active mark: a 2 px saffron rule that grows in from the centre */
+.mission-nav .mn-tab::after {
+  content: ''; position: absolute; left: 14px; right: 14px; bottom: 3px; height: 2px; border-radius: 1px;
+  background: var(--ww-accent); transform: scaleX(0); opacity: 0;
+  transition: transform var(--ww-t) var(--ease), opacity var(--ww-t) var(--ease);
+}
+.mission-nav .mn-tab.on::after { transform: scaleX(1); opacity: 1; }
+.mission-nav .mn-tab:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; border-radius: 10px; }
+.mission-nav .mn-tab.minor { font-size: 12px; color: var(--ink-4); margin-left: 0; }
+.mission-nav .mn-tab.minor:hover, .mission-nav .mn-tab.minor.on { color: var(--ink-2); }
+.mission-nav .mn-sep { flex: none; width: 1px; height: 16px; margin: 0 6px; background: var(--hair-2); }
+.mission-nav .mn-settings { margin-left: auto; color: var(--ink-3); }
+.mission-nav .mn-settings::after { display: none; }
+
+/* ------------------------------------------------------------------ the page header */
+.page.mission .ww-head {
+  display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap;
+  gap: 12px 24px; margin: 4px 0 var(--ww-gap-lg);
+}
+.ww-head .ww-head-main { flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.ww-head .ww-kicker { display: flex; align-items: center; gap: 10px; color: var(--ink-3); }
+.ww-head .ww-kicker .mono { font-size: 11px; letter-spacing: 0.14em; }
+.ww-head .ww-rule { width: 24px; height: 1px; background: var(--hair-3); }
+.ww-head .ww-title { margin: 0; font-size: clamp(40px, 3.4vw, 58px); color: var(--ink); }
+.ww-head .ww-sub {
+  margin: 0; max-width: 92ch; font-size: 13.5px; line-height: 1.4; color: var(--ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ww-head .ww-head-right { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding-bottom: 4px; }
+
+/* ------------------------------------------------------------------ the card system */
+:where(.page.mission) .card { border-radius: var(--ww-r); padding: var(--ww-pad); }
+:where(.page.mission) .card.small { padding: var(--ww-pad-sm) var(--ww-pad); }
+:where(.page.mission) .card-head { flex-wrap: wrap; row-gap: 4px; min-height: 20px; margin-bottom: 12px; }
+:where(.page.mission) .card-title {
+  gap: 8px; min-width: 0;
+  font: 600 11px/1.2 var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-2);
+}
+:where(.page.mission) .card-title > svg { flex: none; color: var(--ink-3); }
+:where(.page.mission) .card-head > :last-child:not(:first-child) { margin-left: auto; }
+:where(.page.mission) .card > p:last-child { margin-bottom: 0; }
+
+/* the one primary action carries the saffron */
+:where(.page.mission) .btn.primary { background: var(--ww-accent); color: var(--ww-accent-ink); }
+:where(.page.mission) .btn.primary:hover { background: var(--ww-accent-hi); }
+
+/* folds: one row closed, a caret that turns open */
+:where(.page.mission) details > summary { list-style: none; cursor: pointer; }
+:where(.page.mission) details > summary::-webkit-details-marker { display: none; }
+.page.mission details.card > summary { display: flex; align-items: center; gap: 12px; min-height: 20px; }
+.page.mission details.card > summary::after {
+  content: ''; flex: none; width: 7px; height: 7px; margin-left: auto;
+  border-right: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3);
+  transform: translateY(-2px) rotate(45deg); transition: transform var(--ww-t) var(--ease);
+}
+.page.mission details.card[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
+.page.mission details.card > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; border-radius: 6px; }
+.page.mission details.card[open] > summary { margin-bottom: var(--ww-gap); }
+.ww-fold-hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* a one-line notice instead of a whole card */
+.page.mission .ww-notice {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 0;
+  padding: 10px 14px; border-radius: var(--ww-r-sm); font-size: 12.5px; line-height: 1.5; color: var(--ink-2);
+  background: rgba(255, 255, 255, 0.025); box-shadow: inset 0 0 0 1px var(--hair);
+}
+.page.mission .ww-notice.warn { box-shadow: inset 0 0 0 1px var(--fault-2); }
+.page.mission .ww-notice.welcome-back { box-shadow: inset 0 0 0 1px var(--live-2); }
+.page.mission .ww-notice b { color: var(--ink); }
+
+/* ------------------------------------------------------------------ Today */
+.mission-page.today { display: flex; flex-direction: column; gap: var(--ww-gap); }
+.mission-page.today > .ww-head { margin-bottom: 8px; }
+.mission-page.today > .today-cal { margin-top: 0; }   /* the column gap spaces it now */
+.today .three-list p { margin: 4px 0 0; }
+.today .today-grid {
+  display: grid; gap: var(--ww-gap) 20px; align-items: start; margin: 0;
+  grid-template-columns: minmax(0, 1fr) clamp(300px, 31%, 420px);
+}
+.today .today-main, .today .today-side { display: flex; flex-direction: column; gap: var(--ww-gap); min-width: 0; }
+@media (max-width: 1040px) { .today .today-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Direction: what to do with the day | the ordered steps */
+.today .card.direction { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 14px 36px; align-items: start; }
+.today .card.direction > .card-head { grid-column: 1 / -1; margin-bottom: 0; }
+@media (max-width: 1180px) { .today .card.direction { grid-template-columns: minmax(0, 1fr); } }
+
+/* Today's 3: numbered, the title first, the why underneath */
+.today .three-list { counter-reset: three; list-style: none; margin: 4px 0 8px; padding: 0; display: flex; flex-direction: column; gap: 0; }
+.today .three-list li { counter-increment: three; position: relative; padding: 10px 0 10px 34px; border-top: 1px solid var(--hair); }
+.today .three-list li:first-child { border-top: 0; padding-top: 2px; }
+.today .three-list li::before {
+  content: counter(three, decimal-leading-zero); position: absolute; left: 0; top: 12px;
+  font: 600 11px/1 var(--f-mono); letter-spacing: 0.08em; color: var(--ink-3);
+}
+.today .three-list li:first-child::before { top: 4px; }
+.today .three-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.today .three-row b { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; font-size: 14px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+.today .three-row .mono { flex: none; }
+.today .three-list li.done { opacity: 0.55; }
+.today .three-list li.done b { text-decoration: line-through; text-decoration-color: var(--ink-4); }
+.today .three-frame { color: var(--ink-2); line-height: 1.45; }
+.today .three-why { line-height: 1.45; }
+
+/* the blocks and their contracts */
+.today .block .card-head { margin-bottom: 6px; }
+.today .card.block-protected {
+  padding: var(--ww-pad-sm) var(--ww-pad); background: transparent; box-shadow: inset 0 0 0 1px var(--hair);
+  border: 0; backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+.today .card.block-protected .card-head { margin-bottom: 2px; }
+.today .contract.next .c-dot { background: var(--ink); box-shadow: none; }
+.today .c-next {
+  display: inline-block; margin-left: 8px; padding: 2px 6px; border-radius: 5px; vertical-align: 2px;
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2);
+  box-shadow: inset 0 0 0 1px var(--hair-3);
+}
+.today .contract-head b { font-size: 14px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+.today .contract-body { overflow-wrap: anywhere; }
+.today .blocks-foot { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.today .alternatives { width: 100%; padding: 10px 14px; border-radius: var(--ww-r-sm); box-shadow: inset 0 0 0 1px var(--hair); }
+.today .alternatives > summary { color: var(--ink-2); }
+.today .alternatives[open] > summary { margin-bottom: 6px; }
+.today .alternatives .log-row { grid-template-columns: 56px minmax(0, 1fr) auto; }
+
+/* the side column */
+.today .floor-mode { margin: 0 0 8px; }
+.today .wins-ids { display: inline-flex; align-items: center; gap: 10px; }
+
+/* More: the quiet parts, one fold, flat inside (no card in a card) */
+.today .ww-more-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px 36px; }
+.page.mission .ww-more .card,
+.page.mission[data-glass] .ww-more .card {
+  padding: 0; border-radius: 0; background: transparent; box-shadow: none;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+.page.mission .ww-more details.card > summary { margin-bottom: 8px; }
+.today .ww-more .comeback { align-items: flex-start; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mission-nav .mn-tab::after,
+  .page.mission details.card > summary::after { transition: none; }
+}

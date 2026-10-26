@@ -8,7 +8,7 @@
  *   XP and ranks              chrome (identity)
  */
 import { Check, Image as ImageIcon, Lock, Settings2, X } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { create } from 'zustand'
 import { useStore, type Tab } from '../lib/store'
 import { useDialog } from './platform'
@@ -58,37 +58,69 @@ export const useDrawer = create<{ open: boolean; toggle: (o?: boolean) => void }
   toggle: (o) => set({ open: o ?? !get().open }),
 }))
 
+/** Arrow keys walk the tabs (Home/End jump to the ends); Tab still leaves the bar.
+ *  The DOM is read in the key handler only, never during render. */
+function walkTabs(e: React.KeyboardEvent<HTMLElement>) {
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft' && e.key !== 'Home' && e.key !== 'End') return
+  const items = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('button.mn-tab'))
+  const i = items.indexOf(document.activeElement as HTMLButtonElement)
+  if (i < 0) return
+  e.preventDefault()
+  const next = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 : (i + (e.key === 'ArrowRight' ? 1 : -1) + items.length) % items.length
+  items[next].focus()
+}
+
+/** The segmented bar: six main screens, then the two minor ones after a hairline,
+ *  Settings pinned right. The active tab carries the one saffron mark (theme.css). */
 export function MissionNav() {
   const tab = useStore((s) => s.tab)
   const setTab = useStore((s) => s.setTab)
   const toggle = useDrawer((s) => s.toggle)
   const screen = SCREEN_OF[tab] ?? 'today'
   return (
-    <nav className="mission-nav" aria-label="Well Wisher">
-      <span className="mn-brand mono">well_wisher</span>
-      {MISSION_TABS.map((t) => (
-        <button key={t.id} className={`mn-tab ${screen === t.screen ? 'on' : ''} ${t.minor ? 'minor' : ''}`} aria-current={screen === t.screen ? 'page' : undefined}
-          onClick={() => setTab(t.id)}>{t.label}</button>
+    <nav className="mission-nav" aria-label="Well Wisher" onKeyDown={walkTabs}>
+      <span className="mn-brand"><span className="mono">well_wisher</span><Deva>शुभचिंतक</Deva></span>
+      {MISSION_TABS.map((t, i) => (
+        <Fragment key={t.id}>
+          {t.minor && !MISSION_TABS[i - 1]?.minor && <i className="mn-sep" aria-hidden />}
+          <button className={`mn-tab ${screen === t.screen ? 'on' : ''} ${t.minor ? 'minor' : ''}`} aria-current={screen === t.screen ? 'page' : undefined}
+            onClick={() => setTab(t.id)}>{t.label}</button>
+        </Fragment>
       ))}
-      <span style={{ flex: 1 }} />
-      <button className="mn-tab mn-settings" onClick={() => toggle()} aria-label="Well Wisher settings"><Settings2 size={14} />Settings</button>
+      <button className="mn-tab mn-settings" onClick={() => toggle()} aria-label="Well Wisher settings"><Settings2 size={14} aria-hidden />Settings</button>
     </nav>
   )
 }
 
-export function MissionHeader({ n, title, sub, right }: { n: string; title: string; sub: string; right?: React.ReactNode }) {
+/** A small Devanagari label (Nirmala UI ships with Windows: no font download).
+ *  Decorative: screen readers get the English title next to it. */
+export function Deva({ children }: { children: string }) {
+  return <span className="ww-deva" lang="hi" aria-hidden>{children}</span>
+}
+
+/** The Devanagari eyebrow each screen gets by default, keyed by its English title. */
+const DEVA: Record<string, string> = {
+  Today: 'आज', Study: 'अध्ययन', Tree: 'वृक्ष', Life: 'जीवन', Road: 'मार्ग', Career: 'मार्ग', Status: 'स्थिति',
+  Focus: 'ध्यान', Log: 'लेखा', Drill: 'अभ्यास', Crucible: 'तप', Forge: 'बल', Proof: 'प्रमाण', Trials: 'परीक्षा',
+  Schedule: 'समय', Calibration: 'माप', Interrogation: 'विवेक',
+}
+
+/** One header for every screen: number and Devanagari eyebrow, the title, one line
+ *  of subtitle (full text on hover), pills on the right. */
+export function MissionHeader({ n, title, sub, right, deva }: { n: string; title: string; sub: string; right?: React.ReactNode; deva?: string | false }) {
+  const label = deva === false ? null : deva ?? DEVA[title]
   return (
-    <div className="page-head mission-head">
-      <div>
-        <div className="ph-meta">
-          <span className="mono ph-n">{n}</span>
-          <span className="ph-rule" />
-          <span className="eyebrow">{sub}</span>
+    <header className="page-head mission-head ww-head">
+      <div className="ww-head-main">
+        <div className="ww-kicker">
+          <span className="mono">{n}</span>
+          {label && <><i className="ww-rule" aria-hidden /><Deva>{label}</Deva></>}
         </div>
-        <h1 className="display ph-title"><span className="chrome-text">{title}</span></h1>
+        <h1 className="display ww-title">{title}</h1>
+        {sub && <p className="ww-sub" title={sub}>{sub}</p>}
       </div>
-      {right && <div className="ph-right">{right}</div>}
-    </div>
+      {right && <div className="ww-head-right">{right}</div>}
+    </header>
   )
 }
 
@@ -154,8 +186,10 @@ export function confirmDialog(title: string, message: string, ok: string, onOk: 
 }
 
 /* ------------------------------------------------------------------ rank bar */
+/** The fill scales on X instead of changing width: a transform animates on the
+ *  compositor, a width change re-lays-out the card on every frame. */
 export function NeonBar({ progress, tone = 'chrome' }: { progress: number; tone?: 'chrome' | 'live' | 'fault' | 'sim' }) {
-  return <div className={`neon-bar ${tone}`}><i style={{ width: `${Math.max(0, Math.min(1, progress)) * 100}%` }} /></div>
+  return <div className={`neon-bar ${tone}`}><i style={{ transform: `scaleX(${Math.max(0, Math.min(1, progress))})` }} /></div>
 }
 
 /* ------------------------------------------------------------------ checklist row */

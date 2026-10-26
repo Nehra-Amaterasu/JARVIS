@@ -34,11 +34,13 @@ import { StatusPage } from './pages/Status'
 import { TodayPage } from './pages/Today'
 import { TreePage } from './pages/Tree'
 import { MissionNav, SCREEN_OF, type MissionScreen } from './ui'
+// Last, so the Well Wisher tokens and card system sit after every page's own sheet.
+import './theme.css'
 
 const PAGES: Record<MissionScreen, React.ComponentType> = {
   today: TodayPage, study: StudyPage, life: LifePage, tree: TreePage, focus: FocusPage, log: LogPage, road: RoadPage, status: StatusPage,
 }
-const NAMES: Record<MissionScreen, string> = { today: 'Today', study: 'Study', life: 'Life', tree: 'Tree', focus: 'Focus', log: 'Log', road: 'Road', status: 'Status' }
+const NAMES: Record<MissionScreen, string> = { today: 'Today', study: 'Study', life: 'Life', tree: 'Tree', focus: 'Focus', log: 'Log', road: 'Career', status: 'Status' }
 
 export function MissionRoot() {
   const tab = useStore((s) => s.tab)

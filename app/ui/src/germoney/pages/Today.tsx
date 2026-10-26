@@ -18,7 +18,7 @@ import { gameBrief, useGame } from '../game/store'
 import { prettyDate } from '../game/util'
 import { DAILY_ITEMS, SUNDAY_ITEMS, useChecklistStore } from '../stores/checklist-store'
 import { usePlayerStore } from '../stores/player-store'
-import { CheckRow, daysSince, EMPTY, MissionHeader, NeonBar } from '../ui'
+import { CheckRow, daysSince, Deva, EMPTY, MissionHeader, NeonBar } from '../ui'
 import { DirectionCard, SessionsCard } from './Direction'
 import { SchedulePage } from './Schedule'
 import { QuestCards } from './Status'
@@ -38,45 +38,78 @@ export function TodayPage() {
   const sub = today
     ? [prettyDate(today.date, true), today.exam?.phase ? `Exam plan · ${today.exam.phase.name}` : today.exam ? `Exam mode · ${today.exam.subject?.name}` : today.track_label].filter(Boolean).join(' · ')
     : prettyDate(day, true)
+  const total = today?.contracts.length ?? 0
+  const done = useMemo(() => today?.contracts.filter((c) => c.done).length ?? 0, [today])
+  // Read in five seconds, top to bottom: where the day goes (Direction), what to do
+  // (Today's 3 and the blocks), how it is going (the side). Everything else waits in
+  // "More", which mounts nothing until it is opened.
   return (
     <div className="mission-page today">
       <MissionHeader n="M1" title="Today" sub={sub}
-        right={<div className="hq-pills">
-          <span className="pill"><i className="led" />Level {lv.level}</span>
-          <StreakFlame n={streak.current} kept={streak.todayKept} /><Shields n={g.shields} /><Marks n={g.marks} />
-        </div>} />
-      {offline && <div className="card warn small">The plan server isn't answering. The Floor still works; contracts come back when it does.</div>}
-      {today && !today.bank_ready && !today.contracts.length && <div className="card small">The skill-tree bank hasn't landed yet, so the plan has no contracts to give. The Floor and Focus still work.</div>}
-      {today?.note && <p className="muted small">{today.note}</p>}
-
+        right={<>
+          <span className="pill">Level {lv.level}</span>
+          {total > 0 && <span className={`pill ${done === total ? 'live' : ''}`}>{done}/{total} done</span>}
+          <StreakFlame n={streak.current} kept={streak.todayKept} />
+        </>} />
+      {offline && <p className="ww-notice warn">The plan server isn't answering. The Floor still works; contracts come back when it does.</p>}
+      {today && !today.bank_ready && !today.contracts.length && <p className="ww-notice">The skill-tree bank hasn't landed yet, so the plan has no contracts to give. The Floor and Focus still work.</p>}
+      {today?.note && <p className="ww-notice">{today.note}</p>}
       <WelcomeBackCard />
-      <Wins />
-      <Deadlines />
-      <Comeback />
+
       <DirectionCard />
       <div className="today-grid">
-        <section className="today-main">
+        <section className="today-main" aria-label="Today's work">
           {today?.exam && <ExamBanner />}
           <TodaysThree />
           <Blocks />
           <QuestCards />
-          <ParkIdea />
         </section>
-        <aside className="today-side">
+        <aside className="today-side" aria-label="How the day is going">
+          <Deadlines urgent />
           <SessionsCard />
           <FloorCard />
           <WeeklyReview />
           <ProofCard />
-          <Brief />
-          <Findings />
-          <Rituals />
         </aside>
       </div>
-      <details className="card today-cal">
-        <summary><CalendarDays size={14} /> Calendar and free blocks</summary>
+      <More />
+      <Folded label="Calendar and free blocks" icon={<CalendarDays size={14} />} className="today-cal">
         <div className="embedded"><SchedulePage /></div>
-      </details>
+      </Folded>
     </div>
+  )
+}
+
+/** A collapsed card whose body mounts only while open: closed, it costs one row. */
+function Folded({ label, hint, icon, className = '', children }: { label: string; hint?: string; icon?: React.ReactNode; className?: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <details className={`card ww-fold ${className}`} onToggle={(e) => setOpen(e.currentTarget.open)}>
+      <summary><span className="card-title">{icon}{label}</span>{hint && <span className="ww-fold-hint muted small">{hint}</span>}</summary>
+      {open && children}
+    </details>
+  )
+}
+
+/** The quieter parts of the day, one fold: wins in numbers, what is coming up, a
+ *  nudge after a long gap, the parking lot, the brief, new papers, the rituals. */
+function More() {
+  const deadlines = usePlan((s) => s.today?.deadlines) ?? EMPTY
+  const parked = usePlan((s) => s.state?.parking.length ?? 0)
+  const later = deadlines.filter((x) => !isUrgent(x.days_left)).length
+  const hint = ['wins', later ? `${later} coming up` : '', parked ? `${parked} parked` : 'parking lot', 'brief', 'findings', 'rituals'].filter(Boolean).join(' · ')
+  return (
+    <Folded label="More" hint={hint} className="ww-more">
+      <div className="ww-more-grid">
+        <Wins />
+        <Deadlines />
+        <Comeback />
+        <ParkIdea />
+        <Brief />
+        <Findings />
+        <Rituals />
+      </div>
+    </Folded>
   )
 }
 
@@ -94,12 +127,13 @@ function Wins() {
     : done ? `${done} down. Keep the next one small.` : 'Start with the smallest one; momentum does the rest.'
   return (
     <section className="card wins" aria-label="Today's wins">
+      <div className="card-head"><span className="card-title">Wins</span><span className="wins-ids"><Shields n={g.shields} /><Marks n={g.marks} size="sm" /></span></div>
       <div className="wins-row">
         <div><span className="dot">{done}/{total}</span><span className="eyebrow">Contracts</span></div>
         <div><span className="dot">{mins(w.minutes)}</span><span className="eyebrow">Logged</span></div>
-        <div><span className="dot">+{w.xp}</span><span className="eyebrow">XP today</span></div>
+        <div><span className="dot">+{w.xp}</span><span className="eyebrow">XP</span></div>
         <div><span className="dot">{reps}/3</span><span className="eyebrow">Floor</span></div>
-        <div><span className="dot">{t.wip.length}/{t.wip_cap}</span><span className="eyebrow">In progress</span></div>
+        <div><span className="dot">{t.wip.length}/{t.wip_cap}</span><span className="eyebrow">Open</span></div>
       </div>
       <NeonBar progress={total ? done / total : 0} tone={done === total && total ? 'live' : 'chrome'} />
       <p className="muted small">{line}</p>
@@ -112,24 +146,29 @@ function WelcomeBackCard() {
   const wb = usePlan((s) => s.today?.welcome_back)
   if (!wb) return null
   return (
-    <section className="card welcome-back">
+    <section className="ww-notice welcome-back">
       <b>Welcome back.</b>
-      <p className="small">{wb.idle_days} days away, and that's fine. Start with the smallest contract below; refreshers for anything that faded are in the evening block.</p>
-      {wb.slipped.length > 0 && <p className="small muted">What slipped: {wb.slipped.join('; ')}.</p>}
-      {wb.next_deadline && <p className="small muted">Next deadline: {wb.next_deadline.org} · {wb.next_deadline.programme}, {wb.next_deadline.days_left} days out.</p>}
+      <span>{wb.idle_days} days away, and that's fine. Start with the smallest contract below; refreshers for anything that faded are in the evening block.
+        {wb.slipped.length > 0 && <span className="muted"> What slipped: {wb.slipped.join('; ')}.</span>}
+        {wb.next_deadline && <span className="muted"> Next deadline: {wb.next_deadline.org} · {wb.next_deadline.programme}, {wb.next_deadline.days_left} days out.</span>}</span>
     </section>
   )
 }
 
-/** Internship deadlines within 14 days, and prep tasks due this week. */
-function Deadlines() {
-  const d = usePlan((s) => s.today?.deadlines) ?? EMPTY
+/** Three days or less is "now": it earns a place beside the day instead of in More. */
+const isUrgent = (daysLeft: number | null) => daysLeft !== null && daysLeft <= 3
+
+/** Internship deadlines within 14 days, and prep tasks due this week: the urgent
+ *  ones (3 days or less) in the side column, the rest folded under More. */
+function Deadlines({ urgent = false }: { urgent?: boolean }) {
+  const all = usePlan((s) => s.today?.deadlines) ?? EMPTY
   const setTask = usePlan((s) => s.setTask)
   const setTab = useStore((s) => s.setTab)
+  const d = useMemo(() => all.filter((x) => isUrgent(x.days_left) === urgent), [all, urgent])
   if (!d.length) return null
   return (
     <section className="card deadlines">
-      <div className="card-head"><span className="card-title"><CalendarDays size={14} />Coming up</span>
+      <div className="card-head"><span className="card-title"><CalendarDays size={14} />{urgent ? 'Due now' : 'Coming up'}</span>
         <button className="link-btn" onClick={() => setTab('campaign')}>Pipeline</button></div>
       {d.map((x) => (
         <div key={x.id} className="log-row small">
@@ -178,26 +217,32 @@ function ExamBanner() {
 function Blocks() {
   const t = usePlan((s) => s.today)
   const reroll = usePlan((s) => s.reroll)
-  if (!t) return <div className="card"><div className="empty">Planning the day…</div></div>
+  // Contracts per block, and the first open one in block order: the row marked "next".
+  const plan = useMemo(() => {
+    if (!t) return null
+    const rows = t.blocks.map((b) => ({ b, items: b.kind === 'protected' ? [] : t.contracts.filter((c) => c.slot === b.kind) }))
+    const next = rows.flatMap((r) => r.items).find((c) => !c.done)?.key ?? null
+    return { rows, next }
+  }, [t])
+  if (!plan) return <div className="card"><div className="empty">Planning the day…</div></div>
   return (
     <>
-      {t.blocks.map((b) => {
-        const items = t.contracts.filter((c) => c.slot === b.kind || (b.kind === 'weekend' && c.slot === 'weekend'))
-        return (
-          <section key={b.id} className={`card block block-${b.kind}`}>
-            <div className="card-head">
-              <span className="card-title">{b.label}</span>
-              <span className="mono muted">{b.start}–{endOf(b.start, b.minutes)} · {mins(b.minutes)}</span>
-            </div>
-            {b.kind === 'protected'
-              ? <p className="muted small">Protected. Friends, a walk, nothing at all. The plan never puts work here.</p>
-              : items.length ? items.map((c) => <ContractCard key={c.key} c={c} />)
-                : <p className="muted small">Nothing planned here. {b.kind === 'evening' ? 'Finish something today and tomorrow evening has spaced practice on it.' : ''}</p>}
-          </section>
-        )
-      })}
-      <Alternatives />
-      <button className="link-btn small" onClick={() => void reroll()}><RefreshCw size={12} />Rebuild today's plan</button>
+      {plan.rows.map(({ b, items }) => (
+        <section key={b.id} className={`card block block-${b.kind}`}>
+          <div className="card-head">
+            <span className="card-title">{b.label}</span>
+            <span className="mono muted small">{b.start}–{endOf(b.start, b.minutes)} · {mins(b.minutes)}</span>
+          </div>
+          {b.kind === 'protected'
+            ? <p className="muted small">Protected. Friends, a walk, nothing at all. The plan never puts work here.</p>
+            : items.length ? items.map((c) => <ContractCard key={c.key} c={c} next={c.key === plan.next} />)
+              : <p className="muted small">Nothing planned here. {b.kind === 'evening' ? 'Finish something today and tomorrow evening has spaced practice on it.' : ''}</p>}
+        </section>
+      ))}
+      <div className="blocks-foot">
+        <Alternatives />
+        <button className="btn sm ghost" onClick={() => void reroll()}><RefreshCw size={12} />Rebuild today's plan</button>
+      </div>
     </>
   )
 }
@@ -210,17 +255,17 @@ function Alternatives() {
   const first = t?.contracts.find((c) => c.slot === 'library' && c.source === 'tree' && !c.done)
   if (!t?.alternatives?.length || !first) return null
   return (
-    <section className="card alternatives">
-      <span className="eyebrow">Not feeling "{first.title}"? Pick one of these instead</span>
+    <details className="alternatives">
+      <summary className="small">Not feeling “{first.title}”? {t.alternatives.length} other option{t.alternatives.length === 1 ? '' : 's'}</summary>
       {t.alternatives.map((a) => (
         <div key={a.key} className="log-row small"><span className="mono">{mins(a.minutes)}</span>
           <span><b>{a.title}</b> · {a.node_name}{a.serves ? ` · for ${a.serves.title}` : ''}</span>
           <button className="btn sm ghost" onClick={() => void choose(first.key, a.key).then((r) => toast(r.say, r.ok ? 'live' : 'fault'))}>Swap in</button></div>))}
-    </section>
+    </details>
   )
 }
 
-function ContractCard({ c }: { c: PlanContract }) {
+function ContractCard({ c, next = false }: { c: PlanContract; next?: boolean }) {
   const complete = usePlan((s) => s.complete)
   const toast = useStore((s) => s.toast)
   const [open, setOpen] = useState(false)
@@ -233,10 +278,10 @@ function ContractCard({ c }: { c: PlanContract }) {
     toast(r.say, r.ok ? 'live' : 'fault')
   }
   return (
-    <article className={`contract ${c.done ? 'done' : ''} ${open ? 'open' : ''}`}>
+    <article className={`contract ${c.done ? 'done' : ''} ${open ? 'open' : ''} ${next ? 'next' : ''}`}>
       <button className="contract-head" aria-expanded={open} onClick={() => setOpen(!open)}>
         {c.done ? <Check size={16} className={c.verified ? 'verified' : 'claimed'} /> : <span className="c-dot" />}
-        <span className="c-title"><b>{c.title}</b>
+        <span className="c-title"><b>{c.title}{next && <span className="c-next mono">next</span>}</b>
           <span className="mono muted small">{c.node_name ? `${c.node_name} · ` : ''}{mins(c.minutes)} · +{c.xp} XP{c.why ? ` · ${c.why}` : ''}</span>
           {c.serves && <span className="small c-serves">For: {c.serves.title} <span className="muted">({c.serves.why})</span></span>}</span>
         <ChevronDown size={15} className="c-chev" />
@@ -308,9 +353,10 @@ function FloorCard() {
   return (
     <section className={`card floor-card ${secured ? 'secured' : ''}`}>
       <div className="card-head">
-        <span className="card-title">The Floor{mode === 'exam' ? ' · exam days: study rep only' : mode === 'recovery' ? ' · recovery: any one rep' : ''}</span>
+        <span className="card-title">The Floor<Deva>आधार</Deva></span>
         <span className="mono muted">{secured ? 'secured' : rest ? 'rest day' : '~45 min'}</span>
       </div>
+      {mode && <p className="muted small floor-mode">{mode === 'exam' ? 'Exam days: the study rep is enough.' : 'Recovery: any one rep keeps the streak.'}</p>}
       <div className="floor-row compact">
         {E.REPS.map((r) => {
           const mark = day?.reps[r]
@@ -366,7 +412,7 @@ function TodaysThree() {
       <ol className="three-list">
         {three.picks.map((p) => (
           <li key={p.key} className={done.has(p.key) ? 'done' : ''} data-key={p.key}>
-            <div className="log-row small"><b>{done.has(p.key) ? <Check size={12} /> : null}{p.title}</b><span className="mono muted">{mins(p.minutes)}</span></div>
+            <div className="three-row"><b>{done.has(p.key) ? <Check size={13} className="verified" aria-label="done" /> : null}{p.title}</b><span className="mono muted small">{mins(p.minutes)}</span></div>
             <p className="small three-frame">{p.frame}</p>
             <p className="muted small three-why">{p.why}</p>
           </li>))}

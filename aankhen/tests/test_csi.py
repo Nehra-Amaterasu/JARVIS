@@ -139,3 +139,98 @@ def test_conditioner_end_to_end_and_rate_measurement():
     assert 70 < c.rate.hz < 90                     # measured, not assumed
     assert len(got) > 300                          # resampled up to the 100 Hz grid
     assert all(s.amp.shape == (51,) for s in got)
+
+
+# ---------------------------------------------------------------- vectorised hampel (2026-10-26)
+def _spiky(n, seed=0, frac=0.03):
+    rng = np.random.default_rng(seed)
+    X = 1.0 + 0.02 * rng.standard_normal((n, 51))
+    hit = rng.random((n, 51)) < frac                       # 1-5 % one-sample glitches
+    X[hit] += rng.choice([-1, 1], hit.sum()) * rng.uniform(0.2, 3.0, hit.sum())
+    return [Sample(i * 0.01, X[i], bool(i % 17 == 0), -50.0 - i % 3, i % 2 == 0) for i in range(n)]
+
+
+def _stream(samples):
+    h = HampelFilter()
+    return h, [h.push(s) for s in samples]
+
+
+def test_median7_network_is_the_sorted_middle():
+    import itertools
+    from aankhen.csi import _median7
+    bits = np.array(list(itertools.product([0.0, 1.0], repeat=7)))   # the 0-1 principle
+    assert np.array_equal(_median7(list(bits.T)), np.sort(bits, axis=1)[:, 3])
+    r = np.random.default_rng(0).random((7, 5000))
+    assert np.array_equal(_median7(list(r)), np.sort(r, axis=0)[3])
+
+
+@pytest.mark.parametrize("n,frac", [(3, 0.03), (7, 0.03), (263, 0.01), (600, 0.05)])
+def test_hampel_array_equals_streaming(n, frac):
+    from aankhen.csi import hampel_array
+    samples = _spiky(n, seed=n, frac=frac)
+    h, want = _stream(samples)
+    Y, bad = hampel_array(np.stack([s.amp for s in samples]))
+    got = [w for w in want if w is not None]
+    assert Y.shape[0] == len(got) == max(n - 6, 0)
+    if got:
+        assert np.array_equal(Y, np.stack([w.amp for w in got]))
+        assert int(bad.sum()) == h.replaced > 0 or frac * n < 1
+
+
+def test_push_many_equals_push_and_can_be_mixed():
+    samples = _spiky(900, seed=4)
+    ref, want = _stream(samples)
+    h = HampelFilter()
+    got = h.push_many(samples[:2]) + [h.push(s) for s in samples[2:9]] + h.push_many(samples[9:300]) \
+        + h.push_many([]) + h.push_many(samples[300:301]) + [h.push(s) for s in samples[301:320]] \
+        + h.push_many(samples[320:])
+    assert len(got) == len(want)
+    for a, b in zip(got, want):
+        assert (a is None) == (b is None)
+        if a is not None:
+            assert np.array_equal(a.amp, b.amp)
+            assert (a.t, a.filled, a.level_db, a.level_fine) == (b.t, b.filled, b.level_db, b.level_fine)
+    assert (h.replaced, h.seen) == (ref.replaced, ref.seen)
+
+
+def _bursty_records(seconds=12.0, seed=0):
+    """(host time, bytes) chunks as a weak link delivers them: 100 ms of packets per
+    chunk, each chunk up to 0.8 s late (fingerprint's regression fixture, stretched)."""
+    from aankhen.tests.test_links import _csi_pkt
+    rng = np.random.default_rng(seed)
+    pkts = [_csi_pkt(5.0 + i * 0.005, rng, seq=i) for i in range(int(seconds * 200))]
+    host0, out = 1_700_000_000.0, []
+    for k in range(0, len(pkts), 20):
+        chunk = b"".join(p.to_frame().encode() for p in pkts[k:k + 20])
+        out.append((host0 + pkts[k + 19].timestamp_us / 1e6 - 5.0 + 0.01 + rng.uniform(0, 0.8), chunk))
+    return out
+
+
+def test_board_time_samples_match_fingerprint_csi_stream():
+    """The batch reader stamps and cleans exactly as fingerprint.csi_stream does."""
+    from aankhen.csi import board_time_samples
+    from aankhen.fingerprint import csi_stream
+    recs = _bursty_records()
+    want = list(csi_stream(recs))
+    got = list(board_time_samples(recs, batch=97))
+    assert len(got) == len(want) > 1000
+    assert np.array_equal([g[0] for g in got], [w[0] for w in want])
+    assert np.array_equal(np.stack([g[1].amp for g in got]), np.stack([w[1] for w in want]))
+    assert [g[1].filled for g in got] == [w[2] for w in want]
+    assert all(g[2] == -50 for g in got)                       # the packets' rssi rides along
+    # stamped by the board clock: 10 ms apart, even though chunks arrived up to 0.8 s late;
+    # only the few times the minimum offset drops (a record-early chunk) step back.
+    # Chunk-arrival stamps would give 0 between the 10 samples of one chunk (90 % zeros).
+    d = np.diff([g[0] for g in got])
+    assert np.mean(np.abs(d - 0.01) < 1e-6) > 0.95 and d.min() > -0.81
+
+
+def test_board_time_samples_skip_a_malformed_payload():
+    from aankhen.csi import board_time_samples
+    from aankhen.protocol import CsiPacket
+    recs = _bursty_records(2.0)
+    bad = CsiPacket(5_000_000, 0, -50, -92, 6, 0, 1, 0, 0, 1, b"\x00" * 6, b"\x01")
+    frame = bad.to_frame()
+    frame.payload = frame.payload[:-1]                     # shorter than its metadata
+    recs.insert(3, (recs[3][0], frame.encode()))
+    assert len(list(board_time_samples(recs))) > 100

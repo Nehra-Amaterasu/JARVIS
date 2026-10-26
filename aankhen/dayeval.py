@@ -49,7 +49,7 @@ GATE_ZONE_DAYS = 7
 def session_windows(folder: str, labels: list[dict], purge_s: float = PURGE_S) -> dict:
     """Feature windows of one drill session with their labels.
     Returns {X, zone, activity, fan, t} (only windows inside a passed block)."""
-    from .csi import CsiConditioner
+    from .csi import board_time_samples
     from .learn import FeatureStream, reference_from
     from .transport import iter_recording
     good = sorted([l for l in labels if l.get("verdict") == "ok"], key=lambda l: l["t_start"])
@@ -62,16 +62,14 @@ def session_windows(folder: str, labels: list[dict], purge_s: float = PURGE_S) -
         return None
 
     def stream():
-        """(host time, sample, rssi) for every conditioned sample, in order."""
-        from .protocol import CsiPacket, StreamDecoder, decode_packet
-        cond, dec = CsiConditioner(), StreamDecoder()     # one decoder: frames span chunks
-        for host_t, chunk in iter_recording(raw):
-            for fr in dec.feed(chunk):
-                p = decode_packet(fr)
-                if not isinstance(p, CsiPacket):
-                    continue
-                for s in cond.push(p.timestamp_us / 1e6, p.raw, p.rssi, gain_comp_db=p.gain_comp_db):
-                    yield host_t, s, p.rssi
+        """(host time, sample, rssi) for every conditioned sample, in order.
+
+        Host time is the board's clock plus the smallest host offset, as in
+        fingerprint.akr_stream. Until 2026-10-26 each sample carried its chunk's
+        ARRIVAL time, so on a weak link (chunks in bursts, up to ~1 s late) a window
+        could be labelled with the block it arrived in rather than the one it was
+        measured in, and a malformed payload aborted the whole session."""
+        return board_time_samples(iter_recording(raw))
 
     # pass 1: the day's empty reference per fan state, from the empty blocks
     refs: dict = {}

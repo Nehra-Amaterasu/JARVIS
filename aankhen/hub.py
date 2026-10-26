@@ -30,6 +30,7 @@ them from either, so the relays never depend on which one it is.
 from __future__ import annotations
 
 import json
+import logging
 import math
 import os
 import threading
@@ -38,6 +39,9 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
+
+log = logging.getLogger(__name__)
+
 # Imported on first use, not here: scipy.optimize costs ~1.4 s of the app's start
 # (measured 10-25 with -X importtime) and the matcher only runs once a board streams.
 def linear_sum_assignment(cost):
@@ -83,6 +87,11 @@ class AankhenHub:
         from .journal import ActivityJournal
         self.journal = ActivityJournal()
         self._journal_thread: Optional[threading.Thread] = None
+        # Errors of the once-a-second teacher / recalibration tick: counted, the last one
+        # kept for status, each distinct one logged once (see _note_tick_error).
+        self.tick_errors = 0
+        self.last_tick_error: Optional[str] = None
+        self._tick_errors_logged: set = set()
         self.sim: Optional[Simulator] = None
         self.mode: Optional[str] = None
         self.scenario: Optional[str] = None
@@ -786,6 +795,7 @@ class AankhenHub:
             "baseline": (self.engine.motion.baseline.source
                          if self.engine and self.engine.motion.baseline else "none"),
             "error": self.error,
+            "tick_errors": {"count": self.tick_errors, "last": self.last_tick_error},
             "hold": self.hold,
             "stream": self.stream_info(),
         }
@@ -951,6 +961,22 @@ class AankhenHub:
             snap["journal"] = self.journal.summary()
         return snap
 
+    def _note_tick_error(self, e: BaseException) -> None:
+        """Count a tick error, keep it for info(), and log it once per distinct error.
+
+        The tick runs once a second for as long as the app does. It used to swallow
+        every exception (council review 2026-10-26), so a bug in the daily empty-room
+        recalibration would never have surfaced. Logging every occurrence would write
+        86,400 lines a day for one stuck error; once per distinct (type, message) says
+        it without flooding, and the count in status shows it is still happening."""
+        self.tick_errors += 1
+        self.last_tick_error = f"{type(e).__name__}: {e}"[:300]
+        key = (type(e).__name__, str(e)[:200])
+        if key not in self._tick_errors_logged and len(self._tick_errors_logged) < 64:
+            self._tick_errors_logged.add(key)
+            log.error("aankhen hub tick failed (logged once per distinct error): %s",
+                      self.last_tick_error, exc_info=(type(e), e, e.__traceback__))
+
     def _ensure_journal(self) -> None:
         if self._journal_thread is not None and self._journal_thread.is_alive():
             return
@@ -960,8 +986,8 @@ class AankhenHub:
                 time.sleep(1.0)
                 try:
                     self._teacher_tick()
-                except Exception:
-                    pass
+                except Exception as e:          # never take the journal down...
+                    self._note_tick_error(e)    # ...but never hide it either
                 eng = self.engine
                 if eng is None or self.mode != "hardware":
                     self.journal.close()           # the segment ends when the board does

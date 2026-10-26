@@ -1,0 +1,144 @@
+/* ==========================================================================
+   Tree: the skill tree (moved out of mission.css 2026-10-27, scoped to .tree-page).
+   The page fills the window under the Well Wisher nav: 52 px title bar + 34 px
+   ticker + 10/28 px page padding + 54 px nav = 178 px, so the canvas gets the rest.
+   Paint budget: no filters, no shadows, no gradients inside the canvas; only
+   transform and opacity animate. State colours: dashed grey = locked, white =
+   open, amber = in progress, cyan = mastered (the app's live/sim meaning).
+   ========================================================================== */
+.tree-page {
+  display: flex; flex-direction: column; gap: 10px; min-height: 0;
+  height: max(460px, calc(100vh - var(--titlebar) - var(--ticker) - 92px));
+}
+.tree-head { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; flex: none; min-height: 32px; }
+.tree-head .th-n { font-size: 12px; color: var(--ink-3); }
+.tree-head h1 { margin: 0; font: 650 20px/1 var(--f-ui); letter-spacing: -0.01em; color: var(--ink); }
+.tree-head .th-stats { font: 500 11px var(--f-mono); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tree-page .career-pick { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+
+/* The stage: a fixed box; contain keeps every repaint inside it. overflow: clip (not
+   hidden) so focusing an off-screen node can never scroll the stage itself. */
+.tree-stage {
+  position: relative; flex: 1; min-height: 0; border-radius: var(--r-lg);
+  background: var(--bg-2); box-shadow: inset 0 0 0 1px var(--hair);
+  overflow: hidden; overflow: clip; contain: strict;
+}
+.tree-svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+.tree-svg.panning { cursor: grabbing; }
+.tree-svg.panning .tree-node { cursor: grabbing; }
+
+/* edges */
+.tree-trunk { stroke: var(--ink-3); stroke-width: 10; stroke-linecap: round; }
+.tree-edge { fill: none; stroke: var(--ink-4); stroke-width: 1.4; }
+.tree-edge.root { stroke: var(--ink-3); stroke-width: 2.2; opacity: 0.6; }
+.tree-edge.lit { stroke: var(--live); stroke-width: 2; opacity: 0.7; }
+.tree-edges { transition: opacity var(--t) var(--ease); }
+.tree-edges.dim { opacity: 0.35; }
+/* the selected node's path: what it needs (white = still to master, cyan = done), what it opens (dashed) */
+.tree-path path { fill: none; stroke-width: 2.4; pointer-events: none; }
+.tree-path .need { stroke: var(--ink); }
+.tree-path .met { stroke: var(--live); }
+.tree-path .out { stroke: var(--ink-2); stroke-width: 1.8; stroke-dasharray: 5 4; }
+.tree-branch { fill: var(--ink-3); font: 600 12px var(--f-mono); letter-spacing: 0.12em; text-transform: uppercase; pointer-events: none; }
+
+/* nodes (the legend hexagons share these rules) */
+.tree-node { cursor: pointer; outline: none; }
+.tree-node polygon { fill: var(--bg-2); stroke: var(--ink-3); stroke-width: 1.5; transition: stroke var(--t-fast) var(--ease); }
+.tree-node.locked polygon { stroke: var(--ink-4); stroke-dasharray: 3 3; }
+.tree-node.available polygon { stroke: var(--ink); }
+.tree-node.in_progress polygon { stroke: var(--sim); fill: var(--sim-2); stroke-width: 2; }
+.tree-node.mastered polygon { stroke: var(--live); fill: var(--live-2); }
+.tree-node:hover polygon, .tree-node:focus-visible polygon { stroke: var(--ink); stroke-width: 3; }
+.tn-core { fill: var(--live); }
+.tn-dot { fill: var(--sim); }
+.tn-lock { fill: none; stroke: var(--ink-3); stroke-width: 1.3; }
+.tn-halo { fill: var(--ink); pointer-events: none; }
+.tn-label { fill: var(--ink-2); font: 500 11px var(--f-ui); pointer-events: none; paint-order: stroke; stroke: var(--bg-2); stroke-width: 3px; stroke-linejoin: round; }
+.tree-node.locked .tn-label { fill: var(--ink-3); }
+.tree-node.mastered .tn-label { fill: var(--ink); }
+.tree-node:hover .tn-label, .tree-node:focus-visible .tn-label { fill: var(--ink); }
+/* Far zoom: labels are under 6 px and unreadable, so skip their paint; branch names grow to stay legible. */
+.tree-svg.lod-far .tn-label, .tree-svg.lod-far .tn-lock, .tree-svg.lod-far .ring-next text { display: none; }
+.tree-svg.lod-far .tree-branch { font-size: 30px; fill: var(--ink-2); }
+
+/* overlay rings: selection, search hits, what's next */
+.tree-rings { pointer-events: none; }
+.ring-sel { fill: none; stroke: var(--ink); stroke-width: 1.6; }
+.ring-hit { fill: none; stroke: var(--sim); stroke-width: 2; }
+.ring-next circle { fill: none; stroke: var(--ink-2); stroke-width: 1.4; stroke-dasharray: 2 4; }
+.ring-next text { fill: var(--ink-2); font: 600 9px var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase; }
+
+/* toolbar (solid, no glass: it sits over the canvas) */
+.tree-bar { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 2; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; pointer-events: none; }
+.tree-bar > * { pointer-events: auto; }
+.tb-group { display: flex; align-items: center; gap: 2px; height: 34px; padding: 0 3px; border-radius: 12px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--hair-2); }
+.tb-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 28px; height: 28px; padding: 0 6px; border-radius: 9px; color: var(--ink-2); font: 600 12px var(--f-ui); transition: background var(--t-fast), color var(--t-fast); }
+.tb-btn.wide { padding: 0 10px; }
+.tb-btn:hover { color: var(--ink); background: rgba(255, 255, 255, 0.06); }
+.tb-btn:disabled { opacity: 0.38; cursor: not-allowed; }
+.tb-btn:focus-visible { outline: 1px solid var(--ink-2); outline-offset: 1px; }
+.tb-zoom { font: 500 11px var(--f-mono); color: var(--ink-3); min-width: 42px; text-align: center; }
+.tb-search { position: relative; padding: 0 4px 0 10px; color: var(--ink-3); gap: 6px; }
+.tb-search input { width: 170px; height: 28px; border: 0; outline: 0; background: transparent; color: var(--ink); font: 500 12.5px var(--f-ui); }
+.tb-search input::placeholder { color: var(--ink-4); }
+.tb-search:focus-within { box-shadow: inset 0 0 0 1px var(--hair-3); }
+.tb-count { font: 500 11px var(--f-mono); color: var(--ink-3); }
+.tb-results { position: absolute; top: calc(100% + 6px); left: 0; width: 300px; max-width: calc(100vw - 48px); margin: 0; padding: 4px; list-style: none; border-radius: 12px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--hair-2); }
+.tb-result { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border-radius: 8px; text-align: left; color: var(--ink); font: 500 12.5px var(--f-ui); }
+.tb-result:hover, .tb-result:focus-visible { background: rgba(255, 255, 255, 0.06); outline: 0; }
+.tr-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr-meta { font: 500 10px var(--f-mono); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+.tr-more { padding: 6px 8px; font: 500 11px var(--f-mono); color: var(--ink-3); }
+
+/* legend */
+.tree-legend { position: absolute; left: 10px; bottom: 10px; z-index: 1; max-width: calc(100% - 20px); display: flex; gap: 6px 14px; align-items: center; flex-wrap: wrap; padding: 7px 12px; border-radius: 10px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--hair-2); font: 500 11px var(--f-mono); color: var(--ink-2); pointer-events: none; }
+.lg-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.lg-hint { color: var(--ink-4); }
+.lg-hex { flex: none; overflow: visible; cursor: inherit; }
+.lg-hex polygon { stroke-width: 2.4; }
+.lg-hex.locked polygon { stroke-dasharray: 5 4; }
+
+/* the node panel: slides in over the canvas's right edge, scrolls on its own */
+.tree-panel {
+  position: absolute; top: 0; right: 0; bottom: 0; z-index: 3; width: min(380px, 100%);
+  display: flex; flex-direction: column; min-width: 0;
+  background: var(--bg); border-left: 1px solid var(--hair-2);
+  overflow-wrap: anywhere; animation: tp-in var(--t) var(--ease) both;
+}
+@keyframes tp-in { from { transform: translateX(28px); opacity: 0; } to { transform: none; opacity: 1; } }
+.tp-head { flex: none; display: flex; flex-direction: column; gap: 6px; padding: 14px 16px 14px; border-bottom: 1px solid var(--hair); }
+.tp-top { display: flex; align-items: center; justify-content: space-between; }
+.tree-panel .np-title { margin: 2px 0 0; font: 650 19px/1.25 var(--f-ui); letter-spacing: -0.01em; color: var(--ink); }
+.tp-meta { margin: 0; font: 500 11px var(--f-mono); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; }
+.tree-panel .np-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.tp-study { flex: 1 0 100%; height: 38px; justify-content: center; gap: 8px; font-weight: 650; }
+.tp-locked { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; padding: 10px 12px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--hair-2); }
+.tp-lock-head { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); }
+.tp-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 16px 16px; }
+.tp-sec { display: flex; flex-direction: column; gap: 6px; padding: 12px 0; border-top: 1px solid var(--hair); min-width: 0; }
+.tp-sec:first-child { border-top: 0; }
+.tp-sec .eyebrow { display: inline-flex; align-items: center; gap: 6px; }
+.tp-sec p { margin: 0; }
+.tp-sub { font-size: 12px; color: var(--ink-3); }
+.tp-res { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.tp-res li { display: flex; gap: 8px; align-items: flex-start; min-width: 0; }
+.tp-res-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 13px; }
+.tp-res-main a { color: var(--ink); display: inline-flex; gap: 4px; align-items: baseline; }
+.tp-res-main a:hover { text-decoration: underline; }
+.tp-tag { flex: none; margin-top: 1px; padding: 1px 6px; border-radius: 6px; font: 600 9.5px/16px var(--f-mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--hair-3); }
+.tp-tag.primary { color: var(--bg); background: var(--ink); box-shadow: none; }
+.tp-links { display: flex; flex-wrap: wrap; gap: 6px; }
+.tree-page .link-btn { padding: 3px 9px; border-radius: 8px; font: 500 12px var(--f-ui); color: var(--ink); box-shadow: inset 0 0 0 1px var(--hair-2); text-align: left; transition: background var(--t-fast); }
+.tree-page .link-btn:hover { background: rgba(255, 255, 255, 0.06); }
+.tree-panel .field-row .field { flex: 1 1 140px; min-width: 0; }
+.tree-panel .np-list li { min-width: 0; }
+
+/* Narrow stage: the panel covers it; the toolbar's search shrinks first. */
+@media (max-width: 900px) {
+  .tb-search input { width: 120px; }
+  .tree-head .th-stats { flex-basis: 100%; order: 3; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tree-panel { animation: none; }
+  .tree-edges, .tree-node polygon, .tb-btn, .tree-page .link-btn { transition: none; }
+}

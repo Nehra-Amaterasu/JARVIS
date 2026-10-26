@@ -2,6 +2,24 @@
 
 Newest first. One section per question; older dated notes (`2026-10-*-aankhen-*.md`) stay as they were.
 
+## 2026-10-27: training only on labelled time, and why the model kept saying "bed"
+
+**Question.** Live, three walks to the bookshelf gave one "bookshelf" and two "bed". Why, and what training fixes it?
+
+**Found.** The catalogue of every labelled second ever recorded: the bookshelf had **0 s**. The commonest place had 6,619 s (one night asleep), the next 1,536 s; the smallest places 5–77 s. No model had been taught the place it was asked about, and the sleep stretch dominated everything.
+
+**Built.**
+- A labelled-only, balanced training set: only labelled spans, trimmed 1 s at each edge, capped at 30 s per place per day, spread over different stays; unlabelled time is never trained on. 509 windows, 6 classes, 34 stays, 70 s cold / 7.6 s with the cache.
+- One training job for the CLI and the app, with the evaluator-v2 rules: per-place recall, recall on the less-common stays reported apart, the majority baseline and a time-of-day prior-alone baseline, a flag when a session had to borrow an empty-room reference (4 of 8 did).
+- The model's word is "predicting" until there are at least 4 labelled days and a leave-one-day-out lower bound above the majority baseline; only then "answering".
+- The live CNN runs in numpy (0.5 ms per window, within 2e-6 of torch), so the running app never imports torch (about 0.5 GB of RAM saved).
+- The rolling 7-day store now keeps the signal level, RSSI and gain per row in hourly files with a hash, so future hours can test the session-shift finding.
+- In the app: tap-to-label mini drills from the laptop, phone-recording import, one Train button with a plain report, and ✓ / "No, I'm at…" corrections that become labelled data.
+
+**Measured (3 labelled days).** Leave one session out, 5 places, chance 20 %: CNN 14 % [6–28], kNN 13 %, majority 20 %, time-of-day prior 22 %. Leave one day out, 2 places: CNN 35 %, kNN 42 %, majority 50 %. AdaBN's earlier 30–39 % did not reproduce on the balanced set (15 %, control 19 %). Status: **predicting**.
+
+**What it changed.** Training no longer rewards the place with the most data. The next gain is data, not code: a few minutes per place per day across 4+ days, each session with its own 2 min of empty room, recorded from the app.
+
 ## 2026-10-27: a second expert hearing, and its ruling
 
 **Question.** Why does a single-link ESP32 Wi-Fi fingerprint fail on a new session, and what is the cheapest honest way forward?

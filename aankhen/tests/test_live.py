@@ -64,6 +64,7 @@ def test_fingerprint_zones_names_every_class_once_per_window():
         r = fz.push(i / 100.0, np.ones(fp.N_SUB), False, True)
         if r is not None:
             out.append((i / 100.0, r))
-    assert out and all(r == {"bed": 0.3, "desk": 0.7} for _, r in out)
+    # "bed" is the merged place (lying + sitting): both zone ids the belief knows get its p
+    assert out and all(r == {"bed_lying": 0.3, "bed_sitting": 0.3, "desk": 0.7} for _, r in out)
     assert 1.9 <= out[0][0] <= 2.2 and all(abs(b[0] - a[0] - 0.5) < 0.05 for a, b in zip(out, out[1:]))
     assert all(abs(m) < 1e-6 for m in seen)  # log(1) minus the fan-on reference (0), not fan-off's 5

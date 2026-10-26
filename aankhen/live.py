@@ -25,7 +25,7 @@ from typing import Iterable, Iterator, Optional
 import numpy as np
 
 from .drill import DRILL_DIR
-from .fingerprint import MODEL_ROOT, CnnFingerprint, csi_stream, windows
+from .fingerprint import MODEL_ROOT, CnnFingerprint, csi_stream, expand_places, windows
 
 LIVE_DIR = os.path.join(DRILL_DIR, "live")
 UNSURE_P = 0.5
@@ -35,17 +35,9 @@ SMOOTH = 3
 def load_current(root: str = MODEL_ROOT) -> tuple[CnnFingerprint, Optional[object], dict, str]:
     """(cnn, knn or None, refs {fan_on/fan_off: [51]}, folder) of the current saved model."""
     import joblib
-    import torch
     with open(os.path.join(root, "current.json"), encoding="utf-8") as f:
         folder = os.path.join(root, json.load(f)["version"])
-    with open(os.path.join(folder, "manifest.json"), encoding="utf-8") as f:
-        man = json.load(f)
-    from .fingerprint import _net
-    m = CnnFingerprint()
-    m.classes, m.mu, m.sd = man["classes"], man["mu"], man["sd"]
-    m.net = _net(len(m.classes))
-    m.net.load_state_dict(torch.load(os.path.join(folder, "model.pt"), weights_only=True))
-    m.net.eval()
+    m = CnnFingerprint.load(folder)        # with its fitted temperature (1.0 on older models)
     knn_p = os.path.join(folder, "knn.joblib")
     # joblib unpickles: safe only because this folder is written by `fingerprint train` on
     # this machine (data/ never leaves it); never point it at a model from elsewhere
@@ -131,7 +123,8 @@ class FingerprintZones:
         self.recent.append(p)
         self.windows += 1
         ps = np.mean(self.recent, axis=0)
-        return {z: float(v) for z, v in zip(self.cnn.classes, ps)}
+        # a model trained on merged places ("bed") still names every zone id the belief knows
+        return expand_places({z: float(v) for z, v in zip(self.cnn.classes, ps)})
 
 
 def predict_stream(wins: Iterable[tuple[float, np.ndarray]], cnn: CnnFingerprint, knn, ref: np.ndarray,

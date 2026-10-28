@@ -2,6 +2,24 @@
 
 Newest first. One section per question; older dated notes (`2026-10-*-aankhen-*.md`) stay as they were.
 
+## 2026-10-28: the board is read over Wi-Fi, with no cable, for the first time
+
+**Question.** Does the app take the ESP32-S3's CSI over the home Wi-Fi instead of USB, with nothing changed by hand, and can a phone reach it?
+
+**Measured** (firmware 3.6.0, board on a phone charger, the in-room transmitter; `python -m aankhen.tools.smoke_board --link wifi`, 30 s):
+- **297.6 CSI/s**, 8,927 frames, 64 subcarriers, 0 lost, 0 CRC errors; longest gap **12 ms** (the board's own clock: 11 ms). The 27 Oct USB check from the desk gave 220/s and 34 ms.
+- RSSI median **−72 dBm** (−78 to −69); the router's PHY 58.5 Mbit/s (11n); ping timeouts 0.0 %; 0 reconnects.
+- Signing: 1,300 datagrams HMAC-verified, 0 failed; the key fingerprints on the board and in the app equal.
+- The app, started with the link on "auto" and no board on USB, went to Wi-Fi by itself: WELCOME verified in **8.66 ms**, "Reading the board over WIFI". After 20 s: 1,516 datagrams, 1 lost, 0 bad tags, 0 foreign, 0 timeouts.
+- The board's plain `/status` page (its mDNS name): fw 3.6.0, csi_hz 301, ota true.
+
+**What it found and changed.**
+- No firewall rule was needed, and not because the replies pass as answers: the laptop's *Private* firewall profile is off, so UDP 47270 (the board) and TCP 8778 (the phone listener) are open on the home network. If that profile is ever turned on, the two rules to run are the ones `/api/esp32-link` and `/api/remote` print.
+- The board's address had changed since the last USB-era note; the hub's greeting order (typed, last answered, USB-reported, mDNS) found it on the first try. A DHCP reservation on the router is still the robust fix (owner's task).
+- The phone listener was already enabled (port 8778, bound to the LAN address) and answers the phone page; no phone is paired yet. Pairing is the QR or 8-letter code under Connect → Phone, valid 5 minutes.
+- Relay commands over the signed Wi-Fi link exist in firmware and hub (the hub counts them), but today's relays are wired to the Uno, which is not connected, so Limbs reports the room as virtual. Over Wi-Fi the board is sensing only until a relay module hangs on its pins.
+- Sources: `aankhen/firmware/README.md` §4c-4d, `app/jarvis_app/esp32_link.py`, `aankhen/hub.py`, `app/jarvis_app/phone.py`.
+
 ## 2026-10-27: the transmitter moves into the room, and the link is fixed
 
 **Measured** (firmware 3.6.0, spare router as a standalone 2.4 GHz transmitter on a fixed 20 MHz channel about 1 m high by the door, board on USB; 120 s check, twice):

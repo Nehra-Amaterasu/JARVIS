@@ -114,7 +114,7 @@ static_assert(AkText::hex(LINK_KEY_VALUE), "LINK_KEY_VALUE (secrets.h) must be h
 #endif
 
 // ------------------------------------------------------------------ config
-#define FW_VERSION "aankhen-3.7.0"
+#define FW_VERSION "aankhen-3.7.1"
 #define STATUS_MAX 1024                 // the STATUS JSON's buffer, terminator included: at most 1023
                                         // bytes of JSON, inside the host's 1024-byte limit. 3.7.0 raised
                                         // it from 1000: a sixth relay adds ~27 bytes (relays + relay_pins)
@@ -200,6 +200,11 @@ static uint32_t wifiJoins = 0;                       // STATUS lq "reconn" = joi
 static uint32_t wifiLostMs = 0, wifiNextTryMs = 0, wifiBackoffMs = 1000;
 static uint8_t pinBssid[6];
 static bool pinned = false, pinFixed = false;        // pinFixed: from secrets.h, never given up
+#ifdef WIFI_SSID2_VALUE
+static bool wifiOnFallback = false;                  // joined WIFI_SSID2_VALUE, the house Wi-Fi
+static uint32_t wifiPrimaryProbeMs = 0;              // when the last scan for the first network began
+static bool wifiProbing = false;                     // an async scan is running
+#endif
 static bool wdtOn = false;
 
 // The Wi-Fi link's state (WI-FI LINK below). Sessions are touched by loop() only; the
@@ -1577,6 +1582,13 @@ static void onWifiEvent(arduino_event_id_t event, arduino_event_info_t info) {
 }
 
 static void beginWifi() {
+#ifdef WIFI_SSID2_VALUE
+  if (wifiOnFallback) {
+    WiFi.begin(WIFI_SSID2_VALUE, WIFI_PASS2_VALUE);  // the house Wi-Fi, never pinned
+    logf("wifi: joining %s (fallback)", WIFI_SSID2_VALUE);
+    return;
+  }
+#endif
   WiFi.begin(WIFI_SSID_VALUE, WIFI_PASS_VALUE, 0, pinned ? pinBssid : nullptr);   // channel 0: scan them all
   if (pinned) logf("wifi: joining %s, only AP ..:%02x:%02x:%02x%s", WIFI_SSID_VALUE, pinBssid[3], pinBssid[4],
                    pinBssid[5], pinFixed ? " (WIFI_BSSID_VALUE)" : "");
@@ -1594,7 +1606,11 @@ static void onWifiJoined() {
     haveBssid = true;
   }
 #if WIFI_PIN_BSSID
-  if (!pinned && haveBssid) {
+  bool pinThis = !pinned && haveBssid;
+#ifdef WIFI_SSID2_VALUE
+  if (wifiOnFallback) pinThis = false;             // the house AP is a stopgap, never pinned
+#endif
+  if (pinThis) {
     memcpy(pinBssid, routerBssid, 6);
     pinned = true;
   }
@@ -1632,7 +1648,39 @@ static void wifiTick(uint32_t now) {
     return;
   }
   if (wifiUp && !conn) onWifiLost(now);
+#ifdef WIFI_SSID2_VALUE
+  if (conn && wifiOnFallback) {                    // on the house Wi-Fi: look for the room's router
+    if (!wifiProbing && now - wifiPrimaryProbeMs > WIFI_PRIMARY_RETRY_S * 1000UL) {
+      wifiPrimaryProbeMs = now;
+      wifiProbing = true;
+      WiFi.scanNetworks(true, false, false, 300);  // async; the link pauses ~4 s while it hops
+    } else if (wifiProbing) {
+      int n = WiFi.scanComplete();
+      if (n >= 0) {
+        bool found = false;
+        for (int i = 0; i < n && !found; i++) found = WiFi.SSID(i) == WIFI_SSID_VALUE;
+        WiFi.scanDelete();
+        wifiProbing = false;
+        if (found) {
+          logf("wifi: %s is back; leaving %s", WIFI_SSID_VALUE, WIFI_SSID2_VALUE);
+          wifiOnFallback = false;
+          WiFi.disconnect();                       // onWifiLost on the next tick, then beginWifi
+        }
+      } else if (n == WIFI_SCAN_FAILED) {
+        wifiProbing = false;
+      }
+    }
+  }
+#endif
   if (conn || (int32_t)(now - wifiNextTryMs) < 0) return;
+#ifdef WIFI_SSID2_VALUE
+  if (!wifiOnFallback && now - wifiLostMs > WIFI_FALLBACK_AFTER_S * 1000UL) {
+    wifiOnFallback = true;
+    wifiPrimaryProbeMs = now;
+    if (!pinFixed) pinned = false;                 // the router may come back as another AP
+    logf("wifi: %s not found for %d s; falling back to %s", WIFI_SSID_VALUE, WIFI_FALLBACK_AFTER_S, WIFI_SSID2_VALUE);
+  }
+#endif
   if (pinned && !pinFixed && now - wifiLostMs > WIFI_PIN_GIVEUP_S * 1000UL) {
     pinned = false;                                // a replaced router must not strand the board
     logf("wifi: pinned AP gone for %d s; joining any AP named %s", WIFI_PIN_GIVEUP_S, WIFI_SSID_VALUE);

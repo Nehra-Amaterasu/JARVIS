@@ -107,7 +107,7 @@ def test_no_radar_and_no_planned_relay_in_detected(monkeypatch):
     monkeypatch.setattr(connect, "_port_open", lambda port, host="127.0.0.1": False)
     items = by_id(connect.detect({}, {"running": False}, boards=[], core_logs=[], voice={"ok": True, "ms": 5},
                                  relays=None))
-    assert "ld2450" not in items and items["relay"]["name"] == "Relay board · Arduino Uno"
+    assert "ld2450" not in items and items["relay"]["name"] == "Relay board · ESP32-S3 wall box"
     assert "mqtt" not in items                                             # the relays never needed it
 
 

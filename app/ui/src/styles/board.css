@@ -115,3 +115,22 @@
 .presence-rule { margin-top: 18px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
 .presence-quiet { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .wiring-p.fault { color: var(--fault, #ff6b6b); }
+
+/* The wall box card: the ceiling on the left, the relay table and modes on the right. */
+.wallbox { margin-bottom: 18px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.wallbox-grid { display: grid; grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr); gap: 18px; align-items: start; }
+@media (max-width: 900px) { .wallbox-grid { grid-template-columns: minmax(0, 1fr); } }
+.wallbox-lcd { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px 12px; border-radius: 8px; background: #1e3d9e; color: #e8f0ff; }
+.wallbox-lcd pre { margin: 0; font: 600 14px/1.35 var(--f-mono); letter-spacing: 0.08em; white-space: pre; }
+.wallbox-side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.wallbox-modes { display: flex; flex-wrap: wrap; gap: 6px; }
+.wallbox-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.wallbox-table th { text-align: left; font: 600 10px var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-4); padding: 4px 8px; }
+.wallbox-table td { padding: 6px 8px; border-top: 1px solid var(--hair-2); vertical-align: top; }
+.wallbox-table tr.missing td { opacity: 0.5; }
+.wallbox-name { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; color: var(--ink); font: inherit; cursor: pointer; padding: 0; }
+.wallbox-name:disabled { cursor: default; }
+.wallbox-name i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; box-shadow: 0 0 0 1px var(--hair-2); }
+.wallbox-receipt { font: 500 11px var(--f-mono); color: var(--ink-3); margin-top: 4px; }
+.wallbox-receipt.fault { color: var(--fault, #ff6b6b); }
+.wallbox-voice summary { cursor: pointer; font-size: 12.5px; color: var(--ink-3); }

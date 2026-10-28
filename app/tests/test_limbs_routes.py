@@ -49,5 +49,5 @@ def test_the_presence_rule_is_visible_and_settable(client):
 
 def test_connect_lists_the_relay_board_not_a_planned_dimmer(client):
     items = {i["id"]: i for i in client.get("/api/connect").json()}
-    assert items["relay"]["name"] == "Relay board · Arduino Uno" and items["relay"]["status"] != "planned"
+    assert items["relay"]["name"] == "Relay board · ESP32-S3 wall box" and items["relay"]["status"] != "planned"
     assert "ld2450" not in items

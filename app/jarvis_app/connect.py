@@ -169,13 +169,24 @@ def board_items(results: list, aankhen_info: Optional[dict], now: Optional[float
     return items
 
 
-def relay_item(relays_view: Optional[dict]) -> dict:
-    """The Uno relay board, from the transport's own state (uno.UnoRelays.view())."""
-    name = "Relay board · Arduino Uno"
+def relay_item(relays_view: Optional[dict], hub_info: Optional[dict] = None) -> dict:
+    """The relay board. Since 2026-10-28 that is the ESP32-S3 in the wall box, reached over
+    the Aankhen link (USB or Wi-Fi, hub_info); the Uno transport (uno.UnoRelays.view())
+    only when JARVIS_UNO=1."""
     if relays_view is None:
+        name = "Relay board · ESP32-S3 wall box"
+        h = hub_info or {}
+        if h.get("kind") == "hardware":
+            b = h.get("board") or {}
+            link = "Wi-Fi" if (b.get("link") or h.get("link")) == "wifi" else "USB"
+            where = b.get("address") if link == "Wi-Fi" else b.get("port")
+            return _item("relay", "Hardware", name, "connected",
+                         f"{link}{f' · {where}' if where else ''} · firmware {b.get('fw') or h.get('fw') or '?'} · "
+                         "six relays, each switch confirmed by the board's STATUS")
         return _item("relay", "Hardware", name, "missing",
-                     "The relay transport is switched off (JARVIS_UNO=0): the light and fan are virtual.",
-                     "Start the app without JARVIS_UNO=0.")
+                     "The ESP32 is not connected (neither USB nor its Wi-Fi link): the relays are virtual.",
+                     "Power the box (its charger or USB); JARVIS finds it by itself within ~15 s.")
+    name = "Relay board · Arduino Uno"
     r = relays_view
     if r.get("connected"):
         chans = ", ".join(f"{d} {'on' if on else 'off'}" for d, on in (r.get("state") or {}).items())
@@ -312,7 +323,7 @@ def detect(core_info: dict | None = None, aankhen_info: dict | None = None, *,
     items.extend(board_items(boards, aankhen_info))
     if relays is _UNSET:
         relays = _relays.view() if _relays is not None else None
-    items.append(relay_item(relays))
+    items.append(relay_item(relays, aankhen_info))
     try:
         import sounddevice as sd
         dev = sd.query_devices(kind="input")
@@ -350,12 +361,12 @@ def detect(core_info: dict | None = None, aankhen_info: dict | None = None, *,
                         "openWakeWord model on disk; loaded only while JARVIS runs in voice mode.") if oww
                        else "Model file not found.",
                        None if oww else "pip install openwakeword, then download its models."))
-    # The relays are on the Uno over USB (through the app) since 2026-10-13, and room.py no
+    # The relays are on the ESP32 through the app (the Uno until 2026-10-28), and room.py no
     # longer publishes on MQTT: nothing in JARVIS needs a broker. Listed only when one runs.
     if _port_open(1883):
         items.append(_item("mqtt", "Brain", "MQTT broker", "available",
                            "A broker answers on :1883, but nothing in JARVIS uses it now: the relays are on "
-                           "the Uno over USB."))
+                           "the ESP32 through the app."))
 
     # ---------------------------------------------------------------- memory sources
     insta = sorted(DOWNLOADS.glob("instagram-*.zip"))

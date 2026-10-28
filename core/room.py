@@ -178,11 +178,67 @@ def _extra_devices():
     return out
 
 
-def _devices_in(clause, extra):
+# The wall box (2026-10-28, six relays): a word that several device names share groups
+# them, so "pink on" is both pink coves and "warm lights off" both warm ones. Plain words
+# ("lights", "ceiling") never group. A whole name ("pink outer") still wins over its group.
+_GROUP_STOP = {"light", "lights", "lamp", "lamps", "the", "ceiling", "room", "cove", "coves", "and"}
+
+
+def _groups():
+    """[(device ids, regex)] for every word shared by two or more device names."""
+    words = {}
+    for d in _devices():
+        for w in set(room_config.norm(d["name"]).split()):
+            if w in _GROUP_STOP or len(w) < 3:
+                continue
+            words.setdefault(w, []).append(d["id"])
+    return [(ids, _re.compile(r"\b" + _re.escape(w) + r"s?\b", _re.I)) for w, ids in words.items() if len(ids) >= 2]
+
+
+def _devices_in(clause, extra, groups=()):
     named = [name for name, rx in extra if rx.search(clause)]
     if named:                                      # "desk lamp" is the desk lamp, not also the light
         return named
+    grouped = []
+    for ids, rx in groups:
+        if rx.search(clause):
+            grouped.extend(i for i in ids if i not in grouped)
+    if grouped:                                    # "pink on": every pink cove, not the main light
+        return grouped
     return [name for name, rx in _DEV if rx.search(clause)]
+
+
+# "Brighter" / "dimmer" with no device named: the relays cannot dim, but the wall box's
+# combinations can, so the request steps along this ladder of lighting modes (only the
+# rungs modes.json has). Below the lowest rung every light goes off; the fan is left alone.
+LADDER = ("night_light", "movie", "relaxation", "focus", "reading", "morning", "all_lights")
+# Only these words climb or descend; a stray "up" ("wake me up", "showing up") never does.
+_LADDER_UP = _re.compile(r"\b(brighter|brighten|more light|roshni badhao|thoda tez)\b", _re.I)
+_LADDER_DOWN = _re.compile(r"\b(dimmer|dim|darker|less light|roshni kam|thoda kam)\b", _re.I)
+
+
+def _ladder(direction):
+    """[(device, action, value)] for one step up or down the ladder, or [] when the room
+    has fewer than two rungs (then the old answer: the light has no dimmer)."""
+    try:
+        modes = room_config.load_modes()["modes"]
+    except Exception:
+        return []
+    by_id = {m["id"]: m for m in modes}
+    rungs = [r for r in LADDER if r in by_id]
+    lights = [d["id"] for d in _devices() if d["kind"] == "light"]
+    if len(rungs) < 3 or not lights:             # two rungs is a switch, not a ladder
+        return []
+    on_now = {d for d in lights if state.get(d, {}).get("on")}
+    sets = [{d for d, on in room_config.resolve(by_id[r], lights).items() if on} for r in rungs]
+    here = next((i for i, s in enumerate(sets) if s == on_now), None)
+    if here is None:                               # not on a rung: the nearest by how many are on
+        here = -1 if not on_now else min(range(len(sets)), key=lambda i: (abs(len(sets[i]) - len(on_now)), i))
+    nxt = here + (1 if direction == "up" else -1)
+    if nxt < 0:
+        return [(d, "off", None) for d in lights]
+    nxt = min(nxt, len(rungs) - 1)                 # the top stays the top
+    return [("environment", rungs[nxt], rungs[nxt])]
 
 
 def parse(text):
@@ -202,18 +258,19 @@ def parse(text):
         if mode is not None:
             return [("environment", mode, mode)]
     extra = _extra_devices()
+    groups = _groups()
     if _QUESTION.search(t):
         # "Why can't you increase the fan speed?" has one true answer, whoever asks.
-        devices = _devices_in(t, extra)
+        devices = _devices_in(t, extra, groups)
         if devices and _LEVEL_WORDS.search(t):
             return [(devices[0] if len(devices) == 1 else "all", "level", None)]
         return []
     for name, rx in _SCENE:
-        if rx.search(t) and _SCENE_VERB.search(t) and not _devices_in(t, extra):
+        if rx.search(t) and _SCENE_VERB.search(t) and not _devices_in(t, extra, groups):
             return [("environment", name, name)]
     clauses = []
     for c in (p for p in _CLAUSE.split(t) if p and p.strip()):
-        devices = _devices_in(c, extra)
+        devices = _devices_in(c, extra, groups)
         verb = _verb(c)
         if not devices and _ALL.search(c) and verb in ("on", "off"):
             devices = ["all"]
@@ -230,6 +287,11 @@ def parse(text):
             cl[1] = before or after
     out = []
     for devices, verb, c in clauses:
+        if not devices and verb == "level" and len(c.split()) <= 5 and (_LADDER_UP.search(c) or _LADDER_DOWN.search(c)):
+            for cmd in _ladder("up" if _LADDER_UP.search(c) else "down"):   # "brighter": the next rung
+                if cmd not in out:
+                    out.append(cmd)
+            continue
         if not devices or not verb:
             continue
         for d in devices:

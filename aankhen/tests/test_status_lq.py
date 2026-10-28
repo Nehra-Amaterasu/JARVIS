@@ -110,7 +110,7 @@ def test_the_longest_360_status_fits_the_buffer_an_old_host_accepts():
 
 def test_firmware_version_is_370():
     ino = (FW_DIR / "firmware.ino").read_text(encoding="utf-8")
-    assert '#define FW_VERSION "aankhen-3.7.0"' in ino
+    assert '#define FW_VERSION "aankhen-3.7.1"' in ino
 
 
 # ------------------------------------------------------------- smoke report

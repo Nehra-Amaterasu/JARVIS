@@ -15,7 +15,12 @@ broker login, or over a token-authenticated HTTP call.
 copy secrets.example.h secrets.h
 ```
 
-Fill in `WIFI_SSID_VALUE` / `WIFI_PASS_VALUE` for the **2.4 GHz** network. Add
+Fill in `WIFI_SSID_VALUE` / `WIFI_PASS_VALUE` for the **2.4 GHz** network. Optionally (3.7.1)
+`WIFI_SSID2_VALUE` / `WIFI_PASS2_VALUE`, a second 2.4 GHz network: after the first has been
+missing for `WIFI_FALLBACK_AFTER_S` (45 s) the board joins the second, unpinned, and while on
+it scans for the first every `WIFI_PRIMARY_RETRY_S` (60 s, so it is back within a minute of the router; a scan costs ~4 s of CSI) and goes
+back the moment it is seen. Made for the room's own router sitting on a circuit whose MCB
+goes down (2026-10-28): sensing and relays stay reachable over the house Wi-Fi meanwhile. Add
 `OTA_PASS_VALUE` (12+ characters, your own, not the example's) before the board goes
 behind the switchboard: without it the firmware has no OTA and only USB can update it
 (section 4b). Add `LINK_KEY_VALUE`, the line the JARVIS app shows you (section 4c), or

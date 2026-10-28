@@ -241,7 +241,7 @@ the voice core from its Core tab; say **"Jarvis"**, then speak.
 - **Start at login (opt-in):** `.venv/Scripts/python.exe app/install_startup.py` puts a
   shortcut to the watchdog in the Startup folder (`--remove` undoes it, `--dry-run`
   shows it). No registry, no admin.
-- **Boards:** copy `aankhen/firmware/secrets.example.h` to `secrets.h`. Compile and
+- **Boards:** the ESP32-S3 is the sensor and, since 2026-10-28, the relay board (six relays in the wall box; `docs/aankhen-esp32-relays.md`). Copy `aankhen/firmware/secrets.example.h` to `secrets.h`. Compile and
   flash from the app (Limbs, Firmware) or with arduino-cli. The Uno sketch is
   `limbs/uno_relay/uno_relay.ino`. Close the app before flashing: it holds the ports.
 - **Memory from your own data export:** `.venv/Scripts/python.exe yaadash/refresh_memory.py`.

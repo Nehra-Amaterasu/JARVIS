@@ -47,7 +47,7 @@ class Services:
         self.bus = bus
         self.core = CoreProcess(bus, f"http://127.0.0.1:{guard.port}", guard.token)
         self.hub = AankhenHub()
-        # The relay board: an Arduino Uno on USB (uno.py) since 2026-10-13. JARVIS_UNO=0
+        # The relay board is the ESP32 wall box (hub) since 2026-10-28; the Uno (uno.py) only with JARVIS_UNO=1.
         # turns it off (tests); then the ESP32 hub path is used, as before.
         from . import uno
         self.relays = uno.UnoRelays(bus) if uno.enabled() else None

@@ -9,9 +9,9 @@ which the voice path reads) in step:
     presence_on.py ──────┘                          └─▶ JARVIS's room.state (stdin)
 
 What is wired comes from devices.json (core/room_config.py): id, name, kind light|fan,
-board uno|esp32, channel. No file means today's room: the light on the Uno's D4 and the
-fan on D5. A light added on D6 later is one line there (and a row in the firmware's pin
-table), not code. A device on the Uno is switched only through the Uno transport; one
+board uno|esp32, channel. No file means today's room: the ESP32-S3 wall box with six relays
+(2026-10-28). A seventh relay is one line there (and a row in the firmware's RELAY_TABLE),
+not code. A device on the Uno is switched only through the Uno transport; one
 on the ESP32 only through the hub.
 
 The relays only SWITCH (contacts in parallel with the wall switches): every device is

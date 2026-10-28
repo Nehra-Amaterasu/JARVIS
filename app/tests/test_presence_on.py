@@ -2,6 +2,7 @@
 there, and never when a guard says no. Fakes only: no serial port, no real input clock."""
 from datetime import datetime
 
+from pathlib import Path
 import pytest
 
 from jarvis_app.bus import EventBus
@@ -61,9 +62,22 @@ class Clock:
         return self.t
 
 
+# The Uno room as it was until 2026-10-28 (the code's default is the ESP32 now): the tests
+# of the Uno path say so explicitly instead of leaning on the default.
+UNO_DEVICES = ('{"devices": [{"id": "light", "name": "Room light", "kind": "light", "board": "uno", "channel": 4},'
+               ' {"id": "fan", "name": "Ceiling fan", "kind": "fan", "board": "uno", "channel": 5}]}')
+
+
+def uno_room(directory):
+    f = Path(directory) / "devices.json"
+    if not f.exists():
+        f.write_text(UNO_DEVICES, encoding="utf-8")
+
+
 def rig(tmp_path, idle=None, frame=None, at=datetime(2026, 10, 15, 19, 0), core=None, **settings):
     bus = EventBus()
     core = core or FakeCore()
+    uno_room(tmp_path)
     limbs = Limbs(core, None, bus, path=tmp_path / "room.json", relays=FakeUno())
     clock = Clock()
     idle_box = {"v": idle}

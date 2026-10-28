@@ -10,8 +10,8 @@ The relays only SWITCH (an Arduino relay board, contacts in parallel with the wa
 switches): a mode is an on/off set, never a brightness or a fan speed. "*" in a set
 means every device ("All off"), so a light wired later is covered without editing it.
 
-No file means today's room: the light on D4 and the fan on D5 of the Uno, and the four
-default modes. A file that does not parse is reported (problems) and the defaults are
+No file means the ESP32 wall box's light (GPIO 4) and fan (GPIO 5) and the four default
+modes; the six-relay room is the example files beside the app. A file that does not parse is reported (problems) and the defaults are
 used; nothing here ever switches anything.
 
 One owner per device: each device names ONE board, and the app drives it through that
@@ -39,9 +39,14 @@ UNO_PINS = range(2, 14)          # D0/D1 are the Uno's USB serial link
 ESP32_PINS = (1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 21, 39, 40, 41, 42, 47)
 ID_RX = re.compile(r"^[a-z][a-z0-9_]{0,11}$")   # also the firmware's command word (line buffer: 48 chars)
 
+# The relay board since 2026-10-28 is the ESP32-S3 in the wall box, over USB or its Wi-Fi
+# link; the Uno (light D4, fan D5) is a spare, used only with JARVIS_UNO=1 and a devices.json
+# that says "uno". No file means the box's two main loads on the firmware's first two relays
+# (RELAY_TABLE in aankhen/firmware/config.h); the full six-relay room with its twelve modes
+# is app/jarvis_app/devices.esp32-box.example.json + modes.wallbox.example.json.
 DEFAULT_DEVICES = [
-    {"id": "light", "name": "Room light", "kind": "light", "board": "uno", "channel": 4},
-    {"id": "fan", "name": "Ceiling fan", "kind": "fan", "board": "uno", "channel": 5},
+    {"id": "light", "name": "White lights", "kind": "light", "board": "esp32", "channel": 4},
+    {"id": "fan", "name": "Ceiling fan", "kind": "fan", "board": "esp32", "channel": 5},
 ]
 # Aman's brief, 2026-10-15: on/off sets only. Wind down and Sleep are the same set today
 # (no dimmer, so "a little light" does not exist); each is editable.
@@ -129,10 +134,10 @@ def load_devices(directory: Optional[Path] = None) -> tuple[list[dict], list[str
     except FileNotFoundError:
         return [dict(d) for d in DEFAULT_DEVICES], []
     except (OSError, ValueError) as e:
-        return [dict(d) for d in DEFAULT_DEVICES], [f"devices.json unreadable ({e}); using light D4 + fan D5"]
+        return [dict(d) for d in DEFAULT_DEVICES], [f"devices.json unreadable ({e}); using the ESP32's light (GPIO 4) + fan (GPIO 5)"]
     items = raw.get("devices") if isinstance(raw, dict) else raw
     if not isinstance(items, list) or not items:
-        return [dict(d) for d in DEFAULT_DEVICES], ["devices.json lists no devices; using light D4 + fan D5"]
+        return [dict(d) for d in DEFAULT_DEVICES], ["devices.json lists no devices; using the ESP32's light (GPIO 4) + fan (GPIO 5)"]
     out, problems, seen, pins = [], [], set(), set()
     for d in items[:MAX_DEVICES]:
         why = check_device(d, seen)
@@ -146,7 +151,7 @@ def load_devices(directory: Optional[Path] = None) -> tuple[list[dict], list[str
         out.append({"id": d["id"], "name": str(d.get("name") or d["id"])[:40], "kind": d["kind"],
                     "board": d["board"], "channel": d["channel"]})
     if not out:
-        return [dict(d) for d in DEFAULT_DEVICES], problems + ["no usable device; using light D4 + fan D5"]
+        return [dict(d) for d in DEFAULT_DEVICES], problems + ["no usable device; using the ESP32's light (GPIO 4) + fan (GPIO 5)"]
     return out, problems
 
 

@@ -1,6 +1,7 @@
 """The room owner: on/off only, commands match core/room.py exactly, modes are
 editable on/off sets, devices come from devices.json, and the buttons work whether or
 not JARVIS is awake. No serial port is ever opened (fakes only)."""
+from pathlib import Path
 import importlib
 import json
 import sys
@@ -69,7 +70,21 @@ class FakeUno:
                 "state": dict(self.state), "error": None}
 
 
+# The Uno room as it was until 2026-10-28 (the code's default is the ESP32 now): the tests
+# of the Uno path say so explicitly instead of leaning on the default.
+UNO_DEVICES = ('{"devices": [{"id": "light", "name": "Room light", "kind": "light", "board": "uno", "channel": 4},'
+               ' {"id": "fan", "name": "Ceiling fan", "kind": "fan", "board": "uno", "channel": 5}]}')
+
+
+def uno_room(directory):
+    f = Path(directory) / "devices.json"
+    if not f.exists():
+        f.write_text(UNO_DEVICES, encoding="utf-8")
+
+
 def _limbs(tmp_path, core=None, hub=None, relays=None):
+    if relays is not None:
+        uno_room(tmp_path)
     return Limbs(core or FakeCore(), hub if hub is not None else FakeHub(), EventBus(), path=tmp_path / "room.json",
                  relays=relays, sleep=lambda s: None)
 
@@ -288,7 +303,7 @@ def test_default_modes_are_the_on_off_sets_aman_asked_for(tmp_path):
     assert modes["relaxation"]["resolved"] == {"light": False, "fan": True}
     assert modes["sleep"]["resolved"] == {"light": False, "fan": True}
     assert modes["all_off"]["resolved"] == {"light": False, "fan": False}
-    assert modes["focus"]["detail"] == "room light on · ceiling fan on"
+    assert modes["focus"]["detail"] == "white lights on · ceiling fan on"   # the ESP32 default room
 
 
 @pytest.mark.parametrize("name, light, fan", [("focus", True, True), ("Deep focus", True, True),

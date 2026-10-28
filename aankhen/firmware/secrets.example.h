@@ -5,6 +5,10 @@
 // Wi-Fi: the ESP32-S3 is 2.4 GHz only. The router you join is the CSI transmitter.
 #define WIFI_SSID_VALUE "your-2.4GHz-network"
 #define WIFI_PASS_VALUE "your-wifi-password"
+// Optional, 3.7.1: a second 2.4 GHz network the board falls back to while the first one is
+// off (the room's router on a dead MCB). It returns to the first by itself (config.h).
+// #define WIFI_SSID2_VALUE "house-2.4GHz-network"
+// #define WIFI_PASS2_VALUE "house-wifi-password"
 
 // Relay control over HTTP needs a long random token (>= 16 characters). Leave it
 // commented out and HTTP relay control stays disabled. Make one with:

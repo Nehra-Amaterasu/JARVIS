@@ -5,6 +5,26 @@ is already cable-free (firmware 3.6.0, `docs/research/aankhen.md`, 2026-10-28). 
 the path from "a relay module on the bench" to "the room light switched from the phone", in the
 order that cannot bite. Firmware details: `aankhen/firmware/README.md` §2 and §4c.
 
+## Status, 2026-10-28 (bench, room MCB down)
+
+- **The ESP32-S3 is the relay board now.** The app's default room puts the light and the fan on
+  the ESP32 (GPIO 4, 5); the Uno transport is off unless `JARVIS_UNO=1`. The six-relay room
+  (this guide's table) is `data/app/devices.json` + `data/app/modes.json`, copied from the two
+  example files.
+- **Firmware 3.7.0 flashed over USB** (1,006,848 bytes, hash verified). Its STATUS reports six
+  relays on GPIO 4, 5, 6, 7, 15, 16, all OFF at boot.
+- **Bench clicks over USB: 18 of 18 confirmed both ways** (3 rounds × 6 relays, on 1 s then off),
+  26-63 ms per command from send to the board's own STATUS. Two more through the running app
+  (`light2`, `light5`): both confirmed. The confirmation is the board's GPIO state; whether each
+  module's LED and contact follow it is checked by eye (T2 below).
+- **MCB on, 10:54-10:55: the relays did not move.** Aman pressed the light and fan in the app 11 times; the ledger shows every press applied over USB and the board confirmed its pin each time, yet no module lit or clicked. So the fault is between the S3's pins and the relay coils, on the modules' side: most likely their 5 V or GND is not arriving (a breadboard power rail split in the middle, or a jumper one row off), else the signal jumpers are not in the pins' columns. The board's "confirmed" is its own pin state and cannot see a relay; the bench result above proves the pins, not the relays.
+- **Over Wi-Fi: not testable today.** The room's router is on the room's MCB, so the board says
+  `connecting` (last disconnect 201, no AP found). Firmware 3.7.1 adds a fallback network for
+  exactly this (section 5).
+- **In the app:** Limbs opens with a Wall box card: the ceiling lit from the board's own report,
+  the six relays by module and GPIO with a test click each, the twelve modes, what the box's LCD
+  shows, and what to say to JARVIS.
+
 ## 0. One decision before soldering
 
 The board's place is what the recorded data is about. Every recording so far is from the board
@@ -57,8 +77,8 @@ Rules that follow from the physics:
 
 ## 2. Tell the app which board switches what (one file, one restart)
 
-Today no `devices.json` exists, so the app's defaults put the light and the fan on the Arduino
-Uno, and Limbs never sends the ESP32 a relay command. Change that with one file:
+The app's default room (no `devices.json`) is the light and the fan on the ESP32 since
+2026-10-28. For all six relays, one file:
 
 ```json
 {
@@ -113,6 +133,20 @@ What the code promises during these steps (the audit of 2026-10-28, with its tes
 - A load the switchboard config refuses (an AC, a geyser, anything over 5.6 A) is never driven
   (`circuits.py`); there is no `circuits.json` yet, so nothing is refused and nothing is rated.
 
+## 3b. When the board confirms but no relay moves (2026-10-28)
+
+Work from the module back to the ESP32, one cause at a time:
+1. **Power LED on each module.** Off: 5 V or GND is not reaching it. Long breadboards often split
+   each power rail in the middle; if the ESP32's 5V/GND jumpers are on one half and a module's
+   VCC/GND on the other, that module gets nothing. Bridge the gap with a short jumper on both
+   rails, or move the jumpers to the same half. A multimeter on a module's VCC-GND must read
+   4.5-5 V.
+2. **Power LED on, channel LED never lights.** Touch that module's IN1 to GND with a spare
+   jumper: an active-low module must click and light. If it does, the module is fine and the
+   signal jumper is not in the GPIO's column; if it does not, swap in a spare module.
+3. **Clicks but the light stays dark (MCB on, wall switch OFF).** The mains side: the green wire
+   on NC instead of NO, or a loose screw (the artifact's section 5 and 6).
+
 ## 4. Known gaps found by the audit (not blockers for the bench)
 
 - The Limbs "Wire your relays" card is written for the Uno; the ESP32 pins are only in this
@@ -121,3 +155,26 @@ What the code promises during these steps (the audit of 2026-10-28, with its tes
   included) over HTTP needs `RELAY_TOKEN_VALUE`, which is not in the build. Not needed: the app
   reads relays over the signed link.
 - No DHCP reservation yet: the board's address can change; mDNS (`aankhen.local`) covers it.
+
+## 5. When the room's router is off: the house Wi-Fi as a fallback (firmware 3.7.1)
+
+The in-room transmitter sits on the room's own circuit, so a dead MCB takes the board's network
+with it. 3.7.1 adds an optional second network. Two lines in `secrets.h` (the owner adds them;
+the password never enters git or a log):
+
+```c
+#define WIFI_SSID2_VALUE "<the house 2.4 GHz network>"
+#define WIFI_PASS2_VALUE "<its password>"
+```
+
+What the board does with them:
+- the first network missing for 45 s (`WIFI_FALLBACK_AFTER_S`): it joins the second, unpinned;
+- while on the second it scans for the first every 60 s (`WIFI_PRIMARY_RETRY_S`) and leaves the
+  moment it is seen, so it is back on the room's router within about a minute of the MCB going
+  up; it never settles on the house Wi-Fi;
+- each scan pauses the link for ~4 s (about 7 % of the time, only while on the fallback);
+- the pin to the room's AP is kept for the way back; the house AP is never pinned.
+
+Sensing on the house router is a different geometry (through the wall), so recordings made while
+on the fallback are not mixed into the room's training data as if they were the same link.
+Without the two defines, 3.7.1 behaves exactly like 3.7.0.

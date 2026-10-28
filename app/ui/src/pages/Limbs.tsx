@@ -28,6 +28,8 @@ import { BoardPorts } from '../components/BoardPorts'
 import { Esp32LinkCard } from '../components/Esp32LinkCard'
 import { FirmwareCard } from '../components/FirmwareCard'
 import { RelayWiring } from '../components/RelayWiring'
+import { WallBox } from '../components/WallBox'
+import { isWallBox } from '../lib/wallbox'
 import type { BoardView } from '../lib/board'
 import '../styles/board.css'
 
@@ -65,6 +67,7 @@ export function LimbsPage() {
         <span style={{ flex: 1 }}>{view?.hardware ?? '…'}{view?.core_running ? ' Voice commands and these switches stay in sync.' : ' Voice commands sync as soon as JARVIS is awake.'}</span>
       </div>
       {!!view?.problems?.length && <div className="banner sim"><span>{view.problems.join(' · ')}</span></div>}
+      <WallBox view={view} send={send} reload={reload} />
       <div className="limbs-grid">
         {view?.devices.map((d) => <DeviceCard key={d.id} d={d} send={send} />)}
       </div>
@@ -73,7 +76,7 @@ export function LimbsPage() {
       <PresenceRule />
 
       <h2 className="limbs-section">The boards</h2>
-      <RelayWiring v={view} onTested={reload} />
+      {!isWallBox(view) && <RelayWiring v={view} onTested={reload} />}
       <div className="board-grid">
         <BoardPanel v={board} reload={reloadBoard} />
         <BoardPorts />

@@ -255,4 +255,7 @@ class UnoRelays:
 
 
 def enabled() -> bool:
-    return os.environ.get("JARVIS_UNO", "1") != "0"
+    """Off unless JARVIS_UNO=1: since 2026-10-28 the relays hang on the ESP32-S3 in the
+    wall box (six of them), and the Uno is a spare. With the transport off, a device
+    whose devices.json says "uno" is driven through the ESP32 hub (limbs.board_of)."""
+    return os.environ.get("JARVIS_UNO", "0") == "1"

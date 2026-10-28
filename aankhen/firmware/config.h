@@ -80,6 +80,14 @@
 // A learnt pin is dropped after this many seconds without its AP, so a replaced router
 // does not strand the board. 300: longer than a router's 1-2 minute reboot.
 #define WIFI_PIN_GIVEUP_S 300
+// A second network (WIFI_SSID2_VALUE / WIFI_PASS2_VALUE in secrets.h, optional): the house
+// Wi-Fi, for when the room's own router is off (its MCB down, 2026-10-28). After the first
+// network has been missing this long the board joins the second, unpinned; while on it, it
+// scans for the first every WIFI_PRIMARY_RETRY_S (60 s: back within a minute of the router; a scan
+// costs ~4 s of CSI, ~7 % while on the fallback only) and goes
+// back the moment it sees it. Without the define nothing here is compiled.
+#define WIFI_FALLBACK_AFTER_S 45
+#define WIFI_PRIMARY_RETRY_S 60
 // The longest loop() may stall before the task watchdog restarts the board. 15: three
 // times the web server's 5 s client timeout, the slowest legitimate step (OTA feeds it).
 #define LOOP_WDT_S 15

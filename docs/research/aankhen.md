@@ -2,6 +2,26 @@
 
 Newest first. One section per question; older dated notes (`2026-10-*-aankhen-*.md`) stay as they were.
 
+## 2026-10-28 (evening): the wall box on the bench: six relays, 18 of 18 clicks confirmed
+
+**Question.** With the three relay modules wired to the S3 (GPIO 4, 5, 6, 7, 15, 16) and the room MCB down, does every relay answer, and why did the modules show nothing before?
+
+**Why nothing blinked before.** Two reasons, both in software: the app had no `devices.json`, so its default room sent every switch to the Arduino Uno (unplugged) and never a relay command to the ESP32; and the flashed 3.6.0 had the old five-relay table (`light4` on GPIO 8, no `light5`).
+
+**Measured.**
+- Firmware 3.7.0 flashed over USB (1,006,848 bytes, 76 % of the slot, hash verified); USB smoke 20 s: 346.5 CSI/s, 0 % loss, gap 15 ms (the room router was still up for that run).
+- Bench script through the hub over USB: 3 rounds × 6 relays, on 1 s then off: **18 of 18 confirmed both ways**, 26-47 ms to confirm ON and 54-63 ms to confirm OFF (send to the board's own STATUS). STATUS after: all six OFF, `relay_pins` 4/5/6/7/15/16, no brownout (`reset: usb`).
+- Through the running app's test-click route: `light2` (16 ms on, 78 ms off) and `light5` (656 ms on, 78 ms off), both confirmed.
+- Over Wi-Fi: 0 of 12. Not a fault of the link: the room router is on the dead MCB, and the board reports `wifi: connecting`, disconnect reason 201 (no AP found).
+- What is NOT measured: the module LEDs and contacts. The board confirms its GPIO level; that the relay follows it needs eyes (the bench ladder's T2).
+- **Then measured by Aman, MCB on (10:54-10:55):** 11 presses in the app, every one applied over USB and confirmed at the pin (energy ledger), and no relay moved. The pins work; the modules are not being driven. Most likely their 5 V/GND is not arriving (split breadboard rail or a jumper one row off). Diagnosis steps: `docs/aankhen-esp32-relays.md` §3b.
+
+**What it changed.**
+- The ESP32 is the default relay board: the default devices are on `esp32`, the Uno transport is opt-in (`JARVIS_UNO=1`), the Connect check names the ESP32 wall box and its link.
+- Voice: words two device names share group them ("pink on", "warm lights off"); "brighter"/"dimmer" step along a ladder of lighting modes (night light → movie → wind down → focus → reading → morning → all lights) instead of claiming a dimmer; below the bottom rung every light goes off and the fan is left alone. 25 new parser tests.
+- App: a Wall box card on Limbs (ceiling from the board's report, relay table with test clicks, modes, the LCD's two rows, what to say); the Uno wiring card shows only for a Uno room.
+- Firmware 3.7.1 (compiled, not flashed): an optional fallback network that is left for the room's router within ~60 s of it coming back.
+
 ## 2026-10-28 (later): audit of the ESP32-relay path before the relay circuit exists
 
 **Question.** When the relay modules hang on the ESP32-S3, what has to be true for a switch from the tab, the phone or voice to reach them over Wi-Fi, and what do the tests already prove? (The owner is building the circuit; the audit ran meanwhile.)

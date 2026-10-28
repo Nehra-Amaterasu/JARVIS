@@ -1,5 +1,6 @@
 """The Uno relay transport (jarvis_app/uno.py) and limbs.py driving it, against a
 fake serial port that speaks the firmware's protocol. No real port is ever opened."""
+from pathlib import Path
 import json
 import types
 
@@ -167,11 +168,24 @@ class EspHub:
         return {"relays": {"light": True, "fan": True}}
 
 
+# The Uno room as it was until 2026-10-28 (the code's default is the ESP32 now): the tests
+# of the Uno path say so explicitly instead of leaning on the default.
+UNO_DEVICES = ('{"devices": [{"id": "light", "name": "Room light", "kind": "light", "board": "uno", "channel": 4},'
+               ' {"id": "fan", "name": "Ceiling fan", "kind": "fan", "board": "uno", "channel": 5}]}')
+
+
+def uno_room(directory):
+    f = Path(directory) / "devices.json"
+    if not f.exists():
+        f.write_text(UNO_DEVICES, encoding="utf-8")
+
+
 @pytest.fixture
 def room(tmp_path):
     r, fake = relays()
     r.connect()
     hub = EspHub()
+    uno_room(tmp_path)
     limbs = Limbs(FakeCore(), hub, EventBus(), path=tmp_path / "room.json", circuits=None, relays=r)
     return types.SimpleNamespace(limbs=limbs, fake=fake, relays=r, hub=hub)
 

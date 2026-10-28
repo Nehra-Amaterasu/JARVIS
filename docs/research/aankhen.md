@@ -2,6 +2,24 @@
 
 Newest first. One section per question; older dated notes (`2026-10-*-aankhen-*.md`) stay as they were.
 
+## 2026-10-28 (later): audit of the ESP32-relay path before the relay circuit exists
+
+**Question.** When the relay modules hang on the ESP32-S3, what has to be true for a switch from the tab, the phone or voice to reach them over Wi-Fi, and what do the tests already prove? (The owner is building the circuit; the audit ran meanwhile.)
+
+**Found in the code.**
+- With no `data/app/devices.json`, both devices default to the Arduino Uno and Limbs never sends the ESP32 a relay command (`room_config.DEFAULT_DEVICES`; `Limbs.board_of`). The switch to the ESP32 is one file with `"board": "esp32"` and one app restart (the file is read once, at start).
+- The path after that: `Limbs.apply()` → `hub.set_relay()` → a signed COMMAND datagram → the board's STATUS confirms; a lost command is re-sent once; "no such relay" and "pin -1" come back in words. On reconnect the app adopts the board's relays and never pushes. Relay pins are initialised latch-first so a boot cannot click an active-low module.
+- Gaps: the Limbs "Wire your relays" card is Uno-only; no `circuits.json`, so no load is rated or refused; no DHCP reservation.
+- A guide with the circuit, the one-file switch and a 7-step bench ladder (no mains) was written: `docs/aankhen-esp32-relays.md`.
+
+**Tests, with the numbers.**
+- UI: vitest 2 failed of ~360 under load (a 250 ms perf budget took 912 ms; a fetch mock timed out at 5.1 s while two pytest suites and the app ran); both files re-run alone: 21 passed. `tsc -b` clean.
+- App: 1,264 passed, 4 failed in 17 min 54 s; the 4 re-run alone 13 s later: 4 passed. Three of them were exactly the ESP32-relay tests (`test_limbs`, `test_limbs_net`), failing because a parallel session was rewriting the wall-box devices example and its test at that minute (files changed 09:03-09:09, run started 08:59).
+- Root (aankhen/crew/core): the first run stopped at `test_firmware_version_is_360`: the working tree's firmware is already 3.7.0 (six relays, GPIO 4, 5, 6, 7, 15, 16, a 16x2 LCD), uncommitted, from that parallel session; 480 passed before the stop. Re-run to the end without that test: **1,370 passed, 2 failed, 1 skipped, 2 xfailed in 45 min 51 s** (the voice core and the app were running). The 2 (`test_eyes` allocation budget, `test_worldmodel` same-seed equality) pass alone in 46 s: load flakes, though a same-seed test that can differ under load is worth a look (thread-count dependence).
+- Firmware actually on the board: 3.6.0 (five relays, `light4` on GPIO 8). `light4`/`light5` as the 3.7.0 table has them need the 3.7.0 flash (OTA is on).
+
+**What it changed.** The relay guide now follows the 3.7.0 table and says what the flashed board can and cannot switch; the audit is the checklist for the bench session. Nothing in the code was changed by this chat.
+
 ## 2026-10-28: the board is read over Wi-Fi, with no cable, for the first time
 
 **Question.** Does the app take the ESP32-S3's CSI over the home Wi-Fi instead of USB, with nothing changed by hand, and can a phone reach it?

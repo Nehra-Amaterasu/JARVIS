@@ -178,3 +178,28 @@ What the board does with them:
 Sensing on the house router is a different geometry (through the wall), so recordings made while
 on the fallback are not mixed into the room's training data as if they were the same link.
 Without the two defines, 3.7.1 behaves exactly like 3.7.0.
+
+## 6. Power budget for the rig, and the Diwali string (2026-10-28, estimates)
+
+Datasheet values, not measured on this board: the ESP32-S3 streaming CSI ~0.15 A average and
+~0.35 A in a Wi-Fi transmit burst; each relay channel on ~80 mA (SRD-05VDC coil 72 mA plus its
+LEDs). Against a 5 V 0.75 A charger:
+
+| Relays on | Average | Peak | 0.75 A charger |
+|---|---|---|---|
+| 0-1 | ~0.23 A | ~0.43 A | fine |
+| 2-3 (most modes) | ~0.39 A | ~0.59 A | fine |
+| 4 | ~0.47 A | ~0.67 A | fine with 1000 µF across the rails |
+| 5 (All lights) | ~0.55 A | ~0.75 A | at the limit |
+| 6 (All lights + fan) | ~0.63 A | ~0.83 A | over: brownout, every relay drops OFF |
+
+Three ways to feed it: the charger into the ESP32's USB-C, with the modules fed from its 5Vin pin
+(needs 5Vin to output 5 V); a USB breakout feeding the rails directly (needed if 5Vin is
+input-only); or two chargers, one for the ESP32 and one for the coils through JD-VCC (also fixes
+3.3 V release). A 2 A charger alone covers every row. Never a charger wired into the switchboard
+without a proven neutral.
+
+The Diwali string must not sit across a switch's T1-T2: it is then in series with that light,
+glowing when "off" and shorted out when on. Options: a socket (manual); a 5 V USB string on a
+spare relay channel (no mains); between L4's T2 and a proven neutral (follows L4, electrician);
+its own 230 V relay as `light6` on GPIO 17 (neutral by an electrician).

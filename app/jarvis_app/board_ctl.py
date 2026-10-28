@@ -83,6 +83,8 @@ CONFIG_FIELDS = [
      "help": "Relay \"light3\" in RELAY_TABLE (firmware 3.5.0). -1: not wired."},
     {"key": "RELAY_LIGHT4_PIN", "label": "Light 4 relay GPIO", "kind": "pin",
      "help": "Relay \"light4\" in RELAY_TABLE (firmware 3.5.0). -1: not wired."},
+    {"key": "RELAY_LIGHT5_PIN", "label": "Light 5 relay GPIO", "kind": "pin",
+     "help": "Relay \"light5\" in RELAY_TABLE (firmware 3.7.0). -1: not wired."},
     {"key": "RELAY_ACTIVE_LOW", "label": "Relay module is active-low", "kind": "bool",
      "help": "Most optocoupler modules switch ON when IN is pulled LOW. If yours clicks on at boot, flip it."},
     {"key": "CSI_RATE_HZ", "label": "Router pings per second (link 1)", "kind": "choice",
@@ -98,7 +100,7 @@ FIELD_KEYS = [f["key"] for f in CONFIG_FIELDS]
 PIN_KEYS = [f["key"] for f in CONFIG_FIELDS if f["kind"] == "pin"]
 # The relay each pin define drives (its name in RELAY_TABLE, config.h).
 RELAY_PIN_KEY = {"light": "RELAY_LIGHT_PIN", "fan": "RELAY_FAN_PIN", "light2": "RELAY_LIGHT2_PIN",
-                 "light3": "RELAY_LIGHT3_PIN", "light4": "RELAY_LIGHT4_PIN"}
+                 "light3": "RELAY_LIGHT3_PIN", "light4": "RELAY_LIGHT4_PIN", "light5": "RELAY_LIGHT5_PIN"}
 READONLY_KEYS = ("AK_GAIN_LIB", "RADAR_RX_PIN", "RADAR_TX_PIN", "RADAR_BAUD")
 _DEFINE = re.compile(r"^(?P<head>[ \t]*#define[ \t]+(?P<key>[A-Z][A-Z0-9_]*)[ \t]+)(?P<val>-?\d+)(?P<tail>[^\r\n]*)(?=\r?$)",
                      re.M)   # \r?: the checkout stores config.h with CRLF line ends

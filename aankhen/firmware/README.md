@@ -41,7 +41,9 @@ simply sends none. The pins it would use:
 | RX | GPIO 17 (RADAR_TX_PIN) |
 
 Relays: `RELAY_TABLE` in `config.h` names each relay and its pin: **light GPIO 4, fan
-GPIO 5, light2 GPIO 6, light3 GPIO 7, light4 GPIO 8**, all active-low (the usual
+GPIO 5, light2 GPIO 6, light3 GPIO 7, light4 GPIO 15, light5 GPIO 16** (3.7.0: six neighbouring
+pins on header J1, positions 4-9, so one strip of jumpers serves the wall box's three
+two-channel modules), all active-low (the usual
 optocoupler module such as the HL-52S: ON when IN is pulled LOW). The name is the word
 JARVIS sends and the device id in the app's `devices.json`. Set a pin to `-1` to disable
 that relay: STATUS then reports it as `null` ("not wired"), and JARVIS says so instead of
@@ -61,7 +63,8 @@ pins and two relays on one pin, and rewrites only the number on each `#define` l
 | IN2 | GPIO 5 (`RELAY_FAN_PIN`, "fan") |
 | IN3 | GPIO 6 (`RELAY_LIGHT2_PIN`, "light2") |
 | IN4 | GPIO 7 (`RELAY_LIGHT3_PIN`, "light3") |
-| IN5 | GPIO 8 (`RELAY_LIGHT4_PIN`, "light4") |
+| IN5 | GPIO 15 (`RELAY_LIGHT4_PIN`, "light4") |
+| IN6 | GPIO 16 (`RELAY_LIGHT5_PIN`, "light5") |
 
 Mains goes through COM and NO, on the live wire only, with the breaker off. If a relay
 will not release when told off, the ESP32's 3.3 V HIGH is not enough for that module's
@@ -74,8 +77,8 @@ is not a hobby shortcut: use a proper relay module with isolation, and have it c
 fused on its mains side) into its **5V** and **GND** pins: never 230 V to the board. USB
 and the 5V pin are two of the DevKitC-1's three power inputs, used one at a time
 (Espressif's user guide): unplug USB once the supply feeds 5V. Budget: the S3 peaks near
-0.35 A on Wi-Fi and a 5 V relay coil draws ~70 mA, so five coils on at once (0.35 A) plus
-the board stay near 0.7 A: an unmodified phone charger rated 1 A has little margin, 2 A is
+0.35 A on Wi-Fi and a 5 V relay coil draws ~70 mA, so six coils on at once (0.43 A) plus
+the board reach ~0.8 A: a 0.75 A charger browns out, 1 A has little margin, 2 A is
 comfortable. STATUS `"reset":"brownout"` after a relay click means the supply sags under
 the coils.
 
@@ -252,8 +255,9 @@ silently stop CSI.
 | `ap` | the last 3 bytes of the access point's BSSID, the one the board is pinned to | unchanged |
 
 The block costs up to 121 bytes; the longest STATUS (five relays, a phone, a session, every
-counter at its widest) is 993 bytes, under the 1000-byte buffer and the 1024 bytes every
-deployed host accepts, so 3.6.0 needs no host update to keep working
+counter at its widest) is 993 bytes; a sixth relay adds ~27, so 3.7.0 raised the buffer from
+1000 to 1024 bytes (terminator included), which is still within the 1024 bytes every
+deployed host accepts, so neither 3.6.0 nor 3.7.0 needs a host update to keep working
 (`aankhen/tests/test_status_lq.py` rebuilds that worst case from the format string). The host
 reads the block as `StatusPacket.link_quality` (`None` from older firmware), and
 `python -m aankhen.tools.smoke_board` prints it with a verdict: the longest gap between

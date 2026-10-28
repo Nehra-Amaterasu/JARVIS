@@ -25,7 +25,10 @@ FW = "aankhen-3.5.0"
 
 
 class FakeNetBoard:
-    def __init__(self, key: bytes, relays=("light", "fan", "light2", "light3", "light4"),
+    # The firmware's RELAY_TABLE pins (config.h, 3.7.0: six relays for the wall box).
+    PINS = {"light": 4, "fan": 5, "light2": 6, "light3": 7, "light4": 15, "light5": 16}
+
+    def __init__(self, key: bytes, relays=("light", "fan", "light2", "light3", "light4", "light5"),
                  unwired=(), period_s: float = 0.2, csi_hz: float = 0.0, fw: str = FW,
                  timeout_s: float = 10.0):
         self.key, self.fw, self.period_s, self.csi_hz, self.timeout_s = key, fw, period_s, csi_hz, timeout_s
@@ -79,7 +82,8 @@ class FakeNetBoard:
 
     def status_frame(self) -> bytes:
         body = {"fw": self.fw, "uptime_s": round(time.monotonic(), 1), "relays": dict(self.relays),
-                "relay_pins": {r: (-1 if v is None else 4 + i) for i, (r, v) in enumerate(self.relays.items())},
+                "relay_pins": {r: (-1 if v is None else self.PINS.get(r, 4 + i))
+                               for i, (r, v) in enumerate(self.relays.items())},
                 "wifi": "connected", "ip": "127.0.0.1", "mdns": "aankhen.local", "rssi": -58, "channel": 6,
                 "csi_hz": int(self.csi_hz), "net": {"key": nl.fingerprint(self.key), "port": self.port,
                                                     "peer": "%s:%d" % self.peer if self.peer else None}}

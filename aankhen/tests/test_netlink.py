@@ -194,7 +194,8 @@ def test_handshake_streams_the_board_frames_through_the_same_decoder(board):
         assert src.kind == "hardware" and src.link == "wifi" and src.address == "127.0.0.1"
         assert src.fw == "aankhen-3.5.0" and src.net.handshakes == 1 and src.net.rtt_ms is not None
         st = src.wait_status(time.perf_counter(), 2)
-        assert st["relays"] == {"light": False, "fan": False, "light2": False, "light3": False, "light4": False}
+        assert st["relays"] == {"light": False, "fan": False, "light2": False, "light3": False, "light4": False,
+                               "light5": False}
         assert st["net"]["key"] == nl.fingerprint(KEY)
         assert src.decoder.stats.crc_errors == 0 and src.net.bad_tag == 0
     finally:

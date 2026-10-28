@@ -13,14 +13,18 @@
 // The JARVIS app edits the values below through a form (Limbs -> Firmware), which
 // rewrites only the number on each #define line: keep one define per line.
 #define RELAY_ACTIVE_LOW 1
-// GPIO 4-8 are free general-purpose pins on the ESP32-S3-DevKitC-1 (not strapping
-// pins, not USB, not flash/PSRAM). Set a pin to -1 to disable that relay entirely: it
-// stays in the table, and STATUS reports it as null ("not wired").
-#define RELAY_LIGHT_PIN 4
-#define RELAY_FAN_PIN 5
-#define RELAY_LIGHT2_PIN 6
-#define RELAY_LIGHT3_PIN 7
-#define RELAY_LIGHT4_PIN 8
+// The wall box (3.7.0, Aman's 3 two-channel boards): the six pins sit side by side on
+// header J1 (positions 4-9: GPIO 4, 5, 6, 7, 15, 16), so one ribbon of six jumpers runs
+// from the board to the three relay modules. None is a strapping, USB, flash or PSRAM
+// pin (GPIO 15/16 are the 32 kHz crystal pins, free on the DevKitC-1, which has none).
+// Set a pin to -1 to disable that relay entirely: it stays in the table, and STATUS
+// reports it as null ("not wired").
+#define RELAY_LIGHT_PIN 4     // relay module 1, IN1: L1, the four white downlights (centre square)
+#define RELAY_FAN_PIN 5       // relay module 1, IN2: FN, the ceiling fan (the regulator still sets speed)
+#define RELAY_LIGHT2_PIN 6    // relay module 2, IN1: L2, warm-white COB, outer circle
+#define RELAY_LIGHT3_PIN 7    // relay module 2, IN2: L3, warm-white COB, inner square
+#define RELAY_LIGHT4_PIN 15   // relay module 3, IN1: L4, pink COB, outer square
+#define RELAY_LIGHT5_PIN 16   // relay module 3, IN2: L5, pink COB, inner square
 // The relay table: each row is a name and a pin. The name is the word JARVIS sends
 // ({"relay":"light2","on":true}) and the device id in the app's devices.json (board
 // "esp32"): lowercase letters, digits and _, at most 12 characters. At most 8 rows.
@@ -28,7 +32,23 @@
 // keeps its state when Wi-Fi or the laptop goes away: the wall switches work anyway.
 #define RELAY_TABLE \
   {"light", RELAY_LIGHT_PIN}, {"fan", RELAY_FAN_PIN}, {"light2", RELAY_LIGHT2_PIN}, \
-  {"light3", RELAY_LIGHT3_PIN}, {"light4", RELAY_LIGHT4_PIN}
+  {"light3", RELAY_LIGHT3_PIN}, {"light4", RELAY_LIGHT4_PIN}, {"light5", RELAY_LIGHT5_PIN}
+
+// ---- 16x2 character LCD (HD44780 "1602", e.g. the RG1602A), optional -----------
+// 0 until the display is wired. Write-only 4-bit mode: the LCD's RW pin goes to GND, so
+// it never drives its 5 V back into the 3.3 V GPIOs. The six pins continue header J1
+// (positions 15-20: GPIO 9-14), right after the relay ribbon.
+// Row 1 shows one mark per relay (its label when on, '-' when off, '?' when not wired);
+// row 2 shows the board's IP and Wi-Fi signal, or a message JARVIS sends ({"lcd":"..."}).
+#define LCD_ENABLED 0
+#define LCD_RS_PIN 9
+#define LCD_E_PIN 10
+#define LCD_D4_PIN 11
+#define LCD_D5_PIN 12
+#define LCD_D6_PIN 13
+#define LCD_D7_PIN 14
+#define LCD_LABELS "1F2345"   // one character per RELAY_TABLE row, in table order
+#define LCD_MESSAGE_S 15      // how long a JARVIS message stays on row 2
 
 // ---- The Wi-Fi link to JARVIS (README.md, section 4c) ---------------------------
 // With LINK_KEY_VALUE in secrets.h the board also streams its frames to JARVIS over

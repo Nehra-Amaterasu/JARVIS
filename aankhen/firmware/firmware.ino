@@ -114,8 +114,11 @@ static_assert(AkText::hex(LINK_KEY_VALUE), "LINK_KEY_VALUE (secrets.h) must be h
 #endif
 
 // ------------------------------------------------------------------ config
-#define FW_VERSION "aankhen-3.6.0"
-#define STATUS_MAX 1000                 // the STATUS JSON's buffer: under the host's 1024-byte limit
+#define FW_VERSION "aankhen-3.7.0"
+#define STATUS_MAX 1024                 // the STATUS JSON's buffer, terminator included: at most 1023
+                                        // bytes of JSON, inside the host's 1024-byte limit. 3.7.0 raised
+                                        // it from 1000: a sixth relay adds ~27 bytes (relays + relay_pins)
+                                        // to the 993-byte worst case of 3.6.0
 // CSI_RATE_HZ (router pings = CSI captures per second) lives in config.h, where the app's
 // firmware form can set it. The ping interval is 1000 / CSI_RATE_HZ whole milliseconds.
 static_assert(CSI_RATE_HZ >= 100 && CSI_RATE_HZ <= 500 && 1000 % CSI_RATE_HZ == 0,
@@ -699,6 +702,51 @@ static void initRelay(Relay &r) {
   setRelay(r, false);
 }
 
+// ------------------------------------------------------------------ LCD (optional)
+// The 16x2 display in the wall box (config.h, LCD_ENABLED). Row 1: one mark per relay;
+// row 2: IP and signal, or JARVIS's latest message for LCD_MESSAGE_S seconds. A row is
+// rewritten only when its text changes (~1.8 ms each), so it costs loop() almost nothing.
+#if LCD_ENABLED
+#include "lcd1602.h"
+static_assert(sizeof(LCD_LABELS) - 1 >= sizeof(RELAYS) / sizeof(RELAYS[0]),
+              "LCD_LABELS (config.h) needs one character per RELAY_TABLE row");
+static Lcd1602 lcd;
+static char lcdShown[2][17];
+static char lcdMessage[17];
+static uint32_t lcdMessageUntil = 0;
+
+static void lcdRow(uint8_t r, const char *s) {
+  if (strncmp(lcdShown[r], s, 16) == 0) return;
+  strncpy(lcdShown[r], s, 16);
+  lcdShown[r][16] = 0;
+  lcd.row(r, s);
+}
+
+static void lcdTick(uint32_t now) {
+  char top[17] = {0};
+  size_t n = 0, i = 0;
+  for (auto &r : RELAYS) {
+    if (n + 2 > 16) break;
+    top[n++] = r.pin < 0 ? '?' : (r.on ? LCD_LABELS[i] : '-');
+    top[n++] = ' ';
+    i++;
+  }
+  lcdRow(0, top);
+  char bottom[17];
+  if (lcdMessage[0] && (int32_t)(lcdMessageUntil - now) > 0) {
+    strncpy(bottom, lcdMessage, 16);
+    bottom[16] = 0;
+  } else if (WiFi.status() != WL_CONNECTED) {
+    strcpy(bottom, "Wi-Fi: joining");
+  } else if ((now / 4000) % 2 == 0) {
+    snprintf(bottom, sizeof(bottom), "%s", WiFi.localIP().toString().c_str());
+  } else {
+    snprintf(bottom, sizeof(bottom), "Wi-Fi %d dBm", (int)WiFi.RSSI());
+  }
+  lcdRow(1, bottom);
+}
+#endif
+
 static Relay *findRelay(const char *name) {
   for (auto &r : RELAYS)
     if (strcmp(r.name, name) == 0) return &r;
@@ -948,7 +996,25 @@ static void handleCommand(const char *js) {
       }
     }
     logf(any ? "relay %s -> %s" : "relay %s: unknown", name, on ? "on" : "off");
+#if LCD_ENABLED
+    lcdTick(millis());                               // the display follows at once
+#endif
     sendStatus();                                    // immediate confirmation
+  } else if (strstr(js, "\"lcd\"")) {
+#if LCD_ENABLED
+    char text[33];                                   // at most 32 in the frame; row 2 shows 16
+    if (jsonString(js, "\"lcd\"", text, sizeof(text))) {
+      strncpy(lcdMessage, text, 16);
+      lcdMessage[16] = 0;
+      lcdMessageUntil = millis() + LCD_MESSAGE_S * 1000u;
+      lcdTick(millis());
+    } else {
+      logf("lcd: text missing or longer than 32 characters");
+    }
+#else
+    logf("lcd: not fitted (LCD_ENABLED 0 in config.h)");
+#endif
+    sendStatus();
   } else if (strstr(js, "\"status\"")) {
     sendStatus();
   } else {
@@ -1627,6 +1693,10 @@ void setup() {
 
   const char *relaysAtBoot = bootRelays();   // everything off, unless an OTA restart kept them
   logf("reset: %s; relays %s", resetReason(), relaysAtBoot);
+#if LCD_ENABLED
+  lcd.begin();
+  lcdTick(millis());
+#endif
   Serial1.begin(RADAR_BAUD, SERIAL_8N1, RADAR_RX_PIN, RADAR_TX_PIN);
 
   startWifi();                     // returns at once; loop() finishes the join (wifiTick)
@@ -1656,6 +1726,9 @@ void loop() {
     lastStatus = now;
     sendStatus();
     gapMaxUs = 0;                  // lq gap_ms is per periodic STATUS; a command's STATUS does not reset it
+#if LCD_ENABLED
+    lcdTick(now);                  // also catches relays switched over HTTP or MQTT
+#endif
   }
   wifiTick(now);
   delay(1);

@@ -250,11 +250,12 @@ def test_the_wall_box_example_devices_file_is_valid(tmp_path):
     from jarvis_app.paths import APP
     shutil.copy(APP / "jarvis_app" / "devices.esp32-box.example.json", tmp_path / "devices.json")
     hub = ConfirmHub()
-    hub.relays = {"light": False, "fan": False, "light2": False, "light3": False, "light4": None}
+    hub.relays = {"light": False, "fan": False, "light2": False, "light3": False, "light4": None,
+                  "light5": False}
     l = _limbs(tmp_path, hub=hub, relays=FakeUno())           # the Uno transport on, owning nothing
     assert [(d["id"], d["board"], d["channel"]) for d in l.devices] == [
         ("light", "esp32", 4), ("fan", "esp32", 5), ("light2", "esp32", 6), ("light3", "esp32", 7),
-        ("light4", "esp32", 8)]
+        ("light4", "esp32", 15), ("light5", "esp32", 16)]
     assert l.device_problems == []
     l.scene("focus")
     assert hub.calls == [("light", True), ("fan", True)] and l.relays.calls == []

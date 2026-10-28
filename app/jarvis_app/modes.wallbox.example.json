@@ -1,0 +1,18 @@
+{
+  "_comment": "Ambient modes for the six-relay wall box (devices.esp32-box.example.json). Copy to data/app/modes.json together with that devices file (app closed). Say the name to JARVIS ('movie mode', 'party') or tap it in Limbs. A mode switches only the devices it lists: lighting modes leave the fan as it is. light = L1 white downlights, light2 = L2 warm outer, light3 = L3 warm inner, light4 = L4 pink outer (+ festive string), light5 = L5 pink inner.",
+  "modes": [
+    {"id": "focus", "name": "Deep focus", "set": {"light": true, "light2": false, "light3": true, "light4": false, "light5": false, "fan": true}},
+    {"id": "reading", "name": "Reading", "set": {"light": true, "light2": true, "light3": false, "light4": false, "light5": false}},
+    {"id": "morning", "name": "Morning", "set": {"light": true, "light2": true, "light3": true, "light4": false, "light5": false}},
+    {"id": "all_lights", "name": "All lights", "set": {"light": true, "light2": true, "light3": true, "light4": true, "light5": true}},
+    {"id": "relaxation", "name": "Wind down", "set": {"light": false, "light2": true, "light3": true, "light4": false, "light5": false}},
+    {"id": "movie", "name": "Movie", "set": {"light": false, "light2": false, "light3": true, "light4": false, "light5": false}},
+    {"id": "pink_calm", "name": "Pink calm", "set": {"light": false, "light2": false, "light3": false, "light4": true, "light5": true}},
+    {"id": "party", "name": "Party", "set": {"light": false, "light2": true, "light3": false, "light4": true, "light5": true}},
+    {"id": "festive", "name": "Festive", "set": {"light": false, "light2": true, "light3": true, "light4": true, "light5": false}},
+    {"id": "night_light", "name": "Night light", "set": {"light": false, "light2": false, "light3": false, "light4": false, "light5": true}},
+    {"id": "sleep", "name": "Sleep", "set": {"light": false, "light2": false, "light3": false, "light4": false, "light5": false, "fan": true}},
+    {"id": "all_off", "name": "All off", "set": {"*": false}}
+  ],
+  "last": null
+}

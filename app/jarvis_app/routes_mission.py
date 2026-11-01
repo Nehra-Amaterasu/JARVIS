@@ -55,6 +55,7 @@
     POST   /api/mission/life/{op}          op count {id, value|delta} | item {kind, text, minutes?, url?} | explained {date, index}
     GET    /api/mission/trees              the life trees with each node's status and evidence (ww_trees.py)
     POST   /api/mission/trees/{tree}/{node}/proof  {url?, note?}  file a link for a "link" node
+    POST   /api/mission/counsel/{task}     grade_explain | quiz_from_text | parse_day | summarise, via Ollama or an API (ww_counsel.py)
     GET    /api/mission/inputs             the engine inputs: as written, normalized, and the editable sections
     PUT    /api/mission/inputs/{section}   {value}  replace one section of engine-inputs.json (Settings)
     GET    /api/mission/body               body & life: habits this week + this week's upgrade focus (ww_body.py)
@@ -86,7 +87,7 @@ from typing import Any, Optional
 from fastapi import Body, FastAPI, HTTPException
 from starlette.concurrency import run_in_threadpool
 
-from . import germoney, ww_engines
+from . import germoney, ww_counsel, ww_engines
 
 
 def _chain_lifespan(app: FastAPI, start) -> None:
@@ -231,6 +232,13 @@ def register(app: FastAPI, svc, bus) -> None:
     @app.post("/api/mission/trees/{tree}/{node}/proof")
     async def life_tree_proof(tree: str, node: str, payload: dict = Body(...)):
         return await run_in_threadpool(guard, plan.tree_proof, tree, node, payload)
+
+    @app.post("/api/mission/counsel/{task}")
+    async def counsel(task: str, payload: dict = Body(...)):
+        """A model job (grade an explain-back, quiz from notes, parse a day, summarise) through
+        whatever model is at hand: Ollama here, or an API named in the environment."""
+        fields = payload.get("fields") if isinstance(payload.get("fields"), dict) else payload
+        return await run_in_threadpool(guard, ww_counsel.counsel, task, fields)
 
     @app.get("/api/mission/inputs")
     async def inputs_get():

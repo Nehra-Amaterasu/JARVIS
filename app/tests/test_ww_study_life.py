@@ -126,3 +126,30 @@ def test_study_primary_must_be_a_listed_resource(plan):
         plan.study_set(nid, "primary", {"resource": "not-listed"}, today=TODAY)
     with pytest.raises(KeyError):
         plan.study_view("no-such-node", today=TODAY)
+
+
+def test_a_text_review_is_graded_by_the_model_and_an_absent_model_gives_no_free_pass(plan, monkeypatch):
+    from jarvis_app import germoney as g
+    bank = plan.bank()
+    nid = next(n for n in bank["order"] if bank["nodes"][n].get("outcomes"))
+    asked = {}
+    def fake_counsel(task, fields, provider=None, provider_name="given"):
+        asked.update(task=task, **fields)
+        return {"status": "ok", "score": 3, "missing": [], "note": "Clear.", "provider": "fake"}
+    monkeypatch.setattr(g.ww_counsel, "counsel", fake_counsel)
+    r = plan.study_set(nid, "review", {"text": "A pointer holds an address and *p reads through it."}, today=TODAY)
+    assert asked["task"] == "grade_explain" and asked["title"] == bank["nodes"][nid]["name"]
+    assert r["last_review"]["ok"] is True and r["last_review"]["grade"]["score"] == 3
+    monkeypatch.setattr(g.ww_counsel, "counsel", lambda *a, **k: {"status": "no_model"})
+    r = plan.study_set(nid, "review", {"text": "another explanation of it"}, today=TODAY)
+    assert r["last_review"]["ok"] is False and r["last_review"]["grade"] is None
+    with pytest.raises(ValueError):
+        plan.study_set(nid, "review", {}, today=TODAY)
+
+
+def test_an_explained_reel_carries_its_grade(plan, monkeypatch):
+    from jarvis_app import germoney as g
+    monkeypatch.setattr(g.ww_counsel, "counsel", lambda *a, **k: {"status": "ok", "score": 2, "missing": ["the why"], "note": "Good."})
+    plan.life_tap("item", {"kind": "reel", "text": "Op-amp virtual short"}, today=TODAY)
+    r = plan.life_tap("explained", {"date": TODAY, "index": 0, "text": "the inputs sit at the same voltage because the gain is huge"}, today=TODAY)
+    assert r["last_grade"] == {"score": 2, "missing": ["the why"], "note": "Good.", "provider": None}

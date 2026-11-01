@@ -48,6 +48,7 @@ def study(inputs: dict, today: str, node: Optional[dict] = None, resources: Opti
             due = add_days(last, gap)
             passed = i < len([r for r in reviews if r.get("ok")])
             follow.append({"n": i + 1, "due": due, "passed": passed, "due_now": not passed and due <= today})
+    last_review = reviews[-1] if reviews else None
 
     if not primary:
         stage, step = "choose", {"kind": "choose", "title": "Choose your primary resource",
@@ -75,6 +76,7 @@ def study(inputs: dict, today: str, node: Optional[dict] = None, resources: Opti
             "backups": [r for r in resources if r is not primary],
             "contracts": [{k: c.get(k) for k in ("key", "id", "title", "minutes", "done")} for c in contracts],
             "entries": entries[::-1][:20], "follow_ups": follow,
+            "last_review": {k: last_review.get(k) for k in ("date", "ok", "grade")} if last_review else None,
             "progress": {"minutes": minutes, "hours_est": hours, "share": round(min(1.0, minutes / 60 / hours), 2) if hours else None,
                          "notes": notes, "contracts_done": len(done), "contracts": len(contracts)},
             "say": f"{node.get('name', node['id'])}: {step['title']}."}

@@ -33,6 +33,7 @@ export interface StudyAnswer {
   primary: Res | null; backups: Res[]
   contracts: { key: string; id: string; title: string; minutes: number; done: boolean }[]
   entries: Entry[]; follow_ups: { n: number; due: string; passed: boolean; due_now: boolean }[]
+  last_review?: { date: string; ok?: boolean; grade?: { score: number; missing: string[]; note: string; provider?: string } | null } | null
   progress: { minutes: number; hours_est: number | null; share: number | null; notes: number; contracts_done: number; contracts: number }
 }
 
@@ -92,8 +93,7 @@ export function StudyNodeCard() {
             <b className="sn-title">{a.next.title}</b>
             <span className="muted small">{a.next.why}{a.next.minutes ? ` · ${a.next.minutes} min` : ''}</span>
             {a.next.kind === 'review' && a.next.due_now && (
-              <div className="sn-act"><button className="btn sm" onClick={() => void send('review', { ok: true })}><Check size={12} />I explained it</button>
-                <button className="btn sm ghost" onClick={() => void send('review', { ok: false })}>Not yet</button></div>)}
+              <ExplainBox onSend={(text) => send('review', text ? { text } : { ok: false })} last={a.last_review} />)}
           </div>)}
 
         <div className="study-prog">
@@ -184,5 +184,26 @@ function StudyLog({ nodeId, onSaved }: { nodeId: string; onSaved: () => void }) 
       <input ref={ref} type="file" multiple hidden onChange={(e) => setFiles([...(e.target.files ?? [])].slice(0, 6))} />
       <button type="submit" className="btn sm" disabled={!what.trim()}><Upload size={13} />Log</button>
     </form>
+  )
+}
+
+/** The explain-back: write it from memory, the model grades it (2 of 3 passes). With no model
+ *  reachable the text is kept and the follow-up stays open, so a dead model never hands out a pass. */
+export function ExplainBox({ onSend, last }: { onSend: (text: string) => Promise<void> | void; last?: StudyAnswer['last_review'] }) {
+  const [t, setT] = useState('')
+  const g = last?.grade
+  return (
+    <div className="explain-box">
+      <textarea className="field" rows={3} value={t} onChange={(e) => setT(e.target.value)} placeholder="Explain it from memory, in your own words (3-5 sentences)" aria-label="your explanation" />
+      <div className="row">
+        <button className="btn sm" disabled={t.trim().length < 20} onClick={() => { void onSend(t); setT('') }}><Check size={12} />Grade it</button>
+        <button className="btn sm ghost" onClick={() => void onSend('')}>Not yet</button>
+      </div>
+      {last && (
+        <p className="small explain-grade">
+          {g ? <><b>{g.score}/3</b>{g.missing.length > 0 && <> · missing: {g.missing.join('; ')}</>}{g.note && <> · {g.note}</>}</>
+            : last.ok === undefined ? 'Saved ungraded: no model answered. Start Ollama and send it again.' : last.ok ? 'Passed.' : 'Not yet.'}
+        </p>)}
+    </div>
   )
 }

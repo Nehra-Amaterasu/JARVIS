@@ -24,6 +24,7 @@ export interface LifeAnswer {
   status: string; say: string; rule: string; counters: Counter[]; items: Item[]; points_today: number
   weeks: { ends: string; points: number; logged: number }[]
   reels_to_explain: { date: string; index: number; text: string; url?: string; kind: string }[]
+  last_grade?: { score: number; missing: string[]; note: string } | null
 }
 
 const KINDS = [{ id: 'meal', icon: Utensils, label: 'Meal' }, { id: 'anime', icon: Sparkles, label: 'Anime' },
@@ -138,6 +139,7 @@ export function DayCard() {
           return <span key={i} className="life-chip" title={`${it.kind}: ${it.text}${it.minutes ? ` · ${it.minutes} min` : ''}`}>
             {Icon ? <Icon size={11} aria-hidden /> : <span className="lc-kind">{it.kind}</span>}<span className="lc-text">{it.text}</span></span>
         })}</div>)}
+      {d.last_grade && <p className="small explain-grade"><b>{d.last_grade.score}/3</b>{d.last_grade.missing.length > 0 && <> · missing: {d.last_grade.missing.join('; ')}</>}{d.last_grade.note && <> · {d.last_grade.note}</>}</p>}
       {d.reels_to_explain.length > 0 && <ReelExplain reels={d.reels_to_explain} onDone={(date, index, t) => void tap('explained', { date, index, text: t })} />}
       <details className="day-rule small muted"><summary>How points work</summary><p>{d.rule}</p></details>
     </section>

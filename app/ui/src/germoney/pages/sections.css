@@ -151,3 +151,7 @@
 .rd-frame { flex: 1; width: 100%; min-height: 70vh; border: 0; border-radius: var(--r-sm); background: #fff; }
 .rd-img { display: block; max-width: 100%; margin: 0 auto; border-radius: var(--r-sm); }
 @media (prefers-reduced-motion: reduce) { .reader, .reader-scrim { animation: none; } }
+.explain-box { display: flex; flex-direction: column; gap: 6px; }
+.explain-box textarea { resize: vertical; font: inherit; min-height: 64px; }
+.explain-grade { margin: 0; color: var(--ink-2); }
+.explain-grade b { color: var(--live); }

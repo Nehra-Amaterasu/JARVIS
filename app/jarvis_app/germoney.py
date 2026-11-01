@@ -40,7 +40,7 @@ from typing import Any, Optional
 
 import httpx
 
-from . import github_activity, learn_bank, wellwisher, ww_base, ww_engines, ww_exams, ww_life, ww_money
+from . import github_activity, learn_bank, wellwisher, ww_base, ww_counsel, ww_engines, ww_exams, ww_life, ww_money
 from .paths import DATA
 
 ROOT = DATA / "germoney"
@@ -2845,6 +2845,16 @@ class Plan:
             self.save(st)
         return self.engine("learning", today)
 
+    # ---- Counsel: a model grades an explanation when one is reachable
+    @staticmethod
+    def grade(title: str, summary: str, explanation: str) -> Optional[dict]:
+        """{score 0-3, missing, note} from ww_counsel, or None when no model answered
+        in shape. A missing model never blocks a log: the explanation is kept ungraded."""
+        r = ww_counsel.counsel("grade_explain", {"title": title, "summary": summary, "explanation": explanation})
+        if r.get("status") != "ok":
+            return None
+        return {"score": r["score"], "missing": r["missing"], "note": r.get("note", ""), "provider": r.get("provider")}
+
     # ---- the study engine: one node, resource -> study -> contracts -> follow-ups
     def study_view(self, node_id: str, today: Optional[str] = None) -> dict:
         today = today or date.today().isoformat()
@@ -2887,9 +2897,20 @@ class Plan:
                     raise ValueError("that resource is not listed for this node")
                 rec.update(primary=rid, since=rec.get("since") or today)
             elif op == "review":
-                if not isinstance(payload.get("ok"), bool):
-                    raise ValueError("a review needs ok: true or false")
-                rec.setdefault("reviews", []).append({"date": today, "ok": payload["ok"]})
+                # Either his own verdict (ok) or his explanation (text), which the model grades:
+                # 2 or 3 of 3 passes. With no model reachable, a text review is kept ungraded
+                # and does not pass, so a dead model never hands out a free pass.
+                text = str(payload.get("text") or "").strip()
+                entry: dict = {"date": today}
+                if text:
+                    summary = ". ".join(node.get("outcomes") or []) or node.get("name", node_id)
+                    g = self.grade(node.get("name", node_id), summary, text)
+                    entry.update(text=text[:1000], grade=g, ok=bool(g and g["score"] >= 2))
+                elif isinstance(payload.get("ok"), bool):
+                    entry["ok"] = payload["ok"]
+                else:
+                    raise ValueError("a review needs ok: true or false, or text to grade")
+                rec.setdefault("reviews", []).append(entry)
                 rec["reviews"] = rec["reviews"][-20:]
             else:
                 raise ValueError("op is primary or review")
@@ -2947,6 +2968,7 @@ class Plan:
                 reels[i]["explained"] = today
                 if payload.get("text"):
                     reels[i]["explanation"] = str(payload["text"])[:1000]
+                    reels[i]["grade"] = self.grade("a reel", str(reels[i].get("text") or ""), reels[i]["explanation"])
             else:
                 raise ValueError("op is count, item or explained")
             # The day's points are kept, so the 4-week trend never recomputes old lines.

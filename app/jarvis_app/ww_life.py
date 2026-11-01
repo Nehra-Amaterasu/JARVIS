@@ -77,11 +77,13 @@ def life(inputs: dict, today: str, log: Optional[dict] = None) -> dict:
     reels = [{"date": d, "index": i, **it} for d in sorted(log, reverse=True)[:30]
              for i, it in enumerate(x for x in (log[d].get("items") or []) if x.get("kind") == "reel")]
     explain = [r for r in reels if not r.get("explained") and r["date"] < today][:3]
+    graded = [r for r in reels if r.get("explained") == today and r.get("grade")]
     logged = sum(1 for r in rows if r["today"] is not None)
     say = (f"Today: {logged} of {len(rows)} logged, {plural(points_today, 'point')}."
            + (f" {plural(len(explain), 'reel')} waiting for you to explain what you learned." if explain else ""))
     return {"engine": "life", "version": 1, "status": "ok", "date": today, "counters": rows, "items": items,
             "points_today": points_today, "weeks": weeks, "reels_to_explain": explain, "say": say,
+            "last_grade": graded[0]["grade"] if graded else None,
             "rule": "A counter you want less of gets a line: the median of your last 7 logged days minus 10 %. "
                     "On or under it earns a point. A day over it is information, never a reset."}
 

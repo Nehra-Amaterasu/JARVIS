@@ -2,6 +2,16 @@
 
 One file for the Well Wisher topic, newest section on top. Older dated notes stay as they are (2026-10-23-mission-germoney-rebuild.md, 2026-10-25-well-wisher-v1.md, 2026-10-25-well-wisher-engines.md).
 
+## 2026-11-01: Counsel, so the model jobs run on any model
+
+**Question.** The owner's Claude subscription ends soon. Which parts of Well Wisher depend on a model, and how do they keep working?
+
+**Found.** No engine used a model: every stat, plan and forecast is arithmetic over logged actions. The model work was done by hand in chat: grading explain-backs, quiz questions from sheets, parsing a day sentence, summarising reels, and writing the study material itself.
+
+**Built.** `ww_counsel.py`: four tasks, each a prompt file plus an output validator; one provider function (Ollama's `/api/chat` with `format: json` by default; an OpenAI-style endpoint from the environment otherwise). A down or rambling model returns a status, never an exception. Tests use a fake provider, so the suite needs no model. `docs/HANDBOOK.md` records the division: what needs no model, what needs the local one, what needs a strong one (building features) and how that is done from the repo with any coding model.
+
+**Not done.** The cards do not call Counsel yet (the explain-backs in Study and Life are the first users); Ollama was not running during the build, so the live path is untested today; the study-material writing stays a human-plus-any-model job, with the number checks as the safety net.
+
 ## 2026-10-28: Tree v2, one canvas for seven trees
 
 **Question.** Can the skill tree and the six life trees share one canvas and one interaction model, stay at frame rate, and prove in tests that no node or label overlaps?

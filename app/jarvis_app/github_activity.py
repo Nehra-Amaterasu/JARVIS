@@ -24,6 +24,7 @@ from typing import Callable, Optional
 from .paths import DATA
 
 CACHE = DATA / "germoney" / "github.json"
+_LOCAL_CACHE: dict = {}          # local git log, per repo set, for 60 s
 FRESH_S = 30 * 60
 IST = timezone(timedelta(hours=5, minutes=30))   # his days end at local midnight, not UTC midnight
 API = "https://api.github.com/users/{user}/events/public?per_page=100&page={page}"
@@ -90,8 +91,17 @@ def local_commits(repos: list[dict], since_days: int = 14, run: Optional[Callabl
     Reads `git log` on the checked-out branch only; a missing or broken repo is
     skipped, never an error. Nothing leaves the laptop."""
     import subprocess
+    # CREATE_NO_WINDOW: without it every git call from the windowed app flashes a console
+    # (two per Today load: Direction and Building both read the sessions). The result is
+    # cached for a minute, so the two reads cost one git call.
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    key = (tuple(sorted(str(r.get("path") or "") for r in repos)), since_days)
+    if run is None:
+        hit = _LOCAL_CACHE.get(key)
+        if hit and time.time() - hit[0] < 60:
+            return [dict(c) for c in hit[1]]
     run = run or (lambda args, cwd: subprocess.run(args, cwd=cwd, capture_output=True, text=True, encoding="utf-8",
-                                                   timeout=10, check=False).stdout)
+                                                   timeout=10, check=False, creationflags=flags).stdout)
     out: list[dict] = []
     for r in repos:
         path = Path(r.get("path") or "")
@@ -107,4 +117,5 @@ def local_commits(repos: list[dict], since_days: int = 14, run: Optional[Callabl
                 continue
             url = f"{r['url'].rstrip('/')}/commit/{parts[0]}" if r.get("url") else None
             out.append({"sha": parts[0], "ts": int(parts[1]), "repo": r.get("name") or path.name, "subject": parts[2], "url": url})
+    _LOCAL_CACHE[key] = (time.time(), [dict(c) for c in out])
     return out

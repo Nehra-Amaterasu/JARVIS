@@ -18,16 +18,54 @@ export const useReader = create<{ path: string | null; title: string; open: (pat
 }))
 
 /* ------------------------------------------------------------------ a small Markdown renderer */
+/** A formula between $...$: `x_{ab}` / `x_a` become subscripts, `x^{ab}` / `x^a` superscripts,
+ *  nested one level (`e^{-x^2}`), everything else plain text. No HTML, no library: the sheets
+ *  only need readable identifiers (N_s, V_{OD}, ΔR_p) and exponents. */
+export function math(src: string, key = 'm'): ReactNode[] {
+  const out: ReactNode[] = []
+  let i = 0
+  let buf = ''
+  const flush = () => { if (buf) { out.push(buf); buf = '' } }
+  while (i < src.length) {
+    const c = src[i]
+    if ((c === '_' || c === '^') && i + 1 < src.length) {
+      let arg: string
+      if (src[i + 1] === '{') {
+        let depth = 0
+        let j = i + 1
+        for (; j < src.length; j++) {
+          if (src[j] === '{') depth++
+          else if (src[j] === '}' && --depth === 0) break
+        }
+        arg = src.slice(i + 2, j)
+        i = j + 1
+      } else {
+        arg = src[i + 1]
+        i += 2
+      }
+      flush()
+      const Tag = c === '_' ? 'sub' : 'sup'
+      out.push(<Tag key={`${key}-${out.length}`}>{math(arg, `${key}-${out.length}`)}</Tag>)
+      continue
+    }
+    buf += c
+    i++
+  }
+  flush()
+  return out
+}
+
 function inline(text: string, key = 0): ReactNode[] {
   const out: ReactNode[] = []
-  const re = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*\s][^*]*\*|_[^_\s][^_]*_)/g
+  const re = /(\$[^$\n]+\$|\*\*[^*]+\*\*|`[^`]+`|\*[^*\s][^*]*\*|_[^_\s][^_]*_)/g
   let last = 0
   let m: RegExpExecArray | null
   while ((m = re.exec(text))) {
     if (m.index > last) out.push(text.slice(last, m.index))
     const t = m[0]
     const k = `${key}-${m.index}`
-    if (t.startsWith('**')) out.push(<b key={k}>{t.slice(2, -2)}</b>)
+    if (t.startsWith('$')) out.push(<span key={k} className="rd-math">{math(t.slice(1, -1), k)}</span>)
+    else if (t.startsWith('**')) out.push(<b key={k}>{t.slice(2, -2)}</b>)
     else if (t.startsWith('`')) out.push(<code key={k}>{t.slice(1, -1)}</code>)
     else out.push(<i key={k}>{t.slice(1, -1)}</i>)
     last = m.index + t.length

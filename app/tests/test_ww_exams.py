@@ -214,3 +214,14 @@ def test_study_files_match_the_subject_id_and_are_served(tmp_path, monkeypatch):
     assert [f["name"] for f in got] == ["01-alpha-revision"]
     assert g.file_allowed(got[0]["path"]) is not None
     assert g.study_files("") == [] and g.file_allowed(str(tmp_path.parent)) is None
+
+
+def test_a_paper_he_may_not_sit_gets_only_spare_time():
+    sheet = [dict(SHEET[0], may_miss=True), SHEET[1]]
+    r = exams(inp(sheet), TODAY, subjects=SUBJ)
+    a, b = r["papers"]
+    assert a["may_miss"] and b["planned_minutes"] >= b["work_minutes"]     # the sittable paper is covered first
+    day_before = next(d for d in r["days"] if d["date"] == "2026-11-01")
+    assert {b["paper"] for s in day_before["slots"] for b in s["blocks"]} == {"b"}   # the reserved day is his, not the detained one
+    assert not any("more work" in x and "Alpha" in x for x in r["risks"])      # the shortfall does not count a detained paper
+    assert any(x.startswith("Parked") and "Alpha" in x for x in r["risks"])

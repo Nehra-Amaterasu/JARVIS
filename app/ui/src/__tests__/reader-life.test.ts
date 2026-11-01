@@ -67,3 +67,14 @@ describe('<DayCard />', () => {
     expect(JSON.parse(calls.at(-1)!.body)).toEqual({ id: 'college', value: 1 })
   })
 })
+
+describe('math spans', () => {
+  it('renders subscripts and superscripts, nested once, as elements not HTML', () => {
+    const h = md('Dose $Q = (2/\sqrt{\pi}) N_s \sqrt{Dt}$ and $e^{-x^2/4Dt}$ with $V_{OD}$.')
+    expect(h).toContain('<span class="rd-math">')
+    expect(h).toContain('N<sub>s</sub>')
+    expect(h).toContain('V<sub>OD</sub>')
+    expect(h).toContain('e<sup>-x<sup>2</sup>/4Dt</sup>')
+    expect(md('$<b>x</b>$')).toContain('&lt;b&gt;')
+  })
+})

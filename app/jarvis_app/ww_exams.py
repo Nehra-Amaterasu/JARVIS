@@ -177,6 +177,11 @@ def _allocate(slots: list[dict], papers: list[dict], work: dict[str, int]) -> li
             ahead = [p for p in papers if _slot_before(s, p)]
             if not ahead:
                 break
+            # A paper he may not sit (detained) gets shared time only once every paper he
+            # can sit has its work covered: knowledge still counts, marks come first.
+            can_sit = [p for p in ahead if not p.get("may_miss") and left[p["id"]] > 0]
+            if can_sit:
+                ahead = can_sit
             def density(p: dict) -> float:
                 cap = sum(x["minutes"] for x in plan[i:] if not x.get("reserved") and _slot_before(x, p))
                 return left[p["id"]] / max(cap, 1)
@@ -246,7 +251,10 @@ def exams(inputs: dict, today: str, subjects: Optional[list[dict]] = None, prep:
                                      "on_target": (last["score"] / last["max"] >= p["target"] / (p.get("max") or 20))
                                      if p.get("target") is not None else None} if last else None,
                      "counts": {s: sum(1 for t in topics if t["state"] == s) for s in STATES}})
-    plan = _allocate(_slots(papers, today, study, logged_today), papers, work)
+    # Papers he may not sit make no paper days: their slot, gap and evening go to the
+    # papers he can sit. Only when every paper is detained does the plan treat them all.
+    sittable = [p for p in papers if not p.get("may_miss")] or papers
+    plan = _allocate(_slots(sittable, today, study, logged_today), papers, work)
     days = _fill(plan, items, titles)
     planned = {p["id"]: 0 for p in papers}
     for s in plan:
@@ -265,7 +273,11 @@ def exams(inputs: dict, today: str, subjects: Optional[list[dict]] = None, prep:
         r["forecast"] = {"half_plan": proj(0.5), "full_plan": proj(1.0),
                          "assumption": "Coverage on the day if you do half of the planned minutes, or all of them, "
                                        "in the order shown. Your own taps, not a measured score."}
-    short = [(r, r["work_minutes"] - r["planned_minutes"]) for r in rows if r["topics"] and r["work_minutes"] > r["planned_minutes"]]
+    short = [(r, r["work_minutes"] - r["planned_minutes"]) for r in rows
+             if r["topics"] and not r["may_miss"] and r["work_minutes"] > r["planned_minutes"]]
+    parked = [r["title"] for r in rows if r["may_miss"]]
+    if parked:
+        risks.append(f"Parked (may not sit): {', '.join(parked)}. They get time only after the papers you can sit are covered.")
     if short:
         total = sum(x for _, x in short)
         risks.append(f"About {plural(max(1, round(total / 60)), 'hour')} more work than free time, across "

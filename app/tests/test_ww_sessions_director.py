@@ -147,3 +147,20 @@ def test_import_logs_each_session_once_with_its_commit_as_proof(tmp_path, monkey
     assert len(logs) == 1 and logs[0]["minutes"] == 40 + LEAD_MIN and logs[0]["verified"] and logs[0]["proof"] == "https://example.org/b"
     assert plan.import_sessions(TODAY)["added"] == 0
     assert plan.engine("director", TODAY)["status"] == "ok"
+
+
+def test_local_commits_are_cached_for_a_minute_and_the_window_flag_is_set(tmp_path, monkeypatch):
+    import subprocess
+    (tmp_path / ".git").mkdir()
+    calls = []
+    def fake_run(args, **kw):
+        calls.append(kw.get("creationflags"))
+        class R: stdout = "abc\x1f1761800000\x1ffeat(x): one\n"
+        return R()
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    github_activity._LOCAL_CACHE.clear()
+    repos = [{"path": str(tmp_path), "name": "p"}]
+    a = github_activity.local_commits(repos)
+    b = github_activity.local_commits(repos)
+    assert a == b and len(calls) == 1
+    assert calls[0] == getattr(subprocess, "CREATE_NO_WINDOW", 0)

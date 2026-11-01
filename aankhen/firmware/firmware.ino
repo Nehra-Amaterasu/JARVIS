@@ -74,6 +74,27 @@
 #define GAIN_BASELINE_PACKETS 100   // Espressif's example records the first 100
 #include "secrets.h"   // gitignored; copy secrets.example.h
 
+// Which network is first (3.7.2). W1 is joined first and pinned; W2 is the fallback
+// (WIFI_FALLBACK_AFTER_S) that is left again the moment W1 is seen. WIFI_PREFER_SECOND
+// (config.h) swaps them, for when the room's router is not bridged into the house network
+// and nothing else can reach the board on it (1 Nov 2026: it handed out 192.168.0.x while
+// the laptop and phone were on 192.168.29.x). A fixed WIFI_BSSID_VALUE names the room's AP,
+// so it is ignored while the house network is first.
+#if defined(WIFI_SSID2_VALUE) && WIFI_PREFER_SECOND
+#define W1_SSID WIFI_SSID2_VALUE
+#define W1_PASS WIFI_PASS2_VALUE
+#define W2_SSID WIFI_SSID_VALUE
+#define W2_PASS WIFI_PASS_VALUE
+#undef WIFI_BSSID_VALUE
+#else
+#define W1_SSID WIFI_SSID_VALUE
+#define W1_PASS WIFI_PASS_VALUE
+#ifdef WIFI_SSID2_VALUE
+#define W2_SSID WIFI_SSID2_VALUE
+#define W2_PASS WIFI_PASS2_VALUE
+#endif
+#endif
+
 // FIRMWARE OVER WI-FI. Once the board is powered from the switchboard (a 5 V supply
 // behind the relays), USB is gone and this is the only way new firmware reaches it.
 // ArduinoOTA (built into the Arduino-ESP32 core) listens on UDP 3232 for espota.py or
@@ -114,7 +135,7 @@ static_assert(AkText::hex(LINK_KEY_VALUE), "LINK_KEY_VALUE (secrets.h) must be h
 #endif
 
 // ------------------------------------------------------------------ config
-#define FW_VERSION "aankhen-3.7.1"
+#define FW_VERSION "aankhen-3.7.2"
 #define STATUS_MAX 1024                 // the STATUS JSON's buffer, terminator included: at most 1023
                                         // bytes of JSON, inside the host's 1024-byte limit. 3.7.0 raised
                                         // it from 1000: a sixth relay adds ~27 bytes (relays + relay_pins)
@@ -1584,15 +1605,15 @@ static void onWifiEvent(arduino_event_id_t event, arduino_event_info_t info) {
 static void beginWifi() {
 #ifdef WIFI_SSID2_VALUE
   if (wifiOnFallback) {
-    WiFi.begin(WIFI_SSID2_VALUE, WIFI_PASS2_VALUE);  // the house Wi-Fi, never pinned
-    logf("wifi: joining %s (fallback)", WIFI_SSID2_VALUE);
+    WiFi.begin(W2_SSID, W2_PASS);  // the fallback network, never pinned
+    logf("wifi: joining %s (fallback)", W2_SSID);
     return;
   }
 #endif
-  WiFi.begin(WIFI_SSID_VALUE, WIFI_PASS_VALUE, 0, pinned ? pinBssid : nullptr);   // channel 0: scan them all
-  if (pinned) logf("wifi: joining %s, only AP ..:%02x:%02x:%02x%s", WIFI_SSID_VALUE, pinBssid[3], pinBssid[4],
+  WiFi.begin(W1_SSID, W1_PASS, 0, pinned ? pinBssid : nullptr);   // channel 0: scan them all
+  if (pinned) logf("wifi: joining %s, only AP ..:%02x:%02x:%02x%s", W1_SSID, pinBssid[3], pinBssid[4],
                    pinBssid[5], pinFixed ? " (WIFI_BSSID_VALUE)" : "");
-  else logf("wifi: joining %s", WIFI_SSID_VALUE);
+  else logf("wifi: joining %s", W1_SSID);
 }
 
 static void onWifiJoined() {
@@ -1658,11 +1679,11 @@ static void wifiTick(uint32_t now) {
       int n = WiFi.scanComplete();
       if (n >= 0) {
         bool found = false;
-        for (int i = 0; i < n && !found; i++) found = WiFi.SSID(i) == WIFI_SSID_VALUE;
+        for (int i = 0; i < n && !found; i++) found = WiFi.SSID(i) == W1_SSID;
         WiFi.scanDelete();
         wifiProbing = false;
         if (found) {
-          logf("wifi: %s is back; leaving %s", WIFI_SSID_VALUE, WIFI_SSID2_VALUE);
+          logf("wifi: %s is back; leaving %s", W1_SSID, W2_SSID);
           wifiOnFallback = false;
           WiFi.disconnect();                       // onWifiLost on the next tick, then beginWifi
         }
@@ -1678,12 +1699,12 @@ static void wifiTick(uint32_t now) {
     wifiOnFallback = true;
     wifiPrimaryProbeMs = now;
     if (!pinFixed) pinned = false;                 // the router may come back as another AP
-    logf("wifi: %s not found for %d s; falling back to %s", WIFI_SSID_VALUE, WIFI_FALLBACK_AFTER_S, WIFI_SSID2_VALUE);
+    logf("wifi: %s not found for %d s; falling back to %s", W1_SSID, WIFI_FALLBACK_AFTER_S, W2_SSID);
   }
 #endif
   if (pinned && !pinFixed && now - wifiLostMs > WIFI_PIN_GIVEUP_S * 1000UL) {
     pinned = false;                                // a replaced router must not strand the board
-    logf("wifi: pinned AP gone for %d s; joining any AP named %s", WIFI_PIN_GIVEUP_S, WIFI_SSID_VALUE);
+    logf("wifi: pinned AP gone for %d s; joining any AP named %s", WIFI_PIN_GIVEUP_S, W1_SSID);
   }
   beginWifi();
   wifiBackoffMs = wifiBackoffMs * 2 > WIFI_RETRY_MAX_MS ? WIFI_RETRY_MAX_MS : wifiBackoffMs * 2;

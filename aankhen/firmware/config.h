@@ -88,6 +88,12 @@
 // back the moment it sees it. Without the define nothing here is compiled.
 #define WIFI_FALLBACK_AFTER_S 45
 #define WIFI_PRIMARY_RETRY_S 60
+// 1: the second network (WIFI_SSID2_VALUE, the house Wi-Fi) is joined first and the room's
+// router becomes the fallback. Set on 1 Nov 2026 because the room's router was not bridged
+// into the house network, so the laptop and phone could not reach the board on it. Set it
+// back to 0 once that router is bridged (DHCP off, LAN-to-LAN cable from the main router):
+// sensing is meant to use the room's own transmitter.
+#define WIFI_PREFER_SECOND 1
 // The longest loop() may stall before the task watchdog restarts the board. 15: three
 // times the web server's 5 s client timeout, the slowest legitimate step (OTA feeds it).
 #define LOOP_WDT_S 15

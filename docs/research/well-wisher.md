@@ -2,6 +2,26 @@
 
 One file for the Well Wisher topic, newest section on top. Older dated notes stay as they are (2026-10-23-mission-germoney-rebuild.md, 2026-10-25-well-wisher-v1.md, 2026-10-25-well-wisher-engines.md).
 
+## 2026-11-04: Offline architectures for the November build (RTX 4050, 0-cost)
+
+**Question.** How do the 17 November build tasks (exam pattern generator, local RAG/Yaadash data staging, interactive audio reader, Google Classroom/Gmail, attendance optimization, two-tier ledger) run 100% locally on an RTX 4050 (6 GB VRAM) and 16 GB RAM with zero external API costs, without hallucination or agent swarms?
+
+**Found.**
+- All required ML and systems primitives are already installed in `.venv`: `sentence-transformers` (5.6.1), `rank-bm25` (0.2.2), `chromadb` (1.5.9), `pymupdf` (1.28.0), `edge-tts` (7.3.1), `sympy` (1.13.1), and `faster-whisper` (1.2.1).
+- Unconstrained agent swarms fail on this hardware: recursive agents exhaust local context windows, saturate the 6 GB VRAM, and trigger rate limits. The viable concurrency pattern is single-task, isolated parallel workers outputting strict Pydantic schemas merged by a local deterministic evaluator.
+- Hybrid search (dense `all-MiniLM-L6-v2` + sparse BM25 via Reciprocal Rank Fusion) provides sub-5ms local retrieval without GPU memory contention.
+- Numerical exam verification does not need an LLM: `sympy` parses and symbolically validates derivations and matrix problems via one-line check scripts.
+- Attendance optimization is exact arithmetic: safe skips $S = \lfloor (A - 0.75N) / 0.75 \rfloor$ and recovery deficit $R = \lceil (0.75N - A) / 0.25 \rceil$.
+
+**Designed & Added to PLAN.md.**
+- Concrete data schemas and algorithms for `ww_papers` (AKTU exam patterns, PYQ frequency analysis, `none -> learned -> solid -> sharpen` progression, negative feedback loops).
+- Local RAG pre-staging pipeline with 15% AST heading overlap, SQLite adjacency graph, and daily conversation sparks (Word/Fact/Thought of the day).
+- Interactive audio reader using PyMuPDF + `edge-tts` streaming with SSML rate/pitch tags and Socratic commentary pauses via local Ollama.
+- Loopback desktop OAuth 2.0 flow for Google Classroom and Gmail with strict human "say yes" gates for cold email drafting.
+- Two-tier ledger: public GitHub TIL repo + encrypted private local vault.
+
+**Not done.** Implementation starts 6 Nov after the EV internal exam concludes the feature freeze.
+
 ## 2026-11-01: Counsel, so the model jobs run on any model
 
 **Question.** The owner's Claude subscription ends soon. Which parts of Well Wisher depend on a model, and how do they keep working?

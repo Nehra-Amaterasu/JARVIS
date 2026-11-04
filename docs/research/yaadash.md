@@ -5,6 +5,23 @@ Earlier dated notes stay where they are: [2026-10-14-yaadash-feedback-loop.md](2
 hallucination eval), [memory-feasibility.md](memory-feasibility.md) (the design reasoning). Private numbers
 live in `data/notes/research/`.
 
+## 2026-11-04: Temporal Knowledge Graph & Episodic Extraction (Beyond Flat Vector RAG)
+
+### Question
+Why does naive vector search (LanceDB / Chroma cosine similarity) fail on introspective and relational personal queries (e.g. "Have I ever loved anybody?" or childhood recollections), and how do we build a growable episodic memory layer that runs locally on an RTX 4050?
+
+### Found
+1. **The Semantic Mismatch in Personal Memory:** Flat vector search embeds the user's query ("Have I ever loved anybody?") and seeks lexical/semantic proximity to words like "love" or "relationships". Real late-night emotional chats or childhood memories use implicit vernacular ("bhai usne call nahi uthaya", "dil toot gaya", inside jokes), yielding near-zero cosine similarity. Furthermore, romantic or personal history is an episodic narrative spanning months, not a single document chunk.
+2. **The Graphiti / Mem0 Architecture:**
+   - **Entity-Relationship Triples with Temporal Bounds:** On ingestion of WhatsApp, Instagram, or voice journals, extract structured episodic nodes:
+     `{entity: "Person_X", rel: "ROMANTIC_INTEREST", valid_from: "2024-03-12", valid_to: "2024-11-02", valence: "attachment_and_heartbreak", summary: "Late night conversations, unrequited emotional investment, separation distress."}`
+   - **Query Intent Classifier:** Classifies incoming queries into *introspective/relational*, *chronological*, or *factual/technical*.
+   - **Graph Traversal over Edge Types:** Relational queries bypass raw text embeddings and traverse edges (`ROMANTIC_INTEREST`, `FAMILY_ORIGIN`, `HEARTBREAK`), retrieving clustered episodic timelines before synthesizing the grounded answer.
+3. **Local Feasibility:** SQLite edge list (`graph_edges`) + `sentence-transformers` hybrid retrieval runs entirely in CPU/RAM with sub-5ms lookup, leaving the 6 GB VRAM free for the conversational LLM.
+
+### Not done
+Implementation scheduled for Stage D (27 Nov onward per PLAN.md) after the academic freeze ends.
+
 ## 2026-10-28: the whole context, and every upgrade Yaadash needs
 
 ### Question

@@ -12,13 +12,19 @@ One file for the Well Wisher topic, newest section on top. Older dated notes sta
 - Hybrid search (dense `all-MiniLM-L6-v2` + sparse BM25 via Reciprocal Rank Fusion) provides sub-5ms local retrieval without GPU memory contention.
 - Numerical exam verification does not need an LLM: `sympy` parses and symbolically validates derivations and matrix problems via one-line check scripts.
 - Attendance optimization is exact arithmetic: safe skips $S = \lfloor (A - 0.75N) / 0.75 \rfloor$ and recovery deficit $R = \lceil (0.75N - A) / 0.25 \rceil$.
+- Conversational wit & timing requires fine-tuning on subversion datasets rather than prompt engineering: Unsloth 4-bit QLoRA on 3B base models (Llama-3.2-3B / Qwen2.5-3B) trains on Colab T4 / local RTX 4050, exports to 1.9 GB GGUF for Ollama, running in <400ms speech turns.
+- Clinical ADHD consistency research confirms willpower fails due to low prefrontal dopamine: implementation intentions (if-then triggers), body doubling (ambient agent presence), and 4-week trend medians prevent habit collapse. Articulation improves via a 10% cadence reduction.
+- Real-world action execution maps to a three-tier hierarchy: native REST APIs (Spotify, Google Workspace), authenticated CDP browser sessions (Zomato/Swiggy Web), and ADB UIAutomator (Blinkit mobile), strictly gated by manual UI approval before financial checkout.
 
 **Designed & Added to PLAN.md.**
 - Concrete data schemas and algorithms for `ww_papers` (AKTU exam patterns, PYQ frequency analysis, `none -> learned -> solid -> sharpen` progression, negative feedback loops).
+- Temporal Knowledge Graph & episodic extraction layer for Yaadash (solving the "have I ever loved anybody?" semantic vector failure).
 - Local RAG pre-staging pipeline with 15% AST heading overlap, SQLite adjacency graph, and daily conversation sparks (Word/Fact/Thought of the day).
 - Interactive audio reader using PyMuPDF + `edge-tts` streaming with SSML rate/pitch tags and Socratic commentary pauses via local Ollama.
 - Loopback desktop OAuth 2.0 flow for Google Classroom and Gmail with strict human "say yes" gates for cold email drafting.
 - Two-tier ledger: public GitHub TIL repo + encrypted private local vault.
+- Unsloth QLoRA conversational wit fine-tuning recipe and ADHD behavioral scaffolding.
+- Tool execution hierarchy for Spotify, Gmail, Zomato, Swiggy, and Blinkit.
 
 **Not done.** Implementation starts 6 Nov after the EV internal exam concludes the feature freeze.
 

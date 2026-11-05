@@ -96,3 +96,13 @@ describe('<ExamsCard />', () => {
     expect(_test.range({ half_plan: 0.5, full_plan: 0.9, assumption: '' })).toBe('50–90%')
   })
 })
+
+describe('<ExamsCard /> with no paper ahead', () => {
+  it('says so and offers the date sheet instead of vanishing', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ ...ANSWER, papers: [], days: [], risks: [] }), { status: 200, headers: { 'content-type': 'application/json' } })))
+    await render()
+    expect(host.querySelector('.card.exams')).not.toBeNull()
+    expect(host.textContent).toContain('No paper on the date sheet is still ahead')
+    expect([...host.querySelectorAll('button')].some((b) => b.textContent === 'Open the date sheet')).toBe(true)
+  })
+})

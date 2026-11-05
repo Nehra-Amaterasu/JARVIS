@@ -11,6 +11,7 @@ import { api, post } from '../../lib/api'
 import { useStore } from '../../lib/store'
 import { openStudyFile } from '../game/plan'
 import { prettyDate } from '../game/util'
+import { useDrawer } from '../ui'
 import './exams.css'
 
 type TopicState = 'none' | 'learned' | 'solid'
@@ -86,7 +87,18 @@ export function ExamsCard() {
   const toggle = useCallback((id: string) => setOpen((o) => (o === id ? null : id)), [])
   const byId = useMemo(() => Object.fromEntries((x?.papers ?? []).map((p) => [p.id, p])), [x])
   const today = useMemo(() => x?.days.find((d) => d.date === x.date), [x])
-  if (!x || x.status !== 'ok' || !x.papers.length) return null
+  if (!x || x.status !== 'ok') return null
+  // No paper ahead is a state to show, not a card to hide: on 6 Nov the internals had all
+  // passed and Study looked dead, when the real message was "enter the next exams".
+  if (!x.papers.length) {
+    return (
+      <section className="card exams" aria-label="Exams">
+        <div className="card-head"><span className="card-title"><BookOpen size={14} />Exams</span></div>
+        <p className="small">No paper on the date sheet is still ahead. Add the next ones (end-sems, backlog papers, CIE 3) and the plan builds itself.</p>
+        <div className="row"><button className="btn sm" onClick={() => useDrawer.getState().toggle(true)}>Open the date sheet</button></div>
+      </section>
+    )
+  }
   const next = x.papers[0]
   const nextLine = `${next.days_left ? `${next.days_left} d` : 'today'} to ${next.title}${next.start ? ` · ${next.start}` : ''}`
   const openPaper = open ? byId[open] : undefined

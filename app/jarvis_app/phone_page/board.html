@@ -41,6 +41,7 @@ a{color:var(--cyan)}
   <!-- Relays only: this board, straight from the phone on the home Wi-Fi. -->
   <section id="relaysCard" class="card" hidden>
     <h2>Relays only</h2>
+    <p id="power" class="err" role="status" hidden></p>
     <div id="relays" class="relays"></div>
     <p class="muted">Cyan: the board confirms it. Amber: sent, waiting for the board.</p>
     <div id="err" class="err" role="alert"></div>
@@ -124,6 +125,13 @@ a{color:var(--cyan)}
       }
       if (!editing) view('relays')
       $('err').textContent = ''
+      // Firmware 3.8.0: after a second brownout within 120 s the board keeps every relay off
+      // ("safe") until JARVIS tells it otherwise over USB or the signed link, never over HTTP.
+      const safe = s.power === 'safe', restoring = s.power === 'restoring'
+      $('power').hidden = !(safe || restoring)
+      $('power').textContent = safe ? 'Power-safe mode (' + (s.power_why || 'brownouts') +
+        '): relays stay off. Clear it from JARVIS once the supply is fixed.'
+        : restoring ? 'Restoring the relays one at a time after a brownout…' : ''
       panel.update(Object.keys(s.relays).map((id) => ({
         id, name: NAMES[id] || id, on: s.relays[id], available: s.relays[id] !== null })))
     } catch (e) {

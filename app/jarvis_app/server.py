@@ -167,7 +167,7 @@ def create_app(guard: Guard, autostart_aankhen: str = "auto", features: Optional
                 method=request.method, path=path, host=request.headers.get("host"),
                 client=request.client.host if request.client else None,
                 origin=request.headers.get("origin"), header=request.headers.get("x-jarvis-phone"),
-                cookies=request.cookies)
+                cookies=request.cookies, access_jwt=request.headers.get("cf-access-jwt-assertion"))
             if status == 307:
                 return RedirectResponse(reason, status_code=307)
             if status != 200:

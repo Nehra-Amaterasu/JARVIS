@@ -306,3 +306,95 @@ def test_private_address_rules():
     assert phone.is_private("127.0.0.1") and phone.is_private("::ffff:192.168.1.4")
     assert not phone.is_private("8.8.8.8") and not phone.is_private("testclient")
     assert phone.bindable("192.168.0.4") and not phone.bindable("8.8.8.8") and not phone.bindable("127.0.0.1")
+
+
+# ---------------------------------------------------------------- Cloudflare tunnel (mobile data)
+TUNNEL = "https://jarvis.example.com"
+JWT = {"Cf-Access-Jwt-Assertion": "eyJ.signed.by-access"}
+
+
+def test_a_named_tunnel_is_allowed_only_behind_cloudflare_access(setup):
+    c, app, access, _ = setup
+    v = c.put(f"{DESK}/api/remote", headers=D, json={"enabled": True, "tunnel": TUNNEL + "/"}).json()
+    assert v["tunnel"] == TUNNEL and v["open_at"][0] == TUNNEL + "/phone" and v["mic_ready"]
+    host = {"Host": "jarvis.example.com"}
+    # without the Access login header: refused, so a tunnel with no Access policy fails closed
+    assert c.get("/phone", headers=host).status_code == 403
+    assert c.get("/api/phone/state", headers=host).json() == {"error": "the tunnel must sit behind a Cloudflare Access login"}
+    # with it: the page loads, and the phone still needs pairing behind it
+    assert c.get("/phone", headers={**host, **JWT}).status_code == 200
+    assert c.get("/phone", headers={"Host": "jarvis.example.com:443", **JWT}).status_code == 200
+    assert c.get("/api/phone/state", headers={**host, **JWT}).status_code == 401
+    # cloudflared reaches the listener from loopback: a private peer, same rules
+    assert access.check(method="GET", path="/api/phone/state", host="jarvis.example.com", client="127.0.0.1",
+                        origin=None, header=None, cookies={}, access_jwt="x")[0] == 401
+    # the LAN address does not need the Access header (home Wi-Fi), other hosts stay refused
+    assert c.get("/phone").status_code == 200
+    assert c.get("/phone", headers={"Host": "evil.example.com", **JWT}).status_code == 403
+
+
+def test_the_tunnel_websocket_needs_the_access_header_too(setup):
+    c, app, access, _ = setup
+    c.put(f"{DESK}/api/remote", headers=D, json={"enabled": True, "tunnel": TUNNEL})
+    pair(c)
+    cookies = dict(c.cookies)
+    kw = dict(host="jarvis.example.com", client="127.0.0.1", origin=TUNNEL, cookies=cookies)
+    assert access.ws_check(**kw) is None
+    assert access.ws_check(**kw, access_jwt="x") is not None
+    assert access.ws_check(**{**kw, "origin": "https://evil.example.com"}, access_jwt="x") is None
+
+
+def test_quick_tunnels_plain_http_and_ports_are_refused(setup):
+    c, app, access, _ = setup
+    for bad in ("https://random-words.trycloudflare.com", "http://jarvis.example.com",
+                "https://jarvis.example.com:8443", "javascript:alert(1)"):
+        assert c.put(f"{DESK}/api/remote", headers=D, json={"tunnel": bad}).status_code == 400, bad
+
+
+def test_cloudflared_points_at_the_phone_listener_and_never_the_desktop(setup):
+    c, app, access, _ = setup
+    v = c.put(f"{DESK}/api/remote", headers=D, json={"enabled": True, "tunnel": TUNNEL}).json()
+    yml = v["cloudflared_yml"]
+    assert "service: http://127.0.0.1:8778" in yml and ":8777" not in yml
+    assert "hostname: jarvis.example.com" in yml and "httpHostHeader: jarvis.example.com" in yml
+    assert "required: true" in yml and yml.rstrip().endswith("service: http_status:404")
+    with pytest.raises(ValueError, match="never the desktop"):
+        phone.cloudflared_config(TUNNEL, 8777, 8777)
+
+
+def test_cookie_is_secure_through_the_tunnel(setup):
+    c, app, access, _ = setup
+    c.put(f"{DESK}/api/remote", headers=D, json={"enabled": True, "tunnel": TUNNEL})
+    code = c.post(f"{DESK}/api/remote/pair", headers=D, json={"url": TUNNEL}).json()["code"]
+    with TestClient(app, base_url="http://jarvis.example.com:8778", client=("127.0.0.1", 50124)) as t:
+        r = t.post("/api/phone/pair", json={"code": code, "name": "Phone"},
+                   headers={**P, **JWT, "Host": "jarvis.example.com", "X-Forwarded-Proto": "https",
+                            "Origin": TUNNEL})
+    # The server address in this scope is jarvis.example.com:8778, the phone port: the phone listener.
+    assert r.status_code == 200, r.text
+    assert "secure" in r.headers["set-cookie"].lower() and "httponly" in r.headers["set-cookie"].lower()
+
+
+# ---------------------------------------------------------------- one app: shared relays view, real data only
+def test_the_shared_relays_files_are_served_on_the_phone_listener(setup):
+    c, app, access, _ = setup
+    enable(c)
+    js = c.get("/phone/relays.js")
+    assert js.status_code == 200 and "RelayPanel" in js.text and "javascript" in js.headers["content-type"]
+    assert c.get("/phone/relays.css").status_code == 200
+    assert c.get("/phone/board.html").status_code == 404          # the board's template is not served
+    page = c.get("/phone").text
+    assert "RADAR" not in page and "Relays only" in page and "Pair with JARVIS" in page
+
+
+def test_phone_state_reports_only_what_aankhen_really_has(setup):
+    c, app, access, _ = setup
+    enable(c)
+    pair(c)
+    s = c.get("/api/phone/state", headers=P).json()
+    a = s["aankhen"]
+    assert a is None or set(a) == {"source", "presence", "motion", "guess", "people", "link"}
+    for d in s["limbs"]["devices"]:
+        assert {"hardware_on", "confirmed", "link", "channel"} <= set(d)
+        if d["link"] == "virtual":
+            assert d["confirmed"] is False                       # no board, nothing confirmed

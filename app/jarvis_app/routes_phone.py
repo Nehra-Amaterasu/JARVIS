@@ -2,7 +2,7 @@
 
 Desktop (the window's token, desktop listener only):
     GET    /api/remote                 the switch, addresses, paired phones, pairing state
-    PUT    /api/remote                 {enabled?, port?, bind?, cert?, key?, urls?} save + apply
+    PUT    /api/remote                 {enabled?, port?, bind?, cert?, key?, urls?, tunnel?} save + apply
     POST   /api/remote/pair            {url?}: a new 5-minute code, its link and QR (SVG)
     DELETE /api/remote/pair            cancel the code
     DELETE /api/remote/devices/{id}    revoke a phone (its open socket is closed too)
@@ -54,10 +54,31 @@ CORE_KINDS = {"state", "turn", "reply_chunk", "ready", "starting", "stopped", "e
 def _limbs_view(svc) -> dict:
     v = svc.limbs.view()
     return {
-        "devices": [{k: d.get(k) for k in ("id", "name", "kind", "state", "link", "hardware_on", "confirmed")}
+        "devices": [{k: d.get(k) for k in ("id", "name", "kind", "state", "link", "hardware_on", "confirmed",
+                                           "channel")}
                     for d in v["devices"]],
         "scenes": v["scenes"], "usb": v["usb"], "hardware": v["hardware"],
+        "esp32": v.get("esp32"),
+        "modes": v.get("modes"),
+        "last_mode": v.get("last_mode"),
     }
+
+
+def _aankhen_view(svc) -> Optional[dict]:
+    """What Aankhen really reports, nothing drawn: where the data comes from (a simulated
+    source is labelled so, never shown as measured), its presence guess and the link counts."""
+    hub = getattr(svc, "hub", None)
+    if hub is None:
+        return None
+    try:
+        snap = hub.snapshot() or {}
+        link = hub.link() or {}
+    except Exception:                        # the sensor side must never break the phone page
+        return None
+    learned = snap.get("learned") or {}
+    return {"source": snap.get("source"), "presence": snap.get("presence"), "motion": snap.get("motion"),
+            "guess": learned.get("state"), "people": len(snap.get("people") or []),
+            "link": {k: link.get(k) for k in ("frames_ok", "loss_ratio", "crc_errors")} if link else None}
 
 
 def _core_view(svc) -> dict:
@@ -165,6 +186,14 @@ def register(app: FastAPI, svc, bus) -> None:
     def phone_script():
         return FileResponse(PAGE_DIR / "app.js", media_type="text/javascript", headers=PAGE_HEADERS)
 
+    @app.get("/phone/relays.js")
+    def phone_relays_script():
+        return FileResponse(PAGE_DIR / "relays.js", media_type="text/javascript", headers=PAGE_HEADERS)
+
+    @app.get("/phone/relays.css")
+    def phone_relays_style():
+        return FileResponse(PAGE_DIR / "relays.css", media_type="text/css", headers=PAGE_HEADERS)
+
     @app.get("/phone/manifest.webmanifest")
     def phone_manifest():
         return FileResponse(PAGE_DIR / "manifest.webmanifest", media_type="application/manifest+json")
@@ -206,13 +235,15 @@ def register(app: FastAPI, svc, bus) -> None:
     @app.get("/api/phone/state")
     async def phone_state(request: Request):
         limbs = await run_in_threadpool(_limbs_view, svc)
+        aankhen = await run_in_threadpool(_aankhen_view, svc)
         return {"device": device(request), "limbs": limbs, "core": _core_view(svc),
-                "turns": svc.core.transcript(16), "secure": request.url.scheme == "https"}
+                "turns": svc.core.transcript(16), "secure": request.url.scheme == "https",
+                "aankhen": aankhen}
 
     @app.post("/api/phone/limbs/{dev_id}")
     def phone_limbs(request: Request, dev_id: str, action: str = Body(..., embed=True),
                     value: Optional[int] = Body(None, embed=True)):
-        if dev_id not in ("light", "fan", "all") or action not in ("on", "off", "set", "dim", "brighten"):
+        if (dev_id != "all" and dev_id not in svc.limbs.state) or action not in ("on", "off", "set", "dim", "brighten"):
             raise HTTPException(400, "unknown device or action")
         try:
             r = svc.limbs.apply(dev_id, action, value, origin="phone")
@@ -317,7 +348,8 @@ def register(app: FastAPI, svc, bus) -> None:
         if access.is_remote(ws.scope):
             client = ws.client.host if ws.client else None
             dev = access.ws_check(host=ws.headers.get("host"), client=client,
-                                  origin=ws.headers.get("origin"), cookies=ws.cookies)
+                                  origin=ws.headers.get("origin"), cookies=ws.cookies,
+                                  access_jwt=ws.headers.get(phone.ACCESS_HEADER))
             if dev is None:
                 await ws.close(code=4403)
                 return
@@ -338,7 +370,7 @@ def register(app: FastAPI, svc, bus) -> None:
             while True:
                 ev = await q.get()
                 src, kind = ev.get("source"), ev.get("kind")
-                if src == "limbs" or src == "phone" or (src == "core" and kind in CORE_KINDS):
+                if src in ("limbs", "phone", "aankhen", "board") or (src == "core" and kind in CORE_KINDS):
                     if src == "limbs":
                         ev = {**ev, "limbs": await run_in_threadpool(_limbs_view, svc)}
                     await ws.send_text(json.dumps(ev, ensure_ascii=False))

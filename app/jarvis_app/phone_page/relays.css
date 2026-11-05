@@ -1,0 +1,15 @@
+/* The relays-only view (relays.js): shared by the JARVIS phone app and the wall box's page. */
+.relays{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.relay{--dev:#5ce1ff;display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-height:84px;
+  padding:14px;border-radius:14px;border:1px solid #262a33;background:#101218;color:#e8e8ed;
+  font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.relay:focus-visible{outline:2px solid #5ce1ff;outline-offset:2px}
+.relay-name{font-weight:600;font-size:15px;overflow-wrap:anywhere}
+.relay-sub{font:12px ui-monospace,Menlo,Consolas,monospace;color:#8e8e93}
+.relay.on{border-color:var(--dev);box-shadow:inset 0 0 0 1px var(--dev)}
+.relay.on .relay-sub{color:#5ce1ff}
+.relay.wait{border-color:#ffb020}
+.relay.wait .relay-sub{color:#ffb020}
+.relay.fault{border-color:#ff5a5a}
+.relay.fault .relay-sub{color:#ff5a5a}
+.relay:disabled{opacity:.45;cursor:not-allowed}

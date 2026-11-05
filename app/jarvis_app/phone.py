@@ -7,6 +7,9 @@ per-launch token) is not touched:
     desktop window ──▶ 127.0.0.1:8777   desktop token, every route        (security.py)
     phone (Wi-Fi)  ──▶ <LAN IP>:8778    device cookie, /phone + /api/phone/* only
     Tailscale Serve ─▶ 127.0.0.1:8778   the same rules (HTTPS ends at Tailscale)
+    cloudflared     ─▶ 127.0.0.1:8778   mobile data: a named tunnel behind a Cloudflare Access
+                                         login (email one-time code), then the same pairing cookie;
+                                         a tunnel-host request without the Access header is refused
 
 Which listener a request came in on is read from the socket it arrived on (ASGI
 scope["server"]), never from a header a client can write. On the phone listener:
@@ -74,9 +77,15 @@ _BINDABLE_NETS = [ipaddress.ip_network(n) for n in ("10.0.0.0/8", "172.16.0.0/12
                                                     "100.64.0.0/10")]
 
 # Paths the phone listener answers at all; everything else is a 404 there.
-PHONE_PATHS = {"/phone", "/phone/", "/phone/app.js", "/phone/manifest.webmanifest", "/phone/icon-192.png",
-               "/phone/icon-512.png", "/api/health", "/ws/phone"}
+PHONE_PATHS = {"/phone", "/phone/", "/phone/app.js", "/phone/relays.js", "/phone/relays.css",
+               "/phone/manifest.webmanifest", "/phone/icon-192.png", "/phone/icon-512.png", "/api/health",
+               "/ws/phone"}
 PHONE_API = "/api/phone/"
+# Cloudflare Access puts its signed login on every request it lets through. cloudflared
+# checks the signature itself (originRequest.access in the config below); the app also
+# refuses a tunnel-host request without it, so a tunnel left without an Access policy
+# fails closed instead of putting the pairing page on the open internet.
+ACCESS_HEADER = "cf-access-jwt-assertion"
 
 
 def firewall_command(port: int) -> str:
@@ -132,6 +141,7 @@ class PhoneConfig:
     cert: str = ""                           # optional TLS cert/key (tailscale cert, mkcert)
     key: str = ""
     urls: list = field(default_factory=list)   # extra addresses he reaches it by: https://<name>.ts.net
+    tunnel: str = ""                         # Cloudflare named tunnel: https://<name>.<his domain>
 
     @property
     def https(self) -> bool:
@@ -158,7 +168,42 @@ def validate(cfg: PhoneConfig) -> PhoneConfig:
         if f and not Path(f).is_file():
             raise ValueError(f"No file at {f}.")
     cfg.urls = [_valid_url(u) for u in cfg.urls][:6]
+    if cfg.tunnel:
+        cfg.tunnel = _valid_url(cfg.tunnel)
+        p = urlsplit(cfg.tunnel)
+        if p.scheme != "https" or p.port is not None:
+            raise ValueError("The tunnel address is the https:// name Cloudflare serves, with no port.")
+        if p.hostname.endswith(".trycloudflare.com"):
+            raise ValueError("A quick tunnel changes its address every run and has no Access login: "
+                             "use a named tunnel on your own domain.")
     return cfg
+
+
+def cloudflared_config(tunnel: str, phone_port: int, desktop_port: int, *, tunnel_id: str = "<TUNNEL-ID>",
+                       # The Windows service runs as SYSTEM and reads this folder, not the user's.
+                       credentials: str = r"C:\Windows\System32\config\systemprofile\.cloudflared\<TUNNEL-ID>.json",
+                       team: str = "<team>", aud: str = "<application AUD tag>") -> str:
+    """config.yml for cloudflared: the tunnel's hostname goes to the PHONE listener on
+    loopback and nowhere else. Every other hostname or path gets a 404. The desktop
+    port (every route, the desktop token) is never a target."""
+    host = urlsplit(_valid_url(tunnel)).hostname
+    if phone_port == desktop_port:
+        raise ValueError("The tunnel must point at the phone listener, never the desktop window's port.")
+    return "\n".join([
+        f"tunnel: {tunnel_id}",
+        f"credentials-file: {credentials}",
+        "ingress:",
+        f"  - hostname: {host}",
+        f"    service: http://127.0.0.1:{phone_port}",
+        "    originRequest:",
+        f"      httpHostHeader: {host}",
+        "      access:",
+        "        required: true",
+        f"        teamName: {team}",
+        "        audTag:",
+        f"          - {aud}",
+        "  - service: http_status:404",
+        ""])
 
 
 def load_config(path: Path = CONFIG_FILE) -> PhoneConfig:
@@ -179,6 +224,7 @@ def load_config(path: Path = CONFIG_FILE) -> PhoneConfig:
     if env_port.isdigit():
         cfg.port = int(env_port)
     cfg.urls = [u for u in cfg.urls if isinstance(u, str)] if isinstance(cfg.urls, list) else []
+    cfg.tunnel = cfg.tunnel if isinstance(cfg.tunnel, str) else ""
     return cfg
 
 
@@ -485,16 +531,26 @@ class PhoneAccess:
     def urls(self) -> list[str]:
         """Base addresses to open on the phone, best first: his own (ts.net), then LAN."""
         lan = [f"{self.scheme()}://{ip}:{self.port}" for ip in self.addresses() if ip != "127.0.0.1"]
-        return list(self.cfg.urls) + lan
+        return ([self.cfg.tunnel] if self.cfg.tunnel else []) + list(self.cfg.urls) + lan
 
     def allowed_hosts(self) -> set[str]:
         hosts = {f"{ip}:{self.port}" for ip in self.addresses()} | {f"localhost:{self.port}"}
-        for u in self.cfg.urls:
+        for u in list(self.cfg.urls) + self.tunnel_hosts_urls():
             p = urlsplit(u)
             hosts.add(p.netloc.lower())
             if p.port is None:                    # a proxy may or may not add the default port
                 hosts.add(f"{p.hostname}:{443 if p.scheme == 'https' else 80}")
         return hosts
+
+    def tunnel_hosts_urls(self) -> list[str]:
+        return [self.cfg.tunnel] if self.cfg.tunnel else []
+
+    def via_tunnel(self, host: Optional[str]) -> bool:
+        """True when the Host names the Cloudflare tunnel (with or without :443)."""
+        if not self.cfg.tunnel or not host:
+            return False
+        name = urlsplit(self.cfg.tunnel).hostname
+        return host.lower() in (name, f"{name}:443")
 
     def is_remote(self, scope) -> bool:
         """True when this request arrived on the phone listener (the socket, not a header)."""
@@ -506,7 +562,8 @@ class PhoneAccess:
         return self.devices.verify(cookies.get(COOKIE))
 
     def check(self, *, method: str, path: str, host: Optional[str], client: Optional[str],
-              origin: Optional[str], header: Optional[str], cookies) -> tuple[int, str, Optional[dict]]:
+              origin: Optional[str], header: Optional[str], cookies,
+              access_jwt: Optional[str] = None) -> tuple[int, str, Optional[dict]]:
         """(status, reason, device) for one request on the phone listener; 200 = allowed."""
         if not self.enabled:
             return 403, "phone access is off", None
@@ -514,6 +571,8 @@ class PhoneAccess:
             return 403, "bad host", None
         if not is_private(client):
             return 403, "not from the home network", None
+        if self.via_tunnel(host) and not access_jwt:
+            return 403, "the tunnel must sit behind a Cloudflare Access login", None
         if path == "/":
             return 307, "/phone", None
         if not (path in PHONE_PATHS or path.startswith(PHONE_API)):
@@ -537,8 +596,11 @@ class PhoneAccess:
             return 429, "slow down", None
         return 200, "", dev
 
-    def ws_check(self, *, host: Optional[str], client: Optional[str], origin: Optional[str], cookies) -> Optional[dict]:
+    def ws_check(self, *, host: Optional[str], client: Optional[str], origin: Optional[str], cookies,
+                 access_jwt: Optional[str] = None) -> Optional[dict]:
         if not self.enabled or (host or "").lower() not in self.allowed_hosts() or not is_private(client):
+            return None
+        if self.via_tunnel(host) and not access_jwt:
             return None
         if not origin or urlsplit(origin).netloc.lower() != (host or "").lower():
             return None                            # cross-site WebSocket hijacking
@@ -588,12 +650,13 @@ class PhoneAccess:
 
     def update(self, changes: dict) -> PhoneConfig:
         cfg = PhoneConfig(**asdict(self.cfg))
-        for k in ("enabled", "port", "bind", "cert", "key", "urls"):
+        for k in ("enabled", "port", "bind", "cert", "key", "urls", "tunnel"):
             if k in changes and changes[k] is not None:
                 setattr(cfg, k, changes[k])
         cfg.enabled = bool(cfg.enabled)
         cfg.cert, cfg.key = str(cfg.cert or "").strip().strip('"'), str(cfg.key or "").strip().strip('"')
         cfg.bind = str(cfg.bind or "auto").strip()
+        cfg.tunnel = str(cfg.tunnel or "").strip()
         if not isinstance(cfg.urls, list):
             raise ValueError("urls must be a list")
         validate(cfg)
@@ -610,11 +673,13 @@ class PhoneAccess:
             "running": running, "listening_on": list(self.server.bound) if running else [],
             "error": self.server.error if self.server else None,
             "port": self.port, "bind": self.cfg.bind, "https": self.cfg.https,
-            "cert": self.cfg.cert, "key": self.cfg.key, "urls": self.cfg.urls,
+            "cert": self.cfg.cert, "key": self.cfg.key, "urls": self.cfg.urls, "tunnel": self.cfg.tunnel,
+            "cloudflared_yml": (cloudflared_config(self.cfg.tunnel, self.port, self.desktop_port)
+                                if self.cfg.tunnel and self.port != self.desktop_port else None),
             "addresses": [ip for ip in self.addresses() if ip != "127.0.0.1"],
             "open_at": [u + "/phone" for u in self.urls()],
             "devices": self.devices.list(),
             "pairing": {"active": self.pairing.active(), "expires_in": self.pairing.remaining()},
             "firewall_cmd": firewall_command(self.port),
-            "mic_ready": self.cfg.https or any(u.startswith("https://") for u in self.cfg.urls),
+            "mic_ready": self.cfg.https or bool(self.cfg.tunnel) or any(u.startswith("https://") for u in self.cfg.urls),
         }

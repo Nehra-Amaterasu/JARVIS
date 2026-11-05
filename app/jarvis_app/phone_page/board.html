@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Wall box</title>
+<meta name="theme-color" content="#07080b">
+<meta name="referrer" content="no-referrer">
+<style>
+:root{--bg:#07080b;--card:#0d0f14;--line:#1f232b;--ink:#e8e8ed;--ink-3:#6b6b73;--cyan:#5ce1ff;--fault:#ff5a5a;--mono:ui-monospace,Menlo,Consolas,monospace}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  min-height:100vh;padding:max(16px,env(safe-area-inset-top)) 16px max(20px,env(safe-area-inset-bottom))}
+main{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{display:flex;justify-content:space-between;align-items:center;gap:8px}
+h1{font-size:20px}
+h2{font:600 12px var(--mono);letter-spacing:1px;color:#a1a1aa;text-transform:uppercase}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+input{width:100%;min-height:44px;border-radius:12px;border:1px solid var(--line);background:#050608;color:var(--ink);padding:10px 12px;font:inherit}
+.btn{min-height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:#151821;color:var(--ink);font:inherit;cursor:pointer}
+.btn.primary{background:var(--cyan);border-color:var(--cyan);color:#01080e;font-weight:600}
+.muted{color:var(--ink-3);font-size:13px}
+.err{color:var(--fault);font:12px var(--mono);min-height:1em}
+a{color:var(--cyan)}
+[hidden]{display:none!important}
+/*RELAYS_CSS*/
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Wall box</h1>
+    <span id="fw" class="muted"></span>
+  </header>
+
+  <section id="jarvisCard" class="card" hidden>
+    <p>JARVIS is on. The full app has voice, modes and Aankhen.</p>
+    <a id="jarvisLink" class="btn primary" href="#" style="display:flex;align-items:center;justify-content:center;text-decoration:none">Open JARVIS</a>
+  </section>
+
+  <!-- Relays only: this board, straight from the phone on the home Wi-Fi. -->
+  <section id="relaysCard" class="card" hidden>
+    <h2>Relays only</h2>
+    <div id="relays" class="relays"></div>
+    <p class="muted">Cyan: the board confirms it. Amber: sent, waiting for the board.</p>
+    <div id="err" class="err" role="alert"></div>
+    <button id="settingsBtn" class="btn" type="button">Settings</button>
+  </section>
+
+  <!-- Once per phone: the board's relay token (RELAY_TOKEN_VALUE), and where JARVIS is. -->
+  <section id="setup" class="card" hidden>
+    <h2>Set up this phone</h2>
+    <label class="muted" for="token">Board token (from secrets.h; at least 16 characters)</label>
+    <input id="token" type="password" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <label class="muted" for="jarvisUrl">JARVIS address (optional), for example http://laptop-address:8778</label>
+    <input id="jarvisUrl" type="url" autocapitalize="off" spellcheck="false">
+    <button id="saveBtn" class="btn primary" type="button">Save</button>
+    <div id="setupErr" class="err" role="alert"></div>
+  </section>
+</main>
+<script>
+/*RELAYS_JS*/
+;(function () {
+  'use strict'
+  const $ = (id) => document.getElementById(id)
+  // The six wired channels and the two absent ones, as in the plan's wiring table.
+  const NAMES = { light: 'White downlights', fan: 'Fan', light2: 'Warm outer', light3: 'Warm inner',
+    light4: 'Pink outer', light5: 'Pink inner', light6: 'White outer', light7: 'Accent' }
+  const get = (k) => { try { return localStorage.getItem(k) || '' } catch { return '' } }
+  const put = (k, v) => { try { localStorage.setItem(k, v) } catch { /* private window: asked again next time */ } }
+  let pollTimer = 0, fastUntil = 0, editing = false
+
+  function view(name) {
+    $('setup').hidden = name !== 'setup'
+    $('relaysCard').hidden = name !== 'relays'
+  }
+
+  // JARVIS's address can arrive in the link: http://<board>/#jarvis=https://...
+  const h = location.hash.match(/jarvis=([^&]+)/)
+  if (h) { put('jarvis.url', decodeURIComponent(h[1]).replace(/\/+$/, '')); history.replaceState(null, '', '/') }
+
+  // Is JARVIS answering? A no-cors request resolves when the laptop's listener is up and
+  // rejects when it is not; it reads nothing, so JARVIS needs no CORS for this.
+  function probeJarvis() {
+    const url = get('jarvis.url')
+    if (!url) return
+    const c = new AbortController()
+    setTimeout(() => c.abort(), 1500)
+    fetch(url + '/api/health', { mode: 'no-cors', cache: 'no-store', signal: c.signal })
+      .then(() => {
+        $('jarvisLink').href = url + '/phone'
+        $('jarvisCard').hidden = false
+        if (!location.hash.includes('stay')) location.replace(url + '/phone')
+      })
+      .catch(() => { $('jarvisCard').hidden = true })
+  }
+
+  const panel = RelayPanel($('relays'), async (id, on) => {
+    const r = await fetch('/relay', {
+      method: 'POST',
+      headers: { 'X-Aankhen-Token': get('aankhen.token'), 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'ch=' + encodeURIComponent(id) + '&on=' + (on ? '1' : '0'),
+      cache: 'no-store'
+    })
+    if (r.status === 401) { view('setup'); $('setupErr').textContent = 'The board refused the token.'; throw new Error('token refused') }
+    if (!r.ok) {
+      let msg = 'board said ' + r.status
+      try { const j = await r.json(); if (j.error) msg = j.error } catch { /* not JSON */ }
+      throw new Error(msg)
+    }
+    fastUntil = Date.now() + 4000            // watch closely until the coil confirms
+    schedule(150)
+  })
+
+  async function poll() {
+    try {
+      const r = await fetch('/status', { headers: { 'X-Aankhen-Token': get('aankhen.token') }, cache: 'no-store' })
+      const s = await r.json()
+      $('fw').textContent = s.fw ? 'firmware ' + s.fw : ''
+      if (!s.relays) {                       // the short public status: the token is wrong or missing
+        view('setup')
+        $('setupErr').textContent = get('aankhen.token') ? 'The board did not accept the token.' : ''
+        return
+      }
+      if (!editing) view('relays')
+      $('err').textContent = ''
+      panel.update(Object.keys(s.relays).map((id) => ({
+        id, name: NAMES[id] || id, on: s.relays[id], available: s.relays[id] !== null })))
+    } catch (e) {
+      $('err').textContent = 'The board is not answering.'
+    } finally {
+      schedule(Date.now() < fastUntil ? 300 : 2000)
+    }
+  }
+
+  function schedule(ms) { clearTimeout(pollTimer); pollTimer = setTimeout(poll, ms) }
+
+  $('saveBtn').addEventListener('click', () => {
+    const t = $('token').value.trim()
+    if (t.length < 16) { $('setupErr').textContent = 'The token has at least 16 characters.'; return }
+    put('aankhen.token', t)
+    const u = $('jarvisUrl').value.trim().replace(/\/+$/, '')
+    if (u && !/^https?:\/\/[^/]+$/.test(u)) { $('setupErr').textContent = 'The JARVIS address looks like http://host:8778'; return }
+    put('jarvis.url', u)
+    $('setupErr').textContent = ''
+    editing = false
+    probeJarvis()
+    schedule(0)
+  })
+  $('settingsBtn').addEventListener('click', () => {
+    $('jarvisUrl').value = get('jarvis.url')
+    editing = true
+    view('setup')
+  })
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) schedule(0) })
+
+  probeJarvis()
+  if (get('aankhen.token')) schedule(0)
+  else view('setup')
+})()
+</script>
+</body>
+</html>

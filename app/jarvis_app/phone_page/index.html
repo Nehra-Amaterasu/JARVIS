@@ -85,6 +85,16 @@ footer{display:flex;justify-content:space-between;align-items:center;gap:8px;col
       <button role="tab" data-tab="talk" aria-selected="false">Talk</button>
     </nav>
 
+    <!-- Firmware 3.8.0 holds every relay off after a second brownout within 120 s. -->
+    <section id="powerSafe" class="card" style="margin-top:12px;border-color:var(--fault)" hidden>
+      <h2 style="color:var(--fault)">Wall box: power-safe mode</h2>
+      <p>The supply browned out twice in a row, so the board keeps every relay off. Turning
+        relays back on before fixing the supply can make it brown out again.</p>
+      <p class="muted" id="powerWhy"></p>
+      <button id="powerBtn" class="btn" type="button">Leave power-safe mode</button>
+      <div id="powerErr" class="err" role="alert"></div>
+    </section>
+
     <section id="tab-room" class="card" style="margin-top:12px">
       <div id="modesBox">
         <h2>Modes</h2>

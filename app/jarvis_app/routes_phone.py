@@ -14,6 +14,7 @@ Phone (a paired device's cookie, phone listener):
     GET    /api/phone/state            light + fan (board-confirmed), JARVIS's state, recent turns
     POST   /api/phone/limbs/{device}   {action, value?}: through Limbs, the room's ONLY writer
     POST   /api/phone/scene/{name}
+    POST   /api/phone/power/normal     take the wall box out of power-safe mode (firmware 3.8.0)
     POST   /api/phone/say              {text}: the same path as typing in the desktop chat
     POST   /api/phone/core/start       {mode}: wake JARVIS (text or voice)
     POST   /api/phone/hear             raw audio (MediaRecorder webm/ogg/mp4, <= 8 MB): JARVIS's
@@ -79,6 +80,21 @@ def _aankhen_view(svc) -> Optional[dict]:
     return {"source": snap.get("source"), "presence": snap.get("presence"), "motion": snap.get("motion"),
             "guess": learned.get("state"), "people": len(snap.get("people") or []),
             "link": {k: link.get(k) for k in ("frames_ok", "loss_ratio", "crc_errors")} if link else None}
+
+
+def _board_power(svc) -> Optional[dict]:
+    """The wall box's power state from its last STATUS (firmware 3.8.0): "normal",
+    "restoring" or "safe" (relays held off after a second brownout within 120 s)."""
+    hub = getattr(svc, "hub", None)
+    if hub is None:
+        return None
+    try:
+        st = hub.device_status() or {}
+    except Exception:
+        return None
+    if "power" not in st:
+        return None                          # no board, or firmware before 3.8.0
+    return {"power": st.get("power"), "why": st.get("power_why"), "brownouts": st.get("brownouts")}
 
 
 def _core_view(svc) -> dict:
@@ -236,9 +252,10 @@ def register(app: FastAPI, svc, bus) -> None:
     async def phone_state(request: Request):
         limbs = await run_in_threadpool(_limbs_view, svc)
         aankhen = await run_in_threadpool(_aankhen_view, svc)
+        board_power = await run_in_threadpool(_board_power, svc)
         return {"device": device(request), "limbs": limbs, "core": _core_view(svc),
                 "turns": svc.core.transcript(16), "secure": request.url.scheme == "https",
-                "aankhen": aankhen}
+                "aankhen": aankhen, "board_power": board_power}
 
     @app.post("/api/phone/limbs/{dev_id}")
     def phone_limbs(request: Request, dev_id: str, action: str = Body(..., embed=True),
@@ -250,6 +267,19 @@ def register(app: FastAPI, svc, bus) -> None:
         except ValueError as e:
             raise HTTPException(400, str(e))
         return {"result": {"changed": r["changed"], "delivered": r["delivered"]}, "limbs": _limbs_view(svc)}
+
+    @app.post("/api/phone/power/normal")
+    async def phone_power_normal(request: Request):
+        hub = getattr(svc, "hub", None)
+        if hub is None:
+            raise HTTPException(409, "No board is connected.")
+        ok, why = await run_in_threadpool(hub.clear_power_safe)
+        if not ok:
+            raise HTTPException(409, why)
+        dev = device(request)
+        bus.publish("phone", "power_normal", "Power-safe mode cleared from "
+                    + (dev["name"] if dev else "the phone"))
+        return {"power": "normal"}
 
     @app.post("/api/phone/scene/{name}")
     def phone_scene(name: str):

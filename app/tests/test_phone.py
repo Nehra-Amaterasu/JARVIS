@@ -398,3 +398,56 @@ def test_phone_state_reports_only_what_aankhen_really_has(setup):
         assert {"hardware_on", "confirmed", "link", "channel"} <= set(d)
         if d["link"] == "virtual":
             assert d["confirmed"] is False                       # no board, nothing confirmed
+
+
+# ---------------------------------------------------------------- power-safe mode (firmware 3.8.0)
+class _FakeHub:
+    def __init__(self, status, result):
+        self.status, self.result, self.calls = status, result, 0
+
+    def device_status(self):
+        return self.status
+
+    def clear_power_safe(self, timeout_s=1.2):
+        self.calls += 1
+        if self.result[0]:
+            self.status = {**self.status, "power": "normal", "power_why": None}
+        return self.result
+
+    def snapshot(self):
+        return {}
+
+    def link(self):
+        return {}
+
+    def __getattr__(self, name):              # stop(), etc.: whatever the app calls at shutdown
+        return lambda *a, **k: None
+
+
+def test_power_safe_mode_is_shown_and_cleared_through_jarvis_only(setup, monkeypatch):
+    c, app, access, _ = setup
+    enable(c)
+    pair(c)
+    hub = _FakeHub({"power": "safe", "power_why": "repeat brownout", "brownouts": 2}, (True, ""))
+    monkeypatch.setattr(app.state.svc, "hub", hub, raising=False)
+    s = c.get("/api/phone/state", headers=P).json()
+    assert s["board_power"] == {"power": "safe", "why": "repeat brownout", "brownouts": 2}
+    assert c.post("/api/phone/power/normal").status_code == 403          # CSRF header needed
+    r = c.post("/api/phone/power/normal", headers=P)
+    assert r.status_code == 200 and r.json() == {"power": "normal"} and hub.calls == 1
+    assert c.get("/api/phone/state", headers=P).json()["board_power"]["power"] == "normal"
+    page = c.get("/phone").text
+    assert 'id="powerSafe"' in page and "browned out twice" in page
+
+
+def test_power_safe_refusals_say_why_and_old_boards_show_nothing(setup, monkeypatch):
+    c, app, access, _ = setup
+    enable(c)
+    pair(c)
+    hub = _FakeHub({"relays": {"light": False}}, (False, "the board runs firmware before 3.8.0"))
+    monkeypatch.setattr(app.state.svc, "hub", hub, raising=False)
+    assert c.get("/api/phone/state", headers=P).json()["board_power"] is None   # no "power" field
+    r = c.post("/api/phone/power/normal", headers=P)
+    assert r.status_code == 409 and "before 3.8.0" in r.json()["detail"]
+    c.post("/api/phone/unpair", headers=P)
+    assert c.post("/api/phone/power/normal", headers=P).status_code == 401      # paired phones only

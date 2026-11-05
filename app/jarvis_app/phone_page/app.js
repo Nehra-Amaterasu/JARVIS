@@ -7,7 +7,7 @@
 const $ = (id) => document.getElementById(id)
 const H = { 'X-Jarvis-Phone': '1' }
 let ws = null, backoff = 500, wsTimer = 0
-let state = { limbs: null, core: null, turns: [], device: null, aankhen: null }
+let state = { limbs: null, core: null, turns: [], device: null, aankhen: null, boardPower: null }
 
 async function call(path, { method = 'GET', body, raw, type } = {}) {
   const init = { method, headers: { ...H }, credentials: 'same-origin' }
@@ -87,6 +87,30 @@ async function scene(id) {
     state.limbs = r.limbs
     renderLimbs()
   } catch (e) { fail(e) }
+}
+
+/* ------------------------------------------------------------ power-safe mode */
+// Shown only while the board's own STATUS says "safe". Leaving it switches nothing on:
+// the relays stay off until he taps them.
+function renderPower() {
+  const p = state.boardPower
+  const safe = !!(p && p.power === 'safe')
+  $('powerSafe').hidden = !safe
+  if (!safe) return
+  $('powerWhy').textContent = 'Reason: ' + (p.why || 'repeated brownouts') +
+    (p.brownouts != null ? ` · brownouts since power-on: ${p.brownouts}` : '')
+}
+
+async function leavePowerSafe() {
+  if (!confirm('The supply browned out twice. Leave power-safe mode anyway? No relay switches on by itself.')) return
+  $('powerBtn').disabled = true; $('powerErr').textContent = ''
+  try {
+    await call('/api/phone/power/normal', { method: 'POST' })
+    await refresh()
+  } catch (e) {
+    if (e.status === 401) fail(e)
+    else $('powerErr').textContent = e.message
+  } finally { $('powerBtn').disabled = false }
 }
 
 /* ------------------------------------------------------------ Aankhen */
@@ -288,10 +312,11 @@ function connect() {
 async function refresh() {
   try {
     const s = await call('/api/phone/state')
-    state = { ...state, limbs: s.limbs, core: s.core, turns: s.turns || [], device: s.device, aankhen: s.aankhen }
+    state = { ...state, limbs: s.limbs, core: s.core, turns: s.turns || [], device: s.device, aankhen: s.aankhen,
+      boardPower: s.board_power }
     show(true)
     $('devName').textContent = s.device ? s.device.name : 'Phone'
-    renderLimbs(); renderCore(); renderTurns(); renderAankhen()
+    renderLimbs(); renderCore(); renderTurns(); renderAankhen(); renderPower()
     if (!ws) connect()
   } catch (e) {
     if (e.status === 401) { show(false); setLink('fault', 'NOT PAIRED') }
@@ -318,6 +343,7 @@ function boot() {
   const ua = navigator.userAgent.match(/Android [\d.]+; ([^;)]+)/)
   $('pairName').value = (ua && ua[1].replace(/ Build.*/, '').trim()) || 'Phone'
   $('pairBtn').addEventListener('click', pair)
+  $('powerBtn').addEventListener('click', leavePowerSafe)
   $('send').addEventListener('click', send)
   $('msg').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } })
   $('mic').addEventListener('click', micToggle)

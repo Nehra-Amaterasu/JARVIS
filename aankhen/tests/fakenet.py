@@ -40,6 +40,7 @@ class FakeNetBoard:
         self.silent = False
         self.swap_next = False
         self.drop_cmds = 0
+        self.power = None             # firmware 3.8.0's STATUS "power"; None: an older board without it
         self.pending = None           # dict(id, key, peer, created)
         self.live = None              # dict(id, key, peer, tx, rx, last)
         self.batcher = nl.Batcher(flush_s=0.02)
@@ -87,6 +88,8 @@ class FakeNetBoard:
                 "wifi": "connected", "ip": "127.0.0.1", "mdns": "aankhen.local", "rssi": -58, "channel": 6,
                 "csi_hz": int(self.csi_hz), "net": {"key": nl.fingerprint(self.key), "port": self.port,
                                                     "peer": "%s:%d" % self.peer if self.peer else None}}
+        if self.power is not None:
+            body["power"] = self.power
         return self._frame(FrameType.STATUS, json.dumps(body, separators=(",", ":")).encode())
 
     def csi_frame(self) -> bytes:
@@ -194,6 +197,8 @@ class FakeNetBoard:
                 for r in self.relays:
                     if (name == "all" or name == r) and self.relays[r] is not None:
                         self.relays[r] = bool(cmd.get("on"))
+            if cmd.get("power") == "normal" and self.power is not None:
+                self.power = "normal"
             self.offer(self.status_frame(), now=True)
 
     def _run(self) -> None:

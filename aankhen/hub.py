@@ -868,6 +868,23 @@ class AankhenHub:
             return False, f"the ESP32 did not answer within {timeout_s:g} s ({tries} tries)"
         return False, f"the ESP32 reports {device} {'on' if last.get(device) else 'off'}"
 
+    def clear_power_safe(self, timeout_s: float = RELAY_CONFIRM_S) -> tuple[bool, str]:
+        """Take the board out of power-safe mode (firmware 3.8.0: a brownout within 120 s of
+        a restore). (confirmed, why not): confirmed only when its STATUS says "power" is
+        "normal". Nothing switches on by itself afterwards; the owner switches what he wants."""
+        src = self.source
+        if not self.can_command:
+            return False, self.offline_reason()
+        sent_at = time.perf_counter()
+        if not self.command({"power": "normal"}):
+            return False, self.offline_reason()
+        st = src.wait_status(sent_at, timeout_s, lambda s: s.get("power") != "safe")
+        if st is None:
+            return False, f"the ESP32 did not answer within {timeout_s:g} s"
+        if "power" not in st:
+            return False, f"the ESP32 runs {st.get('fw', 'firmware')} before 3.8.0: it has no power-safe mode"
+        return True, ""
+
     def board_relays(self, wait_s: float = 2.0) -> Optional[dict]:
         """The relays as the board reports them on the CURRENT connection (never a report
         from before a reconnect), asking for a STATUS if none came within `wait_s`."""

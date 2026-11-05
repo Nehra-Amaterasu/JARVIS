@@ -79,38 +79,66 @@ def test_lq_keys_in_the_firmware_match_the_parser():
     assert re.findall(r'"(\w+)":', fmt) == ["ping_ok", "ping_lost", "gap_ms", "rate", "reconn", "disc", "ap"]
 
 
-def _status_worst_case_360() -> bytes:
-    """buildStatus() at its longest in 3.6.0: 3.5.0's worst case (test_netlink) plus lq at
-    its widest. u16 fields are capped by the firmware, rate/disc 'null' is wider than 255."""
-    relays = ",".join(f'"{n}":false' for n in ("light", "fan", "light2", "light3", "light4"))
-    pins = ",".join(f'"{n}":{p}' for n, p in (("light", 4), ("fan", 5), ("light2", 6), ("light3", 7), ("light4", 8)))
+def relay_names() -> list[str]:
+    """RELAY_TABLE's names, in table order, from config.h."""
+    cfg = (FW_DIR / "config.h").read_text(encoding="utf-8")
+    table = re.search(r"#define RELAY_TABLE \\\n((?:.*\\\n)*.*)", cfg).group(1)
+    return re.findall(r'\{"(\w+)",', table)
+
+
+def _main_format() -> str:
+    """buildStatus()'s main format string: the C literals after `int n = snprintf(js, jsLen,`."""
+    ino = (FW_DIR / "firmware.ino").read_text(encoding="utf-8")
+    body = ino[ino.index("int n = snprintf(js, jsLen,"):]
+    lits = []
+    for line in body.splitlines()[1:]:
+        s = line.strip()
+        if not s.startswith('"'):
+            break
+        lits += re.findall(r'"((?:[^"\\]|\\.)*)"', s)
+    return "".join(lits).replace('\\"', '"')
+
+
+def status_worst_case() -> bytes:
+    """buildStatus() at its longest with this config.h: every relay row, a phone, a session,
+    every counter at its widest, safe mode with its reason. Built from the firmware's own
+    format string, specifier by specifier, so a new field cannot slip past the size test."""
+    names = relay_names()
+    relays = "{" + ",".join(f'"{n}":false' for n in names) + "}"
+    pins = "{" + ",".join(f'"{n}":48' for n in names) + "}"      # GPIO 48: the widest pin, as wide as -1
     beacon = (f'{{"ip":"255.255.255.255","mac_known":false,"pings_ok":{U32},"rate_hz":{U32},"rssi":-100,'
               f'"dropped":{U32},"rejected":{U32},"fallback":false}}')
     net = (f'{{"key":"abcdef01","port":47269,"peer":"255.255.255.255:65535","dgrams":{U32},"cmds":{U32},'
            f'"bad":{U32},"replays":{U32},"fail":{U32}}}')
     lq = (_lq_format().replace("%lu", str(U32), 2).replace("%u", "65535", 1)
           .replace("%s", "null", 2).replace("%u", "65535", 1).replace("%s", '"ff:ff:ff"', 1))
-    js = (f'{{"fw":"aankhen-3.6.0","uptime_s":4294967.3,"relays":{{{relays}}},"relay_pins":{{{pins}}},'
-          f'"wifi":"connecting","ip":"255.255.255.255","mdns":"aankhen.local","rssi":-100,"channel":13,'
-          f'"csi_hz":{U32},"csi_dropped":{U32},"csi_rejected":{U32},"radar_frames":{U32},"radar_bad":{U32},'
-          f'"mqtt":false,"http":false,"heap_free":{U32},"crc_ok":false,"gain":"unavailable","ota":false,'
-          f'"reset":"reset-pin","beacon_enabled":false,"beacon":{beacon},"net":{net},"lq":{lq}}}')
-    return js.encode()
+    values = ["aankhen-3.8.0", "4294967.3", relays, relays, pins, "restoring",
+              '"repeat brownout"', "65535", "65535", str(U32),
+              "connecting", "255.255.255.255", '"aankhen.local"', "-100", "13",
+              str(U32), str(U32), str(U32), "false", "false", str(U32), "false",
+              "unavailable", "false", "reset-pin", "false", beacon, net, lq]
+    specs = re.findall(r"%(?:\.1f|lu|u|d|s)", _main_format())
+    assert len(specs) == len(values), "buildStatus() changed: list its new fields here"
+    it = iter(values)
+    return re.sub(r"%(?:\.1f|lu|u|d|s)", lambda m: next(it), _main_format()).encode()
 
 
-def test_the_longest_360_status_fits_the_buffer_an_old_host_accepts():
-    js = _status_worst_case_360()
+def test_the_longest_status_fits_the_buffer_and_the_host_limit():
+    js = status_worst_case()
     fields = json.loads(js)
-    assert "%" not in js.decode()
+    assert len(relay_names()) == 8 and set(fields["relays_target"]) == set(relay_names())
+    assert fields["power"] == "restoring" and fields["brownouts"] == 65535
     assert LinkQuality.from_fields(fields).ap == "ff:ff:ff"
     status_max = int(re.search(r"#define STATUS_MAX (\d+)", (FW_DIR / "firmware.ino").read_text()).group(1))
-    # 1024 is the limit of every host already deployed: 3.6.0 must not need a host update.
-    assert len(js) < status_max <= 1024 == MAX_PAYLOAD_BY_TYPE[FrameType.STATUS]
+    ak_max = int(re.search(r"#define AK_MAX_PAYLOAD (\d+)",
+                           (FW_DIR / "aankhen_protocol.h").read_text()).group(1))
+    # 3.8.0 raised firmware and host together: an app older than 3.8.0 drops this STATUS.
+    assert len(js) < status_max == ak_max == MAX_PAYLOAD_BY_TYPE[FrameType.STATUS] == 1280
 
 
-def test_firmware_version_is_370():
+def test_firmware_version_is_380():
     ino = (FW_DIR / "firmware.ino").read_text(encoding="utf-8")
-    assert '#define FW_VERSION "aankhen-3.7.2"' in ino
+    assert '#define FW_VERSION "aankhen-3.8.0"' in ino
 
 
 # ------------------------------------------------------------- smoke report

@@ -421,7 +421,7 @@ def test_bad_values_are_refused(changes, why):
 
 def test_a_valid_edit_rewrites_only_the_number(rig):
     before = (rig.fw / "config.h").read_text(encoding="utf-8")
-    r = rig.ctl.update_config({"RELAY_FAN_PIN": 9, "BEACON_ENABLED": False, "CSI_RATE_HZ": 500})
+    r = rig.ctl.update_config({"RELAY_FAN_PIN": 9, "BEACON_ENABLED": False, "CSI_RATE_HZ": 200})
     after = (rig.fw / "config.h").read_text(encoding="utf-8")
     assert r["changed"] == {"RELAY_FAN_PIN": [5, 9], "BEACON_ENABLED": [1, 0]}
     assert r["values"]["RELAY_FAN_PIN"] == 9 and r["values"]["BEACON_ENABLED"] == 0

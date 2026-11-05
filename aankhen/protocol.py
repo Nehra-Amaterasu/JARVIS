@@ -76,7 +76,7 @@ class FrameType(enum.IntEnum):
 MAX_PAYLOAD_BY_TYPE = {
     0x01: 16 + 640,
     0x02: 64,
-    0x03: 1024,
+    0x03: 1280,          # STATUS; 1024 before firmware 3.8.0 (eight relays + power/target fields)
     0x04: 512,
     0x05: 32,
     0x06: 256,

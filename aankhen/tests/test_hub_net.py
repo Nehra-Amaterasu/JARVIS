@@ -265,3 +265,20 @@ def test_hub_info_without_the_app_settings_is_unchanged(sim_baseline):
 
 def test_constants_are_what_the_docs_say():
     assert hub_mod.NET_PROBE_WAIT_S <= 1.0 and hub_mod.RELAY_TRIES == 2
+
+
+def test_power_safe_mode_is_left_on_the_apps_command_with_the_boards_word(rig, board):
+    board.power = "safe"
+    hub = rig(board)
+    hub.start("hardware", link="wifi")
+    assert wait_for(lambda: hub.can_command)
+    assert hub.clear_power_safe() == (True, "")
+    assert board.power == "normal" and {"power": "normal"} in board.commands
+
+
+def test_power_safe_on_a_board_before_380_says_so(rig, board):
+    hub = rig(board)                                               # board.power None: no "power" in STATUS
+    hub.start("hardware", link="wifi")
+    assert wait_for(lambda: hub.can_command)
+    ok, why = hub.clear_power_safe()
+    assert not ok and "before 3.8.0" in why

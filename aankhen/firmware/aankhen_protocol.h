@@ -113,7 +113,7 @@ static inline bool ak_crc_self_test() {
   return ak_crc16((const uint8_t *)v, 9) == 0x29B1;
 }
 
-#define AK_MAX_PAYLOAD 1024           // STATUS, the largest type (MAX_PAYLOAD_BY_TYPE[STATUS])
+#define AK_MAX_PAYLOAD 1280           // STATUS, the largest type (MAX_PAYLOAD_BY_TYPE[STATUS]); 1024 before 3.8.0
 #define AK_FRAME_MAX (sizeof(ak_header_t) + AK_MAX_PAYLOAD + 2)
 
 // Writes whole frames to a Print (the USB serial port), and hands each finished frame

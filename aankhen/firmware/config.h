@@ -13,7 +13,7 @@
 // The JARVIS app edits the values below through a form (Limbs -> Firmware), which
 // rewrites only the number on each #define line: keep one define per line.
 #define RELAY_ACTIVE_LOW 1
-// The wall box (3.7.0, Aman's 3 two-channel boards): the six pins sit side by side on
+// The wall box (3.7.0, Aman's 3 two-channel boards, powered from a 5 V 0.75 A charger): the six pins sit side by side on
 // header J1 (positions 4-9: GPIO 4, 5, 6, 7, 15, 16), so one ribbon of six jumpers runs
 // from the board to the three relay modules. None is a strapping, USB, flash or PSRAM
 // pin (GPIO 15/16 are the 32 kHz crystal pins, free on the DevKitC-1, which has none).
@@ -25,14 +25,20 @@
 #define RELAY_LIGHT3_PIN 7    // relay module 2, IN2: L3, warm-white COB, inner square
 #define RELAY_LIGHT4_PIN 15   // relay module 3, IN1: L4, pink COB, outer square
 #define RELAY_LIGHT5_PIN 16   // relay module 3, IN2: L5, pink COB, inner square
+// light6 (white outer) and light7 (accent) have no module (dropped 6 Nov 2026): -1, so the
+// board never drives GPIO 8/18 and STATUS shows them as null ("not wired").
+#define RELAY_LIGHT6_PIN -1
+#define RELAY_LIGHT7_PIN -1
 // The relay table: each row is a name and a pin. The name is the word JARVIS sends
 // ({"relay":"light2","on":true}) and the device id in the app's devices.json (board
 // "esp32"): lowercase letters, digits and _, at most 12 characters. At most 8 rows.
-// Every relay boots OFF (except right after an OTA update, which restores them) and
-// keeps its state when Wi-Fi or the laptop goes away: the wall switches work anyway.
+// Every relay boots OFF; after an OTA update, a watchdog reset or a brownout the board
+// switches the last states back on from loop(), staggered (firmware.ino, POWER AND
+// RESETS). A relay keeps its state when Wi-Fi or the laptop goes away.
 #define RELAY_TABLE \
   {"light", RELAY_LIGHT_PIN}, {"fan", RELAY_FAN_PIN}, {"light2", RELAY_LIGHT2_PIN}, \
-  {"light3", RELAY_LIGHT3_PIN}, {"light4", RELAY_LIGHT4_PIN}, {"light5", RELAY_LIGHT5_PIN}
+  {"light3", RELAY_LIGHT3_PIN}, {"light4", RELAY_LIGHT4_PIN}, {"light5", RELAY_LIGHT5_PIN}, \
+  {"light6", RELAY_LIGHT6_PIN}, {"light7", RELAY_LIGHT7_PIN}
 
 // ---- 16x2 character LCD (HD44780 "1602", e.g. the RG1602A), optional -----------
 // 0 until the display is wired. Write-only 4-bit mode: the LCD's RW pin goes to GND, so
@@ -47,7 +53,7 @@
 #define LCD_D5_PIN 12
 #define LCD_D6_PIN 13
 #define LCD_D7_PIN 14
-#define LCD_LABELS "1F2345"   // one character per RELAY_TABLE row, in table order
+#define LCD_LABELS "1F234567"   // one character per RELAY_TABLE row, in table order
 #define LCD_MESSAGE_S 15      // how long a JARVIS message stays on row 2
 
 // ---- The Wi-Fi link to JARVIS (README.md, section 4c) ---------------------------
@@ -60,12 +66,12 @@
 #define LINK_FLUSH_MS 20
 
 // ---- Link 1: the router ------------------------------------------------------
-// Router pings per second = CSI captures per second. 500, not 100: the host averages
-// ~5 per 10 ms slot, which keeps a full-speed ceiling fan (~23 Hz and harmonics) from
-// folding into the human band. Each ping is two frames over the air, ~15-25 % of the
-// channel at 500. Must divide 1000 (the ping interval is a whole number of ms):
-// 100, 125, 200, 250 or 500.
-#define CSI_RATE_HZ 500
+// Router pings per second = CSI captures per second. 200 since 3.8.0 (was 500): every
+// ping is a TX burst, the biggest current peaks on the wall box's 0.75 A charger, and
+// the board measured only ~343/s of the 500 anyway (6 Nov). 200 still gives the host
+// ~2 per 10 ms slot to average against the ceiling fan's aliases (~23 Hz and harmonics).
+// Must divide 1000 (the ping interval is a whole number of ms): 100, 125, 200, 250 or 500.
+#define CSI_RATE_HZ 200
 // How long one router ping waits for its reply before the next may go (ms). Short,
 // so a lost reply on a weak link costs one slot, not a second of CSI (3.5.1).
 #define CSI_PING_TIMEOUT_MS 10

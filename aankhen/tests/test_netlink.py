@@ -124,26 +124,9 @@ def test_frame_spans_refuses_a_cut_frame():
         nl.frame_spans(b"junk" + f)
 
 
-def _status_worst_case() -> bytes:
-    """firmware.ino buildStatus() at its longest: five relays, a phone, a session, every
-    counter at its widest. Written from the C format string, value by value."""
-    relays = ",".join(f'"{n}":false' for n in ("light", "fan", "light2", "light3", "light4"))
-    pins = ",".join(f'"{n}":{p}' for n, p in (("light", 4), ("fan", 5), ("light2", 6), ("light3", 7), ("light4", 8)))
-    u32 = 4294967295
-    beacon = (f'{{"ip":"255.255.255.255","mac_known":false,"pings_ok":{u32},"rate_hz":{u32},"rssi":-100,'
-              f'"dropped":{u32},"rejected":{u32},"fallback":false}}')
-    net = (f'{{"key":"abcdef01","port":47269,"peer":"255.255.255.255:65535","dgrams":{u32},"cmds":{u32},'
-           f'"bad":{u32},"replays":{u32},"fail":{u32}}}')
-    js = (f'{{"fw":"aankhen-3.5.0","uptime_s":4294967.3,"relays":{{{relays}}},"relay_pins":{{{pins}}},'
-          f'"wifi":"connecting","ip":"255.255.255.255","mdns":"aankhen.local","rssi":-100,"channel":13,'
-          f'"csi_hz":{u32},"csi_dropped":{u32},"csi_rejected":{u32},"radar_frames":{u32},"radar_bad":{u32},'
-          f'"mqtt":false,"http":false,"heap_free":{u32},"crc_ok":false,"gain":"unavailable","ota":false,'
-          f'"reset":"reset-pin","beacon_enabled":false,"beacon":{beacon},"net":{net}}}')
-    return js.encode()
-
-
 def test_the_longest_status_fits_its_buffer_the_host_limit_and_one_datagram():
-    js = _status_worst_case()
+    from aankhen.tests.test_status_lq import status_worst_case    # built from buildStatus()'s format string
+    js = status_worst_case()
     json.loads(js)
     status_max = int(re.search(r"#define STATUS_MAX (\d+)", (FW_DIR / "firmware.ino").read_text()).group(1))
     assert len(js) < status_max <= MAX_PAYLOAD_BY_TYPE[FrameType.STATUS]

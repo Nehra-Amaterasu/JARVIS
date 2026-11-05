@@ -10,6 +10,7 @@
     POST /api/board/flash/plan          {target: usb|wifi, port?, ip?}: what a flash would do
     POST /api/board/flash               {plan_id, confirm: true, password?}: do it
     POST /api/board/relay-test/{device} toggle one relay for 1 s, restore it, return a receipt
+    POST /api/board/power-normal        leave the board's power-safe mode (firmware 3.8.0)
 
 Nothing uploads without both calls: the plan (a click) and the flash with that plan's id
 and confirm=true (the confirm button). The logic lives in board_ctl.py.
@@ -77,3 +78,10 @@ def register(app, svc, bus) -> None:
     @app.post("/api/board/relay-test/{device}")
     async def board_relay_test(device: str):
         return await run_in_threadpool(call, ctl.relay_test, device)
+
+    @app.post("/api/board/power-normal")
+    async def board_power_normal():
+        ok, why = await run_in_threadpool(svc.hub.clear_power_safe)
+        if not ok:
+            raise HTTPException(409, why)
+        return {"power": "normal"}

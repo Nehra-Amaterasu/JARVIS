@@ -399,11 +399,11 @@ def test_firmware_boots_every_relay_off_before_the_network_starts():
     assert "r.on = false" in init
     setup = _body(ino, "void setup()")
     # 3.6.0: startWifi() returns at once and loop() finishes the join, so relays are off first
-    assert setup.index("bootRelays()") < setup.index("startWifi()") < setup.index("startHttp()")
-    boot = _body(ino, "static const char *bootRelays()")
-    # kept ON only across a software reset that the OTA path marked: never a power cut
-    assert "esp_reset_reason() == ESP_RST_SW && relayKeepMagic == RELAY_KEEP_MAGIC" in boot
-    assert "relayKeepMagic = 0" in boot
+    assert setup.index("bootPower()") < setup.index("startWifi()") < setup.index("startHttp()")
+    boot = _body(ino, "static const char *bootPower()")
+    # 3.8.0: setup() never energises a coil; restores run from loop() (test_firmware_power.py)
+    assert "applyRelay(" not in boot and "setRelay(" not in boot and "delay(" not in boot
+    assert "ESP_RST_POWERON" in boot and "memset(&rtcKeep, 0" in boot
 
 
 def test_the_only_relay_paths_without_hmac_are_compiled_out_by_default():
@@ -411,8 +411,10 @@ def test_the_only_relay_paths_without_hmac_are_compiled_out_by_default():
     secrets leave both off, so a board flashed from it switches only over USB or the
     signed link. (Both, when enabled, are replayable on the LAN: see the audit note.)"""
     ino = _ino()
-    relay_route = ino.index('http.on("/relay"')
-    assert ino.rfind("#ifdef RELAY_TOKEN_VALUE", 0, relay_route) > ino.rfind("#endif", 0, relay_route)
+    # 3.8.0: /relay is always routed (POST only) but, without RELAY_TOKEN_VALUE, answers 503
+    # before anything can switch: setRelay is only compiled in the token branch.
+    relay = _body(ino, "static void onRelay()")
+    assert relay.index("#ifndef RELAY_TOKEN_VALUE") < relay.index("503") < relay.index("#else") < relay.index("setRelay(")
     assert "#if defined(MQTT_URI_VALUE) && defined(MQTT_USER_VALUE)" in _body(ino, "static void startMqtt()")
     ex = (FW_DIR / "secrets.example.h").read_text(encoding="utf-8")
     for name in ("RELAY_TOKEN_VALUE", "MQTT_URI_VALUE", "MQTT_USER_VALUE", "LINK_KEY_VALUE", "OTA_PASS_VALUE"):

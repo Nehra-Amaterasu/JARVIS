@@ -17,18 +17,15 @@ faster-whisper==1.2.1            # speech to text (Whisper large-v3-turbo on the
 openwakeword==0.6.0              # "hey jarvis"
 sounddevice==0.5.5               # microphone, chimes
 pygame==2.6.1                    # reply playback; pygame-ce dropped, both write pygame/
-edge-tts==7.2.8                  # online voices
+edge-tts==7.3.1                  # online voices
 kokoro-onnx==0.6.1               # offline voice on the CPU
 soundfile==0.14.0                # Kokoro audio to file
 indic-transliteration==2.3.82    # Devanagari -> roman Hinglish
 
-# --- Brain: core/agent.py, ollama_guard.py, room.py, mcp_*.py
+# --- Brain: core/agent.py, ollama_guard.py, room.py
 langchain-core==1.5.0
 langchain-ollama==1.1.0          # Qwen3-4B through Ollama
 httpx==0.28.1                    # Ollama health checks, app connectors
-paho-mqtt==2.1.0                 # room state to the ESP32
-fastmcp==3.4.4                   # core/mcp_hardware_server.py
-requests==2.34.2                 # core/mcp_hardware_server.py
 
 # --- Memory (Yaadash): yaadash/, app/jarvis_app/memory.py
 lancedb==0.34.0
@@ -63,3 +60,12 @@ websockets==16.1.1               # uvicorn's WebSocket routes
 
 # --- Tests: aankhen/tests, app/tests, yaadash/tests, requirements/
 pytest==9.1.1
+
+# --- Added 2026-11-01: imported by the code but missing from this list (the test caught them)
+av==18.0.0                       # audio decode: aankhen/narrate.py, core/playback.py
+threadpoolctl==3.6.0             # one BLAS thread per worker: aankhen/learn.py, aankhen/worldeval.py
+mutagen==1.48.1                  # music tags: app/jarvis_app/media.py
+pymupdf==1.28.0                  # PDF text for the study library: yaadash/library.py
+python-docx==1.2.0               # .docx text for the study library
+python-pptx==1.0.2               # .pptx text for the study library
+huggingface-hub==1.24.0          # model files for the study library's embedder

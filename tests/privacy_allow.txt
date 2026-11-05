@@ -20,6 +20,4 @@ name 04c013432ea3 yaadash/library.py
 name 04c013432ea3 yaadash/tests/library_corpus.py
 
 # Still to remove (marked P-E-N-D-I-N-G): real personal data in files another workstream owns; remove the value, then the line here
-name 1e0c88e6f39b yaadash/legacy/ingest_project_ground_truths.py   # PENDING a friend's first name (2 lines)
-name 1e0c88e6f39b yaadash/legacy/mine_agent_transcripts.py         # PENDING the same first name (1 line)
 name 4f7b590b3017 yaadash/yaadash_archive.py                       # PENDING a friend's username prefix in a comment

@@ -63,7 +63,7 @@ Mission Germoney Expo app lived in a different Projects folder altogether.
 | `brain/yaadash_*.py`, `remember.py`, `ingest_*.py`, `refresh_memory.py` | `yaadash/` |
 | `brain/aankhen/` | `aankhen/` (package at the root) |
 | `brain/aankhen_esp32_firmware/` | `aankhen/firmware/` |
-| `brain/legacy/`, v1 Aankhen files, old memory server | `core/legacy/`, `yaadash/legacy/`, `aankhen/legacy/` |
+| `brain/legacy/`, v1 Aankhen files, old memory server | `core/legacy/`, `yaadash/legacy/`, `aankhen/legacy/`; deleted 2026-11-01 (nothing imported them; in git history before that date) |
 | `brain/yaadash_data/`, `brain/lancedb/` | `data/yaadash/`, `data/yaadash/lancedb/` |
 | `brain/models/kokoro/` | `data/models/kokoro/` |
 | `brain/aankhen/room.json`, baselines, `recordings/`, `models/` | `data/aankhen/` |

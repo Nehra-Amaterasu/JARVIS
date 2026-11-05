@@ -4,7 +4,7 @@ Until now JARVIS started from a command prompt (`python jarvis.py`) and lived in
 scrolling console. This document is the design for the application that replaces
 that: one window, one launcher, every subsystem visible and controllable.
 
-It supersedes the earlier `jarvis_desktop_app_design_spec.md` where they disagree.
+It replaced the first desktop-app spec (deleted 2026-11-01, in git history).
 That spec described features the hardware cannot deliver (17-joint skeletons and
 heart rate from a single Wi-Fi link); this one only shows what is actually measured.
 

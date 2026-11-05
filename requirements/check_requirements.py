@@ -82,15 +82,6 @@ IMPORTED_NOT_REQUIRED = {
 
 # Listed in requirements.gpu.txt although no JARVIS file imports them.
 INDIRECT = {
-    "onnxruntime": "Runs the wake word (openwakeword, inference_framework='onnx' in "
-                   "core/jarvis.py), Kokoro speech and faster-whisper's Silero VAD. "
-                   "Pinned here because three packages share it and the wake-word "
-                   "backend choice in jarvis.py depends on it being present.",
-    "torch": "sentence-transformers runs bge-small on it, and the CUDA 12.1 build is "
-             "what supplies cublas64_12.dll to CTranslate2 (Whisper on the GPU): with "
-             "no CUDA toolkit or nvidia-cublas wheel installed, the DLL failed to load "
-             "before `import torch` and loaded after it (checked 2026-10-12). PyPI's "
-             "default Windows torch is CPU-only, hence the extra index URL.",
     "websockets": "uvicorn's WebSocket protocol. /ws/events and the Aankhen stream are "
                   "WebSocket routes, and uvicorn rejects upgrades when no WebSocket "
                   "library is installed; fastapi and uvicorn do not depend on one.",

@@ -113,7 +113,7 @@ llm_precise = ChatOllama(
 # different num_ctx would make Ollama reload the model), a hard cap of 60 tokens.
 remark_llm = ChatOllama(model=BRAIN_MODEL, temperature=0.4, num_ctx=8192, num_predict=60,
                         repeat_penalty=1.1, keep_alive=KEEP_ALIVE)
-# Until 2026-10-12: two LangChain tools (mcp_client_bridge.py, now core/legacy/) bound
+# Until 2026-10-12: two LangChain tools (mcp_client_bridge.py, deleted 2026-11-01) bound
 # only when the sentence contained one of 16 exact phrases. Now every enabled tool in
 # the registry is bound whenever the turn touches something a tool does
 # (REGISTRY.wants_tools); T2 tools stay unbound while switched off, T3 never exist.

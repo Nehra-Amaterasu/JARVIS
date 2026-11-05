@@ -50,7 +50,8 @@ DEFAULT_PF = 0.8                      # cheap LED drivers and fan motors sit nea
 NEVER_ON_RELAY = {"ac": "AC", "air_conditioner": "AC", "geyser": "geyser",
                   "water_heater": "geyser", "heater": "heater", "room_heater": "heater"}
 KINDS = {"light", "fan", "socket", "tv", "fridge", "pump", "other"} | set(NEVER_ON_RELAY)
-LEGACY_DEVICES = ("light", "fan")     # Limbs' devices, driven by name on the ESP32
+SWITCHABLE_DEVICES = ("light", "fan", "light2", "light3", "light4", "light5", "light6", "light7")
+LEGACY_DEVICES = SWITCHABLE_DEVICES     # Limbs' devices, driven by name on the ESP32
 
 _FIELDS = ("id", "name", "room", "kind", "rated_w", "relay", "safe_7a", "alias", "must_not_auto_off",
            "speed_steps", "watts_by_step", "power_factor", "remind_after_min", "note")

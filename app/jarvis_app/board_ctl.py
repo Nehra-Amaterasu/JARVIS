@@ -50,7 +50,7 @@ PLAN_TTL_S = 120.0                            # a confirm dialog left open longe
 COMPILE_TIMEOUT_S = 900.0                     # a cold core build took ~4 min on this laptop
 UPLOAD_TIMEOUT_S = 240.0                      # USB at 921,600 baud: ~25 s for ~1 MB
 WIFI_PROBE_TTL_S = 4.0                        # the panel polls every 2 s; the board is asked half as often
-WIFI_PROBE_TIMEOUT_S = 1.5
+WIFI_PROBE_TIMEOUT_S = 3.5
 TEST_HOLD_S = 1.0                             # a test click keeps the relay toggled this long
 BOARD_CONFIRM_S = 0.8                         # the firmware confirms a relay in its next STATUS, at once
 SOURCE_FILES = ("firmware.ino", "config.h")   # what the read-only viewer may show
@@ -60,7 +60,7 @@ TOKEN_MARKER = b"no such relay"               # the /relay handler: present only
 
 # The ESP32-S3 GPIOs a relay input may use, and why the others may not (ESP32-S3
 # datasheet, "Strapping Pins" and "Pin Overview"; ESP32-S3-DevKitC-1 user guide).
-SAFE_GPIOS = (1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 21, 39, 40, 41, 42, 47)
+SAFE_GPIOS = (1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 21, 39, 40, 41, 42, 47)
 PIN_REASONS = {
     **{p: "a strapping pin: a relay input pulling it at reset can stop the board booting" for p in (0, 3, 45, 46)},
     **{p: "the USB data line JARVIS talks over" for p in (19, 20)},
@@ -85,6 +85,10 @@ CONFIG_FIELDS = [
      "help": "Relay \"light4\" in RELAY_TABLE (firmware 3.5.0). -1: not wired."},
     {"key": "RELAY_LIGHT5_PIN", "label": "Light 5 relay GPIO", "kind": "pin",
      "help": "Relay \"light5\" in RELAY_TABLE (firmware 3.7.0). -1: not wired."},
+    {"key": "RELAY_LIGHT6_PIN", "label": "Light 6 relay GPIO", "kind": "pin",
+     "help": "Relay \"light6\" in RELAY_TABLE (Module 4, IN1). -1: not wired."},
+    {"key": "RELAY_LIGHT7_PIN", "label": "Light 7 relay GPIO", "kind": "pin",
+     "help": "Relay \"light7\" in RELAY_TABLE (Module 4, IN2). -1: not wired."},
     {"key": "RELAY_ACTIVE_LOW", "label": "Relay module is active-low", "kind": "bool",
      "help": "Most optocoupler modules switch ON when IN is pulled LOW. If yours clicks on at boot, flip it."},
     {"key": "CSI_RATE_HZ", "label": "Router pings per second (link 1)", "kind": "choice",
@@ -100,7 +104,8 @@ FIELD_KEYS = [f["key"] for f in CONFIG_FIELDS]
 PIN_KEYS = [f["key"] for f in CONFIG_FIELDS if f["kind"] == "pin"]
 # The relay each pin define drives (its name in RELAY_TABLE, config.h).
 RELAY_PIN_KEY = {"light": "RELAY_LIGHT_PIN", "fan": "RELAY_FAN_PIN", "light2": "RELAY_LIGHT2_PIN",
-                 "light3": "RELAY_LIGHT3_PIN", "light4": "RELAY_LIGHT4_PIN", "light5": "RELAY_LIGHT5_PIN"}
+                 "light3": "RELAY_LIGHT3_PIN", "light4": "RELAY_LIGHT4_PIN", "light5": "RELAY_LIGHT5_PIN",
+                 "light6": "RELAY_LIGHT6_PIN", "light7": "RELAY_LIGHT7_PIN"}
 READONLY_KEYS = ("AK_GAIN_LIB", "RADAR_RX_PIN", "RADAR_TX_PIN", "RADAR_BAUD")
 _DEFINE = re.compile(r"^(?P<head>[ \t]*#define[ \t]+(?P<key>[A-Z][A-Z0-9_]*)[ \t]+)(?P<val>-?\d+)(?P<tail>[^\r\n]*)(?=\r?$)",
                      re.M)   # \r?: the checkout stores config.h with CRLF line ends

@@ -29,7 +29,14 @@ export function SystemPage() {
   const [crew, , reloadCrew] = usePoll(() => loadCrew(), 4000)
   const [logs] = usePoll(() => api<{ t: number; line: string }[]>('/api/core/logs?n=200'), 2500)
   const logRef = useRef<HTMLDivElement>(null)
-  useEffect(() => { logRef.current?.scrollTo({ top: logRef.current.scrollHeight }) }, [logs])
+  useEffect(() => {
+    const el = logRef.current
+    if (!el) return
+    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40
+    if (isAtBottom) {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    }
+  }, [logs])
 
   const hear = hearingLine(lat?.core)
   const s = lat?.summary

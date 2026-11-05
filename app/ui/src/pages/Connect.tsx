@@ -24,7 +24,7 @@ import { PageHeader } from '../components/Shell'
 import { BrainCard, ExportsSection, ModulesSection, PronunciationCard, VoiceCard } from '../components/ConnectControls'
 import { RemarksCard } from '../components/RemarksCard'
 import { PhoneCard } from '../components/PhoneCard'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 interface Item { id: string; group: string; name: string; status: 'connected' | 'installed' | 'available' | 'missing' | 'planned'; detail: string; next: string | null }
 
@@ -99,6 +99,11 @@ function Integration({ item }: { item: Item }) {
   const Icon = GLYPH[item.id] ?? Database
   const toast = useStore((s) => s.toast)
   const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    if (!copied) return
+    const t = window.setTimeout(() => setCopied(false), 1500)
+    return () => window.clearTimeout(t)
+  }, [copied])
   const isCmd = !!item.next && /^(winget|ollama|pip|npm|python)\b/.test(item.next)
   return (
     <section className={`card integ ${item.status}`}>
@@ -115,7 +120,6 @@ function Integration({ item }: { item: Item }) {
               void navigator.clipboard.writeText(item.next!)
               setCopied(true)
               toast('Copied — run it in a terminal.', 'info')
-              window.setTimeout(() => setCopied(false), 1500)
             }}>{copied ? <Check size={13} /> : <Copy size={13} />}</button>
           )}
         </div>

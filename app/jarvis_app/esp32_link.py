@@ -177,6 +177,6 @@ class Esp32Link:
                 "last_ip": self._data.get("last_ip"), "addresses": cfg.addresses, "prefer": cfg.prefer,
                 "board_port": cfg.board_port, "host_port": cfg.host_port, "mdns": MDNS_NAME,
                 "board_fingerprint": board_fp,
-                "key_matches": (board_fp == mine) if board_fp and mine else None,
+                "key_matches": (board_fp.strip().lower() == mine.strip().lower()) if board_fp and mine else None,
                 "firewall": firewall_command(cfg.host_port),
                 "secrets_file": "aankhen/firmware/secrets.h"}

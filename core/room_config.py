@@ -36,7 +36,7 @@ UNO_PINS = range(2, 14)          # D0/D1 are the Uno's USB serial link
 # "esp32" device, `id` is the relay's NAME in the firmware's RELAY_TABLE (config.h), and
 # `channel` is the GPIO that table gives it: the board's STATUS reports both
 # ("relay_pins"), and the app says so when they disagree.
-ESP32_PINS = (1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 21, 39, 40, 41, 42, 47)
+ESP32_PINS = (1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18, 21, 39, 40, 41, 42, 47)
 ID_RX = re.compile(r"^[a-z][a-z0-9_]{0,11}$")   # also the firmware's command word (line buffer: 48 chars)
 
 # The relay board since 2026-10-28 is the ESP32-S3 in the wall box, over USB or its Wi-Fi

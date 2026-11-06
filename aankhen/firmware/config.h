@@ -29,6 +29,19 @@
 // board never drives GPIO 8/18 and STATUS shows them as null ("not wired").
 #define RELAY_LIGHT6_PIN -1
 #define RELAY_LIGHT7_PIN -1
+// Coil economiser (3.9.0). A coil needs its full 5 V only to pull the armature in (75 % =
+// 3.75 V, SRD datasheet); holding it closed takes about half. So each relay gets full drive
+// for RELAY_PULLIN_MS (Panasonic: >= 100 ms), then a RELAY_HOLD_HZ square wave on its IN pin
+// that keeps the coil on RELAY_HOLD_PCT % of the time. The module's flyback diode carries
+// the coil current through the off part, so the coil sees ~55 % of its current and the
+// supply only ~0.55 x that: ~22 mA per held relay instead of 71, six relays ~130 mA instead
+// of 428 on the 0.75 A charger (docs/research/wallbox-power.md section 3). 1 kHz because the
+// modules' PC817 optos switch in tens of us: 2-3 kHz is their ceiling, 20 kHz would be all
+// edge. A coil may hum faintly at 1 kHz. 0 = off: plain on/off drive, as 3.8.0.
+// Raise it (60, 70) if a relay ever drops out on its own; never below 40.
+#define RELAY_HOLD_PCT 55
+#define RELAY_HOLD_HZ 1000
+#define RELAY_PULLIN_MS 150
 // The relay table: each row is a name and a pin. The name is the word JARVIS sends
 // ({"relay":"light2","on":true}) and the device id in the app's devices.json (board
 // "esp32"): lowercase letters, digits and _, at most 12 characters. At most 8 rows.

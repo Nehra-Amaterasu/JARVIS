@@ -141,7 +141,7 @@ static_assert(AkText::hex(LINK_KEY_VALUE), "LINK_KEY_VALUE (secrets.h) must be h
 #endif
 
 // ------------------------------------------------------------------ config
-#define FW_VERSION "aankhen-3.8.0"
+#define FW_VERSION "aankhen-3.9.0"
 #define STATUS_MAX 1280                 // the STATUS JSON's buffer, terminator included. 3.8.0 raised it
                                         // with the host's limit (protocol.py, AK_MAX_PAYLOAD): eight relays
                                         // reach ~1,074 B and the power/pending fields ~+200, past 1024.
@@ -174,7 +174,12 @@ static_assert(BEACON_ENABLED == 0 || BEACON_ENABLED == 1, "BEACON_ENABLED (confi
 // Relays (mains). The table (names and pins) is RELAY_TABLE in config.h; -1 disables one.
 // on: what the pin drives now. target: the last command (last tap wins). changedMs: when
 // target last changed, for the settle window.
-struct Relay { const char *name; int pin; bool on = false; bool target = false; uint32_t changedMs = 0; };
+struct Relay {
+  const char *name; int pin; bool on = false; bool target = false; uint32_t changedMs = 0;
+  bool pwm = false;        // the pin is on LEDC (attached at its first pull-in, RELAY_HOLD_PCT)
+  bool held = false;       // pulled in and dropped to the hold duty
+  uint32_t onMs = 0;       // when the coil was energised
+};
 static Relay RELAYS[] = { RELAY_TABLE };
 
 #ifndef RELAY_TOKEN_VALUE
@@ -776,11 +781,51 @@ static void saveRelaysState() {
   rtcSave();
 }
 
+#ifndef RELAY_HOLD_PCT
+#define RELAY_HOLD_PCT 0
+#endif
+#if RELAY_HOLD_PCT > 0
+static_assert(RELAY_HOLD_PCT >= 40 && RELAY_HOLD_PCT <= 100, "RELAY_HOLD_PCT: 40-100, or 0 for off");
+#define RELAY_PWM_BITS 8
+// Coil-on fraction pct as an LEDC duty. LEDC's duty is the HIGH time; an active-low module
+// is on while the pin is LOW. 100 % -> 256 (ledcWrite's "always on"), 0 % -> 0.
+static uint32_t relayDuty(uint32_t coilPct) {
+  uint32_t highPct = RELAY_ACTIVE_LOW ? 100 - coilPct : coilPct;
+  return highPct * (1u << RELAY_PWM_BITS) / 100;
+}
+#endif
+
 static void applyRelay(Relay &r, bool on) {
   if (r.pin < 0) return;
   r.on = on;
+  r.held = false;
+  r.onMs = millis();
+#if RELAY_HOLD_PCT > 0
+  // Attach LEDC only at the first pull-in, never at boot: an attached channel starts at
+  // duty 0 (pin LOW), which is ON on an active-low module. Here ON is what we want, and
+  // from then on the pin stays on LEDC and OFF is a duty, not a digitalWrite.
+  if (on && !r.pwm) r.pwm = ledcAttach(r.pin, RELAY_HOLD_HZ, RELAY_PWM_BITS);
+  if (r.pwm) {
+    ledcWrite(r.pin, relayDuty(on ? 100 : 0));     // pull-in at full drive, or off
+    statusSoon = true;
+    return;
+  }
+#endif
   digitalWrite(r.pin, (on ^ (bool)RELAY_ACTIVE_LOW) ? HIGH : LOW);
   statusSoon = true;
+}
+
+// loop(): a coil that has been fully on for RELAY_PULLIN_MS drops to the hold duty.
+static void holdRelays(uint32_t now) {
+#if RELAY_HOLD_PCT > 0 && RELAY_HOLD_PCT < 100
+  for (auto &r : RELAYS)
+    if (r.pwm && r.on && !r.held && now - r.onMs >= RELAY_PULLIN_MS) {
+      ledcWrite(r.pin, relayDuty(RELAY_HOLD_PCT));
+      r.held = true;
+    }
+#else
+  (void)now;
+#endif
 }
 
 // A command (USB, Wi-Fi link, HTTP, MQTT, or a restore): it only moves the target.
@@ -2002,6 +2047,7 @@ void loop() {
   uint32_t now = millis();
   powerTick(now);
   pumpRelays(now);
+  holdRelays(now);
   // CSI: drain the queues in bursts. Link 1 first: it is what the engine runs on.
   drainCsi(csiQueue, 16);
   drainCsi(linkQueue, 8);

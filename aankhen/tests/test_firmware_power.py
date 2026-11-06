@@ -33,6 +33,20 @@ def test_nothing_is_energised_inside_setup():
     assert "bootRelays" not in INO and "relayKeepMagic" not in INO
 
 
+def test_coils_pull_in_at_full_drive_then_drop_to_the_hold_duty():
+    # 3.9.0: six held coils at 55 % take ~130 mA from the charger instead of 428 mA.
+    assert 40 <= _define(CFG, "RELAY_HOLD_PCT") <= 70
+    assert _define(CFG, "RELAY_HOLD_HZ") <= 3000            # the PC817 optos' ceiling
+    assert _define(CFG, "RELAY_PULLIN_MS") >= 100           # Panasonic's minimum pull-in
+    apply, hold = _body("applyRelay"), _body("holdRelays")
+    assert "if (on && !r.pwm)" in apply and "relayDuty(on ? 100 : 0)" in apply
+    assert "RELAY_PULLIN_MS" in hold and "relayDuty(RELAY_HOLD_PCT)" in hold
+    assert "holdRelays(now)" in _body("loop")
+    # LEDC is never attached at boot: a fresh channel starts LOW, ON on an active-low module.
+    for fn in ("setup", "bootPower", "initRelay"):
+        assert "ledcAttach" not in _body(fn), fn
+
+
 def test_brownout_boots_off_and_waits_for_wifi_then_restores_slowly():
     boot = _body("bootPower")
     assert "ESP_RST_POWERON" in boot and "memset(&rtcKeep, 0" in boot

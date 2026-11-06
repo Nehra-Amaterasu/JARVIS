@@ -112,7 +112,7 @@ def status_worst_case() -> bytes:
            f'"bad":{U32},"replays":{U32},"fail":{U32}}}')
     lq = (_lq_format().replace("%lu", str(U32), 2).replace("%u", "65535", 1)
           .replace("%s", "null", 2).replace("%u", "65535", 1).replace("%s", '"ff:ff:ff"', 1))
-    values = ["aankhen-3.8.0", "4294967.3", relays, relays, pins, "restoring",
+    values = ["aankhen-3.9.0", "4294967.3", relays, relays, pins, "restoring",
               '"repeat brownout"', "65535", "65535", str(U32),
               "connecting", "255.255.255.255", '"aankhen.local"', "-100", "13",
               str(U32), str(U32), str(U32), "false", "false", str(U32), "false",
@@ -136,9 +136,9 @@ def test_the_longest_status_fits_the_buffer_and_the_host_limit():
     assert len(js) < status_max == ak_max == MAX_PAYLOAD_BY_TYPE[FrameType.STATUS] == 1280
 
 
-def test_firmware_version_is_380():
+def test_firmware_version_is_390():
     ino = (FW_DIR / "firmware.ino").read_text(encoding="utf-8")
-    assert '#define FW_VERSION "aankhen-3.8.0"' in ino
+    assert '#define FW_VERSION "aankhen-3.9.0"' in ino
 
 
 # ------------------------------------------------------------- smoke report

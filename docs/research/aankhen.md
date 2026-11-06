@@ -2,6 +2,45 @@
 
 Newest first. One section per question; older dated notes (`2026-10-*-aankhen-*.md`) stay as they were.
 
+## 2026-11-06: firmware 3.8.0 on the 0.75 A charger: the brownout loop, last-tap-wins, a partial soak
+
+**Question.** Why did the wall box reboot in a loop on its 5 V 0.75 A charger, and does 3.8.0 (WP1 of the 6 Nov plan) stop it?
+
+**Cause found in the code.** 3.7.2 restored every saved relay inside `setup()` after any reset, brownout included, so each brownout re-energised the coils that caused it.
+
+**Cause found on the bench.** With 3.8.0 flashed and USB unplugged, the board still browned out about once a second, with every relay off. 3.8.0 restores nothing until Wi-Fi has been up for 10 s, and Wi-Fi never got that far. So the ESP32 alone was failing on that feed.
+
+The owner traced it to the breadboard. The rail was daisy-chained: capacitors, then relay 1, relay 2, a bridge jumper, relay 3, and the ESP32 at the far end. Moving the ESP32's 5 V and GND jumpers next to the capacitors stopped it at once. The likely mechanism is that the radio's start-up peaks and the coil currents shared a long, resistive rail and ground strip. WP2's numbers fit this: the S3 transmits at 283-340 mA, and a brownout reset needs the 5 V node to fall below ~2.7 V, which is a wiring or charger-limit drop, not a small sag ([wallbox-power.md](wallbox-power.md)).
+
+**What 3.8.0 changes.**
+- **Boot and restore:** nothing is energised in `setup()`.
+  - Power-on: everything off.
+  - Software or watchdog reset: the saved relays are restored from `loop()`.
+  - Brownout: everything off; once Wi-Fi has been up 10 s, the saved relays come back one per 600 ms.
+  - A second brownout within 120 s of a restore enters power-safe mode, which only the app's `{"power":"normal"}` clears.
+- **Taps:** a command sets a target. OFF is applied at once; ON waits for 250 ms of quiet and goes 120 ms after the previous coil.
+- **Load:** 200 CSI pings/s instead of 500, transmit power 15 dBm.
+- **STATUS:** adds `relays_target`, `power`, `brownouts`, `restores` and `taps`.
+
+**Numbers (board's own STATUS).**
+
+| Test | Link and power | Result |
+|---|---|---|
+| 20 alternating taps in 2.2 s | USB | Coil switched once, 250 ms after the last tap, ending on the last tap; 9 coalesced |
+| Two relays at once | USB | 250 ms settle, then the second coil 120 ms after the first |
+| Radio, 15 s | Wi-Fi | CSI 202/s; ping loss 0.18 %; RSSI −70 dBm; worst gap 15 ms; command confirmed in 32 ms |
+| Soak, 231 s clean | Charger only, Wi-Fi | Each relay ×5, pairs ×10, 20 taps all passed; all six ON for 173 s |
+
+During the soak: 0 reboots, 0 new brownouts, 0 reconnects, ping loss 0.19 % (86 of 46,229), RSSI −68 dBm median (−71 worst), CSI 202/s median (200 minimum), worst gap 23 ms.
+
+The board's record showed one brownout followed by one restore. That was the rewiring moment: the board booted off and restored once, with no loop.
+
+**Limits.**
+- The soak was cut at 7.6 min of uptime: the JARVIS app was started and the USB cable reconnected, and the app switched the relays. The 30-minute all-six hold and the forced dip (charger unplugged with relays on, then a second dip into safe mode) are still to run.
+- The rewiring fix rests on one observation, with no voltage measured at the ESP pin.
+
+**What it changed.** The STATUS limit went from 1024 to 1280 bytes on both sides: the worst case is 1,267 B, rebuilt by a test from the firmware's own format string. The breadboard layout is now a power rule for the wall box: the ESP32 gets its own short feed beside the capacitors, never the end of the relay chain.
+
 ## 2026-10-28 (evening): the wall box on the bench: six relays, 18 of 18 clicks confirmed
 
 **Question.** With the three relay modules wired to the S3 (GPIO 4, 5, 6, 7, 15, 16) and the room MCB down, does every relay answer, and why did the modules show nothing before?

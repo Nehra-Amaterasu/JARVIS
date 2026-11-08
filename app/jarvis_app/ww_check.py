@@ -1,0 +1,317 @@
+"""Well Wisher's gate: the checks that keep the engines, the routes and the pages honest.
+
+    python -m jarvis_app.ww_check          report on the real inputs (read-only) + a stress run,
+                                           printed and appended to data/notes/well-wisher/checks/
+    tests/test_ww_gate.py                  the same checks on synthetic data, in the suite
+
+Three kinds of drift it catches, each one a thing that happened here before:
+  1. route drift: a route in a module's docstring table that no decorator defines, or a path
+     the UI calls that no route serves (the blob-link opener, the Internals card after the
+     end-sems: the page looked alive while the server said 404 or nothing);
+  2. engine drift: an engine that is not pure (two runs, two answers), an allocation that
+     hands out more minutes than a slot has, a margin that disagrees with its own formula;
+  3. budget drift: an engine that got slow (exams over 20 papers and 800 topics, attendance
+     over 3,000 taps) so Today would wait on it.
+Every number in the report is measured in that run; nothing is estimated.
+"""
+from __future__ import annotations
+
+import glob
+import json
+import os
+import random
+import re
+import time
+from datetime import date
+from pathlib import Path
+from typing import Any, Optional
+
+from . import ww_engines
+from .ww_attendance import margin
+from .ww_base import add_days
+
+APP_DIR = Path(__file__).resolve().parent
+UI_DIRS = (APP_DIR.parent / "ui" / "src" / "germoney", APP_DIR / "phone_page")
+ROUTE_FILES = sorted(APP_DIR.glob("*.py"))          # server.py defines routes too (/api/kv, /api/game/result)
+DOC_FILES = (APP_DIR / "routes_mission.py", APP_DIR / "routes_phone_ww.py", APP_DIR / "routes_phone.py")
+
+_DECOR = re.compile(r"@app\.(get|post|put|delete)\(\s*\"([^\"]+)\"")
+_DOCROW = re.compile(r"^\s{2,}(GET|POST|PUT|DELETE)\s+((?:/api/|/phone)\S*)", re.M)
+_UICALL = re.compile(r"[`'\"](/api/[^`'\"\s?]*)")
+_WS_OR_HEALTH = ("/ws/", "/api/health")
+
+
+# ------------------------------------------------------------------ 1. routes
+def routes_defined() -> set[tuple[str, str]]:
+    out = set()
+    for f in ROUTE_FILES:
+        for m, p in _DECOR.findall(f.read_text(encoding="utf-8")):
+            out.add((m.upper(), p))
+    return out
+
+
+def routes_documented() -> set[tuple[str, str]]:
+    out = set()
+    for f in DOC_FILES:
+        src = f.read_text(encoding="utf-8")
+        doc = src.split('"""', 2)[1] if src.count('"""') >= 2 else ""
+        for m, p in _DOCROW.findall(doc):
+            out.add((m, p.split("?")[0].rstrip(",")))      # a documented "?paper=<id>" is not part of the path
+    return out
+
+
+def ui_calls() -> dict[str, list[str]]:
+    """Every /api path literal in the Well Wisher UI and the phone pages, with the files that use it.
+    A template hole `${x}` becomes a path parameter; a literal ending in '/' is a prefix."""
+    out: dict[str, set[str]] = {}
+    for d in UI_DIRS:
+        for f in glob.glob(str(d / "**" / "*"), recursive=True):
+            if not f.endswith((".ts", ".tsx", ".js")) or "__tests__" in f or f.endswith(".test.ts"):
+                continue
+            text = Path(f).read_text(encoding="utf-8", errors="replace")
+            for p in _UICALL.findall(text):
+                p = re.sub(r"\$\{[^}]*\}", "{p}", p)
+                if "${" in p:                        # an unclosed hole: the literal ends at the hole
+                    p = p.split("${")[0]
+                out.setdefault(p, set()).add(os.path.relpath(f, APP_DIR.parent))
+    return {k: sorted(v) for k, v in out.items()}
+
+
+def _pattern(route: str) -> re.Pattern:
+    return re.compile("^" + re.sub(r"\{[^}]+\}", r"[^/]+", re.escape(route).replace(r"\{", "{").replace(r"\}", "}")) + "$")
+
+
+def route_drift() -> dict:
+    defined = routes_defined()
+    documented = routes_documented()
+    pats = [(m, p, _pattern(p)) for m, p in defined]
+    undocumented_defs = []     # informative only: not every route needs a docstring row
+    doc_without_route = sorted(f"{m} {p}" for m, p in documented
+                               if not any(m == dm and dp.match(p) for dm, _, dp in pats))
+    ui_without_route = []
+    for p, files in ui_calls().items():
+        if p.startswith(_WS_OR_HEALTH):
+            continue
+        if p.endswith("/"):
+            ok = any(dp_path.startswith(p) for _, dp_path, _ in pats)
+        else:
+            ok = any(dp.match(p) for _, _, dp in pats)
+        if not ok:
+            ui_without_route.append(f"{p}  ({', '.join(files)})")
+    return {"defined": len(defined), "documented": len(documented), "ui_paths": len(ui_calls()),
+            "doc_without_route": doc_without_route, "ui_without_route": sorted(ui_without_route),
+            "undocumented_defs": undocumented_defs}
+
+
+# ------------------------------------------------------------------ 2. engines
+def engine_smoke(inputs: dict, today: str) -> dict:
+    """Every registered engine runs with no data, twice, and gives the same dict."""
+    bad, slow = [], {}
+    for name in ww_engines.REGISTRY:
+        t0 = time.perf_counter()
+        a = ww_engines.run(name, inputs, today)
+        b = ww_engines.run(name, inputs, today)
+        slow[name] = round((time.perf_counter() - t0) / 2 * 1000, 1)
+        if not isinstance(a, dict) or a.get("engine") != name or "status" not in a:
+            bad.append(f"{name}: not an engine answer")
+        elif a != b:
+            bad.append(f"{name}: two runs differ (not pure)")
+    return {"engines": len(ww_engines.REGISTRY), "problems": bad, "ms": slow}
+
+
+def schema_consistency() -> list[str]:
+    """Each engine's declared input sections exist in the normalized inputs."""
+    norm = ww_engines.normalize_inputs({})
+    return [f"{spec.name}: declares input '{k}' that normalize_inputs never produces"
+            for spec in ww_engines.REGISTRY.values() for k in spec.inputs if k not in norm]
+
+
+def exams_invariants(out: dict) -> list[str]:
+    """What must hold in any exams answer, whatever the data."""
+    p = []
+    if out.get("status") != "ok":
+        return [f"exams status {out.get('status')}: {out.get('problems')}"]
+    papers = out.get("papers") or []
+    planned = {r["id"]: 0 for r in papers}
+    last_day = None
+    for d in out.get("days") or []:
+        if last_day and d["date"] <= last_day:
+            p.append(f"days out of order at {d['date']}")
+        last_day = d["date"]
+        if papers and d["date"] > max(r["date"] for r in papers):
+            p.append(f"a planned day {d['date']} after the last paper")
+        for s in d["slots"]:
+            used = sum(b["minutes"] for b in s["blocks"])
+            if used > s["minutes"] + 1e-9:
+                p.append(f"{d['date']} {s['label']}: {used} min planned in a {s['minutes']} min slot")
+            for b in s["blocks"]:
+                if b["minutes"] <= 0:
+                    p.append(f"{d['date']}: a zero-minute block for {b['paper']}")
+                if abs(sum(f["minutes"] for f in b["focus"]) - b["minutes"]) > 1e-9:
+                    p.append(f"{d['date']} {b['paper']}: focus items do not add up to the block")
+                planned[b["paper"]] = planned.get(b["paper"], 0) + b["minutes"]
+    for r in papers:
+        if r.get("planned_minutes") != planned.get(r["id"], 0):
+            p.append(f"{r['id']}: planned_minutes {r.get('planned_minutes')} but the blocks hold {planned.get(r['id'], 0)}")
+        if r["coverage"] is not None and not 0 <= r["coverage"] <= 1:
+            p.append(f"{r['id']}: coverage {r['coverage']} outside 0..1")
+        f = r.get("forecast") or {}
+        if f and not (0 <= f["half_plan"] <= f["full_plan"] <= 1):
+            p.append(f"{r['id']}: forecast {f['half_plan']}..{f['full_plan']} is not a rising range in 0..1")
+    ids = [r["id"] for r in papers]
+    if sorted(set(sum((g["ids"] for g in out.get("groups") or []), []))) != sorted(ids):
+        p.append("groups do not partition the papers")
+    return p
+
+
+def attendance_invariants(out: dict, threshold: Optional[float] = None) -> list[str]:
+    p = []
+    if out.get("status") != "ok":
+        return [f"attendance status {out.get('status')}"]
+    t = threshold if threshold is not None else float((out.get("rule") or {}).get("threshold") or 0.75)
+    for r in out.get("subjects") or []:
+        A, N = r["attended"], r["held"]
+        if N and not 0 <= r["pct"] <= 1:
+            p.append(f"{r['subject']}: pct {r['pct']}")
+        if r["can_miss"] and r["need"]:
+            p.append(f"{r['subject']}: both margin and need are set")
+        if r["can_miss"]:
+            S = r["can_miss"]
+            if not (A / (N + S) >= t - 1e-9 and A / (N + S + 1) < t):
+                p.append(f"{r['subject']}: margin {S} is not the largest S with A/(N+S) >= t ({A}/{N})")
+        if r["need"]:
+            R = r["need"]
+            if not ((A + R) / (N + R) >= t - 1e-9 and (A + R - 1) / (N + R - 1) < t):
+                p.append(f"{r['subject']}: need {R} is not the smallest R with (A+R)/(N+R) >= t ({A}/{N})")
+    return p
+
+
+def margin_sweep(threshold: float = 0.75, upto: int = 60) -> list[str]:
+    """Every (attended, held) pair to `upto`: the closed form agrees with brute force."""
+    p = []
+    for N in range(1, upto + 1):
+        for A in range(0, N + 1):
+            m = margin(A, N, threshold)
+            s = 0
+            while A / (N + s + 1) >= threshold:
+                s += 1
+            r = 0
+            while (A + r) / (N + r) < threshold:
+                r += 1
+            if A / N >= threshold and m["can_miss"] != s or A / N < threshold and m["need"] != r:
+                p.append(f"A={A} N={N}: closed form {m} vs brute force miss={s} need={r}")
+    return p
+
+
+# ------------------------------------------------------------------ 3. budgets (stress)
+def synthetic_exams(n_papers: int = 20, topics_per_unit: int = 8, today: str = "2026-11-08", seed: int = 1) -> tuple[dict, list, dict]:
+    rnd = random.Random(seed)
+    sheet, subjects, prep = [], [], {}
+    for i in range(n_papers):
+        sid = f"s{i}"
+        units = [{"n": u, "title": f"U{u}", "exam_weight": rnd.choice(["high", "med", "low"]),
+                  "topics": [f"t{u}-{k}" for k in range(topics_per_unit)]} for u in range(1, 6)]
+        subjects.append({"id": sid, "name": f"Subject {i}", "units": units})
+        sheet.append({"id": f"p{i}", "subject": sid, "title": f"Paper {i}", "date": add_days(today, 3 + i * 3 + rnd.randint(0, 1)),
+                      "start": rnd.choice(["10:00", "14:00"]), "end": None, "units": [], "kind": rnd.choice(["end_sem", "backlog", "cie"]),
+                      "max": 60, "target": 40})
+        prep[sid] = {"topics": {f"{u}|t{u}-{k}": {"state": rnd.choice(["learned", "solid"]), "date": today}
+                                for u in range(1, 6) for k in range(topics_per_unit) if rnd.random() < 0.4},
+                     "minutes": [{"date": add_days(today, -d), "minutes": rnd.randint(20, 120)} for d in range(30)]}
+    return ww_engines.normalize_inputs({"exams": sheet}), subjects, prep
+
+
+def synthetic_attendance(n_taps: int = 3000, today: str = "2026-11-08", seed: int = 1) -> tuple[dict, dict]:
+    rnd = random.Random(seed)
+    days = ("mon", "tue", "wed", "thu", "fri")
+    slots = [{"day": d, "start": f"{8 + h:02d}:45", "end": f"{9 + h:02d}:45", "subject": f"s{(h + i) % 7}"} for i, d in enumerate(days) for h in range(5)]
+    inputs = ww_engines.normalize_inputs({"timetable": {"slots": slots}})
+    log: dict[str, list] = {}
+    for _ in range(n_taps):
+        s = rnd.choice(inputs["timetable"]["slots"])
+        log.setdefault(s["subject"], []).append({"date": add_days(today, -rnd.randint(0, 120)), "slot": s["id"],
+                                                 "status": rnd.choice(["present", "present", "present", "absent", "cancelled"])})
+    return inputs, log
+
+
+def stress(today: str = "2026-11-08") -> dict:
+    inputs, subjects, prep = synthetic_exams(today=today)
+    t0 = time.perf_counter()
+    ex = ww_engines.run("exams", inputs, today, subjects=subjects, prep=prep)
+    t_ex = time.perf_counter() - t0
+    ai, log = synthetic_attendance(today=today)
+    t0 = time.perf_counter()
+    at = ww_engines.run("attendance", ai, today, log=log)
+    t_at = time.perf_counter() - t0
+    return {"exams": {"papers": len(ex.get("papers") or []), "topics": sum(len(p["topics"]) for p in ex.get("papers") or []),
+                      "days": len(ex.get("days") or []), "seconds": round(t_ex, 3), "problems": exams_invariants(ex)},
+            "attendance": {"taps": sum(len(v) for v in log.values()), "subjects": len(at.get("subjects") or []),
+                           "seconds": round(t_at, 3), "problems": attendance_invariants(at)}}
+
+
+BUDGET_S = {"exams": 3.0, "attendance": 1.0}
+
+
+# ------------------------------------------------------------------ the report
+def report(plan=None, today: Optional[str] = None) -> dict:
+    """All checks; `plan` (a germoney.Plan) adds the real engines' answers, read-only."""
+    today = today or date.today().isoformat()
+    inputs = ww_engines.load_inputs() if plan is not None else ww_engines.normalize_inputs({})
+    out: dict[str, Any] = {"date": today, "routes": route_drift(), "schema": schema_consistency(),
+                           "smoke": engine_smoke(inputs, today), "margin_sweep": margin_sweep(), "stress": stress(today)}
+    if plan is not None:
+        ex = plan.engine("exams", today)
+        at = plan.engine("attendance", today)
+        taps = sum(len((r.get("topics") or {})) for r in (plan.load(today).get("exam_prep") or {}).values())
+        out["real"] = {"papers": len(ex.get("papers") or []), "groups": [(g["kind"], g["count"]) for g in ex.get("groups") or []],
+                       "work_h": round(sum(p["work_minutes"] for p in ex.get("papers") or []) / 60, 1),
+                       "planned_h": round(sum(p["planned_minutes"] for p in ex.get("papers") or []) / 60, 1),
+                       "topic_taps": taps, "classes_tapped": sum(r["held"] for r in at.get("subjects") or []),
+                       "exams_problems": exams_invariants(ex), "attendance_problems": attendance_invariants(at),
+                       "risks": ex.get("risks") or []}
+    out["ok"] = not (out["routes"]["doc_without_route"] or out["routes"]["ui_without_route"] or out["schema"]
+                     or out["smoke"]["problems"] or out["margin_sweep"]
+                     or out["stress"]["exams"]["problems"] or out["stress"]["attendance"]["problems"]
+                     or out["stress"]["exams"]["seconds"] > BUDGET_S["exams"] or out["stress"]["attendance"]["seconds"] > BUDGET_S["attendance"]
+                     or (out.get("real") or {}).get("exams_problems") or (out.get("real") or {}).get("attendance_problems"))
+    return out
+
+
+def as_markdown(r: dict) -> str:
+    L = [f"## {r['date']}: gate {'passed' if r['ok'] else 'FAILED'}",
+         f"- Routes: {r['routes']['defined']} defined, {r['routes']['documented']} documented, {r['routes']['ui_paths']} paths called by the UI; "
+         f"doc without route: {r['routes']['doc_without_route'] or 'none'}; UI without route: {r['routes']['ui_without_route'] or 'none'}.",
+         f"- Engines: {r['smoke']['engines']} ran twice, no data; problems: {r['smoke']['problems'] or 'none'}; schema: {r['schema'] or 'consistent'}. "
+         f"Slowest: {', '.join(f'{k} {v} ms' for k, v in sorted(r['smoke']['ms'].items(), key=lambda x: -x[1])[:3])}.",
+         f"- Margin formula vs brute force, every (A, N) to 60: {len(r['margin_sweep'])} disagreements.",
+         f"- Stress: exams {r['stress']['exams']['papers']} papers / {r['stress']['exams']['topics']} topics / {r['stress']['exams']['days']} days in "
+         f"{r['stress']['exams']['seconds']} s (budget {BUDGET_S['exams']}), problems {r['stress']['exams']['problems'] or 'none'}; "
+         f"attendance {r['stress']['attendance']['taps']} taps in {r['stress']['attendance']['seconds']} s (budget {BUDGET_S['attendance']}), "
+         f"problems {r['stress']['attendance']['problems'] or 'none'}."]
+    if r.get("real"):
+        x = r["real"]
+        L.append(f"- Real data (read-only): {x['papers']} papers {x['groups']}, work {x['work_h']} h, planned {x['planned_h']} h, "
+                 f"{x['topic_taps']} topic taps, {x['classes_tapped']} classes tapped; invariants: exams {x['exams_problems'] or 'hold'}, "
+                 f"attendance {x['attendance_problems'] or 'hold'}. Risks: {len(x['risks'])}.")
+    return "\n".join(L) + "\n"
+
+
+def main() -> int:
+    from . import germoney
+    plan = germoney.Plan(germoney.KVStore())
+    r = report(plan)
+    md = as_markdown(r)
+    print(md)
+    # Beside his inputs file (data/notes/well-wisher), not under data/app: notes are his, state is the app's.
+    out = ww_engines.inputs_path().parent / "checks" / f"{r['date'][:7]}.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    prev = out.read_text(encoding="utf-8") if out.exists() else "# Well Wisher gate reports (newest first)\n\n"
+    head, _, body = prev.partition("\n\n")
+    out.write_text(f"{head}\n\n{md}\n{body}", encoding="utf-8")
+    print(f"written: {out}")
+    print(json.dumps({k: v for k, v in r.items() if k in ("ok",)}))
+    return 0 if r["ok"] else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

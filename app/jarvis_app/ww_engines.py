@@ -70,7 +70,7 @@ def load_inputs(path: Optional[Path] = None) -> dict:
 # Sections Settings may rewrite, and the JSON type each must be.
 EDITABLE = {"exams": list, "study": dict, "deadlines": list, "habits": list, "profile": dict, "goals": list,
             "skills": list, "money": dict, "week": dict, "rules": dict, "income_experiments": list,
-            "work_repos": list, "life": dict, "timetable": dict, "attendance_rule": dict}
+            "work_repos": list, "life": dict, "timetable": dict, "attendance_rule": dict, "subjects": list}
 
 EXAM_KINDS = ("end_sem", "backlog", "cie", "other")
 DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
@@ -373,8 +373,26 @@ def normalize_inputs(raw: Any) -> dict:
     rule = {"threshold": _num(ar.get("threshold"), 0.5, 1.0, 0.75),
             "scope": ar["scope"] if ar.get("scope") in ("per_subject", "overall") else "per_subject",
             "confirmed": bool(ar.get("confirmed")), "note": str(ar.get("note") or "")[:200]}
+    # Subjects he types himself (an exam not in academics.json, or a unit list of his own): id,
+    # name, units with topics. Plan.academics() merges them, a typed id replacing the file's units.
+    subjects = []
+    for sub in raw.get("subjects") or []:
+        if not isinstance(sub, dict) or not sub.get("id"):
+            warn.append("a subject without an id dropped")
+            continue
+        units = []
+        for i, u in enumerate(sub.get("units") or []):
+            if not isinstance(u, dict):
+                continue
+            topics = [str(t)[:80] for t in u.get("topics") or [] if isinstance(t, str) and t.strip()][:40]
+            n = u.get("n")
+            n = int(n) if isinstance(n, (int, float)) and not isinstance(n, bool) and 1 <= n <= 10 else i + 1   # a unit number outside 1..10 is a typo: the position wins
+            units.append({"n": n, "title": str(u.get("title") or f"Unit {n}")[:80],
+                          "exam_weight": u["exam_weight"] if u.get("exam_weight") in ("high", "med", "low") else "med", "topics": topics})
+        subjects.append({"id": _slug(str(sub["id"]))[:60], "name": str(sub.get("name") or sub["id"])[:120], "code": str(sub.get("code") or "")[:20],
+                         "units": units[:10], "question_bank": [q for q in sub.get("question_bank") or [] if isinstance(q, dict) and q.get("question")][:500]})
     return {"schema": INPUTS_SCHEMA, "life": {"counters": counters}, "life_goals": goals, "goals": sorted(flat, key=lambda g: (g["deadline"] or "9999", g["id"])),
-            "timetable": timetable, "attendance_rule": rule,
+            "timetable": timetable, "attendance_rule": rule, "subjects": subjects[:30],
             "deadlines": sorted(deadlines, key=lambda x: (x["date"], x["id"])), "skills": skills,
             "income_experiments": exps, "habits": habits, "rules": rules, "profile": profile, "money": money,
             "week": {"capacity_minutes": int(_num(week.get("capacity_minutes"), 0, 6000, 600))},

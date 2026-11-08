@@ -31,6 +31,13 @@ def test_exams_allocation_invariants_hold_under_load_and_within_budget():
     assert r["attendance"]["seconds"] < ww_check.BUDGET_S["attendance"], r["attendance"]
 
 
+def test_generator_sweep_holds_and_is_within_budget():
+    r = ww_check.generator_sweep(30)
+    assert r["problems"] == [], r
+    assert r["seconds"] < ww_check.BUDGET_S["generator"], r
+    assert r["asked"]["t1a"] > r["asked"]["t1b"]
+
+
 def test_invariant_checkers_catch_a_broken_answer():
     inputs, subjects, prep = ww_check.synthetic_exams(n_papers=2, topics_per_unit=2)
     out = ww_engines.run("exams", inputs, "2026-11-08", subjects=subjects, prep=prep)
@@ -46,6 +53,6 @@ def test_invariant_checkers_catch_a_broken_answer():
 
 def test_report_without_a_plan_is_self_contained_and_renders():
     r = ww_check.report(None, "2026-11-08")
-    assert set(r) >= {"routes", "schema", "smoke", "margin_sweep", "stress", "ok"}
+    assert set(r) >= {"routes", "schema", "smoke", "margin_sweep", "stress", "generator", "ok"}
     md = ww_check.as_markdown(r)
     assert md.startswith("## 2026-11-08: gate") and "Stress:" in md

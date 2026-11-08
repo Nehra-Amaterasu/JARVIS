@@ -48,6 +48,8 @@
     POST   /api/mission/exams/{subject}/{op}  op topic {key, state} | minutes {minutes} | paper {score, max}
     GET    /api/mission/attendance         today's classes to tap + classes of margin per subject (ww_attendance.py)
     POST   /api/mission/attendance/{slot}/{status}  present | absent | cancelled | clear, for today
+    GET    /api/mission/paper/{exam}?seed=&tier=  a generated practice paper that fits the exam's pattern (ww_generator.py)
+    POST   /api/mission/paper/{exam}/marks  {items: [{id, got}], seed?}  mark it: per-topic proficiency + the measured score
     GET    /api/mission/sessions           building hours from local commits (ww_sessions.py)
     POST   /api/mission/sessions/import    log the new sessions as "build" time with the commit as proof
     GET    /api/mission/director           today's ordered steps, merged from exams, sessions, learning, body
@@ -204,6 +206,14 @@ def register(app: FastAPI, svc, bus) -> None:
     @app.post("/api/mission/attendance/{slot}/{status}")
     async def attendance_tap(slot: str, status: str):
         return await run_in_threadpool(guard, plan.attendance_tap, slot, status)
+
+    @app.get("/api/mission/paper/{exam}")
+    async def practice_paper(exam: str, seed: int = 0, tier: str = "exam"):
+        return await run_in_threadpool(guard, plan.practice_paper, exam, seed, tier)
+
+    @app.post("/api/mission/paper/{exam}/marks")
+    async def practice_paper_marks(exam: str, payload: dict = Body(...)):
+        return await run_in_threadpool(guard, plan.paper_marks, exam, payload)
 
     @app.get("/api/mission/sessions")
     async def work_sessions():

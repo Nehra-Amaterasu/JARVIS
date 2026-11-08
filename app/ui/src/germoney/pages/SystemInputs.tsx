@@ -12,11 +12,11 @@ import { useStore } from '../../lib/store'
 import { usePlan } from '../game/plan'
 import './exams.css'
 
-interface ExamRow { id?: string; subject: string; title: string; code?: string; date: string; start?: string | null; end?: string | null; units: number[]; may_miss?: boolean; difficulty?: 'easy' | 'normal' | 'hard'; target?: number | null; max?: number }
+interface ExamRow { id?: string; subject: string; title: string; code?: string; date: string; start?: string | null; end?: string | null; units: number[]; may_miss?: boolean; difficulty?: 'easy' | 'normal' | 'hard'; target?: number | null; max?: number; kind?: 'end_sem' | 'backlog' | 'cie' | 'other'; approx?: boolean; pattern?: unknown[]; pattern_source?: string }
 interface DeadlineRow { id?: string; title?: string; item?: string; date: string; kind?: string }
 interface Profile { traits?: string[]; weak_points?: string[]; prefers?: string[]; github?: string | null; [k: string]: unknown }
 interface Study { weekday_minutes?: number; weekend_minutes?: number; exam_evening_minutes?: number; build_cap_exam?: number; build_cap?: number }
-interface InputsAnswer { raw: { exams?: ExamRow[]; deadlines?: DeadlineRow[]; profile?: Profile; study?: Study }; inputs: { source: string; warnings: string[] } }
+interface InputsAnswer { raw: { exams?: ExamRow[]; deadlines?: DeadlineRow[]; profile?: Profile; study?: Study; subjects?: unknown; goals?: unknown; timetable?: unknown; attendance_rule?: unknown }; inputs: { source: string; warnings: string[] } }
 interface SaveAnswer { saved: string; dropped: string[] }
 
 const lines = (v?: string[]) => (v ?? []).join('\n')
@@ -49,6 +49,10 @@ export function SystemInputs() {
       <StudyTime s={raw.study ?? {}} onSave={(v) => void save('study', v)} />
       <ProfileEdit p={raw.profile ?? {}} onSave={(v) => void save('profile', v)} />
       <Deadlines rows={raw.deadlines ?? []} onSave={(v) => void save('deadlines', v)} />
+      <JsonSection name="subjects" title="Your subjects" hint='Subjects or unit lists you type yourself: [{"id": "...", "name": "...", "units": [{"n": 1, "title": "...", "exam_weight": "high|med|low", "topics": ["..."]}], "question_bank": [{"unit": 1, "topic": "...", "question": "...", "marks": 7, "section": "B"}]}]. A known id replaces the units of that subject; a new id is a new subject, and any paper on the date sheet can use it.' value={raw.subjects ?? []} onSave={(v) => void save('subjects', v)} />
+      <JsonSection name="goals" title="Goals" hint='[{"id": "...", "horizon": "week|quarter|year|2year|10year", "metric": "...", "target": ..., "deadline": "YYYY-MM-DD"}]' value={raw.goals ?? []} onSave={(v) => void save('goals', v)} />
+      <JsonSection name="timetable" title="Timetable" hint='{"section": "...", "room": "...", "slots": [{"day": "mon", "start": "08:45", "end": "09:45", "subject": "<subject id>", "kind": "lecture|lab"}]}' value={raw.timetable ?? { slots: [] }} onSave={(v) => void save('timetable', v)} />
+      <JsonSection name="attendance_rule" title="Attendance rule" hint='{"threshold": 0.75, "scope": "per_subject|overall", "confirmed": true}' value={raw.attendance_rule ?? { threshold: 0.75, scope: 'per_subject', confirmed: false }} onSave={(v) => void save('attendance_rule', v)} />
       {note && <p className="small" role="status">{note}</p>}
     </section>
   )
@@ -64,7 +68,7 @@ function DateSheet({ rows, subjects, onSave }: { rows: ExamRow[]; subjects: { id
       <div className="sys-grid exams-grid" role="group" aria-label="date sheet">
         {r.length > 0 && (
           <div className="sys-row sys-head" aria-hidden>
-            {['Subject', 'Date', 'Starts', 'Ends', 'Units', 'How hard', 'Target', 'Sit?', ''].map((h, j) => <span key={j}>{h}</span>)}
+            {['Subject', 'Kind', 'Date', '~', 'Starts', 'Ends', 'Units', 'How hard', 'Target', 'Sit?', ''].map((h, j) => <span key={j}>{h}</span>)}
           </div>)}
         {r.map((x, i) => (
           <div key={i} className="sys-row">
@@ -73,10 +77,14 @@ function DateSheet({ rows, subjects, onSave }: { rows: ExamRow[]; subjects: { id
               <option value="">subject…</option>
               {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
+            <select className="field sm" value={x.kind ?? 'other'} aria-label="kind" onChange={(e) => set(i, { kind: e.target.value as ExamRow['kind'], max: x.max ?? (e.target.value === 'cie' ? 20 : 60) })}>
+              <option value="end_sem">end-sem</option><option value="backlog">backlog</option><option value="cie">CIE</option><option value="other">other</option>
+            </select>
             <input className="field sm" type="date" value={x.date} onChange={(e) => set(i, { date: e.target.value })} aria-label="date" />
+            <label className="check small" title="Tentative date (a circular, not the final sheet)"><input type="checkbox" checked={!!x.approx} onChange={(e) => set(i, { approx: e.target.checked })} aria-label="approximate date" /></label>
             <input className="field sm" type="time" value={x.start ?? ''} onChange={(e) => set(i, { start: e.target.value || null })} aria-label="starts" />
             <input className="field sm" type="time" value={x.end ?? ''} onChange={(e) => set(i, { end: e.target.value || null })} aria-label="ends" />
-            <input className="field sm" value={x.units.join(',')} placeholder="3,4" aria-label="units"
+            <input className="field sm" value={x.units.join(',')} placeholder="all" title="Units this paper covers; empty = all" aria-label="units"
               onChange={(e) => set(i, { units: e.target.value.split(/[,\s]+/).map(Number).filter((n) => n > 0) })} />
             <select className="field sm" value={x.difficulty ?? 'normal'} aria-label="how hard" onChange={(e) => set(i, { difficulty: e.target.value as ExamRow['difficulty'] })}>
               <option value="easy">easy</option><option value="normal">normal</option><option value="hard">hard</option>
@@ -88,7 +96,7 @@ function DateSheet({ rows, subjects, onSave }: { rows: ExamRow[]; subjects: { id
           </div>))}
       </div>
       <div className="sys-actions">
-        <button className="btn sm ghost" onClick={() => setR([...r, { subject: '', title: '', date: '', units: [] }])}><Plus size={13} />Paper</button>
+        <button className="btn sm ghost" onClick={() => setR([...r, { subject: '', title: '', date: '', units: [], kind: 'end_sem', max: 60, approx: true }])}><Plus size={13} />Paper</button>
         <button className="btn sm" onClick={() => onSave(r.filter((x) => x.subject && x.date))}><Save size={13} />Save date sheet</button>
       </div>
     </details>
@@ -154,6 +162,30 @@ function Deadlines({ rows, onSave }: { rows: DeadlineRow[]; onSave: (v: Deadline
         <button className="btn sm ghost" onClick={() => setR([...r, { title: '', date: '' }])}><Plus size={13} />Deadline</button>
         <button className="btn sm" onClick={() => onSave(r.filter((x) => (x.title || x.item) && x.date))}><Save size={13} />Save deadlines</button>
       </div>
+    </details>
+  )
+}
+
+
+/** Sections with no form yet: the JSON as it is in the file, validated on save by the server
+ *  (normalize_inputs drops what it cannot read and says so). Enough to make the date sheet,
+ *  the subjects, the goals and the week his, from the app, without a form per field. */
+function JsonSection({ name, title, hint, value, onSave }: { name: string; title: string; hint: string; value: unknown; onSave: (v: unknown) => void }) {
+  const [text, setText] = useState(JSON.stringify(value, null, 1))
+  const [err, setErr] = useState<string | null>(null)
+  useEffect(() => { setText(JSON.stringify(value, null, 1)); setErr(null) }, [value])
+  const submit = () => {
+    try { onSave(JSON.parse(text)); setErr(null) } catch (e) { setErr(`Not valid JSON: ${(e as Error).message}`) }
+  }
+  const count = Array.isArray(value) ? `${value.length} item${value.length === 1 ? '' : 's'}` : 'one record'
+  return (
+    <details>
+      <summary className="small"><b>{title}</b> · {count}</summary>
+      <p className="muted small">{hint}</p>
+      <textarea className="field mono" rows={Math.min(18, Math.max(4, text.split('\n').length))} value={text} aria-label={`${name} as JSON`} spellCheck={false}
+        onChange={(e) => setText(e.target.value)} />
+      {err && <p className="small" role="alert">{err}</p>}
+      <button className="btn sm" onClick={submit}><Save size={13} />Save {title.toLowerCase()}</button>
     </details>
   )
 }

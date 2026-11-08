@@ -40,7 +40,7 @@ from typing import Any, Optional
 
 import httpx
 
-from . import github_activity, learn_bank, wellwisher, ww_attendance, ww_base, ww_counsel, ww_engines, ww_exams, ww_life, ww_money
+from . import github_activity, learn_bank, wellwisher, ww_attendance, ww_base, ww_counsel, ww_engines, ww_exams, ww_generator, ww_life, ww_money
 from .paths import DATA
 
 ROOT = DATA / "germoney"
@@ -1330,7 +1330,7 @@ def default_plan_state(today: str) -> dict:
             # merge_plan_state keeps only keys listed here: habit taps, recalls and exam taps were
             # dropped on every reload until these three were added (found 2026-10-26).
             "habits": {}, "learn": {"seen": {}, "reviews": {}}, "exam_prep": {}, "work_sessions": {},
-            "study": {}, "life": {}, "tree_proofs": {}, "attendance": {}}
+            "study": {}, "life": {}, "tree_proofs": {}, "attendance": {}, "paper_marks": {}}
 
 
 def merge_plan_state(raw: Any, today: str) -> dict:
@@ -2140,7 +2140,34 @@ class Plan:
         return self._bank()
 
     def academics(self) -> Optional[dict]:
-        return self._ac()
+        """academics.json plus the subjects he typed in Settings (engine-inputs.json "subjects"):
+        a typed id replaces that subject's units and adds its questions; a new id is a new
+        subject, so any paper on the date sheet can carry its own unit list."""
+        ac = self._ac()
+        typed = ww_engines.load_inputs().get("subjects") or []
+        if not typed:
+            return ac
+        ac = dict(ac or {"semester": None, "subjects": [], "plan": {}, "calendar": {}, "rescue": None, "unresolved": []})
+        subs = [dict(s) for s in ac.get("subjects") or []]
+        by_id = {s.get("id"): s for s in subs}
+        for t in typed:
+            units = [{"n": u["n"], "title": u["title"], "topics": u["topics"], "exam_weight": u["exam_weight"], "weight_label": u["exam_weight"],
+                      "skip_if_short": False, "resources": [], "files": [], "pyq_refs": [], "must_do": []} for u in t["units"]]
+            qb = [{"id": f"{t['id']}:typed:{i}", "unit": q.get("unit"), "topic": str(q.get("topic") or ""), "question": str(q["question"]),
+                   "marks": _num(q.get("marks")), "type": str(q.get("type") or "typed"), "section": str(q.get("section") or ""),
+                   "choice_group": "", "sitting": str(q.get("sitting") or "typed"), "file": None, "tier": str(q.get("tier") or "exam")}
+                  for i, q in enumerate(t.get("question_bank") or [])]
+            if t["id"] in by_id:
+                cur = by_id[t["id"]]
+                if units:
+                    cur["units"] = units
+                cur["question_bank"] = (cur.get("question_bank") or []) + qb
+                cur["typed"] = True
+            else:
+                subs.append({"id": t["id"], "name": t["name"], "code": t["code"], "kind": "current", "units": units, "question_bank": qb,
+                             "typed": True, "marks": {}, "exam_date": None, "strategy": "Typed in Settings."})
+        ac["subjects"] = subs
+        return ac
 
     # ---- load / save / migrate
     def load(self, today: Optional[str] = None) -> dict:
@@ -3080,6 +3107,63 @@ class Plan:
             del lst[:-600]
             self.save(st)
         return self.engine("attendance", today)
+
+    def _exam_and_subject(self, exam_id: str) -> tuple[dict, dict]:
+        exam = next((e for e in ww_engines.load_inputs().get("exams") or [] if e["id"] == exam_id), None)
+        if exam is None:
+            raise ValueError("no such paper on the date sheet")
+        sub = next((x for x in (self.academics() or {}).get("subjects") or [] if x.get("id") == exam["subject"]), None)
+        if sub is None:
+            raise ValueError("the paper's subject has no unit list yet (type one in Settings)")
+        return exam, sub
+
+    def practice_paper(self, exam_id: str, seed: int = 0, tier: str = "exam", today: Optional[str] = None) -> dict:
+        """A generated paper for one exam on the date sheet (ww_generator): its pattern, the
+        subject's bank, his topic taps and the marks he has logged. Nothing is stored."""
+        today = today or date.today().isoformat()
+        exam, sub = self._exam_and_subject(exam_id)
+        if tier not in ww_generator.TIERS:
+            raise ValueError("tier is exam or gate")
+        st = self.load(today)
+        rec = (st.get("exam_prep") or {}).get(sub["id"]) or {}
+        marks = (st.get("paper_marks") or {}).get(sub["id"]) or {}
+        paper = ww_generator.generate(exam, sub.get("question_bank") or [], sub.get("units") or [], rec.get("topics") or {},
+                                      marks, seed=int(seed), tier=tier, today=today)
+        return {**paper, "markdown": ww_generator.as_markdown(paper)}
+
+    def paper_marks(self, exam_id: str, payload: dict, today: Optional[str] = None) -> dict:
+        """He marks a generated paper: {items: [{id, got}], seed?}. Each item's marks go to its
+        topic (proficiency), and the sheet's total becomes the measured practice score the
+        exams engine shows. Unknown question ids and marks over the question's value are refused."""
+        today = today or date.today().isoformat()
+        exam, sub = self._exam_and_subject(exam_id)
+        bank = {q.get("id"): q for q in sub.get("question_bank") or []}
+        items = payload.get("items") if isinstance(payload.get("items"), list) else None
+        if not items:
+            raise ValueError("items: [{id, got}] is required")
+        rows = []
+        for it in items:
+            q = bank.get(str((it or {}).get("id")))
+            got = _num((it or {}).get("got"))
+            if q is None or got is None or q.get("marks") is None or not 0 <= got <= float(q["marks"]):
+                raise ValueError("each item needs a bank question id and marks from 0 to the question's value")
+            rows.append((q, float(got)))
+        with self._lock:
+            st = self.load(today)
+            pm = st.setdefault("paper_marks", {}).setdefault(sub["id"], {})
+            for q, got in rows:
+                lst = pm.setdefault(ww_generator.topic_key(q.get("unit"), str(q.get("topic") or "")), [])
+                lst.append({"date": today, "got": got, "max": float(q["marks"]), "q": q.get("id")})
+                del lst[:-40]
+            rec = st.setdefault("exam_prep", {}).setdefault(sub["id"], {})
+            rec.setdefault("papers", []).append({"date": today, "score": sum(g for _, g in rows), "max": sum(float(q["marks"]) for q, _ in rows),
+                                                 "seed": payload.get("seed"), "items": len(rows)})
+            rec["papers"] = rec["papers"][-50:]
+            self.save(st)
+        prof = ww_generator.proficiency((rec.get("topics") or {}), pm)
+        return {"saved": len(rows), "score": sum(g for _, g in rows), "max": sum(float(q["marks"]) for q, _ in rows),
+                "proficiency": {k: prof[k] for k in {ww_generator.topic_key(q.get("unit"), str(q.get("topic") or "")) for q, _ in rows}},
+                "say": f"Marked {len(rows)} answers: {sum(g for _, g in rows):g} of {sum(float(q['marks']) for q, _ in rows):g}. Measured, and it moves the plan."}
 
     def exam_prep(self, op: str, subject: str, payload: dict, today: Optional[str] = None) -> dict:
         """Exam preparation, one tap at a time (the exams engine reads it):

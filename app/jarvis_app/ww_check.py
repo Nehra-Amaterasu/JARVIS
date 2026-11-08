@@ -26,7 +26,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any, Optional
 
-from . import ww_engines
+from . import ww_engines, ww_generator
 from .ww_attendance import margin
 from .ww_base import add_days
 
@@ -249,7 +249,36 @@ def stress(today: str = "2026-11-08") -> dict:
                            "seconds": round(t_at, 3), "problems": attendance_invariants(at)}}
 
 
-BUDGET_S = {"exams": 3.0, "attendance": 1.0}
+def generator_sweep(seeds: int = 50) -> dict:
+    """A synthetic bank, many seeds: every paper fits the pattern, the same seed repeats,
+    the weak topic is asked more than the solid one. The generator's own gate."""
+    units = [{"n": u, "title": f"U{u}", "exam_weight": w, "topics": [f"t{u}a", f"t{u}b"]} for u, w in ((1, "high"), (2, "med"), (3, "low"))]
+    bank, i = [], 0
+    for sec, n, mk in zip("ABC", (12, 24, 12), (2, 7, 5)):
+        for k in range(n):
+            u = 1 + k % 3
+            bank.append({"id": f"q{i}", "unit": u, "topic": f"t{u}{'ab'[k % 2]}", "question": f"Q{i}", "marks": mk, "type": "pyq_see",
+                         "section": sec, "sitting": ("Jun 2026", "Dec 2025")[k % 2]})
+            i += 1
+    exam = {"id": "x", "subject": "x", "title": "X", "units": [], "max": 60, "pattern": ww_generator.DEFAULT_PATTERN}
+    states = {f"{q['unit']}|{q['topic']}": {"state": "solid"} for q in bank if q["topic"] != "t1a"}
+    problems, asked = [], {"t1a": 0, "t1b": 0}
+    t0 = time.perf_counter()
+    for seed in range(seeds):
+        a = ww_generator.generate(exam, bank, units, states, {}, seed=seed)
+        problems += [f"seed {seed}: {x}" for x in ww_generator.paper_invariants(a, exam)]
+        if a != ww_generator.generate(exam, bank, units, states, {}, seed=seed):
+            problems.append(f"seed {seed}: not repeatable")
+        for sct in a["sections"]:
+            for q in sct["questions"]:
+                if q["topic"] in asked:
+                    asked[q["topic"]] += 1
+    if not asked["t1a"] > asked["t1b"]:
+        problems.append(f"the weak topic was asked {asked['t1a']} times, the solid one {asked['t1b']}")
+    return {"seeds": seeds, "seconds": round(time.perf_counter() - t0, 3), "asked": asked, "problems": problems[:10]}
+
+
+BUDGET_S = {"exams": 3.0, "attendance": 1.0, "generator": 2.0}
 
 
 # ------------------------------------------------------------------ the report
@@ -258,7 +287,8 @@ def report(plan=None, today: Optional[str] = None) -> dict:
     today = today or date.today().isoformat()
     inputs = ww_engines.load_inputs() if plan is not None else ww_engines.normalize_inputs({})
     out: dict[str, Any] = {"date": today, "routes": route_drift(), "schema": schema_consistency(),
-                           "smoke": engine_smoke(inputs, today), "margin_sweep": margin_sweep(), "stress": stress(today)}
+                           "smoke": engine_smoke(inputs, today), "margin_sweep": margin_sweep(), "stress": stress(today),
+                           "generator": generator_sweep()}
     if plan is not None:
         ex = plan.engine("exams", today)
         at = plan.engine("attendance", today)
@@ -273,6 +303,7 @@ def report(plan=None, today: Optional[str] = None) -> dict:
                      or out["smoke"]["problems"] or out["margin_sweep"]
                      or out["stress"]["exams"]["problems"] or out["stress"]["attendance"]["problems"]
                      or out["stress"]["exams"]["seconds"] > BUDGET_S["exams"] or out["stress"]["attendance"]["seconds"] > BUDGET_S["attendance"]
+                     or out["generator"]["problems"] or out["generator"]["seconds"] > BUDGET_S["generator"]
                      or (out.get("real") or {}).get("exams_problems") or (out.get("real") or {}).get("attendance_problems"))
     return out
 
@@ -288,6 +319,9 @@ def as_markdown(r: dict) -> str:
          f"{r['stress']['exams']['seconds']} s (budget {BUDGET_S['exams']}), problems {r['stress']['exams']['problems'] or 'none'}; "
          f"attendance {r['stress']['attendance']['taps']} taps in {r['stress']['attendance']['seconds']} s (budget {BUDGET_S['attendance']}), "
          f"problems {r['stress']['attendance']['problems'] or 'none'}."]
+    g = r.get("generator") or {}
+    if g:
+        L.append(f"- Generator: {g['seeds']} seeds in {g['seconds']} s (budget {BUDGET_S['generator']}), weak topic asked {g['asked'].get('t1a')} vs solid {g['asked'].get('t1b')}; problems {g['problems'] or 'none'}.")
     if r.get("real"):
         x = r["real"]
         L.append(f"- Real data (read-only): {x['papers']} papers {x['groups']}, work {x['work_h']} h, planned {x['planned_h']} h, "

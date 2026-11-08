@@ -19,6 +19,8 @@ export interface ExamTopic { key: string; unit: number; unit_title: string; topi
 export interface ExamPaper {
   id: string; subject: string; title: string; code: string; date: string; start: string | null; end: string | null
   units: number[]; may_miss: boolean; days_left: number; coverage: number | null; topics: ExamTopic[]
+  /** v2: which exam this paper belongs to, and whether its date is still a tentative circular. */
+  kind?: 'end_sem' | 'backlog' | 'cie' | 'other'; approx?: boolean; duration_min?: number | null
   work_minutes: number; planned_minutes: number; logged_minutes: number
   /** From the date sheet (Settings): the marks he aims for, out of max (default 20). */
   target?: number | null; max?: number; difficulty?: 'easy' | 'normal' | 'hard'
@@ -33,6 +35,8 @@ interface Slot { label: string; minutes: number; light: boolean; reserved: boole
 export interface ExamsAnswer {
   status: string; date: string; say: string; rule?: string; risks: string[]
   papers: ExamPaper[]; days: { date: string; slots: Slot[] }[]
+  /** v2: one row per exam (end-sems, backlogs, a CIE) so the strip can switch between them. */
+  groups?: { kind: NonNullable<ExamPaper['kind']>; label: string; count: number; ids: string[]; first: string; last: string; next: string }[]
 }
 type Send = (subject: string, op: 'topic' | 'minutes' | 'paper', body: object, ok?: string) => Promise<boolean>
 type Tap = (subject: string, key: string, state: TopicState) => void
@@ -61,6 +65,7 @@ function patchTopic(x: ExamsAnswer, subject: string, key: string, state: TopicSt
 export function ExamsCard() {
   const [x, setX] = useState<ExamsAnswer | null>(null)
   const [open, setOpen] = useState<string | null>(null)
+  const [group, setGroup] = useState<string | null>(null)
   const toast = useStore((s) => s.toast)
   const load = useCallback(() => api<ExamsAnswer>('/api/mission/exams'), [])
   useEffect(() => {
@@ -102,15 +107,30 @@ export function ExamsCard() {
   const next = x.papers[0]
   const nextLine = `${next.days_left ? `${next.days_left} d` : 'today'} to ${next.title}${next.start ? ` · ${next.start}` : ''}`
   const openPaper = open ? byId[open] : undefined
+  const groups = x.groups ?? []
+  const shown = group ? x.papers.filter((p) => p.kind === group) : x.papers
+  const title = groups.length === 1 ? groups[0].label : 'Exams'
   return (
-    <section className="card exams" aria-label="Internals">
+    <section className="card exams" aria-label="Exams">
       <div className="card-head">
-        <span className="card-title"><BookOpen size={14} />Internals</span>
+        <span className="card-title"><BookOpen size={14} />{title}</span>
         <span className="ex-next mono small" title={nextLine}>{nextLine}</span>
       </div>
 
+      {groups.length > 1 && (
+        <div className="ex-groups" role="tablist" aria-label="exams">
+          <button type="button" role="tab" className={`chip ${group === null ? 'on' : ''}`} aria-selected={group === null} onClick={() => setGroup(null)}>All {x.papers.length}</button>
+          {groups.map((g) => (
+            <button key={g.kind} type="button" role="tab" className={`chip ${group === g.kind ? 'on' : ''}`} aria-selected={group === g.kind}
+              title={`${prettyDate(g.first)} – ${prettyDate(g.last)}`} onClick={() => setGroup((cur) => (cur === g.kind ? null : g.kind))}>
+              {g.label} {g.count}
+            </button>
+          ))}
+        </div>
+      )}
+
       <ul className="ex-papers" aria-label="papers">
-        {x.papers.map((p) => <li key={p.id}><PaperTile p={p} on={open === p.id} onToggle={toggle} /></li>)}
+        {shown.map((p) => <li key={p.id}><PaperTile p={p} on={open === p.id} onToggle={toggle} /></li>)}
       </ul>
       <p className="ex-legend muted">Bar: your topic taps, weighted by unit. → where it lands on the day with half or all of the planned minutes. Only practice marks are measured.</p>
 
@@ -140,7 +160,7 @@ const PaperTile = memo(function PaperTile({ p, on, onToggle }: { p: ExamPaper; o
   return (
     <button className={`ex-paper${on ? ' on' : ''}${p.may_miss ? ' miss' : ''}`} aria-expanded={on} aria-controls="ex-topics"
       onClick={() => onToggle(p.id)}>
-      <span className="ex-when mono">{prettyDate(p.date)}{p.start ? ` · ${p.start}` : ''}</span>
+      <span className="ex-when mono" title={p.approx ? 'Tentative date (circular), check the final sheet' : undefined}>{p.approx && <span className="ex-approx">~</span>}{prettyDate(p.date)}{p.start ? ` · ${p.start}` : ''}</span>
       <span className="ex-name" title={full}>{p.title}</span>
       <span className={`ex-bar${(p.coverage ?? 0) >= 0.7 ? ' hi' : ''}`} aria-hidden><i style={{ transform: `scaleX(${Math.max(0, Math.min(1, p.coverage ?? 0))})` }} /></span>
       <span className="ex-nums">

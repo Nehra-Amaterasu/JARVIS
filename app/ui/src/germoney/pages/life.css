@@ -148,3 +148,21 @@
   .tap-ring { display: none; }
   .tap-btn, .life-kinds button, .mission-page.life .tap-yes { transition: none; }
 }
+
+/* Classes: today's lectures with one tap each, then classes of margin per subject. */
+.classes .cls-today { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 4px; }
+.classes .cls-today > li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; background: var(--bg-2, transparent); }
+.classes .cls-today > li.is-present { box-shadow: inset 3px 0 0 var(--live); }
+.classes .cls-today > li.is-absent { box-shadow: inset 3px 0 0 var(--fault, #c0392b); }
+.classes .cls-today > li.is-cancelled { opacity: 0.6; }
+.classes .cls-when { font-size: 11px; color: var(--ink-3); }
+.classes .cls-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.classes .cls-name em { font-style: normal; color: var(--ink-3); font-size: 11px; }
+.classes .cls-taps { display: inline-flex; gap: 4px; }
+.classes .cls-taps .btn.on { border-color: var(--ink); color: var(--ink); }
+.classes .cls-table { width: 100%; border-collapse: collapse; }
+.classes .cls-table th { text-align: left; font: 500 10px var(--f-mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-3); padding: 2px 6px 6px 0; }
+.classes .cls-table td { padding: 4px 6px 4px 0; border-top: 1px solid var(--line); vertical-align: baseline; }
+.classes .cls-table tr.is-low td { color: var(--fault, #c0392b); }
+.classes .cls-table tr.is-tight td:last-child { color: var(--warn, #b7791f); }
+.classes .cls-note { margin: 8px 0 0; font-size: 11px; }

@@ -16,6 +16,7 @@ import { MissionHeader } from '../ui'
 import { QuestCards } from './Status'
 import { HabitsCard } from './Today'
 import './sections.css'
+import { ClassesCard } from './Classes'
 import './life.css'
 
 interface Counter { id: string; name: string; want: 'less' | 'more' | 'yes'; today: number | null; line: number | null; on_line: boolean | null; last7: number[] }
@@ -37,7 +38,7 @@ export function LifePage() {
     <div className="mission-page life">
       <MissionHeader n="M4" title="Life" sub="The day in taps · habits · quests" />
       <div className="study-grid">
-        <section className="study-main"><DayCard /><QuestCards /></section>
+        <section className="study-main"><DayCard /><ClassesCard /><QuestCards /></section>
         <aside className="study-side"><HabitsCard /></aside>
       </div>
     </div>

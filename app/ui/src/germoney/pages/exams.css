@@ -140,3 +140,9 @@
 .sys-area { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
 .sys-area textarea { resize: vertical; font: inherit; }
 .sys-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+/* v2: one chip per exam (end-sems, backlogs, a CIE); the strip shows the chosen one. */
+.ex-groups { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 8px; }
+.ex-groups .chip { font: 500 11px var(--f-mono); letter-spacing: 0.04em; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink-2); cursor: pointer; }
+.ex-groups .chip.on { border-color: var(--ww-accent, var(--ink)); color: var(--ink); background: color-mix(in oklab, var(--ww-accent, var(--ink)) 12%, transparent); }
+.ex-approx { color: var(--ink-3); margin-right: 2px; }

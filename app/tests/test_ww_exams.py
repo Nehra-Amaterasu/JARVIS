@@ -113,7 +113,7 @@ def test_pure_and_registered():
     a = exams(i, TODAY, subjects=SUBJ, prep=prep)
     assert a == exams(copy.deepcopy(i), TODAY, subjects=copy.deepcopy(SUBJ), prep=copy.deepcopy(prep))
     assert (i, prep, SUBJ) == before
-    assert ww_engines.REGISTRY["exams"].version == 1
+    assert ww_engines.REGISTRY["exams"].version == 2
     assert ww_engines.run("exams", i, TODAY, subjects=SUBJ)["status"] == "ok"
 
 

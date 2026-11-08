@@ -70,7 +70,11 @@ def load_inputs(path: Optional[Path] = None) -> dict:
 # Sections Settings may rewrite, and the JSON type each must be.
 EDITABLE = {"exams": list, "study": dict, "deadlines": list, "habits": list, "profile": dict, "goals": list,
             "skills": list, "money": dict, "week": dict, "rules": dict, "income_experiments": list,
-            "work_repos": list, "life": dict}
+            "work_repos": list, "life": dict, "timetable": dict, "attendance_rule": dict}
+
+EXAM_KINDS = ("end_sem", "backlog", "cie", "other")
+DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+CLASS_KINDS = ("lecture", "lab", "tutorial", "other")
 
 
 def raw_inputs(path: Optional[Path] = None) -> dict:
@@ -299,11 +303,25 @@ def normalize_inputs(raw: Any) -> dict:
         units = sorted({int(u) for u in x.get("units") or [] if isinstance(u, (int, float)) and not isinstance(u, bool) and 1 <= u <= 10})
         mx = _num(x.get("max"), 1, 200, 20)
         tgt = _opt_num(x.get("target"))
+        # The paper's pattern, read off a real past paper: sections with how many questions
+        # are set, how many he must attempt, and the marks each carries. Optional.
+        pattern = []
+        for sec in x.get("pattern") or []:
+            if not isinstance(sec, dict):
+                continue
+            q, att, mk = (_opt_num(sec.get(k)) for k in ("questions", "attempt", "marks"))
+            if q is None or mk is None or q < 1 or mk <= 0:
+                continue
+            pattern.append({"name": str(sec.get("name") or f"Section {len(pattern) + 1}")[:40], "questions": int(q),
+                            "attempt": int(att) if att is not None and 1 <= att <= q else int(q), "marks": mk})
         exams.append({"id": eid, "subject": str(x["subject"])[:60], "title": str(x.get("title") or x["subject"])[:120],
                       "code": str(x.get("code") or "")[:20], "date": x["date"], **hm, "units": units,
                       "may_miss": bool(x.get("may_miss")),
+                      "kind": x["kind"] if x.get("kind") in EXAM_KINDS else "other",
+                      "approx": bool(x.get("approx")),
                       "difficulty": x["difficulty"] if x.get("difficulty") in ("easy", "normal", "hard") else "normal",
-                      "max": mx, "target": max(0.0, min(mx, tgt)) if tgt is not None else None})
+                      "max": mx, "target": max(0.0, min(mx, tgt)) if tgt is not None else None,
+                      "pattern": pattern[:8], "pattern_source": str(x.get("pattern_source") or "")[:120]})
     sr = raw.get("study") if isinstance(raw.get("study"), dict) else {}
     # Defaults: the 3-hour library block + a 60-minute evening (sprint plan, 2026-10-25);
     # weekends a little more; the evening after a paper, about 2.5 hours.
@@ -324,7 +342,39 @@ def normalize_inputs(raw: Any) -> dict:
     counters = [{"id": str(c["id"])[:30], "name": str(c.get("name") or c["id"])[:40],
                  "want": c["want"] if c.get("want") in ("less", "more", "yes") else "less"}
                 for c in lr.get("counters") or [] if isinstance(c, dict) and c.get("id")][:20]
+    # The weekly class grid, typed once: each slot is a day, a start and end time and a
+    # subject id (academics.json). Attendance is tapped per slot, so the grid is the list
+    # of what can be tapped today; it never counts a class on its own.
+    tr = raw.get("timetable") if isinstance(raw.get("timetable"), dict) else {}
+    slots, sseen = [], set()
+    for s in tr.get("slots") or []:
+        if not isinstance(s, dict) or str(s.get("day", "")).lower()[:3] not in DAYS or not s.get("subject"):
+            warn.append("a timetable slot without day/subject dropped")
+            continue
+        hm = {k: s[k] if isinstance(s.get(k), str) and re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", s[k]) else None
+              for k in ("start", "end")}
+        if not hm["start"]:
+            warn.append("a timetable slot without a start time dropped")
+            continue
+        day = str(s["day"]).lower()[:3]
+        sid = str(s.get("id") or f"{day}-{hm['start'].replace(':', '')}-{_slug(str(s['subject']))}")
+        if sid in sseen:
+            continue
+        sseen.add(sid)
+        slots.append({"id": sid, "day": day, **hm, "subject": str(s["subject"])[:60],
+                      "kind": s["kind"] if s.get("kind") in CLASS_KINDS else "lecture",
+                      "title": str(s.get("title") or "")[:80], "room": str(s.get("room") or "")[:30]})
+    timetable = {"section": str(tr.get("section") or "")[:20], "room": str(tr.get("room") or "")[:30],
+                 "valid_from": tr["valid_from"] if _d(tr.get("valid_from")) else None,
+                 "slots": sorted(slots, key=lambda s: (DAYS.index(s["day"]), s["start"]))[:80]}
+    # The college's attendance rule. 75 % per subject is the common Indian rule; until he
+    # confirms the real one (threshold, per subject or overall, condonation), it is flagged.
+    ar = raw.get("attendance_rule") if isinstance(raw.get("attendance_rule"), dict) else {}
+    rule = {"threshold": _num(ar.get("threshold"), 0.5, 1.0, 0.75),
+            "scope": ar["scope"] if ar.get("scope") in ("per_subject", "overall") else "per_subject",
+            "confirmed": bool(ar.get("confirmed")), "note": str(ar.get("note") or "")[:200]}
     return {"schema": INPUTS_SCHEMA, "life": {"counters": counters}, "life_goals": goals, "goals": sorted(flat, key=lambda g: (g["deadline"] or "9999", g["id"])),
+            "timetable": timetable, "attendance_rule": rule,
             "deadlines": sorted(deadlines, key=lambda x: (x["date"], x["id"])), "skills": skills,
             "income_experiments": exps, "habits": habits, "rules": rules, "profile": profile, "money": money,
             "week": {"capacity_minutes": int(_num(week.get("capacity_minutes"), 0, 6000, 600))},
@@ -608,6 +658,7 @@ ENGINE_TABLE: list[tuple[str, str]] = [
     ("study", "ww_study"),
     ("life", "ww_life"),
     ("trees", "ww_trees"),
+    ("attendance", "ww_attendance"),
 ]
 
 

@@ -46,6 +46,8 @@
     GET    /api/mission/engine/{name}      one engine over his data (schema checked; invalid_input if not)
     GET    /api/mission/exams              papers ahead: coverage, the block plan to the last paper, a forecast (ww_exams.py)
     POST   /api/mission/exams/{subject}/{op}  op topic {key, state} | minutes {minutes} | paper {score, max}
+    GET    /api/mission/attendance         today's classes to tap + classes of margin per subject (ww_attendance.py)
+    POST   /api/mission/attendance/{slot}/{status}  present | absent | cancelled | clear, for today
     GET    /api/mission/sessions           building hours from local commits (ww_sessions.py)
     POST   /api/mission/sessions/import    log the new sessions as "build" time with the commit as proof
     GET    /api/mission/director           today's ordered steps, merged from exams, sessions, learning, body
@@ -194,6 +196,14 @@ def register(app: FastAPI, svc, bus) -> None:
     @app.post("/api/mission/exams/{subject}/{op}")
     async def exam_prep(subject: str, op: str, payload: Optional[dict] = Body(None)):
         return await run_in_threadpool(guard, plan.exam_prep, op, subject, payload or {})
+
+    @app.get("/api/mission/attendance")
+    async def attendance():
+        return await run_in_threadpool(guard, plan.engine, "attendance")
+
+    @app.post("/api/mission/attendance/{slot}/{status}")
+    async def attendance_tap(slot: str, status: str):
+        return await run_in_threadpool(guard, plan.attendance_tap, slot, status)
 
     @app.get("/api/mission/sessions")
     async def work_sessions():

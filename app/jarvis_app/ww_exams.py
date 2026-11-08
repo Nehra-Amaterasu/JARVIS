@@ -45,6 +45,7 @@ GAP_OVERHEAD = 60         # between two papers: travel, lunch, settling in
 GAP_CAP = 150
 PRE_PAPER = 30            # a short look at the 2-mark list before a morning paper
 STATES = tuple(CREDIT)
+KIND_LABEL = {"cie": "CIE", "end_sem": "End-sem", "backlog": "Backlog", "other": "Other"}
 
 
 def topic_key(unit: int, topic: str) -> str:
@@ -228,9 +229,9 @@ def exams(inputs: dict, today: str, subjects: Optional[list[dict]] = None, prep:
     prep = prep or {}
     study = {"weekday_minutes": 240, "weekend_minutes": 300, "exam_evening_minutes": 150, **(inputs.get("study") or {})}
     papers = sorted((p for p in inputs.get("exams") or [] if p.get("date", "") >= today), key=_paper_ts)
-    base = {"engine": "exams", "version": 1, "status": "ok", "date": today, "study": study}
+    base = {"engine": "exams", "version": 2, "status": "ok", "date": today, "study": study}
     if not papers:
-        return {**base, "papers": [], "days": [], "risks": [],
+        return {**base, "papers": [], "days": [], "risks": [], "groups": [],
                 "say": "No papers ahead. Type the date sheet into Settings and the plan builds itself."}
     rows, work, items, titles = [], {}, {}, {}
     logged_today = 0
@@ -244,7 +245,10 @@ def exams(inputs: dict, today: str, subjects: Optional[list[dict]] = None, prep:
         logged = sum(int(m.get("minutes") or 0) for m in rec.get("minutes") or [])
         logged_today += sum(int(m.get("minutes") or 0) for m in rec.get("minutes") or [] if m.get("date") == today)
         last = scores[-1] if scores else None
+        s_m, e_m = _minutes(p.get("start")), _minutes(p.get("end"))
         rows.append({**p, "days_left": days_between(today, p["date"]), "subject_known": p["subject"] in subs,
+                     "kind": p.get("kind") or "other", "approx": bool(p.get("approx")),
+                     "duration_min": (e_m - s_m) if s_m is not None and e_m is not None and e_m > s_m else None,
                      "coverage": _coverage(topics), "topics": topics, "work_minutes": work[p["id"]],
                      "logged_minutes": logged,
                      "paper_score": {"score": last["score"], "max": last["max"], "date": last["date"],
@@ -278,6 +282,20 @@ def exams(inputs: dict, today: str, subjects: Optional[list[dict]] = None, prep:
     parked = [r["title"] for r in rows if r["may_miss"]]
     if parked:
         risks.append(f"Parked (may not sit): {', '.join(parked)}. They get time only after the papers you can sit are covered.")
+    # Several exams at once (end-sems, backlog papers, a CIE) are one pool for the minutes,
+    # but each group gets its own row so Study can switch between them.
+    groups = []
+    for kind in ("cie", "end_sem", "backlog", "other"):
+        g = [r for r in rows if r["kind"] == kind]
+        if g:
+            groups.append({"kind": kind, "label": KIND_LABEL[kind], "count": len(g), "ids": [r["id"] for r in g],
+                           "first": g[0]["date"], "last": g[-1]["date"], "next": g[0]["id"],
+                           "work_minutes": sum(r["work_minutes"] for r in g),
+                           "planned_minutes": sum(r["planned_minutes"] for r in g)})
+    approx = [r["title"] for r in rows if r["approx"]]
+    if approx:
+        risks.append(f"Dates marked approx ({len(approx)} of {len(rows)}): from a tentative circular. Check the final "
+                     f"date sheet before planning the last days around them.")
     if short:
         total = sum(x for _, x in short)
         risks.append(f"About {plural(max(1, round(total / 60)), 'hour')} more work than free time, across "
@@ -299,7 +317,7 @@ def exams(inputs: dict, today: str, subjects: Optional[list[dict]] = None, prep:
     say = f"Next paper: {nxt['title']}{tail}, {cov}."
     if first and first["focus"]:
         say += f" Today starts with {first['title']}: {first['focus'][0]['title']}."
-    return {**base, "papers": rows, "days": days, "risks": risks[:6], "say": say,
+    return {**base, "papers": rows, "days": days, "risks": risks[:6], "say": say, "groups": groups,
             "estimates": {"learn_minutes": LEARN_MIN, "solidify_share": SOLIDIFY, "paper_minutes": PAPER_MIN},
             "rule": "The last full block before a paper's day belongs to that day's papers; the gap between two papers "
                     "belongs to the second. Coverage comes from your taps; only a practice paper's marks are measured."}
@@ -308,7 +326,7 @@ def exams(inputs: dict, today: str, subjects: Optional[list[dict]] = None, prep:
 _EXAM = {"type": "dict", "required": {"id": {"type": "str"}, "subject": {"type": "str"}, "title": {"type": "str"},
                                        "date": {"type": "date"}, "units": {"type": "list", "items": {"type": "int"}}}}
 ENGINE = EngineSpec(
-    name="exams", version=1, fn=exams,
+    name="exams", version=2, fn=exams,
     about="Papers ahead: coverage from your taps, a block plan to the last paper, and a forecast range.",
     needs=("the date sheet (Settings)", "the units each paper covers", "academics.json topics", "your topic taps"),
     inputs={"exams": {"type": "list", "items": _EXAM}, "study": {"type": "dict"}},

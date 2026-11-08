@@ -40,7 +40,7 @@ from typing import Any, Optional
 
 import httpx
 
-from . import github_activity, learn_bank, wellwisher, ww_base, ww_counsel, ww_engines, ww_exams, ww_life, ww_money
+from . import github_activity, learn_bank, wellwisher, ww_attendance, ww_base, ww_counsel, ww_engines, ww_exams, ww_life, ww_money
 from .paths import DATA
 
 ROOT = DATA / "germoney"
@@ -1330,7 +1330,7 @@ def default_plan_state(today: str) -> dict:
             # merge_plan_state keeps only keys listed here: habit taps, recalls and exam taps were
             # dropped on every reload until these three were added (found 2026-10-26).
             "habits": {}, "learn": {"seen": {}, "reviews": {}}, "exam_prep": {}, "work_sessions": {},
-            "study": {}, "life": {}, "tree_proofs": {}}
+            "study": {}, "life": {}, "tree_proofs": {}, "attendance": {}}
 
 
 def merge_plan_state(raw: Any, today: str) -> dict:
@@ -2779,6 +2779,10 @@ class Plan:
             for p in out.get("papers") or []:
                 p["files"] = study_files(p["subject"])
             return {**out, "source": inputs.get("source")}
+        if name == "attendance":
+            ac = self.academics()
+            return {**ww_engines.run(name, inputs, today, log=st.get("attendance") or {}, subjects=(ac or {}).get("subjects") or []),
+                    "source": inputs.get("source")}
         if name == "sessions":
             return {**ww_engines.run(name, inputs, today, commits=github_activity.local_commits(work_repos(inputs)),
                                      imported=sorted((st.get("work_sessions") or {}).keys())), "source": inputs.get("source")}
@@ -3056,6 +3060,26 @@ class Plan:
         out = self.engine("sessions", today)
         n = sum(r["minutes"] for r in added)
         return {**out, "added": len(added), "say": f"Logged {len(added)} building session{'' if len(added) == 1 else 's'}, {n} minutes."}
+
+    def attendance_tap(self, slot: str, status: str, today: Optional[str] = None) -> dict:
+        """One class tapped present / absent / cancelled, or "clear" to undo. The slot must be
+        on the typed timetable, and a class is counted only through this tap."""
+        today = today or date.today().isoformat()
+        inputs = ww_engines.load_inputs()
+        s = next((x for x in (inputs.get("timetable") or {}).get("slots") or [] if x["id"] == slot), None)
+        if s is None:
+            raise ValueError("no such slot on the timetable")
+        if status not in ww_attendance.STATUSES + ("clear",):
+            raise ValueError("status is present, absent, cancelled or clear")
+        with self._lock:
+            st = self.load(today)
+            lst = st.setdefault("attendance", {}).setdefault(s["subject"], [])
+            lst[:] = [e for e in lst if not (e.get("slot") == slot and e.get("date") == today)]
+            if status != "clear":
+                lst.append({"date": today, "slot": slot, "status": status})
+            del lst[:-600]
+            self.save(st)
+        return self.engine("attendance", today)
 
     def exam_prep(self, op: str, subject: str, payload: dict, today: Optional[str] = None) -> dict:
         """Exam preparation, one tap at a time (the exams engine reads it):

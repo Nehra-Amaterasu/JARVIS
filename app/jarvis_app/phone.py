@@ -78,6 +78,7 @@ _BINDABLE_NETS = [ipaddress.ip_network(n) for n in ("10.0.0.0/8", "172.16.0.0/12
 
 # Paths the phone listener answers at all; everything else is a 404 there.
 PHONE_PATHS = {"/phone", "/phone/", "/phone/app.js", "/phone/relays.js", "/phone/relays.css",
+               "/phone/ww", "/phone/ww.js", "/phone/ww.css",            # Well Wisher (routes_phone_ww.py)
                "/phone/manifest.webmanifest", "/phone/icon-192.png", "/phone/icon-512.png", "/api/health",
                "/ws/phone"}
 PHONE_API = "/api/phone/"

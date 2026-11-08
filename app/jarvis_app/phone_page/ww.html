@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07080b">
+<title>Well Wisher</title>
+<link rel="manifest" href="/phone/manifest.webmanifest">
+<link rel="icon" href="/phone/icon-192.png">
+<link rel="apple-touch-icon" href="/phone/icon-192.png">
+<link rel="stylesheet" href="/phone/ww.css">
+</head>
+<body>
+<header class="top">
+  <a class="back" href="/phone" aria-label="Back to the room">&larr;</a>
+  <h1>Well Wisher</h1>
+  <span id="link" class="pill"><i class="led"></i><span id="linkText">LOADING</span></span>
+</header>
+
+<main id="main" hidden>
+  <p id="say" class="say"></p>
+
+  <section class="card" aria-labelledby="h-paper">
+    <div class="head"><h2 id="h-paper">Next paper</h2><span id="paperWhen" class="mono muted"></span></div>
+    <div id="paperChips" class="chips" role="tablist" aria-label="papers"></div>
+    <div class="bar" aria-hidden="true"><i id="covBar"></i></div>
+    <p id="covText" class="muted small"></p>
+    <ul id="topics" class="topics" aria-label="topics"></ul>
+    <div class="row" id="minutesRow">
+      <span class="muted small">Studied it:</span>
+      <button class="btn sm" data-min="25" type="button">+25 min</button>
+      <button class="btn sm" data-min="50" type="button">+50 min</button>
+      <button class="btn sm" data-min="90" type="button">+90 min</button>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="h-blocks">
+    <h2 id="h-blocks">Today's blocks</h2>
+    <ul id="blocks" class="blocks"></ul>
+  </section>
+
+  <section class="card" aria-labelledby="h-classes">
+    <div class="head"><h2 id="h-classes">Classes</h2><span id="rule" class="muted small"></span></div>
+    <ul id="classes" class="classes"></ul>
+    <table id="margin" class="margin"><tbody></tbody></table>
+  </section>
+
+  <section class="card" aria-labelledby="h-life">
+    <h2 id="h-life">Today's counts</h2>
+    <ul id="counters" class="counters"></ul>
+  </section>
+
+  <p class="muted small">Your taps are the only thing that counts here; coverage is what you tapped, not a score. Marks on a practice paper are the one measured number, and they are logged on the laptop.</p>
+</main>
+
+<section id="unpaired" class="card" hidden>
+  <h2>Not paired</h2>
+  <p>Pair this phone first on the room page, then come back.</p>
+  <a class="btn primary" href="/phone">Open the room page</a>
+</section>
+<div id="err" class="err" role="alert"></div>
+
+<script src="/phone/ww.js"></script>
+</body>
+</html>

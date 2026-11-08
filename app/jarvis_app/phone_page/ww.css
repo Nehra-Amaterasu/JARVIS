@@ -1,0 +1,58 @@
+/* Well Wisher on the phone: the same tokens as the room page (index.html), one column, big taps. */
+:root{--bg:#07080b;--card:#0d0f14;--line:#1f232b;--ink:#e8e8ed;--ink-2:#a1a1aa;--ink-3:#6b6b73;
+  --cyan:#5ce1ff;--amber:#ffb020;--fault:#ff5a5a;--live:#3ddc84;--saffron:#f4a261;--mono:ui-monospace,Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding:max(12px,env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom))}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.top h1{flex:1;margin:0;font:600 16px var(--mono);letter-spacing:1px;text-transform:uppercase}
+.back{color:var(--ink-2);text-decoration:none;font-size:20px;padding:4px 8px}
+h2{margin:0;font:600 12px var(--mono);letter-spacing:1px;color:var(--ink-2);text-transform:uppercase}
+.head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--line);border-radius:99px;font:600 11px var(--mono);color:var(--ink-2)}
+.pill .led{width:7px;height:7px;border-radius:50%;background:var(--ink-3)}
+.pill.live .led{background:var(--live)}
+.pill.fault .led{background:var(--fault)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.say{margin:0;color:var(--ink-2)}
+.muted{color:var(--ink-3)}
+.small{font-size:12px}
+.mono{font-family:var(--mono)}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.btn{min-height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:#151821;color:var(--ink);cursor:pointer;
+  font:inherit;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.btn.sm{min-height:36px;padding:0 12px;font-size:13px}
+.btn.primary{border-color:var(--cyan);color:var(--cyan)}
+.btn.on{border-color:var(--saffron);color:var(--saffron)}
+.btn:disabled{opacity:.45}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.chips .btn{white-space:nowrap}
+.bar{height:6px;border-radius:99px;background:#151821;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--saffron);transition:width .3s}
+.topics{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.topics .btn{min-height:40px;font-size:13px;text-align:left;padding:6px 12px}
+.topics .btn.learned{border-color:var(--amber);color:var(--amber)}
+.topics .btn.solid{border-color:var(--live);color:var(--live)}
+.topics .btn em{font-style:normal;color:var(--ink-3);font:11px var(--mono);margin-right:6px}
+.blocks{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.blocks li{display:grid;grid-template-columns:1fr auto;gap:4px 10px}
+.blocks .lbl{color:var(--ink-2);font:12px var(--mono)}
+.blocks .focus{grid-column:1/-1;color:var(--ink-2);font-size:13px}
+.classes{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.classes li{display:grid;grid-template-columns:48px 1fr auto;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line)}
+.classes li:first-child{border-top:0}
+.classes .when{font:12px var(--mono);color:var(--ink-3)}
+.classes .taps{display:inline-flex;gap:4px}
+.classes .taps .btn{min-width:44px;padding:0 10px}
+.classes li.present .name{color:var(--live)}
+.classes li.absent .name{color:var(--fault)}
+.classes li.cancelled .name{color:var(--ink-3);text-decoration:line-through}
+.margin{width:100%;border-collapse:collapse;font-size:13px}
+.margin td{padding:4px 0;border-top:1px solid var(--line)}
+.margin td:last-child{text-align:right;color:var(--ink-2);font:12px var(--mono)}
+.margin tr.low td{color:var(--fault)}
+.counters{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.counters li{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px}
+.counters .ctl{display:inline-flex;align-items:center;gap:8px}
+.counters b{font:600 20px var(--mono);min-width:28px;text-align:center}
+.err{color:var(--fault);font:12px var(--mono);min-height:1em;margin-top:10px}

@@ -54,7 +54,7 @@ export default defineConfig({
     ...(haveBuild
       ? [
           {
-            command: `npx vite preview --outDir dist-e2e --port ${PREVIEW_PORT} --strictPort`,
+            command: `npx vite preview --outDir dist-e2e --host 127.0.0.1 --port ${PREVIEW_PORT} --strictPort`,
             url: `http://127.0.0.1:${PREVIEW_PORT}`,
             reuseExistingServer: true,
             env: { WW_API_TARGET: `http://127.0.0.1:${SANDBOX_PORT}` },

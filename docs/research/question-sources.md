@@ -2,6 +2,18 @@
 
 Legend: **[opened]** = I read the page or file this session. **[search]** = only a search-result summary or a secondary site, not the primary page. **[unverified]** = could not open (403, parse error, blocked) or contradictory sources. No scraping was done; pages were read one at a time.
 
+## 2026-11-09 (chunk H): the harvester is built; one supervised live fetch
+
+**Question.** Do the terms below hold up when a program, not a person, reads the pages? One live fetch of one allowed source, into a scratch folder, nothing in the real `data/`.
+
+**What was built** (`app/jarvis_app/ww_harvest.py`, `ww_bank_store.py`, `routes_ww_harvest.py`; 60 tests and 25 gate cases on recorded fixtures, no network). The code enforces this file: a verbatim record needs a recorded open licence line and a link, a pointer record is refused if it carries any text, the GATE PDF is read in memory and never cached, a source with no recorded licence stays off, and the harvester is off until the owner presses resume. Subjects map to the GATE EC headings of section 1 (control to Section 6, microelectronics to Sections 4 and 3, digital communication to Section 7, IC fabrication to Section 3 as the nearest line, maths and stochastic to Sections 1 and 7, network analysis to Section 2; IoT, EV, PIE and Constitution have none, so the gate tier refuses them with that reason).
+
+**Live run (9 Nov, scratch bank, anonymous API, 3 requests of the 300 a day).** `python -m jarvis_app.ww_harvest --subject control --topic "Routh-Hurwitz stability" --sources stackexchange`: the Stack Exchange API (electronics and dsp sites), 3 questions stored with `license: CC BY-SA 3.0` (the posts are from 2012, 2016 and 2017, the licence the API itself reported in `content_license`), the post link and the author name in the source line, `origin: cc-verbatim`, tier gate; the dsp site returned none; `quota_remaining` fell from 300 to 297. What the live run found that the fixtures could not have: (1) `api.stackexchange.com/robots.txt` answers HTTP 400, and RFC 9309 treats a 4xx as no rules, so the harvester now allows it (a 5xx or a 401/403 still refuses); (2) 2 of 4 matching posts were missed because one spelled the topic "Routh Hurwitz", so topic matching now ignores hyphens; (3) electronics.stackexchange writes inline maths as backslash-dollar x backslash-dollar, which our renderer would print as literal dollars, so it is stored as `$x$`.
+
+**Not run live, said plainly.** MIT OCW and OpenStax are tested on recorded-shape fixtures only: the OCW course folders in `GATE_MAP` (for example `6-302-feedback-systems-spring-2007`) and the OCW page layout are my best reading and unverified; a wrong folder is a refused fetch, never bad data. The OpenStax PDF route is also untested live. The official GATE PDF was not downloaded in any live run (no need to take that file to prove a point; its fetcher is tested on a made-up paper). Marks are a guess by length unless the text says "(10 points)".
+
+**What it changed.** The "pointer" and "licence" rules are now checks in code, not prose. Open for the owner: switch the harvester on (Setup, Question harvester, or `--enable`), confirm the OCW course list, and answer question 19 on a Python PDF library (not needed: `pdftotext` works).
+
 ## 2026-11-09: where GATE/GRE/dMAT-level questions may legitimately come from
 
 **Question.** The study app needs, per syllabus topic, a harder tier ("gate") beside the SEE-level "exam" tier. Which sources may we use without scraping behind a login or copying a paid bank, and in what form (link, paraphrase, own-written, or verbatim with licence)?

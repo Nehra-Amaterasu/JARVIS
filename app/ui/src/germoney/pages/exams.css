@@ -146,3 +146,14 @@
 .ex-groups .chip { font: 500 11px var(--f-mono); letter-spacing: 0.04em; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink-2); cursor: pointer; }
 .ex-groups .chip.on { border-color: var(--ww-accent, var(--ink)); color: var(--ink); background: color-mix(in oklab, var(--ww-accent, var(--ink)) 12%, transparent); }
 .ex-approx { color: var(--ink-3); margin-right: 2px; }
+
+/* The generated practice paper, marked in place. */
+.ex-gen { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding-top: 8px; border-top: 1px solid var(--hair); }
+.ex-gen-open { flex-direction: column; align-items: stretch; }
+.ex-gen-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+.ex-gen-tools { display: inline-flex; gap: 6px; margin-left: auto; }
+.ex-gen-sec { display: flex; flex-direction: column; gap: 4px; }
+.ex-gen-qs { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+.ex-gen-qs li { display: grid; grid-template-columns: minmax(0, 1fr) auto 72px; gap: 4px 10px; align-items: baseline; font-size: 13px; }
+.ex-gen-q { min-width: 0; overflow-wrap: anywhere; }
+.ex-gen-mark { width: 72px; }

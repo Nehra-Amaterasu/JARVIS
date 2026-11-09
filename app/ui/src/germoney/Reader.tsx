@@ -11,10 +11,13 @@ import { create } from 'zustand'
 import { TOKEN } from '../lib/api'
 import './pages/sections.css'
 
-export const useReader = create<{ path: string | null; title: string; open: (path: string, title?: string) => void; close: () => void }>((set) => ({
-  path: null, title: '',
-  open: (path, title) => set({ path, title: title ?? path.split(/[\\/]/).pop() ?? path }),
-  close: () => set({ path: null }),
+export const useReader = create<{ path: string | null; text: string | null; title: string
+  open: (path: string, title?: string) => void; openText: (title: string, text: string) => void; close: () => void }>((set) => ({
+  path: null, text: null, title: '',
+  open: (path, title) => set({ path, text: null, title: title ?? path.split(/[\\/]/).pop() ?? path }),
+  // Generated text (a practice paper) has no file: it is shown as it is, nothing is fetched.
+  openText: (title, text) => set({ path: '(text)', text, title }),
+  close: () => set({ path: null, text: null }),
 }))
 
 /* ------------------------------------------------------------------ a small Markdown renderer */
@@ -135,15 +138,15 @@ export function renderMarkdown(src: string): ReactNode[] {
 }
 
 export function ReaderDrawer() {
-  const { path, title, close } = useReader()
+  const { path, text, title, close } = useReader()
   const [body, setBody] = useState<{ kind: 'md' | 'frame' | 'error'; text?: string; url?: string } | null>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (!path) return
     let url: string | null = null
     let live = true
-    setBody(null)
-    fetch(`/api/mission/academics/file?path=${encodeURIComponent(path)}`, { headers: { 'X-Jarvis-Token': TOKEN } })
+    setBody(text != null ? { kind: 'md', text } : null)
+    if (text == null) fetch(`/api/mission/academics/file?path=${encodeURIComponent(path)}`, { headers: { 'X-Jarvis-Token': TOKEN } })
       .then(async (r) => {
         if (!r.ok) throw new Error()
         if (/\.(md|txt)$/i.test(path)) { const t = await r.text(); if (live) setBody({ kind: 'md', text: t }) }
@@ -158,7 +161,7 @@ export function ReaderDrawer() {
       live = false; window.removeEventListener('keydown', onKey); if (url) URL.revokeObjectURL(url)
       back?.focus?.({ preventScroll: true })   // hand focus back to the button that opened it
     }
-  }, [path, close])
+  }, [path, text, close])
   // Parse once per file, not on every re-render of the drawer.
   const article = useMemo(() => (body?.kind === 'md' ? renderMarkdown(body.text ?? '') : null), [body])
   if (!path) return null

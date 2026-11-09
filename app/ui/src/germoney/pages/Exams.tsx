@@ -12,6 +12,7 @@ import { useStore } from '../../lib/store'
 import { openStudyFile } from '../game/plan'
 import { prettyDate } from '../game/util'
 import { useDrawer } from '../ui'
+import { useReader } from '../Reader'
 import './exams.css'
 
 type TopicState = 'none' | 'learned' | 'solid'
@@ -39,6 +40,13 @@ export interface ExamsAnswer {
   groups?: { kind: NonNullable<ExamPaper['kind']>; label: string; count: number; ids: string[]; first: string; last: string; next: string }[]
 }
 type Send = (subject: string, op: 'topic' | 'minutes' | 'paper', body: object, ok?: string) => Promise<boolean>
+/** A generated practice paper (ww_generator.py): sections that fit the exam's pattern. */
+export interface PaperQuestion { id: string; n: number; text: string; marks: number; unit: number | null; topic: string; key: string; p: number | null; source: string }
+export interface GeneratedPaper {
+  exam: string; subject: string; title: string; seed: number; tier: 'exam' | 'gate'; total_marks: number; bank_size: number
+  pattern_source: string; shortfall: string[]; rule: string; markdown: string
+  sections: { name: string; marks: number; attempt: number; set: number; questions: PaperQuestion[] }[]
+}
 type Tap = (subject: string, key: string, state: TopicState) => void
 
 const pct = (x: number | null | undefined) => `${Math.round((x ?? 0) * 100)}%`
@@ -134,7 +142,7 @@ export function ExamsCard() {
       </ul>
       <p className="ex-legend muted">Bar: your topic taps, weighted by unit. → where it lands on the day with half or all of the planned minutes. Only practice marks are measured.</p>
 
-      {openPaper && <PaperTopics p={openPaper} send={send} tap={tap} />}
+      {openPaper && <PaperTopics p={openPaper} send={send} tap={tap} reload={() => { load().then(setX).catch(() => undefined) }} />}
 
       <TodayLine slots={today?.slots ?? []} byId={byId} send={send} />
 
@@ -188,7 +196,7 @@ function sameTile(a: ExamPaper, b: ExamPaper): boolean {
     && a.paper_score?.on_target === b.paper_score?.on_target)
 }
 
-function PaperTopics({ p, send, tap }: { p: ExamPaper; send: Send; tap: Tap }) {
+function PaperTopics({ p, send, tap, reload }: { p: ExamPaper; send: Send; tap: Tap; reload: () => void }) {
   const [score, setScore] = useState('')
   const [max, setMax] = useState(String(p.max ?? 20))
   const units = useMemo(() => {
@@ -228,6 +236,7 @@ function PaperTopics({ p, send, tap }: { p: ExamPaper; send: Send; tap: Tap }) {
           onClick={() => void send(p.subject, 'paper', { score: Number(score), max: Number(max) }, 'Practice paper saved.').then((ok) => { if (ok) setScore('') })}>Save marks</button>
         {p.target != null && <span className="small muted">target {p.target}/{p.max ?? 20}</span>}
       </div>
+      <PaperPanel exam={p} onSaved={reload} />
     </div>
   )
 }
@@ -280,3 +289,78 @@ function TodayLine({ slots, byId, send }: { slots: Slot[]; byId: Record<string, 
 }
 
 export const _test = { NEXT, pct, hm, range, patchTopic }
+
+
+/** "Practice paper": a generated paper for this exam, marked question by question. The marks go
+ *  to each question's topic (proficiency) and the sheet's total becomes the measured score above.
+ *  A new seed is a new paper; the same seed is the same paper, so a half-done one can be re-opened. */
+export function PaperPanel({ exam, onSaved }: { exam: ExamPaper; onSaved: () => void }) {
+  const [paper, setPaper] = useState<GeneratedPaper | null>(null)
+  const [seed, setSeed] = useState(() => (Date.now() % 9000) + 1)
+  const [got, setGot] = useState<Record<string, string>>({})
+  const [busy, setBusy] = useState(false)
+  const toast = useStore((s) => s.toast)
+  const fetchPaper = useCallback(async (sd: number) => {
+    setBusy(true)
+    try {
+      setPaper(await api<GeneratedPaper>(`/api/mission/paper/${encodeURIComponent(exam.id)}?seed=${sd}`))
+      setGot({})
+    } catch {
+      toast('No paper: the subject has no question bank yet.', 'fault')
+    } finally { setBusy(false) }
+  }, [exam.id, toast])
+  const save = async () => {
+    if (!paper) return
+    const items = Object.entries(got).filter(([, v]) => v !== '').map(([id, v]) => ({ id, got: Number(v) }))
+    if (!items.length) return
+    setBusy(true)
+    try {
+      const r = await post<{ score: number; max: number; say: string }>(`/api/mission/paper/${encodeURIComponent(exam.id)}/marks`, { items, seed: paper.seed })
+      toast(r.say, 'live')
+      setPaper(null)
+      onSaved()
+    } catch {
+      toast('Could not save the marks.', 'fault')
+    } finally { setBusy(false) }
+  }
+  if (!paper) {
+    return (
+      <div className="ex-gen">
+        <button className="btn sm" disabled={busy} onClick={() => void fetchPaper(seed)}><FileText size={12} />Practice paper</button>
+        <span className="small muted">A paper that fits this exam's pattern, weak topics first. Mark it here; the marks move the plan.</span>
+      </div>
+    )
+  }
+  const answered = Object.values(got).filter((v) => v !== '').length
+  return (
+    <div className="ex-gen ex-gen-open" aria-label="practice paper">
+      <div className="ex-gen-head">
+        <b>Seed {paper.seed} · {paper.total_marks} marks</b>
+        <span className="small muted">{paper.pattern_source || 'pattern from the date sheet'} · bank {paper.bank_size}</span>
+        <span className="ex-gen-tools">
+          <button className="btn sm ghost" onClick={() => useReader.getState().openText(`${paper.title}: practice paper, seed ${paper.seed}`, paper.markdown)}>Open in Reader</button>
+          <button className="btn sm ghost" disabled={busy} onClick={() => { const n = seed + 1; setSeed(n); void fetchPaper(n) }}>New seed</button>
+          <button className="btn sm ghost" onClick={() => setPaper(null)}>Close</button>
+        </span>
+      </div>
+      {paper.shortfall.length > 0 && <p className="small muted">Bank short: {paper.shortfall.join('; ')}</p>}
+      {paper.sections.map((s) => (
+        <div key={s.name} className="ex-gen-sec">
+          <div className="small"><b>Section {s.name}</b> · {s.marks} marks each · {s.attempt < s.set ? `any ${s.attempt} of ${s.set}` : 'all'}</div>
+          <ol className="ex-gen-qs">
+            {s.questions.map((q) => (
+              <li key={q.id}>
+                <span className="ex-gen-q">{q.text}</span>
+                <span className="mono small muted" title={q.source || 'bank'}>U{q.unit ?? '?'} · {q.topic}{q.p != null ? ` · p ${Math.round(q.p * 100)}%` : ''}</span>
+                <input className="field sm ex-gen-mark" type="number" min={0} max={q.marks} step={0.5} value={got[q.id] ?? ''} placeholder={`/${q.marks}`}
+                  aria-label={`marks for question ${q.n} of section ${s.name}`} onChange={(e) => setGot({ ...got, [q.id]: e.target.value })} />
+              </li>))}
+          </ol>
+        </div>))}
+      <div className="row">
+        <button className="btn sm" disabled={busy || !answered} onClick={() => void save()}><Check size={12} />Save marks ({answered})</button>
+        <span className="small muted">{paper.rule}</span>
+      </div>
+    </div>
+  )
+}

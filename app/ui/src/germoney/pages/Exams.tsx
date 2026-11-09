@@ -316,7 +316,9 @@ export function PaperPanel({ exam, onSaved }: { exam: ExamPaper; onSaved: () => 
   }, [exam.id, toast])
   const save = async () => {
     if (!paper) return
-    const items = Object.entries(got).filter(([, v]) => v !== '').map(([id, v]) => ({ id, got: Number(v) }))
+    const shown = Object.fromEntries(paper.sections.flatMap((s) => s.questions.map((q) => [q.id, q.marks])))
+    // The marks the paper showed go with the answer: a scaled CIE paper is scored out of its own total.
+    const items = Object.entries(got).filter(([, v]) => v !== '').map(([id, v]) => ({ id, got: Number(v), max: shown[id] }))
     if (!items.length) return
     setBusy(true)
     try {

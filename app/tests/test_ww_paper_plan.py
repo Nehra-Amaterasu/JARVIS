@@ -152,3 +152,16 @@ def test_an_empty_subject_gets_an_empty_paper_then_a_real_one_after_adding(plan)
         rm.add_bank_question(plan, "bare", {"unit": 1, "topic": "z", "question": f"Bare question {i}", "marks": 2, "section": "B"})
     full = plan.practice_paper("cie-bare", seed=0, today=TODAY)
     assert full["empty"] is False and full["bank_size"] == 3 and full["pattern_scaled"] is True and full["total_marks"] == 20
+
+
+def test_marks_are_saved_against_the_marks_the_paper_showed(plan):
+    paper = plan.practice_paper("see-x", seed=5, today=TODAY)
+    q = paper["sections"][0]["questions"][0]
+    # the same bank question answered on a paper that showed it at 6 marks
+    r = plan.paper_marks("see-x", {"items": [{"id": q["id"], "got": 6, "max": 6}]}, today=TODAY)
+    assert (r["score"], r["max"]) == (6, 6)
+    with pytest.raises(ValueError):
+        plan.paper_marks("see-x", {"items": [{"id": q["id"], "got": 7, "max": 6}]}, today=TODAY)
+    # without max, the bank's marks still bound the answer
+    with pytest.raises(ValueError):
+        plan.paper_marks("see-x", {"items": [{"id": q["id"], "got": q["marks"] + 1}]}, today=TODAY)

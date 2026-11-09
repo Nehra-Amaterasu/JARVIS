@@ -63,7 +63,7 @@ describe('<PaperPanel />', () => {
     await act(async () => { save.click() })
     await tick()
     const posted = calls.find((c) => c.url.endsWith('/marks'))!
-    expect(JSON.parse(posted.body!)).toEqual({ items: [{ id: 'q1', got: 2 }], seed: 11 })
+    expect(JSON.parse(posted.body!)).toEqual({ items: [{ id: 'q1', got: 2, max: 2 }], seed: 11 })   // max = the marks the paper showed
     expect(onSaved).toHaveBeenCalledTimes(1)
     expect(host.querySelector('.ex-gen-open')).toBeNull()               // back to the button after saving
   })

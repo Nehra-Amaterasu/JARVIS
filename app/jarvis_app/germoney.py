@@ -2144,7 +2144,10 @@ class Plan:
         a typed id replaces that subject's units and adds its questions; a new id is a new
         subject, so any paper on the date sheet can carry its own unit list."""
         ac = self._ac()
-        typed = ww_engines.load_inputs().get("subjects") or []
+        try:
+            typed = ww_engines.load_inputs().get("subjects") or []
+        except Exception:              # a broken inputs file must never take the day down (test_ww_wiring)
+            typed = []
         if not typed:
             return ac
         ac = dict(ac or {"semester": None, "subjects": [], "plan": {}, "calendar": {}, "rescue": None, "unresolved": []})
@@ -3145,25 +3148,30 @@ class Plan:
         for it in items:
             q = bank.get(str((it or {}).get("id")))
             got = _num((it or {}).get("got"))
-            if q is None or got is None or q.get("marks") is None or not 0 <= got <= float(q["marks"]):
-                raise ValueError("each item needs a bank question id and marks from 0 to the question's value")
-            rows.append((q, float(got)))
+            # The paper may show a question at other marks than the bank holds (a scaled CIE shape, a
+            # filler from another section): the marks shown are the marks it was answered for.
+            shown = _num((it or {}).get("max"))
+            mx = float(shown) if shown is not None and 0 < shown <= 100 else (float(q["marks"]) if q is not None and q.get("marks") else None)
+            if q is None or got is None or mx is None or not 0 <= got <= mx:
+                raise ValueError("each item needs a bank question id and marks from 0 to the marks shown for it")
+            rows.append((q, float(got), mx))
         with self._lock:
             st = self.load(today)
             pm = st.setdefault("paper_marks", {}).setdefault(sub["id"], {})
-            for q, got in rows:
+            for q, got, mx in rows:
                 lst = pm.setdefault(ww_generator.topic_key(q.get("unit"), str(q.get("topic") or "")), [])
-                lst.append({"date": today, "got": got, "max": float(q["marks"]), "q": q.get("id")})
+                lst.append({"date": today, "got": got, "max": mx, "q": q.get("id")})
                 del lst[:-40]
             rec = st.setdefault("exam_prep", {}).setdefault(sub["id"], {})
-            rec.setdefault("papers", []).append({"date": today, "score": sum(g for _, g in rows), "max": sum(float(q["marks"]) for q, _ in rows),
+            rec.setdefault("papers", []).append({"date": today, "score": sum(g for _, g, _ in rows), "max": sum(m for _, _, m in rows),
                                                  "seed": payload.get("seed"), "items": len(rows)})
             rec["papers"] = rec["papers"][-50:]
             self.save(st)
         prof = ww_generator.proficiency((rec.get("topics") or {}), pm)
-        return {"saved": len(rows), "score": sum(g for _, g in rows), "max": sum(float(q["marks"]) for q, _ in rows),
-                "proficiency": {k: prof[k] for k in {ww_generator.topic_key(q.get("unit"), str(q.get("topic") or "")) for q, _ in rows}},
-                "say": f"Marked {len(rows)} answers: {sum(g for _, g in rows):g} of {sum(float(q['marks']) for q, _ in rows):g}. Measured, and it moves the plan."}
+        total = sum(m for _, _, m in rows)
+        return {"saved": len(rows), "score": sum(g for _, g, _ in rows), "max": total,
+                "proficiency": {k: prof[k] for k in {ww_generator.topic_key(q.get("unit"), str(q.get("topic") or "")) for q, _, _ in rows}},
+                "say": f"Marked {len(rows)} answers: {sum(g for _, g, _ in rows):g} of {total:g}. Measured, and it moves the plan."}
 
     def exam_prep(self, op: str, subject: str, payload: dict, today: Optional[str] = None) -> dict:
         """Exam preparation, one tap at a time (the exams engine reads it):

@@ -50,6 +50,9 @@
     POST   /api/mission/attendance/{slot}/{status}  present | absent | cancelled | clear, for today
     GET    /api/mission/paper/{exam}?seed=&tier=  a generated practice paper that fits the exam's pattern (ww_generator.py)
     POST   /api/mission/paper/{exam}/marks  {items: [{id, got}], seed?}  mark it: per-topic proficiency + the measured score
+    GET    /api/mission/bank/{subject}     a subject's whole question bank with its sizes per tier, unit and section (ww_generator.py)
+    POST   /api/mission/bank/{subject}     {unit, topic, question, marks, section?, tier?, source?}  add one question to the typed bank;
+                                           the text is kept as typed (LaTeX or plain), an unmatched $ or a duplicate is refused
     GET    /api/mission/sessions           building hours from local commits (ww_sessions.py)
     POST   /api/mission/sessions/import    log the new sessions as "build" time with the commit as proof
     GET    /api/mission/director           today's ordered steps, merged from exams, sessions, learning, body
@@ -91,7 +94,57 @@ from typing import Any, Optional
 from fastapi import Body, FastAPI, HTTPException
 from starlette.concurrency import run_in_threadpool
 
-from . import germoney, ww_counsel, ww_engines
+from . import germoney, ww_counsel, ww_engines, ww_generator
+
+
+def _subject(plan, subject: str) -> dict:
+    sub = next((s for s in (plan.academics() or {}).get("subjects") or [] if s.get("id") == subject), None)
+    if sub is None:
+        raise KeyError("no such subject (it is in academics.json or typed in Settings)")
+    return sub
+
+
+def bank_listing(plan, subject: str) -> dict:
+    """GET /api/mission/bank/{subject}: the merged bank (files plus typed) with its sizes."""
+    sub = _subject(plan, subject)
+    bank = sub.get("question_bank") or []
+    return {"subject": subject, "name": sub.get("name"), "units": [{"n": u["n"], "title": u.get("title"), "topics": u.get("topics") or []}
+                                                                   for u in sub.get("units") or []],
+            "sizes": ww_generator.bank_summary(bank),
+            "questions": [{"id": q.get("id"), "unit": q.get("unit"), "topic": q.get("topic") or "", "question": q.get("question"),
+                           "marks": q.get("marks"), "section": q.get("section") or "", "tier": q.get("tier") or "exam",
+                           "source": q.get("sitting") or "", "typed": ":typed:" in str(q.get("id")),
+                           "latex": ww_generator.has_latex(q.get("question") or "")} for q in bank]}
+
+
+def add_bank_question(plan, subject: str, body: dict) -> dict:
+    """POST /api/mission/bank/{subject}: append one validated question to the typed subject in the
+    engine inputs (ww_engines.save_section). A subject that comes from academics.json gets a typed
+    entry with no units, which the merge in Plan.academics() reads as "keep the file's units, add
+    these questions". The id is `<subject>:typed:<index>`, so questions are only ever appended
+    (a removal would renumber the ids that logged marks point at)."""
+    sub = _subject(plan, subject)
+    if ww_engines._slug(subject) != subject:
+        raise ValueError("this subject's id cannot be typed in Settings, so a question cannot be added to it here")
+    clean = ww_generator.validate_question(body, [int(u["n"]) for u in sub.get("units") or []])
+    with plan._lock:
+        raw = ww_engines.raw_inputs()
+        subjects = [dict(s) for s in raw.get("subjects") or [] if isinstance(s, dict)]
+        entry = next((s for s in subjects if ww_engines._slug(str(s.get("id") or "")) == subject), None)
+        if entry is None:
+            entry = {"id": subject, "name": sub.get("name") or subject, "units": [], "question_bank": []}
+            subjects.append(entry)
+        qb = [q for q in entry.get("question_bank") or [] if isinstance(q, dict) and q.get("question")]
+        if len(qb) >= ww_generator.TYPED_BANK_CAP:
+            raise ValueError(f"the typed bank is full ({ww_generator.TYPED_BANK_CAP} questions per subject)")
+        if any(ww_generator.same_question(str(x.get("question")), clean["question"]) for x in sub.get("question_bank") or []):
+            raise ValueError("this question is already in the bank")
+        entry["question_bank"] = qb + [clean]
+        saved = ww_engines.save_section("subjects", subjects)
+    after = bank_listing(plan, subject)
+    qid = f"{subject}:typed:{len(qb)}"
+    return {"added": next((q for q in after["questions"] if q["id"] == qid), None), "sizes": after["sizes"],
+            "dropped": saved["dropped"]}
 
 
 def _chain_lifespan(app: FastAPI, start) -> None:
@@ -210,6 +263,14 @@ def register(app: FastAPI, svc, bus) -> None:
     @app.get("/api/mission/paper/{exam}")
     async def practice_paper(exam: str, seed: int = 0, tier: str = "exam"):
         return await run_in_threadpool(guard, plan.practice_paper, exam, seed, tier)
+
+    @app.get("/api/mission/bank/{subject}")
+    async def bank_of(subject: str):
+        return await run_in_threadpool(guard, bank_listing, plan, subject)
+
+    @app.post("/api/mission/bank/{subject}")
+    async def bank_add(subject: str, payload: dict = Body(...)):
+        return await run_in_threadpool(guard, add_bank_question, plan, subject, payload)
 
     @app.post("/api/mission/paper/{exam}/marks")
     async def practice_paper_marks(exam: str, payload: dict = Body(...)):

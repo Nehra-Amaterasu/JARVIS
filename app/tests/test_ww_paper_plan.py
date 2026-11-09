@@ -80,3 +80,75 @@ def test_normalize_keeps_typed_subjects_tidy():
     assert out["subjects"][0]["id"] == "my-sub" and out["subjects"][0]["units"][0]["topics"] == ["a"]
     assert out["subjects"][0]["units"][0]["n"] == 1                       # 99 is out of range: the position wins
     assert any("subject without an id" in w for w in out["warnings"])
+
+
+def test_the_bank_lists_with_sizes_and_a_question_is_added_to_a_file_subject(plan):
+    from jarvis_app import routes_mission as rm
+    before = rm.bank_listing(plan, "x")
+    assert before["sizes"]["total"] == 24 and before["sizes"]["tiers"] == {"exam": 24, "gate": 0} and before["sizes"]["typed"] == 0
+    assert [u["n"] for u in before["units"]] == [1, 2]
+    r = rm.add_bank_question(plan, "x", {"unit": 2, "topic": "t2", "question": r"Find $\int_0^1 x\,dx$.", "marks": 2, "section": "A", "tier": "gate", "source": "own"})
+    assert r["added"]["id"] == "x:typed:0" and r["added"]["latex"] is True and r["added"]["tier"] == "gate" and r["added"]["source"] == "own"
+    after = rm.bank_listing(plan, "x")
+    assert after["sizes"]["total"] == before["sizes"]["total"] + 1 and after["sizes"]["tiers"] == {"exam": 24, "gate": 1} and after["sizes"]["typed"] == 1
+    assert r["sizes"] == after["sizes"]
+    # the file's own units survive the typed entry (it carries none)
+    assert [u["n"] for u in plan.academics()["subjects"][0]["units"]] == [1, 2]
+    # the stored text is what he typed, not a conversion
+    assert next(q for q in after["questions"] if q["id"] == "x:typed:0")["question"] == r"Find $\int_0^1 x\,dx$."
+    # a gate paper now exists and is made of the gate question
+    p = plan.practice_paper("see-x", seed=1, tier="gate", today=TODAY)
+    assert p["tier"] == "gate" and p["tier_note"] is None and p["bank_size"] == 1
+
+
+def test_a_plain_question_is_added_to_a_typed_subject_and_ids_only_grow(plan):
+    from jarvis_app import routes_mission as rm
+    a = rm.add_bank_question(plan, "typed-one", {"unit": 1, "topic": "b", "question": "Plain words, no maths.", "marks": 5})
+    b = rm.add_bank_question(plan, "typed-one", {"unit": 1, "topic": "a", "question": "A second one.", "marks": 2, "section": "b"})
+    assert (a["added"]["id"], b["added"]["id"]) == ("typed-one:typed:1", "typed-one:typed:2")      # after the one already typed
+    assert a["added"]["latex"] is False and b["added"]["section"] == "B" and b["sizes"]["total"] == 3
+    raw = ww_engines.raw_inputs()
+    assert len([s for s in raw["subjects"] if s["id"] == "typed-one"]) == 1                          # appended, not a second entry
+    assert raw["subjects"][0]["question_bank"][0]["question"] == "Typed Q"
+
+
+def test_an_invalid_question_is_refused_and_nothing_is_written(plan):
+    from jarvis_app import routes_mission as rm
+    good = {"unit": 1, "topic": "t1", "question": "Fine?", "marks": 2}
+    snapshot = json.dumps(ww_engines.raw_inputs(), sort_keys=True)
+    for bad in ({"unit": 5}, {"topic": ""}, {"question": ""}, {"question": "broken $x"}, {"marks": 0}, {"marks": "two"}, {"tier": "hard"}, {"section": "way too long"}):
+        with pytest.raises(ValueError):
+            rm.add_bank_question(plan, "x", {**good, **bad})
+    with pytest.raises(KeyError):
+        rm.add_bank_question(plan, "no-such-subject", good)
+    with pytest.raises(KeyError):
+        rm.bank_listing(plan, "no-such-subject")
+    assert json.dumps(ww_engines.raw_inputs(), sort_keys=True) == snapshot                           # nothing written by a refusal
+    rm.add_bank_question(plan, "x", good)
+    with pytest.raises(ValueError, match="already in the bank"):
+        rm.add_bank_question(plan, "x", {**good, "question": "  fine?  "})                           # same text, any case or spacing
+    assert len(rm.bank_listing(plan, "x")["questions"]) == 25
+
+
+def test_the_typed_bank_has_a_cap_and_says_so(plan, monkeypatch):
+    from jarvis_app import ww_generator, routes_mission as rm
+    monkeypatch.setattr(ww_generator, "TYPED_BANK_CAP", 2)
+    rm.add_bank_question(plan, "typed-one", {"unit": 1, "topic": "a", "question": "Cap question 1", "marks": 2})
+    with pytest.raises(ValueError, match="typed bank is full"):
+        rm.add_bank_question(plan, "typed-one", {"unit": 1, "topic": "a", "question": "One too many", "marks": 2})
+
+
+def test_an_empty_subject_gets_an_empty_paper_then_a_real_one_after_adding(plan):
+    from jarvis_app import routes_mission as rm
+    subs = ww_engines.raw_inputs()["subjects"]
+    subs.append({"id": "bare", "name": "Bare", "units": [{"n": 1, "title": "One", "exam_weight": "high", "topics": ["z"]}]})
+    ww_engines.save_section("subjects", subs)
+    exams = ww_engines.raw_inputs()["exams"]
+    exams.append({"id": "cie-bare", "subject": "bare", "title": "Bare CIE", "date": "2026-11-20", "kind": "cie", "max": 20})
+    ww_engines.save_section("exams", exams)
+    empty = plan.practice_paper("cie-bare", seed=0, today=TODAY)
+    assert empty["empty"] is True and empty["bank_size"] == 0 and empty["total_marks"] == 20 and "No questions in the bank" in empty["markdown"]
+    for i in range(3):
+        rm.add_bank_question(plan, "bare", {"unit": 1, "topic": "z", "question": f"Bare question {i}", "marks": 2, "section": "B"})
+    full = plan.practice_paper("cie-bare", seed=0, today=TODAY)
+    assert full["empty"] is False and full["bank_size"] == 3 and full["pattern_scaled"] is True and full["total_marks"] == 20

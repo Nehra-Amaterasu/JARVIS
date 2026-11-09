@@ -45,6 +45,8 @@ export interface PaperQuestion { id: string; n: number; text: string; marks: num
 export interface GeneratedPaper {
   exam: string; subject: string; title: string; seed: number; tier: 'exam' | 'gate'; total_marks: number; bank_size: number
   pattern_source: string; shortfall: string[]; rule: string; markdown: string
+  /** Honesty flags from the generator: an empty bank, a tier that had no questions, a default pattern on a paper of another size. */
+  empty?: boolean; tier_requested?: 'exam' | 'gate'; tier_note?: string | null; pattern_missing?: boolean; pattern_note?: string | null
   sections: { name: string; marks: number; attempt: number; set: number; questions: PaperQuestion[] }[]
 }
 type Tap = (subject: string, key: string, state: TopicState) => void
@@ -142,7 +144,7 @@ export function ExamsCard() {
       </ul>
       <p className="ex-legend muted">Bar: your topic taps, weighted by unit. → where it lands on the day with half or all of the planned minutes. Only practice marks are measured.</p>
 
-      {openPaper && <PaperTopics p={openPaper} send={send} tap={tap} reload={() => { load().then(setX).catch(() => undefined) }} />}
+      {openPaper && <PaperTopics key={openPaper.id} p={openPaper} send={send} tap={tap} reload={() => { load().then(setX).catch(() => undefined) }} />}
 
       <TodayLine slots={today?.slots ?? []} byId={byId} send={send} />
 
@@ -303,10 +305,12 @@ export function PaperPanel({ exam, onSaved }: { exam: ExamPaper; onSaved: () => 
   const fetchPaper = useCallback(async (sd: number) => {
     setBusy(true)
     try {
-      setPaper(await api<GeneratedPaper>(`/api/mission/paper/${encodeURIComponent(exam.id)}?seed=${sd}`))
+      const next = await api<GeneratedPaper>(`/api/mission/paper/${encodeURIComponent(exam.id)}?seed=${sd}`)
+      setPaper(next)
       setGot({})
+      if (next.empty) toast(`No questions in the bank for ${exam.title} yet.`, 'fault')
     } catch {
-      toast('No paper: the subject has no question bank yet.', 'fault')
+      toast('Could not build a paper. Is the app running?', 'fault')
     } finally { setBusy(false) }
   }, [exam.id, toast])
   const save = async () => {
@@ -331,6 +335,19 @@ export function PaperPanel({ exam, onSaved }: { exam: ExamPaper; onSaved: () => 
       </div>
     )
   }
+  // An empty bank is a fact to show, not a paper with three bare headings (audit STUDY-05, 9 Nov).
+  if (paper.empty) {
+    return (
+      <div className="ex-gen ex-gen-open ex-gen-empty" aria-label="practice paper" role="status">
+        <b>No questions for {paper.title} yet.</b>
+        <span className="small muted">The bank holds the June 2026 papers for the backlogs only. Add questions under Settings → Your subjects (unit, topic, marks, section), or paste a past paper there, and the generator uses them at once.</span>
+        <div className="row">
+          <button className="btn sm" onClick={() => useDrawer.getState().toggle(true)}>Open Settings</button>
+          <button className="btn sm ghost" onClick={() => setPaper(null)}>Close</button>
+        </div>
+      </div>
+    )
+  }
   const answered = Object.values(got).filter((v) => v !== '').length
   return (
     <div className="ex-gen ex-gen-open" aria-label="practice paper">
@@ -343,6 +360,8 @@ export function PaperPanel({ exam, onSaved }: { exam: ExamPaper; onSaved: () => 
           <button className="btn sm ghost" onClick={() => setPaper(null)}>Close</button>
         </span>
       </div>
+      {paper.pattern_missing && <p className="small ex-gen-note" role="note">{paper.pattern_note}</p>}
+      {paper.tier_note && <p className="small ex-gen-note" role="note">{paper.tier_note}</p>}
       {paper.shortfall.length > 0 && <p className="small muted">Bank short: {paper.shortfall.join('; ')}</p>}
       {paper.sections.map((s) => (
         <div key={s.name} className="ex-gen-sec">

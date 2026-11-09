@@ -60,7 +60,8 @@ export function math(src: string, key = 'm'): ReactNode[] {
 
 function inline(text: string, key = 0): ReactNode[] {
   const out: ReactNode[] = []
-  const re = /(\$[^$\n]+\$|\*\*[^*]+\*\*|`[^`]+`|\*[^*\s][^*]*\*|_[^_\s][^_]*_)/g
+  // `_word_` is italic only as a whole word: underscores inside identifiers (int_0^inf, V_OD) are text.
+  const re = /(\$[^$\n]+\$|\*\*[^*]+\*\*|`[^`]+`|\*[^*\s][^*]*\*|(?<![\w$])_[^_\s][^_\n]*?_(?![\w]))/g
   let last = 0
   let m: RegExpExecArray | null
   while ((m = re.exec(text))) {

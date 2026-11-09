@@ -104,9 +104,19 @@ def generate(exam: dict, bank: list[dict], units: list[dict], states: dict, mark
     pattern = exam.get("pattern") or DEFAULT_PATTERN
     scope = set(exam.get("units") or []) or {int(u["n"]) for u in units if u.get("n") is not None}
     bank = [q for q in bank if q.get("question") and (q.get("unit") in scope or q.get("unit") is None)]
+    # A tier is a promise: when the bank has no GATE-tier question the paper is an exam-tier paper
+    # and says so, instead of wearing the label (audit STUDY-06, 9 Nov).
+    tier_requested, tier_note = tier, None
     if tier == "gate":
         tiered = [q for q in bank if q.get("tier") == "gate"]
-        bank = tiered or bank
+        if tiered:
+            bank = tiered
+        else:
+            tier, tier_note = "exam", "No GATE-tier questions in this bank yet: this is an exam-tier paper."
+    # No pattern typed and the paper is not a 60-mark SEE: the default is used, and the paper says so.
+    pattern_missing = not exam.get("pattern") and exam.get("max") not in (None, 60)
+    pattern_note = (f"No pattern typed for this {exam.get('max'):g}-mark paper; the 60-mark JSS SEE shape was used. "
+                    f"Type the real pattern in Settings → Date sheet.") if pattern_missing else None
     keys = [_qkey(q) for q in bank]
     prof = proficiency(states, marks, keys)
     w = topic_weights(bank, units, prof, papers=len({q.get("sitting") for q in bank}))
@@ -132,6 +142,8 @@ def generate(exam: dict, bank: list[dict], units: list[dict], states: dict, mark
                                        for i, q in enumerate(picked)]})
     total = sum(s["attempt"] * s["marks"] for s in sections)
     return {"exam": exam.get("id"), "subject": exam.get("subject"), "title": exam.get("title"), "seed": seed, "tier": tier,
+            "tier_requested": tier_requested, "tier_note": tier_note, "pattern_missing": pattern_missing, "pattern_note": pattern_note,
+            "empty": not bank,
             "date": today, "pattern_source": exam.get("pattern_source") or ("JSS SEE Jun 2026 default" if not exam.get("pattern") else ""),
             "sections": sections, "total_marks": total, "max": exam.get("max"),
             "bank_size": len(bank), "shortfall": shortfall,
@@ -148,7 +160,12 @@ def as_markdown(paper: dict) -> str:
         for q in s["questions"]:
             L.append(f"{q['n']}. {q['text']}  \n   _Unit {q['unit']}, {q['topic']}; source: {q['source'] or 'bank'}_")
         L.append("")
-    if paper.get("shortfall"):
+    for note in (paper.get("pattern_note"), paper.get("tier_note")):
+        if note:
+            L += [f"> {note}", ""]
+    if paper.get("empty"):
+        L += ["> No questions in the bank for this subject yet.", ""]
+    elif paper.get("shortfall"):
         L += ["> Bank short: " + "; ".join(paper["shortfall"]), ""]
     return "\n".join(L)
 

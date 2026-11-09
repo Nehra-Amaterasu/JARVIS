@@ -162,7 +162,7 @@
 .classes .cls-taps .btn.on { border-color: var(--ink); color: var(--ink); }
 .classes .cls-table { width: 100%; border-collapse: collapse; }
 .classes .cls-table th { text-align: left; font: 500 10px var(--f-mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-3); padding: 2px 6px 6px 0; }
-.classes .cls-table td { padding: 4px 6px 4px 0; border-top: 1px solid var(--line); vertical-align: baseline; }
+.classes .cls-table td { padding: 4px 6px 4px 0; border-top: 1px solid var(--hair); vertical-align: baseline; }
 .classes .cls-table tr.is-low td { color: var(--fault, #c0392b); }
 .classes .cls-table tr.is-tight td:last-child { color: var(--warn, #b7791f); }
 .classes .cls-note { margin: 8px 0 0; font-size: 11px; }

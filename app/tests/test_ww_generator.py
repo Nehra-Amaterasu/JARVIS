@@ -92,3 +92,24 @@ def test_generate_is_pure():
     rnd_state = random.getstate()
     gen.generate(EXAM, b, UNITS, {"1|t1a": {"state": "solid"}}, {"1|t1b": [{"got": 1, "max": 2}]}, seed=3)
     assert repr((b, UNITS)) == before and random.getstate() == rnd_state
+
+
+def test_a_gate_paper_without_gate_questions_says_it_is_an_exam_paper():
+    a = gen.generate(EXAM, bank(), UNITS, {}, {}, seed=2, tier="gate")
+    assert a["tier"] == "exam" and a["tier_requested"] == "gate" and "No GATE-tier questions" in a["tier_note"]
+    assert "No GATE-tier questions" in gen.as_markdown(a)
+    tiered = bank() + [{"id": "g1", "unit": 1, "topic": "t1a", "question": "A GATE-level question", "marks": 2, "type": "typed",
+                        "section": "A", "sitting": "typed", "tier": "gate"}]
+    b = gen.generate(EXAM, tiered, UNITS, {}, {}, seed=2, tier="gate")
+    assert b["tier"] == "gate" and b["tier_note"] is None and b["bank_size"] == 1
+
+
+def test_an_empty_bank_and_a_foreign_pattern_are_flagged_not_hidden():
+    a = gen.generate(EXAM, [], UNITS, {}, {}, seed=1)
+    assert a["empty"] is True and a["bank_size"] == 0 and "No questions in the bank" in gen.as_markdown(a)
+    assert gen.paper_invariants(a, EXAM) == []                       # short, and it says so
+    cie = {"id": "cie", "subject": "x", "title": "CIE", "units": [5], "max": 20}
+    c = gen.generate(cie, bank(), UNITS, {}, {}, seed=1)
+    assert c["pattern_missing"] is True and "20-mark" in c["pattern_note"] and c["total_marks"] == 60
+    see = {"id": "see", "subject": "x", "title": "SEE", "units": [], "max": 60}
+    assert gen.generate(see, bank(), UNITS, {}, {}, seed=1)["pattern_missing"] is False

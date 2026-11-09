@@ -90,6 +90,13 @@ and Playwright protocols (8.4, 8.6). Don't build a second one. Build the shared 
 5. **Fonts:** at most two families per brand, self-hosted and subset, with a combined budget
    for the whole app. Measure it in the build output.
 
+**Agreed with the Well Wisher chat, 2026-11-09:**
+- **Primitives:** `app/ui/src/styles/design/primitive.css` arrives with Well Wisher chunk 1a; the merge is logged in NOW.md §6. Adopt that file and don't write a second set.
+- **Well Wisher scope:** its themes sit under `.ww` / `.ww-portal` with `data-section="wellwisher"`, and a test asserts none of its selectors leak outside that root. Section brands here use the same `data-section` attribute on their page roots.
+- **Motion governor:** it already exists at `app/ui/src/ww/design/motion/governor.ts`. It has levels high and low (`data-motion-load` on `<html>`) and the owner switch `data-motion="calm"`. Reduced motion comes through the tokens, and low power from the glass probe, hidden tabs and battery saver. Import it, don't fork it. To move it under `styles/`, agree the move with the Well Wisher chat first, because the file is theirs until then.
+- **Phone tokens:** the board-page build step writes `app/jarvis_app/phone_page/tokens.css` (primitives plus the section tokens the phone uses). `ww.css` and `relays.css` read it. It is generated, so it is never edited by hand, and the drift test covers it.
+- **Well Wisher plan 9.0 (efe496f):** every Well Wisher chunk now ships its own phone deliverable, and its chunk 13 is a parity check.
+
 Section briefs, to refine with the owner at the start of each section's chunk:
 
 | Section | Brand | What the look says |

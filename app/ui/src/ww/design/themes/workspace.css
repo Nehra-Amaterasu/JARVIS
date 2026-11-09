@@ -1,0 +1,101 @@
+/* ==========================================================================
+   The workspace layer: a look per room, centre only (plan 5.7.5).
+
+   A workspace redefines at most 7 tokens inside .ww-centre[data-ws='...']:
+   --accent, --on-accent, --accent-wash, --tint, --type-kicker, --tempo, --spring-main.
+   The left column, tab strip, rail and overlays keep the chosen theme. Provenance
+   colours, layout, type, spacing and radius are identical in every room.
+
+   WHY the derived tokens are declared again here: a custom property is inherited as its
+   COMPUTED value. --accent-wash, --accent-hi, --focus-ring and --surface-n were computed
+   once on .ww from the theme's accent; below that rule they would still carry the theme
+   accent, not the room's. So the centre re-declares each one from its own --accent, and
+   builds the tinted surfaces from --base-n (the untinted surface) since a property cannot
+   read its own previous value.
+
+   --tint is the share of accent mixed into the four surfaces: 4 % (Tree, Life, Career,
+   Setup) or 0 % (Study, Focus). The 4 % tint moves luminance by well under the step
+   between two surfaces, and tokens.test.ts recomputes all 18 theme x workspace
+   combinations on the tinted surfaces (accent text 4.5, on-accent 4.5, ink-3 4.5).
+   ========================================================================== */
+
+/* ---- derived tokens, dark themes (Ash, Indigo) ---- */
+.ww-centre {
+  --tint: 0%;
+  --surface-0: color-mix(in srgb, var(--accent) var(--tint), var(--base-0));
+  --surface-1: color-mix(in srgb, var(--accent) var(--tint), var(--base-1));
+  --surface-2: color-mix(in srgb, var(--accent) var(--tint), var(--base-2));
+  --surface-3: color-mix(in srgb, var(--accent) var(--tint), var(--base-3));
+  --accent-wash: color-mix(in srgb, var(--accent) 14%, transparent);
+  --accent-hi: color-mix(in srgb, var(--accent) 78%, white);
+  --focus-ring: var(--accent-hi);
+}
+
+/* ---- derived tokens, Paper: hover lightens, the ring is the accent itself ---- */
+html[data-theme='paper'] .ww-centre {
+  --accent-wash: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-hi: color-mix(in srgb, var(--accent) 85%, white);
+  --focus-ring: var(--accent);
+}
+
+/* ---- the parts that do not change with the theme ---- */
+.ww-centre[data-ws='study'] {
+  --tint: 0%;
+  --type-kicker: var(--accent);
+  --tempo: 1;
+  --spring-main: var(--spring-calm);
+}
+.ww-centre[data-ws='tree'] {
+  --tint: 4%;
+  --type-kicker: var(--accent);
+  --tempo: 1;
+  --spring-main: var(--spring-calm);
+}
+.ww-centre[data-ws='life'] {
+  --tint: 4%;
+  --type-kicker: var(--accent);
+  --tempo: 0.9;
+  --spring-main: var(--spring-settle);
+}
+.ww-centre[data-ws='career'] {
+  --tint: 4%;
+  --type-kicker: var(--accent);
+  --tempo: 1.1;
+  --spring-main: var(--spring-calm);
+}
+.ww-centre[data-ws='focus'] {
+  --tint: 0%;
+  --type-kicker: var(--ink-1);
+  --tempo: 1.25;
+  --spring-main: var(--spring-heavy);
+}
+.ww-centre[data-ws='setup'] {
+  --tint: 4%;
+  --type-kicker: var(--ink-2);
+  --tempo: 0.8;
+  --spring-main: var(--spring-press);
+}
+
+/* ---- accent and on-accent, Saffron Ash (the default) ---- */
+.ww-centre[data-ws='study'] { --accent: #ff7a2e; --on-accent: #1c0b00; }
+.ww-centre[data-ws='tree'] { --accent: #4fd1a1; --on-accent: #04140d; }
+.ww-centre[data-ws='life'] { --accent: #ff8fa3; --on-accent: #1c0409; }
+.ww-centre[data-ws='career'] { --accent: #b794ff; --on-accent: #12062b; }
+.ww-centre[data-ws='focus'] { --accent: #f5f6f8; --on-accent: #050506; }
+.ww-centre[data-ws='setup'] { --accent: #a9b8d0; --on-accent: #0a0f18; }
+
+/* ---- Vibhuti Paper ---- */
+html[data-theme='paper'] .ww-centre[data-ws='study'] { --accent: #a63a06; --on-accent: #ffffff; }
+html[data-theme='paper'] .ww-centre[data-ws='tree'] { --accent: #0b6b4d; --on-accent: #ffffff; }
+html[data-theme='paper'] .ww-centre[data-ws='life'] { --accent: #a3263f; --on-accent: #ffffff; }
+html[data-theme='paper'] .ww-centre[data-ws='career'] { --accent: #5b2bb3; --on-accent: #ffffff; }
+html[data-theme='paper'] .ww-centre[data-ws='focus'] { --accent: #1a1814; --on-accent: #f4f1ea; }
+html[data-theme='paper'] .ww-centre[data-ws='setup'] { --accent: #34506e; --on-accent: #ffffff; }
+
+/* ---- Indigo Night ---- */
+html[data-theme='indigo'] .ww-centre[data-ws='study'] { --accent: #9aa0ff; --on-accent: #0b0d24; }
+html[data-theme='indigo'] .ww-centre[data-ws='tree'] { --accent: #7fe0c0; --on-accent: #04140d; }
+html[data-theme='indigo'] .ww-centre[data-ws='life'] { --accent: #ffa0b4; --on-accent: #1c0409; }
+html[data-theme='indigo'] .ww-centre[data-ws='career'] { --accent: #c3a8ff; --on-accent: #12062b; }
+html[data-theme='indigo'] .ww-centre[data-ws='focus'] { --accent: #eef0ff; --on-accent: #07080f; }
+html[data-theme='indigo'] .ww-centre[data-ws='setup'] { --accent: #b8c4ff; --on-accent: #0b0d24; }

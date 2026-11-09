@@ -1,0 +1,65 @@
+/* ==========================================================================
+   Saffron Ash: the default theme (dark). Tier 2, the semantic tokens (plan 5.2).
+
+   A theme redefines these names and nothing else. Selected by html[data-theme='ash']
+   or by no data-theme at all. tokens.test.ts recomputes every contrast ratio of the
+   plan's table from this file with the WCAG relative-luminance formula.
+
+   The measured failures this file fixes (plan 5.2 "Fixes"):
+     --ink-3        was 42 % ink = 3.78:1 (fails body 4.5), now 56 % = 5.80:1 minimum
+     --ink-off      was --ink-4 at 22 % = 1.79:1, now renamed and barred from text
+     --on-accent    was white on saffron = 2.60:1, now #1c0b00 = 7.36:1
+     --line-ui      was white 7 % = about 1.16:1 as a control border, now 40 % = 3.52:1
+   --base-0..3 hold the untinted surfaces: a workspace derives its tinted --surface-n from
+   them (themes/workspace.css), because a custom property cannot read its own old value.
+   ========================================================================== */
+.ww,
+.ww-portal {
+  color-scheme: dark;
+  --ink-rgb: 245, 246, 248;
+
+  --base-0: var(--p-ash-0);
+  --base-1: var(--p-ash-1);
+  --base-2: var(--p-ash-2);
+  --base-3: var(--p-ash-3);
+  --surface-0: var(--base-0);
+  --surface-1: var(--base-1);
+  --surface-2: var(--base-2);
+  --surface-3: var(--base-3);
+
+  --ink-1: #f5f6f8;
+  --ink-2: rgba(var(--ink-rgb), var(--p-a66));
+  --ink-3: rgba(var(--ink-rgb), var(--p-a56));
+  --ink-off: rgba(var(--ink-rgb), var(--p-a22));
+  --ink-disabled: rgba(var(--ink-rgb), var(--p-a50));
+  --line: rgba(var(--ink-rgb), var(--p-a7));
+  --line-ui: rgba(var(--ink-rgb), var(--p-a40));
+
+  --accent: var(--p-saffron-500);
+  --accent-hi: var(--p-saffron-400);
+  --on-accent: var(--p-saffron-950);
+  --accent-wash: color-mix(in srgb, var(--accent) 14%, transparent);
+  --selected-bg: rgba(var(--ink-rgb), var(--p-a12));
+  --selected-ink: var(--ink-1);
+  --focus-ring: var(--accent-hi);
+
+  --live: var(--p-cyan);
+  --sim: var(--p-amber);
+  --fault: var(--p-red);
+  --behind: var(--p-sand);
+
+  --scrim: rgba(0, 0, 0, 0.62);
+  --glass-bg: rgba(18, 20, 24, 0.58);
+  --glass-edge: rgba(255, 255, 255, 0.07);
+  --shadow-lift: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+  /* the high-contrast knob (5.2): a variable, not a fourth theme */
+  --ink-3-high: rgba(var(--ink-rgb), var(--p-a72));
+  --line-ui-high: rgba(var(--ink-rgb), var(--p-a60));
+}
+
+html[data-contrast='high'] .ww,
+html[data-contrast='high'] .ww-portal {
+  --ink-3: var(--ink-3-high);
+  --line-ui: var(--line-ui-high);
+}

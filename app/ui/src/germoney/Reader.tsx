@@ -10,11 +10,15 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { create } from 'zustand'
 import { createPortal } from 'react-dom'
 import { TOKEN } from '../lib/api'
+import { texFallback } from '../ww/math/fallback'
+import { renderMath } from '../ww/math/MathText'
 import './pages/sections.css'
 
-export const useReader = create<{ path: string | null; text: string | null; title: string
+export const useReader = create<{ path: string | null; text: string | null; title: string; raw: boolean; toggleRaw: () => void
   open: (path: string, title?: string) => void; openText: (title: string, text: string) => void; close: () => void }>((set) => ({
-  path: null, text: null, title: '',
+  path: null, text: null, title: '', raw: false,
+  // Raw shows the file as written: converted maths is never silent, one tap undoes it.
+  toggleRaw: () => set((s) => ({ raw: !s.raw })),
   open: (path, title) => set({ path, text: null, title: title ?? path.split(/[\\/]/).pop() ?? path }),
   // Generated text (a practice paper) has no file: it is shown as it is, nothing is fetched.
   openText: (title, text) => set({ path: '(text)', text, title }),
@@ -22,67 +26,45 @@ export const useReader = create<{ path: string | null; text: string | null; titl
 }))
 
 /* ------------------------------------------------------------------ a small Markdown renderer */
-/** A formula between $...$: `x_{ab}` / `x_a` become subscripts, `x^{ab}` / `x^a` superscripts,
- *  nested one level (`e^{-x^2}`), everything else plain text. No HTML, no library: the sheets
- *  only need readable identifiers (N_s, V_{OD}, ΔR_p) and exponents. */
-export function math(src: string, key = 'm'): ReactNode[] {
-  const out: ReactNode[] = []
-  let i = 0
-  let buf = ''
-  const flush = () => { if (buf) { out.push(buf); buf = '' } }
-  while (i < src.length) {
-    const c = src[i]
-    if ((c === '_' || c === '^') && i + 1 < src.length) {
-      let arg: string
-      if (src[i + 1] === '{') {
-        let depth = 0
-        let j = i + 1
-        for (; j < src.length; j++) {
-          if (src[j] === '{') depth++
-          else if (src[j] === '}' && --depth === 0) break
-        }
-        arg = src.slice(i + 2, j)
-        i = j + 1
-      } else {
-        arg = src[i + 1]
-        i += 2
-      }
-      flush()
-      const Tag = c === '_' ? 'sub' : 'sup'
-      out.push(<Tag key={`${key}-${out.length}`}>{math(arg, `${key}-${out.length}`)}</Tag>)
-      continue
-    }
-    buf += c
-    i++
-  }
-  flush()
-  return out
-}
+/** A formula between $...$ drawn by the home-grown fallback (sub/superscripts, \frac, \sqrt, Greek).
+ *  Kept as an export for callers that want nodes without the component; the Reader itself goes through
+ *  MathText (ww/math), which uses KaTeX once it has loaded and this renderer until then. */
+export function math(src: string, key = 'm'): ReactNode[] { return texFallback(src, key) }
 
-function inline(text: string, key = 0): ReactNode[] {
+function inline(text: string, key = 0, raw = false): ReactNode[] {
   const out: ReactNode[] = []
   // `_word_` is italic only as a whole word: underscores inside identifiers (int_0^inf, V_OD) are text.
-  const re = /(\$[^$\n]+\$|\*\*[^*]+\*\*|`[^`]+`|\*[^*\s][^*]*\*|(?<![\w$])_[^_\s][^_\n]*?_(?![\w]))/g
+  const re = /(\$\$[^$]+\$\$|\$[^$\n]+\$|\*\*[^*]+\*\*|`[^`]+`|\*[^*\s][^*]*\*|(?<![\w$])_[^_\s][^_\n]*?_(?![\w]))/g
+  // A line with a $ in it was authored as LaTeX: its plain stretches are left alone. A line without one is
+  // the old ASCII / Unicode dialect and goes through toTex (the Reader's "Raw" button undoes that).
+  const authored = text.includes('$')
+  const plain = (s: string, k: string) => { out.push(...renderMath(s, { raw, tex: authored, keyPrefix: k })) }
   let last = 0
   let m: RegExpExecArray | null
   while ((m = re.exec(text))) {
-    if (m.index > last) out.push(text.slice(last, m.index))
+    if (m.index > last) plain(text.slice(last, m.index), `${key}-${last}`)
     const t = m[0]
     const k = `${key}-${m.index}`
-    if (t.startsWith('$')) out.push(<span key={k} className="rd-math">{math(t.slice(1, -1), k)}</span>)
+    if (t.startsWith('$')) { if (raw) out.push(t); else out.push(...renderMath(t, { tex: true, keyPrefix: k })) }
     else if (t.startsWith('**')) out.push(<b key={k}>{t.slice(2, -2)}</b>)
     else if (t.startsWith('`')) out.push(<code key={k}>{t.slice(1, -1)}</code>)
     else out.push(<i key={k}>{t.slice(1, -1)}</i>)
     last = m.index + t.length
   }
-  if (last < text.length) out.push(text.slice(last))
+  if (last < text.length) plain(text.slice(last), `${key}-${last}`)
   return out
 }
 
-export function renderMarkdown(src: string): ReactNode[] {
+export function renderMarkdown(src: string, opts: { raw?: boolean } = {}): ReactNode[] {
+  const raw = opts.raw === true
   const lines = src.replace(/\r/g, '').split('\n')
   const out: ReactNode[] = []
   let i = 0
+  // A paper is one numbered list: its sections each restart at 1 in the generated text, so a list that starts at 1
+  // under a "Section ..." heading carries on from the last list (audit FMT-3: 20 one-item lists, each numbered 1).
+  let nextNumber = 1
+  let lastHeading = ''
+  const inl = (t: string, k: number) => inline(t, k, raw)
   while (i < lines.length) {
     const l = lines[i]
     if (/^\s*```/.test(l)) {
@@ -94,17 +76,33 @@ export function renderMarkdown(src: string): ReactNode[] {
       out.push(<pre key={`c${i}`} className="rd-code"><code>{code.join('\n')}</code></pre>)
       continue
     }
+    if (/^\s*\$\$/.test(l)) {
+      // Display maths on its own line(s): $$ ... $$, centred by MathText.
+      const first = l.trim().slice(2)
+      const body: string[] = []
+      if (first.includes('$$')) { body.push(first.slice(0, first.indexOf('$$'))); i++ }
+      else {
+        body.push(first)
+        i++
+        while (i < lines.length && !lines[i].includes('$$')) { body.push(lines[i]); i++ }
+        if (i < lines.length) { body.push(lines[i].slice(0, lines[i].indexOf('$$'))); i++ }
+      }
+      const tex = body.join(' ').trim()
+      out.push(raw ? <p key={`d${i}`}>{`$$${tex}$$`}</p> : <div key={`d${i}`} className="rd-display">{renderMath(`$$${tex}$$`, { tex: true, keyPrefix: `d${i}` })}</div>)
+      continue
+    }
     if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(l)) { out.push(<hr key={`r${i}`} />); i++; continue }
     if (/^\s*>/.test(l)) {
       const q: string[] = []
       while (i < lines.length && /^\s*>/.test(lines[i])) { q.push(lines[i].replace(/^\s*>\s?/, '')); i++ }
-      out.push(<blockquote key={`q${i}`}>{inline(q.join(' '), i)}</blockquote>)
+      out.push(<blockquote key={`q${i}`}>{inl(q.join(' '), i)}</blockquote>)
       continue
     }
     const h = /^(#{1,4})\s+(.*)$/.exec(l)
     if (h) {
       const Tag = (`h${Math.min(4, h[1].length + 1)}`) as 'h2' | 'h3' | 'h4'
-      out.push(<Tag key={i}>{inline(h[2], i)}</Tag>)
+      lastHeading = h[2]
+      out.push(<Tag key={i}>{inl(h[2], i)}</Tag>)
       i++
       continue
     }
@@ -115,32 +113,43 @@ export function renderMarkdown(src: string): ReactNode[] {
         i++
       }
       const [head, ...body] = rows
-      out.push(<div key={`t${i}`} className="rd-table"><table><thead><tr>{head.map((c, j) => <th key={j}>{inline(c, j)}</th>)}</tr></thead>
-        <tbody>{body.map((r, a) => <tr key={a}>{r.map((c, j) => <td key={j}>{inline(c, a * 100 + j)}</td>)}</tr>)}</tbody></table></div>)
+      out.push(<div key={`t${i}`} className="rd-table"><table><thead><tr>{head.map((c, j) => <th key={j}>{inl(c, j)}</th>)}</tr></thead>
+        <tbody>{body.map((r, a) => <tr key={a}>{r.map((c, j) => <td key={j}>{inl(c, a * 100 + j)}</td>)}</tr>)}</tbody></table></div>)
       continue
     }
     if (/^\s*([-*]|\d+\.)\s+/.test(l)) {
       const ordered = /^\s*\d+\./.test(l)
-      const items: { depth: number; text: string }[] = []
-      while (i < lines.length && /^\s*([-*]|\d+\.)\s+/.test(lines[i])) {
-        const d = (/^(\s*)/.exec(lines[i])?.[1].length ?? 0) >= 2 ? 1 : 0
-        items.push({ depth: d, text: lines[i].replace(/^\s*([-*]|\d+\.)\s+/, '') })
-        i++
+      const first = ordered ? Number(/^\s*(\d+)\./.exec(l)![1]) : 1
+      const items: { depth: number; text: string; more: string[] }[] = []
+      for (;;) {
+        const cur = lines[i]
+        if (i < lines.length && /^\s*([-*]|\d+\.)\s+/.test(cur)) {
+          const d = (/^(\s*)/.exec(cur)?.[1].length ?? 0) >= 2 ? 1 : 0
+          items.push({ depth: d, text: cur.replace(/^\s*([-*]|\d+\.)\s+/, ''), more: [] })
+          i++
+        } else if (items.length && i < lines.length && /^\s{2,}\S/.test(cur) && !/^\s*(#{1,4}\s|\||```|>)/.test(cur)) {
+          // An indented line under an item belongs to it (the paper's "_Unit 2, topic; source_" line), not to a new paragraph.
+          items[items.length - 1].more.push(cur.trim())
+          i++
+        } else break
       }
       const L = ordered ? 'ol' : 'ul'
-      out.push(<L key={`l${i}`}>{items.map((it, j) => <li key={j} className={it.depth ? 'sub' : ''}>{inline(it.text, j)}</li>)}</L>)
+      const start = ordered && first === 1 && nextNumber > 1 && /^section\b/i.test(lastHeading) ? nextNumber : first
+      if (ordered) nextNumber = start + items.filter((it) => !it.depth).length
+      out.push(<L key={`l${i}`} {...(ordered && start !== 1 ? { start } : {})}>{items.map((it, j) => (
+        <li key={j} className={it.depth ? 'sub' : ''}>{inl(it.text, j)}{it.more.map((m, x) => <span key={x}><br />{inl(m, j * 10 + x + 1000)}</span>)}</li>))}</L>)
       continue
     }
     if (!l.trim()) { i++; continue }
     const para: string[] = []
     while (i < lines.length && lines[i].trim() && !/^(#{1,4}\s|\s*\||\s*([-*]|\d+\.)\s|\s*```|\s*>)/.test(lines[i])) { para.push(lines[i]); i++ }
-    out.push(<p key={`p${i}`}>{inline(para.join(' '), i)}</p>)
+    out.push(<p key={`p${i}`}>{inl(para.join(' '), i)}</p>)
   }
   return out
 }
 
 export function ReaderDrawer() {
-  const { path, text, title, close } = useReader()
+  const { path, text, title, close, raw, toggleRaw } = useReader()
   const [body, setBody] = useState<{ kind: 'md' | 'frame' | 'error'; text?: string; url?: string } | null>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   useEffect(() => {
@@ -165,7 +174,7 @@ export function ReaderDrawer() {
     }
   }, [path, text, close])
   // Parse once per file, not on every re-render of the drawer.
-  const article = useMemo(() => (body?.kind === 'md' ? renderMarkdown(body.text ?? '') : null), [body])
+  const article = useMemo(() => (body?.kind === 'md' ? renderMarkdown(body.text ?? '', { raw }) : null), [body, raw])
   if (!path) return null
   const name = title.replace(/[-_]/g, ' ').replace(/\.(md|txt)$/i, '')
   // On document.body, not inside the scrolling `.page`: a transformed ancestor turns `position: fixed`
@@ -176,6 +185,7 @@ export function ReaderDrawer() {
       <aside className="reader" role="dialog" aria-modal="true" aria-label={name} onClick={(e) => e.stopPropagation()}>
         <header className="reader-head">
           <span className="reader-title" title={name}>{name}</span>
+          {body?.kind === 'md' && <button className="btn sm ghost reader-raw" aria-pressed={raw} title="Show the text as written, without typeset maths" onClick={toggleRaw}>Raw</button>}
           <button ref={closeRef} className="icon-btn reader-x" aria-label="Close" onClick={close}><X size={16} /></button>
         </header>
         <div className={`reader-body${body?.kind === 'frame' ? ' frame' : ''}`}>

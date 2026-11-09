@@ -13,6 +13,7 @@ import { openStudyFile } from '../game/plan'
 import { prettyDate } from '../game/util'
 import { useDrawer } from '../ui'
 import { useReader } from '../Reader'
+import { MathText } from '../../ww/math/MathText'
 import './exams.css'
 
 type TopicState = 'none' | 'learned' | 'solid'
@@ -369,7 +370,7 @@ export function PaperPanel({ exam, onSaved }: { exam: ExamPaper; onSaved: () => 
           <ol className="ex-gen-qs">
             {s.questions.map((q) => (
               <li key={q.id}>
-                <span className="ex-gen-q">{q.text}</span>
+                <span className="ex-gen-q"><b className="ex-gen-n">{q.n}.</b> <MathText>{q.text}</MathText></span>
                 <span className="mono small muted" title={q.source || 'bank'}>U{q.unit ?? '?'} · {q.topic}{q.p != null ? ` · p ${Math.round(q.p * 100)}%` : ''}</span>
                 <input className="field sm ex-gen-mark" type="number" min={0} max={q.marks} step={0.5} value={got[q.id] ?? ''} placeholder={`/${q.marks}`}
                   aria-label={`marks for question ${q.n} of section ${s.name}`} onChange={(e) => setGot({ ...got, [q.id]: e.target.value })} />

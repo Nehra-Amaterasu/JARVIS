@@ -154,6 +154,7 @@ html[data-ww] {
   --dur-scrim: var(--p-dur-240);
   --dur-popover-in: var(--p-dur-160);
   --dur-popover-out: var(--p-dur-120);
+  --delay-switch: var(--p-dur-120);
   --stagger: 40ms;
   --ease-standard: var(--p-ease-standard);
   --ease-enter: var(--p-ease-enter);
@@ -215,6 +216,7 @@ html[data-ww][data-motion-load='low'] {
     --dur-scrim: var(--p-dur-120);
     --dur-popover-in: var(--p-dur-120);
     --dur-popover-out: var(--p-dur-120);
+    --delay-switch: 0ms;
     --stagger: 0ms;
     --dist-rise: 0px;
     --dist-fall: 0px;
@@ -244,6 +246,7 @@ html[data-ww][data-motion='calm'] {
   --dur-scrim: var(--p-dur-120);
   --dur-popover-in: var(--p-dur-120);
   --dur-popover-out: var(--p-dur-120);
+  --delay-switch: 0ms;
   --stagger: 0ms;
   --dist-rise: 0px;
   --dist-fall: 0px;

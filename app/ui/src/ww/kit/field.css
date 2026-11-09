@@ -1,0 +1,60 @@
+/* Field (plan 5.5): label above, one 40 px control (--field-h), ring in --field-ring. */
+.ww-field {
+  display: grid;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+.ww-field-label {
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  font-weight: var(--weight-medium);
+  color: var(--ink-2);
+}
+.ww-field-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.ww-input {
+  flex: 1;
+  min-inline-size: 0;
+  min-height: var(--field-h);
+  padding-inline: var(--space-3);
+  border: 1px solid var(--field-ring);
+  border-radius: var(--radius-control);
+  background: var(--surface-0);
+  color: var(--ink-1);
+  font: inherit;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+textarea.ww-input {
+  padding-block: var(--space-2);
+  resize: vertical;
+}
+.ww-input::placeholder {
+  color: var(--ink-3);
+}
+.ww-field[data-error='true'] .ww-input {
+  border-color: var(--fault);
+}
+.ww-field[data-disabled='true'] .ww-input,
+.ww-field[data-disabled='true'] .ww-field-label {
+  color: var(--ink-disabled);
+  border-color: var(--line);
+}
+.ww-field-unit {
+  font-family: var(--f-mono, ui-monospace, Consolas, monospace);
+  font-size: var(--text-small);
+  color: var(--ink-2);
+}
+.ww-field-note {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  color: var(--ink-2);
+}
+.ww-field[data-error='true'] .ww-field-note {
+  color: var(--fault);
+}

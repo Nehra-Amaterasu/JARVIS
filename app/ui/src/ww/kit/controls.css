@@ -1,0 +1,275 @@
+/* ==========================================================================
+   Well Wisher kit, controls: Button, IconButton, Segmented, Chip, Stat tiles.
+
+   Self-contained on purpose. These rules read only semantic and component tokens
+   (--ink-*, --line-ui, --btn-*, --seg-*, --hit, --radius-*, --space-*), never a
+   --p-* name, so the phone page can load this file next to the shared tier-1
+   primitives and get the same sizes, radii and focus ring (plan 9.0, chunk 1b).
+   Sizes: visible 36 / 40 / 48 px (sm / md / lg). A control with a neighbour closer
+   than 44 px takes data-grouped and is 44 px high for real; an isolated sm or md
+   control keeps its visible size and grows an invisible 44 px hit area vertically
+   only (an ::after that cannot overlap a horizontal neighbour).
+   The press, the colour cross-fade and the chip pop come from motion.css (.ww-tap).
+   ========================================================================== */
+
+/* ---- Button and IconButton ---- */
+.ww-btn {
+  --ctl-h: var(--field-h);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--ctl-h);
+  padding-inline: var(--space-4);
+  border: 1px solid var(--btn-quiet-ring);
+  border-radius: var(--radius-control);
+  background: var(--btn-quiet-bg);
+  color: var(--ink-1);
+  font: inherit;
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-body);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.ww-btn[data-size='sm'] {
+  --ctl-h: 36px;
+  padding-inline: var(--space-3);
+  font-size: var(--text-small);
+}
+.ww-btn[data-size='lg'] {
+  --ctl-h: 48px;
+  font-size: var(--text-read);
+}
+/* the real hit area: grown to 44 px vertically where the visible box is shorter */
+.ww-btn::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block: min(0px, calc((var(--ctl-h) - var(--hit)) / 2));
+}
+.ww-btn[data-grouped='true'] {
+  min-height: var(--hit);
+}
+.ww-btn[data-grouped='true']::after {
+  inset-block: 0;
+}
+.ww-iconbtn {
+  min-width: var(--ctl-h);
+  padding-inline: 0;
+}
+.ww-iconbtn[data-grouped='true'] {
+  min-width: var(--hit);
+}
+.ww-btn.primary {
+  background: var(--btn-primary-bg);
+  border-color: var(--btn-primary-bg);
+  color: var(--btn-primary-ink);
+}
+.ww-btn.danger {
+  color: var(--fault);
+  border-color: var(--fault);
+}
+@media (hover: hover) and (pointer: fine) {
+  .ww-btn:hover {
+    background: var(--selected-bg);
+  }
+  .ww-btn.primary:hover {
+    background: var(--accent-hi);
+    border-color: var(--accent-hi);
+  }
+}
+.ww-btn[data-loading='true'] {
+  color: var(--ink-2);
+  cursor: progress;
+}
+.ww-btn[aria-disabled='true'] {
+  color: var(--ink-disabled);
+  background: transparent;
+  border-color: var(--line);
+  cursor: not-allowed;
+}
+.ww-btn[aria-disabled='true']:active {
+  transform: none;
+}
+.ww-btn-wrap {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.ww-reason {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-chip);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  color: var(--ink-2);
+  transition: background-color var(--dur-state) var(--ease-standard);
+}
+.ww-reason[data-flash='on'] {
+  background: var(--selected-bg);
+}
+
+/* ---- Segmented: a radio group, selected = wash + ink (never the accent) ---- */
+.ww-seg {
+  display: inline-flex;
+  padding: 1px;
+  border: 1px solid var(--line-ui);
+  border-radius: var(--radius-control);
+  background: transparent;
+}
+.ww-seg-opt {
+  --ctl-h: var(--field-h);
+  position: relative;
+  min-height: var(--ctl-h);
+  min-width: var(--hit);
+  padding-inline: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-chip);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.ww-seg[data-variant='compact'] .ww-seg-opt {
+  --ctl-h: 36px;
+  font-size: var(--text-small);
+}
+.ww-seg[data-variant='choice'] .ww-seg-opt {
+  min-height: var(--hit);
+}
+.ww-seg-opt::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block: min(0px, calc((var(--ctl-h) - var(--hit)) / 2));
+}
+.ww-seg[data-variant='choice'] .ww-seg-opt::after {
+  inset-block: 0;
+}
+.ww-seg-opt[aria-checked='true'] {
+  background: var(--seg-selected-bg);
+  color: var(--selected-ink);
+  font-weight: var(--weight-strong);
+}
+.ww-seg-opt[aria-disabled='true'] {
+  color: var(--ink-disabled);
+  cursor: not-allowed;
+}
+@media (hover: hover) and (pointer: fine) {
+  .ww-seg-opt:not([aria-checked='true']):not([aria-disabled='true']):hover {
+    color: var(--ink-1);
+  }
+}
+
+/* ---- Chip: a label (24 px), or a control (36 px visible, 44 px real) ---- */
+.ww-chip {
+  --ctl-h: 36px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--space-5);
+  padding-inline: var(--space-2);
+  border: 1px solid var(--line-ui);
+  border-radius: var(--radius-chip);
+  background: transparent;
+  color: var(--ink-1);
+  font: inherit;
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+button.ww-chip {
+  min-height: var(--ctl-h);
+  padding-inline: var(--space-3);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+button.ww-chip::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block: min(0px, calc((var(--ctl-h) - var(--hit)) / 2));
+}
+button.ww-chip[data-grouped='true'] {
+  min-height: var(--hit);
+}
+button.ww-chip[data-grouped='true']::after {
+  inset-block: 0;
+}
+.ww-chip[aria-pressed='true'],
+.ww-chip[data-cycle-state='learned'] {
+  background: var(--selected-bg);
+  border-color: var(--ink-2);
+}
+.ww-chip[data-cycle-state='solid'] {
+  background: var(--selected-bg);
+  border-color: var(--ink-1);
+  font-weight: var(--weight-strong);
+}
+.ww-chip-dot {
+  inline-size: var(--space-2);
+  block-size: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--ink-2);
+}
+.ww-chip[data-tone='live'] .ww-chip-dot {
+  background: var(--live);
+}
+.ww-chip[data-tone='sim'] .ww-chip-dot {
+  background: var(--sim);
+}
+.ww-chip[data-tone='fault'] .ww-chip-dot {
+  background: var(--fault);
+}
+.ww-chip[data-tone='behind'] .ww-chip-dot {
+  background: var(--behind);
+}
+.ww-chip-mark,
+.ww-chip-count {
+  font-family: var(--f-mono, ui-monospace, Consolas, monospace);
+}
+.ww-chip-count {
+  color: var(--ink-2);
+}
+
+/* ---- Stat: a counter tile (also used by the phone's counters) ---- */
+.ww-stat {
+  display: grid;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+.ww-stat-label {
+  font-family: var(--f-mono, ui-monospace, Consolas, monospace);
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+.ww-stat-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  font-family: var(--f-dot, var(--f-mono, ui-monospace, Consolas, monospace));
+  font-size: var(--text-heading);
+  line-height: var(--leading-heading);
+  color: var(--ink-1);
+}
+.ww-stat-unit {
+  font-family: var(--f-mono, ui-monospace, Consolas, monospace);
+  font-size: var(--text-small);
+  color: var(--ink-2);
+}
+.ww-stat-next {
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  color: var(--ink-2);
+}

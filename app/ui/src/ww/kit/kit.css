@@ -1,0 +1,5 @@
+/* The kit's one stylesheet. Imported by kit/index.ts, so a page that imports a primitive gets its CSS.
+   Order: controls first (the phone page loads controls.css alone), then the rest. Every file reads
+   tokens only; css-lint.test.ts scans them all. */
+@import './controls.css';
+@import './field.css';

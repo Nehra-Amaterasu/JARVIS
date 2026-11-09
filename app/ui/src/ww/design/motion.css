@@ -45,6 +45,23 @@ html[data-ww]::view-transition {
   }
 }
 
+/* 12 tint, Appearance theme switch: a root view transition of 200 ms, opacity only. The
+   attribute is set by runTint() for the length of the transition and nothing else. */
+html[data-ww][data-vt='theme'] {
+  view-transition-name: root;
+}
+html[data-ww][data-vt='theme']::view-transition-old(root) {
+  animation: ww-fade-out var(--dur-theme) var(--ease-standard) both;
+}
+html[data-ww][data-vt='theme']::view-transition-new(root) {
+  animation: ww-fade var(--dur-theme) var(--ease-standard) both;
+}
+@keyframes ww-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
 /* 1 arrive: Reveal sets data-arrive="in" once, when the element is in view */
 [data-arrive='in'] {
   animation: ww-arrive calc(var(--dur-enter) * var(--tempo)) var(--ease-enter) backwards;

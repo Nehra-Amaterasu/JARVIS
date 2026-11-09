@@ -1,3 +1,4 @@
+/// <reference types="node" />
 /**
  * A small CSS reader for the Well Wisher token tests: it parses the design files, applies the
  * cascade for a described page (theme, workspace, motion mode) and resolves var() the way a

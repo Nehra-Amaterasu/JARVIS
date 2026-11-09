@@ -90,7 +90,13 @@ export function measureFps(ms = 2000): Promise<number> {
 }
 
 /** The tier for this machine: remembered, else probed once (refraction on while probing). */
-export function useGlassTier(): GlassTier {
+export function useGlassTier(opts?: GlassTierOptions): GlassTier {
+  const ww = useWwGlassTier(opts)
+  const legacy = useLegacyGlassTier()
+  return opts ? ww : legacy
+}
+
+function useLegacyGlassTier(): GlassTier {
   const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-transparency: reduce)').matches
   const [tier, setTier] = useState<GlassTier>(() => (reduced ? 'flat' : readTier() ?? 'refract'))
   useEffect(() => {
@@ -112,5 +118,110 @@ export function useGlassTier(): GlassTier {
     }, 1500)
     return () => { live = false; window.clearTimeout(t) }
   }, [reduced])
+  return tier
+}
+
+/* ------------------------------------------------------------------------------------------
+ * Additions for Well Wisher (plan 5.6, 5.8.5). Everything above is unchanged; the old
+ * useGlassTier() call with no argument behaves exactly as before.
+ *
+ * WHY: the average-fps probe hides stutter (a 60 fps average can hold a 12 fps stall), and it
+ * starts at `refract` and keeps its verdict forever. Well Wisher wants glass flat until
+ * measured, capped at `blur` (refract has no visual owner and its cost is unmeasured), and
+ * decided on the 5th-percentile frame rate: 1000 / the 95th-percentile frame gap, with a
+ * 55 fps floor. The sampler's rAF loop runs only while something animates and stops 300 ms
+ * after the last animation, so idle stays at 0 callbacks.
+ * ---------------------------------------------------------------------------------------- */
+
+export interface GlassTierOptions {
+  /** the highest tier this surface may reach; Well Wisher passes 'blur' */
+  ceiling?: GlassTier
+  /** the tier shown until the first measurement; Well Wisher passes 'flat' */
+  start?: GlassTier
+  /** p5 fps needed to leave `flat` (default 55) */
+  floorFps?: number
+}
+
+const ORDER: GlassTier[] = ['flat', 'blur', 'refract']
+export const clampTier = (t: GlassTier, ceiling: GlassTier): GlassTier => (ORDER.indexOf(t) > ORDER.indexOf(ceiling) ? ceiling : t)
+
+/** 5th-percentile fps from frame gaps in ms: 1000 / the 95th-percentile gap. */
+export function p5FromGaps(gaps: readonly number[]): number {
+  if (gaps.length === 0) return 0
+  const sorted = [...gaps].sort((a, b) => a - b)
+  const idx = Math.min(sorted.length - 1, Math.ceil(0.95 * sorted.length) - 1)
+  return 1000 / sorted[idx]
+}
+
+/** Frame-gap sampler: start() when an animation begins, stop() 300 ms after the last one ends. Keeps the last 5 windows. */
+export class FrameSampler {
+  private raf = 0
+  private last = 0
+  private gaps: number[] = []
+  private windows: number[][] = []
+  get running(): boolean {
+    return this.raf !== 0
+  }
+  start(): void {
+    if (this.raf) return
+    this.gaps = []
+    this.last = 0
+    const tick = (t: number) => {
+      if (this.last) this.gaps.push(t - this.last)
+      this.last = t
+      this.raf = requestAnimationFrame(tick)
+    }
+    this.raf = requestAnimationFrame(tick)
+  }
+  stop(): void {
+    if (this.raf) cancelAnimationFrame(this.raf)
+    this.raf = 0
+    if (this.gaps.length) this.windows = [...this.windows.slice(-4), this.gaps]
+  }
+  /** p5 over the stored windows (null until one exists) */
+  p5(): number | null {
+    const all = this.windows.flat()
+    return all.length ? p5FromGaps(all) : null
+  }
+  maxGap(): number {
+    return Math.max(0, ...this.windows.flat())
+  }
+}
+
+/** Measure p5 fps over `ms` with a rAF loop that stops by itself. */
+export function measureP5Fps(ms = 2000): Promise<number> {
+  return new Promise((resolve) => {
+    const gaps: number[] = []
+    let last = 0
+    const t0 = performance.now()
+    const tick = (t: number) => {
+      if (last) gaps.push(t - last)
+      last = t
+      if (t - t0 < ms) requestAnimationFrame(tick)
+      else resolve(p5FromGaps(gaps))
+    }
+    requestAnimationFrame(tick)
+  })
+}
+
+const WW_KEY = 'jarvis.glassTier.ww.v1'
+
+function useWwGlassTier(opts?: GlassTierOptions): GlassTier {
+  const ceiling = opts?.ceiling ?? 'blur'
+  const floor = opts?.floorFps ?? 55
+  const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-transparency: reduce)').matches
+  const [tier, setTier] = useState<GlassTier>(() => (reduced ? 'flat' : opts?.start ?? 'flat'))
+  useEffect(() => {
+    if (!opts || reduced) return
+    let live = true
+    const t = window.setTimeout(async () => {
+      const p5 = await measureP5Fps(2000)
+      if (!live) return
+      const next: GlassTier = p5 >= floor ? clampTier('blur', ceiling) : 'flat'
+      setTier(next)
+      try { localStorage.setItem(WW_KEY, next) } catch { /* private window */ }
+    }, 1500)
+    return () => { live = false; window.clearTimeout(t) }
+  }, [reduced, ceiling, floor]) // eslint-disable-line react-hooks/exhaustive-deps
   return tier
 }

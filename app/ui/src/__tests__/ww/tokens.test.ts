@@ -8,7 +8,7 @@ import { DESIGN_DIR, computeTokens, contrast, designFilesInOrder, over, parseCol
 const css = designFilesInOrder().map(read).join('\n')
 const THEMES = ['ash', 'paper', 'indigo'] as const
 const WORKSPACES = ['study', 'tree', 'life', 'career', 'focus', 'setup'] as const
-const html = (theme: string) => (theme === 'ash' ? {} : { 'data-theme': theme })
+const html = (theme: string): Record<string, string> => (theme === 'ash' ? {} : { 'data-theme': theme })
 const root = (theme: string) => computeTokens(css, { html: html(theme) }, 'root')
 const centre = (theme: string, ws: string) => computeTokens(css, { html: html(theme), ws }, 'centre')
 const col = (t: Record<string, string>, name: string) => parseColor(t[name])

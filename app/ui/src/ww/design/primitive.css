@@ -151,6 +151,7 @@ html[data-ww] {
   --dur-release: var(--p-dur-120);
   --dur-celebrate: var(--p-dur-400);
   --dur-fade: var(--p-dur-160);
+  --dur-theme: var(--p-dur-200);
   --dur-scrim: var(--p-dur-240);
   --dur-popover-in: var(--p-dur-160);
   --dur-popover-out: var(--p-dur-120);
@@ -214,6 +215,7 @@ html[data-ww][data-motion-load='low'] {
     --dur-hold: var(--p-dur-120);
     --dur-celebrate: var(--p-dur-120);
     --dur-scrim: var(--p-dur-120);
+    --dur-theme: var(--p-dur-120);
     --dur-popover-in: var(--p-dur-120);
     --dur-popover-out: var(--p-dur-120);
     --delay-switch: 0ms;
@@ -244,6 +246,7 @@ html[data-ww][data-motion='calm'] {
   --dur-hold: var(--p-dur-120);
   --dur-celebrate: var(--p-dur-120);
   --dur-scrim: var(--p-dur-120);
+  --dur-theme: var(--p-dur-120);
   --dur-popover-in: var(--p-dur-120);
   --dur-popover-out: var(--p-dur-120);
   --delay-switch: 0ms;

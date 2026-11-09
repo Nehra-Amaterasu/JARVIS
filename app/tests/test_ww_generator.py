@@ -3,6 +3,8 @@ seeded by taps, weights favour weak and asked topics without zeroing the never-a
 paper fits its pattern exactly, the same seed is the same paper, and a thin bank says so."""
 import random
 
+import pytest
+
 from jarvis_app import ww_generator as gen
 
 UNITS = [{"n": u, "title": f"U{u}", "exam_weight": w, "topics": [f"t{u}a", f"t{u}b"]} for u, w in ((1, "high"), (2, "med"), (3, "low"))]
@@ -110,6 +112,75 @@ def test_an_empty_bank_and_a_foreign_pattern_are_flagged_not_hidden():
     assert gen.paper_invariants(a, EXAM) == []                       # short, and it says so
     cie = {"id": "cie", "subject": "x", "title": "CIE", "units": [5], "max": 20}
     c = gen.generate(cie, bank(), UNITS, {}, {}, seed=1)
-    assert c["pattern_missing"] is True and "20-mark" in c["pattern_note"] and c["total_marks"] == 60
+    assert c["pattern_missing"] is True and "20-mark" in c["pattern_note"] and "scaled to 20 marks" in c["pattern_note"]
+    assert c["total_marks"] == 20 and c["pattern_scaled"] is True and c["pattern_source"] == "JSS SEE shape scaled to 20 marks"
     see = {"id": "see", "subject": "x", "title": "SEE", "units": [], "max": 60}
     assert gen.generate(see, bank(), UNITS, {}, {}, seed=1)["pattern_missing"] is False
+
+
+def test_a_cie_pattern_is_scaled_to_the_rows_maximum_for_every_maximum():
+    # Not only 20: every whole and half maximum to 300 sums exactly, with whole or half-mark questions.
+    for mx in [x / 2 for x in range(1, 601)]:
+        p = gen.scale_pattern(mx)
+        assert p and sum(s["attempt"] * s["marks"] for s in p) == mx, mx
+        assert all(s["attempt"] >= 1 and s["questions"] >= s["attempt"] and s["marks"] > 0 for s in p), mx
+    assert gen.describe_pattern(gen.scale_pattern(20)) == "A: 2 x 1, B: 6 of 12 x 2, C: 3 of 5 x 2"
+    assert sum(s["attempt"] * s["marks"] for s in gen.scale_pattern(60)) == 60
+    assert gen.scale_pattern(7.3) is None and gen.scale_pattern(0) is None and gen.scale_pattern(301) is None and gen.scale_pattern("x") is None
+
+
+def test_a_scaled_paper_is_a_real_paper_of_exactly_the_maximum_and_says_how():
+    cie = {"id": "cie", "subject": "x", "title": "CIE", "units": [], "max": 20}
+    for seed in range(30):
+        a = gen.generate(cie, bank(n_per_section=(12, 24, 12)), UNITS, {}, {}, seed=seed)
+        assert a["total_marks"] == 20 and gen.paper_invariants(a, cie) == [], seed
+        assert a["pattern_missing"] is True and a["pattern_scaled"] is True
+    assert "A: 2 x 1, B: 6 of 12 x 2, C: 3 of 5 x 2" in a["pattern_note"] and "Date sheet" in a["pattern_note"]
+    assert "scaled" in gen.as_markdown(a)
+    # a typed pattern is never scaled; a max it cannot scale to falls back loudly
+    typed = {**cie, "pattern": [{"name": "A", "questions": 4, "attempt": 4, "marks": 5}]}
+    t = gen.generate(typed, bank(), UNITS, {}, {}, seed=1)
+    assert t["pattern_missing"] is False and t["pattern_scaled"] is False and t["total_marks"] == 20
+    odd = gen.generate({**cie, "max": 7.3}, bank(), UNITS, {}, {}, seed=1)
+    assert odd["total_marks"] == 60 and odd["pattern_scaled"] is False and "cannot be scaled" in odd["pattern_note"]
+    # invariants catch a scaled paper whose total drifts from the maximum
+    drift = {**gen.generate(cie, bank(), UNITS, {}, {}, seed=1), "total_marks": 19}
+    assert any("row's maximum" in x for x in gen.paper_invariants(drift, cie))
+
+
+def test_questions_carry_their_bank_marks_and_whether_they_are_latex():
+    b = bank()
+    for q in b:
+        q["question"] = r"Evaluate $\int_0^1 x\,dx$." if q["id"] == "q0" else q["question"]
+    a = gen.generate(EXAM, b, UNITS, {}, {}, seed=0, tier="exam")
+    qs = {q["id"]: q for s in a["sections"] for q in s["questions"]}
+    assert all(q["bank_marks"] is not None for q in qs.values())
+    flagged = [i for i, q in qs.items() if q["latex"]]
+    assert flagged in ([], ["q0"])
+    assert gen.has_latex("a $x^2$ b") and not gen.has_latex("costs 5 rupees") and not gen.has_latex("one $ only")
+
+
+GOOD = {"unit": 2, "topic": "Series", "question": r"Sum $\sum_{k=1}^{n} k$.", "marks": 2, "section": "a", "tier": "gate", "source": "my notes"}
+
+
+def test_validate_question_cleans_and_refuses():
+    ok = gen.validate_question(GOOD, [1, 2, 3])
+    assert ok == {"unit": 2, "topic": "Series", "question": GOOD["question"], "marks": 2.0, "section": "A", "tier": "gate", "type": "typed", "sitting": "my notes"}
+    plain = gen.validate_question({"unit": 1, "topic": " Rank  of a matrix ", "question": "  What is rank?\r\n", "marks": 1.5}, [1])
+    assert plain["topic"] == "Rank of a matrix" and plain["question"] == "What is rank?" and plain["tier"] == "exam" and plain["sitting"] == "typed" and plain["section"] == ""
+    assert gen.validate_question({"unit": 1, "topic": "t", "question": r"Costs \$5 and $x$", "marks": 1}, [1])      # an escaped dollar is not maths
+    for bad in ({"unit": 9}, {"unit": True}, {"unit": 1.5}, {"topic": ""}, {"topic": "x" * 81}, {"question": ""}, {"question": "  "},
+                {"question": "x" * 2001}, {"question": "open $x^2"}, {"marks": 0}, {"marks": -1}, {"marks": 101}, {"marks": "2"},
+                {"marks": 1.3}, {"marks": True}, {"section": "TOOLONG"}, {"section": "A B"}, {"tier": "hard"}, {"source": "s" * 121}):
+        with pytest.raises(ValueError):
+            gen.validate_question({**GOOD, **bad}, [1, 2, 3])
+    with pytest.raises(ValueError):
+        gen.validate_question("not an object", [1])
+    assert gen.validate_question({**GOOD, "unit": 7}, [])["unit"] == 7                     # no unit list: 1..10
+
+
+def test_bank_summary_counts_tiers_units_and_sections():
+    b = bank()[:6] + [{"id": "s:typed:0", "unit": 1, "topic": "t", "question": "q", "marks": 2, "section": "A", "tier": "gate"}]
+    s = gen.bank_summary(b)
+    assert s["total"] == 7 and s["tiers"] == {"exam": 6, "gate": 1} and s["typed"] == 1 and s["by_section"]["A"] == 6 + 1
+    assert sum(s["by_unit"].values()) == 7

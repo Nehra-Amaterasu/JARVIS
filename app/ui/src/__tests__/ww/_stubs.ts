@@ -23,7 +23,7 @@ export function stubMatchMedia(queries: Record<string, boolean>): () => void {
       onchange: null,
       dispatchEvent: () => false,
     }
-  }) as typeof window.matchMedia
+  }) as unknown as typeof window.matchMedia
   return () => {
     window.matchMedia = prev
   }

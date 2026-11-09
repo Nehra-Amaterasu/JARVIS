@@ -89,6 +89,18 @@ describe('the kitchen sink', () => {
     expect(coming.hasAttribute('data-arrive')).toBe(false)
     expect(coming.getAttribute('style')).toBeNull()
   })
+  it('every control that can be pressed carries the tap motion class, so press and release come from one place', () => {
+    m = mount(<Kitchen />)
+    const pressables = m.container.querySelectorAll('button.ww-btn, button.ww-seg-opt, button.ww-chip, button.ww-fold-btn')
+    expect(pressables.length).toBeGreaterThan(30)
+    for (const b of pressables) expect(b.classList.contains('ww-tap'), b.outerHTML.slice(0, 60)).toBe(true)
+  })
+  it('a lifting card keeps its hit area on the outer box: the lift class is on the section, the face inside carries the movement', () => {
+    m = mount(<Kitchen />)
+    const lift = m.container.querySelector('[data-card=k-lift]')!
+    expect(lift.className).toContain('ww-lift')
+    expect(lift.querySelector(':scope > .ww-card-face.ww-lift-face')).not.toBeNull()
+  })
   it('opens each overlay from the page and from the options', () => {
     m = mount(<Kitchen overlay="drawer" />)
     expect(document.body.querySelector('.ww-sheet[data-place=right][data-state=open]')).not.toBeNull()

@@ -8,7 +8,17 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "springs": "node scripts/gen-springs.mjs",
+    "springs:check": "node scripts/gen-springs.mjs --check",
+    "e2e": "playwright test",
+    "e2e:motion": "playwright test e2e/motion-reduced.spec.ts e2e/motion-props.spec.ts e2e/interaction-budget.spec.ts e2e/carcass.spec.ts",
+    "e2e:layout": "playwright test e2e/hit-areas.spec.ts e2e/keyboard.spec.ts",
+    "e2e:shots": "playwright test e2e/themes-visual.spec.ts",
+    "e2e:perf": "playwright test e2e/perf-trace.spec.ts --workers=1",
+    "e2e:update": "playwright test e2e/themes-visual.spec.ts --update-snapshots",
+    "bundle:check": "vite build --outDir dist-e2e && node scripts/bundle-budget.mjs dist-e2e",
+    "ww:verify": "tsc -b && vitest run src/__tests__/ww && npm run springs:check && npm run bundle:check && playwright test"
   },
   "dependencies": {
     "@fontsource-variable/doto": "^5.3.0",

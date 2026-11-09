@@ -216,6 +216,7 @@ html[data-ww][data-motion-load='low'] {
     --dur-celebrate: var(--p-dur-120);
     --dur-scrim: var(--p-dur-120);
     --dur-theme: var(--p-dur-120);
+    --dur-fade: var(--p-dur-120);
     --dur-popover-in: var(--p-dur-120);
     --dur-popover-out: var(--p-dur-120);
     --delay-switch: 0ms;
@@ -247,6 +248,7 @@ html[data-ww][data-motion='calm'] {
   --dur-celebrate: var(--p-dur-120);
   --dur-scrim: var(--p-dur-120);
   --dur-theme: var(--p-dur-120);
+  --dur-fade: var(--p-dur-120);
   --dur-popover-in: var(--p-dur-120);
   --dur-popover-out: var(--p-dur-120);
   --delay-switch: 0ms;

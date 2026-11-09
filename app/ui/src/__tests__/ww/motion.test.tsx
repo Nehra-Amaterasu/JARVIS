@@ -275,7 +275,7 @@ describe('inertia, hold and the governor', () => {
     expect(g.active).toBe(true)
     for (let i = 0; i < 400 && cb; i++) {
       t += 16
-      const f = cb
+      const f = cb as FrameRequestCallback
       cb = null
       f(t)
     }

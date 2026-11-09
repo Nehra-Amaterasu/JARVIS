@@ -252,3 +252,13 @@ html[data-motion='calm'] .ww-pin-rule {
 html[data-motion='calm'] .ww-pin-rule {
   opacity: 1;
 }
+
+/* hold is replaced by the confirm dialog under reduce and calm: no fill is drawn (5.7.8) */
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion='full']) .ww-hold-fill {
+    display: none;
+  }
+}
+html[data-motion='calm'] .ww-hold-fill {
+  display: none;
+}

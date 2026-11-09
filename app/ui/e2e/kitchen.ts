@@ -19,6 +19,9 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
  */
 const LAB_FONTS = `html{--f-ui:system-ui,'Segoe UI',sans-serif;--f-mono:ui-monospace,Consolas,monospace;--f-dot:ui-monospace,Consolas,monospace}`
 
+/** A host that cannot resolve: nothing leaves the machine, page.route answers every request to it. */
+export const KITCHEN_URL = 'http://ww-kitchen.test/'
+
 export interface Built {
   js: string
   css: string
@@ -32,7 +35,6 @@ export function buildKitchen(): Promise<Built> {
       root: ROOT,
       configFile: false,
       logLevel: 'silent',
-      esbuild: { jsx: 'automatic' },
       define: { 'process.env.NODE_ENV': '"production"' },
       build: {
         write: false,
@@ -54,6 +56,9 @@ export function buildKitchen(): Promise<Built> {
   })()
   return cached
 }
+
+/** A `</script` inside the bundle would end the inline script early; a backslash before the slash is the same string to JS. */
+const escapeScript = (js: string) => js.replace(/<\/script/gi, '<' + String.fromCharCode(92) + '/script')
 
 export interface KitchenOpts {
   /** attributes on <html>: data-theme ('paper' | 'indigo'; none is Ash), data-motion, data-motion-load */
@@ -77,11 +82,11 @@ export async function openKitchen(page: Page, opts: KitchenOpts = {}): Promise<v
       return orig(cb)
     }
   })
-  await page.goto('about:blank')
-  await page.setContent(
-    `<!doctype html><html ${attrs}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${LAB_FONTS}${designCss()}</style><style>${css}</style></head><body style="margin:0"><div id="root"></div></body></html>`,
-  )
-  await page.addScriptTag({ content: js })
+  // Served from a real (fake) origin through page.route, not setContent: an about:blank document has an opaque
+  // origin and Chromium refuses it sessionStorage, which LockChip and the once-per-session rule need.
+  const html = `<!doctype html><html ${attrs}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${LAB_FONTS}${designCss()}</style><style>${css}</style></head><body style="margin:0"><div id="root"></div><script>${escapeScript(js)}</script></body></html>`
+  await page.route(`${KITCHEN_URL}**`, (route) => route.fulfill({ contentType: 'text/html', body: html }))
+  await page.goto(KITCHEN_URL)
   await page.evaluate((overlay) => (window as unknown as { WWKitchen: { mount(el: HTMLElement, o: object): void } }).WWKitchen.mount(document.getElementById('root')!, { overlay }), opts.overlay ?? null)
   await page.waitForSelector('[data-kitchen="Button"]')
 }

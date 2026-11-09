@@ -8,6 +8,7 @@
 import { ExternalLink, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { create } from 'zustand'
+import { createPortal } from 'react-dom'
 import { TOKEN } from '../lib/api'
 import './pages/sections.css'
 
@@ -167,7 +168,10 @@ export function ReaderDrawer() {
   const article = useMemo(() => (body?.kind === 'md' ? renderMarkdown(body.text ?? '') : null), [body])
   if (!path) return null
   const name = title.replace(/[-_]/g, ' ').replace(/\.(md|txt)$/i, '')
-  return (
+  // On document.body, not inside the scrolling `.page`: a transformed ancestor turns `position: fixed`
+  // into "fixed to that box", and the Reader scrolled away with the page (audit STUDY-01, 9 Nov).
+  return createPortal(
+    <div className="ww-portal" data-glass={glassOfPage()}>
     <div className="drawer-scrim reader-scrim" onClick={close}>
       <aside className="reader" role="dialog" aria-modal="true" aria-label={name} onClick={(e) => e.stopPropagation()}>
         <header className="reader-head">
@@ -185,5 +189,12 @@ export function ReaderDrawer() {
         {body?.kind === 'frame' && <p className="reader-foot muted small"><ExternalLink size={11} /> Scroll inside the page; Esc closes.</p>}
       </aside>
     </div>
+    </div>,
+    document.body,
   )
+}
+
+/** The page's measured glass tier, so a portal outside the page keeps the same look. */
+export function glassOfPage(): string {
+  return document.querySelector('.page.mission')?.getAttribute('data-glass') ?? 'flat'
 }

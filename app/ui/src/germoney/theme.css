@@ -14,7 +14,8 @@
    Motion: transform and opacity only, 160 ms, off under prefers-reduced-motion.
    No backdrop-filter here: glass stays in direction.css behind [data-glass].
    ========================================================================== */
-.page.mission {
+/* .ww-portal: drawers rendered on document.body (outside the scrolling page) keep the same tokens. */
+.page.mission, .ww-portal {
   --ww-accent: #ff7a2e;
   --ww-accent-hi: #ff9454;
   --ww-accent-2: rgba(255, 122, 46, 0.14);

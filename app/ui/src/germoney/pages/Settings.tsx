@@ -16,6 +16,8 @@ import { confirmDialog, useDrawer } from '../ui'
 import { SettingsCard } from './Armory'
 import { Calibration } from './Calibration'
 import { SystemInputs } from './SystemInputs'
+import { createPortal } from 'react-dom'
+import { glassOfPage } from '../Reader'
 
 const DAYS = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
 
@@ -30,7 +32,9 @@ export function SettingsDrawer() {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, toggle])
   if (!open) return null
-  return (
+  // Same reason as the Reader: outside the scrolling, transformed page (audit STUDY-01).
+  return createPortal(
+    <div className="ww-portal" data-glass={glassOfPage()}>
     <div className="drawer-scrim" onClick={() => toggle(false)}>
       <aside className="drawer card" role="dialog" aria-modal="true" aria-label="Mission settings" onClick={(e) => e.stopPropagation()}>
         <div className="card-head"><span className="card-title">Mission settings</span>
@@ -46,6 +50,8 @@ export function SettingsDrawer() {
         <Backup />
       </aside>
     </div>
+    </div>,
+    document.body,
   )
 }
 

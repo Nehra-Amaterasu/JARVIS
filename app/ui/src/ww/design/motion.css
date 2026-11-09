@@ -1,0 +1,264 @@
+/* ==========================================================================
+   The motion vocabulary as CSS (plan 5.7.3). Tokens only: no literal duration, curve
+   or colour here (css-lint.test.ts, motion.test.ts). Animated properties are
+   transform and opacity, plus clip-path on small elements and paint-only colour at
+   160 ms or less (5.7.6 rule 1).
+
+   Rule 7, "the end state is the default state": every keyframe below has only a
+   `from`, so a failed script, a missing feature or reduced motion shows the finished
+   page. Tempo is applied at the use site, calc(var(--dur-enter) * var(--tempo)),
+   because --tempo is set by the workspace below the rule that declares --dur-enter.
+   ========================================================================== */
+
+/* the frame stays live: only the centre is captured (5.7.4 #1). html[data-ww] also drops
+   the implicit root group so the Shell clock and the left column keep updating. */
+html[data-ww] {
+  view-transition-name: none;
+}
+html[data-ww]::view-transition {
+  pointer-events: none;
+}
+.ww-centre {
+  view-transition-name: ww-centre;
+}
+
+/* 2 switch: old centre fades and falls 8 px, new centre rises 12 px and fades in */
+::view-transition-old(ww-centre) {
+  animation: ww-switch-out var(--dur-switch-out) var(--ease-exit) both;
+}
+::view-transition-new(ww-centre) {
+  animation: ww-arrive var(--dur-switch-in) var(--ease-enter) var(--delay-switch) backwards;
+}
+/* the 160 ms fallback where startViewTransition is missing, or under the low governor */
+.ww-centre[data-switch='fade'] {
+  animation: ww-fade var(--dur-fade) var(--ease-standard) backwards;
+}
+@keyframes ww-switch-out {
+  to {
+    opacity: 0;
+    transform: translateY(var(--dist-fall));
+  }
+}
+@keyframes ww-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* 12 tint, Appearance theme switch: a root view transition of 200 ms, opacity only. The
+   attribute is set by runTint() for the length of the transition and nothing else. */
+html[data-ww][data-vt='theme'] {
+  view-transition-name: root;
+}
+html[data-ww][data-vt='theme']::view-transition-old(root) {
+  animation: ww-fade-out var(--dur-theme) var(--ease-standard) both;
+}
+html[data-ww][data-vt='theme']::view-transition-new(root) {
+  animation: ww-fade var(--dur-theme) var(--ease-standard) both;
+}
+@keyframes ww-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* 1 arrive: Reveal sets data-arrive="in" once, when the element is in view */
+[data-arrive='in'] {
+  animation: ww-arrive calc(var(--dur-enter) * var(--tempo)) var(--ease-enter) backwards;
+  animation-delay: calc(var(--i, 0) * var(--stagger));
+}
+@keyframes ww-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(var(--dist-rise));
+  }
+}
+
+/* leaving: accelerate and fall, shorter than arriving (gravity as asymmetry, 5.7.2 #3) */
+[data-leave='out'] {
+  animation: ww-leave calc(var(--dur-exit) * var(--tempo)) var(--ease-exit) forwards;
+  pointer-events: none;
+}
+@keyframes ww-leave {
+  to {
+    opacity: 0;
+    transform: translateY(var(--dist-fall));
+  }
+}
+
+/* 3 sheet, scrim, popover */
+.ww-sheet[data-state='open'] {
+  animation: ww-sheet-in var(--dur-sheet-in) var(--ease-enter) backwards;
+}
+.ww-sheet[data-state='closing'] {
+  animation: ww-sheet-out var(--dur-sheet-out) var(--ease-exit) forwards;
+}
+.ww-sheet[data-state='closed'] {
+  visibility: hidden;
+}
+.ww-scrim[data-state='open'] {
+  animation: ww-fade var(--dur-scrim) var(--ease-standard) backwards;
+}
+.ww-popover[data-state='open'] {
+  animation: ww-popover-in var(--dur-popover-in) var(--ease-enter) backwards;
+}
+.ww-popover[data-state='closing'] {
+  animation: ww-popover-out var(--dur-popover-out) var(--ease-exit) forwards;
+}
+@keyframes ww-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--dist-sheet));
+  }
+}
+@keyframes ww-sheet-out {
+  to {
+    opacity: 0;
+    transform: translateX(var(--dist-sheet));
+  }
+}
+@keyframes ww-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--dist-popover));
+  }
+}
+@keyframes ww-popover-out {
+  to {
+    opacity: 0;
+    transform: translateY(var(--dist-popover));
+  }
+}
+
+/* 4 tap: 1 px down in 100 ms, released on the press spring; a chip cycle pops 3 % */
+.ww-tap {
+  transition:
+    transform var(--spring-press-ms) var(--spring-press),
+    background-color var(--dur-state) var(--ease-standard),
+    color var(--dur-state) var(--ease-standard);
+}
+.ww-tap:active {
+  transform: translateY(var(--press-shift)) scale(var(--press-scale));
+  transition: transform var(--dur-feedback) var(--ease-standard);
+}
+[data-cycle='pop'] {
+  animation: ww-pop var(--dur-state) var(--ease-back-soft);
+}
+@keyframes ww-pop {
+  50% {
+    transform: scale(var(--pop-scale));
+  }
+}
+
+/* 8 fill: scaleX from the left on the workspace's own spring; width is never animated */
+.ww-fill {
+  transform: scaleX(var(--v, 0));
+  transform-origin: left center;
+  transition: transform var(--spring-calm-ms) var(--spring-calm);
+}
+
+/* 9 lift: hover devices only; the hit area stays on the stationary outer box */
+@media (hover: hover) and (pointer: fine) {
+  .ww-lift > .ww-lift-face {
+    transition: transform var(--dur-state) var(--ease-standard);
+  }
+  .ww-lift:hover > .ww-lift-face,
+  .ww-lift:focus-within > .ww-lift-face {
+    transform: translateY(calc(-1 * var(--dist-lift)));
+    transition-duration: var(--dur-state);
+  }
+  .ww-lift > .ww-lift-face::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: var(--shadow-lift);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur-state) var(--ease-standard);
+  }
+  .ww-lift:hover > .ww-lift-face::after,
+  .ww-lift:focus-within > .ww-lift-face::after {
+    opacity: 1;
+  }
+}
+
+/* 10 hold: a scaleX fill on the control's own ring, linear for the full hold time */
+.ww-hold-fill {
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+[data-hold='holding'] .ww-hold-fill {
+  transform: scaleX(1);
+  transition: transform var(--dur-hold) linear;
+}
+[data-hold='released'] .ww-hold-fill {
+  transition: transform var(--dur-release) var(--ease-exit);
+}
+
+/* 11 pin: a scroll-driven header where the engine has scroll timelines, else a sentinel */
+@supports (animation-timeline: scroll()) {
+  .ww-pin-title {
+    transform-origin: left center;
+    animation: ww-pin linear both;
+    animation-timeline: scroll();
+    animation-range: 0 96px;
+  }
+  .ww-pin-rule {
+    opacity: 0;
+    animation: ww-pin-rule linear both;
+    animation-timeline: scroll();
+    animation-range: 0 96px;
+  }
+}
+@keyframes ww-pin {
+  to {
+    transform: scale(0.92);
+  }
+}
+@keyframes ww-pin-rule {
+  to {
+    opacity: 1;
+  }
+}
+.ww-pin-rule[data-stuck='true'] {
+  opacity: 1;
+}
+
+/* celebrate: at most once per surface per session (JS), the only expressive overshoot */
+[data-celebrate='on'] {
+  animation: ww-celebrate var(--dur-celebrate) var(--ease-back);
+}
+@keyframes ww-celebrate {
+  50% {
+    transform: scale(var(--celebrate-scale));
+  }
+}
+
+/* scroll timelines are disabled under reduce and calm (5.7.8): final state, no scrub */
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion='full']) .ww-pin-title,
+  html:not([data-motion='full']) .ww-pin-rule {
+    animation: none;
+  }
+  html:not([data-motion='full']) .ww-pin-rule {
+    opacity: 1;
+  }
+}
+html[data-motion='calm'] .ww-pin-title,
+html[data-motion='calm'] .ww-pin-rule {
+  animation: none;
+}
+html[data-motion='calm'] .ww-pin-rule {
+  opacity: 1;
+}
+
+/* hold is replaced by the confirm dialog under reduce and calm: no fill is drawn (5.7.8) */
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion='full']) .ww-hold-fill {
+    display: none;
+  }
+}
+html[data-motion='calm'] .ww-hold-fill {
+  display: none;
+}

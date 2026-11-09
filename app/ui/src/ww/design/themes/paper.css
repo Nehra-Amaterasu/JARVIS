@@ -1,0 +1,59 @@
+/* ==========================================================================
+   Vibhuti Paper: the light alternate (plan 5.2). Selected by html[data-theme='paper'].
+
+   Rules that came out of the contrast computation:
+     - --accent-hi is hover only, never text (3.97:1 on surface-2);
+     - accent-coloured text is never placed on --accent-wash (4.42:1 fails), selected
+       states use --selected-ink;
+     - glass is forced flat in this theme (5.6): --glass-bg is the opaque surface.
+   --ink-disabled is 62 %: 60 % is 4.31 and fails, 62 % is 4.59 (tokens.test.ts).
+   ========================================================================== */
+html[data-theme='paper'] .ww,
+html[data-theme='paper'] .ww-portal {
+  color-scheme: light;
+  --ink-rgb: 26, 24, 20;
+
+  --base-0: #f4f1ea;
+  --base-1: #fbf9f4;
+  --base-2: #ebe7dd;
+  --base-3: #ffffff;
+  --surface-0: var(--base-0);
+  --surface-1: var(--base-1);
+  --surface-2: var(--base-2);
+  --surface-3: var(--base-3);
+
+  --ink-1: #1a1814;
+  --ink-2: rgba(var(--ink-rgb), var(--p-a72));
+  --ink-3: rgba(var(--ink-rgb), var(--p-a66));
+  --ink-off: rgba(var(--ink-rgb), var(--p-a30));
+  --ink-disabled: rgba(var(--ink-rgb), var(--p-a62));
+  --line: rgba(var(--ink-rgb), var(--p-a10));
+  --line-ui: rgba(var(--ink-rgb), var(--p-a55));
+
+  --accent: #a63a06;
+  --accent-hi: #c24a0c;
+  --on-accent: #ffffff;
+  --accent-wash: color-mix(in srgb, var(--accent) 12%, transparent);
+  --selected-bg: rgba(var(--ink-rgb), var(--p-a8));
+  --selected-ink: var(--ink-1);
+  --focus-ring: var(--accent);
+
+  --live: #0a6a85;
+  --sim: #8a5a00;
+  --fault: #b3261e;
+  --behind: #7a5c25;
+
+  --scrim: rgba(0, 0, 0, 0.45);
+  --glass-bg: var(--surface-3);
+  --glass-edge: var(--line);
+  --shadow-lift: 0 8px 24px rgba(26, 24, 20, 0.18);
+
+  --ink-3-high: rgba(var(--ink-rgb), var(--p-a72));
+  --line-ui-high: rgba(var(--ink-rgb), var(--p-a60));
+}
+
+html[data-theme='paper'][data-contrast='high'] .ww,
+html[data-theme='paper'][data-contrast='high'] .ww-portal {
+  --ink-3: var(--ink-3-high);
+  --line-ui: var(--line-ui-high);
+}

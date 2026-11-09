@@ -1,0 +1,51 @@
+/* ==========================================================================
+   Well Wisher, tier 3: component tokens (plan 5.3).
+
+   Each slot defaults to a semantic token; a component overrides its own slot locally
+   without a new theme. Nothing here reads a --p-* primitive or writes a colour literal
+   (css-lint.test.ts). Density follows the CONTAINER, not the viewport: Frame (chunk 4)
+   observes the root's width and sets data-density, so the 76 px rail is already
+   subtracted (plan 5.4).
+   ========================================================================== */
+.ww,
+.ww-portal {
+  --card-bg: var(--surface-1);
+  --card-pad: var(--pad-card);
+  --card-radius: var(--radius-card);
+  --btn-primary-bg: var(--accent);
+  --btn-primary-ink: var(--on-accent);
+  --btn-quiet-bg: transparent;
+  --btn-quiet-ring: var(--line-ui);
+  --seg-selected-bg: var(--selected-bg);
+  --field-h: 40px;
+  --field-ring: var(--line-ui);
+  --tab-underline: var(--accent);
+  --col-l: 248px;
+  --col-r: 56px;
+  --hit: 44px;
+}
+
+/* density: container width < 1000 narrow, 1000 to 1499 compact, 1500 to 1799 regular, 1800+ roomy */
+.ww[data-density='narrow'],
+.ww-portal[data-density='narrow'] {
+  --pad-card: var(--space-3);
+  --row-h: 44px;
+}
+.ww[data-density='compact'],
+.ww-portal[data-density='compact'] {
+  --pad-card: var(--space-3);
+  --row-h: 40px;
+  --col-l: 248px;
+}
+.ww[data-density='regular'],
+.ww-portal[data-density='regular'] {
+  --pad-card: var(--space-4);
+  --row-h: 44px;
+  --col-l: 280px;
+}
+.ww[data-density='roomy'],
+.ww-portal[data-density='roomy'] {
+  --pad-card: var(--space-5);
+  --row-h: 48px;
+  --col-l: 320px;
+}

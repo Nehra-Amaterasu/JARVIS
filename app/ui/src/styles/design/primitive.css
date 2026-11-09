@@ -1,0 +1,330 @@
+/* SHARED TIER-1 FILE. Adopted app-wide by the UI overhaul chat (docs/design/app-ui-overhaul.md 4)
+   and landed by Well Wisher chunk 1a; it moved here from ww/design/ with its content unchanged.
+   Every section reads these primitives and motion roles; only the theme tier (ww/design/themes/*)
+   is Well Wisher's own, scoped to .ww / .ww-portal so nothing here leaks to Core. */
+/* ==========================================================================
+   Well Wisher, tier 1: primitives, plus the theme-independent role tokens.
+
+   Plan 5.1 / 5.7.1. Raw values live here and in themes/*.css; every other file in
+   ww/ reads roles (--ink-1, --dur-state, --space-card ...), never a --p-* name
+   (css-lint.test.ts). The selector list ends with html[data-ww] on purpose: the
+   ::view-transition-* pseudo-elements hang off <html>, not off .ww, so the motion
+   tokens must exist there too or the centre cross-fade would read undefined
+   durations. Colour roles are NOT declared on html (they would repaint the Shell
+   and Core); only --p-* names and the motion roles are.
+
+   Every custom property is inherited as a COMPUTED value, so a calc() declared
+   here freezes whatever it reads at this element. That is why --tempo is applied
+   at the use site (calc(var(--dur-enter) * var(--tempo)) in motion.css) and not
+   baked into --dur-enter: a workspace sets --tempo on the centre, below this rule.
+   ========================================================================== */
+.ww,
+.ww-portal {
+  /* ---- colour primitives (5.1) ---- */
+  --p-ash-0: #050506;
+  --p-ash-1: #0b0c0f;
+  --p-ash-2: #111317;
+  --p-ash-3: #181b20;
+  --p-saffron-500: #ff7a2e;
+  --p-saffron-400: #ff9454;
+  --p-saffron-950: #1c0b00;
+  --p-cyan: #5ce1ff;
+  --p-amber: #ffb020;
+  --p-red: #ff453a;
+  --p-sand: #d6b98c;
+
+  /* ink alphas: the steps the three themes use (50, 52 and 62 are the --ink-disabled picks) */
+  --p-a7: 0.07;
+  --p-a8: 0.08;
+  --p-a10: 0.1;
+  --p-a12: 0.12;
+  --p-a22: 0.22;
+  --p-a30: 0.3;
+  --p-a40: 0.4;
+  --p-a50: 0.5;
+  --p-a55: 0.55;
+  --p-a56: 0.56;
+  --p-a58: 0.58;
+  --p-a60: 0.6;
+  --p-a62: 0.62;
+  --p-a66: 0.66;
+  --p-a72: 0.72;
+  --p-a100: 1;
+
+  /* space, radius, type (5.1) */
+  --p-space-4: 4px;
+  --p-space-8: 8px;
+  --p-space-12: 12px;
+  --p-space-16: 16px;
+  --p-space-24: 24px;
+  --p-space-32: 32px;
+  --p-space-48: 48px;
+  --p-radius-6: 6px;
+  --p-radius-10: 10px;
+  --p-radius-14: 14px;
+  --p-radius-pill: 999px;
+  --p-size-12: 12px;
+  --p-size-13: 13px;
+  --p-size-14: 14px;
+  --p-size-16: 16px;
+  --p-size-18: 18px;
+  --p-size-24: 24px;
+  --p-size-40: 40px;
+  --p-weight-400: 400;
+  --p-weight-500: 500;
+  --p-weight-600: 600;
+  --p-line-16: 16px;
+  --p-line-18: 18px;
+  --p-line-20: 20px;
+  --p-line-24: 24px;
+  --p-line-26: 26px;
+  --p-line-32: 32px;
+  --p-line-40: 40px;
+
+  /* durations: nothing longer than 400 ms (the 640 ms celebrate is gone) */
+  --p-dur-100: 100ms;
+  --p-dur-120: 120ms;
+  --p-dur-160: 160ms;
+  --p-dur-180: 180ms;
+  --p-dur-200: 200ms;
+  --p-dur-240: 240ms;
+  --p-dur-300: 300ms;
+  --p-dur-360: 360ms;
+  --p-dur-400: 400ms;
+
+  /* easing: three Material curves and three bounded back curves (peaks in plan 5.7.1) */
+  --p-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --p-ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --p-ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --p-ease-back-soft: cubic-bezier(0.34, 1.3, 0.64, 1);
+  --p-ease-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --p-ease-in-back: cubic-bezier(0.36, 0, 0.66, -0.56);
+
+  /* ---- role tokens that do not change with the theme ---- */
+  --space-1: var(--p-space-4);
+  --space-2: var(--p-space-8);
+  --space-3: var(--p-space-12);
+  --space-4: var(--p-space-16);
+  --space-5: var(--p-space-24);
+  --space-6: var(--p-space-32);
+  --space-7: var(--p-space-48);
+  --gap-card: var(--p-space-8);
+  --gap-group: var(--p-space-24);
+  --pad-card: var(--p-space-16);
+  --row-h: 44px;
+  --radius-chip: var(--p-radius-6);
+  --radius-control: var(--p-radius-10);
+  --radius-card: var(--p-radius-14);
+  --radius-pill: var(--p-radius-pill);
+  --z-nav: 20;
+  --z-scrim: 40;
+  --z-sheet: 50;
+  --z-toast: 60;
+
+  --text-label: var(--p-size-12);
+  --text-small: var(--p-size-13);
+  --text-body: var(--p-size-14);
+  --text-read: var(--p-size-16);
+  --text-title: var(--p-size-18);
+  --text-heading: var(--p-size-24);
+  --text-display: var(--p-size-40);
+  --leading-label: var(--p-line-16);
+  --leading-small: var(--p-line-18);
+  --leading-body: var(--p-line-20);
+  --leading-read: var(--p-line-26);
+  --leading-title: var(--p-line-24);
+  --leading-heading: var(--p-line-32);
+  --leading-display: var(--p-line-40);
+  --weight-regular: var(--p-weight-400);
+  --weight-medium: var(--p-weight-500);
+  --weight-strong: var(--p-weight-600);
+
+  /* ---- motion roles (5.7.1) ---- */
+  --tempo: 1;
+  --dur-feedback: var(--p-dur-100);
+  --dur-state: var(--p-dur-160);
+  --dur-enter: var(--p-dur-240);
+  --dur-exit: var(--p-dur-180);
+  --dur-sheet-in: var(--p-dur-300);
+  --dur-sheet-out: var(--p-dur-200);
+  --dur-switch-out: var(--p-dur-200);
+  --dur-switch-in: var(--p-dur-360);
+  --dur-travel: var(--p-dur-400);
+  --dur-hold: var(--p-dur-400);
+  --dur-release: var(--p-dur-120);
+  --dur-celebrate: var(--p-dur-400);
+  --dur-fade: var(--p-dur-160);
+  --dur-theme: var(--p-dur-200);
+  --dur-scrim: var(--p-dur-240);
+  --dur-popover-in: var(--p-dur-160);
+  --dur-popover-out: var(--p-dur-120);
+  --delay-switch: var(--p-dur-120);
+  --stagger: 40ms;
+  --ease-standard: var(--p-ease-standard);
+  --ease-enter: var(--p-ease-enter);
+  --ease-exit: var(--p-ease-exit);
+  --ease-back-soft: var(--p-ease-back-soft);
+  --ease-back: var(--p-ease-back);
+  --ease-in-back: var(--p-ease-in-back);
+
+  /* travel (transform only). Gravity is asymmetry (5.7.2 #3): arrive rises from 12 px below,
+     leave falls 8 px. Reduced motion sets every distance and scale to its identity. */
+  --dist-rise: 12px;
+  --dist-fall: 8px;
+  --dist-paper: 16px;
+  --dist-popover: 8px;
+  --dist-lift: 2px;
+  --dist-sheet: 100%;
+  --pop-scale: 1.03;
+  --celebrate-scale: 1.1;
+  --press-scale: 0.985;
+  --press-shift: 1px;
+}
+
+/* The ::view-transition-* pseudo-elements hang off <html>, so the motion roles they read exist there
+   too, behind html[data-ww] and nowhere else. Space, radius, type and z roles stay under .ww. */
+html[data-ww] {
+  --p-dur-100: 100ms;
+  --p-dur-120: 120ms;
+  --p-dur-160: 160ms;
+  --p-dur-180: 180ms;
+  --p-dur-200: 200ms;
+  --p-dur-240: 240ms;
+  --p-dur-300: 300ms;
+  --p-dur-360: 360ms;
+  --p-dur-400: 400ms;
+  --p-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --p-ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --p-ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --p-ease-back-soft: cubic-bezier(0.34, 1.3, 0.64, 1);
+  --p-ease-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --p-ease-in-back: cubic-bezier(0.36, 0, 0.66, -0.56);
+
+  /* ---- motion roles (5.7.1) ---- */
+  --tempo: 1;
+  --dur-feedback: var(--p-dur-100);
+  --dur-state: var(--p-dur-160);
+  --dur-enter: var(--p-dur-240);
+  --dur-exit: var(--p-dur-180);
+  --dur-sheet-in: var(--p-dur-300);
+  --dur-sheet-out: var(--p-dur-200);
+  --dur-switch-out: var(--p-dur-200);
+  --dur-switch-in: var(--p-dur-360);
+  --dur-travel: var(--p-dur-400);
+  --dur-hold: var(--p-dur-400);
+  --dur-release: var(--p-dur-120);
+  --dur-celebrate: var(--p-dur-400);
+  --dur-fade: var(--p-dur-160);
+  --dur-theme: var(--p-dur-200);
+  --dur-scrim: var(--p-dur-240);
+  --dur-popover-in: var(--p-dur-160);
+  --dur-popover-out: var(--p-dur-120);
+  --delay-switch: var(--p-dur-120);
+  --stagger: 40ms;
+  --ease-standard: var(--p-ease-standard);
+  --ease-enter: var(--p-ease-enter);
+  --ease-exit: var(--p-ease-exit);
+  --ease-back-soft: var(--p-ease-back-soft);
+  --ease-back: var(--p-ease-back);
+  --ease-in-back: var(--p-ease-in-back);
+
+  /* travel (transform only). Gravity is asymmetry (5.7.2 #3): arrive rises from 12 px below,
+     leave falls 8 px. Reduced motion sets every distance and scale to its identity. */
+  --dist-rise: 12px;
+  --dist-fall: 8px;
+  --dist-paper: 16px;
+  --dist-popover: 8px;
+  --dist-lift: 2px;
+  --dist-sheet: 100%;
+  --pop-scale: 1.03;
+  --celebrate-scale: 1.1;
+  --press-scale: 0.985;
+  --press-shift: 1px;
+}
+
+/* ==========================================================================
+   The motion governor (5.7.7). data-motion-load="low" is set from the glass probe's
+   verdict (flat tier, 5th-percentile fps under 50, hidden tab, battery saver).
+   Stagger and travel go; it sits ABOVE the reduced-motion blocks so that, at equal
+   specificity, calm and reduce (120 ms) win over low (160 ms); the workspace switch becomes the 160 ms fade; feedback stays.
+   ========================================================================== */
+html[data-motion-load='low'] .ww,
+html[data-motion-load='low'] .ww-portal,
+html[data-ww][data-motion-load='low'] {
+  --stagger: 0ms;
+  --dur-switch-out: var(--p-dur-160);
+  --dur-switch-in: var(--p-dur-160);
+  --dist-lift: 0px;
+}
+
+/* ==========================================================================
+   Reduced motion at the token layer (5.7.8). Two triggers, one result:
+     - the OS asks (prefers-reduced-motion) and the root is not forced to data-motion="full";
+     - the root says data-motion="calm" (Setup > Appearance, works with the OS flag off).
+   Travel is 0, the long durations collapse to a 120 ms opacity change, stagger is 0.
+   Feedback (100 ms colour or opacity) stays. The two blocks are identical on purpose:
+   motion.test.ts parses both and compares them.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion='full']) .ww,
+  html:not([data-motion='full']) .ww-portal,
+  html[data-ww]:not([data-motion='full']) {
+    --dur-enter: var(--p-dur-120);
+    --dur-exit: var(--p-dur-120);
+    --dur-sheet-in: var(--p-dur-120);
+    --dur-sheet-out: var(--p-dur-120);
+    --dur-switch-out: var(--p-dur-120);
+    --dur-switch-in: var(--p-dur-120);
+    --dur-travel: var(--p-dur-120);
+    --dur-hold: var(--p-dur-120);
+    --dur-celebrate: var(--p-dur-120);
+    --dur-scrim: var(--p-dur-120);
+    --dur-theme: var(--p-dur-120);
+    --dur-fade: var(--p-dur-120);
+    --dur-popover-in: var(--p-dur-120);
+    --dur-popover-out: var(--p-dur-120);
+    --delay-switch: 0ms;
+    --stagger: 0ms;
+    --dist-rise: 0px;
+    --dist-fall: 0px;
+    --dist-paper: 0px;
+    --dist-popover: 0px;
+    --dist-lift: 0px;
+    --dist-sheet: 0%;
+    --pop-scale: 1;
+    --celebrate-scale: 1;
+    --press-scale: 1;
+    --press-shift: 0px;
+  }
+}
+
+html[data-motion='calm'] .ww,
+html[data-motion='calm'] .ww-portal,
+html[data-ww][data-motion='calm'] {
+  --dur-enter: var(--p-dur-120);
+  --dur-exit: var(--p-dur-120);
+  --dur-sheet-in: var(--p-dur-120);
+  --dur-sheet-out: var(--p-dur-120);
+  --dur-switch-out: var(--p-dur-120);
+  --dur-switch-in: var(--p-dur-120);
+  --dur-travel: var(--p-dur-120);
+  --dur-hold: var(--p-dur-120);
+  --dur-celebrate: var(--p-dur-120);
+  --dur-scrim: var(--p-dur-120);
+  --dur-theme: var(--p-dur-120);
+  --dur-fade: var(--p-dur-120);
+  --dur-popover-in: var(--p-dur-120);
+  --dur-popover-out: var(--p-dur-120);
+  --delay-switch: 0ms;
+  --stagger: 0ms;
+  --dist-rise: 0px;
+  --dist-fall: 0px;
+  --dist-paper: 0px;
+  --dist-popover: 0px;
+  --dist-lift: 0px;
+  --dist-sheet: 0%;
+  --pop-scale: 1;
+  --celebrate-scale: 1;
+  --press-scale: 1;
+  --press-shift: 0px;
+}

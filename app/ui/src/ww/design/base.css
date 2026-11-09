@@ -1,0 +1,63 @@
+/* ==========================================================================
+   Well Wisher base: the entry stylesheet and the few global rules.
+
+   Import this one file from the Well Wisher entry (chunk 4). Order matters: primitives,
+   generated springs, then the three themes (Ash is the default, Paper and Indigo are
+   selected by html[data-theme]), the workspace layer, component tokens, then motion.
+   Everything is scoped to .ww, .ww-portal or html[data-ww], so importing it changes
+   nothing in Core or the other sections.
+   ========================================================================== */
+@import '../../styles/design/primitive.css';
+@import './motion/springs.generated.css';
+@import './themes/ash.css';
+@import './themes/paper.css';
+@import './themes/indigo.css';
+@import './themes/workspace.css';
+@import './component.css';
+@import './motion.css';
+
+.ww,
+.ww-portal {
+  box-sizing: border-box;
+  color: var(--ink-1);
+  background: var(--surface-0);
+  font-family: var(--f-ui);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  font-weight: var(--weight-regular);
+}
+.ww *,
+.ww *::before,
+.ww *::after,
+.ww-portal *,
+.ww-portal *::before,
+.ww-portal *::after {
+  box-sizing: inherit;
+}
+
+/* one focus ring everywhere: 2 px, offset 2, in --focus-ring (visible in all three themes) */
+.ww :focus-visible,
+.ww-portal :focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* the kicker label: 12 / 16 mono caps, in the room's kicker colour */
+.ww-kicker {
+  font-family: var(--f-mono);
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--type-kicker, var(--ink-2));
+}
+
+.ww-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

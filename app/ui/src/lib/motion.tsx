@@ -13,10 +13,14 @@
 import { cloneElement, useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react'
 import { flushSync } from 'react-dom'
 
-const reduced = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
+// Well Wisher registers a resolver that also honours data-motion="calm" | "full" (ww/useReducedMotion.ts).
+// With none registered this is exactly the old matchMedia check, so Core and the other sections are unchanged.
+let reducedResolver: (() => boolean) | null = null
+export function setReducedMotionResolver(fn: (() => boolean) | null) { reducedResolver = fn }
+const reduced = () => reducedResolver ? reducedResolver() : typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /** Spring-follow a target. stiffness/damping in physical units (mass 1). */
-export function useSpring(target: number, { stiffness = 170, damping = 22 }: { stiffness?: number; damping?: number } = {}): number {
+export function useSpring(target: number, { stiffness = 170, damping = 22, mass = 1 }: { stiffness?: number; damping?: number; mass?: number } = {}): number {
   const [v, setV] = useState(target)
   const s = useRef({ x: target, v: 0, raf: 0, last: 0 })
   useEffect(() => {
@@ -31,7 +35,7 @@ export function useSpring(target: number, { stiffness = 170, damping = 22 }: { s
       // semi-implicit Euler, sub-stepped for stability at high stiffness
       for (let i = 0; i < 4; i++) {
         const h = dt / 4
-        st.v += (-stiffness * (st.x - target) - damping * st.v) * h
+        st.v += ((-stiffness * (st.x - target) - damping * st.v) / mass) * h
         st.x += st.v * h
       }
       if (Math.abs(st.x - target) < 1e-3 * Math.max(1, Math.abs(target)) && Math.abs(st.v) < 1e-3) {
@@ -42,7 +46,7 @@ export function useSpring(target: number, { stiffness = 170, damping = 22 }: { s
     }
     st.raf = requestAnimationFrame(step)
     return () => cancelAnimationFrame(st.raf)
-  }, [target, stiffness, damping])
+  }, [target, stiffness, damping, mass])
   return v
 }
 

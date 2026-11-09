@@ -2,6 +2,39 @@
 
 One file for the Well Wisher topic, newest section on top. Older dated notes stay as they are (2026-10-23-mission-germoney-rebuild.md, 2026-10-25-well-wisher-v1.md, 2026-10-25-well-wisher-engines.md).
 
+## 2026-11-09: consolidation audit (what Well Wisher really does today)
+
+**Question.** Before adding anything new: what should Well Wisher already do, what does it really do when tried in the running app, and where is the UI inconsistent? Method: a sandbox copy of the app on a scratch data folder, every page opened and measured (DOM sizes, computed styles, API answers), plus a code read. Nothing was edited. Full per-page reports are in the private audit notes, 9 Nov.
+
+**Capability check (33 planned items).** 18 work, 6 partial, 3 missing, 5 untested (plus 1 deferred). Working: exams v2 with 16 date-sheet papers, the group switcher, the attendance engine and Classes card, the practice-paper generator, Today and the weekly review, six life trees, Status, Career, and the quality-gate tests (16 passed).
+
+**Gaps the owner named, confirmed in the app.**
+- 13 of 16 papers have an empty question bank (only 3 papers have any questions). The API answers 200 with `bank_size: 0`, so the UI opens an empty skeleton and the "no bank" toast, which sits on the error path, never fires. CIE papers are generated with the 60-mark end-semester pattern although the row says 20.
+- The GATE tier is a label only: `tier=gate` returns the exam-tier questions (`ww_generator.py` falls back with `bank = tiered or bank`), no question carries a tier, and the UI has no tier control.
+- Maths is not typeset: 0 of 88 bank questions and 0 of 37 revision sheets contain `$`; the Exams card renders `q.text` as a plain span; the Reader's `math()` handles only `_` and `^` inside `$...$`, so `\frac`, `\sqrt`, `\int` and `e^(-xy)` would print wrongly. A second bug: the italic regex in the Reader swallows text between two underscores.
+- Phone pairing is not reachable from Well Wisher: `PhoneCard` is imported only by Connect and Limbs, and the phone's `/phone/ww` address is never shown.
+
+**Blockers found by the audit.**
+- The Reader and Settings drawers are `position:fixed` inside the transformed, scrolling page, so "Open in Reader" is off-screen after any scroll (fix: portal to `document.body`).
+- Settings crashes (React #185) on a cold open: a zustand selector returns a new `[]` each render (`usePlan(s => s.academics?.subjects ?? [])`).
+- The Log page is a 300 px scroller: a Core console rule (`.log`) leaks onto `mission-page log`.
+- The Tree switcher, panel tabs and link rows have no CSS rule at all.
+
+**UI facts (measured).**
+- Buttons: 28 distinct button class strings, four unrelated families, three `.seg` definitions; the dominant height is 28 px (heights in use: 17 to 44). Fields: heights 13 to 44 px across 8 per-page overrides.
+- Tokens: a parallel `--ww-*` scale (18/20/28) sits off the app's 4-8-12-16-24-32 spacing and 16/22 radii; 939 px literals, 72 hard-coded colours, 17 font sizes, 16 radii; `--s*` is used 0 times in the germoney CSS. `.on` states hard-code white, so a theme swap is not yet possible.
+- Motion: `useSpring`, `Ticker`, `Presence` and `switchView` are used 0 times in Well Wisher; four sources of durations; 7 separate reduced-motion blocks.
+- Layout: Today is 14 cards (about 2,500 px with folds closed); the same Quest card is mounted on three pages; two exam-date editors exist and disagree; two navigations (rail and top nav) list the same eight pages in different orders and the rail clips three at 928 px; page titles disagree with nav labels.
+- Tests: 38 files / 368 tests pass but assert card wording, not placement, primary action, empty states, hit areas, motion or maths. happy-dom has no layout, so size and overflow checks need a real browser.
+
+**What it changed (proposals, none built yet).**
+- A shared primitive set to build once and reuse per theme: Card, Fold, Button/IconButton, Seg/Chip, Field, Stat, EmptyState, ComingCard (placeholders for planned features), Drawer (portal, focus trap), Toast, MathText, motion presets, a Theme accent layer, ScreenSlot, and a Section primitive carrying `data-section`, `data-primary`, `data-hint`.
+- Maths: a one-place `toTex()` converter (about 1 day, mostly content ambiguity) plus KaTeX loaded lazily (about 0.6-0.7 MB estimate, not measured; needs approval), with an extended in-house renderer as the no-install fallback (about half a day, no matrices).
+- Tests: a contract suite in vitest (section order, one primary action, accessible names, empty states, hint length, planned-feature registry, a maths table), a CSS-token ratchet, and a motion test; layout and screenshot checks need Playwright (approval).
+- One home per card, and one navigation, are proposed in the private synthesis for the owner to decide.
+
+**Sources.** Private audit notes, 9 Nov (13 reports and a synthesis); code under `app/ui/src/germoney/`, `app/jarvis_app/ww_generator.py`, `app/jarvis_app/routes_mission.py`.
+
 ## 2026-11-04: Offline architectures for the November build (RTX 4050, 0-cost)
 
 **Question.** How do the 17 November build tasks (exam pattern generator, local RAG/Yaadash data staging, interactive audio reader, Google Classroom/Gmail, attendance optimization, two-tier ledger) run 100% locally on an RTX 4050 (6 GB VRAM) and 16 GB RAM with zero external API costs, without hallucination or agent swarms?

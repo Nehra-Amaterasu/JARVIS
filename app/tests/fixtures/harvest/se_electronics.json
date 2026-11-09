@@ -4,7 +4,7 @@
      "owner": {"display_name": "Alice Example"},
      "link": "https://electronics.stackexchange.com/questions/1001/routh-hurwitz",
      "title": "How do I decide stability with the Routh-Hurwitz criterion?",
-     "body": "<p>Given the characteristic polynomial <code>s^4+2s^3+3s^2+4s+5</code>, how do I use the Routh array to decide the stability of the closed loop?</p>"},
+     "body": "<p>Given the characteristic polynomial <code>s^4+2s^3+3s^2+4s+5</code>, how do I use the Routh array to decide the stability of the closed loop with gain \\$K\\$?</p>"},
     {"question_id": 1002, "score": 9, "creation_date": 1600000000,
      "owner": {"display_name": "Bob Example"},
      "link": "https://electronics.stackexchange.com/questions/1002/with-picture",

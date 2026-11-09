@@ -115,6 +115,9 @@ def test_robots_that_cannot_be_read_is_a_refusal_not_a_free_pass():
     net2 = fake.world(fake.FakeNet())
     net2.add("https://api.stackexchange.com/robots.txt", b"", status=404)       # no robots.txt means no rules
     assert one(start(net2)[0], sources=["stackexchange"])["status"] == "done"
+    net3 = fake.world(fake.FakeNet())
+    net3.add("https://api.stackexchange.com/robots.txt", b"", status=400)          # what the live API answers: no file, no rules (RFC 9309)
+    assert one(start(net3)[0], sources=["stackexchange"])["status"] == "done"
 
 
 def test_requests_are_one_at_a_time_two_to_five_seconds_apart_with_an_honest_user_agent():
@@ -200,6 +203,7 @@ def test_stack_exchange_questions_are_stored_with_licence_author_and_link():
     assert "Alice Example" in a["source"] and a["source_url"].endswith("/1001/routh-hurwitz") and a["origin"] == "cc-verbatim"
     assert a["tier"] == "gate" and a["unit"] == 3 and a["topic"] == "Routh-Hurwitz stability" and a["marks"] in (2.0, 5.0, 7.0)
     assert "<p>" not in a["question"] and "Routh array" in a["question"]
+    assert "gain $K$?" in a["question"] and ("\\" + "$") not in a["question"], "electronics writes maths as backslash-dollar; stored as plain dollars so the renderer sees maths"
     api = [c for c in net.calls if "/2.3/" in c]
     assert len(api) == 2 and any("site=electronics" in c for c in api) and all("filter=withbody" in c and "key=" not in c for c in api)
 
@@ -350,6 +354,7 @@ def test_problem_splitting_topic_matching_and_marks_guess():
     text = "Problem 1. " + "word " * 12 + "about the Nyquist plot\n\n3\n\nProblem 2. " + "other " * 12 + "text\n2. tiny"
     probs = wh.split_problems(text)
     assert [p[0] for p in probs] == ["1", "2"] and "3" not in probs[0][1].split()[-3:]
+    assert wh.matches_topic("the Routh Hurwitz stability table", "Routh-Hurwitz stability"), "a hyphen or a space"
     assert wh.matches_topic("the Nyquist plot of the loop gain", "Nyquist plot") and not wh.matches_topic("a diode", "Nyquist plot")
     assert wh.matches_topic("what is a sampling rate", "Sampling", ("sampling",))
     assert wh.guess_marks("short") == 2.0 and wh.guess_marks("x" * 300) == 5.0 and wh.guess_marks("x" * 600) == 7.0

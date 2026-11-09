@@ -46,7 +46,8 @@ from . import ww_bank_store as store
 UA_TOKEN = "JARVIS-WellWisher-QuestionHarvester"
 USER_AGENT = f"{UA_TOKEN}/1.0 (personal, non-commercial study tool; obeys robots.txt; one request at a time)"
 DELAY = (2.0, 5.0)                 # seconds between two requests, drawn at random (research file section 6)
-SE_DAILY = 300                     # Stack Exchange anonymous requests per IP per day
+MATH_BACKSLASH_DOLLAR = ("electronics",)
+SE_DAILY = 300                    # Stack Exchange anonymous requests per IP per day
 MAX_PAGE = 8 * 1024 * 1024
 MAX_PDF = 40 * 1024 * 1024
 TODAY_REFUSALS = ("robots", "rate-limit", "licence-unknown", "blocked", "backoff", "quota", "no-source", "pdf-reader-missing", "network", "budget")
@@ -168,18 +169,18 @@ def split_problems(text: str) -> list[tuple[str, str]]:
 
 def topic_terms(topic: str) -> list[str]:
     stop = {"and", "the", "for", "with", "of", "to", "in", "on", "a", "an", "from", "its", "using"}
-    words = [w for w in re.findall(r"[a-z][a-z0-9-]{2,}", str(topic).lower()) if w not in stop]
+    words = [w for w in re.findall(r"[a-z][a-z0-9]{2,}", str(topic).lower()) if w not in stop]     # "Routh-Hurwitz" is two words: a post may spell it with a space
     return [w[:6] if len(w) >= 7 else w for w in words]
 
 
 def matches_topic(text: str, topic: str, keywords: tuple = ()) -> bool:
     """A problem is about the topic when at least min(2, n) of its words (6-letter stems) appear, or when one of
     the topic's own phrase appears whole. The syllabus keywords only break a tie for a one-word topic."""
-    low = text.lower()
+    low = re.sub(r"[-‐-―]", " ", text.lower())
     terms = topic_terms(topic)
     if not terms:
         return False
-    if str(topic).lower().strip() in low:
+    if re.sub(r"[-‐-―]", " ", str(topic).lower()).strip() in low:
         return True
     hits = sum(1 for t in terms if t in low)
     if hits >= min(2, len(terms)):
@@ -205,7 +206,7 @@ def html_to_text(fragment: str) -> Optional[str]:
         return None
     for bad in root.xpath(".//script|.//style"):
         bad.getparent().remove(bad)
-    return re.sub(r"[ \t]+", " ", re.sub(r"\n{3,}", "\n\n", htmllib.unescape(root.text_content()))).strip()
+    return re.sub(r"[ \t]+", " ", re.sub(r"\n{3,}", "\n\n", root.text_content())).strip()      # text_content() has already decoded the entities
 
 
 # ------------------------------------------------------------------ the polite fetcher
@@ -453,7 +454,10 @@ class Harvester:
             pass
         if not rec or rec.get("date") != self.today():
             status, _, body = self._request(st, f"{p.scheme}://{p.netloc}/robots.txt", 512 * 1024)
-            if status in (404, 410):
+            if status in (401, 403):
+                raise Refused("robots", f"robots.txt of {host} is not readable (HTTP {status}), so nothing is fetched there")
+            if 400 <= status < 500:
+                # RFC 9309: a 4xx for robots.txt means there are no rules (api.stackexchange.com answers 400, seen live on 9 Nov).
                 rec = {"date": self.today(), "text": ""}
             elif status == 200:
                 rec = {"date": self.today(), "text": body.decode("utf-8", "replace")}
@@ -719,6 +723,9 @@ def fetch_stackexchange(h: Harvester, st: dict, it: dict, gm: dict, limit: int, 
                 continue
             title = htmllib.unescape(q.get("title") or "").strip()
             stem = f"{title}\n\n{text}".strip()
+            if site in MATH_BACKSLASH_DOLLAR:
+                # electronics.stackexchange writes inline maths as \$x\$; our renderer reads a backslash-dollar as a plain dollar sign.
+                stem = stem.replace("\\$", "$")
             if len(stem) > store.MAX_TEXT or not matches_topic(stem, it["topic"], gm["keywords"]):
                 continue
             created = int(q.get("creation_date") or 0)

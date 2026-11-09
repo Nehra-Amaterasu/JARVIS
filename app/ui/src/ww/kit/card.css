@@ -1,0 +1,89 @@
+/* ==========================================================================
+   Card, CardHead, Section, Skeleton (plan 5.5, 7).
+
+   A card is an outer box (the stationary hit area and the data-card carrier) around a face that
+   holds the background, the border and the padding. That split is what lets `lift` move the face
+   2 px on hover while the outer box does not move, so a pointer resting on the last 2 px never
+   flickers (5.7.3 #9). The shadow is a pre-painted ::after that motion.css fades in.
+   ========================================================================== */
+.ww-card {
+  display: block;
+  min-inline-size: 0;
+}
+.ww-card-face {
+  position: relative;
+  padding: var(--card-pad);
+  border: 1px solid var(--line);
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+  color: var(--ink-1);
+}
+.ww-card[data-tone='raised'] .ww-card-face {
+  background: var(--surface-2);
+}
+.ww-card[data-tone='quiet'] .ww-card-face {
+  background: transparent;
+}
+.ww-card[data-state='loading'] .ww-card-face {
+  min-block-size: calc(var(--row-h) * 3);
+}
+.ww-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-block-end: var(--space-3);
+}
+.ww-card-headtext {
+  display: grid;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+.ww-card-title {
+  margin: 0;
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-strong);
+  color: var(--ink-1);
+}
+.ww-card-action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+}
+.ww-card-error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.ww-card-error-text {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  color: var(--fault);
+}
+
+/* a section is a placement, not a look: a grid of cards with the card gap */
+.ww-section {
+  display: grid;
+  gap: var(--gap-card);
+  min-inline-size: 0;
+}
+
+/* Skeleton: static. The only motion is the 100 ms opacity step when it leaves. */
+.ww-skeleton {
+  display: grid;
+  gap: var(--space-2);
+}
+.ww-skeleton-line {
+  display: block;
+  block-size: var(--space-3);
+  border-radius: var(--radius-chip);
+  background: var(--surface-2);
+}
+.ww-skeleton[data-state='out'] {
+  opacity: 0;
+  transition: opacity var(--dur-feedback) var(--ease-standard);
+}

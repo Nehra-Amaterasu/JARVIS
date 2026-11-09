@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type MouseEvent, type ReactNode, type Ref } from 'react'
 import { Lock } from 'lucide-react'
 import { cx, tokenMs } from './util'
 
@@ -18,6 +18,7 @@ export interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement
   disabledReason?: string
   /** A neighbour closer than 44 px: the box itself is 44 px high, not only its hit area (5.4). */
   grouped?: boolean
+  ref?: Ref<HTMLButtonElement>
   children: ReactNode
 }
 

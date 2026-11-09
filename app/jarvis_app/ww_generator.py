@@ -26,6 +26,8 @@ import random
 import re
 from typing import Optional
 
+from . import ww_bank_store
+
 SEED_P = {"none": 0.1, "learned": 0.5, "solid": 0.8}
 ALPHA = 0.5
 WEIGHT = {"high": 3, "med": 2, "low": 1}
@@ -188,6 +190,7 @@ def generate(exam: dict, bank: list[dict], units: list[dict], states: dict, mark
     eff = effective_pattern(exam)
     pattern = eff["pattern"]
     scope = set(exam.get("units") or []) or {int(u["n"]) for u in units if u.get("n") is not None}
+    bank = list(bank) + ww_bank_store.load_for(exam.get("subject"), tier)     # questions on disk (chunk H); [] until the harvester fetched some
     bank = [q for q in bank if q.get("question") and (q.get("unit") in scope or q.get("unit") is None)]
     # A tier is a promise: when the bank has no GATE-tier question the paper is an exam-tier paper
     # and says so, instead of wearing the label (audit STUDY-06, 9 Nov).

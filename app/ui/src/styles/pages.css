@@ -183,8 +183,9 @@
 .model-row:first-of-type { border-top: 0; }
 .model-row .mono { color: var(--ink-3); text-align: right; }
 .unused { color: var(--sim); font: 600 9.5px var(--f-mono); letter-spacing: 0.08em; margin-left: 8px; }
-.log { height: 300px; overflow: auto; padding: 14px; border-radius: 12px; background: rgba(0, 0, 0, 0.45); font: 500 11.5px/1.6 var(--f-mono); color: var(--ink-2); user-select: text; white-space: pre-wrap; }
-.log .ln time { color: var(--ink-4); margin-right: 10px; }
+/* Core's console and the firmware log, never a Well Wisher page (the Log page carries .mission-page.log: audit FOCUS-LOG-01). */
+.log:not(.mission-page) { height: 300px; overflow: auto; padding: 14px; border-radius: 12px; background: rgba(0, 0, 0, 0.45); font: 500 11.5px/1.6 var(--f-mono); color: var(--ink-2); user-select: text; white-space: pre-wrap; }
+.log:not(.mission-page) .ln time { color: var(--ink-4); margin-right: 10px; }
 .decision { padding: 12px 0; border-top: 1px solid var(--hair); }
 .decision:first-of-type { border-top: 0; }
 .decision b { display: block; font-size: 13.5px; margin-bottom: 4px; }

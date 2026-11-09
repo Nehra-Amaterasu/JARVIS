@@ -179,6 +179,21 @@ def test_validate_question_cleans_and_refuses():
     assert gen.validate_question({**GOOD, "unit": 7}, [])["unit"] == 7                     # no unit list: 1..10
 
 
+def test_the_gate_checks_the_scaled_pattern_and_the_marks_loop_and_restores_the_environment(monkeypatch):
+    import os
+    from jarvis_app import ww_check
+    monkeypatch.setenv("JARVIS_ENGINE_INPUTS", "sentinel-path")
+    loop = ww_check.marks_loop()
+    assert loop["problems"] == [] and loop["p"][1] > loop["p"][0] and loop["weight"][1] < loop["weight"][0]
+    assert loop["asked_in_30_papers"][1] < loop["asked_in_30_papers"][0] and loop["exams_plan_changed"] in (True, False)
+    assert os.environ["JARVIS_ENGINE_INPUTS"] == "sentinel-path"          # the scratch inputs file never leaks out of the check
+    sweep = ww_check.generator_sweep(seeds=5)
+    assert sweep["problems"] == [] and sweep["scaled"]["maxes"] == 600
+    # the check can fail: a broken scaler is reported, not swallowed
+    monkeypatch.setattr(gen, "scale_pattern", lambda mx, base=None: [{"name": "A", "questions": 1, "attempt": 1, "marks": 1}])
+    assert ww_check.scaled_pattern_sweep(bank(), UNITS, seeds=1)["problems"]
+
+
 def test_bank_summary_counts_tiers_units_and_sections():
     b = bank()[:6] + [{"id": "s:typed:0", "unit": 1, "topic": "t", "question": "q", "marks": 2, "section": "A", "tier": "gate"}]
     s = gen.bank_summary(b)

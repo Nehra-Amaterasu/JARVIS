@@ -275,7 +275,110 @@ def generator_sweep(seeds: int = 50) -> dict:
                     asked[q["topic"]] += 1
     if not asked["t1a"] > asked["t1b"]:
         problems.append(f"the weak topic was asked {asked['t1a']} times, the solid one {asked['t1b']}")
-    return {"seeds": seeds, "seconds": round(time.perf_counter() - t0, 3), "asked": asked, "problems": problems[:10]}
+    scaled = scaled_pattern_sweep(bank, units, seeds=5)
+    problems += scaled["problems"]
+    # An empty bank says so, and a gate request with no gate question is an exam paper that says so (STUDY-05, STUDY-06).
+    empty = ww_generator.generate(exam, [], units, {}, {}, seed=0)
+    if not (empty["empty"] is True and empty["bank_size"] == 0):
+        problems.append("an empty bank did not answer empty: true")
+    gate = ww_generator.generate(exam, bank, units, {}, {}, seed=0, tier="gate")
+    if not (gate["tier"] == "exam" and gate["tier_requested"] == "gate" and gate["tier_note"]):
+        problems.append("a gate request without gate questions did not say it was an exam paper")
+    if any("GATE" in x for x in gate["shortfall"]):
+        problems.append("a gate request implied gate questions exist")
+    return {"seeds": seeds, "seconds": round(time.perf_counter() - t0, 3), "asked": asked, "scaled": scaled, "problems": problems[:10]}
+
+
+def scaled_pattern_sweep(bank: list, units: list, seeds: int = 5) -> dict:
+    """A paper with no typed pattern is its row's maximum, whatever the maximum: every whole and
+    half mark from 0.5 to 300 sums exactly, and a real paper built on a few common CIE maximums
+    passes the same invariants as a typed one. 600 maximums take under 0.1 s, so all are checked."""
+    problems, maxes = [], [x / 2 for x in range(1, 601)]
+    for mx in maxes:
+        p = ww_generator.scale_pattern(mx)
+        if not p or abs(sum(s["attempt"] * s["marks"] for s in p) - mx) > 1e-9:
+            problems.append(f"max {mx:g}: scaled pattern does not sum to the maximum")
+    for mx in (10, 15, 20, 25, 30, 40, 50, 100):
+        row = {"id": "cie", "subject": "x", "title": "CIE", "units": [], "max": mx}
+        for seed in range(seeds):
+            a = ww_generator.generate(row, bank, units, {}, {}, seed=seed)
+            bad = ww_generator.paper_invariants(a, row)
+            if bad or a["total_marks"] != mx or not a["pattern_missing"]:
+                problems.append(f"{mx}-mark paper, seed {seed}: {bad or a['total_marks']}")
+    return {"maxes": len(maxes), "papers": 8 * seeds, "problems": problems[:10]}
+
+
+def marks_loop(today: str = "2026-11-09") -> dict:
+    """The exam loop the Study page promises: a paper is generated, marked, and the next paper
+    weighs the marked topic less. Run end to end on a scratch store and a scratch inputs file
+    (never his data): 36 synthetic questions on two topics, one paper, every question of its most
+    asked topic marked in full, then 30 seeds before and after. It also records whether the exams
+    engine's own plan changed, because the Study page may only say "tomorrow's blocks changed"
+    when that is true: marks move paper practice, and the block plan reads topic taps, not marks."""
+    import tempfile
+    from . import germoney
+    subject = {"id": "loop", "name": "Loop Subject", "units": [{"n": 1, "title": "Only", "exam_weight": "high", "topics": ["a", "b"]}],
+               "question_bank": [{"unit": 1, "topic": "ab"[k % 2], "question": f"Loop question {k}", "marks": (2, 7, 5)[k // 12],
+                                  "section": "ABC"[k // 12], "tier": "exam"} for k in range(36)]}
+    row = {"id": "loop-exam", "subject": "loop", "title": "Loop exam", "date": add_days(today, 14), "kind": "end_sem", "max": 60, "target": 40}
+    problems: list[str] = []
+    old = os.environ.get("JARVIS_ENGINE_INPUTS")
+    with tempfile.TemporaryDirectory() as td:
+        d = Path(td)
+        (d / "inputs.json").write_text(json.dumps({"exams": [row], "subjects": [subject]}), encoding="utf-8")
+        os.environ["JARVIS_ENGINE_INPUTS"] = str(d / "inputs.json")
+        try:
+            plan = germoney.Plan(germoney.KVStore(d / "kv", d / "bk"), bank_loader=lambda: germoney.merge_bank({}), academics_loader=lambda: None,
+                                 apps=germoney.Applications(calendar=d / "no-calendar.json", store=d / "apps.json"))
+
+            def shares(n: int = 30) -> dict:
+                c = {"a": 0, "b": 0}
+                for seed in range(n):
+                    for s in plan.practice_paper("loop-exam", seed=seed, today=today)["sections"]:
+                        for q in s["questions"]:
+                            c[q["topic"]] += 1
+                return c
+
+            def weights() -> dict:
+                st = plan.load(today)
+                sub = next(s for s in plan.academics()["subjects"] if s["id"] == "loop")
+                prof = ww_generator.proficiency(((st.get("exam_prep") or {}).get("loop") or {}).get("topics") or {}, (st.get("paper_marks") or {}).get("loop") or {},
+                                                [ww_generator.topic_key(q["unit"], q["topic"]) for q in sub["question_bank"]])
+                w = ww_generator.topic_weights(sub["question_bank"], sub["units"], prof, papers=1)
+                return {k.split("|")[1]: round(v, 4) for k, v in w.items()}, prof
+
+            paper = plan.practice_paper("loop-exam", seed=1, today=today)
+            qs = [q for s in paper["sections"] for q in s["questions"]]
+            topic = max("ab", key=lambda t: sum(1 for q in qs if q["topic"] == t))
+            w_before, prof_before = weights()
+            share_before = shares()
+            plan_before = plan.engine("exams", today)
+            marked = [q for q in qs if q["topic"] == topic]
+            res = plan.paper_marks("loop-exam", {"items": [{"id": q["id"], "got": q["bank_marks"]} for q in marked], "seed": 1}, today=today)
+            w_after, prof_after = weights()
+            share_after = shares()
+            plan_after = plan.engine("exams", today)
+            key = ww_generator.topic_key(1, topic)
+            row_after = next(p for p in plan_after["papers"] if p["id"] == "loop-exam")
+            if res["saved"] != len(marked):
+                problems.append(f"saved {res['saved']} of {len(marked)} marks")
+            if not prof_after[key] > prof_before[key]:
+                problems.append(f"proficiency of {topic} did not rise ({prof_before[key]} -> {prof_after[key]})")
+            if not w_after[topic] < w_before[topic]:
+                problems.append(f"the weight of {topic} did not fall ({w_before[topic]} -> {w_after[topic]})")
+            if not share_after[topic] < share_before[topic]:
+                problems.append(f"{topic} was asked {share_after[topic]} times after marking, {share_before[topic]} before")
+            if not (row_after.get("paper_score") or {}).get("score"):
+                problems.append("the exams engine does not show the measured paper score")
+            out = {"topic": topic, "marked": len(marked), "p": [prof_before[key], prof_after[key]], "weight": [w_before[topic], w_after[topic]],
+                   "asked_in_30_papers": [share_before[topic], share_after[topic]], "score": res["score"], "of": res["max"],
+                   "exams_plan_changed": plan_before.get("days") != plan_after.get("days"), "problems": problems}
+        finally:
+            if old is None:
+                os.environ.pop("JARVIS_ENGINE_INPUTS", None)
+            else:
+                os.environ["JARVIS_ENGINE_INPUTS"] = old
+    return out
 
 
 BUDGET_S = {"exams": 3.0, "attendance": 1.0, "generator": 2.0}
@@ -288,7 +391,7 @@ def report(plan=None, today: Optional[str] = None) -> dict:
     inputs = ww_engines.load_inputs() if plan is not None else ww_engines.normalize_inputs({})
     out: dict[str, Any] = {"date": today, "routes": route_drift(), "schema": schema_consistency(),
                            "smoke": engine_smoke(inputs, today), "margin_sweep": margin_sweep(), "stress": stress(today),
-                           "generator": generator_sweep()}
+                           "generator": generator_sweep(), "marks_loop": marks_loop(today)}
     if plan is not None:
         ex = plan.engine("exams", today)
         at = plan.engine("attendance", today)
@@ -304,6 +407,7 @@ def report(plan=None, today: Optional[str] = None) -> dict:
                      or out["stress"]["exams"]["problems"] or out["stress"]["attendance"]["problems"]
                      or out["stress"]["exams"]["seconds"] > BUDGET_S["exams"] or out["stress"]["attendance"]["seconds"] > BUDGET_S["attendance"]
                      or out["generator"]["problems"] or out["generator"]["seconds"] > BUDGET_S["generator"]
+                     or out["marks_loop"]["problems"]
                      or (out.get("real") or {}).get("exams_problems") or (out.get("real") or {}).get("attendance_problems"))
     return out
 
@@ -322,6 +426,15 @@ def as_markdown(r: dict) -> str:
     g = r.get("generator") or {}
     if g:
         L.append(f"- Generator: {g['seeds']} seeds in {g['seconds']} s (budget {BUDGET_S['generator']}), weak topic asked {g['asked'].get('t1a')} vs solid {g['asked'].get('t1b')}; problems {g['problems'] or 'none'}.")
+        sc = g.get("scaled") or {}
+        L.append(f"- Scaled CIE pattern: {sc.get('maxes')} maximums (0.5 to 300) sum exactly, {sc.get('papers')} papers on common maximums pass the invariants; "
+                 f"empty bank and gate-without-gate-questions answer honestly; problems {sc.get('problems') or 'none'}.")
+    m = r.get("marks_loop")
+    if m:
+        L.append(f"- Marks loop (scratch store, synthetic subject): marked {m['marked']} questions of topic {m['topic']} ({m['score']:g} of {m['of']:g}); "
+                 f"proficiency {m['p'][0]} -> {m['p'][1]}, topic weight {m['weight'][0]} -> {m['weight'][1]}, asked in 30 papers {m['asked_in_30_papers'][0]} -> {m['asked_in_30_papers'][1]}; "
+                 f"the exams block plan {'changed' if m['exams_plan_changed'] else 'did not change'} "
+                 f"(the Study line says {'blocks changed' if m['exams_plan_changed'] else 'no change to the plan'}); problems {m['problems'] or 'none'}.")
     if r.get("real"):
         x = r["real"]
         L.append(f"- Real data (read-only): {x['papers']} papers {x['groups']}, work {x['work_h']} h, planned {x['planned_h']} h, "

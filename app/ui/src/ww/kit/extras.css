@@ -1,0 +1,140 @@
+/* HoldButton, PinHeader, CursorLabel, ComingCard, LockChip, CoachMark.
+   The hold fill, the pin scrub and the arrive are motion.css's; this file is placement and surfaces. */
+
+/* ---- HoldButton: the ring is the button's own bottom edge, filled by scaleX in motion.css ---- */
+.ww-hold-wrap {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.ww-hold .ww-hold-fill {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: var(--space-1);
+  border-radius: 0 0 var(--radius-control) var(--radius-control);
+  background: currentColor;
+}
+.ww-hold-confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-small);
+  color: var(--ink-1);
+}
+
+/* ---- PinHeader: fixed 56 px, opaque (a translucent sticky strip over scrolling text is CAREER-STATUS-12) ---- */
+.ww-pin-sentinel {
+  block-size: 1px;
+  margin-block-end: -1px;
+  pointer-events: none;
+}
+.ww-pin {
+  --pin-h: 56px;
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--z-nav);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  block-size: var(--pin-h);
+  padding-inline: var(--space-4);
+  background: var(--surface-3);
+  color: var(--ink-1);
+}
+.ww-pin-title {
+  margin: 0;
+  font-size: var(--text-heading);
+  line-height: var(--leading-heading);
+  font-weight: var(--weight-strong);
+}
+.ww-pin-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.ww-pin-rule {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 1px;
+  background: var(--line-ui);
+  opacity: 0;
+}
+
+/* ---- CursorLabel: transform only, at most 24 px tall, never over the pointer ---- */
+.ww-portal.ww-cursor-label {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  z-index: var(--z-toast);
+  max-block-size: var(--space-5);
+  padding-inline: var(--space-2);
+  border: 1px solid var(--line-ui);
+  border-radius: var(--radius-chip);
+  background: var(--surface-3);
+  color: var(--ink-1);
+  font-size: var(--text-label);
+  line-height: var(--space-5);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.ww-cursor-label[data-visible='false'] {
+  visibility: hidden;
+}
+
+/* ---- ComingCard: static, dashed in --line-ui, never the accent ---- */
+.ww-coming {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--card-pad);
+  border: 1px dashed var(--line-ui);
+  border-radius: var(--card-radius);
+  background: transparent;
+  color: var(--ink-2);
+}
+.ww-coming .ww-kicker {
+  color: var(--ink-2);
+}
+.ww-coming-line,
+.ww-coming-when {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-coming-line {
+  color: var(--ink-1);
+}
+
+/* ---- LockChip ---- */
+.ww-lockchip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--line-ui);
+  border-radius: var(--radius-chip);
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+
+/* ---- CoachMark ---- */
+.ww-coach {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line-ui);
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  color: var(--ink-1);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-coach-text {
+  flex: 1;
+}

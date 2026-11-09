@@ -815,7 +815,7 @@ Plain rules for the harvester card: a source row is "on" only after its licence 
 
 Three tiers. Primitives hold raw values and are never referenced by a component. The semantic tier is the only thing a theme redefines. The component tier maps semantic tokens to a component's slots, so one component can be overridden locally without a new theme. All tokens are scoped to `.ww, .ww-portal` (the portal root carries them too, because drawers render on `document.body`) and replace the parallel `--ww-*` set; the rest of JARVIS keeps `styles/tokens.css` untouched, except for the contrast fix noted in 5.2.
 
-### 5.1 Tier 1: primitives (`--p-*`, files `ww/design/primitive.css`)
+### 5.1 Tier 1: primitives (`--p-*`, files `styles/design/primitive.css` (shared app-wide; see 9.0))
 
 | Group | Values |
 |---|---|
@@ -1001,7 +1001,7 @@ Labels: (M) computed by script (closed-form damped spring, sampled curves, WCAG 
 
 #### 5.7.1 Tokens
 
-All in `ww/design/primitive.css`; a component never writes a literal duration or curve.
+All in `styles/design/primitive.css` (shared app-wide; see 9.0); a component never writes a literal duration or curve.
 
 | Token | ms | Used for |
 |---|---|---|
@@ -1590,6 +1590,38 @@ These are targets until the first run (UNVERIFIED). Headless Chromium rasterises
 ---
 
 ## 9. Build order
+
+### 9.0 The phone in every chunk, and the seam with the app-wide overhaul (9 Nov)
+
+**The phone ships inside each chunk, not as cleanup at the end.** The phone Study page (`/phone/ww`,
+`phone_page/ww.{html,js,css}`) gets the same redesign as the desktop, on the 4.14 layout: the left column
+alone at 390 px, the same view-model and the same section ids as L1 to L4, 44 px targets, one column below
+600 px, and the honest last line "Desktop only: papers, Tree, Setup". Each chunk's Acceptance cell adds its
+phone part:
+
+| Chunk | Phone deliverable |
+|---|---|
+| 1a | the primitives and the Well Wisher semantic tokens reach `phone_page/` as generated CSS (never hand-copied); `ww.css` reads them; the motion governor's `data-motion-load="low"` level (no tilt, no stagger, 160 ms fades) and reduced motion work on the phone page |
+| 1b | the phone's buttons, chips and counters use the same component tokens (sizes, radii, focus ring); a 390 px hit-area check |
+| 2, 2b, H | the phone API (`/api/phone/ww/*`) reports the same honesty flags as the desktop (empty bank, scaled pattern, queue state), so the phone never shows a number the desktop would not |
+| 4 | season and evening states are computed once on the server and sent to both pages |
+| 6 | L1 to L4 rendered on the phone from the same view-model: Countdown, Now with Start and +25/+50/+90, Classes with P/A/C, Counters; the phone chip becomes "This is your phone" |
+| 7, 8 | the phone gets read-only views where they are cheap: today's paper list (titles, dates, coverage) and the day's log; papers stay desktop-only and say so |
+| 13 | becomes a parity check (same ids, same order, same flags, the 390 px screenshot) instead of the phone's first redesign |
+
+**Seam with the app-wide UI-overhaul chat** (`docs/design/app-ui-overhaul.md` section 4):
+1. Tier-1 primitives (`--p-*`) are one shared file, `app/ui/src/styles/design/primitive.css`. Chunk 1a lands
+   it there and the overhaul chat adopts it; nobody writes a second set.
+2. Well Wisher's themes stay scoped to its root: `.ww` and `.ww-portal`, which carry
+   `data-section="wellwisher"`. Study and Life sit under that root. No theme writes html-level tokens.
+3. One motion governor app-wide: `app/ui/src/ww/design/motion/governor.ts` (levels high / low / none; one
+   owner switch `data-motion="calm"`, reduced motion, a low-power path from the glass probe, hidden tabs and
+   battery saver). Announced in NOW.md section 6.
+4. The phone gets the primitives and the section tokens as plain CSS written to `phone_page/` by the same build
+   step as the board page (the overhaul chat owns that step); Well Wisher's `ww.css` consumes the file.
+5. Invariants kept everywhere: device colours (white `#e9f3ff`, warm `#ffb347`, pink `#ff5fa8`, fan `#5aa9e6`),
+   status meanings (confirmed, waiting, fault, simulated), 44 px targets, contrast 4.5:1 for body and 3:1 for UI.
+
 
 Rules for every chunk: one agent, one worktree, files owned are listed and no other chunk edits them; commit per step in first person with the measurement and no attribution; merge and push after each green merge; tests against scratch data dirs (`JARVIS_DATA_DIR`, `AANKHEN_DATA_DIR`), never the real `data/`; never build into `app/ui/dist` while `JARVIS.pyw` runs (the bundle check builds into `dist-e2e`); never touch port 8777. The whole workspace ships **behind a flag** (`localStorage` key `ww.workspace`, also a Setup switch; default off until chunk 15) so the current UI keeps working through the exams. Gate per chunk: in `app/ui` `npx vitest run` and `npx tsc -b` plus the chunk's own e2e scripts from the verification table below; from `app/` `..\.venv\Scripts\python.exe -m pytest tests` and `..\.venv\Scripts\python.exe -m jarvis_app.ww_check`. **A chunk is not done until its verification ran in a sandbox and the output is in the dated gate report.** Playwright specs are written in the chunk that creates the thing they test (8.4 names the chunk of each).
 

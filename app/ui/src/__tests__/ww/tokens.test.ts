@@ -3,7 +3,7 @@
 // applied). Nothing here is copied from the plan: if a token file changes, these numbers change.
 import { describe, expect, it } from 'vitest'
 import { join } from 'node:path'
-import { DESIGN_DIR, computeTokens, contrast, designFilesInOrder, over, parseColor, read, WW_DIR } from './_css'
+import { computeTokens, contrast, designFilesInOrder, over, parseColor, read, WW_DIR } from './_css'
 
 const css = designFilesInOrder().map(read).join('\n')
 const THEMES = ['ash', 'paper', 'indigo'] as const
@@ -142,8 +142,11 @@ describe('the 18 theme x workspace combinations (5.7.5), recomputed on the tinte
 })
 
 describe('files', () => {
-  it('the three themes and the workspace layer exist beside primitive.css', () => {
-    const order = designFilesInOrder().map((p) => p.replace(DESIGN_DIR, '').replace(/\\/g, '/'))
-    expect(order).toEqual(expect.arrayContaining(['/primitive.css', '/themes/ash.css', '/themes/paper.css', '/themes/indigo.css', '/themes/workspace.css', '/component.css', '/motion.css']))
+  it('the shared tier-1 file, the three themes and the workspace layer are imported by base.css in order', () => {
+    const order = designFilesInOrder().map((p) => p.split(String.fromCharCode(92)).join('/'))
+    expect(order[0].endsWith('/src/styles/design/primitive.css')).toBe(true)
+    for (const tail of ['/themes/ash.css', '/themes/paper.css', '/themes/indigo.css', '/themes/workspace.css', '/component.css', '/motion.css']) {
+      expect(order.some((p) => p.endsWith(tail)), tail).toBe(true)
+    }
   })
 })

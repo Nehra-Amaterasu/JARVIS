@@ -1,3 +1,7 @@
+/* SHARED TIER-1 FILE. Adopted app-wide by the UI overhaul chat (docs/design/app-ui-overhaul.md 4)
+   and landed by Well Wisher chunk 1a; it moved here from ww/design/ with its content unchanged.
+   Every section reads these primitives and motion roles; only the theme tier (ww/design/themes/*)
+   is Well Wisher's own, scoped to .ww / .ww-portal so nothing here leaks to Core. */
 /* ==========================================================================
    Well Wisher, tier 1: primitives, plus the theme-independent role tokens.
 
@@ -15,8 +19,7 @@
    baked into --dur-enter: a workspace sets --tempo on the centre, below this rule.
    ========================================================================== */
 .ww,
-.ww-portal,
-html[data-ww] {
+.ww-portal {
   /* ---- colour primitives (5.1) ---- */
   --p-ash-0: #050506;
   --p-ash-1: #0b0c0f;
@@ -135,6 +138,67 @@ html[data-ww] {
   --weight-regular: var(--p-weight-400);
   --weight-medium: var(--p-weight-500);
   --weight-strong: var(--p-weight-600);
+
+  /* ---- motion roles (5.7.1) ---- */
+  --tempo: 1;
+  --dur-feedback: var(--p-dur-100);
+  --dur-state: var(--p-dur-160);
+  --dur-enter: var(--p-dur-240);
+  --dur-exit: var(--p-dur-180);
+  --dur-sheet-in: var(--p-dur-300);
+  --dur-sheet-out: var(--p-dur-200);
+  --dur-switch-out: var(--p-dur-200);
+  --dur-switch-in: var(--p-dur-360);
+  --dur-travel: var(--p-dur-400);
+  --dur-hold: var(--p-dur-400);
+  --dur-release: var(--p-dur-120);
+  --dur-celebrate: var(--p-dur-400);
+  --dur-fade: var(--p-dur-160);
+  --dur-theme: var(--p-dur-200);
+  --dur-scrim: var(--p-dur-240);
+  --dur-popover-in: var(--p-dur-160);
+  --dur-popover-out: var(--p-dur-120);
+  --delay-switch: var(--p-dur-120);
+  --stagger: 40ms;
+  --ease-standard: var(--p-ease-standard);
+  --ease-enter: var(--p-ease-enter);
+  --ease-exit: var(--p-ease-exit);
+  --ease-back-soft: var(--p-ease-back-soft);
+  --ease-back: var(--p-ease-back);
+  --ease-in-back: var(--p-ease-in-back);
+
+  /* travel (transform only). Gravity is asymmetry (5.7.2 #3): arrive rises from 12 px below,
+     leave falls 8 px. Reduced motion sets every distance and scale to its identity. */
+  --dist-rise: 12px;
+  --dist-fall: 8px;
+  --dist-paper: 16px;
+  --dist-popover: 8px;
+  --dist-lift: 2px;
+  --dist-sheet: 100%;
+  --pop-scale: 1.03;
+  --celebrate-scale: 1.1;
+  --press-scale: 0.985;
+  --press-shift: 1px;
+}
+
+/* The ::view-transition-* pseudo-elements hang off <html>, so the motion roles they read exist there
+   too, behind html[data-ww] and nowhere else. Space, radius, type and z roles stay under .ww. */
+html[data-ww] {
+  --p-dur-100: 100ms;
+  --p-dur-120: 120ms;
+  --p-dur-160: 160ms;
+  --p-dur-180: 180ms;
+  --p-dur-200: 200ms;
+  --p-dur-240: 240ms;
+  --p-dur-300: 300ms;
+  --p-dur-360: 360ms;
+  --p-dur-400: 400ms;
+  --p-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --p-ease-enter: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --p-ease-exit: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --p-ease-back-soft: cubic-bezier(0.34, 1.3, 0.64, 1);
+  --p-ease-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --p-ease-in-back: cubic-bezier(0.36, 0, 0.66, -0.56);
 
   /* ---- motion roles (5.7.1) ---- */
   --tempo: 1;

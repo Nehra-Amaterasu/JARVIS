@@ -16,3 +16,17 @@ export function motionLoad(input: { tier: 'refract' | 'blur' | 'flat'; p5?: numb
 export function setMotionLoad(level: MotionLoad): void {
   document.documentElement.setAttribute('data-motion-load', level)
 }
+
+/**
+ * Shared by the phone page, which reads data-motion-load the same way: "low" means no tilt,
+ * no pointer companion, no stagger (the tokens set --stagger to 0) and 160 ms fades for the
+ * switch (--dur-switch-in / -out). The CSS half lives in the shared styles/design/primitive.css.
+ */
+export function isLowMotion(root: Element = document.documentElement): boolean {
+  return root.getAttribute('data-motion-load') === 'low'
+}
+
+/** Tilt and the pointer companion run only at the high level and not under reduced motion. */
+export function allowsTilt(reduced: boolean, root: Element = document.documentElement): boolean {
+  return !reduced && !isLowMotion(root)
+}

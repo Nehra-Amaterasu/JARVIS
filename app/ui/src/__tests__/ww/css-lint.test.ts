@@ -2,19 +2,21 @@
 // themes/*.css, motion/springs.generated.css) may hold literals; everything else must use tokens.
 import { describe, expect, it } from 'vitest'
 import { readdirSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 import { WW_DIR, cssFiles, parseCss, read, stripComments } from './_css'
 
-const files = cssFiles(WW_DIR)
+// the shared tier-1 file now lives in styles/design (adopted by the app-wide overhaul, landed by chunk 1a)
+const SHARED_PRIMITIVE = join(WW_DIR, '../styles/design/primitive.css')
+const files = [...cssFiles(WW_DIR), SHARED_PRIMITIVE]
 const isToken = (f: string) => /design[\\/]primitive\.css$|themes[\\/][^\\/]+\.css$|springs\.generated\.css$/.test(f)
 const colourOk = (f: string) => /design[\\/]primitive\.css$|themes[\\/][^\\/]+\.css$/.test(f)
 const body = (f: string) => stripComments(read(f))
-const short = (f: string) => f.slice(WW_DIR.length + 1).replace(/\\/g, '/')
+const short = (f: string) => relative(join(WW_DIR, '..'), f).split(String.fromCharCode(92)).join('/')
 const decls = (f: string) => parseCss(read(f)).rules.flatMap((r) => Object.entries(r.decls).map(([k, v]) => ({ sel: r.selectors.join(', '), k, v })))
 
 describe('ww CSS files', () => {
   it('the scan finds the design files', () => {
-    expect(files.map(short)).toEqual(expect.arrayContaining(['design/primitive.css', 'design/motion.css', 'design/base.css', 'design/component.css', 'design/themes/ash.css']))
+    expect(files.map(short)).toEqual(expect.arrayContaining(['styles/design/primitive.css', 'ww/design/motion.css', 'ww/design/base.css', 'ww/design/component.css', 'ww/design/themes/ash.css']))
   })
   it.each(files.map((f) => [short(f), f]))('%s: no colour literal outside the token files', (_n, f) => {
     if (colourOk(f)) return
@@ -116,4 +118,29 @@ describe('the legacy ratchet: counts in germoney/** CSS may fall and may never r
     important: (text.match(/!important/g) ?? []).length,
   }
   it.each(Object.keys(BASE) as (keyof typeof BASE)[])('%s does not rise', (k) => expect(now[k]).toBeLessThanOrEqual(BASE[k]))
+})
+
+describe('section scope: nothing leaks to html-level tokens other chats own', () => {
+  const themeFiles = cssFiles(join(WW_DIR, 'design/themes'))
+  it('there are theme files to check', () => expect(themeFiles.length).toBe(4))
+  it('every selector of every theme file ends in .ww, .ww-portal or .ww-centre (never html, :root or body)', () => {
+    for (const f of themeFiles) {
+      for (const r of parseCss(read(f)).rules) {
+        for (const sel of r.selectors) {
+          const last = sel.split(/\s+/).filter(Boolean).pop()!
+          expect(last, `${short(f)}: ${sel}`).toMatch(/^\.(ww|ww-portal|ww-centre)(\[[^\]]+\])*$/)
+        }
+      }
+    }
+  })
+  it('the theme and motion attributes are read from html but only to scope a .ww descendant', () => {
+    for (const f of themeFiles) for (const r of parseCss(read(f)).rules) for (const sel of r.selectors) expect(sel, short(f)).toMatch(/\.ww/)
+  })
+  it('the only html-level declarations are in the shared primitive file, behind html[data-ww], and are --p-* or motion roles', () => {
+    for (const r of parseCss(read(SHARED_PRIMITIVE)).rules) {
+      const onHtml = r.selectors.some((sel) => (sel.split(/\s+/).filter(Boolean).pop() ?? '').startsWith('html'))
+      if (!onHtml) continue
+      for (const k of Object.keys(r.decls)) expect(k, r.selectors.join(',')).toMatch(/^--(p-|dur-|stagger|tempo|ease-|dist-|pop-|press-|celebrate-|delay-)/)
+    }
+  })
 })

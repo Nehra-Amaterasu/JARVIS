@@ -7,7 +7,7 @@
    Everything is scoped to .ww, .ww-portal or html[data-ww], so importing it changes
    nothing in Core or the other sections.
    ========================================================================== */
-@import './primitive.css';
+@import '../../styles/design/primitive.css';
 @import './motion/springs.generated.css';
 @import './themes/ash.css';
 @import './themes/paper.css';

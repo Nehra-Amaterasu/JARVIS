@@ -11,7 +11,7 @@ import { ARRIVE_CAP_SCROLL, ARRIVE_CAP_SWITCH, MAX_WILL_CHANGE, STAGGER_MS, STAG
 import { Glide, V_CAP, decay, glideBudget, releaseVelocity, rubberBand } from '../../ww/design/motion/glide'
 import { HOLD_MS, createHold } from '../../ww/design/motion/hold'
 import { runSwitch } from '../../ww/design/motion/transition'
-import { motionLoad } from '../../ww/design/motion/governor'
+import { allowsTilt, isLowMotion, motionLoad } from '../../ww/design/motion/governor'
 import { FrameSampler, clampTier, p5FromGaps } from '../../lib/liquidGlass'
 
 const allCss = designFilesInOrder().map(read).join('\n')
@@ -96,7 +96,7 @@ describe('reduced motion at the token layer', () => {
     expect(t['--dur-state']).toBe('160ms')
   })
   it('the two collapse blocks (OS flag, calm) declare identical tokens', () => {
-    const { rules } = parseCss(read(WW_DIR + '/design/primitive.css'))
+    const { rules } = parseCss(read(WW_DIR + '/../styles/design/primitive.css'))
     const media = rules.filter((r) => r.media?.includes('prefers-reduced-motion'))
     const calm = rules.filter((r) => r.selectors.some((s) => s.includes("data-motion='calm'")))
     expect(media).toHaveLength(1)
@@ -315,6 +315,14 @@ describe('inertia, hold and the governor', () => {
     expect(motionLoad({ tier: 'blur', p5: 49 })).toBe('low')
     expect(motionLoad({ tier: 'blur', hidden: true })).toBe('low')
     expect(motionLoad({ tier: 'blur', saver: true })).toBe('low')
+    // the phone reads the same attribute
+    expect(isLowMotion()).toBe(false)
+    setHtml({ 'data-motion-load': 'low' })
+    expect(isLowMotion()).toBe(true)
+    expect(allowsTilt(false)).toBe(false)
+    setHtml({ 'data-motion-load': 'high' })
+    expect(allowsTilt(false)).toBe(true)
+    expect(allowsTilt(true)).toBe(false)
   })
 })
 

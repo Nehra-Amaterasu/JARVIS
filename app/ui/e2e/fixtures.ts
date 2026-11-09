@@ -20,7 +20,7 @@ export function designCss(): string {
 }
 
 const LAB_BODY = `
-<div class="ww" id="root" style="padding:16px">
+<div class="ww" id="root" data-section="wellwisher" style="padding:16px">
   <button class="ww-tap" id="tap" style="min-width:120px;min-height:44px">Tap</button>
   <div class="ww-lift" id="lift"><div class="ww-lift-face" style="position:relative;padding:12px">Lift</div></div>
   <div id="holdwrap"><div class="ww-hold-fill" style="height:4px;background:currentColor"></div></div>

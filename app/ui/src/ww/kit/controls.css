@@ -54,6 +54,7 @@
 }
 .ww-btn[data-grouped='true'] {
   min-height: var(--hit);
+  min-width: var(--hit);
 }
 .ww-btn[data-grouped='true']::after {
   inset-block: 0;

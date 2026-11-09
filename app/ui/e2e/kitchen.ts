@@ -12,6 +12,13 @@ import { designCss } from './fixtures'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
+/**
+ * The app gets its fonts from styles/tokens.css, which the lab does not load. These system fonts stand in so
+ * a baseline shows sans text instead of the browser's serif default; the real Inter, Geist Mono and Doto are
+ * not part of what these baselines prove (a Windows system font set is, so baselines are Windows-only).
+ */
+const LAB_FONTS = `html{--f-ui:system-ui,'Segoe UI',sans-serif;--f-mono:ui-monospace,Consolas,monospace;--f-dot:ui-monospace,Consolas,monospace}`
+
 export interface Built {
   js: string
   css: string
@@ -72,7 +79,7 @@ export async function openKitchen(page: Page, opts: KitchenOpts = {}): Promise<v
   })
   await page.goto('about:blank')
   await page.setContent(
-    `<!doctype html><html ${attrs}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${designCss()}</style><style>${css}</style></head><body style="margin:0"><div id="root"></div></body></html>`,
+    `<!doctype html><html ${attrs}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${LAB_FONTS}${designCss()}</style><style>${css}</style></head><body style="margin:0"><div id="root"></div></body></html>`,
   )
   await page.addScriptTag({ content: js })
   await page.evaluate((overlay) => (window as unknown as { WWKitchen: { mount(el: HTMLElement, o: object): void } }).WWKitchen.mount(document.getElementById('root')!, { overlay }), opts.overlay ?? null)

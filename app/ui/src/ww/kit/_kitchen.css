@@ -14,3 +14,19 @@
   color: var(--ink-2);
   font-size: var(--text-small);
 }
+/* sized so a row of cards, tiles or fields reads as a row, not as squeezed content */
+.kitchen-row > .ww-card {
+  flex: 1 1 calc(var(--hit) * 4);
+}
+.kitchen-row > .ww-stat {
+  min-inline-size: calc(var(--hit) * 3);
+}
+.kitchen-row > .ww-field {
+  flex: 1 1 calc(var(--hit) * 4);
+}
+.kitchen-row[data-kitchen='Field'] {
+  align-items: flex-start;
+}
+.kitchen-wide {
+  inline-size: 100%;
+}

@@ -114,8 +114,10 @@ export function Kitchen({ overlay = null }: KitchenOptions) {
           <p className="kitchen-note">Exactly one Start or Save above wears the fill (data-primary).</p>
         </Block>
         <Block name="Fold">
-          <Fold title="Why this" defaultOpen>Open body.</Fold>
-          <Fold title="More" lazy>Never mounted until opened.</Fold>
+          <div className="kitchen-wide">
+            <Fold title="Why this" defaultOpen>Open body.</Fold>
+            <Fold title="More" lazy>Never mounted until opened.</Fold>
+          </div>
         </Block>
         <Block name="Row">
           <div style={{ inlineSize: '100%' }}>

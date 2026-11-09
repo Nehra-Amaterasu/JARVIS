@@ -16,8 +16,10 @@ const check = process.argv.includes('--check')
 let drift = false
 for (const [path, text] of targets) {
   if (check) {
-    const have = existsSync(path) ? readFileSync(path, 'utf8') : ''
-    if (have !== text) {
+    // Line endings do not count: a Windows checkout turns LF into CRLF (core.autocrlf); the curves are the same.
+    const lf = (t) => t.split(String.fromCharCode(13)).join('')
+    const have = existsSync(path) ? lf(readFileSync(path, 'utf8')) : ''
+    if (have !== lf(text)) {
       console.error(`out of date: ${path}`)
       drift = true
     }

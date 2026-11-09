@@ -3,7 +3,7 @@
    its column scrolls inside its own box instead of the page. */
 .ww-math { overflow-wrap: normal; white-space: nowrap; }
 .ww-math:not(.ww-math-display) { display: inline-block; max-width: 100%; overflow-x: auto; overflow-y: hidden; vertical-align: bottom; scrollbar-width: thin; }
-.ww-math-display { display: block; max-width: 100%; margin: 12px 0; overflow-x: auto; overflow-y: hidden; text-align: center; white-space: nowrap; }
+.ww-math-display { display: block; max-width: 100%; margin: var(--space-3) 0; overflow-x: auto; overflow-y: hidden; text-align: center; white-space: nowrap; }
 .rd-math { font-family: "Cambria Math", "STIX Two Math", Cambria, Georgia, serif; font-style: italic; white-space: nowrap; overflow-wrap: normal; }
 .rd-math sub, .rd-math sup { font-size: 0.72em; font-style: normal; line-height: 0; }
 .rd-math .rd-rm { font-style: normal; }

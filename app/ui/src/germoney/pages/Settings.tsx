@@ -12,7 +12,7 @@ import { useStore } from '../../lib/store'
 import { loadBank } from '../data/bank'
 import { usePlan, type RotationDay } from '../game/plan'
 import { usePlayerStore } from '../stores/player-store'
-import { confirmDialog, useDrawer } from '../ui'
+import { EMPTY, confirmDialog, useDrawer } from '../ui'
 import { SettingsCard } from './Armory'
 import { Calibration } from './Calibration'
 import { SystemInputs } from './SystemInputs'
@@ -118,7 +118,7 @@ function Exams() {
           <span className="small" style={{ width: 160 }}>{k.replace(/_/g, ' ')}</span>
           <input className="field sm" type="date" value={cal[k] ?? ''} onChange={(e) => void setDate(`calendar:${k}`, e.target.value || null)} aria-label={k} />
         </div>))}
-      {ac.subjects.map((s) => (
+      {(ac.subjects ?? EMPTY).map((s) => (          // a malformed answer must not take the drawer down
         <div key={s.id} className="field-row">
           <span className="small" style={{ width: 220 }}>{s.name}{s.kind === 'backlog' ? ' (backlog)' : ''}</span>
           <input className="field sm" type="date" value={s.date_set_here ? s.exam_date ?? '' : ''} onChange={(e) => void setDate(s.id, e.target.value || null)} aria-label={`${s.name} exam date`} />

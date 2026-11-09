@@ -5,6 +5,7 @@
  * profile feeds personality and Today's 3; deadlines feed the goal ladder and career.
  * After a save the server answers what it ignored, and that is shown, not hidden.
  */
+import { EMPTY } from '../ui'
 import { Plus, Save, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { api } from '../../lib/api'
@@ -26,7 +27,7 @@ export function SystemInputs() {
   const [d, setD] = useState<InputsAnswer | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const toast = useStore((s) => s.toast)
-  const subjects = usePlan((s) => s.academics?.subjects ?? [])
+  const subjects = usePlan((s) => s.academics?.subjects ?? EMPTY)
   useEffect(() => { void api<InputsAnswer>('/api/mission/inputs').then(setD).catch(() => undefined) }, [])
   if (!d) return null
   const raw = d.raw
@@ -58,7 +59,7 @@ export function SystemInputs() {
   )
 }
 
-function DateSheet({ rows, subjects, onSave }: { rows: ExamRow[]; subjects: { id: string; name: string }[]; onSave: (v: ExamRow[]) => void }) {
+function DateSheet({ rows, subjects, onSave }: { rows: ExamRow[]; subjects: readonly { id: string; name: string }[]; onSave: (v: ExamRow[]) => void }) {
   const [r, setR] = useState(rows)
   useEffect(() => setR(rows), [rows])
   const set = (i: number, patch: Partial<ExamRow>) => setR(r.map((x, j) => (j === i ? { ...x, ...patch } : x)))

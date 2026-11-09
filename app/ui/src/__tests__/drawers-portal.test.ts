@@ -20,7 +20,14 @@ beforeEach(() => {
   host.setAttribute('data-glass', 'blur')
   document.body.appendChild(host)
   root = createRoot(host)
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({}), { status: 200, headers: { 'content-type': 'application/json' } })))
+  // The real server's answer shapes, empty: the drawer must open on a fresh install, not only on his store.
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    const body = url.includes('/api/mission/inputs') ? { raw: {}, inputs: { source: 'none', warnings: [] } }
+      : url.includes('/api/mission/academics') ? { subjects: [], calendar: {}, plan: {}, unresolved: [] }
+      : null
+    // Any other route fails, as a server that is not there would: the stores keep their nulls.
+    return new Response(JSON.stringify(body ?? { detail: 'not in this test' }), { status: body ? 200 : 404, headers: { 'content-type': 'application/json' } })
+  }))
 })
 afterEach(() => {
   act(() => root.unmount())

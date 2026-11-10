@@ -156,6 +156,9 @@ describe('O1 Date sheet', () => {
     expect(countChanges(a, a)).toBe(0)
     expect(countChanges(a, [...(a as []), { subject: 'y', title: 'Y', date: '', units: [] }] as never)).toBe(1)
     expect(countChanges(a, [] as never)).toBe(1)
+    const three = ['a', 'b', 'c'].map((x) => ({ subject: x, title: x, date: '', units: [] })) as never[]
+    expect(countChanges(three as never, three.slice(1) as never)).toBe(1) // the first of three removed is one change, not three
+    expect(countChanges(three as never, three.map((r, i) => (i === 1 ? { ...(r as object), date: '2026-02-02' } : r)) as never)).toBe(1)
   })
 
   it('when the sheet does not load it says so and offers Retry; nothing is editable', async () => {

@@ -14,14 +14,20 @@ import './overlays.css'
 
 const KINDS: [NonNullable<ExamRow['kind']>, string][] = [['end_sem', 'End-sem'], ['backlog', 'Backlog'], ['cie', 'CIE'], ['other', 'Other']]
 const kindLabel = (k?: string) => KINDS.find(([id]) => id === k)?.[1] ?? 'Other'
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 
-/** How many papers differ from what is saved: a changed row, a new row and a removed row each count once. */
+/** How many papers differ from what is saved: a changed row, a new row and a removed row each count once.
+ *  Rows are matched by content, not by position, so removing the first of three papers is one change, not three. */
 export function countChanges(base: ExamRow[], now: ExamRow[]): number {
-  let n = 0
-  const len = Math.max(base.length, now.length)
-  for (let i = 0; i < len; i++) if (!same(base[i], now[i])) n++
-  return n
+  const left = base.map((r) => JSON.stringify(r))
+  let added = 0
+  for (const r of now) {
+    const k = JSON.stringify(r)
+    const at = left.indexOf(k)
+    if (at >= 0) left.splice(at, 1)
+    else added++
+  }
+  // what is left in `left` was removed or edited; an edit is one removed plus one added, which is one change
+  return Math.max(added, left.length)
 }
 
 export function DateSheet() {

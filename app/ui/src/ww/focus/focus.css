@@ -1,0 +1,169 @@
+/* ==========================================================================
+   Focus workspace (plan 4.8). One canvas, no scroll: the bar, then one card that holds the setup, the dial
+   and the Start button. The dial is the only light (ink, not the accent: Focus has no hue, 5.7.5).
+   While a session runs the frame carries data-focus="on" (set by Crucible.tsx) and the side columns
+   shrink to a timer rail; Esc restores them (Frame owns the key).
+   ========================================================================== */
+.ww-focus {
+  block-size: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--space-3);
+}
+.ww-focus-bar {
+  display: flex;
+  align-items: center;
+}
+.ww-focus-body {
+  min-height: 0;
+  display: grid;
+}
+.ww-focus-fill {
+  display: grid;
+  place-items: center;
+}
+.ww-crucible,
+.ww-drill {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+}
+.ww-crucible-setup {
+  display: grid;
+  gap: var(--space-2);
+}
+.ww-crucible-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+.ww-crucible-row > .ww-kicker {
+  min-inline-size: 5em;
+}
+.ww-crucible-note,
+.ww-drill-note,
+.ww-crucible-foot {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+
+/* ---- the dial: 120 ticks; a lit tick is ink-1, an unlit one is the quiet rule ---- */
+.ww-dial-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin-inline: auto;
+  inline-size: min(100%, 30vh, 260px);
+  aspect-ratio: 1;
+}
+.ww-dial {
+  inline-size: 100%;
+  block-size: 100%;
+}
+.ww-dial line {
+  stroke: var(--line-ui);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.ww-dial line.on {
+  stroke: var(--ink-1);
+}
+.ww-dial-centre {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: var(--space-1);
+  text-align: center;
+  padding: var(--space-6);
+}
+.ww-dial-time {
+  font-size: var(--text-display);
+  line-height: var(--leading-display);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-1);
+}
+.ww-dial-sub {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-crucible-go {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+}
+.ww-crucible-foot {
+  text-align: center;
+}
+
+/* ---- drill ---- */
+.ww-drill-decks,
+.ww-drill-count,
+.ww-drill-boxes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+.ww-drill-count .ww-meter {
+  flex: 1 1 160px;
+}
+.ww-flash {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding-block: var(--space-4);
+  text-align: center;
+}
+.ww-flash-front {
+  margin: 0;
+  max-inline-size: 60ch;
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  color: var(--ink-1);
+}
+.ww-flash-back {
+  margin: 0;
+  max-inline-size: 60ch;
+  font-size: var(--text-read);
+  line-height: var(--leading-read);
+  color: var(--ink-1);
+  border-top: 1px solid var(--line);
+  padding-block-start: var(--space-3);
+}
+.ww-flash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+/* ---- session running: the side columns shrink to a 48 px timer rail ---- */
+.ww-frame[data-focus='on'][data-density] {
+  --col-l: 48px;
+  --col-r: 0px;
+}
+.ww-frame[data-focus='on'] .ww-left {
+  padding: var(--space-2);
+  overflow: hidden;
+}
+.ww-frame[data-focus='on'] .ww-left > :not(.ww-focus-rail) {
+  display: none;
+}
+.ww-frame[data-focus='on'] .ww-right {
+  display: none;
+}
+.ww-focus-rail {
+  writing-mode: vertical-rl;
+  color: var(--ink-1);
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

@@ -1,0 +1,370 @@
+/* ==========================================================================
+   Tree workspace (plan 4.5). One laptop canvas: toolbar, stage and chips share the height of the
+   workspace, nothing here scrolls the page. The toolbar is flat; the inspector body is an opaque
+   surface with a 1 px edge (text never sits on glass, 5.6). Only the stage's SVG group moves, by
+   transform, written by viewport.ts; no filter, shadow or gradient inside the stage.
+   ========================================================================== */
+.ww-tree-page {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.ww-tree-fill {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+}
+.ww-tree {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--space-2);
+}
+
+/* ---- the toolbar: flat, wraps to a second row instead of overflowing ---- */
+.ww-tree-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+  padding-block-end: var(--space-2);
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+}
+.ww-tree-switch {
+  min-width: 0;
+  max-width: 100%;
+}
+.ww-tree-switch .ww-seg {
+  flex-wrap: wrap;
+}
+.ww-tree-find {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--ink-2);
+}
+.ww-tree-find .ww-input {
+  inline-size: 180px;
+}
+.ww-tree-count {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+}
+.ww-tree-results {
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-start: 0;
+  z-index: var(--z-sheet);
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  inline-size: 320px;
+  background: var(--surface-3);
+  border: 1px solid var(--line-ui);
+  border-radius: var(--radius-card);
+}
+.ww-tree-result {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  inline-size: 100%;
+  min-block-size: var(--hit);
+  padding-inline: var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--ink-1);
+  text-align: start;
+  font-size: var(--text-small);
+}
+.ww-tree-result:hover,
+.ww-tree-result:focus-visible {
+  background: var(--selected-bg);
+}
+.ww-tree-result-meta,
+.ww-tree-result-more {
+  margin-inline-start: auto;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+}
+.ww-tree-result-more {
+  padding: var(--space-1) var(--space-2);
+}
+.ww-tree-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.ww-tree-zoomtext {
+  min-inline-size: 3.5em;
+  text-align: center;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+}
+.ww-tree-menu {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  max-inline-size: 360px;
+}
+.ww-tree-sens {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-small);
+  color: var(--ink-1);
+}
+.ww-tree-hint {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+
+/* ---- the stage ---- */
+.ww-tree-body {
+  position: relative;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.ww-tree[data-docked='true'] .ww-tree-body {
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: var(--space-3);
+}
+.ww-tree-stage {
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  contain: paint;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+.ww-tree-stage .tree-svg {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+}
+/* the branch chips carry the branch names when the labels are hidden, so the captions go (no overlap at Fit) */
+.ww-tree-stage .tree-svg.lod-far .tree-branch {
+  display: none;
+}
+.ww-tree-coach {
+  position: absolute;
+  inset-block-start: var(--space-3);
+  inset-inline-start: var(--space-3);
+  max-inline-size: 360px;
+  z-index: 1;
+}
+.ww-tree-legend {
+  position: absolute;
+  inset-block-end: var(--space-2);
+  inset-inline-start: var(--space-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  pointer-events: none;
+}
+.ww-tree-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* ---- the inspector: opaque, a 1 px edge, floats over the stage at 1366 and docks beside it from 1000 px of container ---- */
+.ww-tree-slot[data-float='true'] {
+  position: absolute;
+  inset-block: var(--space-3);
+  inset-inline-end: var(--space-3);
+  inline-size: 380px;
+  max-inline-size: calc(100% - var(--space-6));
+  z-index: 2;
+}
+.ww-tree-slot[data-float='false'] {
+  min-height: 0;
+  min-width: 0;
+}
+.ww-insp {
+  position: relative; /* the containing block for absolute children (the hold fill, screen-reader text): without it they escape the overflow clip below and stretch the page scroller */
+  display: flex;
+  flex-direction: column;
+  block-size: 100%;
+  min-height: 0;
+  background: var(--surface-2);
+  color: var(--ink-1);
+  border: 1px solid var(--line-ui);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.ww-insp-empty {
+  padding: var(--space-4);
+  justify-content: center;
+}
+.ww-insp-head {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+.ww-insp-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.ww-insp-tools {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+.ww-insp-title {
+  margin: 0;
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-strong);
+  overflow-wrap: anywhere;
+}
+.ww-insp-meta,
+.ww-insp-note,
+.ww-insp-lock {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-insp-meter {
+  display: grid;
+  gap: var(--space-1);
+}
+.ww-insp-meter-text {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+}
+.ww-insp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.ww-insp-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+}
+.ww-insp-tab {
+  display: grid;
+  gap: var(--space-3);
+}
+.ww-insp-sec {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.ww-insp-sec h3 {
+  margin: 0;
+}
+.ww-insp-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-insp-tag {
+  color: var(--ink-2);
+  text-transform: uppercase;
+  font-size: var(--text-label);
+}
+.ww-insp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.ww-insp-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+}
+.ww-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-1);
+  text-decoration: underline;
+  font: inherit;
+}
+.ww-insp a {
+  color: var(--ink-1);
+}
+.ww-mastery {
+  padding-block-start: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+.ww-mastery-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.ww-sharpen {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* a life node keeps the existing panel, flattened into this opaque inspector */
+.ww-insp-life .tree-panel {
+  position: static;
+  inline-size: 100%;
+  block-size: 100%;
+  background: transparent;
+  border: 0;
+  animation: none;
+}
+
+/* ---- the chips row: a native horizontal scroller (snap), never a second line of chips ---- */
+.ww-tree-chips {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-block-end: var(--space-1);
+}
+.ww-tree-chips > * {
+  flex: none;
+  scroll-snap-align: start;
+}
+.ww-tree-stats {
+  margin-inline-start: auto;
+  padding-inline-start: var(--space-4);
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+.ww-tree-career {
+  min-width: 0;
+}

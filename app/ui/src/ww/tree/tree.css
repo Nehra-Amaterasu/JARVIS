@@ -203,6 +203,7 @@
   min-width: 0;
 }
 .ww-insp {
+  position: relative; /* the containing block for absolute children (the hold fill, screen-reader text): without it they escape the overflow clip below and stretch the page scroller */
   display: flex;
   flex-direction: column;
   block-size: 100%;
@@ -261,6 +262,7 @@
   gap: var(--space-2);
 }
 .ww-insp-body {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow-y: auto;

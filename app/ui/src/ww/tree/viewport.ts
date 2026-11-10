@@ -32,7 +32,8 @@ export const LOD_K = 0.55       // 11 px labels x 0.55 is about 6 px: unreadable
 const TWEEN_FALLBACK_MS = 240   // --dur-enter; a selection pan is long enough to follow and short enough not to wait for
 const BACK_MS = 400             // the rubber-band return is `heavy`: 400 ms settle (5.7.2 #1); --dur-sheet-in is 300, so no token fits
 const EASE = 0.3                // wheel ease: share of the remaining gap closed per frame (95 % in 140 ms at 60 Hz)
-export const PANEL = 404        // an overlaid inspector covers 380 px + 12 px inset + 12 px gap
+const KEEP = 120                // px of the graph that must stay on the stage; past that a drag is resisted
+export const PANEL = 404       // an overlaid inspector covers 380 px + 12 px inset + 12 px gap
 export const WIDE = 760         // below this an overlaid inspector covers the whole stage
 
 export interface ViewportOptions {
@@ -242,13 +243,19 @@ export function useViewport({ bounds, occluded, sens, onRest }: ViewportOptions)
     if (frame.current) cancelAnimationFrame(frame.current)
   }, [])
 
-  /** The nearest view that keeps the graph's centre inside the stage, and how far outside `v` is. */
+  /**
+   * The nearest view that keeps at least KEEP px of the graph on the stage on each axis, and how far outside `v` is.
+   * (The first version bounded the graph's CENTRE, which a large tree at a readable zoom already sits far from, so
+   * every throw was "out of bounds" and rubber-banded: 78 frames, 901 ms measured instead of 28 and about 330 ms.)
+   */
   const bound = useCallback((v: View) => {
     const { w, h } = size.current
-    const cx = v.x + (bounds.x + bounds.w / 2) * v.k
-    const cy = v.y + (bounds.y + bounds.h / 2) * v.k
-    const ox = cx < 0 ? cx : cx > w ? cx - w : 0
-    const oy = cy < 0 ? cy : cy > h ? cy - h : 0
+    const gx0 = v.x + bounds.x * v.k
+    const gy0 = v.y + bounds.y * v.k
+    const gx1 = gx0 + bounds.w * v.k
+    const gy1 = gy0 + bounds.h * v.k
+    const ox = gx1 < KEEP ? gx1 - KEEP : gx0 > w - KEEP ? gx0 - (w - KEEP) : 0
+    const oy = gy1 < KEEP ? gy1 - KEEP : gy0 > h - KEEP ? gy0 - (h - KEEP) : 0
     return { to: { ...v, x: v.x - ox, y: v.y - oy }, ox, oy }
   }, [bounds])
 

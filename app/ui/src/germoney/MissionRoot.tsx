@@ -36,7 +36,6 @@ import { TreePage } from './pages/Tree'
 import { MissionNav, SCREEN_OF, useDrawer, type MissionScreen } from './ui'
 import { wwFrameEnabled } from '../ww/frame/flag'
 import type { ServerSeason } from '../ww/frame/season'
-import { Calibration } from './pages/Calibration'
 // Last, so the Well Wisher tokens and card system sit after every page's own sheet.
 import './theme.css'
 
@@ -44,12 +43,13 @@ import './theme.css'
 // (`#ww=frame` in the URL fragment or localStorage `ww.workspace` = frame; default off). It is imported
 // lazily so with the flag off none of its code or CSS is ever downloaded.
 // Chunk 5 rides in the same lazy load: importing the Roadmap overlay registers it (ww/overlays/Roadmap.tsx).
-const WwFrame = lazy(() => Promise.all([import('../ww/frame/Frame'), import('../ww/overlays/Roadmap')]).then(([m]) => ({ default: m.Frame })))
-function SetupBridge() { return <Calibration onDone={() => {}} /> }
+const WwFrame = lazy(() => Promise.all([import('../ww/frame/Frame'), import('../ww/overlays/Roadmap'), import('../ww/overlays/setupOverlays')]).then(([m]) => ({ default: m.Frame })))
+// Chunk 12: the Setup workspace (lazy, so it loads when Setup opens) and, in the load above, the Date sheet, Phone, Log minutes and Confirm overlays.
+const SetupPage = lazy(() => import('../ww/setup/SetupPage'))
 const inBoundary = (name: string, P: React.ComponentType) => () => <MissionBoundary name={name}><P /></MissionBoundary>
 const FRAME_PAGES = {
   study: inBoundary('Study', StudyPage), tree: inBoundary('Tree', TreePage), life: inBoundary('Life', LifePage),
-  career: inBoundary('Career', RoadPage), focus: inBoundary('Focus', FocusPage), setup: inBoundary('Setup', SetupBridge),
+  career: inBoundary('Career', RoadPage), focus: inBoundary('Focus', FocusPage), setup: inBoundary('Setup', SetupPage),
 }
 
 const PAGES: Record<MissionScreen, React.ComponentType> = {

@@ -1,0 +1,134 @@
+/* ---- Chunk 12 overlays: Date sheet, Phone, Log minutes, Confirm. Plain surfaces on the opaque sheet; tokens only. ---- */
+.ov-body {
+  display: grid;
+  gap: var(--space-4);
+}
+.ov-lead {
+  margin: 0;
+  color: var(--ink-1);
+  font-weight: var(--weight-medium);
+}
+.ov-note {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ov-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+.ov-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  align-items: end;
+}
+.ov-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: var(--hit);
+  color: var(--ink-1);
+  font-size: var(--text-body);
+}
+.ov-paper {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--card-pad);
+  border: 1px solid var(--line);
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+}
+.ov-paper-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.ov-paper-title {
+  margin: 0;
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-strong);
+  white-space: pre-wrap;
+}
+.ov-aim {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  grid-column: span 2;
+}
+.ov-aim > .ww-field {
+  flex: 1 1 0;
+  min-inline-size: 0;
+}
+.ov-of {
+  padding-block-end: var(--space-3);
+  color: var(--ink-2);
+}
+.ov-steps {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding-inline-start: var(--space-5);
+}
+.ov-steps li {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+.ov-step-text {
+  color: var(--ink-1);
+  font-weight: var(--weight-medium);
+}
+.ov-qr {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+}
+.ov-qr-img {
+  border-radius: var(--radius-control);
+  image-rendering: pixelated;
+  background: var(--surface-1);
+}
+.ov-qr-text {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  min-inline-size: 0;
+}
+.ov-code {
+  font-family: ui-monospace, monospace;
+  font-size: var(--text-display);
+  letter-spacing: 0.12em;
+}
+.ov-address,
+.ov-devices {
+  display: grid;
+  gap: var(--space-2);
+}
+.ov-mono {
+  font-family: ui-monospace, monospace;
+  font-size: var(--text-small);
+  overflow-wrap: anywhere;
+  color: var(--ink-1);
+}
+.ov-device {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+@media (max-width: 480px) {
+  .ov-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ov-aim {
+    grid-column: auto;
+  }
+}

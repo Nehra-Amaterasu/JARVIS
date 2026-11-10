@@ -461,8 +461,6 @@ class Harvester:
                 rec = {"date": self.today(), "text": ""}
             elif status == 200:
                 rec = {"date": self.today(), "text": body.decode("utf-8", "replace")}
-            elif status in (401, 403):
-                raise Refused("robots", f"robots.txt of {host} is not readable (HTTP {status}), so nothing is fetched there")
             else:
                 raise Refused("robots", f"robots.txt of {host} is not reachable (HTTP {status}), so nothing is fetched there")
             rdir.mkdir(parents=True, exist_ok=True)

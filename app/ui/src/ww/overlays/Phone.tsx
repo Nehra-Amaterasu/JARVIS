@@ -21,7 +21,7 @@ import './overlays.css'
 export const wwAddresses = (v: PhoneView | null): string[] => (v?.open_at ?? []).map((u) => `${u.replace(/\/phone\/?$/, '')}/phone/ww`)
 
 export function PhoneSheet() {
-  const [view, , reload] = usePoll(loadPhone, 8000)
+  const [view, loading, reload] = usePoll(loadPhone, 8000)
   const [local, setLocal] = useState<PhoneView | null>(null)
   const v = local ?? view
   useEffect(() => setLocal(null), [view])
@@ -70,6 +70,23 @@ export function PhoneSheet() {
   const bases = v?.open_at.map((u) => u.replace(/\/phone\/?$/, '')) ?? []
   const addresses = wwAddresses(v)
   const word = !v ? 'Checking' : paired > 0 ? 'Paired' : 'Not paired'
+
+  // Until the first answer the sheet is a note only. The kit's Button remounts when it stops being
+  // blocked, so a control focused while the listener state was unknown would lose focus to <body> on arrival.
+  if (!v) {
+    return (
+      <div className="ov-body" data-overlay="phone" data-primary-none="">
+        {loading
+          ? <p className="ov-note">Checking the phone listener.</p>
+          : (
+            <>
+              <p className="ov-note" role="alert">The phone listener did not answer, so nothing here can be changed. Nothing was.</p>
+              <Button onClick={reload}>Retry</Button>
+            </>
+          )}
+      </div>
+    )
+  }
 
   return (
     <div className="ov-body" data-overlay="phone" data-primary-none={running && !code ? undefined : ''}>

@@ -19,11 +19,11 @@ const PAYLOAD = {
   say: 'Two papers ahead; control first.',
   blocks: [{ label: 'Morning', minutes: 120, blocks: [{ paper: 'p1', title: 'Control systems', minutes: 90, focus: [{ title: 'Root locus' }, { title: 'Bode plots' }] }] }],
   papers: [
-    { id: 'p1', subject: 'control', title: 'Control', code: 'EE301', date: '2026-11-20', start: '10:00', days_left: 8, coverage: 0.4, kind: 'end', approx: false },
-    { id: 'p2', subject: 'maths', title: 'Maths 3', code: 'MA301', date: '2026-11-24', start: null, days_left: 0, coverage: 0.1, kind: 'end', approx: true },
+    { id: 'p1', subject: 'control', title: 'Control', code: 'EE301', date: '2026-11-20', start: '10:00', days_left: 8, coverage: 0.4, kind: 'end_sem', approx: false },
+    { id: 'p2', subject: 'maths', title: 'Maths 3', code: 'MA301', date: '2026-11-24', start: null, days_left: 12, coverage: 0.1, kind: 'cie', approx: true },
   ],
   paper: {
-    id: 'p1', subject: 'control', title: 'Control', code: 'EE301', date: '2026-11-20', start: '10:00', days_left: 8, coverage: 0.4, kind: 'end', approx: false,
+    id: 'p1', subject: 'control', title: 'Control', code: 'EE301', date: '2026-11-20', start: '10:00', days_left: 8, coverage: 0.4, kind: 'end_sem', approx: false,
     counts: { none: 2, learned: 1, solid: 1 },
     topics: [topic('a', 1, 'Transfer functions', 'solid'), topic('b', 1, 'Block diagram reduction', 'learned'), topic('c', 2, 'Root locus and a long topic name that has to wrap', 'none'), topic('d', 3, 'Bode', 'none')],
   },
@@ -38,12 +38,17 @@ const PAYLOAD = {
   ],
   rule: { threshold: 0.75, confirmed: true },
   counters: [{ id: 'water', name: 'Glasses of water', today: 3 }, { id: 'gym', name: 'Gym', today: 0 }],
+  season: { season: 'exams', mode: 'auto', window_days: 45, nearest_days: 8, evening: false, evening_why: null, left_top: 'countdown', opens: 'study', due_soon_days: 3, findings_hidden: true, now_card: 'now' },
 }
 
-async function openPhone(page: Page, payload: unknown = PAYLOAD) {
+/** A hook a test can use to answer a POST itself (a refusal, a slow reply); return true when it answered. */
+type Intercept = (route: import('@playwright/test').Route, path: string) => Promise<boolean> | boolean
+
+async function openPhone(page: Page, payload: unknown = PAYLOAD, intercept?: Intercept) {
   await page.route(`${ORIGIN}/**`, async (route) => {
     const url = new URL(route.request().url())
     const p = url.pathname
+    if (intercept && (await intercept(route, p))) return
     if (p === '/phone/ww') return route.fulfill({ contentType: 'text/html', body: readFileSync(resolve(PAGE_DIR, 'ww.html'), 'utf8') })
     if (p === '/phone/ww.css') return route.fulfill({ contentType: 'text/css', body: readFileSync(resolve(PAGE_DIR, 'ww.css'), 'utf8') })
     if (p === '/phone/ww.js') return route.fulfill({ contentType: 'text/javascript', body: readFileSync(resolve(PAGE_DIR, 'ww.js'), 'utf8') })
@@ -51,7 +56,9 @@ async function openPhone(page: Page, payload: unknown = PAYLOAD) {
     return route.fulfill({ status: 204, body: '' }) // manifest and icons
   })
   await page.goto(`${ORIGIN}/phone/ww`)
-  await page.waitForSelector('#main:not([hidden]) #counters li b')
+  await page.waitForSelector('#main:not([hidden]) #l2Say:not(:empty)')
+  // The topics fold is closed by default; its controls are measured too, so a test that wants them opens it.
+  await page.evaluate(() => void ((document.getElementById('studyFold') as HTMLDetailsElement).open = true))
 }
 
 /** The effective box of a control: probe elementFromPoint on a 2 px grid over the element grown by 12 px. */
@@ -77,16 +84,16 @@ async function boxes(page: Page, selector: string) {
 }
 
 // Chips scroll sideways inside their own strip; a control scrolled out of that strip is probed after scrollIntoView.
-const TAPS = 'button, a[href], #counters b'
+const TAPS = 'button, a[href], summary'
 
-test.describe('phone Study page at 390 x 844', () => {
+test.describe('phone page at 390 x 844', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
 
   test('every button, chip and counter has a hit area of at least 44 x 44', async ({ page }) => {
     await openPhone(page)
     const hits = await boxes(page, TAPS)
-    // 3 minute buttons + 2 paper chips + 4 topics + 9 class taps + 4 counter buttons + 2 counter values + back link
-    expect(hits.length).toBeGreaterThanOrEqual(25)
+    // Start + 3 minute buttons + 2 paper chips + 4 topics + 9 class taps + 2 counter tiles + 2 fold summaries + back link
+    expect(hits.length).toBeGreaterThanOrEqual(22)
     const short = hits.filter((h) => h.w < 44 || h.h < 44).map((h) => `${h.label}: ${h.w} x ${h.h}`)
     expect(short, 'targets under 44 px').toEqual([])
   })
@@ -166,5 +173,98 @@ test.describe('phone Study page at 390 x 844', () => {
   test('the counter shows the number the API sent', async ({ page }) => {
     await openPhone(page)
     expect(await page.$$eval('#counters b', (bs) => bs.map((b) => b.textContent))).toEqual(['3', '0'])
+  })
+
+  // ---- chunk 6: the left column alone (plan 4.14) ----
+  test('the sections are L1 to L4 in the laptop order, then the honest last line; the chip says this is the phone', async ({ page }) => {
+    await openPhone(page)
+    expect(await page.$$eval('main > [data-section]', (s) => s.map((e) => e.getAttribute('data-section')))).toEqual(['L1', 'L2', 'L3', 'L4'])
+    expect(await page.$eval('#phoneChip', (e) => e.textContent)).toBe('This is your phone')
+    expect(await page.$eval('#last', (e) => e.textContent)).toBe('Desktop only: papers, Tree, Setup (not on the phone yet).')
+    // the last line comes after Counters
+    const y = await page.evaluate(() => ({ l4: document.getElementById('L4')!.getBoundingClientRect().bottom, last: document.getElementById('last')!.getBoundingClientRect().top }))
+    expect(y.last).toBeGreaterThanOrEqual(y.l4)
+  })
+
+  test('Countdown leads with the earlier sitting, Now has Start and the three presets, Classes and Counters carry their taps', async ({ page }) => {
+    await openPhone(page)
+    expect(await page.$eval('#h-L1', (e) => e.textContent)).toBe('Countdown')
+    expect(await page.$eval('#l1Head', (e) => e.textContent)).toBe('Next: Control in 8 d')
+    expect(await page.$eval('#l1Counts', (e) => e.textContent)).toBe('CIE 1 · End 1 · Other 0')
+    expect(await page.$eval('#l1Note', (e) => e.textContent)).toContain('tentative')
+    expect(await page.$eval('#l2Say', (e) => e.textContent)).toBe('Control systems: Root locus, 1 h 30.')
+    expect(await page.$$eval('#minutesRow [data-min]', (b) => b.map((e) => e.textContent))).toEqual(['+25', '+50', '+90'])
+    expect(await page.$$eval('#classes li', (l) => l.length)).toBe(3)
+    expect(await page.$$eval('#classes li:first-child button', (b) => b.map((e) => e.getAttribute('aria-label')))).toEqual([
+      'Control systems at 08:45: mark present', 'Control systems at 08:45: mark absent', 'Control systems at 08:45: mark cancelled',
+    ])
+  })
+
+  test('one column at 390 px: every section starts at the same left edge and none is narrower than the page minus its gutters', async ({ page }) => {
+    await openPhone(page)
+    const r = await page.$$eval('main > [data-section]', (s) => s.map((e) => e.getBoundingClientRect().toJSON()))
+    expect(new Set(r.map((b) => Math.round(b.left))).size).toBe(1)
+    for (const b of r) expect(b.width).toBeGreaterThanOrEqual(390 - 2 * 14 - 1)
+  })
+
+  test('an evening server state swaps Now for Close the day and drops Start', async ({ page }) => {
+    await openPhone(page, { ...PAYLOAD, season: { ...PAYLOAD.season, evening: true, evening_why: 'clock', now_card: 'close_the_day' } })
+    expect(await page.$eval('#h-L2', (e) => e.textContent)).toBe('Close the day')
+    expect(await page.$eval('#start', (e) => (e as HTMLElement).hidden)).toBe(true)
+    expect(await page.$eval('#l2Kept', (e) => e.textContent)).toBe('Not done: kept, not lost.')
+  })
+
+  test('a class tap lights at once and goes back, with the reason, when the server refuses', async ({ page }) => {
+    const refuse: Intercept = async (route, path) => {
+      if (path !== '/api/phone/ww/class') return false
+      await new Promise((r) => setTimeout(r, 400))
+      await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ detail: 'unknown slot' }) })
+      return true
+    }
+    await openPhone(page, PAYLOAD, refuse)
+    const first = page.locator('#classes li').first().getByRole('button', { name: /mark present/ })
+    await first.click()
+    await expect(page.locator('#classes li').first().getByRole('button', { name: /clear present/ })).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.locator('#err')).toHaveText('unknown slot')
+    await expect(page.locator('#classes li').first().getByRole('button', { name: /mark present/ })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  test('a counter tap adds one at once; Undo last tap takes it back', async ({ page }) => {
+    const bodies: unknown[] = []
+    const watch: Intercept = async (route, path) => {
+      if (path !== '/api/phone/ww/count') return false
+      bodies.push(JSON.parse(route.request().postData() ?? '{}'))
+      await new Promise((r) => setTimeout(r, 300))
+      return false
+    }
+    await openPhone(page, PAYLOAD, watch)
+    await page.locator('#counters li').first().getByRole('button').click()
+    await expect(page.locator('#counters li b').first()).toHaveText('4') // before the reply: the page moved first
+    await expect(page.locator('#undo')).toBeVisible()
+    await page.locator('#undo').click()
+    await expect.poll(() => bodies.length).toBe(2)
+    expect(bodies[0]).toMatchObject({ id: 'water', delta: 1 })
+    expect(bodies[1]).toMatchObject({ id: 'water', delta: -1 })
+  })
+
+  test('with no papers and no classes the page says so in words and shows no undefined, NaN or null', async ({ page }) => {
+    await openPhone(page, { ...PAYLOAD, papers: [], paper: null, blocks: [], classes: [], attendance: [], counters: [] })
+    expect(await page.$eval('#l1Head', (e) => e.textContent)).toBe('No dated paper ahead.')
+    expect(await page.$eval('#l2Say', (e) => e.textContent)).toContain('Nothing planned yet')
+    expect(await page.$eval('#classesEmpty', (e) => e.textContent)).toBe('No classes today, or no timetable yet.')
+    expect(await page.$eval('#countersEmpty', (e) => e.textContent)).toBe('No counters set up.')
+    const text = await page.$eval('main', (e) => (e as HTMLElement).innerText)
+    expect(text).not.toMatch(/undefined|NaN|\bnull\b|\[object/)
+  })
+})
+
+test.describe('phone page at 700 px (a tablet or a landscape phone)', () => {
+  test.use({ viewport: { width: 700, height: 800 }, hasTouch: true, isMobile: true })
+  test('the sections sit in two columns, in the same order, and the page does not scroll sideways', async ({ page }) => {
+    await openPhone(page)
+    const r = await page.$$eval('main > [data-section]', (s) => s.map((e) => ({ id: e.getAttribute('data-section'), left: e.getBoundingClientRect().left })))
+    expect(r[0].left).toBe(r[2].left)
+    expect(r[1].left).toBeGreaterThan(r[0].left)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0)
   })
 })

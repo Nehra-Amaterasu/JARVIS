@@ -12,7 +12,7 @@
  * and it does not touch Shell's Ctrl+1..6, which still leaves Well Wisher. Alt+1..6 is ours.
  */
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
-import { Segmented, PrimaryOwner } from '../kit'
+import { Button, Segmented, PrimaryOwner } from '../kit'
 import { motionLoad, setMotionLoad } from '../design/motion/governor'
 import { useWorkspaceTransition } from '../design/motion/transition'
 import '../useReducedMotion' // registers data-motion with lib/motion.tsx (useSpring, Ticker, switchView)
@@ -243,6 +243,7 @@ export function Frame({ loaded, pages, server, legacyTab, left, extras, glass = 
               onChange={(m) => useFrame.getState().setSeasonMode(m)}
               options={SEASON_MODES.map((id) => ({ id, label: SEASON_LABEL[id] }))}
             />
+            <Button size="sm" onClick={() => openOverlay('roadmap')} data-open="roadmap">Roadmap</Button>
             {extras}
           </div>
         </header>

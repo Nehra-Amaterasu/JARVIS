@@ -268,7 +268,7 @@ test('a refused press on a disabled placeholder keeps focus and does not move it
   expect(await btn.boundingBox()).toEqual(before)
 })
 
-test('the Roadmap drawer lists all 28 entries, opaque, at rest, and Esc closes it', async ({ page }) => {
+test('the Roadmap drawer lists the 26 unbuilt entries (28 minus phone pairing and dMAT), opaque, at rest, and Esc closes it', async ({ page }) => {
   await openCarcass(page)
   await page.evaluate(() => (window as unknown as { WWCarcass: Lab }).WWCarcass.openRoadmap())
   await page.waitForSelector('[data-roadmap-row]')
@@ -283,7 +283,7 @@ test('the Roadmap drawer lists all 28 entries, opaque, at rest, and Esc closes i
       running: (document as unknown as { getAnimations(o: object): Animation[] }).getAnimations({ subtree: true }).filter((a) => a.playState === 'running' && a.timeline instanceof DocumentTimeline).length,
     }
   })
-  expect(r.rows).toBe(28)
+  expect(r.rows).toBe(26)
   expect(r.title).toBe('Roadmap')
   expect(r.bg).not.toMatch(/rgba\(.*,\s*0(\.\d+)?\)$/) // opaque (plan 5.6): no alpha below 1
   expect(r.width).toBeLessThanOrEqual(480)

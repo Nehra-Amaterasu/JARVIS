@@ -122,7 +122,7 @@ export const PLANNED: readonly Planned[] = [
   { id: 'harvester-pdf', page: 'C6', section: 'SU18', label: 'PDF text for the harvester', pattern: 'disabled',
     line: 'PDF text uses the local PDF reader when present. A Python PDF library is not installed.',
     needs: 'The owner\'s OK for a PDF library; until then only the local reader.', when: 'needs a decision', chunk: 'H' },
-  { id: 'dmat-practice', page: 'C1', section: 'S9', label: 'dMAT practice', pattern: 'roadmap',
+  { id: 'dmat-practice', page: 'C1', section: 'S9', label: 'dMAT practice', pattern: 'roadmap', built: true,
     line: 'dMAT practice is not built. It will generate figure sequences, equation puzzles and Latin squares from the public rules.',
     needs: 'Backend chunk 2b and the view in chunk 7. After the build the empty state reads "No set taken yet."', chunk: '7' },
   { id: 'drafted-questions', page: 'C1', section: 'S3', label: 'Drafted questions to accept', pattern: 'roadmap',
@@ -172,3 +172,7 @@ export function staleEntries(root: ParentNode = document): string[] {
   }
   return out
 }
+
+/** What the Roadmap lists: the entries not built yet. A built row (phone pairing, dMAT since chunk 7) keeps its
+ * entry only for its blocked or empty state, so it must not appear in a list titled "What is not built". */
+export const UNBUILT: readonly Planned[] = PLANNED.filter((p) => !p.built)

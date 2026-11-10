@@ -5,7 +5,7 @@ import { mount, resetHtml } from './_stubs'
 import { OverlayHost } from '../../ww/frame/OverlayHost'
 import { closeOverlay, openOverlay, registeredOverlay, useOverlay } from '../../ww/frame/overlayRegistry'
 import { RoadmapBody } from '../../ww/overlays/Roadmap'
-import { GROUPS, PLANNED, groupOf } from '../../ww/plannedFeatures'
+import { GROUPS, PLANNED, UNBUILT, groupOf } from '../../ww/plannedFeatures'
 
 let m: ReturnType<typeof mount> | null = null
 beforeEach(() => {
@@ -28,8 +28,8 @@ describe('Roadmap', () => {
   it('lists every registry entry once, with its line and what it needs', () => {
     m = mount(<RoadmapBody />)
     const rows = [...document.querySelectorAll('[data-roadmap-row]')]
-    expect(rows.map((r) => r.getAttribute('data-roadmap-row')).sort()).toEqual(PLANNED.map((p) => p.id).sort())
-    for (const p of PLANNED) {
+    expect(rows.map((r) => r.getAttribute('data-roadmap-row')).sort()).toEqual(UNBUILT.map((p) => p.id).sort())
+    for (const p of UNBUILT) {
       const row = document.querySelector(`[data-roadmap-row="${p.id}"]`)!
       expect(row.textContent).toContain(p.line)
       expect(row.textContent).toContain(`Needs: ${p.needs}`)
@@ -39,10 +39,15 @@ describe('Roadmap', () => {
   it('groups rows by workspace, in tab order, and never shows an empty group', () => {
     m = mount(<RoadmapBody />)
     const shown = [...document.querySelectorAll('[data-roadmap-group]')].map((g) => g.getAttribute('data-roadmap-group'))
-    const expected = GROUPS.filter((g) => PLANNED.some((p) => groupOf(p) === g))
+    const expected = GROUPS.filter((g) => UNBUILT.some((p) => groupOf(p) === g))
     expect(shown).toEqual(expected)
     expect(document.querySelector('[data-roadmap-group="Study"] [data-roadmap-row="sharpen"]')).toBeNull() // Sharpen is on the Tree
     expect(document.querySelector('[data-roadmap-group="Tree"] [data-roadmap-row="sharpen"]')).not.toBeNull()
+  })
+  it('a built entry (phone pairing, dMAT) is not listed as unbuilt', () => {
+    m = mount(<RoadmapBody />)
+    expect(document.querySelector('[data-roadmap-row="phone-pairing"]')).toBeNull()
+    expect(document.querySelector('[data-roadmap-row="dmat-practice"]')).toBeNull()
   })
   it('a feature that ships leaves the Roadmap with its entry', () => {
     m = mount(<RoadmapBody entries={PLANNED.filter((p) => p.id !== 'sharpen')} />)
@@ -61,7 +66,7 @@ describe('Roadmap', () => {
     act(() => void openOverlay('roadmap'))
     expect(document.querySelector('[data-overlay-stub]')).toBeNull()
     expect(document.querySelector('[role=dialog] h2')!.textContent).toBe('Roadmap')
-    expect(document.querySelectorAll('[data-roadmap-row]')).toHaveLength(PLANNED.length)
+    expect(document.querySelectorAll('[data-roadmap-row]')).toHaveLength(UNBUILT.length)
     act(() => void document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
     expect(useOverlay.getState().open).toBeNull()
   })

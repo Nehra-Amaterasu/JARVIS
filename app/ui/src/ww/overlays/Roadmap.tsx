@@ -2,10 +2,10 @@
 // feature that ships disappears from here in the same commit that deletes its entry. The overlay declares no
 // primary ("none, close only"): rows are text, there is nothing to press but the drawer's Close.
 import { registerOverlay } from '../frame/overlayRegistry'
-import { GROUPS, PLANNED, groupOf, type Planned } from '../plannedFeatures'
+import { GROUPS, UNBUILT, groupOf, type Planned } from '../plannedFeatures'
 import './roadmap.css'
 
-export function RoadmapBody({ entries = PLANNED }: { entries?: readonly Planned[] }) {
+export function RoadmapBody({ entries = UNBUILT }: { entries?: readonly Planned[] }) {
   return (
     <div className="ww-roadmap" data-overlay="roadmap" data-primary-none="">
       <p className="ww-roadmap-lead">What is not built, and why.</p>

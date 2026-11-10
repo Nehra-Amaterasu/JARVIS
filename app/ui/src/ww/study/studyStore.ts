@@ -8,7 +8,7 @@
  */
 import { create } from 'zustand'
 import {
-  getBank, getExams, getHarvest, getPaper, postMarks, postMinutes, postTopic,
+  getBank, getDisk, getExams, getHarvest, getPaper, postMarks, postMinutes, postTopic,
   type BankListing, type ExamsAnswer, type HarvestQueue, type MarksResult, type PracticePaper, type Tier,
 } from './api'
 import { changes, savedLine } from './marksLoop'
@@ -35,11 +35,14 @@ interface StudyState {
   bank: BankListing | null
   bankFor: string | null
   harvest: HarvestQueue | null
+  /** Questions on disk (harvested) per subject; absent = not read, which is not the same as 0. */
+  disk: Record<string, number>
 
   loadExams: () => Promise<ExamsAnswer | null>
   select: (id: string) => void
   loadBank: (subject: string) => Promise<void>
   loadHarvest: () => Promise<void>
+  loadDisk: (subject: string) => Promise<void>
   tapTopic: (subject: string, key: string, next: TopicState) => Promise<boolean>
   logMinutes: (subject: string, minutes: number) => Promise<boolean>
   makePaper: (paperId: string, tier: Tier, seed: number) => Promise<PracticePaper | null>
@@ -65,6 +68,7 @@ export const useStudy = create<StudyState>((set, get) => ({
   bank: null,
   bankFor: null,
   harvest: null,
+  disk: {},
 
   // The next paper is preselected: the first one ahead, unless the choice is still on the list.
   loadExams: async () => {
@@ -99,6 +103,13 @@ export const useStudy = create<StudyState>((set, get) => ({
   // Off the page entirely when the route is absent: the queue line then simply does not render.
   loadHarvest: async () => {
     try { set({ harvest: await getHarvest() }) } catch { set({ harvest: null }) }
+  },
+
+  loadDisk: async (subject) => {
+    try {
+      const d = await getDisk(subject)
+      set({ disk: { ...get().disk, [subject]: d.on_disk } })
+    } catch { /* absent route: the bank line simply shows the typed count */ }
   },
 
   tapTopic: async (subject, key, next) => {
@@ -137,7 +148,7 @@ export const useStudy = create<StudyState>((set, get) => ({
     let before: ExamsAnswer | null = get().exams
     try { before = await getExams() } catch { /* the cached answer is the best "before" there is */ }
     try {
-      const r = await postMarks(p.paperId, items, p.seed)
+      const r = await postMarks(p.paperId, items, p.paper.seed)   // the seed the server built the paper from, not the one asked for
       let after: ExamsAnswer | null = null
       try { after = await getExams() } catch { /* the marks are saved; only the comparison is lost */ }
       if (get().practice?.paperId !== p.paperId) return r
@@ -156,5 +167,5 @@ export const selectPaper = (id: string) => useStudy.getState().select(id)
 
 /** Tests only. */
 export function resetStudyStore(): void {
-  useStudy.setState({ exams: null, examsFailed: false, selected: null, practice: null, bank: null, bankFor: null, harvest: null })
+  useStudy.setState({ exams: null, examsFailed: false, selected: null, practice: null, bank: null, bankFor: null, harvest: null, disk: {} })
 }

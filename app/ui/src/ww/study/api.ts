@@ -65,6 +65,8 @@ export const getPaper = (exam: string, seed: number, tier: Tier) =>
   api<PracticePaper>(`/api/mission/paper/${encodeURIComponent(exam)}?seed=${seed}&tier=${tier}`)
 export const getBank = (subject: string) => api<BankListing>(`/api/mission/bank/${encodeURIComponent(subject)}`)
 export const getHarvest = () => api<HarvestQueue>('/api/mission/harvest/queue')
+/** The phone's read-only flags carry the one number the queue route lacks: questions on disk for ONE subject. */
+export const getDisk = (subject: string) => api<{ on_disk: number; queued: number }>(`/api/phone/ww/harvest?subject=${encodeURIComponent(subject)}`)
 
 /** The marks the paper showed go with the answer: a scaled CIE paper is scored out of its own total. */
 export const postMarks = (exam: string, items: { id: string; got: number; max: number }[], seed: number) =>

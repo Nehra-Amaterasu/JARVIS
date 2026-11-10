@@ -250,3 +250,12 @@ def test_phone_resources_need_a_paired_phone(phone_client):
     c = phone_client
     c.cookies.clear()
     assert c.get("/api/phone/ww/resources").status_code == 401
+
+
+def test_a_repeated_done_tap_keeps_its_first_date_so_it_cannot_slide_into_a_later_week(bank):
+    kv = MemKV()
+    ww_resources.set_checklist(kv, bank, "course-a", LECTURES, "2026-11-02")
+    ww_resources.tap(kv, bank, "course-a", "lecture-1-part-1", "done", "2026-11-02")
+    ww_resources.tap(kv, bank, "course-a", "lecture-1-part-1", "done", "2026-11-12")
+    w = ww_resources.weekly(kv, bank, "2026-11-12", 2)
+    assert [r["done"] for r in w["weeks"]] == [1, 0]

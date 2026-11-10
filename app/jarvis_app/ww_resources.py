@@ -155,11 +155,12 @@ def tap(kv, bank: dict, rid: str, item: str, state: str, today: str) -> dict:
             raise ValueError("this resource has no checklist yet: type one first")
         if item not in {i["id"] for i in rec["items"]}:
             raise ValueError(f"unknown item: {item}")
-        rec["done"].pop(item, None)
+        was_done = rec["done"].pop(item, None)
         if item in rec["skip"]:
             rec["skip"].remove(item)
         if state == "done":
-            rec["done"][item] = today
+            # A second done tap keeps the first date: a repeat must not slide the section into a later week.
+            rec["done"][item] = was_done or today
         elif state == "skip":
             rec["skip"].append(item)
         if state != "open":

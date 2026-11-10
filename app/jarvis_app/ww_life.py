@@ -21,6 +21,7 @@ Advice only; nothing here is medical. Pure.
 from __future__ import annotations
 
 import math
+import re
 from statistics import median
 from typing import Optional
 
@@ -86,6 +87,67 @@ def life(inputs: dict, today: str, log: Optional[dict] = None) -> dict:
             "last_grade": graded[0]["grade"] if graded else None,
             "rule": "A counter you want less of gets a line: the median of your last 7 logged days minus 10 %. "
                     "On or under it earns a point. A day over it is information, never a reset."}
+
+
+# ---- a logged item can be taken back (chunk 8, the Life workspace) ------------------------------------
+# Logging costs seconds, so a mis-tap has to cost seconds too: delete takes the item out of the day and
+# hands it back, restore puts it where it was. The log is the plan state's {date: {"items": [...]}}; both
+# functions work on that dict in place and know nothing about storage, so the route holds the lock.
+MAX_ITEMS = 100     # the cap germoney.life_tap keeps (del items[:-100]); a restore never grows past it
+
+
+def clean_item(raw: dict) -> dict:
+    """An item as life_tap would have stored it: a known kind, text <= 500, minutes 1..1440, an http(s) link."""
+    kind, text = str(raw.get("kind") or ""), str(raw.get("text") or "").strip()
+    if kind not in ITEM_KINDS or not text:
+        raise ValueError(f"an item needs a kind ({', '.join(ITEM_KINDS)}) and some text")
+    it: dict = {"kind": kind, "text": text[:500]}
+    try:
+        mins = float(raw.get("minutes"))
+    except (TypeError, ValueError):
+        mins = 0.0
+    if 0 < mins <= 1440:
+        it["minutes"] = int(mins)
+    url = str(raw.get("url") or "")
+    if re.match(r"^https?://", url):
+        it["url"] = url[:400]
+    if raw.get("explained"):
+        it["explained"] = str(raw["explained"])[:10]
+    for k in ("explanation", "grade"):
+        if raw.get(k):
+            it[k] = raw[k]
+    return it
+
+
+def delete_item(log: dict, day: str, index: int, kind: str, text: str) -> dict:
+    """Take item `index` of `day` out and return it. kind and text must match what the page showed: if
+    the list moved under the page (a second window, a late reply) the wrong row is refused, not removed."""
+    items = (log.get(day) or {}).get("items") or []
+    if not isinstance(index, int) or isinstance(index, bool) or not 0 <= index < len(items):
+        raise ValueError("no such item")
+    if items[index].get("kind") != kind or items[index].get("text") != text:
+        raise ValueError("that row has changed; reload the list")
+    return items.pop(index)
+
+
+def restore_item(log: dict, day: str, index: int, raw: dict) -> dict:
+    """Put a deleted item back at `index` (clamped to the end if the list got shorter)."""
+    it = clean_item(raw)
+    items = log.setdefault(day, {}).setdefault("items", [])
+    if len(items) >= MAX_ITEMS:
+        raise ValueError(f"a day keeps {MAX_ITEMS} items")
+    idx = index if isinstance(index, int) and not isinstance(index, bool) else len(items)
+    items.insert(max(0, min(idx, len(items))), it)
+    return it
+
+
+def reels_pending(log: dict, today: str) -> dict:
+    """Reels waiting for an explain-back, counted without the engine's cap of 3.
+    queued_today: logged today and asked tomorrow ("will ask tomorrow"); due: from an earlier day, not explained yet."""
+    queued = sum(1 for x in (log.get(today) or {}).get("items") or [] if x.get("kind") == "reel" and not x.get("explained"))
+    due = sum(1 for d in sorted(log, reverse=True)[:30] if d < today
+              for x in (log[d].get("items") or []) if x.get("kind") == "reel" and not x.get("explained"))
+    return {"queued_today": queued, "due": due, "total": queued + due}
 
 
 ENGINE = EngineSpec(

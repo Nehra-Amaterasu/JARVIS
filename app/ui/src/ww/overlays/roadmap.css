@@ -1,0 +1,48 @@
+/* ---- Roadmap drawer (plan 4.12): plain text rows on the opaque sheet, nothing to press but Close ---- */
+.ww-roadmap {
+  display: grid;
+  gap: var(--space-4);
+}
+.ww-roadmap-lead,
+.ww-roadmap-foot {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-roadmap-group {
+  display: grid;
+  gap: var(--space-2);
+}
+.ww-roadmap-group h3 {
+  margin: 0;
+}
+.ww-roadmap-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ww-roadmap-row {
+  display: grid;
+  gap: var(--space-1);
+  padding-block-end: var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+.ww-roadmap-label {
+  margin: 0;
+  color: var(--ink-1);
+  font-weight: var(--weight-medium);
+}
+.ww-roadmap-line,
+.ww-roadmap-needs,
+.ww-roadmap-when {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-roadmap-line {
+  color: var(--ink-1);
+}

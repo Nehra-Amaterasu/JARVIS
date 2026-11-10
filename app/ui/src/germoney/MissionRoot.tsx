@@ -43,7 +43,8 @@ import './theme.css'
 // The new Well Wisher frame (docs/design/well-wisher-ui.md chunk 4), behind the flag in ww/frame/flag.ts
 // (`#ww=frame` in the URL fragment or localStorage `ww.workspace` = frame; default off). It is imported
 // lazily so with the flag off none of its code or CSS is ever downloaded.
-const WwFrame = lazy(() => import('../ww/frame/Frame').then((m) => ({ default: m.Frame })))
+// Chunk 5 rides in the same lazy load: importing the Roadmap overlay registers it (ww/overlays/Roadmap.tsx).
+const WwFrame = lazy(() => Promise.all([import('../ww/frame/Frame'), import('../ww/overlays/Roadmap')]).then(([m]) => ({ default: m.Frame })))
 function SetupBridge() { return <Calibration onDone={() => {}} /> }
 const inBoundary = (name: string, P: React.ComponentType) => () => <MissionBoundary name={name}><P /></MissionBoundary>
 const FRAME_PAGES = {

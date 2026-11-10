@@ -45,11 +45,13 @@ import './theme.css'
 // lazily so with the flag off none of its code or CSS is ever downloaded.
 // Chunk 5 rides in the same lazy load: importing the Roadmap overlay registers it (ww/overlays/Roadmap.tsx).
 const WwFrame = lazy(() => Promise.all([import('../ww/frame/Frame'), import('../ww/overlays/Roadmap')]).then(([m]) => ({ default: m.Frame })))
+// Chunk 11: the Career workspace, lazy for the same reason (flag off downloads none of it).
+const CareerPage = lazy(() => import('../ww/career').then((m) => ({ default: m.CareerPage })))
 function SetupBridge() { return <Calibration onDone={() => {}} /> }
 const inBoundary = (name: string, P: React.ComponentType) => () => <MissionBoundary name={name}><P /></MissionBoundary>
 const FRAME_PAGES = {
   study: inBoundary('Study', StudyPage), tree: inBoundary('Tree', TreePage), life: inBoundary('Life', LifePage),
-  career: inBoundary('Career', RoadPage), focus: inBoundary('Focus', FocusPage), setup: inBoundary('Setup', SetupBridge),
+  career: inBoundary('Career', CareerPage), focus: inBoundary('Focus', FocusPage), setup: inBoundary('Setup', SetupBridge),
 }
 
 const PAGES: Record<MissionScreen, React.ComponentType> = {

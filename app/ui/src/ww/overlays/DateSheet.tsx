@@ -8,6 +8,7 @@ import { EMPTY } from '../../germoney/ui'
 import { Button, Field, IconButton, PrimaryButton } from '../kit'
 import { registerOverlay, closeOverlay } from '../frame/overlayRegistry'
 import { useSetup } from '../setup/saveModel'
+import { PagerBar, usePaged } from '../setup/pager'
 import type { ExamRow } from '../setup/inputs'
 import './overlays.css'
 
@@ -34,6 +35,9 @@ export function DateSheet() {
   const saving = useSetup((s) => s.saving)
   const report = useSetup((s) => s.report)
   const subjects = usePlan((s) => s.academics?.subjects) ?? EMPTY
+  // two papers a page: the sheet fits 1366x768 without scrolling (the owner's rule), however many papers there are
+  const rowsNow = (draft ?? base).length
+  const pg = usePaged(rowsNow, 2)
   useEffect(() => {
     if (load !== 'ready') void refresh()
     void usePlan.getState().loadAcademics()
@@ -56,56 +60,65 @@ export function DateSheet() {
 
   return (
     <div className="ov-body" data-overlay="date" data-primary-none={changes === 0 ? '' : undefined}>
-      <p className="ov-note">
-        {rows.length === 0 ? 'No paper on the date sheet yet.' : `${rows.length} paper${rows.length === 1 ? '' : 's'}`}
-        {tentative > 0 && `, ${tentative} with a tentative date (a circular, not the final sheet).`}
-      </p>
-      {rows.map((r, i) => {
+      {pg.slice(rows).map(({ item: r, index: i }) => {
         const name = subjects.find((s) => s.id === r.subject)?.name ?? (r.title || 'New paper')
         return (
           <section key={i} className="ov-paper" data-paper={i} aria-label={`${name} ${kindLabel(r.kind)}`}>
             <header className="ov-paper-head">
               <h3 className="ov-paper-title">{`${name}  ${kindLabel(r.kind)}`}</h3>
+              <label className="ov-check">
+                <input type="checkbox" checked={!!r.approx} onChange={(e) => patch(i, { approx: e.target.checked })} />
+                Tentative
+              </label>
+              <label className="ov-check">
+                <input type="checkbox" checked={!!r.may_miss} onChange={(e) => patch(i, { may_miss: e.target.checked })} />
+                I may not sit this paper
+              </label>
               <IconButton label={`Remove ${name} ${kindLabel(r.kind)}`} size="sm" onClick={() => set(rows.filter((_, j) => j !== i))}>
                 <Trash2 size={16} aria-hidden="true" />
               </IconButton>
             </header>
             <div className="ov-grid">
-              <Field label="Subject" kind="select" value={r.subject} onChange={(e) => patch(i, { subject: e.target.value, title: subjects.find((s) => s.id === e.target.value)?.name ?? r.title })}>
-                <option value="">choose a subject</option>
-                {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                {r.subject && !subjects.some((s) => s.id === r.subject) && <option value={r.subject}>{r.subject}</option>}
-              </Field>
-              <Field label="Paper" kind="select" value={r.kind ?? 'other'} onChange={(e) => patch(i, { kind: e.target.value as ExamRow['kind'], max: r.max ?? (e.target.value === 'cie' ? 20 : 60) })}>
-                {KINDS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-              </Field>
-              <Field label="Date" kind="date" value={r.date} onChange={(e) => patch(i, { date: e.target.value })} />
-              <label className="ov-check">
-                <input type="checkbox" checked={!!r.approx} onChange={(e) => patch(i, { approx: e.target.checked })} />
-                Tentative
-              </label>
-              <Field label="Starts" kind="time" value={r.start ?? ''} onChange={(e) => patch(i, { start: e.target.value || null })} />
-              <Field label="Ends" kind="time" value={r.end ?? ''} onChange={(e) => patch(i, { end: e.target.value || null })} />
-              <Field label="Units covered" hint="Numbers, separated by commas. Empty means all." value={r.units.join(', ')}
-                onChange={(e) => patch(i, { units: e.target.value.split(/[,\s]+/).map(Number).filter((n) => n > 0) })} />
-              <Field label="How hard" kind="select" value={r.difficulty ?? 'normal'} onChange={(e) => patch(i, { difficulty: e.target.value as ExamRow['difficulty'] })}>
-                <option value="easy">easy</option><option value="normal">normal</option><option value="hard">hard</option>
-              </Field>
-              <div className="ov-aim" role="group" aria-label="Aim for">
+              <div className="ov-s2">
+                <Field label="Subject" kind="select" value={r.subject} onChange={(e) => patch(i, { subject: e.target.value, title: subjects.find((s) => s.id === e.target.value)?.name ?? r.title })}>
+                  <option value="">choose a subject</option>
+                  {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {r.subject && !subjects.some((s) => s.id === r.subject) && <option value={r.subject}>{r.subject}</option>}
+                </Field>
+              </div>
+              <div className="ov-s1">
+                <Field label="Paper" kind="select" value={r.kind ?? 'other'} onChange={(e) => patch(i, { kind: e.target.value as ExamRow['kind'], max: r.max ?? (e.target.value === 'cie' ? 20 : 60) })}>
+                  {KINDS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+                </Field>
+              </div>
+              <div className="ov-s2"><Field label="Date" kind="date" value={r.date} onChange={(e) => patch(i, { date: e.target.value })} /></div>
+              <div className="ov-s1">
+                <Field label="How hard" kind="select" value={r.difficulty ?? 'normal'} onChange={(e) => patch(i, { difficulty: e.target.value as ExamRow['difficulty'] })}>
+                  <option value="easy">easy</option><option value="normal">normal</option><option value="hard">hard</option>
+                </Field>
+              </div>
+              <div className="ov-s1"><Field label="Starts" kind="time" value={r.start ?? ''} onChange={(e) => patch(i, { start: e.target.value || null })} /></div>
+              <div className="ov-s1"><Field label="Ends" kind="time" value={r.end ?? ''} onChange={(e) => patch(i, { end: e.target.value || null })} /></div>
+              <div className="ov-s2">
+                <Field label="Units covered" hint="Numbers, commas. Empty is all." value={r.units.join(', ')}
+                  onChange={(e) => patch(i, { units: e.target.value.split(/[,\s]+/).map(Number).filter((n) => n > 0) })} />
+              </div>
+              <div className="ov-aim ov-s2" role="group" aria-label="Aim for">
                 <Field label="Aim for" kind="number" min={0} max={r.max ?? 20} value={r.target ?? ''} onChange={(e) => patch(i, { target: e.target.value === '' ? null : Number(e.target.value) })} />
                 <span className="ov-of" aria-hidden="true">of</span>
                 <Field label="Out of" kind="number" min={1} value={r.max ?? ''} onChange={(e) => patch(i, { max: e.target.value === '' ? undefined : Number(e.target.value) })} />
               </div>
-              <label className="ov-check">
-                <input type="checkbox" checked={!!r.may_miss} onChange={(e) => patch(i, { may_miss: e.target.checked })} />
-                I may not sit this paper
-              </label>
             </div>
           </section>
         )
       })}
+      <PagerBar p={pg} noun="papers" nounSingular="Paper" />
       <div className="ov-actions">
-        <Button onClick={() => set([...rows, { subject: '', title: '', date: '', units: [], kind: 'end_sem', max: 60, approx: true }])}>
+        <span className="ov-note ov-grow" data-date-count="">
+          {rows.length === 0 ? 'No paper on the date sheet yet.' : `${rows.length} paper${rows.length === 1 ? '' : 's'}`}
+          {tentative > 0 && `, ${tentative} with a tentative date (a circular, not the final sheet).`}
+        </span>
+        <Button onClick={() => { set([...rows, { subject: '', title: '', date: '', units: [], kind: 'end_sem', max: 60, approx: true }]); pg.jumpToLast(rows.length + 1) }}>
           <Plus size={14} aria-hidden="true" />Add a paper
         </Button>
         {changes > 0 && <Button onClick={() => discard('exams')}>Discard changes</Button>}

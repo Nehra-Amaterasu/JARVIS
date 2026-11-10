@@ -19,10 +19,11 @@ import { api } from '../../lib/api'
 import { useStore } from '../../lib/store'
 import { usePlan } from '../../germoney/game/plan'
 import { EMPTY } from '../../germoney/ui'
-import { Button, Chip, Field } from '../kit'
+import { Button, Chip, Field, Segmented } from '../kit'
 import { Planned } from '../Planned'
 import { openOverlay } from '../frame/overlayRegistry'
 import { SetupCard } from './forms'
+import { PagerBar, usePaged } from './pager'
 
 export interface HarvestSource { id: string; name: string; kind: string; status: string; license: string; reason: string; terms_url: string; note: string; on_disk: number }
 export interface HarvestSources {
@@ -65,6 +66,9 @@ export function Harvester() {
   const [subject, setSubject] = useState('')
   const [topic, setTopic] = useState('')
   const [tier, setTier] = useState('gate')
+  const pg = usePaged(q?.items.length ?? 0, 3)
+  // two panes, one at a time (the owner's no-scroll rule): the licences first, because they come before the switch
+  const [pane, setPane] = useState<'sources' | 'queue'>('sources')
 
   const load = useCallback(async () => {
     const [a, b] = await Promise.allSettled([api<HarvestQueue>(`${PATH}/queue`), api<HarvestSources>(`${PATH}/sources`)])
@@ -138,6 +142,19 @@ export function Harvester() {
   return (
     <SetupCard n="SU18" anchor="harvester" title="Question harvester" hint="Questions from openly licensed sources, saved on this laptop. Official papers and textbooks are pointers only: a link, a topic and marks, never the text."
       action={<span className="su-meta" data-harvest="disk">{`questions on disk: ${q.on_disk}`}</span>}>
+      <Segmented<'sources' | 'queue'> label="Harvester view" variant="compact" value={pane} onChange={setPane}
+        options={[{ id: 'sources', label: 'Sources' }, { id: 'queue', label: `Queue (${q.items.length})` }]} />
+      <div className="su-actions">
+        {off
+          ? <Button disabled={busy} onClick={switchOn}>Switch the harvester on</Button>
+          : q.paused
+            ? <Button disabled={busy} onClick={() => void act('resume')}>Resume</Button>
+            : <Button disabled={busy} onClick={() => void act('pause')}>Pause</Button>}
+        <Button disabled={busy} disabledReason={off ? 'The harvester is off. Switch it on first.' : q.paused ? 'Paused. Resume first.' : undefined} onClick={() => void runNow()}>Fetch now</Button>
+        <span className="su-meta" data-harvest="state">{`${q.state}${q.last_run ? `, last run ${q.last_run.slice(0, 10)}` : ''}`}</span>
+      </div>
+
+      <div data-harvest-pane="sources" hidden={pane !== 'sources'}>
       <table className="su-table" aria-label="Sources">
         <thead><tr><th scope="col">Source</th><th scope="col">Status</th><th scope="col">Licence</th></tr></thead>
         <tbody>
@@ -160,22 +177,14 @@ export function Harvester() {
       )}
       {src.pdf_reader && !src.pdf_reader.available && <Planned id="harvester-pdf" />}
 
-      <div className="su-actions">
-        {off
-          ? <Button disabled={busy} onClick={switchOn}>Switch the harvester on</Button>
-          : q.paused
-            ? <Button disabled={busy} onClick={() => void act('resume')}>Resume</Button>
-            : <Button disabled={busy} onClick={() => void act('pause')}>Pause</Button>}
-        <Button disabled={busy} disabledReason={off ? 'The harvester is off. Switch it on first.' : q.paused ? 'Paused. Resume first.' : undefined} onClick={() => void runNow()}>Fetch now</Button>
-        <span className="su-meta" data-harvest="state">{`${q.state}${q.last_run ? `, last run ${q.last_run.slice(0, 10)}` : ''}`}</span>
       </div>
-
+      <div data-harvest-pane="queue" hidden={pane !== 'queue'}>
       <h3 className="su-sub">{`Queue (${q.items.length})`}</h3>
       {q.items.length === 0
         ? <p className="su-empty">The queue is empty. Queue a topic below; it waits until the harvester is on.</p>
         : (
           <ul className="su-queue" aria-label="Queue">
-            {q.items.map((i) => (
+            {pg.slice(q.items).map(({ item: i }) => (
               <li key={i.id} data-queue-status={i.status}>
                 <span>{`${i.subject} / ${i.topic}`}</span>
                 <span className="su-queue-state">{itemLine(i)}</span>
@@ -183,6 +192,7 @@ export function Harvester() {
             ))}
           </ul>
         )}
+      <PagerBar p={pg} noun="queue" nounSingular="Item" />
 
       <div className="su-row-fields" role="group" aria-label="Queue a topic">
         <Field label="Subject" kind="select" value={subject} onChange={(e) => setSubject(e.target.value)}>
@@ -196,6 +206,7 @@ export function Harvester() {
         <Button disabled={busy} disabledReason={!subject || !topic.trim() ? 'Choose a subject and type a topic.' : undefined} onClick={() => void queueTopic()}>Queue a topic</Button>
       </div>
       {off && <p className="su-hint">Queued topics wait. Nothing is fetched while the harvester is off.</p>}
+      </div>
     </SetupCard>
   )
 }

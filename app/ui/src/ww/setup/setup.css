@@ -1,7 +1,7 @@
 /* ---- Setup workspace (plan 4.9): sticky index beside the sections, one save bar. Tokens only (css-lint). ---- */
 .su-page {
   display: grid;
-  grid-template-columns: minmax(0, 12rem) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 18rem) minmax(0, 1fr);
   gap: var(--gap-group);
   align-items: start;
 }
@@ -13,6 +13,8 @@
 }
 .su-index ol {
   display: grid;
+  /* eighteen rows at the compact row height are 720 px, taller than the pane; two columns are nine */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0;
   margin: 0;
   padding: 0;
@@ -162,7 +164,19 @@
 .su-json-text {
   font-family: ui-monospace, monospace;
   inline-size: 100%;
-  min-block-size: calc(var(--row-h) * 6);
+  min-block-size: calc(var(--row-h) * 3);
+  max-block-size: 30vh;
+  resize: vertical;
+}
+.su-pairfields {
+  display: flex;
+  flex: 1 1 14rem;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+.su-pairfields > .ww-field {
+  flex: 1 1 0;
+  min-inline-size: 0;
 }
 .su-linkrow {
   display: flex;
@@ -234,4 +248,28 @@
     flex-wrap: wrap;
     gap: var(--space-1);
   }
+}
+.su-view[hidden] {
+  display: none;
+}
+.su-index-btn[aria-current='true'] {
+  background: var(--btn-quiet-bg);
+  color: var(--ink-1);
+  font-weight: var(--weight-medium);
+}
+.su-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+.su-pager-text {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  min-inline-size: 9rem;
+  text-align: center;
+}
+/* A dense row keeps its short fields (a day, two times, a kind) on one line; the others wrap as before. */
+.su-row[data-dense] .su-row-fields > .ww-field {
+  flex-basis: 6.5rem;
 }

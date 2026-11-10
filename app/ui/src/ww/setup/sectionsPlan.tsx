@@ -19,6 +19,7 @@ import { openOverlay } from '../frame/overlayRegistry'
 import { LinkRow, SetupCard, useDraft } from './forms'
 import { applyMotion, readMotion, setMotion, setTabBadges, tabBadgesOn, type MotionChoice } from './appearance'
 import { useSetup } from './saveModel'
+import { PagerBar, usePaged } from './pager'
 import type { ExamRow } from './inputs'
 
 /* ---- SU1 Rotation ---- */
@@ -28,6 +29,7 @@ interface Rot { rotation: Record<string, RotationDay>; schedule: Sched }
 
 export function RotationSection() {
   const [r, set] = useDraft<Rot | undefined>('rotation')
+  const days = usePaged(5, 3)
   if (!r) return (
     <SetupCard n="SU1" anchor="rotation" title="Rotation" hint="Five library days, a different track each; the plan picks up next week where it stopped.">
       <p className="su-empty">The plan has not answered yet, so there is no rotation to show.</p>
@@ -38,7 +40,7 @@ export function RotationSection() {
   return (
     <SetupCard n="SU1" anchor="rotation" title="Rotation" dirtyId="rotation"
       hint="Five library days, a different track each; the plan picks up next week where it stopped. The words are matched against node branches.">
-      {['1', '2', '3', '4', '5'].map((k) => (
+      {days.slice(['1', '2', '3', '4', '5']).map(({ item: k }) => (
         <div key={k} className="su-row" role="group" aria-label={DAY_NAMES[Number(k)]}>
           <div className="su-row-fields">
             <Field label={`${DAY_NAMES[Number(k)]} track`} value={r.rotation[k]?.label ?? ''} onChange={(e) => setDay(k, { label: e.target.value })} />
@@ -47,10 +49,15 @@ export function RotationSection() {
           </div>
         </div>
       ))}
-      {(['library', 'evening', 'protected', 'weekend'] as const).map((k) => (
-        <div key={k} className="su-row-fields" role="group" aria-label={`${k} block`}>
-          <Field label={`${k} starts`} kind="time" value={r.schedule[k]?.start ?? ''} onChange={(e) => setSlot(k, { start: e.target.value })} />
-          <Field label={`${k} length`} kind="number" min={15} max={480} unit="min" value={r.schedule[k]?.minutes ?? 60} onChange={(e) => setSlot(k, { minutes: Number(e.target.value) })} />
+      <PagerBar p={days} noun="days" nounSingular="Day" />
+      {[['library', 'evening'], ['protected', 'weekend']].map((pair) => (
+        <div key={pair[0]} className="su-row-fields" role="group" aria-label={`${pair.join(' and ')} blocks`}>
+          {pair.map((k) => (
+            <div key={k} className="su-pairfields" role="group" aria-label={`${k} block`}>
+              <Field label={`${k} starts`} kind="time" value={r.schedule[k]?.start ?? ''} onChange={(e) => setSlot(k, { start: e.target.value })} />
+              <Field label={`${k} length`} kind="number" min={15} max={480} unit="min" value={r.schedule[k]?.minutes ?? 60} onChange={(e) => setSlot(k, { minutes: Number(e.target.value) })} />
+            </div>
+          ))}
         </div>
       ))}
     </SetupCard>

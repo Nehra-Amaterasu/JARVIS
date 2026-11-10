@@ -6,6 +6,7 @@ import { INPUTS, SUBJECT_A, byText, click, fakeFetch, field, settle, type } from
 import { PrimaryOwner } from '../../ww/kit'
 import { SetupPage, INDEX } from '../../ww/setup/SetupPage'
 import { resetSetupModel, useSetup } from '../../ww/setup/saveModel'
+import { useView } from '../../ww/setup/view'
 import { useFrame, resetFrameStore } from '../../ww/frame/frameStore'
 import { OverlayHost } from '../../ww/frame/OverlayHost'
 import { closeOverlay, useOverlay } from '../../ww/frame/overlayRegistry'
@@ -30,6 +31,7 @@ function routes(extra: Record<string, never> = {} as never) {
 beforeEach(() => {
   vi.stubGlobal('IntersectionObserver', class { observe() {} unobserve() {} disconnect() {} })
   resetSetupModel()
+  useView.setState({ view: 'rotation', focusTick: 0 })
   resetFrameStore()
   usePlan.setState({ academics: null, state: null, profile: null })
 })
@@ -261,6 +263,64 @@ describe('Setup', () => {
     // the fake server did not keep it (state reads back unchanged): the draft stays and the bar says so
     expect(useSetup.getState().draft.rotation).toBeDefined()
     expect(document.querySelector('[data-save-report]')!.textContent).toContain('Error: Rotation was not saved')
+  })
+})
+
+
+describe('no-scroll rule: one view at a time, lists paged', () => {
+  it('shows one section at a time: the index changes the view, the others stay mounted but hidden', async () => {
+    routes()
+    await open()
+    const shown = () => [...document.querySelectorAll<HTMLElement>('.su-view')].filter((v) => !v.hidden).map((v) => v.getAttribute('data-view-of'))
+    expect(shown()).toEqual(['rotation'])
+    click(document.querySelector('[data-index="goals"]')!)
+    expect(shown()).toEqual(['goals'])
+    expect(document.querySelector('.su-page')!.getAttribute('data-view')).toBe('goals')
+    expect(document.querySelector('[data-index="goals"]')!.getAttribute('aria-current')).toBe('true')
+    expect(document.getElementById('su-rotation')).not.toBeNull() // hidden, not unmounted: a draft survives a visit elsewhere
+  })
+
+  it('a long list is paged: two goals a page, Next shows the others, nothing is lost from the draft', async () => {
+    const six = Array.from({ length: 6 }, (_, i) => ({ id: `g${i}`, horizon: 'quarter', metric: `m${i}`, target: 1, deadline: null }))
+    routes({ 'GET /api/mission/inputs': [200, { ...INPUTS, raw: { ...INPUTS.raw, goals: six } }] } as never)
+    await open()
+    click(document.querySelector('[data-index="goals"]')!)
+    const card = document.getElementById('su-goals')!
+    expect(card.querySelectorAll('[role="group"][aria-label^="goal "]')).toHaveLength(2)
+    expect(card.textContent).toContain('goals 1 to 2 of 6')
+    click(card.querySelector<HTMLElement>('[aria-label="Next goals"]')!)
+    expect(card.textContent).toContain('goals 3 to 4 of 6')
+    type(field('What is measured', card), 'edited')
+    expect((useSetup.getState().draft.goals as { metric: string }[])[2].metric).toBe('edited')
+    expect((useSetup.getState().draft.goals as unknown[]).length).toBe(6)
+  })
+
+  it('Advanced: JSON replaces the form while it is open, and the form comes back with its edit', async () => {
+    routes()
+    await open()
+    click(document.querySelector('[data-index="goals"]')!)
+    const card = document.getElementById('su-goals')!
+    const part = card.querySelector<HTMLElement>('.su-formpart')!
+    expect(part.hidden).toBe(false)
+    click(byText('[aria-expanded]', 'Advanced: JSON', card)!)
+    expect(part.hidden).toBe(true)
+    expect(card.querySelector('.su-json-text')).not.toBeNull()
+    click(byText('[aria-expanded]', 'Advanced: JSON', card)!)
+    expect(part.hidden).toBe(false)
+  })
+
+  it('the pager keeps focus on the pressed button at the end of the list (aria-disabled, not disabled)', async () => {
+    const three = Array.from({ length: 3 }, (_, i) => ({ id: `g${i}`, horizon: 'quarter', metric: `m${i}`, target: 1, deadline: null }))
+    routes({ 'GET /api/mission/inputs': [200, { ...INPUTS, raw: { ...INPUTS.raw, goals: three } }] } as never)
+    await open()
+    click(document.querySelector('[data-index="goals"]')!)
+    const card = document.getElementById('su-goals')!
+    const next = card.querySelector<HTMLElement>('[aria-label="Next goals"]')!
+    next.focus()
+    click(next)
+    expect(next.getAttribute('aria-disabled')).toBe('true')
+    expect(next.hasAttribute('disabled')).toBe(false)
+    expect(document.activeElement).toBe(next)
   })
 })
 

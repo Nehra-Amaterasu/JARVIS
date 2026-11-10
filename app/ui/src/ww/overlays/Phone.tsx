@@ -30,6 +30,9 @@ export function PhoneSheet() {
   const [code, setCode] = useState<PairCode | null>(null)
   const [left, setLeft] = useState(0)
   const [base, setBase] = useState('')
+  // The firewall help REPLACES the steps while it is open (the owner's no-scroll rule: steps, QR, address, devices and a
+  // two-command help together are taller than the window).
+  const [help, setHelp] = useState(false)
 
   // The countdown ticks only while a code is showing, so a closed or idle sheet holds no timer.
   useEffect(() => {
@@ -90,9 +93,9 @@ export function PhoneSheet() {
 
   return (
     <div className="ov-body" data-overlay="phone" data-primary-none={running && !code ? undefined : ''}>
-      <p className="ov-lead" data-phone-status="">{`Phone   status: ${word}`}</p>
-      <p className="ov-note">{`Listener: ${status.text}.`}</p>
+      <p className="ov-lead" data-phone-status="">{`Phone   status: ${word}`}<span className="ov-note">{`   Listener: ${status.text}.`}</span></p>
 
+      <div hidden={help}>
       <ol className="ov-steps">
         <li>
           <span className="ov-step-text">Turn on the phone listener</span>
@@ -128,7 +131,7 @@ export function PhoneSheet() {
             )
             : (
               <div className="ov-qr">
-                <img src={svgSrc(code.qr_svg)} alt={`QR code for ${code.url}`} width={196} height={196} className="ov-qr-img" />
+                <img src={svgSrc(code.qr_svg)} alt={`QR code for ${code.url}`} width={160} height={160} className="ov-qr-img" />
                 <div className="ov-qr-text">
                   <span className="ov-note">{`Scan the QR with the phone's camera, or open ${code.url} and type:`}</span>
                   <span className="ov-code" aria-label="Pairing code">{code.code}</span>
@@ -168,8 +171,10 @@ export function PhoneSheet() {
         </div>
       )}
 
+      </div>
+
       {v?.enabled && (
-        <Fold title="Firewall, microphone and HTTPS" level={3}>
+        <Fold title="Firewall, microphone and HTTPS" level={3} open={help} onToggle={setHelp}>
           <p className="ov-note">Let the phone in once, in an admin PowerShell (the app never changes the firewall). Your Wi-Fi must be a Private network:</p>
           <code className="ov-mono">{v.firewall_cmd}</code>
           <p className="ov-note">Light, fan and typing work over plain http. The microphone needs https. Easiest is Tailscale with HTTPS on:</p>

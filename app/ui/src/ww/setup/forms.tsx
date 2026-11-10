@@ -3,7 +3,7 @@
  * dirty dot and Discard, the list helpers and the closed "Advanced: JSON" fold that replaces the five JSON
  * editors. The fold applies its text to the DRAFT, not to the server: pasting JSON is an edit like any other.
  */
-import { useState, type ReactNode } from 'react'
+import { createContext, useContext, useState, type ReactNode } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button, Card, Field, Fold, IconButton } from '../kit'
 import { openOverlay } from '../frame/overlayRegistry'
@@ -36,6 +36,17 @@ export function DirtyMark({ id }: { id: SectionId }) {
   )
 }
 
+/**
+ * "Advanced: JSON" REPLACES the form while it is open instead of stacking under it: the form and a textarea
+ * together are taller than the pane, and the owner's no-scroll rule wins. A card shares the open state with
+ * its AdvancedJson through this context; <FormPart> wraps the form half.
+ */
+const JsonMode = createContext<{ open: boolean; set: (v: boolean) => void } | null>(null)
+export function FormPart({ children }: { children: ReactNode }) {
+  const c = useContext(JsonMode)
+  return <div className="su-formpart" hidden={c?.open || undefined}>{children}</div>
+}
+
 export interface ShellProps {
   /** The plan's section id (SU1 ...). */
   n: string
@@ -50,7 +61,9 @@ export interface ShellProps {
 }
 
 export function SetupCard({ n, anchor, title, dirtyId, hint, action, children }: ShellProps) {
+  const [json, setJson] = useState(false)
   return (
+    <JsonMode.Provider value={{ open: json, set: setJson }}>
     <div id={`su-${anchor}`} className="su-anchor" tabIndex={-1} data-su={anchor}>
       <Card
         data-card={`su-${anchor}`}
@@ -67,13 +80,14 @@ export function SetupCard({ n, anchor, title, dirtyId, hint, action, children }:
         {children}
       </Card>
     </div>
+    </JsonMode.Provider>
   )
 }
 
 /** A row of fields with a Remove at the end; `label` names the row for the remove button. */
-export function FormRow({ label, onRemove, children }: { label: string; onRemove?: () => void; children: ReactNode }) {
+export function FormRow({ label, onRemove, dense, children }: { label: string; onRemove?: () => void; dense?: boolean; children: ReactNode }) {
   return (
-    <div className="su-row" role="group" aria-label={label}>
+    <div className="su-row" role="group" aria-label={label} data-dense={dense ? '' : undefined}>
       <div className="su-row-fields">{children}</div>
       {onRemove && (
         <IconButton label={`Remove ${label}`} size="sm" onClick={onRemove}>
@@ -97,10 +111,11 @@ export function AddButton({ children, onClick }: { children: string; onClick: ()
 export function AdvancedJson({ id, value, onApply }: { id: SectionId; value: unknown; onApply: (v: unknown) => void }) {
   const [text, setText] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const mode = useContext(JsonMode)
   const shown = text ?? JSON.stringify(value, null, 1)
-  const rows = Math.min(18, Math.max(6, shown.split('\n').length))
+  const rows = Math.min(10, Math.max(6, shown.split('\n').length))
   return (
-    <Fold title="Advanced: JSON" level={3} lazy>
+    <Fold title="Advanced: JSON" level={3} lazy open={mode?.open} onToggle={mode?.set}>
       <div className="su-json">
         <label className="ww-field-label" htmlFor={`su-json-${id}`}>
           {SECTION_LABEL[id]} as JSON

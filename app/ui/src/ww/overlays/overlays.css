@@ -72,14 +72,15 @@
 }
 .ov-steps {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-3);
   margin: 0;
   padding-inline-start: var(--space-5);
 }
 .ov-steps li {
-  display: grid;
-  gap: var(--space-2);
-  justify-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
 }
 .ov-step-text {
   color: var(--ink-1);
@@ -88,10 +89,12 @@
 .ov-qr {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-4);
+  gap: var(--space-3);
   align-items: center;
 }
 .ov-qr-img {
+  inline-size: 10rem;
+  block-size: 10rem;
   border-radius: var(--radius-control);
   image-rendering: pixelated;
   background: var(--surface-1);
@@ -131,4 +134,37 @@
   .ov-aim {
     grid-column: auto;
   }
+}
+
+/* The Date sheet is wider than the other sheets so a paper's fields sit four to a line and two papers fit a page. */
+.ww-sheet.ww-overlay:has([data-overlay='date']) {
+  --sheet-w: 46rem;
+}
+[data-overlay='date'] .ov-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-3);
+}
+[data-overlay='date'] .ov-paper {
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+[data-overlay='date'] {
+  gap: var(--space-3);
+}
+
+.ov-grow {
+  flex: 1 1 12rem;
+}
+[data-overlay='date'] .ov-s1 {
+  grid-column: span 1;
+}
+[data-overlay='date'] .ov-s2,
+[data-overlay='date'] .ov-aim {
+  grid-column: span 2;
+}
+.ov-paper-head {
+  flex-wrap: wrap;
+}
+.ov-paper-title {
+  flex: 1 1 8rem;
 }

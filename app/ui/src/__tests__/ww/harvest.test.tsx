@@ -180,6 +180,17 @@ describe('SU18 Question harvester', () => {
     expect(byText('button', 'Switch the harvester on')).toBeUndefined()
   })
 
+  it('two panes, one at a time: the sources and licences first, the queue one press away', async () => {
+    routes({ ...QUEUE_OFF, items: [{ id: 'a', subject: 'subject-a', topic: 'topic a', tier: 'gate', status: 'waiting' }] })
+    await open()
+    const pane = (id: string) => document.querySelector<HTMLElement>(`[data-harvest-pane="${id}"]`)!
+    expect(pane('sources').hidden).toBe(false)
+    expect(pane('queue').hidden).toBe(true)
+    click(byText('[role=radio]', /Queue \(1\)/)!)
+    expect(pane('sources').hidden).toBe(true)
+    expect(pane('queue').hidden).toBe(false)
+  })
+
   it('reads on mount and after an action only: no timer is started', async () => {
     const spy = vi.spyOn(globalThis, 'setInterval')
     routes()

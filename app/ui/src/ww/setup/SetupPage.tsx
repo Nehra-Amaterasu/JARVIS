@@ -33,6 +33,7 @@ import {
   AppearanceSection, BackupSection, BudgetSection, CalibrationSection, CareerSection, ConnectionsSection, DatesRow, PhoneRow, RotationSection, StyleSection,
 } from './sectionsPlan'
 import { applyMotion, readMotion } from './appearance'
+import { focusView, useView } from './view'
 import './setup.css'
 
 export const INDEX: readonly [anchor: string, label: string][] = [
@@ -55,11 +56,14 @@ function InputGate({ children }: { children: ReactNode }) {
   )
 }
 
+/** The index: show that section and move focus to it. Setup is one section at a time, so "scroll to" is "show". */
 export function goToSection(anchor: string): void {
-  const el = document.getElementById(`su-${anchor}`)
-  if (!el) return
-  el.scrollIntoView?.({ block: 'start' })
-  el.focus({ preventScroll: true })
+  focusView(anchor)
+}
+
+/** One section's slot. Hidden, not unmounted: a draft, an open fold and a half-typed field survive a visit elsewhere. */
+function View({ id, view, children }: { id: string; view: string; children: ReactNode }) {
+  return <div className="su-view" data-view-of={id} hidden={view !== id}>{children}</div>
 }
 
 export function SetupPage() {
@@ -76,6 +80,8 @@ export function SetupPage() {
   const planState = usePlan((s) => s.state)
   const planProfile = usePlan((s) => s.profile)
   const started = useRef(false)
+  const view = useView((s) => s.view)
+  const focusTick = useView((s) => s.focusTick)
 
   useEffect(() => {
     if (started.current) return
@@ -83,6 +89,13 @@ export function SetupPage() {
     applyMotion(readMotion())
     void refresh()
   }, [refresh])
+  // the index moved focus on purpose (focusTick > 0); a plain mount or a doorway never steals it
+  useEffect(() => {
+    if (focusTick === 0) return
+    const el = document.getElementById(`su-${view}`)
+    el?.scrollIntoView?.({ block: 'start' })
+    el?.focus({ preventScroll: true })
+  }, [focusTick]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { syncPlan() }, [planState, planProfile, syncPlan])
   // the frame's static dot on the Setup tab
   useEffect(() => { useFrame.getState().setDirty('setup', n > 0) }, [n])
@@ -95,12 +108,12 @@ export function SetupPage() {
   }, [n])
 
   return (
-    <div className="su-page" data-page="setup">
+    <div className="su-page" data-page="setup" data-view={view}>
       <nav className="su-index" aria-label="Setup sections">
         <ol>
           {INDEX.map(([a, label]) => (
             <li key={a}>
-              <button type="button" className="su-index-btn ww-tap" data-index={a} onClick={() => goToSection(a)}>
+              <button type="button" className="su-index-btn ww-tap" data-index={a} aria-current={view === a ? 'true' : undefined} onClick={() => goToSection(a)}>
                 {label}
                 {sectionDirty(a, dirty) && <span className="su-dot" role="img" aria-label="unsaved changes" />}
               </button>
@@ -137,26 +150,24 @@ export function SetupPage() {
           <p className="su-hint" data-su-example="">Right now the engines read the fictional example. The first save here makes engine-inputs.json yours.</p>
         )}
 
-        <div data-su-group="rotation"><RotationSection /></div>
-        <DatesRow />
-        <InputGate>
-          <SubjectsSection />
-          <GoalsSection />
-          <TimetableSection />
-          <AttendanceSection />
-          <DeadlinesSection />
-          <StudySection />
-          <AboutSection />
-        </InputGate>
-        <BudgetSection />
-        <StyleSection />
-        <CalibrationSection />
-        <CareerSection />
-        <ConnectionsSection />
-        <PhoneRow primaryWhenUnpaired={n === 0} />
-        <BackupSection />
-        <AppearanceSection />
-        <Harvester />
+        <View id="rotation" view={view}><RotationSection /></View>
+        <View id="dates" view={view}><DatesRow /></View>
+        <View id="subjects" view={view}><InputGate><SubjectsSection /></InputGate></View>
+        <View id="goals" view={view}><InputGate><GoalsSection /></InputGate></View>
+        <View id="timetable" view={view}><InputGate><TimetableSection /></InputGate></View>
+        <View id="attendance" view={view}><InputGate><AttendanceSection /></InputGate></View>
+        <View id="deadlines" view={view}><InputGate><DeadlinesSection /></InputGate></View>
+        <View id="study" view={view}><InputGate><StudySection /></InputGate></View>
+        <View id="about" view={view}><InputGate><AboutSection /></InputGate></View>
+        <View id="budget" view={view}><BudgetSection /></View>
+        <View id="style" view={view}><StyleSection /></View>
+        <View id="calibration" view={view}><CalibrationSection /></View>
+        <View id="career" view={view}><CareerSection /></View>
+        <View id="connections" view={view}><ConnectionsSection /></View>
+        <View id="phone" view={view}><PhoneRow primaryWhenUnpaired={n === 0} /></View>
+        <View id="backup" view={view}><BackupSection /></View>
+        <View id="appearance" view={view}><AppearanceSection /></View>
+        <View id="harvester" view={view}><Harvester /></View>
       </div>
     </div>
   )

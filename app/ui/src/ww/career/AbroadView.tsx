@@ -21,12 +21,12 @@ function TrialLine({ t }: { t: TrialDef }) {
   return (
     <div className="cr-trial" data-trial={t.id} data-passed={stage >= t.stages.length - 1 ? 'true' : undefined}>
       <span className="cr-trial-head">
-        <span className="cr-clip cr-trial-name" title={t.name}>{t.name}</span>
+        <span className="cr-clip cr-trial-name" title={`${t.name} . ${t.issuer} . ${t.when}`}>
+          {t.name} <span className="cr-sub">. {t.issuer}</span>
+        </span>
         <Chip>{t.kind}</Chip>
         <span className="cr-cost">{t.cost ? money(t.cost.amount, t.cost.currency) : 'check the page'}</span>
-      </span>
-      <span className="cr-clip cr-sub" title={`${t.issuer} . ${t.when}`}>
-        {t.issuer} . {t.when}
+        <input type="date" className="ww-input cr-datein" aria-label={`Exam or deadline for ${t.name}`} value={date ?? ''} onChange={(e) => setDate(t.id, e.target.value)} />
       </span>
       <span className="cr-trial-foot">
         <span className="cr-stages" role="group" aria-label={`${t.name} progress`}>
@@ -36,11 +36,7 @@ function TrialLine({ t }: { t: TrialDef }) {
             </Chip>
           ))}
         </span>
-        <label className="cr-date">
-          <span className="cr-sub">Exam or deadline</span>
-          <input type="date" className="ww-input" value={date ?? ''} onChange={(e) => setDate(t.id, e.target.value)} />
-        </label>
-        {inDays !== null && <span className="cr-sub">in {inDays} d . {prettyDate(date!, true)}</span>}
+        {inDays !== null && <span className="cr-clip cr-sub">in {inDays} d . {prettyDate(date!, true)}</span>}
       </span>
     </div>
   )

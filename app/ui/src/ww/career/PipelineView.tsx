@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { usePlan, type Application, type Campaign } from '../../germoney/game/plan'
 import { useStore } from '../../lib/store'
-import { Banner, Button, Card, Drawer, Field, PrimaryButton, Row } from '../kit'
+import { Button, Card, Drawer, Field, PrimaryButton, Row } from '../kit'
 import { switchWorkspace } from '../frame/navigate'
 import { Paged } from './Paged'
 import { STAGE_WORD, STEPPER, dueNowCount, inDays, nextStep, pipelineRows, stageIndex, type Due } from './model'
@@ -173,14 +173,14 @@ function AppRow({ a }: { a: Application }) {
   )
 }
 
-function Pipeline({ apps, loaded }: { apps: Application[]; loaded: boolean }) {
+function Pipeline({ apps, loaded, approximate }: { apps: Application[]; loaded: boolean; approximate: number }) {
   const [adding, setAdding] = useState(false)
   const rows = useMemo(() => apps, [apps])
   return (
     <Card
       data-card="CA2"
       title="Pipeline"
-      kicker={`${rows.length} row${rows.length === 1 ? '' : 's'} . stage stepper . a next action on every row`}
+      kicker={`${rows.length} row${rows.length === 1 ? '' : 's'}${approximate ? ` . ${approximate} closing date${approximate === 1 ? ' is' : 's are'} approximate, check the page` : ''}`}
       action={
         <Button size="sm" onClick={() => setAdding(true)}>
           <Plus size={14} aria-hidden="true" /> Add application
@@ -262,9 +262,8 @@ export function PipelineView() {
   const tentative = useMemo(() => (view?.applications ?? []).filter((a) => !a.verified && a.status !== 'not_eligible').length, [view])
   return (
     <div className="cr-view" data-view="pipeline">
-      {tentative > 0 && <Banner tone="sim">{tentative} closing date{tentative === 1 ? ' is' : 's are'} approximate: check each on its own page before relying on it.</Banner>}
       <UpNext due={due} apps={view?.applications ?? []} />
-      <Pipeline apps={rows} loaded={!!view} />
+      <Pipeline apps={rows} loaded={!!view} approximate={tentative} />
       <Campaigns />
     </div>
   )

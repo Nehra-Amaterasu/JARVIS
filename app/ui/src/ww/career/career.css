@@ -81,11 +81,14 @@
 .cr-fill {
   flex: 1 1 0;
 }
+[data-view='pipeline'] {
+  --cr-row: 52px;
+}
 [data-view='pipeline'] [data-card='CA2'] {
-  flex-grow: 5;
+  flex-grow: 3;
 }
 [data-view='pipeline'] [data-card='CA3'] {
-  flex-grow: 3;
+  flex-grow: 2;
 }
 
 /* ---- the list box and the pager ---- */
@@ -295,10 +298,9 @@
   gap: var(--space-1);
   flex-wrap: nowrap;
 }
-.cr-date {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+.cr-datein {
+  flex: none;
+  inline-size: 10rem;
 }
 .cr-uni {
   display: grid;

@@ -69,15 +69,16 @@ function Ladder() {
       kicker={l ? `${l.vision.horizon}: ${l.vision.title}` : undefined}
       loading={!l}
       action={
-        <Button size="sm" onClick={() => setReview(true)}>
-          {l?.review_due ? 'Monthly review due' : 'Monthly review'}
-        </Button>
+        <>
+          <Segmented<Rung> label="Ladder level" variant="compact" value={rung} onChange={setRung} options={[{ id: 'year', label: 'Year' }, { id: 'quarter', label: 'Quarter' }, { id: 'month', label: 'Month' }, { id: 'week', label: 'Week' }]} />
+          <Button size="sm" onClick={() => setReview(true)}>
+            {l?.review_due ? 'Review due' : 'Review'}
+          </Button>
+        </>
       }
       className="cr-fill"
     >
-      <Segmented<Rung> label="Ladder level" variant="compact" value={rung} onChange={setRung} options={[{ id: 'year', label: 'Year' }, { id: 'quarter', label: 'Quarter' }, { id: 'month', label: 'Month' }, { id: 'week', label: 'Week' }]} />
-      <p className="cr-sub">{ends}</p>
-      <Paged items={goals} rowKey={(g) => g.id} row={(g) => <Row title={<span className="cr-clip" title={g.title}>{g.title}</span>} />} label="ladder goals" fallback={3} empty="Nothing derived at this level yet." />
+      <Paged items={goals} rowKey={(g) => g.id} row={(g) => <Row title={<span className="cr-clip" title={g.title}>{g.title}</span>} />} label={`ladder goals, ${ends}`} fallback={3} empty="Nothing derived at this level yet." />
       <ReviewDrawer open={review} onClose={() => setReview(false)} />
     </Card>
   )

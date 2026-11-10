@@ -1,0 +1,154 @@
+/* ==========================================================================
+   Drawer, Sheet, Popover, Toast (plan 5.5, 5.7.3 #3).
+
+   The open and close animations are motion.css's (.ww-sheet, .ww-scrim, .ww-popover keyframes on
+   [data-state]). This file adds placement, the left and bottom directions (motion.css travels on
+   x from the right), and the surfaces. Surfaces are opaque --surface-3 with a hairline: a header
+   or a body never sits on glass (5.6), because its text must clear 4.5:1 over anything.
+   ========================================================================== */
+.ww-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-scrim);
+  background: var(--scrim);
+}
+.ww-scrim[data-state='closed'] {
+  visibility: hidden;
+}
+
+.ww-sheet {
+  --sheet-w: 440px;
+  position: fixed;
+  z-index: var(--z-sheet);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-3);
+  color: var(--ink-1);
+  border: 1px solid var(--line);
+  outline: none;
+}
+.ww-sheet[data-place='right'] {
+  inset-block: 0;
+  inset-inline-end: 0;
+  inline-size: min(var(--sheet-w), 100%);
+  border-inline-end: 0;
+}
+.ww-sheet[data-place='left'] {
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: min(var(--sheet-w), 100%);
+  border-inline-start: 0;
+}
+.ww-sheet[data-place='bottom'] {
+  inset-inline: 0;
+  inset-block-end: 0;
+  max-block-size: 85vh;
+  border-block-end: 0;
+  border-start-start-radius: var(--radius-card);
+  border-start-end-radius: var(--radius-card);
+}
+
+/* the directions motion.css does not have: same duration and curve tokens, the travel is --dist-sheet */
+.ww-sheet[data-place='left'][data-state='open'] {
+  animation-name: ww-sheet-in-left;
+}
+.ww-sheet[data-place='left'][data-state='closing'] {
+  animation-name: ww-sheet-out-left;
+}
+.ww-sheet[data-place='bottom'][data-state='open'] {
+  animation-name: ww-sheet-in-up;
+}
+.ww-sheet[data-place='bottom'][data-state='closing'] {
+  animation-name: ww-sheet-out-up;
+}
+@keyframes ww-sheet-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(calc(-1 * var(--dist-sheet)));
+  }
+}
+@keyframes ww-sheet-out-left {
+  to {
+    opacity: 0;
+    transform: translateX(calc(-1 * var(--dist-sheet)));
+  }
+}
+@keyframes ww-sheet-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(var(--dist-sheet));
+  }
+}
+@keyframes ww-sheet-out-up {
+  to {
+    opacity: 0;
+    transform: translateY(var(--dist-sheet));
+  }
+}
+
+.ww-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-block-end: 1px solid var(--line);
+  background: var(--surface-3);
+}
+.ww-sheet-title {
+  margin: 0;
+  font-size: var(--text-heading);
+  line-height: var(--leading-heading);
+  font-weight: var(--weight-strong);
+}
+.ww-sheet-body {
+  flex: 1;
+  overflow: auto;
+  padding: var(--space-4);
+  overscroll-behavior: contain;
+}
+
+.ww-popover {
+  position: fixed;
+  z-index: var(--z-sheet);
+  min-inline-size: calc(var(--hit) * 4);
+  max-inline-size: calc(100% - var(--space-4));
+  padding: var(--space-3);
+  background: var(--surface-3);
+  color: var(--ink-1);
+  border: 1px solid var(--line-ui);
+  border-radius: var(--radius-control);
+}
+
+/* Toast */
+.ww-portal.ww-toasts {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: var(--space-4);
+  z-index: var(--z-toast);
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  pointer-events: none;
+  background: transparent;
+}
+.ww-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-inline-size: min(calc(var(--hit) * 10), calc(100% - var(--space-4)));
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-3);
+  color: var(--ink-1);
+  border: 1px solid var(--line-ui);
+  border-radius: var(--radius-control);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-toast[data-tone='live'] .ww-chip-dot {
+  background: var(--live);
+}
+.ww-toast[data-tone='fault'] .ww-chip-dot {
+  background: var(--fault);
+}

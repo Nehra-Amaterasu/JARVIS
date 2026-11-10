@@ -1,0 +1,238 @@
+/* Row, Stat (tile highlight), Meter, Spark, StageStrip, Fold, TapGroup, MasterDetail, EmptyState, Banner. */
+
+/* ---- Row ---- */
+.ww-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-block-size: var(--row-h);
+  padding-block: var(--space-1);
+  border-block-end: 1px solid var(--line);
+}
+.ww-row-lead {
+  flex: none;
+}
+.ww-row-main {
+  flex: 1;
+  min-inline-size: 0;
+}
+.ww-row-title {
+  color: var(--ink-1);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+.ww-row-meta {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-row-action {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.ww-row[data-state='done'] .ww-row-title {
+  color: var(--ink-2);
+}
+
+/* ---- Stat tile: the 160 ms highlight when the number moves ---- */
+.ww-stat {
+  border-radius: var(--radius-chip);
+  transition: background-color var(--dur-state) var(--ease-standard);
+}
+.ww-stat[data-tick='on'] {
+  background: var(--selected-bg);
+}
+.ww-stat-none {
+  font-family: var(--f-ui, system-ui, sans-serif);
+  font-size: var(--text-small);
+  color: var(--ink-2);
+}
+
+/* ---- Meter: a track, a fill drawn with scaleX (motion.css .ww-fill), and a zero tick that is always there ---- */
+.ww-meter {
+  position: relative;
+  block-size: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.ww-meter::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: 2px;
+  background: var(--line-ui);
+}
+.ww-meter-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--ink-1);
+  border-radius: var(--radius-pill);
+}
+.ww-meter[data-known='false'] {
+  background: transparent;
+  border: 1px dashed var(--line-ui);
+}
+
+/* ---- Spark ---- */
+.ww-spark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--ink-1);
+}
+.ww-spark svg {
+  inline-size: calc(var(--hit) * 2);
+  block-size: var(--space-5);
+  overflow: visible;
+}
+.ww-spark-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.ww-spark-base {
+  stroke: var(--line-ui);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+.ww-spark-note {
+  font-size: var(--text-small);
+  color: var(--ink-2);
+}
+
+/* ---- StageStrip ---- */
+.ww-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ww-stage {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  color: var(--ink-2);
+}
+.ww-stage-mark {
+  font-family: var(--f-mono, ui-monospace, Consolas, monospace);
+}
+.ww-stage[data-state='current'],
+.ww-stage[data-state='done'] {
+  color: var(--ink-1);
+}
+.ww-stage[data-state='current'] .ww-stage-label {
+  font-weight: var(--weight-strong);
+}
+.ww-stage-count {
+  font-family: var(--f-mono, ui-monospace, Consolas, monospace);
+  color: var(--ink-2);
+}
+
+/* ---- Fold ---- */
+.ww-fold-head {
+  margin: 0;
+  font: inherit;
+}
+.ww-fold-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  inline-size: 100%;
+  min-block-size: var(--hit);
+  padding-inline: var(--space-1);
+  border: 0;
+  background: transparent;
+  color: var(--ink-1);
+  font: inherit;
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  text-align: start;
+  cursor: pointer;
+}
+.ww-fold-body {
+  padding-block: var(--space-2);
+}
+
+/* ---- TapGroup ---- */
+.ww-taps {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+.ww-tapopt {
+  min-inline-size: var(--hit);
+}
+.ww-tapopt[data-active='true'] {
+  background: var(--seg-selected-bg);
+  color: var(--selected-ink);
+  border-color: var(--ink-2);
+  font-weight: var(--weight-strong);
+}
+
+/* ---- MasterDetail: a container query, so the rail and a pinned panel are already subtracted ---- */
+.ww-md {
+  container-type: inline-size;
+  min-inline-size: 0;
+}
+.ww-md-grid {
+  display: grid;
+  gap: var(--gap-card);
+  grid-template-columns: minmax(0, 1fr);
+}
+@container (min-width: 720px) {
+  .ww-md-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  }
+}
+
+/* ---- EmptyState ---- */
+.ww-empty {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  padding-block: var(--space-3);
+}
+.ww-empty p {
+  margin: 0;
+}
+.ww-empty-title {
+  color: var(--ink-1);
+  font-weight: var(--weight-medium);
+}
+.ww-empty-body,
+.ww-empty-reason {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+
+/* ---- Banner ---- */
+.ww-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line-ui);
+  border-radius: var(--radius-control);
+  color: var(--ink-1);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-banner-text {
+  flex: 1;
+}
+.ww-banner[data-tone='sim'] .ww-chip-dot {
+  background: var(--sim);
+}
+.ww-banner[data-tone='fault'] .ww-chip-dot {
+  background: var(--fault);
+}

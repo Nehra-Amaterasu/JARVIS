@@ -229,13 +229,19 @@ def generate(exam: dict, bank: list[dict], units: list[dict], states: dict, mark
         if len(picked) < n:
             picked += _pick(rnd, by_marks, n - len(picked), w)
         if len(picked) < n:
-            fill = [q for q in _gen(tier) if q.get("id") not in used and q not in picked]
-            picked += _pick(rnd, fill, n - len(picked), w)
-        if len(picked) < n:
             rest = [q for q in bank if q.get("id") not in used and q not in picked]
             picked += _pick(rnd, rest, n - len(picked), w)
+        # Generated numericals come last: a real bank question always wins a seat. The shortfall still counts the
+        # bank's own questions, so the paper says the bank is thin (and the harvester still fetches for it)
+        # even though the numericals filled the seats.
+        in_bank = sum(1 for q in picked if q.get("origin") != "generated")
         if len(picked) < n:
-            shortfall.append(f"Section {name}: {len(picked)} of {n} questions in the bank")
+            fill = [q for q in _gen(tier) if q.get("id") not in used and q not in picked]
+            picked += _pick(rnd, fill, n - len(picked), w)
+        if in_bank < n:
+            made = sum(1 for q in picked if q.get("origin") == "generated")
+            shortfall.append(f"Section {name}: {in_bank} of {n} questions in the bank"
+                             + (f"; {made} generated numerical{'s' if made != 1 else ''} fill{'s' if made == 1 else ''} the rest" if made else ""))
         used.update(q.get("id") for q in picked)
         sections.append({"name": name, "marks": mk, "attempt": att, "set": n,
                          "questions": [{"id": q.get("id"), "n": i + 1, "text": q["question"], "marks": mk, "unit": q.get("unit"),

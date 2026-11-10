@@ -60,7 +60,7 @@ export function HoldButton({ label, onConfirm, reason, size = 'md', cursor, clas
         data-size={size}
         data-cursor={cursor ?? (blocked ? undefined : `Hold to ${label.toLowerCase()}`)}
         aria-disabled={blocked || undefined}
-        aria-describedby={blocked ? undefined : hintId}
+        aria-describedby={hintId}
         onPointerDown={(e) => {
           if (blocked || e.button !== 0) return
           hold.current?.start()
@@ -76,7 +76,7 @@ export function HoldButton({ label, onConfirm, reason, size = 'md', cursor, clas
         <span className="ww-hold-fill" aria-hidden="true" />
       </button>
       {blocked ? (
-        <span className="ww-reason">{reason}</span>
+        <span id={hintId} className="ww-reason">{reason}</span>
       ) : (
         <span id={hintId} className="ww-sr-only">
           Press and hold to {label.toLowerCase()}. Press Enter to confirm with a dialog instead.

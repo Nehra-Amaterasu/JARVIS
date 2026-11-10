@@ -16,40 +16,66 @@
   <h1>Well Wisher</h1>
   <span id="link" class="pill"><i class="led"></i><span id="linkText">LOADING</span></span>
 </header>
+<p class="chip-row"><span id="phoneChip" class="chip" data-chip="phone">This is your phone</span></p>
 
+<!-- The left column of the laptop window, alone (plan 4.14): the same four sections, the same ids, the same
+     order as L1 to L4 in app/ui/src/ww/left. ww.js fills them from buildLeft(), a copy of the window's
+     view-model that left.test.tsx runs against the same fixture. -->
 <main id="main" hidden>
-  <p id="say" class="say"></p>
+  <section id="L1" class="card" data-section="L1" aria-labelledby="h-L1">
+    <div class="head"><h2 id="h-L1">Countdown</h2></div>
+    <p id="l1Head" class="lead"></p>
+    <p id="l1Counts" class="muted small"></p>
+    <ul id="l1Rows" class="rows" aria-label="Later sittings"></ul>
+    <p id="l1More" class="muted small"></p>
+    <p id="l1Note" class="small"></p>
+    <p id="l1Step" class="muted small"></p>
+    <p id="l1Rung" class="muted small"></p>
+  </section>
 
-  <section class="card" aria-labelledby="h-paper">
+  <section id="L2" class="card" data-section="L2" aria-labelledby="h-L2">
+    <div class="head"><h2 id="h-L2">Now</h2></div>
+    <p id="l2Welcome" class="small"></p>
+    <p id="l2Say" class="lead"></p>
+    <p id="l2Meta" class="muted small"></p>
+    <p id="l2Logged" class="muted small" aria-live="polite"></p>
+    <p id="l2Kept" class="muted small"></p>
+    <p id="l2Tomorrow" class="muted small"></p>
+    <button id="start" class="btn primary" type="button">Start</button>
+    <div class="row" id="minutesRow" role="group" aria-label="Log minutes">
+      <button class="btn sm" data-min="25" type="button">+25</button>
+      <button class="btn sm" data-min="50" type="button">+50</button>
+      <button class="btn sm" data-min="90" type="button">+90</button>
+    </div>
+    <p id="minutesWhy" class="muted small"></p>
+    <details id="whyFold" class="fold"><summary>Why this?</summary><p id="l2Why" class="muted small"></p></details>
+  </section>
+
+  <section id="L3" class="card" data-section="L3" aria-labelledby="h-L3">
+    <div class="head"><h2 id="h-L3">Classes today</h2><span id="rule" class="muted small"></span></div>
+    <ul id="classes" class="classes"></ul>
+    <p id="classesEmpty" class="muted small"></p>
+  </section>
+
+  <section id="L4" class="card" data-section="L4" aria-labelledby="h-L4">
+    <div class="head"><h2 id="h-L4">Counters</h2></div>
+    <ul id="counters" class="counters"></ul>
+    <p id="countersEmpty" class="muted small"></p>
+    <button id="undo" class="btn sm" type="button" hidden>Undo last tap</button>
+  </section>
+
+  <!-- Not part of L1 to L4. Kept so the topic taps that work today do not vanish during the exams; chunk 7
+       moves topics to the laptop's Study page and this fold goes. -->
+  <details id="studyFold" class="card fold" data-extra="topics">
+    <summary>Topics for a paper (taps still saved)</summary>
     <div class="head"><h2 id="h-paper">Next paper</h2><span id="paperWhen" class="mono muted"></span></div>
     <div id="paperChips" class="chips" role="tablist" aria-label="papers"></div>
     <div class="bar" aria-hidden="true"><i id="covBar"></i></div>
     <p id="covText" class="muted small"></p>
     <ul id="topics" class="topics" aria-label="topics"></ul>
-    <div class="row" id="minutesRow">
-      <span class="muted small">Studied it:</span>
-      <button class="btn sm" data-min="25" type="button">+25 min</button>
-      <button class="btn sm" data-min="50" type="button">+50 min</button>
-      <button class="btn sm" data-min="90" type="button">+90 min</button>
-    </div>
-  </section>
+  </details>
 
-  <section class="card" aria-labelledby="h-blocks">
-    <h2 id="h-blocks">Today's blocks</h2>
-    <ul id="blocks" class="blocks"></ul>
-  </section>
-
-  <section class="card" aria-labelledby="h-classes">
-    <div class="head"><h2 id="h-classes">Classes</h2><span id="rule" class="muted small"></span></div>
-    <ul id="classes" class="classes"></ul>
-    <table id="margin" class="margin"><tbody></tbody></table>
-  </section>
-
-  <section class="card" aria-labelledby="h-life">
-    <h2 id="h-life">Today's counts</h2>
-    <ul id="counters" class="counters"></ul>
-  </section>
-
+  <p id="last" class="muted small last">Desktop only: papers, Tree, Setup (not on the phone yet).</p>
   <p class="muted small">Your taps are the only thing that counts here; coverage is what you tapped, not a score. Marks on a practice paper are the one measured number, and they are logged on the laptop.</p>
 </main>
 

@@ -1,0 +1,4 @@
+6.302 Problem Set 3
+Problem 1. Use the Routh-Hurwitz criterion to decide the stability of the system with characteristic polynomial s^4 + 2 s^3 + 3 s^2 + 4 s + 5 and count the roots in the right half plane. (10 points)
+Problem 2. Sketch the Bode plot of a lead compensator and state the phase margin gained at the crossover frequency of the loop. (5 points)
+Problem 3. Determine the stability of the Routh-Hurwitz array shown in the figure, image courtesy of a third party and used with permission of the publisher.

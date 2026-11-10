@@ -1,0 +1,7 @@
+GATE 2026 EC
+Q.1 - Q.3 Carry ONE mark Each
+Q.1 Which of the following statements about the Routh-Hurwitz stability criterion for a fourth order polynomial is correct?
+Q.2 The Nyquist sampling rate of a band limited signal is twice its highest frequency component, which sampling rate is it?
+Q.3 The matched filter output SNR for white noise depends only on the signal energy.
+Q.4 - Q.6 Carry TWO marks Each
+Q.4 A unity feedback system has open loop transfer function with Routh-Hurwitz stability limit on the gain K, find that limit.

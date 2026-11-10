@@ -38,7 +38,24 @@ export function marginView(r: SubjectRow, threshold: number): MarginView {
   return { tone: 'ok', text: `margin ${classes(r.can_miss)}`, detail: `above ${t}` }
 }
 
-export const percent = (x: number | null) => (x == null ? 'no figure yet' : `${Math.round(x * 100)}%`)
+const URGENCY: Record<MarginTone, number> = { behind: 0, tight: 1, ok: 2, few: 3, none: 4 }
+/**
+ * The order the card lists subjects in: behind first (most classes needed first), then at the line, then the
+ * rest by least margin. A subject with too few classes to judge goes last: nothing is known about it yet.
+ * Stable, so equal rows keep the timetable's own order.
+ */
+export function byUrgency(rows: SubjectRow[], threshold: number): SubjectRow[] {
+  const key = (r: SubjectRow) => {
+    const m = marginView(r, threshold)
+    return [URGENCY[m.tone], m.tone === 'behind' ? -r.need : m.tone === 'ok' ? r.can_miss : 0] as const
+  }
+  return rows
+    .map((r, i) => ({ r, i, k: key(r) }))
+    .sort((a, b) => a.k[0] - b.k[0] || a.k[1] - b.k[1] || a.i - b.i)
+    .map((x) => x.r)
+}
+
+export const percent =(x: number | null) => (x == null ? 'no figure yet' : `${Math.round(x * 100)}%`)
 
 export interface ClassProgress { total: number; present: number; absent: number; cancelled: number; pending: number }
 export function classProgress(today: TodayClass[] | undefined): ClassProgress {

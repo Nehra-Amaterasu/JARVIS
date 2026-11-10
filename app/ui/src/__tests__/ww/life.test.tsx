@@ -182,7 +182,7 @@ describe('Life workspace', () => {
   it('Attendance shows behind as text plus an icon and never red below a minimum sample', async () => {
     server.att = attendance(
       [],
-      [subj('A', 10, 6, { need: 4, pct: 0.6 }), subj('B', MIN_SAMPLE - 1, 1, { need: 2, pct: 0.25 }), subj('C', 12, 11, { can_miss: 2, pct: 0.92 }), subj('D', 8, 6, { can_miss: 0, pct: 0.75 })],
+      [subj('A', 10, 6, { need: 4, pct: 0.6 }), subj('B', MIN_SAMPLE - 1, 1, { need: 2, pct: 0.25 }), subj('C', 12, 11, { can_miss: 2, pct: 0.92 })],
     )
     await show()
     const row = (n: string) => byText('.ww-life-attrow', new RegExp(`Subject ${n}`))
@@ -196,7 +196,7 @@ describe('Life workspace', () => {
     expect(b.textContent).toContain(`${MIN_SAMPLE - 1} tapped so far`)
     expect(b.textContent).not.toMatch(/behind/i)
     expect(row('C').textContent).toContain('margin 2 classes')
-    expect(row('D').textContent).toContain('at the line')
+    expect(marginView(subj('D', 8, 6, { can_miss: 0, pct: 0.75 }), 0.75).text).toBe('at the line')
     // red is a state of its own in the kit (fault chip / overdue row): none is anywhere in the card
     const card = q('[data-card="LF2"]')
     expect(qa('[data-tone="fault"], [data-state="overdue"], .ww-chip', card)).toHaveLength(0)
@@ -216,6 +216,22 @@ describe('Life workspace', () => {
         else if (need) expect(v.tone).toBe('behind')
       }
     }
+  })
+
+  it('Attendance lists the three subjects most in need first and the rest in a drawer, not a longer column', async () => {
+    server.att = attendance([cls('A', null), cls('B', null)], [
+      subj('A', 20, 18, { can_miss: 3, pct: 0.9 }), subj('B', 12, 9, { can_miss: 0, pct: 0.75 }), subj('C', 10, 6, { need: 4, pct: 0.6 }),
+      subj('D', 2, 2, { pct: 1 }), subj('E', 9, 5, { need: 3, pct: 0.55 }),
+    ])
+    await show()
+    const names = () => qa('.ww-life-attrow .ww-life-attname', q('[data-card="LF2"] > div')).slice(0, 3).map((e) => e.textContent)
+    expect(names()).toEqual(['Subject C', 'Subject E', 'Subject B']) // behind by 4, behind by 3, then at the line
+    expect(qa('[data-card="LF2"] .ww-life-attrow')).toHaveLength(3)
+    expect(q('[data-card="LF2"]').textContent).toContain('2 of 2 classes today unmarked')
+    await click(byText('button', 'All 5 subjects'))
+    const drawer = q('[role="dialog"]')
+    expect(qa('.ww-life-attrow', drawer).map((r) => q('.ww-life-attname', r).textContent)).toEqual(['Subject C', 'Subject E', 'Subject B', 'Subject A', 'Subject D'])
+    expect(drawer.textContent).toContain('Rule: 75% per subject, confirmed.')
   })
 
   it('the counter tile and the class list agree: no "went to college" zero beside logged classes', async () => {
@@ -247,10 +263,10 @@ describe('Life workspace', () => {
     server.items = [{ kind: 'meal', text: 'dal' }, { kind: 'anime', text: 'episode 3', minutes: 24 }, { kind: 'movie', text: 'a film' }, { kind: 'meal', text: 'rice' }, { kind: 'note', text: 'a note' }]
     await show()
     const logged = q('[aria-label="Logged today"]')
-    // newest first, three rows, then Show all
-    expect(qa('.ww-life-item', logged)).toHaveLength(3)
+    // newest first, two rows, then Show all
+    expect(qa('.ww-life-item', logged)).toHaveLength(2)
     expect(qa('.ww-life-item', logged)[0].textContent).toContain('a note')
-    expect(byText('button', 'Show all 5', logged)).toBeTruthy()
+    expect(byText('button', 'Show all 5')).toBeTruthy()
 
     // delete: the row goes at once and the route is called with the row's index, kind and text
     await click(q('[aria-label="Delete note: a note"]'))
@@ -275,7 +291,7 @@ describe('Life workspace', () => {
     expect(q('.ww-life-notice[role="alert"]').textContent).toMatch(/Could not remove that, it is still in the list/)
 
     // show all opens the whole list in a drawer
-    await click(byText('button', 'Show all 5', logged))
+    await click(byText('button', 'Show all 5'))
     const drawer = q('[role="dialog"]')
     expect(drawer).toBeTruthy()
     expect(qa('.ww-life-item', drawer)).toHaveLength(5)
@@ -451,11 +467,17 @@ describe('data and honesty', () => {
 
   it('placeholders come from the registry, one line each and no enabled button', async () => {
     await show()
-    const hint = q('[data-planned="life-v2"]')
+    expect(q('[data-planned]', q('[data-card="LF1"]'))).toBeNull() // nothing unbuilt takes room in the card; the drawer holds them
+    expect(q('[data-card="LF5"] [data-planned="body-grand"]').textContent).toContain('Gym logs one session at a time') // the one hint that changes today's decision
+    await click(q('[data-info]'))
+    const drawer = q('[role="dialog"]')
+    expect(drawer.textContent).toContain('A counter you want less of gets a line')
+    const hint = q('[data-planned="life-v2"]', drawer)
     expect(hint.textContent).toContain('Holiday switch is not built')
     expect(q('button', hint).getAttribute('aria-disabled')).toBe('true')
-    await click(byText('[role="radio"]', 'Reel'))
-    expect(q('[data-planned="reels-v2"]').textContent).toContain('Transcription and summary are not built')
+    expect(q('[data-planned="reels-v2"]', drawer).textContent).toContain('Transcription and summary are not built')
+    expect(q('[data-planned="music-import"]', drawer).textContent).toContain('Spotify history import is not built')
+    expect(qa('button:not([aria-disabled="true"])', drawer).filter((b) => !b.hasAttribute('data-drawer-close'))).toHaveLength(0)
   })
 })
 

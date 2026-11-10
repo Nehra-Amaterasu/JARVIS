@@ -51,8 +51,17 @@
 .ww-life-weekbody,
 .ww-life-quest {
   display: grid;
+  /* one column that may shrink: without minmax(0, ...) the auto column grows to the widest child and pushes past the card */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
   min-inline-size: 0;
+}
+
+/* The kit's Field is a one-column grid with an `auto` track, and an input's min-content is its 20-character
+   default width, so in a narrow cell (a Quest set, 148 px) the track grew to 185 px and the field poked 44 px
+   past its card. A shrinking track fixes it here; the kit file is chunk 1b's (reported, not edited). */
+.ww-life .ww-field {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 /* ---- LF1 ---- */
@@ -113,6 +122,16 @@
   font-size: var(--text-small);
   line-height: var(--leading-small);
 }
+.ww-life-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.ww-life-more {
+  display: grid;
+  gap: var(--space-2);
+}
 .ww-life-notice {
   display: flex;
   align-items: center;
@@ -162,8 +181,7 @@
   color: var(--ink-1);
 }
 .ww-life-quest-meta,
-.ww-life-quest-note,
-.ww-life-hand {
+.ww-life-quest-note {
   color: var(--ink-2);
   font-size: var(--text-small);
   line-height: var(--leading-small);
@@ -171,10 +189,17 @@
 .ww-life-quest-note {
   margin: 0;
 }
+/* the sets and the proof link share one row: four fields of about 110 px in the 487 px column at 1366 */
 .ww-life-sets {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
   gap: var(--space-2);
+}
+.ww-life-attfoot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
 }
 .ww-life-quest-foot {
   display: flex;

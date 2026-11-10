@@ -3,7 +3,7 @@
 // not here: they live in the left column, where one tap reaches them from every workspace.
 import { useRef, useState, type FormEvent } from 'react'
 import { Clapperboard, Film, Link2, Sparkles, Trash2, Utensils, type LucideIcon } from 'lucide-react'
-import { Button, Card, Chip, Drawer, EmptyState, Field, Fold, IconButton, Row, Segmented } from '../kit'
+import { Button, Card, Chip, Drawer, EmptyState, Field, IconButton, Row, Segmented } from '../kit'
 import { Planned } from '../Planned'
 import { itemCue, pendingWord, type ItemRow } from './derive'
 import type { LifeDay, Notice } from './useLife'
@@ -18,8 +18,11 @@ export const KINDS = [
 type Kind = (typeof KINDS)[number]['id']
 const ICON: Record<string, LucideIcon> = Object.fromEntries(KINDS.map((k) => [k.id, k.icon]))
 
-/** Rows shown in the card itself. Three keeps the card inside one laptop screen; "Show all" opens the rest in a drawer. */
-export const VISIBLE_ROWS = 3
+/**
+ * Rows shown in the card itself. Two (as in the wireframe) keep the card at about 525 px in its tallest state
+ * (a field error and a failure notice showing) inside the 597 px a 1366x768 screen leaves; "Show all" opens the rest in a drawer.
+ */
+export const VISIBLE_ROWS = 2
 
 /** The MIN a reel's explain-back needs, the same 20 characters the old card asked for. */
 const EXPLAIN_MIN = 20
@@ -47,6 +50,7 @@ export function AddToDay({ state, index }: Props) {
   const [problem, setProblem] = useState<string | undefined>()
   const [all, setAll] = useState(false)
   const [explain, setExplain] = useState(false)
+  const [info, setInfo] = useState(false)
   const form = useRef<HTMLFormElement>(null)
 
   const submit = async (e?: FormEvent) => {
@@ -123,7 +127,6 @@ export function AddToDay({ state, index }: Props) {
               Add
             </Button>
           </form>
-          {kind === 'reel' && <Planned id="reels-v2" hint />}
 
           {notice && (
             <p className="ww-life-notice" role={notice.tone === 'fault' ? 'alert' : 'status'} data-tone={notice.tone}>
@@ -148,21 +151,34 @@ export function AddToDay({ state, index }: Props) {
                 {rows.slice(0, VISIBLE_ROWS).map((r) => (
                   <ItemLine key={`${r.index}:${r.kind}:${r.text}`} row={r} onDelete={remove} />
                 ))}
-                {rows.length > VISIBLE_ROWS && (
-                  <Button size="sm" className="ww-life-all" onClick={() => setAll(true)}>
-                    Show all {rows.length}
-                  </Button>
-                )}
               </>
             )}
           </section>
 
-          <Fold title="How points work">
-            <p className="ww-life-rule">{d.rule}</p>
-          </Fold>
-          <Planned id="life-v2" />
+          {/* The rule and what is not built together are about 150 px: a fold would push the card past the screen when opened, a drawer cannot. */}
+          <div className="ww-life-actions">
+            {rows.length > VISIBLE_ROWS && (
+              <Button size="sm" onClick={() => setAll(true)}>
+                Show all {rows.length}
+              </Button>
+            )}
+            <Button size="sm" onClick={() => setInfo(true)} data-info="">
+              How points work
+            </Button>
+          </div>
         </div>
       )}
+
+      <Drawer open={info} onClose={() => setInfo(false)} title="How points work">
+        {d && (
+          <div className="ww-life-more">
+            <p className="ww-life-rule">{d.rule}</p>
+            <Planned id="life-v2" />
+            <Planned id="music-import" hint />
+            <Planned id="reels-v2" hint />
+          </div>
+        )}
+      </Drawer>
 
       <Drawer open={all} onClose={() => setAll(false)} title={`Logged today, ${rows.length} items`}>
         <div className="ww-life-drawerlist">

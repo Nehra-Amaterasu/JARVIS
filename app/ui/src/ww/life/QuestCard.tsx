@@ -5,7 +5,7 @@
 import { useMemo, useState } from 'react'
 import { post } from '../../lib/api'
 import { usePlan, type PlanContract } from '../../germoney/game/plan'
-import { Button, Card, EmptyState, Field, PrimaryButton, Segmented } from '../kit'
+import { Card, EmptyState, Field, PrimaryButton, Segmented } from '../kit'
 import { questSets, questTyped } from './derive'
 
 interface Props {
@@ -70,12 +70,26 @@ function QuestForm({ c, classPending }: { c: PlanContract; classPending: boolean
     setBusy(false)
   }
 
+  // The one line under the button says the most pressing thing and nothing stacks: a failure, then a
+  // validation message, then the result of the last log, then the hand-over to All present, then the standing note.
+  // One line, so the card is the same height in every state and the right column never outgrows 768 px.
+  const standing = q.top ? 'Top level.' : `Met on ${q.hits.length} of ${q.hits.length + q.need} days needed for level ${q.level + 1}.`
+  const line: { text: string; role?: 'alert' | 'status' } =
+    said?.tone === 'fault' ? { text: said.text, role: 'alert' }
+    : problem ? { text: problem, role: 'alert' }
+    : said ? { text: said.text, role: 'status' }
+    : classPending && typed ? { text: 'Classes first: All present takes the fill while one is unmarked.' }
+    : { text: standing }
+  const touch = () => {
+    setSaid(null)
+    setProblem(undefined)
+  }
   return (
     <div className="ww-life-quest" data-quest={c.key}>
       <p className="ww-life-questline">
         <b>{c.title}</b>
         <span className="ww-life-quest-meta">
-          {q.track_name} · level {q.level} of {q.max_level} · {c.minutes} min · standard {q.sets} × {q.target} {unit}
+          {q.track_name} · level {q.level} of {q.max_level} · {c.minutes} min · {q.sets} × {q.target} {unit}
         </span>
       </p>
       <div className="ww-life-sets">
@@ -83,33 +97,30 @@ function QuestForm({ c, classPending }: { c: PlanContract; classPending: boolean
           <Field
             key={i}
             label={`Set ${i + 1}`}
-            unit={unit}
             kind="text"
             inputMode="numeric"
             value={v}
-            placeholder={String(q.target)}
-            onChange={(e) => setSets(sets.map((x, k) => (k === i ? e.target.value.replace(/[^0-9]/g, '') : x)))}
-            error={i === 0 ? problem : undefined}
+            placeholder={`${q.target} ${unit}`}
+            onChange={(e) => {
+              touch()
+              setSets(sets.map((s, k) => (k === i ? e.target.value.replace(/[^0-9]/g, '') : s)))
+            }}
             autoComplete="off"
           />
         ))}
+        <Field label="Proof link" kind="text" inputMode="url" value={proof} placeholder="optional" onChange={(e) => {
+            touch()
+            setProof(e.target.value)
+          }} autoComplete="off" className="ww-life-proof" />
       </div>
-      <Field label="Proof link (optional)" kind="text" inputMode="url" value={proof} onChange={(e) => setProof(e.target.value)} autoComplete="off" />
       <div className="ww-life-quest-foot">
         <PrimaryButton claimId="life-log-session" rank="workspace" when={typed && !classPending} loading={busy} onClick={() => void submit()}>
           {c.done ? 'Log another session' : 'Log session'}
         </PrimaryButton>
-        {classPending && typed && <span className="ww-life-hand">Classes first: All present takes the fill while one is unmarked.</span>}
+        <span className="ww-life-quest-note" role={line.role}>
+          {line.text}
+        </span>
       </div>
-      {said && (
-        <p className="ww-life-notice" role={said.tone === 'fault' ? 'alert' : 'status'} data-tone={said.tone}>
-          <span>{said.text}</span>
-          <Button size="sm" onClick={() => setSaid(null)}>
-            Dismiss
-          </Button>
-        </p>
-      )}
-      <p className="ww-life-quest-note">{q.top ? 'Top level.' : `Met on ${q.hits.length} of ${q.hits.length + q.need} days needed for level ${q.level + 1}.`}</p>
     </div>
   )
 }

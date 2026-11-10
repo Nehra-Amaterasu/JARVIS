@@ -33,7 +33,7 @@ from .ww_base import add_days
 APP_DIR = Path(__file__).resolve().parent
 UI_DIRS = (APP_DIR.parent / "ui" / "src" / "germoney", APP_DIR / "phone_page")
 ROUTE_FILES = sorted(APP_DIR.glob("*.py"))          # server.py defines routes too (/api/kv, /api/game/result)
-DOC_FILES = (APP_DIR / "routes_mission.py", APP_DIR / "routes_phone_ww.py", APP_DIR / "routes_phone.py")
+DOC_FILES = (APP_DIR / "routes_mission.py", APP_DIR / "routes_ww_resources.py", APP_DIR / "routes_ww_knowledge.py", APP_DIR / "routes_phone_ww.py", APP_DIR / "routes_phone.py")
 
 _DECOR = re.compile(r"@app\.(get|post|put|delete)\(\s*\"([^\"]+)\"")
 _DOCROW = re.compile(r"^\s{2,}(GET|POST|PUT|DELETE)\s+((?:/api/|/phone)\S*)", re.M)
@@ -402,6 +402,14 @@ def _numericals(seeds: int = 20) -> dict:
             "seconds": r["seconds"], "problems": r["problems"][:10]}
 
 
+def _depth() -> dict:
+    """Resource checklists and the knowledge cards on fictional fixtures (ww_check_depth.py): counts from taps,
+    weekly sums, marks kept on a re-type, no repeat inside the window, empty pools said in words."""
+    from . import ww_check_depth
+    r = ww_check_depth.run()
+    return {"cases": r["cases"], "seconds": r["seconds"], "problems": r["problems"][:10]}
+
+
 def _harvest() -> dict:
     """The harvester's gate cases on recorded fixtures: no network, a scratch bank."""
     from . import ww_check_harvest
@@ -417,7 +425,7 @@ def report(plan=None, today: Optional[str] = None) -> dict:
     out: dict[str, Any] = {"date": today, "routes": route_drift(), "schema": schema_consistency(),
                            "smoke": engine_smoke(inputs, today), "margin_sweep": margin_sweep(), "stress": stress(today),
                            "generator": generator_sweep(), "marks_loop": marks_loop(today),
-                           "dmat": _dmat(), "numericals": _numericals(), "harvest": _harvest()}
+                           "dmat": _dmat(), "numericals": _numericals(), "harvest": _harvest(), "depth": _depth()}
     if plan is not None:
         ex = plan.engine("exams", today)
         at = plan.engine("attendance", today)
@@ -433,7 +441,7 @@ def report(plan=None, today: Optional[str] = None) -> dict:
                      or out["stress"]["exams"]["problems"] or out["stress"]["attendance"]["problems"]
                      or out["stress"]["exams"]["seconds"] > BUDGET_S["exams"] or out["stress"]["attendance"]["seconds"] > BUDGET_S["attendance"]
                      or out["generator"]["problems"] or out["generator"]["seconds"] > BUDGET_S["generator"]
-                     or out["marks_loop"]["problems"] or out["dmat"]["problems"] or out["numericals"]["problems"] or out["harvest"]["problems"]
+                     or out["marks_loop"]["problems"] or out["dmat"]["problems"] or out["numericals"]["problems"] or out["harvest"]["problems"] or out["depth"]["problems"]
                      or (out.get("real") or {}).get("exams_problems") or (out.get("real") or {}).get("attendance_problems"))
     return out
 
@@ -475,6 +483,10 @@ def as_markdown(r: dict) -> str:
     if h:
         L.append(f"- Harvester on recorded fixtures (no network, scratch bank): {h['cases']} cases, PDF reader {h['pdf_reader']}; "
                  f"problems {h['problems'] or 'none'}.")
+    dp = r.get("depth")
+    if dp:
+        L.append(f"- Depth (resource checklists, knowledge cards; fictional fixtures, in-memory store): {dp['cases']} cases in {dp['seconds']} s; "
+                 f"problems {dp['problems'] or 'none'}.")
     if r.get("real"):
         x = r["real"]
         L.append(f"- Real data (read-only): {x['papers']} papers {x['groups']}, work {x['work_h']} h, planned {x['planned_h']} h, "

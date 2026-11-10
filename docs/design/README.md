@@ -15,6 +15,7 @@ are authoritative** — several designs changed once measured on real hardware.
 | `mission-game.md` | Mission Germoney (now Well Wisher) |
 | `well-wisher-ui.md` | Well Wisher UI plan: where every part lives and how it looks (pages, wireframes, tokens, tests, build order) |
 | `app-ui-overhaul.md` | the app-wide UI overhaul: a brand per section on one shared foundation, loose ends, the phone shell, and the seam with Well Wisher |
+| `clay-overhaul-brief.md` | the owner's 10 Nov brief for the app-wide redesign: clay neumorphism in black and white, genres per section, art centrepieces, the voice hill, no page scroll, pre-built controls for every planned feature; mapped onto what is built |
 
 The v1 deep dives (FastMCP hardware bridge, Qdrant/GraphRAG memory server, RuView simulator,
 the first desktop-app spec) were deleted on 2026-11-01 with the code they described; they

@@ -45,10 +45,13 @@ import './theme.css'
 // lazily so with the flag off none of its code or CSS is ever downloaded.
 // Chunk 5 rides in the same lazy load: importing the Roadmap overlay registers it (ww/overlays/Roadmap.tsx).
 const WwFrame = lazy(() => Promise.all([import('../ww/frame/Frame'), import('../ww/overlays/Roadmap')]).then(([m]) => ({ default: m.Frame })))
+// Chunk 8: the Life workspace, loaded with the frame's other lazy parts; its own Suspense keeps the frame on screen while it loads.
+const WwLife = lazy(() => import('../ww/life').then((m) => ({ default: m.LifeWorkspace })))
+function WwLifeLazy() { return <Suspense fallback={<div className="empty">Loading Life…</div>}><WwLife /></Suspense> }
 function SetupBridge() { return <Calibration onDone={() => {}} /> }
 const inBoundary = (name: string, P: React.ComponentType) => () => <MissionBoundary name={name}><P /></MissionBoundary>
 const FRAME_PAGES = {
-  study: inBoundary('Study', StudyPage), tree: inBoundary('Tree', TreePage), life: inBoundary('Life', LifePage),
+  study: inBoundary('Study', StudyPage), tree: inBoundary('Tree', TreePage), life: inBoundary('Life', WwLifeLazy),
   career: inBoundary('Career', RoadPage), focus: inBoundary('Focus', FocusPage), setup: inBoundary('Setup', SetupBridge),
 }
 

@@ -230,4 +230,4 @@ def test_the_gate_report_carries_the_numericals_check():
     r = ww_check.report(None, "2026-11-10")
     assert r["numericals"]["problems"] == [] and r["numericals"]["templates"] == 13 and r["numericals"]["items"] == 20 * 13
     assert "Numericals" in ww_check.as_markdown(r)
-    assert r["numericals"]["seconds"] < 6, r["numericals"]["seconds"]
+    assert r["numericals"]["seconds"] < 40, r["numericals"]["seconds"]      # 3.4 s alone; 21 s measured with other builders running

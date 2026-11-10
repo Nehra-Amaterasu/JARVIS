@@ -40,7 +40,7 @@ from typing import Any, Optional
 
 import httpx
 
-from . import github_activity, learn_bank, wellwisher, ww_attendance, ww_base, ww_counsel, ww_engines, ww_exams, ww_bank_store, ww_generator, ww_life, ww_money
+from . import github_activity, learn_bank, wellwisher, ww_attendance, ww_base, ww_counsel, ww_engines, ww_exams, ww_bank_store, ww_generator, ww_life, ww_money, ww_numericals
 from .paths import DATA
 
 ROOT = DATA / "germoney"
@@ -3166,6 +3166,8 @@ class Plan:
         rows = []
         for it in items:
             q = bank.get(str((it or {}).get("id")))
+            if q is None:                       # a generated numerical (id n:<template>:<seed>:u<unit>) is rebuilt from its id
+                q = ww_numericals.question_from_id(str((it or {}).get("id")), sub.get("units") or [])
             got = _num((it or {}).get("got"))
             # The paper may show a question at other marks than the bank holds (a scaled CIE shape, a
             # filler from another section): the marks shown are the marks it was answered for.
@@ -3179,7 +3181,8 @@ class Plan:
             pm = st.setdefault("paper_marks", {}).setdefault(sub["id"], {})
             for q, got, mx in rows:
                 lst = pm.setdefault(ww_generator.topic_key(q.get("unit"), str(q.get("topic") or "")), [])
-                lst.append({"date": today, "got": got, "max": mx, "q": q.get("id")})
+                lst.append({"date": today, "got": got, "max": mx, "q": q.get("id"),
+                            **({"origin": "generated", "seed": q.get("seed")} if q.get("origin") == "generated" else {})})
                 del lst[:-40]
             rec = st.setdefault("exam_prep", {}).setdefault(sub["id"], {})
             rec.setdefault("papers", []).append({"date": today, "score": sum(g for _, g, _ in rows), "max": sum(m for _, _, m in rows),

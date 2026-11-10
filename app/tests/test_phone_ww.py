@@ -2,6 +2,7 @@
 under /phone and /api/phone/*, so the listener's rules apply unchanged: unpaired gets 401,
 a paired phone gets the day and can tap a class and a counter."""
 import json
+import re
 
 import pytest
 from starlette.testclient import TestClient
@@ -81,3 +82,49 @@ def test_a_paired_phone_gets_the_day_and_taps_a_class_and_a_counter(setup):
     assert water["today"] == 1
     # The header is the listener's cross-site check: a POST without it is refused.
     assert c.post("/api/phone/ww/count", json={"id": "water", "delta": 1}).status_code == 403
+
+
+# ---- 44 px targets (plan 9.0, chunk 1b): the page and its stylesheet, as served ----
+KIT = {"--hit": 44, "--space-2": 8, "--radius-control": 10, "--radius-card": 14}
+
+
+def _px(css, name):
+    m = re.search(rf"{re.escape(name)}:(\d+)px", css)
+    assert m, f"{name} is not a plain px token in ww.css"
+    return int(m.group(1))
+
+
+def test_the_stylesheet_keeps_44_px_targets_and_mirrors_the_kit_tokens(setup):
+    css = setup.get("/phone/ww.css").text
+    for name, want in KIT.items():
+        assert _px(css, name) == want, name
+    # The focus ring is the kit's: 2 px, offset 2, in the kit's saffron-400.
+    assert "outline:2px solid var(--focus-ring);outline-offset:2px" in css
+    assert "--focus-ring:#ff9454" in css
+    # Every fixed min-height/min-width in the sheet is the hit token or at least 44: the old 36 and 40 are gone.
+    for m in re.finditer(r"min-(?:height|width):\s*([^;}]+)", css):
+        v = m.group(1).strip()
+        if v in ("1em", "0"):              # .err (a text line) and .classes .name (lets a long name wrap): not controls
+            continue
+        assert v == "var(--hit)" or (v.endswith("px") and int(v[:-2]) >= 44), f"small target left: {m.group(0)}"
+    assert re.search(r"\.btn\{[^}]*min-height:var\(--hit\)[^}]*min-width:var\(--hit\)", css)
+    sm = re.search(r"\.btn\.sm\{([^}]*)\}", css).group(1)
+    assert "min-height" not in sm, ".btn.sm must not shrink the 44 px height"
+    # Gaps between taps are at least 8 px (token or literal), so two 44 px areas never overlap.
+    for sel in (".chips{", ".topics{", ".classes .taps{", ".counters .ctl{", ".row{"):
+        body = css[css.index(sel):].split("}")[0]
+        g = re.search(r"gap:([^;]+)", body).group(1)
+        assert g == "var(--space-2)" or (g.endswith("px") and int(g[:-2]) >= 8), (sel, g)
+    # Reduced motion is honoured, and nothing imports the not-yet-generated tokens file.
+    assert "prefers-reduced-motion:reduce" in css
+    assert not re.search(r"^\s*@import", css, re.M), "/phone/tokens.css does not exist yet; keep the mirrored values"
+
+
+def test_the_page_markup_and_script_keep_their_hooks_and_invent_no_numbers(setup):
+    html = setup.get("/phone/ww").text
+    for mins in ("25", "50", "90"):
+        assert f'data-min="{mins}"' in html
+    assert 'name="viewport"' in html and "width=device-width" in html
+    js = setup.get("/phone/ww.js").text
+    # A missing figure shows a dash, never an invented 0 or an invented "today".
+    assert "c.today ?? 0" not in js and "has(c.today)" in js and "has(x.days_left)" in js

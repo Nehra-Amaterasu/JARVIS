@@ -57,7 +57,7 @@ function renderPaper() {
   paperId = p ? p.id : null
   const chips = $('paperChips'); chips.replaceChildren()
   for (const x of D.papers) {
-    const b = el('button', 'btn sm' + (p && x.id === p.id ? ' on' : ''), `${x.title}${x.days_left ? ` · ${x.days_left} d` : ' · today'}`)
+    const b = el('button', 'btn sm' + (p && x.id === p.id ? ' on' : ''), `${x.title}${has(x.days_left) ? (x.days_left ? ` · ${x.days_left} d` : ' · today') : ''}`)
     b.type = 'button'; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(p && x.id === p.id))
     b.addEventListener('click', () => { paperId = x.id; load() })
     chips.appendChild(b)

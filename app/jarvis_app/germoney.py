@@ -40,7 +40,7 @@ from typing import Any, Optional
 
 import httpx
 
-from . import github_activity, learn_bank, wellwisher, ww_attendance, ww_base, ww_counsel, ww_engines, ww_exams, ww_generator, ww_life, ww_money
+from . import github_activity, learn_bank, wellwisher, ww_attendance, ww_base, ww_counsel, ww_engines, ww_exams, ww_bank_store, ww_generator, ww_life, ww_money
 from .paths import DATA
 
 ROOT = DATA / "germoney"
@@ -3132,7 +3132,23 @@ class Plan:
         marks = (st.get("paper_marks") or {}).get(sub["id"]) or {}
         paper = ww_generator.generate(exam, sub.get("question_bank") or [], sub.get("units") or [], rec.get("topics") or {},
                                       marks, seed=int(seed), tier=tier, today=today)
-        return {**paper, "markdown": ww_generator.as_markdown(paper)}
+        return {**paper, "markdown": ww_generator.as_markdown(paper), "harvest": self._queue_shortfall(sub, paper, tier)}
+
+    def _queue_shortfall(self, sub: dict, paper: dict, tier: str) -> dict:
+        """A short paper (sections not filled, or a GATE paper served from the exam tier) queues the
+        subject's thin topics for download. Off until he switches the harvester on: then nothing is
+        written and the paper says so, instead of promising a download that will not happen."""
+        from . import ww_harvest
+        short = bool(paper.get("shortfall") or paper.get("tier_note") or paper.get("empty"))
+        try:
+            h = ww_harvest.shared()
+            on = bool(h.load().get("enabled"))
+            queued = h.queue_missing_topics(sub["id"], sub.get("units") or [], sub.get("question_bank") or [], tier=tier) if short and on else []
+        except (OSError, ValueError):
+            return {"enabled": None, "short": short, "queued": 0, "note": "The download queue could not be read."}
+        note = None if not short else (f"Queued {len(queued)} thin topics for download." if on
+                                       else "The harvester is off, so nothing is queued. Switch it on in Settings to fetch more.")
+        return {"enabled": on, "short": short, "queued": len(queued), "note": note}
 
     def paper_marks(self, exam_id: str, payload: dict, today: Optional[str] = None) -> dict:
         """He marks a generated paper: {items: [{id, got}], seed?}. Each item's marks go to its
@@ -3140,7 +3156,10 @@ class Plan:
         exams engine shows. Unknown question ids and marks over the question's value are refused."""
         today = today or date.today().isoformat()
         exam, sub = self._exam_and_subject(exam_id)
-        bank = {q.get("id"): q for q in sub.get("question_bank") or []}
+        # Disk-bank questions (chunk H, ids h:<subject>:<hash>) are served on papers too, so they are
+        # markable; a typed question with the same id wins.
+        bank = {q.get("id"): q for q in ww_bank_store.load_for(sub["id"])}
+        bank.update({q.get("id"): q for q in sub.get("question_bank") or []})
         items = payload.get("items") if isinstance(payload.get("items"), list) else None
         if not items:
             raise ValueError("items: [{id, got}] is required")

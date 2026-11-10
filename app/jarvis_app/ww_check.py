@@ -384,6 +384,22 @@ def marks_loop(today: str = "2026-11-09") -> dict:
 BUDGET_S = {"exams": 3.0, "attendance": 1.0, "generator": 2.0}
 
 
+def _dmat(seeds: int = 40) -> dict:
+    """The dMAT solvers re-prove every generated key. 40 seeds (360 items) costs the gate about 2.4 s;
+    the full 200-seed sweep (1800 items, about 10 s) runs as python -m jarvis_app.ww_check_dmat."""
+    from . import ww_check_dmat
+    r = ww_check_dmat.sweep(seeds)
+    return {"seeds": r["seeds"], "items": sum(k["items"] for k in r["kinds"].values()),
+            "seconds": r["seconds"], "problems": r["problems"][:10]}
+
+
+def _harvest() -> dict:
+    """The harvester's gate cases on recorded fixtures: no network, a scratch bank."""
+    from . import ww_check_harvest
+    r = ww_check_harvest.run()
+    return {"cases": r["cases"], "problems": r["problems"][:10], "pdf_reader": r["pdf_reader"]}
+
+
 # ------------------------------------------------------------------ the report
 def report(plan=None, today: Optional[str] = None) -> dict:
     """All checks; `plan` (a germoney.Plan) adds the real engines' answers, read-only."""
@@ -391,7 +407,8 @@ def report(plan=None, today: Optional[str] = None) -> dict:
     inputs = ww_engines.load_inputs() if plan is not None else ww_engines.normalize_inputs({})
     out: dict[str, Any] = {"date": today, "routes": route_drift(), "schema": schema_consistency(),
                            "smoke": engine_smoke(inputs, today), "margin_sweep": margin_sweep(), "stress": stress(today),
-                           "generator": generator_sweep(), "marks_loop": marks_loop(today)}
+                           "generator": generator_sweep(), "marks_loop": marks_loop(today),
+                           "dmat": _dmat(), "harvest": _harvest()}
     if plan is not None:
         ex = plan.engine("exams", today)
         at = plan.engine("attendance", today)
@@ -407,7 +424,7 @@ def report(plan=None, today: Optional[str] = None) -> dict:
                      or out["stress"]["exams"]["problems"] or out["stress"]["attendance"]["problems"]
                      or out["stress"]["exams"]["seconds"] > BUDGET_S["exams"] or out["stress"]["attendance"]["seconds"] > BUDGET_S["attendance"]
                      or out["generator"]["problems"] or out["generator"]["seconds"] > BUDGET_S["generator"]
-                     or out["marks_loop"]["problems"]
+                     or out["marks_loop"]["problems"] or out["dmat"]["problems"] or out["harvest"]["problems"]
                      or (out.get("real") or {}).get("exams_problems") or (out.get("real") or {}).get("attendance_problems"))
     return out
 

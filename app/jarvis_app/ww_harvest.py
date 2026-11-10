@@ -225,6 +225,18 @@ def _httpx_transport(url: str, headers: dict, timeout: float, max_bytes: int) ->
         raise Refused("network", f"the request failed: {type(e).__name__}") from e
 
 
+_SHARED: Optional["Harvester"] = None
+
+
+def shared() -> "Harvester":
+    """The process's one harvester. The queue lives in one state file and its lock is per instance,
+    so the routes and the paper generator use this one instead of making their own."""
+    global _SHARED
+    if _SHARED is None:
+        _SHARED = Harvester()
+    return _SHARED
+
+
 class Harvester:
     """The queue, its state on disk and the polite fetcher. Tests inject transport, sleep, clock and today."""
 

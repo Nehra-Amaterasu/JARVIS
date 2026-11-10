@@ -165,3 +165,40 @@ def test_marks_are_saved_against_the_marks_the_paper_showed(plan):
     # without max, the bank's marks still bound the answer
     with pytest.raises(ValueError):
         plan.paper_marks("see-x", {"items": [{"id": q["id"], "got": q["marks"] + 1}]}, today=TODAY)
+
+
+def _disk_question(**kw):
+    r = {"origin": "cc-verbatim", "tier": "exam", "unit": 1, "topic": "t1", "marks": 2,
+         "question": "A fixture question that lives on disk, not in the typed bank.",
+         "source": "Fixture course, CC BY-NC-SA 4.0", "source_url": "https://example.org/ps.pdf",
+         "license": "CC BY-NC-SA 4.0", "ref": "PS1 Q1"}
+    r.update(kw)
+    return r
+
+
+def test_a_harvested_question_is_markable(plan, tmp_path, monkeypatch):
+    from jarvis_app import ww_bank_store
+    monkeypatch.setenv("WW_BANK_DIR", str(tmp_path / "disk"))
+    assert ww_bank_store.add("x", [_disk_question()], "mit_ocw")["added"] == 1
+    hid = ww_bank_store.load_for("x")[0]["id"]
+    assert hid.startswith("h:")
+    # before 10 Nov this id was refused as "not a bank question": the paper served it, marking did not know it
+    r = plan.paper_marks("see-x", {"items": [{"id": hid, "got": 1, "max": 2}]}, today=TODAY)
+    assert (r["saved"], r["score"], r["max"]) == (1, 1, 2)
+
+
+def test_a_short_paper_queues_thin_topics_only_when_the_harvester_is_on(plan, tmp_path, monkeypatch):
+    from jarvis_app import ww_harvest
+    monkeypatch.setenv("WW_BANK_DIR", str(tmp_path / "disk"))
+    gate = plan.practice_paper("see-x", seed=1, tier="gate", today=TODAY)       # no gate questions: a tier note, so short
+    assert gate["harvest"] == {"enabled": False, "short": True, "queued": 0,
+                               "note": "The harvester is off, so nothing is queued. Switch it on in Settings to fetch more."}
+    assert ww_harvest.shared().status()["items"] == []                          # off means nothing written
+    ww_harvest.shared().resume()
+    on = plan.practice_paper("see-x", seed=1, tier="gate", today=TODAY)
+    assert on["harvest"]["enabled"] is True and on["harvest"]["queued"] == 2     # t1 and t2, both thin at the gate tier
+    assert sorted(i["topic"] for i in ww_harvest.shared().status()["items"]) == ["t1", "t2"]
+    again = plan.practice_paper("see-x", seed=1, tier="gate", today=TODAY)
+    assert len(ww_harvest.shared().status()["items"]) == 2 and again["harvest"]["queued"] == 2   # re-queueing does not duplicate
+    full = plan.practice_paper("see-x", seed=3, today=TODAY)                     # a full exam-tier paper is not short
+    assert full["harvest"]["short"] is False and full["harvest"]["note"] is None

@@ -25,7 +25,7 @@ RUN_CAP = 20          # network requests one run may spend; at 2 to 5 s each tha
 
 
 def register(app: FastAPI, svc, bus) -> None:
-    h = ww_harvest.Harvester()
+    h = ww_harvest.shared()
 
     def guard(fn, *a, **k):
         try:

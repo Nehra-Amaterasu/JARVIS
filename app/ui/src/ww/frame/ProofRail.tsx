@@ -1,3 +1,4 @@
+import { Component, type ReactNode } from 'react'
 import { BarChart3 } from 'lucide-react'
 import { Drawer } from '../kit'
 import { IconButton } from '../kit'
@@ -14,7 +15,7 @@ import { ProofPanel } from '../proof'
 export function ProofRail({ mode }: { mode: ProofMode }) {
   const open = useFrame((s) => s.proofOpen)
   const setOpen = useFrame((s) => s.setProof)
-  const body = <ProofPanel mode={mode} />
+  const body = <ProofGuard><ProofPanel mode={mode} /></ProofGuard>
   if (mode === 'pinned') {
     return (
       <aside className="ww-right" aria-label="Proof" data-mode="pinned">
@@ -33,4 +34,26 @@ export function ProofRail({ mode }: { mode: ProofMode }) {
       </Drawer>
     </aside>
   )
+}
+
+/**
+ * A Proof read that comes back in a shape the panel does not expect must not take the frame down with it:
+ * on 10 Nov a `{}` answer blanked the whole page at 1920 px, where the panel is pinned and always drawn.
+ * The guard keeps the workspace on screen and says, in one line, that Proof could not be shown.
+ */
+class ProofGuard extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  render() {
+    if (this.state.failed) {
+      return (
+        <p className="ww-stub" data-proof="failed" role="status">
+          Proof could not be shown: one of its reads answered in an unexpected shape. The workspace is unaffected.
+        </p>
+      )
+    }
+    return this.props.children
+  }
 }

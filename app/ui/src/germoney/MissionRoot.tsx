@@ -34,7 +34,7 @@ import { StatusPage } from './pages/Status'
 import { TodayPage } from './pages/Today'
 import { TreePage } from './pages/Tree'
 import { MissionNav, SCREEN_OF, useDrawer, type MissionScreen } from './ui'
-import { wwFrameEnabled } from '../ww/frame/flag'
+import { setFrameFlag, wwFrameEnabled } from '../ww/frame/flag'
 import type { ServerSeason } from '../ww/frame/season'
 // Last, so the Well Wisher tokens and card system sit after every page's own sheet.
 import './theme.css'
@@ -97,7 +97,10 @@ export function MissionRoot() {
       <>
         <Suspense fallback={<div className="page"><div className="empty">Loading Well Wisher…</div></div>}>
           <WwFrame loaded={!!loaded} pages={FRAME_PAGES} server={season} legacyTab={tab} glass={glass} left={<Suspense fallback={null}><LeftCol /></Suspense>}
-            extras={<button type="button" className="ww-tap" onClick={() => toggleSettings()} aria-label="Well Wisher settings">Settings</button>} />
+            extras={<>
+              <button type="button" className="ww-tap" onClick={() => toggleSettings()} aria-label="Well Wisher settings">Settings</button>
+              <button type="button" className="ww-tap" onClick={() => setFrameFlag(false)} data-layout="old">Old layout</button>
+            </>} />
         </Suspense>
         <MissionBoundary name="Settings"><SettingsDrawer /></MissionBoundary>
         <MissionBoundary name="Reader"><ReaderDrawer /></MissionBoundary>
@@ -109,6 +112,7 @@ export function MissionRoot() {
   return (
     <div className="page mission fade-in" data-glass={glass}>
       <MissionNav />
+      <button type="button" className="btn sm ghost" onClick={() => setFrameFlag(true)} data-layout="new">New layout</button>
       {loaded
         ? <MissionBoundary key={screen} name={NAMES[screen]}><Page /></MissionBoundary>
         : <div className="empty">Loading Well Wisher…</div>}

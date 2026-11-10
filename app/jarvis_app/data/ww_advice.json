@@ -1,0 +1,126 @@
+{
+  "about": "Advice lines for the Well Wisher Proof panel. A line is shown only with its source (author, work, year) and how strong that source is. The wording is no stronger than the source: group averages are said to be group averages, a theory is said to be a theory, a philosopher's view is said to be a view. Nothing here is medical advice. Lines about ADHD describe a theory, and this app diagnoses nothing. When adding a line, add the source first; a line without all of author, work, year, kind, strength and limit is dropped by ww_status.load_advice and never shown.",
+  "kinds": ["journal article", "meta-analysis", "book", "primary text"],
+  "strengths": {
+    "meta-analysis": "many studies pooled; an average over groups",
+    "experiment": "a controlled study; one sample, one setting",
+    "observational": "people measured, nobody assigned; shows an association",
+    "theory": "an explanation put forward; not itself a test",
+    "practitioner book": "an author's method and experience; not a trial",
+    "philosophy": "a view argued by a thinker; not a finding"
+  },
+  "lines": [
+    {
+      "id": "if-then-plan",
+      "when": ["consistency_low", "no_history", "any"],
+      "text": "Write the plan as a sentence with a trigger: when X happens, I will do Y, in a named place. In the studies the author reviews, people who made plans of this form followed through on their goals more often than people who only held the goal.",
+      "source": { "author": "Peter M. Gollwitzer", "work": "Implementation intentions: Strong effects of simple plans. American Psychologist 54(7), 493-503", "year": 1999, "kind": "journal article" },
+      "strength": "theory",
+      "limit": "A review of the author's own programme of studies, mostly short experiments; it does not promise the effect for any one person."
+    },
+    {
+      "id": "if-then-meta",
+      "when": ["consistency_low", "any"],
+      "text": "Across many experiments pooled together, if-then plans had a medium-to-large average effect on reaching goals. It is an average over groups, so it says a plan is worth a try, with no promise for any one person.",
+      "source": { "author": "Peter M. Gollwitzer and Paschal Sheeran", "work": "Implementation intentions and goal achievement: A meta-analysis of effects and processes. Advances in Experimental Social Psychology 38, 69-119", "year": 2006, "kind": "meta-analysis" },
+      "strength": "meta-analysis",
+      "limit": "Averages of mostly short studies on adults and students; individual results vary and the studies are not about this app."
+    },
+    {
+      "id": "habit-66-days",
+      "when": ["consistency_low", "counter_over", "any"],
+      "text": "In one study of 96 volunteers building a small daily habit, the middle person took 66 days for it to feel automatic, with a range from 18 to 254 days, and missing a single day did not noticeably set the habit back. A skipped day is one skipped day, not a reset.",
+      "source": { "author": "Phillippa Lally, Cornelia H. M. van Jaarsveld, Henry W. W. Potts and Jane Wardle", "work": "How are habits formed: Modelling habit formation in the real world. European Journal of Social Psychology 40(6), 998-1009", "year": 2010, "kind": "journal article" },
+      "strength": "observational",
+      "limit": "96 volunteers from one university, simple daily behaviours chosen by themselves, no comparison group."
+    },
+    {
+      "id": "slip-is-information",
+      "when": ["counter_over"],
+      "text": "A day over the line is information. Relapse research describes an effect where treating one slip as the end of the attempt makes the next slip more likely; the useful move is to log it and carry on.",
+      "source": { "author": "G. Alan Marlatt and Judith R. Gordon", "work": "Relapse Prevention: Maintenance Strategies in the Treatment of Addictive Behaviors. Guilford Press", "year": 1985, "kind": "book" },
+      "strength": "theory",
+      "limit": "A model from addiction treatment. Support for it in other settings is mixed, and it is not about study or screen time as such."
+    },
+    {
+      "id": "self-compassion-after-lapse",
+      "when": ["counter_over"],
+      "text": "In one lab experiment, women who were told that slips like theirs are common ate less afterwards than women who were not. Being kind to yourself after a slip did not make the next one worse.",
+      "source": { "author": "Claire E. Adams and Mark R. Leary", "work": "Promoting self-compassionate attitudes toward eating among restrictive and guilty eaters. Journal of Social and Clinical Psychology 26(10), 1120-1144", "year": 2007, "kind": "journal article" },
+      "strength": "experiment",
+      "limit": "One session, women only, about eating; it shows nothing about other counters."
+    },
+    {
+      "id": "tiny-start",
+      "when": ["consistency_low", "no_history", "stalled"],
+      "text": "If a task feels too big to start, shrink it until it is nearly trivial: open the book, write one line. The model says a behaviour happens when motivation, ability and a prompt come together, and a smaller task raises ability.",
+      "source": { "author": "B. J. Fogg", "work": "A behavior model for persuasive design. Proceedings of Persuasive '09, ACM, article 40", "year": 2009, "kind": "journal article" },
+      "strength": "theory",
+      "limit": "A conceptual model with examples, not a controlled test of starting small."
+    },
+    {
+      "id": "two-minute-rule",
+      "when": ["consistency_low", "stalled"],
+      "text": "One practitioner's rule: a new habit should take under two minutes to start, and you can do more once you are in it. It is a method from one author's experience.",
+      "source": { "author": "James Clear", "work": "Atomic Habits. Avery", "year": 2018, "kind": "book" },
+      "strength": "practitioner book",
+      "limit": "Not a study. The two-minute figure is the author's rule of thumb, not a measured threshold."
+    },
+    {
+      "id": "outside-timer",
+      "when": ["stalled", "focus_low", "any"],
+      "text": "Put the clock and the next step where you can see them, outside your head: a visible timer, a note on the desk. One influential theory describes ADHD as difficulty holding time and the next step in mind, and advice built on it moves those cues into the room. This app diagnoses nothing.",
+      "source": { "author": "Russell A. Barkley", "work": "Behavioral inhibition, sustained attention, and executive functions: Constructing a unifying theory of ADHD. Psychological Bulletin 121(1), 65-94", "year": 1997, "kind": "journal article" },
+      "strength": "theory",
+      "limit": "A theory paper. It does not test timers, and the advice is derived from it, not shown by it."
+    },
+    {
+      "id": "retrieval-beats-rereading",
+      "when": ["recall_low", "any"],
+      "text": "After reading, close the book and write down what you remember. In a lab study, students who tested themselves on a passage remembered more a week later than students who re-read it.",
+      "source": { "author": "Henry L. Roediger III and Jeffrey D. Karpicke", "work": "Test-enhanced learning: Taking memory tests improves long-term retention. Psychological Science 17(3), 249-255", "year": 2006, "kind": "journal article" },
+      "strength": "experiment",
+      "limit": "Short prose passages and college students in a lab, not a full course or a maths paper."
+    },
+    {
+      "id": "spacing",
+      "when": ["recall_low", "any"],
+      "text": "Spread the same study time over more days. A large review of lab experiments found that practice spread out in time gave better recall later than the same practice in one block.",
+      "source": { "author": "Nicholas J. Cepeda, Harold Pashler, Edward Vul, John T. Wixted and Doug Rohrer", "work": "Distributed practice in verbal recall tasks: A review and quantitative synthesis. Psychological Bulletin 132(3), 354-380", "year": 2006, "kind": "meta-analysis" },
+      "strength": "meta-analysis",
+      "limit": "Mostly word lists and facts in lab tasks; how far it carries to problem solving is less clear."
+    },
+    {
+      "id": "deliberate-practice",
+      "when": ["focus_low", "any"],
+      "text": "In a study of violin students, the ones rated best had spent more hours practising alone on the parts they found hard. It is an association: it does not show that hours alone cause the gap.",
+      "source": { "author": "K. Anders Ericsson, Ralf Th. Krampe and Clemens Tesch-Romer", "work": "The role of deliberate practice in the acquisition of expert performance. Psychological Review 100(3), 363-406", "year": 1993, "kind": "journal article" },
+      "strength": "observational",
+      "limit": "Music students, hours recalled by the students themselves, no assignment of practice."
+    },
+    {
+      "id": "own-and-not-own",
+      "when": ["counter_over", "stalled", "any"],
+      "text": "Sort today into what is up to you (starting, effort, where you sit) and what is not (marks, other people's answers). Epictetus opens his handbook with this split. It is a Stoic's view of how to spend attention, not a finding.",
+      "source": { "author": "Epictetus", "work": "Enchiridion (Handbook), section 1, recorded by Arrian", "year": 125, "kind": "primary text" },
+      "strength": "philosophy",
+      "limit": "A teacher's argument from about the year 125, translated; it is offered as a way of thinking, with no evidence behind it."
+    },
+    {
+      "id": "expect-friction",
+      "when": ["counter_over", "stalled"],
+      "text": "Marcus Aurelius begins Book 2 of his private notes by telling himself in the morning to expect difficult people and friction, so they do not take him by surprise. A calm way to plan for what usually gets in the way. It is one man's habit, not a finding.",
+      "source": { "author": "Marcus Aurelius", "work": "Meditations, Book 2, section 1", "year": 175, "kind": "primary text" },
+      "strength": "philosophy",
+      "limit": "Notes written to himself around the year 175; the practice is described, never tested."
+    },
+    {
+      "id": "time-is-given-away",
+      "when": ["focus_low", "any"],
+      "text": "Seneca argues in On the Shortness of Life that the trouble is less how little time we have than how much of it goes to things we did not choose. A thinker's argument, offered as a prompt to look at where the hours went.",
+      "source": { "author": "Seneca", "work": "De Brevitate Vitae (On the Shortness of Life)", "year": 49, "kind": "primary text" },
+      "strength": "philosophy",
+      "limit": "An essay written around the year 49 for one reader; it argues and does not measure."
+    }
+  ]
+}

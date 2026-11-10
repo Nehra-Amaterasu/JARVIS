@@ -34,9 +34,10 @@ MAX_N = 60
 LABEL = {"figure": "Figure sequences", "equation": "Equations", "latin": "Latin squares"}
 
 # Seconds per item by level. The real test is timed per subtest; these are practice numbers chosen
-# so level 3 is a comfortable-but-not-slow pace (figures 45 s, equations 60 s, squares 50 s),
-# and each level step adds about 20 % of that, since the work per item grows about that fast
-# (one more changing attribute, one more unknown, 3 to 4 more blank cells).
+# so level 3 is a comfortable-but-not-slow pace (figures 55 s, equations 75 s, squares 50 s),
+# and each level step adds 10 to 15 s, about 15 to 20 % of the level-3 figure, since the work per
+# item grows about that fast (one more changing attribute, one more unknown, 3 to 4 more blank
+# cells). Not calibrated against real test-taker times.
 _BASE_S = {"figure": 25, "equation": 30, "latin": 20}
 _STEP_S = {"figure": 10, "equation": 15, "latin": 10}
 

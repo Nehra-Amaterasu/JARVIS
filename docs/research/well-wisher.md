@@ -2,6 +2,21 @@
 
 One file for the Well Wisher topic, newest section on top. Older dated notes stay as they are (2026-10-23-mission-germoney-rebuild.md, 2026-10-25-well-wisher-v1.md, 2026-10-25-well-wisher-engines.md).
 
+## 2026-11-10: the frame behind a flag, and 44 px phone taps (chunks 4 and 1b-phone)
+
+**Question.** Can the six-workspace frame switch inside the 600 ms envelope the design sets, without touching the app shell another chat owns, and do the phone page's taps meet the 44 px rule?
+
+**Measured (10 Nov, Chromium 141 through Playwright, stub pages).**
+- All 30 ordered workspace switches finish inside the envelope: worst 530 ms against the 600 ms cap, timed to the end of the view transition, 700 ms apart so each takes the transition path. A click 100 ms into a switch lands.
+- Feature probe in that Chromium: `inert`, view transitions, `animation-timeline` and `content-visibility` all present. The installed WebView2 runtime is 157.0.4341.42 (read from the registry only, not driven).
+- The frame code is a separate lazy chunk (20.9 kB JS, 41 kB CSS before gzip); with the flag off nothing of it loads, and all 876 UI tests and the old pages' tests stay green.
+- Phone Study page at 390 x 844: every button, chip, topic, class tap and counter is at least 44 x 44 px (the +25/+50/+90 buttons were 36 px); a mutation back to 36 px fails 2 of the 10 browser cases.
+- Season (exam window 45 days, evening at 18:00 or once every slot of the day reads 0 minutes) is one pure server function sent to the desktop and the phone, so they cannot disagree; changing the window to 30 days fails a test.
+
+**Not verified.** The switch time on real pages (Tree, Study) and inside the real WebView2 window with glass on and off: that is chunk 14. The 45-day window is an assumption waiting for the owner (open question 8). The desktop season pill can override to Exams or Normal; the phone has no pill and always reports Auto.
+
+**What it changed.** The frame ships dark behind `#ww=frame` (or `localStorage ww.workspace=frame`); the one-rail-entry change in the shell waits for the owner and the overhaul chat. The printed gate report now also names the dMAT and harvest checks.
+
 ## 2026-11-09: consolidation audit (what Well Wisher really does today)
 
 **Question.** Before adding anything new: what should Well Wisher already do, what does it really do when tried in the running app, and where is the UI inconsistent? Method: a sandbox copy of the app on a scratch data folder, every page opened and measured (DOM sizes, computed styles, API answers), plus a code read. Nothing was edited. Full per-page reports are in the private audit notes, 9 Nov.

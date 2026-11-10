@@ -452,6 +452,16 @@ def as_markdown(r: dict) -> str:
                  f"proficiency {m['p'][0]} -> {m['p'][1]}, topic weight {m['weight'][0]} -> {m['weight'][1]}, asked in 30 papers {m['asked_in_30_papers'][0]} -> {m['asked_in_30_papers'][1]}; "
                  f"the exams block plan {'changed' if m['exams_plan_changed'] else 'did not change'} "
                  f"(the Study line says {'blocks changed' if m['exams_plan_changed'] else 'no change to the plan'}); problems {m['problems'] or 'none'}.")
+    # The dMAT and harvest checks joined the gate on 10 Nov but only reached `ok`; the printed report
+    # is what goes into the dated gate file, so it names them too.
+    d = r.get("dmat")
+    if d:
+        L.append(f"- dMAT keys re-proved by the independent solvers: {d['seeds']} seeds, {d['items']} items in {d['seconds']} s; "
+                 f"mismatches {len(d['problems'])}; problems {d['problems'] or 'none'}.")
+    h = r.get("harvest")
+    if h:
+        L.append(f"- Harvester on recorded fixtures (no network, scratch bank): {h['cases']} cases, PDF reader {h['pdf_reader']}; "
+                 f"problems {h['problems'] or 'none'}.")
     if r.get("real"):
         x = r["real"]
         L.append(f"- Real data (read-only): {x['papers']} papers {x['groups']}, work {x['work_h']} h, planned {x['planned_h']} h, "

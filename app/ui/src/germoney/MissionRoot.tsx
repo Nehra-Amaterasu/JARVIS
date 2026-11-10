@@ -45,6 +45,8 @@ import './theme.css'
 // lazily so with the flag off none of its code or CSS is ever downloaded.
 // Chunk 5 rides in the same lazy load: importing the Roadmap overlay registers it (ww/overlays/Roadmap.tsx).
 const WwFrame = lazy(() => Promise.all([import('../ww/frame/Frame'), import('../ww/overlays/Roadmap')]).then(([m]) => ({ default: m.Frame })))
+// Chunk 6: the left column, its own lazy chunk so the frame's first paint does not wait for its five reads' code.
+const LeftCol = lazy(() => import('../ww/left').then((m) => ({ default: m.LeftColumn })))
 function SetupBridge() { return <Calibration onDone={() => {}} /> }
 const inBoundary = (name: string, P: React.ComponentType) => () => <MissionBoundary name={name}><P /></MissionBoundary>
 const FRAME_PAGES = {
@@ -72,7 +74,7 @@ export function MissionRoot() {
     return (
       <>
         <Suspense fallback={<div className="page"><div className="empty">Loading Well Wisher…</div></div>}>
-          <WwFrame loaded={!!loaded} pages={FRAME_PAGES} server={season} legacyTab={tab} glass={glass}
+          <WwFrame loaded={!!loaded} pages={FRAME_PAGES} server={season} legacyTab={tab} glass={glass} left={<Suspense fallback={null}><LeftCol /></Suspense>}
             extras={<button type="button" className="ww-tap" onClick={() => toggleSettings()} aria-label="Well Wisher settings">Settings</button>} />
         </Suspense>
         <MissionBoundary name="Settings"><SettingsDrawer /></MissionBoundary>

@@ -102,7 +102,7 @@ def test_the_stylesheet_keeps_44_px_targets_and_mirrors_the_kit_tokens(setup):
     assert "outline:2px solid var(--focus-ring);outline-offset:2px" in css
     assert "--focus-ring:#ff9454" in css
     # Every fixed min-height/min-width in the sheet is the hit token or at least 44: the old 36 and 40 are gone.
-    for m in re.finditer(r"min-(?:height|width):\s*([^;}]+)", css):
+    for m in re.finditer(r"(?<!\()min-(?:height|width):\s*([^;}]+)", css):     # not a media query's (min-width:600px)
         v = m.group(1).strip()
         if v in ("1em", "0"):              # .err (a text line) and .classes .name (lets a long name wrap): not controls
             continue
@@ -111,7 +111,7 @@ def test_the_stylesheet_keeps_44_px_targets_and_mirrors_the_kit_tokens(setup):
     sm = re.search(r"\.btn\.sm\{([^}]*)\}", css).group(1)
     assert "min-height" not in sm, ".btn.sm must not shrink the 44 px height"
     # Gaps between taps are at least 8 px (token or literal), so two 44 px areas never overlap.
-    for sel in (".chips{", ".topics{", ".classes .taps{", ".counters .ctl{", ".row{"):
+    for sel in (".chips{", ".topics{", ".classes .taps{", ".counters{", ".row{"):
         body = css[css.index(sel):].split("}")[0]
         g = re.search(r"gap:([^;]+)", body).group(1)
         assert g == "var(--space-2)" or (g.endswith("px") and int(g[:-2]) >= 8), (sel, g)
@@ -128,3 +128,30 @@ def test_the_page_markup_and_script_keep_their_hooks_and_invent_no_numbers(setup
     js = setup.get("/phone/ww.js").text
     # A missing figure shows a dash, never an invented 0 or an invented "today".
     assert "c.today ?? 0" not in js and "has(c.today)" in js and "has(x.days_left)" in js
+
+
+# ---- plan 4.14 / 9.0 row 6: the phone page is the left column alone ----
+def test_the_page_lists_the_left_column_sections_in_the_laptops_order_with_an_honest_last_line(setup):
+    html = setup.get("/phone/ww").text
+    # same ids, same order as L1 to L4 in app/ui/src/ww/left/model.ts (LEFT_SECTION_IDS)
+    ids = re.findall(r'<section id="(L\d)" class="card" data-section="(L\d)"', html)
+    assert ids == [("L1", "L1"), ("L2", "L2"), ("L3", "L3"), ("L4", "L4")]
+    assert "L5" not in html                                  # the Phone pointer is the laptop's; this IS the phone
+    assert 'data-chip="phone">This is your phone<' in html
+    # the last line says what is not here, in the registry's own words (ww/plannedFeatures.ts phone-papers)
+    assert re.search(r'id="last"[^>]*>Desktop only: papers, Tree, Setup \(not on the phone yet\)\.<', html)
+    assert html.index('id="L4"') < html.index('id="last"')
+    # Now carries Start and the three presets; Classes and Counters carry their taps
+    assert 'id="start"' in html and html.index('id="L2"') < html.index('data-min="25"') < html.index('id="L3"')
+
+
+def test_the_stylesheet_is_one_column_below_600_px_and_the_script_carries_the_view_model(setup):
+    css = setup.get("/phone/ww.css").text
+    assert "@media (max-width:599px){#main{display:block}}" in css
+    assert re.search(r"@media \(min-width:600px\)\{#main\{display:grid;grid-template-columns:repeat\(2,", css)
+    js = setup.get("/phone/ww.js").text
+    # left.test.tsx runs this copy against model.ts on the same fixtures; here only that it is exposed
+    assert "function buildLeft(" in js and "window.WWLeft = { buildLeft" in js
+    assert "const LEFT_SECTION_IDS = ['L1', 'L2', 'L3', 'L4']" in js
+    # counters are tiles: one tap adds one, and a failed tap restores the payload it replaced
+    assert "'/api/phone/ww/count', { id, delta }" in js and "D = before; render(); fail(e)" in js

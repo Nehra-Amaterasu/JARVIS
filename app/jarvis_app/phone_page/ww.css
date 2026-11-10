@@ -71,10 +71,13 @@ h2{margin:0;font:600 12px var(--mono);letter-spacing:1px;color:var(--ink-2);text
 .blocks .lbl{color:var(--ink-2);font:12px var(--mono)}
 .blocks .focus{grid-column:1/-1;color:var(--ink-2);font-size:13px}
 .classes{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-.classes li{display:grid;grid-template-columns:48px 1fr auto;align-items:center;gap:var(--space-2);padding:var(--space-2) 0;border-top:1px solid var(--line)}
+/* name on its own line, then the time and the three 44 px taps (same arrangement as the laptop's L3) */
+.classes li{display:grid;grid-template-columns:auto 1fr;grid-template-areas:"name name" "when taps";align-items:center;column-gap:var(--space-2);row-gap:var(--space-1);padding:var(--space-2) 0;border-top:1px solid var(--line)}
+.classes .name{grid-area:name}
+.classes .when{grid-area:when}
 .classes li:first-child{border-top:0}
 .classes .when{font:12px var(--mono);color:var(--ink-3)}
-.classes .taps{display:inline-flex;gap:var(--space-2)}
+.classes .taps{grid-area:taps;justify-self:end;display:inline-flex;gap:var(--space-2)}
 .classes .taps .btn{padding:0 var(--space-2)}
 .classes .name{min-width:0;overflow-wrap:anywhere}
 .classes li.present .name{color:var(--live)}
@@ -84,10 +87,26 @@ h2{margin:0;font:600 12px var(--mono);letter-spacing:1px;color:var(--ink-2);text
 .margin td{padding:4px 0;border-top:1px solid var(--line)}
 .margin td:last-child{text-align:right;color:var(--ink-2);font:12px var(--mono)}
 .margin tr.low td{color:var(--fault)}
-.counters{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-2)}
-.counters li{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px}
-.counters .ctl{display:inline-flex;align-items:center;gap:var(--space-2)}
-.counters b{font:600 20px var(--mono);min-width:var(--hit);min-height:var(--hit);display:inline-flex;align-items:center;justify-content:center}
+/* counters: 3 columns, one tap adds one (the laptop's L4); "Undo last tap" takes the last add back */
+.counters{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-2)}
+.counters .ctr{width:100%;min-height:var(--hit);min-width:var(--hit);display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:var(--space-1);padding:var(--space-1) var(--space-2);
+  border:1px solid var(--line);border-radius:var(--radius-control);background:#151821;color:var(--ink);font:inherit;text-align:left;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.counters .ctr-name{font-size:var(--text-label);color:var(--ink-2);overflow-wrap:anywhere}
+.counters .ctr b{font:600 20px var(--mono)}
+.counters .ctr:active{background:#1b1f2a}
+/* the chip that says what this page is; the sections follow the laptop's order */
+.chip-row{margin:0 0 var(--space-2)}
+.chip{display:inline-flex;align-items:center;padding:var(--space-1) var(--space-3);border:1px solid var(--line);border-radius:var(--radius-pill);color:var(--ink-2);font:600 12px var(--mono)}
+.lead{margin:0;color:var(--ink);font-size:var(--text-read)}
+.rows{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-1)}
+.rows li{display:flex;justify-content:space-between;gap:var(--space-2)}
+.fold>summary{min-height:var(--hit);display:flex;align-items:center;cursor:pointer;color:var(--ink-2);font:600 12px var(--mono)}
+.last{margin-top:var(--space-4)}
+[hidden]{display:none!important}
+/* one column below 600 px; wider screens (a tablet, a landscape phone) get the sections in two columns, same order */
+#main{display:block}
+@media (min-width:600px){#main{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:var(--space-3);align-items:start}#main>.last,#main>#studyFold,#main>p{grid-column:1/-1}}
+@media (max-width:599px){#main{display:block}}
 .err{color:var(--fault);font:12px var(--mono);min-height:1em;margin-top:10px}
 /* one focus ring everywhere: 2 px, offset 2, same as base.css */
 :focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}

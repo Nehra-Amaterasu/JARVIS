@@ -1,0 +1,180 @@
+/* ==========================================================================
+   The left column (plan 4.1). Tokens only (css-lint): the card, the kit's Row/Button and the type scale do
+   the work, this file only lays the five parts out.
+
+   Fit at the 248 px column (compact): 12 px column padding + 12 px card padding leave 200 px. A class
+   row's three 44 px taps need 140 of it, so the name takes the first line and the time and the taps the
+   second (a row is about 66 px). The column scrolls (.ww-left has overflow: auto) before a target shrinks.
+   ========================================================================== */
+.ww-left-col {
+  display: grid;
+  align-content: start;
+  gap: var(--gap-card);
+  min-inline-size: 0;
+}
+.ww-left-sec {
+  min-inline-size: 0;
+}
+
+.ww-left-head {
+  margin: 0;
+  color: var(--ink-1);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}
+.ww-left-meta,
+.ww-left-note {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  overflow-wrap: anywhere;
+}
+.ww-left-note {
+  color: var(--ink-1);
+}
+
+/* L1 keeps its height when Countdown becomes Horizon: the swap changes words, not the box */
+.ww-l1 {
+  min-block-size: calc(var(--row-h) * 2);
+}
+.ww-l1-rows {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ww-l1-rows li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-l1-name {
+  min-inline-size: 0;
+  color: var(--ink-1);
+  overflow-wrap: anywhere;
+}
+
+/* L2 */
+.ww-left-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.ww-left-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* L3 */
+.ww-cls-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ww-cls {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    'name name'
+    'when taps';
+  align-items: center;
+  column-gap: var(--space-2);
+  padding-block: var(--space-1);
+  border-block-end: 1px solid var(--line);
+}
+.ww-cls-name {
+  grid-area: name;
+  color: var(--ink-1);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  overflow-wrap: anywhere;
+}
+.ww-cls-name em {
+  color: var(--ink-2);
+  font-style: normal;
+}
+.ww-cls-when {
+  grid-area: when;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+}
+.ww-cls-taps {
+  grid-area: taps;
+  justify-self: end;
+  display: inline-flex;
+  gap: var(--space-1);
+}
+.ww-cls-tap[data-active='true'] {
+  background: var(--seg-selected-bg);
+  color: var(--selected-ink);
+  border-color: var(--ink-2);
+  font-weight: var(--weight-strong);
+}
+.ww-cls[data-status='cancelled'] .ww-cls-name {
+  color: var(--ink-2);
+  text-decoration: line-through;
+}
+
+/* L4 */
+.ww-ctr-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+.ww-ctr {
+  inline-size: 100%;
+  min-block-size: var(--hit);
+  padding: var(--space-1);
+  border: 1px solid var(--line-ui);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--ink-1);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.ww-ctr .ww-stat-label {
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  overflow-wrap: anywhere;
+}
+.ww-ctr .ww-stat-none {
+  font-size: var(--text-label);
+}
+
+/* L5 and small link buttons: the whole row is the target */
+.ww-linkbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-block-size: var(--hit);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-small);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.ww-phone-line {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}

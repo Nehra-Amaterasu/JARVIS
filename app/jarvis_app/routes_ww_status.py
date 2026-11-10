@@ -2,7 +2,8 @@
 
     GET  /api/mission/status/v2?today=   4-week series per Life counter (weeks with no data are left out, never 0),
                                          consistency (days on the line over days asked), the next rank's full
-                                         requirement list (met and unmet), Recent grouped by day, Wins, and advice
+                                         requirement list (met and unmet), the System's suggestions with the place each
+                                         one goes to, Recent grouped by day, Wins, and advice
                                          lines that each name their source (data/ww_advice.json)
 
 Read-only: no write, no thread, no network. It reads the plan state through the same Plan object routes_mission
@@ -29,7 +30,8 @@ def register(app: FastAPI, svc, bus) -> None:
         bank = plan.bank()
         rank = wellwisher.rank(bank, st, today)
         stats = wellwisher.stats(bank, st, today)
-        return ww_status.status_v2(st, ww_engines.load_inputs(), today, rank["have"], rank["rank"], stats)
+        rules = wellwisher.advice(st, stats, wellwisher.load_questlines())
+        return ww_status.status_v2(st, ww_engines.load_inputs(), today, rank["have"], rank["rank"], stats, rules=rules)
 
     @app.get("/api/mission/status/v2")
     async def status_v2(today: Optional[str] = Query(None)):

@@ -6,6 +6,7 @@
     recent_days(events, today)                  the last days of logged work, grouped by day, zero-XP rows collapsed
     wins(events)                                real milestones only (shipped, certificate, rank-up, mastered)
     load_advice() / pick_advice(...)            sourced advice lines and the few that fit today
+    suggestions(lines)                          the System's own rule lines, each with the place its button goes to
     status_v2(...)                              all of the above in one answer
 
 Read-only over the plan state (germoney.Plan.load) and the Life log; nothing here writes. Pure functions
@@ -27,6 +28,7 @@ Why it is shaped like this:
 from __future__ import annotations
 
 import json
+import re
 from datetime import date
 from pathlib import Path
 from typing import Any, Optional
@@ -265,9 +267,32 @@ def pick_advice(advice: dict, sig: list[str], today: str, n: int = 3) -> list[di
     return out
 
 
+# ------------------------------------------------------------------ suggestions with a place to go
+# wellwisher.advice() returns plain sentences. Each rule's sentence starts with a fixed phrase, and the Proof
+# panel shows a button under each one. Matching on the phrase keeps wellwisher.py untouched; the test builds
+# the four situations from the real function and fails if a rule has no row here, so the two cannot drift.
+SUGGESTION_GO: tuple[tuple[str, str, dict], ...] = (
+    (r"^Consistency is ", "consistency", {"ws": "study", "view": None, "label": "Go to Study"}),
+    (r"^None of the finished work has a link", "links", {"ws": "tree", "view": None, "label": "Go to Tree"}),
+    (r"^Some nodes are marked mastered", "unproven", {"ws": "tree", "view": None, "label": "Go to Tree"}),
+    (r"^Optional: the calisthenics quest line", "quest", {"card": "P4", "label": "Show quest lines"}),
+)
+
+
+def suggestions(lines: list[str]) -> list[dict]:
+    """[{id, text, go, basis}]: `go` is {ws, view, label} (a workspace) or {card, label} (a card in the panel), or
+    None for a sentence no row knows (never invented). `basis` says where the line comes from."""
+    out = []
+    for text in lines or []:
+        hit = next(((i, go) for pat, i, go in SUGGESTION_GO if re.search(pat, text)), None)
+        out.append({"id": hit[0] if hit else None, "text": text, "go": dict(hit[1]) if hit else None,
+                    "basis": "A rule over your logged work; the numbers in the sentence are the ones it used."})
+    return out
+
+
 # ------------------------------------------------------------------ the whole answer
 def status_v2(st: dict, inputs: dict, today: str, have: dict, current: str, stats: Optional[list[dict]] = None,
-              advice: Optional[dict] = None) -> dict:
+              advice: Optional[dict] = None, rules: Optional[list[str]] = None) -> dict:
     log = st.get("life") or {}
     counters = _counters(inputs)
     series = counter_series(log, counters, today)
@@ -278,5 +303,6 @@ def status_v2(st: dict, inputs: dict, today: str, have: dict, current: str, stat
             "weeks_note": "A line needs " + str(MIN_LINE_WEEKS) + " weeks with logged days; a week with none is left out, never drawn as 0.",
             "consistency": cons, "rank": rank_requirements(have, current),
             "recent": recent_days(events, today), "wins": wins(events),
+            "suggestions": suggestions(rules or []),
             "advice": pick_advice(adv, signals(cons, series, stats), today), "advice_dropped": adv["dropped"],
             "source": inputs.get("source")}

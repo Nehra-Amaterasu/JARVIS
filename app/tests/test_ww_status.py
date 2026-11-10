@@ -247,6 +247,30 @@ def test_status_v2_is_pure_and_names_the_source_of_every_advice_line():
     assert out["advice"] and all(a["source"]["author"] and a["source"]["year"] and a["limit"] for a in out["advice"])
 
 
+# ------------------------------------------------------------------ suggestions
+def test_every_rule_in_wellwisher_advice_has_a_place_to_go():
+    """Build the situations from the real function, so a new or reworded rule fails here."""
+    lines = {"lines": {"fit": {}}, "order": ["fit"]}
+    low = [{"id": "consistency", "value": 2}, {"id": "focus", "value": 6}, {"id": "proof", "value": 0},
+           {"id": "knowledge", "inputs": {"mastered_unproven": 2}}]
+    first = wellwisher.advice({"quests": {}}, low, lines)
+    assert len(first) == 3                                  # the function caps at three, so the fourth rule is built apart
+    last = wellwisher.advice({"quests": {}}, [{"id": "consistency", "value": 20}, {"id": "focus", "value": 0}, {"id": "proof", "value": 0},
+                                              {"id": "knowledge", "inputs": {"mastered_unproven": 0}}], lines)
+    for text in first + last:
+        s = ww_status.suggestions([text])[0]
+        assert s["id"] and s["go"] and s["go"]["label"], text
+    assert {ww_status.suggestions([t])[0]["id"] for t in first + last} == {"consistency", "links", "unproven", "quest"}
+    assert ww_status.suggestions(first[:1])[0]["go"]["ws"] == "study"
+    assert ww_status.suggestions(last)[0]["go"] == {"card": "P4", "label": "Show quest lines"}
+
+
+def test_a_sentence_no_row_knows_gets_no_button_and_is_not_invented():
+    s = ww_status.suggestions(["Something new the System says."])[0]
+    assert s["id"] is None and s["go"] is None and s["text"] == "Something new the System says."
+    assert ww_status.suggestions([]) == []
+
+
 # ------------------------------------------------------------------ the route
 @pytest.fixture()
 def client(tmp_path, monkeypatch):

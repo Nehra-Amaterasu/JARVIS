@@ -1,0 +1,16 @@
+// The Well Wisher frame (plan chunk 4). MissionRoot imports `./Frame` lazily behind the flag; other chunks
+// import from here: the navigation handle, the overlay registry, the scene memory and the tab table.
+export { Frame } from './Frame'
+export type { FrameProps } from './Frame'
+export { wwFrameEnabled, FLAG_KEY } from './flag'
+export { switchWorkspace, jumpTo, goBack } from './navigate'
+export { openOverlay, closeOverlay, registerOverlay, OVERLAYS } from './overlayRegistry'
+export type { OverlayId } from './overlayRegistry'
+export { workspaceMemory, useWorkspaceValue, useTreeScene, useSceneDirty } from './workspaceMemory'
+export { WORKSPACES, WS_IDS, LEGACY, LEGACY_IDS, destinationOf } from './workspaces'
+export type { WsId, Destination } from './workspaces'
+export { resolveSeason } from './season'
+export type { SeasonView, ServerSeason, SeasonMode } from './season'
+export { densityOf, proofModeOf } from './density'
+export { setTheme } from './theme'
+export { useFrame } from './frameStore'

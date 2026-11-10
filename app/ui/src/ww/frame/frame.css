@@ -1,0 +1,209 @@
+/* ==========================================================================
+   The Studio frame (plan 4): strip on top; left column, centre and Proof column below.
+   Tokens only (css-lint.test.ts). The grid columns come from component.css (--col-l by density);
+   the right column is 56 px as a rail and pinned at 320 (roomy 360) from 1500 px of container.
+
+   The only html-level rule is the Shell's `.main` page name. Shell names `.main` for its own
+   560 ms page transition; under a Well Wisher switch that group would be captured as well, so for
+   as long as html[data-ww] is set it is unnamed and only `ww-centre` moves (plan 5.7.4 #1).
+   shell.css is the app-wide overhaul's file, so the scoping lives here.
+   ========================================================================== */
+html[data-ww] .main {
+  view-transition-name: none;
+}
+
+.ww-frame {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: var(--col-l) minmax(0, 1fr) var(--col-r);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    'strip strip strip'
+    'left centre right';
+  overflow: hidden;
+}
+.ww-frame[data-proof='pinned'] {
+  --col-r: 320px;
+}
+.ww-frame[data-density='roomy'] {
+  --col-r: 360px;
+}
+/* narrow: the left column becomes the page, the strip moves to the bottom, Proof is a sheet */
+.ww-frame[data-density='narrow'] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    'left'
+    'centre'
+    'right'
+    'strip';
+  overflow: auto;
+}
+
+/* ---- the strip: opaque, never glass (5.6) ---- */
+.ww-strip {
+  grid-area: strip;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-4);
+  background: var(--surface-3);
+  border-bottom: 1px solid var(--line);
+  z-index: var(--z-nav);
+}
+.ww-frame[data-density='narrow'] .ww-strip {
+  border-bottom: 0;
+  border-top: 1px solid var(--line);
+}
+.ww-brand {
+  font-family: var(--f-mono);
+  font-size: var(--text-label);
+  letter-spacing: 0.08em;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.ww-strip-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* ---- the six tabs ---- */
+.ww-tabs {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.ww-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--hit);
+  padding: 0 var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ww-tab:hover {
+  color: var(--ink-1);
+}
+.ww-tab.on,
+.ww-tab[aria-selected='true'] {
+  color: var(--ink-1);
+  font-weight: var(--weight-strong);
+}
+/* one element, moved by a transform: translate to the tab's left edge, scale to its width */
+.ww-tab-ink {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 2px;
+  transform-origin: left center;
+  transform: translateX(var(--ink-x, 0px)) scaleX(var(--ink-w, 0));
+  background: var(--tab-underline);
+  transition: transform var(--dur-travel) var(--ease-standard);
+}
+.ww-tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--ink-2);
+}
+
+/* ---- the three regions ---- */
+.ww-left {
+  grid-area: left;
+  overflow: auto;
+  padding: var(--space-3);
+  border-right: 1px solid var(--line);
+  display: grid;
+  align-content: start;
+  gap: var(--gap-card);
+}
+.ww-frame[data-density='narrow'] .ww-left {
+  border-right: 0;
+}
+.ww-centre {
+  grid-area: centre;
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  background: var(--surface-0);
+}
+.ww-right {
+  grid-area: right;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-left: 1px solid var(--line);
+  min-width: 0;
+}
+.ww-right[data-mode='pinned'] {
+  align-items: stretch;
+  padding: var(--pad-card);
+  overflow: auto;
+}
+.ww-frame[data-density='narrow'] .ww-right {
+  flex-direction: row;
+  justify-content: flex-end;
+  border-left: 0;
+  border-top: 1px solid var(--line);
+}
+
+/* ---- the left column stub (chunk 6 replaces it) ---- */
+.ww-left-slot {
+  display: grid;
+  gap: var(--space-1);
+  min-height: calc(var(--row-h) * 2);
+  padding: var(--pad-card);
+  border: 1px solid var(--line);
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+}
+.ww-left-line,
+.ww-stub {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+
+/* ---- the Back chip: flat, no timer, above the centre ---- */
+.ww-back {
+  position: absolute;
+  left: var(--space-4);
+  bottom: var(--space-4);
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line-ui);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--ink-1);
+  z-index: var(--z-toast);
+}
+.ww-back button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--hit);
+  padding: 0 var(--space-3);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.ww-back-x {
+  color: var(--ink-2);
+}

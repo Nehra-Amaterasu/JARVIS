@@ -7,6 +7,10 @@
     POST   /api/phone/ww/minutes  {subject, minutes}      study time for a subject
     POST   /api/phone/ww/class    {slot, status}          present | absent | cancelled | clear
     POST   /api/phone/ww/count    {id, delta}             a Life counter, nudged
+    GET    /api/phone/ww/resources?node=<id>   resources with a checklist (or one node's), where he is, sections per week
+    POST   /api/phone/ww/resource/tap  {rid, item, state}  a section done | skip | open | here
+    GET    /api/phone/ww/knowledge        today's six cards: exam, skill, life, word, fact, thought
+    POST   /api/phone/ww/knowledge/refresh  {slot}        a new item for one card
 
 Why here and not a hosted site (decided 8 Nov): the phone listener (phone.py, port 8778) is
 the app's one public door: a paired device's cookie, the home network or the Cloudflare
@@ -24,7 +28,7 @@ from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 
-from . import germoney, ww_season
+from . import germoney, ww_knowledge, ww_resources, ww_season
 from .routes_phone import CSP, PAGE_DIR, PAGE_HEADERS
 
 PAPER_KEYS = ("id", "subject", "title", "code", "date", "start", "days_left", "coverage", "kind", "approx")
@@ -104,3 +108,31 @@ def register(app: FastAPI, svc, bus) -> None:
     async def ww_count(request: Request, id: str = Body(..., embed=True), delta: int = Body(..., embed=True),
                        paper: Optional[str] = Body(None, embed=True)):
         return await tap(plan.life_tap, "count", {"id": id, "delta": delta}, paper=paper)
+
+    # Depth: resource checklists and the knowledge cards (ww_resources.py, ww_knowledge.py), the same
+    # data the desktop routes serve, behind the same phone door. Typing a checklist stays on the desktop.
+    def today_s() -> str:
+        return date.today().isoformat()
+
+    async def guarded(fn) -> dict:
+        try:
+            return await run_in_threadpool(fn)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+
+    @app.get("/api/phone/ww/resources")
+    async def ww_resources_view(node: Optional[str] = None):
+        return await guarded(lambda: ww_resources.progress(svc.kv, germoney.load_bank(), today_s(), node, 4))
+
+    @app.post("/api/phone/ww/resource/tap")
+    async def ww_resource_tap(request: Request, rid: str = Body(..., embed=True), item: str = Body(..., embed=True),
+                              state: str = Body(..., embed=True)):
+        return await guarded(lambda: ww_resources.tap(svc.kv, germoney.load_bank(), rid, item, state, today_s()))
+
+    @app.get("/api/phone/ww/knowledge")
+    async def ww_knowledge_view():
+        return await guarded(lambda: ww_knowledge.today_view(svc.kv, today_s(), plan, germoney.load_bank()))
+
+    @app.post("/api/phone/ww/knowledge/refresh")
+    async def ww_knowledge_refresh(request: Request, slot: str = Body(..., embed=True)):
+        return await guarded(lambda: ww_knowledge.refresh(svc.kv, slot, today_s(), plan, germoney.load_bank()))

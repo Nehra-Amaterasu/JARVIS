@@ -393,6 +393,15 @@ def _dmat(seeds: int = 40) -> dict:
             "seconds": r["seconds"], "problems": r["problems"][:10]}
 
 
+def _numericals(seeds: int = 20) -> dict:
+    """The numericals' keys re-derived by the independent checker (no sympy; simulations and root-finding).
+    20 seeds x 13 templates = 260 items; the full 200-seed sweep runs as python -m jarvis_app.ww_check_numericals."""
+    from . import ww_check_numericals
+    r = ww_check_numericals.sweep(seeds)
+    return {"seeds": r["seeds"], "templates": len(r["kinds"]), "items": sum(k["items"] for k in r["kinds"].values()),
+            "seconds": r["seconds"], "problems": r["problems"][:10]}
+
+
 def _harvest() -> dict:
     """The harvester's gate cases on recorded fixtures: no network, a scratch bank."""
     from . import ww_check_harvest
@@ -408,7 +417,7 @@ def report(plan=None, today: Optional[str] = None) -> dict:
     out: dict[str, Any] = {"date": today, "routes": route_drift(), "schema": schema_consistency(),
                            "smoke": engine_smoke(inputs, today), "margin_sweep": margin_sweep(), "stress": stress(today),
                            "generator": generator_sweep(), "marks_loop": marks_loop(today),
-                           "dmat": _dmat(), "harvest": _harvest()}
+                           "dmat": _dmat(), "numericals": _numericals(), "harvest": _harvest()}
     if plan is not None:
         ex = plan.engine("exams", today)
         at = plan.engine("attendance", today)
@@ -424,7 +433,7 @@ def report(plan=None, today: Optional[str] = None) -> dict:
                      or out["stress"]["exams"]["problems"] or out["stress"]["attendance"]["problems"]
                      or out["stress"]["exams"]["seconds"] > BUDGET_S["exams"] or out["stress"]["attendance"]["seconds"] > BUDGET_S["attendance"]
                      or out["generator"]["problems"] or out["generator"]["seconds"] > BUDGET_S["generator"]
-                     or out["marks_loop"]["problems"] or out["dmat"]["problems"] or out["harvest"]["problems"]
+                     or out["marks_loop"]["problems"] or out["dmat"]["problems"] or out["numericals"]["problems"] or out["harvest"]["problems"]
                      or (out.get("real") or {}).get("exams_problems") or (out.get("real") or {}).get("attendance_problems"))
     return out
 
@@ -458,6 +467,10 @@ def as_markdown(r: dict) -> str:
     if d:
         L.append(f"- dMAT keys re-proved by the independent solvers: {d['seeds']} seeds, {d['items']} items in {d['seconds']} s; "
                  f"mismatches {len(d['problems'])}; problems {d['problems'] or 'none'}.")
+    nm = r.get("numericals")
+    if nm:
+        L.append(f"- Numericals (circuits and control, exam and gate tier) re-derived by the independent checker: {nm['templates']} templates, "
+                 f"{nm['seeds']} seeds, {nm['items']} items in {nm['seconds']} s; mismatches {len(nm['problems'])}; problems {nm['problems'] or 'none'}.")
     h = r.get("harvest")
     if h:
         L.append(f"- Harvester on recorded fixtures (no network, scratch bank): {h['cases']} cases, PDF reader {h['pdf_reader']}; "

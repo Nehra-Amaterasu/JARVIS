@@ -26,7 +26,7 @@ import random
 import re
 from typing import Optional
 
-from . import ww_bank_store
+from . import ww_bank_store, ww_numericals
 
 SEED_P = {"none": 0.1, "learned": 0.5, "solid": 0.8}
 ALPHA = 0.5
@@ -195,10 +195,22 @@ def generate(exam: dict, bank: list[dict], units: list[dict], states: dict, mark
     # A tier is a promise: when the bank has no GATE-tier question the paper is an exam-tier paper
     # and says so, instead of wearing the label (audit STUDY-06, 9 Nov).
     tier_requested, tier_note = tier, None
+    # Generated numericals (ww_numericals): our own parameterised questions on the subject's topics that have a
+    # template. They join a GATE paper always (the bank has nothing of that tier of its own) and fill an exam-tier
+    # section the bank cannot, never replacing a bank question.
+    total_set = sum(int(sec["questions"]) for sec in pattern)
+    gen_cache: dict[str, list] = {}
+
+    def _gen(t: str) -> list:
+        if t not in gen_cache:
+            gen_cache[t] = ww_numericals.pool(units, scope, t, seed, total_set)
+        return gen_cache[t]
+
     if tier == "gate":
         tiered = [q for q in bank if q.get("tier") == "gate"]
-        if tiered:
-            bank = tiered
+        extra = _gen("gate")
+        if tiered or extra:
+            bank = tiered + extra
         else:
             tier, tier_note = "exam", "No GATE-tier questions in this bank yet: this is an exam-tier paper."
     # No pattern typed and the paper is not a 60-mark SEE: the default shape is scaled to the row's
@@ -206,7 +218,7 @@ def generate(exam: dict, bank: list[dict], units: list[dict], states: dict, mark
     pattern_missing, pattern_note = eff["missing"], eff["note"]
     keys = [_qkey(q) for q in bank]
     prof = proficiency(states, marks, keys)
-    w = topic_weights(bank, units, prof, papers=len({q.get("sitting") for q in bank}))
+    w = topic_weights(bank, units, prof, papers=len({q.get("sitting") for q in bank if q.get("origin") != "generated"}))
     rnd = random.Random(seed)
     used, sections, shortfall = set(), [], []
     for sec in pattern:
@@ -217,6 +229,9 @@ def generate(exam: dict, bank: list[dict], units: list[dict], states: dict, mark
         if len(picked) < n:
             picked += _pick(rnd, by_marks, n - len(picked), w)
         if len(picked) < n:
+            fill = [q for q in _gen(tier) if q.get("id") not in used and q not in picked]
+            picked += _pick(rnd, fill, n - len(picked), w)
+        if len(picked) < n:
             rest = [q for q in bank if q.get("id") not in used and q not in picked]
             picked += _pick(rnd, rest, n - len(picked), w)
         if len(picked) < n:
@@ -226,17 +241,36 @@ def generate(exam: dict, bank: list[dict], units: list[dict], states: dict, mark
                          "questions": [{"id": q.get("id"), "n": i + 1, "text": q["question"], "marks": mk, "unit": q.get("unit"),
                                         "topic": q.get("topic") or "", "key": _qkey(q), "p": prof.get(_qkey(q)),
                                         "source": q.get("sitting") or q.get("source") or "", "type": q.get("type") or "",
-                                        "bank_marks": q.get("marks"), "latex": has_latex(q["question"])}
+                                        "bank_marks": q.get("marks"), "latex": has_latex(q["question"]),
+                                        **_generated_fields(q)}
                                        for i, q in enumerate(picked)]})
     total = sum(s["attempt"] * s["marks"] for s in sections)
-    return {"exam": exam.get("id"), "subject": exam.get("subject"), "title": exam.get("title"), "seed": seed, "tier": tier,
+    n_gen = sum(1 for s in sections for q in s["questions"] if q.get("origin") == "generated")
+    num_note = None
+    if n_gen:
+        seeds_used = sorted({q["seed"] for s in sections for q in s["questions"] if q.get("origin") == "generated"})
+        num_note = (f"{n_gen} of {sum(len(s['questions']) for s in sections)} questions are generated numericals (origin generated, seeds "
+                    f"{seeds_used[0]}..{seeds_used[-1]}): our own templates with keys proved by an independent checker, not past-paper questions.")
+    out = {"exam": exam.get("id"), "subject": exam.get("subject"), "title": exam.get("title"), "seed": seed, "tier": tier,
             "tier_requested": tier_requested, "tier_note": tier_note, "pattern_missing": pattern_missing, "pattern_note": pattern_note,
-            "pattern_scaled": eff["scaled"], "empty": not bank,
+            "pattern_scaled": eff["scaled"], "empty": not bank and not n_gen,
             "date": today, "pattern_source": eff["source"],
             "sections": sections, "total_marks": total, "max": exam.get("max"),
-            "bank_size": len(bank), "shortfall": shortfall,
+            "bank_size": sum(1 for q in bank if q.get("origin") != "generated"), "shortfall": shortfall,
             "rule": "Weak topics come up more (weight = unit weight × smoothed past frequency × (1 − proficiency)); "
                     "the same seed is the same paper. Proficiency is your taps until you log marks."}
+    if num_note:                       # these keys exist only when numericals were used: every other paper is unchanged
+        out["numericals_note"], out["numericals"] = num_note, n_gen
+    return out
+
+
+def _generated_fields(q: dict) -> dict:
+    """What a generated numerical adds to its row on the paper: origin and seed (so its marks can be saved),
+    the template, the concepts it chains and the worked answer (the page shows it only after he answers)."""
+    if q.get("origin") != "generated":
+        return {}
+    return {"origin": "generated", "seed": q["seed"], "template": q["template"], "concepts": q["concepts"],
+            "answer": q["answer"], "answer_text": q["answer_text"], "solution": q["solution"]}
 
 
 QUESTION_MAX_CHARS = 2000
@@ -310,7 +344,7 @@ def as_markdown(paper: dict) -> str:
         for q in s["questions"]:
             L.append(f"{q['n']}. {q['text']}  \n   _Unit {q['unit']}, {q['topic']}; source: {q['source'] or 'bank'}_")
         L.append("")
-    for note in (paper.get("pattern_note"), paper.get("tier_note")):
+    for note in (paper.get("pattern_note"), paper.get("tier_note"), paper.get("numericals_note")):
         if note:
             L += [f"> {note}", ""]
     if paper.get("empty"):

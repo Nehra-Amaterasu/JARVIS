@@ -24,7 +24,7 @@ from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 
-from . import germoney
+from . import germoney, ww_season
 from .routes_phone import CSP, PAGE_DIR, PAGE_HEADERS
 
 PAPER_KEYS = ("id", "subject", "title", "code", "date", "start", "days_left", "coverage", "kind", "approx")
@@ -32,7 +32,7 @@ TOPIC_KEYS = ("key", "unit", "unit_title", "topic", "weight", "state")
 ROW_KEYS = ("subject", "name", "held", "attended", "pct", "can_miss", "need")
 
 
-def today_view(plan, paper: Optional[str] = None, today: Optional[str] = None) -> dict:
+def today_view(plan, paper: Optional[str] = None, today: Optional[str] = None, now=None) -> dict:
     """One payload for the phone: small enough for mobile data, complete enough to tap."""
     today = today or date.today().isoformat()
     ex = plan.engine("exams", today)
@@ -50,7 +50,8 @@ def today_view(plan, paper: Optional[str] = None, today: Optional[str] = None) -
                        "topics": [{k: t.get(k) for k in TOPIC_KEYS} for t in shown.get("topics") or []]} if shown else None),
             "classes": att.get("today") or [],
             "attendance": [{k: r.get(k) for k in ROW_KEYS} for r in att.get("subjects") or []],
-            "rule": att.get("rule"), "counters": life.get("counters") or []}
+            "rule": att.get("rule"), "counters": life.get("counters") or [],
+            "season": ww_season.season_state(ex, today, now)}
 
 
 def register(app: FastAPI, svc, bus) -> None:

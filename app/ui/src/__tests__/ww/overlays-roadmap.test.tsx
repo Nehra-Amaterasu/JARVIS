@@ -41,8 +41,8 @@ describe('Roadmap', () => {
     const shown = [...document.querySelectorAll('[data-roadmap-group]')].map((g) => g.getAttribute('data-roadmap-group'))
     const expected = GROUPS.filter((g) => UNBUILT.some((p) => groupOf(p) === g))
     expect(shown).toEqual(expected)
-    expect(document.querySelector('[data-roadmap-group="Study"] [data-roadmap-row="sharpen"]')).toBeNull() // Sharpen is on the Tree
-    expect(document.querySelector('[data-roadmap-group="Tree"] [data-roadmap-row="sharpen"]')).not.toBeNull()
+    expect(document.querySelector('[data-roadmap-group="Study"] [data-roadmap-row="trees-v3"]')).toBeNull() // the one canvas is on the Tree
+    expect(document.querySelector('[data-roadmap-group="Tree"] [data-roadmap-row="trees-v3"]')).not.toBeNull()
   })
   it('a built entry (phone pairing, dMAT) is not listed as unbuilt', () => {
     m = mount(<RoadmapBody />)
@@ -50,8 +50,8 @@ describe('Roadmap', () => {
     expect(document.querySelector('[data-roadmap-row="dmat-practice"]')).toBeNull()
   })
   it('a feature that ships leaves the Roadmap with its entry', () => {
-    m = mount(<RoadmapBody entries={PLANNED.filter((p) => p.id !== 'sharpen')} />)
-    expect(document.querySelector('[data-roadmap-row="sharpen"]')).toBeNull()
+    m = mount(<RoadmapBody entries={PLANNED.filter((p) => p.id !== 'trees-v3')} />)
+    expect(document.querySelector('[data-roadmap-row="trees-v3"]')).toBeNull()
     expect(document.querySelectorAll('[data-roadmap-row]')).toHaveLength(PLANNED.length - 1)
   })
   it('has nothing to press: no button, link or input inside the body, and no primary mark', () => {

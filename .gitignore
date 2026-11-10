@@ -88,6 +88,8 @@ desktop.ini
 # private messages (including friends' words); authored identity facts; the home's
 # layout, sensor recordings and models trained on them; app state; private notes.
 data/
+# app/jarvis_app/data/ is shipped app data (the sourced advice lines), not personal data
+!app/jarvis_app/data/
 *.instagram.json
 *.akr
 

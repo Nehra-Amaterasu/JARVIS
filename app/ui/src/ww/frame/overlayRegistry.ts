@@ -13,7 +13,7 @@ export const OVERLAYS = [
   { id: 'date', n: 'O1', title: 'Date sheet', chunk: 12 },
   { id: 'phone', n: 'O2', title: 'Phone', chunk: 12 },
   { id: 'reader', n: 'O3', title: 'Reader', chunk: 7 },
-  { id: 'record', n: 'O4', title: 'Record', chunk: 9 },
+  { id: 'record', n: 'O4', title: 'Record', chunk: 9 }, // built: ww/overlays/Record.tsx registers over this stub
   { id: 'roadmap', n: 'O5', title: 'Roadmap', chunk: 5 },
   { id: 'log', n: 'O6', title: 'Log minutes', chunk: 12 },
   { id: 'confirm', n: 'O7', title: 'Confirm', chunk: 12 },

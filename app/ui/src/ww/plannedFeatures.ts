@@ -54,7 +54,7 @@ export const PLANNED: readonly Planned[] = [
   { id: 'sheets-rewritten', planItem: 7, page: 'C1', section: 'S2', label: 'Sheets with formulas and references', pattern: 'empty',
     line: 'No sheet is linked to this paper yet (N of N units).', action: 'Link a sheet',
     needs: 'A sheet linked per unit (every paper has no files today) and $...$ content in it.', chunk: '7' },
-  { id: 'sharpen', planItem: 8, page: 'C2', section: 'T3', label: 'Sharpen and de-master', pattern: 'disabled',
+  { id: 'sharpen', planItem: 8, page: 'C2', section: 'T3', label: 'Sharpen and de-master', pattern: 'disabled', built: true,
     line: 'Sharpen needs one GATE-tier question solved on this node. No GATE bank yet.',
     needs: 'A GATE-tier question on the node. The server should supply the real blocker and the page shows that text.', chunk: '10' },
   { id: 'resource-progress', planItem: 9, page: 'C1', section: 'S7', label: 'Resource progress', pattern: 'roadmap',
@@ -101,8 +101,8 @@ export const PLANNED: readonly Planned[] = [
   { id: 'gate-tier', page: 'C1', section: 'S3', label: 'GATE tier', pattern: 'disabled',
     line: 'GATE: none on disk yet (N queued). Allowed sources only.',
     needs: 'GATE-tier items on disk per topic: own-written, openly licensed with a licence line, or pointer-only records. The control never falls back to exam questions.', chunk: 'H' },
-  { id: 'parameterised-numericals', page: 'C1', section: 'S3', label: 'Parameterised numericals', pattern: 'roadmap',
-    line: 'Numbers drawn fresh for each paper: not built.',
+  { id: 'parameterised-numericals', page: 'C1', section: 'S3', label: 'Parameterised numericals', pattern: 'roadmap', built: true,
+    line: 'Numbers drawn fresh for each paper: circuits and control templates only so far.',
     needs: 'The symbolic generator that draws numbers and computes the key.', chunk: '7' },
   { id: 'proficiency', page: 'C1', section: 'S1', label: 'Proficiency per topic', pattern: 'empty',
     line: 'Proficiency per topic: not measured until you mark a paper.', action: 'Practice paper',
@@ -173,6 +173,6 @@ export function staleEntries(root: ParentNode = document): string[] {
   return out
 }
 
-/** What the Roadmap lists: the entries not built yet. A built row (phone pairing, dMAT since chunk 7) keeps its
+/** What the Roadmap lists: the entries not built yet. A built row (phone pairing, dMAT since chunk 7, sharpen since chunk 10, numericals since 10 Nov) keeps its
  * entry only for its blocked or empty state, so it must not appear in a list titled "What is not built". */
 export const UNBUILT: readonly Planned[] = PLANNED.filter((p) => !p.built)

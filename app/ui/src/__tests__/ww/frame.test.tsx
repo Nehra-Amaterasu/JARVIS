@@ -179,7 +179,9 @@ describe('density and the Proof column', () => {
     expect(q('aside[aria-label="Proof"] button[aria-label="Open Proof"]')).toBeTruthy()
     setWidth(1500)
     expect(q('aside[aria-label="Proof"]').dataset.mode).toBe('pinned')
-    expect(q('aside[aria-label="Proof"] button')).toBeNull() // a pinned panel owns no action
+    // a pinned panel owns no primary and no open/close toggle; since chunk 9 its cards hold their own quiet links
+    expect(q('aside[aria-label="Proof"] button[aria-label="Open Proof"], aside[aria-label="Proof"] button[aria-label="Close Proof"]')).toBeNull()
+    expect(q('aside[aria-label="Proof"] [data-primary]')).toBeNull()
     expect([999, 1000, 1499, 1500].map(proofModeOf)).toEqual(['sheet', 'rail', 'rail', 'pinned'])
   })
 })

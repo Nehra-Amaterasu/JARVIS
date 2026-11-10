@@ -94,7 +94,7 @@ from typing import Any, Optional
 from fastapi import Body, FastAPI, HTTPException
 from starlette.concurrency import run_in_threadpool
 
-from . import germoney, ww_counsel, ww_engines, ww_generator
+from . import germoney, ww_counsel, ww_engines, ww_generator, ww_season
 
 
 def _subject(plan, subject: str) -> dict:
@@ -200,7 +200,8 @@ def register(app: FastAPI, svc, bus) -> None:
 
     @app.get("/api/mission/today")
     async def today():
-        return await run_in_threadpool(plan.today)
+        # season and evening are computed here once and read by the desktop frame and the phone (ww_season.py)
+        return await run_in_threadpool(lambda: ww_season.with_season(plan, plan.today()))
 
     @app.post("/api/mission/today/reroll")
     async def reroll():

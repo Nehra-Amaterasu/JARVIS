@@ -36,7 +36,6 @@ import { TreePage } from './pages/Tree'
 import { MissionNav, SCREEN_OF, useDrawer, type MissionScreen } from './ui'
 import { wwFrameEnabled } from '../ww/frame/flag'
 import type { ServerSeason } from '../ww/frame/season'
-import { Calibration } from './pages/Calibration'
 // Last, so the Well Wisher tokens and card system sit after every page's own sheet.
 import './theme.css'
 
@@ -45,7 +44,7 @@ import './theme.css'
 // lazily so with the flag off none of its code or CSS is ever downloaded.
 // Chunk 5 rides in the same lazy load: importing the Roadmap overlay registers it (ww/overlays/Roadmap.tsx).
 // Chunk 9 likewise registers the Record overlay (ww/overlays/Record.tsx).
-const WwFrame = lazy(() => Promise.all([import('../ww/frame/Frame'), import('../ww/overlays/Roadmap'), import('../ww/overlays/Record')]).then(([m]) => ({ default: m.Frame })))
+const WwFrame = lazy(() => Promise.all([import('../ww/frame/Frame'), import('../ww/overlays/Roadmap'), import('../ww/overlays/Record'), import('../ww/overlays/setupOverlays')]).then(([m]) => ({ default: m.Frame })))
 // Chunk 6: the left column, its own lazy chunk so the frame's first paint does not wait for its five reads' code.
 const LeftCol = lazy(() => import('../ww/left').then((m) => ({ default: m.LeftColumn })))
 // Chunk 7: the new Study workspace, lazy for the same reason (flag off downloads none of it). Loading it registers
@@ -64,7 +63,8 @@ const WwTreePage = lazyPage(() => import('../ww/tree').then((m) => ({ default: m
 const WwFocusPage = lazyPage(() => import('../ww/focus').then((m) => ({ default: m.WwFocusPage })))
 // Chunk 11: the Career workspace, lazy for the same reason (flag off downloads none of it).
 const CareerPage = lazy(() => import('../ww/career').then((m) => ({ default: m.CareerPage })))
-function SetupBridge() { return <Calibration onDone={() => {}} /> }
+// Chunk 12: the Setup workspace (lazy, so it loads when Setup opens) and, in the load above, the Date sheet, Phone, Log minutes and Confirm overlays.
+const SetupPage = lazy(() => import('../ww/setup/SetupPage'))
 const inBoundary = (name: string, P: React.ComponentType) => () => <MissionBoundary name={name}><P /></MissionBoundary>
 // One line per workspace, so each chunk's merge touches only its own line.
 const FRAME_PAGES = {
@@ -73,7 +73,7 @@ const FRAME_PAGES = {
   life: inBoundary('Life', WwLifeLazy),
   career: inBoundary('Career', CareerPage),
   focus: inBoundary('Focus', WwFocusPage),
-  setup: inBoundary('Setup', SetupBridge),
+  setup: inBoundary('Setup', SetupPage),
 }
 
 const PAGES: Record<MissionScreen, React.ComponentType> = {

@@ -1,0 +1,23 @@
+/* ---- Planned placeholders (plan 7): static, dashed in --line-ui, never the accent, no hover, no transition ---- */
+.ww-planned {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  padding: var(--card-pad);
+  border: 1px dashed var(--line-ui);
+  border-radius: var(--card-radius);
+  background: transparent;
+  color: var(--ink-2);
+}
+.ww-planned .ww-kicker {
+  color: var(--ink-2);
+}
+.ww-planned .ww-empty {
+  padding-block: 0;
+}
+.ww-planned-hint {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}

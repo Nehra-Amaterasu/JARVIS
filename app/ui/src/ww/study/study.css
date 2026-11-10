@@ -268,3 +268,15 @@
   font-size: var(--text-title);
   font-weight: var(--weight-strong);
 }
+/* a select sizes itself to its longest option; inside a 390 px card that made the page scroll sideways */
+.ww-nodepick,
+.ww-nodepick .ww-field,
+.ww-nodepick .ww-field-box {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+.ww-nodepick .ww-input {
+  inline-size: 100%;
+  max-inline-size: 100%;
+  text-overflow: ellipsis;
+}

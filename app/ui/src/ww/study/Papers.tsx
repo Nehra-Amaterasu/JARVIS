@@ -23,7 +23,7 @@ const KIND_LABEL = { cie: 'CIE', end: 'End', other: 'Other' } as const
 export function TopicChip({ t, onTap }: { t: ExamTopic; onTap: (t: ExamTopic, next: TopicState) => void }) {
   const next = NEXT[t.state]
   return (
-    <button type="button" className="ww-chip ww-tap ww-topic" data-cycle-state={t.state === 'none' ? 'todo' : t.state} data-topic-state={t.state}
+    <button type="button" className="ww-chip ww-tap ww-topic" data-grouped="true" data-cycle-state={t.state === 'none' ? 'todo' : t.state} data-topic-state={t.state}
       aria-label={`${t.topic}: ${WORD[t.state]}. Tap for ${WORD[next]}.`} onClick={() => onTap(t, next)}>
       <span className="ww-chip-mark" aria-hidden="true">{MARK[t.state]}</span>
       <span>{t.topic}</span>

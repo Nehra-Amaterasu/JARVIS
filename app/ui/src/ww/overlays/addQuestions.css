@@ -29,3 +29,10 @@
   font-size: var(--text-read);
   line-height: var(--leading-read);
 }
+.ww-add-row > *,
+.ww-add .ww-field-box {
+  min-inline-size: 0;
+}
+.ww-add .ww-input {
+  max-inline-size: 100%;
+}

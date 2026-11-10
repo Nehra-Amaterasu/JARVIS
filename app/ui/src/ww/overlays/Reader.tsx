@@ -3,7 +3,7 @@
 // closes on Esc. This file adds what only the Reader knows: the paper as ONE numbered list, every stem through
 // MathText, a visible Raw toggle so converted maths is never silent, J / K between sections, the marks entry
 // beside the paper, and the line after Save marks.
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Minus, Plus } from 'lucide-react'
 import { TOKEN } from '../../lib/api'
 import { renderMarkdown } from '../../germoney/Reader'
@@ -14,6 +14,8 @@ import type { PQuestion } from '../study/api'
 import { useStudy } from '../study/studyStore'
 import './reader.css'
 
+/** `paper` (plan 5.7.3 #6): clip-path is repainted on the main thread, so at most 3 blocks unveil; the rest are already at rest. */
+const UNVEIL_CAP = 3
 const SEED_P_NONE = 0.1   // ww_generator.SEED_P["none"]: a topic nobody has tapped; showing it on every line would be noise
 
 /** "Answer any 5 of 10. 2 marks each." in words, as the plan's section heading. */
@@ -100,6 +102,7 @@ export function PaperReader() {
   const meta = [kind, `${paper.total_marks} marks`, exam?.duration_min ? `${exam.duration_min} min` : null, `seed ${paper.seed}`].filter(Boolean).join(' · ')
   return (
     <div className="ww-rd" data-overlay="reader" data-kind="paper" ref={body}>
+      <span className="ww-rd-progress" aria-hidden="true" />
       <header className="ww-rd-head">
         <div className="ww-rd-headtext">
           <p className="ww-rd-title">{paper.title}</p>
@@ -117,7 +120,8 @@ export function PaperReader() {
               <h3 className="ww-paper-head" tabIndex={-1} data-rd-section={s.name}>{sectionLine(s)}</h3>
             </li>
             {qs.map(({ q, n }) => (
-              <li key={q.id} value={n} className="ww-q" data-q={q.id} data-harvested={q.type === 'harvested' ? 'true' : undefined}>
+              <li key={q.id} value={n} className="ww-q" data-q={q.id} data-harvested={q.type === 'harvested' ? 'true' : undefined}
+                data-unveil={n <= UNVEIL_CAP ? '' : undefined} style={n <= UNVEIL_CAP ? ({ '--i': n - 1 } as CSSProperties) : undefined}>
                 <span className="ww-q-n" aria-hidden="true">{n}.</span>
                 <div className="ww-q-main">
                   <div className="ww-q-stem"><MathText raw={raw}>{q.text}</MathText></div>

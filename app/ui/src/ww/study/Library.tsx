@@ -85,12 +85,13 @@ function NodeStudy() {
     } catch { setSay('Could not log that session.') }
   }
   return (
-    <Card data-card="study-node" title="Skill-tree study" kicker="follows the Tree node"
-      action={
+    <Card data-card="study-node" title="Skill-tree study" kicker="follows the Tree node">
+      {/* in the body, not the card head: a long node name made the head wider than a 390 px screen */}
+      <div className="ww-nodepick">
         <Field kind="select" label="Node" value={id} onChange={(e) => setNode(e.target.value)}>
           {(open.length ? open : bank.order).map((n) => <option key={n} value={n}>{bank.nodes[n]?.name ?? n}</option>)}
         </Field>
-      }>
+      </div>
       {a === null && <p className="ww-papers-line" role="status">Reading the node…</p>}
       {a === 'failed' && <EmptyState title="This node could not be read." body="The app did not answer." />}
       {a && a !== 'failed' && a.node && (

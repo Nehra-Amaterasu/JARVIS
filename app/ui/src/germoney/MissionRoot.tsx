@@ -51,11 +51,19 @@ const LeftCol = lazy(() => import('../ww/left').then((m) => ({ default: m.LeftCo
 // the Reader (O3) and Add questions (O8) overlays.
 const WwStudy = lazy(() => import('../ww/study/StudyPage').then((m) => ({ default: m.StudyPage })))
 const StudyNew = () => <Suspense fallback={<div className="empty">Loading Study…</div>}><WwStudy /></Suspense>
+// Chunk 8: the Life workspace, loaded with the frame's other lazy parts; its own Suspense keeps the frame on screen while it loads.
+const WwLife = lazy(() => import('../ww/life').then((m) => ({ default: m.LifeWorkspace })))
+function WwLifeLazy() { return <Suspense fallback={<div className="empty">Loading Life…</div>}><WwLife /></Suspense> }
 function SetupBridge() { return <Calibration onDone={() => {}} /> }
 const inBoundary = (name: string, P: React.ComponentType) => () => <MissionBoundary name={name}><P /></MissionBoundary>
+// One line per workspace, so each chunk's merge touches only its own line.
 const FRAME_PAGES = {
-  study: inBoundary('Study', StudyNew), tree: inBoundary('Tree', TreePage), life: inBoundary('Life', LifePage),
-  career: inBoundary('Career', RoadPage), focus: inBoundary('Focus', FocusPage), setup: inBoundary('Setup', SetupBridge),
+  study: inBoundary('Study', StudyNew),
+  tree: inBoundary('Tree', TreePage),
+  life: inBoundary('Life', WwLifeLazy),
+  career: inBoundary('Career', RoadPage),
+  focus: inBoundary('Focus', FocusPage),
+  setup: inBoundary('Setup', SetupBridge),
 }
 
 const PAGES: Record<MissionScreen, React.ComponentType> = {

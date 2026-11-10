@@ -1,0 +1,316 @@
+/* ==========================================================================
+   The Life workspace (plan 4.6). Tokens only (css-lint.test.ts).
+
+   One laptop canvas: the workspace fills the centre and never scrolls, so what a card cannot show
+   (more logged items, more subjects, the explain-back form, the Forge) opens in a drawer instead.
+   `overflow: hidden` here is the guard, not the plan: life.spec.ts measures that nothing is clipped.
+   ========================================================================== */
+.ww-life {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--space-3);
+  block-size: 100%;
+  min-block-size: 0;
+  box-sizing: border-box;
+  padding: var(--space-4);
+  overflow: hidden;
+  container-type: inline-size;
+  container-name: ww-life;
+}
+.ww-life-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.ww-life-pane {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: var(--gap-card);
+  align-content: start;
+  align-items: start;
+  min-block-size: 0;
+}
+.ww-life-pane[hidden] {
+  display: none;
+}
+.ww-life-col {
+  display: grid;
+  gap: var(--gap-card);
+  min-inline-size: 0;
+}
+/* under 640 px of the workspace's own width the two columns stack (the frame's narrow density) */
+@container ww-life (max-width: 640px) {
+  .ww-life-pane {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.ww-life-body,
+.ww-life-attbody,
+.ww-life-weekbody,
+.ww-life-quest {
+  display: grid;
+  /* one column that may shrink: without minmax(0, ...) the auto column grows to the widest child and pushes past the card */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+
+/* The kit's Field is a one-column grid with an `auto` track, and an input's min-content is its 20-character
+   default width, so in a narrow cell (a Quest set, 148 px) the track grew to 185 px and the field poked 44 px
+   past its card. A shrinking track fixes it here; the kit file is chunk 1b's (reported, not edited). */
+.ww-life .ww-field {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* ---- LF1 ---- */
+.ww-life-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.ww-life-points {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-life-points b {
+  color: var(--ink-1);
+  font-weight: var(--weight-strong);
+}
+.ww-life-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 7.5rem) auto;
+  gap: var(--space-2);
+  align-items: end;
+}
+.ww-life-addbtn {
+  align-self: end;
+  /* the Field keeps a note line under its box; the button sits level with the box, not with the note */
+  margin-block-end: 0;
+}
+.ww-life-sub {
+  margin: 0 0 var(--space-1);
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  font-weight: var(--weight-medium);
+}
+.ww-life-logged {
+  display: grid;
+  min-inline-size: 0;
+}
+.ww-life-item .ww-row-title,
+.ww-life-itemtext {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ww-life-all {
+  justify-self: start;
+  margin-block-start: var(--space-2);
+}
+.ww-life-drawerlist {
+  display: grid;
+}
+.ww-life-rule {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-life-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.ww-life-more {
+  display: grid;
+  gap: var(--space-2);
+}
+.ww-life-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-chip);
+  background: var(--surface-2);
+  color: var(--ink-1);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-life-notice > span {
+  flex: 1;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+/* a failure is words ("Could not ..."), the border is only the second cue */
+.ww-life-notice[data-tone='fault'] {
+  border-color: var(--fault);
+}
+
+/* explain-back drawer */
+.ww-life-explain {
+  display: grid;
+  gap: var(--space-3);
+}
+.ww-life-explain-what,
+.ww-life-grade {
+  margin: 0;
+  color: var(--ink-1);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+.ww-life-grade {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+}
+
+/* ---- LF4 ---- */
+.ww-life-questline {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  color: var(--ink-1);
+}
+.ww-life-quest-meta,
+.ww-life-quest-note {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-life-quest-note {
+  margin: 0;
+}
+/* the sets and the proof link share one row: four fields of about 110 px in the 487 px column at 1366 */
+.ww-life-sets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  gap: var(--space-2);
+}
+.ww-life-attfoot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.ww-life-quest-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* ---- LF2 ---- */
+.ww-life-att {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ww-life-attrow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'icon name fig'
+    'icon margin margin';
+  column-gap: var(--space-2);
+  align-items: center;
+  min-block-size: var(--row-h);
+  padding-block: var(--space-1);
+  border-block-end: 1px solid var(--line);
+}
+.ww-life-atticon {
+  grid-area: icon;
+  color: var(--ink-2);
+}
+/* behind is the sand token with a hollow dashed ring: a state with a name, never fault red */
+.ww-life-attrow[data-tone='behind'] .ww-life-atticon {
+  color: var(--behind);
+}
+.ww-life-attname {
+  grid-area: name;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-1);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+.ww-life-attfig {
+  grid-area: fig;
+  color: var(--ink-2);
+  font-family: var(--f-mono);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  white-space: nowrap;
+}
+.ww-life-attmargin {
+  grid-area: margin;
+  color: var(--ink-1);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-life-attdetail {
+  color: var(--ink-2);
+}
+
+/* ---- LF3, LF5 ---- */
+.ww-life-focus {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  color: var(--ink-1);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+.ww-life-gym {
+  margin: 0;
+  color: var(--ink-1);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+/* ---- counter tiles (mounted by the left column) ---- */
+.ww-life-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ww-life-tile {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-chip);
+  min-inline-size: 0;
+}
+.ww-life-tilename {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ww-life-tilevalue {
+  color: var(--ink-1);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+.ww-life-tilecount {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+}

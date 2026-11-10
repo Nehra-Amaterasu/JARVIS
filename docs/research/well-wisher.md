@@ -2,6 +2,22 @@
 
 One file for the Well Wisher topic, newest section on top. Older dated notes stay as they are (2026-10-23-mission-germoney-rebuild.md, 2026-10-25-well-wisher-v1.md, 2026-10-25-well-wisher-engines.md).
 
+## 2026-11-10 (night): the workspaces are built and the new layout is the default
+
+**Question.** Can every Well Wisher workspace (Today column, Study, Life, Proof, Tree, Focus, Career, Setup) be rebuilt inside the frame with no page scroll on a laptop screen, without inventing a number, and does it hold up as one app?
+
+**Measured (10 Nov, Chromium through Playwright on fixtures and recorded route shapes, scratch data only).**
+- One app: 1223 UI tests and 248 browser tests (2 skipped) pass on main after merging chunks 5 to 12; the full backend suite is 1616.
+- No scroll at 1366 x 768: Setup was 3303 px too tall in its old form and is 0 px over in all 18 views; Life leaves 84 px spare in its tallest state; Career and Tree/Focus fit at both 1366 x 768 and 1920 x 1080.
+- Generated numericals: 13 templates (circuits and control), exam and GATE tiers; an independent checker without sympy re-derives every key: 0 mismatches over 200 seeds per template (the gate runs 20 seeds, 260 items, about 2.4 s).
+- Status v2 never pads: weeks with no logged day are left out, a line needs 2 weeks of data, and a padding mutation fails 8 tests. Advice lines are 14, each with author, work, year and its limit; the citations were written from memory and are not yet re-checked against the publishers.
+- De-master refuses while anything above the node is mastered or in progress and names the blocker; Sharpen is built but blocked here because no GATE-tier question is on disk yet.
+- Integration found one real defect: a Proof read in an unexpected shape blanked the whole frame at 1920 px (where the panel is pinned). It now shows one line and the workspace stays.
+
+**Not verified.** Nothing ran in the real WebView2 window with real data; the 84 px of Life slack is the margin for the real font and left column. The marks loop was not walked through the UI in the sandbox. Theme screenshot baselines exist only for Study.
+
+**What it changed.** The new layout is the default in the app (an "Old layout" button goes back). The Roadmap lists 24 of 28 planned features as unbuilt (phone pairing, dMAT, sharpen and numericals are built).
+
 ## 2026-11-10: the frame behind a flag, and 44 px phone taps (chunks 4 and 1b-phone)
 
 **Question.** Can the six-workspace frame switch inside the 600 ms envelope the design sets, without touching the app shell another chat owns, and do the phone page's taps meet the 44 px rule?

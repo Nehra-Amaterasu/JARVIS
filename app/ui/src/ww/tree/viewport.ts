@@ -30,7 +30,7 @@ export const K_SEL = 1.15       // selecting a node brings the view to at least 
 export const K_FOCUS = 1.9      // double-click / Focus: close enough to read the label and its neighbours
 export const LOD_K = 0.55       // 11 px labels x 0.55 is about 6 px: unreadable, so skip painting them
 const TWEEN_FALLBACK_MS = 240   // --dur-enter; a selection pan is long enough to follow and short enough not to wait for
-const BACK_FALLBACK_MS = 400    // --dur-sheet-in is 300; the rubber-band return is `heavy`, 400 ms (5.7.2 #1)
+const BACK_MS = 400             // the rubber-band return is `heavy`: 400 ms settle (5.7.2 #1); --dur-sheet-in is 300, so no token fits
 const EASE = 0.3                // wheel ease: share of the remaining gap closed per frame (95 % in 140 ms at 60 Hz)
 export const PANEL = 404        // an overlaid inspector covers 380 px + 12 px inset + 12 px gap
 export const WIDE = 760         // below this an overlaid inspector covers the whole stage
@@ -260,7 +260,7 @@ export function useViewport({ bounds, occluded, sens, onRest }: ViewportOptions)
   }
   const settleBack = () => {
     const b = bound(view.current)
-    if (b.ox || b.oy) animateTo(b.to, tokenMs(stage.current, '--dur-sheet-in', BACK_FALLBACK_MS) + 100)
+    if (b.ox || b.oy) animateTo(b.to, BACK_MS)
   }
 
   const onPointerDown = (e: RPointerEvent<SVGSVGElement>) => {

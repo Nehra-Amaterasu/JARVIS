@@ -62,6 +62,8 @@ const lazyPage = (load: () => Promise<{ default: React.ComponentType }>) => {
 }
 const WwTreePage = lazyPage(() => import('../ww/tree').then((m) => ({ default: m.WwTreePage })))
 const WwFocusPage = lazyPage(() => import('../ww/focus').then((m) => ({ default: m.WwFocusPage })))
+// Chunk 11: the Career workspace, lazy for the same reason (flag off downloads none of it).
+const CareerPage = lazy(() => import('../ww/career').then((m) => ({ default: m.CareerPage })))
 function SetupBridge() { return <Calibration onDone={() => {}} /> }
 const inBoundary = (name: string, P: React.ComponentType) => () => <MissionBoundary name={name}><P /></MissionBoundary>
 // One line per workspace, so each chunk's merge touches only its own line.
@@ -69,7 +71,7 @@ const FRAME_PAGES = {
   study: inBoundary('Study', StudyNew),
   tree: inBoundary('Tree', WwTreePage),
   life: inBoundary('Life', WwLifeLazy),
-  career: inBoundary('Career', RoadPage),
+  career: inBoundary('Career', CareerPage),
   focus: inBoundary('Focus', WwFocusPage),
   setup: inBoundary('Setup', SetupBridge),
 }

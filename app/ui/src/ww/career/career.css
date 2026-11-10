@@ -1,0 +1,377 @@
+/* ==========================================================================
+   Career (plan chunk 11, 3.3 C4, 4.7). Tokens only; css-lint.test.ts scans this file.
+
+   The owner's layout rule (10 Nov): no page scroll. The workspace is one canvas, the height the frame
+   gives it, and every view fills exactly that: a flex column whose cards share the height, each card
+   a flex column whose list takes what is left. A list shows as many fixed-height rows as fit
+   (--cr-row, read by Paged.tsx) and pages the rest. Nothing here has overflow: auto.
+   ========================================================================== */
+.ww-career {
+  --cr-row: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  block-size: 100%;
+  min-block-size: 0;
+  overflow: hidden;
+}
+.cr-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: none;
+}
+.cr-bar-note {
+  margin-inline-start: auto;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+}
+.cr-body {
+  flex: 1 1 0;
+  min-block-size: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.cr-view {
+  flex: 1 1 0;
+  min-block-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-card);
+}
+
+/* ---- cards share the height; a compact head (title and kicker on one line) buys a row or two per card ---- */
+.ww-career .ww-card {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+}
+.ww-career .ww-card-face {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+  padding: var(--space-3);
+}
+.ww-career .ww-card-body {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.ww-career .ww-card-head {
+  margin-block-end: var(--space-2);
+  align-items: center;
+}
+.ww-career .ww-card-headtext {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.ww-career .ww-kicker {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cr-fill {
+  flex: 1 1 0;
+}
+[data-view='pipeline'] {
+  --cr-row: 52px;
+}
+[data-view='pipeline'] [data-card='CA2'] {
+  flex-grow: 3;
+}
+[data-view='pipeline'] [data-card='CA3'] {
+  flex-grow: 2;
+}
+
+/* ---- the list box and the pager ---- */
+.cr-list {
+  flex: 1 1 0;
+  min-block-size: 0;
+  overflow: hidden;
+}
+.cr-item {
+  block-size: var(--cr-row);
+  overflow: hidden;
+}
+.cr-item > * {
+  block-size: 100%;
+  box-sizing: border-box;
+}
+.cr-empty,
+.cr-none {
+  color: var(--ink-2);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  margin: 0;
+  padding-block: var(--space-2);
+}
+.cr-pager-slot {
+  flex: none;
+  block-size: 44px;
+  display: flex;
+  align-items: center;
+}
+.cr-pager {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.cr-pager-text {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  min-inline-size: 10ch;
+  text-align: center;
+}
+
+/* ---- shared small parts ---- */
+.cr-clip {
+  display: block;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cr-sub {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.cr-foot {
+  flex: none;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.cr-line {
+  flex: none;
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cr-cost,
+.cr-when,
+.cr-days {
+  font-family: var(--f-mono, ui-monospace, monospace);
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+.cr-when,
+.cr-days {
+  min-inline-size: 7ch;
+  color: var(--ink-1);
+}
+.cr-days {
+  font-size: var(--text-title);
+}
+.cr-form {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+.cr-rule {
+  border: 0;
+  border-block-start: 1px solid var(--line);
+  inline-size: 100%;
+  margin: 0;
+}
+.cr-select,
+.cr-link {
+  min-block-size: var(--field-h);
+}
+.cr-select {
+  inline-size: 9rem;
+}
+.cr-link {
+  inline-size: 12rem;
+}
+
+/* ---- Pipeline ---- */
+.cr-up {
+  display: grid;
+}
+.cr-approw .ww-row-action {
+  gap: var(--space-3);
+}
+.cr-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+}
+.cr-step {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.cr-step[data-state='current'] {
+  color: var(--ink-1);
+  font-weight: var(--weight-medium);
+}
+.cr-step[data-state='done'] .cr-step-word,
+.cr-step[data-state='todo'] .cr-step-word {
+  display: none;
+}
+.cr-stepper-end {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+}
+
+/* ---- Certificates ---- */
+.cr-cert {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  border-block-end: 1px solid var(--line);
+}
+.cr-cert-main {
+  flex: 1 1 0;
+  min-inline-size: 0;
+  display: grid;
+}
+.cr-cert-name {
+  font-size: var(--text-body);
+  color: var(--ink-1);
+}
+.cr-cert .ww-btn-wrap {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ---- Abroad ---- */
+.cr-abroad {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--space-2);
+}
+.cr-abroad [data-card='CA5'] {
+  --cr-row: 104px;
+}
+.cr-pane {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+}
+.cr-pane[data-active='false'] {
+  display: none;
+}
+.cr-pane > .ww-card {
+  flex: 1 1 0;
+}
+.cr-trial {
+  display: grid;
+  align-content: center;
+  gap: var(--space-1);
+  border-block-end: 1px solid var(--line);
+}
+.cr-trial-head,
+.cr-trial-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+.cr-trial-name {
+  flex: 1 1 0;
+  color: var(--ink-1);
+  font-size: var(--text-body);
+}
+.cr-stages {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: nowrap;
+}
+.cr-datein {
+  flex: none;
+  inline-size: 10rem;
+}
+.cr-uni {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  border-block-end: 1px solid var(--line);
+}
+@media (min-width: 1700px) {
+  .cr-abroad {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: var(--gap-card);
+  }
+  .cr-pane-switch {
+    display: none;
+  }
+  .cr-pane[data-active='false'] {
+    display: flex;
+  }
+}
+
+/* ---- Money ---- */
+.cr-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+  flex: none;
+}
+.cr-next-due {
+  display: grid;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+.cr-next-due-text {
+  font-size: var(--text-body);
+  color: var(--ink-1);
+}
+.cr-mode {
+  flex: none;
+}
+.cr-chest {
+  display: grid;
+  grid-template-columns: 8ch minmax(0, 3fr) 10ch minmax(0, 2fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  border-block-end: 1px solid var(--line);
+}
+.cr-chest[data-covered='true'] {
+  color: var(--ink-2);
+}
+.cr-funding {
+  flex: 1 1 0;
+  min-block-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.cr-fund {
+  display: grid;
+  align-content: center;
+  border-block-end: 1px solid var(--line);
+}
+
+/* ---- Plan: four cards, two by two ---- */
+.cr-plan {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--gap-card);
+}
+.cr-plan > .ww-card {
+  min-block-size: 0;
+}

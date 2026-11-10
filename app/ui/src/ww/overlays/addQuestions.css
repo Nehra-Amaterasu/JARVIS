@@ -1,0 +1,31 @@
+/* ---- O8 Add questions (plan 4.13): a plain form on the opaque sheet ---- */
+.ww-add {
+  display: grid;
+  gap: var(--space-4);
+}
+.ww-add-head,
+.ww-add-ok {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+.ww-add-head {
+  color: var(--ink-2);
+}
+.ww-add-ok {
+  font-weight: var(--weight-medium);
+}
+.ww-add-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-3);
+}
+.ww-add-preview {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px dashed var(--line-ui);
+  border-radius: var(--radius-control);
+  font-size: var(--text-read);
+  line-height: var(--leading-read);
+}

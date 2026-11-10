@@ -45,11 +45,18 @@ import './theme.css'
 // lazily so with the flag off none of its code or CSS is ever downloaded.
 // Chunk 5 rides in the same lazy load: importing the Roadmap overlay registers it (ww/overlays/Roadmap.tsx).
 const WwFrame = lazy(() => Promise.all([import('../ww/frame/Frame'), import('../ww/overlays/Roadmap')]).then(([m]) => ({ default: m.Frame })))
+// Chunk 10: the Tree and Focus workspaces, lazy like the frame so the flag-off bundle carries none of their code or CSS.
+const lazyPage = (load: () => Promise<{ default: React.ComponentType }>) => {
+  const L = lazy(load)
+  return () => <Suspense fallback={<div className="empty">Loading…</div>}><L /></Suspense>
+}
+const WwTreePage = lazyPage(() => import('../ww/tree').then((m) => ({ default: m.WwTreePage })))
+const WwFocusPage = lazyPage(() => import('../ww/focus').then((m) => ({ default: m.WwFocusPage })))
 function SetupBridge() { return <Calibration onDone={() => {}} /> }
 const inBoundary = (name: string, P: React.ComponentType) => () => <MissionBoundary name={name}><P /></MissionBoundary>
 const FRAME_PAGES = {
-  study: inBoundary('Study', StudyPage), tree: inBoundary('Tree', TreePage), life: inBoundary('Life', LifePage),
-  career: inBoundary('Career', RoadPage), focus: inBoundary('Focus', FocusPage), setup: inBoundary('Setup', SetupBridge),
+  study: inBoundary('Study', StudyPage), tree: inBoundary('Tree', WwTreePage), life: inBoundary('Life', LifePage),
+  career: inBoundary('Career', RoadPage), focus: inBoundary('Focus', WwFocusPage), setup: inBoundary('Setup', SetupBridge),
 }
 
 const PAGES: Record<MissionScreen, React.ComponentType> = {

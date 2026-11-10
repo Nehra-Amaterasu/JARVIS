@@ -1,4 +1,33 @@
-/* Well Wisher on the phone: the same tokens as the room page (index.html), one column, big taps. */
+/* Well Wisher on the phone: one column, big taps. Controls take the same sizes, radii, gaps and focus
+ * ring as the desktop kit (plan 9.0, chunk 1b).
+ *
+ * The phone page cannot import the Vite build, so the geometry is mirrored here as plain custom
+ * properties. SOURCES (change them together, ww-phone tests read the numbers below):
+ *   --hit            app/ui/src/ww/design/component.css  .ww { --hit: 44px }
+ *   --space-*        app/ui/src/styles/design/primitive.css  --space-1..5 (4 / 8 / 12 / 16 / 24)
+ *   --radius-*       same file, --radius-chip 6, --radius-control 10, --radius-card 14, --radius-pill 999
+ *   --text-*         same file, --text-label 12, --text-small 13, --text-body 14, --text-read 16
+ *   --focus-ring     app/ui/src/ww/design/themes/ash.css  --focus-ring: var(--accent-hi), saffron-400 #ff9454
+ *   focus rule       app/ui/src/ww/design/base.css  :focus-visible { outline: 2px solid; outline-offset: 2px }
+ *   --dur-state/ease app/ui/src/styles/design/primitive.css  160 ms, cubic-bezier(0.2, 0, 0, 1)
+ *   44 px rule       app/ui/src/ww/kit/controls.css: a control with a neighbour closer than 44 px is 44 px high
+ *                    for real (data-grouped). Every phone control has a neighbour inside 44 px (a thumb on a
+ *                    390 px screen), so every phone control is 44 px high and at least 44 px wide, no hidden
+ *                    ::after hit area is used, and the gaps between them are 8 px (--space-2) so no two overlap.
+ * Colours stay the phone page's own palette on purpose.
+ *
+ * SEAM (docs/design/app-ui-overhaul.md section 4): the overhaul chat's board-page build step will write
+ * /phone/tokens.css (primitives plus section tokens). That file does not exist yet, so nothing imports it
+ * here. When it lands, add `@import url('/phone/tokens.css');` as the first line of this file and delete the
+ * mirrored geometry block below; every var() name used below is the same name that file will define. */
+:root{
+  --hit:44px;
+  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:24px;
+  --radius-chip:6px;--radius-control:10px;--radius-card:14px;--radius-pill:999px;
+  --text-label:12px;--text-small:13px;--text-body:14px;--text-read:16px;
+  --focus-ring:#ff9454;
+  --dur-state:160ms;--ease-standard:cubic-bezier(0.2,0,0,1);
+}
 :root{--bg:#07080b;--card:#0d0f14;--line:#1f232b;--ink:#e8e8ed;--ink-2:#a1a1aa;--ink-3:#6b6b73;
   --cyan:#5ce1ff;--amber:#ffb020;--fault:#ff5a5a;--live:#3ddc84;--saffron:#f4a261;--mono:ui-monospace,Menlo,Consolas,monospace}
 *{box-sizing:border-box}
@@ -6,31 +35,34 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-app
   padding:max(12px,env(safe-area-inset-top)) 14px calc(24px + env(safe-area-inset-bottom))}
 .top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
 .top h1{flex:1;margin:0;font:600 16px var(--mono);letter-spacing:1px;text-transform:uppercase}
-.back{color:var(--ink-2);text-decoration:none;font-size:20px;padding:4px 8px}
+.back{color:var(--ink-2);text-decoration:none;font-size:20px;min-width:var(--hit);min-height:var(--hit);display:inline-flex;align-items:center;justify-content:center;border-radius:var(--radius-control)}
 h2{margin:0;font:600 12px var(--mono);letter-spacing:1px;color:var(--ink-2);text-transform:uppercase}
 .head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
 .pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--line);border-radius:99px;font:600 11px var(--mono);color:var(--ink-2)}
 .pill .led{width:7px;height:7px;border-radius:50%;background:var(--ink-3)}
 .pill.live .led{background:var(--live)}
 .pill.fault .led{background:var(--fault)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-card);padding:14px;display:flex;flex-direction:column;gap:10px;margin-top:12px}
 .say{margin:0;color:var(--ink-2)}
 .muted{color:var(--ink-3)}
 .small{font-size:12px}
 .mono{font-family:var(--mono)}
-.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.btn{min-height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:#151821;color:var(--ink);cursor:pointer;
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-2)}
+.btn{min-height:var(--hit);min-width:var(--hit);padding:0 var(--space-4);border-radius:var(--radius-control);border:1px solid var(--line);background:#151821;color:var(--ink);cursor:pointer;
   font:inherit;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-.btn.sm{min-height:36px;padding:0 12px;font-size:13px}
+/* sm is the smaller type and padding only; the height stays 44 (the old 36 px was below the plan) */
+.btn.sm{padding:0 var(--space-3);font-size:var(--text-small)}
 .btn.primary{border-color:var(--cyan);color:var(--cyan)}
 .btn.on{border-color:var(--saffron);color:var(--saffron)}
 .btn:disabled{opacity:.45}
-.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+/* 4 px padding all round so the 2 px ring + 2 px offset is not clipped by the scroller */
+.chips{display:flex;gap:var(--space-2);overflow-x:auto;padding:var(--space-1);margin:calc(var(--space-1) * -1);scrollbar-width:none}
+.chips .btn{flex:none}
 .chips .btn{white-space:nowrap}
 .bar{height:6px;border-radius:99px;background:#151821;overflow:hidden}
-.bar i{display:block;height:100%;width:0;background:var(--saffron);transition:width .3s}
-.topics{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
-.topics .btn{min-height:40px;font-size:13px;text-align:left;padding:6px 12px}
+.bar i{display:block;height:100%;width:0;background:var(--saffron);transition:width var(--dur-state) var(--ease-standard)}
+.topics{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:var(--space-2)}
+.topics .btn{font-size:var(--text-small);text-align:left;padding:var(--space-2) var(--space-3)}
 .topics .btn.learned{border-color:var(--amber);color:var(--amber)}
 .topics .btn.solid{border-color:var(--live);color:var(--live)}
 .topics .btn em{font-style:normal;color:var(--ink-3);font:11px var(--mono);margin-right:6px}
@@ -39,11 +71,12 @@ h2{margin:0;font:600 12px var(--mono);letter-spacing:1px;color:var(--ink-2);text
 .blocks .lbl{color:var(--ink-2);font:12px var(--mono)}
 .blocks .focus{grid-column:1/-1;color:var(--ink-2);font-size:13px}
 .classes{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-.classes li{display:grid;grid-template-columns:48px 1fr auto;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line)}
+.classes li{display:grid;grid-template-columns:48px 1fr auto;align-items:center;gap:var(--space-2);padding:var(--space-2) 0;border-top:1px solid var(--line)}
 .classes li:first-child{border-top:0}
 .classes .when{font:12px var(--mono);color:var(--ink-3)}
-.classes .taps{display:inline-flex;gap:4px}
-.classes .taps .btn{min-width:44px;padding:0 10px}
+.classes .taps{display:inline-flex;gap:var(--space-2)}
+.classes .taps .btn{padding:0 var(--space-2)}
+.classes .name{min-width:0;overflow-wrap:anywhere}
 .classes li.present .name{color:var(--live)}
 .classes li.absent .name{color:var(--fault)}
 .classes li.cancelled .name{color:var(--ink-3);text-decoration:line-through}
@@ -51,8 +84,12 @@ h2{margin:0;font:600 12px var(--mono);letter-spacing:1px;color:var(--ink-2);text
 .margin td{padding:4px 0;border-top:1px solid var(--line)}
 .margin td:last-child{text-align:right;color:var(--ink-2);font:12px var(--mono)}
 .margin tr.low td{color:var(--fault)}
-.counters{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.counters{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-2)}
 .counters li{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px}
-.counters .ctl{display:inline-flex;align-items:center;gap:8px}
-.counters b{font:600 20px var(--mono);min-width:28px;text-align:center}
+.counters .ctl{display:inline-flex;align-items:center;gap:var(--space-2)}
+.counters b{font:600 20px var(--mono);min-width:var(--hit);min-height:var(--hit);display:inline-flex;align-items:center;justify-content:center}
 .err{color:var(--fault);font:12px var(--mono);min-height:1em;margin-top:10px}
+/* one focus ring everywhere: 2 px, offset 2, same as base.css */
+:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}
+.btn:active:not(:disabled){background:#1b1f2a}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:0s!important;animation-duration:0s!important;scroll-behavior:auto!important}}

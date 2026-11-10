@@ -18,7 +18,9 @@ async function call(path, body) {
 
 const NEXT = { none: 'learned', learned: 'solid', solid: 'none' }
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n }
-const pct = (x) => `${Math.round((x || 0) * 100)}%`
+// A missing figure stays missing: the page never turns "the API sent nothing" into a 0.
+const has = (x) => typeof x === 'number' && Number.isFinite(x)
+const pct = (x) => (has(x) ? `${Math.round(x * 100)}%` : '–')
 const hm = (m) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60}` : ''}` : `${m} min`)
 
 function setLink(cls, text) { $('link').className = 'pill ' + cls; $('linkText').textContent = text }
@@ -55,7 +57,7 @@ function renderPaper() {
   paperId = p ? p.id : null
   const chips = $('paperChips'); chips.replaceChildren()
   for (const x of D.papers) {
-    const b = el('button', 'btn sm' + (p && x.id === p.id ? ' on' : ''), `${x.title}${x.days_left ? ` · ${x.days_left} d` : ' · today'}`)
+    const b = el('button', 'btn sm' + (p && x.id === p.id ? ' on' : ''), `${x.title}${has(x.days_left) ? (x.days_left ? ` · ${x.days_left} d` : ' · today') : ''}`)
     b.type = 'button'; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(p && x.id === p.id))
     b.addEventListener('click', () => { paperId = x.id; load() })
     chips.appendChild(b)
@@ -63,9 +65,10 @@ function renderPaper() {
   const topics = $('topics'); topics.replaceChildren()
   if (!p) { $('paperWhen').textContent = ''; $('covText').textContent = 'No paper ahead. Enter the date sheet on the laptop.'; $('covBar').style.width = '0'; $('minutesRow').hidden = true; return }
   $('paperWhen').textContent = `${p.approx ? '~' : ''}${p.date}${p.start ? ' · ' + p.start : ''}`
-  $('covBar').style.width = pct(p.coverage)
-  const c = p.counts || { none: 0, learned: 0, solid: 0 }
-  $('covText').textContent = p.topics.length ? `${pct(p.coverage)} by your taps · ${c.solid} solid, ${c.learned} learned, ${c.none} to do. Tap a topic to move it.` : 'No unit list for this paper yet.'
+  $('covBar').style.width = has(p.coverage) ? pct(p.coverage) : '0'
+  const c = p.counts
+  const tally = c && has(c.solid) && has(c.learned) && has(c.none) ? ` · ${c.solid} solid, ${c.learned} learned, ${c.none} to do` : ''
+  $('covText').textContent = p.topics.length ? `${pct(p.coverage)} by your taps${tally}. Tap a topic to move it.` : 'No unit list for this paper yet.'
   for (const t of p.topics) {
     const b = el('button', 'btn ' + t.state); b.type = 'button'
     b.appendChild(el('em', '', `U${t.unit}`)); b.appendChild(document.createTextNode(t.topic))
@@ -129,7 +132,7 @@ function renderCounters() {
     const plus = el('button', 'btn sm', '+'); plus.type = 'button'; plus.setAttribute('aria-label', `${c.name} plus one`)
     minus.addEventListener('click', () => tap('/api/phone/ww/count', { id: c.id, delta: -1 }))
     plus.addEventListener('click', () => tap('/api/phone/ww/count', { id: c.id, delta: 1 }))
-    ctl.appendChild(minus); ctl.appendChild(el('b', '', String(c.today ?? 0))); ctl.appendChild(plus)
+    ctl.appendChild(minus); ctl.appendChild(el('b', '', has(c.today) ? String(c.today) : '–')); ctl.appendChild(plus)
     li.appendChild(ctl); ul.appendChild(li)
   }
 }

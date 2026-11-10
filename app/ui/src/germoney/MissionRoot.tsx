@@ -44,7 +44,8 @@ import './theme.css'
 // (`#ww=frame` in the URL fragment or localStorage `ww.workspace` = frame; default off). It is imported
 // lazily so with the flag off none of its code or CSS is ever downloaded.
 // Chunk 5 rides in the same lazy load: importing the Roadmap overlay registers it (ww/overlays/Roadmap.tsx).
-const WwFrame = lazy(() => Promise.all([import('../ww/frame/Frame'), import('../ww/overlays/Roadmap')]).then(([m]) => ({ default: m.Frame })))
+// Chunk 9 likewise registers the Record overlay (ww/overlays/Record.tsx).
+const WwFrame = lazy(() => Promise.all([import('../ww/frame/Frame'), import('../ww/overlays/Roadmap'), import('../ww/overlays/Record')]).then(([m]) => ({ default: m.Frame })))
 // Chunk 6: the left column, its own lazy chunk so the frame's first paint does not wait for its five reads' code.
 const LeftCol = lazy(() => import('../ww/left').then((m) => ({ default: m.LeftColumn })))
 // Chunk 7: the new Study workspace, lazy for the same reason (flag off downloads none of it). Loading it registers

@@ -1,0 +1,282 @@
+/* ---- Study workspace (plan 4.2 to 4.4, 4.15): placement only; surfaces and controls are the kit's ---- */
+.ww-study {
+  display: grid;
+  gap: var(--gap-group);
+  align-content: start;
+}
+.ww-papers,
+.ww-plan,
+.ww-library,
+.ww-dmat,
+.ww-papers-detail {
+  display: grid;
+  gap: var(--gap-card);
+  align-content: start;
+  min-inline-size: 0;
+}
+.ww-papers-detail > * {
+  min-inline-size: 0;
+}
+.ww-papers-line {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+/* the paper list wraps: no sideways scroll at any width */
+.ww-paperlist {
+  display: grid;
+  gap: var(--space-1);
+  margin-block-start: var(--space-3);
+}
+.ww-paperrow {
+  display: grid;
+  gap: var(--space-1);
+  min-block-size: var(--hit);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--ink-1);
+  text-align: start;
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+.ww-paperrow[aria-pressed='true'] {
+  background: var(--selected-bg);
+  color: var(--selected-ink);
+  border-color: var(--line-ui);
+}
+.ww-paperrow-title {
+  font-weight: var(--weight-medium);
+}
+.ww-paperrow-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  color: var(--ink-2);
+  font-size: var(--text-small);
+}
+.ww-paperrow[aria-pressed='true'] .ww-paperrow-meta {
+  color: inherit;
+}
+.ww-unit {
+  display: grid;
+  gap: var(--space-1);
+  margin-block-start: var(--space-3);
+}
+.ww-unit-head {
+  margin: 0;
+  color: var(--ink-1);
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+}
+.ww-unit-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.ww-sheets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-block-start: var(--space-3);
+}
+.ww-practice-body,
+.ww-practice-out,
+.ww-practice-make {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+.ww-practice-make {
+  grid-auto-flow: column;
+  align-items: center;
+  justify-content: start;
+}
+.ww-practice-acts,
+.ww-log-acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.ww-practice-bank,
+.ww-practice-sum,
+.ww-practice-hint,
+.ww-practice-note,
+.ww-practice-queue,
+.ww-practice-saved {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  color: var(--ink-2);
+}
+.ww-practice-sum,
+.ww-practice-saved {
+  color: var(--ink-1);
+}
+.ww-practice-saved {
+  font-weight: var(--weight-medium);
+}
+/* plan */
+.ww-block {
+  display: grid;
+  gap: var(--space-2);
+  margin-block-end: var(--space-4);
+}
+.ww-block-head {
+  margin: 0;
+  font-weight: var(--weight-medium);
+}
+.ww-block-meta {
+  color: var(--ink-2);
+  font-weight: var(--weight-regular);
+  font-size: var(--text-small);
+}
+.ww-swap,
+.ww-resources,
+.ww-findings {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ww-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+/* library */
+.ww-concept {
+  display: grid;
+  gap: var(--space-3);
+}
+.ww-concept-title {
+  margin: 0;
+  font-weight: var(--weight-medium);
+}
+.ww-concept-body {
+  font-size: var(--text-read);
+  line-height: var(--leading-read);
+  max-inline-size: 68ch;
+}
+.ww-resource {
+  display: grid;
+  gap: var(--space-1);
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--line);
+}
+.ww-resource-title {
+  font-weight: var(--weight-medium);
+}
+.ww-resource-meta {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+}
+.ww-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+}
+.ww-studylog {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-3);
+  align-items: end;
+  margin-block-start: var(--space-3);
+}
+/* dMAT */
+.ww-dmat-config {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: end;
+}
+.ww-dmat-item {
+  display: grid;
+  gap: var(--space-3);
+}
+.ww-dmat-prompt {
+  margin: 0;
+  font-size: var(--text-read);
+  line-height: var(--leading-read);
+}
+.ww-dmat-seq,
+.ww-dmat-opts,
+.ww-dmat-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+.ww-dmat-fig {
+  inline-size: 7rem;
+  block-size: auto;
+  color: var(--ink-1);
+}
+.ww-dmat-q {
+  font-size: var(--text-title);
+  color: var(--ink-2);
+}
+.ww-dmat-eqs {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-1);
+  font-family: var(--f-mono, ui-monospace, monospace);
+}
+.ww-dmat-grid {
+  border-collapse: collapse;
+}
+.ww-dmat-grid td {
+  inline-size: var(--hit);
+  block-size: var(--hit);
+  border: 1px solid var(--line-ui);
+  text-align: center;
+  font-family: var(--f-mono, ui-monospace, monospace);
+}
+.ww-dmat-grid td[data-ask='true'] {
+  background: var(--selected-bg);
+}
+.ww-dmat-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: var(--hit);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line-ui);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--ink-1);
+  font: inherit;
+}
+.ww-dmat-opt[aria-checked='true'] {
+  background: var(--selected-bg);
+  color: var(--selected-ink);
+}
+.ww-dmat-letter {
+  font-family: var(--f-mono, ui-monospace, monospace);
+  color: var(--ink-2);
+}
+.ww-dmat-score {
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: var(--weight-strong);
+}
+/* a select sizes itself to its longest option; inside a 390 px card that made the page scroll sideways */
+.ww-nodepick,
+.ww-nodepick .ww-field,
+.ww-nodepick .ww-field-box {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+.ww-nodepick .ww-input {
+  inline-size: 100%;
+  max-inline-size: 100%;
+  text-overflow: ellipsis;
+}

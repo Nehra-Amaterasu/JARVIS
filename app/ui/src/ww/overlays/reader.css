@@ -1,0 +1,236 @@
+/* ---- Reader (plan 4.11, 6): the paper as one numbered list in a 32 px number gutter; stems at the `read` size ---- */
+.ww-rd {
+  display: grid;
+  gap: var(--space-4);
+  max-inline-size: 68ch;
+  color: var(--ink-1);
+}
+.ww-rd-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.ww-rd-headtext {
+  min-inline-size: 0;
+}
+.ww-rd-title {
+  margin: 0;
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-strong);
+}
+.ww-rd-meta,
+.ww-rd-note {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-paper {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ww-paper-sec {
+  margin-block-start: var(--space-3);
+}
+.ww-paper-head {
+  margin: 0;
+  padding-block-end: var(--space-2);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  font-weight: var(--weight-medium);
+  color: var(--ink-1);
+}
+.ww-paper-head:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.ww-q {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  column-gap: var(--space-2);
+  row-gap: var(--space-2);
+  align-items: start;
+}
+.ww-q-n {
+  font-family: var(--f-mono, ui-monospace, monospace);
+  font-size: var(--text-read);
+  line-height: var(--leading-read);
+  color: var(--ink-2);
+  text-align: end;
+}
+.ww-q-main {
+  min-inline-size: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.ww-q-stem {
+  font-size: var(--text-read);
+  line-height: var(--leading-read);
+}
+.ww-q-meta,
+.ww-q-src {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-q-marks {
+  justify-self: end;
+  font-family: var(--f-mono, ui-monospace, monospace);
+  font-size: var(--text-small);
+  line-height: var(--leading-read);
+  color: var(--ink-2);
+}
+.ww-q-step {
+  grid-column: 2 / -1;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.ww-q-got {
+  min-inline-size: 7ch;
+  text-align: center;
+  font-family: var(--f-mono, ui-monospace, monospace);
+  font-size: var(--text-small);
+  color: var(--ink-1);
+}
+.ww-rd-foot {
+  position: sticky;
+  inset-block-end: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  border-top: 1px solid var(--line);
+  background: var(--surface-3);
+}
+.ww-rd-total,
+.ww-rd-saved,
+.ww-rd-err {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+.ww-rd-saved {
+  font-weight: var(--weight-medium);
+}
+.ww-rd-err {
+  color: var(--fault);
+}
+/* a sheet: Markdown through the same renderer the old Reader used */
+.ww-rd-article {
+  font-size: var(--text-read);
+  line-height: var(--leading-read);
+}
+.ww-rd-article h2,
+.ww-rd-article h3,
+.ww-rd-article h4 {
+  margin-block: var(--space-4) var(--space-2);
+  line-height: var(--leading-heading);
+}
+.ww-rd-article p,
+.ww-rd-article ul,
+.ww-rd-article ol {
+  margin-block: 0 var(--space-3);
+}
+.ww-rd-article blockquote {
+  margin: 0 0 var(--space-3);
+  padding-inline-start: var(--space-3);
+  border-inline-start: 2px solid var(--line-ui);
+  color: var(--ink-2);
+}
+.ww-rd-article .rd-table {
+  overflow-x: auto;
+}
+.ww-rd-article .rd-code {
+  overflow-x: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+.ww-rd-img,
+.ww-rd-frame {
+  inline-size: 100%;
+  border: 0;
+}
+.ww-rd-frame {
+  min-block-size: 70vh;
+}
+/* the Reader is wider than the 440 px default sheet: 68 ch of stem plus the number gutter and the marks badge */
+.ww-sheet:has([data-overlay='reader']),
+.ww-sheet:has([data-overlay='add']) {
+  --sheet-w: min(46rem, 100%);
+}
+
+/* ---- `paper` (plan 5.7.3 #6): the sheet slides in (kit), then the paper lands, then the first 3 questions unveil.
+   Paper: 240 ms x 7/6 = 280 ms from t = 200 ms; unveil: 240 ms, 40 ms stagger, from the same t, so the last frame is
+   200 + 2 x 40 + 240 = 520 ms after the open, inside the 600 ms envelope. Under reduce and calm the distance tokens
+   are 0 (a pure fade) and the clip-path is dropped, because it is not compositor-only. ---- */
+.ww-rd[data-kind='paper'] {
+  animation: ww-paper-land calc(var(--dur-enter) * var(--tempo) * 7 / 6) var(--ease-enter) backwards;
+  animation-delay: calc(var(--dur-sheet-in) * 2 / 3);
+}
+@keyframes ww-paper-land {
+  from {
+    opacity: 0;
+    transform: translateY(var(--dist-paper));
+  }
+}
+.ww-q[data-unveil] {
+  animation: ww-unveil calc(var(--dur-enter) * var(--tempo)) var(--ease-enter) backwards;
+  animation-delay: calc(var(--dur-sheet-in) * 2 / 3 + var(--i, 0) * var(--stagger));
+}
+@keyframes ww-unveil {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion='full']) .ww-q[data-unveil] {
+    animation: none;
+  }
+}
+html[data-motion='calm'] .ww-q[data-unveil] {
+  animation: none;
+}
+/* a 2 px reading-progress bar, scrubbed by the sheet body's scroll; without support or under reduce it is not drawn */
+.ww-rd-progress {
+  position: sticky;
+  inset-block-start: calc(var(--space-4) * -1);
+  z-index: 1;
+  block-size: 2px;
+  margin-block-end: calc(var(--space-4) * -1); /* the bar takes no row of the grid: its gap is cancelled */
+  background: var(--ink-2);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+@supports (animation-timeline: scroll()) {
+  .ww-rd-progress {
+    animation: ww-rd-progress linear both;
+    animation-timeline: scroll();
+  }
+}
+@keyframes ww-rd-progress {
+  to {
+    transform: scaleX(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion='full']) .ww-rd-progress {
+    animation: none;
+    transform: none;
+    opacity: 0;
+  }
+}
+html[data-motion='calm'] .ww-rd-progress {
+  animation: none;
+  transform: none;
+  opacity: 0;
+}

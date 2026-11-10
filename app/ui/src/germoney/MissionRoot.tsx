@@ -47,10 +47,14 @@ import './theme.css'
 const WwFrame = lazy(() => Promise.all([import('../ww/frame/Frame'), import('../ww/overlays/Roadmap')]).then(([m]) => ({ default: m.Frame })))
 // Chunk 6: the left column, its own lazy chunk so the frame's first paint does not wait for its five reads' code.
 const LeftCol = lazy(() => import('../ww/left').then((m) => ({ default: m.LeftColumn })))
+// Chunk 7: the new Study workspace, lazy for the same reason (flag off downloads none of it). Loading it registers
+// the Reader (O3) and Add questions (O8) overlays.
+const WwStudy = lazy(() => import('../ww/study/StudyPage').then((m) => ({ default: m.StudyPage })))
+const StudyNew = () => <Suspense fallback={<div className="empty">Loading Study…</div>}><WwStudy /></Suspense>
 function SetupBridge() { return <Calibration onDone={() => {}} /> }
 const inBoundary = (name: string, P: React.ComponentType) => () => <MissionBoundary name={name}><P /></MissionBoundary>
 const FRAME_PAGES = {
-  study: inBoundary('Study', StudyPage), tree: inBoundary('Tree', TreePage), life: inBoundary('Life', LifePage),
+  study: inBoundary('Study', StudyNew), tree: inBoundary('Tree', TreePage), life: inBoundary('Life', LifePage),
   career: inBoundary('Career', RoadPage), focus: inBoundary('Focus', FocusPage), setup: inBoundary('Setup', SetupBridge),
 }
 

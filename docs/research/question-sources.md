@@ -2,6 +2,18 @@
 
 Legend: **[opened]** = I read the page or file this session. **[search]** = only a search-result summary or a secondary site, not the primary page. **[unverified]** = could not open (403, parse error, blocked) or contradictory sources. No scraping was done; pages were read one at a time.
 
+## 2026-11-10 (chunk 2b): dMAT practice is generated, not collected
+
+**Question.** dMAT (the Digital Master Test) is an aptitude test with no subject bank to harvest, and its official material is not ours to copy. How do we give practice at that level without copying it?
+
+**Answer.** Three generators that build items from rules we wrote from the public task descriptions, with no item or text taken from the test's material: figure sequences (a figure is a glyph, a turn in 45 degree steps and a count; each attribute follows a constant step, alternating steps or a short cycle), equation systems (whole-number unknowns in a printed range, one to four unknowns, products from level 4) and Latin squares (4x4 to 6x6, one asked cell). Five levels each, ordered by item content (attributes that move, unknowns, blank cells).
+
+**Verification (measured, 9-10 Nov).** An independent solver re-proves every key from the printed item only, sharing no code with the generator: figures by testing all 192 possible figures against the shown terms, equations by brute force over the printed range on a whitelisted parse, squares by a most-constrained-cell search. 200 seeds x 3 kinds x 3 items = 1800 items, 0 mismatches, about 10 s; the gate runs a 40-seed slice (360 items, 0 mismatches, 2.4 s). Tests show the checker fails on a wrecked key, an emptied square, a dropped equation and a cut sequence. Same seed, same set, across processes.
+
+**What stays unverified.** The levels and time limits (level 3: figures 55 s, equations 75 s, squares 50 s per item) are practice numbers, not calibrated against real test-taker times, so a score here is practice, not a predicted test result. The "no test text stored" test is a short phrase grep; the stronger evidence is that every item is built from the generator's own rules.
+
+**What it changed.** dMAT is its own practice mode (`GET /api/mission/dmat/set`, `POST .../score`, `GET .../history`), not a tier of the exam paper. It has no UI or phone view yet.
+
 ## 2026-11-09 (chunk H): the harvester is built; one supervised live fetch
 
 **Question.** Do the terms below hold up when a program, not a person, reads the pages? One live fetch of one allowed source, into a scratch folder, nothing in the real `data/`.

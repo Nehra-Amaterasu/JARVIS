@@ -59,7 +59,8 @@ export function RotationSection() {
 
 /* ---- SU16 Dates (a link row to O1, not a card) ---- */
 export function DatesRow() {
-  const rows = useSetup((s) => (('exams' in s.draft ? s.draft.exams : s.base.exams) as ExamRow[] | undefined) ?? [])
+  const picked = useSetup((s) => ('exams' in s.draft ? s.draft.exams : s.base.exams) as ExamRow[] | undefined)
+  const rows = picked ?? []
   const dirty = useSetup((s) => 'exams' in s.draft)
   const tentative = rows.filter((x) => x.approx).length
   const line = rows.length === 0 ? 'No paper on the date sheet yet.' : `${rows.length} paper${rows.length === 1 ? '' : 's'}, ${tentative} tentative.${dirty ? ' Unsaved changes.' : ''}`

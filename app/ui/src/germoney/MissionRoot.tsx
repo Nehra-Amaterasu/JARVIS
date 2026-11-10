@@ -44,7 +44,8 @@ import './theme.css'
 // (`#ww=frame` in the URL fragment or localStorage `ww.workspace` = frame; default off). It is imported
 // lazily so with the flag off none of its code or CSS is ever downloaded.
 // Chunk 5 rides in the same lazy load: importing the Roadmap overlay registers it (ww/overlays/Roadmap.tsx).
-const WwFrame = lazy(() => Promise.all([import('../ww/frame/Frame'), import('../ww/overlays/Roadmap')]).then(([m]) => ({ default: m.Frame })))
+// Chunk 9 likewise registers the Record overlay (ww/overlays/Record.tsx).
+const WwFrame = lazy(() => Promise.all([import('../ww/frame/Frame'), import('../ww/overlays/Roadmap'), import('../ww/overlays/Record')]).then(([m]) => ({ default: m.Frame })))
 function SetupBridge() { return <Calibration onDone={() => {}} /> }
 const inBoundary = (name: string, P: React.ComponentType) => () => <MissionBoundary name={name}><P /></MissionBoundary>
 const FRAME_PAGES = {

@@ -1,0 +1,250 @@
+/* ==========================================================================
+   The Proof panel (plan 4.10): ten cards stacked in a 320 px column. Tokens only (css-lint.test.ts).
+   The panel scrolls inside itself: pinned, the aside scrolls (frame.css); as a sheet, .ww-sheet-body does.
+   No colour carries meaning alone: Met / Open are words, a state chip is a word, a Spark has a text label.
+   ========================================================================== */
+.ww-proof {
+  display: grid;
+  gap: var(--gap-card);
+  min-inline-size: 0;
+}
+.ww-proof-stack {
+  display: grid;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+.ww-proof-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ww-proof-text,
+.ww-proof-line,
+.ww-proof-note,
+.ww-proof-source {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.ww-proof-text {
+  color: var(--ink-1);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+.ww-proof-line {
+  color: var(--ink-1);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-proof-note,
+.ww-proof-source {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-proof-sub {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ---- the sheet is 320 px wide in rail mode (the Drawer's default is wider); :has keeps this in our file ---- */
+.ww-sheet:has(.ww-proof[data-mode='rail']) {
+  --sheet-w: 320px;
+}
+
+/* ---- P1 Rank ---- */
+.ww-proof-rank {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.ww-proof-letter {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: calc(var(--hit) * 1.5);
+  aspect-ratio: 1;
+  border: 1px solid var(--line-ui);
+  border-radius: var(--radius-pill);
+  color: var(--ink-1);
+  font-size: var(--text-heading);
+  line-height: var(--leading-heading);
+  font-weight: var(--weight-strong);
+}
+.ww-proof-level {
+  display: grid;
+  gap: var(--space-1);
+  flex: 1;
+  min-inline-size: 0;
+}
+.ww-proof-reqs {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ww-proof-req {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-2);
+  align-items: baseline;
+}
+.ww-proof-req .ww-meter {
+  grid-column: 1 / -1;
+}
+.ww-proof-reqword {
+  min-inline-size: calc(var(--space-6) * 1.5);
+  color: var(--ink-2);
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.ww-proof-req[data-met='true'] .ww-proof-reqword {
+  color: var(--ink-1);
+}
+.ww-proof-reqname {
+  color: var(--ink-1);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  overflow-wrap: anywhere;
+}
+.ww-proof-reqnum {
+  color: var(--ink-1);
+  font-family: var(--f-mono);
+  font-size: var(--text-small);
+}
+
+/* ---- P2 suggestions and advice ---- */
+.ww-proof-sugg,
+.ww-proof-advice {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  padding-block-end: var(--space-3);
+  border-block-end: 1px solid var(--line);
+}
+.ww-proof-sugg:last-child,
+.ww-proof-advice:last-child {
+  border-block-end: 0;
+  padding-block-end: 0;
+}
+
+/* ---- P3 stats and the 4-week slot ---- */
+.ww-proof-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.ww-proof-weeks {
+  display: grid;
+  gap: var(--space-2);
+  padding-block-start: var(--space-3);
+  border-block-start: 1px solid var(--line);
+}
+.ww-proof-counter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
+  align-items: center;
+}
+.ww-proof-cname {
+  color: var(--ink-1);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-proof-cnote {
+  grid-column: 1 / -1;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+
+/* ---- P4 quest lines ---- */
+.ww-proof-quest {
+  display: grid;
+  gap: var(--space-1);
+}
+.ww-proof-qhead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.ww-proof-qname {
+  flex: 1;
+  min-inline-size: 0;
+  color: var(--ink-1);
+  font-size: var(--text-small);
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+.ww-proof-qstate {
+  color: var(--ink-2);
+  font-size: var(--text-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.ww-proof-tracks {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---- P5 weekly review ---- */
+.ww-proof-review {
+  display: grid;
+  gap: var(--space-2);
+  padding-block-start: var(--space-3);
+  border-block-start: 1px solid var(--line);
+}
+
+/* ---- P8 wins and P9 recent ---- */
+.ww-proof-win {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-proof-wdate {
+  color: var(--ink-2);
+  font-family: var(--f-mono);
+}
+.ww-proof-wwhat {
+  color: var(--ink-1);
+  font-weight: var(--weight-medium);
+}
+.ww-proof-wlabel {
+  grid-column: 2;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+.ww-proof-recent {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+}
+.ww-proof-rlabel {
+  color: var(--ink-1);
+  overflow-wrap: anywhere;
+}
+.ww-proof-rmeta {
+  color: var(--ink-2);
+  font-family: var(--f-mono);
+  white-space: nowrap;
+}

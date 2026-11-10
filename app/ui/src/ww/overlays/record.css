@@ -1,0 +1,67 @@
+/* ---- Record drawer (plan 4.12 O4): read-only rows on the opaque sheet, nothing to press but Close ---- */
+.ww-record {
+  display: grid;
+  gap: var(--space-4);
+}
+.ww-record-lead,
+.ww-record-line {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  overflow-wrap: anywhere;
+}
+.ww-record-block {
+  display: grid;
+  gap: var(--space-2);
+}
+.ww-record-block h3 {
+  margin: 0;
+}
+.ww-record-rows {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ww-record-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+}
+.ww-record-row .ww-meter {
+  grid-column: 1 / -1;
+}
+.ww-record-key {
+  color: var(--ink-2);
+  font-family: var(--f-mono);
+  font-size: var(--text-label);
+}
+.ww-record-label {
+  color: var(--ink-1);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  overflow-wrap: anywhere;
+}
+.ww-record-num {
+  color: var(--ink-2);
+  font-family: var(--f-mono);
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+.ww-record-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.ww-record-ach {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+}
+.ww-record-ach[data-got='false'] .ww-record-label {
+  color: var(--ink-2);
+}

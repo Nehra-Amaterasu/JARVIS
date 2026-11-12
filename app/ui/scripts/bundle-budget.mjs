@@ -45,7 +45,11 @@ if (only) {
     const hit = modules.filter((m) => re.test(m))
     if (hit.length) fail.push(`${only} build holds ${hit.length} module(s) of the other product, first ${hit[0]}`)
   }
-  console.log(`${only} build: ${modules.length} modules`)
+  // Positive control: an empty or wrong module list used to pass silently (0 forbidden hits in 0 modules).
+  const OWN = { ww: /\/src\/(ww|germoney)\//, jarvis: /\/src\/pages\// }
+  const own = modules.filter((m) => OWN[only]?.test(m)).length
+  if (!own) fail.push(`${only} build lists no module of its own tree (${modules.length} modules): the list is empty or wrong`)
+  console.log(`${only} build: ${modules.length} modules, ${own} of its own tree`)
 }
 
 const motionDir = join(src, 'design', 'motion')

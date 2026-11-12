@@ -158,6 +158,8 @@ export function TelemetryRail({ rows, label }: { rows: RailRow[]; label: string 
 
 export interface ProgressBarProps {
   label: string
+  /** Where the percent comes from. Required: a bar is a reading, and only LIVE and SIMULATED may draw one. */
+  state: LampState
   /** 0 to 100. Absent (unknown duration): no bar and no fake percent, the word "working" instead. */
   value?: number
   className?: string
@@ -165,8 +167,8 @@ export interface ProgressBarProps {
 }
 
 /** Component 19, the Registration Progress Bar: where progress is real (a file copy, a model load). Indeterminate is never drawn. */
-export function ProgressBar({ label, value, className }: ProgressBarProps) {
-  const known = typeof value === 'number' && Number.isFinite(value)
+export function ProgressBar({ label, state, value, className }: ProgressBarProps) {
+  const known = showsValue(state) && typeof value === 'number' && Number.isFinite(value)
   const pct = known ? Math.min(100, Math.max(0, value as number)) : 0
   return (
     <div
@@ -178,6 +180,7 @@ export function ProgressBar({ label, value, className }: ProgressBarProps) {
       aria-valuenow={known ? pct : undefined}
       aria-busy={!known || undefined}
       data-known={known ? 'true' : 'false'}
+      data-state={state}
     >
       {known ? (
         <>
@@ -189,10 +192,11 @@ export function ProgressBar({ label, value, className }: ProgressBarProps) {
               ))}
             </span>
           </span>
+          {state === 'simulated' && <LampGlyph state="simulated" size={12} />}
           <span className="k-progress-value">{Math.round(pct)}%</span>
         </>
       ) : (
-        <span className="k-progress-value">working</span>
+        <span className="k-progress-value">{showsValue(state) ? 'working' : lampText(state, state === 'waiting' ? 'no report' : undefined)}</span>
       )}
     </div>
   )

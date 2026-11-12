@@ -2,6 +2,24 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-12: wave 2 integrated, and the independent review B01 never had
+
+**Question.** Do the seam cuts (B01) really forbid the couplings they claim to, and do the lamp contract (B04) and the kit (B03b) agree once they sit on one branch?
+
+**Method.** A read-only reviewer audited the merged B01 code (no suite run; oxlint against a scratch config with five deliberately bad files). B04 and B03b were then merged in that order and the full checks run on main.
+
+**Findings and what was changed.**
+- **Lint hole (fixed).** `src/shared/**` sat in both `no-restricted-imports` overrides, and the later override replaced the earlier one, so a shared file importing Well Wisher was not flagged in the editor (the vitest import-graph test still caught it). The config now has three overrides, with one for `shared/**` carrying both pattern groups. Probe: a shared file importing `ww/kit/Button` and `pages/Core` gives 2 of 2 errors.
+- **Bundle check had no positive control (fixed).** An empty or wrong module list passed (0 forbidden hits in 0 modules). The check now fails unless the build lists at least one module of its own tree; the ww build reports 368 modules, 211 of its own tree.
+- **B01 numbers, recorded here because the merge left them only in commit messages.** The jarvis build fell from 454 to 203 modules with no `ww/` or `germoney/` module; the ww build held 352 modules with no page, twin or three.js. A constant exported from `shared/product.ts` did not fold across modules, so the product gates are written in place in `App.tsx` and `pageLoaders.ts`.
+- **Two lamps (reconciled).** B03b built a lamp inside the kit because B04 was not merged in its worktree. The kit lamp now takes its states, words and shapes from `shared/lamp/types.ts`; it keeps only its own glyph renderer. B05 should mount one renderer.
+- **A reading without a state (fixed).** After the merge B04's source-scan test failed on `ProgressBarProps` (a percent with no state). `ProgressBar` now requires `state`; a percent handed to a WAITING or FAULT bar is not drawn (new test).
+- **Left open, by decision.** No screenshot evidence exists that Core looks the same after its mission card was removed (the baseline is local and uncommitted). Portalled dialogs and bursts (z-index 60 to 90) can now cover toasts and the command palette. The import-graph test does not see `import.meta.glob`, `require` or CSS `@import`. The ww-only build still lists JARVIS tabs in the dock. `product-modules.json` (absolute source paths) is emitted into every build, including the local dist. `--hit` (44 px) is not defined in a token file, so the kit uses its fallback. `budget-baseline.json` does not exist yet. The second half of the kit move (Card, Data, Interactive, Placeholders, Reveal) waits for `ww/design/motion` and `useReducedMotion` to move to `shared/`.
+
+**Numbers.** tsc clean; kit and shared tests 140 of 140; full vitest and Playwright counts are in the commit that follows this record.
+
+**What it changed.** B05 (the shell) takes these as inputs: mount the kit and lamp once, move the motion helpers to `shared/`, define `--hit`, restrict `product-modules.json` to product builds, and add a Core screenshot baseline to the repository.
+
 ## 2026-11-12: B04 the lamp and the state contract, built
 
 **Question.** Can a reading reach the screen without saying whether it is real? (spec 6.6, decision D12)

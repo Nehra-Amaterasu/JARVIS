@@ -1,21 +1,111 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
+  "plugins": [
+    "react",
+    "typescript",
+    "oxc"
+  ],
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+    "react/only-export-components": [
+      "warn",
+      {
+        "allowConstantExport": true
+      }
+    ]
   },
   "overrides": [
     {
-      "files": ["src/pages/**", "src/galaxy/**", "src/twin/**", "src/shared/**"],
+      "files": [
+        "src/pages/**",
+        "src/galaxy/**",
+        "src/twin/**"
+      ],
       "rules": {
-        "no-restricted-imports": ["error", { "patterns": [{ "group": ["**/ww", "**/ww/**", "**/germoney", "**/germoney/**"], "message": "JARVIS code and shared code must not import Well Wisher (seam S1); it goes through a port." }] }]
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "**/ww",
+                  "**/ww/**",
+                  "**/germoney",
+                  "**/germoney/**"
+                ],
+                "message": "JARVIS code and shared code must not import Well Wisher (seam S1); it goes through a port."
+              }
+            ]
+          }
+        ]
       }
     },
     {
-      "files": ["src/ww/**", "src/germoney/**", "src/shared/**"],
+      "files": [
+        "src/ww/**",
+        "src/germoney/**"
+      ],
       "rules": {
-        "no-restricted-imports": ["error", { "patterns": [{ "group": ["**/pages", "**/pages/Core", "**/pages/Yaadash", "**/pages/Aankhen", "**/pages/Limbs", "**/pages/Connect", "**/pages/System", "**/galaxy/**", "**/twin/**", "**/jarvis/**"], "message": "Well Wisher code and shared code must not import JARVIS (seam S1); it goes through a port." }] }]
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "**/pages",
+                  "**/pages/Core",
+                  "**/pages/Yaadash",
+                  "**/pages/Aankhen",
+                  "**/pages/Limbs",
+                  "**/pages/Connect",
+                  "**/pages/System",
+                  "**/galaxy/**",
+                  "**/twin/**",
+                  "**/jarvis/**"
+                ],
+                "message": "Well Wisher code and shared code must not import JARVIS (seam S1); it goes through a port."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "src/shared/**"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "**/ww",
+                  "**/ww/**",
+                  "**/germoney",
+                  "**/germoney/**"
+                ],
+                "message": "Shared code must not import Well Wisher (seam S1); it goes through a port."
+              },
+              {
+                "group": [
+                  "**/pages",
+                  "**/pages/Core",
+                  "**/pages/Yaadash",
+                  "**/pages/Aankhen",
+                  "**/pages/Limbs",
+                  "**/pages/Connect",
+                  "**/pages/System",
+                  "**/galaxy/**",
+                  "**/twin/**",
+                  "**/jarvis/**"
+                ],
+                "message": "Shared code must not import JARVIS (seam S1); it goes through a port."
+              }
+            ]
+          }
+        ]
       }
     }
   ]

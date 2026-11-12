@@ -109,18 +109,28 @@ describe('ReadoutLines, TelemetryRail, ProgressBar (14, 18, 19)', () => {
     expect(rows[2].getAttribute('data-state')).toBe('planned')
   })
   it('ProgressBar: a real value sets aria-valuenow; an unknown one draws no bar and says "working", never a fake percent', () => {
-    m = mount(<ProgressBar label="Copy" value={42} />)
+    m = mount(<ProgressBar label="Copy" state="live" value={42} />)
     expect(q('[role=progressbar]').getAttribute('aria-valuenow')).toBe('42')
     expect(q('.k-progress-fill').getAttribute('style')).toContain('42%')
     expect(m.container.querySelectorAll('.k-progress-ticks i')).toHaveLength(11)
-    m.render(<ProgressBar label="Model load" />)
+    m.render(<ProgressBar label="Model load" state="live" />)
     expect(q('[role=progressbar]').hasAttribute('aria-valuenow')).toBe(false)
     expect(q('.k-progress-fill')).toBeNull()
     expect(q('.k-progress-value').textContent).toBe('working')
     expect(q('[role=progressbar]').getAttribute('aria-busy')).toBe('true')
   })
+  it('ProgressBar: a percent handed to a WAITING or FAULT bar is not drawn', () => {
+    m = mount(<ProgressBar label="Sync" state="waiting" value={42} />)
+    const bar = m.container.querySelector('[role="progressbar"]')!
+    expect(bar.getAttribute('aria-valuenow')).toBeNull()
+    expect(bar.textContent).not.toContain('42')
+    expect(bar.textContent).toContain('WAITING')
+    m.render(<ProgressBar label="Sync" state="fault" value={42} />)
+    expect(m.container.textContent).not.toContain('42')
+  })
+
   it('ProgressBar clamps to 0..100', () => {
-    m = mount(<ProgressBar label="x" value={250} />)
+    m = mount(<ProgressBar label="x" state="live" value={250} />)
     expect(q('[role=progressbar]').getAttribute('aria-valuenow')).toBe('100')
   })
 })

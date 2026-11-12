@@ -3346,7 +3346,7 @@ The budgets enforced by work package Q01 are the single table in §14.1 (idle an
 4. **Adapter slots.** A section package declares an adapter folder (`ww/day/adapters/`) and loads `adapters/*.register.ts` with `import.meta.glob`. A later engine package adds its own `<engine>.register.ts` there and nothing else. Until it merges, the section runs on a null adapter and shows WAITING; on the bench it runs on a fixture adapter stamped SIMULATED. This is how sections (waves 7 to 9) come before engines (waves 10 to 12) without a section waiting for an engine.
 5. **Single-source tables are imported, never copied:** lamp states (`shared/lamp/types.ts`), tokens (`styles/design/clay`), section ids and view ids (`shell/ids.ts`), key bindings (`shell/keymap.ts`), art ids (`art/art-manifest.json`), the settings registry (`shared/trim`, from wave 7).
 6. **One owner per server file per wave.** `app/jarvis_app/server.py` is owned by E01 in wave 10, which adds discovery of `routes_ww_*.py`; E02 to E04 add only new route files. In waves 11 and 12 the route files are discovered the same way.
-7. **A shared file with two owners is a plan error.** If two packages of one wave need the same file, the integrator moves the need into one package or into an earlier wave before the wave starts.
+7. **A shared file with two owners is a plan error.** If two packages of one wave need the same file, the integrator moves the need into one package or into an earlier wave before the wave starts. Disjointness is checked inside a wave: a later wave may edit or add files under a folder an earlier wave owned, but only the files its block names, and `tools/wave_check.py` checks that list.
 
 #### 15.6.1 The waves
 
@@ -4866,7 +4866,7 @@ Rules of this table: a builder may call another package's export of the same wav
 
 ### A.T01 Tree (wave 9)
 **Files:** `app/ui/src/ww/tree/**` (components, views, `ports.ts`, `adapters/` slot), `shell/views/tree.view.ts`, gallery entry. **Depends on:** G02, G03. **Order:** wave 9.
-**Do:** 20.8.1 to 20.8.3: `GroveRing(p: { trees: TreeSummary[]; onOpen(id): void })`, `SkillNode(p: { tier: 1\|2\|3; state: 'locked'\|'open'\|'progress'\|'claimed'\|'evidenced'\|'stale'; pips: number; label: string })` (six states by shape plus glyph), `TraceEdge`, the tree canvas with level of detail and the keyboard model, `BranchSpine`, `EvidenceLedger`, the node drawer with Evidence, Needs, Do next and Used by. Reads the evidence through `ports.ts` (null adapter: every node OPEN or LOCKED, the Grove shows dashed seeds).
+**Do:** 20.8.1 to 20.8.3: `GroveRing(p: { trees: TreeSummary[]; onOpen(id): void })`, `SkillNode(p: { tier: 1\|2\|3; state: 'locked'\|'open'\|'progress'\|'claimed'\|'evidenced'\|'stale'; pips: number; label: string })` (six states by shape plus glyph), `TraceEdge`, the tree canvas with level of detail and the keyboard model, `BranchSpine`, `EvidenceLedger`, the node drawer with Evidence, Needs, Do next and Used by. Declares `adapters/` and `data/` as slots (loaded by glob). Reads the evidence through `ports.ts` (null adapter: every node OPEN or LOCKED, the Grove shows dashed seeds).
 **Accept:** a self-mark draws CLAIMED and never EVIDENCED; growth is a pure function of the ledger and falls when a record is deleted; 300 nodes under 400 drawn DOM nodes (a measurement, not a promise); zero rAF at idle.
 **Tests:** vitest, Playwright keyboard traversal. **Record:** research file.
 
@@ -4883,7 +4883,7 @@ Rules of this table: a builder may call another package's export of the same wav
 **Tests:** vitest, Playwright, forced colours. **Record:** research file.
 
 ### A.E01 Intents and recurrence engine (wave 10)
-**Files:** `app/jarvis_app/ww_intents.py`, `app/jarvis_app/server.py` (adds discovery of `routes_ww_*.py`), `app/jarvis_app/routes_ww_intents.py`, `app/ui/src/ww/day/adapters/intents.register.ts`, `ww/life/intents.ts`, tests. **Depends on:** L01, L03. **Order:** wave 10.
+**Files:** `app/jarvis_app/ww_intents.py`, `app/jarvis_app/server.py` (adds discovery of `routes_ww_*.py`), `app/jarvis_app/routes_ww_intents.py`, `app/ui/src/ww/day/adapters/intents.register.ts`, `ww/day/adapters/intents.ts`, tests. **Depends on:** L01, L03. **Order:** wave 10.
 **Do:** 20.6.2: `Intent` with a rule (weekday, month day, yearly date, every n days), a reminder offset and a Quiet gate; `expand(rule, from, to): string[]` as a pure function; `IntentRule` and `IntentEditor` (extends `Field`, `Segmented`); the adapter registers the planned marks.
 **Accept:** 40 recurrence cases pass (month ends, leap day, a 29 Feb yearly rule); the function runs twice with the same result.
 **Tests:** pytest on a scratch data dir, vitest. **Record:** research file.
@@ -4931,7 +4931,7 @@ Rules of this table: a builder may call another package's export of the same wav
 **Tests:** pytest, the gate on a scratch dir. **Record:** research file.
 
 ### A.E09 Evidence ledger (wave 12)
-**Files:** `app/jarvis_app/ww_evidence.py`, `routes_ww_evidence.py`, `app/ui/src/ww/tree/evidence.ts`, `ww/tree/adapters/evidence.register.ts`, tests. **Depends on:** T01. **Order:** wave 12.
+**Files:** `app/jarvis_app/ww_evidence.py`, `routes_ww_evidence.py`, `app/ui/src/ww/tree/adapters/evidence.ts`, `ww/tree/adapters/evidence.register.ts`, tests. **Depends on:** T01. **Order:** wave 12.
 **Do:** 20.8.4: the table `evidence`, six kinds, the unlock rule (sum of weights at least the requirement and one hard record of kind 1, 4 or 5), STALE windows (language 60, drills 90, body 30 days, proposals), a deleted record recomputes everything; a held-out Study pass writes a record.
 **Accept:** unit tests for every state; delete recomputes; a body node needs instructor-logged sessions or a grade.
 **Tests:** pytest, vitest. **Record:** research file.

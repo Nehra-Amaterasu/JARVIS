@@ -3812,6 +3812,177 @@ Route transitions: the 200 ms fade (§10.4) plus the destination's sigil drawing
 
 Pointer-aimed spotlight on immersive scenes; chrome-liquid tilt on seals (C04-08); ASCII rain in Console while a command runs; glitch-sort route transition (C03-20) on a product switch only; comic blue-screen FAULT plate (C04-128); a day-seal wall (365 seed glyphs); a voice-reactive sigil ring around the hill; paper mode (the whole interface as the C01-18 white sheet).
 
+
+### 20.5 Data display: Specimen and Datum, and a body for every number
+
+**Reading key.** Form is the signature in this product's language; Extends is the built component; Art is a catalogue id (private track only; ids are never reproduced as pictures in tracked files); Mobile is the one-column form under 900 px. All sizes are targets.
+
+#### 20.5.1 The composition method
+
+- **Canvas (1366x768, rail 64, title bar 48 leaves 1302 x 720).** The specimen box is at x = 24, width 760, height 560, centred on the datum line (y = 288). The margin column is at x = 808, width 470: up to five `Callout`s stacked, each 88 px high, each joined to a point on the specimen by a 1 px leader that bends once at 45 degrees. The footer strip is 72 px: a telemetry rail (three readouts) plus the single primary Key.
+- **Datum line.** A hairline with ticks every 40 px. The specimen's baseline, the margin Callouts' first rows and the footer rail all snap to it, so the eye reads one horizontal. It is the one repeated structure; everything else is irregular.
+- **Hierarchy by weight, not size.** The specimen is recessed or contoured; Callouts are flat plates; readouts are raised. At most three depths per view.
+- **Mobile.** The specimen first at 100 percent width, 320 px high; Callouts become a swipe carousel of 3 cards with a dot index; the datum becomes a sticky 1 px rule under the title.
+- **Rule of one surprise.** Each view gets one unexpected form (a ridge, a sigil, an ASCII sweep) and the rest stays calm. This is the "neither alive nor dead" control.
+- **Art.** Specimen ground for Study is C04-23 re-derived as a contour of real unit mastery; for Senses C04-118 (dot-matrix landscape); for Memory C03-19 (glitch pillars). Treatment: duotone charcoal and cyan, then Bayer 4x4 at 1x on the specimen ground only, 6 percent opacity, so it never fights the data.
+- **Weight.** SVG and CSS; at most one bounded canvas (the Ridge, only when a series exceeds 24 rows); zero idle loops; every motion has a static form. Idle CPU and rAF checks from the voice suite are extended to each new component.
+
+#### 20.5.2 Components of the family
+
+| Component | Draws and behaves | Props | States | Extends |
+|---|---|---|---|---|
+| `Odometer` | Digit cells, each a 40 x 56 recessed well with a Doto digit. A change rolls the digit by `translateY` over 140 ms in three intermediate steps (no blur easing). A hairline underline carries the unit in 12 px mono; beside it an ASCII delta `+3 since 09:00`. Hero counter 4 digits at 72 px high on the datum line; compact 28 px in rails. LIVE and SIMULATED draw digits; WAITING draws "-- --"; the lamp sits top right at 12 px. Focusable only if it opens a drawer (Enter shows the series). Roll only on change and only when visible; static and reduced-motion: no roll. Hollow form: four dashed wells and a WAITING half disc. Art: C01-05 and C02-34 (pixel numerals) as the digit shape; C04-123 (numerals lotus) Atkinson-dithered into a 200 x 200 corner behind the Life counters | `value`, `unit`, `state`, `size` | live, simulated, waiting | `Numerals`, `Readout` |
+| `StrataCore` | A contour block (C04-23) where each layer is one unit and its height is evidence: questions answered correctly first try, the last 30 days weighted by recall estimate. Layers without evidence are flat dashed outlines. Click opens the unit drawer with the frequency bar and the next three questions | `units[]`, `evidence`, `state` | live, simulated, hollow | `Ridge`, `Dither` |
+| `SigilMark` | A radial figure, 6 to 16 arms from a hub, one arm per topic; arm length is evidence; the tip is a disc if recently practised, a ring if not, a dashed ring if never; arms branch at 3 pieces of evidence. A skill-tree node face and a Callout thumbnail. Same input gives byte-identical SVG | `arms[]`, `size` | live, hollow, planned | `NodeRing`, `StippleRing` |
+| `Trace` | A single 1.5 px hairline over a faint dot-grid ground (C04-118 derivative); the last point a disc, the previous 7 rings; a hatched band marks days with no data (never interpolated); an ASCII ruler `|····|····|` with mono date labels; a dashed datum for the student's own 30-day median. Hover or arrows scrub a vertical hairline with a Callout (value, date, lamp); Enter pins a second scrub for a two-point difference. ASCII sparkline `▁▂▃▅▃▂▇` (12 characters) in cells and rails. The line draws once on first view over 320 ms; static: drawn. Mobile 100 percent wide, 180 px high. Art: C02-02 and C02-06 thresholded to 3 percent as ground; C04-115 for long-range backdrops | `points[]`, `median`, `state` | live, waiting, simulated | `Ridge`, `DotMatrixMeter` |
+| `DotHistogram` | A column of dot stacks, each dot one observation (up to 200; beyond that one dot is 5 observations with the multiplier written); a median tick and the 25 to 75 band as a bracket; flips to a dot-density ridge. Use: block lengths, spend per day, difficulty by unit, signal amplitude over a day. Hover: Callout "6 blocks, 20 to 29 min"; Left and Right move across bins. Art: C02-11 for the dot recipe | `values[]`, `bins`, `unitPerDot` | live, waiting | `DotMatrixMeter` |
+| `Dumbbell` | Two values on one rail: a ring (before), a disc (after), a 1 px bar, the difference as a mono number; a column of rails on a shared ruler sorted by gap. Always against the student's own earlier self, never league tables. Mobile 44 px rails. Art: C02-13 wave ribbon as 4 percent texture | `before`, `after`, `scale` | live, hollow | `ProgressBar` |
+| `LedgerTape` | A 320 px receipt strip: `chai ········· 120` with dotted leaders as text, a running total in Odometer numerals, a torn zigzag SVG end. Today's tape is the Capture Line's output. Art: C04-35 as the tape ruler | `entries[]`, `total` | live, empty | `Readout`, `Numerals` |
+| `Jar` | A row of recessed wells, one per user-set category; fill level is the share of the student's own monthly budget; a disc marks the planned notch. Over budget fills past the notch with a hatch plus a text line `120 over`; no red, no scolding. Art: C02-40 relief as the plate | `level`, `plan`, `label` | under, over (hatched), empty | `ProgressBar` |
+| `SkyLedger` | 60 star positions in 6 rows of 10 (or 90 in 9 rows). A kept day is a disc, a rest day a half moon, an untouched day a faint dot that stays in place. Headline `41 of the last 60 days kept`, a ratio that changes slowly. Hairlines join kept days that share a habit into a constellation (pure function of the data). Hover: Callout; Enter opens the Almanac day drawer. No chain, no "broken" language, deleting a day lowers the count honestly; a 200 ms disc fade when a day is added. Art: C04-17 as colour mood only; C03-03 for the constellation line style | `days[]`, `window` | live, hollow | `StippleRing`, `WeekStrip` |
+| `RackRow` | A 44 px rack unit: a chamfer plate with the serial (C02-25 style), device name, a `Rocker`, a "confirmed" lamp (cyan disc only after the board reports), last-seen mono time, a tiny ASCII pulse `▁▂▁` only if a report came in the last minute. States: UNCONFIRMED (half disc, "sent, not acknowledged"), CONFIRMED, FAULT (triangle with the reason), PLANNED (dashed plate). Six relays are six units on a 1302 x 300 rack with a dot-matrix header tile (C02-33). Used in `console.hardware`. Art: C01-19, C02-32, C04-134 as 5 percent dither behind it | `device`, `state`, `onToggle` | unconfirmed, confirmed, fault, planned | `Rocker`, `Plate`, `Lamp` |
+| `LedgerTable` | 32 px rows with a 44 px row-button hit area; sticky header, sort glyph in text; 1 px rules (no zebra); column types text, number (right aligned, tabular), lamp, ASCII spark, dot meter; inline edit on `F2`; a column chooser in a Key; row expand opens a drawer. Dense mode 28 px for the console only. Mobile: key-value cards showing 3 fields. Art: C04-47 as the frame | `columns[]`, `rows[]`, `density` | loading, empty, selected | `Row`, `TelemetryRail` |
+| `DetentRack` | A select as a rack: a 44 px trigger Key showing the value and an ASCII ▼; opens a 320 px recessed rack of 44 px rows, the current row carrying a disc, a left gutter of `├─ └─` for groups, typeahead, a mono shortcut column; unfolds with a 120 ms height ease (static: appears). Up, Down, Home, End, typing, Enter, Esc; `aria-activedescendant`. Mobile: a bottom sheet. Art: C04-28 for the folder look | `options[]`, `value`, `grouped` | open, closed, disabled | `Popover`, `Segmented` |
+| `SlotList` | Rows seat into slots: enter by 8 px `translateY` and opacity over 140 ms with a 40 ms stagger capped at 8 rows; exit by collapsing the slot. Reorder: Alt+Up and Alt+Down; pointer drag lifts the row (raised shadow, 2 px translate) and leaves a dashed `BlankingPlate`. Static: no motion, same states | `items[]`, `onReorder` | idle, lifting, empty | `Row`, `BlankingPlate` |
+| `CaptureLine` | A bottom-docked 44 px recessed line with a prompt glyph `>` and one text field. Local deterministic parse: `spent 120 chai`, `water 250`, `gym legs 45`, `remind me next tue 7 pm physics`. Parsed pieces appear as chips beneath (amount, label, date), each editable; Enter commits; an Undo toast for 6 s; Ctrl+Space focuses it from anywhere in Well Wisher. Ambiguity shows `? what is 120` and waits; no guess. The JARVIS grammar `remember>` and the closed-verb `CommandLine` use the same component (20.3). Art: C04-10 and C04-16 for the frame and a solid, non-blinking cursor block | `grammar`, `onCommit` | idle, parsing, ambiguous | `Console`, `NotchedToast` |
+| `SpecimenLayout` | Specimen, datum, margin and footer geometry of 20.5.1 | `specimen`, `callouts[]`, `footer` | desktop, reflow | `Frame`, `Callout` |
+
+All carry `data-component` and `data-state`, take a required `state` lamp prop wherever they show a number, and have a Hollow form and a static reduced-motion form. **Hollow forms** replace grey skeleton boxes: Odometer is dashed wells; Trace a straight dashed datum with an ASCII ruler; StrataCore flat dashed layers; SkyLedger 60 faint dots; Almanac empty cells with a dashed today notch. Loading uses `CellSkeleton` quadtree blocks sized to the final layout (C04-15), replaced in place. A one-sentence message and one action sit under each; the empty hero is an ASCII empty state of 14 lines (C04-105 dragon, C04-119 branch, C04-56 figure).
+
+#### 20.5.3 Progress track and attendance
+
+**Progress track.** A horizontal ASCII track `[====>     ]` with a small ASCII vehicle at the head (C04-57 car, C04-106 chopper as unlockable skins); static form shows the glyph at the right position; it moves only on a data change.
+
+**Timetable (rack).** The week form of the Almanac (20.6) filtered to classes. Each class plate: subject code in mono caps, room and time, a 6-dot attendance micro-row. Free slots show a dashed blanking plate "free 1 h 10 m" that can take a suggestion (a Capture Line prefilled). Art: C04-03 as the row rhythm, C04-35 as the meter ruler.
+
+**Attendance (Bunk Ledger).** One row per subject in a `LedgerTable`, 40 px: name, a `DotMatrixMeter` of 20 dots (attended share), a vertical tick at the student's required line (user-set), and `margin +3` in mono. Margin is local arithmetic, `floor((attended - r x held) / r)`, with the formula shown on focus. The wording is "margin", never "bunk" or warning red; below the line the tick turns to a half disc and the text reads `needs 2 classes to reach 75%`. Source lamp: LIVE only if the student entered it that day, otherwise WAITING "last entered 9 days ago". The required percentage per subject is the student's input (Q-V2-4); the formula is untested against real data.
+
+#### 20.5.4 Logic, storage, honesty
+
+Rule-based: margin arithmetic, DayMark shape mapping, the Capture Line tokenizer (amount, unit, date phrase, label), the SkyLedger ratio, jar levels, histogram binning. Local model optional: the retention estimate and a question-pattern classifier use a model only to classify; the counts come from stored classifications; the model never writes a number the student sees without a lamp. Storage: days, marks and intentions are an append-only local table keyed by date and action id; all derived art is a pure function of the table, so edits and deletes move the picture honestly. Spending and habit limits are user-set and local. Never: medical or psychological claims on water, medicines or habits (plain reminders and counts), exam outcome predictions, comparisons against other people.
+
+### 20.6 Life and Day: the Almanac, planners, body, ledger, Trim
+
+**What changes.** (1) The Life calendar is the named view `day.month`, not a new section: the ten-section map and ids stay frozen; Day gets five views (`today`, `week`, `month`, `body`, `close`), inside the §4.1.4 ceiling of five. (2) Every day cell is a small instrument, not a number. (3) Planned and done never share a mark. (4) Recurring intentions are one object, `Intent`. (5) Habits to reduce use Trim counters with rolling lines, never streaks. (6) Spending is a log with a monthly ledger strip. (7) The settings sheet is dissolved. (8) Body and routine become one strip on `day.body`.
+
+#### 20.6.1 `day.month`: the month form of the Almanac (box W: 1230 x 612)
+
+**Purpose.** Answer "what did I do, and what is coming" for any day at a glance, with one object for week, month and year.
+
+**Data and states.** Cells read from the existing life store (`useLife`, `derive.ts`: classes tapped, counters, gym log, attendance), the focus log, the study log, the Intent store (new) and later Google events. Each source has a lamp: classes and counters LIVE (tapped by the student); Google PLANNED, then WAITING, then LIVE; a computed summary SIMULATED only if built from fictional rows on a bench. A cell never shows a number unless its source lamp is LIVE.
+
+**Layout at 1366x768.**
+- Head 1230 x 52: the month name in dot-matrix numerals (C02-45 treatment, 36 px, no animation), previous and next (44 px), a three-way key group Week, Month, Year (a `Rocker`, 44 px high) and a Today key. Right end: the Google lamp (20.6.3) and a **Marks** key opening a popover that toggles kinds and names every shape.
+- Grid 900 x 548 at left: seven columns of 128 px (896 plus gutters 4), six rows, a 28 px weekday header. A cell is 128 x 86 px, 6 px radius: a raised clay tile for the current month, a pressed (inset) tile for adjacent months. Content: the date numeral top left (13 px mono), up to four kind marks along the base (14 px glyphs), a 3-row stipple strip of minutes done (one dot per 15 min, at most 12 dots, then a `+`). Each cell also carries a 16 px seed glyph of its day (deterministic from the day's action set) and one `AsciiHeat` glyph by action count; the number stays text.
+- Side panel 314 x 548 ("Month reading"): a `RingBars` of marks by kind (counts, LIVE only), a **Planned vs done** line (two numbers, no ratio, no colour judgement), and the next three Intents due, each a 44 px row.
+- Strip 1230 x 12 below the grid: an `AsciiSweep` rule line of the weekday rhythm (`. . | . . . .`), static.
+
+**Kind marks (shape carries meaning; colour is a second cue; a legend in the Marks popover names every shape).**
+
+| Kind | Done (filled) | Planned (hollow) | Source |
+|---|---|---|---|
+| Study block | disc | ring | focus log |
+| Class attended | square | outline square | attendance taps |
+| Body (gym, run, stretch) | up-triangle | outline triangle | gym log |
+| Water goal met | drop (teardrop) | outline drop | water counter |
+| Spend logged | bar (vertical dash) | outline bar | spending log |
+| Rest day (first class) | horizontal dash on an inset tile | the same | rest day set by the student |
+| Intent due | diamond | dashed diamond | Intent store |
+| From Google | notch (small cut corner) | same, outline | calendar link |
+
+A rest-day cell carries the word "Rest" (11 px) so a rest day never reads as empty.
+
+**Interactions.** Hover raises the cell 1 px (shadow only, 120 ms) and shows a cursor-following tooltip 220 x 72 px of kind counts ("2 blocks, 1 class, 1 spend"). Right-click or long press opens the add menu ("Add intent", "Log something done", "Move planned here"). Keyboard: arrow keys move across cells (roving tabindex, one tab stop), Enter opens the drawer, `t` Today, `w` `m` `y` switch form (focus-scoped), PageUp and PageDown change month, `n` adds an Intent on the focused day; a 2 px focus ring sits outside the clay shadow.
+
+**Day drawer** (560 x 652 from the right): the date in numerals and kind marks; three folds. **Happened:** rows with time, kind glyph, text, Undo and Delete per row. **Planned:** rows with a "Done" tap that turns the hollow glyph solid, a "Move" key, and a "Not now" key that makes the row a carried outline without any wording of failure. **Intents:** the rules that fall on this day, with an edit key; a "next time" strip holds the intentions set for this weekday, month or year. Bottom: Add (primary only when a draft exists; or use the Capture Line). Esc closes and focus returns to the cell. The drawer rows seat in with a 40 ms stagger capped at 8 rows.
+
+**Motion and static form.** A month change slides the grid 8 px and fades 160 ms; marks do not animate. The drawer opens with one reveal (the glyph row draws left to right in 200 ms). Static: no slide, no reveal. No idle loops.
+
+**Art placement (private track).** C02-38 is the clay reference for the tile proportion and the pill (Atkinson dither of the page edge to a 1-bit 24 px corner bracket on the head). C04-18 gives the head's corner brackets (terminal frame). C04-113 supplies the border line work for the Intent rows (cybersigil, ASCII triangle field, duotone, a 40 px strip at the drawer foot). C04-05 (stippled ring around a halftone moon) is the today ring: a stipple ring of 24 dots around today's numeral. C03-05 astrolabe as a thin contour on the year wheel; C04-21 orrery as the semester orbit in the drawer header; C01-26 for the week-header pills; C02-45 for dot-matrix clock numerals.
+
+**Empty and waiting.** No records: cells show the dot-matrix placeholder (`CellSkeleton`) and the head says "Nothing logged this month yet. Tap a day to add one." Google WAITING: the grid draws without notches and the lamp says what it waits for.
+
+**Year form (key `y`).** 53 week columns by 7 rows of 20 x 20 px cells (1060 x 140) plus a 12-month ring from `DateWheel` (300 x 300). Cells shade by minutes in four stipple densities (the quadtree heat idea of C04-15). Hover names the date; Enter jumps to that month. The year reading is totals only; nothing resets. The data lens's "year strata" ridge (each week a bar by logged minutes, months as rows when a series exceeds 24 rows) is the alternative drawing for the same form, chosen by the Marks popover.
+
+**Week form (key `w`, view `day.week`).** Seven columns 170 x 540, each a vertical timeline 06:00 to 24:00 with class blocks, planned blocks (hollow) and done blocks (solid); the rest day is an inset column with the words "Rest day". This replaces the old `day.week` body; its attendance margins and counters move to a right drawer. Planning: drag a planned block between columns (pointer) or press `m` then arrows (arrow keys shift 15 min, Enter commits).
+
+**Day form.** One vertical hairline, 40 px per hour, planned plates left, done plates right, a "now" notch; used on the phone as the Day page.
+
+**Mobile (358 wide).** Month shows a 7 x 6 grid of 46 x 52 cells (44 px hit area) with only the strongest mark and a count dot; tapping opens a bottom sheet with the three folds. The year form is a horizontal strip of 12 mini-months. The phone Calendar tab is the same component at 390.
+
+**Components.** `Almanac` (`mode` year, month, week, day; `days[]`, `onPick`, `exams[]`; live, waiting, planned link), `DayCell` (`date`, `marks[]`, `selected`, `today`; normal, selected, planned-only, empty; a cell renders identically at month and year zoom except size), `DayMark` (one glyph per kind, filled or hollow, with an accessible name), `StippleStrip` (a row of up to 12 dots), `DayDrawer` (three folds with Undo, Delete, Move, Done).
+
+#### 20.6.2 Planners inside the same calendar
+
+- **Next-day planner.** A **Plan tomorrow** key on `day.close` opens the day drawer for tomorrow with up to three "When <cue>, I will <step> for <n> min" rows (U1), pre-filled from timetable gaps and editable; saved rows appear as hollow marks.
+- **Week planner.** In week form: move a planned block by drag or `m` then arrows. Free time is the day minus classes minus planned, shown as a shaded run with the real minutes.
+- **Month planner.** Select a range with Shift+arrows and press `n` to add an Intent over it ("exam revision, 5 days"). Dates from the exam list appear as diamonds with the paper name on hover.
+- **Honesty.** A plan is drawn as intention; the sum of planned minutes is shown only with the word "planned". The planner never reads mood or claims a result.
+- **Intent.** One object with a rule (weekday, month day, yearly date, "every n days"), a reminder offset and a Quiet-switch gate. It renders as dashed marks in future cells and as a small ASCII rule line in the drawer (`every Mon . 07:30 . before class`). `IntentRule` and `IntentEditor` (extends `Field`, `Segmented`, `Spec`) build it. Recurrence expansion is a pure function from a rule and a date range to dates, unit-tested on month ends, leap day and a 29 Feb yearly rule (40 cases).
+
+#### 20.6.3 Google Calendar link (states and consent)
+
+Google recommends a loopback redirect with PKCE for desktop applications and no longer supports custom URI schemes or copy-and-paste codes (page opened: Google's OAuth for native apps). Calendar scopes are classed sensitive by third-party documentation; whether a personal client in testing mode avoids verification, and how long refresh tokens last, are not confirmed (Q-V2-2).
+
+States of the control (`LinkLamp`: a lamp plus a Key). **PLANNED** (dashed ring): no client configured; the key reads "Link Google Calendar" and opens an honest explanation (what it needs, the one scope, that the student signs in himself, that nothing leaves the machine except calls to Google). **WAITING** (half disc): consent started in the system browser; the application listens on a loopback port for 5 minutes; a Cancel key stops it. **LIVE** (disc): the first read succeeded; "Linked, last read 14:02" and one switch per calendar (each off by default). **FAULT** (triangle): token revoked or network failed, one line saying which; the local calendar keeps working. The student acts only in his browser. Read-only (`calendar.events.readonly`) is the default; "Send my planned blocks to Google" is a second explicit switch, off by default, with a preview list before the first write. Disconnect is one key: it revokes the token, deletes cached events, and returns the lamp to PLANNED. Imported events carry the notch mark and the words "from Google" and are never merged into the student's own log or counts.
+
+#### 20.6.4 Body and routine (`day.body`, box W: 1230 x 612)
+
+Left 640 x 612: the rebuilt gym card (a session log: type, minutes, optional sets; a seven-day `WeekStrip`; "next session" from the weekday Intent; rest days first class; no calorie or body claims). Right 574 x 612 split into **Water** (574 x 180), **Medicine reminders** (574 x 200) and **Class reminders** (574 x 200), gaps 16.
+- **Water:** a row of eight 44 px drops (a Key each); tap to fill; a goal set by the student; a daily reminder-time list. Count LIVE (tapped). Reduced motion: a number and filled glyphs. Art: C02-46 (control kit) for the drop keys; C02-20 water-pod gauge as a half-circle gauge derived as a 120 px SVG arc (static form: the same arc without the sweep). `WaterGauge`.
+- **Medicine reminders:** name, time and weekday set, all typed by the student. A scheduled notice only; the application records "taken" taps as the student's own log and never says what to take, suggests doses or comments on a condition. Shown line: "Reminders you set. Not medical advice."
+- **Class reminders:** derived from the timetable; one switch "remind me N minutes before a class" (default off); obeys the three-a-day budget unless the student raises it.
+- Mobile: a single page of stacked 358 px cards; drops wrap two rows of four. Enter or Space toggles a drop; arrows move; hover on a reminder shows "Next: 09:30".
+
+#### 20.6.5 Spending log and habits to reduce (Ledger drawer)
+
+To respect the five-view ceiling, spending and habits live in a **Ledger drawer** (560 x 652) opened from `day.month` or `day.body`, and as read-only rows in the day drawer.
+- **Spending log.** Add a row: amount (numeric), a category chip (the student's own list, up to 8), an optional note, the date defaulting to today; saved in two taps. Entries are the student's own and LIVE; there is no automatic bank read. Month strip 520 x 120: one dot column per day, one dot per entry, dot height by amount tertile (three bands named in the legend); the only number is the month total with the word "logged". Category shares as a `PillarsChart` (C02-09 treatment). An optional soft budget line; crossing it draws a hollow outline on the strip, no red, no blame. The Jars and the LedgerTape (20.5) are the other drawings of the same log.
+- **Habits to reduce.** A **Trim counter** per habit (the student names it): tap to log an occurrence, optional "what led up to it" chip. The reading is a rolling seven-day line and a longer ribbon of dots (`HabitRibbon`: a quadtree mosaic where each day's cell subdivides as more events are logged, C04-15; deterministic, caption "cells = what you logged; fewer is fine"); both can fall as well as rise and are labelled "your own log". The Sky Ledger shows "days under the limit he set", the limit editable in place. **No streaks, no reset, no "days clean".** A heavy or unlogged day is a neutral inset cell. A forward action sits in the drawer: "Pick one small swap for the next cue" (an editable, declinable if-then row, U5). On return after missed days the application says one neutral line, "Pick up here.", and shows the last three logged days; no counter changes.
+- **Limits.** The section says "A log you keep for yourself." It never claims to treat, diagnose, manage or predict any condition and never shows risk scores. If the student sets a very high count, the drawer shows a plain line that a local helpline list is available under "Help" (a static list he can edit), without any inference about him (Q-V2-5).
+
+#### 20.6.6 Settings dissolved: Trim, the index and the registry
+
+**Method.** Every setting is placed where its variable is read. **Trim** is a recessed 44 x 44 key with a 24 px "slider" glyph at the corner of the control it adjusts. Press opens a popover (at most 320 x 360) with the control, its current value, its default, a "Reset" key and one line saying what reads it. Esc closes and focus returns to the key; reduced motion: no reveal. Settings that change hardware or the brain keep their confirm step. Labelled for assistive technology ("Adjust: attendance rule"); shown on hover or focus for sighted users. **Index.** The command palette mode `:` lists a flat index (id, label, section, current value, lamp); selecting one navigates to its view and opens its Trim. The index is generated from `settingsRegistry.ts`, so a setting cannot exist without a home; a test fails if a registry entry has no mounted Trim or a form field is not in the registry. Components: `Trim` (`settingId`, `label`, `children`, `readsBy`; registers itself), `SettingsIndex`.
+
+| Setting today | New home (where used) | Trim contents |
+|---|---|---|
+| SU1 Rotation (five library days) | `study.plan` header | day-to-track table |
+| SU2 Subjects and question bank | `study.papers` detail | subject list, bank sources |
+| SU3 Goals | `career.ladder` | goal rows |
+| SU4 Timetable | `day.today` Next class region; week form | weekly class grid |
+| SU5 Attendance rule | `day.week` margins | threshold and scope |
+| SU6 Deadlines | `day.month` (diamonds) and `career.pipeline` | dated list |
+| SU7 Study time | `day.today` free-time strip | minutes per day |
+| SU8 About you | `core.talk` header and `study.plan` | one-line fields |
+| SU9 Certificate budget | `career.certs` | monthly and stretch amounts |
+| SU10 How the plan works | `day.today` Now region; shell Quiet switch for quiet hours | each field beside its effect |
+| SU11 Calibration wizard | `tree.tree` first run and header Trim | the three-step wizard |
+| SU12 Career settings | `career.pipeline` | weights switch |
+| SU13 Connections | `console.connections`; Google lamp also on `day.month` | link rows |
+| SU14 Backup | `memory.keep` | export, daily snapshot count |
+| SU15 Dates | `study.plan` date wheel | dates and "exam mode starts n days before" |
+| SU16 Phone | `console.connections` pair row | pairing |
+| SU17 Appearance (theme, motion, tab badges, glass, contrast, cursor kit) | the shell title bar, one Trim | all, with Glass and Contrast PLANNED |
+| Which Well Wisher opens (flag) | hidden rollback key in `console.health` | one key |
+| Question harvester | `study.library` | queue and sources |
+| Brain model, restart | `console.health` | model radio group |
+| Voice, speed, test | `core.talk` header | voice groups, speed slider, test |
+| Pronunciation table | `core.talk` Trim, second tab | word and say |
+| Modules (deep think, offline voice, free GPU) | `console.health` | timed switches and costs |
+| Latency and hearing line | `core.sound` (read only) | readout |
+| Imports and exports | `memory.keep` | per source |
+| Tree active and zoom sensitivity | `tree.tree` header | two controls |
+| Away mode, reminders | `room.rules` and `memory.recall` | rule and reminder lists |
+| Heavy-load channel flag | the channel's own key in `room.switches` | one switch |
+
+#### 20.6.7 Storage, rules, ethics checks
+
+Local SQLite tables behind the existing application data folder (nothing in tracked files): `intents` (id, rule, reminder offset, kind, enabled), `spend` (amount, category, date, note), `habit_events` (habit id, timestamp, optional chip), `water` (date, count), `reminders` (kind, time, weekdays, label); `day_marks` are derived on read, not stored. Rule-based: recurrence, mark derivation, free-time arithmetic, the rolling seven-day line, spend tertiles, planner prefill from timetable gaps. A narrow local drafting model may later suggest a first small step for an Intent; it never schedules, grades or comments on habits, is off by default and labelled "drafted by the local model". Needs the owner's consent or account: the Google link (his sign-in in the browser; his own Google Cloud client in testing mode; write a separate switch), notifications (opt-in), the helpline list (he edits it). **Checks:** a test fails any cell that shows a number without a LIVE or SIMULATED lamp; a copy test greps for "streak", "failed", "missed", "clean", "relapse", "disorder", "treat" and "diagnos" in the calendar, habit and reminder strings; reminder counts obey the three-a-day budget unless the student raises it. Delivery: an in-app notice and an optional phone notice through the existing pairing; nothing external.
+
+#### 20.6.8 Reserve (not built)
+
+Lunar-phase year ring (decoration only); a sigil per habit grown by an L-system and allowed to shrink; a terminal day log (`` ` `` on the drawer, MUD-style text); a dot-matrix hour hand (24 x 4); orrery weeks (C04-21); sound ticks; a month poster export (1-bit dithered); a two-week lookahead ribbon of diamonds in the title bar; a weather map of the semester; a day spine as a physical tape counter; an Almanac overlay fading the previous month at 20 percent; a halftone portrait of the month; a voice Capture Line.
 ---
 
 ## Appendix A Implementation prompts

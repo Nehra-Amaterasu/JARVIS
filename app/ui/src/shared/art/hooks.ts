@@ -1,6 +1,6 @@
 // Shared hooks of the art components: the Calm switch, the roving tabindex of a ring or a strip, and the one
 // bounded loop that the only moving piece here (the ASCII sweep) runs on.
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type RefObject } from 'react'
 import { nextIndex } from './geometry'
 
 // ---- Calm: the same rule as the app's motion switch (<html data-motion="auto | full | calm"> plus the OS flag),
@@ -61,7 +61,7 @@ export function useRoving(count: number, opts: { wrap?: boolean } = {}) {
 // longer than 5 s without Pause": a loader simply settles), on `visibilitychange`, and when scrolled out of view.
 // Nothing runs unless `enabled`, and an effect cleanup always clears the timer, so no idle loop survives.
 
-export function useBoundedLoop(enabled: boolean, intervalMs: number, maxMs: number, tick: (n: number) => void, el?: React.RefObject<Element | null>): void {
+export function useBoundedLoop(enabled: boolean, intervalMs: number, maxMs: number, tick: (n: number) => void, el?: RefObject<Element | null>): void {
   const cb = useRef(tick)
   useEffect(() => {
     cb.current = tick

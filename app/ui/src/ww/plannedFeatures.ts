@@ -12,33 +12,30 @@
  * from live data (Planned `fill`) or leaves it out.
  */
 
-/** E empty with a real first action, D disabled with a visible reason, C ComingCard, R Roadmap only. */
-export type Pattern = 'empty' | 'disabled' | 'coming' | 'roadmap'
+import { createRegistry, fillLine, LINE_MAX, LINE_MIN } from '../shared/planned/registry'
+import { staleEntries as sharedStale } from '../shared/planned/stale'
+import type { Blocker, Pattern, PlannedEntry, Registry } from '../shared/planned/types'
 
-export interface Planned {
-  id: string
-  /** The plan's item number (7 to 19); the other rows carry none. */
-  planItem?: number
-  /** Where it renders: the page id of plan 3.3 (L, C1 to C6, R, phone) and the section id inside it. */
+// The mechanism now lives in shared/planned (spec 12, B02). This file keeps the Well Wisher DATA and the
+// exports the pre-overhaul pages and tests import, so no page changed when the registry was generalised.
+export type { Pattern }
+export { LINE_MAX, LINE_MIN, fillLine }
+
+/**
+ * A legacy entry: the v2 record plus the plan codes the old pages and the Roadmap drawer still read.
+ * `page` and `section` are plan-chunk codes (C1 to C6, R, L, phone); `home` is the v2 view id that replaces them.
+ */
+export interface Planned extends PlannedEntry {
   page: string
   section: string
-  label: string
-  pattern: Pattern
-  /** The one line shown: 15 to 140 characters, says what is missing and why. */
-  line: string
-  /** The precondition, shown on the Roadmap row. */
-  needs: string
-  /** The label of the real first action of an `empty` entry; the page supplies what it does. */
-  action?: string
-  when?: string
-  /** The build chunk that ships it (plan section 9). */
-  chunk?: string
-  /** The row is already built and works; the registry only holds the blocked-state line. */
-  built?: boolean
 }
 
-export const LINE_MIN = 15
-export const LINE_MAX = 140
+/** What a legacy row does not say in its own text: the v2 home (spec 12.3 table) and why it is blocked. */
+type Meta = { home: string; blocker: Blocker }
+type Raw = Omit<Planned, keyof Meta | 'product' | 'since' | 'reviewBy' | 'owner'>
+
+export const SINCE = '2026-11-12'
+export const REVIEW_BY = '2027-02-10' // since + 90 days (spec 12.3 target)
 
 /** The Roadmap groups by where the feature lives, in the order the tabs run. */
 export const GROUPS = ['Study', 'Tree', 'Life', 'Career', 'Proof', 'Setup', 'Left column', 'Phone'] as const
@@ -49,7 +46,7 @@ const GROUP_OF_PAGE: Record<string, Group> = {
 }
 export const groupOf = (p: Planned): Group => GROUP_OF_PAGE[p.page] ?? 'Setup'
 
-export const PLANNED: readonly Planned[] = [
+const LEGACY: readonly Raw[] = [
   // ---- the 13 numbered plan items (7 to 19)
   { id: 'sheets-rewritten', planItem: 7, page: 'C1', section: 'S2', label: 'Sheets with formulas and references', pattern: 'empty',
     line: 'No sheet is linked to this paper yet (N of N units).', action: 'Link a sheet',
@@ -139,40 +136,97 @@ export const PLANNED: readonly Planned[] = [
     needs: 'Yaadash\'s reader of the staging folder. Whether the writer side is complete is unverified.', chunk: '12' },
 ]
 
-export const plannedById = (id: string): Planned | undefined => PLANNED.find((p) => p.id === id)
+const META: Record<string, Meta> = {
+  'sheets-rewritten': { home: 'study.library', blocker: 'data' },
+  sharpen: { home: 'tree.tree', blocker: 'data' },
+  'resource-progress': { home: 'study.library', blocker: 'build' },
+  'knowledge-of-the-day': { home: 'study.library', blocker: 'data' },
+  'trees-v3': { home: 'tree.tree', blocker: 'build' },
+  'status-v2': { home: 'proof.panel', blocker: 'build' },
+  'life-v2': { home: 'day.week', blocker: 'build' },
+  'body-grand': { home: 'day.body', blocker: 'build' },
+  'music-import': { home: 'day.body', blocker: 'data' },
+  'reels-v2': { home: 'day.body', blocker: 'build' },
+  books: { home: 'study.library', blocker: 'build' },
+  'ledger-publish': { home: 'proof.panel', blocker: 'decision' },
+  'college-mail': { home: 'settings.connections', blocker: 'account' },
+  'cie-practice': { home: 'study.practice', blocker: 'data' },
+  'paste-paper': { home: 'study.practice', blocker: 'decision' },
+  'gate-tier': { home: 'study.practice', blocker: 'data' },
+  'parameterised-numericals': { home: 'study.practice', blocker: 'build' },
+  proficiency: { home: 'study.papers', blocker: 'data' },
+  'quest-lines': { home: 'proof.panel', blocker: 'build' },
+  // Spec 12.3 maps the Left column (L) to day.today, but day.today is a loop view and carries no plate (R5, T8).
+  // Pairing is a phone-link door, so it is homed on the phone page until the owner decides otherwise.
+  'phone-pairing': { home: 'phone', blocker: 'build' },
+  'phone-papers': { home: 'phone', blocker: 'build' },
+  harvester: { home: 'settings.harvester', blocker: 'licence' },
+  'harvester-pdf': { home: 'settings.harvester', blocker: 'decision' },
+  'dmat-practice': { home: 'study.dmat', blocker: 'build' },
+  'drafted-questions': { home: 'study.practice', blocker: 'decision' },
+  'calendar-file': { home: 'settings.connections', blocker: 'build' },
+  'phone-share': { home: 'phone', blocker: 'build' },
+  'yaadash-link': { home: 'settings.connections', blocker: 'build' },
+}
 
-/** Entries for a page and section: how a page asks "what do I owe here?". */
+/** The 28 entries of the first registry, migrated: ids, lines, `needs` and `built` flags unchanged. */
+export const PLANNED: Planned[] = LEGACY.map((r) => {
+  const m = META[r.id]
+  if (!m) throw new Error(`plannedFeatures: no v2 home for "${r.id}"`)
+  return { ...r, ...m, product: 'ww', since: SINCE, reviewBy: REVIEW_BY, owner: 'ww-chat' }
+})
+
+/**
+ * New Well Wisher rows of spec 12.6. They are not in PLANNED: the pre-overhaul Roadmap drawer and its tests
+ * count 28 and 24 rows, and these views (`day.week`, `focus.start` and the rest) do not exist until the
+ * section map v2 (B11) mounts them. They are in the shared registry, so the "What is coming" overlay lists them.
+ */
+export const WW_NEW: PlannedEntry[] = [
+  { id: 'ww.coach', product: 'ww', home: 'study.library', label: 'Coach', pattern: 'coming', blocker: 'build',
+    line: 'Coach drafts and rewords your own notes. It is not built, and it never grades or gives you numbers.',
+    needs: 'A local drafting model and the Coach panel. It never grades.', since: SINCE, reviewBy: REVIEW_BY, owner: 'ww-chat' },
+  { id: 'ww.review-cards', product: 'ww', home: 'study.practice', label: 'Spaced review', pattern: 'roadmap', blocker: 'build',
+    line: 'Spaced review of cards is not built. Practice papers work now.',
+    needs: 'The review scheduler and a card row.', since: SINCE, reviewBy: REVIEW_BY, owner: 'ww-chat' },
+  { id: 'ww.focus-hours', product: 'ww', home: 'day.week', label: 'Hours you finish sessions', pattern: 'coming', blocker: 'build',
+    line: 'A strip of the hours you actually finished sessions is not built. It will show counts, never a prediction.',
+    needs: 'The strip, fed from finished sessions only.', since: SINCE, reviewBy: REVIEW_BY, owner: 'ww-chat' },
+  { id: 'ww.study-lights', product: 'ww', home: 'focus.start', label: 'Study lights', pattern: 'disabled', blocker: 'build',
+    line: 'Study lights through the room need JARVIS and your tap. Not built, and off by default when it is.',
+    needs: 'The JARVIS port and your tap on each start.', since: SINCE, reviewBy: REVIEW_BY, owner: 'ww-chat' },
+  { id: 'ww.phone-block', product: 'ww', home: 'phone', label: 'Block on the phone', pattern: 'disabled', blocker: 'build',
+    line: 'Starting a block from the phone is not built. The Today page on the phone works.',
+    needs: 'A phone control that starts a block.', since: SINCE, reviewBy: REVIEW_BY, owner: 'ww-chat' },
+  { id: 'ww.rest-sounds', product: 'ww', home: 'focus.rest', label: 'Rest sounds', pattern: 'roadmap', blocker: 'decision',
+    line: 'Sounds for a rest are not built. A silent rest works now.',
+    needs: 'A decision on which sounds, and where they come from.', since: SINCE, reviewBy: REVIEW_BY, owner: 'ww-chat' },
+]
+
+/** The shared-mechanism registry for this product: the 28 migrated rows plus the new ones, read live. */
+export const wwRegistry: Registry<PlannedEntry> = {
+  get entries() {
+    return [...PLANNED, ...WW_NEW]
+  },
+  byId: (id) => PLANNED.find((p) => p.id === id) ?? WW_NEW.find((p) => p.id === id),
+  forHome: (home) => [...PLANNED, ...WW_NEW].filter((p) => p.home === home),
+}
+
+export const plannedById = (id: string): PlannedEntry | undefined => wwRegistry.byId(id)
+
+/** Entries for a page and section: how a page asks "what do I owe here?". Legacy plan codes. */
 export const plannedFor = (page: string, section: string): Planned[] => PLANNED.filter((p) => p.page === page && p.section === section)
 
 /**
- * Replace each stand-alone `N` in a line with the next live value. With no values the N stays: a
- * placeholder never invents a count. Extra values are ignored.
- */
-export function fillLine(line: string, values?: readonly (string | number)[]): string {
-  if (!values || values.length === 0) return line
-  let i = 0
-  return line.replace(/\bN\b/g, (m) => (i < values.length ? String(values[i++]) : m))
-}
-
-/**
- * The stale-placeholder check (plan 7): a feature that ships carries `data-feature="<id>"` on its live
- * control. An entry whose id is still registered while an enabled control with that id exists is stale and
- * must be deleted in the commit that shipped the feature. Returns the stale ids found under `root`.
+ * The stale-placeholder check: a live, enabled control carrying `data-feature="<id>"` while the id is still
+ * registered. The mechanism is shared (shared/planned/stale.ts); this keeps the one-argument form the tests call.
  */
 export function staleEntries(root: ParentNode = document): string[] {
-  const out: string[] = []
-  for (const p of PLANNED) {
-    for (const el of root.querySelectorAll<HTMLElement>(`[data-feature="${p.id}"]`)) {
-      const inert = el.getAttribute('aria-disabled') === 'true' || (el as HTMLButtonElement).disabled === true
-      if (!inert && !el.closest('[data-planned]')) {
-        out.push(p.id)
-        break
-      }
-    }
-  }
-  return out
+  return sharedStale(root, wwRegistry)
 }
 
 /** What the Roadmap lists: the entries not built yet. A built row (phone pairing, dMAT since chunk 7, sharpen since chunk 10, numericals since 10 Nov) keeps its
  * entry only for its blocked or empty state, so it must not appear in a list titled "What is not built". */
 export const UNBUILT: readonly Planned[] = PLANNED.filter((p) => !p.built)
+
+// Re-exported so a Well Wisher page that wants a registry over its own subset need not reach into shared/.
+export { createRegistry }

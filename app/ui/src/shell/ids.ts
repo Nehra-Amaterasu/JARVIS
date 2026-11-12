@@ -48,6 +48,30 @@ export function sectionById(id: string): SectionDef | undefined {
   return SECTIONS.find((s) => s.id === id)
 }
 
+/**
+ * The shell's own places outside the rail (they belong to no section and to both products, so they keep the
+ * product, and with it the theme, of wherever the student was). `app.new` is "What is new", the gallery of
+ * every merged component (A.N01, mounted by the shell, D-V2-23). Not views of the table: never counted in 36.
+ */
+export const APP_SECTION = 'app'
+export const APP_PLACES: Readonly<Record<string, string>> = { new: 'What is new' }
+export const APP_NEW = 'app.new'
+
+export function isAppPlace(p: { section: string }): boolean {
+  return p.section === APP_SECTION
+}
+
+/** The place `app.new` for the product on screen. */
+export function appNew(product: ProductId): Place {
+  return { product, section: APP_SECTION, view: 'new' }
+}
+
+/** Words for any place, including the shell's own: "Study / Plan", "What is new". */
+export function placeLabel(p: { section: string; view: string }): string {
+  if (isAppPlace(p)) return APP_PLACES[p.view] ?? p.view
+  return `${sectionById(p.section)?.label ?? p.section} / ${VIEW_LABEL[p.view] ?? p.view}`
+}
+
 /** `<section>.<view>` is the full view id in code and tests. */
 export function viewId(section: string, view: string): string {
   return `${section}.${view}`

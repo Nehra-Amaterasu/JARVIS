@@ -64,6 +64,8 @@ export function goRows(products: readonly ProductId[], current: ProductId): Pale
 export function shellRows(products: readonly ProductId[]): PaletteRow[] {
   const rows: PaletteRow[] = [
     { id: 'shell.resume', group: 'Go', label: 'Resume where I was', bindingId: 'resume' },
+    // A.N02 (g): the palette verb of the place app.new
+    { id: 'shell.new', group: 'Go', label: 'What is new', detail: 'every new component', bindingId: 'app.new' },
     { id: 'shell.shortcuts', group: 'Go', label: 'Keyboard shortcuts', bindingId: 'shortcuts' },
   ]
   if (products.length > 1) rows.unshift({ id: 'shell.swap', group: 'Go', label: 'Swap product', bindingId: 'product.swap' })

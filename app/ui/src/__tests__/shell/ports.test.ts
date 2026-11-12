@@ -66,9 +66,10 @@ describe('the Resume record', () => {
     clearRecord('ww')
   })
 
-  it('first run reads the one start line per product', () => {
-    expect(pillState('ww', null, 0)).toEqual({ kind: 'start', text: 'Start: plan the day' })
-    expect(pillState('jarvis', null, 0)).toEqual({ kind: 'start', text: 'Start: wake JARVIS' })
+  // A.N02 (e): the first-run line only navigates, so it is worded as navigation (it read "Start: wake JARVIS")
+  it('first run reads the one navigation line per product', () => {
+    expect(pillState('ww', null, 0)).toEqual({ kind: 'start', text: 'Go to Day / Today' })
+    expect(pillState('jarvis', null, 0)).toEqual({ kind: 'start', text: 'Go to Core / Talk' })
   })
 
   it('a record round-trips through localStorage and a bad one is ignored', () => {
@@ -82,7 +83,8 @@ describe('the Resume record', () => {
 
   it('a fresh record names the place; a stale one says "last seen" and shows no running time', () => {
     const r = { product: 'ww' as const, section: 'study', view: 'practice', object: 'Paper 2', openedAt: 0, lastConfirmedAt: 0 }
-    expect(pillState('ww', r, 60_000)).toEqual({ kind: 'open', text: 'Study / Practice: Paper 2' })
+    // A.N02 (d): the place before, with the clock time it was left (a fixed time, never a running one)
+    expect(pillState('ww', r, 60_000)).toEqual({ kind: 'open', text: expect.stringMatching(/^Study \/ Practice: Paper 2, left \d\d:\d\d$/) })
     const stale = pillState('ww', r, STALE_MS + 60 * 60_000 * 20)
     expect(stale.kind).toBe('stale')
     expect(stale.text).toMatch(/^Paper 2, last seen /)

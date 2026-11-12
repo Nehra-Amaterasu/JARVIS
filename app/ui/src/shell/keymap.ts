@@ -24,6 +24,7 @@ export type ShellAction =
   | { kind: 'palette' }
   | { kind: 'shortcuts' }
   | { kind: 'back' }
+  | { kind: 'place'; id: 'app.new' }
 
 export interface Binding {
   id: string
@@ -50,6 +51,8 @@ export const BINDINGS: readonly Binding[] = [
   { id: 'resume', group: 'Go', label: 'Resume', combos: [{ key: 'r', alt: true }], action: { kind: 'resume' } },
   { id: 'view.prev', group: 'Views', label: 'Previous view', combos: [{ key: '[' }], action: { kind: 'view-step', delta: -1 }, notInText: true },
   { id: 'view.next', group: 'Views', label: 'Next view', combos: [{ key: ']' }], action: { kind: 'view-step', delta: 1 }, notInText: true },
+  // A.N02 (g): "What is new", the gallery place of wave 5; Alt+N is free in the frame and in every legacy page
+  { id: 'app.new', group: 'Go', label: 'What is new', combos: [{ key: 'n', alt: true }], action: { kind: 'place', id: 'app.new' } },
   { id: 'back', group: 'Views', label: 'Back one view', combos: [{ key: 'ArrowLeft', alt: true }], action: { kind: 'back' } },
   { id: 'palette', group: 'Shell', label: 'Command palette', combos: [{ key: 'k', ctrl: true }], action: { kind: 'palette' } },
   { id: 'shortcuts', group: 'Shell', label: 'Shortcuts', combos: [{ key: '?', shift: true }], action: { kind: 'shortcuts' }, notInText: true },

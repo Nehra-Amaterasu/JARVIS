@@ -14,9 +14,10 @@ import { Lamp } from '../shared/lamp/Lamp'
 import type { LampReading } from '../shared/lamp/types'
 import type { Registry } from '../shared/planned/types'
 import { PAGE_ROWS, filterRows, goRows, hintOf, pageOf, shellRows, type PaletteRow, type Verb } from './commands'
-import type { ProductId } from './ids'
+import { appNew, type ProductId } from './ids'
+import { modeOf } from './modes'
 import { getPort } from './ports'
-import { readRecord, resumeTarget } from './record'
+import { readPrev, resumeTarget } from './record'
 import { PRODUCTS, useShell } from './store'
 
 const PLANNED: LampReading = { state: 'planned', since: null, reason: 'not built' }
@@ -48,6 +49,9 @@ export function Palette({ product, verbs, registries, onClose }: PaletteProps) {
   }, [product, verbs, registries, core?.running]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const rows = useMemo(() => {
+    // a globbed palette mode (shell/modes) answers alone when the query starts with its prefix
+    const mode = modeOf(q)
+    if (mode) return mode.mode.run(mode.rest)
     const hits = filterRows(base, q)
     const term = q.trim()
     if (!term) return hits
@@ -75,7 +79,8 @@ export function Palette({ product, verbs, registries, onClose }: PaletteProps) {
     onClose()
     if (r.go) s.go(r.go)
     else if (r.id === 'shell.swap') s.swapProduct()
-    else if (r.id === 'shell.resume') s.go(resumeTarget(s.product, readRecord(s.product)))
+    else if (r.id === 'shell.resume') s.go(resumeTarget(s.product, readPrev(s.product)))
+    else if (r.id === 'shell.new') s.go(appNew(s.product))
     else if (r.id === 'shell.shortcuts') s.openOverlay('shortcuts')
     else if (r.run) {
       void Promise.resolve(r.run()).then((res) => {

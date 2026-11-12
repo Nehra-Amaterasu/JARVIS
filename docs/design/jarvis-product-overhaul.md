@@ -83,7 +83,7 @@ Sections of this file are written `§N.M`. The source specification was assemble
 
 ### 0.6 Counts at a glance
 
-*Superseded in part by 20.13 and 15.6: views 36, 77 new work packages, 78 new components.*
+*Superseded in part by 20.13 and 15.6: views 36, 46 new work packages in 10 waves, 78 new components.*
 
 | Item | Count | Where |
 |---|---|---|
@@ -3229,7 +3229,7 @@ What the first draft of this section called the "R01 skippable" fallback is gone
 
 ### 15.3 Work packages
 
-*Superseded in part by 15.6 (the wave plan and the 77 new packages).*
+*Superseded in part by 15.6 (the wave plan and the 46 new packages).*
 
 Legend: **Owner** is the chat that owns the files (NOW.md section 2). Files are paths; "new" means created by the WP. Exit evidence is a one-line summary; the full acceptance criteria and tests are in the matching appendix prompt A.n (single source, so they cannot drift).
 
@@ -3331,6 +3331,103 @@ The budgets enforced by work package Q01 are the single table in §14.1 (idle an
 | Local only | Zero requests to non-app hosts from learning loops and models | Network trace in Q03 |
 | Reflow depth | No horizontal scroll at 320 px and at 683 px (200 % zoom of 1366) except declared two-dimensional regions | Playwright (see §11.1) |
 
+
+### 15.6 Wave plan of direction v2 (13 Nov 2026; governs 15.1 to 15.4 where they differ)
+
+**Why waves.** On 13 Nov the owner saw parallel branches break at merge and asked to see the new look inside the running application early. A wave is a set of 3 to 5 packages that own **disjoint files**, depend only on earlier waves, and start and merge together. The integrator is the only merger. Before a wave starts, every builder and every reviewer receives the wave contract table (Block C rule 13): one row per package with its id, purpose, owned files, the exports it adds and the exports of other packages it may import. Where this section and the older tables of 15.3 and 15.4 differ, this section governs.
+
+**Already merged on main and reused, not rebuilt (waves 1 to 4):** B01 (seam cuts), B02 (registry v2), B03 (tokens), B03b, B03c (38 components in `shared/kit` and `shared/art`), B04 (`shared/lamp`), B05 (shell v2 in `app/ui/src/shell` behind the `app.shell` flag, with a New UI button in the current dock and a Classic UI button in the new title bar, `shell/flag.ts` `setShellV2`), B05b (`tools/art`, `app/ui/src/art`), `shared/motion`, the kit bench (`app/ui/e2e/bench`, 28 passing checks and 18 measured failures listed as known debt in `e2e/bench/known.ts`), the Python half of B07 (`core/playback.py` output level) and the voice component (`app/ui/src/jarvis/voice`, not yet mounted). Every package below imports these; none re-implements them.
+
+**Seven rules that make the waves disjoint** (each is a test in 15.6.4):
+
+1. **No barrel edits.** A package never edits an `index.ts` it does not own. Each new folder has its own `index.ts`, and consumers import the folder (`shared/data/numbers`), not a shared barrel.
+2. **Registration by glob, not by edit.** N02 (wave 5) turns three central lists into globbed folders: `shell/views/*.view.ts` (each file exports one `ViewRegistration`: `{ id, product, load }`), `shell/slots/<slot>.<name>.tsx` (title bar sigil, boot, cursor root, notify), and `shell/modes/*.mode.ts` (palette modes). A section package owns the files it adds to those folders and never edits `shell/hosts.ts`, `ShellV2.tsx` or `ids.ts` after wave 5.
+3. **Gallery by glob.** N01 (wave 5) globs `gallery/entries/*.tsx`. Every package adds exactly one file there, `gallery/entries/<package id>.tsx`, exporting `entry: GalleryEntry`. A package whose entry is missing does not merge (D-V2-23).
+4. **Adapter slots.** A section package declares an adapter folder (`ww/day/adapters/`) and loads `adapters/*.register.ts` with `import.meta.glob`. A later engine package adds its own `<engine>.register.ts` there and nothing else. Until it merges, the section runs on a null adapter and shows WAITING; on the bench it runs on a fixture adapter stamped SIMULATED. This is how sections (waves 7 to 9) come before engines (waves 10 to 12) without a section waiting for an engine.
+5. **Single-source tables are imported, never copied:** lamp states (`shared/lamp/types.ts`), tokens (`styles/design/clay`), section ids and view ids (`shell/ids.ts`), key bindings (`shell/keymap.ts`), art ids (`art/art-manifest.json`), the settings registry (`shared/trim`, from wave 7).
+6. **One owner per server file per wave.** `app/jarvis_app/server.py` is owned by E01 in wave 10, which adds discovery of `routes_ww_*.py`; E02 to E04 add only new route files. In waves 11 and 12 the route files are discovered the same way.
+7. **A shared file with two owners is a plan error.** If two packages of one wave need the same file, the integrator moves the need into one package or into an earlier wave before the wave starts.
+
+#### 15.6.1 The waves
+
+Wave 5 is first because the owner must see progress: the gallery shows every merged component in the running application on the day it merges, so each later wave is visible as it lands. Then the shared look and the most reused data components, then the sections (a JARVIS section and a Well Wisher section in the same wave wherever their files are disjoint), then the engines that give the sections real data, then verification.
+
+| Wave | Packages (3 to 5) | What the owner can look at when it merges |
+|---|---|---|
+| 5 | N01, N02, G01, G02, G03 | A "What is new" place in shell v2 listing every kit, art, lamp and voice component in its states and the section themes; the shell as it should behave; the clay recipe with three elevations; the three grammars; the centrepieces rendering |
+| 6 | D01, D02, D03, D04, D05 | Odometer, Trace, tables, dropdown rack, Capture Line, Specimen layout, in the gallery with fixtures |
+| 7 | J01, J02, L01, L02 | Core with its pipeline ribbon; Room with the guarded key and 24-hour ring; the Life month calendar; the Trim keys |
+| 8 | J03, J04, L03, Y01, Y02 | Senses terrain; Memory constellation; the week, body, spending and habit views; the Paper Desk; Focus with Drill |
+| 9 | J05, Y03, T01, T02, G04 | Console as a terminal; Study plan, practice and the retention orrery; the Grove and tree; the five Career views; cursors, boot and route sigils |
+| 10 | E01, E02, E03, E04 | Recurring reminders, logs for water, spending and habits, reminder delivery, the Google Calendar link |
+| 11 | E05, E06, E07, E08 | The question engine: papers in, questions out, patterns as counts, the practice paper and the checker |
+| 12 | E09, E10, E11, E12 | The evidence ledger, ten trees with 113 branches, Career data with "checked on" stamps |
+| 13 | E13, E14, B09, B10, B12 | Settings dissolved into Trim; the one-key links between Life, Study, Tree and Career; the phone; learning loops; Coach |
+| 14 | B13, Q01, Q02, Q03, Q04 | Old layout retired; the contract sweep, the real-window pass, the privacy and claims audit, the gallery pass |
+
+46 packages in 10 waves of 5, 5, 4, 5, 5, 4, 4, 4, 5 and 5. Waves 1 to 4 are the merged foundation. The 77 lens packages of 20.13 are folded into these 46 (15.6.3).
+
+#### 15.6.2 Owned files per package (disjoint within each wave; paths under `app/ui/src` unless stated)
+
+| Pkg | Wave | Owns | Reads (earlier waves only) |
+|---|---|---|---|
+| N01 | 5 | `gallery/**` (collector, specimens moved from `e2e/bench/entry.tsx`, the entries of B01 to B07), `e2e/bench/entry.tsx` (reduced to a mount of `gallery`), `e2e/gallery.spec.ts`, `tools/wave_check.py` | shared kit, art, lamp, voice, motion |
+| N02 | 5 | `shell/**` (except `gallery`), `ww/frame/**`, `styles/shell.css`, `e2e/shell*.spec.ts`, `__tests__/shell/**` | N01 default export `WhatIsNew` |
+| G01 | 5 | `styles/design/clay/**`, `shared/kit/**`, `shared/lamp/**`, `__tests__/kit/**`, `e2e/bench/known.ts`, `e2e/bench/bench.spec.ts` | none |
+| G02 | 5 | `shared/grammar/**` (sigil, ascii, term, `grammar.css`), `__tests__/grammar/**` | G01 tokens only through the CSS variable names listed in the contract |
+| G03 | 5 | `tools/art/**` (recipes for the eleven centrepieces and the sigil tracer), `art/**`, the git-ignored private folder (not tracked) | none |
+| D01 to D05 | 6 | one folder each under `shared/data/` and `shared/capture/` (see blocks) | G01, G02 |
+| J01 | 7 | `jarvis/core/**`, `jarvis/handoff/**`, `pages/Core.tsx`, `shell/views/core.view.ts` | voice, G02, D01 |
+| J02 | 7 | `jarvis/room/**`, `pages/Limbs.tsx`, `shell/views/room.view.ts` | G01, D05 (RackRow) |
+| L01 | 7 | `shared/almanac/**`, `ww/day/month/**`, `ww/day/drawer/**`, `shell/views/day-month.view.ts` | G02, D01, D02 |
+| L02 | 7 | `shared/trim/**`, `shell/modes/settings.mode.ts` | G01 |
+| J03 | 8 | `jarvis/senses/**`, `pages/Aankhen.tsx`, `shell/views/senses.view.ts` | G02, D02 |
+| J04 | 8 | `jarvis/memory/**`, `pages/Yaadash.tsx`, `shell/views/memory.view.ts` | G02, D04 |
+| L03 | 8 | `ww/day/{week,body,ledger,close}/**`, `ww/life/**`, `shell/views/day-week.view.ts`, `day-body.view.ts`, `day-close.view.ts` | L01, D01 to D04 |
+| Y01 | 8 | `ww/study/papers/**`, `ww/study/review/**`, `shell/views/study-papers.view.ts` | G02, D02, D05 |
+| Y02 | 8 | `ww/focus/**`, `shell/views/focus-*.view.ts` | G02, D01 |
+| J05 | 9 | `jarvis/console/**`, `pages/System.tsx`, `pages/Connect.tsx`, `shell/views/console-*.view.ts` | D03, D04, D05 |
+| Y03 | 9 | `ww/study/{plan,practice,generator}/**`, legacy `ww/study/*.tsx`, `shell/views/study-plan.view.ts`, `study-practice.view.ts` | Y01, G02 |
+| T01 | 9 | `ww/tree/**` (UI, ports, art placement), `shell/views/tree.view.ts` | G02, G03 |
+| T02 | 9 | `ww/career/**`, `shell/views/career-*.view.ts` | G02, D03 |
+| G04 | 9 | `shared/grammar/cursor/**`, `shell/slots/{boot,titlebar-sigil,cursor-root}.*.tsx`, `shell/empty/**` | N02 slots |
+| E01 to E04 | 10 | server and adapter files, see blocks | sections of waves 7 to 9 |
+| E05 to E08 | 11 | `app/jarvis_app/ww_pyq/**` (one file each), see blocks | Y01 to Y03 |
+| E09 to E12 | 12 | evidence, data and career stores, see blocks | T01, T02 |
+| E13, E14, B09, B10, B12 | 13 | see blocks | all |
+| B13, Q01 to Q04 | 14 | see blocks | all |
+
+#### 15.6.3 Where the lens packages went
+
+| v2 package | Lens packages folded in | Notes |
+|---|---|---|
+| N01, N02 | N01, N02 (process), review of B05 | the lens N02 "shell integration of the grammar" is G04 |
+| G01 | visual S01, jury debt of the kit bench | the 18 measured failures, the clay recipe, one PLANNED glyph |
+| G02 | visual S02, S03, S04 | the sigil, ASCII and terminal grammars as shared primitives |
+| G03 | visual S06 tooling, data D13, Life L10, tree T07, JARVIS J10 | every private derivative in one package; the tracer |
+| G04 | visual S05, S07 | cursors, boot, route sigil, empty states |
+| D01 to D05 | data D01 to D05, D07 to D10, D12 (D06 became L01, D11 is dropped, D13 is G03) | one folder each |
+| J01 to J05 | J01, J09 | J02+J03 to Room, J04+J05 to Senses, J06 to Memory, J07 to Console |
+| L01 | L03, L04, L05 (month, drawer, year form) | week form is in L03 |
+| L02 | L01 | |
+| L03 | L05 (week), L06, L07 (UI parts), next-day planner | |
+| Y01 to Y03, Y02 | Y05, Y06, Y07 (UI), Y08 (UI), Y10, Y12 | the engine parts are E05 to E08 |
+| T01, T02 | T03 to T06 (UI), T08 to T10 (UI) | |
+| E01 | L02 | |
+| E02 | L06, L07 (stores) | |
+| E03 | J08 | |
+| E04 | L08 | |
+| E05 to E08 | Y01 to Y04, Y07 (FSRS adapter), Y08 (checker), Y09, Y11 | B08 (rules and FSRS) is folded into E07 and E08 |
+| E09 to E12 | T01, T02, T08 to T10 (data) | |
+| E13 | L09 | |
+| E14 | T11 | |
+| Q01 to Q04, T12, S08 | the lens audits | Q04 is rewritten (D-V2-1) |
+
+B06 and B11 (the section packages of 15.3) are replaced by J01 to J05, L01 to L03, Y01 to Y03, Y02, T01 and T02; B06b is replaced by G03 plus the placement inside each section package; B07's UI half is mounted by J01.
+
+#### 15.6.4 The merge test (20.14) and the gallery pass (20.15) are run by the integrator at the end of every wave
+
+Merge test: (a) the contract table lists, per package, the folders it owns, and a script (`tools/wave_check.py`, written by N01) fails if two packages of a wave own an overlapping path or a package changed a file outside its folders; (b) `import.meta.glob` registrations resolve (every `*.view.ts`, `*.slot.tsx`, `*.mode.ts`, `*.register.ts` and gallery entry loads); (c) full vitest, `tsc -b`, the kit bench with its known-debt file unchanged or shorter, Playwright, the Python tests on scratch data dirs; (d) one gallery screenshot per package. Gallery pass: the owner opens "What is new" in the running application and judges each placement by eye; a placement he rejects goes back to its package. No placement of a catalogue picture is called done before this pass (every placement is a design claim until then, 20.12).
 
 ---
 
@@ -4388,12 +4485,21 @@ What is verified: the structure (ids, counts, ownership) was checked by script a
 
 ### 20.13 Package ids and the lens they came from
 
-The six lenses each numbered their packages from 01. They are renumbered with family prefixes so no two collide: **G** grammar (visual lens S01 to S08, plus G09 the manifest split and G10 the audit), **D** data display (D01 to D13; D06 Almanac is now L03 to L05, D07 is D06, D08 is D07, D09 is D08, D10 is D09, D11 TetherMap is dropped, D12 is D10, D13 is D11), **L** Life (L01 to L10 unchanged), **Y** Study and Focus (the lens's S01 to S11 become Y01 to Y11, plus Y12 art), **T** Tree and Career (T01 to T12 unchanged), **J** JARVIS (J01 to J10 unchanged), **N** process (N01 the preview switch and gallery, N02 the shell integration of the v2 grammar). Section view packages are named `B06-<section>` and `B11-<section>` (15.6). Appendix A holds one block per package. Counts after merging: 10 G, 11 D, 10 L, 12 Y, 12 T, 10 J, 2 N, 10 view packages = **77 new packages**, in six waves plus a closing wave (15.6).
+The six lenses each numbered their packages from 01. They were first renumbered with family prefixes so no two collide: **G** grammar (visual lens S01 to S08, plus G09 the manifest split and G10 the audit), **D** data display (D01 to D13; D06 Almanac is now L03 to L05, D07 is D06, D08 is D07, D09 is D08, D10 is D09, D11 TetherMap is dropped, D12 is D10, D13 is D11), **L** Life (L01 to L10 unchanged), **Y** Study and Focus (the lens's S01 to S11 become Y01 to Y11, plus Y12 art), **T** Tree and Career (T01 to T12 unchanged), **J** JARVIS (J01 to J10 unchanged), **N** process (N01 the preview switch and gallery, N02 the shell integration of the v2 grammar). Section view packages are named `B06-<section>` and `B11-<section>` (15.6). Appendix A holds one block per package. The 77 lens packages were then folded into **46 packages in ten waves** (waves 5 to 14, 3 to 5 packages each, disjoint files), named N, G, D, J, L, Y, T, E, plus the older B and Q packages that stay; the map from lens package to v2 package is 15.6.3 and the owned files are 15.6.2.
+
+### 20.14 The wave contract and the merge test
+
+The rules that make a wave merge cleanly are 15.6 (seven rules), Block C rule 13 and the table of owned files in 15.6.2. The integrator runs the merge test of 15.6.4 at the end of every wave: no two packages own an overlapping path (`tools/wave_check.py`), every globbed registration loads, the suites and the kit bench are green, and one gallery screenshot per package is kept. A failing test sends the package back; it is never merged with a known conflict.
+
+### 20.15 The gallery pass
+
+The first wave ships the "What is new" place (N01, N02): every kit, art, lamp, voice and grammar component in its states, both themes and the ten section themes, inside shell v2 and behind the New UI button. Every later package adds one gallery entry, so the owner sees each wave in the running application the day it merges. Because the lenses rendered nothing and looked at only a handful of crops, every placement of a catalogue picture is a design claim until the owner has judged it in the gallery (A.Q04, wave 14); a placement he rejects returns to its package.
+
 ---
 
 ## Appendix A Implementation prompts
 
-Order of use (revised 2026-11-12 evening): the sequence in 15.4 governs. **Start with A.B03 now**, and A.B01 beside it (disjoint files). A.R01 to A.R04, A.V01 to A.V04 and A.P01 to A.P03 run alongside the build and do not gate it. Then A.B04, A.B03b, A.B02, A.B05b, A.B03c, A.B05 (the shared foundation, most reusable layer first), then A.B06, A.B11 and A.B06b, A.B07, A.B09, A.B10 (the sections on it), A.Q01 to A.Q04 with the flag flips, A.B13, and last A.B08 and A.B12, which resume after the remap. The integrator pastes **block C** at the top of every prompt, then the WP block. Each WP block is self-contained once C is attached.
+Order of use (revised 2026-11-12 evening): the sequence in 15.4 governs. **Start with A.B03 now**, and A.B01 beside it (disjoint files). A.R01 to A.R04, A.V01 to A.V04 and A.P01 to A.P03 run alongside the build and do not gate it. Then A.B04, A.B03b, A.B02, A.B05b, A.B03c, A.B05 (the shared foundation, most reusable layer first), then A.B06, A.B11 and A.B06b, A.B07, A.B09, A.B10 (the sections on it), A.Q01 to A.Q04 with the flag flips, A.B13, and last A.B08 and A.B12, which resume after the remap. The integrator pastes **block C** at the top of every prompt, then the WP block. Each WP block is self-contained once C is attached. **Direction v2 (13 Nov 2026):** the order of use is now the wave plan of 15.6 (waves 5 to 14); the wave blocks that follow the older blocks below replace A.B06, A.B06b, A.B11 and the customer-track gate A.Q04, fold A.B08 into A.E07 and A.E08, and keep A.B09, A.B10, A.B12 and A.B13 in waves 13 and 14.
 
 ### Block C: common rules (attach to every prompt)
 
@@ -4409,6 +4515,7 @@ Order of use (revised 2026-11-12 evening): the sequence in 15.4 governs. **Start
 10. **Stop rule and safety:** if a budget target fails twice, stop, record the measurement, report. There is no exam freeze (I34), but the quality mechanics stand: every risky flip sits behind a flag that defaults off, the app works at every merge (full suites green before you hand the branch over), nothing builds into `app/ui/dist` while the app runs or with a changed default without the owner's OK, and a change to a live process sits behind an env flag.
 11. **Model:** Sonnet unless the WP says Opus.
 12. **Report:** end with: files changed, tests run with counts, measured numbers, what is still unverified, and the research file path.
+13. **Wave contract (direction v2, D-V2-22):** every builder and every reviewer of a wave receives one short table listing, per package: id, purpose in one line, folders owned, the exports it will add (names and signatures) and the exports of other packages it may import. A builder may use a not-yet-merged export of the same wave only through the contract signature; must not re-implement another package's listed export; imports single-source tables (lamp states, tokens, section ids and view ids, key bindings, art ids, the settings registry) and never copies them; touches no file outside its folders and no barrel file it does not own; adds its one gallery entry file; and ends its report with a "contract check" that names the contract exports it delivered and any signature it had to change. The wave 5 table is written out in Appendix A below.
 
 ---
 
@@ -4530,24 +4637,28 @@ Order of use (revised 2026-11-12 evening): the sequence in 15.4 governs. **Start
 **Tests:** a pytest for the pipeline functions, vitest for the resolver. **Record:** `docs/research/product-design-overhaul.md`.
 
 ### A.B06 JARVIS sections
+*Superseded in part by 15.6: replaced by A.J01 to A.J05 (waves 7 to 9); the instructions below stand where those blocks are silent.*
 **Files:** `pages/{Limbs,System,Connect,Yaadash,Core}.tsx` split by view, `components/*`; Aankhen look in `pages/Aankhen.tsx` only through the Aankhen chat. **Depends on:** B05. **Order:** `console`, `room`, `memory`, `core`, `senses` (look only, last), one per PR (decision I10).
 **Do:** each section fits 1286 x 704 (T768) and 1286 x 656 (T720) without scroll and declares its T720 column (§3.3.1); the wall box draws all 8 channels with absent ones "unavailable" (remove the `r.present` filter); confirm each orphan card live, or show it WAITING "built, not verified", or keep it PLANNED if it is not built (delete its entry in the commit that mounts it); delete `RelayWiring`, `BoardId 'uno'` and the not-active branch; verify the assumptions flagged in 12.6.
 **Accept:** no document scroll per view; "confirmed by board" logic unchanged; every orphan either mounted with a lamp or a PLANNED entry; stale test green.
 **Tests:** vitest, tsc, Playwright per section, Python tests from `app/`. **Record:** research file per section.
 
 ### A.B06b Centrepiece packages
+*Superseded in part by 15.6: replaced by A.G03 (wave 5, the private track and the eleven recipes) plus the placement inside each section package.*
 **Files:** per section, the art ids and components named in §8.3 and §8.4. **Depends on:** B05b, B06 (JARVIS sections) or B11 (Well Wisher sections). **Order:** one section per package, in the order of decision I10 for JARVIS.
 **Do:** implement the section's centrepiece (recipe, static form, reduced-motion form, caption, data-table fallback) with its §8.3 acceptance row, plus the section's loaders and empty states from §8.4.
 **Accept:** no-scroll at T768 and T720; centrepiece at least 25 % of the view and visible by default; forced-colours fallback present; growth art is a pure function of the current counts; `build_art.py --check` green.
 **Tests:** vitest, Playwright per section, forced colours. **Record:** research file.
 
 ### A.B07 Voice signal and hill (Opus: cross-process)
+*Status: the Python half and the voice component are merged; the section mounts the hill in A.J01 (wave 7).*
 **Files:** `core/playback.py`, `core/appio.py`, `app/jarvis_app/core.py` (republish as ephemeral `core/out_level`), `lib/store.ts`, `jarvis/voice/**`. **Depends on:** B05, R02 go, F7 answered. **Owner limits:** `core/` files only as decided in X1; UI chat for the rest. **Order:** after B06 `core`.
 **Do:** ship the R02 event behind the env flag `JARVIS_OUT_LEVEL` (default off) with an underrun test (P-4); it does not enter the live build until the owner restarts on purpose; store `outLevel` and `outBands`, the `VoiceHill` (one canvas, one rAF loop, stopped when hidden, idle 60 s, Pause control), the listening dot, the last-heard strip, the software Mute labelled as software.
 **Accept:** the hill moves only with real levels; "no signal" ring otherwise; reduced-motion form complete; within the §14.1 budgets measured on the real window; the Core section is called done only after this package.
 **Tests:** `pytest core/tests` and from `app/`; vitest for mapping; Playwright for no-signal and reduced motion. **Record:** `docs/research/voice.md`.
 
 ### A.B08 Rules and FSRS
+*Superseded in part by 15.6: folded into A.E07 (Next three, patterns) and A.E08 (FSRS, generator) in wave 11.*
 **Files (new):** `app/jarvis_app/ww_fsrs.py`, `ww_nextaction.py`, tests; `ww_check.py`; `ww/study/**`, `ww/life/**`. **Depends on:** B02, V01, owner OK for any library, and the UI/UX remap (B11 merged): an exam feature, it resumes after the remap (I33, I41). **Owner limits:** Well Wisher chat. **Order:** after B13, with B12.
 **Do:** FSRS scheduler (defaults, retention slider 70 to 97 %, chip), a Review row; proficiency bar with n and grey below 5 (reuse the existing EWMA); the next-action card printing urgency, gap and weight with "Not this" (day-only) and "Plan by hand"; the focus-hours strip (counts, no prediction); delete the matching planned entries.
 **Accept:** pure functions run twice in the gate; fixtures reproduce the owner's five cases from V01; no number without n; no prediction wording.
@@ -4566,6 +4677,7 @@ Order of use (revised 2026-11-12 evening): the sequence in 15.4 governs. **Start
 **Tests:** vitest, Playwright, a network-trace assertion on the sandbox. **Record:** research file.
 
 ### A.B11 Well Wisher section map v2 behind `ww.ia`
+*Superseded in part by 15.6: replaced by A.L01 to A.L03, A.Y01 to A.Y03 and A.T01, A.T02 (waves 7 to 9); the section order of 3.1.2 stands.*
 **Files:** `ww/**`, `ww/frame/**`. **Depends on:** B05 only (no exam wait, no B08). **Owner limits:** Well Wisher chat delivers a branch; the integrator merges. **Order:** right after B06 (JARVIS sections), built behind `ww.ia` with the flag off; the flip happens after Q01 (and Q02, Q03).
 **Do:** the Well Wisher rail and keys in the order Day, Focus, Study, Tree, Career (§3.1.2); `day` (today, week, body, close), `focus.rest`, `study.practice`, the 40 px Now strip, "moved to" hints in every old place, legacy id aliases (§3.2).
 **Accept:** two taps to a running block (Playwright count); every legacy id resolves; no horizontal scroll at 683 px.
@@ -4602,10 +4714,285 @@ Order of use (revised 2026-11-12 evening): the sequence in 15.4 governs. **Start
 **Record:** research file.
 
 ### A.Q04 Customer-track quality gate
+*Superseded by D-V2-1: the customer track is no longer a gate. The v2 gate is the gallery pass, A.Q04 in wave 14 below.*
 **Files:** a report in the research file. **Depends on:** B06b. **Owner limits:** a session that built nothing; the owner attends. **Order:** before any customer build.
 **Do:** render each centrepiece from both tracks side by side; check the §8.6.3 quality bar (palette, silhouette, texture); record commission status for sun, trunk and skyline; confirm every file in `generated/` has a licence line and a per-file human review.
 **Accept:** a table with pass or fail per piece; the owner cannot name a lost trait for a passing piece.
 **Record:** research file.
+
+---
+
+### Wave blocks of direction v2 (13 Nov 2026)
+
+These blocks follow 15.6. A wave starts only when the previous wave has merged and the integrator has pasted the wave contract table next to the packages (Block C rule 13; wave 5 is written out below). Each block names the files the package owns; two packages of one wave never own the same path. "Gallery entry" always means the file `app/ui/src/gallery/entries/<id>.tsx` exporting `entry: GalleryEntry`. Unless a block says otherwise: Sonnet; the research record is a new dated section in `docs/research/product-design-overhaul.md` (private derivative work: `data/notes/research/art.md`); tests are the Block C list that the package touches (vitest and `tsc -b` always).
+
+#### Wave 5 contract table (paste at the top of every wave 5 prompt)
+
+| Pkg | Purpose in one line | Folders owned | Exports it will add (names and signatures) | Exports of other packages it may import |
+|---|---|---|---|---|
+| N01 | Put every merged kit, art, lamp and voice component, in its states and both themes, on one place inside shell v2 | `gallery/**`, `e2e/bench/entry.tsx`, `e2e/gallery.spec.ts`, `tools/wave_check.py` | `default WhatIsNew(): JSX` (a view, no props); `type GalleryEntry = { id: string; title: string; group: 'kit' \| 'art' \| 'lamp' \| 'voice' \| 'grammar' \| 'data' \| 'section' \| 'theme'; states: { label: string; node: ReactNode }[]; note?: string }`; `collectEntries(): GalleryEntry[]` (reads `gallery/entries/*.tsx`) | `shared/kit`, `shared/art`, `shared/lamp`, `jarvis/voice` (existing) |
+| N02 | Fix the shell as the B05 review found it and turn the central lists into globbed folders | `shell/**` except `gallery`, `ww/frame/**`, `styles/shell.css`, `e2e/shell*.spec.ts`, `__tests__/shell/**` | `type ViewRegistration = { id: string; product: ProductId; load: () => Promise<{ default: ComponentType }> }` (files `shell/views/*.view.ts`); `type SlotName = 'boot' \| 'titlebar-sigil' \| 'cursor-root' \| 'notify'` (files `shell/slots/<slot>.<name>.tsx`); `type ShellMode = { id: string; prefix: string; run(query: string): PaletteRow[] }` (files `shell/modes/*.mode.ts`); the place id `app.new` (key `Alt+N`, palette verb "What is new") that mounts N01's `WhatIsNew`; `SkipLink` | N01 `WhatIsNew` (lazy), `shared/kit`, `shared/lamp` |
+| G01 | Give the clay a real material recipe and pay the kit's measured debt | `styles/design/clay/**`, `shared/kit/**`, `shared/lamp/**`, `__tests__/kit/**`, `e2e/bench/known.ts`, `e2e/bench/bench.spec.ts` | tokens `--elev-1`, `--elev-2`, `--elev-3` (raised with `--ridge-hi` and `--ridge-lo`), `--recess` (inset), `--edge-ui` (3:1 on every control), `--lit-hi`, `--lit-lo`, `--tooth-opacity`, `--decor-opacity`; `LitPanel(props: PanelProps & { angle?: 0\|45\|90\|135\|180\|225\|270\|315 })`; `PlannedGlyph(props: { size?: number })` as the only PLANNED drawing (the dashed ring) | none |
+| G02 | Make sigil, ASCII and terminal three shared grammars with tokens, components and budgets | `shared/grammar/**`, `__tests__/grammar/**` | `sigilSvg(id: string, o?: { size?: 16\|24\|48; fold?: 2\|4\|6\|8; mode?: 'seed'\|'growth' }): string`; `Sigil(p: { seed: string; size?: 16\|24\|48; fold?: number; tone?: 'ink'\|'accent'; drawn?: boolean })`; `SigilFrame(p: { sides?: ('t'\|'r'\|'b'\|'l')[]; arm?: number; planned?: boolean; children })`; `GlyphRule(p: { length?: number; density?: number })`; `Seal(p: { id: string; earned: boolean })`; `AsciiPlate(p: { text: string; ramp?: 'r10'\|'r5'\|'caret'\|'edge'; tier?: 'data'\|'atmosphere'; state?: 'static'\|'frozen'\|'scattered' })`; `AsciiHeat(p: { cells: number[]; ramp?: 'r5'; reading: ReactNode })`; `AsciiBar(p: { value: number; max: number; width?: number; reading: ReactNode })`; `AsciiPortrait(p: { initials: string })`; `sparkline(values: number[]): string`; `TermWell(p: { prompt: string; children })`; `TermLine(p: { tag?: LampState; typed?: boolean; children })`; `BootSequence(p: { rows: string[]; onDone(): void })`; `ScanFrame(p: { label: string; state: 'scanning'\|'waiting' })`; tokens `--term-ground`, `--term-ink`, `--sigil-w-1`, `--sigil-w-2`, `--sigil-w-3`, `--bracket-arm`, `--ascii-cell-w`, `--ascii-cell-h` in `grammar.css` | `shared/lamp` (`LampState`, `LAMP_SPECS`); CSS variable names `--ink-1`, `--ink-2`, `--edge-ui` from G01 by name only |
+| G03 | Wire the private art track so the eleven centrepieces render, and trace the sigil primitives | `tools/art/**`, `art/**`, the git-ignored private folder | `<ArtSlot id: string; fit?: 'cover'\|'contain'; treatment?: 'duotone'\|'bayer'\|'atkinson'\|'contour'; ratio?: number; caption?: string />` in `art/ArtSlot.tsx` (always `aria-hidden`, static form, reduced-motion form); `artUrl`, `artText` (existing, unchanged); ids `art.core.hill-ring`, `art.room.faceplate`, `art.senses.spindle`, `art.memory.branch`, `art.console.frame`, `art.day.sun`, `art.focus.dots`, `art.study.island`, `art.tree.trunk`, `art.career.skyline`, `art.proof.relief`; `tools/art/trace_sigil.py` (CLI: `--id C01-18 --out <private folder>`) | `art/resolve.ts` (existing) |
+
+Rules of this table: a builder may call another package's export of the same wave only through the signature written here; must not re-implement a listed export; imports single-source tables and never copies them; and ends the report with a "contract check" line naming the exports delivered and any signature it had to change (the integrator then updates the table for the next wave).
+
+### A.N01 What is new gallery (wave 5)
+**Files:** `app/ui/src/gallery/**`, `app/ui/e2e/bench/entry.tsx`, `app/ui/e2e/gallery.spec.ts`, `tools/wave_check.py`. **Depends on:** B03b, B03c, B04, B05, B07 UI half (merged). **Owner limits:** UI chat; N02 mounts the view, N01 never edits `shell/`. **Order:** wave 5; first to merge because it is how the owner sees every later package.
+**Do:** move the specimens out of `e2e/bench/entry.tsx` into `gallery/specimens/*.tsx` (one file per kit, art, lamp and voice component, each with its states and both themes) and leave the bench page a thin mount of the same content so the bench checks stay as they are; build `WhatIsNew`: left list by group, right the specimens with a theme switch (light, dark, and the ten section themes of `styles/sections`), a state switch per entry and a "merged in" line per entry; `collectEntries()` with `import.meta.glob('./entries/*.tsx', { eager: true })`; one entry file for each of B01 to B07 so the page is complete on day one; the voice specimen runs on the fixture frames stamped SIMULATED; write `tools/wave_check.py` (reads a wave table from a JSON file, fails on overlapping owned paths or on a changed file outside a package's folders). Exports: `WhatIsNew`, `GalleryEntry`, `collectEntries`.
+**Accept:** the gallery lists every component of the kit, art, lamp and voice folders (a test compares the exported names to the entries); the bench page still reports 28 passing checks and 18 listed failures; no document scroll at 1366x768 and reflow at 390 px; zero rAF at idle on the gallery; a package with no entry file fails `wave_check.py`.
+**Tests:** vitest, `tsc -b`, the bench spec, a Playwright spec that opens `#t=app.new` with the shell flag on, and a pytest for `wave_check.py` on two fixture tables. **Record:** research file, section "gallery".
+
+### A.N02 Shell fixes from the B05 review (wave 5)
+**Files:** `app/ui/src/shell/**` (not `gallery`), `app/ui/src/ww/frame/**`, `app/ui/src/styles/shell.css`, `app/ui/e2e/shell*.spec.ts`, `app/ui/src/__tests__/shell/**`. **Depends on:** B05, N01's default export (lazy). **Owner limits:** UI chat; Well Wisher chat consulted for `ww/frame`. **Order:** wave 5, with N01.
+**Do:** (a) the Well Wisher frame keeps its own dark theme and toolbar under the light clay bar: the bar and the frame each show their theme, and the toolbar is not hidden; (b) legacy pages that still show their own view switch show only one: the shell hides the duplicate by a `data-shell-owned` marker, not by editing the page; (c) the keyboard-reach test is flaky because the two-way frame bridge can move the place with no key pressed: make the bridge ignore a place it did not ask for during a key test (a `bridge.pending` token) and make the test assert on the key, not the settled place; run it 20 times; (d) the Resume pill is a breadcrumb: it names the place and the time, one press goes there, Esc dismisses, and it is a labelled `nav` landmark; (e) the first-run pill only navigates (no side effect on press); (f) add `SkipLink` ("Skip to canvas") as the first tab stop; (g) the three globbed folders of 15.6 (`shell/views`, `shell/slots`, `shell/modes`) with the registration types, and the place `app.new`; (h) add the two new view ids `day.month` and `focus.drill` to the id table `shell/ids.ts` with their aliases, change `viewCount.test.ts` to assert 36 from the table, and show a PLANNED plate for any id in the table that has no registered view yet (so the shell never breaks while sections land). Exports: `ViewRegistration`, `SlotName`, `ShellMode`, `SkipLink`, place `app.new`.
+**Accept:** the keyboard-reach spec passes 20 of 20; the canvas still measures 1302x720 at 1366x768; a view added as `shell/views/x.view.ts` mounts without any other edit (a test adds a fixture file); `app.shell` off equals today's behaviour (snapshot names unchanged); the Classic UI and New UI buttons still work.
+**Tests:** vitest at least 1833, `tsc -b`, Playwright `shell*`, 20 repeats of the flaky spec. **Record:** research file, section "shell fixes".
+
+### A.G01 Clay recipe and kit debt (wave 5; Opus for the contrast work if a second attempt is needed)
+**Files:** `app/ui/src/styles/design/clay/**`, `app/ui/src/shared/kit/**`, `app/ui/src/shared/lamp/**`, `app/ui/src/__tests__/kit/**`, `app/ui/e2e/bench/known.ts`, `app/ui/e2e/bench/bench.spec.ts`. **Depends on:** the jury and bench results (merged). **Owner limits:** UI chat; no change to a behaviour test. **Order:** wave 5; every later package reads its tokens.
+**Do:** (a) the material recipe: three elevation steps, each a raised ridge (1 px light top, 1 px dark bottom) over a soft shadow, plus one inset recess (`--recess`) for wells; a 2.5 percent tooth tile on ground and raised only, off in high contrast and forced colours; (b) every control edge at 3:1 against its neighbour in both themes, drawn as `--edge-ui`; (c) pay the 18 measured failures and delete each entry from `known.ts` as it passes: Switch OFF word 2.41:1 (and clipped by the thumb), Rocker halves 13.9 px wide, Field focus outline missing and edge 1.12:1, Knob, Plate and Fold edges near 1:1, Button edge, FolderTabs "Soon", Drawer and IconButton and MasterDetail hit areas, and the toast stack overflowing 27 px at 390 px; (d) one PLANNED glyph everywhere (`PlannedGlyph`, the dashed ring): `LAMP_SHAPE`, the registry plate, `BlankingPlate` and the chip all draw it from one source; (e) `LitPanel` (aimed light in 8 quantised angles, opacity only, one at a time) and the focus settle. Exports: the tokens and components in the contract table.
+**Accept:** `known.ts` is empty or lists only failures re-measured today with a reason; the contrast oracle computes every pair, text 4.5:1 and controls 3:1, light and dark and forced colours; a lint counts at most one accent-filled element per `data-view`; idle `getAnimations()` is empty; the bench is green.
+**Tests:** vitest, `tsc -b`, the bench spec, Playwright snapshots (expected to change for the kit only; update the baselines in the same commit and say how many changed). **Record:** research file, section "clay recipe".
+
+### A.G02 Sigil, ASCII and terminal grammars (wave 5)
+**Files:** `app/ui/src/shared/grammar/**`, `app/ui/src/__tests__/grammar/**`. **Depends on:** B03, B03b, B04, B05b (merged). **Owner limits:** UI chat; no catalogue picture is read or embedded: the 14 primitives are hand-drawn as own SVG paths in `shared/grammar/sigil/primitives.ts`. **Order:** wave 5.
+**Do:** 20.4.1 to 20.4.3 in full: the 14 primitives, three stroke weights with `vector-effect: non-scaling-stroke`, the generator (FNV-1a 32 seeding mulberry32, fold from 2, 4, 6, 8, 3 to 5 primitives on 2 to 3 radii, at most 60 segments and 3 KB), the five roles, the one-shot draw-in with a static and reduced-motion form; the four ASCII ramps with the 7.2 x 16 data cell and the 6 x 12 atmosphere cell, `AsciiHeat`, `AsciiBar`, `AsciiPortrait`, `sparkline`, and a lint that rejects an atmosphere plate bound to a count; `TermWell`, `TermLine` with tags equal to the lamp words, `BootSequence` (24 characters per second, 600 ms cap, any key skips, calm shows all rows), `ScanFrame`; mobile forms; forced-colours forms (`CanvasText` strokes). Exports: the list in the contract table.
+**Accept:** the same id gives the same bytes (golden files); at most 60 segments and 3 KB per sigil; the tag set equals `LAMP_SPECS` words; no component runs an animation at idle; text equivalents on every data ASCII form; a `data-grammar` attribute on each component and a lint that every `data-view` uses at least two grammars (reported, enforced from wave 7).
+**Tests:** vitest golden tests, forced-colours Playwright on the gallery entry, byte-budget script (target 90 KB across the app, at most 8 KB per file). **Record:** research file, section "grammars".
+
+### A.G03 Private art track wired (wave 5)
+**Files:** `tools/art/**`, `app/ui/src/art/**`, the git-ignored private folder (never tracked). **Depends on:** B05b (merged). **Owner limits:** UI chat; installs need the owner's OK (PIL and numpy are present). **Order:** wave 5, beside G02.
+**Do:** D-V2-1 in code: the private track resolves the owner's staged pictures and their derivatives by id; the build runs with and without the private folder; `check_no_private_in_dist.py` fails on any private hash in a `dist` that leaves the machine and a tracked-file scan finds no image bytes of a private id; write the recipes for the eleven centrepieces of 20.4.6 (duotone, Bayer, Atkinson, contour, ASCII, terminal frame, each from a catalogue id, output to the private folder); write `trace_sigil.py` (crop by bounding box, threshold, marching squares, Ramer-Douglas-Peucker at 0.8 px, at most 60 segments per shape, output to the private folder); add the Life, tree, JARVIS and Senses derivatives of 20.6, 20.8 and 20.9 as recipes (ids only in tracked files); `ArtSlot`. Refused ids stay refused (C04-26, C03-12, C01-25 lamp-lens forms); C03-21 is cropped to the filament region only; C01-19's lower-row label is masked. Exports: `ArtSlot` and the eleven ids.
+**Accept:** each centrepiece renders in the gallery on the private track and shows a plain placeholder with the id and the word "private track off" on the default track; `build_art.py --check` green; at least 25 percent of its view box once placed (checked by the section packages); no private id string beside any pixel in a tracked file.
+**Tests:** pytest for the recipes and the checks, vitest for `ArtSlot`. **Record:** `data/notes/research/art.md` (private); one line in the public research file naming only counts.
+
+### A.D01 Number forms (wave 6)
+**Files:** `app/ui/src/shared/data/numbers/**` (Odometer, Dumbbell, LedgerTape, Jar), gallery entry. **Depends on:** G01, G02. **Owner limits:** UI chat. **Order:** wave 6.
+**Do:** 20.5.2 for the four components. `Odometer(p: { value: number; unit: string; state: LampState; size?: 'hero'\|'compact' })` rolls a digit only on a change and only when visible; WAITING draws "-- --"; hollow form is four dashed wells. `Dumbbell(p: { rows: { label: string; before: number; after: number }[]; scale: [number, number] })`; always against the student's own earlier self. `LedgerTape(p: { entries: { label: string; amount: number }[]; total: number })` with a torn end. `Jar(p: { level: number; plan?: number; label: string })` fills past the notch with a hatch and a text line, no red.
+**Accept:** every component takes a `state` and has a hollow and a static form; no bare 14 px number outside a table; zero rAF at idle; copy grep finds no "over budget" scolding.
+**Tests:** vitest, forced colours, the grammar lint. **Record:** research file.
+
+### A.D02 Series forms (wave 6)
+**Files:** `app/ui/src/shared/data/series/**` (Trace, DotHistogram, SkyLedger), gallery entry. **Depends on:** G01, G02. **Order:** wave 6.
+**Do:** `Trace(p: { points: { t: number; v: number | null }[]; median?: number; state: LampState })` (gaps hatched, never interpolated, ASCII ruler, scrub and pin, draws once in 320 ms); `DotHistogram(p: { values: number[]; bins?: number; unitPerDot?: number })`; `SkyLedger(p: { days: { date: string; kind: 'kept'\|'rest'\|'none' }[]; window: 60\|90 })` whose headline is a slowly changing ratio, with no chain, no "broken" and no streak prop anywhere.
+**Accept:** table fallback for each; the scrub is keyboard reachable; deleting a day lowers the count; a grep finds no `streak` identifier in the folder.
+**Tests:** vitest, forced colours, reduced-motion. **Record:** research file.
+
+### A.D03 Tables, lists and the select (wave 6)
+**Files:** `app/ui/src/shared/data/tables/**` (LedgerTable, SlotList, DetentRack), gallery entry. **Depends on:** G01. **Order:** wave 6.
+**Do:** `LedgerTable(p: { columns: Col[]; rows: Row[]; density?: 'normal'\|'dense'; onEdit?(row, col, value) })` with 32 px rows and 44 px hit areas, sticky header, sort glyph in text, `F2` inline edit, a column chooser, drawer on expand, key-value cards under 900 px; `SlotList(p: { items: Item[]; onReorder?(from: number, to: number) })` (Alt+Up and Alt+Down, dashed blanking plate while lifting); `DetentRack(p: { options: Opt[]; value: string; onChange(v: string): void; grouped?: boolean })` as a listbox with `aria-activedescendant`, typeahead and a bottom sheet under 900 px. No native `<select>`.
+**Accept:** full keyboard paths; 44 px targets; no zebra; static forms; forced colours.
+**Tests:** vitest, Playwright keyboard spec on the gallery entry. **Record:** research file.
+
+### A.D04 Capture line (wave 6)
+**Files:** `app/ui/src/shared/capture/**`, gallery entry. **Depends on:** G01, G02. **Order:** wave 6.
+**Do:** one `CaptureLine(p: { grammar: 'ww' \| 'jarvis'; onCommit(parsed: Parsed): void; verbs?: string[] })`. Local deterministic tokenizer `parseWw(text: string, now: Date): ParseResult` for `spent 120 chai`, `water 250`, `gym legs 45`, `remind me next tue 7 pm physics`; an ambiguous input shows `? what is 120` and waits; chips beneath each editable; Enter commits; Undo toast 6 s; `Ctrl+Space` focuses it inside Well Wisher. The `jarvis` grammar is a closed verb list (`remember>`, and the Console verbs a section passes in). Unknown input answers `unknown verb; try help`. No eval, no shell.
+**Accept:** 30 fixture phrases parse as written in a test table, 10 ambiguous ones wait; month ends and "next tue" resolve correctly; a solid, non-blinking cursor block.
+**Tests:** vitest (parser table), keyboard spec. **Record:** research file.
+
+### A.D05 Specimen layout, strata and rack (wave 6)
+**Files:** `app/ui/src/shared/data/specimen/**` (SpecimenLayout, StrataCore, SigilMark, RackRow), gallery entry. **Depends on:** G01, G02 (the sigil engine). **Order:** wave 6.
+**Do:** `SpecimenLayout(p: { specimen; callouts?: ReactNode[]; footer?: ReactNode })` with the geometry of 20.5.1 and its reflow; `StrataCore(p: { units: { id: string; label: string; evidence: number; n: number }[]; state })`; `SigilMark(p: { arms: { id: string; length: number; recent: 'disc'\|'ring'\|'dashed' }[]; size?: number })` (byte-identical SVG for the same input); `RackRow(p: { device: string; serial?: string; state: 'unconfirmed'\|'confirmed'\|'fault'\|'planned'; lastSeen?: string; onToggle?(): void })` whose confirmed lamp lights only after a report.
+**Accept:** the geometry test at 1366x768 and 390 px (no document scroll; at most one object wider than 40 percent); golden SVG for `SigilMark`; `RackRow` never shows confirmed from a prop alone (needs `reportedAt`).
+**Tests:** vitest, Playwright geometry. **Record:** research file.
+
+### A.J01 Core section (wave 7)
+**Files:** `app/ui/src/jarvis/core/**`, `app/ui/src/jarvis/handoff/**`, `app/ui/src/pages/Core.tsx`, `shell/views/core.view.ts`, gallery entry. **Depends on:** the voice component, G01 to G03, D01. **Order:** wave 7.
+**Do:** 20.9.1 and 20.9.7: mount `VoiceHill` with `attachVoiceFeed`; `SigilRing(p: { bands: number[]; state: LampState; glyphSet?: string })`, `PipelineRibbon(p: { stages: { id: 'hear'\|'write'\|'think'\|'say'; state: LampState; sec?: number; median?: number }[] })` (fill only if a median exists), `OrganStrip`, the Anatomy drawer, transcript turns as terminal rows with `[YOU]` and `[JRV]` tags and four flags, `HandoffChip(p: { product: 'ww'; target: string; label: string })` with the deep link `#t=ww/day.today`; the asleep scene and `art.core.hill-ring`; the phone Talk layout under 900 px. The hand-off chip shows text only when the `notify` port is null.
+**Accept:** hollow whenever the core is off; no node solid without a fresh report; no list row without a tag and a lamp; zero rAF at idle off the hill; the eight voice states unchanged; no scroll at 1366x768.
+**Tests:** vitest, Playwright, the voice suite. **Record:** research file.
+
+### A.J02 Room section (wave 7)
+**Files:** `app/ui/src/jarvis/room/**`, `pages/Limbs.tsx`, `shell/views/room.view.ts`, gallery entry. **Depends on:** G01 to G03, D05 (`RackRow`). **Order:** wave 7. **Contract import (same wave):** L02's `Trim(p: { settingId: string; label: string; readsBy: string; children })`; until it merges J02 renders the heavy-load flag inside its own popover with the same signature.
+**Do:** 20.9.2: the wall-box faceplate over `art.room.faceplate`, eight keys with a three-phase LED (asked, confirmed, not confirmed after 6 s, absent "unavailable"), `GuardKey(p: { heavy: boolean; summary: string; state: 'closed'\|'open'\|'asked'\|'confirmed'\|'unconfirmed'; onPress(): void })` for channels the owner flags (two acts, OFF always one press), All off with a pre-press list, `DayRing24(p: { rules: Rule[]; now: Date; onPreview?(t: Date \| null): void })` with a PREVIEW-only scrubber, `room.rules` as a gate schematic, dial scenes previewed as dashed outlines. Delete the `r.present` filter and the Uno leftovers.
+**Accept:** key lamps follow the board's report only; the scrubber never sends and never changes a lamp (test); a flagged channel needs two acts and an unflagged one stays one press; no energy figure; no scroll at 1366x768 and 358 px layout.
+**Tests:** vitest, keyboard spec, the existing relay tests. **Record:** research file.
+
+### A.L01 Life month calendar (wave 7)
+**Files:** `app/ui/src/shared/almanac/**` (Almanac, DayCell, DayMark, StippleStrip), `ww/day/month/**`, `ww/day/drawer/**` (DayDrawer), `ww/day/adapters/` (slot, empty), `shell/views/day-month.view.ts`, gallery entry. **Depends on:** G01 to G03, D01, D02. **Order:** wave 7.
+**Do:** 20.6.1: `Almanac(p: { mode: 'year'\|'month'\|'week'\|'day'; days: DayData[]; onPick(date): void; exams?: Exam[] })`, `DayCell`, `DayMark(p: { kind: Kind; done: boolean })` with the eight shapes and a Marks popover legend, the month grid (128 x 86 cells, side panel, 12 px strip), the year form, `DayDrawer` with Happened, Planned and Intents folds and Undo, Delete, Move, Done, "Not now" (a carried outline, no failure wording). The id `day.month` is already in the id table (N02). Reads the existing life store; the intent and Google sources arrive through `ww/day/adapters/*.register.ts` (null adapter now).
+**Accept:** a cell shows no number unless its source lamp is LIVE; the shape table is the test fixture; arrow-key roving with one tab stop; no `currentStreak` prop; copy grep finds none of the banned words of 20.6.7; no scroll at 1366x768; a bottom sheet on the phone.
+**Tests:** vitest, Playwright keyboard and geometry, forced colours. **Record:** research file.
+
+### A.L02 Trim and the settings registry (wave 7)
+**Files:** `app/ui/src/shared/trim/**` (Trim, SettingsIndex, `registry.ts`), `shell/modes/settings.mode.ts`, gallery entry. **Depends on:** G01. **Order:** wave 7.
+**Do:** 20.6.6: `Trim(p: { settingId: string; label: string; readsBy: string; children })` (a 44 px key with a slider glyph, a popover of at most 320 x 360 with the control, current value, default, Reset and one line saying what reads it; Esc returns focus); `registry.ts` collects `*.settings.ts` files by glob (`type SettingDef = { id: string; label: string; section: string; view: string; read(): unknown; reset(): void }`); `SettingsIndex` fills the palette mode `:`; a test fails when a registry entry has no mounted Trim or a form field is not in the registry.
+**Accept:** no orphan entry and no unregistered field (fixture table); every legacy `settings.*` id resolves to a Trim home through an alias table (empty until E13); hardware and brain settings keep their confirm step.
+**Tests:** vitest, keyboard spec. **Record:** research file.
+
+### A.J03 Senses section (wave 8)
+**Files:** `app/ui/src/jarvis/senses/**`, `pages/Aankhen.tsx`, `shell/views/senses.view.ts`, gallery entry. **Depends on:** G02, G03, D02. **Owner limits:** the Aankhen chat signs off on the look; the WebGL twin and its code stay where they are behind a "3D" key (D-V2-20); no new WebGL import. **Order:** wave 8.
+**Do:** 20.9.3: `SignalTerrain(p: { frames: Frame[]; source: 'live'\|'simulated'\|'none'; paused?: boolean })` as the one bounded 720 x 360 canvas; `LinkCube`, `ChannelMatrix`, `ProbabilityArc(p: { band: 'low'\|'mid'\|'high'\|null; p?: number; trusted: boolean })` (no digit before the held-out check), `MotionTape` (hatched for "sensing paused by you", blank is not proof of an empty room), the SVG isometric floor plan as the default Map form, `senses.signal` as an SVG-only spectrum view, the Teach rings. On screen: "detects motion of anyone in range, identifies no one; one link, no pose."
+**Accept:** each Senses view holds at most one canvas; simulated shows the amber stamp; hollow with no frames; no eye, face or body form anywhere (grep of art ids); no present, absent or "empty room" wording (copy lint); the twin mounts only when 3D is selected.
+**Tests:** vitest, Playwright, the Aankhen tests on a scratch data dir. **Record:** research file.
+
+### A.J04 Memory section (wave 8)
+**Files:** `app/ui/src/jarvis/memory/**`, `pages/Yaadash.tsx`, `shell/views/memory.view.ts`, gallery entry. **Depends on:** G02, G03, D04. **Order:** wave 8.
+**Do:** 20.9.4: `MemoryConstellation(p: { nodes: Node[]; edges: Edge[]; selected?: string; onSelect(id): void })` (golden-angle layout, a pure function of the store, at most 120 nodes then clusters, text list as the keyboard equivalent), `StrataBands`, the Trail, the `remember>` capture line (`CaptureLine` grammar `jarvis`), Fix with a two-line diff and 7-day undo, Delete with the count, `ReminderChip` is not built here (E03). Node count equals Holdings (D-V2-25).
+**Accept:** deleting a node removes it with no celebration; no node carries stored text in the picture; embedding search drawn dashed PLANNED; one 240 ms path draw on recall and none under reduced motion.
+**Tests:** vitest (count equals store), Playwright. **Record:** research file.
+
+### A.L03 Week, body, ledger and close (wave 8)
+**Files:** `app/ui/src/ww/day/{week,body,ledger,close}/**`, `ww/life/**`, `shell/views/day-week.view.ts`, `day-body.view.ts`, `day-close.view.ts`, `ww/day/adapters/` is read, not written, gallery entry. **Depends on:** L01, D01 to D04. **Order:** wave 8.
+**Do:** 20.6.2 to 20.6.5: the week form with planned (hollow) and done (solid) blocks and the keyboard `m` move; the body strip (gym session log, seven-day strip, `WaterGauge`, medicine reminders as "Reminders you set. Not medical advice.", class reminders); the Ledger drawer with the spending log, `HabitRibbon` and Trim counters; "Plan tomorrow" on `day.close`; neutral line "Pick up here." on return. Stores arrive through adapters (null now): water, spend and habit counts show WAITING until E02.
+**Accept:** no streak, reset or "days clean" anywhere; counts can fall; copy grep (20.6.7) passes; nothing says to take, how much, or why; no scroll at 1366x768 and 358 px.
+**Tests:** vitest, Playwright, copy grep test. **Record:** research file.
+
+### A.Y01 Paper Desk and Review Desk (wave 8)
+**Files:** `app/ui/src/ww/study/papers/**`, `ww/study/review/**`, `shell/views/study-papers.view.ts`, `ww/study/adapters/` (slot, empty), gallery entry. **Depends on:** G02, D02, D05. **Order:** wave 8.
+**Do:** 20.7.1 and 20.7.2: `PaperStrata(p: { cells: Cell[]; years: number[]; topics: Topic[]; coverage: Coverage; onOpen(q): void })`, `CoverageLedger`, `PaperDrop(p: { onFiles(files: File[]): void; accept: string[] })`, `ExtractionTrace(p: { events: TraceEvent[] })` (real events only), `ReviewDesk` with Accept, Edit, Merge, Split, Reject (undo 10 s), Next uncertain, and "Accept all certain and review the rest" (margin at least 0.5 and complete marks). Counts as "k of N" with the Wilson interval; below 3 papers "too few papers to show a pattern". The `gcr` plate is E05's.
+**Accept:** nothing enters the bank without review; each tag chip is `RULE`, `MODEL` or `HAND`; no "important", "likely", "expected" in any string (forbidden-word test); the footer sentence "From papers on file. This prepares practice; it does not predict a paper or a result."; fixtures run SIMULATED on the bench.
+**Tests:** vitest, Playwright keyboard path, forbidden-word test. **Record:** research file.
+
+### A.Y02 Focus: start, session and Drill (wave 8)
+**Files:** `app/ui/src/ww/focus/**`, `shell/views/focus-*.view.ts` (start, session, rest, drill), gallery entry. **Depends on:** G02, D01. **Order:** wave 8.
+**Do:** 20.7.7 and 20.7.8: the new view `focus.drill` (its id is already in the table, N02) with the question panel, progress dots, Park shelf, hint ladder (`h` reveals are logged), "Not yet. Worked answer below", counts-only set end; `ParkField`; the terminal strip updating on real events; the "Pick for me" strip. Drill and the Crucible both live in Focus (D-V2-11); the legacy id `drill` resolves to `focus.drill`.
+**Accept:** no red token on a miss (lint on tokens); a hint reveal is logged and lowers nothing; the strip changes only on an event; zero rAF at idle in the Drill; an early end keeps the filled dots.
+**Tests:** vitest, Playwright. **Record:** research file.
+
+### A.J05 Console section (wave 9)
+**Files:** `app/ui/src/jarvis/console/**`, `pages/System.tsx`, `pages/Connect.tsx`, `shell/views/console-*.view.ts`, gallery entry. **Depends on:** D03, D04, D05, G02. **Order:** wave 9.
+**Do:** 20.9.5: the terminal world (`TermWell` frame, rows with bracket tags and lamps, `CommandLine` as `CaptureLine` grammar `jarvis` with the closed verbs `status`, `test hearing`, `restart brain`, `free gpu`, `export memory`, `jobs`, `plan`, `help`), `JobRow(p: { label: string; fraction?: number; state })`, the events filter grammar, `RoutePlates(p: { registry: Planned[] })`, diagnostics with the relay `RackRow` inventory. Firmware never offers flash while the app holds the port.
+**Accept:** unknown verbs rejected; a verb that changes something asks once; a bar fills only to a reported fraction, else hollow; no shell, no eval.
+**Tests:** vitest, Playwright. **Record:** research file.
+
+### A.Y03 Study plan, practice and generator UI (wave 9)
+**Files:** `app/ui/src/ww/study/{plan,practice,generator}/**`, legacy `ww/study/*.tsx`, `shell/views/study-plan.view.ts`, `study-practice.view.ts`, gallery entry. **Depends on:** Y01, G02. **Order:** wave 9.
+**Do:** 20.7.3 to 20.7.6 and the generator overlay: `SyllabusLandscape`, the `DateWheel` with real papers, `RetentionOrbit` (four bands, no digits, `DEFAULT` chip), `SigilGauge(p: { unitId: string; proficiency: number; n: number })` (dashed under n of 5), `BlueprintBar`, the practice set-up door into `focus.drill`, the "Pick for me" card with printed terms and "Not this" and "Choose another", the three-step generator overlay. Engines arrive through `ww/study/adapters` (null now).
+**Accept:** the formula terms are printed on the card; "Not an official paper" in the PDF header text; no decimal in the retention view.
+**Tests:** vitest, Playwright. **Record:** research file.
+
+### A.T01 Tree (wave 9)
+**Files:** `app/ui/src/ww/tree/**` (components, views, `ports.ts`, `adapters/` slot), `shell/views/tree.view.ts`, gallery entry. **Depends on:** G02, G03. **Order:** wave 9.
+**Do:** 20.8.1 to 20.8.3: `GroveRing(p: { trees: TreeSummary[]; onOpen(id): void })`, `SkillNode(p: { tier: 1\|2\|3; state: 'locked'\|'open'\|'progress'\|'claimed'\|'evidenced'\|'stale'; pips: number; label: string })` (six states by shape plus glyph), `TraceEdge`, the tree canvas with level of detail and the keyboard model, `BranchSpine`, `EvidenceLedger`, the node drawer with Evidence, Needs, Do next and Used by. Reads the evidence through `ports.ts` (null adapter: every node OPEN or LOCKED, the Grove shows dashed seeds).
+**Accept:** a self-mark draws CLAIMED and never EVIDENCED; growth is a pure function of the ledger and falls when a record is deleted; 300 nodes under 400 drawn DOM nodes (a measurement, not a promise); zero rAF at idle.
+**Tests:** vitest, Playwright keyboard traversal. **Record:** research file.
+
+### A.T02 Career (wave 9)
+**Files:** `app/ui/src/ww/career/**`, `shell/views/career-*.view.ts`, gallery entry. **Depends on:** G02, D03. **Order:** wave 9.
+**Do:** 20.8.6: Runway (`FlightBoard`), Ladder with Path as its second state (`RoleConstellation`), Abroad (`SpecTable`, `RackChecklist`), Certificates (`PlateShelf`), Money (`FundingBridge`); every date or fee cell is a `Readout` with a lamp, LIVE only when confirmed with a "checked on" stamp, else WAITING "unconfirmed"; the one verified figure (10,332 euros proof of finances, opened 13 Nov 2026) quoted with its source; "These are skill matches against role profiles you wrote or imported. It is not a prediction of being hired."
+**Accept:** no figure without a stamp (cell-lamp test); no outcome promise; rupee and euro columns separate and a typed, dated rate.
+**Tests:** vitest, Playwright. **Record:** research file.
+
+### A.G04 Cursors, boot, route sigil, empty states (wave 9)
+**Files:** `app/ui/src/shared/grammar/cursor/**`, `shell/slots/boot.*.tsx`, `titlebar-sigil.*.tsx`, `cursor-root.*.tsx`, `shell/empty/**`, gallery entry. **Depends on:** N02, G02, G03. **Order:** wave 9.
+**Do:** 20.4.5 and 20.4.7: `CursorKit` (reticle, bracket, plan, wait, hold; at most 32 x 32 with a keyword fallback) and `useBracketHover`, hover brackets in 100 ms, the pointer companion off in calm, at `low`, on touch and in forced colours, one Trim switch in the title bar; the route sigil drawing into the title bar in 200 ms; the boot rows; one empty state per view (seed glyph, terminal well, grain strip).
+**Accept:** zero rAF 2 s after the last input; targets stay 44 px; hover never replaces focus; the cursor off in forced colours.
+**Tests:** vitest, Playwright, forced colours. **Record:** research file.
+
+### A.E01 Intents and recurrence engine (wave 10)
+**Files:** `app/jarvis_app/ww_intents.py`, `app/jarvis_app/server.py` (adds discovery of `routes_ww_*.py`), `app/jarvis_app/routes_ww_intents.py`, `app/ui/src/ww/day/adapters/intents.register.ts`, `ww/life/intents.ts`, tests. **Depends on:** L01, L03. **Order:** wave 10.
+**Do:** 20.6.2: `Intent` with a rule (weekday, month day, yearly date, every n days), a reminder offset and a Quiet gate; `expand(rule, from, to): string[]` as a pure function; `IntentRule` and `IntentEditor` (extends `Field`, `Segmented`); the adapter registers the planned marks.
+**Accept:** 40 recurrence cases pass (month ends, leap day, a 29 Feb yearly rule); the function runs twice with the same result.
+**Tests:** pytest on a scratch data dir, vitest. **Record:** research file.
+
+### A.E02 Life logs store (wave 10)
+**Files:** `app/jarvis_app/ww_logs.py`, `routes_ww_logs.py`, `ww/day/adapters/logs.register.ts`, tests. **Depends on:** L03. **Order:** wave 10.
+**Do:** 20.6.7 tables `spend`, `habit_events`, `water`, `reminders` (local SQLite under the data folder, nothing tracked); append-only with delete; the adapter feeds the week, body and ledger views; limits are the student's own.
+**Accept:** deleting a row changes every derived picture honestly; no automatic bank read (grep); a very high count shows the plain "Help" line, with no inference.
+**Tests:** pytest (scratch dir), vitest. **Record:** research file.
+
+### A.E03 Reminder delivery (wave 10)
+**Files:** `app/jarvis_app/ww_reminders.py`, `routes_ww_reminders.py`, `app/ui/src/jarvis/reminders/**` (ReminderChip, ReminderBell), `shell/slots/notify.reminder.tsx`, tests. **Depends on:** J01, J04. **Order:** wave 10.
+**Do:** 20.9.6: the fixed ladder (toast, chime if on, one spoken line if on, one snooze), receipts (spoken, queued, failed), Quiet unliftable, rule-based wording `Reminder: <title>, now.`, the `notify` port adapter; spoken off by default per reminder.
+**Accept:** no code path raises volume, frequency or wording severity (a test enumerates the ladder); presence never decides whether to speak; copy grep finds no "missed" or "overdue"; never reads a dose.
+**Tests:** pytest, vitest. **Record:** research file.
+
+### A.E04 Google Calendar link (wave 10, Opus: security-sensitive)
+**Files:** `app/jarvis_app/ww_gcal/**`, `routes_ww_gcal.py`, `app/ui/src/ww/day/link/**` (LinkLamp), `ww/day/adapters/gcal.register.ts`, tests. **Depends on:** L01. **Owner limits:** the owner signs in himself in his browser; the assistant never types or stores credentials; needs his own Google Cloud client (Q-V2-2). **Order:** wave 10.
+**Do:** 20.6.3: loopback PKCE listener (5 minutes), refresh token in the OS credential store only, read-only `calendar.events.readonly` by default, a second switch to write planned blocks with a preview list, per-calendar switches off by default, disconnect revokes and deletes the cache; states PLANNED, WAITING, LIVE, FAULT.
+**Accept:** all four states reachable on a bench with a fake provider; no secret in the repository or in `data/` as plain text (scan); imported events carry the notch and the words "from Google" and never enter counts.
+**Tests:** pytest with the fake provider, vitest. **Record:** research file (what was and was not verified about Google's scopes).
+
+### A.E05 Question store, folder watch and the gcr plate (wave 11)
+**Files:** `app/jarvis_app/ww_pyq/{schema,store,routes,folder}.py`, `ww/study/adapters/pyq.register.ts`, `ww/plannedFeatures.ts` (entry `ww.gcr`), tests. **Depends on:** Y01. **Order:** wave 11.
+**Do:** 20.7.9 storage: `papers`, `pages`, `questions`, `families`, `attempts`, `cards`; originals stay in `data/`; a folder watch (WAITING until a folder is chosen); the PLANNED `ww.gcr` plate that opens an explanation, never a form (Q-V2-1).
+**Accept:** the schema migrates on a scratch dir; stale-entry tests T1 to T10 pass; none of the owner's papers is in a tracked file.
+**Tests:** pytest, vitest. **Record:** research file.
+
+### A.E06 Ingest and segmentation (wave 11)
+**Files:** `app/jarvis_app/ww_pyq/{ingest,segment,ocr}.py`, `app/tests/pyq_fixtures/**` (invented papers only). **Depends on:** E05 (the store contract). **Owner limits:** a PDF text library, a page renderer and an OCR engine each need the owner's OK with sizes stated first (Q-V2-3). **Order:** wave 11.
+**Do:** 20.7.9 ingest steps 1 to 3 (text layer, else OCR; question starts by the stated pattern; marks; type by pattern); log events are the run's real events.
+**Accept:** on 10 invented fixture papers the question count equals the hand count on 9 and marks are found on 90 percent (targets); an OCR miss reports FAULT with the install message.
+**Tests:** pytest. **Record:** research file.
+
+### A.E07 Tagging, families, patterns and Next three (wave 11)
+**Files:** `app/jarvis_app/ww_pyq/{tag,families,patterns,next}.py`. **Depends on:** E05. **Order:** wave 11.
+**Do:** 20.7.9: cosine tagging with the 0.25 score and 0.15 margin, a `MODEL` proposal only among existing topics, families by 5-word shingles and Jaccard 0.8, counts with the Wilson interval, "too few papers" below 3, and `gain = (marks share x papers-seen share) x (1 - proficiency)` ranked per minute with the terms printed; `ww_check` runs each pure function twice.
+**Accept:** the Wilson interval matches a reference table to 4 places; a mutation lowering the margin to 0 fails a test; no string from the forbidden-word list in any output; five real cases the owner agrees with reproduce the ranking (V01) before it ships.
+**Tests:** pytest, the gate. **Record:** research file.
+
+### A.E08 Generator, checker and spaced review (wave 11)
+**Files:** `app/jarvis_app/ww_generator.py` (extension), `ww_fsrs.py`, `ww_pyq/drill.py`, `routes_ww_drill.py`. **Depends on:** E05. **Order:** wave 11. (B08 is folded into E07 and E08.)
+**Do:** the practice paper from the reviewed bank with the section blueprint and the header "Practice paper from your bank. Not an official paper."; the independent numeric checker route; the FSRS scheduler with default parameters until about 1,000 reviews (chip `DEFAULT`); a rules-only switch that turns every `MODEL` use off.
+**Accept:** the blueprint equals the source paper's marks per section; a variant stays dashed until accepted; the retention estimate has no decimal in any output.
+**Tests:** pytest, the gate on a scratch dir. **Record:** research file.
+
+### A.E09 Evidence ledger (wave 12)
+**Files:** `app/jarvis_app/ww_evidence.py`, `routes_ww_evidence.py`, `app/ui/src/ww/tree/evidence.ts`, `ww/tree/adapters/evidence.register.ts`, tests. **Depends on:** T01. **Order:** wave 12.
+**Do:** 20.8.4: the table `evidence`, six kinds, the unlock rule (sum of weights at least the requirement and one hard record of kind 1, 4 or 5), STALE windows (language 60, drills 90, body 30 days, proposals), a deleted record recomputes everything; a held-out Study pass writes a record.
+**Accept:** unit tests for every state; delete recomputes; a body node needs instructor-logged sessions or a grade.
+**Tests:** pytest, vitest. **Record:** research file.
+
+### A.E10 Trees one to five (wave 12)
+**Files:** `app/ui/src/ww/tree/data/t01-*.json` to `t05-*.json` (academic core, engineering, languages, body and self-defence, social). **Depends on:** T01. **Order:** wave 12.
+**Do:** 20.8.5: 57 branches plus capstones for trees 1, 4 and 5 (60), each with at least 3 nodes, tier, prerequisites and accepted evidence kinds; the body tree needs instructor-logged sessions or a grade (Q-V2-9).
+**Accept:** a schema test per file; 60 branches counted by a test local to these five files.
+**Tests:** vitest. **Record:** research file.
+
+### A.E11 Trees six to ten (wave 12)
+**Files:** `app/ui/src/ww/tree/data/t06-*.json` to `t10-*.json` (influence, money, craft, health basics, career skills). **Depends on:** T01. **Order:** wave 12.
+**Do:** 51 branches plus capstones for trees 8 and 10 (53); the influence tree teaches recognising and resisting manipulation and honest persuasion, no tactic aimed at a named person; the health tree says "learn and practise" and never "manage a condition".
+**Accept:** schema test; 53 branches counted; copy grep on influence and health nodes. The total of 113 is asserted by Q01.
+**Tests:** vitest. **Record:** research file.
+
+### A.E12 Career data (wave 12)
+**Files:** `app/jarvis_app/ww_career_data.py`, `routes_ww_career_data.py`, `app/ui/src/ww/career/adapters/*.register.ts`, tests. **Depends on:** T02. **Order:** wave 12.
+**Do:** stores for applications, universities and their cells, certificates, funding sources and a typed dated rate; every date and fee has a `checked_on` field; a one-click fetch only if the owner agrees (Q-V2-11), else manual entry.
+**Accept:** no cell leaves the store without a stamp or the WAITING flag; deleting an application removes its notch.
+**Tests:** pytest, vitest. **Record:** research file.
+
+### A.E13 Settings dissolved (wave 13)
+**Files:** `app/ui/src/ww/setup/**` (removed), `ww/**/*.settings.ts` and `jarvis/**/*.settings.ts` (new), `lib/settings.ts`, `shell/modes/settings.mode.ts` (data only). **Depends on:** L02 and all sections. **Order:** wave 13.
+**Do:** 20.6.6: place each of the 28 settings homes in the table, each with a Trim at its home, delete the sheet, keep every `settings.*` id as an alias that opens the Trim popover at the new home.
+**Accept:** the registry test passes (no orphan, no unregistered field); every alias resolves; hardware and brain changes keep their confirm step.
+**Tests:** vitest, Playwright deep-link specs. **Record:** research file.
+
+### A.E14 Cross-links (wave 13)
+**Files:** `app/ui/src/shared/links/**`, `ww/**/adapters/links.register.ts`. **Depends on:** T01, T02, L01, Y03, E09. **Order:** wave 13.
+**Do:** 20.8.6 cross-links: Tree gap to Life block (`P`), Do next to Drill, held-out pass to evidence, Career requirement to a Study block and a Life block, each a one-key action stating its source.
+**Accept:** each link has a test that the target opens and the source is named; absent target shows text.
+**Tests:** vitest, Playwright. **Record:** research file.
+
+### A.B09 Phone, revised (wave 13; supersedes the B09 text above where it differs)
+**Files:** `phone_page/**` (not `ww.*` of another package), `app/jarvis_app/routes_phone*.py`. **Depends on:** B03, B05, L01. **Order:** wave 13.
+**Do:** as B09 plus the phone Calendar tab (the Almanac at 390 px), the Day page, next paper and Next three; drill and paper drop stay desktop (PLANNED `phone-papers`).
+**Accept:** one palette; 44 px taps; Playwright phone specs.
+**Tests:** as B09. **Record:** research file.
+
+### A.B10 Learning loops (wave 13, as before)
+**Files:** `app/ui/src/shared/learning/**`, `shared/learning/learning.settings.ts`. **Depends on:** B05, L02. **Owner limits:** UI chat; each loop off by default. **Order:** wave 13.
+**Do:** as A.B10, with its settings group registered as a Trim home. **Accept:** as A.B10. **Tests:** vitest and the local-only network test. **Record:** research file.
+
+### A.B12 Coach (wave 13, as before)
+**Files:** `app/jarvis_app/ww_coach.py`, `app/ui/src/ww/study/coach/**`. **Depends on:** E07, E08, R01 (the VRAM numbers). **Owner limits:** a model install needs the owner's OK. **Order:** wave 13.
+**Do:** as A.B12; every output carries `MODEL` and a source link; a rules-only switch. **Accept:** as A.B12; the model unloads after idle. **Tests:** pytest, vitest. **Record:** research file.
+
+### A.B13 Retire the old layout (wave 14, as before)
+**Files:** `germoney/pages/**`, `galaxy/**`, `components/{MemoryGalaxy,GrowthChart,PhoneCard}.tsx`. **Depends on:** all sections and the owner's OK. **Owner limits:** removal only after the owner agrees. **Order:** wave 14.
+**Do:** as A.B13. **Accept:** the bundle is smaller and no stale registry entry remains. **Tests:** all suites. **Record:** research file.
+
+### A.Q01, A.Q02 and A.Q03 for direction v2 (wave 14)
+**Files:** reports in the research file. **Depends on:** every earlier wave. **Order:** wave 14.
+**Do:** the contract sweep of A.Q01 over 36 views (assert `viewCount` 36, `check_ids.py`, 113 branches across E10 and E11); the real-window pass of A.Q02 with the owner (idle CPU, minimised, the gallery pass of 20.15); the privacy and claims audit of A.Q03 extended with: no private picture in a tracked file or in any `dist` that leaves the machine, the Google link states, the reminder ladder, the banned-word greps of 20.6.7 and 20.7.9, no camera in any dependency list, a whole-app network trace against the egress register with Google and the optional image generator as the only declared external hosts and only when the owner has switched them on.
+**Accept:** a table of every budget and rule with a measured value and pass, fail or "not run" with the reason.
+
+### A.Q04 Gallery pass (wave 14; replaces the customer-track gate, D-V2-1)
+**Files:** a signed checklist in the research file. **Depends on:** all waves. **Order:** wave 14.
+**Do:** the owner opens "What is new" and each section in the running application; for each of the eleven centrepieces and each placement of a catalogue picture he marks keep, change or drop; changes go back to their package as a one-line brief.
+**Accept:** every placement has a mark; nothing is called finished without one.
 
 ---
 

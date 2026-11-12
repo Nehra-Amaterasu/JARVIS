@@ -68,7 +68,7 @@ export function WhatIsComing({ registries, focusId, onClose }: WhatIsComingProps
         <h2 id="pl-overlay-title" className="pl-overlay-title">What is coming</h2>
         <button ref={closeRef} type="button" className="pl-close" onClick={onClose}>Close</button>
       </div>
-      <p className="pl-meta">None of this works yet. Each row says what is missing and what it needs.</p>
+      <p className="pl-meta">Each row says what is missing and what it needs. A row marked built, not verified has code that no check has confirmed yet.</p>
       {groups.map((g) => (
         <section key={g.section} className="pl-group" data-coming-group={g.section} aria-labelledby={`pl-g-${g.section}`}>
           <h3 id={`pl-g-${g.section}`} className="pl-group-title">{SECTION_WORDS[g.section] ?? g.section}</h3>

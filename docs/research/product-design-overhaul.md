@@ -2,6 +2,18 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-13: B05 adversarial review (Shell v2)
+
+**Question.** Does the B05 report hold when rerun, and does the code meet the quality bar (Strand A rubric, Strand B checklist) and the spec 3.1 to 3.4?
+
+**Rerun (real exit codes).** `tsc -b` 0. vitest 1716 of 1716 twice before fixes, 1719 of 1719 after (3 new). `bundle:check` 0. Full Playwright, flag off, sandbox on a scratch port: 270 passed, 2 skipped, **1 failed** of 273: `shell-v2.spec.ts` "every section and every view is reachable by keyboard alone" saw the page root at `day.today`, then `focus.start`, while it waited for `focus.session`. It then passed 4 of 4 alone, the whole shell spec passed 3 of 3 repeats (33 of 33), and a probe of the Day-to-Focus entry showed no bounce in 3 runs. Recorded as a flake with an unconfirmed cause (most likely the two-way frame bridge moving the shell's place while a frame switch is in flight). After the fixes, shell-v2 + themes-visual + keyboard + hit-areas: 72 passed, 1 skipped; no snapshot written.
+
+**Mutations.** Removing the focus return in ShellV2 failed the palette test; removing `notInText` in keymap.ts failed "single keys never fire inside a text field". Both restored.
+
+**Fixed (with a test that failed first).** (1) The rail had two tab stops after arrow roving then Ctrl+3 (`room` and `senses`): rove() writes tabindex in the DOM and React rewrites only changed props. (2) The 15 s clock at the shell root re-rendered the page in the canvas on every tick; Rail and Canvas are now memoised. (3) Alt+6, the frame's old Setup key, still reached ww/frame and switched it to Setup while the rail said Day; it is swallowed with no binding and no hint.
+
+**Left for the integrator.** The Resume record is written on every navigation and never confirmed while a view stays open, so the pill always names the place on screen (a breadcrumb; the pill and Alt+R are no-ops within a session) and after 100 min on one view it reads "last seen 2 h ago" about the view being looked at. The first-run pill "Start: wake JARVIS" only navigates home, so on home it does nothing (spec 4.2.3 says it runs the primary). Spec 2663's "Skip to canvas" link is absent. Under v2 the Well Wisher frame keeps its own dark theme and toolbar under a light clay title bar (visible in the day screenshot). The Well Wisher lamps read "Phone paired" and "Quiet on" next to a WAITING glyph, which reads as a claim (shared/lamp copy, B04).
+
 ## 2026-11-13: B05 Shell v2 behind `app.shell`, built and measured
 
 **Question.** Can the ten sections of spec 3.1 live in one navigation (title bar 48 px, rail 64 px, canvas 1302 x 720) behind a flag that leaves today's app untouched, with one key table feeding both the keys and every hint?

@@ -1,6 +1,7 @@
 // The overlay "What is coming" (id `roadmap`, spec 12.2 and 12.4). It merges only the registries the build
 // passes in, so a single-product build lists only its own entries (T6). One deep: it holds no control that opens
-// another overlay, only Close. Esc or Alt+Left close it and focus returns to whatever opened it.
+// another overlay, only Close. Esc or Alt+Left close it and focus returns to whatever opened it. Tab and
+// Shift+Tab wrap inside it (aria-modal alone does not stop a real browser tabbing out to the page behind).
 import { useEffect, useMemo, useRef } from 'react'
 import { VIEW_IDS } from '../planned/homes'
 import { BLOCKER_ORDER, BLOCKER_WORDS, fillLine, listable, sectionOf } from '../planned/registry'
@@ -23,6 +24,8 @@ const SECTION_WORDS: Record<string, string> = {
 /** Rail order of spec 3.2, then Settings and the phone last. */
 const SECTION_ORDER = [...new Set(VIEW_IDS.map((v) => v.split('.')[0])), 'settings', 'phone']
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
 export function WhatIsComing({ registries, focusId, onClose }: WhatIsComingProps) {
   const entries = useMemo(() => listable(registries), [registries])
   const groups = useMemo(() => {
@@ -39,6 +42,7 @@ export function WhatIsComing({ registries, focusId, onClose }: WhatIsComingProps
 
   const opener = useRef<Element | null>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     opener.current = document.activeElement
     const row = focusId ? document.querySelector<HTMLElement>(`[data-coming-row="${CSS.escape(focusId)}"]`) : null
@@ -56,6 +60,27 @@ export function WhatIsComing({ registries, focusId, onClose }: WhatIsComingProps
       if (ev.key === 'Escape' || (ev.altKey && ev.key === 'ArrowLeft')) {
         ev.preventDefault()
         onClose()
+        return
+      }
+      if (ev.key !== 'Tab') return
+      const root = rootRef.current
+      if (!root) return
+      // One query per Tab press, over a card that holds a handful of controls: O(controls), no listener per row.
+      const stops = [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.getAttribute('aria-disabled') !== 'true')
+      if (stops.length === 0) {
+        ev.preventDefault()
+        return
+      }
+      const first = stops[0]
+      const last = stops[stops.length - 1]
+      const at = document.activeElement
+      const outside = !at || !root.contains(at)
+      if (outside || (ev.shiftKey && at === first)) {
+        ev.preventDefault()
+        ;(ev.shiftKey ? last : first).focus()
+      } else if (!ev.shiftKey && at === last) {
+        ev.preventDefault()
+        first.focus()
       }
     }
     document.addEventListener('keydown', onKey)
@@ -63,7 +88,7 @@ export function WhatIsComing({ registries, focusId, onClose }: WhatIsComingProps
   }, [onClose])
 
   return (
-    <div className="pl-overlay" data-overlay="roadmap" role="dialog" aria-modal="true" aria-labelledby="pl-overlay-title">
+    <div ref={rootRef} className="pl-overlay" data-overlay="roadmap" role="dialog" aria-modal="true" aria-labelledby="pl-overlay-title">
       <div className="pl-overlay-head">
         <h2 id="pl-overlay-title" className="pl-overlay-title">What is coming</h2>
         <button ref={closeRef} type="button" className="pl-close" onClick={onClose}>Close</button>

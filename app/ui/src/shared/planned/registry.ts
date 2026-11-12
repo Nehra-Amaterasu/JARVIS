@@ -98,6 +98,34 @@ export function pastReview(reg: Registry, today: string): PlannedEntry[] {
   return reg.entries.filter((e) => e.reviewBy <= today)
 }
 
+/** The review window of spec 12.3: an entry is re-read every 90 days (`reviewBy` = `since` + 90). */
+export const REVIEW_WINDOW_DAYS = 90
+
+/** Whole days an entry is past its `reviewBy` on `today` (negative while it is still in date). Both are YYYY-MM-DD, read as UTC. */
+export function daysPastReview(e: PlannedEntry, today: string): number {
+  return Math.floor((Date.parse(today) - Date.parse(e.reviewBy)) / 86_400_000)
+}
+
+/**
+ * The "entries past review" report as lines, oldest first, one per entry on or past `reviewBy`. The same list
+ * `pastReview` returns, with the days attached so the integrator can tell "re-date it" from "this rotted".
+ */
+export function pastReviewReport(reg: Registry, today: string): string[] {
+  return pastReview(reg, today)
+    .map((e) => ({ e, days: daysPastReview(e, today) }))
+    .sort((a, b) => b.days - a.days || a.e.id.localeCompare(b.e.id))
+    .map(({ e, days }) => `${e.id}: ${days} days past review (reviewBy ${e.reviewBy}, owner ${e.owner})`)
+}
+
+/**
+ * Entries more than one whole review window past `reviewBy`, that is, no one re-read them for 180 days after
+ * they were added. Ordinary lateness stays a report line; this is the rot a test may fail on, because it needs
+ * two missed reviews and so never trips on unrelated work.
+ */
+export function rottedEntries(reg: Registry, today: string): PlannedEntry[] {
+  return reg.entries.filter((e) => daysPastReview(e, today) > REVIEW_WINDOW_DAYS)
+}
+
 /** Overlay and chip order: build first, account last (the order the owner can act on them). */
 export const BLOCKER_ORDER: readonly PlannedEntry['blocker'][] = ['build', 'data', 'hardware', 'decision', 'licence', 'account']
 

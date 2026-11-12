@@ -213,8 +213,10 @@ describe('layer-1 primitives', () => {
     }
     for (const [k, v] of Object.entries(spec)) expect(t[k], k).toBe(v)
   })
-  it('the scale primitives that also exist in ../primitive.css are equal to it (B01 re-scopes that file; until then the copies must not drift)', () => {
-    const ww = parseCss(read(join(SRC, 'styles/design/primitive.css'))).rules.find((r) => r.selectors.includes('.ww'))!.decls
+  it('the scale primitives that also exist in ../primitive.css are equal to it (the copies must not drift)', () => {
+    // B01 moved the shared primitives from .ww to :root (seam S4) and left only --stagger under .ww,
+    // so the oracle reads both blocks; reading .ww alone found 0 of the 15 shared names.
+    const ww = Object.assign({}, ...parseCss(read(join(SRC, 'styles/design/primitive.css'))).rules.filter((r) => r.selectors.includes(':root') || r.selectors.includes('.ww')).map((r) => r.decls)) as Record<string, string>
     const mine = parseCss(read(join(CLAY, 'primitive-scale.css'))).rules[0].decls
     let shared = 0
     for (const [k, v] of Object.entries(mine)) if (k in ww) { shared++; expect(v, k).toBe(ww[k]) }

@@ -4,5 +4,19 @@
   "rules": {
     "react/rules-of-hooks": "error",
     "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+  },
+  "overrides": [
+    {
+      "files": ["src/pages/**", "src/galaxy/**", "src/twin/**", "src/shared/**"],
+      "rules": {
+        "no-restricted-imports": ["error", { "patterns": [{ "group": ["**/ww", "**/ww/**", "**/germoney", "**/germoney/**"], "message": "JARVIS code and shared code must not import Well Wisher (seam S1); it goes through a port." }] }]
+      }
+    },
+    {
+      "files": ["src/ww/**", "src/germoney/**", "src/shared/**"],
+      "rules": {
+        "no-restricted-imports": ["error", { "patterns": [{ "group": ["**/pages", "**/pages/Core", "**/pages/Yaadash", "**/pages/Aankhen", "**/pages/Limbs", "**/pages/Connect", "**/pages/System", "**/galaxy/**", "**/twin/**", "**/jarvis/**"], "message": "Well Wisher code and shared code must not import JARVIS (seam S1); it goes through a port." }] }]
+      }
+    }
+  ]
 }

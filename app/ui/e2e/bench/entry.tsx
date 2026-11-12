@@ -7,6 +7,7 @@
 //
 // URL contract (read once, at load):  ?theme=light|dark   which clay theme (and the matching ww theme) to draw
 //                                     ?open=<Overlay>     open one modal on mount (the others render closed)
+//                                     ?view=gallery       mount the What is new place (e2e/gallery.spec.ts) instead of the bench
 import '../../src/styles/design/clay/index.css'
 import '../../src/ww/design/base.css'
 import '../../src/ww/kit/kit.css'
@@ -14,7 +15,9 @@ import './bench.css'
 import * as kit from '../../src/shared/kit'
 import * as art from '../../src/shared/art'
 import * as lampPkg from '../../src/shared/lamp'
+import { createRoot } from 'react-dom/client'
 import { mountBench } from '../../src/gallery/bench'
+import WhatIsNew from '../../src/gallery'
 
 const q = new URLSearchParams(location.search)
 const THEME = q.get('theme') === 'dark' ? 'dark' : 'light'
@@ -26,5 +29,11 @@ if (THEME === 'light') document.body.setAttribute('data-ww-theme', 'paper')
 // What the spec compares: every capitalised function export, per package, against what the page drew.
 const fns = (ns: Record<string, unknown>) => Object.keys(ns).filter((k) => /^[A-Z][A-Za-z0-9]*$/.test(k) && !/^[A-Z0-9_]+$/.test(k) && typeof ns[k] === 'function')
 const w = window as unknown as { __bench: unknown }
-const rendered = mountBench(document.getElementById('root')!, THEME)
-w.__bench = { exports: { kit: fns(kit), art: fns(art), lamp: fns(lampPkg) }, rendered }
+const rootEl = document.getElementById('root')!
+if (q.get('view') === 'gallery') {
+  // the canvas of the shell at 1366 x 768 is 1302 x 720; the spec sizes the viewport, this fills it
+  rootEl.style.height = '100vh'
+  createRoot(rootEl).render(<WhatIsNew />)
+} else {
+  w.__bench = { exports: { kit: fns(kit), art: fns(art), lamp: fns(lampPkg) }, rendered: mountBench(rootEl, THEME) }
+}

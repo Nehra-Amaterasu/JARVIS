@@ -4,12 +4,12 @@
 import { useId } from 'react'
 import { GROUPS, type GalleryEntryX } from './types'
 
-export function Specimen({ entry, only }: { entry: GalleryEntryX; only: number | null }) {
+export function Specimen({ entry, only, scale = 1 }: { entry: GalleryEntryX; only: number | null; scale?: number }) {
   const hid = useId()
   const group = GROUPS.find((g) => g.id === entry.group)
   const shown = entry.states.map((s, i) => ({ s, i })).filter(({ i }) => only === null || i === only)
   const body = (
-    <div className="gl-states">
+    <div className="gl-states" style={scale === 1 ? undefined : { zoom: scale }}>
       {shown.map(({ s, i }) => (
         <figure className="gl-state" key={i} data-state-index={i}>
           <figcaption className="gl-state-cap">{s.label}</figcaption>

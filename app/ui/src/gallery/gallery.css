@@ -128,7 +128,8 @@
   max-width: 1100px;
   margin: 0 auto;
   padding: 20px 24px 18px;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
   background: var(--surface-raised);
   border: 1px solid var(--edge-hair);
@@ -143,7 +144,9 @@
 .gl-specimen-merged { margin: 0; padding-top: 10px; border-top: 1px dashed var(--edge-ui); font-size: 12px; color: var(--ink-2); font-family: var(--font-mono, ui-monospace, Consolas, monospace); }
 .gl-specimen-merged span { text-transform: uppercase; letter-spacing: 0.08em; margin-right: 6px; }
 
-.gl-states { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px; min-width: 0; }
+.gl-states { flex: 0 1 auto; display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-start; gap: 14px; min-width: 0; }
+/* a state that is a grid of plates (the section themes, the art ids) takes the whole row */
+.gl-state:has(.gl-secgrid, .gl-artgrid) { flex: 1 1 100%; }
 .gl-state {
   margin: 0;
   min-width: 0;
@@ -195,6 +198,7 @@
   .gl-side { padding: 12px 0 0 12px; gap: 8px; border-right: 0; border-bottom: 1px solid var(--edge-hair); grid-template-rows: auto auto minmax(0, 1fr); }
   .gl-sub { display: none; }
   .gl-filter { padding-right: 12px; flex-wrap: nowrap; overflow-x: auto; }
+  .gl-filter .gl-radio { flex: none; }
   .gl-bar { padding: 8px 12px; }
   .gl-pane { padding: 12px; }
   .gl-specimen { padding: 14px 14px 12px; }

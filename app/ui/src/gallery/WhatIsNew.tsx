@@ -15,6 +15,7 @@ import { GROUPS, type GalleryEntryX } from './types'
 
 type Theme = 'clay-light' | 'clay-dark'
 const THEMES: RadioOption[] = [{ id: 'clay-light', label: 'Light' }, { id: 'clay-dark', label: 'Dark' }]
+const SCALES: RadioOption[] = [{ id: '1', label: '1x' }, { id: '1.5', label: '1.5x' }, { id: '2', label: '2x' }]
 const SECTION_OPTIONS = [{ id: '', label: 'No section theme' }, ...SECTIONS.map((s) => ({ id: s.id, label: s.label })), { id: 'proof', label: 'Proof' }]
 
 /** The clay theme of the page: starts from whatever the shell set, and puts that back when the place closes. */
@@ -41,6 +42,7 @@ export default function WhatIsNew() {
   const [activeId, setActiveId] = useState<string>(() => all[0]?.id ?? '')
   const [solo, setSolo] = useState<number | null>(null)
   const [section, setSection] = useState('')
+  const [scale, setScale] = useState('1')
   const [theme, setTheme] = useClayTheme()
   const listRef = useRef<HTMLUListElement>(null)
   const paneRef = useRef<HTMLDivElement>(null)
@@ -124,6 +126,7 @@ export default function WhatIsNew() {
           </div>
           <div className="gl-bar-ctl">
             <Radios label="Clay theme" value={theme} options={THEMES} onChange={(t) => setTheme(t as Theme)} />
+            <Radios label="Scale" value={scale} options={SCALES} onChange={setScale} />
             <label className="gl-select">
               <span className="gl-select-label">Section</span>
               <select value={section} onChange={(e) => setSection(e.target.value)}>
@@ -134,7 +137,7 @@ export default function WhatIsNew() {
           </div>
         </div>
         <div ref={paneRef} className="gl-pane" tabIndex={0} role="region" aria-label="Specimen" onKeyDown={onPaneKey} data-section={section || undefined}>
-          {active ? <Specimen key={active.id} entry={active} only={solo} /> : <p className="gl-none">Nothing to show.</p>}
+          {active ? <Specimen key={active.id} entry={active} only={solo} scale={Number(scale)} /> : <p className="gl-none">Nothing to show.</p>}
         </div>
       </div>
     </section>

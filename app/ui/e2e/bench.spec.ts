@@ -193,6 +193,7 @@ test('every exported component of kit, art and lamp is on the bench', async ({ p
     for (const [pkg, names] of Object.entries(b.exports)) for (const n of names) if (!drawn.has(`${pkg}:${n}`)) missing.push(`${pkg}:${n}`)
     return { missing, counts: Object.fromEntries(Object.entries(b.exports).map(([k, v]) => [k, v.length])) }
   })
+  addStats('exports drawn (capitalised function exports)', r.counts)
   expect(r.missing, 'exports the bench does not draw').toEqual([])
   expect(r.counts.kit).toBeGreaterThanOrEqual(40)
   expect(r.counts.art).toBeGreaterThanOrEqual(19)

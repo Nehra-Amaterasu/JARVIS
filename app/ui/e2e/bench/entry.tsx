@@ -210,6 +210,29 @@ function Bench() {
       </B>
 
       {/* ------------------------------------------------------------------ kit: lamp and hardware (clay) */}
+      {/* The data components that moved to shared/kit with the second half of the kit move (13 Nov): a number or fill only for LIVE and SIMULATED. */}
+      <B name="Stat" pkg="kit">
+        <F form="five states"><States>{(s) => <kit.Stat label={`Hours ${s}`} value={42} unit="h" reading={read(s, STATE_REASON[s])} />}</States></F>
+        <F form="not measured"><kit.Stat label="Papers" value={null} reading={read('waiting', 'no report')} /></F>
+        <F form="zero with a next step"><kit.Stat label="Drills" value={0} next="Start one drill" reading={read('live')} /></F>
+      </B>
+      <B name="Meter" pkg="kit">
+        <F form="five states"><States>{(s) => <kit.Meter label={`Coverage ${s}`} value={0.6} reading={read(s, STATE_REASON[s])} />}</States></F>
+        <F form="not measured"><kit.Meter label="Retention" value={null} reading={read('waiting', 'no report')} /></F>
+      </B>
+      <B name="Row" pkg="kit">
+        <F form="default"><kit.Row title="Signals and systems" meta="Unit 3, 12 questions" /></F>
+        <F form="done"><kit.Row title="Lab record" meta="handed in" state="done" /></F>
+        <F form="behind"><kit.Row title="Control theory" meta="2 of 5 units" state="behind" /></F>
+        <F form="overdue"><kit.Row title="Assignment 4" meta="was due on Monday" state="overdue" /></F>
+      </B>
+      <B name="Spark" pkg="kit">
+        <F form="history"><kit.Spark label="Minutes per day" points={[10, 25, 15, 40, 30, 55, 45]} /></F>
+        <F form="no history"><kit.Spark label="Minutes per day" points={[]} /></F>
+      </B>
+      <B name="StageStrip" pkg="kit">
+        <F form="stages"><kit.StageStrip label="Paper pipeline" stages={[{ id: 'a', label: 'Collected', count: 12, state: 'done' }, { id: 'b', label: 'Tagged', count: 7, state: 'current' }, { id: 'c', label: 'Practised', state: 'todo' }, { id: 'd', label: 'Reviewed', state: 'unknown' }]} /></F>
+      </B>
       <B name="Lamp" pkg="kit" also={['LampGlyph']}>
         <F form="five states with word">
           <States>{(s) => <KLamp state={s} reason={STATE_REASON[s]} />}</States>

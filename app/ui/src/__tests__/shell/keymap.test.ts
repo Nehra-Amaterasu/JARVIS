@@ -26,7 +26,19 @@ function specTable(): { section: string; views: string[] }[] {
     const views = [...m[2].matchAll(/`([a-z]+)\.([a-z]+)`/g)].map((v) => v[2])
     rows.push({ section: m[1], views })
   }
-  return rows.filter((r) => r.section !== 'proof' && r.section !== 'settings')
+  return amendV2(rows.filter((r) => r.section !== 'proof' && r.section !== 'settings'))
+}
+
+/** 3.2 is "superseded in part by 20.2 (D-V2-10)": Day gains `month` after `week` (20.6: today, week, month, body,
+ *  close) and Focus gains `drill` (A.Y02: start, session, rest, drill). The amendment is checked against the doc
+ *  text too, so the test fails if the decision is withdrawn there. */
+function amendV2(rows: { section: string; views: string[] }[]) {
+  const text = readFileSync(SPEC, 'utf8')
+  expect(text).toMatch(/D-V2-10 \| The Life calendar is the new named view `day\.month`/)
+  expect(text).toContain('Day gets five views (`today`, `week`, `month`, `body`, `close`)')
+  return rows.map((r) =>
+    r.section === 'day' ? { ...r, views: ['today', 'week', 'month', 'body', 'close'] }
+      : r.section === 'focus' ? { ...r, views: [...r.views, 'drill'] } : r)
 }
 
 const key = (k: string, mods: Partial<{ ctrl: boolean; alt: boolean; shift: boolean }> = {}, code?: string) => ({
@@ -131,7 +143,7 @@ describe('routes, filters and the frame mapping', () => {
   })
 
   it('a jump inside the Well Wisher frame maps back to a shell view', () => {
-    expect(placeOfFrame('focus', 'drill')).toBe('study.practice')
+    expect(placeOfFrame('focus', 'drill')).toBe('focus.drill') // D-V2-11: Drill lives in Focus
     expect(placeOfFrame('study', 'library')).toBe('study.library')
     expect(placeOfFrame('tree', null)).toBe('tree.tree')
     expect(placeOfFrame('career', 'plan')).toBe('career.ladder')

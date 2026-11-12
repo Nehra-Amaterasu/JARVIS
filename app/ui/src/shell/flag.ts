@@ -41,6 +41,19 @@ export function shellV2Enabled(): boolean {
   return on
 }
 
+/**
+ * The owner's preview switch (13 Nov 2026): he asked to see the new UI inside the current app, one button each way.
+ * The choice is stored and the page reloads, because the flag is read once per load (see the note at the top).
+ */
+export function setShellV2(on: boolean): void {
+  try {
+    localStorage.setItem(SHELL_FLAG_KEY, on ? 'v2' : 'off')
+  } catch {
+    /* storage blocked: nothing to remember, the reload keeps today's frame */
+  }
+  if (typeof location !== 'undefined') location.reload()
+}
+
 /** Tests only: forget the cached read. */
 export function resetShellFlagForTests(): void {
   cached = null

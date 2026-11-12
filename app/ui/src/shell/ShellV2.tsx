@@ -15,6 +15,7 @@ import { clock, useNow } from '../lib/format'
 import { useStore } from '../lib/store'
 import { loadJarvisRegistry, loadWwShell, type WwShellBridge } from '../pageLoaders'
 import { Annunciators, JARVIS_ANNUNCIATORS, WW_ANNUNCIATORS } from '../shared/lamp'
+import { setShellV2 } from './flag'
 import { Lamp } from '../shared/lamp/Lamp'
 import type { LampReading } from '../shared/lamp/types'
 import { WhatIsComing } from '../shared/overlays/WhatIsComing'
@@ -246,6 +247,7 @@ function TitleBar({ product, items, now }: { product: ProductId; items: typeof J
         <Annunciators items={items} readings={readings} />
       </div>
       {faults.length > 0 && <FaultChip product={product} names={faults.map((f) => f.label)} />}
+      <button type="button" className="s2-classic" onClick={() => setShellV2(false)} title="Go back to the current interface">Classic UI</button>
       <time className="s2-clock" dateTime={new Date(now).toISOString()}>{clock(now / 1000).slice(0, 5)}</time>
       {inApp && (
         <div className="s2-win">

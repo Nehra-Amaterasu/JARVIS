@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useRef } from 'react'
 import { TABS, useStore, type Tab } from '../lib/store'
+import { setShellV2 } from '../shell/flag'
 import { clock, fmtGb, useNow } from '../lib/format'
 import type { CoreState } from '../lib/api'
 
@@ -114,6 +115,9 @@ export function Dock() {
         )
       })}
       <div className="dock-spacer" />
+      <button type="button" className="dock-newui mono" onClick={() => setShellV2(true)} title="Show the new interface (work in progress). A button there brings this one back.">
+        New UI
+      </button>
       <span className="dock-ver mono">v1.0</span>
     </nav>
   )

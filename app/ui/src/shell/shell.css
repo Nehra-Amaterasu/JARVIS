@@ -56,7 +56,7 @@
   background: var(--surface-raised);
   -webkit-app-region: drag;
 }
-.s2-title button, .s2-title .s2-lamps, .s2-title .s2-fault { -webkit-app-region: no-drag; }
+.s2-title button, .s2-title .s2-lamps, .s2-title .s2-fault, .s2-title .s2-classic { -webkit-app-region: no-drag; }
 .s2-wordmark {
   flex: none;
   width: 152px;
@@ -118,6 +118,19 @@
   border-radius: 8px;
   background: var(--surface-raised);
   font: 600 12px/1 var(--font-mono, ui-monospace, monospace);
+}
+.s2-classic {
+  flex: none;
+  min-height: var(--s2-hit);
+  padding: 0 12px;
+  border: 1px solid var(--edge-ui);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-2);
+  font: 600 11px/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
 }
 .s2-clock { flex: none; width: 56px; text-align: center; font: 500 13px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
 .s2-win { flex: none; display: flex; }

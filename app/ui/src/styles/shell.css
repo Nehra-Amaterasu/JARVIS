@@ -89,6 +89,10 @@ kbd {
 .dock-led.live { background: var(--live); box-shadow: 0 0 0 2px var(--bg), 0 0 10px var(--live); }
 .dock-spacer { flex: 1; }
 .dock-ver { font-size: 9px; color: var(--ink-4); }
+/* The preview switch into shell v2. 44 px tall so it is a real target; an outline, not a fill, so it does not compete with the tabs. */
+.dock-newui { min-height: 44px; margin: 0 6px 8px; padding: 0 8px; border: 1px solid var(--ink-3); border-radius: 8px; background: transparent; color: var(--ink-2); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
+.dock-newui:hover { color: var(--ink-1, var(--ink-2)); border-color: var(--ink-2); }
+.dock-newui:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 
 /* ------------------------------------------------------------------ main */
 .main { grid-area: main; position: relative; overflow: hidden; view-transition-name: page; }

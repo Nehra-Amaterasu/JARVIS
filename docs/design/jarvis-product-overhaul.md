@@ -49,6 +49,8 @@ A complete design for turning two products that share one shell today into one c
 
 ### 0.2 The decisions that shape everything else
 
+*Superseded in part by 20.2 (decisions D-V2-1 to D-V2-28); items 8 and 10 are changed by D-V2-1 and D-V2-22.*
+
 1. **Base proposal: "two brands, one seam" (D1).** The two products share a shell, tokens, kit, motion governor and a planned-feature mechanism, and meet only through four ports (`voice`, `memory`, `notify`, `ambient`) with null adapters (§1.4). A `VITE_PRODUCT=ww` build contains no module from `jarvis/` and no three.js, and the reverse (§1.4, §5.7).
 2. **Ten sections, five per product, one rail, one title bar (D2, D3), ordered by how often they are reused (I37).** Replaces 14 dock items plus 6 workspace tabs (20 navigation targets) with 10 sections plus the Proof rail and three shell sheets (§3.1, §3.4). All ids are frozen (§3.2); their order is not: the rail, Ctrl+1 to Ctrl+5 and the view switches list the most reused first (JARVIS: Core, Room, Senses, Memory, Console; Well Wisher: Day, Focus, Study, Tree, Career), from the estimates in §3.1.2.
 3. **Honesty is typed (D12).** Every reading carries one of five lamp states (LIVE, WAITING, SIMULATED, PLANNED, FAULT), shown by shape plus text, never colour alone; a unit test fails any widget that renders a number without a state (§6.6).
@@ -80,6 +82,8 @@ Sections of this file are written `§N.M`. The source specification was assemble
 **Where the source texts' older section letters landed** (for anyone holding an earlier draft): thesis A is §1, users B is §2, information architecture C is §3, visual foundation D is §6.1, §6.3 (palette) and §6.6 (lamp) plus §8.1 (centrepieces), decisions E is §16, open questions F is §17.
 
 ### 0.6 Counts at a glance
+
+*Superseded in part by 20.13 and 15.6: views 36, 77 new work packages, 78 new components.*
 
 | Item | Count | Where |
 |---|---|---|
@@ -312,6 +316,8 @@ Draft re-entry copy for the copy specialist (not final): "Pick up here: Paper 2,
 
 ### 3.1 Method and the section map
 
+*Superseded in part by 20.2 (D-V2-10): Day gains `day.month`, Focus gains `focus.drill`.*
+
 Method: start from the jobs (§2.2) and loops (§2.3), not from today's 21 tab ids. A section exists only if it has its own one job, its own one primary action and its own honest state. Anything that is not an object of a loop becomes a view, an overlay, a sheet, or is deleted. Result: **10 sections (5 per product)** plus the Proof rail and three shell sheets, replacing 21 tab ids, a 14-item dock and a second 6-item workspace strip (Strand 0, 1.1). Computed: 5 + 5 = 10 sections versus 14 dock items plus 6 workspace tabs = 20 navigation targets today.
 
 Every view fits the canvas in §3.3 without document scroll. A view that cannot fit becomes two views, a drawer or an overlay.
@@ -434,6 +440,8 @@ Focus, Study and the rest follow from the loops as well as the sums: W2, W3 and 
 **Rail drawings.** §4.2.2 draws both rails in this order.
 
 ### 3.2 Stable ids (frozen)
+
+*Superseded in part by 20.2 (D-V2-10, D-V2-12): the table gains `day.month` and `focus.drill`; the `settings.*` ids become aliases of Trim popovers; `drill` now resolves to `focus.drill`.*
 
 **Products.** `jarvis`, `ww`. Set on the root as `data-product`.
 
@@ -720,6 +728,8 @@ Click count to a running thing: JARVIS wake = 1; ww running block = 2 (Start a 1
 
 #### 4.2.6 Shell-owned sheets and overlays
 
+*Superseded in part by 20.6.6: the settings sheet is dissolved into Trim keys and a palette index; the overlays `pyq-review` and `pyq-gen` are added (20.7).*
+
 | Id | Box at 1366x768 | Primary | Content and states | Keys |
 |---|---|---|---|---|
 | `pair` (sheet, replaces O2 Phone) | 480 x 560, centred | Pair a phone while unpaired, else none | The existing server-supplied QR and code, two addresses (`/phone/`, `/phone/ww`, only the built ones), listener switch, paired device list with Revoke. States: unpaired, listener off (switch is in the sheet, so 4 clicks from the rail: rail pair, listener switch, Pair, done), paired, error | Esc closes; focus returns to the pair badge |
@@ -735,6 +745,8 @@ Mobile: sheets become full-height bottom sheets with a 44 px Close at top; one a
 Product feel: instrument tempo (80 to 160 ms), mono metadata, bone and charcoal, colour only means state. Every JARVIS view below is composed in the box J (1286 x 652). **Numbering note (2026-11-12 evening):** the §4.3.n and §4.4.n numbers are stable cross-reference ids and were not renumbered when the section order changed; the rail, key and view-switch order is the one in §3.1.2 and §3.2 (for `console`, `events` follows `health` in the switch although its heading below keeps its number).
 
 #### 4.3.1 `core`: Talk to JARVIS and see it listen
+
+*Superseded in part by 20.9.1 (sigil bezel, pipeline ribbon, organ strip, Anatomy drawer).*
 
 ##### `core.talk` (immersive charcoal scene)
 
@@ -777,6 +789,8 @@ Left column 720 + gap 16 + right column 550 = 1286. Left stack 360 + 88 + 72 + 4
 
 #### 4.3.2 `room`: Operate the room and trust the board
 
+*Superseded in part by 20.9.2 (guard key, three-phase LED, 24-hour ring with a PREVIEW scrubber).*
+
 ##### `room.switches`
 
 | Region | Box | Contents |
@@ -810,6 +824,8 @@ Master-detail in J: rule list 420 x 652 (rows 64: Modes, Presence rule, Away mod
 **Primary:** Save on a dirty editor, else none. **Flow:** edit a mode: Rules tab (1), Modes row (1), change a target (1), Save (1) = 4. **Overflow:** one rule at a time; Modes with more than 8 channels use the 8-row layout. **Mobile:** phone shows modes and the presence rule read-only inside Room; rules editing is a "desktop only" card. Reflow: list first, detail as a pushed screen with a Back chip.
 
 #### 4.3.3 `senses`: Say whether a body moved, with its provenance
+
+*Superseded in part by 20.9.3 (one terrain canvas, probability arc, motion tape, floor plan; `senses.signal` becomes SVG-only).*
 
 Product rule on every Senses screen: one Wi-Fi link sees that a body moved, not how it is bent; no pose, no camera. Presence reads "predicting" until readiness passes; a simulated hub stamps SIMULATED on every piece of art and every number.
 
@@ -860,6 +876,8 @@ Stepper rail 280 x 652 (four steps, each a lamp row) plus step pane 990 x 652.
 
 #### 4.3.4 `memory`: Show, correct, export and delete what it knows
 
+*Superseded in part by 20.9.4 (constellation, strata, trail, capture line, inline fix) and D-V2-25.*
+
 Scene: light paper-grey, ASCII and halftone. Result text is plain text always; art never replaces an excerpt.
 
 ##### `memory.recall`
@@ -898,6 +916,8 @@ Left 640: people with a **mentions** count and its basis ("mentioned in 14 notes
 
 #### 4.3.5 `console`: Know it works, fix it, connect things
 
+*Superseded in part by 20.9.5 (closed-verb command line, job rows, route of plates).*
+
 Scene: matrix and terminal, immersive charcoal, a solid block cursor, no blink and no ambient animation. Admin tools (owner-only strings are marked in the private build): at most two taps from the fault chip.
 
 ##### `console.health`
@@ -932,6 +952,8 @@ Roster 760 x 652 (labelled "Assistants"; "assistants not running yet" when absen
 Product feel: notebook tempo (160 to 280 ms), calm sentences, one warm orange fill for the single primary, clay-light by default. **Numbering note (2026-11-12 evening):** the rail order is Day, Focus, Study, Tree, Career (§3.1.2); the headings below keep their numbers (§4.4.2 Study, §4.4.3 Tree, §4.4.4 Career, §4.4.5 Focus) so every cross-reference still resolves, and are not the rail order. Boxes: W unless stated. The Now strip (1302 x 40) shows "Pick up: <thing>" or "Now: <next block>" and the day's logged-minutes total (a total only ever goes up) on every section except `day.today` and `focus.session`.
 
 #### 4.4.1 `day`: Know today and start the next block
+
+*Superseded in part by 20.6 (the Almanac forms, `day.month`, planners, body strip, ledger drawer, Google link).*
 
 ##### `day.today` (box W+: 1230 x 652)
 
@@ -971,6 +993,8 @@ Left 640 x 612: "Logged today" (the old LF1 list) with Undo and Delete per row a
 
 #### 4.4.2 `study`: Prepare for the next paper
 
+*Superseded in part by 20.7 (the Paper Desk and question engine; Drill moves to Focus, D-V2-11).*
+
 ##### `study.papers`
 
 | Region | Box | Contents |
@@ -1007,11 +1031,15 @@ Set picker 380 x 612 (figure sequences, equation puzzles, Latin squares; our own
 
 #### 4.4.3 `tree`: Choose what to learn next
 
+*Superseded in part by 20.8.1 to 20.8.5 (Grove, evidence-gated trees, node drawer).*
+
 ##### `tree.tree` (box Wt: 1230 x 664, no switch)
 
 Canvas 846 x 664 (toolbar T1 44 px inside: tree switcher with counts, find, zoom, branch chips) and Inspector 368 x 664 (opaque body, T3). Centrepiece C04-44 re-drawn as a trunk seen from below into a swirling sky: static **background** of the canvas, its dusk-to-dark colour a pure function of the current count of nodes the student has marked mastered (it falls if a mark is removed and never changes with time), caption "sky = nodes you marked mastered; it follows your marks, not the clock". **Mastered is defined here:** it is set only by the student's own "I know this" mark on a node and is labelled "marked by you". No model and no rule sets it; the explain-back action (`study.library`) returns text feedback only and sets no mastered flag. **Primary:** **Study this node** (the NEXT node when none is selected). **First visit:** the one-sentence coach mark T4. **States:** empty tree (no nodes: EmptyState linking `settings.subjects`), loading, planned (`trees-v3` "Whole me", disabled, dashed chip). **Flow:** Tree (1), Study this node (1) = 2, which opens `study.library` at that node. **Keyboard:** arrow keys move between nodes, Enter selects, `+` and `-` zoom (focus-scoped). **Mobile:** desktop only on the phone; reflow: canvas 358 x 360 above a node list; Inspector as a bottom sheet.
 
 #### 4.4.4 `career`: Move the next deadline
+
+*Superseded in part by 20.8.6 (runway, ladder and path, abroad, certificates, money).*
 
 Box W for all five views.
 
@@ -1026,6 +1054,8 @@ Box W for all five views.
 Rewards (CA11, the old game currency) moved to Proof "Wins" (D24). The monthly review form moved to the Proof weekly review (P5). Record (O4) stays an overlay. **States:** first run (no applications: EmptyState with "Add an application"), loading, error, offline; planned (`college-mail` in Setup connections only). **Flow:** Career (1), Do next step (1). **Mobile:** phone: none beyond a "Career: desktop only" card; reflow: skyline 358 x 140 then Up next then a paged list (5 rows).
 
 #### 4.4.5 `focus`: Run one block with a calm timer
+
+*Superseded in part by 20.7.7 and 20.7.8 (`focus.drill`, Park field, terminal strip).*
 
 ##### `focus.start` (box W, light)
 
@@ -1563,6 +1593,8 @@ One set, drawn on a 24 x 24 grid, rendered at 16, 20 (default, rail and buttons)
 
 #### 6.4.4 Elevation: the token ladder
 
+*Superseded in part by 20.4.4 (lit edge, tooth, aimed light).*
+
 Four levels for controls and surfaces plus one for overlays. Rule: shadow is feel; edge, fill, shape and text are legibility (§6.1; Strand 2, finding 3 computed the canonical neumorphic recipe at 1.27:1 and 1.72:1). Every level has a non-shadow cue and passes without its shadow.
 
 Recipes (at most two shadow layers; values are targets until painted on the real laptop; the dark set reuses the same geometry with black shadows).
@@ -1580,6 +1612,8 @@ Implementation rule (performance): no `box-shadow` transition. Each raised eleme
 Calm (reduced motion) form: no translate; the pressed state keeps the inner shadow, the fill change and the 2 px ink edge, so the whole cue survives with no movement.
 
 #### 6.4.5 Focus
+
+*Superseded in part by 20.4.4 (focus depth: the focused region settles 1 px and its siblings dim 4 percent).*
 
 | Rule | Value |
 |---|---|
@@ -1675,6 +1709,8 @@ Research-record requirement for every implementation agent: any measurement (fon
 ---
 
 ## 7 Component inventory
+
+*Superseded in part by 20.10 (78 new components; the 38 of this section stand).*
 
 ### 7.1 The shared state grammar (applies to every component; rows below name only exceptions)
 
@@ -1792,6 +1828,8 @@ Count: 38 components (11 + 10 + 10 + 7). "Voice Hill" (core centrepiece) and the
 
 ### 8.1 Rules and the one centrepiece per section
 
+*Superseded in part by 20.4.6 (all centrepieces at full strength, direct placement allowed) and D-V2-1.*
+
 Rules for all: static first; motion only when it encodes a real state or marks a transition; every moving piece has a static and a reduced-motion form that preserves the whole experience; anything that moves for more than 5 s has Pause, Stop or Hide (WCAG 2.2.2; in practice the hill and, while motion energy is non-zero, the Senses orbits); one redraw loop per visible art piece, stopped when hidden, minimised or idle (the 60 s idle value is a design suggestion; Strand 6); no new WebGL (the Senses twin stays the only renderer; `ww/` creates none); canvases at most 720x360 CSS px (target); art is re-drawn or dithered from the idea, never pasted from the picture. Decorative art is labelled so by its absence of values; meaningful art carries a caption saying what it encodes.
 
 | Section | Visual world | Centrepiece (catalogue id, neutral description) | Why this one | What drives it (honesty) | Motion role | Derived or avoided |
@@ -1827,6 +1865,8 @@ Rules for all: static first; motion only when it encodes a real state or marks a
 **Art id naming.** `art.<section>.<name>` for section art; `art.shell.<name>` for loaders, transitions, onboarding, empty, error; `art.kit.<name>` for component references. Example: `art.day.sun`, `art.shell.route.core-room`, `art.kit.dial`.
 
 ### 8.3 Section by section: centrepiece, placement, derived system
+
+*Superseded in part by 20.4.6 and 20.4.7 (revised treatments, secondary placements).*
 
 The §8.3.n numbers are stable cross-reference ids; they are not the rail order (§3.1.2: Well Wisher is Day, Focus, Study, Tree, Career). Centrepiece packages (B06b) follow the build order of §15.4, not this numbering.
 
@@ -2018,6 +2058,8 @@ The voice hill's data contract (input and output level, spectrum) belongs to the
 
 ### 8.4 Shell-level art slots
 
+*Superseded in part by 20.4.7 (route sigil draw-in, boot, onboarding, empty states).*
+
 | Slot | Art id | Source ids and treatment | Static and reduced-motion form |
 |---|---|---|---|
 | JARVIS boot loader | `art.shell.boot` | Frame with rivets as 4 px dots (C04-25), three plain rows from C01-14 | Rows appear as text; no progress bar unless real work reports a fraction |
@@ -2033,6 +2075,8 @@ The voice hill's data contract (input and output level, spectrum) belongs to the
 | Token sources | `art.kit.tokens` | C02-41 (F25623), C02-42 (4D4D4D), C02-44 (171717), C02-48 (DEDEDE) are read for values only and never rendered; shadow recipes from C02-18, C02-21, C02-26 and C02-27 are checked against the 3:1 edge rule | None |
 
 ### 8.5 The derivative pipeline
+
+*Superseded in part by 20.4.2 (ASCII budget 90 KB, ramps, cell tiers) and 20.4.1 (the tracer).*
 
 #### 8.5.1 Layout and where outputs live
 
@@ -2105,31 +2149,34 @@ Only if a piece must change cell by cell, which no current piece needs (growth u
 | `art.focus.dots` | elapsed minutes of the real block | one dot per minute | 30 per column, up to 5 columns (150 minutes) |
 | `art.proof.ring` | measured statistics | bar height = value | one bar per statistic |
 
-### 8.6 The two-track rights policy
+### 8.6 The personal-use rule (rewritten 13 Nov 2026, D-V2-1; it replaces the two-track rights policy)
 
-#### 8.6.1 Facts the policy rests on
+*Superseded in part by 20.2 (D-V2-1) and 20.4: the customer-release track is no longer a gate for the build.*
 
-- The owner approved direct use of every supplied image for the owner's private build (source-pack README, "Approved use"). That approval is not a licence from the rights holders.
-- Most are third-party works. The catalogue rights notes read: "third-party designer work, use for taste study and derivatives only, do not ship as-is" (74 of 186), "not for redistribution", or "looks AI-generated" (at least 11 that say so directly). Several flag strong resemblance to published artwork, a real person's likeness, a brand, or a quote from a copyrighted work. AI-generated images have an unsettled copyright position (assumption; legal review needed, see F14).
-- The repository is public. `data/` is git-ignored.
+#### 8.6.1 The rule and what it rests on
 
-#### 8.6.2 Track definitions
+- **The private build is the product.** The owner decided on 13 Nov 2026 that the application is for personal use only and that third-party pictures are fine; because it is personal it is held to a higher visual bar than industry standard, not a lower one. Third-party pictures and any derivative of them (crops, masks, composites, ASCII, halftone, contour, duotone, terminal frames, redraws, generated images from his own account) **may be placed directly**, at full strength, wherever the design calls for them.
+- **They never enter the public repository.** The repository is public, so publishing a picture there is redistribution, which the owner's personal-use approval does not cover. Pictures and derivatives live under `data/` (git-ignored) and in the private art folder; they reach the application through the private track of the art pipeline (`VITE_ART_TRACK=private`, which is now the default for the owner's build). Tracked files hold recipes, tokens and manifest rows (ids, hashes, tracks) and no pixels.
+- **Named only by catalogue id.** Every tracked file, commit message, test name, research note and gallery description refers to a picture by its catalogue id (C01-nn to C04-nn, or `G-nn` for a generated image) and never reproduces it.
+- **Forbidden from a build that leaves the machine:** screenshots, video, README images, store images, a deck outside `data/notes/`, and any `dist` folder that is copied or published. `tools/art/check_no_private_in_dist.py` still fails if a private-track hash appears in any `dist` that leaves the machine.
+- **Third-party status is unchanged by the rule.** The catalogue's rights notes (74 of 186 "do not ship as-is", at least 11 that look AI-generated) still describe the pictures. The rule changes what the build may do with them, not what they are. Nothing here is legal advice; the F14 review concerns public copy and any future release.
 
-| | Private-build track | Customer-release track |
-|---|---|---|
-| Purpose | The owner's own build and the private deck, at full quality now | A product that can be sold or shared |
-| What may be used | The pictures directly, cropped, masked, composited, or derived (ASCII, halftone, contour, duotone, terminal) | Only: (a) public-domain sources re-sourced from the original, licence recorded per file; (b) the project's own rule-generated art; (c) commissioned or licensed work with a contract that grants derivative and redistribution rights |
-| Where files live | `data/design-assets/private/`, never committed | `app/ui/src/art/generated/` and `tools/art/own/` |
-| How it is switched on | `VITE_ART_TRACK=private` (never the default) | `VITE_ART_TRACK=customer` (the default) |
-| What the public repo holds | Recipes, tokens and manifest rows (ids, hashes, tracks). No pixels | Everything customer-safe, plus licence files |
-| Deck | Direct images allowed; the deck lives under `data/notes/` (private) | The deck is never shipped with the product |
-| Gate | A private, non-distributed taste study. The owner's approval is not a licence from rights holders (74 of 186 are "do not ship as-is"; at least 11 look AI-generated). **Forbidden from a private build:** screenshots, video, README images and store images. `tools/art/check_no_private_in_dist.py` fails if any private-track hash appears in any `dist` that leaves the machine | A rights check at merge: every file in `generated/` has a licence line, and `build_art.py --check` fails otherwise |
+#### 8.6.2 How the pictures are used and produced
 
-**Recipe-preserving source swap.** A recipe is keyed by art id. Swapping the source (third-party to own-made) keeps the steps and parameters, so the look is preserved and only the pixels change. The manifest row records `private_source` and `customer_source`.
+| Question | Rule |
+|---|---|
+| Where files live | `data/design-assets/private/` (never committed); manifest rows in `tools/art/manifest.d/<area>.json` (ids, hashes, tracks) |
+| Switch | `VITE_ART_TRACK=private` is the default for the owner's build; `customer` remains selectable for the one-line check that the build still runs without the private folder |
+| Direct placement | A recipe may use the picture as is, cropped, masked or composited, then apply any treatment; the recipe is keyed by art id and records `private_source` |
+| An image generator | Allowed with the owner's account and consent (Q-V2-14); outputs get ids `G-nn` in the private manifest and are treated like any third-party picture |
+| Gate | `build_art.py --check` (determinism, byte budgets), the no-private-in-dist check, and a tracked-file scan for private image bytes |
+| Deck | The programme deck is a private file under `data/notes/design-taste/`; direct images are allowed there; it is never published |
 
-**Redraw rule** (what "customer-safe after redraw" means). The customer version is authored from the idea, not from the picture: no tracing, no overlay, no pixel or path taken from the source, and the source is not open when the redraw is made. A guard check compares silhouettes by intersection over union and fails above 0.5 (assumption; tune on a first example), then a human reviews. Resemblance to a known artist's work blocks a piece **regardless of the IoU score**, even when redrawn (C04-121, C03-10). Every statement in §8.6 is an assumption until the F14 legal review.
+#### 8.6.3 Customer-release track (kept only as a note for a future separation)
 
-#### 8.6.3 Replacement plan for each centrepiece
+If the product is ever sold or shared, a separate release track will need: public-domain sources re-sourced from the original with the licence recorded per file, the project's own rule-generated art, or commissioned or licensed work with written derivative and redistribution rights; a redraw rule (authored from the idea, no tracing, a silhouette check, a human review, and a block on resemblance to a known artist's work regardless of score); and a quality gate (the former Q04). Nothing in the current build depends on this track; Q04 is dropped from the build order and reduced to a note, and F10, X3 and F14 stay as open items for that day. The replacement plan below and the class table that follows are kept unchanged as the starting point.
+
+#### 8.6.4 Replacement plan for each centrepiece (note for a future separation)
 
 | Art id | Private source | Customer replacement | Effort (assumption) |
 |---|---|---|---|
@@ -2161,7 +2208,7 @@ Estimated customer track: about 8 to 10 days of one person for all centrepieces 
 
 **Commission default.** For `art.day.sun`, `art.tree.trunk` and `art.career.skyline` the default customer-track plan is a commissioned or licensed painting with derivative and redistribution rights in writing, not the procedural swap (the procedural swap is the fallback). Budget and deadline are an owner decision (question X3 in §17.2); until it is answered the figure is unknown, not zero. If a commission is wanted for sun, trunk and skyline, brief it with the rules in §8.1 and get derivative and redistribution rights in writing; keep the contract in the private notes.
 
-#### 8.6.4 What happens to each class of picture
+#### 8.6.5 What happens to each class of picture (note for a future separation)
 
 | Class | Count | Rule |
 |---|---|---|
@@ -2550,6 +2597,8 @@ frame  never moves: title bar, rail, Proof rail carry no view-transition-name
 | `keyboard.spec.ts` | focus order is title, rail, canvas; after Ctrl+3 focus is in the Senses canvas |
 
 ### 10.5 ASCII and line-draw motifs: when they may move
+
+*Superseded in part by 20.4.3 and 20.4.5 (terminal grammar, cursor and hover language).*
 
 Art is re-drawn from the idea of the reference, not pasted. ASCII art is stored as text (`<name>.ascii.txt`) and drawn either as a `<pre aria-hidden="true">` (static) or on a 2D canvas with `fillText` per row (animated; a full-text `<pre>` rewrite forces layout each frame). Line-draw motifs are inline SVG with `pathLength="1"`.
 
@@ -3133,6 +3182,8 @@ Real window on the owner's laptop, scratch data dir, not the live app: Ctrl+1 to
 
 ### 15.1 Principles
 
+*Superseded in part by 15.6 and D-V2-22 (waves replace "at most two in flight").*
+
 - **Ordering principle (2026-11-12 evening, I35): build for scale.** Shared, most reusable layers first (tokens, kit, lamp, registry, shell, ports), then the sections on top of them (§15.2). The order of §15.4 follows it.
 - **Phases are grouped, not gated (revised I36).** The groups are research (R), design validation (V), prototype (P), build (B) and verification (Q). Packages that only measure or validate (R01, R03, R04, V01 to V04, P01 to P03) run alongside the build and no longer block it; they gate only the flag flips and they revise the spec's numbers when they land. A build package waits only for the build packages it reads (its Depends column), for an owner answer it truly needs (X1 for B01), and for Q01 before a flag flips. Each package still ends when its exit evidence is recorded.
 - **One integrator per phase** (a role, filled by one session). The integrator is the only one who merges, runs the gate at phase end, edits the shared parts of NOW.md, and records the phase in `docs/research/product-design-overhaul.md`. Other sessions deliver branches.
@@ -3177,6 +3228,8 @@ The owner's evening decision: the whole UI/UX overhaul is priority one. Exam fea
 What the first draft of this section called the "R01 skippable" fallback is gone with the freeze; R01 is simply non-blocking, and R01-lite (sandbox only, no app restart) stays as the cheaper form.
 
 ### 15.3 Work packages
+
+*Superseded in part by 15.6 (the wave plan and the 77 new packages).*
 
 Legend: **Owner** is the chat that owns the files (NOW.md section 2). Files are paths; "new" means created by the WP. Exit evidence is a one-line summary; the full acceptance criteria and tests are in the matching appendix prompt A.n (single source, so they cannot drift).
 
@@ -3238,6 +3291,8 @@ Legend: **Owner** is the chat that owns the files (NOW.md section 2). Files are 
 | Q04 | Customer-track quality gate: side-by-side of each centrepiece, private render against customer render (§8.6.3); commission status for sun, trunk and skyline; per-file human review and a licence line for every file in `generated/` (F14) | B06b | A table: each piece, the traits that must survive, pass or fail with the owner; until it passes the customer build is described as plainer than the reviewed one |
 
 ### 15.4 Sequence and recommendation
+
+*Superseded in part by 15.6 (the wave order).*
 
 ```
 Alongside the build, never gating it:  R01 (or R01-lite), R03, R04, R02 (gates only the merge of B07), V01..V04, P01..P03
@@ -3498,6 +3553,28 @@ The owner's evening update (binding, newer than the brief) is applied as follows
 | I40 | The first package to start is B03 (tokens layers 1 to 3, additive, no dependencies; its own test is the contrast oracle); its font step waits for a subsetting tool (X5) and nothing else waits for it. B03 and B01 run in parallel on disjoint files (B03 does not edit `primitive.css`). B01 narrows to the seams S1, S2, S4; the ports (S5) and the one navigation (S3) land with the shell (B05) | R01 as the first package (§15.4 of the first assembly) | See §15.4 for the reasons | 2026-11-12 evening |
 | I41 | B08 (rules and FSRS) and B12 (Coach) are exam features: they resume after the remap (B11 merged). B11 no longer depends on B08 or on exams being over. Q02's two-week "moved to" check becomes a follow-up after the `ww.ia` flip | B08 before B09; B11 after the exams | Consequence of I33 and I34 | 2026-11-12 evening |
 
+
+### 16.8 Direction v2 of 13 Nov 2026
+
+The owner's change of direction is applied as below. The full wording and the test of each decision are in 20.2; this table is the log entry. It narrows or overrides earlier decisions where stated and keeps every other decision above. Date for every row: 2026-11-13.
+
+| # | Decision | Alternatives and where they came from | Why |
+|---|---|---|---|
+| D-V2-1 | The private build is the product; third-party pictures and derivatives are placed directly and stay out of tracked files and the public repository, named by catalogue id only. The customer-release track is a note for a future separation. Overrides the two-track decisions in part, F10, X3 and the gate Q04 | The two-track policy of 12 Nov (§8.6) | Owner direction: personal use, so third-party images are fine and the work must be more refined, not less |
+| D-V2-2 to D-V2-6 | Sigil, ASCII and terminal are three first-class grammars with budgets; sigils are generated from ids; ASCII carries data in four places; the terminal is a recessed well; clay gains life by five static or opacity-only moves | Sigil and ASCII as accents (§8, §10.5) | Owner direction: cybersigil and ASCII were sidelined; the clay looked "boring and lifeless" |
+| D-V2-7, D-V2-8 | Specimen and Datum replaces the default bento for views that adopt it; every number gets a body | Bento grid of cards | "Extravagant, out-of-the-box" display of all data; one surprise per view keeps "neither alive nor dead" |
+| D-V2-9, D-V2-10 | One Almanac family; the Life calendar is `day.month`; Drill is `focus.drill`; views 34 become 36 | A new section for Life; Life as a fifth tab in the rail | Keeps ten sections and frozen ids; Day stays at five views, Focus at four |
+| D-V2-11 | Drill and Crucible both live in Focus. Overrides the move of Drill into Study in §4.4.2 | Drill in Study | Owner direction: "Focus has the Crucible and Drill" |
+| D-V2-12 | The settings sheet is dissolved into Trim keys and a generated palette index | The 18-section Setup sheet | Owner direction: place each setting where its variable is used |
+| D-V2-13, D-V2-14 | Google Calendar link PLANNED until configured, read-only first; "gcr" a PLANNED control until the owner says what it means | Build both now | The owner's own sign-in is required; the assistant never handles credentials; the term is unclear |
+| D-V2-15, D-V2-16 | The question engine reports counts with intervals, never forecasts; a printed practice formula | A model that predicts which questions appear | The product's no-exam-result-claim rule (§2.5) |
+| D-V2-17, D-V2-18 | Evidence-gated trees (ten trees, 113 branches); Career dates stamped "checked on" | Self-marked skill trees; typed fees without a date | A tick is not evidence; unverified fees must not look verified |
+| D-V2-19 to D-V2-21 | JARVIS section systems; the WebGL twin stays behind a key; a fixed reminder ladder | Retire the twin now (the JARVIS lens) | The owner's note does not state a no-WebGL rule; retiring needs his yes |
+| D-V2-22, D-V2-23 | Wave contract and waves of at most six packages on disjoint folders; a preview switch and a gallery first | At most two packages in flight (§15.1) | Owner direction: parallel branches broke at merge; he must see the work early |
+| D-V2-24 to D-V2-27 | Cursor kit on by default; the Memory constellation is a map, not a reward; seals earned by evidence; an image generator only with his consent | Cursors off by default on Tree; no growing art on Memory | Owner taste; consistency with §8.5.5 |
+| D-V2-28 | Labelled summaries and a researcher agent that commits research | Unlabelled compaction summaries | The summaries are imported into other agents |
+| I42 | Where the lenses disagreed, the choices of 20.3 stand (13 rows: month geometry, Almanac naming, one sigil engine, one `CaptureLine`, one Memory constellation, the Room layout, Career at five views, Senses ids, cursors, seals, the scope of the 40 percent rule, package ids) | Each lens's own choice | One component per job, ids frozen, rules not weakened |
+| I43 | The ASCII budget target rises from 40 KB to 90 KB and the 2.5 percent tooth grain is adopted as a target; the 40 KB figure is the fallback if R01 measures a cost | Keep 40 KB | The ASCII grammar needs room for four data uses; unmeasured, so stated as a target |
 ---
 
 ## 17 Open questions for the owner
@@ -3557,6 +3634,30 @@ No screen here was rendered. All px sizes are computed from §3.3 and unmeasured
 
 The art part's list of unverified items is in §18.2; the performance and feasibility unknowns are in §14.1 and §14.2.
 
+
+### 17.4 Questions added by direction v2 (13 Nov 2026)
+
+F10 (the shipped product uses only re-drawn derivatives) is superseded by D-V2-1; X3 and F14 stay open only for a future release. F9 and F13 are unchanged. Questions the lenses asked more than once are merged.
+
+| # | Question | Default if unanswered |
+|---|---|---|
+| Q-V2-1 | What does "gcr" mean (probably a course-file service)? If so, which account, and may the application request read-only access after he consents in a browser? | The control stays PLANNED (`ww.gcr`); the folder watch works today |
+| Q-V2-2 | Which Google account and calendar to link, with his own sign-in in his browser and his own Google Cloud client in testing mode? Read-only first, or also write planned blocks out? | PLANNED; read-only first; nothing is written to Google |
+| Q-V2-3 | Are past papers PDF, photos or both, and how many years per subject? May the application install an OCR engine and a PDF text library (sizes stated before install)? | Text-layer PDFs only; photos wait for the OCR install |
+| Q-V2-4 | Attendance: is "margin" the right wording, and what is each subject's required percentage? | A per-subject field, empty until he enters it |
+| Q-V2-5 | Should a local helpline list sit inside the habits drawer (a static list he edits)? | A plain "Help" entry with an empty list he fills |
+| Q-V2-6 | Which Room channels are mains or heavy loads that should get the guarded two-act key? | None flagged; every key stays one press |
+| Q-V2-7 | May the WebGL twin on Senses be retired in favour of the SVG floor plan? | The twin stays behind a "3D" key; the floor plan is the default |
+| Q-V2-8 | Do the four chrome-emblem seals (C04-08) as tree branch-family marks suit him, or should seals stay plain rings? | The emblems |
+| Q-V2-9 | Approve the evidence kinds for the self-defence tree (instructor-logged sessions or a grade) and the influence tree (recognition and ethics only)? | As specified |
+| Q-V2-10 | Which fields and roles seed the Path constellation, and which universities and courses go in the first Abroad comparison? | Empty tables he fills |
+| Q-V2-11 | May fetching a university page be a one-click button that stores the URL and a checked-on date? | Manual entry; the button is absent |
+| Q-V2-12 | Is the Memory constellation acceptable given the "no growing art on Memory" clause (D-V2-25)? | Built; he may veto |
+| Q-V2-13 | Should reminders default to spoken-off per reminder? | Off |
+| Q-V2-14 | May an online image generator be used with a paid account, and should its outputs get private ids `G-nn`? | Not used |
+| Q-V2-15 | Is the 90 KB ASCII budget and the 2.5 percent tooth grain acceptable on the laptop? | Adopted as targets; the 40 KB fallback applies if R01 measures a cost |
+| Q-V2-16 | Is the Life month grid a view `day.month` (Day at five views, total 36) or its own section, and should day cells carry seed glyphs? | `day.month`, with seed glyphs |
+| Q-V2-17 | Closed by the owner's note: Drill and Crucible both live in Focus | Closed |
 ---
 
 ## 18 Risks
@@ -3619,6 +3720,8 @@ The art part's list of unverified items is in §18.2; the performance and feasib
 
 **Additions from the voice and motion part** (kept so nothing in the source is lost): a solid-point flat line in any state without a fresh frame; a blinking cursor or colon, scanlines and per-pair route sweeps; art driven by stored-item counts or by a high-water mark; a "closeness" or ranking of real people; a "You opened this N times" line on a planned row; a canned or looping waveform in any state; per-utterance auto-gain on the voice picture; GSAP, Lenis, Framer or any smooth-scroll library; CRT flicker or scanline animation; a global single-letter shortcut; a held-key-only action; a "focus score" or attention reading from sensing or from audio level.
 
+
+**Additions from direction v2** (13 Nov 2026): the further items the six lenses ruled out are listed in 20.12 and stand as part of this list. The row "pasted reference pictures" above is narrowed by D-V2-1: in the private build a reference picture may be placed directly, but never in a tracked file and never as a screenshot, README or store image.
 ---
 
 ## 20 Direction v2 (13 Nov 2026): what changed and what now governs

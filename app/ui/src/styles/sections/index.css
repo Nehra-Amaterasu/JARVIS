@@ -1,0 +1,12 @@
+/* The ten section themes, layer 3 (spec 6.2.2 import order: after the product layer). */
+@import './core.css';
+@import './room.css';
+@import './senses.css';
+@import './memory.css';
+@import './console.css';
+@import './day.css';
+@import './study.css';
+@import './tree.css';
+@import './career.css';
+@import './focus.css';
+@import './proof.css';

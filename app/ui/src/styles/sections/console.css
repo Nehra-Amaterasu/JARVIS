@@ -1,0 +1,22 @@
+/* ==========================================================================
+   Section theme: console (JARVIS). Layer 3 of the overhaul design system (spec 6.2.4, 6.3.5, 6.3.6).
+
+   Declares only the names on the layer-3 allow-list (tokens.test.ts fails any other name):
+   --sec-mark, --sec-art-1..3, --sec-scene, --r-control, --r-panel, --tempo, --spring-main.
+   No surface, ink, edge or state value: a section cannot quietly restyle the chrome, and colour
+   only ever means state. Scoped under a clay theme, because Well Wisher already puts
+   data-section on its own elements and --tempo is read by its motion.
+
+   Terminal: square, tempo 0.5. Bracket tags are text, coloured only by log state. Ground #08090A
+   (scene.css).
+   ========================================================================== */
+:root[data-theme^='clay-'] [data-section='console'] {
+  --sec-mark: var(--ink-1);
+  --sec-art-1: var(--p-bone);
+  --sec-art-2: var(--p-char-300);
+  --sec-art-3: var(--p-char-600);
+  --sec-scene: immersive;
+  --r-control: 0;
+  --r-panel: 0;
+  --tempo: 0.5;
+}

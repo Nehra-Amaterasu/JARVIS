@@ -2,6 +2,8 @@
 
 Written 2026-11-12
 
+**Direction v2 (13 Nov 2026).** The owner changed direction on 13 Nov 2026. Section 20 holds the revision and **governs wherever it contradicts an earlier section**; the earlier subsections it supersedes carry a one-line pointer. Read section 20 first, then the section you need.
+
 **Status.** Design. This file is the design source of truth for the overhaul of JARVIS and Well Wisher. It supersedes nothing yet: until the flags it names (`app.shell`, `ww.ia`) flip, the existing plans keep governing the code that is built and running. The precise relation to the three existing design documents in this folder:
 
 | Document | Date | Relation to this specification |
@@ -34,8 +36,9 @@ The research behind every number is `docs/research/product-design-overhaul.md` (
 18. 17 Open questions for the owner
 19. 18 Risks
 20. 19 Do-not-build list
-21. Appendix A Implementation prompts
-22. Appendix B Research index
+21. 20 Direction v2 (13 Nov 2026): what changed and what now governs (placed after section 19; it governs where it contradicts an earlier section)
+22. Appendix A Implementation prompts
+23. Appendix B Research index
 
 ---
 ## 0 Executive summary and how to read this
@@ -3615,6 +3618,199 @@ The art part's list of unverified items is in §18.2; the performance and feasib
 | Legacy | The Arduino Uno wiring guide, `BoardId 'uno'`, a duplicate pairing card |
 
 **Additions from the voice and motion part** (kept so nothing in the source is lost): a solid-point flat line in any state without a fresh frame; a blinking cursor or colon, scanlines and per-pair route sweeps; art driven by stored-item counts or by a high-water mark; a "closeness" or ranking of real people; a "You opened this N times" line on a planned row; a canned or looping waveform in any state; per-utterance auto-gain on the voice picture; GSAP, Lenis, Framer or any smooth-scroll library; CRT flicker or scanline animation; a global single-letter shortcut; a held-key-only action; a "focus score" or attention reading from sensing or from audio level.
+
+---
+
+## 20 Direction v2 (13 Nov 2026): what changed and what now governs
+
+**Status.** Binding. On 13 Nov 2026 the owner changed direction after seeing the first rebuilt screens ("boring and lifeless"). Six design lenses (visual systems, data display, Life and Day, Study and Focus, Tree and Career, the JARVIS sections) were written against this specification and merged here. Where this section contradicts an earlier section, **this section governs**, and each superseded earlier subsection carries a one-line pointer ("Superseded in part by 20.x"). Rules that are not named here stand unchanged. Nothing in this section edits code. Every number is a target until measured in the real window (§0.4); the lenses rendered nothing, and only a handful of catalogue crops were looked at by eye, so every placement of a picture is a design claim until the first gallery pass (20.15).
+
+### 20.1 The owner's direction, in public-safe words
+
+**Process and tooling.**
+1. The new work must be visible in the running application, not only on paper.
+2. Parallel builders broke at merge. Every builder must know in a few lines what it creates and what the other builders of its wave create, so the flow does not break at merge.
+3. Every chat summary is labelled with a description of what was done in it (the summaries are imported into other agents). Recorded as D-V2-28; it is a workflow rule, not an application feature.
+4. The full new UI is built inside the current application, not overlapping the old one: a button shows the new UI and the latest changes like a live viewer. If it costs a lot of effort, drop it; otherwise build it. Decision: build it, small (package N01).
+5. The whole application is rethought (JARVIS, Core, every section of the ten-section map): components sitting right, new themes, picture placements, all connections, a new Yaadash look, new graphs, training and drill, the Life segment, calendars, and components as in the reference images.
+6. The slide deck of the programme is a private file under the private design-taste notes folder (`data/notes/design-taste/`), git-ignored; its path is in the private state file.
+7. Cybersigil line work and ASCII art were sidelined and must be integrated properly.
+8. Third-party pictures are fine because the application is for personal use only. Because it is personal, it must be more refined than industry standard. An online image generator, asking the owner for pictures, or third-party pictures are all allowed (the generator needs the owner's account and consent).
+9. Allowed from now on: third-party assets, web searches, omissions, workflow updates, a better-articulated loop prompt, and continuing the loop afterwards.
+10. A researcher agent commits the changes to the respective files; workflow agents are told where to take inputs from and what changed, at scale.
+
+**Design brief.**
+- Everything the application holds is shown in an extravagant, out-of-the-box, award-style way with varied components: calendars, data, live counts, college, attendance, timetable, all trees, Aankhen, JARVIS, voice, the Limbs and relays, reminders, the study components. Engaging, linked, tracked, entered, every placeholder on-theme.
+- Study: a question generator takes a PDF and the backend makes questions and papers from it. A "connect through gcr" control was named; its meaning is unclear (probably a course-file service); it is an owner question (Q-V2-1) and ships as a PLANNED control.
+- Dropdowns, list animations, lists and tables are rethought. Trees: the whole pane, placement, node interaction, hover, cursor; many more skills (for example a self-defence skill set and the psychology of influence); every tree gets images and graphics.
+- Feel: the matte clay finish must be neither very alive nor dead, hold focus and say much without saying much: clean, elegant, modern, futuristic, neumorphic, cyberpunk, with terminal styles and cybersigil work in places.
+- Yaadash gets new, more interactive components. The settings page need not exist: each setting sits where its variable is used.
+- Life (or a new data section): a month calendar with every day in a grid, coloured by the actions done; tapping a day shows what happened and what is planned; recurring "next time" reminders by weekday, month and year. The same calendar holds the week, gym, water, medication reminders, class reminders, next-day, week and month planners, linked to Google Calendar.
+- Well Wisher's job: plan the day, help reduce habits the student wants to reduce, track daily spending, focus study, shape skills, improve retention, and create academic opportunities by rigorous practice: find the near opportunity and prepare for it. Exams follow previous-year questions: the engine tracks them, reads papers, finds patterns (question types, difficulty, units, topics), hand-picks questions and prepares the student on the highest-scoring units.
+- Career: a full revamp that looks amazing (internships, jobs, advice, knowledge of the chosen career linked to Life, the trees and social skills; universities abroad, courses, tables, grids, certificates, money, plan), fun, with many entries.
+- Focus holds the Crucible and Drill; setup holds the rest (in the older carcass).
+- Each page is thought through in detail with room for invention: described designs, not orders.
+
+**What it changes (integrator's reading).** Asset rights: the customer-release track is no longer a gate for the build (D-V2-1; §8.6 rewritten). Cybersigil and ASCII become first-class systems. New or changed scope: Life calendar, settings dissolved into context, expanded trees with imagery and an evidence ledger, a previous-year-question engine, PDF to practice paper, spending and habit logs, gym, water and medication reminders, the Career revamp, richer Yaadash (memory). Process: a wave contract, a preview switch, labelled summaries.
+
+### 20.2 Decisions (each testable)
+
+| # | Decision | Test that proves it |
+|---|---|---|
+| D-V2-1 | **Personal-use rule.** The private build is the product. Third-party pictures and their derivatives are placed directly, including full-bleed and composited. They stay out of tracked files, out of the public repository, out of screenshots, README and store images, and are named only by catalogue id | `tools/art/check_no_private_in_dist.py` fails on any private hash in a `dist` that leaves the machine; a tracked-file scan finds no image bytes of a private id; the build runs with and without the private folder |
+| D-V2-2 | Sigil, ASCII and terminal are three first-class grammars with tokens, components, budgets and tests. Every view uses at least two; none uses all three at full strength | `data-grammar` attribute lint per `data-view`; budgets in 20.4 |
+| D-V2-3 | Sigils are generated, never pasted: the same id always gives the same SVG bytes, at most 60 segments and 3 KB | golden-file test; `build_art.py --check` |
+| D-V2-4 | ASCII carries real data in four places only (Life heat cells, bars, people placeholders, console tables). Everything else is `aria-hidden` atmosphere never bound to a stored count. Budget target raised from 40 KB to 90 KB across the app, at most 8 KB per file and 6 files per section, lazy per section; the 40 KB figure stays as the fallback if R01 measures a cost | byte-budget check; a lint that rejects atmosphere bound to a count |
+| D-V2-5 | The terminal grammar is a recessed charcoal well inside clay, in both themes: prompt, log tail, bracket tags equal to lamp words, a solid block cursor; no blink, no scanlines, no flicker | tag set equals the lamp word set; zero running animations at idle |
+| D-V2-6 | Clay gains life by five static or opacity-only moves (lit edge, inked engraving, 2.5 percent tooth, one accent fill per view, a pointer-aimed light on the single hovered panel in 8 quantised angles) plus a 1 px focus settle. Rule: at idle zero things move; under the pointer exactly one thing responds; on a data change exactly one thing draws | lint counts accent-filled elements per `data-view`; idle `getAnimations()` is empty; one aimed light at a time |
+| D-V2-7 | **Specimen and Datum** replaces the default bento for views that adopt `SpecimenLayout`: one specimen (55 to 62 percent of canvas width), one datum line at 40 percent of canvas height, at most five margin Callouts, one drawer. Where a lens below gives an explicit box for a view, that box governs | for `SpecimenLayout` views: at most one object wider than 40 percent; no two equal-size stat tiles in a row; no document scroll at 1366x768 and 390 px |
+| D-V2-8 | Every number gets a body (Odometer, Stipple ring, Trace, Dumbbell), not a card. A bare 14 px number is allowed only in a table cell | lint on `Stat` outside tables requires a `form` prop |
+| D-V2-9 | One calendar family, `Almanac`, four zoom levels (year, month, week, day) with one `DayCell` and one drawer. Action kinds are **shapes**, colour is a second cue; done is a filled glyph, planned is the same glyph hollow; a planned item that did not happen becomes a quiet carried outline, never red | shape table is the test fixture; no component accepts a `currentStreak` prop; copy grep (20.6) |
+| D-V2-10 | The Life calendar is the new named view `day.month` (Day goes from four to five views); Drill is the new view `focus.drill` (Focus from three to four). Total views 34 becomes 36. Career stays at five views (the lens's sixth view, Path, lives inside `career.ladder`) | `viewCount.test.ts` asserts 36; `check_ids.py` green; legacy aliases resolve |
+| D-V2-11 | **Drill and Crucible both live in Focus**, overriding §4.4.2 (which moved Drill to Study). `study.practice` becomes the set-up door into Drill. The legacy id `drill` resolves to `focus.drill` | alias test; `focus.drill` mounts |
+| D-V2-12 | The settings sheet is dissolved: every setting gets a recessed **Trim** key where its variable is used, plus a searchable index in the command palette (`:` mode) generated from one registry. The ids `settings.*` stay as aliases that open the Trim popover at the new home | registry test: no orphan entry, no unregistered form field; every alias resolves |
+| D-V2-13 | The Google Calendar link is PLANNED until configured, WAITING while the owner consents in his own browser, LIVE after the first successful read; read-only by default, writing planned blocks out is a second, separate switch; desktop loopback with PKCE; the refresh token lives in the OS credential store, never in `data/` as plain text or in tracked files; the assistant never types or stores credentials | states reachable in a bench with a fake provider; disconnect deletes the cache; no secret in the repository |
+| D-V2-14 | "Connect through gcr" ships as a PLANNED control (`ww.gcr`, dashed plate) until Q-V2-1 is answered; a folder watch works today beside it | stale-entry tests T1 to T10 pass; the plate opens an explanation, never a form |
+| D-V2-15 | The previous-year-question engine reports **counts with Wilson 95 percent intervals**, never forecasts. Below 3 papers on file a topic shows "too few papers to show a pattern". Nothing enters the bank until the student reviews it. Every tag carries a `RULE`, `MODEL` or `HAND` chip; a model may only pick among existing topics and never grades, scores or writes a number | purity test run twice; forbidden-word list test on every output string; a mutation test on the tag margin |
+| D-V2-16 | "What to practise next" is one printed formula: gain = (marks share x papers-seen share) x (1 minus proficiency), ranked per minute of the free gap, terms printed on the card, with "Not this" and "Choose another" | fixtures reproduce five real cases the owner agrees with before shipping (V01) |
+| D-V2-17 | **Trees are evidence-gated.** Ten trees, 113 branches. A self-mark draws CLAIMED (hollow core) and never EVIDENCED. Six evidence kinds. Growth (pips, trunk mask) is a pure function of the evidence ledger and falls when a record is deleted. The body (self-defence) tree needs instructor-logged sessions or a grade; the influence tree teaches recognising and resisting manipulation and honest persuasion, with no tactic aimed at a named person | unlock-rule unit tests; deleting a record recomputes; copy grep on influence nodes |
+| D-V2-18 | Career dates and fees carry a "checked on" stamp; an unconfirmed value is WAITING "unconfirmed", never a bare number. Only the 10,332 euros proof-of-finances figure is quoted as verified (opened 13 Nov 2026) | cell-lamp test: no figure without a stamp |
+| D-V2-19 | JARVIS sections gain structural systems: a four-node pipeline ribbon and an organ strip (Core); a guarded two-act key for heavy-load channels the owner flags and a 24-hour schedule ring with a PREVIEW-only scrubber (Room); one terrain canvas per view, a probability arc that shows only LOW, MID, HIGH and PREDICTING until the held-out check passes, and a motion tape that never implies an empty room (Senses); constellation, strata and trail views of one store (Memory); a closed-verb command line and real-fraction job rows (Console) | per-component tests in 20.9 |
+| D-V2-20 | The WebGL twin stays as the existing renderer behind a "3D" key; an SVG isometric floor plan becomes the default Map form. The twin is retired only with the owner's yes (Q-V2-7). The lens proposed retiring it now on a "no WebGL" rule that is not in the owner's direction note | no new WebGL import; the twin mounts only when 3D is selected |
+| D-V2-21 | Reminders use a fixed ladder (toast, chime if on, one spoken line if on, one user-set snooze) with delivery receipts; no escalation; Quiet silences all and cannot be lifted; presence never decides whether to speak; no "missed", "overdue" or health claim; medication reminders are scheduled notices the student typed: "Reminders you set. Not medical advice." | no code path raises volume, frequency or wording severity; copy grep |
+| D-V2-22 | **Wave contract and parallel width.** Work is built in waves of at most six packages that own disjoint folders. The integrator hands every builder one short table (Block C rule 13). This replaces "at most two packages in flight" of §15.1 | the contract table exists for every wave; the merge test in 20.14 |
+| D-V2-23 | The first thing the owner sees is a preview switch in the current application (it turns the new shell on when B05 has merged) and a "What is new" gallery (package N01). Each package adds one gallery entry file | the gallery lists every merged package; the switch persists per browser |
+| D-V2-24 | The cursor kit (reticle, bracket, plan, wait, hold) is on by default in the private build; hover draws four corner brackets in 100 ms; the pointer companion is off in calm, at governor `low`, on touch and in forced colours | cursor assets at most 32 x 32 with a keyword fallback; zero rAF 2 s after the last input |
+| D-V2-25 | Memory may draw a constellation of its own store (a map, not a reward): no celebration, no high-water mark, deleting a node removes it plainly, and the node count equals the Holdings count. This is the single exception to the "no growing art on Memory" clause of §8.3.4, and it still obeys §8.5.5 (pure function of current counts, may fall) | node count equals stored count in a test |
+| D-V2-26 | Seals are deterministic: a function of the node id (or day action set), drawn once when evidence exists, and they fall when the evidence is deleted. A seal is earned by evidence, never by a self-mark (this narrows the visual lens, which drew it on marking) | seal test: same id gives same SVG; no seal without an evidence record |
+| D-V2-27 | Rule-based art and logic first. An image generator for extra pictures is allowed with the owner's account and consent; its outputs get private ids `G-nn` in the private manifest and never enter tracked files | manifest check |
+| D-V2-28 | Process rules recorded, implemented outside the application: every chat and agent summary begins with one label line stating what was done in it; a researcher agent commits research to the topic files; agents are told in a few lines what changed in the plan and where to read | checked by the loop prompt, not by a test |
+
+### 20.3 Where the lenses disagreed, and what was chosen
+
+| Topic | Disagreement | Chosen, and why |
+|---|---|---|
+| Month grid geometry | Data lens: a 400 x 340 plate with a permanent 330 px drawer. Life lens: 900 x 548 grid of 128 x 86 cells with a 314 px side panel and a 560 px drawer | Life lens. A 128 x 86 cell holds four marks and a stipple strip; the small plate does not. The data lens's permanent drawer is kept as the side panel |
+| Calendar component names | `Almanac` and `DayCell` (data) against `LifeCalendar` and `DayMark` (Life) | `Almanac` is the one engine with four zoom levels; `DayCell` is its cell; `DayMark` is the glyph; `LifeCalendar` is dropped |
+| Sigil generators | primitives with FNV-1a and mulberry32 (visual), L-system (study), counts-driven radial (data), 96-tick bezel (JARVIS) | One engine, `Sigil`, from the 14 traced primitives. `SigilMark` (arms from counts), `SigilGauge` (arc plus mastery) and `SigilRing` (bezel) are thin wrappers. The L-system stays as a `growth` mode for `SigilGauge` and the rule-generated `art.memory.branch` |
+| Capture fields | `CaptureLine` for spending, water, gym, reminders (data) against `remember>` and `CommandLine` (JARVIS) | One `CaptureLine` in `shared/capture` with a `grammar` prop. Grammars: `ww` (spend, water, gym, remind) and `jarvis` (remember). `CommandLine` is a `CaptureLine` with a closed verb grammar |
+| Constellation | Memory graph as `TetherMap` (data) against `Constellation` (JARVIS); a role constellation in Career (tree lens) | Memory uses the JARVIS lens's golden-angle `MemoryConstellation`; `TetherMap` is dropped (its list twin and level keys are kept). Career's is named `RoleConstellation` |
+| Room layout | Rack of six rows (data) against the wall-box faceplate (JARVIS) | Wall box with `GuardKey` stays the Room view (matches §4.3.2). `RackRow` is used in `console.hardware` for the relay inventory. Both share one three-phase confirmation vocabulary |
+| Where Drill lives | Study (§4.4.2) against Focus (the owner's note) | Focus (D-V2-11) |
+| Career views | Six (tree lens) against the five-view ceiling of §4.1.4 | Five ids; Path is a second state of `career.ladder` (a Segmented "Ladder, Path") |
+| Senses views | Merge `senses.signal` into presence (JARVIS lens) against frozen ids | The id stays. `senses.presence` holds the one terrain canvas; `senses.signal` becomes an SVG-only Spectrum view with no canvas, so the view count is unchanged and each view holds at most one canvas |
+| Cursors | A cursor kit on by default (visual) against "no custom cursors" on Study and "crosshair off by default" on Tree | The kit is on by default in the private build (D-V2-24); one Trim in the title bar switches it off. The per-view statements are replaced |
+| Seals | Drawn on marking (visual) against evidence only (tree) | Evidence only (D-V2-26) |
+| Strict composition rule | "No view has two objects wider than 40 percent" (data) against two-column layouts in other lenses | The rule applies to `SpecimenLayout` views only (D-V2-7) |
+| Settings count | "About 60" entries, an estimate | The registry test, not the estimate, is the contract |
+| Package ids | Each lens used S01.., D01.., L01.., S01.. (study), T01.., J01.. | Renumbered with family prefixes G, D, L, Y, T, J, N (20.13). Study's packages are Y01 to Y12 so they do not collide with the visual lens's |
+
+### 20.4 Visual systems: sigil, ASCII, terminal, living clay
+
+**What changes.** Sigil, ASCII and terminal each get a token set, a component set, a budget and a test; every view uses at least two. A sigil never replaces a lamp: the lamp (shape plus word) always sits beside it. Cybersigil is a data channel and a frame, not decoration.
+
+#### 20.4.1 Sigil grammar
+
+**Primitive set (14, traced).** Corner bracket, target cross, diamond, diamond chain (3 to 7), X mark, dashed arc (90 and 180 degrees), stripe block (3 bars), tick ruler (8 to 60 ticks), nested triangle, circle, hexagon, spiral flourish, thorn (a tapered curve), lettered ring (a glyph alphabet around a circle). Sources: C01-18 for the first nine, C03-06 for triangles, hexagon and circles, C04-127 for the lettered ring and logic-gate schematics, C04-08 for thorns. C03-03, C03-14 and C04-122 are read for density only.
+
+**Stroke weights.** Three: 1 px (hair, decorative), 1.5 px (structural), 2 px (state marks and seals); `vector-effect: non-scaling-stroke`. Fill only on 4 px cells. Colour `--ink-2` on light, `--ink-1` on charcoal, never the accent, never a state colour (state colour belongs to lamps).
+
+**Five roles, and only these.**
+
+| Role | Where | Form | Size |
+|---|---|---|---|
+| Frame | panel corners, centrepiece plates | four corner brackets plus one tick ruler on one side | bracket arm 8 px |
+| Divider | between view header and canvas; inside long drawers | diamond chain with a 1 px hairline both sides | 12 px high, full width |
+| Seed glyph | empty states, people, tree nodes, day seals | generated n-fold glyph | 48 px (empty), 24 px (node), 16 px (day cell) |
+| Seal | mastery, finished block, completed paper | closed ring plus seed glyph | 32 px |
+| Scale | gauges, dials, week strips | tick ruler | 60 ticks over 270 degrees on dials |
+
+**Generator (rule-based, no model).** FNV-1a 32 of the id seeds mulberry32. Pick fold n from {2, 4, 6, 8}; pick 3 to 5 primitives by weight; place on 2 to 3 concentric radii; mirror or rotate; stop at 60 segments. The output SVG string is cached in memory by id and size. Bilateral mode (n = 2) uses thorns and is the "chrome tribal" family from C04-08, reserved for seals. **Tracer:** `tools/art/trace_sigil.py` crops by bounding box, thresholds, runs marching squares and Ramer-Douglas-Peucker (epsilon 0.8 px), and emits at most 60 segments per shape; with the private track it writes to the private folder (the 14 primitives are then redrawn by hand as `own/` SVG for a future separation).
+
+**Motion.** One-shot draw-in with `stroke-dashoffset` (spec 10.5: under 640 px, 60 segments, 400 ms, one at a time). Static and reduced-motion form is the final drawing. **Mobile:** frames drop to corner brackets; dividers shrink to 8 px; seed glyphs keep 48 px.
+
+**Components.** `Sigil` (`seed`, `size` 16, 24 or 48, `fold`, `tone`; static, drawn-in, reduced), `SigilFrame` (`sides`, `arm`; default, focus, planned dashed), `GlyphRule` (`length`, `density`), `Seal` (`id`, `earned`; earned, hollow, simulated stamp), `SigilMark` (arms from counts), `SigilGauge`, `SigilRing`.
+
+#### 20.4.2 ASCII grammar
+
+| Ramp | Glyphs | Use |
+|---|---|---|
+| `r10` | ` .:-=+*#%@` | portraits, backdrops |
+| `r5` | ` .:+#` | data cells (five distinguishable levels) |
+| `caret` | ` .^AM` | triangle-character fields (C04-113), memory and tree backdrops |
+| `edge` | `/ \ | _ -` | Sobel edge pass on contours |
+
+**Cell tiers.** Data cell 7.2 x 16 px (Geist Mono 12 px, the legibility floor). Atmosphere cell 6 x 12 px (10 px type), decorative, `aria-hidden`. Nothing smaller.
+
+**Where ASCII carries data (each with a text equivalent and a lamp).** `AsciiHeat`: Life month grid, one `r5` glyph per day cell by that day's action count, the cell number stays text. `AsciiBar`: `[#######---] 70 %` rows for study units, water, spend (the percentage is text). `AsciiPortrait`: a ring of heavy glyphs from an initials hash (C04-48), so no face is drawn. Console tables and log tails.
+
+**Where it is atmosphere.** Backdrops (C04-119 branch, C04-125 asleep silhouette edge only, C04-20 hands), plates, empty states, the loader. Pre-rendered `.txt` in a `<pre aria-hidden="true">`, at most 8 KB raw, 6 files per section, 90 KB across the application (D-V2-4).
+
+**Behaviours bound to state (each with a static form).** Sweep: 4 pre-baked frames at 8 fps while pending over 150 ms, 3 s cap, then frame 1 plus "Still loading" and the WAITING lamp. Growth: glyph density follows a fixed permutation by a real current count (§8.5.5), may fall, the caption says what it follows. Freeze: WAITING shows a frozen 1-bit Bayer field (C04-41), never animated. Scatter: on FAULT the plate's glyphs become a seeded permutation of `/ \ x` in 160 ms, then static.
+
+**Components.** `AsciiPlate` (`artId`, `ramp`, `tier`; static, frozen, scattered), `AsciiHeat` and `AsciiBar` (`rows`, `ramp`, `reading` required; per lamp state), `AsciiPortrait` (`initials`); plus `sparkline(values)` returning the block-character twin (`▁▂▃▅▇`) used by every Trace.
+
+#### 20.4.3 Terminal grammar
+
+**Anatomy.** A well: `--term-ground` recessed panel (charcoal in both themes), 1 px `--edge-ui`, corner brackets, a ruler on the left edge. Lines: `prompt` (`ww day.today $` or `jarvis core $`: product and view id, never a personal name), `out`, `log` with bracket tags `[LIVE] [SIM] [WAIT] [PLAN] [FAULT]` (words equal the lamp states), `err`. Cursor is a solid block, no blink, no scanlines, no flicker (§10.5 stands).
+
+**Where it appears.** `console.*` (whole view; C04-10 frame, C04-16 columns, C04-18 brackets). Boot (`art.shell.boot`): three rows "heard, working, done" (C01-14) typed at 24 characters per second, 600 ms cap, any key skips, calm shows all rows at once. Loading: a well with the sweep and one real line ("reading syllabus index"), no fake percentage. Empty: a well with one prompt and one suggested command as a button, plus a seed glyph. Error: `ERR code: reason` then `try: <action>` as a real button, FAULT lamp beside it (C04-47 scene as backdrop, C01-09 for the 404). The command palette is styled as a prompt with the same tags. Toast: `NotchedToast` with a `>` prefix. **Mobile:** wells go full width, 12 px type, lines wrap with a 2-character hanging indent.
+
+**Components.** `TermWell`, `TermLine` (`lines`, `tag`, `typed`; typed, instant), `BootSequence`, `ScanFrame` (`label`, `state`; scanning, waiting).
+
+#### 20.4.4 How clay gains life without noise
+
+| Move | Recipe | Cost |
+|---|---|---|
+| Lit edge | 1 px inset highlight on top, 1 px dark on the bottom (`--lit-hi`, `--lit-lo`) on raised parts | static |
+| Inked engraving | 1 px sigil strokes and mono labels set into recessed wells (`--elev-recessed`) with a 1 px light lip below | static |
+| Tooth | a 64 px tile at 2.5 percent opacity on ground and raised only; `--decor-opacity: 0` in high contrast and forced colours | static image |
+| Pulse accent | one `#F25623` fill per view, on the primary action or the current item | static |
+| Aimed light | the hovered `LitPanel` only: a pre-painted sheen layer; the pointer angle is snapped to 8 directions; cross-fade 160 ms; one panel at a time | opacity only |
+| Focus depth | the focused region settles 1 px and its siblings dim 4 percent via a pre-painted layer; the ring stays a 2 px outline | opacity only |
+
+`LitPanel` (`angle`; rest, lit; extends `Panel`). "Neither alive nor dead" is tested by rule (D-V2-6), not by taste.
+
+**Tokens added** (hex only in `primitive-color.css`): `--lit-hi`, `--lit-lo`, `--tooth-opacity`, `--term-ground`, `--term-ink`, `--sigil-w-1/2/3` (1, 1.5, 2 px), `--bracket-arm` (8 px), `--ascii-cell-w/h` (7.2 x 16 data; 6 x 12 atmosphere), `--cursor-reticle/bracket/plan/wait/hold`. **Section allow-list additions:** `--sec-ramp`, `--sec-sigil-fold`. **Forced colours:** every sigil and bracket becomes `CanvasText` strokes, tooth and aimed light off, cursors system. `prefers-contrast`: tooth off, strokes 2 px.
+
+#### 20.4.5 Cursor and hover language
+
+| Cursor | Over | Form (SVG, at most 32 x 32, keyword fallback last) |
+|---|---|---|
+| `reticle` | art plates, charts, trees | 1.5 px ring 20 px, centre dot, hotspot at centre |
+| `bracket` | buttons, keys, rows | four corner brackets 24 px |
+| `plan` | PLANNED plates | dashed ring (matches the lamp) |
+| `wait` | WAITING controls | half disc (matches the lamp) |
+| `hold` | hold-to-confirm | ring with 4 tick marks |
+| system | text fields, links in prose | unchanged |
+
+Hover: four corner brackets fade in over 100 ms and move 2 px outward; keyboard focus draws the same brackets plus the 2 px ring, so hover never replaces focus. Charts: the crosshair is two SVG lines snapped to the nearest data point with a `Callout` showing value, unit and lamp. The optional pointer companion (one 12 px ring with a spring, transform only, stops at rest) is off in calm, at governor `low`, on touch and in forced colours. Static form: system cursors, no companion; targets stay 44 px. `CursorKit` exports the cursor set and `useBracketHover`.
+
+#### 20.4.6 The ten centrepieces, revised (private track, full strength)
+
+| Section | Centrepiece | Treatment | Sigil, ASCII, terminal role | Honest driver |
+|---|---|---|---|---|
+| `core` | C02-02 hill (live) under a C03-06 nested-triangle ring | ring 1.5 px with 8 ticks; C03-01 warped grid as a 10 percent backdrop | sigil frame; a terminal line shows "level 62 %" | real analyser level, else a still ring |
+| `room` | C01-23 faceplate with C01-20 seams; `room.rules` drawn as a C04-127 logic-gate schematic | rules are gates, each showing its last real firing | scale (dial ticks); a terminal tag per rule | board report only |
+| `senses` | C04-06 spindle; `senses.teach` uses C03-04 armillary rings | stamped SIMULATED in amber inside the frame | sigil rings; frozen Bayer C04-41 on WAITING | measured motion energy; no human form, no eye imagery (C04-26, C04-132, C03-12 stay out) |
+| `memory` | C04-119 branch (idle and empty state); `memory.beliefs` uses the C04-113 web layout (cells filled with caret-ramp fields, one cell in accent) | fixed pictures bound to no count | ASCII atmosphere; a seed glyph per person | none |
+| `console` | C04-10 frame, C04-16 columns, C04-18 brackets | full terminal grammar | terminal | real events |
+| `day` | C04-37 painted sun, ochre-charcoal duotone, with an ASCII ray twin; `day.month` uses C02-38 grid and `AsciiHeat` | rays equal blocks logged today; day cells carry 16 px seed glyphs | seed glyph per day; ASCII heat | today's real logs |
+| `focus` | C03-08 dots, with C03-11 eclipse tunnel as the session backdrop (10 percent) and C04-11 for rest | one dot per elapsed minute | a seal when a block ends | elapsed minutes |
+| `study` | C04-23 island; `study.plan` C03-05 astrolabe; the question-pattern view over a C03-06 sigil-math backdrop | one layer per unit; question-type bars as `AsciiBar` | ASCII data; a terminal "reading paper" line | real logs and parsed papers (state shown) |
+| `tree` | C04-44 trunk growing into a C03-21 nebula canopy; nodes are C04-40 cells; four C04-08 emblems seal the four branch families | a seal draws when evidence exists | seed glyph per node, seal | evidenced-node count |
+| `career` | C04-116 skyline in three parallax bands; `career.ladder` uses C04-122 spire; `career.abroad` C03-15 cone diagram; roster plate C02-29 | a stage lights only when its item is done | sigil dividers; ASCII money bars | real items |
+| `proof` | C02-24 relief ring, C02-40 variant | a caption on every ring | scale | computed statistics |
+
+Static pictures use `duotone` and `bayer`; any picture that implies a person's likeness is cropped to the object (hand, sun, tower) or dropped. Each centrepiece is at least 25 percent of its view box (§8.1).
+
+#### 20.4.7 Secondary placements
+
+Route transitions: the 200 ms fade (§10.4) plus the destination's sigil drawing into the title bar in 200 ms (one SVG, under 60 segments); a product switch adds a one-shot C04-49 sunburst reveal in 200 ms (an opacity of a baked image). One empty state per view: a seed glyph (48 px), a terminal well, and a `grain` strip (C04-30, 600 x 40) at the base; variants C03-17 clouds (memory), C03-19 bands (search), C04-109 hands (day close), C01-24 agate (hardware). Onboarding: one screen, C04-124 scene with a row-by-row reveal in 600 ms (skippable), boot rows, one primary. Section dividers: C01-18 glyph rows, 12 px high. Fault and 404: FAULT scene C04-47, 404 C01-09; the comic blue-screen C04-128 is held in reserve. Tooltips are terminal tags.
+
+#### 20.4.8 Reserve (ideas not built)
+
+Pointer-aimed spotlight on immersive scenes; chrome-liquid tilt on seals (C04-08); ASCII rain in Console while a command runs; glitch-sort route transition (C03-20) on a product switch only; comic blue-screen FAULT plate (C04-128); a day-seal wall (365 seed glyphs); a voice-reactive sigil ring around the hill; paper mode (the whole interface as the C01-18 white sheet).
 
 ---
 

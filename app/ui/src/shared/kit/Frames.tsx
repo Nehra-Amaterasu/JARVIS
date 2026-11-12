@@ -132,10 +132,22 @@ export function Console({ lines, label, onSubmit, onCopy, className }: ConsolePr
   const onKeyDown = (e: KeyboardEvent) => {
     if (kept.length === 0) return
     const at = cursor ?? kept.length - 1
-    if (e.key === 'ArrowUp') (e.preventDefault(), move(at - 1))
-    else if (e.key === 'ArrowDown') (e.preventDefault(), move(at + 1))
-    else if (e.key === 'Home') (e.preventDefault(), move(0))
-    else if (e.key === 'End') (e.preventDefault(), move(kept.length - 1))
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      move(at - 1)
+    }
+    else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      move(at + 1)
+    }
+    else if (e.key === 'Home') {
+      e.preventDefault()
+      move(0)
+    }
+    else if (e.key === 'End') {
+      e.preventDefault()
+      move(kept.length - 1)
+    }
     else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
       const l = kept[at]
       if (!l) return
@@ -244,10 +256,22 @@ export function PaletteView({ items, onRun, onPlanned, onClose, label = 'Command
   const optId = (i: PaletteItem) => `${uid}-${i.id}`
   const run = (i: PaletteItem) => (i.planned ? onPlanned(i) : onRun(i))
   const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'ArrowDown') (e.preventDefault(), setAt(Math.min(shown.length - 1, idx + 1)))
-    else if (e.key === 'ArrowUp') (e.preventDefault(), setAt(Math.max(0, idx - 1)))
-    else if (e.key === 'Enter' && shown[idx]) (e.preventDefault(), run(shown[idx]))
-    else if (e.key === 'Escape') (e.preventDefault(), onClose())
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setAt(Math.min(shown.length - 1, idx + 1))
+    }
+    else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setAt(Math.max(0, idx - 1))
+    }
+    else if (e.key === 'Enter' && shown[idx]) {
+      e.preventDefault()
+      run(shown[idx])
+    }
+    else if (e.key === 'Escape') {
+      e.preventDefault()
+      onClose()
+    }
   }
   return (
     <div className="k-palette" aria-label={label}>
@@ -469,10 +493,22 @@ export function FolderTabs({ tabs, value, onChange, onPlanned, label, className 
     onChange(t.id)
   }
   const onKeyDown = (e: KeyboardEvent, i: number) => {
-    if (e.key === 'ArrowRight') (e.preventDefault(), go(i + 1))
-    else if (e.key === 'ArrowLeft') (e.preventDefault(), go(i - 1))
-    else if (e.key === 'Home') (e.preventDefault(), go(0))
-    else if (e.key === 'End') (e.preventDefault(), go(tabs.length - 1))
+    if (e.key === 'ArrowRight') {
+      e.preventDefault()
+      go(i + 1)
+    }
+    else if (e.key === 'ArrowLeft') {
+      e.preventDefault()
+      go(i - 1)
+    }
+    else if (e.key === 'Home') {
+      e.preventDefault()
+      go(0)
+    }
+    else if (e.key === 'End') {
+      e.preventDefault()
+      go(tabs.length - 1)
+    }
   }
   return (
     <div className={cx('k-tabs', className)} role="tablist" aria-label={label}>

@@ -6,7 +6,8 @@ import './lamp.css'
 
 export interface Annunciator { id: string; label: string }
 
-/** The four JARVIS lamps and the two Well Wisher ones, in title-bar order. */
+/** The four JARVIS lamps and the two Well Wisher ones, in title-bar order. Each label is a neutral NAME, never a claim:
+ *  "Phone paired" beside a WAITING lamp read as a fact the lamp denied (jury, 13 Nov), so the state lives in the lamp. */
 export const JARVIS_ANNUNCIATORS: readonly Annunciator[] = [
   { id: 'voice', label: 'Voice' },
   { id: 'room', label: 'Room link' },
@@ -14,8 +15,8 @@ export const JARVIS_ANNUNCIATORS: readonly Annunciator[] = [
   { id: 'memory', label: 'Memory' },
 ]
 export const WW_ANNUNCIATORS: readonly Annunciator[] = [
-  { id: 'phone', label: 'Phone paired' },
-  { id: 'quiet', label: 'Quiet on' },
+  { id: 'phone', label: 'Phone' },
+  { id: 'quiet', label: 'Quiet' },
 ]
 
 export interface AnnunciatorsProps {

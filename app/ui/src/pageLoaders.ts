@@ -9,6 +9,7 @@
  * later does not wait on the parser.
  */
 import type { ComponentType } from 'react'
+import type { Registry } from './shared/planned/types'
 
 type Loader = () => Promise<{ default: ComponentType }>
 
@@ -31,6 +32,35 @@ export const PAGE_LOADERS: Record<string, Loader> = {
   ...(import.meta.env.VITE_PRODUCT !== 'ww' ? JARVIS_LOADERS : {}),
   ...(import.meta.env.VITE_PRODUCT !== 'jarvis' ? WW_LOADERS : {}),
 }
+
+/**
+ * Shell v2 (A.B05) reaches each product only through these two lazy handles, so shell/ itself names no product
+ * module (seam S2, imports.test.ts) and a one-product build folds the other handle to null and emits nothing.
+ *   - the planned-feature registries, merged by "What is coming" (only the ones this build has)
+ *   - the Well Wisher frame's navigation, so a rail click switches the frame and a jump inside the frame
+ *     (Tree's "Study this node") moves the rail
+ */
+export interface WwShellBridge {
+  registry: Registry
+  switchTo: (ws: 'study' | 'tree' | 'life' | 'career' | 'focus', view: string | null) => Promise<void>
+  current: () => { ws: string; view: string | null }
+  subscribe: (fn: (ws: string, view: string | null) => void) => () => void
+}
+
+export const loadWwShell: (() => Promise<WwShellBridge>) | null = import.meta.env.VITE_PRODUCT !== 'jarvis'
+  ? () => Promise.all([import('./ww/plannedFeatures'), import('./ww/frame/navigate'), import('./ww/frame/frameStore')]).then(([p, n, f]) => ({
+    registry: p.wwRegistry,
+    switchTo: (ws, view) => n.switchWorkspace(ws, view),
+    current: () => ({ ws: f.useFrame.getState().ws, view: f.useFrame.getState().view }),
+    subscribe: (fn) => f.useFrame.subscribe((s, prev) => {
+      if (s.ws !== prev.ws || s.view !== prev.view) fn(s.ws, s.view)
+    }),
+  }))
+  : null
+
+export const loadJarvisRegistry: (() => Promise<Registry>) | null = import.meta.env.VITE_PRODUCT !== 'ww'
+  ? () => import('./jarvis/planned').then((m) => m.jarvisRegistry)
+  : null
 
 /** The light pages only. Aankhen (three.js) and Mission stay unloaded until opened:
  *  evaluating them costs memory on a laptop already near its commit limit, and the

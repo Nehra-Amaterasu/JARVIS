@@ -48,6 +48,10 @@
 .g-sigil .sg-w1 { stroke-width: var(--sigil-w-1); }
 .g-sigil .sg-w2 { stroke-width: var(--sigil-w-2); }
 .g-sigil .sg-w3 { stroke-width: var(--sigil-w-3); }
+.g-sigil .sg-dash, .g-seal .sg-dash { stroke-width: var(--sigil-w-1); }
+.g-seal .sg-w1 { stroke-width: var(--sigil-w-1); }
+.g-seal .sg-w2 { stroke-width: var(--sigil-w-2); }
+.g-seal .sg-w3 { stroke-width: var(--sigil-w-3); }
 
 /* the one-shot draw-in: 400 ms per weight, one at a time (spec 10.5); final drawing = static form */
 .g-sigil[data-drawn='true'] path[pathLength] {
@@ -130,13 +134,13 @@
 
 /* ---------------------------------------------------------------- seal */
 
-.g-seal { display: inline-grid; place-items: center; inline-size: 32px; block-size: 32px; color: var(--ink-1, currentColor); position: relative; flex: none; }
+.g-seal { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; color: var(--ink-1, currentColor); flex: none; }
 .g-seal svg { inline-size: 32px; block-size: 32px; overflow: visible; }
 .g-seal[data-earned='false'] { color: var(--ink-3, currentColor); }
 .g-seal > .g-stamp {
-  position: absolute;
-  inset-block-end: -6px;
-  inset-inline-end: -10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   font: 600 9px/12px var(--font-mono, ui-monospace, monospace);
   letter-spacing: 0.04em;
   padding-inline: 2px;
@@ -285,7 +289,7 @@
   pointer-events: none;
 }
 .g-scan[data-capped='true'] > .g-sweep { display: none; }
-@keyframes g-sweep { from { transform: translateY(0); opacity: 0.8; } to { transform: translateY(calc(var(--g-scan-h, 96px) - 1px)); opacity: 0.8; } }
+@keyframes g-sweep { from { inset-block-start: 0; opacity: 0.8; } to { inset-block-start: calc(100% - 1px); opacity: 0.8; } }
 .g-scan > .g-bayer { margin: 0; font: 8px/8px var(--font-mono, ui-monospace, monospace); color: var(--state-waiting, currentColor); white-space: pre; user-select: none; overflow: hidden; }
 
 .g-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

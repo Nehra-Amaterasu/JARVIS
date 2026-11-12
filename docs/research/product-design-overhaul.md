@@ -11,7 +11,7 @@ One file for the JARVIS + Well Wisher product-design overhaul (the design source
 - `Lamp` (glyph plus word, 12 px views, 16 px title bar), `Reading` (the number is drawn only for LIVE and SIMULATED; WAITING, PLANNED and FAULT draw an em dash even when handed a number; `reading` is a required prop so tsc rejects a call without one), `Annunciators` (Voice, Room link, Senses, Memory; Phone paired, Quiet on; not mounted yet, B05 does that).
 - Store: `readings`, `reportCapability(id, partial)` (stamps `since` on a state change, keeps it on a repeat, no new object on an identical report), `useCapability(id)` (stable WAITING default).
 
-**Numbers.** 30 new tests (shared/lamp.test.tsx); whole UI suite 1488 of 1488 (was 1458), `tsc -b` clean. Greyscale check is a markup test: the five glyphs have five distinct SVG signatures and no colour value in any of them (ink is currentColor), so the shape alone tells them apart.
+**Numbers.** 23 new tests (shared/lamp.test.tsx); whole UI suite 1488 of 1488 (was 1465), `tsc -b` clean. Greyscale check is a markup test: the five glyphs have five distinct SVG signatures and no colour value in any of them (ink is currentColor), so the shape alone tells them apart.
 
 **The lint test.** A source scan over shared/, jarvis/, ww/kit/, components/ and pages/ fails any exported props interface with a number reading (`value`, `level`, `percent`...) and no `state` or `reading` of type LampReading. Two older widgets fail it and are listed as DEBT, each with its retiring package: `Stat` and `Meter` in `ww/kit/Data.tsx` (B03b). The debt list may only shrink: the test fails when an entry is fixed but still listed.
 

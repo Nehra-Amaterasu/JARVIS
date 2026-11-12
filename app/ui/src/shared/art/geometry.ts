@@ -164,9 +164,10 @@ export function ridgePaths(rows: readonly RidgeRow[], w: number, h: number) {
   const scale = max > 0 ? max : 1
   const top = h * 0.12
   const pitch = (h - top - 4) / n
-  const amp = pitch * 3.2 // a row may rise over three rows behind it, which is what makes the ridgeline read
+  const reach = pitch * 3.2 // a row may rise over three rows behind it, which is what makes the ridgeline read
   const out = sampled.map((s, i) => {
     const base = top + pitch * (i + 1)
+    const amp = Math.min(reach, base - 4) // with one or two rows reach alone would draw above the frame (found by the bounds test)
     const step = s.length > 1 ? w / (s.length - 1) : 0
     let line = ''
     let peak = 0

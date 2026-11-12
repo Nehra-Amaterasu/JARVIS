@@ -2,6 +2,623 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-13: the quality bar: an award-style jury rubric, engineering standards and a licence register
+
+**Question.** The owner asked for work reviewed at the level of award-winning sites on every axis (design, usability, creativity, content, motion, accessibility, performance, code, tests). What do the public award criteria and current engineering guidance really say, and how is that turned into a pass line for each section of this local app?
+
+**Method.** Three research agents on 12 Nov 2026, each opening primary pages. Where a page did not load or no first-party criteria exist, the strand says so. Nothing here has been run against the app yet.
+
+**What it changed.** Every section wave from B05 on gets a jury review against the rubric below (screenshots at 1366x768 and 390 px), with six hard gates: text contrast, keyboard reach, a number without a state lamp, motion under reduced motion, any camera element, clipped or scrolling primary content. The pass line (weighted total of 8.0 or more, no criterion under 7.0) is this project's own choice, not an award rule. The engineering checklist's MISSING rows become work items for the Q01 to Q04 gates, and the licence register decides which borrowed code and fonts may ship.
+
+### Strand A: the jury rubric
+
+Date: 2026-11-12. Public-safe: no personal details. Status: research plus a proposed rubric. Nothing here was run against the app yet.
+
+Question: what do the leading web-design juries score, and how do we turn that into a repeatable review rubric for a local desktop app (React + Vite in a WebView2 window, 1366x768 primary, 390 px phone page)?
+
+Legend: **[V]** verified on the cited page; **[S]** secondary source only; **[U]** could not be verified; **[OURS]** our own decision, not an award rule.
+
+---
+
+#### Part 1. What the juries actually publish
+
+##### 1.1 Awwwards
+
+| Fact | Value | Tag | Source |
+|---|---|---|---|
+| Criteria and weights | Design 40 %, Usability 30 %, Creativity 20 %, Content 10 % | V | [Awwwards evaluation](https://www.awwwards.com/about-evaluation/) |
+| Jury size per site | each approved site goes to at least 18 jurors | V | same |
+| Averaging | the 3 jury scores furthest from the average are removed automatically; the page does not say how the rest are combined (presumably a mean) | V for the trim, U for the combine | same |
+| Honorable Mention | jury score 6.5 or more | V | same |
+| Site of the Day | no numeric threshold; the highest-scoring sites win. A high jury score plus at least 10 PRO user votes can win before the 5-day vote ends | V | same |
+| Site of the Month | the 8 highest-scoring sites of the month are re-reviewed by the jury | V | same |
+| Site of the Year | all SOTM winners nominated plus some extras; announced the following February | V | same |
+| User votes | only validated Professional users count; no numeric multiplier published | V | same |
+| Developer Award | every SOTD winner goes to the developer jury; a score above 7 earns the award | V | same |
+| Developer categories | Semantics/SEO, Animations/Transitions, Accessibility, WPO, Responsive Design, Markup/Meta-data (an example results page shows per-category scores and an overall 7.35/10) | S (search result of an Awwwards results page, not opened as a primary page) | [search](https://awwwards.com/developer-award) |
+| Developer category weights | not published in any page I could open | U | [developer-award page](https://awwwards.com/developer-award) says rules live in a separate "Developer Guideline" |
+| Developer Guideline text | exists as a Google Doc linked from [this Awwwards resource](https://www.awwwards.com/inspiration/development-award-guidelines-doc); the doc itself returned HTTP 400 to my fetcher | U | |
+| Jury composition | filters "Code", "Design", "Young Jury"; no judging method on that page | V | [Awwwards jury](https://www.awwwards.com/jury/) |
+| Developer Award focus | "quality code, interoperable across modern browsers and devices"; balancing innovative design with code quality; accessibility for visual and hearing impairments; mobile optimisation; adaptable for legacy browsers | V | [Developer Award page](https://awwwards.com/developer-award) |
+| Mobile track guideline page | 404 | U | [mobile-guidelines](https://awwwards.com/mobile-guidelines) |
+
+What jurors reward inside each axis (practitioner write-up, **S**, not Awwwards' own words): Design = type system with consistent scale and rhythm, grid discipline and negative space, restrained colour, one idea carried through; Usability = orientation in under 3 s, a hero animation that hitches near 40 fps "reads as broken", keyboard, focus states, reduced-motion respected; Creativity = originality with intent, common tropes (cursor blob, default smooth-scroll, boilerplate WebGL plane) discounted; Content = sharp copy, no placeholder assets ([hontran.dev](https://www.hontran.dev/blog/awwwards-judging-criteria)).
+
+##### 1.2 CSS Design Awards (CSSDA)
+
+| Fact | Value | Tag | Source |
+|---|---|---|---|
+| Criteria | UI, UX, Innovation ("pushes the boundaries of UI, UX and innovative development"); no definitions or weights published | V | [CSSDA about](https://www.cssdesignawards.com/about) |
+| Scoring | judges' scores averaged; no scale stated | V | same |
+| Website of the Day | judges' average above 8.00, "varies depending on quality of the sites submitted" | V | same |
+| Special Kudos | non-WOTD sites averaging above 6 | V | same |
+| Public awards | more than 20 votes in a category and judges' average above 6; winners from votes plus judge scores | V | same |
+| Judge count, selection, tie handling | not described | U | same |
+
+##### 1.3 FWA
+
+Their own About page carries no criteria ([thefwa.com/about](https://www.thefwa.com/about); the FAQ URL returned 404). Third-party sources disagree: one lists Content, Structure & Navigation, Visual Design, Functionality, Interactivity, Innovation, Overall Experience (the Webby list plus innovation), another lists Innovation, Design, Creativity; the founder said he wanted to move away from points scoring ([search results](https://en.wikipedia.org/wiki/TheFWA), [Creative Bloq](https://www.creativebloq.com/design/rob-ford-showcasing-best-web-1135853), both **S/U**). **Conclusion: FWA publishes no scoring rubric I can cite. The rubric below therefore does not claim FWA weights.** What we borrow from it is only the stated emphasis on innovation, which CSSDA also names.
+
+##### 1.4 Webby Awards
+
+Six website criteria, all **V** from [Webby judging criteria](https://www.webbyawards.com/about/judging-criteria/):
+
+- **Content**: engaging, relevant, written for the web; "has a voice and a point of view".
+- **Structure and Navigation**: organised and prioritised so users can predict where things are.
+- **Visual Design**: suits audience and message; improves inclusion for low-vision and cognitive disabilities.
+- **Functionality**: loads quickly, links work, works across platforms and browsers, accounts for accessibility and limited bandwidth.
+- **Interactivity**: "insists that you participate, not spectate"; passive rollovers count little.
+- **Overall Experience**: intangible qualities that make people stay or leave; return visits and sharing as signs.
+
+Process ([Webby judging process](https://www.webbyawards.com/about/judging-process/), **V**): round 1 by Associate Academy members, several per entry; final by Executive Academy members with category expertise; five Nominees per category including one Winner; at most 20 % of entries may be Official Honorees; Jury President breaks ties. **No scoring scale or weights published (U).**
+
+##### 1.5 Standards the juries lean on (these are what make a score checkable)
+
+| Standard | Number we use | Source |
+|---|---|---|
+| WCAG 1.4.3 text contrast | 4.5:1; large text (18 pt, or 14 pt bold, about 24 px / 18.5 px) 3:1; not rounded, 4.499 fails | [WCAG 1.4.3](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html) |
+| WCAG 1.4.11 non-text contrast | 3:1 for control boundaries, state indicators, focus, graphics needed to understand content | [WCAG 1.4.11](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html) |
+| WCAG 2.5.8 target size (AA) | at least 24x24 CSS px, with a spacing exception | [WCAG 2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html) |
+| WCAG 2.5.5 target size (AAA) | 44x44 CSS px | [WCAG 2.5.5](https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced.html) |
+| WCAG 2.4.13 focus appearance (AAA) | indicator area at least a 2 px perimeter, 3:1 change between focused and unfocused; a solid 2 px outline is the simplest pass | [WCAG 2.4.13](https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance.html) |
+| WCAG 2.4.11 focus not obscured (AA) | a focused control must not be entirely hidden by author content | [WCAG 2.4.11](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html) |
+| WCAG 2.3.3 animation from interactions (AAA) | interaction-triggered motion can be turned off; honouring the OS setting counts; colour, blur and opacity changes are not "motion animation" unless they change size, shape or position | [WCAG 2.3.3](https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html) |
+| `prefers-reduced-motion` | remove or replace scaling and panning (vestibular triggers); the MDN example swaps a scale pulse for an opacity dissolve | [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion) |
+| INP | good at or under 200 ms, poor above 500 ms, at the 75th percentile | [web.dev INP](https://web.dev/articles/inp) |
+| CLS | good at or under 0.1, poor above 0.25 | [web.dev CLS](https://web.dev/articles/cls) |
+| Nielsen's 10 heuristics | status visibility, control and freedom, consistency, error prevention, recognition over recall, minimalist design, error recovery, etc. | [NN/g](https://www.nngroup.com/articles/ten-usability-heuristics/) |
+| Windows motion | fast in 167/250/333 ms with cubic-bezier(0,0,0,1); direct exit 167 ms and always with a fade; "bare minimum" opacity-only 83 ms linear; "avoid custom animations where possible" | [Microsoft Learn: Motion in Windows](https://learn.microsoft.com/en-us/windows/apps/design/signature-experiences/motion) |
+| Apple HIG motion | purposeful, optional, crossfade as the reduce-motion substitute, interruptible. **The page body did not load for my fetcher; this line is from the tool's general knowledge, not the page. U.** | [HIG Motion](https://developer.apple.com/design/human-interface-guidelines/motion) |
+| Material 3 duration tokens | I could not open the official token page; secondary sources give 50 ms to 1000 ms and a standard curve of (0.2, 0, 0, 1) but disagree on "emphasized". Not used. U | [m3 page](https://m3.material.io/styles/motion/easing-and-duration/tokens-specs) |
+
+---
+
+#### Part 2. What does not transfer to a local app, and what replaces it
+
+| Award criterion | Applies? | Replacement in our rubric |
+|---|---|---|
+| Semantics/SEO (title, meta, sitemap, schema, friendly URLs) | **SEO no, semantics yes.** There is no crawler. | Semantic structure for the accessibility tree: landmarks, one h1 per view, real buttons and lists, accessible names, window title that names the current view. Judged with the axe-core run and a screen-reader pass (spec section 14.6 lists Narrator and NVDA). |
+| Markup/Meta-data | Partly | Markup hygiene (no div buttons, valid ARIA, no duplicate ids) and app metadata: window title, app icon, theme colour of the title bar, `color-scheme` set. |
+| WPO (web performance optimisation: network, caching, image weight) | Network parts no; budgets yes | Performance feel: the spec section 14.1 budgets (idle CPU, INP at most 200 ms, route transition at most 200 ms, entry chunk growth at most 10 %, fonts at most 150 KB, no raster over 200 KB). A localhost app has no first-load network cost, so LCP is scored only as "first meaningful paint of the section after click". |
+| Responsive Design | Yes, narrowed | Fixed target viewports: 1366x768 (primary), 1366x720, 1280x720, 1280x680, 390 px phone page, 200 % root font size. |
+| Cross-browser / legacy browsers | No: one engine, WebView2 (Chromium) | Replaced by "runs in the real WebView2 window", plus forced-colours and Windows contrast themes. |
+| Mobile Excellence track | Only for the 390 px phone page | Same hit-area and reflow checks on that page. |
+| User votes / People's Voice / public awards | No audience | Replaced by one scripted first-run task test (spec V01, pass line 10 s to the first valuable action). |
+| Webby "Interactivity: participate, not spectate" | Yes | Scored under Usability and Creativity as "does the screen respond to real input and real data". |
+| Webby "Content: takes a stand, has a voice" | Yes | Copy quality; for JARVIS this includes the playful-butler persona, for Well Wisher the no-coercion copy rules in the spec (sections 2.4, 2.5). |
+
+Two additions no award has, forced by this product's own rules (spec section 0.2 items 3 and 4): **Honesty of state** (every number carries one of LIVE, WAITING, SIMULATED, PLANNED, FAULT by shape plus text; simulated is never shown as measured) and **Signals only** (no camera, ever). These are scored as hard gates, not as points.
+
+---
+
+#### Part 3. The JURY RUBRIC
+
+##### 3.1 How a review runs
+
+Reviewer inputs, per section (JARVIS: Core, Room, Senses, Memory, Console; Well Wisher: Day, Focus, Study, Tree, Career) and per view:
+
+1. Screenshots at **1366x768** and **390 px** (phone page where a view has one), light and dark theme, plus 1366x768 with `forced-colors: active` and with `prefers-reduced-motion: reduce`.
+2. A **60-second interaction script** (the same for every reviewer): open the section from cold; Tab through every control once; trigger the primary action; trigger one error (for example, a backend call with the service off); open the empty state with a scratch data dir; press Ctrl+1..5 and Esc; toggle reduced motion; scroll or resize to 1280x680.
+3. The automated outputs that already exist in the spec: axe-core per route, token contrast test, `no-scroll`, `hit-areas`, `reflow`, `motion-route`, `budget-idle`.
+
+Scoring: each check is scored **1 to 10 integers**. A criterion score is the **mean of its checks, rounded to one decimal**. Two reviewers score independently; if they differ by more than 1.5 on a criterion, a third scores and the middle value is taken (the same idea as Awwwards' trimming of the 3 furthest scores, [V](https://www.awwwards.com/about-evaluation/), scaled down for a team of 2 to 3).
+
+Weights **[OURS, mapped from Awwwards 40/30/20/10, then split]**:
+
+| Axis | Weight | Criteria inside it |
+|---|---|---|
+| Design | 40 % | D1 layout rhythm and grid 8; D2 typography 8; D3 colour 6; D4 depth and material 6; D5 art direction 6; D6 motion purpose and timing 6 (shares of the 40, in points) |
+| Usability | 30 % | U1 state clarity 7; U2 empty and error states 5; U3 keyboard path 5; U4 focus and contrast 5; U5 hit areas and reflow 4; U6 performance feel 4 |
+| Creativity | 20 % | C1 originality of art direction 10; C2 signature moment (one per section) 6; C3 earned interactivity 4 |
+| Content | 10 % | T1 copy quality 6; T2 honesty of data and labels 4 |
+
+(Points inside an axis are shares of that axis' weight; the axis score is the weighted mean of its criteria. Total = 0.4 Design + 0.3 Usability + 0.2 Creativity + 0.1 Content.)
+
+Developer-style axis, scored separately and **not mixed into the total** (the Awwwards Developer Award is also separate, [V](https://www.awwwards.com/about-evaluation/)): X1 semantics and markup, X2 motion implementation and reduced motion, X3 accessibility conformance, X4 performance budgets, X5 responsive and forced-colours. Pass line 7.0, matching the Developer Award's "above 7" [V].
+
+##### 3.2 Pass lines [OURS]
+
+Stated plainly so nobody argues afterwards:
+
+- **A section passes** when its **weighted total is 8.0 or higher** AND **no criterion is below 7.0** AND **no hard gate fails** AND the developer-style axis is **above 7.0**.
+- Why 8.0: CSSDA's Website of the Day line is an average above 8.00 [V](https://www.cssdesignawards.com/about); Awwwards' Honorable Mention line is 6.5 [V](https://www.awwwards.com/about-evaluation/) and its Site of the Day has no published number [V], so 8.0 is the stricter public figure we can cite. I could not verify what scores Site-of-the-Day winners usually receive on Awwwards [U]; do not claim "Awwwards-winning" from this rubric, claim "scored at the CSSDA WOTD line by our own reviewers".
+- **Hard gates (any fail = section fails regardless of score):**
+  1. Any text under 4.5:1 or control boundary / focus under 3:1 in either theme (WCAG 1.4.3, 1.4.11).
+  2. A control unreachable or invisible-focused by keyboard (WCAG 2.4.7 family, 2.4.11).
+  3. A number, level or status shown without a lamp state, or simulated data presented as measured.
+  4. Animation still running with reduced motion emulated (`document.getAnimations()` not empty after 1 s).
+  5. Any camera element or camera copy.
+  6. Horizontal scroll or clipped primary control at 1366x768 (and at 1366x720 where a view declared a T720 column).
+- **Whole product** ships only if every section passes. A section at 7.0 to 7.9 is "not yet" and gets a fix list, not a waiver.
+- **Anti-inflation rule:** a reviewer may give 9 or 10 only with an evidence line (see 3.4). No evidence, score capped at 7.
+- Review frequency **[OURS]**: automated rows on every merge; scored review of a section when its package merges; full-product scored review before each release and after any change to the shared layers (tokens, kit, shell).
+
+##### 3.3 Criteria, checks, and 9 versus 6
+
+Each check is observable from the screenshots, the script, or a named automated output.
+
+###### D1 Layout rhythm and grid (Design)
+Checks: (a) one spacing scale, every gap is a token multiple (inspect computed padding, no stray 13 px values); (b) edges align across cards in a row and across sections (draw a line on the screenshot); (c) clear reading order: one primary region, one secondary, nothing competing at equal weight; (d) negative space is used deliberately, groups are separated by space before lines; (e) at 1366x768 no scroll for the view and the primary action sits above the fold; (f) the 390 px layout is re-composed, not shrunk; (g) density matches the product (JARVIS compact, Well Wisher calmer); (h) alignment of numeric columns (tabular figures).
+- **9:** every edge lands on the grid; the eye path is obvious in 2 seconds; the 390 px layout has its own hierarchy.
+- **6:** mostly aligned but two or three cards disagree; equal visual weight on three things; 390 px is a squeezed desktop.
+- Evidence: annotated screenshot with the misaligned edges drawn, token names found, `no-scroll` result.
+
+###### D2 Typographic hierarchy
+Checks: (a) at most 3 families and a stated scale, at most 6 distinct sizes visible per view; (b) three levels (title, body, caption) readable by size and weight alone, with the screenshot blurred; (c) body at least 14 px, line length 45 to 75 characters; (d) mono or display faces appear only where the spec assigns them; (e) no faux bold, no fallback flash (fonts local, `font-display: swap`); (f) text survives 200 % root font size without clipping (`text-spacing.spec.ts`); (g) number formatting consistent (units, decimals, tabular); (h) truncation shows full text on focus or hover.
+- **9:** blur the screenshot and the hierarchy still reads; one rhythm of sizes; nothing clips at 200 %.
+- **6:** hierarchy depends on colour; 8 sizes; one clipped label at 200 %.
+- Evidence: list of computed font sizes per view; the 200 % screenshot.
+
+###### D3 Colour discipline
+Checks: (a) one accent per product used only for the primary action and live state (accent budget, spec section 1.2); (b) neutrals do the work, colour carries meaning only; (c) both themes and the `more` contrast set pass the token test; (d) no meaning by colour alone (lamp shapes plus text); (e) semantic colours (fault, waiting) are not reused as decoration; (f) the two products read as different brands at a glance; (g) forced-colours view keeps boundaries; (h) charts and art use the same palette tokens.
+- **9:** squint test shows exactly one thing in the accent; every pair has a computed ratio on file.
+- **6:** accent also used for decoration; one dark-theme pair near 4:1.
+- Evidence: token pairs with ratios; the forced-colours screenshot. Contrast formula: [WCAG 1.4.3](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html).
+
+###### D4 Depth and material honesty
+Checks: (a) elevation steps are few (at most 3) and consistent; (b) a raised thing is a control, a recessed thing is an input or a readout, never the reverse; (c) soft shadows never replace the real 3:1 edge (spec D11: the neumorphic recipe is only 1.27:1 and 1.72:1); (d) no `backdrop-filter`, no blur on animating layers (css-lint); (e) disabled looks disabled without becoming illegible; (f) pressed state visibly moves or inverts; (g) dark theme has its own depth (not an inverted light shadow); (h) one material metaphor per product.
+- **9:** you can name which pieces are buttons from a thumbnail; every raised element has an edge or icon that passes 3:1.
+- **6:** pretty depth but two controls are findable only by shadow.
+- Evidence: contrast of control edge versus adjacent ground ([1.4.11](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html)); css-lint output.
+
+###### D5 Art direction and craft
+Checks: (a) one centrepiece per section, derived from real counts (spec section 8: art is a pure function of data); (b) every moving piece has a static and a reduced-motion form carrying the same information; (c) no pasted reference pictures, no refused ids (A.Q01 check); (d) icon set is one family, one stroke weight; (e) illustration style consistent across sections; (f) assets sized to display size at 2x and within the per-section budget; (g) nothing decorative that does not clarify purpose (the review of 2026-11-12 removed scanlines and sigils on this ground); (h) the voice hill is a reading or a hollow placeholder (spec D23).
+- **9:** art teaches the data; remove it and the screen gets harder to read.
+- **6:** attractive but decorative; one icon off-family.
+- Evidence: the section's art row from spec section 8.1 and the asset size list.
+
+###### D6 Motion purpose and timing (also X2)
+Checks: (a) every animation answers "what changed or where did it go?"; (b) route change at most 200 ms (+50 ms) per spec 14.1; micro-feedback 83 to 167 ms, entrances 167 to 333 ms, in line with [Windows motion](https://learn.microsoft.com/en-us/windows/apps/design/signature-experiences/motion); (c) exits shorter than entrances and combined with a fade (same source); (d) animate only transform and opacity, nothing that triggers layout; (e) interruptible, never blocks input (HIG principle, **U**: page not loaded); (f) one easing family; (g) no infinite loops except real ongoing status, and none when hidden (spec 14.1 hidden row); (h) reduced motion replaces travel with opacity ([MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion), [WCAG 2.3.3](https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html)).
+- **9:** frame-by-frame capture shows meaning in every motion; timings on a short list; reduced-motion pass is calm and complete.
+- **6:** good easing but two decorative loops; route change 350 ms; reduced mode only slows things down.
+- Evidence: `motion-route` timing, a list of running animations from `document.getAnimations()` in both modes.
+
+###### U1 State clarity (Usability)
+Checks: (a) the five states (rest, hover, focus, pressed, disabled) differ visibly on every control kind; (b) selection and current location are visible without colour (shape, weight, marker); (c) loading shows within 100 ms of a click for anything over 300 ms, with a skeleton that matches the final layout (CLS at most 0.1, [web.dev](https://web.dev/articles/cls)); (d) success is confirmed once, calmly; (e) lamp state present on every reading; (f) destructive actions say what is lost and offer undo ([NN/g](https://www.nngroup.com/articles/ten-usability-heuristics/) heuristics 3, 5); (g) the app always says where you are (rail, title bar, window title); (h) background work is visible (a resume pill, not silence).
+- **9:** during the whole script you never wonder whether something happened.
+- **6:** most states clear; selection by colour only; one spinner with no text.
+- Evidence: a state matrix screenshot per control kind; time from click to feedback.
+
+###### U2 Empty and error states
+Checks: (a) every list, chart and sensor view has an empty state that says what will appear, why it is empty and the one action; (b) error text names the problem in plain language and a fix ([NN/g heuristic 9](https://www.nngroup.com/articles/ten-usability-heuristics/)); (c) backend offline: the UI shows a FAULT or WAITING lamp and keeps working where it can; (d) no raw stack trace, no "undefined", no empty chart frame; (e) first-run is one screen, no picker (spec 4.2.5); (f) stale-record rule shows age; (g) retry exists and does not lose input; (h) empty state keeps the layout (no jump when data arrives).
+- **9:** the scratch-data-dir first run feels designed, not broken; killing the backend gives a calm, accurate screen.
+- **6:** empty state is a blank card; errors say "Something went wrong".
+- Evidence: screenshots with a scratch `JARVIS_DATA_DIR`; one forced error.
+
+###### U3 Keyboard path
+Checks: (a) Tab order follows reading order; (b) every action reachable and operable with keys, no traps; (c) Ctrl+1 to Ctrl+5, Alt+0, Alt+Left, Ctrl+Shift+Space as specified; (d) a command palette or search reaches any view in at most 3 keystrokes; (e) Esc closes the topmost layer and returns focus to its opener; (f) shortcuts shown in tooltips and a help sheet; (g) no shortcut collides with WebView2 or Windows defaults; (h) skip-to-content exists in each product.
+- **9:** whole script done without touching the mouse, nothing surprising.
+- **6:** reachable but focus is lost after closing a sheet; two shortcuts undocumented.
+- Evidence: Tab-order recording (ordered list of focused element names), `keyboard.spec.ts`.
+
+###### U4 Focus visibility and contrast
+Checks: (a) every focusable element shows a 2 px outline, 3:1 change ([2.4.13](https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance.html)); (b) focus never fully hidden by sticky bars ([2.4.11](https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html)); (c) ring follows the element's shape and sits outside the neumorphic shadow; (d) text 4.5:1 and large text 3:1 in both themes ([1.4.3](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)); (e) boundaries and state indicators 3:1 ([1.4.11](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html)); (f) placeholder and disabled text still readable; (g) forced-colours keeps focus and borders; (h) text over art or gradients measured at the worst pixel.
+- **9:** no ratio under target anywhere, focus ring found in under a second on every screenshot.
+- **6:** one 4.2:1 caption; ring is accent-on-accent in one place.
+- Evidence: axe-core report plus the token pair table.
+
+###### U5 Hit areas and reflow
+Checks: (a) primary targets 44x44 CSS px (spec holds 44; [2.5.5](https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced.html) AAA) and nothing under 24x24 without spacing ([2.5.8](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)); (b) 390 px page has thumb-reachable primary action; (c) no horizontal scroll at 1280x720 and 1280x680; (d) content reflows at 200 % and 400 % zoom (manual WebView2 list, spec 14.6); (e) no overlapped controls at any tested size; (f) drag handles and tiny icon buttons have enlarged hit zones; (g) tooltips do not cover the control they describe; (h) scroll regions are labelled and keyboard-scrollable.
+- **9:** `hit-areas` and `reflow` specs green on every view, including the phone page.
+- **6:** passes at 24 px but several controls are 28 px and crowded.
+- Evidence: `hit-areas.spec.ts`, `reflow.spec.ts` output.
+
+###### U6 Performance feel (also X4)
+Checks: (a) click-to-visual-response at most 100 ms, INP at most 200 ms at p95 of scripted interactions ([web.dev](https://web.dev/articles/inp)); (b) route change at most 200 ms with no long task over 50 ms; (c) idle CPU at most 1 % of one core focused and asleep (spec 14.1, a target until R01 records a baseline); (d) hidden: no rAF, no timer under 1 s; (e) entry chunk growth at most 10 % against baseline, lazy sections at most 120 KB gzip; (f) frame time on the live renderer (voice hill, twin) within +15 % of first recorded; (g) no layout shift on data arrival (CLS at most 0.1); (h) heap growth under 10 % in a 30 min soak.
+- **9:** every row measured, on file, and inside budget; the app feels instant in the script.
+- **6:** subjectively fine but unmeasured, or one route at 350 ms.
+- Evidence: the measured numbers. **No evidence = cap at 6**, because spec section 14.1 states every figure is still a target until the real-window session (R01).
+
+###### C1 Originality of art direction (Creativity)
+Checks: (a) a stated idea per product that you can say in one sentence ("a place" for JARVIS, "a day" for Well Wisher); (b) every section is recognisably the same hand; (c) avoids the tropes jurors discount ([S](https://www.hontran.dev/blog/awwwards-judging-criteria): cursor blob, default smooth-scroll, boilerplate WebGL plane) and generic dashboard cards; (d) uses a constraint (offline, signals-only, honest lamps) as the source of the look rather than hiding it; (e) the two products differ in silhouette (radii, chrome, tempo); (f) show the thumbnail to someone cold and ask which product it is; (g) one thing you would remember tomorrow; (h) restraint: remove one effect and it gets better, or it does not.
+- **9:** a cold viewer names the product and its mood from a thumbnail; the idea is the signals-honesty, not a sticker.
+- **6:** polished and competent but could be any dashboard.
+- Evidence: the one-sentence idea; two cold-viewer answers.
+
+###### C2 Signature moment
+Checks: one per section (not one per page element): (a) it is a response to real data or action; (b) it appears within 1 s of arriving at the section; (c) lasts at most 1.2 s, once; (d) has a still and a reduced-motion equivalent; (e) never repeats on revisit unless data changed; (f) does not delay the first action; (g) matches the section's centrepiece row; (h) survives 390 px.
+- **9:** the user smiles and still reaches the button in under 2 s.
+- **6:** present but identical to another section's.
+
+###### C3 Earned interactivity
+Checks: (a) controls directly manipulate the thing (drag, scrub, tap on the art) where that beats a form; (b) the response is proportionate; (c) no passive hover gimmicks ([Webby: "participate, not spectate"](https://www.webbyawards.com/about/judging-criteria/)); (d) keyboard parity for every direct manipulation; (e) real-time data visibly changes the view; (f) undo exists; (g) no gesture is the only way; (h) interaction teaches itself within one use.
+- **9:** a first-time user manipulates the central object without instruction and keyboard users can too.
+- **6:** mostly click-and-form with a nice animation.
+
+###### T1 Copy quality (Content)
+Checks: (a) labels are verbs for actions, nouns for places; (b) no lorem, no placeholder, no engineer text ("null", "NaN", raw ids); (c) the JARVIS persona (playful butler, spec and owner brief) stays in voice, jokes never block a task; (d) Well Wisher copy has no loss-framed streaks, urgency or nagging (spec 2.4, 2.5); (e) error copy: what, why, fix; (f) numbers have units; (g) sentence case and one terminology list; (h) every string fits at 200 % and in a 390 px column.
+- **9:** every line could only belong to this product and helps the user act.
+- **6:** correct but generic; two terms for one thing.
+- Evidence: a string inventory per section with the bad ones listed. Webby wording to borrow: content "has a voice and a point of view" [V](https://www.webbyawards.com/about/judging-criteria/).
+
+###### T2 Honesty of data and labels
+Checks: (a) every reading carries LIVE, WAITING, SIMULATED, PLANNED or FAULT by shape plus text; (b) a unit test fails any widget rendering a number with no state (spec 6.6); (c) planned features are dashed and labelled, built-but-unverified features say "built, not verified"; (d) Wi-Fi sensing language stays physical: one link sees that a body moved, not how it is bent; (e) no camera wording or imagery; (f) "predicting" is used only after the spec's drill-day rule; (g) demo or sandbox data stamped SIMULATED; (h) timestamps and staleness shown.
+- **9:** you can tell for every number whether it is real, and the app never overclaims.
+- **6:** states exist but one chart is unlabelled simulated data.
+- This is also hard gate 3; a fail here fails the section regardless of other scores.
+
+###### X1 to X5 Developer-style axis (scored separately, pass above 7.0)
+| ID | Mirrors Awwwards developer category | Checks (observable) |
+|---|---|---|
+| X1 | Semantics/SEO, Markup/Meta-data | Landmarks (header, nav, main), one h1 per view, headings in order, real `button`/`a`/`ul`, accessible names on icon buttons, no duplicate ids, valid ARIA, `lang` and `color-scheme` set, window title names the view, app icon present. SEO itself is not scored (no crawler). |
+| X2 | Animations/Transitions | Compositor-only properties, no `filter` or `backdrop-filter` animation, one `useReducedMotion`, `document.getAnimations()` empty with reduce, no rAF after 1 s with reduce, no loops when hidden. |
+| X3 | Accessibility | axe-core zero serious or critical per route, WCAG items in section 1.5 pass, Narrator and NVDA scripts (spec 11.5) complete, text-spacing (1.4.12) and 200 % checks pass. |
+| X4 | WPO | The spec 14.1 budgets: entry chunk, per-section chunk, CSS, fonts (at most 3 families, 5 files, 150 KB), images, ASCII files, WebGL contexts, memory soak. |
+| X5 | Responsive Design | Six viewports of spec 11.1, `no-scroll`, `reflow`, forced-colours spec, phone page at 390 px. |
+
+##### 3.4 Evidence every score must cite
+
+A score cell is valid only if it has all of these; otherwise it counts as 7 maximum (and 6 for U6 as above):
+
+1. **Where:** `section.view` id (spec 3.2), viewport, theme, motion mode.
+2. **What was seen:** a screenshot file name with a drawn annotation, or a recorded script step, or a named automated output (spec 14.3 file).
+3. **Which check:** the letter (for example D1-b).
+4. **A number where one exists:** px, ms, ratio, count, KB.
+5. **A fix when under 8:** one line, with the file or token expected to change.
+
+Template per cell:
+`<section.view> | 1366x768 | light | normal | D1-b | 6 | shots/day-focus-1366.png: the Start card edge is 3 px left of the list edge | fix: card uses --space-5 instead of 18px`
+
+Two-reviewer rule: the person who built a section does not score it.
+
+---
+
+#### Part 4. What I could not verify
+
+- Awwwards **Developer Award category weights** and the exact check list: the Google Doc with the guideline did not open (HTTP 400). The six category names come from a search result for an Awwwards results page, not from a page I read in full.
+- How Awwwards **combines** the jury scores after trimming the 3 outliers (assumed mean), and the typical Site-of-the-Day score.
+- **FWA** criteria and scoring: no first-party text found; their FAQ URL gave 404.
+- **CSSDA** definitions of UI, UX, Innovation, the scale and the judge count.
+- **Webby** scale, weights and judge counts.
+- **Apple HIG motion** wording (page content did not load) and **Material 3** duration tokens (official page did not load).
+- Awwwards **Mobile Excellence** guidelines (404).
+- The weights inside our axes, the 8.0 pass line, the 1.5-point reviewer gap and the review cadence are **our decisions**, chosen to be at least as strict as the public thresholds above; they are not award rules.
+- None of this was run against the app. Spec section 0.4 says its figures are targets until the real-window session R01; the rubric inherits that, which is why U6 is capped at 6 without measurements.
+
+#### Sources (all opened unless marked)
+
+1. Awwwards evaluation: https://www.awwwards.com/about-evaluation/
+2. Awwwards Developer Award: https://awwwards.com/developer-award
+3. Awwwards Development Award Guidelines listing (doc itself not opened): https://www.awwwards.com/inspiration/development-award-guidelines-doc
+4. Awwwards jury: https://www.awwwards.com/jury/
+5. CSS Design Awards about: https://www.cssdesignawards.com/about
+6. Webby judging criteria: https://www.webbyawards.com/about/judging-criteria/
+7. Webby judging process: https://www.webbyawards.com/about/judging-process/
+8. FWA about (no criteria): https://www.thefwa.com/about
+9. WCAG 1.4.3: https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html
+10. WCAG 1.4.11: https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html
+11. WCAG 2.5.8: https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html
+12. WCAG 2.5.5: https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced.html
+13. WCAG 2.4.13: https://www.w3.org/WAI/WCAG22/Understanding/focus-appearance.html
+14. WCAG 2.4.11: https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html
+15. WCAG 2.3.3: https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html
+16. MDN prefers-reduced-motion: https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion
+17. web.dev INP: https://web.dev/articles/inp
+18. web.dev CLS: https://web.dev/articles/cls
+19. NN/g heuristics: https://www.nngroup.com/articles/ten-usability-heuristics/
+20. Microsoft Learn, Motion in Windows: https://learn.microsoft.com/en-us/windows/apps/design/signature-experiences/motion
+21. Secondary: https://www.hontran.dev/blog/awwwards-judging-criteria ; https://en.wikipedia.org/wiki/TheFWA ; https://www.creativebloq.com/design/rob-ford-showcasing-best-web-1135853
+
+#### What this changes
+
+- Gives every section one pass line (weighted 8.0, no criterion under 7.0, hard gates, developer axis above 7.0) and one evidence format, so reviews are repeatable and arguable.
+- Makes U6 and X4 depend on the measured numbers from work package R01, so "feels fast" cannot be scored above 6 without data.
+- Declares SEO, cross-browser and public voting out of scope and names what replaces them.
+- Suggested follow-up (not done): copy this file into `docs/research/` as a dated section of a design-standards topic file, and add one line to `docs/research/README.md`, as the project rule requires.
+
+### Strand B: engineering standards checklist
+
+Date: 2026-11-12. Public-safe. Target: `app/ui` (React 19, Vite, Zustand, oxlint, vitest + happy-dom, Playwright), WebView2 host, FastAPI backend.
+
+**Question.** What expert-level, verifiable engineering standards must this UI meet, and which are already enforced here?
+
+**Method.** 30 primary pages fetched; 26 returned content, 4 were blocked or 404 (listed under "Could not verify"). Every numeric claim below is quoted from the fetched page. Anything not from a source is marked ASSUMPTION or REPO.
+
+Status key: **HAVE** exists in the repo, **PARTIAL** exists but narrower than the rule, **MISSING** nothing enforces it.
+"Tool" names are what to use; oxlint rule names are from memory of the oxlint rule list and must be confirmed with `npx oxlint --rules` before wiring (not verified here).
+
+#### 0. What the repo has today (read from files, 2026-11-12)
+
+- Lint: **oxlint**, not ESLint (`app/ui/.oxlintrc.json`). Only 3 rules: `react/rules-of-hooks`, `react/only-export-components` (warn), and `no-restricted-imports` seam rules for `pages|galaxy|twin|shared` vs `ww|germoney`.
+- `tsconfig.app.json`: `noUnusedLocals`, `noUnusedParameters`, `erasableSyntaxOnly`, `noFallthroughCasesInSwitch`, `verbatimModuleSyntax`. No `"strict"` key found in this file (check `tsconfig.json` and the base; if it is absent, `any` and null holes are unchecked).
+- `scripts/bundle-budget.mjs`: bans animation libraries, bans katex in the entry chunk, bans webgl under `src/ww`, per-product module lists (ww has no three.js), motion helpers at most 6144 B gzip. **No** per-chunk gzip, CSS size, font count or image checks. `budget-baseline.json` does not exist (spec 14.1 says so too).
+- vitest (happy-dom): ~45 files in `src/__tests__`, including `ww/css-lint.test.ts` (no colour or px literals outside token files, `ww/` only), `ww/tokens.test.ts` and `tokens.test.ts` (contrast), `shared/imports.test.ts` (import graph), `ww/spring-curves.test.ts`.
+- Playwright: 20 specs in `e2e/` against the sandbox on port 8790 (`global-setup.ts` refuses 8777/8778): `interaction-budget` (motions finish within budget + 50 ms, nothing over 400 ms), `perf-trace` (records p5 fps, asserts no floor), `motion-reduced`, `motion-props`, `hit-areas`, `keyboard`, `themes-visual` and `study-visual` (screenshot snapshots), `clay-forced` (forced colours), `reflow`-like `phone-ww`.
+- Not present: `@testing-library/*`, `axe-core`, Stryker, `prettier`/`.editorconfig`, a CI workflow folder, a CSP on the main app. `jarvis_app/server.py` guards `/api` with a Host check plus an `x-jarvis-token` header compared with `hmac.compare_digest`; WebSocket takes the token in `?t=`. CSP exists only on the phone pages (`routes_phone.py`, `routes_phone_ww.py`).
+- The token is read from the URL fragment and kept in `sessionStorage` (`src/lib/api.ts`). `innerHTML` appears in `ww/math/MathText.tsx` (`dangerouslySetInnerHTML` with KaTeX output) and in three.js scene files.
+
+#### 1. React performance
+
+| # | Rule | Source | Automatic check | Threshold | Status |
+|---|---|---|---|---|---|
+| R1 | Do not use an Effect unless syncing with an external system; compute derived values during render | [react.dev: You might not need an effect](https://react.dev/learn/you-might-not-need-an-effect) | oxlint `react/exhaustive-deps` (dependency correctness only); the "no derived state in Effect" part is review-only | 0 warnings | MISSING (only rules-of-hooks is on) |
+| R2 | Event-caused logic goes in handlers, not Effects; reset state with `key`, not an Effect | same page | review + a vitest that renders a component, changes the prop and asserts one render (React Profiler `onRender` count) | render count per interaction <= 1 for leaf widgets (ASSUMPTION) | MISSING |
+| R3 | Subscribe to external stores with `useSyncExternalStore` (Zustand does this); never hand-roll subscriptions in an Effect | same page | grep-style vitest: `addEventListener`/`subscribe` inside `useEffect` must have a cleanup | 100 % of Effects that add a listener return a cleanup | MISSING |
+| R4 | Fetch Effects ignore stale responses (`ignore` flag or AbortController) | same page | vitest with fake timers: resolve responses out of order, assert last wins | 0 stale writes | MISSING |
+| R5 | `memo` only where a component re-renders often with the same props AND is expensive; a new object/array/function prop defeats it; measure in production mode with the React Profiler | [react.dev: memo](https://react.dev/reference/react/memo) | Profiler-based vitest on the 5 hottest components (voice stage, twin HUD, ticker, tree, study paper) counting commits per scripted event | commits per 20 Hz event = 1 or 0 for static siblings (ASSUMPTION) | MISSING |
+| R6 | With React Compiler enabled, hand-written `memo` is usually unnecessary | same page | `babel-plugin-react-compiler` in the Vite build + `eslint-plugin-react-compiler` equivalent; decide once | build passes with compiler on | MISSING (decision, not a check) |
+| R7 | Selectors must return stable references; a selector that builds a new object re-renders on every store change; use `useShallow` | Zustand docs (page 404 at the URL I tried; rule is from Zustand's own guidance, UNVERIFIED here) | vitest: mount with a selector spy and count renders after an unrelated store write | 0 renders | MISSING |
+| R8 | `lazy()` declared at module top level; wrapped in `Suspense` with a fallback; an Error Boundary beside it for failed chunk loads | [react.dev: lazy](https://react.dev/reference/react/lazy) | `pageLoaders.test.ts` exists for routing; add a grep test that `lazy(` never appears inside a function body, and a test that each lazy route has an Error Boundary | 0 violations | PARTIAL (`pageLoaders.test.ts`, `imports.test.ts`) |
+| R9 | Virtualise only a long list that measurably janks (the source gives no item count); windowing keeps rendered nodes tied to the window | [web.dev: virtualize long lists](https://web.dev/articles/virtualize-long-lists-react-window) | DOM-node count test per view (see C5) and a rule: any `.map` over a list whose data source can exceed 100 rows is flagged for review (100 is an ASSUMPTION) | see C5 | MISSING |
+| R10 | Keep React rendering pure; fix re-render bugs in the component, do not mask with memo | memo page, principles 3 to 5 | `react/rules-of-hooks` (on); React `StrictMode` double-render in dev + vitest `<StrictMode>` smoke for every page | 0 console errors | PARTIAL |
+
+#### 2. CSS performance
+
+| # | Rule | Source | Automatic check | Threshold | Status |
+|---|---|---|---|---|---|
+| C1 | Animate only `transform` and `opacity` (the only two the compositor handles alone); width, height, top, left force layout | [web.dev: compositor-only](https://web.dev/articles/stick-to-compositor-only-properties-and-manage-layer-count), [web.dev: rendering performance](https://web.dev/articles/rendering-performance), [web.dev: CLS](https://web.dev/articles/cls) | extend `ww/css-lint.test.ts` to all of `src/`: fail on `transition`/`@keyframes` that name any other property. Spec 14.1 already lists the `rise` keyframe still animating `filter` | 0 non-compositor animated properties except the documented paint-only exceptions (colour 100 to 160 ms, `clip-path`, SVG `stroke-dashoffset`; spec 10.1 rule 3) | PARTIAL (ww only) |
+| C2 | `will-change` is a last resort, set narrowly, removed after use; a global or large-container `will-change` hurts | [MDN: will-change](https://developer.mozilla.org/en-US/docs/Web/CSS/will-change), compositor page | css-lint: count `will-change` declarations; ban on `*`, `body`, `.main` | at most 8 in the whole CSS (spec 14.1); repo has 1 today (grep, 2026-11-12) | PARTIAL |
+| C3 | Layer count: each layer costs memory; keep compositing time near 4 to 5 ms during scroll/transition; inspect layers in the Layers panel (the source gives no max layer count) | compositor page | Playwright CDP `LayerTree.enable` + count layers on route jump; `interaction-budget.spec.ts` already caps layers at 6 or 8 on a jump per its header comment | at most 6 steady, 8 on a jump (REPO, from the spec header) | PARTIAL |
+| C4 | `content-visibility: auto` plus `contain-intrinsic-size: auto <guess>` on long off-screen sections; the source measured 232 ms -> 30 ms initial render and says to expect 50 % or more | [web.dev: content-visibility](https://web.dev/articles/content-visibility) | css-lint requires `contain-intrinsic-size` wherever `content-visibility` appears; Playwright trace compares render time before/after on the longest scrolling view | rendering cost down >= 50 % on the long views (source expectation) | MISSING |
+| C5 | Keep the DOM small: Lighthouse warns above 800 nodes and fails above 1,400; large DOMs slow style/layout and worsen INP | [web.dev: DOM size and interactivity](https://web.dev/articles/dom-size-and-interactivity) | Playwright: `document.querySelectorAll('*').length` per route (elements only, so it under-counts Lighthouse nodes) | warn 800, fail 1,400 (the 3D/SVG art and `.ascii` views may need a named exception) | MISSING |
+| C6 | Use `contain: layout`/`paint`/`content` on isolated widgets so changes do not recalc the page; `strict` needs fixed size | [MDN: contain](https://developer.mozilla.org/en-US/docs/Web/CSS/contain) | css-lint: every `.card`, `.panel`, live widget class in an allow-list declares `contain`; Chromium trace `RecalcStyle` element count on one widget update | allow-list is a project decision | MISSING |
+| C7 | Selector cost: complex selectors add to every style recalculation, especially when elements are inserted during an interaction | DOM-size page (qualitative). No numeric limit in any source I fetched | css-lint: max descendant-combinator depth 3, no universal `*` descendant selectors (ASSUMPTION thresholds) | depth <= 3 | MISSING |
+| C8 | Explicit width/height or aspect-ratio on images and reserved space for late content, and `size-adjust` on fallback fonts, so CLS stays low | CLS page, font page | Playwright `layout-shift` PerformanceObserver over scripted flows | CLS <= 0.1 good, 0.25 poor (source; 75th percentile field figure, so lab use is a proxy) | MISSING |
+
+#### 3. JavaScript complexity and memory hygiene
+
+| # | Rule | Source | Automatic check | Threshold | Status |
+|---|---|---|---|---|---|
+| J1 | Break up tasks over 50 ms; yield with `scheduler.yield()` (Chrome 129+, Edge 129+; WebView2 follows Chromium, confirm runtime version on the laptop) with a `setTimeout` fallback; `isInputPending()` is no longer recommended | [web.dev: optimize long tasks](https://web.dev/articles/optimize-long-tasks) | Playwright `PerformanceObserver({type:'longtask'})` on route change, palette open, voice stage 10 s | 0 long tasks > 50 ms on route change or palette open (spec 14.1 INP row) | MISSING (spec proposes it) |
+| J2 | Diagnose with Long Animation Frames: a frame is long when the render update is delayed beyond 50 ms; read `blockingDuration` and `scripts[]` for attribution (scripts over 5 ms listed) | [Chrome: long animation frames](https://developer.chrome.com/docs/web-platform/long-animation-frames) | same Playwright harness with `PerformanceObserver({type:'long-animation-frame', buffered:true})`; guard with `supportedEntryTypes` | sum of `blockingDuration` per scripted flow <= 100 ms (the article's example filter, ASSUMPTION as a budget) | MISSING |
+| J3 | Hot-path complexity: no O(n^2) inside a per-frame or 20 Hz handler; no layout reads after writes in the same tick (forced reflow) | rendering-performance page (layout cost); the O(n) rule itself is engineering practice, no source gives a number | a vitest micro-bench that runs the handler with n and 4n inputs and asserts time ratio <= 6 (ASSUMPTION: catches quadratic growth); LoAF `forcedStyleAndLayoutDuration` in Playwright | ratio <= 6; forcedStyleAndLayout = 0 on frame loops | MISSING |
+| J4 | Every `addEventListener`, timer, observer, rAF and WebSocket created in an Effect is removed in cleanup; prefer `{ signal }` to remove many listeners at once | [React: Effects cleanup](https://react.dev/learn/you-might-not-need-an-effect) (fetch cleanup); MDN addEventListener page was blocked, `signal` option UNVERIFIED here | the spec's `__loops` loop registry (spec 14.3) + a Playwright test: mount, leave route, assert registry empty | 0 live loops/listeners after leaving a view | MISSING (registry proposed, not built) |
+| J5 | Detect leaks with forced GC then compare the JS heap; look for detached DOM trees in heap snapshots; watch the node and listener counters | [Chrome DevTools: memory problems](https://developer.chrome.com/docs/devtools/memory-problems) | `e2e/soak.spec.ts` via CDP `Runtime.getHeapUsage` after `HeapProfiler.collectGarbage`; `Memory.getDOMCounters` for nodes and listeners | heap growth < 10 % over 30 min (spec 14.1; the Chrome page gives no number) | MISSING |
+| J6 | Caches are bounded (LRU with a max size or TTL); no unbounded `Map`/array growing from the event bus | engineering practice; no primary source fetched gives a number | vitest per cache: push 10x capacity, assert size <= capacity; grep test listing every module-level `new Map()`/`[]` that is written to at runtime, each needing a `// bounded by` comment | size <= declared max | MISSING |
+| J7 | No `eval`, `new Function`, string `setTimeout` | [OWASP DOM XSS](https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html), [Google TS guide](https://google.github.io/styleguide/tsguide.html) (bans `eval`, `debugger`, `with`) | oxlint `no-eval`, `no-implied-eval`, `no-new-func`, `no-debugger` (names to confirm) | 0 | MISSING |
+
+#### 4. Measurable budgets
+
+| # | Metric | Number the source gives | Source | How checked here | Status |
+|---|---|---|---|---|---|
+| B1 | INP | good <= 200 ms, needs improvement 200 to 500, poor > 500; field p75; clicks, taps and key presses count (hover and scroll do not) | [web.dev: INP](https://web.dev/articles/inp) | Playwright `event` PerformanceObserver on scripted flows; lab p95 <= 200 ms (spec 14.1). Field p75 cannot be measured in a local app | MISSING (spec proposes it) |
+| B2 | Long task | > 50 ms | [web.dev: optimize long tasks](https://web.dev/articles/optimize-long-tasks) | see J1 | MISSING |
+| B3 | Frame time | 16.66 ms per frame at 60 fps; about 10 ms of your own work after browser overhead | [web.dev: rendering performance](https://web.dev/articles/rendering-performance) | CDP `Performance.getMetrics` (ScriptDuration, LayoutDuration, RecalcStyleDuration) over a scripted 10 s; `perf-trace.spec.ts` measures p5 fps but asserts no floor (headless Chromium rasterises in software, so absolute numbers need the real window) | PARTIAL |
+| B4 | Compositing | about 4 to 5 ms during scroll/transition | compositor page | DevTools trace, real window only | MISSING |
+| B5 | CLS | good <= 0.1, poor > 0.25 | [web.dev: CLS](https://web.dev/articles/cls) | `layout-shift` observer | MISSING |
+| B6 | DOM size | 800 warn, 1,400 fail (Lighthouse) | DOM-size page | see C5 | MISSING |
+| B7 | JS per route | 170 KB compressed critical-path is the source's default baseline for slow-3G mobile; this is a web-delivery number and NOT binding for a local WebView2 app. The spec's own limits are the working budget: entry grows at most 10 % vs recorded baseline (90.3 KB gzip today), lazy section <= 120 KB gzip, Senses twin chunk <= 190 KB gzip | [web.dev: performance budgets 101](https://web.dev/articles/performance-budgets-101) for method (quantity + milestone + rule-based, enforce in the build); numbers from spec 14.1 | extend `bundle-budget.mjs`: gzip each emitted chunk, compare to `budget-baseline.json` | MISSING (script has no per-chunk gzip) |
+| B8 | CSS per route | none in sources. Spec: shared at most 30 KB gzip, each section at most 12 KB gzip, lazy (ASSUMPTION in the spec) | spec 14.1 | same script | MISSING |
+| B9 | Fonts | WOFF2 only (about 30 % smaller than WOFF); subset with `unicode-range`; a variable font replaces several statics but is bigger than one static; `font-display: swap` gives 0 ms block, `optional` is best for performance; fewer fonts is best. No byte budget in the source. Spec: <= 3 families, <= 5 woff2, <= 150 KB total (today 17 files, 353 KB) | [web.dev: font best practices](https://web.dev/articles/font-best-practices) | script scans built CSS `@font-face` for format, `font-display`, count, and sums file sizes in `dist-e2e` | MISSING |
+| B10 | Images | no source number fetched; spec: no raster > 200 KB on a route, <= 400 KB art per section (ASSUMPTION) | spec 14.1 | script lists assets per route | MISSING |
+| B11 | Idle CPU / hidden | spec: <= 1 % of one core over 60 s focused; 0 rAF and no timer < 1 s when hidden (project targets, no external source) | spec 14.1 | CDP `Performance.getMetrics` TaskDuration delta (main thread only) | MISSING |
+
+Rule from the budgets source worth keeping: when a budget is exceeded, optimise, remove, or do not add the feature. Budgets must fail the build, not just warn.
+
+#### 5. Front-end security (token-authenticated local app)
+
+| # | Rule | Source | Automatic check | Threshold | Status |
+|---|---|---|---|---|---|
+| S1 | XSS sinks: `innerHTML`, `outerHTML`, `document.write`, `setAttribute('on*')`, string `eval`/timers. Use `textContent` or DOM APIs. If markup must be rendered, sanitise with DOMPurify (a sanitiser filters, it does not sandbox) | [OWASP DOM XSS Prevention](https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html) | oxlint `react/no-danger` (confirm name) with an allow-list of exactly `ww/math/MathText.tsx`; vitest grep for `innerHTML`/`insertAdjacentHTML`/`document.write` in `src` outside an allow-list | allow-list size 1 (+ three.js files if they really assign `innerHTML`; check why they do) | MISSING. `MathText.tsx` renders KaTeX output: KaTeX is the sanitising renderer, so pin `trust:false` (its default) and add a test that `\href{javascript:...}` and `\htmlClass` do not produce a live link or handler (KaTeX option behaviour is from my knowledge, not fetched: UNVERIFIED) |
+| S2 | CSP: start from `default-src 'self'; frame-ancestors 'self'; form-action 'self'`, or tighter `default-src 'none'` plus explicit `script-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self'`; add `object-src 'none'`, `base-uri 'none'`; avoid `unsafe-inline` and `unsafe-eval`; use nonces/hashes with `strict-dynamic` where inline is needed; roll out with `Content-Security-Policy-Report-Only` first; CSP is a second layer after XSS prevention | [OWASP CSP Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html) | pytest on the FastAPI app: `GET /` response header contains the policy; Playwright asserts zero `securitypolicyviolation` events across the e2e suite. For a local app also `connect-src 'self' ws://127.0.0.1:<port>` for the WebSocket (ASSUMPTION: needs testing in WebView2) | header present on the SPA shell; 0 violations | MISSING on the main app (phone pages have one). Vite dev and three.js workers may need `worker-src blob:` and KaTeX/inline styles may need `style-src 'unsafe-inline'`: check, do not assume |
+| S3 | Token handling: do not keep session secrets in localStorage (any script can read it; XSS reads and writes it); sessionStorage is the right scope when data need not outlive the tab; treat stored data as untrusted | [OWASP HTML5 Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html) | vitest grep: no `localStorage.setItem` with a key matching `token|secret|key|pass`; test that after reading `#t=` the fragment is cleared from `location` (`history.replaceState`) | 0 hits | PARTIAL. Token is in sessionStorage (matches the rule). Backend uses `hmac.compare_digest` and a Host allow-list (good). I did not confirm that the fragment is removed from the URL after reading; WebSocket token rides in `?t=` (it can land in logs, so make sure server access logs drop the query) |
+| S4 | `postMessage`: pass an explicit target origin, never `"*"`; on receive, check `event.origin` against an exact match (a substring or `indexOf` check is bypassable) and validate `data`; never `eval` or `innerHTML` message data | [OWASP HTML5 Security](https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html) (MDN postMessage page was blocked, unverified) | grep test: every `postMessage(` has a non-`*` second argument; every `addEventListener('message'` handler's first statement checks `e.origin`/`e.source` | 0 violations | MISSING (no `postMessage` hits in `src` per grep on `.ts/.tsx`; keep it that way and let the test guard it) |
+| S5 | WebView2: treat all web content as insecure; check `Source` before posting messages; validate web messages; prefer `PostWebMessageAsJson`; set `AreHostObjectsAllowed=false`, `IsWebMessageEnabled=false`, `AreDefaultScriptDialogsEnabled=false` when not needed; block unexpected navigation in `NavigationStarting`; run the host at standard integrity | [Microsoft Learn: WebView2 security](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/security) | manual checklist item (host is `JARVIS.pyw`; spec 14.6 is the manual list); a pytest on the host settings if the host exposes them | each setting explicit | MISSING (not inspected here; owner's OK needed to touch the host) |
+| S6 | Iframes of untrusted content get `sandbox` | OWASP HTML5 page | grep for `<iframe` | 0 without `sandbox` | MISSING (none expected) |
+| S7 | Dependency risk: install with `npm ci` (lockfile mismatch aborts), run SCA in CI, `ignore-scripts=true` with an allow-list, do not upgrade the hour a version appears, verify provenance, generate an SBOM | [OWASP NPM Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/NPM_Security_Cheat_Sheet.html) (the page does not name `npm audit`; running it is common practice) | `npm ci --ignore-scripts && npm audit --omit=dev --audit-level=high` in a script; fail on high | 0 high/critical in prod deps | MISSING (no CI folder found) |
+| S8 | Anything from the backend (AI replies, file names, transcripts) is untrusted text: render as React text children, never as HTML | OWASP DOM XSS page + React's default escaping | S1 grep catches the exception sites | see S1 | PARTIAL |
+
+#### 6. Testing standards
+
+| # | Rule | Source | Automatic check | Threshold | Status |
+|---|---|---|---|---|---|
+| T1 | Pyramid/trophy: many fast unit and component tests, fewer e2e (critical journeys, defect-prone areas); static analysis is the base of the trophy; a small visual layer fits small projects | [web.dev: testing strategies](https://web.dev/articles/ta-strategies) | count by layer in a script: vitest files vs Playwright specs (today about 45 vs 20, so the shape is already base-heavy) | e2e share <= 35 % of test files (ASSUMPTION) | HAVE (shape), no gate |
+| T2 | A good component test resembles real use: query by role/label/text first, assert user-visible output, do not poke component instances or internals | [Testing Library guiding principles](https://testing-library.com/docs/guiding-principles/) (the query-priority page was blocked; "getByRole first" is from Playwright's page below and Testing Library's published priority, UNVERIFIED here) | `@testing-library/react` + `eslint-plugin-testing-library` equivalents are not in the repo; add `@testing-library/react` and `@testing-library/user-event`; lint rule ideas: no `container.querySelector` in tests, no `.instance()`, no assertions on class names | 0 class-name or `querySelector` assertions in new tests (ASSUMPTION) | MISSING (the current ww tests use bespoke harnesses; ask the owner before adding the dependency, per the "ask for installs" rule) |
+| T3 | E2E tests user-visible behaviour, isolated per test, mocks external services with `page.route`, uses `getByRole` and other user-facing locators, web-first auto-retrying assertions (`await expect(locator).toBeVisible()`), no CSS/XPath chains | [Playwright best practices](https://playwright.dev/docs/best-practices) | `@typescript-eslint/no-floating-promises` equivalent (the page recommends it) + `tsc --noEmit` on `e2e/tsconfig.json` (exists); grep ban on `waitForTimeout` | 0 `waitForTimeout`; 0 floating promises | PARTIAL (e2e tsconfig exists, no lint rule for floating promises: oxlint `typescript/no-floating-promises` needs type-aware mode, unverified) |
+| T4 | Flake prevention: retries only as a signal (a test that fails then passes is reported "flaky"); trace on first retry; run the suite on every commit and PR; Linux on CI; consistent OS and browser versions for visual tests | [Playwright retries](https://playwright.dev/docs/test-retries), [best practices](https://playwright.dev/docs/best-practices) | config today: `retries: 0`, `workers: 1`, list reporter. Add `trace: 'on-first-retry'`, nightly `--repeat-each=5` on the budget specs, and treat any "flaky" report as a failure. (`failOnFlakyTests` and `--repeat-each` are NOT documented on the retries page I fetched; both exist in Playwright CLI from my knowledge: UNVERIFIED here) | 0 flaky in 5 repeats | MISSING |
+| T5 | Visual regression: same environment as baseline, commit the `-snapshots` folder, review diffs, per-platform names (`name-chromium-win32.png`), defaults `threshold: 0.2`, `maxDiffPixels` unset; move the mouse off hover targets with `page.mouse.move(-1, -1)`; hide volatile elements with `stylePath` | [Playwright snapshots](https://playwright.dev/docs/test-snapshots) | `themes-visual.spec.ts`, `study-visual.spec.ts` exist with committed snapshots. Missing: JARVIS sections, forced-colours snapshots, an explicit `maxDiffPixels` (suggest 0 to 50, ASSUMPTION), animation freeze | snapshots for every section x light/dark | PARTIAL (Well Wisher and Study only; masking and animation freezing not covered by the page I fetched) |
+| T6 | Mutation testing measures test quality: score = detected / valid; killed = a test failed; survived = a test is missing; no-coverage counts as undetected; timeout counts as detected. Defaults `high 80, low 60, break null` | [Stryker mutant states](https://stryker-mutator.io/docs/mutation-testing-elements/mutant-states-and-metrics/), [Stryker config](https://stryker-mutator.io/docs/stryker-js/configuration/) | `@stryker-mutator/core` + vitest runner on pure-logic folders only (`game/`, `ww/math`, `lib/`, store reducers), `--incremental`, `break: 60` | score >= 60 break, >= 80 target | MISSING (not installed; ask owner) |
+| T7 | Accessibility is tested, not hoped for: axe per route, contrast over every token pair, 44 px targets, forced colours | spec 14.1 (axe-core named there); WCAG 2.2 in the spec | `@axe-core/playwright` per route; `tokens.test.ts` (exists); `hit-areas.spec.ts` (exists); `clay-forced.spec.ts` (exists) | 0 serious/critical axe violations; text 4.5:1, boundaries 3:1 | PARTIAL (axe missing, the rest exist) |
+| T8 | Static analysis first: `tsc -b`, oxlint, springs check, bundle check run as one `verify` script | web.dev trophy; repo `ww:verify` script | `npm run ww:verify` exists (tsc, vitest ww, springs, bundle, playwright) | exits 0 | PARTIAL (WW only; no JARVIS equivalent) |
+
+#### 7. Formatting and review conventions
+
+| # | Rule | Source | Automatic check | Threshold | Status |
+|---|---|---|---|---|---|
+| F1 | Use `const` by default, `let` only when reassigned, never `var`; `===` except `== null`; no `new Array()`/`new Object()`; `for...of` not `for...in`; every `switch` has `default` and no fallthrough; throw only `Error`; no empty `catch` without a comment | [Google TS style guide](https://google.github.io/styleguide/tsguide.html), [Airbnb JS](https://github.com/airbnb/javascript) (`prefer-const`, `no-var`, `no-param-reassign`, `prefer-template`, `array-callback-return` named there) | oxlint `eqeqeq`, `no-var`, `prefer-const`, `no-empty`, `default-case`, `array-callback-return`, `no-fallthrough` (names to confirm); tsconfig already has `noFallthroughCasesInSwitch` | 0 errors | MISSING (3 rules only) |
+| F2 | Use `unknown` instead of `any`; avoid `as` and `!` unless the reason is obvious; do not use `@ts-ignore`; `interface` for object shapes; `import type` | Google TS guide | oxlint `typescript/no-explicit-any`, `typescript/no-non-null-assertion`, `typescript/ban-ts-comment`, `typescript/consistent-type-imports`; tsconfig `strict: true` (not found in `tsconfig.app.json`: verify) | 0 `any` in new code; a ratchet file counting existing ones that may only go down | MISSING |
+| F3 | Named exports, not default exports (exception: React `lazy` needs a default export, per the React page) | Google TS guide vs React lazy page: the two conflict for lazy routes | oxlint `import/no-default-export` with an override for `pages/**` | allow-list = lazy route modules | MISSING |
+| F4 | Functions small (Google: consider splitting over about 40 lines); descriptive names; `UpperCamelCase` types, `lowerCamelCase` values, `CONSTANT_CASE` module constants | Google TS guide | oxlint `max-lines-per-function` (warn at 80, ASSUMPTION: 40 is too tight for JSX components), `max-lines` 400 per file | warn only | MISSING |
+| F5 | One formatter, run in CI, so review never argues about whitespace | Airbnb/Google guides assume it; no tool named by them | `prettier --check` (or `oxfmt` if adopted) + `.editorconfig` | 0 diffs | MISSING (ask owner for the install) |
+| F6 | Project conventions already binding here: comments explain WHY with the numbers that decided it; commits in first person with the measurement; tests against scratch data dirs | repo `CLAUDE.md` | review only | n/a | HAVE (convention) |
+
+#### 8. What to build first (highest value per hour)
+
+1. **Turn on the free rules.** Add to `.oxlintrc.json`: `react/exhaustive-deps`, `react/no-danger` (override for `ww/math/MathText.tsx`), `no-eval`, `no-implied-eval`, `no-new-func`, `eqeqeq`, `no-var`, `prefer-const`, `typescript/no-explicit-any` (warn first), `typescript/ban-ts-comment`, `no-debugger`. Confirm each name with `npx oxlint --rules`; ratchet counts so existing code does not block.
+2. **Make `bundle-budget.mjs` a real budget.** Per-chunk gzip against `budget-baseline.json`, CSS sizes, font count/format/`font-display`/total bytes, asset sizes; self-test it. Covers B7 to B10.
+3. **One Playwright "vitals" spec.** In one page session collect `longtask`, `long-animation-frame`, `event` (INP proxy), `layout-shift`, `Memory.getDOMCounters`, `document.querySelectorAll('*').length` for each route, and assert J1, J2, B1, B5, C5 thresholds. Run it with `--repeat-each=3` nightly (T4). Headless software rasterisation means frame-time numbers need a real-window session; list that as manual.
+4. **CSP on the main app** in report-only mode first (S2), with a Playwright listener for `securitypolicyviolation`. Confirm KaTeX inline styles, three.js workers and the WebSocket origin before enforcing.
+5. **Grep-class vitests** (cheap, deterministic): sinks (S1), `postMessage` (S4), token in localStorage (S3), `lazy(` at module level (R8), effects with listeners lack cleanup (R3/J4), `waitForTimeout` in e2e (T3), `will-change` count (C2), extend `css-lint` from `ww/` to `src/` (C1).
+6. **Install requests for the owner (rule: ask first):** `@testing-library/react`, `@axe-core/playwright`, `@stryker-mutator/core` + `@stryker-mutator/vitest-runner`, `prettier`, and optionally `eslint-plugin-testing-library` (needs ESLint, so likely skip; use review).
+
+#### 9. Could not verify (say so, do not assume)
+
+- Testing Library query-priority page, MDN `postMessage`, MDN `addEventListener`: fetch blocked ("unable to verify domain") or connection reset. Rules S4 and J4 rest on OWASP and React pages instead; the `signal` option and "getByRole first" are from memory.
+- Zustand `useShallow` docs: both URLs tried returned 404. Rule R7 is unverified against a primary source.
+- Playwright `trace: 'on-first-retry'` appears in the best-practices page; `--repeat-each` and `failOnFlakyTests` did not appear on the retries page I fetched.
+- Lighthouse/INP numbers are **field** figures (75th percentile). A local lab test is a proxy; the spec correctly says lab p95.
+- 170 KB is a slow-3G web budget from web.dev, not a limit for a local WebView2 app. No primary source gave a number for CSS per route, selector depth, cache size, list-virtualisation item count, or maximum layer count; those thresholds above are marked ASSUMPTION.
+- oxlint rule names were not executed against the installed oxlint 1.81; confirm before use.
+- I did not open the WebView2 host (`JARVIS.pyw`) or `tsconfig.json`; `strict` and the WebView2 settings are therefore unchecked.
+- KaTeX `trust`/`\href` behaviour is from knowledge, not fetched.
+
+#### 10. Sources fetched (26 returned content)
+
+- web.dev: [INP](https://web.dev/articles/inp), [optimize long tasks](https://web.dev/articles/optimize-long-tasks), [compositor-only properties](https://web.dev/articles/stick-to-compositor-only-properties-and-manage-layer-count), [content-visibility](https://web.dev/articles/content-visibility), [DOM size](https://web.dev/articles/dom-size-and-interactivity), [rendering performance](https://web.dev/articles/rendering-performance), [CLS](https://web.dev/articles/cls), [font best practices](https://web.dev/articles/font-best-practices), [performance budgets 101](https://web.dev/articles/performance-budgets-101), [virtualize lists](https://web.dev/articles/virtualize-long-lists-react-window), [testing strategies](https://web.dev/articles/ta-strategies)
+- Chrome: [long animation frames](https://developer.chrome.com/docs/web-platform/long-animation-frames), [DevTools memory problems](https://developer.chrome.com/docs/devtools/memory-problems)
+- MDN: [contain](https://developer.mozilla.org/en-US/docs/Web/CSS/contain), [will-change](https://developer.mozilla.org/en-US/docs/Web/CSS/will-change)
+- React: [You might not need an effect](https://react.dev/learn/you-might-not-need-an-effect), [memo](https://react.dev/reference/react/memo), [lazy](https://react.dev/reference/react/lazy)
+- OWASP: [DOM XSS](https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html), [CSP](https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html), [HTML5 Security](https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html), [NPM Security](https://cheatsheetseries.owasp.org/cheatsheets/NPM_Security_Cheat_Sheet.html)
+- Microsoft: [WebView2 security](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/security)
+- Style: [Google TS guide](https://google.github.io/styleguide/tsguide.html) (first 100k of 127k chars read), [Airbnb JS](https://github.com/airbnb/javascript) (README excerpt only; the React guide was not read)
+- Testing: [Testing Library guiding principles](https://testing-library.com/docs/guiding-principles/), [Playwright best practices](https://playwright.dev/docs/best-practices), [Playwright snapshots](https://playwright.dev/docs/test-snapshots), [Playwright retries](https://playwright.dev/docs/test-retries), [Stryker mutant states](https://stryker-mutator.io/docs/mutation-testing-elements/mutant-states-and-metrics/), [Stryker config](https://stryker-mutator.io/docs/stryker-js/configuration/)
+
+#### What this changes
+
+Nothing in code yet. It gives the overhaul a checklist whose rows can each become a lint rule, a vitest, a Playwright measurement or a build-script assertion, and shows that today only 3 lint rules, a regex-level bundle check, a WW-only CSS lint, contrast tests, hit-area/keyboard/forced-colour/visual specs and a motion budget exist. The largest gaps are the vitals spec (INP, long tasks, CLS, DOM size, heap), per-chunk/CSS/font budgets, a CSP on the main app, axe, and mutation testing.
+
+### Strand C: licence register
+
+Date: 2026-11-12. Public-safe. This is a licence reading, not legal advice; a qualified reviewer must confirm before any sale (spec section 2.5, Strand 4).
+
+#### Question
+
+For the JARVIS and Well Wisher stack: what licence covers each component, may it be used commercially, what does it oblige, and what must a separable commercial product do? Second: do the README and in-app strings break the "may not say" rules of spec section 2.5?
+
+#### Method and what was verified
+
+- Primary sources fetched 2026-11-12: upstream LICENSE files (GitHub raw), Hugging Face model-card metadata, creativecommons.org, openfontlicense.org, pymupdf.io.
+- Installed packages (versions in `app/ui/package.json`, `requirements/requirements.gpu.txt`) were read from local metadata and `node_modules/*/LICENSE`. That proves the declared licence of the installed copy, not the upstream repo.
+- "Verified" = a licence text or declared field was read. "Unverified" = not read; stated why.
+- Not verified at all: legal effect of any licence for the owner's situation; transitive dependencies beyond those named; licences of the exact Ollama `qwen3` blob and the CTranslate2 Whisper conversion actually on disk.
+
+#### Headline findings
+
+1. **openWakeWord pretrained models (including `hey_jarvis_v0.1`, which `core/jarvis.py:208` loads) are CC BY-NC-SA 4.0: non-commercial.** The code is Apache-2.0. A paid product must not ship these models. Action: train or source a permissively licensed wake word, or drop wake word from the commercial build.
+2. **PyMuPDF (`pymupdf==1.28.0`, study-library PDF text) is AGPL-3.0 or an Artifex commercial licence.** A closed commercial product needs the commercial licence or a replacement. Action: swap for a permissive PDF text extractor, or buy the licence.
+3. **Silero VAD is MIT** (LICENSE file read). The README alt text says "CC BY-NC 4.0" while the badge image says MIT, which is the conflict flagged in Strand 5; the LICENSE file governs the repo, and the README does not state a separate model licence. Residual doubt is small; keep the LICENSE text in the notice file and ask the maintainers (issue) if a sale is planned.
+4. **LGPL/GPL pieces in the Python stack** (`edge-tts` LGPLv3, `pygame` LGPL, `phonemizer` GPLv3+ and `espeakng-loader` which bundles espeak-ng) need dynamic-linking and replaceability handling. `phonemizer` is GPL: unverified whether the code imports it directly or only `kokoro-onnx` does; if it is linked into a shipped binary, it forces GPL on the combination. Treat as a blocker to resolve before sale.
+5. **`edge-tts` calls Microsoft Edge's online read-aloud service.** Its README gives no commercial terms. Unverified whether that use is permitted in a product; assume not until read. It also breaks the "local-first, offline" claim for those voices.
+6. Fonts are OFL-1.1 and fine for a commercial app if the notice and licence text ship. A digits-only Doto subset is a Modified Version: allowed, but the licence travels with it.
+7. Radix UI primitives and Motion are **not dependencies** in `app/ui/package.json` today (no match). Rows are kept for the spec's planned use; licences verified as MIT.
+
+#### The register
+
+Commercial use = may a closed, paid product ship it. "Notice file" = a THIRD_PARTY_NOTICES entry with copyright line and licence text.
+
+| Component | Licence (exact, as read) | Commercial use | Obligations | Action for a separable commercial product | Source |
+|---|---|---|---|---|---|
+| Silero VAD (`silero_vad_v6.onnx` in `core/endpoint.py:82`; copy `silero_vad.onnx` inside openwakeword package) | MIT License, "Copyright (c) 2020-present Silero Team". README badge alt text says CC BY-NC 4.0 but badge image says MIT | Yes (LICENSE file). README conflict noted | Keep copyright and licence text; notice file | Ship with notice. Ask maintainers to fix README before sale. Confirm the exact v6 .onnx came from the MIT repo | [LICENSE](https://raw.githubusercontent.com/snakers4/silero-vad/master/LICENSE), [README](https://github.com/snakers4/silero-vad) |
+| openWakeWord code (`openwakeword==0.6.0`) | Apache-2.0 ("All of the code in this repository is licensed under the Apache 2.0 license") | Yes | Licence copy, NOTICE if present, state changes | Ship with notice | [repo](https://github.com/dscripka/openWakeWord) |
+| openWakeWord pretrained models (`hey_jarvis_v0.1`, `embedding_model`, `melspectrogram`) | CC BY-NC-SA 4.0 ("licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International license"; reason given: training data with unknown or restrictive licences) | **No** (NonCommercial: "primarily intended for commercial advantage or monetary compensation") | Attribution, link, state changes; ShareAlike on adaptations | Do not ship in a paid product. Replace with own-trained model on licensed data, or remove wake word. Flag `jarvis.wake-custom` stays. Maintainer invites an issue for permissive models | [repo](https://github.com/dscripka/openWakeWord), [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) |
+| py-fsrs | MIT License, "Copyright (c) 2022 Open Spaced Repetition" | Yes | Notice | Ship with notice (not installed yet; install needs owner OK) | [LICENSE](https://raw.githubusercontent.com/open-spaced-repetition/py-fsrs/main/LICENSE) |
+| ts-fsrs | MIT License, "Copyright (c) 2026 Open Spaced Repetition" | Yes | Notice | Ship with notice (not installed) | [LICENSE](https://raw.githubusercontent.com/open-spaced-repetition/ts-fsrs/main/LICENSE) |
+| `fsrs-rs` crate | Unverified: not fetched in this run | Unverified | Unverified | Read its LICENSE before use; spec A.R04 names it | none |
+| faster-whisper 1.2.1 | MIT License, "Copyright (c) 2023 SYSTRAN" (also installed metadata MIT) | Yes | Notice | Ship with notice | [LICENSE](https://raw.githubusercontent.com/SYSTRAN/faster-whisper/master/LICENSE) |
+| Whisper code (reference) | MIT License, "Copyright (c) 2022 OpenAI"; the LICENSE text does not mention weights | Yes (code) | Notice | none | [LICENSE](https://raw.githubusercontent.com/openai/whisper/main/LICENSE) |
+| Whisper large-v3-turbo weights | Hugging Face metadata "License: mit" for `openai/whisper-large-v3-turbo` | Yes (per metadata) | Notice | The CTranslate2 conversion actually downloaded by faster-whisper is a separate repo: its licence tag is unverified. Check it, or convert from the OpenAI weights | [model card](https://huggingface.co/openai/whisper-large-v3-turbo) |
+| Qwen3-4B-Instruct (2507) | Hugging Face metadata "License: apache-2.0" for `Qwen/Qwen3-4B-Instruct-2507` | Yes | Licence copy, notice, state changes | Ship with notice or let user pull it. The Ollama-hosted blob is a separate packaging: unverified. Qwen3 GitHub LICENSE URL returned 404, so only the HF metadata was read | [model card](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507) |
+| bge-small-en-v1.5 | MIT; card states "The released models can be used for commercial purposes free of charge." | Yes | Notice | Ship with notice | [model card](https://huggingface.co/BAAI/bge-small-en-v1.5) |
+| multilingual-e5-small | Hugging Face metadata "license: mit" per search result; direct card fetch failed (network), LICENSE file not opened | Yes (if MIT holds). **Partly unverified** | Notice | Re-read the card before adopting; only matters if R03 picks it | [search listing](https://huggingface.co/intfloat/multilingual-e5-small) |
+| BGE-M3 | Hugging Face metadata "License: mit"; no commercial-use sentence on the page | Yes (per metadata) | Notice | Ship with notice if R03 picks it | [model card](https://huggingface.co/BAAI/bge-m3) |
+| Inter (`@fontsource-variable/inter` 5.3.0) | SIL OFL 1.1, "Copyright (c) 2016 The Inter Project Authors"; no Reserved Font Name in upstream LICENSE | Yes (bundling in a sold app allowed; fonts may not be sold alone) | Copyright, licence notice and licence text (OFL FAQ 1.20); derivatives stay OFL | Ship the OFL text and copyright in the notice file | [upstream](https://raw.githubusercontent.com/rsms/inter/master/LICENSE.txt), [OFL FAQ](https://openfontlicense.org/ofl-faq/) |
+| Geist Mono (`@fontsource-variable/geist-mono`) | SIL OFL 1.1, "Copyright 2024 The Geist Project Authors" (read from the installed package LICENSE; upstream URL guess returned 404) | Yes | As Inter | As Inter | installed `node_modules/@fontsource-variable/geist-mono/LICENSE`, [OFL FAQ](https://openfontlicense.org/ofl-faq/) |
+| Doto (`@fontsource-variable/doto`) | SIL OFL 1.1, "Copyright 2024-2024 The Doto Project Authors (https://github.com/oliverlalan/Doto)" (installed package; upstream not opened) | Yes | As Inter. Subsetting to digits is a Modified Version: if any Reserved Font Name is declared, the subset must be renamed (OFL FAQ 3.1, 5.3). Upstream RFN: unverified | Read upstream OFL header before running the subsetter (spec S6); rename the subset if RFN exists | installed package LICENSE, [OFL FAQ](https://openfontlicense.org/ofl-faq/) |
+| Anton (`@fontsource/anton`) | OFL-1.1 (package metadata) | Yes | As Inter | Spec drops Anton (D21); remove the dependency and the notice | installed package metadata |
+| KaTeX 0.16.21 | The MIT License (MIT), "Copyright (c) 2013-2020 Khan Academy and other contributors" | Yes | Notice | Ship with notice | [LICENSE](https://raw.githubusercontent.com/KaTeX/KaTeX/main/LICENSE) |
+| three.js 0.186.1 | The MIT License, "Copyright 2010-2026 three.js authors" | Yes | Notice | Ship with notice | [LICENSE](https://raw.githubusercontent.com/mrdoob/three.js/dev/LICENSE) |
+| React / react-dom 19.3.0 | MIT (installed metadata); upstream LICENSE not fetched | Yes | Notice | Ship with notice. Upstream unverified | installed package metadata |
+| Radix UI primitives | MIT License, "Copyright (c) 2022 WorkOS". Not in `package.json` | Yes | Notice | Only if adopted | [LICENSE](https://raw.githubusercontent.com/radix-ui/primitives/main/LICENSE) |
+| Motion (motion.dev) | The MIT License (MIT), "Copyright (c) 2024 Motion B.V.". Not in `package.json` | Yes | Notice | Only if adopted | [LICENSE](https://raw.githubusercontent.com/motiondivision/motion/main/LICENSE.md) |
+| zustand 5.0.15, vite 8.3.4, vitest 5.0.3, happy-dom, oxlint, @vitejs/plugin-react | MIT (installed metadata) | Yes | Notice (zustand ships in the bundle; the rest are dev tools, not distributed) | zustand in notice file | installed metadata |
+| lucide-react 1.54.0 | ISC (installed metadata) | Yes | Keep copyright and permission notice | Ship with notice | installed metadata |
+| typescript 6.0.3, @playwright/test 1.56.1 | Apache-2.0 (installed metadata) | Yes (dev tools, not distributed) | none when not shipped | none | installed metadata |
+| PyMuPDF 1.28.0 | "Dual Licensed - GNU AFFERO GPL 3.0 or Artifex Commercial License" | AGPL: source of the whole network-facing app must be offered. Commercial: yes, paid | AGPL source disclosure, same-licence for modifications, keep producer metadata | **Blocker for closed product.** Buy the Artifex licence or replace with a permissive extractor | [pymupdf.io/licensing](https://pymupdf.io/licensing/) |
+| edge-tts 7.3.1 | LGPLv3 (installed LICENSE: "The MIT license is used for 'src/edge_tts/srt_composer.py' only. All remaining files are licensed under the LGPLv3") | Library yes under LGPL terms. The Microsoft service it calls: unverified | LGPL: keep replaceable, ship licence text | Keep as a separate, user-replaceable package. Read Microsoft's service terms before a paid product; consider dropping | installed LICENSE, [repo](https://github.com/rany2/edge-tts) |
+| kokoro-onnx 0.6.1 | MIT ("Copyright (c) 2025 github.com/thewh1teagle"); README: model Apache 2.0 | Yes | Notice | Ship with notice. Voices file licence not stated on the README: unverified | installed LICENSE, [repo](https://github.com/thewh1teagle/kokoro-onnx) |
+| Kokoro-82M weights | "License: apache-2.0" (model card) | Yes | Notice | Ship with notice | [model card](https://huggingface.co/hexgrad/Kokoro-82M) |
+| phonemizer 3.4.0 / espeakng-loader 0.2.4 | phonemizer: GPLv3+ (installed metadata). espeakng-loader: no licence field; it bundles espeak-ng (GPL-3.0 per upstream, not fetched) | GPL obligations if linked | GPL source and licence for the combination | Find who imports it (kokoro-onnx or our code); if shipped, either isolate as a separate process, replace, or accept GPL. **Unverified path** | installed metadata |
+| pygame 2.6.1 | LGPL (installed metadata) | Yes under LGPL | Dynamic linking, licence text | Keep dynamic; ship notice. Or use a permissive playback path | installed metadata |
+| openwakeword's torch, onnxruntime | torch BSD-3-Clause; onnxruntime MIT (installed metadata) | Yes | Notice | Ship with notice | installed metadata |
+| fastapi, ollama (py), langchain-core, sentence-transformers, indic-transliteration, python-docx, python-pptx | MIT / Apache-2.0 (installed metadata) | Yes | Notice | Notice file | installed metadata |
+| pywebview 6.2.1 | BSD 3-Clause (installed metadata) | Yes | Copyright, licence text | Notice. WebView2 runtime is Microsoft's: unverified here | installed metadata |
+| lancedb 0.34.0 | Apache Software License (classifier) | Yes | Notice | Notice | installed metadata |
+| Remaining pins in `constraints.gpu.txt` (about 90 transitive packages) | Not read | Unverified | Unverified | Generate a licence report (pip-licenses, licence-checker) with the owner's OK to install; this run did not | none |
+
+#### Public-copy check against spec section 2.5
+
+Searched: `README.md`, `app/README.md`, `docs/` (excluding the spec and research files, which quote the rules), `app/ui/src`, `app/ui/index.html`, `app/jarvis_app` (excluding tests). Phrases: ADHD, neurodivergent, clinically/scientifically proven, fixes focus, "streak at risk", "break the chain", "we miss you", EndeavorRx, "screens for", "manage your". Also "streak" generally, because the rules ban streak-loss pressure.
+
+##### Direct hits on the do-not-say list
+
+| File and line | Text (shortened) | Rule | Assessment |
+|---|---|---|---|
+| `docs/design/clay-overhaul-brief.md:40` | "Built for daily use with ADHD." | "ADHD mode", efficacy-style ADHD claim | Hit if this brief becomes public copy. It is an internal brief; reword to a stated design basis with no outcome promise, or keep it out of public docs |
+| `docs/design/clay-overhaul-brief.md:41-42` | "engaging enough that he wants to stay: low attention span, immediate feedback" and "proven, researched engagement tactics" | Retention and "proven" claims; ethical-retention principles (2.4) | Internal wording; do not reuse in README or store text |
+| `app/jarvis_app/data/ww_advice.json:72-73` | Advice line citing Barkley's "unifying theory of ADHD" | Product naming ADHD | Not a product claim: it is a sourced line with author, work, year. Spec rule says the wording must be no stronger than the source. Needs a copy-specialist decision; lowest risk if the line never says the app helps ADHD |
+
+##### Streak-loss framing (rule 2.4 and Block C rule 3: "no streak loss")
+
+The code ships a full streak and loss mechanic in the legacy Mission layer (`app/ui/src/germoney/**`, to be removed from Core per the seam cut):
+
+- `app/README.md:28`: "instead of breaking a streak" (README promotes the streak concept; it says the game welcomes you back, which is the allowed tone, but the noun is the banned one).
+- `app/ui/src/germoney/game/engine.ts:247-286` (streakInfo, shield burn, "Streak of N broken", Phoenix, `shieldEarned`); `engine.ts:274` event text "Streak of ${before} broken".
+- `app/ui/src/germoney/game/store.ts:138` toast "New streak starts today. Phoenix is on..."; `store.ts:270` banner "Streak N".
+- `app/ui/src/germoney/game/achievements.ts:31-44` ("Iron Week: A 7-day streak", "Wall Breaker", "Phoenix: Lose a streak, then secure three days straight").
+- `app/ui/src/germoney/game/bridge.ts:40,55,162-163` spoken streak lines.
+- `app/ui/src/germoney/game/characters.ts:38` "Floor secured. The streak lives."
+- `app/ui/src/germoney/pages/Today.tsx:35-52` StreakFlame; `:194` "One small push gets the streak of proof going again"; `:359` "any one rep keeps the streak"; `:564` "{n} day streak"; `:635` "the Floor keeps the streak".
+- `app/ui/src/germoney/game/engine.ts:478` "Rest day: the streak is safe." (soft, but still streak framing).
+- `app/ui/src/germoney/game/engine.ts:291-296` and `store.ts:309`: randomised chest loot with a streak-scaled bonus: a variable reward, which spec 2.4 and Block C rule 3 list as forbidden.
+
+Totals: 15 non-test source files mention streak (engine.ts 21 occurrences, Today.tsx 9, store.ts 9, game.css 7, achievements.ts 7, bridge.ts 6, Proof.tsx 5).
+
+Clean evidence in the new Well Wisher layer: `app/ui/src/ww/life/ThisWeek.tsx:2` and `app/ui/src/ww/proof/cards.tsx:6` state that no streak is shown. Keep that.
+
+##### No hits
+
+"clinically proven", "scientifically proven", "fixes focus", "don't break the chain", "we miss you", "EndeavorRx", "screens for ADHD", "manage your ADHD": zero matches in public README, docs or in-app strings (the "screens for" and "manage your" matches in `Today.tsx:2`, `Drawer.tsx:101` and `ww_advice.json:2` were false positives: "screen" as UI, "manage your" as prose, checked by reading the line).
+
+##### Not checked
+
+- App-store text (does not exist yet).
+- Strings built at runtime from data files beyond the JSON banks grep covered; `germoney/data/bank/*.json` use "habit" and "streak" ("150-problem streak", "Web Security Academy streak" in `skilltree.json:2451,3408`) as goal names: streak as a count of days worked, not a loss threat, but still the banned noun.
+- Voice replies assembled by the model at runtime.
+
+#### What this changes
+
+- Two hard blockers for a paid separable product: openWakeWord pretrained models (non-commercial) and PyMuPDF (AGPL).
+- Three to resolve: the GPL path through `phonemizer`/espeak-ng, the Microsoft service behind `edge-tts`, and the Whisper conversion and Ollama Qwen blob licences.
+- Silero is MIT; keep the LICENSE text and ask upstream to fix the README badge text.
+- Fonts are safe with a notice file; Doto subset needs the upstream RFN checked first.
+- Copy: the legacy Mission layer still ships the streak, shield and random chest mechanics the spec bans; they belong in the Well Wisher rewrite or removal queue, not in public copy. The ADHD wording sits only in an internal brief and one sourced advice line.
+
+#### Sources
+
+- https://raw.githubusercontent.com/snakers4/silero-vad/master/LICENSE
+- https://github.com/snakers4/silero-vad
+- https://github.com/dscripka/openWakeWord
+- https://creativecommons.org/licenses/by-nc-sa/4.0/
+- https://raw.githubusercontent.com/open-spaced-repetition/py-fsrs/main/LICENSE
+- https://raw.githubusercontent.com/open-spaced-repetition/ts-fsrs/main/LICENSE
+- https://raw.githubusercontent.com/SYSTRAN/faster-whisper/master/LICENSE
+- https://raw.githubusercontent.com/openai/whisper/main/LICENSE
+- https://huggingface.co/openai/whisper-large-v3-turbo
+- https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507
+- https://huggingface.co/BAAI/bge-small-en-v1.5
+- https://huggingface.co/BAAI/bge-m3
+- https://huggingface.co/intfloat/multilingual-e5-small
+- https://huggingface.co/hexgrad/Kokoro-82M
+- https://raw.githubusercontent.com/rsms/inter/master/LICENSE.txt
+- https://openfontlicense.org/ofl-faq/
+- https://raw.githubusercontent.com/KaTeX/KaTeX/main/LICENSE
+- https://raw.githubusercontent.com/mrdoob/three.js/dev/LICENSE
+- https://raw.githubusercontent.com/radix-ui/primitives/main/LICENSE
+- https://raw.githubusercontent.com/motiondivision/motion/main/LICENSE.md
+- https://pymupdf.io/licensing/
+- https://github.com/rany2/edge-tts
+- https://github.com/thewh1teagle/kokoro-onnx
+
 ## 2026-11-12: wave 2 integrated, and the independent review B01 never had
 
 **Question.** Do the seam cuts (B01) really forbid the couplings they claim to, and do the lamp contract (B04) and the kit (B03b) agree once they sit on one branch?

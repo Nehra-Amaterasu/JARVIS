@@ -33,9 +33,18 @@ const THEMES = ['light', 'dark'] as const
 type Theme = (typeof THEMES)[number]
 const OVERLAYS = ['Drawer', 'Sheet', 'Popover', 'RetroDialog', 'RetroDialogDestructive'] as const
 
+// The page is N01's e2e/bench/entry.tsx plus G01's wave 5 specimens (src/__tests__/kit/bench-g01.tsx: LitPanel,
+// PlannedGlyph, the planned plate in its bracket frame), joined by a two-line entry written into the test output folder
+// (a virtual module is not resolved as a lib entry by this Vite), so neither file imports the other.
+const MAIN = resolve(OUT, 'bench-main.ts')
+const posix = (p: string) => p.split(String.fromCharCode(92)).join('/')
+const MAIN_SRC = [resolve(ROOT, 'e2e/bench/entry.tsx'), resolve(ROOT, 'src/__tests__/kit/bench-g01.tsx')].map((p) => `import ${JSON.stringify(posix(p))}`).join('\n')
+
 let bundle: Promise<{ js: string; css: string }> | null = null
 function buildBench() {
   bundle ??= (async () => {
+    mkdirSync(OUT, { recursive: true })
+    writeFileSync(MAIN, MAIN_SRC + String.fromCharCode(10))
     const out = await build({
       root: ROOT,
       configFile: false,
@@ -43,7 +52,7 @@ function buildBench() {
       define: { 'process.env.NODE_ENV': '"production"' },
       // typed loosely: this Vite's ESBuildOptions typing omits jsx, but the option is honoured (the entry has no React import)
       esbuild: { jsx: 'automatic' } as Record<string, unknown>,
-      build: { write: false, minify: false, target: 'es2022', cssCodeSplit: false, lib: { entry: resolve(ROOT, 'e2e/bench/entry.tsx'), formats: ['iife'], name: 'JuryBench', fileName: 'bench' } },
+      build: { write: false, minify: false, target: 'es2022', cssCodeSplit: false, lib: { entry: MAIN, formats: ['iife'], name: 'JuryBench', fileName: 'bench' } },
     })
     const outputs = (Array.isArray(out) ? out : [out]).flatMap((o) => ('output' in o ? o.output : []))
     let js = ''
@@ -195,9 +204,9 @@ test('every exported component of kit, art and lamp is on the bench', async ({ p
   })
   addStats('exports drawn (capitalised function exports)', r.counts)
   expect(r.missing, 'exports the bench does not draw').toEqual([])
-  expect(r.counts.kit).toBeGreaterThanOrEqual(40)
+  expect(r.counts.kit).toBeGreaterThanOrEqual(42) // 40 before wave 5, plus LitPanel and PlannedGlyph (G01)
   expect(r.counts.art).toBeGreaterThanOrEqual(19)
-  expect(r.counts.lamp).toBe(4)
+  expect(r.counts.lamp).toBe(5) // Lamp, LampGlyph, Reading, Annunciators and, from wave 5, PlannedGlyph
 })
 
 for (const theme of THEMES) {

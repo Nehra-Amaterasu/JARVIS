@@ -271,7 +271,7 @@ a.k-plate:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 
   background: radial-gradient(circle at var(--lx) var(--ly), var(--lit-hi), transparent 65%);
   opacity: 0; transition: opacity var(--dur-fade, 160ms);
 }
-.k-lit:hover .k-panel-in::after, .k-lit:focus-within .k-panel-in::after { opacity: 0.7; }
+.k-lit:hover .k-panel-in::after, .k-lit:focus-within .k-panel-in::after, .k-lit[data-lit='true'] .k-panel-in::after { opacity: 0.7; }
 .k-lit:focus-within { translate: 0 1px; }
 :has(> .k-lit:focus-within) > .k-lit:not(:focus-within) { opacity: 0.96; }
 

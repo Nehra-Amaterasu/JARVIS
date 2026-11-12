@@ -21,9 +21,11 @@ export function snapAngle(dx: number, dy: number): LitAngle {
 export type LitPanelProps = PanelProps & {
   /** A fixed light. Omitted: the light follows a mouse pointer over the panel (8 directions), resting at 315 (top left). */
   angle?: LitAngle
+  /** Hold the lit state (a gallery specimen, or a panel that is the current item). Omitted: lit only while hovered or focused. */
+  lit?: boolean
 }
 
-export function LitPanel({ angle, className, ...panel }: LitPanelProps) {
+export function LitPanel({ angle, lit, className, ...panel }: LitPanelProps) {
   const ref = useRef<HTMLDivElement>(null)
   const follow = angle === undefined
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -33,7 +35,7 @@ export function LitPanel({ angle, className, ...panel }: LitPanelProps) {
     if (ref.current.dataset.angle !== next) ref.current.dataset.angle = next
   }
   return (
-    <div ref={ref} className={cx('k-lit', className)} data-angle={angle ?? 315} data-follow={follow ? 'true' : undefined} onPointerMove={follow ? onPointerMove : undefined}>
+    <div ref={ref} className={cx('k-lit', className)} data-angle={angle ?? 315} data-follow={follow ? 'true' : undefined} data-lit={lit ? 'true' : undefined} onPointerMove={follow ? onPointerMove : undefined}>
       <Panel {...panel} />
     </div>
   )

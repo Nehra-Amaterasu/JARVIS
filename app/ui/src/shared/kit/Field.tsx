@@ -24,9 +24,15 @@ export function Field({ label, hint, error, unit, kind = 'text', children, class
   const fid = id ?? auto
   const noteId = `${fid}-note`
   const note = error ?? hint
+  // A disabled text field stays focusable (readOnly plus aria-disabled), as every kit control does, so its value and
+  // the reason beside it can be reached and its focus ring drawn; the native attribute made it unfocusable (the bench
+  // measured "outline none on focus"). A select has no read-only form, so it keeps the native attribute.
+  const inert = disabled && kind !== 'select'
   const common = {
     id: fid,
-    disabled,
+    disabled: kind === 'select' ? disabled : undefined,
+    readOnly: inert ? true : undefined,
+    'aria-disabled': inert ? true : undefined,
     'aria-invalid': error ? true : undefined,
     'aria-describedby': note ? noteId : undefined,
     className: 'ww-input',

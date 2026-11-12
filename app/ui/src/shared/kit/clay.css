@@ -203,6 +203,12 @@
 .k-tab[aria-selected='true'] { background: var(--surface-raised); font-weight: 700; box-shadow: inset 0 -2px 0 var(--selected-fill); transform: translateY(-2px); }
 .k-tab-count { margin-left: 8px; font: 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-3); }
 
+/* Reduced motion (spec 6.5): --dur-state is not zeroed by the OS setting, so the 1 px lift, 2 px press and the switch thumb slide stop here; state is still shown by the edge, fill and word. */
+@media (prefers-reduced-motion: reduce) {
+  .k-switch, .k-rocker-half, .k-key, .k-tab, .k-btn, .k-console-follow, .k-toast-undo, .k-dialog-x, .k-switch-thumb { transition: none; }
+  .k-switch:hover, .k-rocker-half:hover, .k-key:hover, .k-tab:hover, .k-btn:hover { transform: none; }
+}
+
 /* ==========================================================================
    Forced colours (spec 6.5.2): chamfers become rectangles with a real border, shapes keep meaning, the lamp
    glyph is not recoloured (it is an SVG using currentColor, mapped to CanvasText), focus is Highlight, and

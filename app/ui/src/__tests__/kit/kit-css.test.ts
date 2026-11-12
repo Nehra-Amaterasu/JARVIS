@@ -32,7 +32,8 @@ describe('clay kit stylesheet', () => {
   })
   it('takes every pointer target to 44 px through --hit', () => {
     expect(normal).toMatch(/min-height:\s*var\(--hit, 44px\)/)
-    for (const c of ['.k-switch', '.k-rocker-half', '.k-key', '.k-tab', '.k-btn', '.k-rail-btn', '.k-palette-row']) expect(normal.split('\n')[8 + 0] + normal).toContain(c)
+    const hit = normal.slice(0, normal.indexOf('}', normal.indexOf('min-height: var(--hit, 44px)')))
+    for (const c of ['.k-switch', '.k-rocker-half', '.k-key', '.k-tab', '.k-btn', '.k-rail-btn', '.k-palette-row']) expect(hit, c).toContain(c)
   })
   it('gives focus a 2 px ring with a 2 px offset (6.4.5)', () => {
     expect(normal).toMatch(/:focus-visible\s*\{\s*outline:\s*2px solid var\(--focus-ring\);\s*outline-offset:\s*2px/)
@@ -54,6 +55,9 @@ describe('clay kit stylesheet', () => {
     const rule = normal.match(/^[^\n]*\.ww-btn\.primary[^\n]*$/gm) ?? []
     expect(rule.length).toBeGreaterThan(0)
     expect(rule.every((r) => r.startsWith(":root[data-theme^='clay']"))).toBe(true)
+  })
+  it('stops the hover lift, press and thumb slide under prefers-reduced-motion', () => {
+    expect(normal).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.k-switch-thumb \{ transition: none; \}/)
   })
   it('has no infinite animation and no blink (the prompt cursor is a solid block)', () => {
     expect(css).not.toMatch(/animation[^;]*infinite/)

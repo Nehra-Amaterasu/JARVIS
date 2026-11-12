@@ -79,13 +79,13 @@ export const PRIMITIVES: Record<PrimitiveName, Primitive> = {
     name: 'cross', sym: true,
     draw: (s) => [{ w: 3, style: 'line', subs: [sub(0, -2.6 * s, L(0, 2.6 * s)), sub(-2.6 * s, 0, L(2.6 * s, 0))] }],
   },
-  // a radially elongated diamond (blade-like); filled only when it is a 4 px cell: 4 segments
+  // a radially elongated diamond, a blade point; filled only when it is a 4 px cell: 4 segments
   diamond: {
     name: 'diamond', sym: true,
     draw: (s, _r, v) => {
-      const small = v < 0.4
-      const h = (small ? 2 : 3.6) * s
-      const w = (small ? 2 : 1.8) * s
+      const small = v < 0.3
+      const h = (small ? 2 : 4.4 + v * 2.2) * s
+      const w = (small ? 2 : 1.5) * s
       return [{ w: small ? 3 : 2, style: small ? 'fill' : 'line', subs: [sub(0, -h, L(w, 0), L(0, h), L(-w, 0), Z)] }]
     },
   },
@@ -180,13 +180,13 @@ export const PRIMITIVES: Record<PrimitiveName, Primitive> = {
   thorn: {
     name: 'thorn', sym: false,
     draw: (s, _r, v) => {
-      const bend = (v < 0.5 ? 2.6 : 4.2) * s
-      const len = (v < 0.5 ? 6.5 : 8.5) * s
+      const bend = (1.8 + v * 2.6) * s
+      const len = (7.5 + v * 4) * s
       return [{ w: 3, style: 'fill', subs: [{
-        m: [-1.3 * s, -2.4 * s],
+        m: [-1.25 * s, -2.2 * s],
         segs: [
-          { k: 'Q', c: [-1.6 * s, len * 0.55], p: [bend, len] },
-          { k: 'Q', c: [0.2 * s, len * 0.4], p: [1.1 * s, -2.4 * s] },
+          { k: 'Q', c: [-1.5 * s, len * 0.6], p: [bend, len] },
+          { k: 'Q', c: [0.1 * s, len * 0.42], p: [1.05 * s, -2.2 * s] },
           Z,
         ],
       }] }]
@@ -200,6 +200,14 @@ export const PRIMITIVES: Record<PrimitiveName, Primitive> = {
 }
 
 export const PRIMITIVE_NAMES = Object.keys(PRIMITIVES) as PrimitiveName[]
+
+/**
+ * How much ink a primitive puts down, 0 to 5. A 16 px day cell keeps only the heaviest layer and a 24 px node the
+ * two heaviest: a hairline arc or a tick ruler vanishes at that size, a blade or an X still reads.
+ */
+export const HEFT: Record<PrimitiveName, number> = {
+  thorn: 5, diamond: 4, xmark: 4, stripes: 4, tri: 3, cross: 3, bracket: 3, hex: 2, chain: 2, spiral: 1, circle: 1, arc: 0, ticks: 0, letters: 0,
+}
 
 /** Segments of one mark list: every L, Q, C, A and Z is one drawn segment (M only moves the pen). */
 export function segmentsOf(marks: readonly Mark[]): number {

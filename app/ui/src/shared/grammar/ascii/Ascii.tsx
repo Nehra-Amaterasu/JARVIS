@@ -181,9 +181,9 @@ export function portraitText(initials: string): string {
       // the ring is heavier on one side (a light from `tilt`), as the reference rings are
       const lit = 0.5 + 0.5 * Math.cos(a - tilt)
       const r = rnd()
-      if (d > 1.02 || d < 0.52) ln += ' '
-      else if (d > 0.62 && d < 0.92 && r < 0.55 + 0.4 * lit) ln += HEAVY[Math.floor(rnd() * HEAVY.length)]
-      else ln += r < 0.7 ? LIGHT[Math.floor(rnd() * LIGHT.length)] : ' '
+      if (d > 1.04 || d < 0.5) ln += ' '
+      else if (d > 0.6 && d < 0.95 && r < 0.62 + 0.38 * lit) ln += HEAVY[Math.floor(rnd() * HEAVY.length)]
+      else ln += r < 0.45 + 0.4 * lit ? LIGHT[Math.floor(rnd() * LIGHT.length)] : ' '
     }
     out.push(ln.replace(/\s+$/, ''))
   }

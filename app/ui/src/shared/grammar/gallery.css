@@ -1,0 +1,23 @@
+/* Layout of the G02 gallery entry only (the sheet of every grammar state). No colour of its own. */
+.gs-block { display: grid; gap: 14px; color: var(--ink-1, currentColor); }
+.gs-row { display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: center; }
+.gs-label { font: 500 12px/16px var(--font-mono, ui-monospace, monospace); color: var(--ink-2, currentColor); }
+.gs-items { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.gs-frames { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; }
+.gs-frames > .gs-rules { grid-column: 1 / -1; display: grid; gap: 10px; }
+.gs-copy { margin: 0; font: 14px/20px var(--font-ui, system-ui, sans-serif); color: var(--ink-1, currentColor); display: flex; gap: 8px; align-items: center; min-block-size: 44px; }
+.gs-plates { display: flex; flex-wrap: wrap; gap: 16px; }
+.gs-data { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.gs-bars { display: grid; gap: 8px; }
+.gs-spark { display: flex; gap: 10px; align-items: center; font: 14px/16px var(--font-mono, ui-monospace, monospace); }
+.gs-portraits { display: flex; flex-wrap: wrap; gap: 16px; }
+.gs-term { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.gs-scans { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 899px) {
+  .gs-row { grid-template-columns: 1fr; gap: 6px; }
+  .gs-frames, .gs-term, .gs-scans { grid-template-columns: 1fr; }
+  .gs-plates { overflow-x: auto; }
+}
+.gs-hero { display: flex; flex-wrap: wrap; gap: 28px; align-items: center; padding-block: 6px; }
+.gs-hero .g-sigil { inline-size: 104px; block-size: 104px; color: var(--ink-1, currentColor); }
+@media (max-width: 899px) { .gs-hero { gap: 16px; } .gs-hero .g-sigil { inline-size: 72px; block-size: 72px; } }

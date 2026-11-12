@@ -8,7 +8,7 @@
 // differ only in how many outer layers fit the size's segment budget, so the small glyph reads as the big one.
 
 import { fnv1a32, mulberry32, pickWeighted, seedHex } from './hash'
-import { PRIMITIVES, circleSub, segmentsOf, type Mark, type PrimitiveName, type Pt, type Seg, type Style, type Sub, type Weight } from './primitives'
+import { HEFT, PRIMITIVES, circleSub, segmentsOf, type Mark, type PrimitiveName, type Pt, type Seg, type Style, type Sub, type Weight } from './primitives'
 
 export type SigilSize = 16 | 24 | 48
 export type SigilFold = 2 | 4 | 6 | 8
@@ -30,7 +30,7 @@ export const MAX_BYTES = 3072
 /** Segment budget by display size: a 16 px cell cannot hold 60 strokes and still read. */
 export const SIZE_BUDGET: Record<SigilSize, number> = { 16: 20, 24: 36, 48: MAX_SEGMENTS }
 /** Primitive scale by size: small glyphs draw their primitives larger so a stroke is not lost in a pixel. */
-const SIZE_SCALE: Record<SigilSize, number> = { 16: 1.45, 24: 1.2, 48: 1 }
+const SIZE_SCALE: Record<SigilSize, number> = { 16: 1.6, 24: 1.25, 48: 1 }
 const STROKE_PX: Record<Weight, string> = { 1: '1', 2: '1.5', 3: '2' }
 
 interface LayerPlan { prim: PrimitiveName; r: number; phi: number; s: number; v: number; flip: boolean }
@@ -39,6 +39,8 @@ interface Plan {
   rot: number
   core: { prim: PrimitiveName; s: number; v: number } | null
   layers: LayerPlan[]
+  /** Radial spines on every axis, from the inner radius to the outer one: they tie the layers into one glyph. */
+  spine: { from: number; to: number } | null
   ring: 'solid' | 'dash' | null
 }
 
@@ -71,15 +73,17 @@ function plan(id: string, foldOpt: SigilFold | undefined, seal: boolean): Plan {
       const prim = pickWeighted(rnd(), band.names, band.w)
       const a = rnd()
       const phi = a < 0.5 ? 0 : a < 0.75 ? step / 2 : step * (0.15 + rnd() * 0.25)
-      layers.push({ prim, r: radii[b] + (j ? 1.5 : 0), phi, s: 0.8 + rnd() * 0.45, v: rnd(), flip: rnd() < 0.62 })
+      layers.push({ prim, r: radii[b] + (j ? 1.5 : 0), phi, s: 1.05 + rnd() * 0.5, v: rnd(), flip: rnd() < 0.62 })
     }
   }
   // 3 to 5 primitives in all (spec 20.4.1): the core counts as one
   const maxLayers = 5 - (core ? 1 : 0)
   if (layers.length > maxLayers) layers.length = maxLayers
+  const spineDraw = rnd()
+  const spine = spineDraw < 0.6 ? { from: radii[0] * 0.55, to: radii[radii.length - 1] + 1 } : null
   const ringDraw = rnd()
   const ring = ringDraw < 0.28 ? 'solid' : ringDraw < 0.46 ? 'dash' : null
-  return { fold, rot, core, layers, ring }
+  return { fold, rot, core, layers, spine, ring }
 }
 
 interface Placed { w: Weight; style: Style; subs: Sub[] }
@@ -202,9 +206,20 @@ function emit(p: Plan, size: SigilSize, budget: number, layerCount: number, fitR
     const cost = segmentsOf(marks)
     if (used + cost <= budget) { placed.push(...place(marks, p.rot, 0, false)); used += cost }
   }
-  // small sizes keep the OUTER layers (the silhouette), the big size keeps all; growth keeps the inner ones
+  if (p.spine && layerCount > 0) {
+    const len = p.spine.to - p.spine.from
+    const cost = p.fold
+    if (used + cost <= budget) {
+      for (let k = 0; k < p.fold; k++) placed.push(...place([{ w: 2, style: 'line', subs: [{ m: [0, 0], segs: [{ k: 'L', p: [0, len] }] }] }], p.rot + (k * 2 * Math.PI) / p.fold, p.spine.from, false))
+      used += cost
+    }
+  }
+  // the big size keeps every layer; 24 px keeps the two heaviest and 16 px the heaviest (in their own order),
+  // because ink, not position, is what survives a small size; growth keeps the inner layers first
   const layers = p.layers.slice(0, layerCount)
-  const keep = size === 48 ? layers : layers.slice(-(size === 24 ? 2 : 1))
+  const keepN = size === 48 ? layers.length : size === 24 ? 2 : 1
+  const ranked = layers.map((l, i) => ({ l, i, h: HEFT[l.prim] })).sort((a, b) => b.h - a.h || b.i - a.i).slice(0, keepN)
+  const keep = ranked.sort((a, b) => a.i - b.i).map((x) => x.l)
   let ringR = 0
   for (const l of keep) {
     const prim = PRIMITIVES[l.prim]

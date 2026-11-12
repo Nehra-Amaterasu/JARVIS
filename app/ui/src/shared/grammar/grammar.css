@@ -135,7 +135,8 @@
 /* ---------------------------------------------------------------- seal */
 
 .g-seal { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; color: var(--ink-1, currentColor); flex: none; }
-.g-seal svg { inline-size: 32px; block-size: 32px; overflow: visible; }
+.g-seal > svg { inline-size: 32px; block-size: 32px; overflow: visible; }
+.g-seal > .g-stamp > svg { inline-size: 9px; block-size: 9px; }
 .g-seal[data-earned='false'] { color: var(--ink-3, currentColor); }
 .g-seal > .g-stamp {
   display: inline-flex;
@@ -175,7 +176,8 @@
   background: var(--surface-sunk, transparent);
 }
 .g-heat-day { font-size: 10px; line-height: 16px; color: var(--ink-3, currentColor); }
-.g-heat-glyph { font-size: 12px; line-height: 16px; font-weight: 700; color: var(--ink-1, currentColor); }
+.g-heat-glyph { font-size: 14px; line-height: 16px; font-weight: 700; color: var(--ink-1, currentColor); }
+.g-heat-cap { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 12px; line-height: 16px; color: var(--ink-2, currentColor); }
 .g-heat-cell[data-gap='true'] .g-heat-glyph { color: var(--ink-3, currentColor); font-weight: 400; }
 .g-heat-cell[data-blank='true'] { border-style: dashed; background: transparent; }
 .g-heat[data-hollow='true'] .g-heat-cell { border-style: dashed; background: transparent; }

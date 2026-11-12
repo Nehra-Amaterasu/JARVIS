@@ -18,7 +18,7 @@ export interface LampSpec {
   state: LampState
   /** The shape, named so a test can tell the five apart without looking at colour. */
   glyph: 'disc' | 'half-disc' | 'diamond' | 'dashed-ring' | 'triangle'
-  /** The state token of the clay layer (styles/design/clay/semantic.css). */
+  /** The state token of the clay layer (the semantic layer of spec 6.3). */
   token: string
   /** The word shown beside the glyph and spoken by screen readers. */
   label: string

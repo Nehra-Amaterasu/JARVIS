@@ -14,9 +14,14 @@ Never fatal, and the old path stays:
     the speaker had buffered (barge-in).
   - JARVIS_EDGE_STREAM=0 turns streaming off; Kokoro is never streamed (one clip per
     sentence on the CPU) and keeps its file path.
+  - JARVIS_OUT_LEVEL=1 (default off) reports how loud JARVIS is speaking: an `out_level`
+    event at ~20 Hz with the RMS and a 24-band spectrum of the samples just written to
+    the speaker (spec 9.2 of docs/design/jarvis-product-overhaul.md). See OutLevelEmitter.
 """
 from __future__ import annotations
 
+import math
+import os
 import threading
 import time
 from typing import Callable, Optional
@@ -26,6 +31,190 @@ import numpy as np
 PLAYED, STOPPED, FAILED = "played", "stopped", "failed"
 PROBE_BYTES = 2048           # enough for the mp3 demuxer to find the first frame header
 READ_TIMEOUT_S = 15.0
+
+# --- output level (spec 9.2) -------------------------------------------------------
+N_BANDS, F_LO, F_HI = 24, 100.0, 8000.0   # log-spaced, ~6.3 octaves: where speech lives
+FRAME_S = 0.05                            # 20 Hz
+WINDOW_S = 0.085                          # 2048 samples at 24 kHz; N is derived from the rate
+FLOOR_DB = -90.0                          # what silence reads, instead of -inf
+BAND_DB_LO, BAND_DB_SPAN = -60.0, 60.0    # output mapping window: -60 dB -> 0, 0 dB -> 255
+
+
+def out_level_enabled() -> bool:
+    """Read on every call, not at import: the flag is the owner's switch and a test flips it."""
+    return os.environ.get("JARVIS_OUT_LEVEL", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def band_edges(n_bands: int = N_BANDS, f_lo: float = F_LO, f_hi: float = F_HI) -> np.ndarray:
+    """n_bands + 1 edges, f_i = f_lo * r**i with r = (f_hi / f_lo) ** (1 / n_bands)."""
+    return f_lo * (f_hi / f_lo) ** (np.arange(n_bands + 1) / n_bands)
+
+
+_PLANS: dict = {}
+
+
+def _plan(n: int, sr: int):
+    """Per (window length, rate): the Hann window, its energy, and a (bands x bins) 0/1 matrix.
+    Built once and then reused, so a frame is one rfft plus one small matmul. A band takes
+    the bins whose centre lies in it; one with no bin takes the nearest bin so none is
+    structurally empty (the lowest band is 1.7 bins wide at 24 kHz). A band whose lower
+    edge is at or above Nyquist stays all zero."""
+    key = (n, sr)
+    plan = _PLANS.get(key)
+    if plan is None:
+        w = np.hanning(n + 1)[:-1].astype(np.float32)            # periodic Hann
+        freqs = np.arange(n // 2 + 1) * (sr / n)
+        edges = band_edges()
+        m = np.zeros((N_BANDS, len(freqs)), dtype=np.float32)
+        nyq = sr / 2.0
+        for i in range(N_BANDS):
+            if edges[i] >= nyq:
+                continue
+            sel = np.nonzero((freqs >= edges[i]) & (freqs < edges[i + 1]))[0]
+            if len(sel) == 0:
+                sel = [int(np.argmin(np.abs(freqs - math.sqrt(edges[i] * edges[i + 1]))))]
+            m[i, sel] = 1.0
+        plan = (w, float(np.sum(w.astype(np.float64) ** 2)), m)
+        if len(_PLANS) < 8:                                       # a stray rate cannot grow this
+            _PLANS[key] = plan
+    return plan
+
+
+def analyse(window: np.ndarray, sr: int):
+    """(rms_db, peak_db, bands) of one window of mono float samples. dB are relative to a
+    full-scale sine (a sine of peak 0.1 reads -20.0); bands are 24 ints, 0 to 255, linear in
+    dB over -60..0. Absolute, with no automatic gain, so a whisper stays small."""
+    n = len(window)
+    w, w2, m = _plan(n, int(sr))
+    x = np.asarray(window, dtype=np.float32)
+    ms = float(np.dot(x, x)) / n
+    peak = float(np.max(np.abs(x)))
+    rms_db = 10.0 * math.log10(2.0 * ms) if ms > 1e-12 else FLOOR_DB
+    peak_db = 20.0 * math.log10(peak) if peak > 1e-9 else FLOOR_DB
+    spec = np.fft.rfft(x * w)
+    power = spec.real * spec.real + spec.imag * spec.imag
+    ms_band = (2.0 / (n * w2)) * (m @ power)                      # mean square per band
+    db = 10.0 * np.log10(np.maximum(2.0 * ms_band, 1e-30))
+    bands = np.rint(255.0 * np.clip((db - BAND_DB_LO) / BAND_DB_SPAN, 0.0, 1.0)).astype(np.int32)
+    return rms_db, peak_db, [int(b) for b in bands]
+
+
+class OutLevelEmitter:
+    """Reports the output level without ever being able to slow the speaker's write loop.
+
+    push(pcm, rate) is called right AFTER speaker.write, so the samples are already in the
+    device buffer when the analysis runs. Underrun safety, with the numbers:
+      - budget: one 24 ms MP3 frame (576 samples at 24 kHz) must be decoded and written
+        before the device buffer (Speaker.latency, 0.09 s and up on this laptop: about four
+        frames) drains. Analysis runs on one frame in about two (20 Hz of 41.7 frames/s)
+        and costs tens of microseconds (measured, docs/research/voice.md), well under 1 %
+        of a frame; the ring copy on the other frames costs a few microseconds.
+      - the emit (a locked write to stdout, which can block if the app stops reading) is
+        NOT on the write thread: push() hands the finished frame to a daemon thread through
+        a one-slot mailbox. A slow consumer overwrites the waiting frame (the `seq` gap
+        shows the drop); it never makes push() wait, and an emit that raises is swallowed.
+      - memory is fixed: one ring of N float32 (8 KB at 24 kHz), one mailbox slot.
+    `emit(kind, **fields)` is appio.emit; `clock` is monotonic seconds (a test injects one)."""
+
+    def __init__(self, emit: Callable[..., None], clock: Callable[[], float] = time.monotonic,
+                 latency_s: Callable[[], float] = lambda: 0.0):
+        self._emit_fn, self._clock, self._latency = emit, clock, latency_s
+        self._ring: Optional[np.ndarray] = None
+        self._rate = 0
+        self._w = 0                       # next write index into the ring
+        self._due: Optional[float] = None
+        self.seq = 0                      # frames produced (dropped ones included)
+        self.dropped = 0                  # frames overwritten before the consumer took them
+        self._slot: Optional[dict] = None
+        self._cv = threading.Condition()
+        self._thread: Optional[threading.Thread] = None
+        self._finished = False
+
+    def warm(self, rate: int) -> None:
+        """Build the window, the band matrix and the FFT's first-call state off the write
+        thread. Measured: the first analyse() costs 7 ms warm and 28 ms cold, longer than
+        a 24 ms frame; later ones 0.1 ms. Called when a sentence starts, before its first
+        mp3 frame has even decoded, so the first real frame finds everything ready."""
+        def run():
+            try:
+                n = 1 << max(8, int(round(math.log2(rate * WINDOW_S))))
+                analyse(np.zeros(n, dtype=np.float32), rate)
+            except Exception:
+                pass
+        threading.Thread(target=run, name="out-level-warm", daemon=True).start()
+
+    def push(self, pcm: np.ndarray, rate: int) -> None:
+        try:
+            if self._finished:
+                return
+            rate = int(rate)
+            if self._ring is None or rate != self._rate:
+                n = 1 << max(8, int(round(math.log2(rate * WINDOW_S))))
+                self._ring, self._rate, self._w = np.zeros(n, dtype=np.float32), rate, 0   # unfilled part reads as silence
+            ring, n = self._ring, len(self._ring)
+            x = pcm.reshape(-1)[-n:]
+            k = len(x)
+            first = min(k, n - self._w)
+            ring[self._w:self._w + first] = x[:first]
+            if first < k:
+                ring[:k - first] = x[first:]
+            self._w = (self._w + k) % n
+            now = self._clock()
+            if self._due is None:
+                self._due = now
+            if now < self._due:
+                return
+            # A schedule, not "now - last >= 50 ms": with 24 ms writes that rule would give
+            # one frame per 72 ms (13.9 Hz), the schedule gives one per ~48 ms (20.8 Hz).
+            self._due += FRAME_S
+            if self._due <= now:
+                self._due = now + FRAME_S
+            window = np.concatenate((ring[self._w:], ring[:self._w]))      # oldest first
+            rms_db, peak_db, bands = analyse(window, rate)
+            lat = float(self._latency() or 0.0)
+            self._post({"sr": rate, "rms_db": round(rms_db, 1), "peak_db": round(peak_db, 1), "bands": bands,
+                        "lat_ms": round(lat * 1000.0, 1) if lat > 0 else None, "final": False})
+        except Exception:
+            pass                           # a level reading must never reach the speaker's loop
+
+    def finish(self) -> None:
+        """The stream is over (played, stopped or failed): one last frame, `final`, so the UI
+        drops to the floor at once. Nothing is sent if no frame was ever sent."""
+        if self._finished:
+            return
+        self._finished = True
+        if self.seq:
+            self._post({"sr": self._rate, "rms_db": FLOOR_DB, "peak_db": FLOOR_DB, "bands": [0] * N_BANDS,
+                        "lat_ms": None, "final": True})
+
+    def _post(self, fields: dict) -> None:
+        self.seq += 1
+        fields["seq"] = self.seq
+        with self._cv:
+            if self._slot is not None and not self._slot["final"]:
+                self.dropped += 1
+            self._slot = fields
+            if self._thread is None:
+                self._thread = threading.Thread(target=self._run, name="out-level", daemon=True)
+                self._thread.start()
+            self._cv.notify()
+
+    def _run(self) -> None:
+        while True:
+            with self._cv:
+                if not self._cv.wait_for(lambda: self._slot is not None, timeout=30.0):
+                    self._thread = None    # idle: the thread ends, the next frame starts a new one
+                    return
+                fields, self._slot = self._slot, None
+            try:
+                self._emit_fn("out_level", **fields)
+            except Exception:
+                pass
+            if fields["final"]:
+                with self._cv:
+                    if self._slot is None:
+                        self._thread = None
+                        return
 
 
 class AudioPipe:
@@ -208,14 +397,42 @@ class Speaker:
     def is_open(self) -> bool:
         return self._s is not None
 
+    def latency_s(self) -> float:
+        """The open stream's reported device latency, seconds; 0.0 if closed or unknown."""
+        s = self._s
+        try:
+            return float(getattr(s, "latency", 0.0) or 0.0) if s is not None else 0.0
+        except Exception:
+            return 0.0
+
+
+def _default_level_emitter(speaker: Speaker) -> Optional[OutLevelEmitter]:
+    """The emitter for this sentence, or None: the flag is off (the default, so the live voice
+    process is unchanged) or there is no app to listen (appio.emit would be a no-op)."""
+    if not out_level_enabled():
+        return None
+    try:
+        import appio
+        if not appio.ENABLED:
+            return None
+        em = OutLevelEmitter(appio.emit, latency_s=speaker.latency_s)
+        em.warm(24000)                    # Edge TTS is 24 kHz mono; the analysis reads the real rate anyway
+        return em
+    except Exception:
+        return None
+
 
 def play_pipe(pipe: AudioPipe, speaker: Speaker, stop: Optional[threading.Event] = None,
-              on_start: Optional[Callable[[], None]] = None, log: Callable[[str], None] = print) -> str:
+              on_start: Optional[Callable[[], None]] = None, log: Callable[[str], None] = print,
+              level: Optional[OutLevelEmitter] = None) -> str:
     """Decode `pipe` (mp3) and play it on `speaker` as it arrives. Returns PLAYED, STOPPED,
-    or FAILED (nothing was heard: the caller plays the whole clip the old way)."""
+    or FAILED (nothing was heard: the caller plays the whole clip the old way).
+    `level` (default: built from JARVIS_OUT_LEVEL, normally None) is told what was written."""
     stop = stop or threading.Event()
     started = False
     container = None
+    if level is None:
+        level = _default_level_emitter(speaker)
     try:
         import av
         container = av.open(pipe, mode="r", format="mp3",
@@ -225,7 +442,10 @@ def play_pipe(pipe: AudioPipe, speaker: Speaker, stop: Optional[threading.Event]
                 if started:
                     speaker.abort()
                 return STOPPED
-            speaker.write(pcm * float(pipe.gain), rate)
+            out = pcm * float(pipe.gain)
+            speaker.write(out, rate)
+            if level is not None:
+                level.push(out, rate)           # after the write: the device already has it
             pipe.played_s += len(pcm) / float(rate)
             if not started:
                 started = True
@@ -248,6 +468,8 @@ def play_pipe(pipe: AudioPipe, speaker: Speaker, stop: Optional[threading.Event]
         log(f"[voice] streamed playback unavailable ({type(e).__name__}: {e}); playing the whole clip")
         return FAILED
     finally:
+        if level is not None:
+            level.finish()
         if container is not None:
             try:
                 container.close()

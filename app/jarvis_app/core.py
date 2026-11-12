@@ -339,6 +339,12 @@ class CoreProcess:
             elif kind == "level":
                 self.bus.publish("core", "level", ephemeral=True, level=ev.get("level"),
                                  threshold=ev.get("threshold"))
+            elif kind == "out_level":
+                # JARVIS's own voice (core/playback.py, JARVIS_OUT_LEVEL): live only, never logged
+                # (as "level" is not); 20 frames a second would bury the ticker.
+                self.bus.publish("core", "out_level", ephemeral=True,
+                                 **{k: ev.get(k) for k in ("t", "seq", "sr", "rms_db", "peak_db", "bands",
+                                                           "lat_ms", "final")})
             elif kind == "heard":
                 self._turn_id += 1
                 turn = {"id": self._turn_id, "role": "you", "text": ev.get("text", ""),

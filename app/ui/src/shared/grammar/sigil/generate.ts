@@ -46,6 +46,9 @@ interface Plan {
 
 const CORE: PrimitiveName[] = ['diamond', 'cross', 'hex', 'circle', 'xmark']
 const CORE_W = [4, 2, 2, 2, 1]
+/** The rotational order of each core primitive (circle: any; take the largest fold). */
+const CORE_ORDER: Partial<Record<PrimitiveName, number>> = { diamond: 2, cross: 4, hex: 6, circle: 24, xmark: 4 }
+const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a)
 const BY_BAND: { names: PrimitiveName[]; w: number[] }[] = [
   { names: ['diamond', 'cross', 'tri', 'circle', 'xmark', 'stripes', 'hex'], w: [3, 2, 2, 2, 1, 1, 1] },
   { names: ['thorn', 'diamond', 'bracket', 'chain', 'tri', 'stripes', 'xmark', 'spiral', 'ticks', 'arc'], w: [4, 2, 2, 1, 2, 2, 1, 1, 1, 2] },
@@ -202,9 +205,15 @@ function emit(p: Plan, size: SigilSize, budget: number, layerCount: number, fitR
   const placed: Placed[] = []
   let used = 0
   if (p.core) {
+    // a core that is not itself n-fold (a diamond is 2-fold, a cross 4-fold) is laid n / gcd(order, n) times,
+    // turned by 360/n each, so the union keeps the glyph's symmetry; the symmetry test checks every point
     const marks = PRIMITIVES[p.core.prim].draw(p.core.s * scale, 0, p.core.v)
-    const cost = segmentsOf(marks)
-    if (used + cost <= budget) { placed.push(...place(marks, p.rot, 0, false)); used += cost }
+    const turns = p.fold / gcd(CORE_ORDER[p.core.prim] ?? 1, p.fold)
+    const cost = segmentsOf(marks) * turns
+    if (used + cost <= budget) {
+      for (let k = 0; k < turns; k++) placed.push(...place(marks, p.rot + (k * 2 * Math.PI) / p.fold, 0, false))
+      used += cost
+    }
   }
   if (p.spine && layerCount > 0) {
     const len = p.spine.to - p.spine.from
@@ -214,28 +223,40 @@ function emit(p: Plan, size: SigilSize, budget: number, layerCount: number, fitR
       used += cost
     }
   }
-  // the big size keeps every layer; 24 px keeps the two heaviest and 16 px the heaviest (in their own order),
-  // because ink, not position, is what survives a small size; growth keeps the inner layers first
+  // the big size keeps every layer; 24 px keeps the two heaviest that fit and 16 px the heaviest that fits (drawn in
+  // their own order), because ink, not position, is what survives a small size; growth keeps inner layers first
   const layers = p.layers.slice(0, layerCount)
   const keepN = size === 48 ? layers.length : size === 24 ? 2 : 1
-  const ranked = layers.map((l, i) => ({ l, i, h: HEFT[l.prim] })).sort((a, b) => b.h - a.h || b.i - a.i).slice(0, keepN)
-  const keep = ranked.sort((a, b) => a.i - b.i).map((x) => x.l)
-  let ringR = 0
-  for (const l of keep) {
-    const prim = PRIMITIVES[l.prim]
-    const marks = prim.draw(l.s * scale, l.r, l.v)
+  const indexed = layers.map((l, i) => ({ l, i, h: HEFT[l.prim] }))
+  const ranked = size === 48 ? indexed : indexed.sort((a, b) => b.h - a.h || b.i - a.i)
+  const chosen: { l: LayerPlan; i: number; copies: { theta: number; flip: boolean }[]; marks: Mark[] }[] = []
+  let budgetLeft = budget - used
+  for (const x of ranked) {
+    if (chosen.length >= keepN) break
+    const marks = PRIMITIVES[x.l.prim].draw(x.l.s * scale, x.l.r, x.l.v)
     const per = segmentsOf(marks)
-    let copies = copiesOf(l, p.fold, l.flip)
-    if (used + per * copies.length > budget) copies = copiesOf(l, p.fold, false)
-    if (used + per * copies.length > budget) continue
-    for (const c of copies) placed.push(...place(marks, p.rot + c.theta, l.r, c.flip))
-    used += per * copies.length
-    if (l.prim === 'letters' && used + 2 <= budget) {
+    const extra = x.l.prim === 'letters' ? 2 : 0
+    let copies = copiesOf(x.l, p.fold, x.l.flip)
+    if (per * copies.length + extra > budgetLeft) copies = copiesOf(x.l, p.fold, false)
+    if (per * copies.length + extra > budgetLeft) continue
+    budgetLeft -= per * copies.length + extra
+    chosen.push({ l: x.l, i: x.i, copies, marks })
+  }
+  let ringR = 0
+  for (const c of chosen.sort((a, b) => a.i - b.i)) {
+    for (const k of c.copies) placed.push(...place(c.marks, p.rot + k.theta, c.l.r, k.flip))
+    used += segmentsOf(c.marks) * c.copies.length
+    if (c.l.prim === 'letters') {
       // the lettered ring sits on a hairline circle just inside its runes
-      placed.push({ w: 1, style: 'line', subs: [circleSub(C, C, l.r - 3)] })
+      placed.push({ w: 1, style: 'line', subs: [circleSub(C, C, c.l.r - 3)] })
       used += 2
     }
-    ringR = Math.max(ringR, l.r)
+    ringR = Math.max(ringR, c.l.r)
+  }
+  if (used === 0) {
+    // nothing fitted (no core, no layer that fits a 16 px cell): an n-fold cross of spokes, never an empty glyph
+    for (let k = 0; k < p.fold; k++) placed.push(...place([{ w: 3, style: 'line', subs: [{ m: [0, 0], segs: [{ k: 'L', p: [0, 9] }] }] }], p.rot + (k * 2 * Math.PI) / p.fold, 3, false))
+    used += p.fold
   }
   if (p.ring && size !== 16 && used + 2 <= budget) {
     placed.push({ w: 1, style: p.ring === 'dash' ? 'dash' : 'line', subs: [circleSub(C, C, Math.min(FIT, ringR + 5.5))] })

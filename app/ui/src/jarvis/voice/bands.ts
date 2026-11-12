@@ -20,10 +20,19 @@ export const dbFloor = (ch: Channel): number => (ch === 'out' ? OUT_DB_LO : IN_D
 
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x)
 
+/** Round half to even, like numpy's `rint` in core/playback.py: 212.5 is 212 there, and Math.round would say 213. */
+export function rint(x: number): number {
+  const f = Math.floor(x)
+  const d = x - f
+  if (d < 0.5) return f
+  if (d > 0.5) return f + 1
+  return f % 2 === 0 ? f : f + 1
+}
+
 /** dB to a 0..255 band count, linear in dB; `shiftDb` is the display sensitivity (0 by default, +12 for High). No automatic gain. */
 export function dbToByte(db: number, ch: Channel, shiftDb = 0): number {
   if (!Number.isFinite(db)) return 0
-  return Math.round(255 * clamp01((db + shiftDb - dbFloor(ch)) / DB_SPAN))
+  return rint(255 * clamp01((db + shiftDb - dbFloor(ch)) / DB_SPAN))
 }
 
 /** The level bar's fill, 0..1, over the same window as the bands. */

@@ -245,8 +245,9 @@ describe('T10 dates', () => {
   it('an entry is rotted only past a whole extra review window: day 90 late is a report line, day 91 late fails', () => {
     const reg = createRegistry([entry({ reviewBy: '2026-12-01' })])
     expect(daysPastReview(reg.entries[0], '2026-12-01')).toBe(0)
-    expect(rottedEntries(reg, '2027-02-28')).toEqual([]) // exactly 90 days late
-    expect(rottedEntries(reg, '2027-03-01').map((e) => e.id)).toEqual(['ww.synthetic'])
+    expect(daysPastReview(reg.entries[0], '2027-03-01')).toBe(90)
+    expect(rottedEntries(reg, '2027-03-01')).toEqual([]) // exactly 90 days late
+    expect(rottedEntries(reg, '2027-03-02').map((e) => e.id)).toEqual(['ww.synthetic'])
   })
   it('no real entry of either product is more than one review window past due (read the list in the output when it fails)', () => {
     const today = new Date().toISOString().slice(0, 10)

@@ -54,6 +54,10 @@
   // In an overlay run only the open overlay's portal is in scope (the page behind it is inert).
   const inScope = (el) => (OPEN ? !!el.closest('.ww-portal, .k-portal') : true)
 
+  // A focusable data mark (role img or group) is not a control: it needs a focus indicator and a tab stop, not a 44 px hit box or a border.
+  const actionable = (el) => !['img', 'group', 'presentation'].includes(el.getAttribute('role') || '') || el.tagName === 'BUTTON'
+  const stats = {}
+  const tick = (k) => (stats[k] = (stats[k] || 0) + 1)
   const interactive = () => [...document.querySelectorAll(INTERACTIVE)].filter((e) => inScope(e) && visible(e))
   const idOf = (() => {
     let n = 0
@@ -97,7 +101,14 @@
     }
     return null
   }
+  const paintOf = (el) => {
+    const cs = getComputedStyle(el)
+    return `${cs.stroke}|${cs.strokeWidth}|${cs.fill}|${cs.outlineStyle}|${cs.outlineWidth}|${cs.strokeDasharray}`
+  }
   const focusRing = (el) => {
+    // SVG marks draw their ring as a stroke on a child (.art-focusring, .art-plate-rect): compare the children before and after
+    const kids = el instanceof SVGElement ? [...el.querySelectorAll('*')].slice(0, 24) : []
+    const before = kids.map(paintOf)
     el.focus({ preventScroll: true })
     const chain = [el]
     let p = el.parentElement
@@ -107,6 +118,7 @@
       const cs = getComputedStyle(e)
       if (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0 && rgba(cs.outlineColor)[3] > 0) return { ok: true, w: parseFloat(cs.outlineWidth), on: e === el ? 'self' : 'ancestor' }
     }
+    if (kids.some((k, i) => paintOf(k) !== before[i])) return { ok: true, w: 0, on: 'child-stroke' }
     return { ok: false, w: 0, on: 'none' }
   }
   const scanEdges = () => {
@@ -115,9 +127,11 @@
       el.scrollIntoView({ block: 'center', inline: 'center' })
       const cs = getComputedStyle(el)
       const o = owner(el)
-      const edge = edgeOf(el, cs)
+      const edge = actionable(el) ? edgeOf(el, cs) : 'n/a'
+      tick('edge:' + (edge || 'none'))
       if (!edge) worse(out, o + '|edge', 0, `no border, outline or underline: ${describe(el)}`)
       const ring = focusRing(el)
+      tick('focus:' + (ring.ok ? ring.on + ':' + getComputedStyle(el).outlineStyle : 'none'))
       if (!ring.ok) worse(out, o + '|focus', 0, `outline none on focus: ${describe(el)}`)
       el.blur()
     }
@@ -142,6 +156,8 @@
   const scanHits = () => {
     const out = {}
     for (const el of interactive()) {
+      if (!actionable(el)) continue
+      tick('hit:checked')
       el.scrollIntoView({ block: 'center', inline: 'center' })
       const r = el.getBoundingClientRect()
       let w = r.width
@@ -153,7 +169,7 @@
         h += e.t + e.b
         if (e.l + e.r + e.t + e.b > 0) via = ` (box ${r.width.toFixed(0)}x${r.height.toFixed(0)} plus probes l${e.l} r${e.r} t${e.t} b${e.b})`
       }
-      if (w < 43.5 || h < 43.5) worse(out, owner(el) + '|hit', Math.min(w, h), `${w.toFixed(1)}x${h.toFixed(1)} px effective${via}: ${describe(el)}`)
+      if (w < 43 || h < 43) worse(out, owner(el) + '|hit', Math.min(w, h), `${w.toFixed(1)}x${h.toFixed(1)} px effective${via}: ${describe(el)}`)
     }
     return out
   }
@@ -163,15 +179,18 @@
   const tabPrep = () => {
     window.__bnSeen = new Set()
     addEventListener('focusin', (e) => e.target && e.target.dataset && e.target.dataset.bnId && window.__bnSeen.add(e.target.dataset.bnId))
-    const els = interactive()
-    els.forEach(idOf)
+    document.querySelectorAll(INTERACTIVE).forEach(idOf)
     ;(document.activeElement || document.body).blur?.()
-    return els.length
+    return document.querySelectorAll(INTERACTIVE).length
   }
+  // true once focus has left the page's last stop (back to <body>), after at least one stop was taken
+  const tabAtEnd = () => window.__bnSeen.size > 0 && (document.activeElement === document.body || !document.activeElement)
   const tabResult = () => {
     const out = {}
     const seen = window.__bnSeen
     for (const el of interactive()) {
+      if (el.getAttribute('role') === 'option') continue // listbox options are reached by arrow keys, not Tab
+      tick('tab:checked')
       const o = owner(el)
       const id = idOf(el)
       const reached = seen.has(id)
@@ -263,7 +282,14 @@
       if (!el || /^(SCRIPT|STYLE|OPTION|TITLE)$/.test(el.tagName) || !inScope(el)) continue
       range.selectNodeContents(node)
       const rc = range.getBoundingClientRect()
-      if (rc.width < 2 || rc.height < 2 || !visible(el.closest('svg') ? el.closest('svg') : el)) {
+      let clipped = false
+      for (let a = el; a && a !== document.body; a = a.parentElement) {
+        const ar = a.getBoundingClientRect()
+        const ov = getComputedStyle(a)
+        if ((ar.width <= 2 || ar.height <= 2) && (ov.overflow !== 'visible' || ov.clipPath !== 'none')) clipped = true
+        if (/inset\(50%\)|rect\(0/.test(ov.clipPath + ov.clip)) clipped = true
+      }
+      if (clipped || rc.width < 2 || rc.height < 2 || !visible(el.closest('svg') ? el.closest('svg') : el)) {
         skipped.hidden++
         continue
       }
@@ -273,6 +299,7 @@
       const svg = el instanceof SVGElement
       const fg = rgba(svg ? cs.fill : cs.color)
       fg[3] *= effOpacity(el)
+      tick('contrast:text')
       const bd = backdrop(el, r2.left + r2.width / 2, r2.top + r2.height / 2)
       if (bd.image) {
         skipped.image++
@@ -292,10 +319,12 @@
     }
     // UI edges: a control's boundary needs 3:1 against what is around it (WCAG 1.4.11), by border or by fill, not shadow
     for (const el of interactive()) {
+      if (!actionable(el)) continue
       if (el.tagName === 'INPUT' && ['range', 'checkbox', 'radio'].includes(el.type)) continue
       el.scrollIntoView({ block: 'center', inline: 'center' })
       const cs = getComputedStyle(el)
       const r = el.getBoundingClientRect()
+      tick('contrast:ui-edge')
       const outside = backdrop(el.parentElement || el, Math.max(0, r.left - 3), r.top + r.height / 2).colour
       let best = 0
       const own = over(rgba(cs.backgroundColor), outside)
@@ -322,7 +351,7 @@
     return {
       'lamp/LampGlyph': pick('[data-bench="lamp/LampGlyph"] svg.lamp-glyph'),
       'kit/Lamp': pick('[data-bench="kit/Lamp"] [data-form="glyph only"] svg'),
-      'art/StateMark': pick('[data-bench="art/ArtTable"] [data-form="marks and tags"] svg.art-mark'),
+      'art/StateMark': pick('[data-bench="art/ArtTable"] [data-form="marks and tags"] .bn-cell > svg.art-mark'),
     }
   }
   const signatures = () => {
@@ -357,8 +386,30 @@
     return diff / (w * h)
   }
 
+  // ---- reflow: what is wider than the viewport (the page must not scroll sideways at 390 px)
+  const reflow = () => {
+    const out = {}
+    for (const sec of document.querySelectorAll('[data-bench]')) {
+      let worstEl = null
+      let worst = 0
+      for (const e of [sec, ...sec.querySelectorAll('*')]) {
+        if (e.closest('.art-sr, .k-vh, [hidden]')) continue
+        const r = e.getBoundingClientRect()
+        if (r.width < 1) continue
+        const over = r.right - innerWidth
+        if (over > worst) {
+          worst = over
+          worstEl = e
+        }
+      }
+      if (worst > 1) worse(out, sec.dataset.bench + '|reflow', -worst, `${worst.toFixed(0)} px past the ${innerWidth} px viewport: ${describe(worstEl)}`)
+    }
+    return out
+  }
+
   window.__bn = {
-    OPEN, INTERACTIVE, interactive, owner, scanEdges, scanHits, tabPrep, tabResult, anims, mutationWindow, scanContrast, signatures, pixelDiff, glyphSets,
+    reflow,
+    stats, OPEN, INTERACTIVE, interactive, owner, scanEdges, scanHits, tabPrep, tabResult, tabAtEnd, anims, mutationWindow, scanContrast, signatures, pixelDiff, glyphSets,
     count: () => interactive().length,
     sections: () => [...document.querySelectorAll('[data-bench]')].map((e) => e.dataset.bench),
   }

@@ -362,7 +362,9 @@ function Bench() {
         </B>
       </div>
 
-      <Overlays />
+      <div className="ww bn-legacy" data-section="wellwisher" data-density="regular">
+        <Overlays />
+      </div>
 
       {/* ------------------------------------------------------------------ art package */}
       <B name="NodeRing" pkg="art"><F form="live centre"><art.NodeRing caption="Subsystems" nodes={RING_NODES} centre={{ value: '3', caption: 'open', state: 'live' }} onOpen={noop} /></F></B>

@@ -76,6 +76,12 @@ interface Hit { score: number; text: string; count: number }
 type Scan = Record<string, Hit>
 interface Finding { theme: Theme; component: string; rule: string; measured: string; count: number }
 const findings: Finding[] = []
+/** How much each scan looked at, summed over the main page and the five overlay pages. */
+const STATS: Record<string, Record<string, number>> = {}
+const addStats = (label: string, s: Record<string, number>) => {
+  STATS[label] ??= {}
+  for (const [k, v] of Object.entries(s)) STATS[label][k] = (STATS[label][k] ?? 0) + v
+}
 
 const knownKey = (k: Known) => `${k.component}|${k.rule}`
 /** Compare what a scan found with KNOWN for this theme; both an unlisted failure and a stale entry fail the test. */
@@ -87,6 +93,7 @@ function settle(theme: Theme, rules: Rule[], scan: Scan, scope: (component: stri
     found.set(k, v)
     findings.push({ theme, component, rule, measured: v.text, count: v.count })
   }
+  if (process.env.BENCH_LEARN) return // measuring only: findings.json is written, nothing is compared
   const listed = KNOWN.filter((k) => rules.includes(k.rule) && (!k.themes || k.themes.includes(theme)) && scope(k.component))
   const listedKeys = new Set(listed.map(knownKey))
   const unlisted = [...found.keys()].filter((k) => !listedKeys.has(k)).map((k) => `${k}: ${found.get(k)!.text}`)
@@ -103,26 +110,65 @@ const merge = (...s: Scan[]): Scan => {
 const overlayOwner = (o: string) => (o.startsWith('RetroDialog') ? 'kit/RetroDialog' : o === 'Sheet' ? 'kit/Drawer' : `kit/${o}`)
 
 async function scanAllPages(page: Page, theme: Theme, fn: () => Promise<Scan>, includeOverlays = true): Promise<Scan> {
+  const label = `${test.info().title}`
+  const grab = async () => addStats(label, (await page.evaluate('window.__bn.stats')) as Record<string, number>)
   await openBench(page, theme)
   const parts = [await fn()]
+  await grab()
   if (includeOverlays) {
     for (const o of OVERLAYS) {
       await openBench(page, theme, o)
       await page.waitForTimeout(450) // the 200 ms sheet and 120 ms popover entrances settle before the probes
       parts.push(await fn())
+      await grab()
     }
   }
   return merge(...parts)
 }
 
-test.describe.configure({ mode: 'serial' })
 test.setTimeout(180_000)
+
+async function tabScan(page: Page): Promise<Scan> {
+  const n = (await page.evaluate('window.__bn.tabPrep()')) as number
+  await page.mouse.move(0, 0)
+  // scrollable regions are Tab stops too, so the budget is generous; stop early once focus has left the page
+  for (let i = 0; i < n * 2 + 30; i++) {
+    await page.keyboard.press('Tab')
+    if (i > 3 && (await page.evaluate('window.__bn.tabAtEnd()'))) break
+  }
+  return (await page.evaluate('window.__bn.tabResult()')) as Scan
+}
 
 test.afterAll(() => {
   mkdirSync(OUT, { recursive: true })
-  writeFileSync(resolve(OUT, 'findings.json'), JSON.stringify({ findings, known: KNOWN }, null, 1))
+  writeFileSync(resolve(OUT, 'findings.json'), JSON.stringify({ stats: STATS, findings, known: KNOWN }, null, 1))
   const rows = findings.map((f) => `| ${f.theme} | ${f.component} | ${f.rule} | ${f.count} | ${f.measured.replace(/\|/g, '/')} |`)
   writeFileSync(resolve(OUT, 'findings.md'), ['| theme | component | rule | hits | worst measured |', '|---|---|---|---|---|', ...rows].join('\n') + '\n')
+})
+
+// ------------------------------------------------------------------------------------------------ harness canary
+// A scan that finds nothing proves nothing, so one deliberately bad control and one moving element must be caught.
+test('harness canary: every scan sees a deliberately bad control', async ({ page }) => {
+  await page.emulateMedia({ forcedColors: 'active' })
+  await openBench(page, 'light')
+  await page.evaluate(() => {
+    const d = document.createElement('section')
+    d.dataset.bench = 'canary/Bad'
+    d.innerHTML =
+      '<button id="c1" type="button" style="width:20px;height:20px;border:0;background:transparent;outline:none;color:#777">x</button>' +
+      '<div role="button" style="color:#777;background:#888;padding:4px;font-size:12px">low contrast</div>' +
+      '<i id="c3" style="display:block;width:10px;height:10px;background:currentColor;animation:cn 1s linear infinite"></i><style>@keyframes cn{to{transform:rotate(1turn)}}</style>'
+    document.getElementById('bn-root')!.append(d)
+  })
+  const edges = (await page.evaluate('window.__bn.scanEdges()')) as Scan
+  const hits = (await page.evaluate('window.__bn.scanHits()')) as Scan
+  const tabs = await tabScan(page)
+  const anim = (await page.evaluate('window.__bn.anims()')) as Scan
+  await page.emulateMedia({ forcedColors: 'none' })
+  const contrast = ((await page.evaluate('window.__bn.scanContrast()')) as { out: Scan }).out
+  for (const [name, scan, key] of [['edge', edges, 'canary/Bad|edge'], ['focus', edges, 'canary/Bad|focus'], ['hit', hits, 'canary/Bad|hit'], ['tab', tabs, 'canary/Bad|tab'], ['motion', anim, 'canary/Bad|motion'], ['contrast', contrast, 'canary/Bad|contrast']] as const) {
+    expect(Object.keys(scan), `the ${name} scan caught the canary`).toContain(key)
+  }
 })
 
 // ------------------------------------------------------------------------------------------------ coverage
@@ -164,7 +210,7 @@ for (const theme of THEMES) {
       for (const set of Object.keys(sets)) {
         const shots: string[] = []
         for (let i = 0; i < 5; i++) {
-          const loc = page.locator(set === 'lamp/LampGlyph' ? '[data-bench="lamp/LampGlyph"] svg.lamp-glyph' : set === 'kit/Lamp' ? '[data-bench="kit/Lamp"] [data-form="glyph only"] svg' : '[data-bench="art/ArtTable"] [data-form="marks and tags"] svg.art-mark').nth(i)
+          const loc = page.locator(set === 'lamp/LampGlyph' ? '[data-bench="lamp/LampGlyph"] svg.lamp-glyph' : set === 'kit/Lamp' ? '[data-bench="kit/Lamp"] [data-form="glyph only"] svg' : '[data-bench="art/ArtTable"] [data-form="marks and tags"] .bn-cell > svg.art-mark').nth(i)
           shots.push('data:image/png;base64,' + (await loc.screenshot()).toString('base64'))
         }
         for (let i = 0; i < 5; i++) for (let j = i + 1; j < 5; j++) {
@@ -182,13 +228,7 @@ for (const theme of THEMES) {
 
     // ---------------------------------------------------------------------------------------- c: keyboard
     test(`(c) Tab reaches every control and aria-disabled controls stay focusable [${theme}]`, async ({ page }) => {
-      const run = async () => {
-        const n = (await page.evaluate('window.__bn.tabPrep()')) as number
-        await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
-        await page.mouse.move(0, 0)
-        for (let i = 0; i < n + 12; i++) await page.keyboard.press('Tab')
-        return (await page.evaluate('window.__bn.tabResult()')) as Scan
-      }
+      const run = () => tabScan(page)
       const scan = await scanAllPages(page, theme, run)
       settle(theme, ['tab'], scan)
     })
@@ -240,7 +280,7 @@ for (const theme of THEMES) {
       const groups: [string, string][] = [
         ['lamp/LampGlyph', '[data-bench="lamp/LampGlyph"] svg.lamp-glyph'],
         ['kit/Lamp', '[data-bench="kit/Lamp"] [data-form="glyph only"] svg'],
-        ['art/StateMark', '[data-bench="art/ArtTable"] [data-form="marks and tags"] svg.art-mark'],
+        ['art/StateMark', '[data-bench="art/ArtTable"] [data-form="marks and tags"] .bn-cell > svg.art-mark'],
       ]
       const scan: Scan = {}
       for (const [name, sel] of groups) {
@@ -274,6 +314,15 @@ for (const theme of THEMES) {
   })
 }
 
+// ------------------------------------------------------------------------------------------------ reflow at phone width
+for (const theme of THEMES) {
+  test(`(reflow) nothing is wider than a 390 px viewport [${theme}]`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await openBench(page, theme)
+    settle(theme, ['reflow'], (await page.evaluate('window.__bn.reflow()')) as Scan)
+  })
+}
+
 // ------------------------------------------------------------------------------------------------ screenshots
 const SHOTS: { name: string; theme: Theme; forced?: boolean; grey?: boolean }[] = [
   { name: 'light', theme: 'light' },
@@ -294,8 +343,6 @@ for (const s of SHOTS) {
       mkdirSync(OUT, { recursive: true })
       const path = resolve(OUT, `bench-${s.name}-${v.w}x${v.h}.png`)
       await page.screenshot({ path, fullPage: true })
-      // a bench that did not lay out at this width would make every measurement above meaningless
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `no horizontal page scroll at ${v.w}`).toBe(true)
     })
   }
 }

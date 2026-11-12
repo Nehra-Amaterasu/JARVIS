@@ -2,6 +2,47 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-13: B07 UI half, the voice visualiser as a standalone module
+
+**Question.** Can the hill-plus-ring of spec 9 be built so that it moves only with real frames, costs nothing when idle, and
+can be checked against the Python band map, before any page mounts it?
+
+**What I built** (`app/ui/src/jarvis/voice/`, nothing mounted, no store or page touched). `constants.ts` names every number of
+9.2 to 9.11; `bands.ts` is the band map; `signal.ts` is the 64-frame ring per channel with smoothing on ingest, staleness,
+`final`, `seq` drops, one-frame interpolation and the `max(arrival, t + lat_ms)` latency shift, plus `attachVoiceFeed(signal,
+subscribe)` as the one function the shell calls; `voiceState.ts` is the 9.6 table as a pure function plus `nextChangeAt`;
+`geometry.ts` is 9.5 and 9.7 (hill, tier-0 envelope, ring, placeholder, breath, thinking marker, peak hold, test pattern);
+`scene.ts` plans and draws; `loop.ts` is the only rAF user; `VoiceHill.tsx` is the component (canvas, DOM level bar, source tag,
+lamp from `shared/lamp`, Pause, polite region, hidden meter, static SVG ring in the reduced-motion form); `voice.css` has the
+forced-colours branch. Decisions beyond the spec: a `between` state for "pipe closed, still speaking" and "first audio pending
+under 1 s" (the table had no row for them); error, muted, thinking, idle and between sit on a flat dotted baseline, only NO
+SIGNAL shows the fixed mound; the one `setTimeout` is armed only for the next moment time alone changes the state.
+
+**Numbers.** 111 new vitest tests in 5 files (golden 4, geometry 27, signal 20, state 30, component 30); full suite 1,790 of
+1,790 twice (was 1,679), `tsc -b` and `oxlint` exit 0, the seam import-graph test passes with the new `jarvis/voice` folder.
+Counts pinned: 3,072 points high, 1,280 low, 384 envelope, 0 static; smoothing 0.713 up and 0.268 down per 50 ms; stale at
+401 ms not at 400; a 1,000-sequence property test (V-15) finds solid points only with a frame under 400 ms old (20+ solid cases
+in the run, so it is not vacuous). Idle after mount: 0 queued rAF callbacks and 0 timers; after unmount: 0 and 0; reduced
+motion: 0 rAF calls and at most 4 number changes in 1 s of 20 Hz frames.
+
+**Golden vectors (P-6).** `src/__tests__/jarvis/voice-golden.json`, 5.5 KB, written by `UPDATE_GOLDEN=1 npx vitest run
+src/__tests__/jarvis/voice-golden.test.ts` and checked without the flag. Python can check the same file: `bandMap.edges` against
+`core.playback.band_edges()` (0.5 Hz), `bandMap.freqToBand` by running `playback.analyse()` on a 0.1-peak sine at each frequency
+and taking the loudest band, `bandMap.dbToByte` against `np.rint(255 * np.clip((db - lo) / 60, 0, 1))` with lo -60 out and -70
+in, `hill.high.layer0Heights` from `rows.row0` with `np.interp(abs(x) * 23, range(24), row) * 190 / 255`. I ran exactly that
+with a scratch script (not committed) against `core/playback.py` in this worktree: all four pass. It caught one real drift:
+numpy `rint` rounds 212.5 to 212 and `Math.round` to 213, so `dbToByte` rounds half to even now. The geometry hashes are
+TypeScript-only (they pin how the picture is drawn). PCM to bands in TypeScript is not built: analysis stays in Python.
+
+**Unverified.** Draw cost (target 3 ms average, 6 ms p95 for 3,072 points) and the CPU share are not measured: happy-dom has no
+canvas, so the draw tests use a recorder. The real WebView2 window, the iGPU, forced-colours pixels (E-04), the 3 flashes rule on
+pixels (V-12; the design cannot alternate full-field luminance, but no pixel test exists), and hidden via the host `IsVisible`
+message (only `visibilitychange` is wired) are unchecked. No Playwright spec: the component is not mounted in any page and the
+`dist-e2e-hooks` build of 9.13 does not exist, so E-01 to E-07 are covered at unit level only. The `lat_ms` shown is what the
+stream reported, not measured acoustic delay. The legacy tier-0 full scale (`level` 10 = 1.0) is an assumption.
+
+**What it changed.** New folder and tests only. B06 mounts `VoiceHill` on Core and calls `attachVoiceFeed(voiceSignal, ...)`.
+
 ## 2026-11-13: the quality bar: an award-style jury rubric, engineering standards and a licence register
 
 **Question.** The owner asked for work reviewed at the level of award-winning sites on every axis (design, usability, creativity, content, motion, accessibility, performance, code, tests). What do the public award criteria and current engineering guidance really say, and how is that turned into a pass line for each section of this local app?

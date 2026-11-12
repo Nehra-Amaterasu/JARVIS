@@ -16,7 +16,7 @@ const fake: ArtManifest = {
   art: {
     'art.a.img': row({ files: [file('generated/art.a.img.png')] }),
     'art.a.txt': row({ files: [file('generated/art.a.txt.txt', 'txt')] }),
-    'art.a.secret': row({ track: 'private-only', private_source: 'C01-01' }),
+    'art.a.secret': row({ track: 'private-only', private_source: 'C01-01', files: [{ path: 'generated/art.a.secret.png', sha256: 's', bytes: 1, kind: 'png' }] }),
   },
 }
 const sources = (urls: Record<string, string> = {}, texts: Record<string, string> = {}, calls = { n: 0 }): ArtSources => ({

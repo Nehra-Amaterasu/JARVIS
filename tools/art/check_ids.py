@@ -22,12 +22,13 @@ from assets import ROOT, assignments_path, load_assignments  # noqa: E402
 
 ART_ID = re.compile(r"(?<![\w.-])art\.[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)+(?![\w-])")
 CAT_ID = re.compile(r"\bC0[1-4]-\d{2,3}\b")
-SKIP_DIRS = {"node_modules", "dist", "dist-e2e", "generated", "private-local"}
+SKIP_DIRS = {"node_modules", "dist", "dist-e2e", "generated", "private-local", "__tests__"}
+FILE_EXT = re.compile(r"\.(?:png|svg|txt|webp)$")
 
 
 def src_files(src: Path):
     for f in sorted(src.rglob("*")):
-        if f.is_file() and f.suffix in (".ts", ".tsx", ".css") and not SKIP_DIRS & set(f.relative_to(src).parts):
+        if f.is_file() and f.suffix in (".ts", ".tsx", ".css") and not SKIP_DIRS & set(f.relative_to(src).parts) and ".test." not in f.name:
             yield f
 
 
@@ -48,8 +49,9 @@ def check_source(src: Path, manifest: dict) -> list[str]:
         for i, line in enumerate(text.splitlines(), 1):
             for m in ART_ID.finditer(line):
                 # a CSS or TS property path such as `art.kit.x` only counts when it looks like a full art id (3 parts)
-                if m.group(0).count(".") >= 2 and m.group(0) not in known:
-                    bad.append(f"{f.relative_to(src).as_posix()}:{i}: art id {m.group(0)} is not in the manifest")
+                aid = FILE_EXT.sub("", m.group(0))   # a file name in a comment (art.x.y.png) names the id
+                if aid.count(".") >= 2 and aid not in known:
+                    bad.append(f"{f.relative_to(src).as_posix()}:{i}: art id {aid} is not in the manifest")
             for m in CAT_ID.finditer(code[i - 1]):
                 bad.append(f"{f.relative_to(src).as_posix()}:{i}: catalogue id {m.group(0)} in shipped source (use an art id)")
     return bad

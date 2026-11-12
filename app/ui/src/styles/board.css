@@ -118,7 +118,8 @@
 
 /* The wall box card: the ceiling on the left, the relay table and modes on the right. */
 .wallbox { margin-bottom: 18px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
-.wallbox-grid { display: grid; grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr); gap: 18px; align-items: start; }
+.wallbox-grid { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 16px; align-items: start; }
+.wallbox-ceiling { max-width: 190px; width: 100%; margin: 0 auto; }
 @media (max-width: 900px) { .wallbox-grid { grid-template-columns: minmax(0, 1fr); } }
 .wallbox-lcd { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px 12px; border-radius: 8px; background: #1e3d9e; color: #e8f0ff; }
 .wallbox-lcd pre { margin: 0; font: 600 14px/1.35 var(--f-mono); letter-spacing: 0.08em; white-space: pre; }

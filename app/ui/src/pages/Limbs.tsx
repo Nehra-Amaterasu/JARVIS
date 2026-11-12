@@ -29,6 +29,7 @@ import { Esp32LinkCard } from '../components/Esp32LinkCard'
 import { FirmwareCard } from '../components/FirmwareCard'
 import { RelayWiring } from '../components/RelayWiring'
 import { WallBox } from '../components/WallBox'
+import { PhoneCard } from '../components/PhoneCard'
 import { isWallBox } from '../lib/wallbox'
 import type { BoardView } from '../lib/board'
 import '../styles/board.css'
@@ -37,15 +38,14 @@ const MODE_ICON: Record<string, typeof Focus> = { focus: Focus, relaxation: Sunr
 
 export function LimbsPage() {
   const toast = useStore((s) => s.toast)
-  const events = useStore((s) => s.events)
+  // Selective Zustand selectors: only re-render when relevant event IDs change
+  const lastRoom = useStore((s) => s.events.findLast((e) => e.source === 'limbs')?.id)
+  const lastBoard = useStore((s) => s.events.findLast((e) => e.source === 'board' || (e.source === 'aankhen' && e.kind === 'source'))?.id)
   const [view, , reload] = usePoll(() => api<LimbsView>('/api/limbs'), 2000)
   const [board, , reloadBoard] = usePoll(() => api<BoardView>('/api/board'), 2000)
-  // A voice command ("Hey Jarvis, fan off") arrives as an event: refresh at once.
-  const lastRoom = events.filter((e) => e.source === 'limbs').slice(-1)[0]?.id
-  useEffect(() => { reload() }, [lastRoom]) // eslint-disable-line react-hooks/exhaustive-deps
-  // A compile or flash milestone (or the hub pausing for one): the board view follows at once.
-  const lastBoard = events.filter((e) => e.source === 'board' || (e.source === 'aankhen' && e.kind === 'source')).slice(-1)[0]?.id
-  useEffect(() => { reloadBoard() }, [lastBoard]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { if (lastRoom) reload() }, [lastRoom]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (lastBoard) reloadBoard() }, [lastBoard]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const send = async (path: string, body: unknown = {}) => {
     try {
@@ -74,6 +74,9 @@ export function LimbsPage() {
 
       {view && <Modes view={view} send={send} reload={reload} />}
       <PresenceRule />
+
+      <h2 className="limbs-section">Phone pairing & access</h2>
+      <PhoneCard />
 
       <h2 className="limbs-section">The boards</h2>
       {!isWallBox(view) && <RelayWiring v={view} onTested={reload} />}

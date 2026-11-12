@@ -12,9 +12,12 @@ import type { LimbsView } from '../lib/limbs'
 import { ceilingState, channelRows, clickSummary, isWallBox, lcdRow1, lcdRow2, voiceLines, type ClickReceipt } from '../lib/wallbox'
 import { useStore } from '../lib/store'
 
-const COLOR: Record<string, string> = { light: '#e9f3ff', fan: '#5aa9e6', light2: '#ffb347', light3: '#ffb347', light4: '#ff5fa8', light5: '#ff5fa8' }
+const COLOR: Record<string, string> = {
+  light: '#e9f3ff', fan: '#5aa9e6', light2: '#ffb347', light3: '#ffb347',
+  light4: '#ff5fa8', light5: '#ff5fa8', light6: '#e0edff', light7: '#7ae582'
+}
 const OFF = 'rgba(255,255,255,0.16)'
-const MISSING = 'rgba(255,120,120,0.35)'
+
 
 export function WallBox({ view, send, reload }: { view: LimbsView | null; send: (p: string, b?: unknown) => Promise<void>; reload: () => void }) {
   const toast = useStore((s) => s.toast)
@@ -49,7 +52,10 @@ export function WallBox({ view, send, reload }: { view: LimbsView | null; send: 
       toast(text, 'fault')
     } finally { setBusy(null) }
   }
-  const stroke = (id: string) => (lit[id] === null ? MISSING : lit[id] ? COLOR[id] : OFF)
+  const stroke = (id: string) => {
+    if (lit[id] === null || lit[id] === undefined) return 'rgba(255,255,255,0.08)'
+    return lit[id] ? (COLOR[id] ?? '#e9f3ff') : OFF
+  }
   return (
     <section className="card wallbox">
       <div className="card-head">
@@ -101,7 +107,7 @@ export function WallBox({ view, send, reload }: { view: LimbsView | null; send: 
           <table className="wallbox-table">
             <thead><tr><th>Module</th><th>Relay</th><th>GPIO</th><th>Pin (board's report)</th><th></th></tr></thead>
             <tbody>
-              {rows.map((r) => {
+              {rows.filter((r) => r.present).map((r) => {
                 const rc = receipts[r.id]
                 return (
                   <tr key={r.id} className={!r.present ? 'missing' : ''}>

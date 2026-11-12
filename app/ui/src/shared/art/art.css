@@ -1,0 +1,486 @@
+/*
+ * Shared art components (spec 7.4, 7.5). Everything reads the clay semantic tokens (--ink-*, --edge-*,
+ * --surface-*, --focus-ring, --type-*) and nothing else: no colour literal, no px for type, radius, padding or gap,
+ * no duration, no transition, no animation, no shadow. The only motion in this folder is the ASCII sweep, and it is
+ * a JS-stepped text frame, so this file has nothing to stop in Calm mode. Edge discipline (spec 7.7 rule 3): a
+ * control gets --edge-ui, a container --edge-hair, a shape that carries information an outline in ink.
+ */
+.art {
+  margin: 0;
+  display: grid;
+  gap: 0.5em;
+  justify-items: start;
+  max-width: 100%;
+  color: var(--ink-1);
+  font: var(--type-meta);
+}
+.art-svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.art-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.art-mono {
+  font: var(--type-meta);
+}
+
+/* shapes: ink for what carries information, hairline for structure */
+.art-solid {
+  fill: var(--ink-1);
+  stroke: none;
+}
+.art-stroke {
+  fill: none;
+  stroke: var(--ink-1);
+  stroke-width: 1.5;
+}
+.art-hair {
+  stroke: var(--edge-hair);
+  stroke-width: 1;
+}
+.art-dim {
+  stroke: var(--ink-3);
+  stroke-width: 1;
+  fill: none;
+}
+.art-dim.art-dash line {
+  stroke-dasharray: 3 3;
+}
+.art-dim-ring {
+  stroke: var(--ink-3);
+}
+.art-next {
+  stroke: var(--ink-1);
+  stroke-width: 2;
+}
+.art-recess {
+  fill: var(--surface-sunk);
+  stroke: var(--edge-hair);
+  stroke-width: 1;
+}
+.art-ground {
+  fill: var(--surface-sunk);
+  stroke: none;
+}
+.art-label {
+  fill: var(--ink-2);
+  font: var(--type-meta);
+}
+.art-num {
+  fill: var(--ink-1);
+  font: var(--type-title);
+  font-family: var(--font-numerals, var(--font-mono));
+}
+.art-num-small {
+  fill: var(--ink-1);
+  font: var(--type-label);
+}
+.art-stamp {
+  fill: var(--state-simulated);
+  font: var(--type-label);
+  letter-spacing: 0.08em;
+}
+.art-now {
+  stroke: var(--ink-1);
+  stroke-width: 3;
+  stroke-linecap: butt;
+}
+.art-poly {
+  fill: none;
+  stroke: var(--ink-1);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.art-ridge-line {
+  stroke: var(--sec-art-1, var(--ink-1));
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.art-ridge-active {
+  stroke: var(--ink-1);
+  stroke-width: 2.5;
+}
+.art-leader {
+  stroke: var(--ink-2);
+  stroke-width: 1;
+}
+.art-plate-rect {
+  fill: var(--surface-raised);
+  stroke: var(--edge-ui);
+  stroke-width: 1;
+}
+.art-bar-line {
+  stroke: var(--ink-1);
+  stroke-width: 6;
+  stroke-linecap: butt;
+}
+.art-bar-dim {
+  stroke: var(--ink-3);
+}
+.art-hit-line {
+  stroke: transparent;
+  stroke-width: 22;
+}
+.art-cell-seg {
+  fill: var(--surface-raised);
+  stroke: var(--edge-hair);
+  stroke-width: 1;
+}
+
+/* the 44 px target of every focusable mark: a transparent disc, so the drawn 12 px mark is not the hit area */
+.art-hit {
+  fill: transparent;
+  stroke: none;
+  cursor: pointer;
+}
+.art-node {
+  outline: none;
+}
+.art-focusring {
+  stroke: none;
+}
+.art-node:focus-visible .art-focusring {
+  stroke: var(--focus-ring);
+  stroke-width: 2;
+}
+.art-plate-g {
+  outline: none;
+}
+.art-plate-g:focus-visible .art-plate-rect {
+  stroke: var(--focus-ring);
+  stroke-width: 2;
+}
+svg:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.art-callout[data-status='fault'] .art-plate-rect {
+  stroke-width: 2;
+}
+.art-bar:focus-visible .art-bar-line {
+  stroke: var(--focus-ring);
+}
+
+/* caption plate and the state tag: shape plus word, never colour alone */
+.art-plate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em 1em;
+  padding: 0.5em 0.75em;
+  border: 1px solid var(--edge-hair);
+  border-radius: var(--r-control);
+  background: var(--surface-raised);
+  color: var(--ink-2);
+  font: var(--type-meta);
+}
+.art-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  color: var(--ink-1);
+}
+.art-tag-word {
+  letter-spacing: 0.04em;
+}
+.art-tag-reason {
+  color: var(--ink-2);
+}
+.art-mark {
+  flex: none;
+}
+.art-readout {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  color: var(--ink-2);
+  font: var(--type-meta);
+}
+.art-list {
+  margin: 0;
+  padding: 0 0 0 1.25em;
+  color: var(--ink-1);
+  font: var(--type-small);
+}
+.art-list-meta {
+  color: var(--ink-2);
+}
+.art-split {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1em 1.5em;
+}
+
+/* the data table: visually hidden by default (.art-sr), a plain bordered table when shown */
+.art-table {
+  border-collapse: collapse;
+  color: var(--ink-1);
+  font: var(--type-small);
+}
+.art-table caption {
+  padding: 0 0 0.25em;
+  text-align: start;
+  color: var(--ink-2);
+  font: var(--type-meta);
+}
+.art-table th,
+.art-table td {
+  padding: 0.35em 0.75em;
+  border: 1px solid var(--edge-hair);
+  text-align: start;
+  font-weight: inherit;
+}
+.art-table thead th {
+  color: var(--ink-2);
+  font: var(--type-label);
+}
+.art-table.art-sr {
+  border: 0;
+}
+.art-spec td,
+.art-spec th {
+  vertical-align: middle;
+}
+
+/* sliders of the pillars chart's edit mode */
+.art-sliders {
+  display: grid;
+  gap: 0.5em;
+  width: 100%;
+  max-width: 24em;
+}
+.art-slider {
+  display: grid;
+  grid-template-columns: 8em 1fr;
+  align-items: center;
+  gap: 0.75em;
+  min-height: var(--hit, 44px);
+  color: var(--ink-1);
+  font: var(--type-small);
+}
+.art-slider input {
+  min-height: var(--hit, 44px);
+}
+.art-slider input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* week strip: pills with a 1 px border, 44 px at least */
+.art-week {
+  display: flex;
+  gap: 0.5em;
+  flex-wrap: wrap;
+}
+.art-day {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 0.25em;
+  min-width: var(--hit, 44px);
+  min-height: var(--hit, 44px);
+  padding: 0.5em 0.75em;
+  border: 1px solid var(--edge-ui);
+  border-radius: var(--r-control);
+  background: var(--surface-raised);
+  color: var(--ink-1);
+  font: var(--type-label);
+  cursor: pointer;
+}
+.art-day[aria-pressed='true'] {
+  border-width: 2px;
+  background: var(--selected-fill, var(--surface-sunk));
+  color: var(--selected-ink, var(--ink-1));
+}
+.art-day:focus-visible,
+.art-btn:focus-visible,
+.art-blank:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.art-day-name {
+  color: var(--ink-2);
+}
+.art-day[aria-pressed='true'] .art-day-name {
+  color: inherit;
+}
+.art-notch {
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline: 30%;
+  border-block-start: 3px solid var(--ink-1);
+}
+.art-rest {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  color: var(--ink-2);
+}
+.art-day-dots {
+  display: block;
+}
+
+/* ascii surfaces */
+.art-ascii {
+  margin: 0;
+  color: var(--ink-2);
+  font: var(--type-log);
+  line-height: 1.15;
+  white-space: pre;
+}
+.art-sweep {
+  display: inline-grid;
+  gap: 0.25em;
+  justify-items: start;
+}
+.art-verb {
+  color: var(--ink-2);
+}
+.art-empty {
+  display: grid;
+  gap: 0.75em;
+  justify-items: start;
+  max-width: 28em;
+  color: var(--ink-1);
+}
+.art-empty-msg {
+  margin: 0;
+  font: var(--type-body);
+}
+.art-btn {
+  min-height: var(--hit, 44px);
+  padding: 0.5em 1em;
+  border: 1px solid var(--edge-ui);
+  border-radius: var(--r-control);
+  background: var(--surface-raised);
+  color: var(--ink-1);
+  font: var(--type-label);
+  cursor: pointer;
+}
+.art-btn:hover {
+  border-color: var(--ink-1);
+}
+
+/* dither, meter, skeleton */
+.art-dither {
+  display: block;
+  color: var(--ink-1);
+  max-width: 100%;
+  height: auto;
+}
+.art-meter {
+  display: grid;
+  gap: 0.5em;
+  justify-items: start;
+}
+.art-cells-box {
+  position: relative;
+  width: 100%;
+  min-height: 4em;
+}
+.art-cells {
+  display: grid;
+  gap: 0.15em;
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+}
+.art-cell {
+  min-height: 1em;
+  border: 1px solid var(--edge-hair);
+  border-radius: var(--r-sharp);
+  background: var(--surface-sunk);
+}
+
+/* the dashed blanking plate: flat, one cue, never hover or press (copied from the B02 plate on purpose) */
+.art-blank {
+  display: grid;
+  gap: 0.25em;
+  justify-items: start;
+  min-height: var(--hit, 44px);
+  padding: 0.75em;
+  border: 1px dashed var(--edge-ui);
+  border-radius: var(--r-control);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: default;
+  text-align: start;
+}
+.art-blank-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  color: var(--ink-3);
+}
+.art-blank-label {
+  color: var(--ink-1);
+  font: var(--type-label);
+}
+.art-blank-line {
+  font: var(--type-small);
+}
+.art-blank-cue {
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+/* forced colours: every shape draws in a system colour, borders stay real */
+@media (forced-colors: active) {
+  .art-solid {
+    fill: CanvasText;
+  }
+  .art-stroke,
+  .art-poly,
+  .art-ridge-line,
+  .art-ridge-active,
+  .art-leader,
+  .art-now,
+  .art-bar-line,
+  .art-bar-dim,
+  .art-dim,
+  .art-dim-ring,
+  .art-hair,
+  .art-recess,
+  .art-plate-rect,
+  .art-cell-seg {
+    stroke: CanvasText;
+  }
+  .art-recess,
+  .art-ground,
+  .art-plate-rect,
+  .art-cell-seg {
+    fill: Canvas;
+  }
+  .art-label,
+  .art-num,
+  .art-num-small,
+  .art-stamp {
+    fill: CanvasText;
+  }
+  .art-dither {
+    color: CanvasText;
+  }
+  .art-node:focus-visible .art-focusring,
+  .art-plate-g:focus-visible .art-plate-rect,
+  .art-bar:focus-visible .art-bar-line {
+    stroke: Highlight;
+  }
+  .art-notch {
+    border-block-start-color: CanvasText;
+  }
+}

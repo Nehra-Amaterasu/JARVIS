@@ -173,6 +173,13 @@ describe('every art component exposes its hooks and a table equivalent', () => {
     expect(document.body.textContent).toContain('needs 5 to 8 axes')
     expect(q('svg.art-svg')).toBeNull()
   })
+  it('pillars chart: waiting draws no polygon and no number', () => {
+    const axes = ['a', 'b', 'c', 'd', 'e'].map((id, i) => ({ id, label: id.toUpperCase(), value: 0.2 + i * 0.1 }))
+    m = mount(<PillarsChart axes={axes} state="waiting" caption="Pillars" />)
+    expect(q('.art-poly')).toBeNull()
+    expect(qa('[data-art-table] tbody td').map((c) => c.textContent)).toEqual(['--', '--', '--', '--', '--'])
+    expect(document.body.textContent).not.toMatch(/\d+ percent/)
+  })
   it('week strip: seven pills, today notched, a rest day is a glyph and a word, roving focus', () => {
     const days = Array.from({ length: 9 }, (_, i) => ({ iso: `2027-03-${String(8 + i).padStart(2, '0')}`, label: 'Mo', minutes: i * 40, rest: i === 3 }))
     const opened: string[] = []

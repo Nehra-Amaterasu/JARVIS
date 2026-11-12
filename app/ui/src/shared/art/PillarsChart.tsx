@@ -24,7 +24,10 @@ const R = 112
 export function PillarsChart({ axes, state, sample = false, editable = false, onChange, caption }: PillarsChartProps) {
   const ok = axes.length >= 5 && axes.length <= 8
   const list = useMemo(() => (ok ? axes : []), [axes, ok])
-  const sp = useMemo(() => spider(list, C, C, R), [list])
+  // Rule 4 (no number without a state): a value is drawn and read out only when the state is a reading. WAITING,
+  // PLANNED and FAULT keep the frame and the axes, put every vertex at the centre and print "--" in the table.
+  const reading = state === 'live' || state === 'simulated'
+  const sp = useMemo(() => spider(reading ? list : list.map((a) => ({ ...a, value: 0 })), C, C, R), [list, reading])
   const rov = useRoving(sp.spokes.length)
   const rings = [0.25, 0.5, 0.75, 1]
   return (
@@ -39,7 +42,7 @@ export function PillarsChart({ axes, state, sample = false, editable = false, on
           {sp.spokes.map((s) => (
             <line key={s.id} className="art-hair" x1={C} y1={C} x2={s.x} y2={s.y} />
           ))}
-          <polygon className="art-poly" points={sp.points} data-sample={sample || undefined} strokeDasharray={sample || state === 'simulated' ? '5 3' : undefined} />
+          {reading ? <polygon className="art-poly" points={sp.points} data-sample={sample || undefined} strokeDasharray={sample || state === 'simulated' ? '5 3' : undefined} /> : null}
           {sp.spokes.map((s, i) => {
             const rp = rov.props(i)
             const turn = i / sp.spokes.length
@@ -47,7 +50,7 @@ export function PillarsChart({ axes, state, sample = false, editable = false, on
             const lx = C + (R + 16) * side
             const ly = C - (R + 16) * Math.cos(turn * Math.PI * 2)
             return (
-              <g key={s.id} className="art-node" role="img" aria-label={`${s.label}, ${Math.round((list[i].value ?? 0) * 100)} percent`} {...rp}>
+              <g key={s.id} className="art-node" role="img" aria-label={reading ? `${s.label}, ${Math.round((list[i].value ?? 0) * 100)} percent` : `${s.label}, no reading`} {...rp}>
                 <circle className="art-hit" cx={s.vx} cy={s.vy} r={22} />
                 <circle className="art-focusring" cx={s.vx} cy={s.vy} r={10} fill="none" />
                 <circle className="art-solid" cx={s.vx} cy={s.vy} r={3.5} />
@@ -67,7 +70,7 @@ export function PillarsChart({ axes, state, sample = false, editable = false, on
           ))}
         </div>
       ) : null}
-      <ArtTable caption={`${caption} (axes)`} head={['Axis', 'Value']} rows={list.map((a) => [a.label, `${Math.round(a.value * 100)}%`])} />
+      <ArtTable caption={`${caption} (axes)`} head={['Axis', 'Value']} rows={list.map((a) => [a.label, reading ? `${Math.round(a.value * 100)}%` : '--'])} />
     </Figure>
   )
 }

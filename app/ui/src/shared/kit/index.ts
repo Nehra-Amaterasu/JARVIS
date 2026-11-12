@@ -1,0 +1,24 @@
+// The shared kit (S7). Moved here from ww/kit without a behaviour change; the clay families A and B are new
+// (docs/design/jarvis-product-overhaul.md 7.2, 7.3). ww/kit re-exports the moved files so ww imports resolve.
+import './clay.css'
+
+export { Button, IconButton } from './Button'
+export { Segmented } from './Segmented'
+export { Chip } from './Chip'
+export { Field } from './Field'
+export { Skeleton, SKELETON_DELAY_MS } from './Skeleton'
+export { Section, SectionOrder, sectionOrder } from './Section'
+export { PrimaryButton, PrimaryOwner, PRIMARY_RANK, usePrimaryClaim } from './PrimaryOwner'
+export { Drawer, Sheet } from './Drawer'
+export { Popover } from './Popover'
+export { Toast, ToastStack, TOAST_MS } from './Toast'
+export { Banner, EmptyState, Fold, MasterDetail, TapGroup, clearMasterDetailMemory } from './Layout'
+
+export { Lamp, LampGlyph, LAMP_STATES, LAMP_WORD, LAMP_SHAPE, lampText, showsValue } from './Lamp'
+export type { LampProps, LampState } from './Lamp'
+export { Knob, Key, Plate, Rocker, Switch, TickSlider } from './Hardware'
+export type { KeyProps, KnobProps, PlateProps, RockerProps, StateForms, SwitchProps, TickSliderProps } from './Hardware'
+export { NO_VALUE, Numerals, ProgressBar, Readout, ReadoutLines, TelemetryRail, readingText } from './Readouts'
+export type { NumeralsProps, ProgressBarProps, RailRow, ReadoutLine, ReadoutProps } from './Readouts'
+export { CONSOLE_MAX_LINES, Console, FolderTabs, Frame, NOTCHED_TOAST_MS, NotchedToast, NotchedToastStack, Panel, PaletteView, RetroDialog } from './Frames'
+export type { ConsoleLine, ConsoleProps, ConsoleTag, FolderTab, FolderTabsProps, FrameProps, NotchedToastItem, PaletteItem, PanelProps, RetroDialogProps } from './Frames'

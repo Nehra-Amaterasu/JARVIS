@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Search } from 'lucide-react'
 import * as kit from '../../shared/kit'
+import type { CycleState } from '../../shared/kit/Chip'
 import type { GalleryEntryX } from '../types'
 import { noop } from '../fixtures'
 
@@ -16,7 +17,7 @@ function SegDemo({ variant, label, three }: { variant?: 'choice' | 'compact'; la
   return <kit.Segmented label={label} variant={variant} value={seg} onChange={setSeg} options={options} />
 }
 function ChipCycle() {
-  const [cyc, setCyc] = useState<kit.CycleState>('todo')
+  const [cyc, setCyc] = useState<CycleState>('todo')
   return <><kit.Chip cycle={cyc} onCycle={setCyc}>Topic</kit.Chip> <kit.Chip grouped onClick={noop}>Grouped</kit.Chip></>
 }
 function FoldDemo() {

@@ -9,7 +9,9 @@ import { WhatIsComing } from '../../shared/overlays/WhatIsComing'
 import { LOOP_VIEWS, VIEW_IDS, isKnownHome } from '../../shared/planned/homes'
 import { PlannedChip } from '../../shared/planned/PlannedChip'
 import { PlannedControl } from '../../shared/planned/PlannedControl'
-import { createRegistry, fillLine, lintEntry, lintRegistry, listable, pastReview, productLeaks } from '../../shared/planned/registry'
+import {
+  REVIEW_WINDOW_DAYS, createRegistry, daysPastReview, fillLine, lintEntry, lintRegistry, listable, pastReview, pastReviewReport, productLeaks, rottedEntries,
+} from '../../shared/planned/registry'
 import {
   densityViolations, enabledPlannedControls, loopViewViolations, orphanEntries, orphanRenderers, staleEntries,
 } from '../../shared/planned/stale'
@@ -229,6 +231,31 @@ describe('T10 dates', () => {
     expect(pastReview(reg, '2026-12-02').map((e) => e.id)).toEqual(['ww.synthetic'])
     expect(pastReview(reg, '2026-11-30')).toEqual([])
   })
+  it('the past-review report lists each late entry once with its days, oldest first, and is empty while all are in date', () => {
+    const reg = createRegistry([
+      entry({ id: 'ww.a', label: 'A', reviewBy: '2026-12-01' }), entry({ id: 'ww.b', label: 'B', reviewBy: '2026-11-20' }), entry({ id: 'ww.c', label: 'C', reviewBy: '2027-02-10' }),
+    ])
+    expect(pastReviewReport(reg, '2026-11-12')).toEqual([])
+    const lines = pastReviewReport(reg, '2026-12-05')
+    expect(lines).toHaveLength(2)
+    expect(lines[0]).toMatch(/^ww\.b: 15 days past review \(reviewBy 2026-11-20/)
+    expect(lines[1]).toMatch(/^ww\.a: 4 days past review/)
+    expect(lines).toHaveLength(pastReview(reg, '2026-12-05').length)
+  })
+  it('an entry is rotted only past a whole extra review window: day 90 late is a report line, day 91 late fails', () => {
+    const reg = createRegistry([entry({ reviewBy: '2026-12-01' })])
+    expect(daysPastReview(reg.entries[0], '2026-12-01')).toBe(0)
+    expect(daysPastReview(reg.entries[0], '2027-03-01')).toBe(90)
+    expect(rottedEntries(reg, '2027-03-01')).toEqual([]) // exactly 90 days late
+    expect(rottedEntries(reg, '2027-03-02').map((e) => e.id)).toEqual(['ww.synthetic'])
+  })
+  it('no real entry of either product is more than one review window past due (read the list in the output when it fails)', () => {
+    const today = new Date().toISOString().slice(0, 10)
+    const report = pastReviewReport(both, today)
+    // The gate-report line: visible in a verbose run, never an assertion by itself (spec 12.5).
+    if (report.length > 0) console.info(['entries past review (' + report.length + '):', ...report].join('\n'))
+    expect(rottedEntries(both, today).map((e) => e.id), `rotted for more than ${REVIEW_WINDOW_DAYS} days past reviewBy`).toEqual([])
+  })
   it('every real entry is reviewable 90 days after it was added', () => {
     for (const e of both.entries) {
       const days = (Date.parse(e.reviewBy) - Date.parse(e.since)) / 86_400_000
@@ -365,6 +392,39 @@ describe('the overlay "What is coming"', () => {
     const controls = document.querySelectorAll('[data-overlay="roadmap"] button, [data-overlay="roadmap"] a, [data-overlay="roadmap"] input, [data-overlay="roadmap"] [role="button"]')
     expect(controls).toHaveLength(1)
     expect(controls[0].textContent).toBe('Close')
+  })
+  it('Tab and Shift+Tab never leave the overlay: with only Close inside, focus stays on Close', () => {
+    const behind = document.createElement('button')
+    behind.textContent = 'Behind'
+    document.body.appendChild(behind)
+    m = mount(<WhatIsComing registries={[jarvisRegistry]} onClose={() => {}} />)
+    const close = document.querySelector<HTMLElement>('.pl-close')!
+    expect(document.activeElement).toBe(close)
+    for (const shiftKey of [false, true]) {
+      const ev = new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true, cancelable: true })
+      act(() => { document.dispatchEvent(ev) })
+      expect(ev.defaultPrevented, shiftKey ? 'shift+tab' : 'tab').toBe(true)
+      expect(document.activeElement).toBe(close)
+    }
+  })
+  it('wraps last to first and first to last, and pulls focus back in when it was outside', () => {
+    m = mount(<WhatIsComing registries={[jarvisRegistry]} onClose={() => {}} />)
+    const root = document.querySelector<HTMLElement>('[data-overlay="roadmap"]')!
+    const extra = document.createElement('button')
+    extra.textContent = 'Extra'
+    root.appendChild(extra)
+    const close = document.querySelector<HTMLElement>('.pl-close')!
+    const press = (shiftKey: boolean) => act(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true, cancelable: true })) })
+    extra.focus()
+    press(false)
+    expect(document.activeElement).toBe(close)
+    press(true)
+    expect(document.activeElement).toBe(extra)
+    const behind = document.createElement('button')
+    document.body.appendChild(behind)
+    behind.focus()
+    press(false)
+    expect(document.activeElement).toBe(close)
   })
   it('Esc and Alt+Left close it, and focus returns to the control that opened it', () => {
     const opener = document.createElement('button')

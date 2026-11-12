@@ -2,6 +2,36 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-12: B05b art pipeline, built and measured
+
+**Question.** Can the art pipeline of section 8.5 and 8.6 be built so that (a) the same recipe gives the same bytes, (b) the customer track can never resolve a private-only id, and (c) no private-track picture or derivative can reach a `dist` that leaves the machine, with only PIL and numpy?
+
+**What was built** (`tools/art/**`, `app/ui/src/art/**`): `artlib.py` (pure steps: tone, ASCII with Sobel direction glyphs, Bayer 8x8, Atkinson, marching-squares contour with Ramer-Douglas-Peucker, duotone WebP in linear light, terminal frame, three seeded generators, an L-system, a silhouette IoU guard), `build_art.py` (recipes, manifest, `--check`, `--private`, `--stage-private`), `check_contrast.py`, `check_ids.py`, `count_assets.py`, `check_no_private_in_dist.py`, `assets.py`; in the app a pure resolver (`resolve.ts`), the entry (`index.ts`) and the private-track module (`private.ts`).
+
+**Numbers (measured 12 Nov, Windows, Python 3.11.9, Pillow 12.2.0, numpy 2.4.4).**
+- Eight recipes, seven customer files, 34,594 B in all (budget for the set: 60 KB): hill PNG 1,978 B (target 6 KB), island SVG 5,830 B (target 12 KB), grain PNG 1,178 B, branch text 991 B, 404 text 498 B, dither tiles 135 B, paper WebP 23,984 B (target 60 KB). The eighth recipe is private-only: id and hash in the manifest, no file.
+- Build time for all seven: 1.29 s (paper 1.11 s, island 0.09 s). The island took 1.65 s before the contour step visited only the cells a line crosses (numpy case table, then loop over `np.nonzero`): 18 times faster, same bytes.
+- `build_art.py --check` rebuilds everything and compares sha256 against the manifest: green; two builds are byte-identical (test). Lossy WebP is compared by sha only when the manifest's Pillow and libwebp match, always by size.
+- `count_assets.py --verify-spec` over the real assignment JSON: 186 pictures, sections 15, uses 9, tracks 4, meaning 160 decorative and 26 meaningful; **the Counts line equals Appendix C exactly**.
+- `check_contrast.py` over all 186 placements against the real clay tokens: 0 failing. Worst cases computed: ink-1 on a white picture under the 72 % `#171717` scrim 5.89:1 (needs 4.5); edge-ui 3.54:1 light and 3.91:1 dark (needs 3.0); ink-3 5.45:1 on clay-light and 6.64:1 on `#171717` (the JSON's own claims, recomputed and equal to two decimals); frame ink-2 6.14:1. 109 placements are not rendered; 37 are atmosphere capped at 15 %.
+- `check_ids.py --spec`: the 25 recorded refusals (reference-only with deck use "rejected directions") appear in sections 7 and 8 only where they are named as refused: 0 problems. `check_ids.py` over `app/ui/src`: 0 unknown art ids, 0 catalogue ids in code (comments are provenance and are skipped).
+- Tests: 46 pytest (`tools/art/tests`, 39 s), 18 vitest (`src/art/art.test.ts`); whole UI suite 68 files, 1,483 tests green; `tsc -b` clean.
+
+**The check for a private hash in a dist, tried for real.** A throwaway library build (scratch folder, never `app/ui/dist`) of `src/art/index.ts` was made twice. Customer track with a stand-in private file staged in `private-local/`: no private chunk emitted, the string `private-local` appears only in a doc comment, and `check_no_private_in_dist.py` reported 0 leaks. Private track (`VITE_ART_TRACK=private`): the private chunk was emitted and Vite had **inlined the 3,000-byte file as a base64 data URI inside a JS chunk** (assets under 4 KB are inlined), so no file in that dist had the private sha256; the base64 and raw-substring pass caught it. A hash-only check would have missed exactly this. The gate is written in place (`import.meta.env.VITE_ART_TRACK === 'private' ? import('./private')`) because shared/product.ts recorded that a constant exported from another module does not fold; here the fold held (customer build had no `private.ts` chunk).
+
+**Decisions and deviations.**
+- The recipe has `track` ("customer" or "private-only") and an optional `private_source` (a catalogue id) so one art id can carry both tracks, as 8.5.1 says the manifest row records `private_source` and `customer_source`. A customer recipe may not take a catalogue source and a private-only recipe may only take one; both are `--check` failures, as is a missing licence line, a missing `own/*.licence`, a public-domain source without its work and record, an orphan file in `generated/`, or a stale manifest.
+- Private hashes are kept in the git-ignored `data/design-assets/private/private-hashes.json`, not in the tracked manifest, so no private derivative's hash is committed. The manifest's private part is the id, the catalogue id and the recipe hash.
+- Colours come from the real primitives in `primitive-color.css` (not the spec's hex literals): the ochre pair uses `--p-ochre-art` (`#ae6f0c`), because B03 fixed that value; a token change changes the recipe hash and `--check` says so.
+- Randomness is an integer hash of (x, y, seed), not numpy's Generator, whose streams are not guaranteed stable between releases.
+- `.gitattributes` in `app/ui/src/art` and `tools/art` mark generated files, the manifest, own files and recipes `-text`: with autocrlf on, git would rewrite the text files on checkout and every sha256 would break.
+- Text art is loaded with `?raw` and cached as a promise (one fetch per file), not by a separate `fetch`; same effect as 8.5.3 item 4 with one fewer request.
+- The customer replacements built here are the ones the spec names as zero-source: the hill (value-noise ridgelines), the memory branch (L-system, 22 degrees, 5 iterations), the island (fractal terrain contour), the grain strip, the dither tile library, the 404 frame and a paper duotone. The sun, trunk, skyline, faceplate and spindle belong to B06b.
+
+**Unverified.** The private track end to end on real pictures (no source file is on this branch by design; tested with a synthetic PNG in a scratch tree). The IoU guard is implemented and tested (`silhouette_iou`) but not yet wired to compare a customer render with its private render, which needs both; the 0.5 threshold is the spec's assumption. Lossy WebP determinism across machines is by size only until the Pillow and libwebp versions are pinned. The hill is a still: the live canvas loop belongs to B06b/B07. The 3:1 and 4.5:1 checks are computed, not seen on a screen. `data/notes/NOW.md` was not edited (it is in the main checkout's private `data/`, which this package may not touch).
+
+**What it changed.** B06b can now name art by id (`artUrl('art.core.hill')`) and swap a source by editing a recipe; A.Q01's refusal check and the contrast gate exist as scripts. Run: `.venv\Scripts\python.exe tools/art/build_art.py --check` and `-m pytest tools/art/tests`; in `app/ui`: `npx vitest run src/art`.
+
 ## 2026-11-12: B03 tokens layers 1 to 3, built and reviewed
 
 **Question.** Does the additive clay token layer hold its contrast table, forced-colours mapping and "nothing changes on screen" promise?

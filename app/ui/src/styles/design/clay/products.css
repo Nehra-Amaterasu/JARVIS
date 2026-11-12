@@ -1,0 +1,23 @@
+/* ==========================================================================
+   Clay: the product layer (spec 6.2.1 rule 4, 6.3.6).
+
+   data-product on <html> is 'jarvis' or 'ww'. A product may set the silhouette and the tempo and
+   nothing else: never a surface, ink, edge or state value, so the two products stay one material
+   and a section can never take the other product's silhouette. JARVIS is square (2 px, chamfered
+   by the kit), Well Wisher is clay (10 px controls, 14 px panels). A section file overrides these
+   only where it differs (the Room keys, the Console).
+
+   The first-run theme (JARVIS clay-dark, Well Wisher clay-light) is not CSS: it is the
+   attribute the shell writes on first launch (spec 6.1).
+   ========================================================================== */
+:root[data-theme^='clay-'][data-product='jarvis'] {
+  --r-control: var(--r-sharp);
+  --r-panel: var(--r-sharp);
+  --tempo: 0.67;
+}
+
+:root[data-theme^='clay-'][data-product='ww'] {
+  --r-control: var(--p-radius-10);
+  --r-panel: var(--r-clay);
+  --tempo: 1;
+}

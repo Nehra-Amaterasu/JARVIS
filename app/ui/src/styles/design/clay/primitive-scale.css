@@ -1,0 +1,38 @@
+/* ==========================================================================
+   Clay, layer 1: the non-colour primitives the clay roles read (spec 6.3.1, last paragraph).
+
+   ../primitive.css holds the same space, radius, size, line and weight values but scopes them to
+   `.ww, .ww-portal`. B01 re-scopes that file to :root (seam S4); until then the clay layer needs
+   its own copies, so it can be used on a JARVIS page. tokens.test.ts asserts every value below
+   that also exists in ../primitive.css is equal to it, so the two cannot drift; once B01 lands,
+   delete the duplicated lines here and keep only the five spec 6.3.1 adds
+   (--p-radius-2, --p-size-56, --p-size-72, --p-line-56, --p-line-72).
+   ========================================================================== */
+:root {
+  --p-radius-2: 2px;   /* new: sharp corners (--r-sharp) */
+  --p-radius-6: 6px;
+  --p-radius-10: 10px;
+  --p-radius-14: 14px;
+
+  --p-size-12: 12px;
+  --p-size-13: 13px;
+  --p-size-14: 14px;
+  --p-size-16: 16px;
+  --p-size-18: 18px;
+  --p-size-24: 24px;
+  --p-size-56: 56px;   /* new: compact Doto numerals */
+  --p-size-72: 72px;   /* new: hero Doto numerals */
+
+  --p-line-16: 16px;
+  --p-line-18: 18px;
+  --p-line-20: 20px;
+  --p-line-24: 24px;
+  --p-line-26: 26px;
+  --p-line-32: 32px;
+  --p-line-56: 56px;   /* new */
+  --p-line-72: 72px;   /* new */
+
+  --p-weight-400: 400;
+  --p-weight-500: 500;
+  --p-weight-600: 600;
+}

@@ -1,0 +1,84 @@
+/* ==========================================================================
+   Clay, layer 1: colour primitives (overhaul spec 6.3.1). The ONLY file under styles/design/clay
+   and styles/sections that may hold a colour literal (tokens.test.ts greps for it).
+
+   Raw values only, no role: a role is a layer-2 name in semantic.css. Names are new
+   (--p-clay-*, --p-char-*, ...), so nothing here collides with the Well Wisher primitives
+   in ../primitive.css (--p-ash-*, --p-saffron-*, --p-cyan, --p-amber, --p-red stay as they are
+   until B13). Declared on :root, but nothing reads them until a page sets data-theme='clay-*'.
+
+   Spec 6.3.1 lists 33 of these. The rest are the grounds and greys the spec's computed
+   tables use but its primitive list omits (150, 400, 880, 925, 775, 650, 575, 500, 475), so
+   every colour the contrast tables test has exactly one source here.
+   ========================================================================== */
+:root {
+  /* clay: the light ground and its greys */
+  --p-clay-50: #f2f3f2;   /* raised, light; text on the inverted selected fill */
+  --p-clay-100: #e8eae9;  /* ground, light (swatch C02-18) */
+  --p-clay-150: #e3e4e1;  /* memory paper */
+  --p-clay-200: #dadcdb;  /* sunk, light */
+  --p-clay-300: #c4c7c5;  /* hairline, light (decorative only: 1.41:1) */
+  --p-clay-400: #8a8e8c;  /* ink-off, light (disabled text only: 2.75:1) */
+  --p-clay-500: #6e7270;  /* edge-ui, light (3.54 to 4.39:1) */
+  --p-clay-600: #5a5e5c;  /* ink-3, light */
+  --p-clay-700: #4d4d4d;  /* ink-2, light (swatch C02-42) */
+
+  /* char: the charcoal scenes and the dark theme */
+  --p-char-950: #08090a;  /* console scene; sunk in immersive */
+  --p-char-925: #0a0c10;  /* senses scene */
+  --p-char-900: #0f1011;  /* core scene; ground in immersive */
+  --p-char-880: #101112;  /* sunk, dark */
+  --p-char-850: #121314;  /* focus session scene */
+  --p-char-800: #171717;  /* ground, dark; ink-1, light (swatch C02-44) */
+  --p-char-775: #1a1c1e;  /* raised in immersive */
+  --p-char-750: #1d2124;  /* room faceplate */
+  --p-char-700: #222426;  /* raised, dark */
+  --p-char-650: #2a2d30;  /* hairline in immersive (decorative) */
+  --p-char-600: #34373a;  /* hairline, dark (decorative: 1.50:1) */
+  --p-char-575: #3a3e40;  /* core ghost ring (decorative: 1.76:1) */
+  --p-char-500: #6a6e70;  /* ink-off, dark (disabled text only: 3.48:1) */
+  --p-char-475: #6a6f72;  /* focus session, remaining dot (3.66:1) */
+  --p-char-400: #7c8082;  /* edge-ui, dark */
+  --p-char-300: #9a9ea0;  /* ink-3, dark */
+  --p-char-200: #b4b8ba;  /* ink-2, dark */
+  --p-bone: #e8eae9;      /* ink-1, dark */
+
+  /* the one accent: a fill, never light-surface text and never a sole edge (2.83:1 on the light ground) */
+  --p-orange-500: #f25623;  /* swatch C02-41 */
+  --p-orange-450: #f5693a;  /* hover fill */
+  --p-orange-700: #a8300f;  /* accent as text on light */
+
+  /* provenance, light and dark: colour means state (D11) */
+  --p-cyan-700: #006b7a;
+  --p-cyan-300: #5ce1ff;
+  --p-amber-800: #805400;   /* V1: darkened from the first draft so SIMULATED passes 4.5 on all light surfaces */
+  --p-amber-300: #ffb347;
+  --p-red-700: #b3261e;
+  --p-red-400: #ff6b5e;
+
+  /* section marks and art (layer 3 reads these; at most three hues: day, study, tree) */
+  --p-ochre-800: #8a4b00;
+  --p-ochre-300: #e0a030;
+  --p-ochre-art: #ae6f0c;   /* the day sun: 3.42:1, captioned */
+  --p-teal-800: #2b6468;
+  --p-teal-300: #6fc2c6;
+  --p-moss-800: #46603a;
+  --p-moss-300: #9cc38a;
+  --p-brick-700: #9a4527;   /* career towers: art only, never a mark */
+  --p-brick-300: #e8896a;
+
+  /* shadow alpha steps (6.4.4): one ink, white or black, at the alpha the recipe names */
+  --p-shadow-white-80: rgb(255 255 255 / 0.8);
+  --p-shadow-white-70: rgb(255 255 255 / 0.7);
+  --p-shadow-white-06: rgb(255 255 255 / 0.06);
+  --p-shadow-white-05: rgb(255 255 255 / 0.05);
+  --p-shadow-ink-16: rgb(23 23 23 / 0.16);
+  --p-shadow-ink-20: rgb(23 23 23 / 0.2);
+  --p-shadow-ink-28: rgb(23 23 23 / 0.28);
+  --p-shadow-black-55: rgb(0 0 0 / 0.55);
+  --p-shadow-black-60: rgb(0 0 0 / 0.6);
+  --p-shadow-black-62: rgb(0 0 0 / 0.62);
+  --p-shadow-black-65: rgb(0 0 0 / 0.65);
+  --p-shadow-black-75: rgb(0 0 0 / 0.75);
+  --p-scrim-light: rgb(23 23 23 / 0.55);
+}

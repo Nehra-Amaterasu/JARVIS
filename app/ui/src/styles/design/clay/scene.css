@@ -1,0 +1,65 @@
+/* ==========================================================================
+   Clay, layer 2: scenes (spec 6.1, 6.2.2, 6.3.2 third column, 6.3.4).
+
+   data-scene='immersive' on a section's canvas root remaps the roles to the charcoal set in
+   EITHER theme, so Core, Senses, Console and a running Focus block stay charcoal inside clay-light
+   chrome. 'light' is the default and needs no rule: the theme's own values apply.
+
+   Specificity is deliberate, lowest to highest:
+     [data-scene='immersive']                       (0,1,0)  the default charcoal set
+     [data-scene='immersive'][data-section='x']     (0,2,0)  that section's own ground (6.3.4)
+     forced.css  :root[data-theme] [data-scene=..]  (0,3,0)  system colours win over both
+   The ground steps are #0F1011, #0A0C10, #08090A, #121314: well under 1.1:1 apart on purpose; a
+   scene is a mood, not information.
+
+   Only the roles that change are listed, but a role that READS another must be redeclared (see the
+   GOTCHA in semantic.css), so --state-* and --focus-ring are written out.
+   ========================================================================== */
+
+[data-scene='immersive'] {
+  --surface-ground: var(--p-char-900);
+  --surface-raised: var(--p-char-775);
+  --surface-sunk: var(--p-char-950);
+
+  --ink-1: var(--p-bone);
+  --ink-2: var(--p-char-200);
+  --ink-3: var(--p-char-300);
+  --ink-off: var(--p-char-500);
+
+  --edge-ui: var(--p-char-400);
+  --edge-hair: var(--p-char-650);
+
+  --accent-ink: var(--p-orange-500);
+
+  --state-measured: var(--p-cyan-300);
+  --state-simulated: var(--p-amber-300);
+  --state-fault: var(--p-red-400);
+  --state-planned: var(--p-char-300);
+  --state-waiting: var(--p-char-300);
+
+  --selected-fill: var(--p-bone);
+  --selected-ink: var(--p-char-800);
+  --focus-ring: var(--p-bone);
+  --scrim: var(--p-shadow-black-62);
+}
+
+/* per-section grounds (6.3.4); core keeps the default #0F1011 */
+[data-scene='immersive'][data-section='senses'] { --surface-ground: var(--p-char-925); }
+[data-scene='immersive'][data-section='console'] { --surface-ground: var(--p-char-950); }
+[data-scene='immersive'][data-section='focus'] { --surface-ground: var(--p-char-850); }
+
+/* the Room faceplate: a dark panel on the light canvas. Not a scene, one extra surface role. */
+:root[data-theme='clay-light'],
+:root[data-theme='clay-dark'] {
+  --surface-faceplate: var(--p-char-750);
+}
+
+/* canvas art colours (6.5.4): the ink and the ground of the element that carries them. Declared
+   on a section root (only under a clay theme: Well Wisher already puts data-section on its own
+   elements) and on any scene root, so each resolves against its OWN ink-1 and ground
+   (see the GOTCHA in semantic.css); forced.css swaps them for CanvasText and Canvas. */
+:root[data-theme^='clay-'] [data-section],
+[data-scene] {
+  --art-ink: var(--ink-1);
+  --art-ground: var(--surface-ground);
+}

@@ -1,0 +1,33 @@
+/* ==========================================================================
+   Clay, layer 2: the elevation ladder (spec 6.4.4).
+
+   Shadow is feel; edge, fill, shape and text are legibility. The canonical neumorphic recipe
+   computes to 1.27:1 and 1.72:1 against its ground and WCAG 1.4.11 ignores soft shadows, so every
+   level here is paired, in the kit, with a real 3:1 edge (--edge-ui) and a text or icon label.
+   At most two shadow layers per recipe. Values are targets until painted on the real laptop (R01).
+
+   Rules for the files that READ these tokens (enforced for this folder by tokens.test.ts, and by
+   the kit's own lint when it lands):
+     - never `transition: box-shadow` and never animate it: the pressed shadow lives on a
+       pre-painted ::after that is cross-faded with opacity (160 ms), so hover and press move only
+       `transform` and `opacity`;
+     - no box-shadow on repeated list rows (rows are flush with a hairline).
+
+   Dark values are used by clay-dark AND by every immersive scene, as the spec's second column says.
+   ========================================================================== */
+:root[data-theme='clay-light'] {
+  --elev-raised: inset 0 1px 0 var(--p-shadow-white-80), 0 3px 8px var(--p-shadow-ink-16);
+  --elev-flush: none;
+  --elev-recessed: inset 0 2px 5px var(--p-shadow-ink-20), 0 1px 0 var(--p-shadow-white-70);
+  --elev-pressed: inset 0 2px 4px var(--p-shadow-ink-28);
+  --elev-float: 0 12px 32px var(--p-shadow-ink-28);
+}
+
+:root[data-theme='clay-dark'],
+[data-scene='immersive'] {
+  --elev-raised: inset 0 1px 0 var(--p-shadow-white-06), 0 4px 10px var(--p-shadow-black-55);
+  --elev-flush: none;
+  --elev-recessed: inset 0 2px 6px var(--p-shadow-black-65), 0 1px 0 var(--p-shadow-white-05);
+  --elev-pressed: inset 0 2px 5px var(--p-shadow-black-75);
+  --elev-float: 0 12px 32px var(--p-shadow-black-60);
+}

@@ -1,0 +1,82 @@
+/* ==========================================================================
+   Clay, layer 2: the semantic roles (overhaul spec 6.3.2). Colour only; geometry, type,
+   elevation and focus are in their own files.
+
+   Scoped by attribute, so it is inert until a page sets data-theme='clay-light' or 'clay-dark'
+   on <html>. Well Wisher's own themes ('paper', 'ash', 'indigo') and every JARVIS page, which has
+   no data-theme, are untouched: the app looks the same at this commit (e2e:shots unchanged).
+
+   Every value is a var() of a layer-1 name: no literal colour in this file (tokens.test.ts).
+
+   GOTCHA, why --state-planned, --state-waiting and --focus-ring are written out per block and not
+   inherited: a custom property is inherited as its COMPUTED value. If root declared
+   `--state-waiting: var(--ink-3)`, an immersive child would inherit root's resolved light ink-3
+   and ignore its own. So every block below declares the full set (scene.css does the same).
+   ========================================================================== */
+
+:root[data-theme='clay-light'] {
+  color-scheme: light;
+
+  --surface-ground: var(--p-clay-100);
+  --surface-raised: var(--p-clay-50);
+  --surface-sunk: var(--p-clay-200);
+  --surface-paper: var(--p-clay-150); /* the memory paper (a light scene, 14.04:1 for ink-1) */
+
+  --ink-1: var(--p-char-800);
+  --ink-2: var(--p-clay-700);
+  --ink-3: var(--p-clay-600);
+  --ink-off: var(--p-clay-400);       /* disabled text only: 2.75:1, exempt from 4.5, never information */
+
+  --edge-ui: var(--p-clay-500);       /* 1 px boundary of every control: 3.54 to 4.39:1 */
+  --edge-hair: var(--p-clay-300);     /* decorative only: 1.41:1, never the sole boundary of a control */
+
+  --accent-fill: var(--p-orange-500); /* the one primary action fill; never text, never a sole edge */
+  --accent-on: var(--p-char-800);
+  --accent-fill-hover: var(--p-orange-450);
+  --accent-ink: var(--p-orange-700);  /* accent as text on light: 4.93 to 6.10:1 */
+
+  --state-measured: var(--p-cyan-700);
+  --state-simulated: var(--p-amber-800);
+  --state-fault: var(--p-red-700);
+  --state-planned: var(--p-clay-600);
+  --state-waiting: var(--p-clay-600);
+
+  --selected-fill: var(--p-char-800); /* inverted ink, so selection is not colour-coded */
+  --selected-ink: var(--p-clay-50);
+  --focus-ring: var(--p-char-800);
+  --scrim: var(--p-scrim-light);
+}
+
+:root[data-theme='clay-dark'] {
+  color-scheme: dark;
+
+  --surface-ground: var(--p-char-800);
+  --surface-raised: var(--p-char-700);
+  --surface-sunk: var(--p-char-880);
+  /* spec 6.3.4 defines the paper for light tokens only; until V03 decides, paper is the dark ground */
+  --surface-paper: var(--p-char-800);
+
+  --ink-1: var(--p-bone);
+  --ink-2: var(--p-char-200);
+  --ink-3: var(--p-char-300);
+  --ink-off: var(--p-char-500);
+
+  --edge-ui: var(--p-char-400);
+  --edge-hair: var(--p-char-600);
+
+  --accent-fill: var(--p-orange-500);
+  --accent-on: var(--p-char-800);
+  --accent-fill-hover: var(--p-orange-450);
+  --accent-ink: var(--p-orange-500);  /* 4.55 on raised, the thinnest dark pair */
+
+  --state-measured: var(--p-cyan-300);
+  --state-simulated: var(--p-amber-300);
+  --state-fault: var(--p-red-400);
+  --state-planned: var(--p-char-300);
+  --state-waiting: var(--p-char-300);
+
+  --selected-fill: var(--p-bone);
+  --selected-ink: var(--p-char-800);
+  --focus-ring: var(--p-bone);
+  --scrim: var(--p-shadow-black-62);
+}

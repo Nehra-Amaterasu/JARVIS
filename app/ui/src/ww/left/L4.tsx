@@ -4,7 +4,7 @@
  * through the kit's Stat; a tile with no number from the server says "not measured yet", never 0.
  */
 import { memo, useRef } from 'react'
-import { Button, Card, EmptyState, Section, Stat } from '../kit'
+import { WAITING_DEFAULT, Button, Card, COUNTED, EmptyState, Section, Stat } from '../kit'
 import { switchWorkspace } from '../frame/navigate'
 import { useBudget } from './hooks'
 import { buildL4 } from './model'
@@ -44,7 +44,7 @@ export const L4Card = memo(function L4Card() {
                     aria-label={`${t.name}: ${t.value === null ? 'not measured yet' : `${t.value} today`}. Add one.`}
                     onClick={() => void useLeft.getState().tapCount(t.id, 1)}
                   >
-                    <Stat label={t.name} value={t.value} />
+                    <Stat label={t.name} value={t.value} reading={t.value === null ? WAITING_DEFAULT : COUNTED} />
                   </button>
                 </li>
               ))}

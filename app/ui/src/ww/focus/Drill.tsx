@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CARDS, DECKS, type DeckId } from '../../germoney/game/decks'
 import { dueCards, useGame } from '../../germoney/game/store'
-import { Button, Card, Chip, EmptyState, Meter, PrimaryButton, Segmented } from '../kit'
+import { Button, Card, Chip, COUNTED, EmptyState, Meter, PrimaryButton, Segmented } from '../kit'
 
 const INTERVAL_DAYS = [1, 3, 7, 16, 35]
 
@@ -53,7 +53,7 @@ export function WwDrill() {
           <span className="ww-drill-note">{DECKS[deck].blurb}</span>
         </div>
         <div className="ww-drill-count">
-          <Meter value={Math.min(1, doneToday / 20)} label={`${doneToday} of 20 cards today`} />
+          <Meter value={Math.min(1, doneToday / 20)} label={`${doneToday} of 20 cards today`} reading={COUNTED} />
           <span className="ww-drill-note">{doneToday} / 20 today{deck !== 'ops' ? ` → ${deck === 'deutsch' ? 'Deutsch' : 'Silicon'} rep` : ''}</span>
         </div>
         {card ? (

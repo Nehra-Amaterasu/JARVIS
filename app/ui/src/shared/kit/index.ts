@@ -12,6 +12,8 @@ export { PrimaryButton, PrimaryOwner, PRIMARY_RANK, usePrimaryClaim } from './Pr
 export { Drawer, Sheet } from './Drawer'
 export { Popover } from './Popover'
 export { Toast, ToastStack, TOAST_MS } from './Toast'
+export { COUNTED, Meter, Row, Spark, StageStrip, Stat, WAITING_DEFAULT } from './Data'
+export type { MeterProps, RowProps, RowState, SparkProps, Stage, StageState, StatProps } from './Data'
 export { Banner, EmptyState, Fold, MasterDetail, TapGroup, clearMasterDetailMemory } from './Layout'
 
 export { Lamp, LampGlyph, LAMP_STATES, LAMP_WORD, LAMP_SHAPE, lampText, showsValue } from './Lamp'

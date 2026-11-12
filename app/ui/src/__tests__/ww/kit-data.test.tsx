@@ -4,7 +4,7 @@ import { act } from 'react'
 import { mount, resetHtml, stubMatchMedia } from './_stubs'
 import { join } from 'node:path'
 import { read, WW_DIR } from './_css'
-import { Banner, EmptyState, Fold, MasterDetail, Meter, Row, Spark, StageStrip, Stat, TapGroup, clearMasterDetailMemory } from '../../ww/kit'
+import { Banner, EmptyState, Fold, MasterDetail, Meter, Row, Spark, StageStrip, Stat, TapGroup, clearMasterDetailMemory, COUNTED, WAITING_DEFAULT } from '../../ww/kit'
 
 let m: ReturnType<typeof mount> | null = null
 let ios: { cb: IntersectionObserverCallback; els: Set<Element> }[] = []
@@ -67,51 +67,70 @@ describe('Row', () => {
 
 describe('Stat', () => {
   it('an unmeasured value says so and shows no number', () => {
-    m = mount(<Stat label="Coverage" value={null} />)
+    m = mount(<Stat label="Coverage" value={null} reading={WAITING_DEFAULT} />)
     expect(m.container.textContent).toContain('not measured yet')
     expect(m.container.querySelector('.ww-stat')!.getAttribute('data-measured')).toBe('false')
     expect(m.container.textContent).not.toMatch(/\d/)
   })
   it('a zero shows the single next step', () => {
-    m = mount(<Stat label="Papers" value={0} next="mark your first paper" />)
+    m = mount(<Stat label="Papers" value={0} next="mark your first paper" reading={COUNTED} />)
     expect(m.container.textContent).toContain('Next: mark your first paper')
   })
   it('a non-zero value has no next-step line, and carries its unit', () => {
-    m = mount(<Stat label="Papers" value={4} unit="done" next="x" />)
+    m = mount(<Stat label="Papers" value={4} unit="done" next="x" reading={COUNTED} />)
     expect(m.container.querySelector('.ww-stat-next')).toBeNull()
     expect(m.container.querySelector('.ww-stat-unit')!.textContent).toBe('done')
     expect(m.container.querySelector('.ticker-num')!.textContent).toBe('4')
   })
   it('highlights the tile for one state duration when a measured number changes, not on first measurement', () => {
     vi.useFakeTimers()
-    m = mount(<Stat label="x" value={null} />)
-    m.render(<Stat label="x" value={3} />)
+    m = mount(<Stat label="x" value={null} reading={WAITING_DEFAULT} />)
+    m.render(<Stat label="x" value={3} reading={COUNTED} />)
     expect((m.container.querySelector('.ww-stat') as HTMLElement).dataset.tick).toBeUndefined()
-    m.render(<Stat label="x" value={4} />)
+    m.render(<Stat label="x" value={4} reading={COUNTED} />)
     expect((m.container.querySelector('.ww-stat') as HTMLElement).dataset.tick).toBe('on')
     act(() => void vi.advanceTimersByTime(161))
     expect((m.container.querySelector('.ww-stat') as HTMLElement).dataset.tick).toBeUndefined()
   })
   it('under reduced motion a change shows the final value and no highlight', () => {
     const restore = stubMatchMedia({ 'prefers-reduced-motion': true })
-    m = mount(<Stat label="x" value={3} />)
-    m.render(<Stat label="x" value={9} />)
+    m = mount(<Stat label="x" value={3} reading={COUNTED} />)
+    m.render(<Stat label="x" value={9} reading={COUNTED} />)
     expect((m.container.querySelector('.ww-stat') as HTMLElement).dataset.tick).toBeUndefined()
     expect(m.container.querySelector('.ticker-num')!.textContent).toBe('9')
     restore()
   })
 })
 
+describe('a reading state gates the number (spec 6.6)', () => {
+  const sim = { state: 'simulated', since: null, reason: 'generated' } as const
+  it.each(['waiting', 'planned', 'fault'] as const)('Stat with a number and %s draws no number', (state) => {
+    m = mount(<Stat label="x" value={7} reading={{ state, since: null, reason: 'r' }} />)
+    expect(m.container.textContent).not.toMatch(/\d/)
+    expect(m.container.querySelector('.ww-stat')!.getAttribute('data-state')).toBe(state)
+  })
+  it.each(['waiting', 'planned', 'fault'] as const)('Meter with a number and %s draws no fill', (state) => {
+    m = mount(<Meter value={0.7} label="x" reading={{ state, since: null, reason: 'r' }} />)
+    expect(m.container.querySelector('.ww-meter-fill')).toBeNull()
+    expect(m.container.querySelector('[role=meter]')!.getAttribute('aria-valuetext')).toBe('not measured')
+  })
+  it('SIMULATED still draws the number (it is generated, and the state says so)', () => {
+    m = mount(<Stat label="x" value={7} reading={sim} />)
+    expect(m.container.querySelector('.ticker-num')!.textContent).toBe('7')
+    expect(m.container.querySelector('.ww-stat')!.getAttribute('data-state')).toBe('simulated')
+  })
+})
+
 describe('Meter', () => {
   it('is a named meter with a value and a text reading', () => {
-    m = mount(<Meter value={0.5} label="Coverage" />)
+    m = mount(<Meter value={0.5} label="Coverage" reading={COUNTED} />)
     const el = m.container.querySelector('[role=meter]')!
     expect(el.getAttribute('aria-label')).toBe('Coverage')
     expect(el.getAttribute('aria-valuenow')).toBe('0.5')
     expect(el.getAttribute('aria-valuetext')).toBe('50 percent')
   })
   it('fills from zero when it scrolls into view, then holds; the fill is a scale, never a width', () => {
-    m = mount(<Meter value={0.6} label="x" />)
+    m = mount(<Meter value={0.6} label="x" reading={COUNTED} />)
     const fill = m.container.querySelector('.ww-meter-fill') as HTMLElement
     expect(fill.classList.contains('ww-fill')).toBe(true)
     expect(fill.style.getPropertyValue('--v')).toBe('0')
@@ -120,20 +139,20 @@ describe('Meter', () => {
     expect(fill.style.getPropertyValue('--v')).toBe('0.6')
   })
   it('after the first fill only the change animates (the value is applied directly)', () => {
-    m = mount(<Meter value={0.2} label="x" />)
+    m = mount(<Meter value={0.2} label="x" reading={COUNTED} />)
     seeIt()
-    m.render(<Meter value={0.8} label="x" />)
+    m.render(<Meter value={0.8} label="x" reading={COUNTED} />)
     expect((m.container.querySelector('.ww-meter-fill') as HTMLElement).style.getPropertyValue('--v')).toBe('0.8')
   })
   it('an unmeasured value draws no fill at all and says "not measured"', () => {
-    m = mount(<Meter value={null} label="x" />)
+    m = mount(<Meter value={null} label="x" reading={WAITING_DEFAULT} />)
     expect(m.container.querySelector('.ww-meter-fill')).toBeNull()
     expect(m.container.querySelector('[role=meter]')!.getAttribute('aria-valuetext')).toBe('not measured')
     expect(m.container.querySelector('[role=meter]')!.hasAttribute('aria-valuenow')).toBe(false)
   })
   it('clamps to 0..1; reduced motion shows the value at once without observing', () => {
     const restore = stubMatchMedia({ 'prefers-reduced-motion': true })
-    m = mount(<Meter value={3} label="x" />)
+    m = mount(<Meter value={3} label="x" reading={COUNTED} />)
     expect((m.container.querySelector('.ww-meter-fill') as HTMLElement).style.getPropertyValue('--v')).toBe('1')
     expect(ios).toHaveLength(0)
     restore()

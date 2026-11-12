@@ -7,7 +7,7 @@
 //     build holds no page, galaxy, twin or jarvis/ module and no three.js; the jarvis build holds no ww/ or
 //     germoney/ module. A name check on the module list, not a string search over minified code.
 //   - JS added by the motion system stays at or under 6 KB gzip (the sum of the gzip sizes of the
-//     ww/design/motion sources, an upper bound on what the bundler can add)
+//     shared/motion sources, an upper bound on what the bundler can add)
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { gzipSync } from 'node:zlib'
@@ -52,7 +52,7 @@ if (only) {
   console.log(`${only} build: ${modules.length} modules, ${own} of its own tree`)
 }
 
-const motionDir = join(src, 'design', 'motion')
+const motionDir = resolve('src/shared/motion')
 const motionBytes = walk(motionDir)
   .filter((f) => /\.ts$/.test(f) && !/generated|springMath/.test(f))
   .reduce((n, f) => n + gzipSync(readFileSync(f)).length, 0)

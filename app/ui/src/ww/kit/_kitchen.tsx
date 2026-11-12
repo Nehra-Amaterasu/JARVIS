@@ -7,7 +7,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { useRef, useState, type ReactNode } from 'react'
 import { Plus, Settings, Trash2 } from 'lucide-react'
 import {
-  Banner, Button, Card, CardHead, Chip, CoachMark, ComingCard, CursorLabel, Drawer, EmptyState, Field, Fold, HoldButton, IconButton, LockChip, MasterDetail, Meter, PinHeader, Popover, PrimaryButton, PrimaryOwner,
+  Banner, Button, Card, CardHead, Chip, CoachMark, ComingCard, COUNTED, WAITING_DEFAULT, CursorLabel, Drawer, EmptyState, Field, Fold, HoldButton, IconButton, LockChip, MasterDetail, Meter, PinHeader, Popover, PrimaryButton, PrimaryOwner,
   Reveal, Row, Section, Segmented, Sheet, Skeleton, Spark, StageStrip, Stat, TapGroup, Toast, ToastStack,
   type CycleState, type ToastItem,
 } from './index'
@@ -128,16 +128,16 @@ export function Kitchen({ overlay = null }: KitchenOptions) {
           </div>
         </Block>
         <Block name="Stat">
-          <Stat label="Papers" value={4} unit="done" />
-          <Stat label="Streak" value={0} next="study 25 minutes" />
-          <Stat label="Coverage" value={null} />
+          <Stat label="Papers" value={4} unit="done" reading={COUNTED} />
+          <Stat label="Streak" value={0} next="study 25 minutes" reading={COUNTED} />
+          <Stat label="Coverage" value={null} reading={WAITING_DEFAULT} />
         </Block>
         <Block name="Meter">
           <div style={{ inlineSize: '100%', display: 'grid', gap: 'var(--space-2)' }}>
-            <Meter value={0} label="Empty" />
-            <Meter value={0.55} label="Half" />
-            <Meter value={1} label="Full" />
-            <Meter value={null} label="Not measured" />
+            <Meter value={0} label="Empty" reading={COUNTED} />
+            <Meter value={0.55} label="Half" reading={COUNTED} />
+            <Meter value={1} label="Full" reading={COUNTED} />
+            <Meter value={null} label="Not measured" reading={WAITING_DEFAULT} />
           </div>
         </Block>
         <Block name="Spark">

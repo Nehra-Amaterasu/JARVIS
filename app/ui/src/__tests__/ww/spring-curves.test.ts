@@ -5,11 +5,12 @@ import { describe, expect, it } from 'vitest'
 import { DESIGN_DIR, read } from './_css'
 import {
   CEILING_MS, SPRING_DEFS, TOLERANCE, buildCss, buildTs, closedForm, evalStops, horizonMs, maxError, overshoot, parseLinear, settleMs, zeta,
-} from '../../ww/design/motion/springMath'
-import { SPRINGS } from '../../ww/design/motion/springs.generated'
+} from '../../shared/motion/springMath'
+import { SPRINGS } from '../../shared/motion/springs.generated'
 
-const cssText = read(join(DESIGN_DIR, 'motion/springs.generated.css'))
-const tsText = read(join(DESIGN_DIR, 'motion/springs.generated.ts'))
+const SHARED_MOTION = join(DESIGN_DIR, '../../shared/motion')
+const cssText = read(join(SHARED_MOTION, 'springs.generated.css'))
+const tsText = read(join(SHARED_MOTION, 'springs.generated.ts'))
 
 describe('generated files', () => {
   it('springs.generated.css is exactly what gen-springs writes', () => expect(cssText).toBe(buildCss()))

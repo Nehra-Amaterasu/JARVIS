@@ -32,6 +32,10 @@
   --p-line-56: 56px;   /* new */
   --p-line-72: 72px;   /* new */
 
+  /* The pointer target: every control is at least 44 x 44 CSS px (spec 6.9; WCAG 2.5.8's 24 px is the floor, not the target).
+     Declared here so shared/kit and shared/art read one value on a JARVIS page; ww/design/component.css keeps its own copy. */
+  --hit: 44px;
+
   --p-weight-400: 400;
   --p-weight-500: 500;
   --p-weight-600: 600;

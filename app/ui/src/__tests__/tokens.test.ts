@@ -213,6 +213,11 @@ describe('layer-1 primitives', () => {
     }
     for (const [k, v] of Object.entries(spec)) expect(t[k], k).toBe(v)
   })
+  it('--hit is 44px in the clay layer and equals the Well Wisher copy (the pointer target of the jury rubric)', () => {
+    const mine = parseCss(read(join(CLAY, 'primitive-scale.css'))).rules[0].decls as Record<string, string>
+    expect(mine['--hit']).toBe('44px')
+    expect(read(join(SRC, 'ww/design/component.css'))).toMatch(/--hit:\s*44px/)
+  })
   it('the scale primitives that also exist in ../primitive.css are equal to it (the copies must not drift)', () => {
     // B01 moved the shared primitives from .ww to :root (seam S4) and left only --stagger under .ww,
     // so the oracle reads both blocks; reading .ww alone found 0 of the 15 shared names.

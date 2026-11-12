@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { useGame } from '../../germoney/game/store'
 import { FUNDING_PATHS } from '../../germoney/game/trials'
-import { Button, Card, Drawer, Field, IconButton, Meter, Segmented, Stat } from '../kit'
+import { Button, Card, Drawer, Field, IconButton, COUNTED, Meter, Segmented, Stat } from '../kit'
 import { Paged } from './Paged'
 import { chestRows, dueMonth, inr, type ChestRow } from './model'
 
@@ -98,16 +98,16 @@ export function MoneyView() {
         className="cr-fill"
       >
         <div className="cr-stats">
-          <Stat label="Saved" value={saved} fmt={inr} />
-          <Stat label="Needed by summer 2028" value={total} fmt={inr} />
-          <Stat label="Gap" value={gap} fmt={inr} />
+          <Stat label="Saved" value={saved} fmt={inr} reading={COUNTED} />
+          <Stat label="Needed by summer 2028" value={total} fmt={inr} reading={COUNTED} />
+          <Stat label="Gap" value={gap} fmt={inr} reading={COUNTED} />
           <div className="cr-next-due">
             <span className="ww-stat-label">Next due</span>
             <span className="cr-next-due-text">{next ? `${next.label} . ${dueMonth(next.due)}` : 'covered'}</span>
             {next && <span className="cr-sub">save {inr(next.perMonth)} a month to make it</span>}
           </div>
         </div>
-        <Meter value={total ? saved / total : 0} label={`Saved ${inr(saved)} of ${inr(total)}`} />
+        <Meter value={total ? saved / total : 0} label={`Saved ${inr(saved)} of ${inr(total)}`} reading={COUNTED} />
         <div className="cr-mode">
           <Segmented<'costs' | 'funding'> label="War chest section" variant="compact" value={mode} onChange={setMode} options={[{ id: 'costs', label: 'Costs' }, { id: 'funding', label: 'Funding paths' }]} />
         </div>

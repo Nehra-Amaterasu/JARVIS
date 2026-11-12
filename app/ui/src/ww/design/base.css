@@ -8,7 +8,7 @@
    nothing in Core or the other sections.
    ========================================================================== */
 @import '../../styles/design/primitive.css';
-@import './motion/springs.generated.css';
+@import '../../shared/motion/springs.generated.css';
 @import './themes/ash.css';
 @import './themes/paper.css';
 @import './themes/indigo.css';

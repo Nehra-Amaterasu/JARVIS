@@ -12,7 +12,7 @@ import * as E from '../../germoney/game/engine'
 import { useGame } from '../../germoney/game/store'
 import { prettyDate } from '../../germoney/game/util'
 import { registerOverlay } from '../frame/overlayRegistry'
-import { Fold, Meter, Stat } from '../kit'
+import { COUNTED, Fold, Meter, Stat } from '../kit'
 import './record.css'
 
 const ATTRS: [keyof ReturnType<typeof E.attributes>, string][] = [
@@ -50,7 +50,7 @@ export function RecordBody() {
                 <span className="ww-record-key">{k}</span>
                 <span className="ww-record-label">{label}</span>
                 <span className="ww-record-num">{attrs[k]} %</span>
-                <Meter value={attrs[k] / 100} label={`${label}: ${attrs[k]} percent`} />
+                <Meter value={attrs[k] / 100} label={`${label}: ${attrs[k]} percent`} reading={COUNTED} />
               </li>
             ))}
           </ul>
@@ -62,10 +62,10 @@ export function RecordBody() {
           Invested so far
         </h3>
         <div className="ww-record-tiles">
-          <Stat label="Hours" value={inv.hours} unit="h" next="log your first hour" />
-          <Stat label="Contracts" value={inv.contracts} next="finish one contract" />
-          <Stat label="Days secured" value={inv.days} next="secure the floor today" />
-          <Stat label="Drill cards" value={inv.cards} next="review one card" />
+          <Stat label="Hours" value={inv.hours} unit="h" next="log your first hour" reading={COUNTED} />
+          <Stat label="Contracts" value={inv.contracts} next="finish one contract" reading={COUNTED} />
+          <Stat label="Days secured" value={inv.days} next="secure the floor today" reading={COUNTED} />
+          <Stat label="Drill cards" value={inv.cards} next="review one card" reading={COUNTED} />
         </div>
       </section>
 

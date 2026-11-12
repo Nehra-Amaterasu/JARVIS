@@ -1,16 +1,15 @@
 /**
  * Core: JARVIS himself. Wake him (voice or text), watch his state, talk to him,
- * see what every subsystem is doing — and the week's mission numbers.
+ * see what every subsystem is doing. (The Well Wisher summary card was removed in the overhaul's
+ * seam cut S1: Core imports nothing under germoney/ or ww/, so JARVIS builds without that product.)
  */
 import {
-  AudioLines, BrainCircuit, Check, Ear, FileText, Flame, FolderOpen, Hand, Keyboard, Mic, Power, ScanEye, Send,
+  AudioLines, BrainCircuit, Check, Ear, FileText, FolderOpen, Hand, Keyboard, Mic, Power, ScanEye, Send,
   Snail, Speaker, ThumbsDown,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { api, post, type CoreInfo, type Turn } from '../lib/api'
 import { fmt, fmtDur, fmtGb, fmtInt, pad2, usePoll } from '../lib/format'
-import { DAILY_ITEMS, useChecklistStore } from '../germoney/stores/checklist-store'
-import { LEVELS, usePlayerStore } from '../germoney/stores/player-store'
 import { useStore } from '../lib/store'
 import { MediaCard } from '../components/MediaCard'
 import { PageHeader, STATE_LABEL } from '../components/Shell'
@@ -65,7 +64,6 @@ export function CorePage() {
       <div className="core-grid">
         <div className="core-col">
           <SystemsCard core={core} />
-          <MissionCard />
           <StaffCard />
         </div>
 
@@ -355,44 +353,6 @@ function SystemsCard({ core }: { core: CoreInfo | null }) {
           <i className="led" />
         </button>
       ))}
-    </section>
-  )
-}
-
-/* ------------------------------------------------------------------ mission */
-/** The Mission Germoney summary: rank, XP, today's directives, Rule 1 — one click
- *  from the Crucible. (Reads the same stores as the Mission tabs.) */
-function MissionCard() {
-  const player = usePlayerStore((s) => s.player)
-  const loaded = usePlayerStore((s) => s.isLoaded)
-  const daily = useChecklistStore((s) => s.daily)
-  const setTab = useStore((s) => s.setTab)
-  useEffect(() => {
-    void usePlayerStore.getState().hydrate()
-    void useChecklistStore.getState().hydrate()
-  }, [])
-  if (!loaded) return <section className="card mission"><div className="empty">…</div></section>
-  const info = LEVELS.find((l) => l.level === player.level) ?? LEVELS[0]
-  const done = DAILY_ITEMS.filter((i) => daily[i.id]).length
-  const since = player.lastCommitDate ? Math.floor((Date.now() - new Date(player.lastCommitDate).getTime()) / 86_400_000) : null
-  return (
-    <section className={`card mission ${player.isPurgatoryActive ? 'warn' : ''}`}>
-      <div className="card-head">
-        <span className="card-title"><span className="track">B2</span>Well Wisher</span>
-        <button className="btn sm ghost" onClick={() => setTab('mission')}>Open</button>
-      </div>
-      <div className="mission-sum">
-        <div><span className="eyebrow">Rank {player.level}/10</span><b>{info.rank}</b></div>
-        <div className="xp-mini"><span className="dot">{player.xp}</span><span className="mono muted">XP</span></div>
-      </div>
-      <div className="mission-stats">
-        <div><span className="dot">{done}/{DAILY_ITEMS.length}</span><span className="eyebrow">Directives</span></div>
-        <div><span className={`dot ${since !== null && since >= 11 ? 'fault' : ''}`}>{since === null ? '—' : `${since}d`}</span><span className="eyebrow">Since commit</span></div>
-        <div><span className="dot">{player.germanHours}h</span><span className="eyebrow">German</span></div>
-      </div>
-      <button className={`btn power ${player.isPurgatoryActive ? 'danger' : 'primary'}`} style={{ width: '100%', marginTop: 12 }} onClick={() => setTab('crucible')}>
-        <Flame size={15} />{player.isPurgatoryActive ? 'Purgatory: enter the Crucible' : 'Enter the Crucible'}
-      </button>
     </section>
   )
 }

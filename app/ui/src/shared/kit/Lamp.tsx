@@ -8,6 +8,7 @@ import { cx } from './util'
 // One contract, one source: the states, words and shapes come from shared/lamp (B04), so the kit glyph and the
 // contract lamp cannot drift apart; 2 implementations existed at merge and this file kept only its renderer.
 import { LAMP_SPECS, LAMP_STATES, showsNumber, type LampState } from '../lamp/types'
+import { PlannedGlyph } from '../lamp/PlannedGlyph'
 
 export { LAMP_STATES }
 export type { LampState }
@@ -32,6 +33,8 @@ export function lampText(state: LampState, reason?: string): string {
 /** The bare glyph, 12 px (16 in the title bar). Decorative: the text beside it is the information. */
 export function LampGlyph({ state, size = 12 }: { state: LampState; size?: number }) {
   const s = { '--lamp-size': `${size}px` } as CSSProperties
+  // PLANNED is the one shared drawing (shared/lamp/PlannedGlyph.tsx); the kit keeps its class, state and shape hooks
+  if (state === 'planned') return <PlannedGlyph size={size} className="k-lamp-glyph" data-state={state} data-shape={LAMP_SHAPE[state]} style={s} />
   return (
     <svg className="k-lamp-glyph" data-state={state} data-shape={LAMP_SHAPE[state]} viewBox="0 0 12 12" width={size} height={size} style={s} aria-hidden="true" focusable="false">
       {state === 'live' && <circle cx="6" cy="6" r="5" className="k-fill" />}
@@ -42,7 +45,6 @@ export function LampGlyph({ state, size = 12 }: { state: LampState; size?: numbe
         </>
       )}
       {state === 'simulated' && <path d="M6 0.8 L11.2 6 L6 11.2 L0.8 6 Z" className="k-fill" />}
-      {state === 'planned' && <circle cx="6" cy="6" r="4.5" className="k-line" strokeDasharray="2.2 1.8" />}
       {state === 'fault' && <path d="M6 1 L11.2 10.6 L0.8 10.6 Z" className="k-fill" />}
     </svg>
   )

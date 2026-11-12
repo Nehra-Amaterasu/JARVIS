@@ -7,7 +7,7 @@
    Edge discipline (7.7 rule 3): a control gets --edge-ui, a container gets --edge-hair, a shape that
    carries information gets an outline in ink and a caption. Hit areas are 44 px (--hit).
 
-   Material (wave 5, G01; tokens in styles/design/clay/elevation.css): a raised control is a lit ridge, not a
+   Material (wave 5, G01; the tokens live in the clay elevation layer): a raised control is a lit ridge, not a
    hairline. Its border IS the bevel: --ridge-hi on top, --edge-ui on the sides, --ridge-lo below, every side at
    3:1 or more against the ground, plus the 1 px --lit-hi lip inside the top and an offset matte shade (light from
    the top left). A well (switch track, knob bed, readout, field) is the inverse: --elev-recessed inside a flat
@@ -265,14 +265,13 @@ a.k-plate:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 
 .k-lit[data-angle='225'] { --lx: 0%; --ly: 100%; }
 .k-lit[data-angle='270'] { --lx: 0%; --ly: 50%; }
 .k-lit[data-angle='315'] { --lx: 0%; --ly: 0%; }
-.k-lit .k-panel { filter: none; }
 .k-lit .k-panel-in { box-shadow: var(--elev-flush, none); }
 .k-lit .k-panel-in::after {
   content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
   background: radial-gradient(circle at var(--lx) var(--ly), var(--lit-hi), transparent 65%);
   opacity: 0; transition: opacity var(--dur-fade, 160ms);
 }
-.k-lit:hover .k-panel-in::after, .k-lit[data-lit='true'] .k-panel-in::after { opacity: 0.7; }
+.k-lit:hover .k-panel-in::after, .k-lit:focus-within .k-panel-in::after { opacity: 0.7; }
 .k-lit:focus-within { translate: 0 1px; }
 :has(> .k-lit:focus-within) > .k-lit:not(:focus-within) { opacity: 0.96; }
 

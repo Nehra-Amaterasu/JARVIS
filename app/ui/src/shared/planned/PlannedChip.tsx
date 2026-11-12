@@ -4,7 +4,7 @@
 import { LOOP_VIEWS } from './homes'
 import { openPlanned } from './open'
 import type { Registry } from './types'
-import { PlannedGlyph } from './PlannedPlate'
+import { PlannedGlyph } from '../lamp/PlannedGlyph'
 import './planned.css'
 
 export interface PlannedChipProps {
@@ -29,7 +29,7 @@ export function PlannedChip({ registry, home, onOpen }: PlannedChipProps) {
       data-planned-open=""
       onClick={open}
     >
-      <PlannedGlyph />
+      <PlannedGlyph size={16} className="pl-glyph" />
       <span className="pl-word">PLANNED</span>
       <span className="pl-count">{here.length} here</span>
     </button>

@@ -1,4 +1,5 @@
 export { Lamp, LampGlyph, type LampProps } from './Lamp'
+export { PLANNED_RING, PlannedGlyph, type PlannedGlyphProps } from './PlannedGlyph'
 export { Reading, type ReadingProps } from './Reading'
 export { Annunciators, JARVIS_ANNUNCIATORS, WW_ANNUNCIATORS, type Annunciator, type AnnunciatorsProps } from './Annunciators'
 export {

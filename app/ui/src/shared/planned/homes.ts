@@ -1,5 +1,6 @@
 // The frozen view-id table of spec 3.2, as data, so T4 ("home exists") can check an entry against it.
-// Order follows the spec table (rail order, then view-switch order). A change here is a spec change.
+// Order follows the spec table (rail order, then view-switch order). A change here is a spec change: day.month and
+// focus.drill were added by direction v2 (wave 5; N02 registers the views, G01 gives them a home here).
 
 export const VIEW_IDS: readonly string[] = [
   'core.talk', 'core.sound',
@@ -7,8 +8,8 @@ export const VIEW_IDS: readonly string[] = [
   'senses.presence', 'senses.signal', 'senses.teach',
   'memory.recall', 'memory.beliefs', 'memory.people', 'memory.keep',
   'console.health', 'console.events', 'console.connections', 'console.hardware', 'console.crew',
-  'day.today', 'day.week', 'day.body', 'day.close',
-  'focus.start', 'focus.session', 'focus.rest',
+  'day.today', 'day.week', 'day.month', 'day.body', 'day.close',
+  'focus.start', 'focus.session', 'focus.drill', 'focus.rest',
   'study.papers', 'study.practice', 'study.plan', 'study.library', 'study.dmat',
   'tree.tree',
   'career.pipeline', 'career.certs', 'career.abroad', 'career.money', 'career.ladder',

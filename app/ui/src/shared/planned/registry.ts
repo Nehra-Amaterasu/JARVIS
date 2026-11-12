@@ -1,6 +1,6 @@
 // The registry mechanism (spec 12.2): pure functions, no React, so both products and the tests share it.
 import { isKnownHome } from './homes'
-import type { PlannedEntry, Registry } from './types'
+import type { PlannedEntry, Product, Registry } from './types'
 
 export const LINE_MIN = 15
 export const LINE_MAX = 140
@@ -145,4 +145,49 @@ export const sectionOf = (e: PlannedEntry): string => e.home.split('.')[0]
 /** Entries a person may be told are "coming": an entry that is built and only holds a blocked-state line is not. */
 export function listable(registries: readonly Registry[]): PlannedEntry[] {
   return registries.flatMap((r) => r.entries).filter((e) => !e.built)
+}
+
+// ---------------------------------------------------------------------------------------------- the globbed entries
+// Rule 2 of the wave plan (spec 15.6): registration by glob, not by edit. A later package adds one file anywhere
+// under src named `<name>.planned.ts` exporting `planned` (or a default) as PlannedEntry[]; it never edits
+// ww/plannedFeatures.ts or jarvis/planned.ts. Such a file imports TYPES only from shared/planned, because this module
+// imports it eagerly and a value import back into registry.ts would be a cycle. Files are read in path order so the
+// list is stable between builds.
+
+export interface PlannedModule {
+  planned?: readonly PlannedEntry[]
+  default?: readonly PlannedEntry[]
+}
+
+/** Flatten a glob result into one list, in path order; a module that exports nothing usable adds nothing. */
+export function collectPlanned(modules: Readonly<Record<string, PlannedModule>>): PlannedEntry[] {
+  return Object.keys(modules)
+    .sort()
+    .flatMap((path) => {
+      const m = modules[path]
+      const list = m.planned ?? m.default
+      return Array.isArray(list) ? [...list] : []
+    })
+}
+
+/** Every entry declared in a `*.planned.ts` file under src, collected at build time. */
+export const GLOBBED_PLANNED: readonly PlannedEntry[] = collectPlanned(import.meta.glob<PlannedModule>('../../**/*.planned.ts', { eager: true }))
+
+/** The globbed entries of one product. */
+export const globbedFor = (product: Product): PlannedEntry[] => GLOBBED_PLANNED.filter((e) => e.product === product)
+
+/**
+ * A registry over `base` plus the globbed entries of `product`, read live (the base's own entries first, so an id in
+ * both keeps the base row). This is the one line a product's registry owner adds once; after it, new homes arrive
+ * as files: `withGlobbed(wwRegistry, 'ww')`, `withGlobbed(jarvisRegistry, 'jarvis')`.
+ */
+export function withGlobbed(base: Registry, product: Product, extra: readonly PlannedEntry[] = GLOBBED_PLANNED): Registry {
+  const mine = () => extra.filter((e) => e.product === product && !base.byId(e.id))
+  return {
+    get entries() {
+      return [...base.entries, ...mine()]
+    },
+    byId: (id) => base.byId(id) ?? mine().find((e) => e.id === id),
+    forHome: (home) => [...base.forHome(home), ...mine().filter((e) => e.home === home)],
+  }
 }

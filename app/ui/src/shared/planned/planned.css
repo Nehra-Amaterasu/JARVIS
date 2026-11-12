@@ -1,0 +1,178 @@
+/*
+ * Planned plates, chip and controls (spec 12.4). One cue: a dashed outline, the dashed-ring glyph and the word
+ * PLANNED in the quiet ink at 12 px mono. Flat on purpose: no raised shadow, no hover lift, no press sink, no
+ * transition, no accent fill. A placeholder that moved or glowed would read as a live feature.
+ * Token fallbacks: --edge-ui and --ink-3 arrive with the clay tokens (B03); until then the shared names resolve
+ * to the Well Wisher line and ink tokens, and to currentColor as the last resort.
+ */
+.pl-plate,
+.pl-empty,
+.pl-disabled {
+  --pl-edge: var(--edge-ui, var(--line-ui, currentColor));
+  --pl-ink: var(--ink-3, var(--ink-2, currentColor));
+}
+.pl-plate {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  padding: 12px;
+  border: 1px dashed var(--pl-edge);
+  border-radius: var(--card-radius, 8px);
+  background: transparent;
+  color: var(--ink-2, inherit);
+  cursor: default;
+  min-height: 44px;
+  text-align: start;
+}
+.pl-plate:focus-visible,
+.pl-btn:focus-visible,
+.pl-chip:focus-visible {
+  outline: 2px solid var(--focus-ring, currentColor);
+  outline-offset: 2px;
+}
+.pl-tag,
+.pl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pl-word,
+.pl-count {
+  font-family: var(--font-mono, ui-monospace, 'Cascadia Mono', Consolas, monospace);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--pl-ink, var(--ink-3, currentColor));
+}
+.pl-glyph {
+  flex: none;
+  color: var(--ink-3, var(--ink-2, currentColor));
+}
+.pl-label {
+  font-weight: 600;
+}
+.pl-line,
+.pl-hint {
+  margin: 0;
+  font-size: var(--text-small, 13px);
+  line-height: var(--leading-small, 1.4);
+  color: var(--ink-2, inherit);
+}
+.pl-disabled {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+.pl-btn {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px dashed var(--pl-edge);
+  border-radius: var(--card-radius, 8px);
+  background: transparent;
+  color: var(--ink-2, inherit);
+  font: inherit;
+  cursor: default;
+}
+.pl-chip {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px dashed var(--edge-ui, var(--line-ui, currentColor));
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-2, inherit);
+  font: inherit;
+  cursor: default;
+}
+.pl-empty {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.pl-hint {
+  color: var(--ink-3, var(--ink-2, inherit));
+}
+@media (forced-colors: active) {
+  .pl-plate,
+  .pl-btn,
+  .pl-chip {
+    border: 1px dashed GrayText;
+    color: GrayText;
+  }
+  .pl-word,
+  .pl-count,
+  .pl-glyph {
+    color: GrayText;
+  }
+}
+
+/* ---- the "What is coming" card list (WhatIsComing.tsx): text rows, nothing to press but Close ---- */
+.pl-overlay {
+  display: grid;
+  gap: 16px;
+}
+.pl-overlay-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pl-overlay-title {
+  margin: 0;
+  font-size: 18px;
+}
+.pl-close {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--edge-ui, currentColor);
+  border-radius: var(--card-radius, 8px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.pl-group {
+  display: grid;
+  gap: 8px;
+}
+.pl-group-title {
+  margin: 0;
+  font-family: var(--font-mono, ui-monospace, Consolas, monospace);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3, var(--ink-2, inherit));
+}
+.pl-rows {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pl-row {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px dashed var(--edge-ui, var(--line-ui, currentColor));
+  border-radius: var(--card-radius, 8px);
+}
+.pl-row[data-focus='true'] {
+  border-style: solid;
+  outline: 2px solid var(--focus-ring, currentColor);
+  outline-offset: 2px;
+}
+.pl-row p {
+  margin: 0;
+}
+.pl-meta {
+  font-size: var(--text-small, 13px);
+  color: var(--ink-2, inherit);
+}
+@media (forced-colors: active) {
+  .pl-row {
+    border: 1px dashed GrayText;
+  }
+  .pl-row[data-focus='true'] {
+    border-style: solid;
+  }
+}

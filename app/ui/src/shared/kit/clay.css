@@ -1,6 +1,6 @@
 /* ==========================================================================
    Kit families A and B in clay (overhaul spec 7.2, 7.3, 7.6). Every colour is a layer-2 role from
-   styles/design/clay (surface-*, ink-*, edge-*, state-*, selected-*, focus-ring); there is no literal
+   the clay token layers (surface-*, ink-*, edge-*, state-*, selected-*, focus-ring); there is no literal
    colour here. Nothing imports a .k-* class yet, and the Raised Pill rule is scoped to data-theme='clay-*'
    which nothing sets, so the app looks the same at this commit.
 

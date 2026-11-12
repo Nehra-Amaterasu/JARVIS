@@ -1,0 +1,21 @@
+{
+ "art_id": "art.shell.404",
+ "budget_bytes": 3072,
+ "licence": "own work: hand-typed text, see own/art.shell.404.txt.licence",
+ "private_source": "C01-09",
+ "seed": 0,
+ "source": {
+  "file": "art.shell.404.txt",
+  "kind": "own"
+ },
+ "steps": [
+  {
+   "op": "terminal",
+   "tags": [
+    "not found"
+   ],
+   "title": "404"
+  }
+ ],
+ "track": "customer"
+}

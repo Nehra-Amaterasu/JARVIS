@@ -179,14 +179,19 @@ describe('reduced motion form (9.10, E-03)', () => {
     expect(txt('vh-legend')).toMatch(/MIC -23 dB/)
   })
 
-  it('the html data-motion="calm" setting also selects the static form (the flag wins over the page)', () => {
+  it('the html data-motion="calm" setting also selects the static form (the flag wins over the page)', async () => {
     document.documentElement.setAttribute('data-motion', 'calm')
     try {
       setup({ motion: 'auto' })
       expect(q('canvas')).toBeNull()
     } finally {
-      document.documentElement.removeAttribute('data-motion')
+      // the observer on <html> reports the change after a microtask: let React see it inside act
+      await act(async () => {
+        document.documentElement.removeAttribute('data-motion')
+        await Promise.resolve()
+      })
     }
+    expect(q('canvas')).not.toBeNull() // and back to the live form when the flag is gone
   })
 })
 

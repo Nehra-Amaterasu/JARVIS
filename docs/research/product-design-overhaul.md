@@ -18,7 +18,7 @@ forced-colours branch. Decisions beyond the spec: a `between` state for "pipe cl
 under 1 s" (the table had no row for them); error, muted, thinking, idle and between sit on a flat dotted baseline, only NO
 SIGNAL shows the fixed mound; the one `setTimeout` is armed only for the next moment time alone changes the state.
 
-**Numbers.** 111 new vitest tests in 5 files (golden 4, geometry 27, signal 20, state 30, component 30); full suite 1,790 of
+**Numbers.** 111 new vitest tests in 5 files (golden 4, geometry 27, signal 19, state 31, component 30); full suite 1,790 of
 1,790 twice (was 1,679), `tsc -b` and `oxlint` exit 0, the seam import-graph test passes with the new `jarvis/voice` folder.
 Counts pinned: 3,072 points high, 1,280 low, 384 envelope, 0 static; smoothing 0.713 up and 0.268 down per 50 ms; stale at
 401 ms not at 400; a 1,000-sequence property test (V-15) finds solid points only with a frame under 400 ms old (20+ solid cases

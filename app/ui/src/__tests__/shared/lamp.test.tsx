@@ -205,7 +205,7 @@ const posix = (p: string) => p.split(sep).join('/')
 const WIDGET_ROOTS = ['shared', 'jarvis', 'ww/kit', 'components', 'pages'].map((r) => join(SRC, r))
 const PROPS = /export interface (\w+Props)\s*\{([\s\S]*?)\n\}/g
 const NUMBER_PROP = /^\s*(?:value|readout|reading|level|amount|percent)\??\s*:\s*[^\n]*\bnumber\b/m
-const STATE_PROP = /^\s*(?:state|reading)\??\s*:\s*[^\n]*(?:LampReading|LampState)/m
+const STATE_PROP = /^\s*(?:state|reading)\??\s*:\s*[^\n]*(?:LampReading|LampState|ArtState)/m // ArtState is an alias of LampState (shared/art/state.tsx)
 
 function unstatedReadings(): string[] {
   const bad: string[] = []

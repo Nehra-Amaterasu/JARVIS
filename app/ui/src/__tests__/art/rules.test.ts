@@ -61,10 +61,10 @@ describe('the art sources', () => {
     const t = strip(read(f)).replace(/\/\/.*$/gm, '')
     expect(t).not.toMatch(/webgl|getContext\(|<canvas|new Function|\beval\(|dangerouslySetInnerHTML|\.innerHTML|requestAnimationFrame|localStorage|sessionStorage|fetch\(|XMLHttpRequest/i)
   })
-  it('no source imports Well Wisher or JARVIS code (seam S1) or the lamp it does not own yet', () => {
+  it('no source imports Well Wisher or JARVIS code (seam S1)', () => {
     for (const f of src) {
       for (const m of read(f).matchAll(/from\s+'([^']+)'/g)) {
-        expect(m[1], f).not.toMatch(/\/ww\/|\/ww'|germoney|\/pages\/|galaxy|twin|\/jarvis\/|lamp/)
+        expect(m[1], f).not.toMatch(/\/ww\/|\/ww'|germoney|\/pages\/|galaxy|twin|\/jarvis\//)
       }
     }
   })

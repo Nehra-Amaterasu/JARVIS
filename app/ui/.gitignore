@@ -26,6 +26,7 @@ dist-next
 
 # Well Wisher test output (chunk 1a)
 dist-e2e
+dist-e2e-*
 test-results
 playwright-report
 e2e/__core__

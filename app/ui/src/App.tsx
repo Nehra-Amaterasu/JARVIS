@@ -10,10 +10,10 @@ import { PAGE_LOADERS, prefetchPages } from './pageLoaders'
 // Core, the tab the window opens on, is the only page in the entry chunk; every other
 // tab is its own chunk (pageLoaders.ts), so the window paints sooner.
 const PAGES: Record<string, React.ComponentType> = {
-  core: CorePage,
+  ...(import.meta.env.VITE_PRODUCT !== 'ww' ? { core: CorePage } : {}),
   ...Object.fromEntries(Object.entries(PAGE_LOADERS).filter(([k]) => k !== 'mission').map(([k, load]) => [k, lazy(load)])),
 }
-const MissionRoot = lazy(PAGE_LOADERS.mission)
+const MissionRoot = import.meta.env.VITE_PRODUCT !== 'jarvis' ? lazy(PAGE_LOADERS.mission) : null
 
 export default function App() {
   const tab = useStore((s) => s.tab)
@@ -24,6 +24,7 @@ export default function App() {
   // The Mission game listens for JARVIS's voice actions and keeps his brief current
   // from any tab — loaded at idle so the first paint stays fast.
   useEffect(() => {
+    if (import.meta.env.VITE_PRODUCT === 'jarvis') return
     const t = window.setTimeout(() => void import('./germoney/game/bridge').then((m) => m.startBridge()), 1500)
     return () => window.clearTimeout(t)
   }, [])
@@ -55,7 +56,8 @@ export default function App() {
     }
   }, [refreshVitals])
 
-  const Page = PAGES[tab] ?? MissionRoot
+  // A one-product build has no page for the other product's tabs; they land on what it does have.
+  const Page = PAGES[tab] ?? MissionRoot ?? PAGES.core
   return (
     <div className="app grain">
       <TitleBar />

@@ -3,14 +3,12 @@
 // so the document never scrolls in the 1302 x 720 canvas. Nothing here is a measurement: every number on the page comes
 // from a fixture and carries its lamp. No timer, no animation, no rAF: it renders on a press and then is still.
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import '../styles/design/clay/index.css'
-import '../ww/design/base.css'
-import '../ww/kit/kit.css'
 import './gallery.css'
 import { SECTIONS } from '../shell/ids'
 import { collectEntriesX } from './collect'
 import { Radios, type RadioOption } from './Radios'
 import { Specimen } from './Specimen'
+import { useLegacyStyles } from './legacy'
 import { GROUPS, type GalleryEntryX } from './types'
 
 type Theme = 'clay-light' | 'clay-dark'
@@ -90,6 +88,7 @@ export default function WhatIsNew() {
     () => (active && active.states.length > 1 ? [{ id: 'all', label: 'All states' }, ...active.states.map((s, i) => ({ id: String(i), label: s.label, title: s.label }))] : []),
     [active],
   )
+  const legacy = useLegacyStyles(!!active?.legacy)
   const groupLabel = GROUPS.find((g) => g.id === active?.group)?.label
 
   return (
@@ -137,7 +136,7 @@ export default function WhatIsNew() {
           </div>
         </div>
         <div ref={paneRef} className="gl-pane" tabIndex={0} role="region" aria-label="Specimen" onKeyDown={onPaneKey} data-section={section || undefined}>
-          {active ? <Specimen key={active.id} entry={active} only={solo} scale={Number(scale)} /> : <p className="gl-none">Nothing to show.</p>}
+          {active ? <Specimen key={active.id} entry={active} only={solo} scale={Number(scale)} legacy={legacy} /> : <p className="gl-none">Nothing to show.</p>}
         </div>
       </div>
     </section>

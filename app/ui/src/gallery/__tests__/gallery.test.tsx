@@ -107,6 +107,13 @@ describe('WhatIsNew', () => {
     act(() => { one.click() })
     expect(c.querySelectorAll('.gl-state').length).toBe(1)
   })
+  it('a legacy entry says so when the host registered no Well Wisher stylesheet loader', () => {
+    m = mount(<WhatIsNew />)
+    const c = m.container
+    act(() => { c.querySelector<HTMLButtonElement>('.gl-item[data-entry-id="kit/Button"]')!.click() })
+    expect(c.querySelector('.gl-specimen-warn')).not.toBeNull()
+    expect(c.querySelector('.ww.gl-legacy')).not.toBeNull()
+  })
   it('settles: after the one-frame number spring of the kit finishes, no animation frame is requested while idle', async () => {
     let raf = 0
     const orig = window.requestAnimationFrame

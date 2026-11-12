@@ -22,6 +22,7 @@ import WhatIsNew from '../../src/gallery'
 const q = new URLSearchParams(location.search)
 const THEME = q.get('theme') === 'dark' ? 'dark' : 'light'
 document.documentElement.setAttribute('data-theme', `clay-${THEME}`)
+document.documentElement.setAttribute('data-legacy-styles', '') // this entry imports the Well Wisher kit sheet itself (see src/gallery/legacy.ts)
 // The legacy ww-* controls read the Well Wisher themes (Ash = dark default, Paper = light) from html[data-theme];
 // the clay theme owns that attribute here, so e2e/bench.spec.ts rewrites those selectors to [data-ww-theme].
 if (THEME === 'light') document.body.setAttribute('data-ww-theme', 'paper')

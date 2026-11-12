@@ -17,6 +17,7 @@
  * bug shows a readable card on that screen instead of blanking the app.
  */
 import { lazy, Suspense, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useGlassTier } from '../lib/liquidGlass'
 import { useStore } from '../lib/store'
 import { MissionBoundary } from './Boundary'
@@ -33,7 +34,8 @@ import { SettingsDrawer } from './pages/Settings'
 import { StatusPage } from './pages/Status'
 import { TodayPage } from './pages/Today'
 import { TreePage } from './pages/Tree'
-import { MissionNav, SCREEN_OF, useDrawer, type MissionScreen } from './ui'
+import { Dialogs, FxLayer, MissionNav, SCREEN_OF, useDrawer, type MissionScreen } from './ui'
+import { GameFx } from './game/fx'
 import { setFrameFlag, wwFrameEnabled } from '../ww/frame/flag'
 import type { ServerSeason } from '../ww/frame/season'
 // Last, so the Well Wisher tokens and card system sit after every page's own sheet.
@@ -81,7 +83,20 @@ const PAGES: Record<MissionScreen, React.ComponentType> = {
 }
 const NAMES: Record<MissionScreen, string> = { today: 'Today', study: 'Study', life: 'Life', tree: 'Tree', focus: 'Focus', log: 'Log', road: 'Career', status: 'Status' }
 
+/** Seam S2: the reward bursts, level banners and confirm dialogs belong to Well Wisher, so they mount here and
+ *  not in App.tsx (a JARVIS-only build then carries none of them). They go to document.body, as they sat
+ *  before under .app: .main has a view-transition-name, which makes it the containing block of any fixed
+ *  child, and a burst is positioned from the pointer in viewport coordinates. */
 export function MissionRoot() {
+  return (
+    <>
+      <MissionScreens />
+      {createPortal(<><FxLayer /><GameFx /><Dialogs /></>, document.body)}
+    </>
+  )
+}
+
+function MissionScreens() {
   const tab = useStore((s) => s.tab)
   const stores = useMissionLoaded()
   const game = useGame((s) => s.loaded)

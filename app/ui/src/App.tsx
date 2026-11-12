@@ -1,7 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { CommandPalette } from './components/CommandPalette'
-import { Dialogs, FxLayer } from './germoney/ui'
-import { GameFx } from './germoney/game/fx'
 import { Dock, TitleBar, Ticker, Toasts, useHotkeys } from './components/Shell'
 import { api } from './lib/api'
 import { startMediaHost } from './lib/media'
@@ -70,9 +68,6 @@ export default function App() {
       <Ticker />
       <Toasts />
       <CommandPalette />
-      <FxLayer />
-      <GameFx />
-      <Dialogs />
       {serverUp === false && (
         <div className="server-down">
           <div className="card" style={{ maxWidth: 420, textAlign: 'center' }}>

@@ -12,15 +12,24 @@ import type { ComponentType } from 'react'
 
 type Loader = () => Promise<{ default: ComponentType }>
 
-export const PAGE_LOADERS: Record<string, Loader> = {
+const JARVIS_LOADERS: Record<string, Loader> = {
   yaadash: () => import('./pages/Yaadash').then((m) => ({ default: m.YaadashPage })),
   // The 3D twin pulls in three.js (~600 kB): it loads only when Aankhen is opened.
   aankhen: () => import('./pages/Aankhen').then((m) => ({ default: m.AankhenPage })),
   limbs: () => import('./pages/Limbs').then((m) => ({ default: m.LimbsPage })),
   connect: () => import('./pages/Connect').then((m) => ({ default: m.ConnectPage })),
   system: () => import('./pages/System').then((m) => ({ default: m.SystemPage })),
-  // Mission Germoney carries its whole syllabus (~150 kB of content).
+}
+// Mission Germoney carries its whole syllabus (~150 kB of content).
+const WW_LOADERS: Record<string, Loader> = {
   mission: () => import('./germoney/MissionRoot').then((m) => ({ default: m.MissionRoot })),
+}
+
+// Seam cut: a VITE_PRODUCT build keeps only its own product's loaders (shared/product.ts says why the test is written in place), so the
+// other product's chunks (three.js for ww, the whole syllabus for jarvis) are never emitted.
+export const PAGE_LOADERS: Record<string, Loader> = {
+  ...(import.meta.env.VITE_PRODUCT !== 'ww' ? JARVIS_LOADERS : {}),
+  ...(import.meta.env.VITE_PRODUCT !== 'jarvis' ? WW_LOADERS : {}),
 }
 
 /** The light pages only. Aankhen (three.js) and Mission stay unloaded until opened:

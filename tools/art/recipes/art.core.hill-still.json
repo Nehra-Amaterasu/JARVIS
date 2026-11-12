@@ -1,0 +1,27 @@
+{
+ "art_id": "art.core.hill-still",
+ "budget_bytes": 0,
+ "licence": "",
+ "seed": 0,
+ "source": {
+  "bbox": [
+   0,
+   0,
+   568,
+   284
+  ],
+  "id": "C02-02",
+  "kind": "catalogue"
+ },
+ "steps": [
+  {
+   "op": "tone"
+  },
+  {
+   "k": 2,
+   "op": "bayer",
+   "pair": "charcoal-bone"
+  }
+ ],
+ "track": "private-only"
+}

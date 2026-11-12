@@ -1,0 +1,3 @@
+# hashed sources: keep the bytes as written
+own/* -text
+recipes/* -text

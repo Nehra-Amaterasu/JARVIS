@@ -2,6 +2,18 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-13: critic review of the direction v2 revision
+
+**Question.** Is the revised specification complete against the owner's direction, buildable without merge conflicts, free of the non-negotiable violations, and still not boring?
+
+**Method.** Read the owner's direction items A and B one by one against section 20, 15.6, 19 and Appendix A; read the wave 5 contract against the files that exist on main (`app/ui/src/shell`, `shared`, `ww`, `styles/design/clay`, `e2e`); grepped the spec for names, addresses, and banned wording.
+
+**Findings (all fixed in the spec, 20.16).** (1) The wave 5 contract invented tokens `--elev-1` to `--elev-3` and `--recess`; main already has `--elev-flush`, `--elev-raised`, `--elev-float`, `--elev-recessed`, `--edge-ui`, `--decor-opacity`, `--ink-1`, `--ink-2`. (2) G01 owned a bench spec path that does not exist (`e2e/bench.spec.ts` is the file) and did not own `shared/planned/**`, which it must change. (3) `viewCount.test.ts` does not exist; the 34 is asserted in `e2e/shell-v2.spec.ts`. (4) `day.today` and `proof` had no package: added L04 (wave 7), 47 packages. (5) Attendance, timetable and the progress track had a design and no owner. (6) Number-showing components `Dumbbell`, `LedgerTape`, `Jar`, `DotHistogram`, `SkyLedger`, `LedgerTable` had no `state` prop. (7) "Unlockable skins" was a reward mechanic; an idle `AsciiSweep` row contradicted the no-idle rule; a helpline line that appeared only at a high count was an inference about the student; "stress pacing" was a psychological term; selecting 3D in Senses would have given two canvases. (8) Section 20.10 still used the lens package ids. (9) `ww/plannedFeatures.ts` was a list several packages would edit: now collected by glob. The three weakest screens, now designed: `day.today`, `proof.panel`, `memory.beliefs`, `memory.people`, `memory.keep`.
+
+**Not verified.** Nothing was rendered. Whether `viewCount` style tests, the glob collectors and the `e2e` renames work is a design claim until wave 5 runs. Privacy grep found no names, addresses or Wi-Fi names; the career and tree topics (a country, a martial art) are product scope taken from the owner's note and are generic, left as they are.
+
+**What it changed.** `docs/design/jarvis-product-overhaul.md`: 20.16 added, A.L04 added, 15.6 tables, 20.10, A.G01, A.N02, A.L03, A.J04, A.E01, A.E05, D01 to D03 signatures.
+
 ## 2026-11-13: owner direction v2 and the design revision
 
 **Question.** After the owner saw the first rebuilt screens and called them boring and lifeless, what must change in the design so the whole application (JARVIS, its five sections, Well Wisher, its five sections, the settings, the data displays, the trees and Career) looks extravagant yet calm, runs on his personal-use rule for pictures, is visible inside the running application early, and can be built by parallel agents without breaking at merge? The direction itself is a private file (`data/notes/design-taste/`); its public-safe reading is 20.1 of `docs/design/jarvis-product-overhaul.md`.

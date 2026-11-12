@@ -14,7 +14,7 @@ One file for the JARVIS + Well Wisher product-design overhaul (the design source
 
 **Left in place, and why.** The kit CSS (`ww/kit/*.css`, `kit.css`) did not move: the moved components still use the `ww-*` class names those files style, and `shared/kit/index.ts` imports `clay.css` only, so moving the files would change which stylesheet each entry loads. No rendered rule changed. Stat and Meter show no visible lamp (that would change screenshots); they carry `data-state` for the lamp contract and tests.
 
-**Numbers.** tsc clean. vitest 75 files, 1682 of 1682, twice. `springs:check` exit 0. `bundle:check` exit 0 (motion 5800 B gzip of 6144). Playwright: see the commit message trail; result recorded in the report.
+**Numbers.** tsc clean. vitest 75 files, 1682 of 1682, twice. `springs:check` exit 0. `bundle:check` exit 0 (motion 5800 B gzip of 6144). Playwright full suite: 260 passed, 2 skipped (6.1 min), exit 0.
 
 **Unverified.** Stat and Meter under SIMULATED are tested in jsdom only; no page passes SIMULATED yet.
 

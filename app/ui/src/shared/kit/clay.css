@@ -6,6 +6,13 @@
 
    Edge discipline (7.7 rule 3): a control gets --edge-ui, a container gets --edge-hair, a shape that
    carries information gets an outline in ink and a caption. Hit areas are 44 px (--hit).
+
+   Material (wave 5, G01; tokens in styles/design/clay/elevation.css): a raised control is a lit ridge, not a
+   hairline. Its border IS the bevel: --ridge-hi on top, --edge-ui on the sides, --ridge-lo below, every side at
+   3:1 or more against the ground, plus the 1 px --lit-hi lip inside the top and an offset matte shade (light from
+   the top left). A well (switch track, knob bed, readout, field) is the inverse: --elev-recessed inside a flat
+   --edge-ui border. Hover lifts 1 px, focus settles 1 px into the ground, a press sinks 1 px and swaps to
+   --elev-pressed; only transform and border-color transition, never the shadow.
    ========================================================================== */
 :where(.k-switch, .k-rocker-half, .k-key, .k-tab, .k-btn, .k-rail-btn, .k-console-follow, .k-toast-undo, .k-dialog-x, .k-palette-row, .k-knob, .k-slider input) {
   min-height: var(--hit, 44px);
@@ -32,13 +39,15 @@
   color: var(--ink-1);
   background: var(--surface-raised);
   border: 1px solid var(--edge-ui);
+  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
   border-radius: var(--r-control, 10px);
   box-shadow: var(--elev-raised, none);
   cursor: pointer;
-  transition: transform var(--dur-state, 120ms), box-shadow var(--dur-state, 120ms), border-color var(--dur-state, 120ms);
+  transition: transform var(--dur-state, 120ms), border-color var(--dur-state, 120ms);
 }
 .k-switch:hover, .k-rocker-half:hover, .k-key:hover, .k-tab:hover, .k-btn:hover { transform: translateY(-1px); border-color: var(--ink-1); }
-.k-switch:active, .k-rocker-half:active, .k-key:active, .k-tab:active, .k-btn:active { transform: translateY(2px); box-shadow: var(--elev-sunk, none); }
+.k-key:focus-visible, .k-btn:focus-visible { transform: translateY(1px); box-shadow: var(--elev-flush, none); }
+.k-switch:active, .k-rocker-half:active, .k-key:active, .k-tab:active, .k-btn:active { transform: translateY(1px); box-shadow: var(--elev-pressed, none); }
 :where(.k-switch, .k-rocker-half, .k-key, .k-tab, .k-btn, .k-rail-btn, .k-console-follow, .k-toast-undo, .k-dialog-x, .k-knob, .k-console-log, .k-palette-field, .k-slider input):focus-visible {
   outline: 2px solid var(--focus-ring); outline-offset: 2px;
 }
@@ -46,24 +55,42 @@
 [data-state='disabled']:hover, [aria-disabled='true']:hover { transform: none; }
 [data-state='error'] { border: 2px solid var(--state-fault); }
 [data-state='planned'] { border-style: dashed; border-color: var(--edge-ui); box-shadow: none; background: transparent; }
+/* Under clay a disabled-with-a-reason control stays legible (ink-3, at least 4.5:1: the jury measured the old ink-off
+   at 2.41:1 on "OFF" and "Soon") and keeps its 3:1 edge; it reads as inert by being flat (no ridge, no shade) and by
+   the printed reason, not by fading. PLANNED keeps its own cue: the dashed edge and the dashed-ring glyph. The classic
+   app never sets a clay theme, so the two unscoped rules above still govern it unchanged. */
+:root[data-theme^='clay'] :is([data-state='disabled'], [aria-disabled='true']) { color: var(--ink-3); border-color: var(--edge-ui); box-shadow: none; }
+:root[data-theme^='clay'] [data-state='planned'] { color: var(--ink-2); border-style: dashed; border-color: var(--edge-ui); box-shadow: none; background: transparent; }
 
 /* ---- 2 Switch ---- */
 .k-switch-wrap { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.k-switch { position: relative; width: var(--switch-w, 56px); height: var(--switch-h, 32px); min-height: var(--switch-h, 32px); padding: 0; background: var(--surface-sunk); box-shadow: var(--elev-sunk, none); border-radius: 16px; }
-.k-switch::after { content: ''; position: absolute; inset: -6px 0; } /* 44 px hit area around the 32 px track */
+/* The track is a well (recessed, flat edge-ui border) and the thumb is the raised part. 64 px wide so the 3-letter word
+   sits 6 px clear of the 24 px thumb (at 56 px the thumb covered the O of OFF); the ::after takes the 32 px track to
+   a 48 x 72 px hit area. */
+.k-switch { position: relative; width: var(--switch-w, 64px); height: var(--switch-h, 32px); min-height: var(--switch-h, 32px); padding: 0; background: var(--surface-sunk); border-color: var(--edge-ui); box-shadow: var(--elev-recessed, none); border-radius: 16px; }
+.k-switch::after { content: ''; position: absolute; inset: -8px -4px; } /* hit area around the 32 px track */
 .k-switch[data-on='true'] { background: var(--switch-track-on, var(--selected-fill)); color: var(--selected-ink); }
 .k-switch-word { position: absolute; top: 50%; translate: 0 -50%; font: 600 12px/1 var(--font-mono, ui-monospace, monospace); }
-.k-switch[data-on='false'] .k-switch-word { right: 8px; }
-.k-switch[data-on='true'] .k-switch-word { left: 8px; }
-.k-switch-thumb { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: var(--surface-raised); border: 1px solid var(--edge-ui); transition: translate var(--dur-state, 120ms); }
-.k-switch[data-on='true'] .k-switch-thumb { translate: 24px 0; }
+.k-switch[data-on='false'] .k-switch-word { right: 9px; }
+.k-switch[data-on='true'] .k-switch-word { left: 9px; }
+.k-switch-thumb { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; box-sizing: border-box; border-radius: 50%; background: var(--surface-raised); border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); box-shadow: var(--elev-raised, none); transition: translate var(--dur-state, 120ms); }
+.k-switch[data-on='true'] .k-switch-thumb { translate: 32px 0; }
+.k-switch:hover { transform: none; border-color: var(--ink-1); }
 .k-switch-label { font: 14px/1.3 var(--font-sans, system-ui, sans-serif); color: var(--ink-1); }
 
 /* ---- 3 Rocker ---- */
-.k-rocker { display: inline-flex; width: 64px; min-width: 64px; height: 44px; border: 1px solid var(--edge-ui); border-radius: var(--r-control, 10px); overflow: hidden; background: var(--surface-raised); }
-.k-rocker-half { flex: 1; border: 0; border-radius: 0; font: 600 11px/1 var(--font-mono, ui-monospace, monospace); padding: 0; }
+/* Two halves of at least 48 px (they measured 13.9 px wide: the 64 px body shrank them below their words). The body
+   carries the ridge; the lit half is pressed in (--elev-pressed) and inverted, so ON is a position, a fill and a word,
+   never a hue. The fault line hangs below the body instead of being clipped inside it. */
+.k-rocker { position: relative; display: inline-flex; flex: none; height: 44px; border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: var(--r-control, 10px); background: var(--surface-raised); box-shadow: var(--elev-raised, none); }
+.k-rocker-half { flex: 0 0 auto; min-width: 48px; height: 100%; border: 0; border-radius: 0; box-shadow: none; font: 600 11px/1 var(--font-mono, ui-monospace, monospace); padding: 0 10px; white-space: nowrap; background: transparent; }
+.k-rocker-half:first-child { border-radius: var(--r-control, 10px) 0 0 var(--r-control, 10px); }
+.k-rocker-half:nth-child(2) { border-radius: 0 var(--r-control, 10px) var(--r-control, 10px) 0; }
 .k-rocker-half + .k-rocker-half { border-left: 1px solid var(--edge-ui); }
-.k-rocker-half[data-active='true'] { background: var(--selected-fill); color: var(--selected-ink); transform: translateY(2px); }
+.k-rocker-half:hover { transform: none; }
+.k-rocker-half[data-active='true'] { background: var(--selected-fill); color: var(--selected-ink); box-shadow: var(--elev-pressed, none); }
+.k-rocker > .k-err { position: absolute; top: calc(100% + 4px); left: 0; white-space: nowrap; }
+.k-rocker[data-state='error'] { margin-bottom: 20px; }
 
 /* ---- 4 Key ---- */
 .k-key { position: relative; width: var(--key-size, 56px); height: var(--key-size, 56px); border-radius: var(--r-control, 10px); display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0; background: var(--key-bg, var(--surface-raised)); border-color: var(--key-edge, var(--edge-ui)); }
@@ -89,19 +116,26 @@
 
 /* ---- 1 Knob ---- */
 .k-knob-wrap { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; }
-.k-knob { display: block; width: var(--knob-d, 96px); height: var(--knob-d, 96px); border-radius: 50%; background: var(--surface-sunk); box-shadow: var(--elev-sunk, none); }
+.k-knob { display: block; box-sizing: border-box; width: var(--knob-d, 96px); height: var(--knob-d, 96px); border-radius: 50%; background: var(--surface-sunk); border: 1px solid var(--edge-ui); box-shadow: var(--elev-recessed, none); } /* the rim is the 3:1 edge (it measured 1.14:1 with the shadow alone) */
 .k-knob-wrap[data-size='compact'] .k-knob { --knob-d: 56px; width: 56px; height: 56px; min-height: 56px; }
 .k-knob-svg { width: 100%; height: 100%; }
 .k-tick { stroke: var(--ink-2); stroke-width: 1; }
 .k-tick[data-major='true'] { stroke: var(--ink-1); }
 .k-knob[data-at] .k-tick[data-major='true'] { stroke-width: 2; }
-.k-knob-cap { fill: var(--surface-raised); stroke: var(--edge-ui); stroke-width: 1; }
+.k-knob-cap { fill: var(--surface-raised); stroke: var(--ridge-lo, var(--edge-ui)); stroke-width: 1.5; }
 .k-knob-notch { stroke: var(--ink-1); stroke-width: 3; stroke-linecap: round; }
 .k-knob-value { font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
 
 /* ---- 10 Plate and 12 Panel: chamfer is two layers so the diagonal keeps a 3:1 edge ---- */
-.k-plate { --chamfer: 10px; position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; font: 12px/1 var(--font-mono, ui-monospace, monospace); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-1); background: var(--surface-raised); text-decoration: none; clip-path: polygon(var(--chamfer) 0, 100% 0, 100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%, 0 100%, 0 var(--chamfer)); box-shadow: inset 0 0 0 1px var(--edge-ui); }
-.k-plate[data-state='planned'] { box-shadow: none; outline: 1px dashed var(--edge-ui); outline-offset: -1px; }
+/* The plate's edge is a real 1 px border (an inset box-shadow is invisible to WCAG 1.4.11 and measured 1.09:1), and the
+   two chamfer cuts, where clip-path removes the border, are painted back as 1 px diagonals of the same colour: the
+   135 and 315 degree gradients start at the cut corner, and the cut line lies chamfer x 0.7071 along them. A plate that
+   is a link is a 44 px target (it measured 59 x 24). */
+.k-plate { --chamfer: 10px; position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; font: 12px/1 var(--font-mono, ui-monospace, monospace); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-1); border: 1px solid var(--edge-ui); background: linear-gradient(135deg, var(--edge-ui) 0 calc(var(--chamfer) * 0.7071 + 1px), transparent 0) border-box, linear-gradient(315deg, var(--edge-ui) 0 calc(var(--chamfer) * 0.7071 + 1px), transparent 0) border-box, var(--surface-raised); box-shadow: var(--elev-flush, none); text-decoration: none; clip-path: polygon(var(--chamfer) 0, 100% 0, 100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%, 0 100%, 0 var(--chamfer)); }
+a.k-plate, button.k-plate { min-height: var(--hit, 44px); box-sizing: border-box; cursor: pointer; }
+a.k-plate:hover { border-color: var(--ink-1); }
+a.k-plate:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -5px; }
+.k-plate[data-state='planned'] { border-style: dashed; background: transparent; box-shadow: none; }
 .k-plate-serial { color: var(--ink-3); }
 .k-barcode { display: inline-flex; gap: 1px; height: 14px; }
 .k-barcode i { width: 1px; background: var(--ink-1); }
@@ -178,8 +212,8 @@
 .k-palette-empty { margin: 0; padding: 12px; font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-3); border: 1px solid var(--edge-hair); }
 
 /* ---- 17 Toast ---- */
-.k-toasts { display: grid; gap: 8px; }
-.k-toast { --notch: 6px; display: flex; align-items: center; gap: 10px; width: 360px; max-width: 100%; padding: 10px 14px; background: var(--surface-raised); box-shadow: inset 0 0 0 1px var(--edge-ui); clip-path: polygon(0 0, calc(100% - var(--notch)) 0, 100% var(--notch), 100% 100%, 0 100%); font: 14px/1.3 var(--font-sans, system-ui, sans-serif); color: var(--ink-1); }
+.k-toasts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; width: min(360px, 100%); min-width: 0; } /* it ran 27 px past a 390 px viewport */
+.k-toast { --notch: 6px; display: flex; align-items: center; gap: 10px; width: auto; min-width: 0; max-width: 100%; padding: 10px 14px; background: var(--surface-raised); box-shadow: inset 0 0 0 1px var(--edge-ui); clip-path: polygon(0 0, calc(100% - var(--notch)) 0, 100% var(--notch), 100% 100%, 0 100%); font: 14px/1.3 var(--font-sans, system-ui, sans-serif); color: var(--ink-1); }
 .k-toast[data-tag='FAULT'] { box-shadow: inset 0 0 0 2px var(--state-fault); }
 .k-toast-tag { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
 .k-toast-msg { flex: 1; }
@@ -202,11 +236,99 @@
 .k-tab { padding: 0 16px; border-bottom: 0; border-radius: var(--r-control, 10px) var(--r-control, 10px) 0 0; background: var(--surface-sunk); margin-bottom: -1px; }
 .k-tab[aria-selected='true'] { background: var(--surface-raised); font-weight: 700; box-shadow: inset 0 -2px 0 var(--selected-fill); transform: translateY(-2px); }
 .k-tab-count { margin-left: 8px; font: 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-3); }
+.k-tab .planned-glyph { margin-left: 8px; vertical-align: -1px; color: var(--state-planned, var(--ink-3)); }
+:root[data-theme^='clay'] .k-tab[data-state='planned'] { color: var(--ink-2); background: transparent; }
+
+/* ---- Tooth (20.4.4): the grain of the owner's brushed-metal and clay crops (C01-19, C01-23), on grounds and raised
+   panels only, never on a text well. A 64 px noise tile used as a MASK over a layer of --ink-1, so the colour is a
+   role and the tile carries only alpha; at --tooth-opacity 0.025 it is felt, not seen. Off (0) in high contrast,
+   forced colours and wherever --decor-opacity is 0. Static: the tile is rasterised once, nothing moves. ---- */
+:root { --tooth-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cfilter id='t' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.8 0 0 0 -0.6'/%3E%3C/filter%3E%3Crect width='64' height='64' filter='url(%23t)'/%3E%3C/svg%3E"); }
+.k-tooth, .k-panel-in { position: relative; isolation: isolate; }
+.k-tooth::before, .k-panel-in::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--ink-1); opacity: calc(var(--tooth-opacity, 0) * var(--decor-opacity, 1));
+  -webkit-mask: var(--tooth-tile) 0 0 / 64px 64px repeat; mask: var(--tooth-tile) 0 0 / 64px 64px repeat;
+}
+
+/* ---- LitPanel (20.4.4 "aimed light"): a Panel whose raised face catches one light. The sheen is a pre-painted radial
+   layer at the snapped angle (8 directions; 0 = from the top, clockwise); only its opacity changes (rest 0, lit 0.7,
+   160 ms), only the hovered panel is lit, and the pointer angle is snapped in JS only when it crosses a 45 degree
+   sector, so a pointer sweep repaints the layer at most 8 times. Focus settles the panel 1 px into the ground and
+   dims its siblings by 4 percent (opacity only). ---- */
+.k-lit { position: relative; --lx: 15%; --ly: 0%; transition: translate var(--dur-state, 120ms), opacity var(--dur-state, 120ms); }
+.k-lit[data-angle='0'] { --lx: 50%; --ly: 0%; }
+.k-lit[data-angle='45'] { --lx: 100%; --ly: 0%; }
+.k-lit[data-angle='90'] { --lx: 100%; --ly: 50%; }
+.k-lit[data-angle='135'] { --lx: 100%; --ly: 100%; }
+.k-lit[data-angle='180'] { --lx: 50%; --ly: 100%; }
+.k-lit[data-angle='225'] { --lx: 0%; --ly: 100%; }
+.k-lit[data-angle='270'] { --lx: 0%; --ly: 50%; }
+.k-lit[data-angle='315'] { --lx: 0%; --ly: 0%; }
+.k-lit .k-panel { filter: none; }
+.k-lit .k-panel-in { box-shadow: var(--elev-flush, none); }
+.k-lit .k-panel-in::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(circle at var(--lx) var(--ly), var(--lit-hi), transparent 65%);
+  opacity: 0; transition: opacity var(--dur-fade, 160ms);
+}
+.k-lit:hover .k-panel-in::after, .k-lit[data-lit='true'] .k-panel-in::after { opacity: 0.7; }
+.k-lit:focus-within { translate: 0 1px; }
+:has(> .k-lit:focus-within) > .k-lit:not(:focus-within) { opacity: 0.96; }
+
+/* ---- the legacy ww-* controls the kit still draws (Button, IconButton, Field, Fold, MasterDetail, the drawer field),
+   restyled ONLY under a clay theme so the classic pages are unchanged. Measured before: Button edge 1.23:1, Field edge
+   1.23:1 with no focus outline, Field 186 x 41 and IconButton 41 x 43 hit areas, Fold with no edge at all (1.00:1),
+   MasterDetail rows 64 x 40, its list drawn with bullets and its detail pane one word per line (container-type
+   inline-size gives a flex item zero intrinsic width). ---- */
+:root[data-theme^='clay'] .ww-btn {
+  --ctl-h: var(--hit, 44px);
+  min-width: var(--hit, 44px);
+  color: var(--ink-1);
+  background: var(--surface-raised);
+  border: 1px solid var(--edge-ui);
+  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
+  box-shadow: var(--elev-raised, none);
+  transition: transform var(--dur-state, 120ms), border-color var(--dur-state, 120ms);
+}
+:root[data-theme^='clay'] .ww-btn:hover { transform: translateY(-1px); border-color: var(--ink-1); }
+:root[data-theme^='clay'] .ww-btn:active { transform: translateY(1px); box-shadow: var(--elev-pressed, none); }
+:root[data-theme^='clay'] .ww-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; transform: translateY(1px); box-shadow: var(--elev-flush, none); }
+:root[data-theme^='clay'] .ww-btn.danger { color: var(--state-fault); border-color: var(--state-fault); }
+:root[data-theme^='clay'] .ww-input {
+  min-height: var(--hit, 44px);
+  box-sizing: border-box;
+  color: var(--ink-1);
+  background: var(--surface-sunk);
+  border: 1px solid var(--edge-ui);
+  box-shadow: var(--elev-recessed, none);
+}
+:root[data-theme^='clay'] .ww-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+:root[data-theme^='clay'] .ww-field[data-error='true'] .ww-input { border: 2px solid var(--state-fault); }
+:root[data-theme^='clay'] .ww-field[data-disabled='true'] .ww-input { color: var(--ink-3); box-shadow: none; }
+:root[data-theme^='clay'] .ww-fold-btn {
+  padding-inline: 12px;
+  border: 1px solid var(--edge-ui);
+  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
+  border-radius: var(--r-control, 10px);
+  background: var(--surface-raised);
+  box-shadow: var(--elev-flush, none);
+}
+:root[data-theme^='clay'] .ww-fold-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+:root[data-theme^='clay'] .ww-fold[data-open='true'] .ww-fold-btn { box-shadow: var(--elev-pressed, none); }
+:root[data-theme^='clay'] .ww-md { inline-size: 100%; flex: 1 1 100%; }
+:root[data-theme^='clay'] .ww-md-list :is(ul, ol) { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+:root[data-theme^='clay'] .ww-md-list .ww-btn { inline-size: 100%; justify-content: flex-start; }
+:root[data-theme^='clay'] .ww-md-detail { padding: 12px; min-width: 0; background: var(--surface-sunk); border: 1px solid var(--edge-hair); box-shadow: var(--elev-recessed, none); }
+:root[data-theme^='clay'] .ww-md-detail > :first-child { margin-top: 0; }
 
 /* Reduced motion (spec 6.5): --dur-state is not zeroed by the OS setting, so the 1 px lift, 2 px press and the switch thumb slide stop here; state is still shown by the edge, fill and word. */
 @media (prefers-reduced-motion: reduce) {
   .k-switch, .k-rocker-half, .k-key, .k-tab, .k-btn, .k-console-follow, .k-toast-undo, .k-dialog-x, .k-switch-thumb { transition: none; }
   .k-switch:hover, .k-rocker-half:hover, .k-key:hover, .k-tab:hover, .k-btn:hover { transform: none; }
+  /* the static form of the material: the sheen and the settle still change state, but in one frame */
+  .k-lit, .k-lit .k-panel-in::after, :root[data-theme^='clay'] .ww-btn { transition: none; }
+  :root[data-theme^='clay'] .ww-btn:hover { transform: none; }
 }
 
 /* ==========================================================================
@@ -231,4 +353,13 @@
   [data-state='planned'] { border-style: dashed; border-color: ButtonText; }
   [data-state='error'], .k-toast[data-tag='FAULT'] { border: 2px solid CanvasText; }
   .k-stamp { border-color: CanvasText; color: CanvasText; }
+  /* depth is replaced by edges: no grain, no sheen, no settle; the plate's painted diagonals go with its chamfer */
+  .k-tooth::before, .k-panel-in::before, .k-lit .k-panel-in::after { display: none; }
+  .k-lit, .k-lit:focus-within { translate: none; opacity: 1; }
+  .k-plate { background: Canvas; border: 1px solid CanvasText; }
+  a.k-plate:focus-visible { outline: 2px solid Highlight; }
+  .k-switch-thumb { box-shadow: none; }
+  :root[data-theme^='clay'] .ww-btn, :root[data-theme^='clay'] .ww-input, :root[data-theme^='clay'] .ww-fold-btn { border: 2px solid ButtonText; box-shadow: none; }
+  :root[data-theme^='clay'] .ww-input:focus-visible, :root[data-theme^='clay'] .ww-btn:focus-visible, :root[data-theme^='clay'] .ww-fold-btn:focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
+  :root[data-theme^='clay'] .ww-md-detail { border: 1px solid CanvasText; }
 }

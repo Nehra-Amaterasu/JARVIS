@@ -222,19 +222,17 @@ def iso_polylines(z: np.ndarray, level: float) -> list[list[tuple[float, float]]
     h, w = z.shape
     segs: dict[tuple, list[tuple]] = {}
     above = z >= level
-    for y in range(h - 1):
-        for x in range(w - 1):
-            case = (above[y, x] << 3) | (above[y, x + 1] << 2) | (above[y + 1, x + 1] << 1) | above[y + 1, x]
-            if case in (0, 15):
-                continue
-            # saddles (5 and 10) resolved by the cell mean so the choice is a pure function of the data
-            pairs = _MS[case]
-            if case in (5, 10) and (z[y, x] + z[y, x + 1] + z[y + 1, x + 1] + z[y + 1, x]) / 4.0 >= level:
-                pairs = [(0, 1), (3, 2)] if case == 5 else [(0, 3), (2, 1)]
-            for e1, e2 in pairs:
-                a, b = _edge_id(e1, x, y), _edge_id(e2, x, y)
-                segs.setdefault(a, []).append(b)
-                segs.setdefault(b, []).append(a)
+    case = (above[:-1, :-1].astype(np.int8) << 3) | (above[:-1, 1:].astype(np.int8) << 2) | (above[1:, 1:].astype(np.int8) << 1) | above[1:, :-1]
+    for y, x in zip(*np.nonzero((case != 0) & (case != 15))):      # only the cells the line crosses, not every cell
+        y, x, c = int(y), int(x), int(case[y, x])
+        # saddles (5 and 10) resolved by the cell mean so the choice is a pure function of the data
+        pairs = _MS[c]
+        if c in (5, 10) and (z[y, x] + z[y, x + 1] + z[y + 1, x + 1] + z[y + 1, x]) / 4.0 >= level:
+            pairs = [(0, 1), (3, 2)] if c == 5 else [(0, 3), (2, 1)]
+        for e1, e2 in pairs:
+            a, b = _edge_id(e1, x, y), _edge_id(e2, x, y)
+            segs.setdefault(a, []).append(b)
+            segs.setdefault(b, []).append(a)
     lines: list[list[tuple[float, float]]] = []
     seen: set[tuple] = set()
     order = sorted(segs)                                 # sorted ids: deterministic walk order

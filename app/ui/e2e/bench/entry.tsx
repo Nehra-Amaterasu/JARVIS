@@ -170,9 +170,16 @@ function Bench() {
   const [fold, setFold] = useState(false)
   const [tap, setTap] = useState<string | null>('x')
   mark('kit', 'SectionOrder', 'PrimaryOwner')
+  const overlays = (
+    <div className="ww bn-legacy" data-section="wellwisher" data-density="regular">
+      <Overlays />
+    </div>
+  )
   return (
     <main id="bn-root">
       <h1 className="bn-title">Jury bench: kit, art and lamp, {THEME}</h1>
+      {/* with ?open= the modals come first: the popover is placed once from its anchor's rectangle, so an anchor far down the page would put it off screen */}
+      {OPEN && overlays}
 
       {/* ------------------------------------------------------------------ lamp package */}
       <B name="Lamp" pkg="lamp">
@@ -362,9 +369,7 @@ function Bench() {
         </B>
       </div>
 
-      <div className="ww bn-legacy" data-section="wellwisher" data-density="regular">
-        <Overlays />
-      </div>
+      {!OPEN && overlays}
 
       {/* ------------------------------------------------------------------ art package */}
       <B name="NodeRing" pkg="art"><F form="live centre"><art.NodeRing caption="Subsystems" nodes={RING_NODES} centre={{ value: '3', caption: 'open', state: 'live' }} onOpen={noop} /></F></B>

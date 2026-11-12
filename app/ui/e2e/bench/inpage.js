@@ -56,6 +56,8 @@
 
   // A focusable data mark (role img or group) is not a control: it needs a focus indicator and a tab stop, not a 44 px hit box or a border.
   const actionable = (el) => !['img', 'group', 'presentation'].includes(el.getAttribute('role') || '') || el.tagName === 'BUTTON'
+  // list options take their cue from aria-activedescendant and a data-active style, not from focus or a border
+  const isOption = (el) => el.getAttribute('role') === 'option'
   const stats = {}
   const tick = (k) => (stats[k] = (stats[k] || 0) + 1)
   const interactive = () => [...document.querySelectorAll(INTERACTIVE)].filter((e) => inScope(e) && visible(e))
@@ -127,7 +129,9 @@
       el.scrollIntoView({ block: 'center', inline: 'center' })
       const cs = getComputedStyle(el)
       const o = owner(el)
-      const edge = actionable(el) ? edgeOf(el, cs) : 'n/a'
+      if (isOption(el)) continue
+      // an SVG mark has no CSS border: its edge is the stroke of its shapes, judged by the focus and edge-contrast checks
+      const edge = actionable(el) && !(el instanceof SVGElement) ? edgeOf(el, cs) : 'n/a'
       tick('edge:' + (edge || 'none'))
       if (!edge) worse(out, o + '|edge', 0, `no border, outline or underline: ${describe(el)}`)
       const ring = focusRing(el)
@@ -195,7 +199,8 @@
       const id = idOf(el)
       const reached = seen.has(id)
       const aria = el.getAttribute('aria-disabled') === 'true'
-      if (!reached) {
+      if (aria) tick('tab:aria-disabled')
+      if (!reached && !(el.hasAttribute('disabled') && el.closest('[data-form="disabled"]'))) {
         const g = roleGroup(el)
         const rover = el.getAttribute('tabindex') === '-1' && g && [...g.querySelectorAll(INTERACTIVE)].some((m) => seen.has(idOf(m)))
         if (!rover) worse(out, o + '|tab', 0, `${aria ? 'aria-disabled control ' : ''}not reached by Tab: ${describe(el)}`)
@@ -321,6 +326,7 @@
     for (const el of interactive()) {
       if (!actionable(el)) continue
       if (el.tagName === 'INPUT' && ['range', 'checkbox', 'radio'].includes(el.type)) continue
+      if (isOption(el)) continue
       el.scrollIntoView({ block: 'center', inline: 'center' })
       const cs = getComputedStyle(el)
       const r = el.getBoundingClientRect()
@@ -329,6 +335,17 @@
       let best = 0
       const own = over(rgba(cs.backgroundColor), outside)
       best = Math.max(best, ratio(own, outside))
+      if (el instanceof SVGElement) {
+        for (const sh of el.querySelectorAll('circle, rect, path, polygon, ellipse, line')) {
+          const sc = getComputedStyle(sh)
+          for (const paint of [sc.stroke, sc.fill]) {
+            if (paint === 'none') continue
+            const col = rgba(paint)
+            col[3] *= parseFloat(sc.strokeOpacity) || 1
+            best = Math.max(best, ratio(over(col, outside), outside))
+          }
+        }
+      }
       for (const s of ['top', 'right', 'bottom', 'left']) {
         if (parseFloat(cs['border-' + s + '-width']) >= 1 && cs['border-' + s + '-style'] !== 'none') best = Math.max(best, ratio(over(rgba(cs['border-' + s + '-color']), outside), outside))
       }

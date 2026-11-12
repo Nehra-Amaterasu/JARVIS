@@ -41,7 +41,8 @@ function buildBench() {
       configFile: false,
       logLevel: 'silent',
       define: { 'process.env.NODE_ENV': '"production"' },
-      esbuild: { jsx: 'automatic' },
+      // typed loosely: this Vite's ESBuildOptions typing omits jsx, but the option is honoured (the entry has no React import)
+      esbuild: { jsx: 'automatic' } as Record<string, unknown>,
       build: { write: false, minify: false, target: 'es2022', cssCodeSplit: false, lib: { entry: resolve(ROOT, 'e2e/bench/entry.tsx'), formats: ['iife'], name: 'JuryBench', fileName: 'bench' } },
     })
     const outputs = (Array.isArray(out) ? out : [out]).flatMap((o) => ('output' in o ? o.output : []))
@@ -69,6 +70,7 @@ async function openBench(page: Page, theme: Theme, open = '') {
   await page.goto(`${URL_}?theme=${theme}${open ? `&open=${open}` : ''}`)
   await page.locator('[data-bench]').first().waitFor()
   await page.evaluate(INPAGE)
+  await page.waitForTimeout(400) // the 160 ms colour cross-fades of the ww controls must finish before any colour is sampled
 }
 
 // ------------------------------------------------------------------------------------------------ findings ledger
@@ -107,7 +109,6 @@ const merge = (...s: Scan[]): Scan => {
   for (const one of s) for (const [k, v] of Object.entries(one)) out[k] = out[k] ? { score: Math.min(out[k].score, v.score), text: out[k].score <= v.score ? out[k].text : v.text, count: out[k].count + v.count } : { ...v }
   return out
 }
-const overlayOwner = (o: string) => (o.startsWith('RetroDialog') ? 'kit/RetroDialog' : o === 'Sheet' ? 'kit/Drawer' : `kit/${o}`)
 
 async function scanAllPages(page: Page, theme: Theme, fn: () => Promise<Scan>, includeOverlays = true): Promise<Scan> {
   const label = `${test.info().title}`
@@ -118,7 +119,7 @@ async function scanAllPages(page: Page, theme: Theme, fn: () => Promise<Scan>, i
   if (includeOverlays) {
     for (const o of OVERLAYS) {
       await openBench(page, theme, o)
-      await page.waitForTimeout(450) // the 200 ms sheet and 120 ms popover entrances settle before the probes
+      await page.waitForTimeout(250) // the 200 ms sheet and 120 ms popover entrances settle before the probes
       parts.push(await fn())
       await grab()
     }
@@ -127,6 +128,17 @@ async function scanAllPages(page: Page, theme: Theme, fn: () => Promise<Scan>, i
 }
 
 test.setTimeout(180_000)
+
+// BENCH_PEEK=Popover:dark writes a screenshot of one overlay to test-results/jury-bench/peek.png (a debugging aid)
+test('peek', async ({ page }) => {
+  const peek = process.env.BENCH_PEEK
+  test.skip(!peek, 'set BENCH_PEEK=<Overlay>:<theme> to use')
+  const [o, t] = peek!.split(':')
+  await openBench(page, t as Theme, o)
+  await page.waitForTimeout(500)
+  mkdirSync(OUT, { recursive: true })
+  await page.screenshot({ path: resolve(OUT, 'peek.png') })
+})
 
 async function tabScan(page: Page): Promise<Scan> {
   const n = (await page.evaluate('window.__bn.tabPrep()')) as number

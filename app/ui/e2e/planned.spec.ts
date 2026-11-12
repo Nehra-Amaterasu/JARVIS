@@ -133,7 +133,8 @@ test.describe('planned plates', () => {
     test(`activating a plate by ${how} opens "What is coming" on that entry, and Esc returns focus to it`, async ({ page }) => {
       for (const id of [PLAIN, WAITING]) {
         const p = plate(page, id)
-        if (how === 'click') await p.click()
+        // aria-disabled reads as not enabled to Playwright's actionability check; a person can still press it, so force.
+        if (how === 'click') await p.click({ force: true })
         else {
           await p.focus()
           await page.keyboard.press(how === 'Enter' ? 'Enter' : ' ')

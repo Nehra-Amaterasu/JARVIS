@@ -1,0 +1,133 @@
+/* The voice picture (spec 9.4, 9.10, 9.12). Tokens only: the stage takes the immersive charcoal scene in either theme
+   (data-scene on the section), so every colour below is a role, never a hex. Hollow and solid carry the "placeholder
+   or reading" meaning without colour; forced colours get system colours and real borders. */
+
+.vh {
+  --vh-ink: var(--ink-1);
+  --vh-measured: var(--state-measured);
+  --vh-quiet: var(--ink-3);
+  --vh-simulated: var(--state-simulated);
+  --vh-fault: var(--state-fault);
+  display: grid;
+  gap: 8px;
+  max-inline-size: 720px;
+  inline-size: 100%;
+  color: var(--ink-1);
+  background: var(--surface-ground);
+  padding: 0;
+}
+
+/* 720 x 360 at full size, 2:1 below that, never smaller than 280 x 140 */
+.vh-stage {
+  position: relative;
+  inline-size: 100%;
+  min-inline-size: 280px;
+  aspect-ratio: 2 / 1;
+  min-block-size: 140px;
+  background: var(--surface-ground);
+  border: 1px solid var(--edge-ui);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.vh-canvas,
+.vh-static {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  display: block;
+  color: var(--vh-quiet);
+}
+/* the static bezel: a real 1 px edge-coloured ring behind the canvas, drawn once by the DOM (never redrawn) */
+.vh-bezel {
+  position: absolute;
+  left: 50%;
+  top: 48.9%;
+  inline-size: 33.3%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 6px solid var(--surface-raised);
+  outline: 1px solid var(--edge-ui);
+  pointer-events: none;
+}
+.vh-probes { position: absolute; inline-size: 0; block-size: 0; overflow: hidden; }
+.vh-probe-ink { color: var(--vh-ink); }
+.vh-probe-measured { color: var(--vh-measured); }
+.vh-probe-quiet { color: var(--vh-quiet); }
+.vh-probe-simulated { color: var(--vh-simulated); }
+.vh-probe-fault { color: var(--vh-fault); }
+
+.vh-strip { display: grid; gap: 6px; }
+.vh-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-block-size: 44px; }
+.vh-state { font: 600 14px/1.2 var(--font-ui, system-ui, sans-serif); letter-spacing: 0.04em; }
+.vh-source,
+.vh-chip,
+.vh-number,
+.vh-legend { font: 12px/1.4 var(--font-mono, ui-monospace, Consolas, monospace); }
+.vh-source { padding: 2px 6px; border: 1px solid var(--edge-ui); border-radius: 4px; }
+.vh-chip { color: var(--ink-2); }
+.vh-legend { margin: 0; color: var(--ink-2); min-block-size: 1.4em; }
+.vh-number { min-inline-size: 7ch; color: var(--ink-1); }
+
+/* the level bar: a recessed well, 240 x 8, with a 2 px threshold tick and a peak-hold tick */
+.vh-bar { position: relative; inline-size: 240px; max-inline-size: 100%; }
+.vh-bar-well {
+  position: relative;
+  inline-size: 100%;
+  block-size: 8px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--edge-ui);
+  border-radius: 4px;
+}
+.vh-bar-fill { block-size: 100%; inline-size: 0; background: var(--vh-ink); border-radius: 3px; }
+.vh-tick { position: absolute; top: -3px; block-size: 14px; inline-size: 2px; background: var(--vh-measured); }
+.vh-tick-thr { background: var(--ink-2); }
+.vh-scale { position: absolute; top: 8px; block-size: 3px; inline-size: 1px; background: var(--ink-3); }
+.vh-scale-text { display: flex; justify-content: space-between; font: 10px/1 var(--font-mono, ui-monospace, Consolas, monospace); color: var(--ink-3); margin-block-start: 5px; }
+
+/* 44 px hit area, a 3:1 edge, the shared 2 px focus ring comes from focus.css */
+.vh-pause {
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  padding: 0 14px;
+  font: 600 13px/1 var(--font-ui, system-ui, sans-serif);
+  color: var(--ink-1);
+  background: var(--surface-raised);
+  border: 1px solid var(--edge-ui);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.vh-pause[aria-pressed='true'] { background: var(--selected-fill); color: var(--selected-ink); }
+
+/* the meter and the live region are for assistive technology only */
+.vh-meter,
+.vh-sr {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-contrast: more) {
+  .vh-stage { border-width: 2px; }
+  .vh-legend,
+  .vh-chip { color: var(--ink-1); }
+}
+
+/* Forced colours: canvas pixels are not recoloured by the browser, so the probes hand the renderer system colours. */
+@media (forced-colors: active) {
+  .vh { --vh-ink: CanvasText; --vh-measured: CanvasText; --vh-quiet: GrayText; --vh-simulated: CanvasText; --vh-fault: CanvasText; background: Canvas; color: CanvasText; }
+  .vh-stage { background: Canvas; border: 2px solid CanvasText; forced-color-adjust: none; }
+  .vh-bezel { border-color: CanvasText; outline-color: CanvasText; }
+  .vh-bar-well { background: Canvas; border-color: CanvasText; }
+  .vh-bar-fill { background: CanvasText; }
+  .vh-pause { background: ButtonFace; color: ButtonText; border-color: ButtonText; }
+  .vh-pause[aria-pressed='true'] { background: Highlight; color: HighlightText; }
+  .vh-source { border-color: CanvasText; }
+  .vh-legend,
+  .vh-chip { color: CanvasText; }
+}

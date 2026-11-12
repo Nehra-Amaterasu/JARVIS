@@ -1,0 +1,19 @@
+/* Bench layout only: no component styling lives here. The two portal stacks are made static so the page stays one
+   readable sheet; the finding they would otherwise hide (a fixed stack covering content) is not what this bench tests. */
+:root { color-scheme: light dark; }
+html[data-theme='clay-light'] { color-scheme: light; }
+html[data-theme='clay-dark'] { color-scheme: dark; }
+body { margin: 0; background: var(--surface-ground); color: var(--ink-1); font: 14px/1.4 system-ui, 'Segoe UI', sans-serif; }
+#bn-root { padding: 16px; display: grid; gap: 16px; max-width: 1280px; margin: 0 auto; }
+.bn-title { font-size: 20px; margin: 0; }
+.bn-block { border: 1px solid var(--edge-hair, currentColor); padding: 12px; display: grid; gap: 8px; background: var(--surface-ground); }
+.bn-h { font: 600 14px/1.2 ui-monospace, Consolas, monospace; margin: 0; }
+.bn-forms { display: grid; gap: 12px; }
+.bn-form { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-start; }
+.bn-cap { flex: 0 0 100%; margin: 0; font: 12px/1.2 ui-monospace, Consolas, monospace; color: var(--ink-3); }
+.bn-cell { display: inline-flex; align-items: center; gap: 6px; }
+.bn-legacy { display: grid; gap: 16px; }
+.bn-legacy .bn-block { background: var(--surface-0); }
+.bn-legacy .bn-h, .bn-legacy .bn-cap { color: var(--ink-2); }
+.ww-toasts, .ww-toasts.ww-portal { position: static !important; pointer-events: auto !important; }
+.k-toasts { position: static; }

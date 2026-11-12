@@ -15,7 +15,7 @@ import { useStudyNode } from '../../germoney/pages/Study'
 import { resetFrameStore, useFrame } from '../../ww/frame/frameStore'
 import { BackChip } from '../../ww/frame/BackChip'
 import { workspaceMemory } from '../../ww/frame/workspaceMemory'
-import { Segmented, PrimaryOwner, clearCoachMemory, Meter } from '../../ww/kit'
+import { COUNTED, Segmented, PrimaryOwner, clearCoachMemory, Meter } from '../../ww/kit'
 import { SkillInspector, studyNode } from '../../ww/tree/Inspector'
 import { TreeCanvas, branchChips, nextNode } from '../../ww/tree/TreeCanvas'
 import { WwTreePage } from '../../ww/tree/TreeWorkspace'
@@ -281,7 +281,7 @@ describe('first visit, branch chips, memory', () => {
 
 describe('the Meter', () => {
   it('at 0 paints a non-zero track and a zero tick (TREE-03)', () => {
-    m = mount(<Meter value={0} label="0 of 3 contracts" />)
+    m = mount(<Meter value={0} label="0 of 3 contracts" reading={COUNTED} />)
     const el = document.querySelector('.ww-meter')!
     expect(el.getAttribute('data-known')).toBe('true')
     expect(el.getAttribute('aria-valuenow')).toBe('0')

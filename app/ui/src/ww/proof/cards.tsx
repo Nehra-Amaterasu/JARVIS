@@ -9,7 +9,7 @@
 import { useMemo, useState } from 'react'
 import { api } from '../../lib/api'
 import { useFailureStore, FAILURE_CATEGORIES, type FailureCategory } from '../../germoney/stores/failure-store'
-import { Banner, Button, Card, EmptyState, Field, Fold, Meter, PrimaryButton, Segmented, Spark, Stat } from '../kit'
+import { Banner, Button, Card, COUNTED, EmptyState, Field, Fold, Meter, PrimaryButton, Segmented, Spark, Stat } from '../kit'
 import { switchWorkspace } from '../frame/navigate'
 import { openOverlay } from '../frame/overlayRegistry'
 import { useFrame } from '../frame/frameStore'
@@ -57,7 +57,7 @@ export function RankCard({ data, reload }: CardCtx) {
               <span className="ww-proof-line">
                 Level {lv.level} · {lv.into}/{lv.need} XP to {lv.level + 1}
               </span>
-              <Meter value={lv.need ? lv.into / lv.need : 0} label={`Level ${lv.level} progress`} />
+              <Meter value={lv.need ? lv.into / lv.need : 0} label={`Level ${lv.level} progress`} reading={COUNTED} />
             </div>
           </div>
           <p className="ww-proof-line" data-rank-head="">
@@ -71,7 +71,7 @@ export function RankCard({ data, reload }: CardCtx) {
                 <span className="ww-proof-reqnum">
                   {r.have}/{r.need}
                 </span>
-                <Meter value={r.need ? Math.min(1, r.have / r.need) : 1} label={`${r.name}: ${r.have} of ${r.need}`} />
+                <Meter value={r.need ? Math.min(1, r.have / r.need) : 1} label={`${r.name}: ${r.have} of ${r.need}`} reading={COUNTED} />
               </li>
             ))}
           </ul>
@@ -160,7 +160,7 @@ export function StatsCard({ data, reload }: CardCtx) {
         <div className="ww-proof-stack">
           <div className="ww-proof-tiles">
             {stats.map((s) => (
-              <Stat key={s.id} label={s.name} value={s.value} unit={s.unit} next={STAT_NEXT[s.id]} />
+              <Stat key={s.id} label={s.name} value={s.value} unit={s.unit} next={STAT_NEXT[s.id]} reading={COUNTED} />
             ))}
           </div>
           <Fold title="How these are counted">
@@ -349,8 +349,8 @@ export function BuildingCard({ data, reload }: CardCtx) {
           ) : (
             <>
               <div className="ww-proof-tiles">
-                <Stat label="Today" value={s.today_minutes} unit="min" />
-                <Stat label="This week" value={Math.round((s.week_minutes / 60) * 10) / 10} unit="h" />
+                <Stat label="Today" value={s.today_minutes} unit="min" reading={COUNTED} />
+                <Stat label="This week" value={Math.round((s.week_minutes / 60) * 10) / 10} unit="h" reading={COUNTED} />
               </div>
               {areas.length > 0 && (
                 <p className="ww-proof-line" data-areas="">

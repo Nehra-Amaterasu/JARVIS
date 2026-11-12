@@ -16,7 +16,7 @@ import { LifePanel } from '../../germoney/tree/LifePanel'
 import { openExternal, type LifeTree } from '../../germoney/tree/lifeTrees'
 import { useStudyNode } from '../../germoney/pages/Study'
 import { jumpTo } from '../frame/navigate'
-import { Button, Chip, Field, HoldButton, IconButton, Meter, PrimaryButton, Segmented, type ChipTone } from '../kit'
+import { Button, Chip, Field, HoldButton, IconButton, COUNTED, Meter, PrimaryButton, Segmented, type ChipTone } from '../kit'
 import { masteryOp, useMastery, type Mastery } from './mastery'
 
 const LABEL: Record<NodeStatus, string> = { locked: 'Locked', available: 'Available', in_progress: 'In progress', mastered: 'Mastered' }
@@ -70,7 +70,7 @@ export function SkillInspector({ id, statuses, onPick, onFocus, onClose }: Commo
         <p className="ww-insp-meta">{n.branch.replace(/_/g, ' ')} · tier {n.tier} · about {n.hours_est} h</p>
         {n.contracts.length > 0 && (
           <div className="ww-insp-meter">
-            <Meter value={doneContracts / n.contracts.length} label={`${doneContracts} of ${n.contracts.length} contracts`} />
+            <Meter value={doneContracts / n.contracts.length} label={`${doneContracts} of ${n.contracts.length} contracts`} reading={COUNTED} />
             <span className="ww-insp-meter-text">{doneContracts} / {n.contracts.length} contracts</span>
           </div>
         )}

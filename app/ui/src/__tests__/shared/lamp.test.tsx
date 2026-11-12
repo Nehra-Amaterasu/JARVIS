@@ -221,10 +221,7 @@ function unstatedReadings(): string[] {
 }
 
 /** Reading widgets that predate the lamp. Each is retired by the named package; none may be added. */
-const DEBT: Record<string, string> = {
-  'ww/kit/Data.tsx#StatProps': 'B03b (kit): Stat takes a reading',
-  'ww/kit/Data.tsx#MeterProps': 'B03b (kit): Meter takes a reading',
-}
+const DEBT: Record<string, string> = {}
 
 describe('no widget renders a number without a state', () => {
   it('finds the lamp widgets and sees them as stated', () => {

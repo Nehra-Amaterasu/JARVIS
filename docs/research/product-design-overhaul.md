@@ -2,6 +2,17 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-12: B03b kit families A and B, first pass
+
+**Question.** Can the 21 components of spec 7.2 and 7.3 land in `shared/kit` without moving a pixel, with the 7.1 state grammar proven by tests?
+
+**Findings.** 21 components added in `app/ui/src/shared/kit/` (Lamp, Switch, Rocker, Key, Knob, TickSlider, Plate, Readout, Numerals, ReadoutLines, TelemetryRail, ProgressBar, Panel, Frame, Console, PaletteView, NotchedToast, RetroDialog, FolderTabs; the Raised Pill is a clay-scoped restyle of the existing primary Button, no new file; Segmented Switch and Folder Tab Bar share the roving-tab pattern). One stylesheet, `clay.css`, with no literal colour and a forced-colours branch for every family. 63 new tests (`__tests__/kit/`): a states test and a keyboard test per component, plus a stylesheet test. Full vitest 1528 of 1528 (was 1465), `tsc -b` clean, `npm run bundle:check` ok (ww build 367 modules; kit not imported by the app, so bundles are unchanged).
+S7, half done: 13 files that need nothing from `ww/` (Button, Chip, Field, Segmented, Skeleton, Section, PrimaryOwner, Drawer, Popover, Toast, Layout, overlay, util) moved to `shared/kit` with re-export shims in `ww/kit`, so every ww import and test resolves unchanged.
+
+**Not done, and why.** (1) Card, Data, Interactive, Placeholders, Reveal stay in `ww/kit`: they import `ww/design/motion/*` and `ww/useReducedMotion`, and the seam rule forbids shared code importing `ww/`; those two files must move to `shared/` first (not in this package's file list). (2) The kit's CSS (`ww/kit/*.css`) stays in `ww/kit` for the same reason: its rules mix moved and unmoved components. (3) No forced-colours screenshot: nothing mounts the kit yet, so a Playwright page would need a new file outside this package; the stylesheet test proves the branch exists, not how it renders. (4) `tools/art/check_ids.py` does not exist yet (B05b). (5) Hover, pressed and error visuals are CSS only and unmeasured in a real window.
+
+**What it changed.** Nothing visible; the app imports none of it.
+
 ## 2026-11-12: B03 tokens layers 1 to 3, built and reviewed
 
 **Question.** Does the additive clay token layer hold its contrast table, forced-colours mapping and "nothing changes on screen" promise?

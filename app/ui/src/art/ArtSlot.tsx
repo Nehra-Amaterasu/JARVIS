@@ -7,8 +7,8 @@
 // given, sits outside the box as real text. Static by default: no timer, no loop, no layout read; the only
 // motion is a one-shot 160 ms opacity step in ArtSlot.css that reduced motion removes.
 //
-// `treatment` picks a sibling file when the pipeline built one: `art.day.sun` with treatment 'bayer' tries
-// `art.day.sun.bayer` first and falls back to the plain id, so a treatment is a manifest addition, not code.
+// `treatment` picks a sibling file when the pipeline built one: the id plus a dot and the treatment name is tried
+// first and falls back to the plain id, so a treatment is a manifest addition, not code.
 import { useEffect, useState, type CSSProperties } from 'react'
 import { ART_TRACK, artEntry, artText, artUrl } from './index'
 import './ArtSlot.css'

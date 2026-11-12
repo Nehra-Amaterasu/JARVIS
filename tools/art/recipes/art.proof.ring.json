@@ -19,6 +19,9 @@
    "op": "tone"
   },
   {
+   "op": "invert"
+  },
+  {
    "op": "duotone",
    "pair": "bone-charcoal",
    "quality": 62

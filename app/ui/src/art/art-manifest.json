@@ -67,7 +67,7 @@
    "files": [],
    "licence": "",
    "private_source": null,
-   "recipe_sha256": "df3b8d07b74c38f78127d9d9bfe3a1f20bbdab838105388976c2496ab565d5c8",
+   "recipe_sha256": "5a6b18524d830578a0ac96a5538a8dcd95f6df09f2be127418ca6b6622e889fc",
    "track": "private-only"
   },
   "art.memory.branch": {
@@ -92,7 +92,7 @@
    "files": [],
    "licence": "",
    "private_source": null,
-   "recipe_sha256": "cec165a5e6c128397d5bc40cc4f9fb7a7f206b7a95137aa6e1eb65743a23ce78",
+   "recipe_sha256": "062514d09c1146fdb02c55057c5a3dfa7548456e16ed1e10c145cf30363a80d0",
    "track": "private-only"
   },
   "art.room.faceplate": {
@@ -101,7 +101,7 @@
    "files": [],
    "licence": "",
    "private_source": null,
-   "recipe_sha256": "bbccac060d94260c58478dc8c6159bcde524d12b17a7d889a8d2687dc613a0df",
+   "recipe_sha256": "c79ca755e9bfb0e4dd08c35e00aa2d98adf06cb9c153a069aef310d86de3d2db",
    "track": "private-only"
   },
   "art.senses.spindle": {
@@ -199,7 +199,7 @@
    "files": [],
    "licence": "",
    "private_source": null,
-   "recipe_sha256": "8247e5ab836ed573e95d95fd0a08b2753dee219541f41a4e0ddb0f35bd71120d",
+   "recipe_sha256": "f9ea63f533e4546005681de9e7eadddf1f1d2fcbc7f3d7c4ae4d1e6a5df93c08",
    "track": "private-only"
   }
  },

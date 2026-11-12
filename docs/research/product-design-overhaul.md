@@ -2,6 +2,23 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-12: B04 the lamp and the state contract, built
+
+**Question.** Can a reading reach the screen without saying whether it is real? (spec 6.6, decision D12)
+
+**Built (`app/ui/src/shared/lamp/**`, state hooks in `lib/store.ts`).**
+- Contract `{state, since, reason}` with five states (LIVE disc, WAITING half disc, SIMULATED diamond, PLANNED dashed ring, FAULT triangle). `readingOf` turns anything unusable into WAITING "no report"; it never produces LIVE. FAULT with no reason says "no reason given".
+- `Lamp` (glyph plus word, 12 px views, 16 px title bar), `Reading` (the number is drawn only for LIVE and SIMULATED; WAITING, PLANNED and FAULT draw an em dash even when handed a number; `reading` is a required prop so tsc rejects a call without one), `Annunciators` (Voice, Room link, Senses, Memory; Phone paired, Quiet on; not mounted yet, B05 does that).
+- Store: `readings`, `reportCapability(id, partial)` (stamps `since` on a state change, keeps it on a repeat, no new object on an identical report), `useCapability(id)` (stable WAITING default).
+
+**Numbers.** 23 new tests (shared/lamp.test.tsx); whole UI suite 1488 of 1488 (was 1465), `tsc -b` clean. Greyscale check is a markup test: the five glyphs have five distinct SVG signatures and no colour value in any of them (ink is currentColor), so the shape alone tells them apart.
+
+**The lint test.** A source scan over shared/, jarvis/, ww/kit/, components/ and pages/ fails any exported props interface with a number reading (`value`, `level`, `percent`...) and no `state` or `reading` of type LampReading. Two older widgets fail it and are listed as DEBT, each with its retiring package: `Stat` and `Meter` in `ww/kit/Data.tsx` (B03b). The debt list may only shrink: the test fails when an entry is fixed but still listed.
+
+**Not done, and why.** "Every existing reading widget takes a state" is only partly met: B04 owns `shared/lamp/**` and the store hooks, so the Well Wisher kit widgets (`Stat`, `Meter`) and the JARVIS cards that print numbers (components/, pages/) are not edited here; they move to `Reading` in B03b and in the section packages (B06, B11). Nothing reports real states into the store yet, so every lamp reads WAITING "no report" until the shell (B05) wires the sources. The Playwright greyscale screenshot was not run (no mounted page uses the lamp yet; the vitest markup test stands in).
+
+**What it changed.** New shared layer; no existing screen changed (nothing imports the lamp yet).
+
 ## 2026-11-12: B03 tokens layers 1 to 3, built and reviewed
 
 **Question.** Does the additive clay token layer hold its contrast table, forced-colours mapping and "nothing changes on screen" promise?

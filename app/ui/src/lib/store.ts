@@ -6,6 +6,7 @@
 import { create } from 'zustand'
 import { api, openSocket, type BusEvent, type CoreInfo, type Turn, type Vitals } from './api'
 import { switchView } from './motion'
+import { WAITING_DEFAULT, readingOf, type LampReading } from '../shared/lamp/types'
 
 export type Tab =
   | 'core' | 'yaadash' | 'aankhen' | 'limbs' | 'connect' | 'system'
@@ -59,6 +60,12 @@ interface Store {
   /** The firmware job's latest progress (board_ctl.py publishes it ephemeral, ~4 Hz):
    *  kept here for the Limbs tab, never in the ticker. */
   boardProgress: BusEvent | null
+  /** The lamp contract per capability (spec 6.6): {state, since, reason}. An id nobody has reported on is absent
+   *  here and reads as WAITING "no report" through useCapability; nothing in this store ever invents LIVE. */
+  readings: Record<string, LampReading>
+  /** A source reports its state. `since` is stamped here when the state changes and the source gave none, so a
+   *  repeat of the same state keeps its original time. */
+  reportCapability: (id: string, r: Partial<LampReading>) => void
   refreshCore: () => Promise<void>
   refreshVitals: () => Promise<void>
 }
@@ -85,6 +92,15 @@ export const useStore = create<Store>((set, get) => ({
   setPendingQuery: (pendingQuery) => set({ pendingQuery }),
   toasts: [],
   boardProgress: null,
+  readings: {},
+  reportCapability: (id, r) => {
+    const next = readingOf(r)
+    const prev = get().readings[id]
+    const since = next.since ?? (prev && prev.state === next.state ? prev.since : Date.now())
+    const merged = { ...next, since }
+    if (prev && prev.state === merged.state && prev.since === merged.since && prev.reason === merged.reason) return
+    set({ readings: { ...get().readings, [id]: merged } })
+  },
   toast: (text, tone = 'info') => {
     const id = ++toastId
     set({ toasts: [...get().toasts, { id, text, tone }] })
@@ -106,6 +122,10 @@ export const useStore = create<Store>((set, get) => ({
     }
   },
 }))
+
+/** The lamp reading of one capability; WAITING "no report" until a source has reported (a stable object, so a
+ *  selector does not re-render on every store change). */
+export const useCapability = (id: string): LampReading => useStore((s) => s.readings[id] ?? WAITING_DEFAULT)
 
 /** Connect the event bus once; route events into the store. */
 export function startEventStream() {

@@ -1,0 +1,107 @@
+/*
+ * The lamp (spec 6.6). 12 px glyph in views, 16 px in the title bar (--lamp-size), mono 12 px word at 0.04 em.
+ * The glyph draws with currentColor so the shape is the cue and the state token only tints it; in forced colours the
+ * glyph keeps its exact shape (forced-color-adjust: none, spec 6.5.5 rule 5) and takes CanvasText from the tokens.
+ * Token fallbacks keep it legible before the clay layers are mounted by the shell.
+ */
+.lamp {
+  --lamp-ink: var(--state-waiting, currentColor);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--lamp-ink);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.lamp[data-size='16'] {
+  font-size: 12px;
+}
+.lamp-glyph {
+  flex: none;
+  width: var(--lamp-size, 12px);
+  height: var(--lamp-size, 12px);
+  forced-color-adjust: none;
+}
+.lamp[data-size='16'] .lamp-glyph {
+  width: 16px;
+  height: 16px;
+}
+.lamp-word {
+  color: var(--ink-2, inherit);
+}
+
+.lamp-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lamp-bar-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.lamp-bar-name {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-2, inherit);
+}
+@media (max-width: 1279px) {
+  .lamp-bar-name {
+    display: none;
+  }
+}
+
+/* A reading: label, the number in a well, the lamp in the corner, the reason under it. */
+.lamp-reading {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'label lamp' 'value value' 'why why';
+  gap: 4px 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--edge-ui, currentColor);
+  border-radius: var(--card-radius, 8px);
+  background: var(--surface-sunk, transparent);
+}
+.lamp-reading-label {
+  grid-area: label;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-3, inherit);
+}
+.lamp-reading-lamp {
+  grid-area: lamp;
+}
+.lamp-reading-value {
+  grid-area: value;
+  font-size: 20px;
+  line-height: 28px;
+  color: var(--ink-1, inherit);
+}
+.lamp-reading[data-has-value='false'] .lamp-reading-value {
+  color: var(--ink-3, inherit);
+}
+.lamp-reading-unit {
+  margin-inline-start: 4px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  color: var(--ink-3, inherit);
+}
+.lamp-reading-why {
+  grid-area: why;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-3, inherit);
+}
+/* SIMULATED is stamped on the reading itself, so a screenshot of it cannot lose the word (spec 6.6, 8.1). */
+.lamp-reading[data-state='simulated'] {
+  border-style: dashed;
+}

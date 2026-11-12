@@ -1,0 +1,28 @@
+/* ==========================================================================
+   Clay: the focus ring (spec 6.4.5) and the geometry roles that go with it.
+
+   2 px solid outline, 2 px offset, in --focus-ring (14.83 to 16.12:1 on the light surfaces, 12.89
+   to 15.64:1 on the dark ones). It is an `outline`, never a box-shadow, so forced colours keep it
+   and --focus-ring becomes Highlight there (forced.css). The selector is wrapped in :where() so it
+   has zero specificity: a component can restyle its own ring, but cannot remove it without
+   writing a replacement (the css-lint rule against `outline: none`).
+
+   --focus-bleed is the 4 px a scroll or overflow container reserves so the ring is not cut off.
+   In a bar (the 48 px title bar, the 44 px view-switch row) there is no room for a bleed, so the ring is drawn
+   inset: put data-focus-inset on the bar.
+   ========================================================================== */
+:root[data-theme='clay-light'],
+:root[data-theme='clay-dark'] {
+  --focus-bleed: 4px;
+  scroll-padding: var(--focus-bleed);
+}
+
+:where(:root[data-theme='clay-light'], :root[data-theme='clay-dark']) :focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  scroll-margin: 8px;
+}
+
+:where(:root[data-theme='clay-light'], :root[data-theme='clay-dark']) [data-focus-inset] :focus-visible {
+  outline-offset: -2px;
+}

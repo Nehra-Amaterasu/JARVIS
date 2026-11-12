@@ -1,0 +1,30 @@
+/* ==========================================================================
+   Clay: the one entry stylesheet of the overhaul token layers 1 to 3 (spec 6.2.2).
+
+   NOT imported by the app yet. Every rule in these files is scoped by attribute (data-theme='clay-*',
+   data-scene, data-product, data-contrast), and nothing sets those attributes today, so importing
+   this file would change no pixel; the shell (B05) is what imports it and flips the attribute, behind
+   the app.shell flag. Until then the contrast oracle (src/__tests__/tokens.test.ts) and the forced-
+   colours spec (e2e/clay-forced.spec.ts) read these files directly.
+
+   Order, and why:
+     1  primitive-scale, primitive-color   layer 1, raw values
+     2  semantic, scene                    layer 2 roles and scenes
+     3  elevation, focus, type             layer 2 geometry, ring and type
+     4  products                           product silhouette and tempo
+     5  ../../sections/index               layer 3, the ten section themes
+     6  contrast, forced                   LAST, so that at equal specificity they beat the section
+                                           marks (the spec lists them before the sections; the
+                                           dark-theme marks are (0,3,0) and would otherwise win)
+   ========================================================================== */
+@import './primitive-scale.css';
+@import './primitive-color.css';
+@import './semantic.css';
+@import './scene.css';
+@import './elevation.css';
+@import './focus.css';
+@import './type.css';
+@import './products.css';
+@import '../../sections/index.css';
+@import './contrast.css';
+@import './forced.css';

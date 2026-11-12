@@ -2,6 +2,16 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-12: B03 tokens layers 1 to 3, built and reviewed
+
+**Question.** Does the additive clay token layer hold its contrast table, forced-colours mapping and "nothing changes on screen" promise?
+
+**Findings.** 190 oracle tests in `tokens.test.ts` read the real clay CSS, apply the cascade, and compute every pair of spec 6.3.3 to 6.3.5 with the WCAG formula; a deliberate drift of one primitive failed 3 tests. `e2e/clay-forced.spec.ts` (4 tests) shows that under `forced-colors: active` roles resolve to system colours; changing `--selected-fill` from `Highlight` to `Canvas` failed 2 of the 4, so the spec has teeth. Reviewer reruns: `npx tsc -b` clean, vitest 65 files and 1413 tests twice, keyboard.spec.ts 13 passed. The clay entry is not imported by the app, so the 43 `e2e:shots` baselines are unchanged by construction.
+
+**Not done.** The font step (Inter, Geist Mono, digits-only Doto subset, at most 150 KB, real size not yet recorded) waits for the owner's font-subsetting tool (X5); Anton stays until B13. V03 visual sign-off is still to follow.
+
+**What it changed.** Nothing on screen; B04, B03b and B05 can now read layers 1 to 3.
+
 ## 2026-11-12: research before the overhaul design
 
 **Question.** Before designing a complete JARVIS-level overhaul: what does the product really contain today, which premium products, visual references and open-source projects are worth learning from, what does the evidence say about follow-through for students with ADHD-like attention difficulties, where (if anywhere) a model beats a rule, and what accessibility and performance limits does a local Windows WebView2 app set?

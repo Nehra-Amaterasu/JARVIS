@@ -1,0 +1,72 @@
+/* ==========================================================================
+   Clay: more contrast (spec 6.5.1, right-hand column).
+
+   Two ways in, one result: the OS setting (`prefers-contrast: more`) or the in-app switch that
+   sets data-contrast='high' on <html>. Both rule groups below carry the same declarations;
+   tokens.test.ts asserts it, so the switch and the OS setting cannot drift apart.
+
+   What changes (light / dark and immersive):
+     --ink-3     becomes the ink-2 value        4.5 minimum to 6.99 / 8.97 on the ground
+     --edge-ui   becomes the ink-2 value        3.0 minimum to 6.99 / 8.97 on the ground
+     --edge-hair becomes the (new) edge-ui      a hairline that carries the boundary
+     --elev-recessed, --elev-pressed            edge only: the inset shadows are off
+     --decor-opacity 0                          ghost rings, scanlines, grain and halftone atmosphere
+                                                read var(--decor-opacity, 1) and disappear
+     --sec-mark                                 ink-1
+   --accent-ink on light stays #A8300F (5.62): it already passes.
+
+   The whole file sits under `not (forced-colors: active)`: in forced colours the system palette is
+   already the high-contrast answer and forced.css maps every role, so there is nothing to add and
+   no precedence to fight.
+   ========================================================================== */
+@media not (forced-colors: active) {
+  /* ---- the in-app switch ---- */
+  :root[data-theme='clay-light'][data-contrast='high'] {
+    --ink-3: var(--p-clay-700);
+    --edge-ui: var(--p-clay-700);
+    --edge-hair: var(--p-clay-700);
+    --elev-recessed: none;
+    --elev-pressed: none;
+    --decor-opacity: 0;
+  }
+  :root[data-theme='clay-dark'][data-contrast='high'],
+  :root[data-theme='clay-light'][data-contrast='high'] [data-scene='immersive'],
+  :root[data-theme='clay-dark'][data-contrast='high'] [data-scene='immersive'] {
+    --ink-3: var(--p-char-200);
+    --edge-ui: var(--p-char-200);
+    --edge-hair: var(--p-char-200);
+    --elev-recessed: none;
+    --elev-pressed: none;
+    --decor-opacity: 0;
+  }
+  :root[data-theme='clay-light'][data-contrast='high'] [data-section],
+  :root[data-theme='clay-dark'][data-contrast='high'] [data-section] {
+    --sec-mark: var(--ink-1);
+  }
+
+  /* ---- the OS setting ---- */
+  @media (prefers-contrast: more) {
+    :root[data-theme='clay-light'] {
+      --ink-3: var(--p-clay-700);
+      --edge-ui: var(--p-clay-700);
+      --edge-hair: var(--p-clay-700);
+      --elev-recessed: none;
+      --elev-pressed: none;
+      --decor-opacity: 0;
+    }
+    :root[data-theme='clay-dark'],
+    :root[data-theme='clay-light'] [data-scene='immersive'],
+    :root[data-theme='clay-dark'] [data-scene='immersive'] {
+      --ink-3: var(--p-char-200);
+      --edge-ui: var(--p-char-200);
+      --edge-hair: var(--p-char-200);
+      --elev-recessed: none;
+      --elev-pressed: none;
+      --decor-opacity: 0;
+    }
+    :root[data-theme='clay-light'] [data-section],
+    :root[data-theme='clay-dark'] [data-section] {
+      --sec-mark: var(--ink-1);
+    }
+  }
+}

@@ -1,0 +1,23 @@
+/* ==========================================================================
+   Section theme: memory (JARVIS). Layer 3 of the overhaul design system (spec 6.2.4, 6.3.5, 6.3.6).
+
+   Declares only the names on the layer-3 allow-list (tokens.test.ts fails any other name):
+   --sec-mark, --sec-art-1..3, --sec-scene, --r-control, --r-panel, --tempo, --spring-main.
+   No surface, ink, edge or state value: a section cannot quietly restyle the chrome, and colour
+   only ever means state. Scoped under a clay theme, because Well Wisher already puts
+   data-section on its own elements and --tempo is read by its motion.
+
+   Paper (--surface-paper) with a JARVIS chamfer so it does not read as Well Wisher clay. ASCII glyph
+   density only. Spec 6.3.4 gives the paper for light tokens only; in clay-dark the paper is the dark
+   ground (semantic.css) until V03 decides.
+   ========================================================================== */
+:root[data-theme^='clay-'] [data-section='memory'] {
+  --sec-mark: var(--ink-2);
+  --sec-art-1: var(--p-char-800);
+  --sec-art-2: var(--p-clay-600);
+  --sec-art-3: var(--p-clay-300);
+  --sec-scene: light;
+  --r-control: var(--r-sharp);
+  --r-panel: var(--r-sharp);
+  --tempo: 0.67;
+}

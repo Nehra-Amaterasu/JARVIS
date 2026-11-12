@@ -1,0 +1,38 @@
+/* ==========================================================================
+   Clay, layer 2: type and corner roles (spec 6.4.2, 6.3.0).
+
+   Each --type-* role is a whole `font` shorthand (weight size/line family), so a component writes
+   `font: var(--type-body)` and cannot pick a size or a line that is off the scale. Tracking and
+   case are separate names because `font` cannot carry them. Sizes are 12 px at the least: nothing
+   is smaller. Mono caps only at 12 px and only for labels of 1 to 12 characters. Tabular numerals
+   (font-variant-numeric: tabular-nums) are the consumer's job for every changing number in Inter.
+
+   The families name Inter, Geist Mono and Doto as the spec does. The fonts are still the old
+   @fontsource imports in styles/tokens.css, so the fallbacks are real (system-ui, ui-monospace):
+   the font step of B03 (subset files, Anton dropped) is a separate, later commit.
+   ========================================================================== */
+:root[data-theme='clay-light'],
+:root[data-theme='clay-dark'] {
+  --font-ui: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --font-numerals: 'Doto Variable', 'Geist Mono Variable', ui-monospace, monospace;
+
+  --type-display: var(--p-weight-400) var(--p-size-72) / var(--p-line-72) var(--font-numerals);
+  --type-display-compact: var(--p-weight-400) var(--p-size-56) / var(--p-line-56) var(--font-numerals);
+  --type-heading: var(--p-weight-600) var(--p-size-24) / var(--p-line-32) var(--font-ui);
+  --type-title: var(--p-weight-600) var(--p-size-18) / var(--p-line-24) var(--font-ui);
+  --type-read: var(--p-weight-400) var(--p-size-16) / var(--p-line-26) var(--font-ui);
+  --type-body: var(--p-weight-400) var(--p-size-14) / var(--p-line-20) var(--font-ui);
+  --type-small: var(--p-weight-400) var(--p-size-13) / var(--p-line-18) var(--font-ui);
+  --type-label: var(--p-weight-500) var(--p-size-12) / var(--p-line-16) var(--font-mono);
+  --type-meta: var(--p-weight-400) var(--p-size-12) / var(--p-line-16) var(--font-mono);
+  --type-log: var(--p-weight-400) var(--p-size-13) / var(--p-line-18) var(--font-mono);
+
+  --type-heading-tracking: -0.01em;
+  --type-label-tracking: 0.04em;
+  --type-read-measure: 70ch; /* a read line never exceeds 70 characters */
+
+  /* corners: clay for chrome, sharp for the brutalist sections; a section picks one (6.3.6) */
+  --r-clay: var(--p-radius-14);
+  --r-sharp: var(--p-radius-2);
+}

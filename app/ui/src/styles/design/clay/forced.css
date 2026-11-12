@@ -1,0 +1,77 @@
+/* ==========================================================================
+   Clay: forced colours (spec 6.5.1, layer 2 and layer 3 columns).
+
+   The app had zero handling of forced-colors before this file. In `forced-colors: active` the
+   browser replaces color, background-color, border-color, outline-color and SVG fill/stroke by
+   itself and forces box-shadow, text-shadow and gradients off; what it cannot replace is a role
+   that a component reads through a custom property for something else (a canvas colour, a
+   `color-mix`). So every colour role is mapped to a system colour, and meaning stays in shape and
+   words (the lamp glyph, the word FAULT), never in hue:
+
+     ground, raised, sunk, paper, faceplate   Canvas       (sunk gets its 1 px CanvasText border from the kit)
+     ink-1, ink-2, ink-3                      CanvasText    ink-off: GrayText (disabled only)
+     edge-ui                                  CanvasText    edge-hair: ButtonBorder
+     selected-fill / selected-ink             Highlight / HighlightText
+     focus-ring                               Highlight
+     accent-fill                              ButtonFace    the primary cue is weight, a 2 px ButtonText border and position
+     state-*                                  CanvasText    the glyph and the word carry it
+
+   The immersive scene stops being charcoal: its selector is listed here at (0,3,0), above the
+   section grounds in scene.css (0,2,0). This file is imported LAST (index.css) so that at equal
+   specificity it also beats the section marks (dark-theme marks are (0,3,0)).
+
+   Art in a canvas reads --art-ink and --art-ground at draw time (6.5.4): normally the ink and the
+   ground, here CanvasText and Canvas (declared in scene.css for the normal case and at the end of
+   the second block below for forced colours).
+   ========================================================================== */
+@media (forced-colors: active) {
+  :root[data-theme='clay-light'],
+  :root[data-theme='clay-dark'],
+  :root[data-theme='clay-light'] [data-scene='immersive'],
+  :root[data-theme='clay-dark'] [data-scene='immersive'] {
+    --surface-ground: Canvas;
+    --surface-raised: Canvas;
+    --surface-sunk: Canvas;
+    --surface-paper: Canvas;
+    --surface-faceplate: Canvas;
+
+    --ink-1: CanvasText;
+    --ink-2: CanvasText;
+    --ink-3: CanvasText;
+    --ink-off: GrayText;
+
+    --edge-ui: CanvasText;
+    --edge-hair: ButtonBorder;
+
+    --accent-fill: ButtonFace;
+    --accent-on: ButtonText;
+    --accent-fill-hover: ButtonFace;
+    --accent-ink: CanvasText;
+
+    --state-measured: CanvasText;
+    --state-simulated: CanvasText;
+    --state-fault: CanvasText;
+    --state-planned: CanvasText;
+    --state-waiting: CanvasText;
+
+    --selected-fill: Highlight;
+    --selected-ink: HighlightText;
+    --focus-ring: Highlight;
+    --scrim: color-mix(in srgb, Canvas 80%, transparent);
+
+    --elev-raised: none;
+    --elev-recessed: none;
+    --elev-pressed: none;
+    --elev-float: none;
+  }
+
+  /* layer 3: the section mark and the canvas art pair */
+  :root[data-theme='clay-light'] [data-section],
+  :root[data-theme='clay-dark'] [data-section],
+  :root[data-theme='clay-light'] [data-scene],
+  :root[data-theme='clay-dark'] [data-scene] {
+    --sec-mark: CanvasText;
+    --art-ink: CanvasText;
+    --art-ground: Canvas;
+  }
+}

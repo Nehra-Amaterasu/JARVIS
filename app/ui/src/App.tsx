@@ -1,3 +1,6 @@
+// First, before anything that imports lib/api.ts: that module wipes the URL fragment on load, and the shell flag
+// reads `shell=v2` from it (shell/flag.ts).
+import { shellV2Enabled } from './shell/flag'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { CommandPalette } from './components/CommandPalette'
 import { Dock, TitleBar, Ticker, Toasts, useHotkeys } from './components/Shell'
@@ -6,7 +9,6 @@ import { startMediaHost } from './lib/media'
 import { startEventStream, useStore } from './lib/store'
 import { CorePage } from './pages/Core'
 import { PAGE_LOADERS, prefetchPages } from './pageLoaders'
-import { shellV2Enabled } from './shell/flag'
 import type { Verb } from './shell/commands'
 
 // Core, the tab the window opens on, is the only page in the entry chunk; every other

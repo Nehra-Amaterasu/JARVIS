@@ -227,7 +227,7 @@ declare global {
 
 function TitleBar({ product, items }: { product: ProductId; items: typeof JARVIS_ANNUNCIATORS }) {
   const readings = useStore((s) => s.readings)
-  const now = useNow(30_000)
+  const now = useNow(15_000) // HH:MM, so at most 15 s late at a minute change; the only interval the shell runs
   const inApp = typeof window !== 'undefined' && !!window.pywebview
   const faults = items.filter((it) => readings[it.id]?.state === 'fault')
   return (
@@ -236,7 +236,8 @@ function TitleBar({ product, items }: { product: ProductId; items: typeof JARVIS
       {PRODUCTS.length > 1 && <ProductSwitch product={product} />}
       <ResumePill product={product} />
       <div className="s2-lamps">
-        <Annunciators items={items} readings={readings} compact />
+        {/* words show from 1280 px; below it the lamp alone, the name stays the tooltip and accessible name (4.2.1) */}
+        <Annunciators items={items} readings={readings} />
       </div>
       {faults.length > 0 && <FaultChip product={product} names={faults.map((f) => f.label)} />}
       <time className="s2-clock" dateTime={new Date(now).toISOString()}>{clock(now / 1000).slice(0, 5)}</time>

@@ -8,16 +8,22 @@
  *   - the URL fragment carries `shell=v2`, as in `/#t=<token>&shell=v2`. The fragment is written to
  *     localStorage so the choice survives a reopen; `shell=off` turns it back.
  * Playwright sets it with the fragment (e2e/shell-v2.spec.ts), the same path a person would use.
+ *
+ * The fragment is captured when this module is EVALUATED, not when the flag is first asked: lib/api.ts reads the
+ * `t=` token at its own evaluation and then wipes the whole fragment (history.replaceState), so a later read finds
+ * nothing. App.tsx imports this module first for that reason (measured 13 Nov: with the import after the
+ * palette's, `shell=v2` was gone before App rendered and all ten flag-on specs saw the old frame).
  */
 export const SHELL_FLAG_KEY = 'app.shell'
 const ON = new Set(['v2', 'on', '1', 'true'])
 let cached: boolean | null = null
+let hashAtLoad = typeof location !== 'undefined' ? location.hash : ''
 
 export function shellV2Enabled(): boolean {
   if (cached !== null) return cached
   let on = false
   try {
-    const m = typeof location !== 'undefined' ? location.hash.match(/[#&]shell=([^&]*)/) : null
+    const m = hashAtLoad.match(/[#&]shell=([^&]*)/)
     if (m) {
       on = ON.has(decodeURIComponent(m[1]).toLowerCase())
       try {
@@ -38,4 +44,5 @@ export function shellV2Enabled(): boolean {
 /** Tests only: forget the cached read. */
 export function resetShellFlagForTests(): void {
   cached = null
+  hashAtLoad = typeof location !== 'undefined' ? location.hash : ''
 }

@@ -104,7 +104,10 @@
 .s2-pillrow { display: none; }
 
 .s2-lamps { flex: none; display: flex; align-items: center; min-height: var(--s2-hit); }
-.s2-lamps .lamp-bar { display: flex; gap: 10px; margin: 0; padding: 0 4px; list-style: none; }
+.s2-lamps .lamp-bar { display: flex; gap: 12px; margin: 0; padding: 0 4px; list-style: none; }
+.s2-lamps .lamp-bar-item { display: inline-flex; align-items: center; gap: 6px; }
+.s2-lamps .lamp-bar-name { font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); white-space: nowrap; }
+@media (max-width: 1279px) { .s2-lamps .lamp-bar-name { display: none; } }
 .s2-fault {
   flex: none;
   min-height: 40px;

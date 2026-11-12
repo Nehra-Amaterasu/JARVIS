@@ -151,4 +151,11 @@ def test_trace_output_is_byte_identical_twice_and_has_no_script():
 
 def test_cli_refuses_to_write_into_a_tracked_folder():
     r = subprocess.run([sys.executable, str(ART / "trace_sigil.py"), "--id", "C01-18", "--out", str(REPO / "tools/art/own")], capture_output=True, text=True)
-    assert r.returncode == 2 and "git-ignored private folder" in r.stdout
+    assert r.returncode == 2 and "refusing" in r.stdout
+
+
+def test_cli_refuses_a_folder_inside_the_repo_but_outside_data(tmp_path):
+    for rel in ("scratch-sigil", "e2e/x"):
+        r = subprocess.run([sys.executable, str(ART / "trace_sigil.py"), "--id", "C01-18", "--out", str(REPO / rel)], capture_output=True, text=True)
+        assert r.returncode == 2 and "refusing" in r.stdout
+        assert not (REPO / rel).exists()

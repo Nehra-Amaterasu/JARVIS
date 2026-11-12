@@ -85,6 +85,10 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     p = B.Paths(Path(a.root), Path(a.data_root) if a.data_root else None)
     out = Path(a.out).resolve()
+    inside = p.root == out or p.root in out.parents
+    if inside and (p.root / "data") not in out.parents:
+        print(f"refusing --out {out}: inside the repository but not under the git-ignored data/ folder")
+        return 2
     for forbidden in (p.root / "tools", p.root / "app", p.root / "docs"):
         if forbidden in out.parents or out == forbidden:
             print(f"refusing --out {out}: a traced sigil is derived from a third-party picture and goes only to the git-ignored private folder")

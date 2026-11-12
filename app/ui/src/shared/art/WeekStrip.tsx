@@ -45,9 +45,6 @@ export function WeekStrip({ days, today, selected, caption = 'Logged study minut
               aria-pressed={selected ? d.iso === selected : undefined}
               aria-label={`${d.label} ${dayNum}, ${d.rest ? 'rest day' : `${d.minutes} minutes logged`}${isToday ? ', today' : ''}`}
               {...rov.props(i)}
-              onKeyDown={(e) => {
-                rov.props(i).onKeyDown(e)
-              }}
               onClick={() => onOpen?.(d.iso)}
             >
               {isToday ? <span className="art-notch" aria-hidden="true" /> : null}

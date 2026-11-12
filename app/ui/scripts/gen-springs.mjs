@@ -1,13 +1,13 @@
 // Writes the spring curves (CSS linear()) and the matching JS constants from one source.
 //   node scripts/gen-springs.mjs          write both files
 //   node scripts/gen-springs.mjs --check  exit 1 if either file differs from what would be written
-// The math lives in src/ww/design/motion/springMath.ts (Node strips the types itself).
+// The math lives in src/shared/motion/springMath.ts (Node strips the types itself).
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { buildCss, buildTs } from '../src/ww/design/motion/springMath.ts'
+import { buildCss, buildTs } from '../src/shared/motion/springMath.ts'
 
-const dir = resolve(dirname(fileURLToPath(import.meta.url)), '../src/ww/design/motion')
+const dir = resolve(dirname(fileURLToPath(import.meta.url)), '../src/shared/motion')
 const targets = [
   [resolve(dir, 'springs.generated.css'), buildCss()],
   [resolve(dir, 'springs.generated.ts'), buildTs()],

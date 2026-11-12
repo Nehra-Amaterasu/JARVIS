@@ -2,6 +2,22 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-13: S7b, the motion and kit move, and the two token gaps
+
+**Question.** Can the motion system and the last five ww kit files move to `shared/` without a rendered change, and can Stat and Meter take a lamp reading so no number is drawn without a state?
+
+**Built.** `ww/design/motion/*` (glide, governor, hold, reveal, transition, springMath, the two generated spring files) and `ww/useReducedMotion.ts` now live in `shared/motion/`; one-line `export *` shims stay at the old paths. `Card`, `Data`, `Interactive`, `Placeholders`, `Reveal` moved to `shared/kit/` the same way. `Stat` and `Meter` take a required `reading: LampReading`; the number or fill is drawn only for LIVE and SIMULATED, otherwise the tile says "not measured yet" and the bar draws no fill. Both lamp DEBT entries are deleted (the debt list is now empty). `--hit: 44px` is declared in `styles/design/clay/primitive-scale.css` and asserted in `tokens.test.ts`.
+
+**Scripts.** `gen-springs.mjs` now reads and writes `src/shared/motion` (path only). `bundle-budget.mjs` measures `src/shared/motion` for the 6144 B gzip limit (path only, limit unchanged): 5800 B. `ww/design/base.css` imports the spring CSS from its new path (one `@import` path, no rule changed).
+
+**Call-site decisions (every Stat and Meter).** COUNTED (a frozen LIVE reading, "counted from your own entries") for: MoneyView saved, needed, gap and the saved/total meter (typed amounts and sums of them); Drill cards-today meter (counted locally); Record attribute meters and the four invested tiles (local ledger counts); proof cards level meter, requirement meters, stat tiles and building-hours tiles (rendered only after the slot has loaded, values come from logged work); Inspector contracts-done meter (counted from the node's own contracts). L4 counter tiles use WAITING_DEFAULT when `value === null` and COUNTED otherwise, so an absent counter is never LIVE. The kitchen demo uses COUNTED for numbers and WAITING_DEFAULT for the null cases. Yaadash has its own local `Stat` (not the kit's) and is untouched.
+
+**Left in place, and why.** The kit CSS (`ww/kit/*.css`, `kit.css`) did not move: the moved components still use the `ww-*` class names those files style, and `shared/kit/index.ts` imports `clay.css` only, so moving the files would change which stylesheet each entry loads. No rendered rule changed. Stat and Meter show no visible lamp (that would change screenshots); they carry `data-state` for the lamp contract and tests.
+
+**Numbers.** tsc clean. vitest 75 files, 1682 of 1682, twice. `springs:check` exit 0. `bundle:check` exit 0 (motion 5800 B gzip of 6144). Playwright: see the commit message trail; result recorded in the report.
+
+**Unverified.** Stat and Meter under SIMULATED are tested in jsdom only; no page passes SIMULATED yet.
+
 ## 2026-11-13: the quality bar: an award-style jury rubric, engineering standards and a licence register
 
 **Question.** The owner asked for work reviewed at the level of award-winning sites on every axis (design, usability, creativity, content, motion, accessibility, performance, code, tests). What do the public award criteria and current engineering guidance really say, and how is that turned into a pass line for each section of this local app?

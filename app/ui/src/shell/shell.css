@@ -1,0 +1,319 @@
+/* ==========================================================================
+   Shell v2 (A.B05): title bar 48 px, rail 64 px, canvas 1302 x 720 at 1366 x 768 (spec 3.3, 4.2).
+   Loaded only with the app.shell flag on (ShellV2 is a lazy chunk), and every rule is under .s2 or a
+   data-overlay the shell renders, so the flag-off frame gets none of it.
+
+   Colour comes only from the clay layer-2 roles (surface-*, ink-*, edge-*, selected-*, focus-ring). A
+   control's boundary is a 1 px --edge-ui line (3.5:1 and up), never a shadow alone. Hit areas are 44 px.
+   No transition runs on its own: the only motion is the hover/press colour change, and reduced motion
+   turns even that off.
+   ========================================================================== */
+.s2 {
+  --s2-title: 48px;
+  --s2-rail: 64px;
+  --s2-hit: 44px;
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: var(--s2-title) minmax(0, 1fr);
+  grid-template-columns: var(--s2-rail) minmax(0, 1fr);
+  grid-template-areas: 'title title' 'rail canvas';
+  background: var(--surface-ground);
+  color: var(--ink-1);
+  font-family: var(--font-ui, Inter, system-ui, sans-serif);
+}
+
+.s2 button { font: inherit; color: inherit; cursor: pointer; }
+.s2 :focus-visible { outline: 2px solid var(--focus-ring); }
+.s2 [data-focus-inset] :focus-visible { outline-offset: -2px; }
+.s2-kbd {
+  font: 600 11px/1 var(--font-mono, ui-monospace, monospace);
+  padding: 3px 6px;
+  border: 1px solid var(--edge-ui);
+  border-radius: 6px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.s2-btn {
+  min-height: var(--s2-hit);
+  padding: 0 16px;
+  border: 1px solid var(--edge-ui);
+  border-radius: 10px;
+  background: var(--surface-raised);
+}
+.s2-btn:disabled { color: var(--ink-off); cursor: default; }
+.s2-muted { color: var(--ink-2); }
+
+/* ------------------------------------------------------------------ title bar */
+.s2-title {
+  grid-area: title;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0 0 0 16px;
+  border-bottom: 1px solid var(--edge-ui);
+  background: var(--surface-raised);
+  -webkit-app-region: drag;
+}
+.s2-title button, .s2-title .s2-lamps, .s2-title .s2-fault { -webkit-app-region: no-drag; }
+.s2-wordmark {
+  flex: none;
+  width: 152px;
+  font: 700 15px/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.s2-product {
+  flex: none;
+  display: inline-flex;
+  height: var(--s2-hit);
+  border: 1px solid var(--edge-ui);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.s2-product button {
+  min-width: 96px;
+  min-height: var(--s2-hit);
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  font-weight: 600;
+}
+.s2-product button + button { border-left: 1px solid var(--edge-ui); }
+.s2-product button[aria-checked='true'] { background: var(--selected-fill); color: var(--selected-ink); }
+
+.s2-pill {
+  flex: 0 1 380px;
+  min-width: 0;
+  min-height: var(--s2-hit);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px 0 16px;
+  border: 1px solid var(--edge-ui);
+  border-radius: 22px;
+  background: var(--surface-sunk);
+  text-align: left;
+}
+.s2-pill[data-pill='start'] { background: var(--accent-fill); color: var(--accent-on); font-weight: 700; border-color: var(--edge-ui); }
+.s2-pill-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.s2-pill-act { min-height: 36px; padding: 0 10px; border: 1px solid var(--edge-ui); border-radius: 18px; background: var(--surface-raised); }
+.s2-pill[data-pill='stale'] { padding-right: 4px; }
+.s2-pillrow { display: none; }
+
+.s2-lamps { flex: none; display: flex; align-items: center; min-height: var(--s2-hit); }
+.s2-lamps .lamp-bar { display: flex; gap: 12px; margin: 0; padding: 0 4px; list-style: none; }
+.s2-lamps .lamp-bar-item { display: inline-flex; align-items: center; gap: 6px; }
+.s2-lamps .lamp-bar-name { font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); white-space: nowrap; }
+@media (max-width: 1279px) { .s2-lamps .lamp-bar-name { display: none; } }
+.s2-fault {
+  flex: none;
+  min-height: 40px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  border: 2px solid var(--state-fault);
+  border-radius: 8px;
+  background: var(--surface-raised);
+  font: 600 12px/1 var(--font-mono, ui-monospace, monospace);
+}
+.s2-clock { flex: none; width: 56px; text-align: center; font: 500 13px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.s2-win { flex: none; display: flex; }
+.s2-win button { width: 46px; height: var(--s2-title); border: 0; background: transparent; display: grid; place-items: center; }
+
+/* ------------------------------------------------------------------ rail */
+.s2-rail {
+  grid-area: rail;
+  min-height: 0;
+  border-right: 1px solid var(--edge-ui);
+  background: var(--surface-raised);
+}
+.s2-rail-list {
+  height: 100%;
+  margin: 0;
+  padding: 4px 0 8px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+.s2-rail-air { flex: 1; }
+.s2-slot {
+  position: relative;
+  width: 100%;
+  min-height: 56px;
+  padding: 6px 2px 4px;
+  border: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--ink-2);
+}
+.s2-slot-label {
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 10px/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+/* the active slot: a 3 px edge on the inner side and the filled, heavier icon, never colour alone (4.2.2) */
+.s2-slot[aria-current='page'] { color: var(--ink-1); background: var(--surface-sunk); }
+.s2-slot[aria-current='page']::after { content: ''; position: absolute; top: 6px; bottom: 6px; right: 0; width: 3px; background: var(--ink-1); }
+.s2-orb {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--edge-ui);
+}
+.s2-orb[data-level='live'] { box-shadow: 0 0 0 calc(var(--lvl, 0) * 6px) var(--state-measured); border-color: var(--state-measured); }
+
+/* ------------------------------------------------------------------ canvas */
+.s2-canvas {
+  grid-area: canvas;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  view-transition-name: page;
+}
+.s2-views {
+  flex: none;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--edge-hair);
+}
+.s2-viewlist { display: inline-flex; border: 1px solid var(--edge-ui); border-radius: 10px; overflow: hidden; flex: none; }
+.s2-view { min-height: var(--s2-hit); min-width: 80px; padding: 0 16px; border: 0; background: transparent; font-weight: 600; }
+.s2-view + .s2-view { border-left: 1px solid var(--edge-ui); }
+.s2-view[aria-selected='true'] { background: var(--selected-fill); color: var(--selected-ink); }
+.s2-interim { margin: 0; min-width: 0; color: var(--ink-2); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* the page root: legacy .page is position:absolute inset:0 and scrolls inside itself, so the document never does */
+.s2-page { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.s2-page > .page, .s2-page .page:not(.page .page) { position: absolute; inset: 0; }
+.s2-loading { padding: 24px; color: var(--ink-2); }
+
+/* one navigation: the Well Wisher frame's own workspace strip is the second one, so it is hidden here (gated,
+   not deleted; it goes at the flag flip). Its season switch and buttons stay. */
+.s2 .ww-strip .ww-tabs { display: none; }
+/* the frame fills the canvas instead of the window */
+.s2 .ww-frame { position: absolute; inset: 0; min-height: 0; height: auto; }
+
+.s2-notbuilt, .s2-plate-wrap, .s2-events { position: absolute; inset: 0; overflow: auto; padding: 32px; }
+.s2-notbuilt { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; max-width: 640px; }
+.s2-notbuilt h2, .s2-events h2 { margin: 0; font-size: 22px; }
+.s2-notbuilt p { margin: 0; color: var(--ink-2); line-height: 1.5; }
+.s2-plate-wrap { max-width: 720px; }
+
+.s2-events-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.s2-events-list { margin: 0; padding: 0; list-style: none; border: 1px solid var(--edge-ui); border-radius: 10px; }
+.s2-events-list li { display: grid; grid-template-columns: 72px 1fr auto auto; gap: 12px; align-items: center; min-height: 40px; padding: 0 12px; }
+.s2-events-list li + li { border-top: 1px solid var(--edge-hair); }
+.s2-events-list b { font: 600 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.s2-events-list time { font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.s2-pager { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+
+/* ------------------------------------------------------------------ overlays (one deep) */
+.s2-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: var(--scrim, rgba(0, 0, 0, 0.5));
+}
+.s2-scrim > .pl-overlay { max-height: calc(100vh - 32px); overflow: auto; background: var(--surface-raised); color: var(--ink-1); border: 1px solid var(--edge-ui); border-radius: 14px; }
+.s2-sheet {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 20px 24px;
+  border: 1px solid var(--edge-ui);
+  border-radius: 14px;
+  background: var(--surface-raised);
+  color: var(--ink-1);
+}
+.s2-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.s2-sheet h2 { margin: 0; font-size: 20px; }
+.s2-sheet h3 { margin: 16px 0 6px; font: 600 12px/1 var(--font-mono, ui-monospace, monospace); text-transform: uppercase; color: var(--ink-2); }
+.s2-keys { margin: 0; }
+.s2-keys > div { display: grid; grid-template-columns: 180px 1fr; gap: 12px; align-items: center; min-height: 32px; }
+.s2-keys dt { display: flex; gap: 6px; flex-wrap: wrap; }
+.s2-keys dd { margin: 0; }
+.s2-down { text-align: center; }
+
+.s2-palette {
+  width: min(640px, 100%);
+  align-self: start;
+  margin-top: 12vh;
+  border: 1px solid var(--edge-ui);
+  border-radius: 14px;
+  background: var(--surface-raised);
+  color: var(--ink-1);
+  overflow: hidden;
+}
+.s2-palette-field { display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 16px; border-bottom: 1px solid var(--edge-ui); }
+.s2-palette-field input { flex: 1; min-width: 0; height: 44px; border: 0; background: transparent; color: inherit; font: inherit; font-size: 16px; }
+.s2-palette-field input:focus-visible { outline-offset: 0; }
+.s2-palette-list { margin: 0; padding: 0; list-style: none; }
+.s2-row { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 16px; cursor: pointer; }
+.s2-row[aria-selected='true'] { background: var(--selected-fill); color: var(--selected-ink); }
+.s2-row[aria-selected='true'] .s2-row-group, .s2-row[aria-selected='true'] .s2-row-detail, .s2-row[aria-selected='true'] .s2-kbd { color: inherit; border-color: currentColor; }
+.s2-row[data-absent] { border: 1px dashed var(--edge-ui); margin: 4px 8px; border-radius: 8px; }
+.s2-row-group { flex: none; width: 28px; font: 600 10px/1 var(--font-mono, ui-monospace, monospace); text-transform: uppercase; color: var(--ink-2); }
+.s2-row-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.s2-row-detail { flex: none; color: var(--ink-2); font-size: 13px; }
+.s2-palette-foot { margin: 0; padding: 8px 16px; border-top: 1px solid var(--edge-hair); color: var(--ink-2); font-size: 12px; }
+
+/* ------------------------------------------------------------------ narrow: one column (below about 900 px, D6) */
+@media (max-width: 899px) {
+  .s2 {
+    grid-template-rows: var(--s2-title) auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'title' 'pill' 'canvas' 'rail';
+  }
+  .s2-wordmark, .s2-clock, .s2-win { display: none; }
+  .s2-title { padding: 0 8px; gap: 8px; }
+  .s2-product { flex: 1; min-width: 0; }
+  .s2-product button { flex: 1; min-width: 0; padding: 0 8px; }
+  /* the Resume pill is its own 44 px row under the title bar (4.2.3 mobile) */
+  .s2-pillrow { display: block; grid-area: pill; padding: 4px 8px; border-bottom: 1px solid var(--edge-hair); }
+  .s2-pillrow .s2-pill { margin: 0; max-width: none; width: 100%; }
+  .s2-title .s2-pill { display: none; }
+  .s2-rail { border-right: 0; border-top: 1px solid var(--edge-ui); }
+  .s2-rail-list { flex-direction: row; padding: 0; height: auto; }
+  .s2-rail-list > li { flex: 1; min-width: 0; }
+  .s2-rail-air { display: none; }
+  .s2-slot[aria-current='page']::after { top: 0; bottom: auto; left: 8px; right: 8px; width: auto; height: 3px; }
+  .s2-views { overflow-x: auto; }
+  .s2-interim { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .s2 *, .s2-scrim * { transition: none !important; animation: none !important; }
+  .s2-orb[data-level='live'] { box-shadow: none; }
+}
+
+@media (forced-colors: active) {
+  .s2-slot[aria-current='page']::after { background: CanvasText; forced-color-adjust: none; }
+  .s2-product button[aria-checked='true'], .s2-view[aria-selected='true'], .s2-row[aria-selected='true'] {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+  }
+  .s2-fault { border-color: CanvasText; }
+  .s2-orb { border-color: CanvasText; }
+}

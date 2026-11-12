@@ -11,7 +11,7 @@
 // A separate file from ww/tokens.test.ts, which does the same job for the old Well Wisher themes.
 import { describe, expect, it } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseCss, stripComments } from './ww/_css'
 import { WW_THEME_TO_CLAY, FIRST_RUN_CLAY_THEME, clayThemeFor } from '../ww/design/themes/clay-map'
@@ -181,7 +181,9 @@ describe('the clay files', () => {
     const sec = [...read(join(SECTIONS, 'index.css')).matchAll(/@import '\.\/([^']+)\.css';/g)].map((m) => m[1])
     expect(sec).toEqual([...SECTION_IDS])
   })
-  it('the app does not import the clay layer yet (additive: no pixel changes before B05)', () => {
+  // B05: the clay layer is imported by exactly one module, the Shell v2 chunk that App.tsx loads lazily and only
+  // with the app.shell flag on, so with the flag off no clay rule reaches the page (no pixel changes).
+  it('only the flag-on Shell v2 chunk imports the clay layer', () => {
     const offenders: string[] = []
     const walk = (d: string) => {
       for (const e of readdirSync(d, { withFileTypes: true })) {
@@ -192,7 +194,11 @@ describe('the clay files', () => {
       }
     }
     walk(SRC)
-    expect(offenders).toEqual([])
+    expect(offenders.map((p) => p.split(sep).join('/').replace(/^.*\/src\//, ''))).toEqual(['shell/ShellV2.tsx'])
+    const app = read(join(SRC, 'App.tsx'))
+    expect(app).toMatch(/lazy\(\(\) => import\('\.\/shell\/ShellV2'\)\)/)
+    expect(app).not.toMatch(/from '\.\/shell\/ShellV2'/)
+    expect(read(join(SRC, 'main.tsx'))).not.toMatch(/clay|shell\//)
   })
 })
 

@@ -9,7 +9,7 @@
  * the canvas shows is an existing page, the event log, a planned plate, or a "not built" plate (hosts.ts).
  */
 import { AudioLines, BookOpen, BrainCircuit, Briefcase, CalendarDays, Gauge, Hand, Maximize2, MessageCircle, Minus, ScanEye, Sprout, Timer, X } from 'lucide-react'
-import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { Toasts } from '../components/Shell'
 import { clock, useNow } from '../lib/format'
 import { useStore } from '../lib/store'
@@ -166,7 +166,13 @@ function useShellKeys() {
         return
       }
       const b = matchBinding(e, isTextTarget(e.target))
-      if (!b) return
+      if (!b) {
+        // Alt+6 is the Well Wisher frame's old key for Setup (ww/frame/Frame.tsx). The table has no slot 6, so
+        // without this the frame switched to Setup while the rail and data-section still said the old section.
+        // It is swallowed, not bound: no action, no hint.
+        if (e.altKey && !e.ctrlKey && !e.metaKey && (e.code === 'Digit6' || e.code === 'Numpad6' || e.key === '6')) e.stopPropagation()
+        return
+      }
       if (s.overlay && b.action.kind !== 'palette' && b.action.kind !== 'shortcuts') return
       e.preventDefault()
       e.stopPropagation()
@@ -313,16 +319,23 @@ function FaultChip({ product, names }: { product: ProductId; names: string[] }) 
 }
 
 /* ------------------------------------------------------------------ rail */
-function Rail({ product, place }: { product: ProductId; place: Place }) {
+// memo: the 15 s clock re-renders ShellV2; the rail and the canvas take only stable props, so they skip it
+const Rail = memo(function Rail({ product, place }: { product: ProductId; place: Place }) {
   const goSection = useShell((s) => s.goSection)
   const openOverlay = useShell((s) => s.openOverlay)
   const { voice } = usePorts()
   const level = useStore((s) => (voice.present ? s.micLevel : 0))
   const live = voice.level()
   const sections = sectionsOf(product)
+  // rove() moves tabindex in the DOM; React only rewrites the props that changed, so after arrows then Ctrl+n the
+  // roved-to slot kept tabindex 0 next to the new active one (two stops, measured in shell.test.tsx). Reset here.
+  const list = useRef<HTMLUListElement>(null)
+  useLayoutEffect(() => {
+    list.current?.querySelectorAll<HTMLElement>('[data-rove]').forEach((el) => el.setAttribute('tabindex', el.dataset.slot === place.section ? '0' : '-1'))
+  }, [product, place.section])
   return (
     <nav className="s2-rail" aria-label={`${PRODUCT_LABEL[product]} sections`} data-focus-inset="">
-      <ul className="s2-rail-list" onKeyDown={(e) => rove(e, !window.matchMedia?.('(max-width: 899px)').matches)}>
+      <ul ref={list} className="s2-rail-list" onKeyDown={(e) => rove(e, !window.matchMedia?.('(max-width: 899px)').matches)}>
         {sections.map((s) => {
           const Icon = SECTION_ICON[s.id]
           const on = s.id === place.section
@@ -353,10 +366,11 @@ function Rail({ product, place }: { product: ProductId; place: Place }) {
       </ul>
     </nav>
   )
-}
+})
 
 /* ------------------------------------------------------------------ canvas */
-function Canvas({ place, pages, wwRoot, ww, registries }: { place: Place; pages: ShellV2Props['pages']; wwRoot: ComponentType | null; ww: WwShellBridge | null; registries: Registry[] }) {
+// memo: without it every 15 s clock tick re-rendered the whole legacy page or Well Wisher frame in the canvas
+const Canvas = memo(function Canvas({ place, pages, wwRoot, ww, registries }: { place: Place; pages: ShellV2Props['pages']; wwRoot: ComponentType | null; ww: WwShellBridge | null; registries: Registry[] }) {
   const id = viewId(place.section, place.view)
   const host = HOSTS[id] ?? NO_HOST
   const section = sectionById(place.section)!
@@ -402,7 +416,7 @@ function Canvas({ place, pages, wwRoot, ww, registries }: { place: Place; pages:
       </div>
     </main>
   )
-}
+})
 
 const NO_HOST: Host = { kind: 'none' }
 const WW_TABS = new Set(['mission', 'quests', 'campaign', 'trials', 'drill', 'armory', 'crucible', 'forge', 'syllabus', 'terminal', 'interrogation', 'proof', 'schedule', 'calibration', 'status'])

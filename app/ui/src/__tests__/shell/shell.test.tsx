@@ -1,6 +1,6 @@
 // Shell v2 rendered in happy-dom with stub pages: the rail order and its single tab stop, the page-root ids, the
 // <html> attributes it owns (and removes), keys from the one table, the palette's focus return, honest plates.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, createElement } from 'react'
 import { mount } from '../ww/_stubs'
 import ShellV2 from '../../shell/ShellV2'
@@ -105,6 +105,49 @@ describe('Shell v2', () => {
     const rows = qa('[data-overlay="palette"] [role="option"]')
     expect(rows.map((r) => r.textContent)).toEqual([expect.stringMatching(/Ask needs JARVIS/)])
     expect(rows[0].hasAttribute('data-absent')).toBe(true)
+  })
+
+  it('the rail keeps one tab stop when a key moves the section after arrow roving', () => {
+    render()
+    const core = q<HTMLButtonElement>('.s2-rail [data-slot="core"]')!
+    core.focus()
+    act(() => void core.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true })))
+    expect(document.activeElement).toBe(q('.s2-rail [data-slot="room"]'))
+    key('3', { ctrlKey: true })
+    const stops = qa('.s2-rail [data-rove]').filter((b) => b.getAttribute('tabindex') === '0').map((b) => b.dataset.slot)
+    expect(stops).toEqual(['senses'])
+  })
+
+  it('the 15 s clock tick does not re-render the page in the canvas', () => {
+    vi.useFakeTimers()
+    try {
+      let renders = 0
+      const Counting = () => {
+        renders++
+        return createElement('div', { 'data-stub': 'core' }, 'core')
+      }
+      m = mount(createElement(ShellV2, { pages: { ...PAGES, core: Counting }, wwRoot: stub('ww'), verbs: [], serverUp: true }))
+      const before = renders
+      act(() => void vi.advanceTimersByTime(4 * 15_000))
+      expect(renders).toBe(before)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('Alt+6 (the old frame key for Setup) does not reach the Well Wisher frame under the shell', () => {
+    render()
+    act(() => useShell.getState().swapProduct())
+    let reached = 0
+    const frame = (e: KeyboardEvent) => { if (e.altKey && e.code === 'Digit6') reached++ }
+    window.addEventListener('keydown', frame)
+    try {
+      act(() => void document.body.dispatchEvent(new KeyboardEvent('keydown', { key: '6', code: 'Digit6', altKey: true, bubbles: true, cancelable: true })))
+    } finally {
+      window.removeEventListener('keydown', frame)
+    }
+    expect(reached).toBe(0)
+    expect(q('.s2-page')!.dataset.section).toBe('day')
   })
 
   it('no idle timer: an untouched shell schedules no interval', () => {

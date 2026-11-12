@@ -47,7 +47,7 @@ A complete design for turning two products that share one shell today into one c
 ### 0.2 The decisions that shape everything else
 
 1. **Base proposal: "two brands, one seam" (D1).** The two products share a shell, tokens, kit, motion governor and a planned-feature mechanism, and meet only through four ports (`voice`, `memory`, `notify`, `ambient`) with null adapters (§1.4). A `VITE_PRODUCT=ww` build contains no module from `jarvis/` and no three.js, and the reverse (§1.4, §5.7).
-2. **Ten sections, five per product, one rail, one title bar (D2, D3).** Replaces 14 dock items plus 6 workspace tabs (20 navigation targets) with 10 sections plus the Proof rail and three shell sheets (§3.1, §3.4). All ids are frozen (§3.2).
+2. **Ten sections, five per product, one rail, one title bar (D2, D3), ordered by how often they are reused (I37).** Replaces 14 dock items plus 6 workspace tabs (20 navigation targets) with 10 sections plus the Proof rail and three shell sheets (§3.1, §3.4). All ids are frozen (§3.2); their order is not: the rail, Ctrl+1 to Ctrl+5 and the view switches list the most reused first (JARVIS: Core, Room, Senses, Memory, Console; Well Wisher: Day, Focus, Study, Tree, Career), from the estimates in §3.1.2.
 3. **Honesty is typed (D12).** Every reading carries one of five lamp states (LIVE, WAITING, SIMULATED, PLANNED, FAULT), shown by shape plus text, never colour alone; a unit test fails any widget that renders a number without a state (§6.6).
 4. **The voice hill is a reading or it is not drawn (D23).** It is driven only by a real analyser level; with no signal it shows a hollow, still placeholder that says so (§9).
 5. **Depth is feel, edges are legibility (D11).** The neumorphic recipe computes to 1.27:1 and 1.72:1 (Strand 2), so every control also gets a real 3:1 edge, an icon or text, and a 2 px outline focus ring; the accent orange is a fill only (2.83:1 on the light ground) (§6.1, §6.3).
@@ -55,7 +55,7 @@ A complete design for turning two products that share one shell today into one c
 7. **Signals only (§1).** Aankhen is Wi-Fi CSI with no camera and no radar; one link sees that a body moved, not its pose; simulated data is never shown or spoken as measured.
 8. **Art is derived, never pasted (§8).** One centrepiece per section; every moving piece has a static and a reduced-motion form; one canvas in the whole product (the hill); "growing" art is a pure function of the current real counts (it never changes with time, has no high-water mark and may fall if the student deletes or un-marks something, and each caption says so). A private-build track (a non-distributed taste study, §8.6.2) and a customer-release track keep the public repository clean; the two builds differ visually until the customer-quality gate Q04 passes (§8.6.3).
 9. **Models only where they beat a rule (§13).** FSRS, voice activity detection with a wake word, a narrow local drafting model; rules for proficiency, next action and energy; embeddings only after a local A/B.
-10. **No migration during the exam period (§5.1, §15.2).** Seams and the shell land first behind flags that default off; Well Wisher's section map flips after the exams with "moved to" hints.
+10. **The UI/UX overhaul is priority one and is built to scale (I33 to I36, owner decision of 2026-11-12 evening; §15.1, §15.2).** There is no exam freeze: the programme runs straight through, and exam features, relay and wall-box work wait until the UI/UX is remapped, then resume. The ordering principle is **shared layers first, sections after**: tokens, kit, lamp, registry, shell, ports, then the ten sections on top of them. Quality safety stays: flags default off for risky flips, the app works at every merge, nothing is built into `dist` while the app runs, live-process changes sit behind an env flag. Work that only measures (R01 and the like) runs alongside the build and no longer blocks it. Well Wisher's section map still flips behind `ww.ia`, with "moved to" hints after the flip.
 
 ### 0.3 How to read this file
 
@@ -81,7 +81,7 @@ Sections of this file are written `§N.M`. The source specification was assemble
 | Item | Count | Where |
 |---|---|---|
 | Sections | 10 (5 per product) plus the Proof rail | §3.1 |
-| Views | 34 in the ten sections (computed from the table in §3.2: JARVIS 2 + 2 + 3 + 4 + 5 = 16, Well Wisher 4 + 5 + 1 + 5 + 3 = 18; the unit test `viewCount.test.ts` asserts 34 against the id table so the count cannot drift) | §3.2 |
+| Views | 34 in the ten sections (computed from the table in §3.2: JARVIS 2 + 2 + 3 + 4 + 5 = 16, Well Wisher 4 + 3 + 5 + 1 + 5 = 18 in the rail order Day, Focus, Study, Tree, Career; the unit test `viewCount.test.ts` asserts 34 against the id table so the count cannot drift) | §3.2 |
 | Components | 38 (11 + 10 + 10 + 7) | §7 |
 | Reference pictures assigned | 186: 150 sit outside the deck section (149 product slots plus one recorded refusal, C01-25, which sits in `room`) and 36 in the deck section (24 refusals and 12 mood and technique pictures); 25 refusals in all. Counts come from `tools/art/count_assets.py` over the JSON (§8.7) | §8.7 |
 | Decisions in the core log | 24 (D1 to D24) | §16.2 |
@@ -92,7 +92,7 @@ Sections of this file are written `§N.M`. The source specification was assemble
 
 ### 0.7 First action
 
-Work package R01 (§15.4): measure the real window, record the exam freeze dates, answer F7 and F8, settle who owns `core/` and `ww/**` files (X1). It needs no application change and cannot disturb the exam period; it needs the owner's OK for one app restart (a restart turns the relays off). The first code package is B01, the behaviour-preserving seam cuts.
+**Start work package B03 now (§15.4): tokens layers 1 to 3 as new, attribute-scoped files, the lowest shared layer and the one every other layer reads.** It is additive (no existing rule or font changes until B13), needs no measurement and no owner answer to begin, and runs in parallel with R01, the measurement session (frame time, memory, idle CPU, the real maximised window size; F7, F8, X1), which no longer blocks it. The second package in flight is B01 (seam cuts, disjoint files), which waits only for the owner's one-line answer to X1. R01 still needs the owner's OK for one app restart (a restart turns the relays off); its numbers replace the targets when they land.
 
 ### 0.8 Self-review against the brief
 
@@ -313,18 +313,20 @@ Method: start from the jobs (§2.2) and loops (§2.3), not from today's 21 tab i
 
 Every view fits the canvas in §3.3 without document scroll. A view that cannot fit becomes two views, a drawer or an overlay.
 
+**Row order is the rail order (revised 2026-11-12 evening, I37).** The rows of the table below list each product's sections in the order the rail, Ctrl+1 to Ctrl+5 and the palette use: most reused first, by the estimates and rule of §3.1.2. The section ids are unchanged; only the order and the key numbers moved (Well Wisher: Focus was Ctrl+5, now Ctrl+2; Study, Tree and Career each moved one place down). JARVIS keeps its order, which the estimates confirm.
+
 | Section id | Product | Label | One job | Primary action | Named views (ids) | Keys | Absorbs from today | Rationale |
 |---|---|---|---|---|---|---|---|---|
-| `core` | jarvis | Core | Talk to JARVIS and see it listen | Wake / Sleep (voice); Send in text mode | `talk`, `sound` | Ctrl+1 | Core page (Reactor becomes the hill, conversation, flags, "Share a review", formerly "Review for Claude"); MediaCard and LibraryPanel become `sound`. MissionCard deleted. SystemsCard and Staff move to `console` | Conversation and the sound it plays share one voice path. Removes the Core-to-Well Wisher import |
+| `core` | jarvis | Core | Talk to JARVIS and see it listen | Wake / Sleep (voice); Send in text mode | `talk`, `sound` | Ctrl+1 | Core page (Reactor becomes the hill, conversation, flags; "Share a review", formerly "Review for Claude", moves to `memory.keep`, I39); MediaCard and LibraryPanel become `sound`. MissionCard deleted. SystemsCard and Staff move to `console` | Conversation and the sound it plays share one voice path. Removes the Core-to-Well Wisher import |
 | `room` | jarvis | Room | Operate the room and trust what the board confirms | Toggle a channel (All off lives in the rail) | `switches`, `rules` | Ctrl+2 | Limbs: WallBox (all 8 channels drawn, absent ones shown "unavailable"), DeviceCards, Modes, PresenceRule; orphans AwayModeCard, the card named SecurityAlert (renamed MotionNotice before mounting) and EnergyCard mounted under `rules` once their backends are confirmed live, else PLANNED (not built) or WAITING "built, not verified" cards | A voice command and its physical result are one moment. Ends ten stacked blocks and a hidden-absent-relay filter |
 | `senses` | jarvis | Senses (Aankhen) | Say whether a body moved, with its provenance | None while live (read-only); "Teach this quiet baseline" when not ready | `presence`, `signal`, `teach` | Ctrl+3 | Aankhen page whole: twin, presence core, zones, EyesView (renamed Signal so nothing reads as a camera), teach and train, readiness, first light, sim check | Keeps the one full-bleed canvas page. "Predicting" until readiness passes |
 | `memory` | jarvis | Memory (Yaadash) | Show, correct, export and delete what it knows | Search (focused on open) | `recall`, `beliefs`, `people`, `keep` | Ctrl+4 | Yaadash: search, belief queue, learned-lately, reminders, people, taste. Connect 05.3 exports become `keep`. ReminderAlerts mounted once in the shell | Memory is ownership (Strand 1, J-principle 8). One-click export and delete, stated plainly |
-| `console` | jarvis | Console | Know it works, fix it, connect things | The one fix that applies (restart brain, free GPU), else none | `health`, `connections`, `hardware`, `events`, `crew` | Ctrl+5 | System page; Connect 05.1, 05.2, 05.5; boards, ports, ESP32 link, firmware from Limbs; Assistants roster (the former Staff roster); Ticker (14 events) becomes `events` and the Alt+L overlay | One plumbing place instead of three. Admin tools (formerly "Owner hat") live here, two taps deep at most |
+| `console` | jarvis | Console | Know it works, fix it, connect things | The one fix that applies (restart brain, free GPU), else none | `health`, `events`, `connections`, `hardware`, `crew` | Ctrl+5 | System page; Connect 05.1, 05.2, 05.5; boards, ports, ESP32 link, firmware from Limbs; Assistants roster (the former Staff roster); Ticker (14 events) becomes `events` and the Alt+L overlay | One plumbing place instead of three. Admin tools (formerly "Owner hat") live here, two taps deep at most |
 | `day` | ww | Day | Know today and start the next block | "Start next block" (evening: "Close the day") | `today`, `week`, `body`, `close` | Ctrl+1 / Alt+1 | Left column L1 Countdown (now "Papers ahead"), L2 Now, L3 Classes become the `today` canvas, L4 Counters move to `week`; Life workspace (today, week, gym, attendance, quest) becomes `week` and `body`; Study plan's day blocks | Life and Today answered the same question on two pages. The column cost width on every workspace |
-| `study` | ww | Study | Prepare for the next paper | "Practice paper" (Add questions if the bank is empty) | `papers`, `practice`, `plan`, `library`, `dmat` | Ctrl+2 / Alt+2 | Study workspace (papers, plan, library, dmat) unchanged; Drill moves in from Focus as `practice`; Interrogation to `library` | Drill is practice, not a session mode |
-| `tree` | ww | Tree | Choose what to learn next | "Study this node" | `tree` | Ctrl+3 / Alt+3 | Tree workspace (canvas plus Inspector) | Kept whole: built, tested, its own job |
-| `career` | ww | Career | Move the next deadline on the long road | "Do next step" | `pipeline`, `certs`, `abroad`, `money`, `ladder` | Ctrl+4 / Alt+4 | Career workspace; its Plan view becomes `ladder` (goals, parking). Game currency (CA11) moves to the Proof "Wins" card | Currency is proof, not a deadline |
-| `focus` | ww | Focus | Run one block with a calm timer | "Start session" | `start`, `session`, `rest` | Ctrl+5 / Alt+5 | Focus workspace (Crucible) as `start` and `session`; the break panel is a new first-class view `rest` | A break is a screen, not a paused state |
+| `focus` | ww | Focus | Run one block with a calm timer | "Start session" | `start`, `session`, `rest` | Ctrl+2 / Alt+2 | Focus workspace (Crucible) as `start` and `session`; the break panel is a new first-class view `rest` | A break is a screen, not a paused state |
+| `study` | ww | Study | Prepare for the next paper | "Practice paper" (Add questions if the bank is empty) | `papers`, `practice`, `plan`, `library`, `dmat` | Ctrl+3 / Alt+3 | Study workspace (papers, plan, library, dmat) unchanged; Drill moves in from Focus as `practice`; Interrogation to `library` | Drill is practice, not a session mode |
+| `tree` | ww | Tree | Choose what to learn next | "Study this node" | `tree` | Ctrl+4 / Alt+4 | Tree workspace (canvas plus Inspector) | Kept whole: built, tested, its own job |
+| `career` | ww | Career | Move the next deadline on the long road | "Do next step" | `pipeline`, `certs`, `abroad`, `money`, `ladder` | Ctrl+5 / Alt+5 | Career workspace; its Plan view becomes `ladder` (goals, parking). Game currency (CA11) moves to the Proof "Wins" card | Currency is proof, not a deadline |
 | `proof` | ww | Proof | Is it working? Show honest evidence | None by design (existing rule); "Open review" lives inside the panel | Rail only: collapsed 56 px, panel 320 px; ten cards plus Wins | rail button, Alt+P | Proof panel and rail, legacy `status` and `proof` ids | Built and tested; not a navigation item |
 
 Shell ids that are not sections: `resume` (pill), `palette`, `ask` (orb), `pair` (phone sheet, replaces Phone overlay O2), `settings` (sheet), `roadmap` (overlay O5 renamed "What is coming"), `shortcuts` (the `?` sheet), `events` overlay (Alt+L, same content as `console.events`).
@@ -361,6 +363,73 @@ Two alternative maps were considered and rejected.
 
 **Five slots is a chosen constraint, not a result.** Reasons: Ctrl+1 to Ctrl+5 stays a one-hand chord; the rail holds five sections plus the bottom stack in 440 to 496 of 720 px (§3.3); and a student who loses focus easily is better served by few places (an assumption from Strand 4, unverified). **Tree is a section and not a Study view** because Study already has five views (the §4.1.4 maximum), the Tree canvas needs the whole 1230 x 664 box (a view switch row would take 52 px of it), and its primary action ("Study this node") crosses into Study. **Migration cost does not choose the map.** It enters only in the sequencing of §5.8 and §15.4; §16.1 criterion 5 is kept as history and decision D1 is re-justified without it (the totals without criterion 5 are A 39, B 41, C 40, computed from the table, so B still wins).
 
+#### 3.1.2 Order by reuse, and the allocation re-check (added 2026-11-12 evening, I37 to I39)
+
+The owner's evening decision keeps everything decided before except two things the designer now sets: the **order** of sections and views, and the **allocation** of features to sections. Rule 1: a section or view that is used more often per day comes first, so the most common path is the shortest and sits under the same key every day. Rule 2: where two estimates are within a factor of two of each other, the present order stays (predictable places beat a marginal gain; a learned place is a cost). Rule 3: everything that is rarely used keeps a plain, predictable order: few items, the same place every day, one primary action per view, and the next step always visible (the Resume pill, the primary button and the Now strip already provide this).
+
+**Estimates.** Uses per day are **estimates from the daily loops of §2.3, not measurements** (assumption; no usage data exists for the new map). A use is one visit in which the person does that view's job (a glance counts for a glance view). They were written down before the order was chosen so the order can be checked against them. The local, visible view-visit counts the product may keep (§2.4, local analytics only) can replace them after two weeks of real use (F15).
+
+| Section | View | Estimated uses per day | Basis (loop) |
+|---|---|---|---|
+| `core` | `talk` | 20 | J-L1: asks by voice or text, many a day (orb asks from other sections are not counted here) |
+| | `sound` | 3 | play or change what is playing |
+| `room` | `switches` | 12 | J-L2: light, fan, modes; mostly by voice, the rest by tap |
+| | `rules` | 1 | edit a rule or mode now and then |
+| `senses` | `presence` | 4 | J13: a glance at "was there motion" |
+| | `signal` | 0.3 | owner check, J-L5 |
+| | `teach` | 0.05 | rare, only to refresh the baseline |
+| `memory` | `recall` | 3 | J-L3 |
+| | `beliefs` | 0.4 | J-L4: at most three questions, weekly |
+| | `people` | 0.2 | occasional |
+| | `keep` | 0.05 | export and delete, rare by design |
+| `console` | `health` | 1 | J-L5 and the fault chip |
+| | `events` | 0.4 | read the log when something is off (also the Alt+L overlay) |
+| | `connections` | 0.15 | pair or link something |
+| | `hardware` | 0.1 | boards and ports |
+| | `crew` | 0.05 | roster (a PLANNED card today) |
+| `day` | `today` | 12 | W0 resume, W1 plan, W2 class gaps (4 to 6 a day), class taps, W7 |
+| | `body` | 1.5 | gym and attendance entries |
+| | `week` | 1 | a look at the week |
+| | `close` | 1 | W5, once a day by design |
+| `focus` | `start` | 5 | W3: one start per block, 3 to 6 blocks |
+| | `session` | 5 | the block itself (long, but one visit) |
+| | `rest` | 4 | W4: a break after most blocks |
+| `study` | `papers` | 2 | J5 |
+| | `practice` | 2.5 | drill, J5 |
+| | `plan` | 1 | weekly plan, tonight's plan |
+| | `library` | 0.5 | notes and interrogation |
+| | `dmat` | 0.1 | an admission test, rare |
+| `tree` | `tree` | 0.7 | J8: choose what to learn next |
+| `career` | `pipeline` | 0.2 | J9 |
+| | `ladder` | 0.15 | goals and parking |
+| | `certs` | 0.1 | |
+| | `money` | 0.1 | |
+| | `abroad` | 0.05 | |
+
+**Section totals and the resulting rail order (computed by summing the rows).**
+
+| Product | Estimated uses per day by section | Order the rule gives | Against the previous order |
+|---|---|---|---|
+| JARVIS | `core` 23, `room` 13, `senses` 4.4, `memory` 3.65, `console` 1.7 | Core, Room, Senses, Memory, Console | Unchanged. Senses (4.4) and Memory (3.65) are within a factor of two, so rule 2 keeps the present order |
+| Well Wisher | `day` 15.5, `focus` 14, `study` 6.1, `tree` 0.7, `career` 0.6 | Day, Focus, Study, Tree, Career | **Focus moves from fifth to second** (14 against 6.1 is 2.3, over the factor of two). Day stays first although Focus is close (15.5 against 14, within a factor of two): Day is the home and the place the day's main loop starts (D9, W0 to W2). Study, Tree and Career each move one place down. Tree (0.7) and Career (0.6) are within a factor of two, so their relative order stays |
+
+Focus, Study and the rest follow from the loops as well as the sums: W2, W3 and W4 (gap, block, break) are one chain that the student repeats several times a day, and Study is the next paper's preparation. The order is recorded as I37; if the owner disagrees it is one row of the table above and one binding table (`shell/keymap.ts`) to swap back.
+
+**Views inside a section** follow the same rule. Only one view changes place: in `console`, `events` (0.4) moves ahead of `connections` (0.15) and `hardware` (0.1), 2.7 times as often as the next, and sits beside `health` because reading the log is the next step after a fault (I38). In every other section the estimates are within a factor of two of the previous neighbour or already in order (`day`: `body` 1.5, `week` 1 and `close` 1 are within a factor of two of each other, and `close` stays last because it ends the day's flow; `focus`: `start`, `session`, `rest` is the order the loop runs; `study`: `practice` 2.5 and `papers` 2), so every other view order is unchanged.
+
+**Feature allocation, re-checked with the same lens.** A feature moves only when its reuse is far below the screen it sits on (attention load on the busiest screens) or far above the screen that holds it. View ids are frozen, so a move never moves a whole view between sections: that would change an id.
+
+| Feature | Where it sat | Reuse | Decision | Why |
+|---|---|---|---|---|
+| "Share a review" export (owner-only) | `core.talk`, conversation header and Earlier drawer | about 0.05 a day, on the most used screen (20 a day) | **Moved to `memory.keep`**, which already lists it in Actions (I39) | It is a rare export on the busiest view, and `keep` is where every other export lives. Core's header keeps the turn count and Earlier; one control less on the screen used 20 times a day. Cost: 3 steps from anywhere (Ctrl+4, Keep, Share a review) instead of 2 from inside Core |
+| The six counters with Undo | `day.week` | tapped about 6 a day, mostly on the phone (the phone Today tab has them), viewed on desktop about 1 a day | Not moved | Reuse says move them to `day.today`; attention load says no, because the earlier review took `day.today` from about 30 targets to about 20 so it holds one sentence, one primary and the presets. The two lenses conflict, so nothing moves; revisit when F15's counts exist |
+| `study.dmat` | `study`, a five-view section at the §4.1.4 maximum | about 0.1 a day | Not moved | It reads best next to `career.abroad`, but a move changes its id (frozen). It stays last in its section, where a rare view belongs |
+| Papers ahead, Next class and gap, presets | `day.today` | with Today (12 a day) | Not moved | High reuse on a high-reuse view |
+| Delete raw signal now, retention | `memory.keep` | rare | Not moved | Rare and sensitive: it belongs with the other deletes |
+| Wake word model plate, Agents, Coach, Spotify, music import | `console`, `core.sound`, `study.library`, `day.body` | PLANNED, 0 | Not moved | Planned items take a dashed home in the view of their topic, never a rail slot (D2) |
+
+**Rail drawings.** §4.2.2 draws both rails in this order.
+
 ### 3.2 Stable ids (frozen)
 
 **Products.** `jarvis`, `ww`. Set on the root as `data-product`.
@@ -373,14 +442,16 @@ Two alternative maps were considered and rejected.
 | `room` | `room.switches`, `room.rules` |
 | `senses` | `senses.presence`, `senses.signal`, `senses.teach` |
 | `memory` | `memory.recall`, `memory.beliefs`, `memory.people`, `memory.keep` |
-| `console` | `console.health`, `console.connections`, `console.hardware`, `console.events`, `console.crew` |
+| `console` | `console.health`, `console.events`, `console.connections`, `console.hardware`, `console.crew` |
 | `day` | `day.today`, `day.week`, `day.body`, `day.close` |
+| `focus` | `focus.start`, `focus.session`, `focus.rest` |
 | `study` | `study.papers`, `study.practice`, `study.plan`, `study.library`, `study.dmat` |
 | `tree` | `tree.tree` |
 | `career` | `career.pipeline`, `career.certs`, `career.abroad`, `career.money`, `career.ladder` |
-| `focus` | `focus.start`, `focus.session`, `focus.rest` |
 | `proof` | `proof.rail`, `proof.panel` |
 | `settings` (sheet) | `settings.appearance`, `settings.quiet`, `settings.data`, then the 18 existing Setup section ids unchanged |
+
+**Order of the table (revised 2026-11-12 evening).** Ids are frozen; the order is not. The section rows are in rail order and the view ids within a row are in view-switch order, both by reuse (§3.1.2): Well Wisher is Day, Focus, Study, Tree, Career, and `console.events` now follows `console.health`. `keymap.test.ts` asserts that the binding table's section order equals the order of this table, so the two cannot drift.
 
 **Overlays** (one deep, as built; registry `ww/frame/overlayRegistry.ts` generalised to the shell). Existing ids kept: `date`, `reader`, `record`, `log`, `confirm`, `add` (all `ww`-owned). Changed: `phone` becomes `pair` (shared); `roadmap` becomes shared and is titled "What is coming". New shell ids: `shortcuts`, `events`.
 
@@ -466,7 +537,7 @@ Worked at T720 for the three tightest views: `day.today` (§4.4.1, new layout) s
 
 | Key | Action |
 |---|---|
-| Ctrl+1 to Ctrl+5 | Section 1 to 5 of the current product (Alt+1 to Alt+5 are aliases; the Well Wisher order changes, see D9) |
+| Ctrl+1 to Ctrl+5 | Section 1 to 5 of the current product in the order of §3.1.2 (Alt+1 to Alt+5 are aliases). JARVIS: Core, Room, Senses, Memory, Console. Well Wisher: Day, Focus, Study, Tree, Career. The Well Wisher order differs from the old one, see D9 and I37 |
 | Alt+0 | Swap product. The core wrote Ctrl+0; Ctrl+0 resets browser zoom, which low-vision users rely on for 200 to 400 % reflow, so the default is Alt+0 (decision I1, deviation D-A in §16.3; verify in WebView2) |
 | Alt+R | Resume |
 | `[` and `]` | Previous and next view in the section (not in text fields) |
@@ -589,7 +660,28 @@ Overflow: below 1200 px the annunciators fold into one "Status" button opening a
 
 #### 4.2.2 Rail (64 x 720)
 
-Five section slots at 56 px each, a bottom stack Ask orb 56, pair 44, gear 44, and for JARVIS All off 56 (§3.3: 440 to 496 of 720 px). Active slot has a 3 px solid edge on the inner side in `--ink-1` plus a filled icon (never colour alone). Mobile: bottom bar 56 px with six slots (five sections plus the Ask orb, §11.1); pair and gear move into a "More" sheet reachable from the title bar menu; **All off stays one tap on the JARVIS Room screen and in the phone Room tab as a sticky 56 px button** (D13).
+Five section slots at 56 px each, in the order of §3.1.2 (most reused first; the slot number is the Ctrl+n key), a bottom stack Ask orb 56, pair 44, gear 44, and for JARVIS All off 56 (§3.3: 440 to 496 of 720 px).
+
+```
+JARVIS rail (64 x 720)         Well Wisher rail (64 x 720)
++------+                       +------+
+| CORE |  Ctrl+1               | DAY  |  Ctrl+1
+| ROOM |  Ctrl+2               | FOCUS|  Ctrl+2
+|SENSES|  Ctrl+3               | STUDY|  Ctrl+3
+|MEMORY|  Ctrl+4               | TREE |  Ctrl+4
+|CONSOL|  Ctrl+5               |CAREER|  Ctrl+5
+|      |                       |      |
+| (air)|  deliberate spare     | (air)|
+|      |                       |      |
+| ASK  |  orb, 56              | ASK  |  orb, 56
+| ALL  |  All off, 56          |      |
+| OFF  |  (JARVIS only)        |      |
+| PAIR |  44                   | PAIR |  44
+| GEAR |  44, Ctrl+,           | GEAR |  44, Ctrl+,
++------+                       +------+
+```
+
+The labels are the 12 px mono caps of decision I3 (the drawing abbreviates CONSOLE to fit; the full name is the accessible name). The narrow bottom bar (below about 900 px) lists the same five sections left to right in the same order, then the Ask orb. Active slot has a 3 px solid edge on the inner side in `--ink-1` plus a filled icon (never colour alone). Mobile: bottom bar 56 px with six slots (five sections plus the Ask orb, §11.1); pair and gear move into a "More" sheet reachable from the title bar menu; **All off stays one tap on the JARVIS Room screen and in the phone Room tab as a sticky 56 px button** (D13).
 
 **All off flow (JARVIS).** Press All off (1 click, any section, no hold) -> each channel is asked off -> the rail button shows WAITING until the board reports -> toast "All off. Restore" for 6 s -> keys settle to the board's report. Restore re-asks the pre-press state; after 6 s the toast goes, no nag. If the board is absent the toast says "no board linked, nothing was switched" (never a success message).
 
@@ -637,7 +729,7 @@ Mobile: sheets become full-height bottom sheets with a 44 px Close at top; one a
 
 ### 4.3 JARVIS sections
 
-Product feel: instrument tempo (80 to 160 ms), mono metadata, bone and charcoal, colour only means state. Every JARVIS view below is composed in the box J (1286 x 652).
+Product feel: instrument tempo (80 to 160 ms), mono metadata, bone and charcoal, colour only means state. Every JARVIS view below is composed in the box J (1286 x 652). **Numbering note (2026-11-12 evening):** the §4.3.n and §4.4.n numbers are stable cross-reference ids and were not renumbered when the section order changed; the rail, key and view-switch order is the one in §3.1.2 and §3.2 (for `console`, `events` follows `health` in the switch although its heading below keeps its number).
 
 #### 4.3.1 `core`: Talk to JARVIS and see it listen
 
@@ -651,7 +743,7 @@ Region map (J):
 | State and latency strip | 720 x 88 (two rows of 44) | Row 1: state word from the core (Offline, Waking, Asleep, Ready, Listening, Transcribing, Thinking, Replying, Speaking, Listening for more), "voice on CPU (GPU unavailable)" chip when true, last error, wake-to-first-word median, the lamp and the source tag (`MIC`, `SPEAKER, pre-volume`, `WINDOW`). Row 2 (§9.4): the 240 x 8 level bar, the one-line legend and the single 44 px **Pause** toggle (Pause lives here once, not also in a stage header) |
 | Controls row | 720 x 72 | **Wake / Sleep** primary 168 x 56; voice or text Segmented 168 x 44; Ask orb is in the rail |
 | Hint and boot line | 720 x 40 | Boot steps while waking; otherwise the hint "Press Ctrl+Shift+Space to talk, press it again to stop" (hold is a Settings option) |
-| Conversation header | 550 x 44 (right column) | Turn count, "Earlier" button, "Share a review" (an owner-only string: the customer build omits it) |
+| Conversation header | 550 x 44 (right column) | Turn count and the "Earlier" button ("Share a review" moved to `memory.keep`, I39, so the most used view carries one control less) |
 | Turns | 550 x 504 | Last turns that fit (about 4 at an assumed 104 px each, fitted by measurement), each with Good, Wrong, Slow, Misheard flags |
 | Composer | 550 x 72 | Text field plus Send in text mode; in voice mode the line "Say it. JARVIS shows what it heard." |
 
@@ -664,7 +756,7 @@ Left column 720 + gap 16 + right column 550 = 1286. Left stack 360 + 88 + 72 + 4
   1. *Ask by voice* (J-L1): Wake (1 click, or Ctrl+Shift+Space pressed once; it is a toggle) -> speak -> three honest stages appear in the strip: "heard: <words>" (from transcription), "working", then "done" or "failed: <reason>". 1 click plus speech; from any other section the Ask orb is the same 1 click.
   2. *Ask by text*: Ctrl+K, type, Enter (Ask group) = 2 keystrokes with JARVIS awake and no view change; or toggle text (1), type, Enter.
   3. *Mark an answer wrong*: Wrong on the turn (1 click). The flag is stored locally.
-  4. *Share a review*: Earlier drawer (1) -> Share a review (2).
+  4. *Share a review* (owner-only; moved to `memory.keep` by I39): Ctrl+4 (1) -> Keep (2) -> Share a review (3).
 - **Overflow:** turns past the fitted count go to the "Earlier" drawer (560 x 652 from the right, bounded list inside).
 - **Keyboard:** Wake with Enter on the focused primary; Ctrl+Shift+Space toggles (hold is a Settings option; verify in WebView2); turns are a list (Up and Down), flags are buttons reached with Right.
 - **Mobile.** Phone: Talk tab (4.6.1). Reflow: state strip, hill stage reduced to 358 x 200, Wake primary 358 x 56, composer, then turns (last 3) with "Earlier" opening a sheet.
@@ -797,7 +889,7 @@ Left 640: people with a **mentions** count and its basis ("mentioned in 14 notes
 |---|---|---|
 | Statement | 1286 x 96 | One plain paragraph generated from the egress register (§1.3.1): "designed to stay on this machine; exceptions: <list>" until Q03 has verified it against a network trace, how long raw CSI is kept (7 days by default, the owner's decision; a shorter retention is a control in Actions), and the line "You can export and delete everything here" |
 | Holdings | 560 x 540 | Table per namespace (`jarvis/*`, and `ww/*` only when the port shows it): item counts, size, last written |
-| Actions | 710 x 540 | **Export** (primary), per-namespace Delete (via `confirm` naming the count), the old Connect 05.3 exports (recall, belief, reminder files), the "Share a review" export, **Delete raw signal now** and the raw-signal retention selector |
+| Actions | 710 x 540 | **Export** (primary), per-namespace Delete (via `confirm` naming the count), the old Connect 05.3 exports (recall, belief, reminder files), the "Share a review" export (an owner-only string, moved here from `core.talk` by I39; the customer build omits it), **Delete raw signal now** and the raw-signal retention selector |
 
 96 + 16 + 540 = 652; 560 + 16 + 710 = 1286. **Flow:** Keep (1), Export (1) = 2; Delete a namespace: Keep (1), Delete (1), type the namespace's name or press and confirm (1) = 3 (one confirm, never a hold). Delete is never hidden, never confirm-shamed (N4). **Mobile:** More tab shows a "Memory: desktop only" card; reflow stacks.
 
@@ -834,7 +926,7 @@ Roster 760 x 652 (labelled "Assistants"; "assistants not running yet" when absen
 
 ### 4.4 Well Wisher sections
 
-Product feel: notebook tempo (160 to 280 ms), calm sentences, one warm orange fill for the single primary, clay-light by default. Boxes: W unless stated. The Now strip (1302 x 40) shows "Pick up: <thing>" or "Now: <next block>" and the day's logged-minutes total (a total only ever goes up) on every section except `day.today` and `focus.session`.
+Product feel: notebook tempo (160 to 280 ms), calm sentences, one warm orange fill for the single primary, clay-light by default. **Numbering note (2026-11-12 evening):** the rail order is Day, Focus, Study, Tree, Career (§3.1.2); the headings below keep their numbers (§4.4.2 Study, §4.4.3 Tree, §4.4.4 Career, §4.4.5 Focus) so every cross-reference still resolves, and are not the rail order. Boxes: W unless stated. The Now strip (1302 x 40) shows "Pick up: <thing>" or "Now: <next block>" and the day's logged-minutes total (a total only ever goes up) on every section except `day.today` and `focus.session`.
 
 #### 4.4.1 `day`: Know today and start the next block
 
@@ -1020,7 +1112,7 @@ Phone motion: the same governor rule, reading `data-motion-load` (the phone page
 ### 5.1 Principles
 
 1. **Seams first, looks later.** The four cuts in 5.7 land before any new screen so every later step can be built and tested in one product.
-2. **Do not move what is mid-exam until after it** (F3). JARVIS sections and the shell land first; the Well Wisher move is flipped behind the `ww.ia` flag after the exam period with a "moved to" hint in every old place for two weeks (target).
+2. **Shared layers first, then sections; no exam wait** (F3 closed by I34, owner decision of 2026-11-12 evening). The shared layers (tokens, kit, lamp, registry, shell, ports) land before any section is rebuilt on them. Every risky flip (`app.shell`, `ww.ia`) sits behind a flag that defaults off, and the app works at every merge. The Well Wisher move flips behind `ww.ia` once Q01 passes, with a "moved to" hint in every old place for two weeks after the flip (target).
 3. **Keep every legacy id working** (§3.2 alias table) for one release; the alias table lives in the shared route resolver.
 4. **One commit per move**, with `git mv` for renames so history follows, tests moved in the same commit, `npx vitest run`, `npx tsc -b` and the Playwright specs green after each (AGENTS.md). Never build into `app/ui/dist` while the app runs.
 5. Actions: **keep** (unchanged), **restyle** (tokens and layout only), **move** (new home, same logic), **merge**, **split**, **delete**, **owner decides**. Risk is the chance a move breaks a tested behaviour: low, medium or high.
@@ -1030,7 +1122,8 @@ Phone motion: the same governor rule, reading `data-motion-load` (the phone page
 | Current | New home | Action | Files | Risk |
 |---|---|---|---|---|
 | `Core` page (398 lines) | `core.talk` | split and restyle | `pages/Core.tsx` -> `jarvis/core/Talk.tsx`; `components/Reactor.tsx` -> `jarvis/core/Hill.tsx` (rebuilt as the hill, ring from C02-07) | medium (Reactor has its own rAF) |
-| Core: conversation with flags, Share a review (was Review for Claude) | `core.talk` (right column, "Earlier" drawer) | move | in `Core.tsx` | low |
+| Core: conversation with flags (and the "Earlier" drawer) | `core.talk` (right column) | move | in `Core.tsx` | low |
+| Core: Share a review (was Review for Claude) | `memory.keep` Actions (I39) | move | out of `Core.tsx`, into the `keep` view | low |
 | Core: latency strip | `core.talk` state strip and `console.health` timings | split | `Core.tsx` | low |
 | Core: MissionCard | none | **delete** (D16; the Core to ww coupling) | `Core.tsx` lines 12-13 imports; `germoney/stores/checklist-store`, `player-store` stay with ww | low |
 | Core: SystemsCard | title-bar annunciators and `console.health` | merge | `Core.tsx`, `Shell.tsx` | low |
@@ -1125,13 +1218,13 @@ Phone motion: the same governor rule, reading `data-motion-load` (the phone page
 
 ### 5.8 Order
 
-The order of work is the sequence and the work-package table in §15.3 and §15.4 (one table, so the two cannot disagree; the first draft had a second, different order here). The migration phases and their gates, in that order: (0) measure the real window (F8, R01); (1) seams S1, S2, S4, S5, delete galaxy, RelayWiring and the duplicate PhoneCard, no visible change (B01); (2) tokens and kit, additive (B03, B03b, B03c) with the lamp (B04); (3) shell behind `app.shell` (B05) and the art pipeline (B05b); (4) JARVIS sections in the order of decision I10 (B06), then centrepieces (B06b); (5) phone (B09); (6) the Well Wisher flip after the exams (B11); (7) retire the old layout (B13). Tokens come before the shell (§15.4); the art phase is B05b and B06b, not a trailing phase. Gates are the project commands named in each WP.
+The order of work is the sequence and the work-package table in §15.3 and §15.4 (one table, so the two cannot disagree; the first draft had a second, different order here). The migration phases and their gates, in that order: (0) measure the real window (F8, R01) alongside everything else, never as a gate; (1) the shared foundation, most reusable layer first: tokens, additive (B03, starts now), with the seams S1, S2, S4 (B01, no visible change) and the lamp (B04), then the kit (B03b, B03c), the registry (B02) and the art pipeline (B05b); (2) the shell behind `app.shell` with the one navigation S3 and the ports with null adapters S5 (B05); (3) the ten sections on top: JARVIS in the order of decision I10 (B06), then Well Wisher behind `ww.ia` (B11), then centrepieces (B06b), voice (B07), phone (B09), learning loops (B10); (4) the flips after Q01, then retire the old layout (B13); (5) the work that waited resumes: rules and FSRS (B08), Coach (B12), relay and wall-box work. Tokens come before the shell (§15.4); the art phase is B05b and B06b, not a trailing phase. Gates are the project commands named in each WP.
 
 ### 5.9 Risks of the migration
 
 | Risk | Why | Mitigation |
 |---|---|---|
-| Moving learned places during exams | The Well Wisher move changes where the student taps | Phase 6 after the exam period; aliases; hints for two weeks |
+| Moving learned places mid-semester | The Well Wisher move, and the new Well Wisher order (Focus now second), change where the student taps | The flip sits behind `ww.ia`, defaults off and happens after Q01; legacy ids resolve as aliases; "moved to" hints for two weeks after the flip; one binding table to swap the order back (§3.1.2) |
 | Aankhen and Limbs splits lose honesty logic | The confirmed-by-board and "predicting" rules live inside the pages | Extract logic to `lib/` first with tests; do not edit `lib/limbs.ts` or `lib/belief.ts` |
 | The Now strip fails the 2-taps target | The column carried context on every page | Pinned column from 1600 px as the fallback (D8) |
 | Renaming `ww/life` breaks tests | Paths in 41 test files and 19 specs | One `git mv` commit with codemod; run the whole suite |
@@ -1731,6 +1824,8 @@ Rules for all: static first; motion only when it encodes a real state or marks a
 **Art id naming.** `art.<section>.<name>` for section art; `art.shell.<name>` for loaders, transitions, onboarding, empty, error; `art.kit.<name>` for component references. Example: `art.day.sun`, `art.shell.route.core-room`, `art.kit.dial`.
 
 ### 8.3 Section by section: centrepiece, placement, derived system
+
+The §8.3.n numbers are stable cross-reference ids; they are not the rail order (§3.1.2: Well Wisher is Day, Focus, Study, Tree, Career). Centrepiece packages (B06b) follow the build order of §15.4, not this numbering.
 
 Geometry used below is computed from §3.3: canvas inside gutters is 1286x704. Well Wisher views with the 40 px Now strip have 1286x664. With the Proof rail collapsed (56 px) the usable width is 1302 - 56 - 16 = 1230, so 1230x664. `day.today` and `focus.session` hide the Now strip and use 1286x704. Cell size for ASCII is **7.2 x 16 px** (assumption: Geist Mono advance 0.6 em at 12 px = 7.2 px; line height 16 px); cell counts below are computed from it.
 
@@ -2537,7 +2632,7 @@ Tests: Playwright viewports 1366x768, 1366x720, 1280x720, 1280x680, 1920x1080, 1
 
 ### 11.2 Keyboard map (resolving Ctrl+1..6, Alt+1..6, the palette, single keys)
 
-**Resolution.** JARVIS has five sections, so **Ctrl+1 to Ctrl+5** select the current product's sections (§3.4, D9); **Alt+1 to Alt+5** are aliases kept so Well Wisher's muscle memory survives (F5). **Ctrl+6 and Alt+6 are unbound** (today's Ctrl+6 was System, now `console` at Ctrl+5; silent no-op, and the palette's false "Ctrl 7 to 21" hints disappear because every hint is generated from the one binding table `shell/keymap.ts`). Each shortcut is registered once; the palette, the shortcuts sheet and the tooltips read that table (tested: every hint string has a live binding).
+**Resolution.** JARVIS has five sections, so **Ctrl+1 to Ctrl+5** select the current product's sections (§3.4, D9); **Alt+1 to Alt+5** are aliases of the same five slots (F5), so a student who learned Alt+n keeps one chord per section. The slot order is the reuse order of §3.1.2: JARVIS Core, Room, Senses, Memory, Console; Well Wisher Day, Focus, Study, Tree, Career (it differs from the old Well Wisher order; legacy ids still resolve in deep links, §3.2). **Ctrl+6 and Alt+6 are unbound** (today's Ctrl+6 was System, now `console` at Ctrl+5; silent no-op, and the palette's false "Ctrl 7 to 21" hints disappear because every hint is generated from the one binding table `shell/keymap.ts`). Each shortcut is registered once; the palette, the shortcuts sheet and the tooltips read that table (tested: every hint string has a live binding).
 
 | Key | Action | Scope | Notes and risks |
 |---|---|---|---|
@@ -2561,7 +2656,7 @@ Tests: Playwright viewports 1366x768, 1366x720, 1280x720, 1280x680, 1920x1080, 1
 
 **Hard rules.** No `g then h` chords, no bare-letter global shortcuts (2.1.4). Shortcuts avoid assistive-technology keys (Insert, CapsLock chords, Ctrl+Alt arrows). A held key is never the only way to do something. Every shortcut works with the screen reader's browse mode off (focus mode), and the shortcuts sheet is reachable by `?`, by the palette, and by a visible "Keyboard" link in Settings.
 
-Tests: `keyboard.spec.ts` (every section reachable by keyboard only, the palette opens by chord, `[`/`]` do nothing inside a text field, Ctrl+6 does nothing, Alt+0 swaps product, Esc depth), `keymap.test.ts` (every binding has a modifier or a declared scope; every hint is bound), and a manual WebView2 table (14.6) for the rows marked verify.
+Tests: `keyboard.spec.ts` (every section reachable by keyboard only, the palette opens by chord, `[`/`]` do nothing inside a text field, Ctrl+6 does nothing, Alt+0 swaps product, Esc depth), `keymap.test.ts` (every binding has a modifier or a declared scope; every hint is bound; the section order equals the order of the §3.2 id table, so the rail, Ctrl+1 to Ctrl+5 and the view switches cannot drift apart), and a manual WebView2 table (14.6) for the rows marked verify.
 
 ### 11.3 Focus order and focus handling
 
@@ -2862,7 +2957,7 @@ Principle (Strand 5, "What this changes" 8): a model appears only where it beats
 | Resource budget | Measured by the project: Qwen3-4B-Instruct-2507, about 50 tok/s, 2.9 to 3.3 GB VRAM, first token 0.6 s. The card is 2.5 GB (Q4_K_M). Whisper large-v3-turbo shares the 6 GB GPU: the two together are **not measured**, so WP-R01 records VRAM with both loaded. Target: total VRAM at most 5.5 GB including the desktop compositor (assumption); the model is loaded on request and one request runs at a time; it unloads after idle (assumption: 5 minutes) and a request is refused with FAULT "model busy" when free VRAM is under a floor (assumption: 1 GB, set from R01) |
 | Failure mode and UI when wrong | Fluent but wrong. Every output carries the chip `MODEL`, the "Based on" links and an "Edit" action; the text is a draft, never auto-saved. If VRAM is short or 20 s passes: FAULT "model busy" plus the rule fallback (the notes' own first lines). No scores, no pass-or-fail, no numerical answers |
 | Opt-out | Per-feature switch and the global "Rules only" switch; with it on, Coach shows its PLANNED plate text changed to "off in Settings" (WAITING) |
-| Verdict | **Model, narrow and labelled.** Build after the exams (WP-B12) |
+| Verdict | **Model, narrow and labelled.** Build after the UI/UX remap (WP-B12; it is a feature, so it waits for the remap by decision I33, not for any exam date) |
 
 ### 13.5 Embeddings for Hinglish memory (after an A/B)
 
@@ -3035,7 +3130,8 @@ Real window on the owner's laptop, scratch data dir, not the live app: Ctrl+1 to
 
 ### 15.1 Principles
 
-- **Phases are sequential:** research (R) -> design validation (V) -> prototype (P) -> build (B) -> verification (Q). A phase ends when its exit evidence is recorded; the next one does not start on a guess.
+- **Ordering principle (2026-11-12 evening, I35): build for scale.** Shared, most reusable layers first (tokens, kit, lamp, registry, shell, ports), then the sections on top of them (§15.2). The order of §15.4 follows it.
+- **Phases are grouped, not gated (revised I36).** The groups are research (R), design validation (V), prototype (P), build (B) and verification (Q). Packages that only measure or validate (R01, R03, R04, V01 to V04, P01 to P03) run alongside the build and no longer block it; they gate only the flag flips and they revise the spec's numbers when they land. A build package waits only for the build packages it reads (its Depends column), for an owner answer it truly needs (X1 for B01), and for Q01 before a flag flips. Each package still ends when its exit evidence is recorded.
 - **One integrator per phase** (a role, filled by one session). The integrator is the only one who merges, runs the gate at phase end, edits the shared parts of NOW.md, and records the phase in `docs/research/product-design-overhaul.md`. Other sessions deliver branches.
 
 | Phase | Integrator (one session) | Why this one |
@@ -3050,16 +3146,32 @@ Real window on the owner's laptop, scratch data dir, not the live app: Ctrl+1 to
 - **Stop rule.** If a target budget fails twice, the agent stops, writes the measurement in the research file and reports. It does not tune indefinitely.
 - **Research record.** Every WP writes (or extends) one dated section in the topic file named in its prompt, with question, findings, numbers, sources and what it changed. Private material goes to `data/notes/research/`.
 
-### 15.2 The exam freeze (assumption, see X2)
+### 15.2 Priority, safety mechanics and what waits (rewritten 2026-11-12 evening; the exam freeze is removed, I33 to I36)
 
-| Period | Rule |
+The owner's evening decision: the whole UI/UX overhaul is priority one. Exam features and relay and wall-box work wait until the UI/UX is remapped, then resume. It is a priority order, not a statement that the app is unused, so the app keeps working at every merge. The earlier "exam freeze" (a period in which the shell rewrite and the Well Wisher section flip were held back until after the papers) no longer exists, and nothing in this file waits for an exam date. The exam dates stay in the private `NOW.md`, where they schedule the exam features that resume after the remap; they do not gate any package here.
+
+**Ordering principle: build for scale.** The shared, most reusable layers come first, because everything above reads them and a change there is cheapest before anything depends on it: tokens (B03), the seam and one navigation (B01, B05), the lamp (B04), the kit (B03b, B03c), the registry (B02), the art pipeline (B05b), the shell and the ports (B05). The ten sections (B06, B11, B06b) are built on top of them, one at a time, then voice (B07), phone (B09) and learning loops (B10). The sequence of §15.4 follows this order; where two packages touch the same files only one is in flight.
+
+**Safety mechanics that stay, because they are about quality, not exams.**
+
+| Mechanic | Rule |
 |---|---|
-| Until the freeze starts (the owner's exam window; the dates are in the private `NOW.md`, recorded by R01, and are not written in this public file) | Research, validation and sandbox prototypes. Only B01, B02 and the **additive** B03 and B04 may merge. B03 adds attribute-scoped new files; it removes no font and changes no existing rule until B13, and its acceptance line is that the `e2e:shots` baselines are unchanged. Each is green on the full test set |
-| From the freeze start to the day after the last paper | **Freeze.** Bug fixes only on user-facing defaults. B05 to B10 (B05 rewrites `App.tsx`, `Shell.tsx` and `store.ts`) are built on a long-lived branch and merged only after the last paper and Q01, because even a flag-off merge changes main, which is the source of bug-fix rebuilds. A bug-fix rebuild comes from a clean worktree of main with the app closed and the owner's OK |
-| Live-process changes | B07 changes `core/playback.py` in the live voice process. It ships behind the env flag `JARVIS_OUT_LEVEL` (default off) with an underrun test (P-4), and it does not enter the live build until the owner restarts on purpose (a restart turns the relays off) |
-| After the exams | Flip order: `app.shell`, then `ww.ia` (after two weeks of "moved to" hints, F3), then retire the old layout (B13) |
+| Flags for risky flips | `app.shell` and `ww.ia` default off. A flip is its own commit after Q01 passes, with the old path still resolving for one release. Additive work (B01 to B04) changes no existing rule and keeps `e2e:shots` baselines unchanged |
+| The app works at every merge | Each package is green on the full test set before it merges (vitest at least 1223, Playwright at least 248, the gate). A package that cannot be made green on its own stays on its branch. Nothing merges half-built |
+| No build into `dist` while the app runs | Never build into `app/ui/dist` while `JARVIS.pyw` is running; use `vite build --outDir dist-e2e` or a clean worktree. A rebuild with changed defaults happens only with the app closed and the owner's OK |
+| Live-process changes behind an env flag | B07 changes `core/playback.py` in the live voice process. It ships behind the env flag `JARVIS_OUT_LEVEL` (default off) with an underrun test (P-4) and does not enter the live build until the owner restarts on purpose (a restart turns the relays off) |
+| One integrator, two in flight | One session merges (§15.1); at most two packages are in flight, on disjoint file sets |
 
-The programme competes with the owner's own deadlines (listed in the private `NOW.md`). About ten serial packages (R01, V01 to V04, P01 to P03, B01 to B04) must finish before the freeze and four of them need the owner in person. So **R01 is skippable**, with an R01-lite fallback (sandbox only, no app restart: rows (a), (c), (d), (e) of A.R01), as V already is, and the spec's defaults stand when a session is skipped (the skip is logged). Calendar dates are added to §15.4 in the private notes once X2 is answered; they are not written here.
+**What waits, and until when.**
+
+| Work | Waits until | Why |
+|---|---|---|
+| Exam features: rules and FSRS (B08), Coach (B12), and any new Well Wisher study feature | The UI/UX is remapped (B11 merged, flips passed Q01) | Owner decision: UI/UX first |
+| Relay and wall-box hardware work (bring-up, firmware, wiring guides) | The same point | Same decision. The UI side stays in scope: B06 draws all 8 channels, absent ones "unavailable" |
+| Measurement-only packages (R01, R03, R04, V01 to V04, P01 to P03) | They do not wait and they no longer block the build: they run alongside it. They gate only the flag flips (V and Q) and revise the numbers (R01) when they land | A measurement cannot change the order of shared layers; where it changes a number the spec is edited then |
+| Flipping `app.shell` and `ww.ia` | Q01 passing (and Q02 and Q03 for `ww.ia`) | Quality, not the calendar |
+
+What the first draft of this section called the "R01 skippable" fallback is gone with the freeze; R01 is simply non-blocking, and R01-lite (sandbox only, no app restart) stays as the cheaper form.
 
 ### 15.3 Work packages
 
@@ -3069,12 +3181,12 @@ Legend: **Owner** is the chat that owns the files (NOW.md section 2). Files are 
 
 | WP | Scope | Depends | Files owned | Exit evidence |
 |---|---|---|---|---|
-| R01 | Baseline and decisions: measure the real WebView2 window (frame time, memory, idle CPU and GPU, VRAM with Whisper and the 4B loaded, wake and VAD CPU); record freeze dates; answer open questions F7 and F8; settle X1; record the real maximised `innerWidth`, `innerHeight` and display scale (they decide T720 and class M, §3.3.1) and gate B05 on the re-derived geometry; build the egress register (§1.3.1); skippable as R01-lite (sandbox only) | none | `docs/research/product-design-overhaul.md` (new dated section), `data/notes/NOW.md` (own lines), a scratch probe script outside `app/` | Table of measured numbers replacing "target" in the budgets; owner's answers logged |
+| R01 | Baseline and decisions: measure the real WebView2 window (frame time, memory, idle CPU and GPU, VRAM with Whisper and the 4B loaded, wake and VAD CPU); record the owner's exam dates in the private notes only (they schedule the exam features that resume after the remap, not the programme); answer open questions F7 and F8; settle X1 (the one answer B01 needs); record the real maximised `innerWidth`, `innerHeight` and display scale (they decide T720 and class M, §3.3.1) and write the re-derived geometry back into §3.3.1 (B05 starts from the T720 floor and is not gated on it); build the egress register (§1.3.1); cheaper form R01-lite (sandbox only). **Non-blocking: runs alongside B03 and B01** | none | `docs/research/product-design-overhaul.md` (new dated section), `data/notes/NOW.md` (own lines), a scratch probe script outside `app/` | Table of measured numbers replacing "target" in the budgets; owner's answers logged |
 | R02 | Voice output signal spike: prove an output RMS and a 24-band spectrum (the §9.2 band map) from `core/playback.py` at about 20 Hz with measured cost | R01 (F7 answered) | A branch of `core/playback.py`, `core/appio.py` (not merged), research file | Cost in microseconds per frame; verdict go or no-go |
 | R03 | Hinglish retrieval A/B (bge-small, e5-small, BGE-M3) on a private 50 to 100 pair set | none | `data/notes/research/memory-retrieval.md`, a scratch script | Recall at k table; decision rule applied with the owner |
 | R04 | Licence and claims register: Silero LICENSE, openWakeWord model licence, FSRS library licence, font subset licences; every public copy line checked against the say and do-not-say list (§2.5) | none | `docs/research/product-design-overhaul.md` (new section) | One table: component, licence, commercial use yes or no, action |
 
-**Phase V: design validation (integrator: programme chat, with the owner).** Static HTML mocks from the spec, outside the production build: `app/ui/validate/*.html` (WP-V01 checks the Vite inputs exclude the folder). Single-user tests; each session at most 30 minutes (target) and skippable when exam preparation needs the time (then the spec's defaults stand and the skip is logged).
+**Phase V: design validation (integrator: programme chat, with the owner).** Static HTML mocks from the spec, outside the production build: `app/ui/validate/*.html` (WP-V01 checks the Vite inputs exclude the folder). Single-user tests; each session at most 30 minutes (target) and skippable whenever the owner's time is needed elsewhere (then the spec's defaults stand and the skip is logged). **Non-blocking since the evening decision (I36): V01 to V04 run alongside the foundation; their results revise the spec through the decision log and gate the matching flag flip (V03 gates B03's visual sign-off, V01 gates `ww.ia`), never the start of a build package.**
 
 | WP | Questions it answers | Method | Pass line (target) |
 |---|---|---|---|
@@ -3083,7 +3195,7 @@ Legend: **Owner** is the chat that owns the files (NOW.md section 2). Files are 
 | V03 | Is the clay look legible with the real 3:1 edges? Does forced-colours and 200 % zoom still work on the mocks? | Computed ratios plus Edge forced-colours emulation plus zoom to 200 and 400 % | All text 4.5:1, all boundaries and focus 3:1; no loss of controls |
 | V04 | Can the owner tell measured from decorative in the voice hill? Which variant (input only, state-only, with output level) | Three variants on mocks; owner labels each "measured" or "decoration" | Variant chosen; the "no signal" ring is read as "no signal" |
 
-**Phase P: prototype (integrator: UI-overhaul chat).** Sandbox only: `app/ui/bench/*.html` plus `app/ui/src/bench/**` in the bench pattern already used for `galaxy-bench.html` and `twin-bench.html`; the sandbox instance (`python -m jarvis_app.ww_sandbox`, port 8790) for real data; never the live app.
+**Phase P: prototype (integrator: UI-overhaul chat).** Sandbox only: `app/ui/bench/*.html` plus `app/ui/src/bench/**` in the bench pattern already used for `galaxy-bench.html` and `twin-bench.html`; the sandbox instance (`python -m jarvis_app.ww_sandbox`, port 8790) for real data; never the live app. **Non-blocking (I36):** no build package depends on P01, P02 or P03; they probe and measure alongside the build, and P01 is dropped if the real kit (B03b) reaches the same checks first.
 
 | WP | Scope | Depends | Files owned | Exit evidence |
 |---|---|---|---|---|
@@ -3091,26 +3203,26 @@ Legend: **Owner** is the chat that owns the files (NOW.md section 2). Files are 
 | P02 | Voice hill on the sandbox from a recorded frame fixture replayed through the real bus path (a sandbox `--fake-voice` mode, stamped SIMULATED, because the sandbox has no live microphone path) with the "no signal" state; Playwright performance trace (the real input level is measured only in Q02) | V04, R01 | `app/ui/src/bench/voice/**` | p95 frame time and idle CPU measured, against the budgets in 15.5 |
 | P03 | `day.today` plus Resume pill reading real Well Wisher stores (read-only) on the sandbox | V01 | `app/ui/src/bench/day/**` | Tap counts: open to running block in 2 taps; resume in 1 |
 
-**Phase B: build (integrator: UI-overhaul chat).** Flags: `app.shell`, `ww.ia`. Order is the dependency order below.
+**Phase B: build (integrator: UI-overhaul chat).** Flags: `app.shell`, `ww.ia`. The order of work is §15.4 (the shared foundation first, then the sections on it); the rows below keep their package numbers and say what each depends on. The package to start now is B03.
 
 | WP | Scope | Depends | Owner and files | Model | Exit evidence |
 |---|---|---|---|---|---|
-| B01 | Seam cuts, behaviour-preserving: delete Core MissionCard; mount FxLayer, GameFx, Dialogs only inside the `ww` root; re-scope `primitive.css` to the shared layer; ESLint `no-restricted-imports` plus a vitest import-graph test; `VITE_PRODUCT` builds | R01, and X1 answered (gate: `NOW.md` section 2 has rows for `app/ui/src/ww/**`, `phone_page/ww.*`, `routes_phone_ww.py`, `core/playback.py`, `core/jarvis.py`, `core/appio.py`, `jarvis/**` and `shared/**`) | UI chat: `App.tsx`, `pages/Core.tsx`, `styles/design/primitive.css`, `scripts/bundle-budget.mjs`, `vite.config.ts`, new `shared/` skeleton | Sonnet | Both single-product builds contain no module of the other; full suites green |
-| B02 | Registry v2 (§12): shared mechanism, 28 entries migrated, 13 JARVIS entries plus `jarvis.phone-twin`, overlay "What is coming", chip, tests T1 to T10 | B01 | UI chat: `shared/planned/**`, `shared/overlays/WhatIsComing.tsx`, `jarvis/planned.ts`; WW chat: `ww/plannedFeatures.ts`, `ww/Planned.tsx`, existing test | Sonnet | T1 to T10 green; no regression in the 28 existing entry tests |
-| B03 | **Additive only:** tokens layers 1 to 3 as new attribute-scoped files, clay light and dark, `prefers-contrast`, `forced-colors`, focus ring, the new fonts added (Inter, Geist Mono, digits-only Doto subset; needs the owner to grant a subsetting tool); no font is removed and no existing rule changes until B13 | B01, V03 | UI chat: `styles/tokens.css`, `styles/design/**`, `styles/sections/**`, `ww/design/themes/*` mapping (WW chat consulted) | Sonnet | Token contrast test computes every pair; `e2e:shots` baselines unchanged (the acceptance line for "behaviour-preserving"); new fonts measured, at most 150 KB in total after B13 (target) |
+| B01 | Seam cuts S1, S2, S4, behaviour-preserving (the ports S5 and the one navigation S3 land with B05): delete Core MissionCard; mount FxLayer, GameFx, Dialogs only inside the `ww` root; re-scope `primitive.css` to the shared layer; ESLint `no-restricted-imports` plus a vitest import-graph test; `VITE_PRODUCT` builds. **Second package in flight beside B03, disjoint files** | X1 answered (the owner's one-line answer; not R01's measurements; gate: `NOW.md` section 2 has rows for `app/ui/src/ww/**`, `phone_page/ww.*`, `routes_phone_ww.py`, `core/playback.py`, `core/jarvis.py`, `core/appio.py`, `jarvis/**` and `shared/**`) | UI chat: `App.tsx`, `pages/Core.tsx`, `styles/design/primitive.css`, `scripts/bundle-budget.mjs`, `vite.config.ts`, new `shared/` skeleton | Sonnet | Both single-product builds contain no module of the other; full suites green |
+| B02 | Registry v2 (§12): shared mechanism, 28 entries migrated, 13 JARVIS entries plus `jarvis.phone-twin`, overlay "What is coming", chip, tests T1 to T10. Foundation tier, after B03b (it reads the kit's plate and chip); V02's approved lines replace the §12.6 draft lines when available, and the draft lines stand until then | B01, B03b | UI chat: `shared/planned/**`, `shared/overlays/WhatIsComing.tsx`, `jarvis/planned.ts`; WW chat: `ww/plannedFeatures.ts`, `ww/Planned.tsx`, existing test | Sonnet | T1 to T10 green; no regression in the 28 existing entry tests |
+| B03 | **Start now. Additive only:** tokens layers 1 to 3 as new attribute-scoped files, clay light and dark, `prefers-contrast`, `forced-colors`, focus ring, the new fonts added last (Inter, Geist Mono, digits-only Doto subset; the font step waits for the owner to grant a subsetting tool, X5, and nothing else waits for it); no font is removed and no existing rule changes until B13. Its own vitest test is the contrast oracle (every pair, WCAG formula), so V03 is not a dependency | none (runs in parallel with R01 and B01) | UI chat: new files under `styles/design/clay/**` and `styles/sections/**`, `__tests__/tokens.test.ts`, font config, `ww/design/themes/*` mapping (WW chat consulted); **not** `styles/design/primitive.css` (B01's) | Sonnet | Token contrast test computes every pair; `e2e:shots` baselines unchanged (the acceptance line for "behaviour-preserving"); new fonts measured, at most 150 KB in total after B13 (target) |
 | B04 | The lamp and the state contract `{state, since, reason}`; "no number without a state" test; title-bar annunciators | B03 | UI chat: `shared/lamp/**`, hooks in `lib/store.ts` | Sonnet | Every widget that renders a reading takes a state; default WAITING |
 | B03b | Component kit, families A and B (components 1 to 21 of §7.2 and §7.3) in dependency order (Lamp, Switch, Rocker, Key, Raised Pill, Readout, Numerals, Tick Slider, Segmented, Plate, then Panel, Frame, ReadoutLines, Console, Palette presentation, Toast, Telemetry Rail, Progress Bar, Dialog, Folder Tab Bar), the S7 kit move, and the §7.1 state-grammar tests | B03, B04 | UI chat: `shared/kit/**`, `jarvis/kit/**`, `ww/kit/**` (Well Wisher chat reviews moves out of it), `__tests__/kit/**` | Sonnet | Each component has a states test, a keyboard test and a forced-colours screenshot; `check_ids.py` green |
 | B03c | Kit families C and D (components 22 to 38) and the shared art components (`NodeRing`, `Orbit`, `RingBars`, `Ridge`, `Callout`, `Spec`, `DotTimer`, `DateWheel`, `PillarsChart`, `WeekStrip`, `ASCII Sweep`, `StippleRing`, `Dither`, `ASCII Empty State`, `DotMatrixMeter`, `CellSkeleton`, `PlannedPlate`) | B03b | UI chat: `shared/art/**`, `shared/kit/**` | Sonnet | Same as B03b, plus a data-table fallback per component and no WebGL |
 | B05b | Art pipeline: `tools/art/build_art.py`, recipes, `art-manifest.json`, the art-id resolver, both tracks, `--check` (sha256 determinism, byte budgets, track folders), the contrast script, `check_ids.py`, `count_assets.py`, `check_no_private_in_dist.py` | B03 | UI chat: `tools/art/**`, `app/ui/src/art/**` | Sonnet | `build_art.py --check` green; the customer track resolves no private-only id; no private hash in any `dist` that leaves the machine |
-| B05 | Shell v2 behind `app.shell`: title bar, rail, product switch, Resume pill and record, command palette (Go, Do, Ask), real key table, view switch, `data-section` and `data-view` on every page root | B02, B03, B03b, B04, P03 (P01 is throwaway); R01's re-derived geometry (§3.3.1) | UI chat: `components/Shell.tsx`, `App.tsx`, `lib/store.ts`, `styles/shell.css`, `components/CommandPalette.tsx` | **Opus** | Palette hints come from one binding table; flag off equals today's behaviour (`e2e:shots` snapshot names unchanged, tolerance 0.1 % of pixels, assumption; vitest count at least 1223, Playwright count at least 248) |
+| B05 | Shell v2 behind `app.shell`: title bar, rail, product switch, Resume pill and record, command palette (Go, Do, Ask), real key table, view switch, `data-section` and `data-view` on every page root, the one navigation (seam S3: the dock and the workspace strip go) and the four ports with null adapters (seam S5); the rail, Ctrl+1 to Ctrl+5 and the view switches take their order from one binding table in the §3.1.2 order | B02, B03, B03b, B04 (P03 and R01 no longer gate it; it builds to the T720 floor of §3.3.1 and takes R01's measured geometry when it lands) | UI chat: `components/Shell.tsx`, `App.tsx`, `lib/store.ts`, `styles/shell.css`, `components/CommandPalette.tsx` | **Opus** | Palette hints come from one binding table; flag off equals today's behaviour (`e2e:shots` snapshot names unchanged, tolerance 0.1 % of pixels, assumption; vitest count at least 1223, Playwright count at least 248) |
 | B06 | JARVIS sections in order `console`, `room`, `memory`, `core`, `senses` (look only, last; decision I10), whose step also moves `src/twin/**` under `src/jarvis/senses/` with the Aankhen chat's sign-off; orphan cards confirmed live, or shown WAITING "built, not verified", or kept PLANNED if not built; WallBox draws absent channels "unavailable"; RelayWiring and Uno leftovers deleted | B05 | UI chat: `pages/{Limbs,System,Connect,Yaadash,Core}.tsx` split into section views, `components/*`; Aankhen chat: `pages/Aankhen.tsx` look changes, `twin/**` | Sonnet | Each section fits T768 and T720 without scroll and declares its T720 column (§3.3.1); entries deleted as cards mount |
 | B06b | Centrepiece packages, one per section in the order of decision I10, after B06 (JARVIS) and after B11 (Well Wisher): the art id, recipe, static and reduced-motion forms, caption and data-table fallback, plus the section's loaders and empty states, with the §8.3 rows as acceptance | B05b, B06 / B11 | UI chat; WW chat for the Well Wisher sections | Sonnet | Per section: no-scroll at T768 and T720, centrepiece at least 25 % of the view (§8.1), forced-colours fallback, `build_art.py --check` |
 | B07 | Voice: output RMS and a 24-band spectrum from `core/playback.py` onto the bus, behind the env flag `JARVIS_OUT_LEVEL` (default off) with an underrun test P-4, not in the live build until the owner restarts on purpose; `VoiceHill`; listening dot, last-heard strip, software Mute | B05, R02, F7 | UI chat: `lib/store.ts`, `jarvis/voice/**`, `components/Reactor.tsx` replaced; core owner (decision X1): `core/playback.py`, `core/appio.py`, `app/jarvis_app/core.py` | **Opus** | Hill driven only by real levels; "no signal" when none; idle CPU within budget; the Core section is called done only after this WP |
-| B08 | Rules and FSRS: FSRS scheduler and Review row, proficiency bar with n, next-action card and score terms, focus-hours strip | B02, V01 | WW chat: `app/jarvis_app/ww_fsrs.py`, `ww_nextaction.py` (new), `ww_check.py`, `ww/study/**`, `ww/life/**` | Sonnet | Pure functions run twice in the gate; fixtures reproduce the owner's five cases |
+| B08 | Rules and FSRS: FSRS scheduler and Review row, proficiency bar with n, next-action card and score terms, focus-hours strip. **Resumes after the UI/UX remap (I33): an exam feature** | B02, V01, and the remap (B11 merged) | WW chat: `app/jarvis_app/ww_fsrs.py`, `ww_nextaction.py` (new), `ww_check.py`, `ww/study/**`, `ww/life/**` | Sonnet | Pure functions run twice in the gate; fixtures reproduce the owner's five cases |
 | B09 | Phone: generated `phone_page/tokens.css` (one file), two pages with clay light, motion rule, planned plates, `ww.phone-block` | B03, B05 | UI chat: `phone_page/{index.html,app.js,relays.*}`, tokens generator script; WW chat: `phone_page/ww.*`, `routes_phone_ww.py` | Sonnet | One palette; 44 px taps; Playwright phone specs green |
 | B10 | Learning loops (§13.7): store, `settings.data` group, consent cards, tests | B05 | UI chat: `shared/learning/**`; WW chat for L2 to L5 hooks | Sonnet | The local-only and no-long-string tests green; each loop off by default |
-| B11 | Well Wisher section map v2 behind `ww.ia`: `day` (today, week, body, close), `focus.rest`, `study.practice`, Now strip, "moved to" hints | B05, B08, exams over | WW chat: `ww/**`, `ww/frame/**` | Sonnet | Legacy ids resolve (§3.2); 2 taps to a running block |
-| B12 | Coach (local 4B), labelled drafting only | B08, R01, exams over | WW chat: `app/jarvis_app/ww_coach.py` (new), `ww/study/Coach*.tsx` | Sonnet | Every output chip and source link; rule fallback; VRAM within the measured budget; the model unloads after idle and a request is refused when free VRAM is under the R01 floor |
+| B11 | Well Wisher section map v2 behind `ww.ia`, in the rail order Day, Focus, Study, Tree, Career (§3.1.2): `day` (today, week, body, close), `focus.rest`, `study.practice`, Now strip, "moved to" hints; built right after B06, flips after Q01 | B05 (no exam wait; the next-action card of B08 plugs into `day.today` when B08 lands) | WW chat: `ww/**`, `ww/frame/**` | Sonnet | Legacy ids resolve (§3.2); 2 taps to a running block |
+| B12 | Coach (local 4B), labelled drafting only. **Resumes after the remap (I33)** | B08, R01 (the VRAM numbers), and the remap | WW chat: `app/jarvis_app/ww_coach.py` (new), `ww/study/Coach*.tsx` | Sonnet | Every output chip and source link; rule fallback; VRAM within the measured budget; the model unloads after idle and a request is refused when free VRAM is under the R01 floor |
 | B13 | Retire old layout, galaxy, GrowthChart, duplicate PhoneCard, and the Anton and latin-ext fonts; conditional embedding swap (only if R03 says so) | B11, owner OK | WW chat: `germoney/pages/**`; UI chat: `galaxy/**`, `components/{MemoryGalaxy,GrowthChart,PhoneCard}.tsx` | Sonnet | Dead code removal; bundle smaller; no entry in the stale report |
 
 **Phase Q: verification (integrator: a fresh session).**
@@ -3118,25 +3230,38 @@ Legend: **Owner** is the chat that owns the files (NOW.md section 2). Files are 
 | WP | Scope | Depends | Exit evidence |
 |---|---|---|---|
 | Q01 | Contract sweep: full suites, gate, bundle budgets, no-scroll at 1366x768, 1366x720 and 1920x1080, class M reachability at 1280x720 and 1280x680, text-spacing and 200 % font passes, reflow at 320 and 683 px, keyboard-only flows, forced colours, `prefers-contrast`, zoom 200 and 400 %, `check_ids.py` and `viewCount.test.ts` | B05 on | A table of every budget (15.5) with measured value and pass or fail |
-| Q02 | Real-window pass: WebView2 on the real laptop (idle CPU 60 s, minimised, soak 30 minutes), Narrator and NVDA checklist by hand, the two-week "moved to" check | Q01, owner time | Signed manual checklist file |
+| Q02 | Real-window pass: WebView2 on the real laptop (idle CPU 60 s, minimised, soak 30 minutes), Narrator and NVDA checklist by hand; the two-week "moved to" check runs after the `ww.ia` flip as a follow-up row, not before it | Q01, owner time | Signed manual checklist file |
 | Q03 | Privacy and claims audit: a whole-app network trace (not only loops and models) is checked against the egress register of §1.3.1, so the `memory.keep` statement can say "verified"; copy checked against the say and do-not-say list, planned entries past review, legal review of public copy flagged (F14) | Q01 | Go or no-go for each flag flip |
 | Q04 | Customer-track quality gate: side-by-side of each centrepiece, private render against customer render (§8.6.3); commission status for sun, trunk and skyline; per-file human review and a licence line for every file in `generated/` (F14) | B06b | A table: each piece, the traits that must survive, pass or fail with the owner; until it passes the customer build is described as plainer than the reviewed one |
 
 ### 15.4 Sequence and recommendation
 
 ```
-R01 (or R01-lite) -> (R02, R03, R04 in parallel, disjoint files) -> V01..V04 -> P01 (throwaway), P02, P03
-   -> B01 -> B02 -> B03 (additive) -> B04                                        [merge-safe, pre-freeze]
-   -> B03b -> B03c -> B05b                                                       [long-lived branch, merged after the last paper and Q01]
-   -> B05 -> B06 -> B06b (JARVIS) -> B07 (env flag) -> B08 -> B09 -> B10          [same branch]
-   -> Q01 -> flip app.shell -> B11 -> B06b (Well Wisher) -> B12 -> Q02, Q03, Q04 -> flip ww.ia -> B13
+Alongside the build, never gating it:  R01 (or R01-lite), R03, R04, R02 (gates only the merge of B07), V01..V04, P01..P03
+
+FOUNDATION (shared layers, most reusable first; at most two in flight, disjoint files)
+   B03 tokens, additive (START NOW)   ||   B01 seam cuts S1, S2, S4 (needs only the owner's answer to X1)
+   -> B04 lamp -> B03b kit A and B -> B02 registry v2 -> B05b art pipeline -> B03c kit C and D
+   -> B05 shell v2 behind app.shell, with the one navigation (S3) and the four ports with null adapters (S5)
+
+SECTIONS (on the layers; each behind its flag, the app working at every merge)
+   -> B06 JARVIS sections in the order console, room, memory, core, senses (I10) -> B06b (JARVIS)
+   -> B11 Well Wisher section map v2 behind ww.ia -> B06b (Well Wisher)
+   -> B07 voice (env flag) -> B09 phone -> B10 learning loops
+
+GATES AND FLIPS
+   -> Q01 -> flip app.shell -> Q02, Q03, Q04 -> flip ww.ia -> B13 retire the old layout
+
+RESUMES AFTER THE REMAP
+   -> B08 rules and FSRS -> B12 Coach -> exam features, relay and wall-box work
 ```
 
-This is the one order table of the file (§5.8 points here). Dates are added in the private notes once X2 is answered.
+This is the one order table of the file (§5.8 points here). The package list in §15.3 keeps its phase grouping; this diagram is the order of work. The check that the order follows the ordering principle of §15.2: every package in FOUNDATION is a layer that at least two later packages read (tokens: kit, lamp, shell, every section; kit and lamp: shell and every section; registry: shell and every view with a planned home; shell and ports: every section), and no SECTIONS package starts before the shell it renders in exists. The one exception is stated: B07's Python half (`core/playback.py`) is independent of the shell and may be built early behind its env flag, but its UI half waits for B05.
 
-**Recommend WP-R01 as the first work package.** Reasons: (1) every geometry and performance number in the core (§3.3, the budgets) is a target until measured on the real window, so no art or shell WP can be judged; (2) it needs no application code change and cannot disturb the exam period; (3) it settles the two blockers (X1 ownership, X2 freeze dates) and the two owner questions that gate the rest (F7 the voice signal, F8 the measurement session itself). Note for the integrator: attaching to the live window needs the app restarted with a remote-debugging argument (a WebView2 environment variable), and a restart turns the relays off, so R01 needs the owner's OK and a time when that is safe; the sandbox instance on port 8790 gives the software numbers meanwhile.
+**Start work package B03 now.** Reasons: (1) it is the lowest shared layer: every later package reads its tokens, so it is the cheapest place to be right; (2) it is additive, so it cannot disturb the running app (new attribute-scoped files, no existing rule or font changes until B13, `e2e:shots` baselines unchanged); (3) it needs neither a measurement nor an owner answer to begin: the contrast oracle is its own vitest test computing every pair with the WCAG formula, so V03's pairs are computed there; (4) it runs in parallel with R01. **Its files:** new files only under `app/ui/src/styles/design/clay/**` (layers 1 to 3, clay light and dark, `prefers-contrast`, `forced-colors`, focus ring) and `app/ui/src/styles/sections/**` (the ten section themes), the `ww/design/themes/*` mapping (Well Wisher chat consulted), `app/ui/src/__tests__/tokens.test.ts` and the font configuration. It does **not** edit `styles/design/primitive.css` (B01 owns that file for the re-scope, S4), which is what keeps B03 and B01 disjoint. The font step (Inter, Geist Mono, digits-only Doto subset) is the last commit of the package and waits for the owner to grant a subsetting tool (X5); the rest of B03 does not wait for it. The second package in flight is B01; the prompt for each is in Appendix A.
 
-The first **code** WP is B01 (seam cuts): behaviour-preserving, it unblocks per-product builds, and it makes B02 the first user-visible honesty win.
+R01 stays valuable (every geometry and performance number is a target until it replaces it) but is no longer first and no longer a blocker: B05 starts from the T720 design floor (§3.3.1), the stricter tier, so it cannot be invalidated by a larger real window, and R01's measured numbers are written into §3.3, §3.3.1 and §14.1 when they arrive. Note for the integrator: attaching to the live window needs the app restarted with a remote-debugging argument (a WebView2 environment variable), and a restart turns the relays off, so R01 needs the owner's OK and a time when that is safe; the sandbox instance on port 8790 gives the software numbers meanwhile. Dates are not part of this file.
+
 
 ### 15.5 Budgets the verification phase enforces
 
@@ -3187,7 +3312,7 @@ Three independent proposals were scored 1 to 10 on six criteria (10 is best; "mi
 | D6 | Below about 900 CSS px the canvas is one reflowing column | Stay fixed and scroll horizontally | WCAG 1.4.10 (Strand 6); the no-scroll rule holds at laptop widths only | 2026-11-12 |
 | D7 | Setup becomes the `settings` sheet; its 18 sections unchanged | C: dissolve Setup into a back panel plus per-module config | Configuration is not a daily job; unchanged logic means unchanged tests | 2026-11-12 |
 | D8 | The Today column becomes `day.today` plus a 40 px Now strip; the full column stays pinned from 1600 px if tests show the strip fails | Keep the column everywhere (C); dissolve with no fallback (A) | Recovers width at 1366; A's risk 1 gives the fallback. Test target: 2 taps to a running block, measured in Playwright | 2026-11-12 |
-| D9 | Ctrl+1 to Ctrl+5 select sections of the current product; Alt+1 to Alt+5 are aliases; the Well Wisher order changes from Study, Tree, Life, Career, Focus, Setup to Day, Study, Tree, Career, Focus | Keep the old Alt order | Day must be first as the home; JARVIS keeps Ctrl+1 to Ctrl+5 (was Ctrl+1 to Ctrl+6). Open question F5 | 2026-11-12 |
+| D9 | Ctrl+1 to Ctrl+5 select sections of the current product; Alt+1 to Alt+5 are aliases; the Well Wisher order changes from Study, Tree, Life, Career, Focus, Setup to Day, Study, Tree, Career, Focus (**order superseded 2026-11-12 evening by I37: Day, Focus, Study, Tree, Career, by reuse; the key rule and "Day first" stand**) | Keep the old Alt order | Day must be first as the home; JARVIS keeps Ctrl+1 to Ctrl+5 (was Ctrl+1 to Ctrl+6). Open question F5 | 2026-11-12 |
 | D10 | Chrome follows one global theme; scenes are light or immersive per section; first-run default differs per product | Chrome flips with the product | The shared chrome carries the "one product" feeling; immersive scenes carry each product's mood | 2026-11-12 |
 | D11 | The accent orange is a fill only; JARVIS has no accent hue beyond the provenance triad | Orange as text and edge; cyan as JARVIS brand | 2.83:1 on the light ground fails 1.4.11 (computed); colour must only mean state (Strand 1, J-principle 9) | 2026-11-12 |
 | D12 | The five-state lamp is the only state display; unknown state is WAITING plus "no report" | Booleans; colour dots | A lamp that lies is worse than none (C's risk 3) | 2026-11-12 |
@@ -3303,7 +3428,8 @@ Nothing in this part adds a camera, a radar, a fake live state, a streak, a lead
 | Voice D-A to D-K | Accepted (D-A is I1, D-C is I17, D-H is I13) |
 | Voice C1 to C7 | Defaults accepted; C1 needs the owner's OK; C3 is F7 |
 | Roadmap Dv1 to Dv3 | Accepted (Dv1 with I11, Dv2 is I9) |
-| Roadmap X1, X2 | Open, §17.2 |
+| Roadmap X1, X2 | X1 open, §17.2 (it is the one answer B01 needs). X2 closed 2026-11-12 evening by I34: there is no exam freeze, so no exam dates gate the programme |
+| Roadmap Dv2 and X2 wording, §15.2 as first assembled | The wording about a freeze and about flipping "after the exam period" in Dv2 and X2 of §16.3.5 is kept verbatim as history and is superseded by I33 to I36 (§16.7); §15.2, K1, K2, F3 and §5.1 are rewritten |
 
 
 ### 16.5 Integration decisions (made while assembling this file, 2026-11-12)
@@ -3351,40 +3477,57 @@ Three reviews (honesty, ethics and privacy; feasibility, performance and accessi
 | I31 | Onboarding is one screen for JARVIS and none for Well Wisher; the other onboarding art became empty-state art | A 3-step JARVIS onboarding and a picker | "No setup gate" |
 | I32 | The first release of `core.talk` shows the input hill plus "JARVIS speaking, no level yet"; Core is not done until B07 | A dead hill while JARVIS speaks | Honest, and visible gating |
 
-**Applied and rejected.** 2026-11-12 review: 63 findings from three adversarial lenses; applied 59 in full and 4 in part, rejected the parts listed here. (1) Feasibility, no-scroll at 720: the tier, the floor, the rule and the three tightest views are re-derived; **per-view T720 region numbers for all 34 views are not written here** and are a gate of B05 and B06 (the numbers belong with the build and R01's measured height). (2) Feasibility, schedule: **calendar dates are not added to §15.4**, because the exam dates are personal and live in the private `NOW.md`. (3) Brief, assets: **individual contrast and alt text for the 26 meaningful pictures** is not hand-edited now; it is produced when B05b builds the manifest from the JSON (the 111 component references name their trait through the `purpose` field and Appendix C). (4) Brief, components: a **new clause per source in the Ids columns** is done through the parenthesis already present plus Appendix C, not by rewriting 38 rows twice. All other findings were applied as written or with a stricter variant. The criterion-5 re-justification of D1 is in §3.1.1.
+**Applied and rejected.** (Decisions I21 to I32 above; the owner's evening decisions are §16.7.) 2026-11-12 review: 63 findings from three adversarial lenses; applied 59 in full and 4 in part, rejected the parts listed here. (1) Feasibility, no-scroll at 720: the tier, the floor, the rule and the three tightest views are re-derived; **per-view T720 region numbers for all 34 views are not written here** and are a gate of B05 and B06 (the numbers belong with the build and R01's measured height). (2) Feasibility, schedule: **calendar dates are not added to §15.4**, because the exam dates are personal and live in the private `NOW.md`. (3) Brief, assets: **individual contrast and alt text for the 26 meaningful pictures** is not hand-edited now; it is produced when B05b builds the manifest from the JSON (the 111 component references name their trait through the `purpose` field and Appendix C). (4) Brief, components: a **new clause per source in the Ids columns** is done through the parenthesis already present plus Appendix C, not by rewriting 38 rows twice. All other findings were applied as written or with a stricter variant. The criterion-5 re-justification of D1 is in §3.1.1.
+
+### 16.7 Owner decisions of 2026-11-12 evening
+
+The owner's evening update (binding, newer than the brief) is applied as follows. It changes the programme's priority and the order of sections; it keeps every other decision above.
+
+| # | Decision | Alternatives and where they came from | Why | Date |
+|---|---|---|---|---|
+| I33 | The whole UI/UX overhaul is priority one. Exam features, relay and wall-box work wait until the UI/UX is remapped, then resume. It is a priority order, not a statement that the app is unused: the app works at every merge | Interleave exam features and hardware work with the overhaul (the first assembly of §15.2) | Owner decision. The overhaul is the work that every later feature sits on | 2026-11-12 evening |
+| I34 | The exam freeze is removed: no period holds back the shell rewrite or the Well Wisher flip. F3 and X2 are closed. The quality safety mechanics stay (flags default off for risky flips, the app working at every merge, no build into `dist` while the app runs, live-process changes behind an env flag) | The freeze of the first assembly; B05 to B10 on a long-lived branch until after the last paper | The freeze existed to protect the owner's exam period; with the UI/UX as priority one it is no longer a rule. The mechanics that remain protect the running app, which is a quality matter whatever the date | 2026-11-12 evening |
+| I35 | Ordering principle: build for scale. Shared, most reusable layers first (tokens, kit, lamp, registry, shell, ports), then the sections on top. The work-package order of §15.4 follows it and §15.4 states the check | The earlier order (research and validation gates first, then B01 to B04, then a long-lived shell branch) | A change to a shared layer is cheapest before anything depends on it | 2026-11-12 evening |
+| I36 | Packages that only measure or validate (R01, R03, R04, V01 to V04, P01 to P03) run alongside the build and no longer block it. They gate flag flips and revise numbers; B03, the shared foundation, starts now in parallel with R01, with B01 as the second package in flight | R01 first, then V, P and B in strict phases | A measurement cannot change the order of the shared layers; B05 builds to the T720 floor so a measured window cannot invalidate it | 2026-11-12 evening |
+| I37 | Sections are ordered by reuse, most reused first, from estimates written down in §3.1.2 (marked as estimates). JARVIS keeps Core, Room, Senses, Memory, Console (the estimates confirm it). Well Wisher becomes Day, Focus, Study, Tree, Career (Focus from fifth to second; Study, Tree, Career one place down); Ctrl+1 to Ctrl+5 and the rail drawings follow. Rule: where two estimates are within a factor of two, the present order stays | D9's order (Day, Study, Tree, Career, Focus); a calendar or feature-grouping order | Owner decision: order by reuse, then a plain, ADHD-friendly, engaging order for the rest (few items, predictable places, one primary action, the next step always visible). Ids stay frozen | 2026-11-12 evening |
+| I38 | Views inside a section follow the same rule. One change: `console.events` moves to second, after `health`. Every other view order is unchanged | Reordering views whose estimates are within a factor of two | Reading the log is the next step after a fault, and it is used about 2.7 times as often as the next view | 2026-11-12 evening |
+| I39 | Feature allocation re-checked with the same lens (§3.1.2): "Share a review" moves from `core.talk` to `memory.keep` (rare export off the most used screen, next to the other exports). Considered and not moved: the six counters (reuse and attention load conflict), `study.dmat` (a move would change a frozen id), the rest | Leave every feature where the first assembly put it | A feature moves only when reuse or attention load clearly justifies it; each non-move is recorded | 2026-11-12 evening |
+| I40 | The first package to start is B03 (tokens layers 1 to 3, additive, no dependencies; its own test is the contrast oracle); its font step waits for a subsetting tool (X5) and nothing else waits for it. B03 and B01 run in parallel on disjoint files (B03 does not edit `primitive.css`). B01 narrows to the seams S1, S2, S4; the ports (S5) and the one navigation (S3) land with the shell (B05) | R01 as the first package (§15.4 of the first assembly) | See §15.4 for the reasons | 2026-11-12 evening |
+| I41 | B08 (rules and FSRS) and B12 (Coach) are exam features: they resume after the remap (B11 merged). B11 no longer depends on B08 or on exams being over. Q02's two-week "moved to" check becomes a follow-up after the `ww.ia` flip | B08 before B09; B11 after the exams | Consequence of I33 and I34 | 2026-11-12 evening |
 
 ---
 
 ## 17 Open questions for the owner
 
-### 17.1 Questions from the core (F1 to F14)
+### 17.1 Questions from the core (F1 to F14, and F15 added in the evening; F3 and F5 closed)
 
 | # | Question | Default if unanswered |
 |---|---|---|
 | F1 | Visible section names: "Senses" and "Memory" with Aankhen and Yaadash as sublabels, or the brand names as the labels? | Functional labels in the rail; brand names in the view header |
 | F2 | Is rewards-from-a-fixed-sequence (D17) acceptable in place of "variable but honest rewards"? | Deterministic only |
-| F3 | Do the Day, Life, Setup and Today-column moves land before or after the exam period? Moving learned places mid-exam is a cost (Proposal C's risk 2) | Ship the shell, the JARVIS section and the seam first; flip Well Wisher behind the new `ww.ia` flag after the exam period (`ww.workspace` keeps its current meaning, decision I9), with a "moved to" hint in every old place for two weeks (target) |
+| F3 | **Closed 2026-11-12 evening (I34).** Do the Day, Life, Setup and Today-column moves land before or after the exam period? | **Answered: no exam wait.** The programme runs straight through, shared layers first (I35). Well Wisher flips behind the `ww.ia` flag (`ww.workspace` keeps its current meaning, decision I9) once Q01 passes, with a "moved to" hint in every old place for two weeks after the flip (target) |
 | F4 | Should a reserved rail slot exist for the planned Coach and Agents, or stay dashed cards inside views? | Cards inside views (D2) |
-| F5 | The Well Wisher Alt+n order changes (Day first). Acceptable? Old order kept as aliases for one release? | Yes, with aliases |
+| F5 | **Closed 2026-11-12 evening (I37).** The Well Wisher Alt+n order changes (Day first). Acceptable? Old order kept as aliases for one release? | **Answered by the owner's decision to order by reuse:** Day, Focus, Study, Tree, Career; Alt+n mirrors Ctrl+n; legacy ids keep resolving for deep links, not the old Alt numbers |
 | F6 | First-run default themes differ per product (JARVIS dark, Well Wisher light), then one global choice. Agree? | Yes |
 | F7 | The Core and room-side code (`core/playback.py`) must emit output RMS and a coarse band spectrum for a truthful voice hill. Who owns `core/` changes, and may the first release show input level only? | Input level only, with "no signal" for output, until the signal lands |
-| F8 | WebView2 on the real laptop: may we run a measurement session (frame time, memory, idle CPU/GPU) before any art is built? All geometry in §3.3 and every performance number is a target until then | Yes, before the prototype phase |
+| F8 | WebView2 on the real laptop: may we run a measurement session (frame time, memory, idle CPU/GPU) before any art is built? All geometry in §3.3 and every performance number is a target until then | Yes, alongside the build; it no longer blocks it (I36) |
 | F9 | Wake-word licence (CC BY-NC-SA 4.0) blocks selling JARVIS. Pick a replacement or accept the personal-use limit? | Personal use only; flagged in the roadmap |
 | F10 | The reference pictures are private or third-party. Confirm that the shipped product uses only re-drawn derivatives, and that direct crops appear only in the private deck, never in the public repository | Yes |
 | F11 | Body-double presence (TEST T2): include it in the prototype, or leave it out until the evidence improves? | Leave out |
 | F12 | A serif for Well Wisher headings was suggested by one proposal (an assumption to test). Test it, or stay with Inter? | Stay with Inter |
 | F13 | Should "Away mode" (arming alerts from presence) ship at all before the owner decides what it may alert about? | PLANNED card only |
 | F14 | Legal review of public copy (UK and EU) before any public launch: who? | Flag in the roadmap; no public launch without it |
+| F15 | Added 2026-11-12 evening (I37 to I39). The section and view order comes from estimated uses per day (§3.1.2), not measurements. After two weeks of real use on the new shell, does the order feel right, and do the visible, local view-visit counts agree? Is Focus second acceptable? Do the six counters belong on `day.today`? | Keep the order; swap by editing one binding table and one id table; revisit the counters only with the counts |
 
 ### 17.2 Questions and conflicts raised by the parts
 
 | # | From | Question | Default if unanswered |
 |---|---|---|---|
-| X1 | Roadmap | Who owns `app/ui/src/ww/**`, `phone_page/ww.*`, `core/playback.py` and `core/jarvis.py` in `data/notes/NOW.md` section 2? The seam (§1.4) and the voice signal (F7) depend on it | Treat `ww/**` and `phone_page/ww.*` as the Well Wisher chat, `core/playback.py` as needing the owner's decision (F7); WP-R01 records the answer before any build package starts |
-| X2 | Roadmap | The real exam dates (the freeze window is an assumption: from the start of the owner's exam window to the day after the last paper; the dates live in the private `NOW.md`) | WP-R01 asks and records them in the private `NOW.md` |
+| X1 | Roadmap | Who owns `app/ui/src/ww/**`, `phone_page/ww.*`, `core/playback.py` and `core/jarvis.py` in `data/notes/NOW.md` section 2? The seam (§1.4) and the voice signal (F7) depend on it | Treat `ww/**` and `phone_page/ww.*` as the Well Wisher chat, `core/playback.py` as needing the owner's decision (F7); the owner's one-line answer is recorded (by R01 or directly) before B01 starts; no other build package waits for it |
+| X2 | Roadmap | **Closed 2026-11-12 evening (I34).** The real exam dates (the freeze window was an assumption) | **No freeze exists, so no date gates the programme.** The dates stay in the private `NOW.md` only to schedule the exam features that resume after the remap |
 | X3 | Review 2026-11-12 | Budget and deadline for a commissioned or licensed painting for `art.day.sun`, `art.tree.trunk` and `art.career.skyline` (§8.6.3) | Unknown, not zero; the procedural swap is the fallback and the customer build is described as plainer until Q04 passes |
 | X4 | Review 2026-11-12 | May `desktop.py` raise or lower `min_size` (now 1120 x 720) so a 680 px usable display is not cropped? | Keep 720 as the floor; R01 records what 680 px does |
-| X5 | Review 2026-11-12 | Install requests: a font-subsetting tool (for the digits-only Doto subset) and a sandbox `--fake-voice` replay mode | Ask before B03 and P02; neither is worked around |
+| X5 | Review 2026-11-12 | Install requests: a font-subsetting tool (for the digits-only Doto subset) and a sandbox `--fake-voice` replay mode | Ask now, so the last commit of B03 (the font step) and P02 are not stalled; neither is worked around. Everything else in B03 proceeds without the tool |
 | C1 (voice) | Voice | Alt+0 instead of Ctrl+0 for swapping product (I1) | Alt+0; needs the owner's OK |
 | C1 (screens) | Screens | The twin's pixel budget: the 720 x 360 canvas cap does not fit the existing full-bleed WebGL twin on `senses.presence` Map | The twin keeps its renderer, pixel-ratio cap 1.75 (1 at `low`, §10.7) and mounts only when Map is selected; the cap applies to every new canvas |
 | C2 (voice) | Voice | Ctrl+1 to 5 and Alt+Left may be handled by the WebView2 host before the page | Alt aliases and the palette remain; verify in the real window (§14.6) |
@@ -3419,11 +3562,11 @@ The art part's list of unverified items is in §18.2; the performance and feasib
 
 | # | Risk | Likelihood and impact | Mitigation |
 |---|---|---|---|
-| K1 | A shell change breaks the owner's daily tools during exams | Medium, high | Flags default off; no `dist` rebuild with changed defaults during the freeze; B01 to B04 are behaviour-preserving and screenshot-diffed |
-| K2 | Learned places move mid-semester (F3) | Medium, medium | `ww.ia` flips after the exams, with "moved to" hints in every old place for two weeks (target); legacy ids resolve |
+| K1 | A shell change breaks the owner's daily tools now that nothing waits for the exams | Medium, high | Flags default off; the app works at every merge (full suites green before each merge); no `dist` rebuild with changed defaults while the app runs and not without the owner's OK; B01 to B04 are behaviour-preserving and screenshot-diffed; the shell rewrite stays on a branch until it is green (§15.2) |
+| K2 | Learned places move mid-semester, and Focus moves up the Well Wisher rail (I37) | Medium, medium | `ww.ia` flips only after Q01, with "moved to" hints in every old place for two weeks after the flip (target); legacy ids resolve; the order is one binding table, cheap to swap back |
 | K3 | The registry rots: entries stay after features ship, or lines drift | High over time, medium | T1 to T10, "entries past review" in the gate, deletion in the shipping commit |
 | K4 | A lamp lies (a default of LIVE, a number with no state) | Low if tested, high | Default WAITING; the "no number without a state" test; Q01 audit |
-| K5 | iGPU and WebView2 cost is unmeasured; art blows the budget | Medium, high | R01 before any art; stop rule; one rAF loop per visible piece; canvases at most 720x360 CSS px |
+| K5 | iGPU and WebView2 cost is unmeasured; art blows the budget | Medium, high | R01 runs alongside and its numbers replace the targets when they land; art packages (B05b, B06b) are judged against the targets and the stop rule meanwhile; stop rule; one rAF loop per visible piece; canvases at most 720x360 CSS px |
 | K6 | VRAM contention between Whisper and the 4B model | Medium, medium | Measure both loaded in R01; load the coach on request only; one request at a time; fallback text on FAULT |
 | K7 | The honest voice hill needs `core/` changes nobody owns (X1, F7) | Medium, medium | R02 spike first; if no-go the hill ships input level plus "no signal" for output |
 | K8 | Per-product builds leak imports back (cycles) | Medium, medium | Import-graph test and lint land in B01, before any section moves |
@@ -3477,7 +3620,7 @@ The art part's list of unverified items is in §18.2; the performance and feasib
 
 ## Appendix A Implementation prompts
 
-Order of use: A.R01, then A.R02 to A.R04, A.V01 to A.V04, A.P01 to A.P03, A.B01 to A.B13 (with A.B03b, A.B03c, A.B05b and A.B06b), A.Q01 to A.Q04, exactly the sequence in 15.4. The integrator pastes **block C** at the top of every prompt, then the WP block. Each WP block is self-contained once C is attached.
+Order of use (revised 2026-11-12 evening): the sequence in 15.4 governs. **Start with A.B03 now**, and A.B01 beside it (disjoint files). A.R01 to A.R04, A.V01 to A.V04 and A.P01 to A.P03 run alongside the build and do not gate it. Then A.B04, A.B03b, A.B02, A.B05b, A.B03c, A.B05 (the shared foundation, most reusable layer first), then A.B06, A.B11 and A.B06b, A.B07, A.B09, A.B10 (the sections on it), A.Q01 to A.Q04 with the flag flips, A.B13, and last A.B08 and A.B12, which resume after the remap. The integrator pastes **block C** at the top of every prompt, then the WP block. Each WP block is self-contained once C is attached.
 
 ### Block C: common rules (attach to every prompt)
 
@@ -3490,7 +3633,7 @@ Order of use: A.R01, then A.R02 to A.R04, A.V01 to A.V04, A.P01 to A.P03, A.B01 
 7. **Research record:** write or extend the named file under `docs/research/` (private: `data/notes/research/`) with a new dated section on top (`## YYYY-MM-DD: ...`): the question, findings, numbers, sources with links, and what it changed. Add one line to `docs/research/README.md` for any new file. Your final message is not the record; the file is.
 8. **State:** edit only your own section of `data/notes/NOW.md`, in place, and add one log line in section 6. No handoff or task files. Commit only your own paths.
 9. **Installs:** if you need a library or tool, stop and ask the owner; do not work around it.
-10. **Stop rule and freeze:** if a budget target fails twice, stop, record the measurement, report. During the exam freeze every new flag defaults off and nothing rebuilds `app/ui/dist` with a changed default.
+10. **Stop rule and safety:** if a budget target fails twice, stop, record the measurement, report. There is no exam freeze (I34), but the quality mechanics stand: every risky flip sits behind a flag that defaults off, the app works at every merge (full suites green before you hand the branch over), nothing builds into `app/ui/dist` while the app runs or with a changed default without the owner's OK, and a change to a live process sits behind an env flag.
 11. **Model:** Sonnet unless the WP says Opus.
 12. **Report:** end with: files changed, tests run with counts, measured numbers, what is still unverified, and the research file path.
 
@@ -3498,9 +3641,9 @@ Order of use: A.R01, then A.R02 to A.R04, A.V01 to A.V04, A.P01 to A.P03, A.B01 
 
 ### A.R01 Baseline and decisions
 **Files:** `docs/research/product-design-overhaul.md` (new dated section), `docs/research/README.md`, `data/notes/NOW.md` (own lines). A scratch probe script in a scratch folder outside the repository, not in `app/`.
-**Depends on:** none. **Owner limits:** read-only on all code. **Order:** first.
-**Do:** (a) on the sandbox instance (headless; no core autostart, no Aankhen, no phone listener, so the Core and Senses pages are empty there) measure only the rows of §14.1 marked sandbox-measurable: main-thread idle CPU for 60 s, frame time and memory; label every row "sandbox-measurable" or "real-window only"; (b) with the owner's OK and a safe moment, restart the real app once with a WebView2 remote-debugging argument and repeat on the real window, including minimised; record VRAM with Whisper and the 4B model loaded together, and the CPU of VAD and wake word; (c) ask the owner for the end-semester dates and record the freeze window; (d) ask the open questions F7 and F8 and record the answers; (e) record who owns `app/ui/src/ww/**`, `phone_page/ww.*`, `routes_phone_ww.py`, `core/playback.py`, `core/jarvis.py`, `core/appio.py`, `jarvis/**` and `shared/**` in NOW.md section 2; (f) record the real maximised `innerWidth`, `innerHeight` and display scale and the GPU row; (g) build the egress register of §1.3.1. R01-lite is (a), (c), (d), (e) with no app restart.
-**Accept:** a table of measured values replacing each target in 15.5; the freeze dates and ownership answers in NOW.md; every number says how it was measured.
+**Depends on:** none. **Owner limits:** read-only on all code. **Order:** alongside B03 and B01; it does not gate them (I36).
+**Do:** (a) on the sandbox instance (headless; no core autostart, no Aankhen, no phone listener, so the Core and Senses pages are empty there) measure only the rows of §14.1 marked sandbox-measurable: main-thread idle CPU for 60 s, frame time and memory; label every row "sandbox-measurable" or "real-window only"; (b) with the owner's OK and a safe moment, restart the real app once with a WebView2 remote-debugging argument and repeat on the real window, including minimised; record VRAM with Whisper and the 4B model loaded together, and the CPU of VAD and wake word; (c) ask the owner for the end-semester dates and record them in the private notes only, to schedule the exam features that resume after the remap (they gate nothing here); (d) ask the open questions F7 and F8 and record the answers; (e) record who owns `app/ui/src/ww/**`, `phone_page/ww.*`, `routes_phone_ww.py`, `core/playback.py`, `core/jarvis.py`, `core/appio.py`, `jarvis/**` and `shared/**` in NOW.md section 2; (f) record the real maximised `innerWidth`, `innerHeight` and display scale and the GPU row; (g) build the egress register of §1.3.1. R01-lite is (a), (c), (d), (e) with no app restart.
+**Accept:** a table of measured values replacing each target in 15.5 and written back into §3.3, §3.3.1 and §14.1; the ownership answers (and the private exam dates) in NOW.md; every number says how it was measured.
 **Tests:** none to add; confirm no tracked file changed except the two docs and NOW.md.
 **Record:** the new section in `product-design-overhaul.md`.
 
@@ -3524,8 +3667,8 @@ Order of use: A.R01, then A.R02 to A.R04, A.V01 to A.V04, A.P01 to A.P03, A.B01 
 **Tests:** none. **Record:** as above.
 
 ### A.V01 IA, first run and resume test
-**Files:** `app/ui/validate/ia-*.html` (static mocks), results in `docs/research/product-design-overhaul.md`. **Depends on:** R01. **Owner limits:** do not touch `app/ui/src`. **Order:** first of V.
-**Do:** build the mocks from §3.1 and §3.4; check the Vite inputs exclude `app/ui/validate/`. Run five tasks with the owner: first run of each product (find the primary action), resume after a gap, switch product, name the sections, rank five real study cases with the 2.5 rule. Count taps and seconds.
+**Files:** `app/ui/validate/ia-*.html` (static mocks), results in `docs/research/product-design-overhaul.md`. **Depends on:** none (it no longer waits for R01 and gates only `ww.ia`). **Owner limits:** do not touch `app/ui/src`. **Order:** alongside the foundation.
+**Do:** build the mocks from §3.1, §3.1.2 and §3.4 (the section order is the reuse order; ask the owner whether it feels right, F15); check the Vite inputs exclude `app/ui/validate/`. Run five tasks with the owner: first run of each product (find the primary action), resume after a gap, switch product, name the sections, rank five real study cases with the 2.5 rule. Count taps and seconds.
 **Accept:** pass lines in 15.3 (V01); results labelled "owner session, n = 1"; F1 and F5 answered.
 **Tests:** `npx tsc -b` and `npm run bundle:check` still green. **Record:** research file.
 
@@ -3548,7 +3691,7 @@ Order of use: A.R01, then A.R02 to A.R04, A.V01 to A.V04, A.P01 to A.P03, A.B01 
 **Tests:** as V01. **Record:** research file.
 
 ### A.P01 Bench shell
-**Files (new):** `app/ui/bench/shell-bench.html`, `app/ui/src/bench/shell/**`. **Depends on:** V01, V03. **Owner limits:** UI chat; no edits to `Shell.tsx`, `App.tsx`, `tokens.css`. **Order:** first of P.
+**Files (new):** `app/ui/bench/shell-bench.html`, `app/ui/src/bench/shell/**`. **Depends on:** none (optional and non-blocking, I36; drop it if the real kit of B03b reaches the same checks first). **Owner limits:** UI chat; no edits to `Shell.tsx`, `App.tsx`, `tokens.css`. **Order:** alongside the foundation.
 **Do:** build tokens (layers 1 to 3), lamp, rail (5 slots plus Ask, pair, gear, All off), title bar with product switch, view switch, PLANNED plate and chip, forced-colours layer, at 1366x768 with 1286 x 704 inside gutters.
 **Accept:** no page scroll at 1366x768 and 1920x1080; all targets at least 44 px (§11.7); this bench is a throwaway and no later package depends on it; contrast table computed from the tokens in the test; keyboard walk visits every control once with a visible 2 px ring.
 **Tests:** `npx vitest run`, `npx tsc -b`, a new Playwright bench spec. **Record:** `docs/research/product-design-overhaul.md`.
@@ -3566,20 +3709,20 @@ Order of use: A.R01, then A.R02 to A.R04, A.V01 to A.V04, A.P01 to A.P03, A.B01 
 **Tests:** vitest and Playwright tap counts. **Record:** research file.
 
 ### A.B01 Seam cuts
-**Files:** `app/ui/src/App.tsx`, `pages/Core.tsx`, `styles/design/primitive.css`, `scripts/bundle-budget.mjs`, `vite.config.ts`, ESLint config, new `app/ui/src/shared/` skeleton, `src/__tests__/shared/imports.test.ts`. **Depends on:** R01. **Owner limits:** UI chat; Well Wisher chat reviews the `ww` root mount. Announce shared edits in NOW.md section 6 first. **Order:** first of B.
+**Files:** `app/ui/src/App.tsx`, `pages/Core.tsx`, `styles/design/primitive.css`, `scripts/bundle-budget.mjs`, `vite.config.ts`, ESLint config, new `app/ui/src/shared/` skeleton, `src/__tests__/shared/imports.test.ts`. **Depends on:** the owner's answer to X1 only (not R01's measurements). **Owner limits:** UI chat; Well Wisher chat reviews the `ww` root mount. Announce shared edits in NOW.md section 6 first. **Order:** second package of the foundation, in parallel with B03; the two touch disjoint files (B01 owns `primitive.css`, B03 never edits it). Scope is the seams S1, S2 and S4; the ports (S5) and the one navigation (S3) are in A.B05.
 **Do:** delete Core's MissionCard; mount FxLayer, GameFx and Dialogs only inside the `ww` root; re-scope `primitive.css` from `.ww` to the shared layer; add `no-restricted-imports` and a vitest import-graph test; make `VITE_PRODUCT=ww|jarvis` builds; extend `bundle-budget.mjs` to check each.
 **Accept:** behaviour unchanged (screenshot diff on Core and one Well Wisher view); the `ww` build has no `jarvis/` module and no three.js; the `jarvis` build has no `ww/` module.
 **Tests:** `npx vitest run`, `npx tsc -b`, `npm run bundle:check`, Playwright full, the gate. **Record:** `docs/research/product-design-overhaul.md`.
 
 ### A.B02 Registry v2
-**Files:** per 12.2. **Depends on:** B01, V02. **Owner limits:** UI chat for `shared/**` and `jarvis/planned.ts`; Well Wisher chat for `ww/plannedFeatures.ts`, `ww/Planned.tsx` and the existing test. **Order:** after B01.
+**Files:** per 12.2. **Depends on:** B01 and B03b (the kit's plate and chip); V02's approved lines when available, otherwise the §12.6 draft lines stand. **Owner limits:** UI chat for `shared/**` and `jarvis/planned.ts`; Well Wisher chat for `ww/plannedFeatures.ts`, `ww/Planned.tsx` and the existing test. **Order:** foundation tier, after B03b.
 **Do:** implement §12.2 to §12.6: the record, four renderers, the chip, the overlay "What is coming", migration of the 28 entries (ids and lines unchanged), the JARVIS and new Well Wisher rows with the owner-approved lines, tests T1 to T10, and the "entries past review" gate report.
 **Accept:** T1 to T10 green; the 28 old assertions still pass (or are ported without weakening); loop views render no plates (T8); overlay opens one deep and returns focus.
 **Tests:** `npx vitest run`, `npx tsc -b`, `npx playwright test e2e/carcass.spec.ts` plus the new planned spec, the gate. **Record:** `docs/research/well-wisher.md` (registry section).
 
 ### A.B03 Tokens, clay, forced colours
-**Files:** `styles/tokens.css`, `styles/design/**`, `styles/sections/**` (new), `ww/design/themes/*` (mapping only, with the Well Wisher chat), fonts config. **Depends on:** B01, V03. **Order:** after B02.
-**Do (additive only: new attribute-scoped files; no font is removed and no existing rule changes until B13):** three token layers; `clay-light` and `clay-dark` with the computed values from V03; `prefers-contrast: more`; `forced-colors: active` with real borders and `Highlight` focus; 2 px `outline` focus ring with `scroll-padding`; fonts Inter, Geist Mono and a digits-only Doto subset added (ask the owner for a font-subsetting tool first; Anton stays until B13); theme map `paper` to `clay-light`, `ash` to `clay-dark`, `indigo` kept.
+**Files:** `styles/tokens.css`, `styles/design/**`, `styles/sections/**` (new), `ww/design/themes/*` (mapping only, with the Well Wisher chat), fonts config. **Depends on:** none (V03 is not a dependency: this package's token test computes every pair itself; V03's visual checks sign it off later). **Order: first, start now**, in parallel with R01 and B01. **Files are new only:** `styles/design/clay/**`, `styles/sections/**`, `__tests__/tokens.test.ts`, the font config and the `ww/design/themes/*` mapping; never `styles/design/primitive.css` (B01's file).
+**Do (additive only: new attribute-scoped files; no font is removed and no existing rule changes until B13; the font step is the last commit and waits for the owner's subsetting tool, X5, while everything before it does not):** three token layers; `clay-light` and `clay-dark` with the computed values from V03; `prefers-contrast: more`; `forced-colors: active` with real borders and `Highlight` focus; 2 px `outline` focus ring with `scroll-padding`; fonts Inter, Geist Mono and a digits-only Doto subset added (ask the owner for a font-subsetting tool first; Anton stays until B13); theme map `paper` to `clay-light`, `ash` to `clay-dark`, `indigo` kept.
 **Accept:** `e2e:shots` baselines unchanged; the token test computes every pair; css-lint still forbids literal colours and durations; fonts at most 150 KB (target; record the real number); no `backdrop-filter`, no animated `box-shadow`.
 **Tests:** vitest (`tokens.test.ts`, `css-lint.test.ts`), `npm run e2e:shots` with reviewed baselines, forced-colours Playwright. **Record:** research file.
 
@@ -3602,9 +3745,9 @@ Order of use: A.R01, then A.R02 to A.R04, A.V01 to A.V04, A.P01 to A.P03, A.B01 
 **Tests:** vitest per widget plus the lint test; Playwright greyscale screenshot check. **Record:** research file.
 
 ### A.B05 Shell v2 behind `app.shell` (Opus: hard code)
-**Files:** `components/Shell.tsx`, `App.tsx`, `lib/store.ts`, `styles/shell.css`, `components/CommandPalette.tsx`, `pageLoaders.ts`, new `shell/**`. **Depends on:** B02, B03, B03b, B04, P03 (P01 is throwaway). **Owner limits:** UI chat only; Well Wisher keeps `ww/frame/**` until B11. **Order:** after B04.
-**Do:** title bar (48 px), rail (64 px, roving tabindex), product switch, view switch, Resume pill and record (localStorage plus the server scene memory), palette (Go, Do, Ask; planned verbs open the overlay), one binding key table that also feeds the palette hints, `data-product`, `data-section`, `data-view` on every page root, the fault chip.
-**Accept:** with the flag off the app equals today's (`e2e:shots` snapshot names unchanged, tolerance 0.1 % of pixels, assumption; vitest count at least 1223, Playwright count at least 248); with it on every section reachable by keyboard; Ctrl+1 to Ctrl+5 follow the table; no hint shown without a binding.
+**Files:** `components/Shell.tsx`, `App.tsx`, `lib/store.ts`, `styles/shell.css`, `components/CommandPalette.tsx`, `pageLoaders.ts`, new `shell/**`. **Depends on:** B02, B03, B03b, B04 (P01 and P03 do not gate it; R01's geometry does not gate it, build to the T720 floor). **Owner limits:** UI chat only; Well Wisher keeps `ww/frame/**` until B11. **Order:** the last package of the foundation, after B03c; no section package starts before it.
+**Do:** the one navigation (seam S3: delete the eight dock tabs and the workspace strip) and the four ports with null adapters (seam S5: `voice`, `memory`, `notify`, `ambient`); title bar (48 px), rail (64 px, roving tabindex, the five slots in the §3.1.2 order: JARVIS Core, Room, Senses, Memory, Console; Well Wisher Day, Focus, Study, Tree, Career), product switch, view switch, Resume pill and record (localStorage plus the server scene memory), palette (Go, Do, Ask; planned verbs open the overlay), one binding key table that also feeds the palette hints, `data-product`, `data-section`, `data-view` on every page root, the fault chip.
+**Accept:** with the flag off the app equals today's (`e2e:shots` snapshot names unchanged, tolerance 0.1 % of pixels, assumption; vitest count at least 1223, Playwright count at least 248); with it on every section reachable by keyboard; Ctrl+1 to Ctrl+5 follow the table and `keymap.test.ts` asserts the section order equals the §3.2 id table; no hint shown without a binding.
 **Tests:** vitest, tsc, Playwright keyboard and hit-area specs, the gate. **Record:** `docs/research/product-design-overhaul.md`.
 
 ### A.B05b Art pipeline
@@ -3632,37 +3775,37 @@ Order of use: A.R01, then A.R02 to A.R04, A.V01 to A.V04, A.P01 to A.P03, A.B01 
 **Tests:** `pytest core/tests` and from `app/`; vitest for mapping; Playwright for no-signal and reduced motion. **Record:** `docs/research/voice.md`.
 
 ### A.B08 Rules and FSRS
-**Files (new):** `app/jarvis_app/ww_fsrs.py`, `ww_nextaction.py`, tests; `ww_check.py`; `ww/study/**`, `ww/life/**`. **Depends on:** B02, V01, owner OK for any library. **Owner limits:** Well Wisher chat. **Order:** after B07.
+**Files (new):** `app/jarvis_app/ww_fsrs.py`, `ww_nextaction.py`, tests; `ww_check.py`; `ww/study/**`, `ww/life/**`. **Depends on:** B02, V01, owner OK for any library, and the UI/UX remap (B11 merged): an exam feature, it resumes after the remap (I33, I41). **Owner limits:** Well Wisher chat. **Order:** after B13, with B12.
 **Do:** FSRS scheduler (defaults, retention slider 70 to 97 %, chip), a Review row; proficiency bar with n and grey below 5 (reuse the existing EWMA); the next-action card printing urgency, gap and weight with "Not this" (day-only) and "Plan by hand"; the focus-hours strip (counts, no prediction); delete the matching planned entries.
 **Accept:** pure functions run twice in the gate; fixtures reproduce the owner's five cases from V01; no number without n; no prediction wording.
 **Tests:** backend tests under scratch `JARVIS_DATA_DIR`, the gate, vitest, Playwright. **Record:** `docs/research/well-wisher.md`.
 
 ### A.B09 Phone
-**Files:** `phone_page/{index.html,app.js,relays.*}`, `phone_page/ww.*`, `routes_phone_ww.py`, a generator script for `phone_page/tokens.css`. **Depends on:** B03, B05. **Owner limits:** UI chat for the JARVIS page, Well Wisher chat for the ww page. **Order:** after B08.
+**Files:** `phone_page/{index.html,app.js,relays.*}`, `phone_page/ww.*`, `routes_phone_ww.py`, a generator script for `phone_page/tokens.css`. **Depends on:** B03, B05. **Owner limits:** UI chat for the JARVIS page, Well Wisher chat for the ww page. **Order:** after B07 (it no longer waits for B08).
 **Do:** one generated tokens file; both pages light clay with the motion rule; 44 px taps; planned plates; JARVIS Senses tab lists each reading "measured" or "not measured"; the board page build and drift test unchanged.
 **Accept:** one palette; the device colour table resolved once; no regression in `test_board_page.py`.
 **Tests:** Python tests, Playwright phone specs. **Record:** research file.
 
 ### A.B10 Learning loops
-**Files (new):** `shared/learning/**`, `settings.data` group, backend route if needed. **Depends on:** B05. **Order:** after B09.
+**Files (new):** `shared/learning/**`, `settings.data` group, backend route if needed. **Depends on:** B05. **Order:** after B09, before the flips (not an exam feature).
 **Do:** implement §13.7: store, consent cards (asked once), the group with Show, Export, Delete and per-loop switches, summaries that print n and window.
 **Accept:** each loop off by default (except L6, L7); the local-only test and the no-long-string test pass; "Learn nothing" works; no new notifications.
 **Tests:** vitest, Playwright, a network-trace assertion on the sandbox. **Record:** research file.
 
 ### A.B11 Well Wisher section map v2 behind `ww.ia`
-**Files:** `ww/**`, `ww/frame/**`. **Depends on:** B05, B08, exams over. **Owner limits:** Well Wisher chat delivers a branch; the integrator merges. **Order:** after Q01 and the `app.shell` flip.
-**Do:** `day` (today, week, body, close), `focus.rest`, `study.practice`, the 40 px Now strip, "moved to" hints in every old place, legacy id aliases (§3.2).
+**Files:** `ww/**`, `ww/frame/**`. **Depends on:** B05 only (no exam wait, no B08). **Owner limits:** Well Wisher chat delivers a branch; the integrator merges. **Order:** right after B06 (JARVIS sections), built behind `ww.ia` with the flag off; the flip happens after Q01 (and Q02, Q03).
+**Do:** the Well Wisher rail and keys in the order Day, Focus, Study, Tree, Career (§3.1.2); `day` (today, week, body, close), `focus.rest`, `study.practice`, the 40 px Now strip, "moved to" hints in every old place, legacy id aliases (§3.2).
 **Accept:** two taps to a running block (Playwright count); every legacy id resolves; no horizontal scroll at 683 px.
 **Tests:** vitest 1223-plus, Playwright, the gate. **Record:** `docs/research/well-wisher.md`.
 
 ### A.B12 Coach (local 4B)
-**Files (new):** `app/jarvis_app/ww_coach.py`, `ww/study/Coach*.tsx`. **Depends on:** B08, R01, exams over. **Order:** after B11.
+**Files (new):** `app/jarvis_app/ww_coach.py`, `ww/study/Coach*.tsx`. **Depends on:** B08, R01 (the VRAM numbers) and the remap. **Order:** after B08; an exam feature that resumes after the remap (I33).
 **Do:** a drafting action over the student's selected notes, local only, chip `MODEL`, Based-on links, Edit, 20 s timeout to fallback text, per-feature and "Rules only" switches; delete `ww.coach`.
 **Accept:** no grade, score or numeric answer is ever produced (a test with adversarial prompts); VRAM within the R01 budget with Whisper loaded; the model unloads after idle and a request is refused when free VRAM is under the R01 floor.
 **Tests:** backend tests with a stub model, vitest, Playwright. **Record:** `docs/research/well-wisher.md`.
 
 ### A.B13 Retire the old layout and dead code
-**Files:** `germoney/pages/**`, `MissionNav`, `SettingsDrawer`, `ReaderDrawer`, `galaxy/**`, `components/{MemoryGalaxy,GrowthChart,PhoneCard}.tsx`. **Depends on:** B11, owner OK. Embedding swap only if R03's rule says so. **Order:** last of B.
+**Files:** `germoney/pages/**`, `MissionNav`, `SettingsDrawer`, `ReaderDrawer`, `galaxy/**`, `components/{MemoryGalaxy,GrowthChart,PhoneCard}.tsx`. **Depends on:** B11 flipped and Q02, Q03 passed, owner OK. Embedding swap only if R03's rule says so. **Order:** the last package of the remap build; B08 and B12 follow it.
 **Do:** remove after vitest no longer defaults to the old layout; update the bundle budget.
 **Accept:** bundle smaller than the B01 baseline (record both); no orphan entries.
 **Tests:** full suites. **Record:** research file.
@@ -3675,7 +3818,7 @@ Order of use: A.R01, then A.R02 to A.R04, A.V01 to A.V04, A.P01 to A.P03, A.B01 
 
 ### A.Q02 Real-window pass
 **Files:** a signed checklist in the research file. **Depends on:** Q01, the owner's time. **Order:** before the `ww.ia` flip.
-**Do:** on the real laptop: idle CPU 60 s focused, minimised, a 30-minute soak (memory growth under 10 %, target), Narrator and NVDA scripted checklist (shell, palette, tree, one form), the two-week "moved to" review.
+**Do:** on the real laptop: idle CPU 60 s focused, minimised, a 30-minute soak (memory growth under 10 %, target), Narrator and NVDA scripted checklist (shell, palette, tree, one form); after the `ww.ia` flip, add the two-week "moved to" review as a follow-up row.
 **Accept:** every row has a value or an explicit "not run" with a reason.
 **Record:** research file.
 

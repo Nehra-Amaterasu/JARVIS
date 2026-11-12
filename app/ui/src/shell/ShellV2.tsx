@@ -118,12 +118,13 @@ export default function ShellV2({ pages, wwRoot, verbs, serverUp }: ShellV2Props
   }, [overlay])
 
   const items = product === 'jarvis' ? JARVIS_ANNUNCIATORS : WW_ANNUNCIATORS
+  const now = useNow(15_000) // HH:MM, so at most 15 s late at a minute change; the only interval the shell runs
 
   return (
     <div className="s2" data-shell="v2" data-product={product}>
-      <TitleBar product={product} items={items} />
+      <TitleBar product={product} items={items} now={now} />
       {/* below 900 px the pill is its own 44 px row under the title bar (4.2.3); one of the two is display:none */}
-      <div className="s2-pillrow"><ResumePill product={product} /></div>
+      <div className="s2-pillrow"><ResumePill product={product} now={now} /></div>
       <Rail product={product} place={place} />
       <Canvas place={place} pages={pages} wwRoot={wwRoot} ww={ww} registries={registries} />
       <Toasts />
@@ -225,16 +226,15 @@ declare global {
   }
 }
 
-function TitleBar({ product, items }: { product: ProductId; items: typeof JARVIS_ANNUNCIATORS }) {
+function TitleBar({ product, items, now }: { product: ProductId; items: typeof JARVIS_ANNUNCIATORS; now: number }) {
   const readings = useStore((s) => s.readings)
-  const now = useNow(15_000) // HH:MM, so at most 15 s late at a minute change; the only interval the shell runs
   const inApp = typeof window !== 'undefined' && !!window.pywebview
   const faults = items.filter((it) => readings[it.id]?.state === 'fault')
   return (
     <header className="s2-title pywebview-drag-region" data-focus-inset="">
       <span className="s2-wordmark" aria-hidden="true">{PRODUCT_LABEL[product]}</span>
       {PRODUCTS.length > 1 && <ProductSwitch product={product} />}
-      <ResumePill product={product} />
+      <ResumePill product={product} now={now} />
       <div className="s2-lamps">
         {/* words show from 1280 px; below it the lamp alone, the name stays the tooltip and accessible name (4.2.1) */}
         <Annunciators items={items} readings={readings} />
@@ -273,14 +273,14 @@ function ProductSwitch({ product }: { product: ProductId }) {
   )
 }
 
-function ResumePill({ product }: { product: ProductId }) {
+function ResumePill({ product, now }: { product: ProductId; now: number }) {
   const place = useShell(currentPlace)
   const go = useShell((s) => s.go)
   const [dropped, setDropped] = useState(0)
   // The record changes on every navigation; reading it in render is a localStorage read per render of this
   // pill only, which re-renders on navigation, not on a timer.
   const record = useMemo(() => readRecord(product), [product, place.section, place.view, dropped]) // eslint-disable-line react-hooks/exhaustive-deps
-  const state = pillState(product, record, Date.now())
+  const state = pillState(product, record, now)
   const here = !!record && record.section === place.section && record.view === place.view
   const hint = hintFor('resume')
   if (state.kind === 'stale') {
@@ -358,7 +358,7 @@ function Rail({ product, place }: { product: ProductId; place: Place }) {
 /* ------------------------------------------------------------------ canvas */
 function Canvas({ place, pages, wwRoot, ww, registries }: { place: Place; pages: ShellV2Props['pages']; wwRoot: ComponentType | null; ww: WwShellBridge | null; registries: Registry[] }) {
   const id = viewId(place.section, place.view)
-  const host = HOSTS[id] ?? { kind: 'none' }
+  const host = HOSTS[id] ?? NO_HOST
   const section = sectionById(place.section)!
   const tab = useStore((s) => s.tab)
   const setTab = useStore((s) => s.setTab)
@@ -404,6 +404,7 @@ function Canvas({ place, pages, wwRoot, ww, registries }: { place: Place; pages:
   )
 }
 
+const NO_HOST: Host = { kind: 'none' }
 const WW_TABS = new Set(['mission', 'quests', 'campaign', 'trials', 'drill', 'armory', 'crucible', 'forge', 'syllabus', 'terminal', 'interrogation', 'proof', 'schedule', 'calibration', 'status'])
 
 function HostView({ host, place, pages, wwRoot: WwRoot, registries }: { host: Host; place: Place; pages: ShellV2Props['pages']; wwRoot: ComponentType | null; registries: Registry[] }) {

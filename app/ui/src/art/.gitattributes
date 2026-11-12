@@ -1,0 +1,3 @@
+# the sha256 in art-manifest.json is over these exact bytes: git must never rewrite their line endings
+generated/* -text
+art-manifest.json -text

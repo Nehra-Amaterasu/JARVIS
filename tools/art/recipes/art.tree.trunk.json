@@ -1,0 +1,28 @@
+{
+ "art_id": "art.tree.trunk",
+ "budget_bytes": 61440,
+ "licence": "",
+ "seed": 0,
+ "source": {
+  "frac": [
+   0.1,
+   0.3,
+   0.9,
+   1
+  ],
+  "id": "C04-44",
+  "kind": "catalogue",
+  "w": 480
+ },
+ "steps": [
+  {
+   "op": "tone"
+  },
+  {
+   "op": "duotone",
+   "pair": "bone-charcoal",
+   "quality": 62
+  }
+ ],
+ "track": "private-only"
+}

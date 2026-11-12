@@ -1,0 +1,26 @@
+{
+ "art_id": "art.console.frame",
+ "budget_bytes": 4096,
+ "licence": "",
+ "seed": 0,
+ "source": {
+  "id": "C04-10",
+  "kind": "catalogue",
+  "w": 576
+ },
+ "steps": [
+  {
+   "op": "tone"
+  },
+  {
+   "edge": 0.4,
+   "op": "ascii_frame",
+   "tags": [
+    "SIM"
+   ],
+   "title": "jarvis console",
+   "width": 80
+  }
+ ],
+ "track": "private-only"
+}

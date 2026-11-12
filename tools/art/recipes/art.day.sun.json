@@ -1,0 +1,28 @@
+{
+ "art_id": "art.day.sun",
+ "budget_bytes": 61440,
+ "licence": "",
+ "seed": 0,
+ "source": {
+  "frac": [
+   0.0,
+   0.14,
+   1,
+   1.0
+  ],
+  "id": "C04-37",
+  "kind": "catalogue",
+  "w": 520
+ },
+ "steps": [
+  {
+   "op": "tone"
+  },
+  {
+   "op": "duotone",
+   "pair": "ochre-charcoal",
+   "quality": 62
+  }
+ ],
+ "track": "private-only"
+}

@@ -125,27 +125,41 @@ export function Frame({ loaded, pages, server, legacyTab, left, extras, glass = 
     workspaceMemory.setScroll(s.ws, top)
     return { ws: s.ws, view: s.view, scroll: top }
   }, [])
+  // Only the newest navigation may commit. A second switch within 600 ms skips the first view transition, but the
+  // skipped transition's change still runs AFTER the newer one (shared/motion/transition.ts), so without this the
+  // frame landed on the older place and the shell followed it with no key pressed (A.N02 c; reproduced in
+  // __tests__/shell/frameBridge.test.tsx). Each request takes a number; a change whose number is old is dropped.
+  const navSeq = useRef(0)
   useEffect(() => {
     registerNav({
       switchTo: async (to, view = null, opts) => {
+        const seq = ++navSeq.current
         const s = useFrame.getState()
         if (to === s.ws) {
           if (view !== s.view) s.select(to, view)
           return
         }
         capture()
-        await run(() => useFrame.getState().select(to, view), centre.current)
-        if (opts?.focusHeading) heading.current?.focus({ preventScroll: true })
+        await run(() => {
+          if (seq === navSeq.current) useFrame.getState().select(to, view)
+        }, centre.current)
+        if (opts?.focusHeading && seq === navSeq.current) heading.current?.focus({ preventScroll: true })
       },
       jumpTo: async (to, view = null) => {
+        const seq = ++navSeq.current
         const from = capture()
-        await run(() => useFrame.getState().jump(to, view, from), centre.current)
+        await run(() => {
+          if (seq === navSeq.current) useFrame.getState().jump(to, view, from)
+        }, centre.current)
         heading.current?.focus({ preventScroll: true })
       },
       back: async () => {
         if (!useFrame.getState().back) return
+        const seq = ++navSeq.current
         capture()
-        await run(() => void useFrame.getState().returnBack(), centre.current)
+        await run(() => {
+          if (seq === navSeq.current) void useFrame.getState().returnBack()
+        }, centre.current)
         heading.current?.focus({ preventScroll: true })
       },
     })

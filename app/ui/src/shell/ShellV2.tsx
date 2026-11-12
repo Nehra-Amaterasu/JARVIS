@@ -24,6 +24,7 @@ import { PlannedPlate } from '../shared/planned/PlannedPlate'
 import type { Registry } from '../shared/planned/types'
 import { PRODUCT_LABEL, VIEW_LABEL, sectionById, sectionsOf, viewId, type Place, type ProductId } from './ids'
 import { HOSTS, placeOfFrame, type Host } from './hosts'
+import { createFrameSync } from './frameSync'
 import { BINDINGS, comboText, hintFor, isTextTarget, matchBinding, sectionForSlot, slotBindingOf } from './keymap'
 import { Palette } from './Palette'
 import { getPort, subscribePorts } from './ports'
@@ -386,27 +387,26 @@ const Canvas = memo(function Canvas({ place, pages, wwRoot, ww, registries }: { 
     if (host.kind === 'ww' && !WW_TABS.has(tab)) setTab(host.tab as never)
   }, [host, tab, setTab])
 
-  // ---- shell -> frame: a rail click or a view switch moves the Well Wisher frame
-  useEffect(() => {
-    if (host.kind !== 'ww' || !ww) return
-    const cur = ww.current()
-    if (cur.ws !== host.ws || (host.view !== null && cur.view !== host.view)) void ww.switchTo(host.ws, host.view)
-  }, [host, ww])
-
-  // ---- frame -> shell: a jump inside Well Wisher (Tree's "Study this node") moves the rail with it
-  useEffect(() => {
-    if (!ww) return
-    return ww.subscribe((ws, view) => {
+  // ---- the two-way frame bridge (frameSync.ts): shell -> frame on every place change, frame -> shell only for a
+  //      jump the shell did not ask for while nothing of its own is in flight (the loop of A.N02 c is gone)
+  const sync = useMemo(() => ww ? createFrameSync(ww, {
+    desired: () => {
       const s = useShell.getState()
-      const cur = s.places[s.product]
-      const h = HOSTS[viewId(cur.section, cur.view)]
-      if (s.product !== 'ww' || (h?.kind === 'ww' && h.ws === ws && (h.view === view || view === null))) return
+      if (s.product !== 'ww') return undefined
+      const c = s.places.ww
+      return HOSTS[viewId(c.section, c.view)]
+    },
+    follow: (ws, view) => {
       const target = placeOfFrame(ws, view)
       if (!target) return
       const [sec, v] = target.split('.')
-      s.go({ product: 'ww', section: sec, view: v })
-    })
-  }, [ww])
+      useShell.getState().go({ product: 'ww', section: sec, view: v })
+    },
+  }) : null, [ww])
+  useEffect(() => sync?.connect(), [sync])
+  useEffect(() => {
+    if (host.kind === 'ww') sync?.push()
+  }, [host, sync])
 
   return (
     <main className="s2-canvas" aria-label={`${section.label} / ${VIEW_LABEL[place.view] ?? place.view}`}>

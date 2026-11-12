@@ -2,6 +2,40 @@
 
 Running file. Newest dated section on top. Public-safe: no personal details.
 
+## 2026-11-09 (plan): contrast of the three planned themes, and corrections to the proposals
+
+### Question
+
+Do the semantic-tier values proposed for the default theme and two alternates meet WCAG 2.2 contrast (1.4.3 text 4.5:1, 1.4.11 non-text 3:1) on every surface, and which proposed values fail?
+
+### Method
+
+WCAG relative luminance, sRGB, per channel `v/255`, `c = v/12.92` if `v <= 0.03928` else `((v+0.055)/1.055)^2.4`, `L = 0.2126 R + 0.7152 G + 0.0722 B`, ratio `(L1+0.05)/(L2+0.05)`. A translucent ink is blended over the named surface first. Surfaces: Saffron Ash `#050506 #0b0c0f #111317 #181b20`; Vibhuti Paper `#f4f1ea #fbf9f4 #ebe7dd #ffffff`; Indigo Night `#07080f #0c0e1a #0f1220 #161a2c`. Computed with a 60-line script on 2026-11-09 (not kept; the chunk 1 contrast test recomputes everything from the token files).
+
+### Findings (minimum over the four surfaces)
+
+| Pair | Ash | Paper | Indigo |
+|---|---|---|---|
+| ink-1 / ink-2 / ink-3 (56 / 66 / 58 %) | 15.96 / 7.59 / 5.82 | 14.36 / 6.30 / 5.23 | 15.22 / 7.23 / 5.87 |
+| line-ui (40 / 55 / 40 %) | 3.50 | 3.72 | 3.45 |
+| on-accent on accent | 7.36 | 6.50 | 8.06 |
+| accent as text | 6.64 | 5.27 | 7.26 |
+| provenance live / sim / fault | 11.24 / 9.44 / 5.07 | 4.98 / 4.80 / 5.29 | 11.22 / 9.43 / 5.06 |
+
+Corrections to the numbers in the proposals (all fixed in `docs/design/well-wisher-ui.md` 5.2):
+- Ash `--line-ui` at white 34 % computes to 2.82 to 2.96, below 3:1 (a proposal claimed 3.06). At 36 % it is 3.04 on Ash but 3.00 on Indigo, no margin; 40 % gives 3.50 and 3.45.
+- Paper accent `#a63a06` as text on its own 12 % wash on surface-2 is 4.42: fails 4.5. Rule: accent text never sits on the wash; selected states use ink.
+- The proposed Paper "behind" colour `#8a6a2f` is 4.07 on surface-2: fails. `#7a5c25` gives 5.02 or more on all four.
+- Old tokens, recomputed: ink-3 at 42 % = 3.77, ink-4 at 22 % = 1.79, white on saffron = 2.60, dark on saffron = 7.83, a 7 % white hairline on surface-1 = 1.16. The AA floor for ink-3 on Ash surface-3 is about 48 % alpha (4.61).
+- High-contrast knob (ink-3 72 %, line-ui 60 %): ink-3 8.78 Ash, 8.39 Indigo, 6.30 Paper; line 6.45, 6.19, 4.31.
+- Spring damping ratios, arithmetic: 170/22 = 0.84, 260/28 = 0.87, 120/14 = 0.64.
+
+### What it changed
+
+`docs/design/well-wisher-ui.md` section 5.2 (token values and the contrast table) and the contrast and CSS-lint tests in section 8.
+
+---
+
 ## 2026-11-09: placement, motion and design-token principles for the Well Wisher redesign
 
 ### Question

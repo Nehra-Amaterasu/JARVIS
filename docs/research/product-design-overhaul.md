@@ -2,6 +2,18 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-13: A.N01, the What is new gallery
+
+**Question.** Can one place show every merged component in its states so the owner can judge the look without opening the bench, and can it look composed instead of like a test page?
+
+**Built.** `gallery/WhatIsNew` (left index with roving focus, group filter, clay theme, scale, section theme and state switch), 8 entry files that hold all 64 specimens (the bench draws the same data), `collectEntries()`, a wave check tool, 13 vitest checks and a Playwright spec. The gallery no longer imports the clay or Well Wisher stylesheets; only the shell loads the clay layer. This pass: each specimen is drawn at 1.5x by default on a ruled stage with raised state plates, and the phone width hides the duplicate crumb so the plate gets the height.
+
+**Numbers.** tsc clean; vitest 84 files, 1847 tests, twice; bundle budget ok; Playwright gallery.spec 9 pass and 1 skip (Alt+N waits for N02's place), bench.spec unchanged and passing (37 pass, 2 skip across both); wave_check self-tests 6 pass; no document scroll at 1366x768 (canvas 1302x720) or 390x844.
+
+**Unverified.** The jury has not rescored the new look. The Key error state in the kit overlaps its caption (kit code, G01's file, seen in the screenshot). Alt+N is untested until N02 mounts the place.
+
+**Changed.** The default scale moved from 1x to 1.5x; nothing else in the contract.
+
 ## 2026-11-13: wave 4 integrated, the first jury scores, and the preview switch
 
 **Question.** Does the foundation hold together once the shell mounts it, and how does the first render score against the jury rubric (the section dated 2026-11-13 below)?

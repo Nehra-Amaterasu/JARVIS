@@ -40,7 +40,7 @@ export default function WhatIsNew() {
   const [activeId, setActiveId] = useState<string>(() => all[0]?.id ?? '')
   const [solo, setSolo] = useState<number | null>(null)
   const [section, setSection] = useState('')
-  const [scale, setScale] = useState('1')
+  const [scale, setScale] = useState('1.5')
   const [theme, setTheme] = useClayTheme()
   const listRef = useRef<HTMLUListElement>(null)
   const paneRef = useRef<HTMLDivElement>(null)

@@ -142,10 +142,27 @@ a.k-plate:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 
 .k-barcode i[data-w='1'] { width: 2px; }
 .k-barcode i[data-w='2'] { width: 3px; }
 
-.k-panel { --chamfer: var(--chamfer-size, 10px); position: relative; background: var(--edge-ui); padding: 1px; clip-path: polygon(var(--chamfer) 0, 100% 0, 100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%, 0 100%, 0 var(--chamfer)); }
+/* The outer edge layer is the clipped ::before, not the panel's own background: a clip-path on the panel would cut its
+   shade away (the bench showed every Panel with no lift at all), while a drop-shadow filter on an unclipped panel
+   follows the alpha of its clipped layers, so the shade takes the chamfer's shape. The filter is static (nothing on a
+   panel animates a filter) and none in forced colours. */
+.k-panel { --chamfer: var(--chamfer-size, 10px); position: relative; isolation: isolate; padding: 1px; filter: var(--elev-raised-drop, none); }
+.k-panel::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--edge-ui); clip-path: polygon(var(--chamfer) 0, 100% 0, 100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%, 0 100%, 0 var(--chamfer)); }
 .k-panel-in { padding: 16px; background: var(--panel-bg, var(--surface-raised)); clip-path: polygon(var(--chamfer) 0, 100% 0, 100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%, 0 100%, 0 var(--chamfer)); }
-.k-panel[data-state='error'] { background: var(--state-fault); border: 0; }
-.k-panel[data-state='planned'] { background: transparent; }
+.k-panel[data-state='error']::before { background: var(--state-fault); }
+/* The generic [data-state='error'] 2px border must not reach the unclipped panel: it drew a square frame round the
+   chamfer with red corner wedges from ::before. The fault edge is the clipped ::before, 2 px like every error edge.
+   Forced colours keep the generic 2px CanvasText border (the chamfer is a rectangle there). */
+@media not (forced-colors: active) {
+  .k-panel[data-state='error'] { border: 0; padding: 2px; }
+  /* the same for PLANNED: the generic dashed rule gave the unclipped panel a 3 px (medium) square frame over the
+     chamfered .k-panel-dash outline, which is the one PLANNED edge */
+  .k-panel[data-state='planned'] { border: 0; }
+}
+/* the fault line is its own row above the body (inline it ran into the text: "could not loadFaulty panel") */
+.k-panel-in > .k-err, .k-dialog-body > .k-err { display: flex; margin: 0 0 8px; }
+.k-panel[data-state='planned'] { filter: none; }
+.k-panel[data-state='planned']::before { content: none; }
 .k-panel-dash { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: var(--edge-ui); stroke-width: 1; pointer-events: none; }
 .k-panel[data-state='planned'] .k-panel-in { background: transparent; }
 
@@ -342,7 +359,8 @@ a.k-plate:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 
   .k-switch-thumb, .k-knob-cap { border: 2px solid ButtonText; stroke: CanvasText; }
   .k-rocker-half[data-active='true'], .k-switch[data-on='true'], .k-key[data-toggled='true'], .k-tab[aria-selected='true'], .k-palette-row[data-active='true'], .k-console-line[data-cursor='true'] { background: Highlight; color: HighlightText; forced-color-adjust: none; }
   .k-plate, .k-panel, .k-panel-in, .k-toast { clip-path: none; border: 1px solid CanvasText; box-shadow: none; }
-  .k-panel { padding: 0; background: Canvas; }
+  .k-panel { padding: 0; background: Canvas; filter: none; }
+  .k-panel::before { content: none; }
   .k-panel-in { background: Canvas; }
   .k-br { border-color: CanvasText; }
   .k-tick, .k-knob-notch { stroke: CanvasText; }

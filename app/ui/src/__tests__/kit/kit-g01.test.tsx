@@ -135,6 +135,14 @@ describe('the material recipe (elevation.css, contrast.css, forced.css)', () => 
       }
     }
   })
+  it.each(themes)('%s: the raised shade in filter form (for the chamfered panel) is one layer that falls right and down', (_t, e) => {
+    const v = e['--elev-raised-drop']
+    expect(v, '--elev-raised-drop').toMatch(/^drop-shadow\(/)
+    const [x, y] = v.slice('drop-shadow('.length).split(/\s+/).map(parseFloat)
+    expect(x).toBeGreaterThan(0)
+    expect(y).toBeGreaterThan(0)
+    expect(read('forced.css')).toContain('--elev-raised-drop: none')
+  })
   it('the bevel reads the right way round: light theme darkens the bottom lip, dark theme lightens the top lip', () => {
     const [l, d] = [themes[0][1], themes[1][1]]
     const [ls, ds] = [themes[0][2], themes[1][2]]

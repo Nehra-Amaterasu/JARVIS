@@ -17,11 +17,7 @@ import './planned.css'
  */
 export function PlannedGlyph({ unverified, size = 16 }: { unverified?: boolean; size?: number }) {
   if (!unverified) return <Ring size={size} className="pl-glyph" />
-  return (
-    <span className="pl-glyph" style={{ fontSize: size, display: 'inline-flex' }} aria-hidden="true">
-      <LampGlyph state="waiting" />
-    </span>
-  )
+  return <LampGlyph state="waiting" size={size} className="pl-glyph" />
 }
 
 export interface PlannedPlateProps {

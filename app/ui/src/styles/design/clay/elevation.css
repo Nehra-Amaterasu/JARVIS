@@ -19,6 +19,11 @@
         C02-18 reads as glass on a 1366 px laptop panel and costs a third layer);
      4  tooth: the brushed grain of C01-19 and C01-23, a 64 px tile at 2.5 percent (--tooth-opacity), on the ground
         and on raised panels only, never on text wells; 0 in high contrast and in forced colours.
+   DEPTH, second pass (wave 5 finish): the first recipe (2 4 10 px at 16 percent) still read flat on the bench beside
+   the references, whose tiles lift 8 to 20 px. The shade is now 3 6 14 px at 20 percent on controls and 8 18 40 px
+   on overlays, the well is 3 4 8 px deep, and the lit lip catches the top AND the left edge (inset 1px 1px), as one
+   light from the top left would. --elev-raised-drop is the same raised shade in filter form, for a chamfered Panel
+   whose clip-path cuts any box-shadow away; it is not a second ladder.
    The three raised steps keep their built names (--elev-flush on the ground, --elev-raised for controls and cards,
    --elev-float for overlays); --elev-recessed is the one well. No parallel --elev-1..3 or --recess set exists.
 
@@ -40,11 +45,12 @@
   --ridge-lo: var(--p-clay-700);
   --tooth-opacity: 0.025;
 
-  --elev-flush: inset 0 1px 0 var(--lit-hi);
-  --elev-raised: inset 0 1px 0 var(--lit-hi), 2px 4px 10px var(--p-shadow-ink-16);
-  --elev-float: inset 0 1px 0 var(--lit-hi), 6px 14px 32px var(--p-shadow-ink-24);
-  --elev-recessed: inset 2px 3px 5px var(--p-shadow-ink-20), 0 1px 0 var(--p-shadow-white-70);
-  --elev-pressed: inset 1px 2px 4px var(--p-shadow-ink-28);
+  --elev-flush: inset 1px 1px 0 var(--lit-hi);
+  --elev-raised: inset 1px 1px 0 var(--lit-hi), 3px 6px 14px var(--p-shadow-ink-20);
+  --elev-raised-drop: drop-shadow(3px 6px 7px var(--p-shadow-ink-20));
+  --elev-float: inset 1px 1px 0 var(--lit-hi), 8px 18px 40px var(--p-shadow-ink-24);
+  --elev-recessed: inset 3px 4px 8px var(--p-shadow-ink-24), 0 1px 0 var(--p-shadow-white-70);
+  --elev-pressed: inset 2px 3px 5px var(--p-shadow-ink-28);
 }
 
 :root[data-theme='clay-dark'],
@@ -55,9 +61,10 @@
   --ridge-lo: var(--p-char-400);
   --tooth-opacity: 0.025;
 
-  --elev-flush: inset 0 1px 0 var(--lit-hi);
-  --elev-raised: inset 0 1px 0 var(--lit-hi), 2px 5px 12px var(--p-shadow-black-55);
-  --elev-float: inset 0 1px 0 var(--lit-hi), 6px 14px 32px var(--p-shadow-black-60);
-  --elev-recessed: inset 2px 3px 6px var(--p-shadow-black-65), 0 1px 0 var(--p-shadow-white-05);
-  --elev-pressed: inset 1px 2px 5px var(--p-shadow-black-75);
+  --elev-flush: inset 1px 1px 0 var(--lit-hi);
+  --elev-raised: inset 1px 1px 0 var(--lit-hi), 3px 7px 16px var(--p-shadow-black-60);
+  --elev-raised-drop: drop-shadow(3px 7px 8px var(--p-shadow-black-60));
+  --elev-float: inset 1px 1px 0 var(--lit-hi), 8px 18px 40px var(--p-shadow-black-62);
+  --elev-recessed: inset 3px 4px 8px var(--p-shadow-black-75), 0 1px 0 var(--p-shadow-white-06);
+  --elev-pressed: inset 2px 3px 6px var(--p-shadow-black-75);
 }

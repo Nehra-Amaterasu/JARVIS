@@ -345,10 +345,109 @@ for (const theme of THEMES) {
   })
 }
 
+// ------------------------------------------------------------------------------------------------ material branches
+// The clay recipe (20.4.4) as the browser computes it, in its four branches: normal (lit lip, shade, well, grain),
+// high contrast by the in-app switch (grain, lip and wells off; the shade stays as feel, the edge carries the boundary)
+// and forced colours (every shade, grain and the panel's drop filter off). tokens.test.ts proves the OS route
+// (prefers-contrast: more) carries the same declarations as the switch, so one route is measured here.
+interface Material { key: string; well: string; panel: string; grain: number; grainShown: string; errBorder: string; plannedBorder: string }
+const material = (page: Page) =>
+  page.evaluate((): Material => {
+    const q = (s: string) => document.querySelector(s) as HTMLElement
+    const inner = q('.k-panel .k-panel-in')
+    return {
+      key: getComputedStyle(q('.k-key')).boxShadow,
+      well: getComputedStyle(q('.k-switch')).boxShadow,
+      panel: getComputedStyle(q('.k-panel:not([data-state])')).filter,
+      grain: Number(getComputedStyle(inner, '::before').opacity),
+      grainShown: getComputedStyle(inner, '::before').display,
+      // the error panel's edge is its clipped ::before; a box border would frame the chamfer as a square
+      errBorder: getComputedStyle(q(".k-panel[data-state='error']")).borderTopWidth,
+      plannedBorder: getComputedStyle(q(".k-panel[data-state='planned']")).borderTopWidth,
+    }
+  })
+for (const theme of THEMES) {
+  test(`(material) lit lip, shade, well and grain in normal, high-contrast and forced branches [${theme}]`, async ({ page }) => {
+    await openBench(page, theme)
+    const normal = await material(page)
+    expect(normal.key, 'a raised key has the lit lip and a shade').toMatch(/inset/)
+    expect(normal.key.split(/,(?![^(]*\))/).length, 'at most two layers').toBeLessThanOrEqual(2)
+    expect(normal.well, 'the switch track is a well').toMatch(/inset/)
+    expect(normal.panel, 'the chamfered panel casts its shade').toMatch(/drop-shadow/)
+    expect(normal.grain).toBeCloseTo(0.025, 3)
+    expect(normal.errBorder, 'the error panel has no square box border round its chamfer').toBe('0px')
+    expect(normal.plannedBorder, 'the planned panel is drawn by its dashed chamfer, not a square box border').toBe('0px')
+
+    await page.evaluate(() => document.documentElement.setAttribute('data-contrast', 'high'))
+    const hc = await material(page)
+    expect(hc.grain, 'high contrast: no grain').toBe(0)
+    expect(hc.well, 'high contrast: the well is edge only').toBe('none')
+    expect(hc.key, 'high contrast: the lit lip is transparent').toMatch(/rgba\(0, 0, 0, 0\)[^,]*inset|inset[^,]*rgba\(0, 0, 0, 0\)/)
+
+    await page.evaluate(() => document.documentElement.removeAttribute('data-contrast'))
+    await page.emulateMedia({ forcedColors: 'active' })
+    const forced = await material(page)
+    expect(forced.key, 'forced colours: no shade').toBe('none')
+    expect(forced.well).toBe('none')
+    expect(forced.panel, 'forced colours: no drop filter').toBe('none')
+    expect(forced.grainShown, 'forced colours: no grain layer').toBe('none')
+    expect(forced.errBorder, 'forced colours: the error panel keeps its 2 px border').toBe('2px')
+  })
+}
+
+// ------------------------------------------------------------------------------------------------ one accent per view
+// 20.4.4 "Pulse accent": one --accent-fill per view, on the primary action or the current item. The lint resolves the
+// accent through a probe element (a CSS variable is a string until the browser computes it) and counts, per
+// [data-view], the elements whose computed background is that colour. The bench has no data-view of its own, so a
+// canary proves the count: one view with two accent fills (caught) and one with a single fill (passes). Wired here
+// first; the section packages add their views to a page this lint runs on.
+const ACCENT_LINT = `(() => {
+  const probe = document.createElement('i')
+  probe.style.background = 'var(--accent-fill)'
+  document.body.append(probe)
+  const accent = getComputedStyle(probe).backgroundColor
+  probe.remove()
+  const out = {}
+  for (const v of document.querySelectorAll('[data-view]')) {
+    let n = 0
+    for (const el of v.querySelectorAll('*')) if (getComputedStyle(el).backgroundColor === accent) n++
+    out[v.getAttribute('data-view')] = n
+  }
+  return { accent, out }
+})()`
+for (const theme of THEMES) {
+  test(`(accent) at most one accent-filled element per data-view, and the lint catches two [${theme}]`, async ({ page }) => {
+    await openBench(page, theme)
+    await page.evaluate(() => {
+      const view = (id: string, n: number) => {
+        const v = document.createElement('section')
+        v.setAttribute('data-view', id)
+        for (let i = 0; i < n; i++) {
+          const b = document.createElement('button')
+          b.className = 'k-btn'
+          b.setAttribute('data-primary', 'true')
+          b.textContent = `Go ${i}`
+          v.append(b)
+        }
+        document.body.append(v)
+      }
+      view('lint.two', 2)
+      view('lint.one', 1)
+    })
+    const r = (await page.evaluate(ACCENT_LINT)) as { accent: string; out: Record<string, number> }
+    expect(r.accent, 'the accent resolved to a colour').toMatch(/^rgb/)
+    expect(r.out['lint.two'], 'the canary view with two accent fills is caught').toBe(2)
+    expect(r.out['lint.one']).toBe(1)
+    const over = Object.entries(r.out).filter(([id, n]) => !id.startsWith('lint.') && n > 1)
+    expect(over, 'views with more than one accent fill').toEqual([])
+  })
+}
+
 // ------------------------------------------------------------------------------------------------ screenshots
-const SHOTS: { name: string; theme: Theme; forced?: boolean; grey?: boolean }[] = [
+const SHOTS: { name: string; theme: Theme; forced?: boolean; grey?: boolean; hc?: boolean }[] = [
   { name: 'light', theme: 'light' },
   { name: 'dark', theme: 'dark' },
+  { name: 'high-contrast-light', theme: 'light', hc: true },
   { name: 'forced-colors', theme: 'light', forced: true },
   { name: 'greyscale', theme: 'light', grey: true },
 ]
@@ -361,6 +460,7 @@ for (const s of SHOTS) {
       await page.emulateMedia({ reducedMotion: 'reduce', ...(s.forced ? { forcedColors: 'active' as const } : {}) })
       await openBench(page, s.theme)
       if (s.grey) await page.addStyleTag({ content: 'html{filter:grayscale(1)}' })
+      if (s.hc) await page.evaluate(() => document.documentElement.setAttribute('data-contrast', 'high'))
       await page.waitForTimeout(500)
       mkdirSync(OUT, { recursive: true })
       const path = resolve(OUT, `bench-${s.name}-${v.w}x${v.h}.png`)

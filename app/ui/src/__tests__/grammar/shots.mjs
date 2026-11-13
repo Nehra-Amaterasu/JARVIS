@@ -60,6 +60,20 @@ for (const [w, h] of [[1366, 768], [390, 844]]) {
     await ctx.close()
   }
 }
+// the rows a 1x sheet cannot show (16 px day cells, the portrait plates), at 3 device pixels per CSS pixel, light
+for (const theme of ['light', 'dark']) {
+  const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 }, colorScheme: theme, deviceScaleFactor: 3 })
+  const page = await ctx.newPage()
+  await page.route(`${URL_}**`, (r) => r.fulfill({ contentType: 'text/html', body: doc }))
+  await page.goto(`${URL_}?theme=${theme}&calm=1`)
+  await page.locator('[data-shot]').first().waitFor()
+  for (const z of ['sigil-16', 'portraits']) {
+    const f = resolve(OUT, `g02-zoom-${z}-x3-${theme}.png`)
+    await page.locator(`[data-zoom="${z}"]`).screenshot({ path: f })
+    files.push(f)
+  }
+  await ctx.close()
+}
 // forced colours, light, desktop: the CanvasText form
 {
   const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 }, forcedColors: 'active', colorScheme: 'dark' })

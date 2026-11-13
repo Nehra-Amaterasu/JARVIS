@@ -161,29 +161,69 @@ export function AsciiBar({ value, max, width = 10, head, reading, state, label =
   )
 }
 
-/** Heavy glyphs for the ring, light ones for its soft edge (the C04-48 ring of letters, no face). */
-const HEAVY = 'MWNHDB8%#@&$OSY'
-const LIGHT = ':;+=-/\\|.'
+// The portrait (C04-48 family: a ring of glyphs, no face). Why it is drawn, not scattered: the first sheet placed
+// random heavy glyphs in a ring and laid the initials over them, and the jury read the blocks as noise with the
+// letters lost inside. Now the plate is a shape with an outline and a shaded band, mirror-true, with a clear window
+// of 7 x 3 cells (42 x 36 px) in the middle that nothing is drawn into, so the initials sit on the ground.
+export const PORTRAIT_COLS = 21
+export const PORTRAIT_ROWS = 11
+/** The clear window: |dx| <= 3 cells, |dy| <= 1 row from the centre cell. */
+export const PORTRAIT_WINDOW = { dx: 3, dy: 1 } as const
+const PORTRAIT_SHAPES = ['circle', 'octagon', 'diamond'] as const
+/** Three shading families, light to heavy: r10 middle-to-top, the caret ramp, and a hatch. */
+const PORTRAIT_SHADES = ['-=+*#%@', '.:^AM', ':;=x%#'] as const
+export interface PortraitPlan { shape: (typeof PORTRAIT_SHAPES)[number]; shade: string; tilt: number; ticks: boolean }
 
-/** The ring as text, from the initials hash: 17 x 9 cells, hollow centre. Pure, so it has golden bytes. */
-export function portraitText(initials: string): string {
+export function portraitPlan(initials: string): PortraitPlan {
   const rnd = mulberry32(fnv1a32(`portrait:${initials}`))
-  const cols = 17, rows = 9
+  const shape = PORTRAIT_SHAPES[Math.floor(rnd() * PORTRAIT_SHAPES.length)]
+  const shade = PORTRAIT_SHADES[Math.floor(rnd() * PORTRAIT_SHADES.length)]
+  // the light comes from one of 8 directions, so the band is heavy on one side as the reference rings are
+  const tilt = Math.floor(rnd() * 8)
+  const ticks = rnd() < 0.5
+  return { shape, shade, tilt, ticks }
+}
+
+/**
+ * The plate as text: 21 x 11 cells (the 6 x 12 px atmosphere cell: 126 x 132 px, a circle in pixels). The outline
+ * is an edge pass (| - / \ by the outline's direction, + at the four compass points when the seed says so), a dotted
+ * inner rim, and a band shaded by a light from `tilt`. Pure and deterministic, so it has golden bytes.
+ */
+export function portraitText(initials: string): string {
+  const { shape, shade, tilt, ticks } = portraitPlan(initials)
+  const cols = PORTRAIT_COLS, rows = PORTRAIT_ROWS
   const cx = (cols - 1) / 2, cy = (rows - 1) / 2
-  const tilt = rnd() * Math.PI * 2
+  // half a cell past the grid, so the top and bottom outline is a flat run of 7 to 9 cells, not a single point
+  const RX = cx + 0.45, RY = cy + 0.45
+  const dist = (x: number, y: number): number => {
+    const nx = (x - cx) / RX, ny = (y - cy) / RY
+    const ax = Math.abs(nx), ay = Math.abs(ny)
+    if (shape === 'circle') return Math.hypot(nx, ny)
+    if (shape === 'octagon') return Math.max(ax, ay, (ax + ay) * 0.74)
+    return (ax + ay) * 0.9
+  }
+  const inner = shape === 'diamond' ? 0.6 : 0.52
+  const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < cols && y < rows && dist(x, y) <= 1
+  const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const
+  const lightA = (tilt * Math.PI) / 4
   const out: string[] = []
   for (let y = 0; y < rows; y++) {
     let ln = ''
     for (let x = 0; x < cols; x++) {
-      const dx = (x - cx) / (cols / 2), dy = (y - cy) / (rows / 2)
-      const d = Math.hypot(dx, dy)
-      const a = Math.atan2(dy, dx)
-      // the ring is heavier on one side (a light from `tilt`), as the reference rings are
-      const lit = 0.5 + 0.5 * Math.cos(a - tilt)
-      const r = rnd()
-      if (d > 1.04 || d < 0.5) ln += ' '
-      else if (d > 0.6 && d < 0.95 && r < 0.62 + 0.38 * lit) ln += HEAVY[Math.floor(rnd() * HEAVY.length)]
-      else ln += r < 0.45 + 0.4 * lit ? LIGHT[Math.floor(rnd() * LIGHT.length)] : ' '
+      const d = dist(x, y)
+      const win = Math.abs(x - cx) <= PORTRAIT_WINDOW.dx && Math.abs(y - cy) <= PORTRAIT_WINDOW.dy
+      if (d > 1 || win || d < inner) { ln += ' '; continue }
+      if (N4.some(([dx, dy]) => !inside(x + dx, y + dy))) {
+        if (ticks && (x === cx || y === cy)) { ln += '+'; continue }
+        // the outline glyph follows the outline: the gradient of the distance, scaled to cells
+        const gx = (dist(x + 0.5, y) - dist(x - 0.5, y)) * RX, gy = (dist(x, y + 0.5) - dist(x, y - 0.5)) * RY
+        const ax = Math.abs(gx), ay = Math.abs(gy)
+        ln += ax > 2.2 * ay ? '|' : ay > 2.2 * ax ? '-' : gx * gy > 0 ? '/' : '\\'
+        continue
+      }
+      if (N4.some(([dx, dy]) => dist(x + dx, y + dy) < inner)) { ln += '.'; continue }
+      const lit = 0.5 + 0.5 * Math.cos(Math.atan2((y - cy) / RY, (x - cx) / RX) - lightA)
+      ln += shade[Math.min(shade.length - 1, Math.floor((0.15 + 0.85 * lit) * shade.length))]
     }
     out.push(ln.replace(/\s+$/, ''))
   }
@@ -196,11 +236,11 @@ export interface AsciiPortraitProps {
   initials: string
 }
 
-/** A person, as a ring of heavy glyphs around their initials: never a face (spec 19, 20.4.2). */
+/** A person, as a framed glyph plate around their initials: never a face (spec 19, 20.4.2). */
 export function AsciiPortrait({ initials }: AsciiPortraitProps) {
   const ini = cleanInitials(initials)
   return (
-    <figure className="g-portrait" data-grammar="ascii" role="img" aria-label={`Initials ${ini.split('').join(' ')}`}>
+    <figure className="g-portrait" data-grammar="ascii" data-shape={portraitPlan(ini).shape} role="img" aria-label={`Initials ${ini.split('').join(' ')}`}>
       <pre aria-hidden="true">{portraitText(ini)}</pre>
       <span className="g-initials" aria-hidden="true">{ini}</span>
     </figure>

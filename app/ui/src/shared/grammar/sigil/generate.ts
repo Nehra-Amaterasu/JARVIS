@@ -27,8 +27,12 @@ const C = VIEW / 2
 const FIT = 22.4
 export const MAX_SEGMENTS = 60
 export const MAX_BYTES = 3072
-/** Segment budget by display size: a 16 px cell cannot hold 60 strokes and still read. */
-export const SIZE_BUDGET: Record<SigilSize, number> = { 16: 20, 24: 36, 48: MAX_SEGMENTS }
+/**
+ * Segment budget by display size. 16 px is 32, not 20: the micro glyph spends its segments on filled tips and a
+ * frame (a filled 2 px diamond costs 4 segments but reads as one blob), which is what makes a day cell
+ * recognisable; the old 20-segment cut left bare spokes, and 13 of the 16 sheet seeds read as + or *.
+ */
+export const SIZE_BUDGET: Record<SigilSize, number> = { 16: 32, 24: 36, 48: MAX_SEGMENTS }
 /** Primitive scale by size: small glyphs draw their primitives larger so a stroke is not lost in a pixel. */
 const SIZE_SCALE: Record<SigilSize, number> = { 16: 1.6, 24: 1.25, 48: 1 }
 const STROKE_PX: Record<Weight, string> = { 1: '1', 2: '1.5', 3: '2' }
@@ -223,8 +227,9 @@ function emit(p: Plan, size: SigilSize, budget: number, layerCount: number, fitR
       used += cost
     }
   }
-  // the big size keeps every layer; 24 px keeps the two heaviest that fit and 16 px the heaviest that fits (drawn in
-  // their own order), because ink, not position, is what survives a small size; growth keeps inner layers first
+  // the big size keeps every layer; 24 px keeps the two heaviest that fit (drawn in their own order), because ink,
+  // not position, is what survives a small size; growth keeps inner layers first. 16 px never comes here: it has
+  // its own micro grammar (microEmit), and the 16 entries of the tables above only keep emit total over SigilSize
   const layers = p.layers.slice(0, layerCount)
   const keepN = size === 48 ? layers.length : size === 24 ? 2 : 1
   const indexed = layers.map((l, i) => ({ l, i, h: HEFT[l.prim] }))
@@ -265,6 +270,152 @@ function emit(p: Plan, size: SigilSize, budget: number, layerCount: number, fitR
   return { placed: fitAll(placed, fitR), segments: used }
 }
 
+// ---------------------------------------------------------------- the 16 px micro glyph
+//
+// Why a grammar of its own: 16 px is 3 view units per pixel, so a 1 px hair, a tick ruler or a 3-unit rune is gone
+// and only the strokes of the old "heaviest layer" survived: spokes, which read as + and * (13 of the 16 sheet
+// seeds on 13 Nov). A day cell needs a silhouette, so the micro glyph is built from parts that are each at least
+// 2 px on screen: an outer frame or a small sun ring, n arms, a terminal on every arm, and a centre. Its fold and
+// rotation are the big glyph's; its arm terminal comes from the big glyph's heaviest layer and its frame from the big
+// glyph's ring, so a day cell still reads as the same family as the 48 px empty state of the same id.
+
+export type MicroLayout = 'emblem' | 'sun' | 'star'
+export type MicroFrame = 'circle' | 'poly' | 'brackets' | 'none'
+export type MicroArm = 'spoke' | 'tbar' | 'fork' | 'tip' | 'dot' | 'blade'
+export type MicroCore = 'solid' | 'dot' | 'ring' | 'none'
+export interface MicroPlan { layout: MicroLayout; frame: MicroFrame; arm: MicroArm; core: MicroCore; polyPhase: boolean }
+
+/** The terminal each big-glyph primitive becomes at 16 px: the part of its shape that survives a 2 px stroke. */
+const ARM_OF: Record<PrimitiveName, MicroArm> = {
+  thorn: 'blade', spiral: 'blade', diamond: 'tip', chain: 'tip', tri: 'tip', xmark: 'fork', bracket: 'fork',
+  stripes: 'tbar', cross: 'tbar', hex: 'dot', circle: 'dot', arc: 'spoke', ticks: 'spoke', letters: 'spoke',
+}
+/** Segments per arm by terminal (the arm line included), for the budget check before anything is drawn. */
+const ARM_COST: Record<MicroArm, number> = { spoke: 1, tbar: 2, fork: 3, tip: 5, dot: 3, blade: 3 }
+/** When a fold makes the glyph too dense, a terminal steps down this ladder (cheaper, still not a bare spoke). */
+const ARM_DOWN: Partial<Record<MicroArm, MicroArm>> = { tip: 'dot', dot: 'tbar', fork: 'tbar' }
+
+function microPlanOf(id: string, p: Plan): MicroPlan {
+  // a stream of its own, so the micro choices never shift the big glyph's draws (the 24 and 48 px goldens hold)
+  const rnd = mulberry32(fnv1a32(`micro:${id}`))
+  const r1 = rnd(), r2 = rnd(), r3 = rnd()
+  let lead: LayerPlan | null = null
+  for (const l of p.layers) if (!lead || HEFT[l.prim] > HEFT[lead.prim]) lead = l
+  let arm: MicroArm = lead ? ARM_OF[lead.prim] : 'spoke'
+  // a 4-fold ring of bent blades is a hooked cross, a form this product never draws: a fork keeps the blade's spread
+  if (arm === 'blade' && p.fold === 4) arm = 'fork'
+  let frame: MicroFrame
+  if (p.ring === 'solid') frame = 'circle'
+  else if (p.ring === 'dash') frame = p.fold === 4 ? 'brackets' : 'poly'
+  else frame = pickWeighted(r1, ['none', 'poly', 'circle'] as const, [3, 2, 1])
+  const coreOf: Record<string, MicroCore> = { diamond: 'solid', hex: 'solid', circle: 'dot', cross: 'none', xmark: 'none' }
+  let core: MicroCore = p.core ? (p.core.prim === 'circle' && p.core.v >= 0.35 ? 'ring' : coreOf[p.core.prim]) : 'ring'
+  let layout: MicroLayout = frame === 'none' ? 'star' : r2 < 0.5 ? 'emblem' : 'sun'
+  // never a bare asterisk: at least two of frame, centre and a terminal
+  const feats = () => (frame !== 'none' ? 1 : 0) + (core !== 'none' ? 1 : 0) + (arm !== 'spoke' ? 1 : 0)
+  if (feats() < 2 && core === 'none') core = 'solid'
+  if (feats() < 2) { frame = 'circle'; layout = 'sun' }
+  // a frameless star of straight arms with T, fork or plain ends still reads as a plus at 16 px (4 of 16 sheet seeds
+  // on the first micro pass, 2 more with forks on the second): those get the frame, corner chevrons at fold 4, an
+  // n-gon otherwise; only a blade, a filled tip or a dot terminal carries a frameless star
+  if (layout === 'star' && (arm === 'tbar' || arm === 'spoke' || arm === 'fork')) { frame = p.fold === 4 ? 'brackets' : 'poly'; layout = 'emblem' }
+  // corner chevrons only read on the outer frame: on the 9.5-unit sun ring their arms are about 1 px long
+  if (frame === 'brackets') layout = 'emblem'
+  // an 8-fold centre cannot be an octagon at 16 px (it is a dot): say so in the plan, so the plan is what is drawn
+  if (core === 'solid' && p.fold === 8) core = 'dot'
+  const plan: MicroPlan = { layout, frame, arm, core, polyPhase: r3 < 0.5 }
+  while (microCost(plan, p.fold) > SIZE_BUDGET[16]) {
+    const down = ARM_DOWN[plan.arm]
+    if (down) plan.arm = down
+    else if (plan.frame === 'poly' || plan.frame === 'brackets') plan.frame = 'circle'
+    else if (plan.core === 'solid') plan.core = 'dot'
+    else break
+  }
+  return plan
+}
+
+function microCost(m: MicroPlan, n: number): number {
+  const frame = m.frame === 'circle' ? 2 : m.frame === 'poly' ? n : m.frame === 'brackets' ? 8 : 0
+  const core = m.core === 'solid' ? n : m.core === 'none' ? 0 : 2
+  return ARM_COST[m.arm] * n + frame + core
+}
+
+/** For tests and the jury sheet: what the 16 px glyph of an id is made of. */
+export function microPlan(id: string, fold?: SigilFold): MicroPlan {
+  return microPlanOf(id, plan(id, fold, false))
+}
+
+const lineMark = (w: Weight, subs: Sub[]): Mark => ({ w, style: 'line', subs })
+const fillMark = (subs: Sub[]): Mark => ({ w: 3, style: 'fill', subs })
+const msub = (x: number, y: number, ...pts: Pt[]): Sub => ({ m: [x, y], segs: pts.map((q) => ({ k: 'L', p: q }) as Seg) })
+const closed = (s: Sub): Sub => ({ ...s, segs: [...s.segs, { k: 'Z' }] })
+
+/**
+ * The micro glyph's parts in growth order (centre, arms, terminals, frame), each a list of placed marks. `parts`
+ * is how many of the four are drawn (4 for a seed glyph). Geometry in view units: 3 units are 1 px at 16 px, so
+ * nothing here is narrower than 6 units apart or shorter than 7.
+ */
+function microEmit(p: Plan, m: MicroPlan, parts: number): { placed: Placed[]; segments: number } {
+  const n = p.fold
+  const step = (2 * Math.PI) / n
+  const hasCore = m.core !== 'none'
+  // emblem: arms inside a big frame; sun: a small ring with arms rayed out of it; star: arms from the centre
+  const g = m.layout === 'emblem' ? { R: 20.5, a0: hasCore ? 7 : 4, a1: 13.5 }
+    : m.layout === 'sun' ? { R: 9.5, a0: 9.5, a1: 18.5 }
+    : { R: 0, a0: hasCore ? 7 : 4, a1: 18.5 }
+  const placed: Placed[] = []
+  let used = 0
+  const put = (marks: Mark[], theta: number) => { placed.push(...place(marks, theta, 0, false)); used += segmentsOf(marks) }
+  const ring = (marks: Mark[], phase = 0) => { for (let k = 0; k < n; k++) put(marks, p.rot + phase + k * step) }
+  const view = (mark: Mark) => { placed.push(mark); used += segmentsOf([mark]) }
+
+  // 1. the centre (drawn once; its own symmetry is n-fold: a dot, a ring, or a filled n-gon for n = 4 or 6)
+  {
+    const cs = m.layout === 'sun' ? 4.4 : 4.8
+    if (m.core === 'dot') view(fillMark([circleSub(C, C, 2.8)]))
+    else if (m.core === 'ring') view(lineMark(2, [circleSub(C, C, m.layout === 'sun' ? 4.4 : 4.6)]))
+    else if (m.core === 'solid') {
+      const pts: Pt[] = Array.from({ length: n }, (_, i) => [cs * Math.sin(i * step), cs * Math.cos(i * step)] as Pt)
+      put([fillMark([closed(msub(pts[0][0], pts[0][1], ...pts.slice(1)))])], p.rot)
+    }
+  }
+  // 2. the arms (a blade is the arm and its terminal in one filled curve, chiral, never at fold 4)
+  const end = m.arm === 'tip' ? g.a1 - 3.4 : m.arm === 'dot' ? g.a1 - 2.4 : g.a1
+  if (parts >= 2) {
+    if (m.arm === 'blade') {
+      const len = g.a1 + 2 - g.a0
+      ring([fillMark([{ m: [-1.7, g.a0], segs: [
+        { k: 'Q', c: [-2, g.a0 + len * 0.6], p: [4.6, g.a1 + 2] },
+        { k: 'Q', c: [0.5, g.a0 + len * 0.45], p: [1.5, g.a0] },
+        { k: 'Z' },
+      ] }])])
+    } else ring([lineMark(3, [msub(0, g.a0, [0, end])])])
+  }
+  // 3. the terminals
+  if (parts >= 3) {
+    const a = g.a1
+    if (m.arm === 'tbar') ring([lineMark(3, [msub(-3.6, a, [3.6, a])])])
+    else if (m.arm === 'fork') ring([lineMark(3, [msub(-3.4, a + 3.4, [0, a], [3.4, a + 3.4])])])
+    else if (m.arm === 'tip') ring([fillMark([closed(msub(0, a - 3.4, [2.6, a], [0, a + 3.4], [-2.6, a]))])])
+    else if (m.arm === 'dot') ring([fillMark([circleSub(0, a, 2.4)])])
+  }
+  // 4. the frame: a circle, an n-gon (vertices on the arms or between them), or four corner chevrons (fold 4)
+  if (parts >= 4 && m.frame !== 'none') {
+    const w: Weight = m.layout === 'sun' ? 3 : 2
+    if (m.frame === 'circle') view(lineMark(w, [circleSub(C, C, g.R)]))
+    else if (m.frame === 'poly') {
+      const ph = p.rot + (m.polyPhase ? step / 2 : 0)
+      const at = (i: number): Pt => [C + g.R * Math.sin(ph + i * step), C - g.R * Math.cos(ph + i * step)]
+      const [x0, y0] = at(0)
+      view(lineMark(w, [closed(msub(x0, y0, ...Array.from({ length: n - 1 }, (_, i) => at(i + 1))))]))
+    } else {
+      const k = 5
+      ring([lineMark(w, [msub(-k, g.R - k, [0, g.R], [k, g.R - k])])], step / 2)
+    }
+  }
+  return { placed: fitAll(placed, FIT), segments: used }
+}
+
 const CACHE = new Map<string, SigilModel>()
 const CACHE_MAX = 256
 function cached(key: string, make: () => SigilModel): SigilModel {
@@ -289,6 +440,17 @@ export function sigilModel(id: string, o: SigilOptions = {}): SigilModel {
   const key = `s|${size}|${o.fold ?? ''}|${mode}|${mode === 'growth' ? stage : ''}|${id}`
   return cached(key, () => {
     const p = plan(id, o.fold, false)
+    if (size === 16) {
+      // growth at 16 px: the centre first, then arms, terminals and the frame (4 parts), never fewer as stage rises
+      const parts = mode === 'growth' ? 1 + Math.ceil(stage * 3) : 4
+      let { placed, segments } = microEmit(p, microPlanOf(id, p), parts)
+      if (segments === 0) {
+        // a growth stage 0 glyph with no centre: one filled dot, so the cell is never empty
+        placed = [{ w: 3, style: 'fill', subs: [circleSub(C, C, 2.8)] }]
+        segments = 2
+      }
+      return { size, fold: p.fold, seed: seedHex(id), segments, paths: group(placed) }
+    }
     const n = mode === 'growth' ? Math.ceil(stage * p.layers.length) : p.layers.length
     const { placed, segments } = emit(p, size, SIZE_BUDGET[size], n, FIT)
     return { size, fold: p.fold, seed: seedHex(id), segments, paths: group(placed) }

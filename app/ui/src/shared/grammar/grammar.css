@@ -1,7 +1,8 @@
 /* ==========================================================================
    The three grammars (spec 20.4): sigil, ASCII and terminal, as tokens and component rules.
 
-   No literal colour here: hex lives only in styles/design/clay/primitive-color.css (G01 owns it).
+   No literal colour here: hex lives only in the clay layer's primitive-color.css (G01 owns it; the
+   path is not spelled out because tokens.test.ts flags any file outside Shell v2 that names it).
    Every colour is a var() of a built role with a fallback, so this file also renders before the
    clay layers are imported (the fallbacks are currentColor and the system colours).
 
@@ -189,8 +190,16 @@
 .g-bar[data-hollow='true'] .g-bar-track { color: var(--ink-3, currentColor); }
 
 .g-portrait { display: inline-grid; place-items: center; position: relative; margin: 0; color: var(--ink-2, currentColor); }
-.g-portrait > pre { margin: 0; font: 700 10px/10px var(--font-mono, ui-monospace, monospace); white-space: pre; user-select: none; }
-.g-portrait > .g-initials { position: absolute; font: 600 14px/16px var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; color: var(--ink-1, currentColor); }
+/* the plate on the 6 x 12 atmosphere cell (21 x 11 cells = 126 x 132 px); the initials sit in its clear 42 x 36 px
+   window, centred because the plate is mirror-true about its centre cell */
+.g-portrait > pre { margin: 0; font: 700 10px/var(--ascii-atmo-h) var(--font-mono, ui-monospace, monospace); white-space: pre; user-select: none; }
+.g-portrait > .g-initials {
+  position: absolute;
+  font: 700 18px/20px var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.06em;
+  margin-inline-end: -0.06em;
+  color: var(--ink-1, currentColor);
+}
 
 /* ---------------------------------------------------------------- terminal */
 
@@ -303,6 +312,9 @@
   .g-rule { block-size: 8px; }
   .g-rule > svg { block-size: 8px; }
   .g-well { inline-size: 100%; box-sizing: border-box; font-size: 12px; line-height: 18px; padding-inline-start: 22px; }
+  /* a typed line is a fixed width in ch and clips (white-space: pre, overflow hidden), so on a phone a line longer
+     than the well lost its tail; here it shows at once and wraps with the 2-character hanging indent like any line */
+  .g-line[data-typed='true'] > .g-typed { display: inline; white-space: pre-wrap; inline-size: auto !important; overflow: visible; animation: none; }
 }
 
 /* ---------------------------------------------------------------- calm and reduced motion: the static form */

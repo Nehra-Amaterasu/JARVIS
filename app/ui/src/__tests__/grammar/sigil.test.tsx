@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { mount } from '../ww/_stubs'
 import {
-  GlyphRule, MAX_BYTES, MAX_SEGMENTS, PRIMITIVES, PRIMITIVE_NAMES, SIZE_BUDGET, Seal, Sigil, SigilFrame, fnv1a32, mulberry32,
+  GlyphRule, MAX_BYTES, MAX_SEGMENTS, PRIMITIVES, PRIMITIVE_NAMES, SIZE_BUDGET, Seal, Sigil, SigilFrame, fnv1a32, microPlan, mulberry32,
   sigilModel, sigilStats, sigilSvg, type SigilFold, type SigilSize,
 } from '../../shared/grammar'
 import { sigilCacheSize } from '../../shared/grammar/sigil/generate'
@@ -186,6 +186,59 @@ describe('privacy and options', () => {
   })
   it('a smaller size keeps the same fold as the big one (same id, same family)', () => {
     for (const id of ids(50, 'fam')) expect(sigilModel(id, { size: 16 }).fold).toBe(sigilModel(id, { size: 48 }).fold)
+  })
+})
+
+describe('the 16 px micro glyph', () => {
+  it('is n-fold symmetric point for point, like the big glyph (fold 4, 6, 8; 60 seeds each)', () => {
+    for (const fold of [4, 6, 8] as SigilFold[]) for (const id of ids(60, `msym${fold}`)) {
+      const pts = points(sigilSvg(id, { fold, size: 16 }))
+      const a = (2 * Math.PI) / fold
+      const cs = Math.cos(a), sn = Math.sin(a)
+      for (const [x, y] of pts) {
+        const rx = 24 + (x - 24) * cs - (y - 24) * sn
+        const ry = 24 + (x - 24) * sn + (y - 24) * cs
+        expect(Math.min(...pts.map(([u, v]) => Math.hypot(u - rx, v - ry))), `${id} fold ${fold}`).toBeLessThan(0.25)
+      }
+    }
+  })
+  it('is never a bare plus or asterisk: a frame, a centre or a terminal, at least two of them, on 500 ids', () => {
+    for (const id of ids(500, 'micro')) {
+      const mp = microPlan(id)
+      const feats = (mp.frame !== 'none' ? 1 : 0) + (mp.core !== 'none' ? 1 : 0) + (mp.arm !== 'spoke' ? 1 : 0)
+      expect(feats, id).toBeGreaterThanOrEqual(2)
+      // a frameless star only with a terminal that is a filled shape (a blade, a tip or a dot), never T, fork or plain
+      if (mp.frame === 'none') expect(['blade', 'tip', 'dot'], id).toContain(mp.arm)
+      // and the markup is more than open straight strokes: a second weight, a fill, a curve, an arc or a closed shape
+      const svg = sigilSvg(id, { size: 16 })
+      const paths = svg.match(/<path /g)!.length
+      expect(paths > 1 || /[QAZ]/.test(svg.match(/ d="([^"]*)"/)![1]), id).toBe(true)
+    }
+  })
+  it('separates seeds: 300 ids give at least 60 distinct part plans (fold, layout, frame, terminal, centre)', () => {
+    const sig = new Set(ids(300, 'mdist').map((id) => {
+      const mp = microPlan(id)
+      return `${sigilModel(id).fold}|${mp.layout}|${mp.frame}|${mp.arm}|${mp.core}`
+    }))
+    console.info(`micro glyph: ${sig.size} distinct part plans over 300 ids`)
+    expect(sig.size).toBeGreaterThanOrEqual(60)
+  })
+  it('never draws a 4-fold ring of bent blades (a hooked cross)', () => {
+    for (const id of ids(300, 'hook')) expect(microPlan(id, 4).arm).not.toBe('blade')
+  })
+  it('keeps the family: the terminal comes from the big glyph and the fold is the same', () => {
+    for (const id of ids(50, 'mfam')) {
+      expect(sigilModel(id, { size: 16 }).fold).toBe(sigilModel(id).fold)
+      expect(sigilSvg(id, { size: 16 })).toContain(`data-seed="${sigilModel(id).seed}"`)
+    }
+  })
+  it('grows centre first and never draws less as the stage rises', () => {
+    for (const id of ids(40, 'mgrow')) {
+      const segs = [0, 0.25, 0.5, 0.75, 1].map((stage) => sigilModel(id, { size: 16, mode: 'growth', stage }).segments)
+      for (let i = 1; i < segs.length; i++) expect(segs[i]).toBeGreaterThanOrEqual(segs[i - 1])
+      expect(segs[0]).toBeGreaterThan(0)
+      expect(segs[4]).toBe(sigilModel(id, { size: 16 }).segments)
+    }
   })
 })
 

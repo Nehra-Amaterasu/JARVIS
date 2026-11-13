@@ -5,7 +5,7 @@
 //
 // Every number here is a bench fixture and says so: each data form carries a SIMULATED lamp.
 import type { ReactNode } from 'react'
-import { Lamp, LAMP_STATES, type LampReading } from '../lamp'
+import { Lamp, LAMP_SPECS, LAMP_STATES, type LampReading } from '../lamp'
 import { AsciiBar, AsciiHeat, AsciiPlate, AsciiPortrait } from './ascii/Ascii'
 import { RAMPS, sparkline } from './ascii/ramps'
 import { fnv1a32, mulberry32 } from './sigil/hash'
@@ -44,9 +44,10 @@ export function caretField(cols = 72, rows = 16, seed = 'plate.caret'): string {
 
 const MONTH = [0, 2, 3, 1, 0, 5, 7, 4, 2, NaN, 0, 3, 6, 8, 2, 1, 0, 0, 4, 5, 3, 2, 9, 6, 1, 0, 2, 3, 4, 1]
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
+/** `zoom` names a row the jury script also shoots at 3x device pixels (the 16 px cells are 16 px on a 1x sheet). */
+function Row({ label, children, zoom }: { label: string; children: ReactNode; zoom?: string }) {
   return (
-    <div className="gs-row">
+    <div className="gs-row" data-zoom={zoom}>
       <span className="gs-label">{label}</span>
       <div className="gs-items">{children}</div>
     </div>
@@ -59,7 +60,9 @@ export function SigilSheet() {
       <div className="gs-hero">{SHEET_SEEDS.slice(0, 8).map((s) => <Sigil key={s} seed={s} size={48} />)}</div>
       <Row label="48 px, seed glyph">{SHEET_SEEDS.map((s) => <Sigil key={s} seed={s} size={48} />)}</Row>
       <Row label="24 px, tree node">{SHEET_SEEDS.map((s) => <Sigil key={s} seed={s} size={24} />)}</Row>
-      <Row label="16 px, day cell">{SHEET_SEEDS.map((s) => <Sigil key={s} seed={s} size={16} />)}</Row>
+      <Row label="16 px, day cell" zoom="sigil-16">{SHEET_SEEDS.map((s) => <Sigil key={s} seed={s} size={16} />)}</Row>
+      {/* stages 0, 0.2, 0.5, 1 are parts 1 to 4: centre, arms, terminals, frame */}
+      <Row label="16 px growth 0 to 1">{[0, 0.2, 0.5, 1].map((g) => <Sigil key={g} seed="day.month" mode="growth" stage={g} size={16} />)}</Row>
       <Row label="fold 4, 6, 8">{[4, 6, 8].map((f) => <Sigil key={f} seed="unit.waves" fold={f} size={48} />)}{[4, 6, 8].map((f) => <Sigil key={`c${f}`} seed="core" fold={f} size={48} />)}</Row>
       <Row label="growth 0 to 1">{[0, 0.25, 0.5, 0.75, 1].map((g) => <Sigil key={g} seed="tree.node.optics" mode="growth" stage={g} size={48} />)}</Row>
       <Row label="drawn-in, accent">
@@ -120,8 +123,8 @@ export function AsciiSheet() {
           <AsciiBar value={4} max={10} state="waiting" label="Spend" reading={<Lamp reading={WAIT} />} />
           <div className="gs-spark"><code>{sparkline([12, 18, 15, 22, NaN, 30, 41, 38, 26, 33, 45, 40])}</code> <Lamp reading={SIM} subject="Minutes" /></div>
         </div>
-        <div className="gs-portraits">
-          {['AN', 'KR', 'MS', 'TJ'].map((i) => <AsciiPortrait key={i} initials={i} />)}
+        <div className="gs-portraits" data-zoom="portraits">
+          {['AN', 'KR', 'MS', 'TJ', 'BLD', 'Q'].map((i) => <AsciiPortrait key={i} initials={i} />)}
         </div>
       </div>
     </div>
@@ -131,10 +134,12 @@ export function AsciiSheet() {
 export function TermSheet() {
   return (
     <div className="gs-block gs-term">
-      <TermWell prompt="jarvis console.logs $" label="Console log">
-        {LAMP_STATES.map((s) => <TermLine key={s} tag={s}>{`${s === 'live' ? 'voice level 0.42' : s === 'simulated' ? 'senses fixture replay' : s === 'waiting' ? 'board report' : s === 'planned' ? 'calendar link' : 'relay 3 did not answer'}`}</TermLine>)}
-        <TermLine kind="err">relay-timeout: the board did not answer in 2 s</TermLine>
-        <TermLine>try: reconnect the board</TermLine>
+      {/* a legend, not a log: a fixture line under [LIVE] or [FAULT] would show invented data as measured, so each
+          tag line says what its lamp means (read from LAMP_SPECS) and the error line carries no number */}
+      <TermWell prompt="jarvis console.logs $" label="Console log, tag legend">
+        {LAMP_STATES.map((s) => <TermLine key={s} tag={s}>{LAMP_SPECS[s].means.toLowerCase()}</TermLine>)}
+        <TermLine kind="err">specimen: an error line names its code, then its reason</TermLine>
+        <TermLine>try: the action, as a real button in a view</TermLine>
       </TermWell>
       <TermWell prompt="ww day.today $" label="Boot">
         <BootSequence rows={['heard', 'working: reading syllabus index', 'done']} onDone={() => {}} />

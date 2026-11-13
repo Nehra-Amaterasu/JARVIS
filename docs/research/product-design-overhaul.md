@@ -2,6 +2,18 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-13: D04 Capture line (wave 6)
+
+**Question.** Can one prompt line serve both Well Wisher capture (`spent 120 chai`, `water 250`, `gym legs 45`, `remind me next tue 7 pm physics`) and the JARVIS closed-verb lines, with a local deterministic tokenizer that never guesses, and still look like an instrument rather than a text box?
+
+**Built.** `shared/capture/`: `parse.ts` (`parseWw(text, now)`, `parseJarvis`, `parseCapture`, `rewrite`; no eval, no shell, no network, input capped at 160 characters), `when.ts` (weekday, month-end, year-end, leap-day and time resolution against an injected clock), `layout.ts` (pure status, chip, caret and history functions with named constants), `CaptureLine.tsx` and `capture.css` (recessed well, HUD corner brackets, sigil tag, a drawn solid block cursor because the native caret blinks, editable chips beneath, "? what is 120" waits, Enter commits, 6 s Undo toast through the kit's NotchedToast, Ctrl+Space through one shared window listener for `ww` only). Gallery entry `d04-capture.tsx` (two entries, 12 states, a reading table on a fixed clock of Fri 13 Nov 2026 10:30). `e2e/d04-capture.spec.ts` (keyboard, idle, screenshots).
+
+**Numbers.** vitest in `shared/capture`: 143 tests in 3 files (30 phrases as written, 10 ambiguous that wait, weekdays, month and year ends, leap days, times, rewrite round trip, no-execution and closed-verb cases). Playwright: 6 of 6 (ask on "120" and Enter commits nothing; clear line commits and clears; Undo restores the text; Ctrl+Space focuses from elsewhere; jarvis "unknown verb; try help" holds; cursor animation none, 0 rAF and 0 running animations in 1.5 s idle; no document scroll at 1366 x 768; no horizontal scroll and 44 px targets at 390 px).
+
+**Unverified.** The tokenizer reads English words and 12-hour times only (no other language, no relative phrases beyond the table). The phone gallery pane scrolls inside itself, so the phone screenshots of single states are partly covered by the sticky switch row; the component itself is not clipped at 390 px. Forced-colours was not screenshotted. Chips show the person's typed words, never a measurement, so no lamp is needed on them; the line's own state lamp follows ready, ask, waiting.
+
+**What it changed.** The Memory line (J04) and the Today footer (L04) can mount `CaptureLine` with a grammar and get the same ambiguity rule, Undo and keyboard path; the tokenizer is the single place date words are read.
+
 ## 2026-11-13: wave 5 integrated: the wave contract's first test, the second jury, and agent commits that hang
 
 **Question.** Does one shared wave contract stop parallel packages breaking at merge, and did the first visible wave (gallery, shell fixes, clay recipe, grammars, private art) move the jury's scores?

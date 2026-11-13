@@ -2,6 +2,18 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-13: D01 number forms (Odometer, Dumbbell, LedgerTape, Jar)
+
+**Question.** Can the four number forms show data in an out-of-the-box way that still reads at a glance, with a state lamp on every figure and no scolding?
+
+**Built.** `app/ui/src/shared/data/numbers/`: Odometer (pixel-numeral wheels in a recessed well, one CSS `steps()` transition on `transform`, only while on screen and not Calm, four dashed wells plus the reason for any state but LIVE and SIMULATED), Dumbbell (ring for the earlier self, disc for now, shared ruler, rails sorted by gap, off-scale held at the end), LedgerTape (paper tape, deterministic torn end, double-rule total), Jar (recessed well, notch disc, hatch past the notch plus one text line, no red). Pure layout in `layout.ts` with named constants; a table or text equivalent on each; forced-colours branch. Gallery entry `d01-numbers.tsx` (group data, 24 states).
+
+**Numbers.** 0 requestAnimationFrame, 0 timers in the folder (grep); roll is one 140 ms transition. Screenshots at 1366x768 and 390x844, light and dark, reviewed.
+
+**Unverified.** Real-device wheel roll; the LedgerTape 390 viewport shot is clipped by the gallery scroll container (full-page shots are fine); look is on today's clay tokens and will shift when the craft pass merges (tokens used by name).
+
+**Changed.** J01 uses kit Readout until it swaps in the Odometer.
+
 ## 2026-11-13: wave 5 integrated: the wave contract's first test, the second jury, and agent commits that hang
 
 **Question.** Does one shared wave contract stop parallel packages breaking at merge, and did the first visible wave (gallery, shell fixes, clay recipe, grammars, private art) move the jury's scores?

@@ -2,6 +2,20 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-13: D03 tables, lists and the select (wave 6, resumed after an outage)
+
+**Question.** Can the product's three list forms (a table, a reorderable list, the select) be built as small instruments with full keyboard paths, 44 px targets and no native select, on the shared grammars and clay tokens only?
+
+**Built.** `LedgerTable` (32 px rows, sticky header, text sort glyph, F2 edit, column chooser, drawer, cards under 900 px, a lamp column; numbers drawn only for LIVE and SIMULATED, hollow with the reason otherwise), `SlotList` (Alt+Up and Alt+Down, Space lift with a dashed blanking plate, grip drag), `DetentRack` (listbox, `aria-activedescendant`, typeahead, bottom sheet under 900 px). 69 unit tests in `shared/data/tables/__tests__`, 15 Playwright tests in `e2e/d03-tables.spec.ts`.
+
+**Numbers.** tsc clean; vitest 2069 of 2069 twice (100 files); bundle:check ok; Playwright 15 of 15 (final run split: 14 + the cards test rerun alone after its fix).
+
+**Two real bugs found by the keyboard spec and fixed.** (1) The inline editor's ref callback called `select()` on every render, so each typed character replaced the previous one: typing "Unit 9 chai" committed "i". The select now runs once, from a stable callback. (2) The grip's pointer capture sat on a node that React moves while a row is carried (the dragged row is reordered live); capture now sits on the list, which stays mounted. The spec had two test-side faults too (grip read off-screen; the still "drawer open" form's fixed scrim covering the phone cards).
+
+**Unverified.** Pointer drag was only exercised with Playwright's mouse, not touch hardware. The cards jury picture still shows the still drawer form overlapping (a gallery artifact). Colours are the clay tokens by name, so they will change when the craft pass merges.
+
+**Changed.** Nothing outside the D03 folders.
+
 ## 2026-11-13: wave 5 integrated: the wave contract's first test, the second jury, and agent commits that hang
 
 **Question.** Does one shared wave contract stop parallel packages breaking at merge, and did the first visible wave (gallery, shell fixes, clay recipe, grammars, private art) move the jury's scores?

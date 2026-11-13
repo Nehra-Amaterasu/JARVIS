@@ -17,7 +17,7 @@ import { PAGE_ROWS, filterRows, goRows, hintOf, pageOf, shellRows, type PaletteR
 import { appNew, type ProductId } from './ids'
 import { modeOf } from './modes'
 import { getPort } from './ports'
-import { readPrev, resumeTarget } from './record'
+import { readResume, resumeTarget } from './record'
 import { PRODUCTS, useShell } from './store'
 
 const PLANNED: LampReading = { state: 'planned', since: null, reason: 'not built' }
@@ -79,7 +79,7 @@ export function Palette({ product, verbs, registries, onClose }: PaletteProps) {
     onClose()
     if (r.go) s.go(r.go)
     else if (r.id === 'shell.swap') s.swapProduct()
-    else if (r.id === 'shell.resume') s.go(resumeTarget(s.product, readPrev(s.product)))
+    else if (r.id === 'shell.resume') s.go(resumeTarget(s.product, readResume(s.product, s.places[s.product])))
     else if (r.id === 'shell.new') s.go(appNew(s.product))
     else if (r.id === 'shell.shortcuts') s.openOverlay('shortcuts')
     else if (r.run) {

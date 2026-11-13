@@ -16,7 +16,7 @@
  * 100 min.
  */
 import { clock } from '../lib/format'
-import { homeOf, placeLabel, sectionById, type ProductId } from './ids'
+import { homeOf, isAppPlace, placeLabel, sectionById, type ProductId } from './ids'
 
 export interface ResumeRecord {
   product: ProductId
@@ -41,6 +41,15 @@ export function readRecord(product: ProductId): ResumeRecord | null {
 /** The place the student left to come to the current one, or null on a first run. */
 export function readPrev(product: ProductId): ResumeRecord | null {
   return readAt(prevKeyOf(product), product)
+}
+
+/**
+ * The record Resume names and goes to from `here`. The shell's own places (app.new) are never recorded, so on
+ * one of them the current record IS the place the student came from; anywhere else it is the place before.
+ * Without this, Alt+N then Alt+R skipped the place just left and went one further back.
+ */
+export function readResume(product: ProductId, here: { section: string }): ResumeRecord | null {
+  return isAppPlace(here) ? readRecord(product) : readPrev(product)
 }
 
 export function writePrev(r: ResumeRecord): void {

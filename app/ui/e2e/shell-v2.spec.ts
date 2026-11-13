@@ -13,13 +13,14 @@ import { resolve } from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect, test } from './fixtures'
 
-const SHOTS = resolve('test-results', 'jury-b05')
+// JURY_SHOTS sends the jury screenshots elsewhere (outside the repository); the default stays git-ignored
+const SHOTS = process.env.JURY_SHOTS ?? resolve('test-results', 'jury-b05')
 const JARVIS = ['core', 'room', 'senses', 'memory', 'console']
 const WW = ['day', 'focus', 'study', 'tree', 'career']
 const VIEWS: Record<string, string[]> = {
   core: ['talk', 'sound'], room: ['switches', 'rules'], senses: ['presence', 'signal', 'teach'],
   memory: ['recall', 'beliefs', 'people', 'keep'], console: ['health', 'events', 'connections', 'hardware', 'crew'],
-  day: ['today', 'week', 'body', 'close'], focus: ['start', 'session', 'rest'], study: ['papers', 'practice', 'plan', 'library', 'dmat'],
+  day: ['today', 'week', 'month', 'body', 'close'], focus: ['start', 'session', 'rest', 'drill'], study: ['papers', 'practice', 'plan', 'library', 'dmat'],
   tree: ['tree'], career: ['pipeline', 'certs', 'abroad', 'money', 'ladder'],
 }
 
@@ -127,7 +128,8 @@ test.describe('Shell v2, flag on', () => {
         }
       }
     }
-    expect(seen).toHaveLength(34)
+    // 36 since day.month and focus.drill joined the id table (D-V2-10, D-V2-11; __tests__/shell/viewCount.test.ts)
+    expect(seen).toHaveLength(36)
   })
 
   test('the rail is one tab stop with roving tabindex; arrows move, Enter opens, Tab leaves', async ({ page, baseURL }) => {
@@ -172,7 +174,7 @@ test.describe('Shell v2, flag on', () => {
     // paged at 7 rows, so the list never scrolls
     expect(await dialog.locator('[role="option"]').count()).toBeLessThanOrEqual(7)
     const hints = await dialog.locator('kbd').allTextContents()
-    for (const h of hints) expect(h).toMatch(/^(Ctrl [1-5K]|Alt [0R]|\?|\[|\]|Alt Left)$/)
+    for (const h of hints) expect(h).toMatch(/^(Ctrl [1-5K]|Alt [0RN]|\?|\[|\]|Alt Left)$/)
     // Tab stays inside the dialog
     await page.keyboard.press('Tab')
     await expect(dialog.locator('input')).toBeFocused()

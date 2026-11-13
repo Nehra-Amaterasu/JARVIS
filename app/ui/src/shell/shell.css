@@ -24,6 +24,26 @@
 }
 
 .s2 button { font: inherit; color: inherit; cursor: pointer; }
+
+/* (A.N02 f) Skip to canvas: the first Tab stop, off screen until focused, then a 44 px plate over the title bar */
+.s2-skip {
+  position: fixed;
+  top: 2px;
+  left: 2px;
+  z-index: 80;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--s2-hit);
+  padding: 0 16px;
+  border: 1px solid var(--edge-ui);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  color: var(--ink-1);
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+.s2-skip:focus, .s2-skip:focus-visible { transform: none; outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .s2 :focus-visible { outline: 2px solid var(--focus-ring); }
 .s2 [data-focus-inset] :focus-visible { outline-offset: -2px; }
 .s2-kbd {
@@ -91,16 +111,33 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 8px 0 16px;
+  padding: 0;
   border: 1px solid var(--edge-ui);
-  border-radius: 22px;
+  border-radius: 23px;
   background: var(--surface-sunk);
   text-align: left;
 }
+/* the pill is a nav landmark (A.N02 d); its one button fills it, so the whole 44 px pill is the hit area */
+.s2-pill-go {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--s2-hit);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px 0 16px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  text-align: left;
+  font-weight: inherit;
+}
 .s2-pill[data-pill='start'] { background: var(--accent-fill); color: var(--accent-on); font-weight: 700; border-color: var(--edge-ui); }
+.s2-pill[data-pill='here'] { padding: 0 16px; color: var(--ink-2); border-color: var(--edge-hair); background: transparent; }
+.s2-pill-here { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .s2-pill-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.s2-pill-act { min-height: 36px; padding: 0 10px; border: 1px solid var(--edge-ui); border-radius: 18px; background: var(--surface-raised); }
-.s2-pill[data-pill='stale'] { padding-right: 4px; }
+.s2-pill-act { min-height: var(--s2-hit); padding: 0 12px; border: 1px solid var(--edge-ui); border-radius: 22px; background: var(--surface-raised); }
+.s2-pill[data-pill='stale'] { padding-left: 16px; }
 .s2-pillrow { display: none; }
 
 .s2-lamps { flex: none; display: flex; align-items: center; min-height: var(--s2-hit); }
@@ -218,12 +255,96 @@
 .s2-page > .page, .s2-page .page:not(.page .page) { position: absolute; inset: 0; }
 .s2-loading { padding: 24px; color: var(--ink-2); }
 
-/* one navigation: the Well Wisher frame's own workspace strip is the second one, so it is hidden here (gated,
-   not deleted; it goes at the flag flip). Its season switch and buttons stay. */
+/* one navigation: under the shell the Well Wisher frame draws no strip of its own (ww/frame/Frame.tsx portals
+   its season switch, Roadmap and settings into .s2-frametools). This rule only covers a frame built before
+   that change. */
 .s2 .ww-strip .ww-tabs { display: none; }
 /* the frame fills the canvas instead of the window */
 .s2 .ww-frame { position: absolute; inset: 0; min-height: 0; height: auto; }
 
+/* the frame's tools, folded into the shell's view row: right-aligned, one line, never wrapping into the canvas */
+.s2-frametools { margin-left: auto; display: flex; align-items: center; min-width: 0; }
+.s2-frametools:empty { display: none; }
+.s2 .ww-shell-tools { display: flex; align-items: center; gap: 12px; background: transparent; }
+/* the shell's 44 px hit rule holds for the folded tools too (the frame's compact strip sizes are 32 px) */
+.s2 .ww-shell-tools button { min-height: var(--s2-hit); min-width: var(--s2-hit); }
+/* every folded button gets the shell's control edge (the extras came as bare text in the strip) */
+.s2 .ww-shell-tools button:not([role='radio']) { padding: 0 14px; border: 1px solid var(--edge-ui); border-radius: 10px; background: transparent; }
+
+/* (A.N02 b) one view switch: where the shell's switch owns the section's views, a legacy Well Wisher page's own
+   switch of the same views is hidden. The page is not edited; its markup stays, so the flag-off frame is
+   unchanged. Life (Today / Week), Focus (Crucible / Drill), Study (four views) and Career (five views). */
+.s2-page[data-shell-owned~='views'] .ww-life-bar,
+.s2-page[data-shell-owned~='views'] .ww-focus-bar,
+.s2-page[data-shell-owned~='views'] .ww-study > .ww-seg-wrap,
+.s2-page[data-shell-owned~='views'] .cr-bar > .ww-seg-wrap { display: none; }
+
+/* (A.N02 a) the Well Wisher frame takes the shell's theme. The frame's design layer defines its own theme on
+   .ww (Saffron Ash, dark); under the shell every one of its tier-2 tokens is pointed at the clay role of the
+   same job, so the frame paints with the shell's surfaces, inks, edges and lamp colours in either clay theme.
+   Names both layers share are taken back from the shell with `inherit`; the rest are var() aliases, so no
+   colour value is copied (hex stays in primitive-color.css). Specificity 0,2,0 beats the theme files' 0,1,0. */
+.s2 .ww,
+.s2 .ww-portal {
+  color-scheme: inherit;
+  --ink-1: inherit;
+  --ink-2: inherit;
+  --ink-3: inherit;
+  --ink-3-high: var(--ink-2);
+  --ink-off: inherit;
+  --ink-disabled: var(--ink-3);
+  --scrim: inherit;
+  --selected-ink: inherit;
+  --selected-bg: var(--selected-fill);
+  --focus-ring: inherit;
+  --base-0: var(--surface-ground);
+  --base-1: var(--surface-raised);
+  --base-2: var(--surface-sunk);
+  --base-3: var(--surface-raised);
+  --surface-0: var(--base-0);
+  --surface-1: var(--base-1);
+  --surface-2: var(--base-2);
+  --surface-3: var(--base-3);
+  --line: var(--edge-hair);
+  --line-ui: var(--edge-ui);
+  --line-ui-high: var(--edge-ui);
+  --accent: var(--accent-ink);
+  --on-accent: var(--surface-raised);
+  --accent-wash: color-mix(in srgb, var(--accent-ink) 12%, transparent);
+  --accent-hi: var(--accent-ink);
+  --glass-bg: var(--surface-raised);
+  --glass-edge: var(--edge-ui);
+  --shadow-lift: var(--elev-float, none);
+  --live: var(--state-measured);
+  --sim: var(--state-simulated);
+  --fault: var(--state-fault);
+  --behind: var(--state-waiting);
+}
+/* rgba(var(--ink-rgb), a) is used for washes; a channel triplet cannot be read from a var(), so it is the ink-1
+   primitive of each clay theme written as channels (#171717 light, #e8eae9 dark, primitive-color.css) */
+:root[data-theme='clay-light'] .s2 .ww,
+:root[data-theme='clay-light'] .s2 .ww-portal { --ink-rgb: 23, 23, 23; }
+:root[data-theme='clay-dark'] .s2 .ww,
+:root[data-theme='clay-dark'] .s2 .ww-portal { --ink-rgb: 232, 234, 233; }
+/* the workspace layer re-derives surfaces and the ring per room (themes/workspace.css, 0,1,0 to 0,2,0); under the
+   shell the rooms keep their layout and tempo but take the shell's flat surfaces and its one accent and ring */
+.s2 .ww-centre,
+.s2 .ww-centre[data-ws] {
+  --tint: 0%;
+  --surface-0: var(--surface-ground);
+  --surface-1: var(--surface-raised);
+  --surface-2: var(--surface-sunk);
+  --surface-3: var(--surface-raised);
+  --accent: var(--accent-ink);
+  --on-accent: var(--surface-raised);
+  --accent-wash: color-mix(in srgb, var(--accent-ink) 12%, transparent);
+  --accent-hi: var(--accent-ink);
+  --focus-ring: inherit;
+  --type-kicker: var(--ink-2);
+}
+
+/* the shell's own place (app.new): fills the canvas; the gallery or its "not built yet" plate scrolls inside it */
+.s2-place { position: absolute; inset: 0; overflow: auto; }
 .s2-notbuilt, .s2-plate-wrap, .s2-events { position: absolute; inset: 0; overflow: auto; padding: 32px; }
 .s2-notbuilt { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; max-width: 640px; }
 .s2-notbuilt h2, .s2-events h2 { margin: 0; font-size: 22px; }

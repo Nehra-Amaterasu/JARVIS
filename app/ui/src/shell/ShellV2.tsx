@@ -28,7 +28,7 @@ import { createFrameSync } from './frameSync'
 import { BINDINGS, comboText, hintFor, isTextTarget, matchBinding, sectionForSlot, slotBindingOf } from './keymap'
 import { Palette } from './Palette'
 import { getPort, subscribePorts } from './ports'
-import { clearPrev, confirmRecord, pillState, readPrev, readRecord, resumeTarget } from './record'
+import { clearPrev, confirmRecord, pillState, readRecord, readResume, resumeTarget } from './record'
 import { SkipLink } from './SkipLink'
 import { Slot } from './slots'
 import { registeredView, type ViewRegistration } from './views'
@@ -208,7 +208,7 @@ function useShellKeys() {
           s.swapProduct()
           break
         case 'resume':
-          s.go(resumeTarget(s.product, readPrev(s.product)))
+          s.go(resumeTarget(s.product, readResume(s.product, currentPlace(s))))
           break
         case 'place':
           s.go(appNew(s.product))
@@ -317,7 +317,7 @@ function ResumePill({ product, now }: { product: ProductId; now: number }) {
   const dismiss = useShell((s) => s.dismissResume)
   const [dropped, setDropped] = useState(0)
   // prev changes only on navigation; a localStorage read per navigation of this pill, never on a timer
-  const prev = useMemo(() => readPrev(product), [product, place.section, place.view, dropped]) // eslint-disable-line react-hooks/exhaustive-deps
+  const prev = useMemo(() => readResume(product, place), [product, place.section, place.view, dropped]) // eslint-disable-line react-hooks/exhaustive-deps
   if (dismissedAt === `${place.product}:${place.section}.${place.view}`) return null
   const state = pillState(product, prev, now)
   const homePlace = resumeTarget(product, null)
@@ -330,6 +330,14 @@ function ResumePill({ product, now }: { product: ProductId; now: number }) {
     dismiss()
     document.getElementById('s2-canvas')?.focus()
   }
+  // first run, already home: there is nowhere to go, so the pill is a quiet "you are here" crumb and no button
+  // (a button that does nothing on press was the B05 finding); it names the place and runs nothing
+  if (home)
+    return (
+      <nav className="s2-pill" data-pill="here" aria-label="Resume">
+        <span className="s2-pill-here" aria-current="location">{placeLabel(homePlace)}</span>
+      </nav>
+    )
   return (
     <nav className="s2-pill" data-pill={state.kind} aria-label="Resume" onKeyDown={onKeyDown}>
       {state.kind === 'stale' ? (
@@ -339,7 +347,7 @@ function ResumePill({ product, now }: { product: ProductId; now: number }) {
           <button type="button" className="s2-pill-act" onClick={() => { clearPrev(product); setDropped((n) => n + 1) }}>Drop it</button>
         </>
       ) : (
-        <button type="button" className="s2-pill-go" aria-current={home ? 'location' : undefined}
+        <button type="button" className="s2-pill-go"
           aria-label={`${state.kind === 'start' ? state.text : `Back to ${state.text}`}${hint ? `, ${hint}` : ''}`}
           onClick={() => go(resumeTarget(product, prev))}>
           <span className="s2-pill-text">{state.text}</span>

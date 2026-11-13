@@ -46,7 +46,9 @@ describe('(5) the first-run pill', () => {
     expect(pillState('jarvis', null, 0)).toEqual({ kind: 'start', text: 'Go to Core / Talk' })
   })
 
-  it('pressing it runs no verb: it only goes home', () => {
+  it('away from home, pressing it runs no verb: it only goes home', () => {
+    localStorage.setItem('shell.place.jarvis', JSON.stringify({ product: 'jarvis', section: 'room', view: 'switches' }))
+    resetShellForTests()
     const wake = vi.fn(async () => ({ ok: true }))
     render([{ id: 'wake', label: 'Wake JARVIS', run: wake }])
     const btn = pill()!.querySelector('button')!
@@ -54,6 +56,12 @@ describe('(5) the first-run pill', () => {
     act(() => btn.click())
     expect(wake).not.toHaveBeenCalled()
     expect(q('.s2-page')!.dataset.view).toBe('talk')
+  })
+
+  it('already home on a first run, it is a "you are here" crumb with no button that would do nothing', () => {
+    render()
+    expect(pill()!.querySelector('button')).toBeNull()
+    expect(pill()!.querySelector('[aria-current="location"]')!.textContent).toBe('Core / Talk')
   })
 })
 
@@ -119,6 +127,16 @@ describe('(4) the Resume pill is a breadcrumb', () => {
     expect(q('.s2-page')!.dataset.section).toBe('app')
     expect(readPrev('jarvis')).toMatchObject({ section: 'core', view: 'talk' })
     expect(readRecord('jarvis')).toMatchObject({ section: 'room', view: 'switches' })
+  })
+
+  it('from app.new the pill and Alt+R name and go to the place just left, not the one before it', () => {
+    render()
+    go('room', 'switches')
+    key('n', { altKey: true, code: 'KeyN' })
+    expect(q('.s2-page')!.dataset.section).toBe('app')
+    expect(pill()!.textContent).toMatch(/Room \/ Switches/)
+    key('r', { altKey: true })
+    expect([q('.s2-page')!.dataset.section, q('.s2-page')!.dataset.view]).toEqual(['room', 'switches'])
   })
 })
 

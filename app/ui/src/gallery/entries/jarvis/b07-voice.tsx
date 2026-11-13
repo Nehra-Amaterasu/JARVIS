@@ -3,9 +3,9 @@
 // 400 ms exists, so the fixture reads as live for 0.4 s and then falls to NO SIGNAL: the transition is the honest part.
 // Motion is forced off here (the static form), so the gallery adds no animation loop.
 import { useEffect, useMemo } from 'react'
-import { Frame } from '../../shared/kit'
-import { VoiceHill, VoiceSignal, N_BANDS, type CoreView, type VoiceFrame } from '../../jarvis/voice'
-import type { GalleryEntryX } from '../types'
+import { Frame } from '../../../shared/kit'
+import { VoiceHill, VoiceSignal, N_BANDS, type CoreView, type VoiceFrame } from '../../../jarvis/voice'
+import type { GalleryEntryX } from '../../types'
 
 const core = (o: Partial<CoreView> = {}): CoreView => ({ running: true, state: 'idle', stateSince: null, lastError: null, muted: false, ...o })
 

@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import './gallery.css'
 import { SECTIONS } from '../shell/ids'
-import { collectEntriesX } from './collect'
+import { collectEntriesX, loadProductEntries } from './collect'
 import { Radios, type RadioOption } from './Radios'
 import { Specimen } from './Specimen'
 import { useLegacyStyles } from './legacy'
@@ -35,7 +35,15 @@ function useClayTheme(): [Theme, (t: Theme) => void] {
 }
 
 export default function WhatIsNew() {
-  const all = useMemo<GalleryEntryX[]>(() => collectEntriesX(), [])
+  // The product's own entries (the voice component) arrive a moment after the shared ones: see collect.ts.
+  const [loaded, setLoaded] = useState(0)
+  useEffect(() => {
+    let live = true
+    void loadProductEntries().then((n) => { if (live && n) setLoaded(n) })
+    return () => { live = false }
+  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const all = useMemo<GalleryEntryX[]>(() => collectEntriesX(), [loaded])
   const [group, setGroup] = useState<string>('all')
   const [activeId, setActiveId] = useState<string>(() => all[0]?.id ?? '')
   const [solo, setSolo] = useState<number | null>(null)

@@ -1,13 +1,16 @@
 // The gallery's own checks: it lists every component of the kit, art, lamp and voice folders (a test compares the exported
 // names with the entries), every entry draws without throwing, ids are unique, and the place behaves as a keyboard list.
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { act } from 'react'
 import { mount } from '../../__tests__/ww/_stubs'
 import * as kit from '../../shared/kit'
 import * as art from '../../shared/art'
 import * as lamp from '../../shared/lamp'
 import * as voice from '../../jarvis/voice'
-import { collectEntries, collectEntriesX } from '../collect'
+import { collectEntries, collectEntriesX, loadProductEntries } from '../collect'
+
+// the voice entry is a product entry, loaded lazily (collect.ts)
+beforeAll(async () => { await loadProductEntries() })
 import { GROUPS } from '../types'
 import WhatIsNew from '../WhatIsNew'
 

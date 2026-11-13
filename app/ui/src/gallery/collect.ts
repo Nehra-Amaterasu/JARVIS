@@ -4,7 +4,32 @@ import { GROUPS, type GalleryEntry, type GalleryEntryX } from './types'
 
 type EntryModule = { default?: GalleryEntryX[] }
 
-const modules = import.meta.glob<EntryModule>('./entries/*.tsx', { eager: true })
+// Entries that draw one product's own code live in a product folder and are loaded lazily, so the other product's build
+// leaves them out. An eager glob inside the condition was not dropped (measured 13 Nov: the Well Wisher only build still
+// held 10 JARVIS modules); a lazy one is, the same way pageLoaders.ts gates its page loaders. The test is written in
+// place because Vite folds `import.meta.env.X !== 'literal'` only where it stands (shared/product.ts says why).
+const modules: Record<string, EntryModule> = { ...import.meta.glob<EntryModule>('./entries/*.tsx', { eager: true }) }
+const PRODUCT_LOADERS: Record<string, () => Promise<EntryModule>> =
+  import.meta.env.VITE_PRODUCT !== 'ww' ? import.meta.glob<EntryModule>('./entries/jarvis/*.tsx') : {}
+
+let productLoad: Promise<number> | null = null
+
+/**
+ * Load the entries of this build's own product (today: the JARVIS voice component) and add them to the collection.
+ * Resolves with how many files were added; safe to call more than once. `collectEntries()` returns the shared entries
+ * until this has resolved, and all of them after.
+ */
+export function loadProductEntries(): Promise<number> {
+  productLoad ??= Promise.all(
+    Object.keys(PRODUCT_LOADERS).sort().map(async (file) => {
+      modules[file] = await PRODUCT_LOADERS[file]()
+    }),
+  ).then((done) => {
+    if (done.length) cached = null
+    return done.length
+  })
+  return productLoad
+}
 
 let cached: GalleryEntryX[] | null = null
 

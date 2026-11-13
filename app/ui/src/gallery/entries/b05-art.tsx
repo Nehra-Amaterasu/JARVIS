@@ -2,7 +2,7 @@
 // a table twin for screen readers, and states the lamp it was drawn under.
 import * as art from '../../shared/art'
 import { LAMP_STATES } from '../../shared/lamp'
-import { jarvisRegistry } from '../../jarvis/planned'
+import type { PlannedEntry } from '../../shared/planned/types'
 import type { GalleryEntryX } from '../types'
 import { STATE_REASON, States, noop } from '../fixtures'
 
@@ -39,8 +39,19 @@ const WHEEL: art.DateWheelProps['items'] = [
   { id: 'w2', label: 'Review day', date: '2026-11-20' },
   { id: 'w3', label: 'Later plan', date: '2027-02-02', planned: true },
 ]
-const PLAIN = jarvisRegistry.byId('jarvis.agents')!
-const WAITING_ENTRY = jarvisRegistry.byId('jarvis.library')!
+// Two fixture rows, written here and not read from a product's registry: the art package is shared, and a Well Wisher
+// only build must not pull JARVIS code in through its gallery (the per-product bundle check found 11 such modules).
+const FIXTURE = { product: 'jarvis', since: '2026-11-12', reviewBy: '2027-02-10', owner: 'ui-chat' } as const
+const PLAIN: PlannedEntry = {
+  ...FIXTURE, id: 'gallery.fixture-planned', home: 'console.crew', pattern: 'coming', label: 'Agents', blocker: 'decision',
+  line: 'Agents that act on their own are not built. The staff roster only reports what runs now.',
+  needs: 'A decision on what an agent may do without asking.',
+}
+const WAITING_ENTRY: PlannedEntry = {
+  ...FIXTURE, id: 'gallery.fixture-unverified', home: 'core.sound', pattern: 'coming', label: 'Local music library', blocker: 'build', state: 'unverified',
+  line: 'The local library panel is built and not verified yet. It stays out until a check shows its routes answer.',
+  needs: 'A check that the library routes answer, then the card is mounted.',
+}
 
 const E = (id: string, title: string, note: string, states: GalleryEntryX['states'], also?: string[]): GalleryEntryX => ({ id: `art/${id}`, title, group: 'art', merged, note, states, also })
 

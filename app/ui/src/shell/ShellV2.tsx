@@ -9,7 +9,7 @@
  * the canvas shows is an existing page, the event log, a planned plate, or a "not built" plate (hosts.ts).
  */
 import { AudioLines, BookOpen, BrainCircuit, Briefcase, CalendarDays, Gauge, Hand, Maximize2, MessageCircle, Minus, ScanEye, Sprout, Timer, X } from 'lucide-react'
-import { memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { Toasts } from '../components/Shell'
 import { clock, useNow } from '../lib/format'
 import { useStore } from '../lib/store'
@@ -22,13 +22,18 @@ import { WhatIsComing } from '../shared/overlays/WhatIsComing'
 import { setPlannedOpener } from '../shared/planned/open'
 import { PlannedPlate } from '../shared/planned/PlannedPlate'
 import type { Registry } from '../shared/planned/types'
-import { PRODUCT_LABEL, VIEW_LABEL, sectionById, sectionsOf, viewId, type Place, type ProductId } from './ids'
+import { APP_PLACES, PRODUCT_LABEL, VIEW_LABEL, appNew, isAppPlace, placeLabel, sectionById, sectionsOf, viewId, type Place, type ProductId, type SectionDef } from './ids'
 import { HOSTS, placeOfFrame, type Host } from './hosts'
+import { createFrameSync } from './frameSync'
 import { BINDINGS, comboText, hintFor, isTextTarget, matchBinding, sectionForSlot, slotBindingOf } from './keymap'
 import { Palette } from './Palette'
 import { getPort, subscribePorts } from './ports'
-import { clearRecord, pillState, readRecord, resumeTarget } from './record'
-import { PRODUCTS, currentPlace, useShell } from './store'
+import { clearPrev, confirmRecord, pillState, readRecord, readResume, resumeTarget } from './record'
+import { SkipLink } from './SkipLink'
+import { Slot } from './slots'
+import { registeredView, type ViewRegistration } from './views'
+import { WhatIsNewPlace } from './WhatIsNewPlace'
+import { PRODUCTS, currentPlace, touchRecord, useShell } from './store'
 import type { Verb } from './commands'
 import '../styles/design/clay/index.css'
 import '../shared/kit/clay.css'
@@ -121,14 +126,29 @@ export default function ShellV2({ pages, wwRoot, verbs, serverUp }: ShellV2Props
   const items = product === 'jarvis' ? JARVIS_ANNUNCIATORS : WW_ANNUNCIATORS
   const now = useNow(15_000) // HH:MM, so at most 15 s late at a minute change; the only interval the shell runs
 
+  // ---- the open view stays confirmed (A.N02 d): on the clock tick the shell already runs, at most once a minute,
+  //      and only while the window is visible, so a view left open in a hidden window is not "confirmed"
+  useEffect(() => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+    if (isAppPlace(place)) return
+    const r = readRecord(place.product)
+    // the place the shell opened on (restored or routed) is recorded once; after that go() records every move
+    if (!r || r.section !== place.section || r.view !== place.view) touchRecord(place)
+    else confirmRecord(place.product, place.section, place.view, now)
+  }, [now, place.product, place.section, place.view])
+
   return (
     <div className="s2" data-shell="v2" data-product={product}>
+      <SkipLink />
+      <Slot name="boot" />
       <TitleBar product={product} items={items} now={now} />
       {/* below 900 px the pill is its own 44 px row under the title bar (4.2.3); one of the two is display:none */}
       <div className="s2-pillrow"><ResumePill product={product} now={now} /></div>
       <Rail product={product} place={place} />
       <Canvas place={place} pages={pages} wwRoot={wwRoot} ww={ww} registries={registries} />
       <Toasts />
+      <Slot name="notify" />
+      <Slot name="cursor-root" />
       {overlay === 'palette' && <Palette product={product} verbs={verbs} registries={registries} onClose={closeOverlay} />}
       {overlay === 'shortcuts' && <ShortcutsSheet onClose={closeOverlay} />}
       {overlay === 'roadmap' && (
@@ -188,7 +208,10 @@ function useShellKeys() {
           s.swapProduct()
           break
         case 'resume':
-          s.go(resumeTarget(s.product, readRecord(s.product)))
+          s.go(resumeTarget(s.product, readResume(s.product, currentPlace(s))))
+          break
+        case 'place':
+          s.go(appNew(s.product))
           break
         case 'view-step':
           s.stepView(a.delta)
@@ -240,6 +263,7 @@ function TitleBar({ product, items, now }: { product: ProductId; items: typeof J
   return (
     <header className="s2-title pywebview-drag-region" data-focus-inset="">
       <span className="s2-wordmark" aria-hidden="true">{PRODUCT_LABEL[product]}</span>
+      <Slot name="titlebar-sigil" />
       {PRODUCTS.length > 1 && <ProductSwitch product={product} />}
       <ResumePill product={product} now={now} />
       <div className="s2-lamps">
@@ -281,32 +305,56 @@ function ProductSwitch({ product }: { product: ProductId }) {
   )
 }
 
+/**
+ * The Resume pill (A.N02 d, e): a breadcrumb in a labelled nav landmark. It names the place the student left to
+ * come here and the time it was left; one press goes there; Esc dismisses it until the next navigation and puts
+ * focus on the canvas. With no place before (a first run) it says "Go to <home>" and only navigates.
+ */
 function ResumePill({ product, now }: { product: ProductId; now: number }) {
   const place = useShell(currentPlace)
   const go = useShell((s) => s.go)
+  const dismissedAt = useShell((s) => s.resumeDismissedAt)
+  const dismiss = useShell((s) => s.dismissResume)
   const [dropped, setDropped] = useState(0)
-  // The record changes on every navigation; reading it in render is a localStorage read per render of this
-  // pill only, which re-renders on navigation, not on a timer.
-  const record = useMemo(() => readRecord(product), [product, place.section, place.view, dropped]) // eslint-disable-line react-hooks/exhaustive-deps
-  const state = pillState(product, record, now)
-  const here = !!record && record.section === place.section && record.view === place.view
+  // prev changes only on navigation; a localStorage read per navigation of this pill, never on a timer
+  const prev = useMemo(() => readResume(product, place), [product, place.section, place.view, dropped]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (dismissedAt === `${place.product}:${place.section}.${place.view}`) return null
+  const state = pillState(product, prev, now)
+  const homePlace = resumeTarget(product, null)
+  const home = !prev && homePlace.section === place.section && homePlace.view === place.view
   const hint = hintFor('resume')
-  if (state.kind === 'stale') {
-    return (
-      <div className="s2-pill" data-pill="stale" role="group" aria-label="Resume">
-        <span className="s2-pill-text">{state.text}</span>
-        <button type="button" className="s2-pill-act" onClick={() => go(resumeTarget(product, record))}>Pick up</button>
-        <button type="button" className="s2-pill-act" onClick={() => { clearRecord(product); setDropped((n) => n + 1) }}>Drop it</button>
-      </div>
-    )
+  const onKeyDown = (e: ReactKeyboardEvent) => {
+    if (e.key !== 'Escape') return
+    e.preventDefault()
+    e.stopPropagation()
+    dismiss()
+    document.getElementById('s2-canvas')?.focus()
   }
+  // first run, already home: there is nowhere to go, so the pill is a quiet "you are here" crumb and no button
+  // (a button that does nothing on press was the B05 finding); it names the place and runs nothing
+  if (home)
+    return (
+      <nav className="s2-pill" data-pill="here" aria-label="Resume">
+        <span className="s2-pill-here" aria-current="location">{placeLabel(homePlace)}</span>
+      </nav>
+    )
   return (
-    <button type="button" className="s2-pill" data-pill={state.kind} aria-current={here ? 'location' : undefined}
-      aria-label={`${here ? 'Here' : 'Resume'}: ${state.text}${hint ? `, ${hint}` : ''}`}
-      onClick={() => go(resumeTarget(product, record))}>
-      <span className="s2-pill-text">{state.text}</span>
-      {hint && <kbd className="s2-kbd" aria-hidden="true">{hint}</kbd>}
-    </button>
+    <nav className="s2-pill" data-pill={state.kind} aria-label="Resume" onKeyDown={onKeyDown}>
+      {state.kind === 'stale' ? (
+        <>
+          <span className="s2-pill-text">{state.text}</span>
+          <button type="button" className="s2-pill-act" onClick={() => go(resumeTarget(product, prev))}>Pick up</button>
+          <button type="button" className="s2-pill-act" onClick={() => { clearPrev(product); setDropped((n) => n + 1) }}>Drop it</button>
+        </>
+      ) : (
+        <button type="button" className="s2-pill-go"
+          aria-label={`${state.kind === 'start' ? state.text : `Back to ${state.text}`}${hint ? `, ${hint}` : ''}`}
+          onClick={() => go(resumeTarget(product, prev))}>
+          <span className="s2-pill-text">{state.text}</span>
+          {hint && <kbd className="s2-kbd" aria-hidden="true">{hint}</kbd>}
+        </button>
+      )}
+    </nav>
   )
 }
 
@@ -374,8 +422,9 @@ const Rail = memo(function Rail({ product, place }: { product: ProductId; place:
 // memo: without it every 15 s clock tick re-rendered the whole legacy page or Well Wisher frame in the canvas
 const Canvas = memo(function Canvas({ place, pages, wwRoot, ww, registries }: { place: Place; pages: ShellV2Props['pages']; wwRoot: ComponentType | null; ww: WwShellBridge | null; registries: Registry[] }) {
   const id = viewId(place.section, place.view)
-  const host = HOSTS[id] ?? NO_HOST
-  const section = sectionById(place.section)!
+  const reg = isAppPlace(place) ? undefined : registeredView(id)
+  const host: Host = isAppPlace(place) ? APP_HOST : reg ? REG_HOST : HOSTS[id] ?? NO_HOST
+  const section: SectionDef = sectionById(place.section) ?? { id: place.section, product: place.product, label: APP_PLACES[place.view] ?? place.view, views: [place.view] }
   const tab = useStore((s) => s.tab)
   const setTab = useStore((s) => s.setTab)
 
@@ -386,45 +435,69 @@ const Canvas = memo(function Canvas({ place, pages, wwRoot, ww, registries }: { 
     if (host.kind === 'ww' && !WW_TABS.has(tab)) setTab(host.tab as never)
   }, [host, tab, setTab])
 
-  // ---- shell -> frame: a rail click or a view switch moves the Well Wisher frame
-  useEffect(() => {
-    if (host.kind !== 'ww' || !ww) return
-    const cur = ww.current()
-    if (cur.ws !== host.ws || (host.view !== null && cur.view !== host.view)) void ww.switchTo(host.ws, host.view)
-  }, [host, ww])
-
-  // ---- frame -> shell: a jump inside Well Wisher (Tree's "Study this node") moves the rail with it
-  useEffect(() => {
-    if (!ww) return
-    return ww.subscribe((ws, view) => {
+  // ---- the two-way frame bridge (frameSync.ts): shell -> frame on every place change, frame -> shell only for a
+  //      jump the shell did not ask for while nothing of its own is in flight (the loop of A.N02 c is gone)
+  const sync = useMemo(() => ww ? createFrameSync(ww, {
+    desired: () => {
       const s = useShell.getState()
-      const cur = s.places[s.product]
-      const h = HOSTS[viewId(cur.section, cur.view)]
-      if (s.product !== 'ww' || (h?.kind === 'ww' && h.ws === ws && (h.view === view || view === null))) return
+      if (s.product !== 'ww') return undefined
+      const c = s.places.ww
+      return HOSTS[viewId(c.section, c.view)]
+    },
+    follow: (ws, view) => {
       const target = placeOfFrame(ws, view)
       if (!target) return
       const [sec, v] = target.split('.')
-      s.go({ product: 'ww', section: sec, view: v })
-    })
-  }, [ww])
+      useShell.getState().go({ product: 'ww', section: sec, view: v })
+    },
+  }) : null, [ww])
+  useEffect(() => sync?.connect(), [sync])
+  useEffect(() => {
+    if (host.kind === 'ww') sync?.push()
+  }, [host, sync])
 
+  const views = section.views.length > 1
+  // the frame's own tools (season, roadmap, settings) fold into this row under the shell, so the row also shows
+  // for a one-view section the frame hosts (Tree); `data-shell-owned` on the page root tells a legacy page's own
+  // view switch that the shell owns the views here (shell.css hides the duplicate; the page is not edited)
+  const row = views || host.kind === 'ww'
   return (
-    <main className="s2-canvas" aria-label={`${section.label} / ${VIEW_LABEL[place.view] ?? place.view}`}>
-      {section.views.length > 1 && <ViewSwitch place={place} shared={'shared' in host && !!host.shared} />}
-      <div className="s2-page" id="s2-panel" role={section.views.length > 1 ? 'tabpanel' : undefined}
-        aria-labelledby={section.views.length > 1 ? `s2-view-${place.view}` : undefined}
+    <main className="s2-canvas" id="s2-canvas" tabIndex={-1} aria-label={placeLabel(place)}>
+      {row && <ViewSwitch place={place} section={section} views={views} shared={'shared' in host && !!host.shared} />}
+      <div className="s2-page" id="s2-panel" role={views ? 'tabpanel' : undefined}
+        aria-labelledby={views ? `s2-view-${place.view}` : undefined}
+        data-shell-owned={[views && 'views', host.kind === 'ww' && 'frame-tools'].filter(Boolean).join(' ') || undefined}
         data-product={place.product} data-section={place.section} data-view={place.view}>
-        <HostView host={host} place={place} pages={pages} wwRoot={wwRoot} registries={registries} />
+        <HostView host={host} reg={reg} place={place} pages={pages} wwRoot={wwRoot} registries={registries} />
       </div>
     </main>
   )
 })
 
 const NO_HOST: Host = { kind: 'none' }
+// the two hosts hosts.ts does not list: a registered view (shell/views) and the shell's own place app.new
+const REG_HOST: Host = { kind: 'none' }
+const APP_HOST: Host = { kind: 'none' }
+
+/** One lazy component per registration, made once, so a re-render never remounts the page. */
+const LAZY = new Map<ViewRegistration, ComponentType>()
+function lazyOf(reg: ViewRegistration): ComponentType {
+  let C = LAZY.get(reg)
+  if (!C) {
+    C = lazy(reg.load)
+    LAZY.set(reg, C)
+  }
+  return C
+}
 const WW_TABS = new Set(['mission', 'quests', 'campaign', 'trials', 'drill', 'armory', 'crucible', 'forge', 'syllabus', 'terminal', 'interrogation', 'proof', 'schedule', 'calibration', 'status'])
 
-function HostView({ host, place, pages, wwRoot: WwRoot, registries }: { host: Host; place: Place; pages: ShellV2Props['pages']; wwRoot: ComponentType | null; registries: Registry[] }) {
+function HostView({ host, reg, place, pages, wwRoot: WwRoot, registries }: { host: Host; reg: ViewRegistration | undefined; place: Place; pages: ShellV2Props['pages']; wwRoot: ComponentType | null; registries: Registry[] }) {
   const fallback = <div className="s2-loading" role="status">Loading…</div>
+  if (host === APP_HOST) return <WhatIsNewPlace />
+  if (reg) {
+    const View = lazyOf(reg)
+    return <Suspense fallback={fallback}><View key={reg.id} /></Suspense>
+  }
   if (host.kind === 'page') {
     const Page = pages[host.tab]
     if (!Page) return <NotBuilt place={place} />
@@ -459,13 +532,12 @@ function NotBuilt({ place }: { place: Place }) {
 
 const PLANNED_READING: LampReading = { state: 'planned', since: null, reason: 'not built' }
 
-function ViewSwitch({ place, shared }: { place: Place; shared: boolean }) {
+function ViewSwitch({ place, section, views, shared }: { place: Place; section: SectionDef; views: boolean; shared: boolean }) {
   const setView = useShell((s) => s.setView)
-  const section = sectionById(place.section)!
   const choose = useCallback((v: string) => setView(v), [setView])
   return (
-    <div className="s2-views" data-focus-inset="">
-      <div className="s2-viewlist" role="tablist" aria-label={`${section.label} views`} onKeyDown={(e) => {
+    <div className="s2-views" data-focus-inset="" data-shell-owned="views">
+      {views && <div className="s2-viewlist" role="tablist" aria-label={`${section.label} views`} onKeyDown={(e) => {
         const i = section.views.indexOf(place.view)
         const k = e.key
         const n = section.views.length
@@ -481,8 +553,10 @@ function ViewSwitch({ place, shared }: { place: Place; shared: boolean }) {
             {VIEW_LABEL[v] ?? v}
           </button>
         ))}
-      </div>
+      </div>}
       {shared && <p className="s2-interim">This view shows today&rsquo;s page for {section.label} until its own layout is built.</p>}
+      {/* the Well Wisher frame portals its season switch, Roadmap and settings keys here (ww/frame/Frame.tsx) */}
+      <div className="s2-frametools" id="s2-frame-tools" data-shell-owned="frame-tools" />
     </div>
   )
 }

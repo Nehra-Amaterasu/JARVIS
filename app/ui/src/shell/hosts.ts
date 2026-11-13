@@ -40,13 +40,18 @@ export const HOSTS: Record<string, Host> = {
   // Well Wisher: the frame's workspaces; `tab` is the legacy id whose destination opens that workspace (workspaces.ts)
   'day.today': { kind: 'ww', ws: 'life', view: 'today', tab: 'quests' },
   'day.week': { kind: 'ww', ws: 'life', view: 'week', tab: 'quests' },
+  // D-V2-10: the Life calendar arrives with L01 (shell/views/day-month.view.ts); until then the PLANNED plate
+  'day.month': { kind: 'none' },
   'day.body': { kind: 'ww', ws: 'life', view: 'week', tab: 'quests', shared: true },
   'day.close': { kind: 'none' },
   'focus.start': { kind: 'ww', ws: 'focus', view: 'crucible', tab: 'crucible' },
   'focus.session': { kind: 'ww', ws: 'focus', view: 'crucible', tab: 'crucible', shared: true },
   'focus.rest': { kind: 'none' },
+  // D-V2-11: Drill lives in Focus; it is listed before study.practice so a frame jump to Drill lands here
+  'focus.drill': { kind: 'ww', ws: 'focus', view: 'drill', tab: 'drill' },
   'study.papers': { kind: 'ww', ws: 'study', view: 'papers', tab: 'schedule' },
-  'study.practice': { kind: 'ww', ws: 'focus', view: 'drill', tab: 'drill' },
+  // the set-up door into Drill (D-V2-11): today it shows the same Drill page, and says so
+  'study.practice': { kind: 'ww', ws: 'focus', view: 'drill', tab: 'drill', shared: true },
   'study.plan': { kind: 'ww', ws: 'study', view: 'plan', tab: 'schedule' },
   'study.library': { kind: 'ww', ws: 'study', view: 'library', tab: 'schedule' },
   'study.dmat': { kind: 'ww', ws: 'study', view: 'dmat', tab: 'schedule' },

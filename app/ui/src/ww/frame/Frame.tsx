@@ -12,6 +12,7 @@
  * and it does not touch Shell's Ctrl+1..6, which still leaves Well Wisher. Alt+1..6 is ours.
  */
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { Button, Segmented, PrimaryOwner } from '../kit'
 import { motionLoad, setMotionLoad } from '../design/motion/governor'
 import { useWorkspaceTransition } from '../design/motion/transition'
@@ -75,6 +76,29 @@ export function Frame({ loaded, pages, server, legacyTab, left, extras, glass = 
   const density = densityOf(width)
   const proofMode = proofModeOf(width)
 
+  // ---- under shell v2 (A.N02 a): the shell owns navigation, so the frame's strip is not drawn and its tools
+  //      (season, Roadmap, the extras) are portalled into the shell's view row, `#s2-frame-tools`, where they stay
+  //      reachable by Tab and pointer. Found once at mount: the shell renders that row before the lazy frame
+  //      arrives, and keeps it for every Well Wisher place. Without the shell there is no such node and the strip
+  //      renders exactly as before.
+  //      Read on the first render too (the shell's DOM is committed before this lazy chunk renders), so the centre
+  //      is not mounted twice; the layout effect confirms it from the frame's own position.
+  const [toolHost, setToolHost] = useState<HTMLElement | null>(() =>
+    typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('[data-shell="v2"] #s2-frame-tools'))
+  const shellHosted = useRef(toolHost !== null)
+  useLayoutEffect(() => {
+    const shell = root.current?.closest('[data-shell="v2"]')
+    const host = shell?.querySelector<HTMLElement>('#s2-frame-tools') ?? null
+    shellHosted.current = !!shell
+    setToolHost((h) => (h === host ? h : host))
+  }, [])
+  const view = useFrame((s) => s.view)
+  // ---- the Life page keeps its view in workspace memory, not in the frame's view, so under the shell (whose
+  //      view switch replaces Life's own, hidden by data-shell-owned) the frame's view is written through to it
+  useEffect(() => {
+    if (toolHost && ws === 'life' && (view === 'today' || view === 'week')) workspaceMemory.set('life', 'view', view, 'today')
+  }, [toolHost, ws, view])
+
   // ---- html attributes: data-ww scopes the design layer's html-level rules; the theme is the saved one
   useLayoutEffect(() => {
     const html = document.documentElement
@@ -92,7 +116,13 @@ export function Frame({ loaded, pages, server, legacyTab, left, extras, glass = 
     const st = useFrame.getState()
     const dest = legacyTab && legacyTab !== 'mission' && legacyTab !== consumedTab ? destinationOf(legacyTab, season.firstWorkspace) : null
     consumedTab = legacyTab ?? null
-    if (dest) {
+    // Under the shell the shell owns the place and pushes it right after this mount. A deep link from the app tab
+    // (which can be a tab older than the one the shell set, because a child's effects run before the shell's) or
+    // a restored workspace would move the frame on its own, and the shell would follow it with no key: the
+    // keyboard-reach spec saw Ctrl+2 after Day / Close land on Day / Today in 2 of 3 runs (A.N02 c).
+    if (shellHosted.current) {
+      // nothing: the shell's push decides the workspace
+    } else if (dest) {
       st.select(dest.ws, dest.view ?? null)
       if (dest.panel === 'proof') st.setProof(true)
       if (dest.overlay) openOverlay(dest.overlay)
@@ -107,7 +137,7 @@ export function Frame({ loaded, pages, server, legacyTab, left, extras, glass = 
 
   // ---- until something chooses, the workspace follows the season (Study in exams, Life otherwise)
   useEffect(() => {
-    if (ready && !chosen) useFrame.getState().setDefault(season.firstWorkspace)
+    if (ready && !chosen && !shellHosted.current) useFrame.getState().setDefault(season.firstWorkspace)
   }, [ready, chosen, season.firstWorkspace])
 
   // ---- the motion governor: flat glass, a hidden tab or the owner's saver means "low"
@@ -125,27 +155,41 @@ export function Frame({ loaded, pages, server, legacyTab, left, extras, glass = 
     workspaceMemory.setScroll(s.ws, top)
     return { ws: s.ws, view: s.view, scroll: top }
   }, [])
+  // Only the newest navigation may commit. A second switch within 600 ms skips the first view transition, but the
+  // skipped transition's change still runs AFTER the newer one (shared/motion/transition.ts), so without this the
+  // frame landed on the older place and the shell followed it with no key pressed (A.N02 c; reproduced in
+  // __tests__/shell/frameBridge.test.tsx). Each request takes a number; a change whose number is old is dropped.
+  const navSeq = useRef(0)
   useEffect(() => {
     registerNav({
       switchTo: async (to, view = null, opts) => {
+        const seq = ++navSeq.current
         const s = useFrame.getState()
         if (to === s.ws) {
           if (view !== s.view) s.select(to, view)
           return
         }
         capture()
-        await run(() => useFrame.getState().select(to, view), centre.current)
-        if (opts?.focusHeading) heading.current?.focus({ preventScroll: true })
+        await run(() => {
+          if (seq === navSeq.current) useFrame.getState().select(to, view)
+        }, centre.current)
+        if (opts?.focusHeading && seq === navSeq.current) heading.current?.focus({ preventScroll: true })
       },
       jumpTo: async (to, view = null) => {
+        const seq = ++navSeq.current
         const from = capture()
-        await run(() => useFrame.getState().jump(to, view, from), centre.current)
+        await run(() => {
+          if (seq === navSeq.current) useFrame.getState().jump(to, view, from)
+        }, centre.current)
         heading.current?.focus({ preventScroll: true })
       },
       back: async () => {
         if (!useFrame.getState().back) return
+        const seq = ++navSeq.current
         capture()
-        await run(() => void useFrame.getState().returnBack(), centre.current)
+        await run(() => {
+          if (seq === navSeq.current) void useFrame.getState().returnBack()
+        }, centre.current)
         heading.current?.focus({ preventScroll: true })
       },
     })
@@ -219,6 +263,20 @@ export function Frame({ loaded, pages, server, legacyTab, left, extras, glass = 
   const Page = pages[ws]
   const label = wsLabel(ws)
   const leftNode = left ?? <LeftStub season={season} />
+  const Centre = toolHost ? 'section' : 'main'
+  const tools = (
+    <>
+      <Segmented<SeasonMode>
+        label="Season"
+        variant="compact"
+        value={seasonMode}
+        onChange={(m) => useFrame.getState().setSeasonMode(m)}
+        options={SEASON_MODES.map((id) => ({ id, label: SEASON_LABEL[id] }))}
+      />
+      <Button size="sm" onClick={() => openOverlay('roadmap')} data-open="roadmap">Roadmap</Button>
+      {extras}
+    </>
+  )
 
   return (
     <PrimaryOwner>
@@ -231,33 +289,30 @@ export function Frame({ loaded, pages, server, legacyTab, left, extras, glass = 
         data-season={season.season}
         data-feat={featureTokens(features)}
         data-chromium={features.chromium ?? undefined}
+        data-shell-hosted={toolHost ? '' : undefined}
       >
-        <header className="ww-strip">
-          <span className="ww-brand">well_wisher</span>
-          <WorkspaceTabs ws={ws} panelId={panelId} />
-          <div className="ww-strip-right">
-            <Segmented<SeasonMode>
-              label="Season"
-              variant="compact"
-              value={seasonMode}
-              onChange={(m) => useFrame.getState().setSeasonMode(m)}
-              options={SEASON_MODES.map((id) => ({ id, label: SEASON_LABEL[id] }))}
-            />
-            <Button size="sm" onClick={() => openOverlay('roadmap')} data-open="roadmap">Roadmap</Button>
-            {extras}
-          </div>
-        </header>
+        {toolHost ? (
+          createPortal(<div className="ww-portal ww-shell-tools" data-frame-tools="">{tools}</div>, toolHost)
+        ) : (
+          <header className="ww-strip">
+            <span className="ww-brand">well_wisher</span>
+            <WorkspaceTabs ws={ws} panelId={panelId} />
+            <div className="ww-strip-right">{tools}</div>
+          </header>
+        )}
         <aside className="ww-left" aria-label="Today" data-left-top={season.left_top}>
           {leftNode}
         </aside>
-        <main className="ww-centre" data-ws={ws} ref={centre}>
-          <div id={panelId} role="tabpanel" aria-labelledby={`ww-tab-${ws}`} className="page mission ww-scroll" data-glass={glass} ref={scroller}>
+        {/* under the shell the canvas is the one main landmark and the frame's tabs are not drawn, so the centre is a
+            labelled section and its panel is not a tabpanel of tabs that do not exist */}
+        <Centre className="ww-centre" data-ws={ws} ref={centre} aria-label={toolHost ? label : undefined}>
+          <div id={panelId} role={toolHost ? undefined : 'tabpanel'} aria-labelledby={toolHost ? undefined : `ww-tab-${ws}`} className="page mission ww-scroll" data-glass={glass} ref={scroller}>
             <h1 ref={heading} tabIndex={-1} className="ww-sr-only" data-ww-h1="">
               {label}
             </h1>
             {ready && loaded ? <Page /> : <div className="empty">Loading Well Wisher…</div>}
           </div>
-        </main>
+        </Centre>
         <ProofRail mode={proofMode} />
         <BackChip />
         <OverlayHost />

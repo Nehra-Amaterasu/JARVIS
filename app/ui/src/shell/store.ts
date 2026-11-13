@@ -8,8 +8,8 @@
  * costs only the restore).
  */
 import { create } from 'zustand'
-import { homeOf, parseRoute, sectionById, type Place, type ProductId } from './ids'
-import { readRecord, writeRecord } from './record'
+import { homeOf, isAppPlace, parseRoute, sectionById, type Place, type ProductId } from './ids'
+import { readRecord, writePrev, writeRecord } from './record'
 
 export type OverlayId = 'palette' | 'shortcuts' | 'roadmap'
 
@@ -24,6 +24,8 @@ interface ShellState {
   overlay: OverlayId | null
   roadmapFocus: string | null
   history: Place[]
+  /** The place at which the Resume pill was dismissed with Esc; it shows again on the next navigation. */
+  resumeDismissedAt: string | null
 
   go: (p: Place, opts?: { history?: boolean }) => void
   goSection: (section: string) => void
@@ -33,6 +35,7 @@ interface ShellState {
   back: () => boolean
   openOverlay: (id: OverlayId, focus?: string | null) => void
   closeOverlay: () => void
+  dismissResume: () => void
 }
 
 const PLACE_KEY = 'shell.place'
@@ -84,10 +87,14 @@ function initial(): { product: ProductId; places: Record<ProductId, Place> } {
   return { product, places }
 }
 
-function touchRecord(p: Place): void {
+/** The place left becomes `prev` (with the time it was last confirmed), the new one `current`. The shell's own
+ *  places (app.new) are never recorded: "What is new" is not where a student resumes work. */
+export function touchRecord(p: Place): void {
+  if (isAppPlace(p)) return
   const now = Date.now()
   const prev = readRecord(p.product)
   const same = !!prev && prev.section === p.section && prev.view === p.view
+  if (prev && !same) writePrev(prev)
   writeRecord({
     product: p.product, section: p.section, view: p.view,
     object: same ? prev.object : null, openedAt: same ? prev.openedAt : now, lastConfirmedAt: now,
@@ -100,6 +107,7 @@ export const useShell = create<ShellState>((set, get) => ({
   overlay: null,
   roadmapFocus: null,
   history: [],
+  resumeDismissedAt: null,
 
   go: (p, opts) => {
     const s = get()
@@ -107,8 +115,8 @@ export const useShell = create<ShellState>((set, get) => ({
     const cur = s.places[s.product]
     if (s.product === p.product && cur.section === p.section && cur.view === p.view) return
     const history = opts?.history === false ? s.history : [...s.history, cur].slice(-HISTORY_MAX)
-    set({ product: p.product, places: { ...s.places, [p.product]: p }, lastView: { ...s.lastView, [p.section]: p.view }, history })
-    savePlace(p)
+    set({ product: p.product, places: { ...s.places, [p.product]: p }, lastView: { ...s.lastView, [p.section]: p.view }, history, resumeDismissedAt: null })
+    if (!isAppPlace(p)) savePlace(p)
     touchRecord(p)
   },
   goSection: (section) => {
@@ -145,11 +153,15 @@ export const useShell = create<ShellState>((set, get) => ({
   },
   openOverlay: (overlay, focus = null) => set({ overlay, roadmapFocus: overlay === 'roadmap' ? focus : null }),
   closeOverlay: () => set({ overlay: null, roadmapFocus: null }),
+  dismissResume: () => {
+    const c = get().places[get().product]
+    set({ resumeDismissedAt: `${c.product}:${c.section}.${c.view}` })
+  },
 }))
 
 export const currentPlace = (s: { product: ProductId; places: Record<ProductId, Place> }): Place => s.places[s.product]
 
 /** Tests only: back to a clean start. */
 export function resetShellForTests(): void {
-  useShell.setState({ ...initial(), lastView: {}, overlay: null, roadmapFocus: null, history: [] })
+  useShell.setState({ ...initial(), lastView: {}, overlay: null, roadmapFocus: null, history: [], resumeDismissedAt: null })
 }

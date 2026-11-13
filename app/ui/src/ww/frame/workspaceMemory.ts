@@ -13,7 +13,7 @@
  * so blocked storage costs the restore across a reload and nothing else. It is a plain module store
  * with subscribe, so a tab reads the dot through useSyncExternalStore and nothing re-renders on scroll.
  */
-import { useCallback, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { session } from '../kit/util'
 import type { WsId } from './workspaces'
 
@@ -102,6 +102,12 @@ export const workspaceMemory = {
   },
 }
 
+/** One key's stored value as text (undefined when nothing is stored): a stable snapshot for useSyncExternalStore. */
+function storedText(ws: WsId, key: string): string | undefined {
+  const e = mem.values[ws]?.[key]
+  return e === undefined ? undefined : JSON.stringify(e.v)
+}
+
 /** True when the workspace has a remembered value that differs from its default. */
 export function useSceneDirty(ws: WsId): boolean {
   useSyncExternalStore(workspaceMemory.subscribe, workspaceMemory.version, workspaceMemory.version)
@@ -114,6 +120,15 @@ export function useSceneDirty(ws: WsId): boolean {
  */
 export function useWorkspaceValue<T>(ws: WsId, key: string, initial: T): [T, (v: T) => void] {
   const [value, setValue] = useState<T>(() => workspaceMemory.get(ws, key, initial))
+  // A write from outside this component (under shell v2 the frame writes Life's view when the shell's view switch
+  // moves, A.N02) is adopted. The snapshot is this one key's stored value as text, so a write to any other key
+  // re-renders nothing here, and the component's own write matches the value it already holds (no extra state).
+  const stored = useSyncExternalStore(workspaceMemory.subscribe, () => storedText(ws, key), () => storedText(ws, key))
+  useEffect(() => {
+    if (stored === undefined) return
+    const next = JSON.parse(stored) as T
+    setValue((cur) => (same(next, cur) ? cur : next))
+  }, [stored])
   const set = useCallback(
     (v: T) => {
       setValue(v)

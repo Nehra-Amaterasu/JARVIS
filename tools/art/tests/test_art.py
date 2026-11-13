@@ -281,7 +281,7 @@ def test_private_build_writes_only_under_data_and_stage_copies_it(root):
     tokens = A.load_tokens(root)
     before = {f.name for f in p.generated.iterdir()}
     out = B.build_private(p, tokens)
-    assert set(out) == {"art.core.hill", "art.core.hill-still"}             # only recipes whose catalogue source exists
+    assert set(out) == {"art.core.hill-ring", "art.core.hill-still"}        # only recipes whose catalogue source exists
     assert {f.name for f in p.generated.iterdir()} == before                # nothing private reached the customer folder
     assert (p.private_out / "private-hashes.json").is_file()
     assert B.stage_private(p) >= 2 and (p.stage / "art.core.hill-still.png").is_file()

@@ -1,17 +1,18 @@
 {
  "art_id": "art.core.hill-still",
- "budget_bytes": 0,
+ "budget_bytes": 61440,
  "licence": "",
  "seed": 0,
  "source": {
-  "bbox": [
+  "frac": [
    0,
    0,
-   568,
-   284
+   1,
+   0.316
   ],
   "id": "C02-02",
-  "kind": "catalogue"
+  "kind": "catalogue",
+  "w": 720
  },
  "steps": [
   {

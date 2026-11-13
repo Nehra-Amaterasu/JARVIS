@@ -4,6 +4,8 @@
     python tools/art/build_art.py --check      rebuild in memory and fail on a hash, budget, track or licence problem
     python tools/art/build_art.py --private    build the private track into data/design-assets/private (needs the sources)
     python tools/art/build_art.py --stage-private   copy those into app/ui/src/art/private-local (git-ignored)
+    python tools/art/build_art.py --private --data-root C:/Projects/JARVIS
+                                       read the catalogue and collages from another checkout's data/ (a git worktree has none)
 
 A recipe is one JSON file per art id in tools/art/recipes: where the pixels come from (`source`), the rule
 steps, a byte budget, and for art that has a private-build picture, `private_source` (a catalogue id). The
@@ -45,6 +47,11 @@ TEXT_KINDS = {"txt", "svg"}
 @dataclass(frozen=True)
 class Paths:
     root: Path
+    data_root: Path | None = None     # where the private catalogue and collages are read from; default root
+
+    @property
+    def catalogue_dir(self) -> Path:
+        return (self.data_root or self.root) / "data/notes/design-taste/2026-11-12-well-wisher-overhaul"
 
     @property
     def recipes(self) -> Path: return self.root / "tools/art/recipes"
@@ -89,6 +96,33 @@ def recipe_hash(r: dict, tokens: dict[str, str], p: Paths) -> str:
 
 
 # ---------------------------------------------------------------- the rule engine
+_COLLAGES: dict[str, Image.Image] = {}
+
+
+def catalogue_png(cid: str, p: Paths) -> Path:
+    """data/design-assets/source/<id>.png, cut once from the owner's collage at full resolution with the
+    catalogue bbox and cached there (git-ignored). The collages are about 100 MP, so a cut costs seconds and
+    every later run reads the small cached crop."""
+    f = p.private_src / f"{cid}.png"
+    if f.is_file():
+        return f
+    cj = p.catalogue_dir / "catalogue/catalogue.json"
+    if not cj.is_file():
+        raise FileNotFoundError(f"no private source {cid}: neither {f} nor the catalogue at {cj} exists (pass --data-root)")
+    row = {r["id"]: r for r in json.loads(cj.read_text(encoding="utf-8"))}[cid]
+    sheet = _COLLAGES.get(row["source"])
+    if sheet is None:
+        Image.MAX_IMAGE_PIXELS = None            # the owner's own 100 MP collage, not an untrusted upload
+        sheet = _COLLAGES[row["source"]] = Image.open(p.catalogue_dir / row["source"])
+    f.parent.mkdir(parents=True, exist_ok=True)
+    sheet.crop(tuple(row["bbox"])).convert("RGB").save(f, "PNG")
+    return f
+
+
+def catalogue_available(cid: str, p: Paths) -> bool:
+    return (p.private_src / f"{cid}.png").is_file() or (p.catalogue_dir / "catalogue/catalogue.json").is_file()
+
+
 class Source:
     """What a source produces: luma (an image) or text (hand-typed or L-system)."""
     def __init__(self, luma: np.ndarray | None = None, text: str | None = None):
@@ -116,8 +150,10 @@ def make_source(src: dict, seed: int, p: Paths) -> Source:
             return Source(text=f.read_text(encoding="utf-8"))
         return Source(luma=A.luma709(Image.open(f)))
     if k == "catalogue":
-        f = p.private_src / f"{src['id']}.png"
-        im = Image.open(f).convert("RGB")
+        im = Image.open(catalogue_png(src["id"], p)).convert("RGB")
+        if "frac" in src:                        # x0, y0, x1, y1 as fractions of the full-resolution crop
+            x0, y0, x1, y1 = src["frac"]
+            im = im.crop((int(x0 * im.width), int(y0 * im.height), int(x1 * im.width), int(y1 * im.height)))
         if "bbox" in src:
             im = im.crop(tuple(src["bbox"]))
         if "w" in src:
@@ -134,6 +170,13 @@ def run_steps(r: dict, source: Source, tokens: dict[str, str]) -> tuple[str, byt
         pair = (tokens[PAIRS[s["pair"]][0]], tokens[PAIRS[s["pair"]][1]]) if "pair" in s else None
         if op == "tone":
             g = A.tone(g, s.get("lo", 2.0), s.get("hi", 98.0), s.get("gamma", 1.0))
+        elif op == "invert":
+            g = 1.0 - g
+        elif op == "ring":
+            g = A.ring_overlay(g, s.get("cx", 0.5), s.get("cy", 0.5), s.get("r", 0.4), s.get("ticks", 8), s.get("value", 0.9), s.get("w", 2))
+        elif op == "ascii_frame":
+            body = A.ascii_text(g, s.get("edge", 0.35)).rstrip("\n").split("\n")
+            return "txt", A.terminal_text(body, s.get("title", ""), s.get("tags"), s.get("width")).encode("utf-8")
         elif op in ("bayer", "atkinson"):
             gg = 1.0 - g if s.get("invert") else g
             fn = A.bayer_png if op == "bayer" else A.atkinson_png
@@ -156,6 +199,8 @@ def run_steps(r: dict, source: Source, tokens: dict[str, str]) -> tuple[str, byt
 
 def render(r: dict, tokens: dict[str, str], p: Paths, private: bool = False) -> tuple[str, bytes]:
     src = {"kind": "catalogue", "id": r["private_source"], **r.get("private_params", {})} if private else r["source"]
+    if private and "private_steps" in r:         # a customer recipe opts in to a private variant with its own steps
+        r = dict(r, steps=r["private_steps"])
     return run_steps(r, make_source(src, r.get("seed", 0), p), tokens)
 
 
@@ -275,26 +320,77 @@ def check(p: Paths, tokens: dict[str, str]) -> list[str]:
 
 
 # ---------------------------------------------------------------- private track
+def private_recipes(p: Paths) -> list[tuple[dict, str]]:
+    """(recipe, catalogue id) for every recipe that has a private build: a private-only recipe, or a customer
+    recipe that opts in with `private_steps` (the rest keep their own customer file and are never re-cut)."""
+    out = []
+    for r in load_recipes(p):
+        if r["track"] == "private-only":
+            cid = r["source"]["id"]
+        elif "private_steps" in r and r.get("private_source"):
+            cid = r["private_source"]
+        else:
+            continue
+        out.append((r, cid))
+    return out
+
+
+def render_private(r: dict, cid: str, tokens: dict[str, str], p: Paths) -> tuple[str, bytes]:
+    if r["track"] == "private-only":
+        return run_steps(r, make_source(r["source"], r.get("seed", 0), p), tokens)
+    return render(dict(r, private_source=cid), tokens, p, private=True)
+
+
 def build_private(p: Paths, tokens: dict[str, str]) -> dict:
-    """Needs data/design-assets/source/<id>.png. Writes only under data/design-assets/private, plus a hash
-    list that check_no_private_in_dist.py reads. Nothing here ever writes into app/ or tools/."""
+    """Needs the owner's catalogue (data/notes/design-taste/.../catalogue plus the four collages) or the cut
+    sources in data/design-assets/source. Writes only under data/design-assets/private, plus a hash list that
+    check_no_private_in_dist.py reads. Nothing here ever writes into app/ or tools/. Each output must fit
+    its recipe budget, or the build fails (a private file is still shipped inside the owner's build, so it
+    still has a weight)."""
     out: dict[str, dict] = {}
     p.private_out.mkdir(parents=True, exist_ok=True)
-    for r in load_recipes(p):
-        cid = r.get("private_source") or (r["source"].get("id") if r.get("source", {}).get("kind") == "catalogue" else None)
-        if cid is None:
+    for r, cid in private_recipes(p):
+        if not catalogue_available(cid, p):
+            print(f"skip {r['art_id']}: no source {cid}")
             continue
-        r2 = dict(r, private_source=cid)
-        if not (p.private_src / f"{cid}.png").is_file():
-            print(f"skip {r['art_id']}: no source {cid}.png")
-            continue
-        ext, data = render(r2, tokens, p, private=True) if r["track"] == "customer" else run_steps(r, make_source(r["source"], r.get("seed", 0), p), tokens)
+        ext, data = render_private(r, cid, tokens, p)
+        budget = r.get("budget_bytes") or BYTE_CAP[ext]      # a private recipe states its own weight; 8.5.2 caps are the default
+        if len(data) > budget:
+            raise SystemExit(f"FAIL {r['art_id']}: {len(data)} B is over its budget of {budget} B")
         f = p.private_out / f"{r['art_id']}.{ext}"
         f.write_bytes(data)
         out[r["art_id"]] = {"file": f.name, "sha256": A.sha256(data), "bytes": len(data), "source": cid,
-                            "source_sha256": A.sha256((p.private_src / f"{cid}.png").read_bytes())}
+                            "source_sha256": A.sha256(catalogue_png(cid, p).read_bytes())}
     (p.private_out / "private-hashes.json").write_text(json.dumps(out, indent=1, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
     return out
+
+
+def check_private(p: Paths, tokens: dict[str, str]) -> list[str]:
+    """Private-track checks, run only when every private source is already cut (the build runs with and
+    without the private folder): twice-rendered bytes are identical, each fits its budget, and the files in
+    data/design-assets/private match private-hashes.json. Returns problems; prints a note when skipped."""
+    rows = private_recipes(p)
+    if not rows or not all((p.private_src / f"{cid}.png").is_file() for _, cid in rows):
+        print("note: private track not checked (no cut sources in data/design-assets/source)")
+        return []
+    bad: list[str] = []
+    want = {}
+    lst = p.private_out / "private-hashes.json"
+    if lst.is_file():
+        want = json.loads(lst.read_text(encoding="utf-8"))
+    for r, cid in rows:
+        ext, a = render_private(r, cid, tokens, p)
+        _, b = render_private(r, cid, tokens, p)
+        if A.sha256(a) != A.sha256(b):
+            bad.append(f"{r['art_id']}: private render is not deterministic")
+        cap = r.get("budget_bytes") or BYTE_CAP[ext]
+        if len(a) > cap:
+            bad.append(f"{r['art_id']}: private file {len(a)} B is over its budget of {cap} B")
+        w = want.get(r["art_id"])
+        if w and w["sha256"] != A.sha256(a) and ext != "webp":
+            bad.append(f"{r['art_id']}: private file differs from private-hashes.json (rebuild with --private)")
+    print(f"private track: {len(rows)} recipe(s) checked")
+    return bad
 
 
 def stage_private(p: Paths) -> int:
@@ -312,11 +408,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--private", action="store_true")
     ap.add_argument("--stage-private", action="store_true")
     ap.add_argument("--root", default=str(ROOT))
+    ap.add_argument("--data-root", default=None, help="checkout whose data/ holds the private catalogue (default: --root)")
     a = ap.parse_args(argv)
-    p = Paths(Path(a.root))
+    p = Paths(Path(a.root), Path(a.data_root) if a.data_root else None)
     tokens = A.load_tokens(p.root)
     if a.check:
-        bad = check(p, tokens)
+        bad = check(p, tokens) + check_private(p, tokens)
         for b in bad:
             print("FAIL", b)
         m = json.loads(p.manifest.read_text(encoding="utf-8")) if p.manifest.is_file() else {"art": {}}

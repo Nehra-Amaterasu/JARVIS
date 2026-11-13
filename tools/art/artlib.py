@@ -17,7 +17,7 @@ import re
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter
 
 RAMP = " .:-=+*#%@"          # light to dense, ASCII only so any mono font draws it (8.5.2)
 CELL_W, CELL_H = 7.2, 16.0   # px, Geist Mono 12 px advance 0.6 em and a 16 px line (8.3)
@@ -104,6 +104,23 @@ def tone(g: np.ndarray, lo_pct: float = 2.0, hi_pct: float = 98.0, gamma: float 
     if hi - lo < 1e-9:
         return np.clip(g, 0.0, 1.0)
     return np.clip((g - lo) / (hi - lo), 0.0, 1.0) ** gamma
+
+
+def ring_overlay(g: np.ndarray, cx: float, cy: float, r: float, ticks: int = 8, value: float = 0.9, w: int = 2) -> np.ndarray:
+    """Draw a ring and `ticks` radial ticks into a luma image (the sigil frame of 20.4.6, an own drawing: a
+    circle and straight lines, no third-party shape). cx, cy and r are fractions of width, height and height.
+    Anti-aliased by drawing at 4x and box-averaging down, so the ring is a deterministic function of its inputs."""
+    h, wd = g.shape
+    k = 4
+    big = Image.new("L", (wd * k, h * k), 0)
+    d = ImageDraw.Draw(big)
+    x, y, rr = cx * wd * k, cy * h * k, r * h * k
+    d.ellipse((x - rr, y - rr, x + rr, y + rr), outline=255, width=max(int(w * k), 1))
+    for i in range(ticks):
+        a = 2 * math.pi * i / ticks
+        d.line((x + math.cos(a) * rr, y + math.sin(a) * rr, x + math.cos(a) * rr * 1.12, y + math.sin(a) * rr * 1.12), fill=255, width=max(int(w * k), 1))
+    m = np.asarray(big.resize((wd, h), Image.BOX), dtype=np.float64) / 255.0
+    return np.clip(g * (1.0 - m) + value * m, 0.0, 1.0)
 
 
 def _box_resize(g: np.ndarray, w: int, h: int) -> np.ndarray:

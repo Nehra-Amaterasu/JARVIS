@@ -1,0 +1,71 @@
+/* ArtSlot (A.G03). A picture is never the only carrier of meaning, so the box is aria-hidden and the caption
+   outside it is real text. No hex here: every colour is a token with a system fallback. Nothing animates at
+   idle; the one fade is a single 160 ms opacity step when the file arrives, and it is off under reduced motion. */
+.art-slot {
+  margin: 0;
+  display: block;
+  min-width: 0;
+}
+.art-slot__box {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  background: var(--surface-sunk, Canvas);
+  border: 1px solid var(--edge-ui, CanvasText);
+  border-radius: var(--radius-1, 4px);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
+}
+.art-slot[data-ratio="set"] .art-slot__box { aspect-ratio: var(--art-ratio); }
+.art-slot__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+.art-slot[data-ratio="set"] .art-slot__img { height: 100%; }
+.art-slot[data-fit="contain"] .art-slot__img { object-fit: contain; }
+/* A Bayer or Atkinson file is a pixel pattern; a smoothed resample turns it grey, so it scales in whole steps. */
+.art-slot[data-kind="png"] .art-slot__img { image-rendering: pixelated; }
+.art-slot__pre {
+  margin: 0;
+  padding: 8px 12px;
+  font: 400 10px / 12px var(--font-mono, ui-monospace, monospace);   /* the 6 x 12 atmosphere cell of 20.4.2 */
+  color: var(--ink-2, CanvasText);
+  white-space: pre;
+  overflow: hidden;
+  tab-size: 1;
+}
+.art-slot__ph {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 4px;
+  min-height: 96px;
+  height: 100%;
+  padding: 12px;
+  background-image: repeating-linear-gradient(135deg, transparent 0 7px, var(--edge-ui, CanvasText) 7px 8px);
+  font: 400 12px / 16px var(--font-mono, ui-monospace, monospace);
+  color: var(--ink-1, CanvasText);
+}
+.art-slot__ph-id { overflow-wrap: anywhere; }
+.art-slot__ph-why { color: var(--ink-2, CanvasText); }
+.art-slot__cap {
+  margin-top: 8px;
+  font: 400 12px / 16px var(--font-ui, system-ui, sans-serif);
+  color: var(--ink-2, CanvasText);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .art-slot[data-state="private"] .art-slot__img,
+  .art-slot[data-state="customer"] .art-slot__img { animation: art-slot-in 160ms ease-out 1; }
+}
+@keyframes art-slot-in { from { opacity: 0; } to { opacity: 1; } }
+@media (forced-colors: active) {
+  .art-slot__box { border-color: CanvasText; background: Canvas; }
+  .art-slot__ph { background-image: none; color: CanvasText; }
+  .art-slot__ph-why, .art-slot__pre, .art-slot__cap { color: CanvasText; }
+}
+@media (prefers-contrast: more) {
+  .art-slot__ph { background-image: none; }
+}

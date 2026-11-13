@@ -1,0 +1,28 @@
+{
+ "art_id": "art.room.faceplate",
+ "budget_bytes": 61440,
+ "licence": "",
+ "seed": 0,
+ "source": {
+  "frac": [
+   0,
+   0.3,
+   1,
+   1
+  ],
+  "id": "C01-23",
+  "kind": "catalogue",
+  "w": 600
+ },
+ "steps": [
+  {
+   "op": "tone"
+  },
+  {
+   "op": "duotone",
+   "pair": "charcoal-bone",
+   "quality": 62
+  }
+ ],
+ "track": "private-only"
+}

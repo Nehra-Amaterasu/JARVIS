@@ -2,6 +2,16 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-13: G03 private art track wired
+
+**Question.** Can the eleven centrepiece ids render from the private track while the repository holds no pixels?
+
+**Built.** 9 new recipes (private-only) and 2 customer ids opted in with `private_steps`; new steps `invert`, `ring`, `ascii_frame`; `build_art.py --private --data-root` cuts sources from the owner's collages once and caches them in the ignored folder; `trace_sigil.py`; `ArtSlot` plus `CENTREPIECE_IDS`. Counts: 12 private files, 1.5 to 54 KB each (about 245 KB total), built in 6.5 s warm and about 10 s cold; 60 pytest (46 old, 14 new), 32 vitest in `src/art`. A scratch private build staged 11 of the 11 ids and `check_no_private_in_dist.py` flagged all 11 in it and 0 in the customer scratch build.
+
+**Unverified.** The 25 percent view-box share is checked by the section packages; the private total is not yet counted against the 90 KB ASCII budget (those are images). The sun keeps its painted face as 20.4.6 names it; no figure appears on Senses.
+
+**Changed.** Customer ids without `private_steps` are never re-cut; private budgets come from each recipe. Private notes: `data/notes/research/art.md`.
+
 ## 2026-11-13: wave 4 integrated, the first jury scores, and the preview switch
 
 **Question.** Does the foundation hold together once the shell mounts it, and how does the first render score against the jury rubric (the section dated 2026-11-13 below)?

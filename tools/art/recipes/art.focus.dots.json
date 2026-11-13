@@ -1,0 +1,31 @@
+{
+ "art_id": "art.focus.dots",
+ "budget_bytes": 40960,
+ "licence": "",
+ "seed": 0,
+ "source": {
+  "frac": [
+   0.2,
+   0,
+   0.95,
+   0.42
+  ],
+  "id": "C03-08",
+  "kind": "catalogue",
+  "w": 360
+ },
+ "steps": [
+  {
+   "op": "tone"
+  },
+  {
+   "op": "invert"
+  },
+  {
+   "op": "duotone",
+   "pair": "bone-charcoal",
+   "quality": 62
+  }
+ ],
+ "track": "private-only"
+}

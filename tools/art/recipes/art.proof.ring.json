@@ -1,0 +1,31 @@
+{
+ "art_id": "art.proof.ring",
+ "budget_bytes": 61440,
+ "licence": "",
+ "seed": 0,
+ "source": {
+  "frac": [
+   0.12,
+   0.1,
+   0.88,
+   0.9
+  ],
+  "id": "C02-24",
+  "kind": "catalogue",
+  "w": 600
+ },
+ "steps": [
+  {
+   "op": "tone"
+  },
+  {
+   "op": "invert"
+  },
+  {
+   "op": "duotone",
+   "pair": "bone-charcoal",
+   "quality": 62
+  }
+ ],
+ "track": "private-only"
+}

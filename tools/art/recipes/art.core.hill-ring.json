@@ -1,0 +1,42 @@
+{
+ "art_id": "art.core.hill-ring",
+ "budget_bytes": 61440,
+ "licence": "",
+ "private_sources": [
+  "C02-02",
+  "C03-06"
+ ],
+ "seed": 0,
+ "source": {
+  "frac": [
+   0,
+   0.02,
+   1,
+   0.32
+  ],
+  "id": "C02-02",
+  "kind": "catalogue",
+  "w": 720
+ },
+ "steps": [
+  {
+   "gamma": 1.0,
+   "op": "tone"
+  },
+  {
+   "cx": 0.5,
+   "cy": 0.6,
+   "op": "ring",
+   "r": 0.42,
+   "ticks": 8,
+   "value": 0.92,
+   "w": 2
+  },
+  {
+   "op": "duotone",
+   "pair": "charcoal-bone",
+   "quality": 62
+  }
+ ],
+ "track": "private-only"
+}

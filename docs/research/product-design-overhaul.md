@@ -2,6 +2,18 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-13: wave 6, L02 Trim and the settings registry
+
+**Question.** Can every setting live beside the variable it tunes (no settings page) and still be found, reset and audited?
+
+**Built.** `shared/trim`: `Trim` (44 px clay key with a slider glyph; popover at most 320 x 360 with the control in a recessed well, "Set to" and "Default" on dotted leaders, one "Read by" line, Reset; Esc returns focus; Tab wraps; a press outside or a resize closes it), `registry.ts` (`*.settings.ts` glob, pure `collectSettings`, alias table empty until E13, `auditTrims`, `searchSettings`), `SettingsIndex`, pure `placePopover`, and the palette mode `:` in `shell/modes/settings.mode.ts`. Hardware and brain settings (`risk`) keep a two-press Reset. Gallery entries `kit/Trim` and `kit/SettingsIndex`.
+
+**Numbers.** vitest 2027 of 2027 in 98 files (twice), tsc clean, bundle check ok (ww build 490 modules); 13 Playwright checks at 1366x768 and 390x844, light, dark, forced colours and reduced motion: key 44 px, popover within 320 x 360 and the viewport, every control inside at least 44 px, focus lands on the control and returns to the key on Esc. Screenshots: scratchpad `jury/wave6/l02/`.
+
+**Unverified.** No real `*.settings.ts` exists yet, so the glob and the "no unmounted entry" audit are proved on two fixtures only; the audit is not yet run against the live app. The `:` mode is tested as a function and as a collected mode, not typed into the real palette in a browser. Screen-reader output not listened to.
+
+**Changed.** Optional additive fields on `SettingDef` (`format`, `defaultText`, `isDefault`, `risk`) and on `Trim` (`def`, for the gallery and tests); the contract signatures stand.
+
 ## 2026-11-13: wave 5 integrated: the wave contract's first test, the second jury, and agent commits that hang
 
 **Question.** Does one shared wave contract stop parallel packages breaking at merge, and did the first visible wave (gallery, shell fixes, clay recipe, grammars, private art) move the jury's scores?

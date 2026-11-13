@@ -90,6 +90,8 @@ desktop.ini
 data/
 # app/jarvis_app/data/ is shipped app data (the sourced advice lines), not personal data
 !app/jarvis_app/data/
+# app/ui/src/shared/data/ is UI source (the data-display components of wave 6), not personal data
+!app/ui/src/shared/data/
 *.instagram.json
 *.akr
 

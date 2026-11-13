@@ -102,9 +102,9 @@ describe('T2 orphan entry and T3 orphan renderer', () => {
 })
 
 describe('T4 home exists', () => {
-  it('the frozen table has the 36 view ids of spec 3.2 and no duplicates', () => {
-    expect(VIEW_IDS).toHaveLength(36)
-    expect(new Set(VIEW_IDS).size).toBe(36)
+  it('the frozen table has the 36 view ids of spec 3.2 plus day.month and focus.drill of direction v2, and no duplicates', () => {
+    expect(VIEW_IDS).toHaveLength(38)
+    expect(new Set(VIEW_IDS).size).toBe(38)
   })
   it('accepts a view id, phone, and settings.<id>; rejects anything else', () => {
     for (const ok of ['study.library', 'phone', 'settings.harvester', 'console.crew']) expect(isKnownHome(ok), ok).toBe(true)

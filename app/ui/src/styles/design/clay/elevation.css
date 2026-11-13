@@ -1,10 +1,31 @@
 /* ==========================================================================
-   Clay, layer 2: the elevation ladder (spec 6.4.4).
+   Clay, layer 2: the elevation ladder (spec 6.4.4) and the material recipe of direction v2 (20.4.4, wave 5 G01).
 
    Shadow is feel; edge, fill, shape and text are legibility. The canonical neumorphic recipe
    computes to 1.27:1 and 1.72:1 against its ground and WCAG 1.4.11 ignores soft shadows, so every
    level here is paired, in the kit, with a real 3:1 edge (--edge-ui) and a text or icon label.
    At most two shadow layers per recipe. Values are targets until painted on the real laptop (R01).
+
+   THE RECIPE (why the first jury saw "flat clay with no material", 3 of 10: every control was one hairline and one
+   blur). The owner's reference crops (catalogue C02-03, C02-18, C02-21, C02-27, C01-21, C01-19, C01-23, C02-46) agree
+   on four things, and each became one token here:
+     1  one light, aimed from the top left: the shade falls down and to the right (x +2, y +4 on a raised part), so
+        every drop shadow below is offset, never centred;
+     2  a lit ridge: the top lip catches the light, the bottom lip is in shade. Drawn as the 1 px inset --lit-hi on
+        top, and as the edge colours --ridge-hi (top) and --ridge-lo (bottom) of the real border, so the bevel IS the
+        3:1 edge rather than a shadow beside it. Light theme: the bottom lip is darker (#4d4d4d, 7.0:1 on the ground);
+        dark theme: the top lip is lighter (#9a9ea0, 6.4:1), because a darker bottom would sink into the charcoal;
+     3  a soft matte shade, not a glow: one blurred layer at 16 to 24 percent ink, no white outer halo (the halo of
+        C02-18 reads as glass on a 1366 px laptop panel and costs a third layer);
+     4  tooth: the brushed grain of C01-19 and C01-23, a 64 px tile at 2.5 percent (--tooth-opacity), on the ground
+        and on raised panels only, never on text wells; 0 in high contrast and in forced colours.
+   DEPTH, second pass (wave 5 finish): the first recipe (2 4 10 px at 16 percent) still read flat on the bench beside
+   the references, whose tiles lift 8 to 20 px. The shade is now 3 6 14 px at 20 percent on controls and 8 18 40 px
+   on overlays, the well is 3 4 8 px deep, and the lit lip catches the top AND the left edge (inset 1px 1px), as one
+   light from the top left would. --elev-raised-drop is the same raised shade in filter form, for a chamfered Panel
+   whose clip-path cuts any box-shadow away; it is not a second ladder.
+   The three raised steps keep their built names (--elev-flush on the ground, --elev-raised for controls and cards,
+   --elev-float for overlays); --elev-recessed is the one well. No parallel --elev-1..3 or --recess set exists.
 
    Rules for the files that READ these tokens (enforced for this folder by tokens.test.ts, and by
    the kit's own lint when it lands):
@@ -16,18 +37,34 @@
    Dark values are used by clay-dark AND by every immersive scene, as the spec's second column says.
    ========================================================================== */
 :root[data-theme='clay-light'] {
-  --elev-raised: inset 0 1px 0 var(--p-shadow-white-80), 0 3px 8px var(--p-shadow-ink-16);
-  --elev-flush: none;
-  --elev-recessed: inset 0 2px 5px var(--p-shadow-ink-20), 0 1px 0 var(--p-shadow-white-70);
-  --elev-pressed: inset 0 2px 4px var(--p-shadow-ink-28);
-  --elev-float: 0 12px 32px var(--p-shadow-ink-28);
+  /* the lit ridge: inner light lip, the real edge's top and bottom colours; LitPanel paints its aimed sheen
+     from --lit-hi on a pre-painted layer, so no fifth token is needed */
+  --lit-hi: var(--p-shadow-white-90);
+  --lit-lo: var(--p-shadow-ink-10);
+  --ridge-hi: var(--p-clay-500);
+  --ridge-lo: var(--p-clay-700);
+  --tooth-opacity: 0.025;
+
+  --elev-flush: inset 1px 1px 0 var(--lit-hi);
+  --elev-raised: inset 1px 1px 0 var(--lit-hi), 3px 6px 14px var(--p-shadow-ink-20);
+  --elev-raised-drop: drop-shadow(3px 6px 7px var(--p-shadow-ink-20));
+  --elev-float: inset 1px 1px 0 var(--lit-hi), 8px 18px 40px var(--p-shadow-ink-24);
+  --elev-recessed: inset 3px 4px 8px var(--p-shadow-ink-24), 0 1px 0 var(--p-shadow-white-70);
+  --elev-pressed: inset 2px 3px 5px var(--p-shadow-ink-28);
 }
 
 :root[data-theme='clay-dark'],
 [data-scene='immersive'] {
-  --elev-raised: inset 0 1px 0 var(--p-shadow-white-06), 0 4px 10px var(--p-shadow-black-55);
-  --elev-flush: none;
-  --elev-recessed: inset 0 2px 6px var(--p-shadow-black-65), 0 1px 0 var(--p-shadow-white-05);
-  --elev-pressed: inset 0 2px 5px var(--p-shadow-black-75);
-  --elev-float: 0 12px 32px var(--p-shadow-black-60);
+  --lit-hi: var(--p-shadow-white-10);
+  --lit-lo: var(--p-shadow-black-40);
+  --ridge-hi: var(--p-char-300);
+  --ridge-lo: var(--p-char-400);
+  --tooth-opacity: 0.025;
+
+  --elev-flush: inset 1px 1px 0 var(--lit-hi);
+  --elev-raised: inset 1px 1px 0 var(--lit-hi), 3px 7px 16px var(--p-shadow-black-60);
+  --elev-raised-drop: drop-shadow(3px 7px 8px var(--p-shadow-black-60));
+  --elev-float: inset 1px 1px 0 var(--lit-hi), 8px 18px 40px var(--p-shadow-black-62);
+  --elev-recessed: inset 3px 4px 8px var(--p-shadow-black-75), 0 1px 0 var(--p-shadow-white-06);
+  --elev-pressed: inset 2px 3px 6px var(--p-shadow-black-75);
 }

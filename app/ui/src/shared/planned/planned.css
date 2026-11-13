@@ -24,6 +24,21 @@
   min-height: 44px;
   text-align: start;
 }
+/* The corner-bracket frame (wave 5, G01; 20.4.1 "frame" role, 8 px arms): four brackets drawn by one bordered layer
+   masked to its corners (the conic mask keeps an 8 x 8 square at each corner), 5 px outside the dashed plate. Pure
+   CSS, so a placeholder is on the sigil theme without importing shared/grammar; decorative, so it follows
+   --decor-opacity and is not part of the plate's own 3:1 dashed edge. */
+.pl-plate { position: relative; }
+.pl-plate::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  pointer-events: none;
+  border: 1.5px solid var(--ink-2, currentColor);
+  opacity: var(--decor-opacity, 1);
+  -webkit-mask: conic-gradient(at 8px 8px, transparent 75%, var(--pl-edge) 0) 0 0 / calc(100% - 8px) calc(100% - 8px);
+  mask: conic-gradient(at 8px 8px, transparent 75%, var(--pl-edge) 0) 0 0 / calc(100% - 8px) calc(100% - 8px);
+}
 .pl-plate:focus-visible,
 .pl-btn:focus-visible,
 .pl-chip:focus-visible {

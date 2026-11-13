@@ -48,8 +48,15 @@ describe('clay kit stylesheet', () => {
     expect(forced).toContain('CanvasText')
   })
   it('the chamfer is two layers (outer edge fill plus inset inner), so the diagonal keeps a 3:1 edge', () => {
-    expect(normal).toMatch(/\.k-panel \{[^}]*background: var\(--edge-ui\)[^}]*padding: 1px[^}]*clip-path/)
+    // wave 5: the outer layer is the clipped ::before, so the panel itself is unclipped and can cast its shade
+    expect(normal).toMatch(/\.k-panel \{[^}]*padding: 1px/)
+    expect(normal).toMatch(/\.k-panel::before \{[^}]*background: var\(--edge-ui\)[^}]*clip-path/)
     expect(normal).toMatch(/\.k-panel-in \{[^}]*clip-path/)
+  })
+  it('the chamfered panel casts the raised shade as a drop-shadow that follows the chamfer, and none in forced colours', () => {
+    expect(normal).toMatch(/\.k-panel \{[^}]*filter: var\(--elev-raised-drop, none\)/)
+    expect(normal).not.toMatch(/\.k-panel \{[^}]*clip-path/)
+    expect(forced).toMatch(/\.k-panel \{[^}]*filter: none/)
   })
   it('the Raised Pill restyle is scoped to a clay theme, so no existing page changes', () => {
     const rule = normal.match(/^[^\n]*\.ww-btn\.primary[^\n]*$/gm) ?? []

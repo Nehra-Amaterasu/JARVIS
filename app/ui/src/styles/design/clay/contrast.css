@@ -12,6 +12,8 @@
      --elev-recessed, --elev-pressed            edge only: the inset shadows are off
      --decor-opacity 0                          ghost rings, scanlines, grain and halftone atmosphere
                                                 read var(--decor-opacity, 1) and disappear
+     --tooth-opacity 0, --lit-hi/--lit-lo off    the material grain and the light lip go (depth becomes edges)
+     --ridge-hi, --ridge-lo                     both lips take the ink-2 value, so the bevel is one strong edge
      --sec-mark                                 ink-1
    --accent-ink on light stays #A8300F (5.62): it already passes.
 
@@ -28,6 +30,11 @@
     --elev-recessed: none;
     --elev-pressed: none;
     --decor-opacity: 0;
+    --tooth-opacity: 0;
+    --ridge-hi: var(--p-clay-700);
+    --ridge-lo: var(--p-clay-700);
+    --lit-hi: transparent;
+    --lit-lo: transparent;
   }
   :root[data-theme='clay-dark'][data-contrast='high'],
   :root[data-theme='clay-light'][data-contrast='high'] [data-scene='immersive'],
@@ -38,6 +45,11 @@
     --elev-recessed: none;
     --elev-pressed: none;
     --decor-opacity: 0;
+    --tooth-opacity: 0;
+    --ridge-hi: var(--p-char-200);
+    --ridge-lo: var(--p-char-200);
+    --lit-hi: transparent;
+    --lit-lo: transparent;
   }
   :root[data-theme='clay-light'][data-contrast='high'] [data-section],
   :root[data-theme='clay-dark'][data-contrast='high'] [data-section] {
@@ -53,6 +65,11 @@
       --elev-recessed: none;
       --elev-pressed: none;
       --decor-opacity: 0;
+      --tooth-opacity: 0;
+      --ridge-hi: var(--p-clay-700);
+      --ridge-lo: var(--p-clay-700);
+      --lit-hi: transparent;
+      --lit-lo: transparent;
     }
     :root[data-theme='clay-dark'],
     :root[data-theme='clay-light'] [data-scene='immersive'],
@@ -63,6 +80,11 @@
       --elev-recessed: none;
       --elev-pressed: none;
       --decor-opacity: 0;
+      --tooth-opacity: 0;
+      --ridge-hi: var(--p-char-200);
+      --ridge-lo: var(--p-char-200);
+      --lit-hi: transparent;
+      --lit-lo: transparent;
     }
     :root[data-theme='clay-light'] [data-section],
     :root[data-theme='clay-dark'] [data-section] {

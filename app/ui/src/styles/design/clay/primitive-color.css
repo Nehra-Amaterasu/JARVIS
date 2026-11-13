@@ -81,4 +81,13 @@
   --p-shadow-black-65: rgb(0 0 0 / 0.65);
   --p-shadow-black-75: rgb(0 0 0 / 0.75);
   --p-scrim-light: rgb(23 23 23 / 0.55);
+
+  /* the material steps of the clay recipe (wave 5, G01): the lit ridge, the aimed sheen and the soft matte shade */
+  --p-shadow-white-90: rgb(255 255 255 / 0.9);
+  --p-shadow-white-10: rgb(255 255 255 / 0.1);
+  --p-shadow-ink-10: rgb(23 23 23 / 0.1);
+  --p-shadow-ink-12: rgb(23 23 23 / 0.12);
+  --p-shadow-ink-24: rgb(23 23 23 / 0.24);
+  --p-shadow-black-40: rgb(0 0 0 / 0.4);
+  --p-shadow-black-50: rgb(0 0 0 / 0.5);
 }

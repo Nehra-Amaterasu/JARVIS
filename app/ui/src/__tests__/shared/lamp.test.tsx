@@ -129,7 +129,7 @@ describe('Reading: a number only with a state that allows it', () => {
 describe('annunciators', () => {
   it('lists the four JARVIS lamps and the two Well Wisher lamps in order', () => {
     expect(JARVIS_ANNUNCIATORS.map((a) => a.label)).toEqual(['Voice', 'Room link', 'Senses', 'Memory'])
-    expect(WW_ANNUNCIATORS.map((a) => a.label)).toEqual(['Phone paired', 'Quiet on'])
+    expect(WW_ANNUNCIATORS.map((a) => a.label)).toEqual(['Phone', 'Quiet'])
   })
 
   it('shows WAITING for every lamp nobody has reported on', () => {

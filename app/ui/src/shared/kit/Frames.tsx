@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { LampGlyph, Lamp, type LampState } from './Lamp'
 import { focusables, lockBackground, trapTab, useEscStack } from './overlay'
+import { PlannedGlyph } from '../lamp/PlannedGlyph'
 import { cx } from './util'
 
 // ---------------------------------------------------------------------------------------------- Panel
@@ -529,6 +530,7 @@ export function FolderTabs({ tabs, value, onChange, onPlanned, label, className 
           onKeyDown={(e) => onKeyDown(e, i)}
         >
           {t.label}
+          {t.planned && <PlannedGlyph size={12} />}
           {t.planned && <span className="k-readout-why"> PLANNED</span>}
           {t.count !== undefined && <span className="k-tab-count">{t.count}</span>}
         </button>

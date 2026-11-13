@@ -18,9 +18,13 @@ export { Banner, EmptyState, Fold, MasterDetail, TapGroup, clearMasterDetailMemo
 
 export { Lamp, LampGlyph, LAMP_STATES, LAMP_WORD, LAMP_SHAPE, lampText, showsValue } from './Lamp'
 export type { LampProps, LampState } from './Lamp'
+export { PlannedGlyph, PLANNED_RING } from '../lamp/PlannedGlyph'
+export type { PlannedGlyphProps } from '../lamp/PlannedGlyph'
 export { Knob, Key, Plate, Rocker, Switch, TickSlider } from './Hardware'
 export type { KeyProps, KnobProps, PlateProps, RockerProps, StateForms, SwitchProps, TickSliderProps } from './Hardware'
 export { NO_VALUE, Numerals, ProgressBar, Readout, ReadoutLines, TelemetryRail, readingText } from './Readouts'
 export type { NumeralsProps, ProgressBarProps, RailRow, ReadoutLine, ReadoutProps } from './Readouts'
 export { CONSOLE_MAX_LINES, Console, FolderTabs, Frame, NOTCHED_TOAST_MS, NotchedToast, NotchedToastStack, Panel, PaletteView, RetroDialog } from './Frames'
+export { LIT_ANGLES, LitPanel, snapAngle } from './LitPanel'
+export type { LitAngle, LitPanelProps } from './LitPanel'
 export type { ConsoleLine, ConsoleProps, ConsoleTag, FolderTab, FolderTabsProps, FrameProps, NotchedToastItem, PaletteItem, PanelProps, RetroDialogProps } from './Frames'

@@ -1,12 +1,18 @@
 // The lamp (spec 6.6, kit component 11): five shapes so the state is readable in greyscale, plus the word.
 // Colour is only a third cue: every glyph draws with currentColor and the state token is set on the wrapper.
+import { PlannedGlyph } from './PlannedGlyph'
 import { LAMP_SPECS, lampName, type LampReading, type LampState } from './types'
 import './lamp.css'
 
 /** Glyph geometry on a 16 x 16 box; exported so the greyscale test compares shapes, not colours. */
-export function LampGlyph({ state }: { state: LampState }) {
+/** `size` and `className` are optional (wave 5): the planned plate draws its WAITING half disc as this svg, sized in px. */
+export function LampGlyph({ state, size, className }: { state: LampState; size?: number; className?: string }) {
+  const cls = className ? `lamp-glyph ${className}` : 'lamp-glyph'
+  const dim = size ?? '1em'
+  // PLANNED is the one shared drawing (PlannedGlyph.tsx), so this lamp, the kit lamp and the planned plate cannot drift
+  if (state === 'planned') return <PlannedGlyph className={cls} width={dim} height={dim} />
   return (
-    <svg className="lamp-glyph" viewBox="0 0 16 16" width="1em" height="1em" aria-hidden="true" focusable="false" data-glyph={LAMP_SPECS[state].glyph}>
+    <svg className={cls} viewBox="0 0 16 16" width={dim} height={dim} aria-hidden="true" focusable="false" data-glyph={LAMP_SPECS[state].glyph}>
       {state === 'live' && <circle cx="8" cy="8" r="6" fill="currentColor" />}
       {state === 'waiting' && (
         <>
@@ -15,7 +21,6 @@ export function LampGlyph({ state }: { state: LampState }) {
         </>
       )}
       {state === 'simulated' && <path d="M8 1.5 14.5 8 8 14.5 1.5 8z" fill="currentColor" />}
-      {state === 'planned' && <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2.4 2.2" />}
       {state === 'fault' && <path d="M8 1.8 14.6 13.6H1.4z" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />}
     </svg>
   )

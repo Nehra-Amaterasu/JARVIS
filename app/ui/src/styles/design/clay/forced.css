@@ -59,10 +59,19 @@
     --focus-ring: Highlight;
     --scrim: color-mix(in srgb, Canvas 80%, transparent);
 
+    --elev-flush: none;
     --elev-raised: none;
+    --elev-raised-drop: none;
     --elev-recessed: none;
     --elev-pressed: none;
     --elev-float: none;
+
+    /* the material: no grain, no light lip, and both ridge lips are the system text colour (depth becomes edges) */
+    --tooth-opacity: 0;
+    --lit-hi: transparent;
+    --lit-lo: transparent;
+    --ridge-hi: CanvasText;
+    --ridge-lo: CanvasText;
   }
 
   /* layer 3: the section mark and the canvas art pair */

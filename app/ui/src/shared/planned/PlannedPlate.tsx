@@ -1,26 +1,23 @@
 // Pattern C: the dashed plate for a whole capability that has a home and no control to put in it (spec 12.4).
-// Static, flat, one cue: the dashed outline, the dashed-ring glyph and the word PLANNED. It never carries a
+// Static, flat, one cue: the dashed outline, the dashed-ring glyph and the word PLANNED, inside a CSS corner-bracket
+// frame (wave 5) so every placeholder is on the sigil theme without importing shared/grammar. It never carries a
 // value, a toggle, a count, a skeleton, an accent or a motion. Pressing it opens the card; it is aria-disabled
 // so it stays in the tab order and reads as "not working" (T7), exactly as the disabled pattern does.
 import type { PlannedEntry } from './types'
+import { PlannedGlyph as Ring } from '../lamp/PlannedGlyph'
+import { LampGlyph } from '../lamp/Lamp'
 import { fillLine } from './registry'
 import { openPlanned } from './open'
 import './planned.css'
 
-/** Dashed ring for PLANNED, half disc for "built, not verified": two shapes, so the state is not carried by colour. */
-export function PlannedGlyph({ unverified }: { unverified?: boolean }) {
-  return (
-    <svg className="pl-glyph" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
-      {unverified ? (
-        <>
-          <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M8 2a6 6 0 0 0 0 12z" fill="currentColor" />
-        </>
-      ) : (
-        <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2.4 2.2" />
-      )}
-    </svg>
-  )
+/**
+ * The plate's state glyph. PLANNED draws the one shared ring (shared/lamp/PlannedGlyph); "built, not verified" is a
+ * WAITING lamp (D20), so it draws the WAITING lamp glyph, not a second planned shape. Kept under this name and with
+ * the `unverified` prop because shared/art/BlankingPlate imports it from here; it no longer draws anything itself.
+ */
+export function PlannedGlyph({ unverified, size = 16 }: { unverified?: boolean; size?: number }) {
+  if (!unverified) return <Ring size={size} className="pl-glyph" />
+  return <LampGlyph state="waiting" size={size} className="pl-glyph" />
 }
 
 export interface PlannedPlateProps {

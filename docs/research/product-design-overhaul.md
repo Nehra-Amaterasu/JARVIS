@@ -2,6 +2,15 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-13: D05, specimen layout, strata, sigil mark and rack row (wave 6)
+
+- **Question:** can the bento grid be replaced by one specimen with callouts on leaders, and can three data forms (strata, sigil, rack) show evidence and hardware state without a number or a lamp that was not earned?
+- **Built** (`app/ui/src/shared/data/specimen/`): SpecimenLayout (1302 x 720 desktop, specimen 760 x 560, up to 5 callouts on 1 px leaders bending once at 45 degrees, datum ticks every 40 px; reflow under 900 px as specimen first plus a dot carousel), StrataCore (thickness is evidence, flat dashed layer for none, hollow for WAITING, PLANNED and FAULT with the reason), SigilMark (reuses the shared sigil engine, same input gives the same bytes), RackRow (confirmed only with `reportedAt`; otherwise "sent, not acknowledged").
+- **Resumed after an outage:** the 16 files were complete and passing; this pass found by looking that the gallery squeezed StrataCore to a 130 px card (clipped rows, wrapped meta), the rack overflowed at 520 px (its compact layout keyed to the window, now to its own width by container query) and the demo leaders crossed the unit rows (anchors moved to the stack's edge). Added `e2e/d05-specimen.spec.ts`.
+- **Numbers:** vitest 2063 of 2063 (102 files; 63 in D05), tsc 0, bundle budget ok (ww build 493 modules), Playwright 7 of 7 (no document scroll at 1366x768 and 390x844, one object wider than 40 percent, strata rows 44 px, zero rAF at idle, forced colours).
+- **Unverified:** the composed look inside the real shell canvas (only the gallery stage was seen, zoomed 1.5x and clipped by its pane); the refined clay tokens from the craft pass; contrast measured by eye only.
+- **Changed:** nothing outside the owned folders except the new e2e spec.
+
 ## 2026-11-13: wave 5 integrated: the wave contract's first test, the second jury, and agent commits that hang
 
 **Question.** Does one shared wave contract stop parallel packages breaking at merge, and did the first visible wave (gallery, shell fixes, clay recipe, grammars, private art) move the jury's scores?

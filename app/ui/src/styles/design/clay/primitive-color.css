@@ -90,4 +90,19 @@
   --p-shadow-ink-24: rgb(23 23 23 / 0.24);
   --p-shadow-black-40: rgb(0 0 0 / 0.4);
   --p-shadow-black-50: rgb(0 0 0 / 0.5);
+
+  /* the refined pair (craft pass, 13 Nov): the light theme's shade is a cool slate, not ink. The owner's sheets tint it
+     blue-grey (C02-18 writes #0D2750 at low alpha, C02-27 #AEAEC0 at 20 to 40 percent); a black or ink shade at the same
+     alpha reads as dirt on the #E8EAE9 ground. One hue, six alphas, one per elevation step. */
+  --p-shade-cool-12: rgb(36 50 78 / 0.12);
+  --p-shade-cool-14: rgb(36 50 78 / 0.14);
+  --p-shade-cool-18: rgb(36 50 78 / 0.18);
+  --p-shade-cool-20: rgb(36 50 78 / 0.2);
+  --p-shade-cool-24: rgb(36 50 78 / 0.24);
+  --p-shade-cool-30: rgb(36 50 78 / 0.3);
+  /* the dark theme's highlight: a lighter grey at very low alpha (C02-21 lifts #292D32 by #30343A, about 4 percent of
+     white); 10 percent on #171717 read as a halo on the bench */
+  --p-shadow-white-04: rgb(255 255 255 / 0.04);
+  --p-shadow-white-07: rgb(255 255 255 / 0.07);
+  --p-shadow-white-12: rgb(255 255 255 / 0.12);
 }

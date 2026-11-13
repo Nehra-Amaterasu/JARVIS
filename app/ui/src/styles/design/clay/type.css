@@ -35,4 +35,13 @@
   /* corners: clay for chrome, sharp for the brutalist sections; a section picks one (6.3.6) */
   --r-clay: var(--p-radius-14);
   --r-sharp: var(--p-radius-2);
+
+  /* the soft scale of the material (craft pass, 13 Nov): what the kit's objects are made of, whatever the section's
+     silhouette (--r-control, --r-panel) says about its own layout. A HUD or terminal frame that wants a cut corner
+     takes the kit's .k-chamfer class on purpose; nothing is chamfered by default. */
+  --r-well: var(--p-radius-12);   /* fields, tracks, readout wells */
+  --r-ctl: var(--p-radius-14);    /* tabs, segments, rocker body, plates */
+  --r-key: var(--p-radius-16);    /* keys and icon buttons */
+  --r-card: var(--p-radius-22);   /* panels, toasts, dialogs */
+  --r-pill: var(--p-radius-pill); /* buttons, chips, switches */
 }

@@ -20,7 +20,7 @@ import { mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 import {
-  MAX_SHOT_HEIGHT, SIZES, THEMES, BLANK_BELOW, distinctColours, folderOf, measure, openGallery, pickEntry, shotName, showState, stateFile, writeReport,
+  MAX_SHOT_HEIGHT, SIZES, THEMES, BLANK_BELOW, distinctColours, folderOf, measure, openGallery, pickEntry, shotName, showState, stateFile, waitNotLoading, writeReport,
   type EntryInfo, type Row, type Theme,
 } from './jury/lib'
 
@@ -60,12 +60,13 @@ async function specimenShots(page: Page, id: string, states: string[], width: nu
   const list = count ? states : ['specimen']
   for (let i = 0; i < list.length; i++) {
     await showState(page, count > 1 ? i : null, count)
+    const loaded = await waitNotLoading(page, SPECIMEN)
     const m = await measure(page, SPECIMEN, SPECIMEN)
     const base = stateFile(i, list[i])
     const name = shotName(base, width, theme)
     const { png, truncated } = await shoot(page, resolve(dir, name), m.clip)
     const colours = await distinctColours(page, png)
-    rows.push({ file: `${folderOf(id)}/${name}`, kind: 'specimen', entry: id, state: list[i], width, theme, ...m, ...blankFields(colours), truncated })
+    rows.push({ file: `${folderOf(id)}/${name}`, kind: 'specimen', entry: id, state: list[i], width, theme, ...m, ...blankFields(colours), truncated, ...(loaded ? {} : { stillLoading: true, note: 'still loading: the Suspense fallback was on screen after 8 s' }) })
   }
   await showState(page, null, count)
 }

@@ -8,7 +8,7 @@
  * Wisher frame's own workspace strip is hidden under this root (CSS, so ww/frame is not edited). Everything
  * the canvas shows is an existing page, the event log, a planned plate, or a "not built" plate (hosts.ts).
  */
-import { AudioLines, BookOpen, BrainCircuit, Briefcase, CalendarDays, CornerUpLeft, Gauge, Hand, Maximize2, MessageCircle, Minus, ScanEye, Sprout, Timer, X } from 'lucide-react'
+import { AudioLines, BookOpen, BrainCircuit, Briefcase, CalendarDays, CornerUpLeft, Gauge, Hand, MapPin, Maximize2, MessageCircle, Minus, ScanEye, Sprout, Timer, X } from 'lucide-react'
 import { lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { Toasts } from '../components/Shell'
 import { clock, useNow } from '../lib/format'
@@ -335,6 +335,7 @@ function ResumePill({ product, now }: { product: ProductId; now: number }) {
   if (home)
     return (
       <nav className="s2-pill" data-pill="here" aria-label="Resume">
+        <MapPin className="s2-pill-pin" size={15} strokeWidth={2} aria-hidden="true" />
         <span className="s2-pill-here" aria-current="location">{placeLabel(homePlace)}</span>
       </nav>
     )

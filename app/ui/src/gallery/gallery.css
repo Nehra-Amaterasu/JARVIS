@@ -201,12 +201,19 @@
 .gl-bar-name { font: 650 17px/1.2 var(--font-ui, Inter, system-ui, sans-serif); letter-spacing: -0.01em; }
 .gl-bar-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; min-width: 0; }
 .gl-kicker { margin: 0; font: 650 11px/1 var(--font-ui, Inter, system-ui, sans-serif); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
-.gl-select { display: inline-flex; align-items: center; gap: 10px; }
+.gl-select { position: relative; display: inline-flex; align-items: center; gap: 10px; }
+/* the chevron is drawn here, not by the platform: a native arrow is a grey system glyph on a clay well. It sits over the
+   select's right end, never takes a click, and the select reserves the room for it */
+.gl-select::after {
+  content: ''; position: absolute; right: 18px; top: 50%; width: 7px; height: 7px; pointer-events: none;
+  border-right: 2px solid var(--ink-2); border-bottom: 2px solid var(--ink-2); rotate: 45deg; translate: 0 -72%;
+}
 .gl-select-label { font-size: 12px; font-weight: 500; color: var(--ink-2); }
 /* the select is a field: an engraved well (its boundary is information, so it keeps the 3:1 engraving) */
 .gl-select select {
+  -webkit-appearance: none; appearance: none;
   min-height: 44px;
-  padding: 0 14px;
+  padding: 0 40px 0 16px;
   font: 500 13px/1 var(--font-ui, Inter, system-ui, sans-serif);
   color: var(--ink-1);
   border-radius: var(--r-well, 14px);

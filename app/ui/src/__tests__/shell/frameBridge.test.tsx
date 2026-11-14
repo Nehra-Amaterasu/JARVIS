@@ -123,13 +123,19 @@ describe('the frame bridge never moves the place without a key', () => {
   })
 
   it('a jump made inside the frame, with no shell request in flight, still moves the rail', async () => {
+    // study.papers is a registered shell view since Y01 (the Paper Desk), so the frame is not driven by it; the first
+    // frame-hosted Study view is study.plan, two keys on (study.practice is the Drill set-up door, in the Focus workspace)
     key('3', { ctrlKey: true })
-    await act(async () => {
-      fake.flushStale()
-      await Promise.resolve()
-    })
-    await settle()
-    expect(fake.state).toEqual({ ws: 'study', view: 'papers' })
+    key(']')
+    key(']')
+    for (let i = 0; i < 2; i++) {
+      await act(async () => {
+        fake.flushStale()
+        await Promise.resolve()
+      })
+      await settle()
+    }
+    expect(fake.state).toEqual({ ws: 'study', view: 'plan' })
     act(() => fake.jump('study', 'library'))
     expect(view().view).toBe('library')
     act(() => fake.jump('tree', null))

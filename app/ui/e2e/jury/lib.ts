@@ -49,6 +49,8 @@ export interface Row {
   under44: number
   under44List: string[]
   truncated: boolean
+  /** a lazy part of the specimen was still on its Suspense fallback when the time ran out, so the picture shows the fallback */
+  stillLoading?: boolean
   /** focus rows only */
   stop?: number
   ring?: string
@@ -89,6 +91,7 @@ export function indexMarkdown(rows: Row[], meta: { generated: string; entries: n
 export interface Summary {
   files: number; specimens: number; focus: number; shell: number
   entries: number; entriesWithError: number
+  stillLoading: number
   overflowing: number; clipped: number; blank: number; blankLower: number
   textUnder11: number; under44At390: number; focusableUnder44At390: number
 }
@@ -103,6 +106,7 @@ export function summarize(rows: Row[], entries: EntryInfo[]): Summary {
     shell: rows.filter((r) => r.kind === 'shell').length,
     entries: entries.length,
     entriesWithError: entries.filter((e) => e.error).length,
+    stillLoading: rows.filter((r) => r.stillLoading).length,
     overflowing: spec.filter((r) => r.overflowPx > 0).length,
     clipped: spec.filter((r) => r.clippedPx > 0).length,
     blank: spec.filter((r) => r.blank).length,
@@ -212,6 +216,26 @@ export async function pickEntry(page: Page, id: string): Promise<{ group: string
 /** Show state i alone, or all of them (null), through the page's own State switch. */
 export async function showState(page: Page, i: number | null, count: number) {
   if (count > 1) await press(page, `.gl-states-switch [role="radio"]:nth-child(${(i === null ? 0 : i + 1) + 1})`)
+}
+
+/**
+ * Waits until no Suspense fallback is on screen inside `root`: a lazy gallery entry (L04, Y01) draws a `role="status"` line
+ * that starts with "Loading" (or an element marked aria-busy) until its chunk arrives, and a picture taken before that shows
+ * the fallback instead of the state. Bounded: it returns false when the time runs out, so the caller records "still loading"
+ * in report.json instead of hanging.
+ */
+export async function waitNotLoading(page: Page, root: string, timeout = 8000): Promise<boolean> {
+  try {
+    await page.waitForFunction((sel) => {
+      const el = document.querySelector(sel)
+      if (!el) return false
+      if (el.querySelector('[aria-busy="true"]')) return false
+      return ![...el.querySelectorAll('[role="status"]')].some((n) => /^\s*Loading/i.test(n.textContent ?? ''))
+    }, root, { timeout })
+    return true
+  } catch {
+    return false
+  }
 }
 
 // ---------------------------------------------------------------- measuring (runs in the page)

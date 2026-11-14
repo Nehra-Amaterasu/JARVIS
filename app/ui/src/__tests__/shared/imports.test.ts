@@ -60,12 +60,30 @@ describe('the product seams in the import graph', () => {
 
   it('S2: only the mounting files outside the two products name a Well Wisher module', () => {
     // App.tsx lazily starts the game bridge, pageLoaders.ts lazily loads the Well Wisher root; both are
-    // gated by VITE_PRODUCT so the jarvis build removes them (scripts/bundle-budget.mjs proves it).
-    const allowed = new Set(['App.tsx', 'pageLoaders.ts'])
+    // gated by VITE_PRODUCT so the jarvis build removes them (scripts/bundle-budget.mjs proves it). The shell views and
+    // gallery entries below are the wave contract's mounting files for Today (L04) and the Paper Desk (Y01): each loads its
+    // Well Wisher module through a dynamic import() behind the same VITE_PRODUCT test, written in place so Vite folds it.
+    const allowed = new Set([
+      'App.tsx',
+      'pageLoaders.ts',
+      'shell/views/day-today.view.ts',
+      'shell/views/study-papers.view.ts',
+      'gallery/entries/L04.tsx',
+      'gallery/entries/Y01.tsx',
+    ])
     const seen = new Set<string>()
     for (const f of files.filter((f) => !under(rel(f), [...WW_TREES, ...JARVIS_TREES, 'shared'])))
       if (importsOf(f).some((i) => under(i, WW_TREES))) seen.add(rel(f))
     expect([...seen].sort()).toEqual([...allowed].sort())
+  })
+
+  it('S2: the shell views and gallery entries load their Well Wisher module lazily, behind the product test', () => {
+    for (const f of ['shell/views/day-today.view.ts', 'shell/views/study-papers.view.ts', 'gallery/entries/L04.tsx', 'gallery/entries/Y01.tsx']) {
+      const text = readFileSync(join(SRC, f), 'utf8')
+      expect(text, f).toMatch(/import\.meta\.env\.VITE_PRODUCT !== 'jarvis'/)
+      expect(text, f).not.toMatch(/^\s*import\s[^'"]*?from\s*['"][^'"]*\/ww\//m)
+      expect(text, f).not.toMatch(/^\s*import\s*['"][^'"]*\/ww\//m)
+    }
   })
 
   it('S2: App.tsx no longer mounts the Well Wisher overlays (they live in the ww root)', () => {

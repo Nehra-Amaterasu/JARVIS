@@ -62,14 +62,19 @@ test.describe('Shell v2 fixes (A.N02), flag on', () => {
     await page.keyboard.press('Control+1')
     await page.locator('#s2-view-week').click()
     await expect(page.locator('.ww-life')).toHaveAttribute('data-view', 'week')
+    // Day / Today is a registered shell view since L04 (its own page, not the frame's Life page), so the switch back to
+    // Today shows that page and the frame's Life page goes away; the switch still drives what is on screen
     await page.locator('#s2-view-today').click()
-    await expect(page.locator('.ww-life')).toHaveAttribute('data-view', 'today')
+    await expect(page.locator('.td').first()).toBeVisible()
+    await expect(page.locator('.ww-life')).toBeHidden()
   })
 
   test('(a) the frame takes the shell\'s theme, draws no strip, and its tools sit in the shell row', async ({ page, baseURL }) => {
     await open(page, baseURL)
     await toProduct(page, 'ww')
     await page.keyboard.press('Control+1')
+    // Day / Today is a registered shell view since L04 and shows no frame; Day / Week is the first Day view the frame still hosts
+    await page.locator('#s2-view-week').click()
     await expect(page.locator('.ww-frame')).toBeVisible()
     await expect(page.locator('.ww-strip')).toHaveCount(0)
     const t = await page.evaluate(() => {
@@ -88,7 +93,7 @@ test.describe('Shell v2 fixes (A.N02), flag on', () => {
     await expect(tools.locator('[data-open="roadmap"]')).toBeVisible()
     const small = await tools.locator('button').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).filter((r) => r.width < 44 || r.height < 44).length)
     expect(small).toBe(0)
-    await page.locator('#s2-view-today').focus()
+    await page.locator('#s2-view-week').focus()
     let guard = 0
     while (!(await page.evaluate(() => !!document.activeElement?.closest('[data-frame-tools]'))) && guard++ < 6) await page.keyboard.press('Tab')
     expect(await page.evaluate(() => !!document.activeElement?.closest('[data-frame-tools]'))).toBe(true)

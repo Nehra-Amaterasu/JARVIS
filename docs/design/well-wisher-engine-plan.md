@@ -91,6 +91,124 @@ Until step 6, the connector's control reads PLANNED, then WAITING, and slice C's
 - 2026-11-14 (after stage 1 of EW7; no path or payload name changed): (1) "reviewed questions" in the floor of R-09, R-16 and R-17 means **accepted** questions, because a pattern is counted over accepted questions only; (2) a draft always arrives `pending`, whatever status it carries; (3) setting a question's `text` by hand also sets `text_status: "verified"`; (4) R-06 clamps `limit` to 1..500 and `offset` to 0 or more instead of refusing; (5) a paper's `sha256` must be 64 lowercase hex or it is refused; (6) `Store` also has `update_questions(ids, changes, by)` (all or nothing, used by R-07) and `problems()` (files set aside as corrupt); (7) `parse_ics` returns skipped events in the list with `status: "skipped"` and a note, so C02 filters on `status`.
 - 2026-11-14 (after stage 2 of EW7; all 27 routes are live; no path changed; payloads only gained fields): (1) **two floors, said apart.** R-09's `floor_met` counts accepted questions; the pattern floor of R-16 and R-17 counts accepted questions that carry a unit and a topic, because a pattern is counted per topic. `coverage.tagged` is that number, `patterns.n_untagged` the rest, and the waiting sentence says how many accepted questions still have no topic; (2) R-16 adds `topics[].typical_marks` and `patterns.n_untagged`; `patterns.families` lists only families of two or more questions; `years_since` is counted from the newest paper on file, not from today; (3) R-17 adds `footer` and `provisional`, and `gap_minutes` defaults to 60; (4) R-18 items add `held_by_hand` (a hand tag the rule did not touch); (5) R-19, R-20 and R-21 also raise an issue with code `exam_max` when the blueprint's total is not the exam row's maximum, and R-22 refuses such a blueprint; a blueprint is capped at 100 questions a section and 1000 marks (400 beyond); (6) R-22: a seat taken by a question from outside his own bank (a harvested disk-bank row) is emptied, because a slot's `source` is only `hand`, `rule`, `template` or `hollow`; (7) R-12 with `folder: true` and nothing new answers `live` "Nothing new in the folder." with `job: null`; a network or device path is refused with 400 before any file call; (8) R-13: a PDF over 300 pages, a page over 4.5e6 square points, or a deck that declares over 250 MB unzipped fails that file with a reason; (9) R-14 on a question without a page picture (a slide from a `.pptx`) is 404 "No page picture for this question."; (10) R-15 also refuses an empty body, a file whose first bytes are not a PDF or a zip, and a Windows device name; (11) a question with no marks of its own whose sub-parts all print marks gets their sum (`marks_source: "printed"`); (12) R-26 reads a bare number in the key's unit (key `3.3 kohm`, answer `3300` does not match; the note says which unit was read) and refuses an answer over 120 characters; (13) code contract: `Store.add_questions` keeps a well-formed, unused `id` a draft carries (the ingest names crops before the one write); `practise_next` also takes `attempts` and `minutes_per_mark`; `find_families` also takes `years_by_paper`; `Plan.paper_marks` takes `extra_bank`.
 
+- 2026-11-14 (EW8 planned): routes R-28 to R-47 added (section 9.2.5). `schema.py` is version 2: `Question` gains `origin` (`paper`, `hand`, `template`, `model-draft`, `harvest`; a record without it reads as `paper`), `source_question` and `ocr_confidence`. No EW7 path or payload changed.
+
+### 9.2 Wave EW8: scans, drafts, the intake store, the harvester core, the archive door (planned 14 Nov 2026)
+
+**State: building.** One stage: the five packages own disjoint files and each imports EW7's merged code only.
+
+#### 9.2.1 Reconciled with the specification
+
+The specification's EW8 is X04, X07, C02, HV01, E17 and M01. **M01 is folded into the integrator's end-of-wave test**, because `app/tests/test_pyq_slice.py` (EW7) already drives an invented paper from upload to marks; EW8 extends that test with a scanned page through OCR. Differences that govern (D-V3-25):
+
+1. **X04 also detects columns.** A two-column paper merges its columns in EW7 (known gap); X04 owns `segment.py` and `ingest.py` for this wave, so column detection goes with it.
+2. **OCR runs on the CPU in EW8.** The installed `onnxruntime` 1.27.0 has no CUDA provider (`AzureExecutionProvider`, `CPUExecutionProvider` only). The GPU build is a different package (`onnxruntime-gpu`) that replaces `onnxruntime`, which the voice stack (`kokoro-onnx`) also uses, so it is not swapped while the app runs; it is the owner's step (section 8 of this file lists it once agreed). X04 asks for the CUDA provider when present and says which device ran.
+3. **An accepted deadline is listed, not written into the date sheet.** C02's accepted rows are served by R-38 for the Life calendar; turning one into a date-sheet exam row is a later step with its own confirmation.
+4. **E17 keeps its own listing.** A Classroom export is listed by E17 and its accepted entries go into the ingest; they become intake rows when C02 and E17 are joined in EW9.
+5. **X07 extends `ww_counsel.py`** (new tasks and their validators) and adds no second model client. Tests use a fake provider; with no model the answer is `waiting` with the reason.
+
+#### 9.2.2 Facts the builders rely on (checked 14 Nov)
+
+- RapidOCR: `rapidocr-onnxruntime` 1.4.4 is installed (with `opencv-python` 5.0.0.93, `pyclipper` 1.4.0, `shapely` 2.2.0; 113 MB for OpenCV, 16 MB for RapidOCR with its models). `from rapidocr_onnxruntime import RapidOCR; eng = RapidOCR(); result, elapse = eng(bgr_image)` gives `[[box, text, confidence], ...]`; the models ship in the wheel, so nothing is downloaded (checked with every socket blocked). One invented 150 dpi page: engine load 3.3 s, 6.3 to 10.7 s a page on the CPU while builds ran, line confidence 0.95 to 0.97, process memory 141 MB.
+- `ingest_pdf(..., ocr=None)` already accepts an `ocr` callable and records a page with no text layer as a fault. `yaadash/library.py` has its own OCR hook (`ocr_available`, `_ocr_page`, through Tesseract, which is not installed): X04 makes that hook use the same engine, so the Library and the paper ingest share one OCR.
+- `ww_counsel.counsel(task, fields, provider)` loads `prompts/<task>.md` (system and user parts split by `---`), calls the provider, extracts JSON and validates it with `check_output`; failures return `no_model` or `unparsed`. Its tasks today are `grade_explain`, `quiz_from_text`, `parse_day`, `summarise`.
+- `ww_harvest.py` holds `SOURCES`, the polite `Harvester` (robots once a day per host, one request at a time, 2 to 5 s apart, a daily stop on 403 or 429, an injected transport for tests), and `pdf_text` through `pdftotext`. `routes_ww_harvest.py` has the queue, sources, pause, resume and run routes.
+- `ww_intake` (C01) gives `parse_paste`, `parse_ics` (skipped events come back with `status: "skipped"`) and `match_name`.
+- `ww_pyq.ingest.IngestJob` is the one ingest job (one at a time, `Busy` when running); `app.state.pyq_ingest` holds it.
+
+#### 9.2.3 Shared contract (integrator, before the builders)
+
+- `schema.py` version 2: `Question.origin`, `source_question`, `ocr_confidence`; `ORIGINS`. Frozen for the wave.
+- Requirements: the integrator pins `rapidocr-onnxruntime==1.4.4` and `opencv-python==5.0.0.93` (and lists `pyclipper` and `shapely` as indirect in `check_requirements.INDIRECT`) in the commit that merges X04, because the check refuses a pin nothing imports yet; no package edits `requirements/`.
+- Store layout additions under the private data directory: `pyq/variants/<subject>.json`, `pyq/rubrics/<qid>.json`, `pyq/settings.json`, `pyq/takeout/<id>.json` and `pyq/takeout/<id>.zip`, `intake/rows.json`, `intake/files/` (copies the app owns), `bank/questions/_harvest/manifest.jsonl` (the harvester's existing folder).
+
+#### 9.2.4 Packages
+
+| Pkg | Purpose | Owns | Extends or reuses |
+|---|---|---|---|
+| **X04** | OCR of scanned pages behind the existing hook, text `unverified` with its confidence; column detection for two-column papers | `ww_pyq/ocr.py`, `ww_pyq/columns.py`, `ww_pyq/ingest.py`, `ww_pyq/segment.py`, `routes_ww_pyq_ocr.py`, `yaadash/library.py` (the OCR hook only), `app/tests/test_pyq_ocr.py`, `app/tests/test_pyq_columns.py` | EW7 ingest and segmentation; the library's hook |
+| **X07** | Variants (numerical from templates, descriptive drafted by the local model) and rubric drafts, each pending until he accepts; the rules-only switch | `ww_pyq/variants.py`, `ww_pyq/rubric.py`, `ww_pyq/settings.py`, `routes_ww_pyq_drafts.py`, `ww_counsel.py`, `prompts/variant_descriptive.md`, `prompts/rubric_points.md`, `app/tests/test_pyq_drafts.py`, `app/tests/test_pyq_drafts_routes.py` | `ww_counsel` (tasks and validators), `ww_numericals.make`, E05 `Store` |
+| **C02** | The intake store: pasted lines, calendar files and watched-folder files as rows with a state; Take actions; Delete removes only files the app owns | `ww_intake/store.py`, `routes_ww_intake.py`, `app/tests/test_intake_store.py`, `app/tests/test_intake_routes.py` | C01 parsers, E05 folder scan, the ingest job, the library's ingest job |
+| **HV01** | Harvester core v2: the adapter interface and registry, the manifest, two switches per source, the rate rules, the drop-in, and PyMuPDF instead of `pdftotext` | `ww_harvest.py`, `ww_harvest_sources/__init__.py`, `routes_ww_harvest.py`, `ww_check_harvest.py`, `app/tests/test_harvest_core.py`, the existing `app/tests/test_ww_harvest.py` and `app/tests/test_harvest_routes.py` where behaviour changes | E06 `read_pdf_text`, the ingest job |
+| **E17** | A Classroom export `.zip` he made himself: listed before anything is extracted, path escapes and size refused, accepted entries go to the ingest | `ww_pyq/takeout.py`, `routes_ww_pyq_takeout.py`, `app/tests/test_pyq_takeout.py` | E05 `Store`, the ingest job |
+
+#### 9.2.5 Route contracts (envelope and errors as in section 4 and 9.1.5)
+
+**X04, `routes_ww_pyq_ocr.py`**
+
+| Id | Method and path | Request | Response payload | States | Errors |
+|---|---|---|---|---|---|
+| R-28 | GET `/api/mission/pyq/ocr` | - | `engine: {name, version, device: "cpu"|"cuda", loaded: bool, models_on_disk: bool}`, `last: {pages, seconds_per_page, mean_confidence} or null` | `live` "OCR is ready on the CPU."; `fault` "No OCR engine is installed." | - |
+
+Ingest behaviour (no new route): a page with no text layer is recognised; its questions have `text_status: "unverified"`, `ocr_confidence`, their crop, and the trace line `p3 ocr cpu 0.94 mean, 11 lines`; the paper's `method` is `ocr` or `mixed`; with no engine the page is still a fault and the rest imports. A recognised line below 0.6 confidence is kept in the text with no change but counted in the trace. A page is cut into columns before segmentation when a vertical gap of at least 18 pt runs down at least 70 percent of the text height; reading order is the left column, then the right.
+
+**X07, `routes_ww_pyq_drafts.py`**
+
+| Id | Method and path | Request | Response payload | States | Errors |
+|---|---|---|---|---|---|
+| R-29 | POST `/api/mission/pyq/variants` | `{question_id, count?: 1..3}` | `items: [Variant]` (stored, `status: "pending"`) | `live`; `waiting` "The local model is not running." (descriptive only; numerical variants need no model); `planned` "Variants are off: rules only." when the switch is on | 400 the question has no text or no marks; 404 |
+| R-30 | GET `/api/mission/pyq/variants?question=&subject=&status=` | - | `items: [Variant]` | `live`; `waiting` when none | - |
+| R-31 | PATCH `/api/mission/pyq/variants/{id}` | `{status: "accepted"|"rejected", text?}` | `variant`, `question` when accepted (a new pending-free question: `status: "accepted"`, `status_by: "hand"`, `origin: "model-draft"` or `"template"`, `source_question`) | `live` | 400 accepting a draft outside the similarity band or with other marks; 404 |
+| R-32 | POST `/api/mission/pyq/rubric/{qid}/draft` | - | `rubric: {question_id, points: [{text, marks}], origin: "model-draft", status: "pending", sum}` | `live`; `waiting` no model; `planned` rules only | 400 no marks; 404 |
+| R-33 | GET `/api/mission/pyq/rubric/{qid}` | - | `rubric` or null | `live`; `waiting` "No rubric yet." | 404 |
+| R-34 | PUT `/api/mission/pyq/rubric/{qid}` | `{points: [{text, marks}]}` | `rubric` with `status: "accepted"`, `origin: "hand"` when he wrote or changed it, else `"model-draft"` kept | `live` | 400 the points do not sum to the question's marks, 1 to 6 points, empty text |
+| R-35 | GET and PUT `/api/mission/pyq/settings` | PUT `{rules_only: bool}` | `settings: {rules_only}` | `live` | 400 |
+
+`Variant = {id, question_id, kind: "numerical"|"descriptive", text, marks, topic, unit, origin: "template"|"model-draft", checks: {similarity, band: [0.2, 0.7], marks_equal, topic_equal}, status, made}`. A descriptive draft outside the 5-word-shingle Jaccard band 0.2 to 0.7 is stored as `rejected` by rule with the reason, never offered as pending. The model is never asked for a grade, a numeric answer, a probability or a new topic, and nothing it writes enters the bank or a rubric without his accept.
+
+**C02, `routes_ww_intake.py`**
+
+| Id | Method and path | Request | Response payload | States | Errors |
+|---|---|---|---|---|---|
+| R-36 | GET `/api/mission/intake?state=&source=` | - | `items: [IntakeRow]` | `live`; `waiting` "Nothing brought in yet." | 400 bad state |
+| R-37 | POST `/api/mission/intake/paste` | `{text}` (at most 20,000 characters) | `items`: the new rows (`state: "new"`), `unread: [{line, text, reason}]` | `live` | 400 empty or too long |
+| R-38 | POST `/api/mission/intake/ics` | raw `text/calendar` body, at most 2 MB | `items`: the new rows; `skipped: n` | `live` | 400 not a calendar; 413 |
+| R-39 | PATCH `/api/mission/intake/{id}` | `{state: "accepted"|"declined", title?, date?, time?, subject?}` | `row` | `live` | 400 accepting an ambiguous date without choosing one; 404 |
+| R-40 | POST `/api/mission/intake/{id}/take` | `{to: "papers"|"notes"}` (file rows only) | `row` (`state: "taken"`), `job` | `live` | 400 not a file row; 409 a job is running; 404 |
+| R-41 | DELETE `/api/mission/intake/{id}` | - | `removed: {row: true, file: bool}` | `live` | 404 |
+| R-42 | GET `/api/mission/intake/deadlines?from=&to=` | - | `items: [{id, title, date, time or null, subject, source}]` (accepted rows with a date) | `live`; `waiting` when none | 400 bad date |
+
+`IntakeRow = {id, source: "paste"|"ics"|"folder", kind: "deadline"|"event"|"file", state: "new"|"accepted"|"declined"|"taken", title, date or null, time or null, readings (two when ambiguous), ambiguous: bool, subject or "", subject_suggestion: {subject, score} or null, repeats, file: {name, size, owned: bool} or null, raw_hash, added, updated}`. Folder files appear as rows on read (scan of the chosen folder; no timer). A subject suggestion uses `match_name` at 0.6 or more and is never applied by itself. Delete removes the row, and the file only when it lies under `intake/files/` (a copy the app owns); his own folders are never written.
+
+**HV01, `routes_ww_harvest.py` (existing routes kept)**
+
+| Id | Method and path | Request | Response payload | States | Errors |
+|---|---|---|---|---|---|
+| R-43 | GET `/api/mission/harvest/manifest?source=` | - | `items: [{source, url or "", fetched, bytes, sha256, robots_checked, terms_note, rights, local: path under the data directory or "pointer only", paper_id or null}]` | `live`; `waiting` "Nothing fetched or dropped yet." | - |
+| R-44 | PUT `/api/mission/harvest/sources/{id}` | `{on?: bool, local_copy?: bool}` | `source: {id, name, rights, terms_note, on, local_copy, reason}` | `live`; `fault` "This source has no terms note; it stays off." | 400 `local_copy` on while `on` is off, or a source without a terms note; 404 |
+| R-45 | POST `/api/mission/harvest/dropin` | `{path}` (an absolute file he downloaded himself, `.pdf`) | `entry` (manifest line, `source: "manual"`), `job` (the ingest) | `live` | 400 bad path (the R-12 rules), 409 |
+
+Rate rules (in the framework, not in adapters): one request at a time, 2 to 5 s apart and at least 3 s per host, 200 a host a day, `robots.txt` read once a day per host and obeyed per path, a conditional request when an ETag or Last-Modified is known, backoff on 429 and 503, a stop for the day on a second 403 or 429. Every source is off; a local copy is a second switch; with every source off the harvester opens no socket.
+
+**E17, `routes_ww_pyq_takeout.py`**
+
+| Id | Method and path | Request | Response payload | States | Errors |
+|---|---|---|---|---|---|
+| R-46 | POST `/api/mission/pyq/takeout` | `{path}` (an absolute `.zip`) or the raw zip body with `?name=` | `listing: {id, name, entries: [{name, size, kind: "pdf"|"pptx"|"other", refused: reason or null}], total_size, note}` | `live`; the note says "Files owned by others may be missing from your export." | 400 not a zip, a whole drive, a network path; 413 over 500 MB |
+| R-47 | POST `/api/mission/pyq/takeout/{id}/accept` | `{entries: [name]}` | `job` (the ingest of the accepted entries) | `live` | 400 an entry not in the listing or refused; 404; 409 |
+
+Nothing is extracted before R-47. An entry is refused (listed, never extracted) when its name is absolute, has a drive letter, contains `..`, a backslash path that escapes, a device name, or declares more than 100 MB, or when the archive declares more than 1 GB in all or over 5,000 entries.
+
+#### 9.2.6 Acceptance checks and tests (written first)
+
+**X04.** (1) A three-page fixture whose middle page is a picture of text: the picture page gives questions with `text_status: "unverified"`, confidence, crop and an `ocr` trace line; the two text pages are unchanged. (2) With the engine absent (patched), the picture page is a fault and the other pages import, as in EW7. (3) A two-column fixture: question counts equal the hand count and reading order is left column then right. (4) Single-column fixtures of EW7 are unchanged (their tests pass untouched). (5) The library's OCR hook uses the same engine and a library ingest of the scan gives text. (6) Pages per second, engine load time and process memory are measured and reported; the CPU path is the tested one; with the CUDA provider absent the device reads `cpu`. (7) No socket is opened while the engine loads (the conftest guard).
+
+**X07.** (1) Numerical variants come only from `ww_numericals` templates and have keys. (2) A descriptive draft below 0.2 or above 0.7 similarity is rejected by rule. (3) No draft becomes a question until R-31 accepts it, and the new question carries `origin: "model-draft"` and `source_question`. (4) Rubric points must sum to the question's marks; a model draft that does not is returned with the difference and stays pending. (5) The rules-only switch makes every model path answer `planned` and calls no provider (a counting fake proves it). (6) With no model, `waiting`, never an invented draft. (7) The validators refuse a model answer that carries a grade, a probability or a topic that does not exist.
+
+**C02.** (1) A pasted list and a calendar file become rows in state `new`; nothing reaches the date sheet or the question store until a row is accepted. (2) An ambiguous date cannot be accepted without a choice. (3) Folder files appear as rows and Take starts the ingest or the library ingest. (4) Delete never removes a file outside `intake/files/` (a test with a file in a temporary "his own" folder). (5) The same paste twice adds no duplicate rows (by raw hash). (6) Every route answers and is in the docstring table.
+
+**HV01.** (1) With every source off, zero sockets (the transport is never called). (2) A source without a terms note cannot be switched on. (3) A `robots.txt` disallow stops that path; a second 403 stops the host for the day; 429 backs off. (4) A local copy needs the second switch; without it the manifest says "pointer only" and nothing is stored. (5) A dropped file joins the manifest as `source: "manual"` and enters the ingest. (6) `pdf_text` reads with PyMuPDF through `read_pdf_text`; the old `pdftotext` path is gone and the existing harvester tests pass, changed only where they pinned `pdftotext`. (7) Re-running is idempotent by hash.
+
+**E17.** (1) A fixture zip is listed and nothing is extracted. (2) Entries with `../`, an absolute name, a drive letter or a device name are refused and never extracted. (3) A declared-size bomb is refused before reading. (4) Accepting two entries extracts only those, into the inbox, and starts the ingest. (5) The listing carries the note about files owned by others.
+
+#### 9.2.7 Verification and merge
+
+Each package: builder (tests first), reviewer (reruns, one mutation, contract check), and a security review for X04 (native libraries on hostile images), C02 (file deletion), HV01 (the network), E17 (archives). Then on `engine/main`: package tests, the full `app` suite on a scratch data directory, the gate, root privacy and commit tests, the requirements check, and the extended end-to-end test (a scanned page through OCR).
+
+#### 9.2.8 Outcome
+
+*(written when the wave merges)*
+
 ### 9.1 Wave EW7: the exam slice (planned 14 Nov 2026; the takeover note calls it "E1")
 
 **State: merged (14 Nov 2026). All five packages are on main; routes R-01 to R-27 are live.** Stage 1 (E05, C01) first, then stage 2 (E06, E07, E08), because the three stage 2 packages import E05's `Store`.

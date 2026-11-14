@@ -126,4 +126,22 @@
   --p-fault-glow-25: rgb(179 38 30 / 0.25);
   --p-fault-glow-dk-25: rgb(255 107 94 / 0.25);
   --p-fault-glow-dk-35: rgb(255 107 94 / 0.35);
+
+  /* KB1 (14 Nov, D-V3-30): the JARVIS dark ground as a matte piano black. The owner: "the charcoal could be more
+     black-ish, piano black-ish but in matte". New names, so #171717 (--p-char-800) keeps its other jobs untouched: ink-1
+     of the light theme, the text on the orange fill and the selected ink. The ground is #0D0D0F, not #0A0A0B: a laptop
+     IPS panel's black level swallows steps below about L* 2, and the recessed well must sit BELOW the ground and still
+     read, so the ground keeps L* 3.9 of headroom (well L* 1.6); blue +2 keeps the black cool, never brown. Each step
+     is about 4 L* apart (well 1.6, ground 3.9, raised 8.9, hover 12.5), the smallest difference that reads by eye on
+     the bench at 1366 on a laptop panel. Ratios to the ground: well 1.04, raised 1.10, hover 1.20. */
+  --p-matte-950: #060607;  /* sunk, dark: the recessed well, under the ground */
+  --p-matte-900: #0d0d0f;  /* ground, dark: matte piano black */
+  --p-matte-800: #18191c;  /* raised, dark */
+  --p-matte-750: #1f2124;  /* the raised face on hover, dark */
+  /* matte means the highlight is broad and dim and cool grey, never a white specular line: a blue-grey at 4 to 10
+     percent, blurred wider than the shade, so the lit edge is a soft gradient of light on the face, not a line */
+  --p-hi-cool-04: rgb(168 178 194 / 0.04);
+  --p-hi-cool-06: rgb(168 178 194 / 0.06);
+  --p-hi-cool-08: rgb(168 178 194 / 0.08);
+  --p-hi-cool-10: rgb(168 178 194 / 0.1);
 }

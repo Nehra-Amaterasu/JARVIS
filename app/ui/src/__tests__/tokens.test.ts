@@ -245,10 +245,15 @@ const LIGHT: Row[] = [
   ['--state-measured', TEXT, 5.13, 5.58, 4.504], ['--state-simulated', TEXT, 5.45, 5.93, 4.78], ['--state-fault', TEXT, 5.41, 5.88, 4.74],
   ['--accent-ink', TEXT, 5.62, 6.1, 4.93], ['--edge-ui', EDGE, 4.04, 4.39, 3.54], ['--focus-ring', EDGE, 14.83, 16.12, 13.01],
 ]
+// KB1 (14 Nov, D-V3-30): recomputed on the matte piano black, ground #0D0D0F, raised #18191C, sunk #060607 (was
+// #171717, #222426, #101112). Every pair rose, because the inks stayed and the surfaces went darker. The old values,
+// ground / raised / sunk: ink-1 14.83 12.89 15.64, ink-2 8.97 7.79 9.46, ink-3 6.64 5.76 7.00, measured 11.67 10.14
+// 12.30, simulated 10.07 8.74 10.61, fault 6.42 5.57 6.77, accent-ink 5.23 4.55 5.52, edge-ui 4.50 3.91 4.74. The
+// thinnest dark pair is now edge-ui on raised at 4.41 (3.0 needed) and, for text, accent-ink on raised at 5.13.
 const DARK: Row[] = [
-  ['--ink-1', TEXT, 14.83, 12.89, 15.64], ['--ink-2', TEXT, 8.97, 7.79, 9.46], ['--ink-3', TEXT, 6.64, 5.76, 7.0],
-  ['--state-measured', TEXT, 11.67, 10.14, 12.3], ['--state-simulated', TEXT, 10.07, 8.74, 10.61], ['--state-fault', TEXT, 6.42, 5.57, 6.77],
-  ['--accent-ink', TEXT, 5.23, 4.55, 5.52], ['--edge-ui', EDGE, 4.5, 3.91, 4.74], ['--focus-ring', EDGE, 14.83, 12.89, 15.64],
+  ['--ink-1', TEXT, 16.07, 14.55, 16.76], ['--ink-2', TEXT, 9.71, 8.79, 10.13], ['--ink-3', TEXT, 7.19, 6.51, 7.5],
+  ['--state-measured', TEXT, 12.64, 11.44, 13.18], ['--state-simulated', TEXT, 10.9, 9.87, 11.37], ['--state-fault', TEXT, 6.95, 6.29, 7.25],
+  ['--accent-ink', TEXT, 5.67, 5.13, 5.91], ['--edge-ui', EDGE, 4.87, 4.41, 5.08], ['--focus-ring', EDGE, 16.07, 14.55, 16.76],
 ]
 const IMMERSIVE: Row[] = [
   ['--ink-1', TEXT, 15.76, 14.14, 16.49], ['--ink-2', TEXT, 9.53, 8.55, 9.97], ['--ink-3', TEXT, 7.05, 6.33, 7.38],
@@ -298,6 +303,41 @@ describe('contrast tables (spec 6.3.3), computed from the CSS', () => {
     })
   })
 
+  describe('the matte piano black ground of clay-dark (D-V3-30, KB1)', () => {
+    const d = tokens({ theme: 'clay-dark' })
+    const lumHex = (h: string) => parseInt(h.slice(1, 3), 16) + parseInt(h.slice(3, 5), 16) + parseInt(h.slice(5, 7), 16)
+    it('the ground is #0d0d0f, inside the owner\'s piano-black range #0a0a0b to #0e0e10, and blacker than the old #171717', () => {
+      expect(d['--surface-ground']).toBe('#0d0d0f')
+      expect(lumHex(d['--surface-ground'])).toBeGreaterThanOrEqual(lumHex('#0a0a0b'))
+      expect(lumHex(d['--surface-ground'])).toBeLessThanOrEqual(lumHex('#0e0e10'))
+      expect(d['--surface-paper']).toBe(d['--surface-ground'])
+    })
+    it('three raised faces and two recessed steps, each a different value in one order: well < ground < raised < hover < thumb', () => {
+      const ladder = [d['--surface-sunk'], d['--surface-ground'], d['--surface-raised'], d['--surface-raised-hi'], d['--thumb']]
+      for (let i = 1; i < ladder.length; i++) expect(lumHex(ladder[i]), ladder.join(' ')).toBeGreaterThan(lumHex(ladder[i - 1]))
+      // measured: well 1.04, raised 1.10, hover 1.20 to the ground (about 4 L* apart each)
+      expect(near(ratio(d['--surface-sunk'], d['--surface-ground']), 1.04)).toBe(true) // 1.043
+      expect(near(ratio(d['--surface-raised'], d['--surface-ground']), 1.1)).toBe(true) // 1.105
+      expect(near(ratio(d['--surface-raised-hi'], d['--surface-ground']), 1.2)).toBe(true) // 1.203
+      // the second recessed step is the deep well's darker shade, a different recipe from the plain well
+      expect(d['--elev-well-deep']).not.toBe(d['--elev-recessed'])
+    })
+    it('the accent as a state piece on black is a 3:1 shape on ground and raised (4.99, 4.52; 4.61 and 4.01 before)', () => {
+      expect(near(ratio(d['--accent-state'], d['--surface-ground']), 4.99)).toBe(true) // 4.990
+      expect(near(ratio(d['--accent-state'], d['--surface-raised']), 4.52)).toBe(true) // 4.518
+    })
+    it('the five lamp colours clear 4.5 on the well, the ground and every raised face (planned and waiting are ink-3)', () => {
+      for (const n of ['--state-measured', '--state-simulated', '--state-fault', '--state-planned', '--state-waiting'])
+        for (const s of ['--surface-sunk', '--surface-ground', '--surface-raised', '--surface-raised-hi'])
+          expect(ratio(d[n], d[s]), `${n} on ${s}`).toBeGreaterThanOrEqual(TEXT)
+    })
+    it('matte: the dark highlight is a dim cool grey, never white, and blurs wider than the shade on a raised part', () => {
+      expect(d['--lit-hi']).toMatch(/^rgb\(168 178 194 \/ 0\.0\d\)$/)
+      const [hi, sh] = d['--elev-raised'].split(/,(?![^(]*\))/).map((l) => l.trim().split(/\s+/).map(parseFloat))
+      expect(hi[2]).toBeGreaterThan(sh[2])
+    })
+  })
+
   describe('forbidden by design: reported, never relied on', () => {
     const light = tokens({ theme: 'clay-light' })
     const dark = tokens({ theme: 'clay-dark' })
@@ -306,13 +346,14 @@ describe('contrast tables (spec 6.3.3), computed from the CSS', () => {
       expect(ratio(light['--accent-fill'], light['--surface-ground'])).toBeLessThan(EDGE)
       expect(Math.abs(ratio(light['--accent-fill'], light['--surface-raised']) - 3.08)).toBeLessThan(0.02)
     })
-    it('--ink-off is exempt from 4.5 and reported at 2.75 (light) and 3.48 (dark)', () => {
+    // KB1: the dark values on the matte black ground #0D0D0F (3.48 and 1.50 on the old #171717)
+    it('--ink-off is exempt from 4.5 and reported at 2.75 (light) and 3.77 (dark)', () => {
       expect(near(ratio(light['--ink-off'], light['--surface-ground']), 2.75)).toBe(true)
-      expect(near(ratio(dark['--ink-off'], dark['--surface-ground']), 3.48)).toBe(true)
+      expect(near(ratio(dark['--ink-off'], dark['--surface-ground']), 3.77)).toBe(true) // 3.770
     })
-    it('--edge-hair is decorative at 1.41 (light) and 1.50 (dark), never the only boundary of a control', () => {
+    it('--edge-hair is decorative at 1.41 (light) and 1.62 (dark), never the only boundary of a control', () => {
       expect(near(ratio(light['--edge-hair'], light['--surface-ground']), 1.41)).toBe(true)
-      expect(near(ratio(dark['--edge-hair'], dark['--surface-ground']), 1.5)).toBe(true)
+      expect(near(ratio(dark['--edge-hair'], dark['--surface-ground']), 1.62)).toBe(true) // 1.621
     })
   })
 
@@ -410,12 +451,14 @@ describe('section themes (layer 3)', () => {
   })
 
   // marks: text-safe (4.5) on ground, raised and sunk of the theme they sit in
+  // KB1: the dark marks on the matte black ground and raised face (old, on #171717 and #222426: day 7.89 6.85, study
+  // 8.71 7.57, tree 9.04 7.85, focus 14.83 12.89, proof 8.97 7.79)
   const MARK_WANT: Record<string, { light?: number[]; dark?: number[] }> = {
-    day: { light: [5.63, 6.12, 4.94], dark: [7.89, 6.85] },
-    study: { light: [5.56, 6.04, 4.88], dark: [8.71, 7.57] },
-    tree: { light: [5.8, 6.3, 5.09], dark: [9.04, 7.85] },
-    focus: { light: [14.83, 16.12, 13.01], dark: [14.83, 12.89] },
-    proof: { light: [6.99, 7.6, 6.14], dark: [8.97, 7.79] },
+    day: { light: [5.63, 6.12, 4.94], dark: [8.54, 7.73] }, // 8.544, 7.735
+    study: { light: [5.56, 6.04, 4.88], dark: [9.44, 8.54] }, // 9.438, 8.545
+    tree: { light: [5.8, 6.3, 5.09], dark: [9.79, 8.86] }, // 9.788, 8.862
+    focus: { light: [14.83, 16.12, 13.01], dark: [16.07, 14.55] }, // 16.066, 14.546
+    proof: { light: [6.99, 7.6, 6.14], dark: [9.71, 8.79] }, // 9.714, 8.794
   }
   describe.each(SECTION_IDS.filter((i) => !['core', 'senses', 'console'].includes(i)).map((i) => [i]))('mark of %s in the chrome themes', (id) => {
     it.each([['clay-light'], ['clay-dark']] as const)('%s: --sec-mark clears 4.5 on ground, raised and sunk', (theme) => {
@@ -490,11 +533,11 @@ describe('prefers-contrast: more and data-contrast="high"', () => {
       }
     }
   })
-  it('the headline numbers: 6.99 on the light ground and 8.97 on the dark ground', () => {
+  it('the headline numbers: 6.99 on the light ground and 9.71 on the dark ground (KB1: 8.97 on the old #171717)', () => {
     const l = tokens({ theme: 'clay-light', contrast: 'os' })
     const d = tokens({ theme: 'clay-dark', contrast: 'os' })
     expect(near(ratio(l['--ink-3'], l['--surface-ground']), 6.99)).toBe(true)
-    expect(near(ratio(d['--ink-3'], d['--surface-ground']), 8.97)).toBe(true)
+    expect(near(ratio(d['--ink-3'], d['--surface-ground']), 9.71)).toBe(true) // 9.714
   })
   it('the in-app switch and the OS setting resolve to exactly the same tokens, with and without a section', () => {
     for (const [, page] of rows) for (const sec of [undefined, 'day']) {

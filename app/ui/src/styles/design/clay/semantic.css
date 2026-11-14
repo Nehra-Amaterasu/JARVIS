@@ -53,11 +53,12 @@
 :root[data-theme='clay-dark'] {
   color-scheme: dark;
 
-  --surface-ground: var(--p-char-800);
-  --surface-raised: var(--p-char-700);
-  --surface-sunk: var(--p-char-880);
+  /* KB1 (D-V3-30): matte piano black, ground #0D0D0F, raised #18191C, sunk #060607 (was #171717, #222426, #101112) */
+  --surface-ground: var(--p-matte-900);
+  --surface-raised: var(--p-matte-800);
+  --surface-sunk: var(--p-matte-950);
   /* spec 6.3.4 defines the paper for light tokens only; until V03 decides, paper is the dark ground */
-  --surface-paper: var(--p-char-800);
+  --surface-paper: var(--p-matte-900);
 
   --ink-1: var(--p-bone);
   --ink-2: var(--p-char-200);
@@ -70,9 +71,9 @@
   --accent-fill: var(--p-orange-500);
   --accent-on: var(--p-char-800);
   --accent-fill-hover: var(--p-orange-450);
-  --accent-ink: var(--p-orange-500);  /* 4.55 on raised, the thinnest dark pair */
-  --accent-state: var(--p-orange-600); /* 4.61 on the ground, 4.01 on raised */
-  --surface-raised-hi: var(--p-char-680);
+  --accent-ink: var(--p-orange-500);  /* 5.13 on raised, the thinnest dark text pair (4.55 on the old charcoal) */
+  --accent-state: var(--p-orange-600); /* 4.99 on the ground, 4.52 on raised (4.61 and 4.01 on the old charcoal) */
+  --surface-raised-hi: var(--p-matte-750);
   --thumb: var(--p-char-550);          /* a lit pebble one step above the raised face */
 
   --state-measured: var(--p-cyan-300);

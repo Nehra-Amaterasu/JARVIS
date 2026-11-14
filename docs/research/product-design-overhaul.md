@@ -37,6 +37,22 @@ No juror has rescored the whole product yet; that is the next jury, on whole scr
 
 ## 2026-11-14: adversarial review of the craft pass (r01)
 
+## 2026-11-14: KB1, the JARVIS dark ground as a matte piano black (D-V3-30)
+
+**Question.** The owner tested the shell and asked for the JARVIS charcoal to be "more black-ish, piano black-ish but in matte". What ground, what surface ladder and what light recipe make clay-dark a matte black instrument, and do the 6.3.3 contrast tables still pass on it (recomputed, not waived)?
+
+**Built (values only, every token name kept; four primitives and four highlight steps added).**
+- Ground `#171717` to `#0D0D0F` (`--p-matte-900`). Chosen inside the owner's range `#0A0A0B` to `#0E0E10` but at its upper half: a laptop IPS black level swallows steps below about L* 2, and the well must sit below the ground and still read. Blue +2 keeps the black cool, not brown.
+- Ladder, about 4 L* apart: well `#060607` (L* 1.6, 1.04:1 to the ground), ground `#0D0D0F` (3.9), raised `#18191C` (8.9, 1.10:1), hover face `#1F2124` (12.5, 1.20:1), thumb pebble `#4A4E52` kept. Old: sunk `#101112`, raised `#222426`, hover `#282A2D`.
+- Matte light (clay-dark only, a new block in `elevation.css`): the highlight is a cool blue-grey `rgb(168 178 194)` at 6 percent, blurred wider than the shade (raised: 20 px against 16) so the top-left of a face glows faintly instead of carrying a white line; the lip is that grey at 6 percent (white 7 before, which read as a specular rim on black); the rim 10 percent. The shade is deeper (black 50 to 75). Wells take a tighter, slightly brighter inset highlight (6 px, 8 to 10 percent): the engraved lower lip.
+- The immersive scenes keep their old block in both themes: their grounds were already black (`#08090A` to `#121314`) and clay-light must not change. High contrast and forced colours still win (later file, equal or higher specificity).
+
+**Numbers (WCAG 2.2, ground / raised / sunk), old to new.** ink-1 14.83 12.89 15.64 to 16.07 14.55 16.76; ink-2 8.97 7.79 9.46 to 9.71 8.79 10.13; ink-3 6.64 5.76 7.00 to 7.19 6.51 7.50; measured 11.67 10.14 12.30 to 12.64 11.44 13.18; simulated 10.07 8.74 10.61 to 10.90 9.87 11.37; fault 6.42 5.57 6.77 to 6.95 6.29 7.25; accent-ink 5.23 4.55 5.52 to 5.67 5.13 5.91; edge-ui 4.50 3.91 4.74 to 4.87 4.41 5.08; focus ring as ink-1. Accent state 4.61 / 4.01 to 4.99 / 4.52. ink-off 3.48 to 3.77, hairline 1.50 to 1.62 (both decorative). Dark marks (ground, raised): day 8.54 7.73, study 9.44 8.54, tree 9.79 8.86, focus 16.07 14.55, proof 9.71 8.79. High-contrast ink-3 headline 8.97 to 9.71. Every pair rose: the inks stayed, the surfaces went darker. Fills and inverted pairs (`#171717` on the orange and on bone) and the four scene grounds are unchanged.
+
+**Checks.** tokens.test.ts: 17 dark assertions updated with the measured ratio, plus a new D-V3-30 block (ground in range, five-step ladder in order, accent state on black, five lamps on every face, matte highlight). bench, clay-forced and themes-visual green with no snapshot updated (85 passed, 1 skipped). Jury harness on kit Button, Switch, Panel, Field and theme/clay: overflow 0, blank 0, no text under 11 px.
+
+**Not done.** Spec 6.3.3 not edited (the integrator takes the table above). The kit Switch reports a 64 x 32 focus box and 20 clipped px in the jury report: kit code, owned by QG1. The room faceplate in clay-dark stays `#1D2124`. Not yet looked at on the owner's own panel.
+
 **Question.** Do the kit and chrome builders' reports hold up: contract, tests, bench rules, contrast, focus, targets, motion and forced colours?
 
 **Method.** Compared every custom property and class of the clay token files, clay.css, shell.css, gallery.css, lamp.css and planned.css with main; ran the checks with real exit codes; read the changed bench rules line by line; measured the chrome in the real app with a temporary in-page probe (sandbox ports 8842 and 5242; the probe file was deleted after).

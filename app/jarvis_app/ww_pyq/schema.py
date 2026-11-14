@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Literal, Optional, TypedDict
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2          # 2 (14 Nov, EW8): Question.origin, source_question, ocr_confidence; Method gains nothing
 
 # ---------------------------------------------------------------- honest states (plan file, rule 3)
 State = Literal["live", "waiting", "simulated", "planned", "fault"]
@@ -31,6 +31,10 @@ DifficultySource = Literal["rule", "bloom", "attempts", "hand", ""]
 PaperKind = Literal["pdf", "pptx", "hand"]
 Method = Literal["text-layer", "slides", "ocr", "mixed", "typed"]
 ExamKind = Literal["cie", "end_sem", "backlog", "gate", "aptitude", "notes", "other"]
+# A model draft is never "accepted" by the model: it becomes a question only when he accepts it, and keeps
+# origin "model-draft" so every screen can say "drafted by the local model, accepted by you".
+Origin = Literal["paper", "hand", "template", "model-draft", "harvest"]
+ORIGINS: tuple[str, ...] = ("paper", "hand", "template", "model-draft", "harvest")
 
 TEXT_STATUSES: tuple[str, ...] = ("verified", "unverified", "none")
 Q_STATUSES: tuple[str, ...] = ("pending", "accepted", "rejected")
@@ -105,6 +109,11 @@ class Question(QuestionDraft, total=False):
     family_id: str                  # "" until families are computed or confirmed
     edited: bool                    # he changed the text or the marks by hand
     updated: str                    # ISO date-time of the last change
+    # Added for EW8 (schema 2): where the question came from. "paper" is the default for every record
+    # written before, so an old record reads as his own paper's question.
+    origin: Origin
+    source_question: str            # for a variant: the id of the question it was drafted from
+    ocr_confidence: Optional[float]  # mean line confidence when the text came from OCR (text_status "unverified")
 
 
 class Topic(TypedDict, total=False):

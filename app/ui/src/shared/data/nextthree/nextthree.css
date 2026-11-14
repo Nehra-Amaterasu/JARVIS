@@ -1,0 +1,27 @@
+/* NextThree (DB01). Soft clay rows: raised plates, no hairline on a row; the focus ring is the one outline. Nothing animates. */
+.dg-n3 { box-sizing: border-box; width: 100%; max-width: 440px; display: grid; gap: 10px; color: var(--ink-1); font: 13px/1.4 var(--font-ui, system-ui, sans-serif); }
+.dg-n3-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.dg-n3-btn {
+  appearance: none; box-sizing: border-box; width: 100%; min-height: 56px; margin: 0; padding: 10px 14px; text-align: left; cursor: default;
+  display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 12px; align-items: start;
+  border: 0; border-radius: 12px; background: var(--surface-raised); box-shadow: var(--elev-raised); color: inherit; font: inherit;
+}
+button.dg-n3-btn { cursor: pointer; }
+button.dg-n3-btn:active { box-shadow: var(--elev-pressed); }
+.dg-n3-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+.dg-n3-n { font: 600 13px/22px var(--font-mono, ui-monospace, monospace); color: var(--ink-2); text-align: center; }
+.dg-n3-body { display: grid; gap: 2px; min-width: 0; }
+.dg-n3-title { font-weight: 600; overflow-wrap: anywhere; }
+.dg-n3-reason { color: var(--ink-2); font-size: 12px; overflow-wrap: anywhere; }
+.dg-n3-scores { display: none; font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
+.dg-n3-btn:focus-visible .dg-n3-scores, .dg-n3-btn:focus-within .dg-n3-scores { display: block; }
+.dg-n3-lamp { display: inline-flex; padding-top: 3px; }
+.dg-n3-hollow { margin: 0; display: flex; align-items: center; gap: 10px; min-height: 56px; box-sizing: border-box; padding: 10px 14px; border: 2px dashed var(--ink-3); border-radius: 12px; color: var(--ink-2); font: 12px/1.4 var(--font-mono, ui-monospace, monospace); }
+@media (max-width: 420px) { .dg-n3-btn { grid-template-columns: 20px minmax(0, 1fr); } .dg-n3-lamp { grid-column: 2; padding-top: 0; } }
+@media (forced-colors: active) {
+  .dg-n3-btn { border: 1px solid CanvasText; box-shadow: none; forced-color-adjust: none; background: Canvas; color: CanvasText; }
+  .dg-n3-hollow { border-color: CanvasText; }
+}
+.dg-stamp { display: inline-block; margin: 0; font: 600 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--state-simulated); border: 1px solid var(--state-simulated); padding: 2px 6px; align-self: start; justify-self: start; }
+/* the kit paints any [data-state='planned'] with a dashed edge (clay.css); the section and the list item are not controls, so they keep no edge */
+:root:root .dg-n3[data-state], :root:root .dg-n3-row[data-state] { border: 0; background: transparent; box-shadow: none; color: var(--ink-1); }

@@ -2,6 +2,23 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-14: DB01 + DB02 (CountdownDots, NextThree, HandoffKey, Legend)
+
+**Question.** Can the four small dashboard forms of spec 21.5 be built as honest, quiet clay objects that the Ahead callout, the Hand-off callout and the review postcards (DB03, UW8) can import without change?
+
+**Built** (all under `app/ui/src/shared/data/{countdown,nextthree,handoff,legend}`, two gallery entries `DB01.tsx`, `DB02.tsx`, 38 vitest tests in four files):
+- `CountdownDots`: one 8 px dot per day, at most 60 (three rows of 20; 15 columns under 420 px). Past 60 days the last 60 are drawn and the line says "N earlier days not drawn", so dots always equal real days. Filled count = `max(0, total - daysLeft)`, so it only grows as days are lived. The words are one plain count ("21 days to the first paper"), identical on day 60 and day 2; no colour change, no bar, no "only". WAITING, PLANNED and FAULT draw a dashed row and the reason, no count.
+- `NextThree`: at most three raised clay rows, each with title, reason line and its own lamp; fewer items draw fewer rows, never padded; an empty or non-drawing list is one dashed row with the reason. Scores print in mono on focus and are in the spoken name. A row with `onOpen` is a button; nothing executes.
+- `HandoffKey`: 44 px mono clay key, neutral (the warm accent stays on the screen's main action); `onOpen({ target, context })`; when not LIVE it is dashed, `aria-disabled`, silent on press, with the reason beside it.
+- `Legend`: built from the same `SpecimenEntry[]` the specimen is drawn from (`legendEntries` dedupes by id, keeps order). `?` toggles, Esc closes, the swap is instant, both faces stay in the document as a text twin. Reduced motion and forced colours stack picture and list and hide the key.
+
+**Numbers.** Jury harness on 4 entries, 92 specimen shots at 1366 and 390, light and dark: overflow 0, clipped 0 (4 before: the inert HandoffKey reason overflowed at 390, fixed with `flex-wrap`), blank 0, text under 11 px 0, focusable under 44 px at 390 is 0. vitest: tsc exit 0; whole run 2483 of 2484, the one miss was a 13.7 s timeout in `lamp.test.tsx` "debt list" under load; it passes alone (23 of 23).
+
+**Not done.** No integration into Today (DB03, UW8); Next Three ranking is the caller's arithmetic; the dark unlived dot was raised from 16 to 28 percent after the last shot and was not re-shot; no real specimen yet feeds the Legend, the gallery demo uses a small stand-in drawn from the same entries.
+
+
+**Adversarial review (DB01 + DB02).** Three defects fixed, all cheap. (1) The kit paints every `[data-state='planned']` with a dashed edge (clay.css), so the PLANNED wrapper of HandoffKey, CountdownDots and NextThree grew a second dashed box round the key and its reason; each wrapper now resets it with `:root:root .x[data-state]`. (2) The dark unlived dot measured 1.2 to 1 against the card, so a span looked empty; it is now a 50 percent mix of ink (about 3 to 1 in both themes). (3) NextThree printed a row's scores even when that row's own lamp was WAITING or PLANNED; scores now draw only for LIVE and SIMULATED rows, with one new test (270 tests in `shared/data`, 2485 in the whole suite, tsc exit 0). The jury run needs `JURY_ENTRIES=data/CountdownDots,data/NextThree,data/HandoffKey,data/Legend` (gallery ids, not package ids) and a fresh `vite build --outDir dist-e2e` when the Playwright preview is used. 109 shots: overflow 0, clipped 0, smallest text 11 px, focusable under 44 px 0. Mutation: forcing `draws = true` in CountdownDots fails 3 tests; restored.
+
 ## 2026-11-14: adversarial review of the craft pass (r01)
 
 **Question.** Do the kit and chrome builders' reports hold up: contract, tests, bench rules, contrast, focus, targets, motion and forced colours?

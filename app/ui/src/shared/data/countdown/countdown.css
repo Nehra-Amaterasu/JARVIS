@@ -1,0 +1,20 @@
+/* CountdownDots (DB01). Tokens only. Nothing animates; the filled dot is ink, the unlived dot a recess, in every week of the span. */
+.dg-stamp { display: inline-block; margin: 0; font: 600 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--state-simulated); border: 1px solid var(--state-simulated); padding: 2px 6px; }
+.dg-cd { margin: 0; box-sizing: border-box; width: max-content; max-width: 100%; display: grid; gap: 10px; color: var(--ink-1); font: 12px/1.4 var(--font-mono, ui-monospace, monospace); }
+.dg-cd-grid { display: grid; grid-template-columns: repeat(20, 8px); gap: 5px; justify-content: start; }
+.dg-cd-dot { display: block; width: 8px; height: 8px; border-radius: 50%; box-sizing: border-box; background: color-mix(in srgb, var(--ink-1) 50%, var(--surface-sunk)); box-shadow: var(--elev-recessed); }
+.dg-cd-dot[data-lived='true'] { background: var(--ink-1); box-shadow: inset 1px 1px 0 var(--lit-hi), 1px 1px 2px color-mix(in srgb, var(--ink-1) 28%, transparent); }
+.dg-cd-hollow { display: block; }
+.dg-cd-dash { display: block; width: 235px; max-width: 100%; height: 0; border-top: 2px dashed var(--ink-3); margin: 8px 0; }
+.dg-cd-cap { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+.dg-cd-line { color: var(--ink-1); }
+.dg-cd-more { color: var(--ink-2); }
+.dg-cd-meta { display: inline-flex; align-items: center; gap: 10px; margin-left: auto; }
+@media (max-width: 420px) { .dg-cd-grid { grid-template-columns: repeat(15, 8px); gap: 6px; } .dg-cd-meta { margin-left: 0; } }
+@media (forced-colors: active) {
+  .dg-cd-dot { background: Canvas; border: 1px solid CanvasText; box-shadow: none; forced-color-adjust: none; }
+  .dg-cd-dot[data-lived='true'] { background: CanvasText; }
+  .dg-cd-dash { border-top-color: CanvasText; }
+}
+/* the kit paints any [data-state='planned'] with a dashed edge (clay.css); this wrapper is not a control, so it keeps no edge */
+:root:root .dg-cd[data-state] { border: 0; background: transparent; box-shadow: none; color: var(--ink-1); }

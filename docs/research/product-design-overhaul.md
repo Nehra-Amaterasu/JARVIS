@@ -56,6 +56,38 @@ One file for the JARVIS + Well Wisher product-design overhaul (the design source
 
 **Not done.** The gallery's 1.5x default zoom and its sticky toolbar (WhatIsNew, gallery.css, owned by R01) still crop a wide specimen in the gallery; the rocker's ring comes from the kit and was only verified, not changed.
 
+## 2026-11-14: RG1 rework (the jury evidence harness)
+
+**Question.** The wave 6 jury could not verify reflow because its evidence was broken: specimens cropped by the gallery pane, phone frames covered by the sticky switch row, one shot blank below the first card, and one juror could list only 100 of 206 files. What does a harness need so the next jury sees whole specimens and can read the list?
+
+**What I found (causes, from reading `e2e/gallery.spec.ts`, `src/gallery/WhatIsNew.tsx` and `gallery.css`).**
+- The gallery pane is a scroll box (`.gl-pane`, `overflow: auto`) inside a grid whose height is the viewport, so a viewport screenshot only ever holds what fits; a tall specimen is cut at the foot.
+- The page's default zoom is 1.5x (`scale` state), so a "390 px" specimen was really drawn 585 px wide inside a 390 px pane and cropped on the right.
+- The index band (40 % of the height at 760 px and below) and the bar sit above the pane, so a phone shot is half chrome.
+- Nothing wrote a list: no manifest, so a juror had to glob.
+
+**What changed (new files only, all under `app/ui/e2e/`).**
+- `jury.spec.ts`: skipped unless `JURY_SHOTS` names a folder; `JURY_ENTRIES` (comma-separated ids) narrows it; `JURY_SCALE` (1, 1.5, 2; default 1) picks the zoom. It opens the real gallery (built in memory, as `gallery.spec.ts` does), takes the index, the bar and the pane's scroll box out of the picture with one style block, picks each entry and each state through the page's own controls (`el.click()`, so the hidden controls still run their handlers), measures, and clips the picture to the specimen plus anything that sticks out of it. One page per theme and size (four loads in all), no fixed waits (fonts, images and two frames are awaited in the page).
+- Per entry and state: `<entry id, slashes as dashes>/<NN-state>-<width>-<theme>.png` at 1366 x 768 and 390 x 844, light and dark.
+- Per entry: a focus sheet, `focus-<n>.png`, Tab through up to 12 parts, a crop around each stop; the ring (outline width, style, colour or shadow) is in the report.
+- The shell with the flag on: `shell/<section>-<width>.png`, the first view of all ten sections at both sizes. The shot waits until no animation is running, because the section change cross-fades with a blur and the first trial run caught it mid-blur.
+- `report.json` (summary, entries with their state labels and focus stops, one row per file) and `index.md` (one line per file). Row fields: file, entry, state, width, theme, element width and height, `overflowPx` (content past the specimen's edge, or the document scrolling sideways), `clippedPx` (content cut by an `overflow: hidden` box, a silent crop) and `scrollers`, blank check (fewer than 8 distinct colours in a 24 x 24 grid, whole picture and lower half), smallest computed font and its element, count of text under 11 px, focusable parts and how many have a side under 44 px.
+- `jury/lib.ts` (helpers) and `jury/helpers.spec.ts` (3 always-run checks: names, report and index, and the blank check and measure on a synthetic page with known answers: 59 px spill, 80 px crop, 9 px text, one 30 px button).
+
+**Numbers (full run into the scratchpad, this laptop).**
+- 3.4 minutes for the gallery test, 3.9 minutes with the shell test (budget 6). 1269 files: 1016 whole-specimen shots, 233 focus stops, 20 shell shots, from 92 gallery entries.
+- 36 specimen shots overflow, all at 390: `data/StrataCore` 10, `data/SigilMark` 10, `data/Dumbbell` 6, `section/PipelineRibbon` 6, `data/Odometer` 2, `data/LedgerTable` 2 (counts are shots, over four states and two themes).
+- 229 shots have a silent crop (`clippedPx` above 0), for example `data/LedgerTape` at 390 (the amounts "120", "90" are cut at the right edge, 2 px at 1x, 112 px at 1.5x) and `data/CaptureLine` (a clipped part, 96 to 471 px inside its own box).
+- 164 shots hold text under 11 px; 47 shots at 390 hold a focusable part under 44 px (263 parts in all).
+- 0 blank pictures; 3 with a flat lower half (`art-PillarsChart` at 1366 light, shell `room` and `career` at 1366), which is a prompt to look, not a verdict.
+- `data/Jar` at 390 shows no overflow, no crop and no small target in isolation, at 1x and at 1.5x. The wave 6 Jar fault is therefore a fault of the phone frame it sat in (or of the jury's cropped evidence), not of the specimen drawn alone; I did not reproduce it and say so.
+
+A second full run (the final one) gave the same overflow and text counts and drifted by a few on the timing-dependent ones: 228 crops (was 229), 5 flat-lower-half pictures (was 3), 260 small targets (was 263). Treat those three as +/- 5.
+
+**What I checked and did not change.** The shell page at 390 is one column with no document scroll (`overflowPx` is 0 on all 20 shell rows). The gallery's own scale default stays 1.5x; the harness draws 1x because that is the size a phone frame really is.
+
+**Not done.** No source hook was added (none was needed). The shell shots are taken in the default theme only (the shell has one theme switch of its own; both gallery themes are covered by the specimens). At 1366 the specimen plate is 1042 px wide (viewport minus the hidden 276 px index column minus the pane padding), against 978 px in the real 1302 px shell canvas, because the shell's 64 px rail is not in the gallery page; the real canvas is what the shell rows show. `tsc -b` does not check `e2e/` (its tsconfig lists only `./*.ts`), so I type-checked the new files with a scratch tsconfig.
+
 ## 2026-11-14: wave 6 integrated, and what its jury said (6.6 design, 6.4 usability; pass line 8.0)
 
 **Question.** After the six wave 6 packages and the rebuilt Core section merged, does the new interface pass the screenshot jury, and what does the next round have to fix?

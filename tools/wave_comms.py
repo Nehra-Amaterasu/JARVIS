@@ -51,6 +51,8 @@ DEFAULT_RULES = [
     "Honest states: no number without a state (live, waiting, simulated, planned, fault); nothing generated shown "
     "as measured; no camera; no exam-result or medical claims; no personal details in tracked files.",
     "Shared notes are never rewritten: each lane appends one-line log entries and edits only its own section.",
+    "UI work applies the 20 principles in docs/design/ux-principles-checklist.md (animation 1 to 12, usability 13 "
+    "to 20) and is judged beside the owner's clay references: soft, refined, nothing outlined by a hairline.",
 ]
 
 
@@ -111,6 +113,9 @@ def load(board: Path) -> dict:
     data = json.loads(board.read_text(encoding="utf-8"))
     for key, value in empty_board().items():
         data.setdefault(key, value)
+    for rule in DEFAULT_RULES:  # a rule added to the tool later reaches a board that already exists
+        if rule not in data["rules"]:
+            data["rules"].append(rule)
     return data
 
 

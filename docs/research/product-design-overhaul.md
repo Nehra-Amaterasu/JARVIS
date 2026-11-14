@@ -38,6 +38,18 @@ One file for the JARVIS + Well Wisher product-design overhaul (the design source
 
 **What it changed.** The Memory line (J04) and the Today footer (L04) can mount `CaptureLine` with a grammar and get the same ambiguity rule, Undo and keyboard path; the tokenizer is the single place date words are read.
 
+## 2026-11-13: D02 series forms (Trace, DotHistogram, SkyLedger)
+
+**Question.** Can the three series forms of spec 20.5.2 read at a glance and still look like small refined instruments (clay housing, recessed screen, HUD plates, halftone, dot matrix) while keeping every honesty rule: no number without a lamp, gaps never filled in, no run counter or loss wording?
+
+**Built** (`app/ui/src/shared/data/series/**`, gallery entry `d02-series.tsx`, resumed from a builder cut off by an outage). One housing for all three: a raised clay plate (tokens `--elev-raised`, `--ridge-hi/lo`) with a serial pill (TRC, HST, SKY), the lamp glyph plus word plus reason, and a charcoal screen seated in a recessed bezel (`--elev-recessed`), with HUD brackets, static 3 percent scan lines and two corner plates (what is shown, and the lamp word). Trace: 1.5 px hairline, a halftone dot ground under each run that stops where the line stops, hatched "no data" bands, ASCII ruler, own-median datum, last point a disc and the week before as rings, scrub and pin by pointer and keys, a two-point difference, a 320 ms one-shot draw. DotHistogram: towers of LED dots in socket grids, a stated unit per dot, part dots as rings, median tick and middle-half bracket, a Ridge form. SkyLedger: stars, crescents for rest days, faint points for untouched days, a ratio headline with a ticked dial, short habit figures.
+
+**Numbers.** Dot towers: 640 entries at one dot = 5 filled 5 of 21 socket rows before; now about 11 of 13 (the pitch picks the fewest dots across that keep the tallest column near 85 percent of the height). Sky figures: with no edge limit the 90-day fixture drew 33 lines crossing the whole field; the latest 12 stars per habit joined only within 1.6 cells gives short clusters. Tests: 38 new (layout, keyboard scrub, hollow states, deletion lowers the count, folder grep for the banned words, no timers, forced-colours and reduced-motion branches); full suite 2038 of 2038 twice, tsc clean, bundle check ok. No horizontal scroll at 1366 and 390 wide.
+
+**Unverified.** No screen-reader pass; no real data (every sample is a seeded fixture, shown as SIMULATED, plus a LIVE-ink state on the same fixture for the colour); the one-shot draw keeps a Trace's line hidden until it is first a quarter in view, so a full-page screenshot of an off-screen Trace shows no line until it is scrolled to (by design, but a juror may read it as empty). The FAULT lamp colour comes from the shared lamp token, not from this package.
+
+**Changed.** The series forms exist for J01 and the Well Wisher sections to adopt; SkyLedger takes an optional `habit` per day beyond the contract signature (a superset), and all three take optional `label`, `unit` and `reason`.
+
 ## 2026-11-13: wave 5 integrated: the wave contract's first test, the second jury, and agent commits that hang
 
 **Question.** Does one shared wave contract stop parallel packages breaking at merge, and did the first visible wave (gallery, shell fixes, clay recipe, grammars, private art) move the jury's scores?

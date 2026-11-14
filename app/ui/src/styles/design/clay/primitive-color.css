@@ -136,12 +136,21 @@
      the bench at 1366 on a laptop panel. Ratios to the ground: well 1.04, raised 1.10, hover 1.20. */
   --p-matte-950: #060607;  /* sunk, dark: the recessed well, under the ground */
   --p-matte-900: #0d0d0f;  /* ground, dark: matte piano black */
-  --p-matte-800: #18191c;  /* raised, dark */
-  --p-matte-750: #1f2124;  /* the raised face on hover, dark */
+  --p-matte-800: #282a2e;  /* raised, dark (RJ1, 15 Nov: was #18191c at L* 8.9; now L* 16.0, +7) */
+  --p-matte-750: #303236;  /* the raised face on hover, dark (RJ1: was #1f2124; now L* 20.4, 4 above raised) */
   /* matte means the highlight is broad and dim and cool grey, never a white specular line: a blue-grey at 4 to 10
      percent, blurred wider than the shade, so the lit edge is a soft gradient of light on the face, not a line */
   --p-hi-cool-04: rgb(168 178 194 / 0.04);
   --p-hi-cool-06: rgb(168 178 194 / 0.06);
   --p-hi-cool-08: rgb(168 178 194 / 0.08);
   --p-hi-cool-10: rgb(168 178 194 / 0.1);
+  --p-hi-cool-12: rgb(168 178 194 / 0.12);
+
+  /* RJ1 (15 Nov): the jury scored the matte black flat (design 5.5: "black keys on near-black panels with barely any
+     separation"). The ground stays #0D0D0F; the raised faces rose about 7 L*, so a laptop panel shows three steps by eye
+     (1.00 ground, 1.35 raised, 1.51 hover as contrast ratios to the ground), the rim of a raised part is the cool grey
+     at 10 percent on its top and left edge, and its shade is black at 80 percent. The accent as dark TEXT is one step
+     lighter than the fill: #F25623 fell to 4.19:1 on the new raised face, #F77A4D is 5.37 there and 4.80 on hover. */
+  --p-orange-400: #f77a4d;
+  --p-shadow-black-80: rgb(0 0 0 / 0.8);
 }

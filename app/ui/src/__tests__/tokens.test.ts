@@ -245,15 +245,20 @@ const LIGHT: Row[] = [
   ['--state-measured', TEXT, 5.13, 5.58, 4.504], ['--state-simulated', TEXT, 5.45, 5.93, 4.78], ['--state-fault', TEXT, 5.41, 5.88, 4.74],
   ['--accent-ink', TEXT, 5.62, 6.1, 4.93], ['--edge-ui', EDGE, 4.04, 4.39, 3.54], ['--focus-ring', EDGE, 14.83, 16.12, 13.01],
 ]
-// KB1 (14 Nov, D-V3-30): recomputed on the matte piano black, ground #0D0D0F, raised #18191C, sunk #060607 (was
+// KB1 (14 Nov, D-V3-30): recomputed on the matte piano black, ground #0D0D0F, raised #18191C (RJ1: #282A2E, see below), sunk #060607 (was
 // #171717, #222426, #101112). Every pair rose, because the inks stayed and the surfaces went darker. The old values,
 // ground / raised / sunk: ink-1 14.83 12.89 15.64, ink-2 8.97 7.79 9.46, ink-3 6.64 5.76 7.00, measured 11.67 10.14
 // 12.30, simulated 10.07 8.74 10.61, fault 6.42 5.57 6.77, accent-ink 5.23 4.55 5.52, edge-ui 4.50 3.91 4.74. The
 // thinnest dark pair is now edge-ui on raised at 4.41 (3.0 needed) and, for text, accent-ink on raised at 5.13.
+// RJ1 (15 Nov): the raised face rose from #18191C to #282A2E (L* 8.9 to 16.0) because the jury read the black as flat, so
+// the "raised" column fell (ink-1 14.55 to 11.90, ink-2 8.79 to 7.19, ink-3 6.51 to 5.32, measured 11.44 to 9.36, simulated
+// 9.87 to 8.07, fault 6.29 to 5.15, edge-ui 4.41 to 3.61, focus-ring 14.55 to 11.90) and every pair still clears its need.
+// The ground and the sunk columns did not move, except accent-ink: #F25623 would be 4.19 on the new raised face, so the dark
+// accent TEXT is #F77A4D (7.25 ground, 5.37 raised, 7.57 sunk, 4.80 on the hover face #303236); the accent FILL stays #F25623.
 const DARK: Row[] = [
-  ['--ink-1', TEXT, 16.07, 14.55, 16.76], ['--ink-2', TEXT, 9.71, 8.79, 10.13], ['--ink-3', TEXT, 7.19, 6.51, 7.5],
-  ['--state-measured', TEXT, 12.64, 11.44, 13.18], ['--state-simulated', TEXT, 10.9, 9.87, 11.37], ['--state-fault', TEXT, 6.95, 6.29, 7.25],
-  ['--accent-ink', TEXT, 5.67, 5.13, 5.91], ['--edge-ui', EDGE, 4.87, 4.41, 5.08], ['--focus-ring', EDGE, 16.07, 14.55, 16.76],
+  ['--ink-1', TEXT, 16.07, 11.9, 16.76], ['--ink-2', TEXT, 9.71, 7.19, 10.13], ['--ink-3', TEXT, 7.19, 5.32, 7.5],
+  ['--state-measured', TEXT, 12.64, 9.36, 13.18], ['--state-simulated', TEXT, 10.9, 8.07, 11.37], ['--state-fault', TEXT, 6.95, 5.15, 7.25],
+  ['--accent-ink', TEXT, 7.25, 5.37, 7.57], ['--edge-ui', EDGE, 4.87, 3.61, 5.08], ['--focus-ring', EDGE, 16.07, 11.9, 16.76],
 ]
 const IMMERSIVE: Row[] = [
   ['--ink-1', TEXT, 15.76, 14.14, 16.49], ['--ink-2', TEXT, 9.53, 8.55, 9.97], ['--ink-3', TEXT, 7.05, 6.33, 7.38],
@@ -313,18 +318,25 @@ describe('contrast tables (spec 6.3.3), computed from the CSS', () => {
       expect(d['--surface-paper']).toBe(d['--surface-ground'])
     })
     it('three raised faces and two recessed steps, each a different value in one order: well < ground < raised < hover < thumb', () => {
+      // RJ1: the raised faces rose about 7 L* (the jury: "barely any separation"); the steps were 1.10 and 1.20 to the ground
       const ladder = [d['--surface-sunk'], d['--surface-ground'], d['--surface-raised'], d['--surface-raised-hi'], d['--thumb']]
       for (let i = 1; i < ladder.length; i++) expect(lumHex(ladder[i]), ladder.join(' ')).toBeGreaterThan(lumHex(ladder[i - 1]))
-      // measured: well 1.04, raised 1.10, hover 1.20 to the ground (about 4 L* apart each)
+      // measured: well 1.04, raised 1.35, hover 1.51 to the ground (L* 1.6, 3.9, 16.0, 20.4), the thumb a lit pebble at 9.71
       expect(near(ratio(d['--surface-sunk'], d['--surface-ground']), 1.04)).toBe(true) // 1.043
-      expect(near(ratio(d['--surface-raised'], d['--surface-ground']), 1.1)).toBe(true) // 1.105
-      expect(near(ratio(d['--surface-raised-hi'], d['--surface-ground']), 1.2)).toBe(true) // 1.203
+      expect(near(ratio(d['--surface-raised'], d['--surface-ground']), 1.35)).toBe(true) // 1.351
+      expect(near(ratio(d['--surface-raised-hi'], d['--surface-ground']), 1.51)).toBe(true) // 1.512
+      expect(ratio(d['--thumb'], d['--surface-sunk']), 'the dark thumb is a lit pebble: 3:1 or more against the well it sits in').toBeGreaterThanOrEqual(EDGE) // 10.13
+      expect(near(ratio(d['--thumb'], d['--surface-sunk']), 10.13)).toBe(true)
+      // the raised face is about 7 L* above where KB1 left it (#18191c): 1.22 against it
+      expect(ratio(d['--surface-raised'], '#18191c'), 'raised is lighter than the KB1 face by about 7 L*').toBeGreaterThan(1.2)
       // the second recessed step is the deep well's darker shade, a different recipe from the plain well
       expect(d['--elev-well-deep']).not.toBe(d['--elev-recessed'])
     })
-    it('the accent as a state piece on black is a 3:1 shape on ground and raised (4.99, 4.52; 4.61 and 4.01 before)', () => {
-      expect(near(ratio(d['--accent-state'], d['--surface-ground']), 4.99)).toBe(true) // 4.990
-      expect(near(ratio(d['--accent-state'], d['--surface-raised']), 4.52)).toBe(true) // 4.518
+    it('the accent as a state piece on black is a 3:1 shape on ground, raised and hover (4.99, 3.70, 3.30; 4.52 on raised before the lift)', () => {
+      expect(near(ratio(d['--accent-state'], d['--surface-ground']), 4.99)).toBe(true) // 4.994
+      expect(near(ratio(d['--accent-state'], d['--surface-raised']), 3.7)).toBe(true) // 3.697
+      expect(ratio(d['--accent-state'], d['--surface-raised-hi']), 'on the hover face').toBeGreaterThanOrEqual(EDGE) // 3.303
+      expect(ratio(d['--accent-on'], d['--accent-state']), 'the label on the accent state piece').toBeGreaterThanOrEqual(TEXT) // 4.61
     })
     it('the five lamp colours clear 4.5 on the well, the ground and every raised face (planned and waiting are ink-3)', () => {
       for (const n of ['--state-measured', '--state-simulated', '--state-fault', '--state-planned', '--state-waiting'])
@@ -454,11 +466,12 @@ describe('section themes (layer 3)', () => {
   // KB1: the dark marks on the matte black ground and raised face (old, on #171717 and #222426: day 7.89 6.85, study
   // 8.71 7.57, tree 9.04 7.85, focus 14.83 12.89, proof 8.97 7.79)
   const MARK_WANT: Record<string, { light?: number[]; dark?: number[] }> = {
-    day: { light: [5.63, 6.12, 4.94], dark: [8.54, 7.73] }, // 8.544, 7.735
-    study: { light: [5.56, 6.04, 4.88], dark: [9.44, 8.54] }, // 9.438, 8.545
-    tree: { light: [5.8, 6.3, 5.09], dark: [9.79, 8.86] }, // 9.788, 8.862
-    focus: { light: [14.83, 16.12, 13.01], dark: [16.07, 14.55] }, // 16.066, 14.546
-    proof: { light: [6.99, 7.6, 6.14], dark: [9.71, 8.79] }, // 9.714, 8.794
+    // RJ1: the raised column fell with the lifted raised face (was 7.73, 8.54, 8.86, 14.55, 8.79); the ground column is unchanged
+    day: { light: [5.63, 6.12, 4.94], dark: [8.54, 6.33] }, // 8.543, 6.325
+    study: { light: [5.56, 6.04, 4.88], dark: [9.44, 6.99] }, // 9.438, 6.988
+    tree: { light: [5.8, 6.3, 5.09], dark: [9.79, 7.25] }, // 9.788, 7.247
+    focus: { light: [14.83, 16.12, 13.01], dark: [16.07, 11.9] }, // 16.066, 11.895
+    proof: { light: [6.99, 7.6, 6.14], dark: [9.71, 7.19] }, // 9.713, 7.192
   }
   describe.each(SECTION_IDS.filter((i) => !['core', 'senses', 'console'].includes(i)).map((i) => [i]))('mark of %s in the chrome themes', (id) => {
     it.each([['clay-light'], ['clay-dark']] as const)('%s: --sec-mark clears 4.5 on ground, raised and sunk', (theme) => {

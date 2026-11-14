@@ -80,3 +80,43 @@ describe('clay kit stylesheet', () => {
     expect(css).not.toMatch(/@keyframes/)
   })
 })
+
+// RJ1 (15 Nov): the three controls the jury measured under 44 px are 44 px ON THE FOCUSABLE ELEMENT (a ::after extension
+// never shows in a bounding-box measurement), and the Switch and the Rocker share one character: an engraved track with a
+// detent, a pebble with a dimple, travel on `translate` only.
+describe('RJ1: 44 px on the element, and one switch family', () => {
+  const rule = (sel: string) => {
+    // the body of the first rule that starts a line with exactly this selector (no regex: the selector holds dots and brackets)
+    const text = noComments(css)
+    const at = text.split('\n').findIndex((l) => l.startsWith(sel + ' {'))
+    if (at < 0) return ''
+    const from = text.split('\n').slice(at).join('\n')
+    return from.slice(0, from.indexOf('}') + 1)
+  }
+  it('the Switch track is 44 px high and 76 wide (it was 64 x 32 with an ::after), with no pointer-area extension', () => {
+    const r = rule('.k-switch')
+    expect(r).toMatch(/height: var\(--switch-h, 44px\)/)
+    expect(r).toMatch(/min-height: var\(--switch-h, 44px\)/)
+    expect(r).toMatch(/width: var\(--switch-w, 76px\)/)
+    expect(normal).not.toMatch(/\.k-switch::after/)
+  })
+  it('the thumb travels on translate in 160 ms and nothing else of it moves; the reduced-motion branch stops it', () => {
+    const r = rule('.k-switch-thumb')
+    expect(r).toMatch(/transition: translate var\(--dur-state, 160ms\)/)
+    expect(r).not.toMatch(/transition:[^;]*(left|top|width|box-shadow)/)
+    expect(normal).toMatch(/\.k-switch\[data-on='true'\] \.k-switch-thumb \{ translate:/)
+  })
+  it('the thumb has a dimple and the track a detent, both from tokens', () => {
+    expect(normal).toMatch(/\.k-switch-thumb::after \{[^}]*box-shadow: var\(--elev-dimple, none\)/)
+    expect(normal).toMatch(/\.k-switch::before \{[^}]*linear-gradient\(currentColor, currentColor\) left[^}]*linear-gradient\(currentColor, currentColor\) right/)
+  })
+  it('the Rocker uses the same tray, an 8 px grid (4 px gap, 4 px padding) and the seat notch between the keys', () => {
+    expect(rule('.k-rocker')).toMatch(/gap: 4px; padding: 4px/)
+    expect(normal).toMatch(/\.k-rocker::before \{[^}]*width: 2px/)
+  })
+  it('Segmented options and interactive Chips are 44 px high on the button, and options are 8 px apart', () => {
+    expect(normal).toMatch(/:root\[data-theme\^='clay'\] \.ww-seg \.ww-seg-opt \{ --ctl-h: var\(--hit, 44px\); min-height: var\(--hit, 44px\); \}/)
+    expect(normal).toMatch(/:root\[data-theme\^='clay'\] button\.ww-chip \{ --ctl-h: var\(--hit, 44px\); min-height: var\(--hit, 44px\)/)
+    expect(normal).toMatch(/:root\[data-theme\^='clay'\] \.ww-seg \{\s*gap: 8px/)
+  })
+})

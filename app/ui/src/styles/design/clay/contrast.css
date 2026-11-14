@@ -41,6 +41,7 @@
     --elev-well-deep: none;
     --elev-press-fill: none;
     --elev-groove: none;
+    --elev-dimple: none;
     --lip: inset 0 0 0 transparent;
     --rim-lit: var(--p-clay-700);
     --rim-shade: var(--p-clay-700);
@@ -66,6 +67,7 @@
     --elev-well-deep: none;
     --elev-press-fill: none;
     --elev-groove: none;
+    --elev-dimple: none;
     --lip: inset 0 0 0 transparent;
     --rim-lit: var(--p-char-200);
     --rim-shade: var(--p-char-200);
@@ -96,6 +98,7 @@
       --elev-well-deep: none;
       --elev-press-fill: none;
       --elev-groove: none;
+      --elev-dimple: none;
       --lip: inset 0 0 0 transparent;
       --rim-lit: var(--p-clay-700);
       --rim-shade: var(--p-clay-700);
@@ -121,6 +124,7 @@
       --elev-well-deep: none;
       --elev-press-fill: none;
       --elev-groove: none;
+      --elev-dimple: none;
       --lip: inset 0 0 0 transparent;
       --rim-lit: var(--p-char-200);
       --rim-shade: var(--p-char-200);

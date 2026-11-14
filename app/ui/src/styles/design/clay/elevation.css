@@ -135,6 +135,8 @@
   --elev-press-fill: inset 0 2px 5px var(--p-shade-cool-30), inset 0 -1px 0 var(--p-shadow-white-35);
   /* disabled: the control pressed flat into the clay, a faint imprint that keeps its shape without a drop pair */
   --elev-imprint: inset 1px 1px 3px var(--p-shade-cool-14), inset -1px -1px 2px var(--lit-hi);
+  /* the dimple in the middle of a switch thumb or a key: a small cup, shade inside its top left, a lit lower lip */
+  --elev-dimple: inset 1px 1px 3px var(--p-shade-cool-30), inset -1px -1px 2px var(--p-shadow-white-70);
 }
 
 :root[data-theme='clay-dark'],
@@ -166,9 +168,14 @@
   --elev-groove: inset 2px 2px 4px var(--p-shadow-black-60), inset 0 -1px 0 var(--p-shadow-white-07);
   --elev-press-fill: inset 0 2px 5px var(--p-shadow-black-50), inset 0 -1px 0 var(--p-shadow-white-35);
   --elev-imprint: inset 1px 1px 3px var(--p-shadow-black-50), inset -1px -1px 2px var(--lit-hi);
+  --elev-dimple: inset 1px 1px 3px var(--p-shadow-black-50), inset -1px -1px 2px var(--p-shadow-white-12);
 }
 
-/* KB1 (14 Nov, D-V3-30): the clay-dark chrome as a MATTE PIANO BLACK instrument. The ground moved from #171717 to
+/* RJ1 (15 Nov): the jury read this black as flat (design 5.5). The raised faces rose about 7 L* (semantic.css), the lip and
+   the broad highlight are the cool grey at 10 and 8 percent on the top and left, the shade is black at 80 percent, and a
+   well keeps a lit lower lip at 10 to 12 percent. Still no white and no line: the highlight blurs wider than the shade.
+
+   KB1 (14 Nov, D-V3-30): the clay-dark chrome as a MATTE PIANO BLACK instrument. The ground moved from #171717 to
    #0D0D0F (semantic.css); on near-black a black shade has little left to darken, so what separates a step is the face
    (raised #18191C, hover #1F2124, well #060607, about 4 L* apart) and a highlight, and the highlight is what makes it
    matte or glossy. Glossy is a narrow bright line; matte is the same light scattered: a cool blue-grey (#A8B2C2) at 6
@@ -182,20 +189,20 @@
    change (themes-visual), and a scene element redeclares every name itself, so nothing here leaks into a scene. High
    contrast (contrast.css, later and at higher or equal specificity) and forced colours still win over this block. */
 :root[data-theme='clay-dark'] {
-  --lit-hi: var(--p-hi-cool-06);
+  --lit-hi: var(--p-hi-cool-08);
   --lit-lo: var(--p-shadow-black-50);
   --rim-lit: var(--p-hi-cool-10);
-  --lip: inset 0 1px 0 var(--p-hi-cool-06);
+  --lip: inset 0 1px 0 var(--p-hi-cool-10);
 
   --elev-flush: -1px -1px 6px var(--lit-hi), 1px 1px 5px var(--p-shadow-black-50);
   --elev-low: -3px -3px 12px var(--lit-hi), 3px 3px 10px var(--p-shadow-black-60);
-  --elev-raised: -6px -6px 20px var(--lit-hi), 6px 6px 16px var(--p-shadow-black-70);
-  --elev-high: -8px -8px 26px var(--lit-hi), 8px 8px 22px var(--p-shadow-black-75);
-  --elev-float: -12px -12px 34px var(--lit-hi), 12px 12px 30px var(--p-shadow-black-75);
-  --elev-raised-drop: drop-shadow(6px 6px 8px var(--p-shadow-black-70));
-  --elev-recessed: inset 4px 4px 10px var(--p-shadow-black-70), inset -3px -3px 6px var(--p-hi-cool-08);
-  --elev-well-deep: inset 5px 5px 12px var(--p-shadow-black-75), inset -3px -3px 6px var(--p-hi-cool-10);
-  --elev-pressed: inset 3px 3px 8px var(--p-shadow-black-75), inset -3px -3px 6px var(--lit-hi);
-  --elev-groove: inset 2px 2px 4px var(--p-shadow-black-70), inset 0 -1px 0 var(--p-hi-cool-08);
+  --elev-raised: -6px -6px 20px var(--lit-hi), 6px 6px 16px var(--p-shadow-black-80);
+  --elev-high: -8px -8px 26px var(--lit-hi), 8px 8px 22px var(--p-shadow-black-80);
+  --elev-float: -12px -12px 34px var(--lit-hi), 12px 12px 30px var(--p-shadow-black-80);
+  --elev-raised-drop: drop-shadow(6px 6px 8px var(--p-shadow-black-80));
+  --elev-recessed: inset 4px 4px 10px var(--p-shadow-black-80), inset -3px -3px 6px var(--p-hi-cool-10);
+  --elev-well-deep: inset 5px 5px 12px var(--p-shadow-black-80), inset -3px -3px 6px var(--p-hi-cool-12);
+  --elev-pressed: inset 3px 3px 8px var(--p-shadow-black-80), inset -3px -3px 6px var(--lit-hi);
+  --elev-groove: inset 2px 2px 4px var(--p-shadow-black-80), inset 0 -1px 0 var(--p-hi-cool-10);
   --elev-imprint: inset 1px 1px 3px var(--p-shadow-black-55), inset -1px -1px 2px var(--lit-hi);
 }

@@ -135,41 +135,56 @@
 :root[data-theme^='clay'] :is(.k-switch, .k-slider-num, .k-knob, .k-tabs, .k-rocker):is([data-state='disabled'], [aria-disabled='true']):not([data-state='planned']) { border-color: var(--k-engrave, var(--edge-ui)); box-shadow: var(--elev-recessed, none); background-color: var(--well-face, var(--surface-sunk)); }
 :root[data-theme^='clay'] :is(.k-switch, .k-knob, .k-rocker, .k-slider-num)[data-state='error'] { border-color: var(--k-engrave, var(--edge-ui)); box-shadow: var(--glow-fault, none), var(--elev-recessed, none); }
 
-/* ---- 2 Switch: an engraved pill groove, a raised pebble, and the state as position + an accent track + the word ---- */
+/* ---- 2 Switch and 3 Rocker: one family (RJ1, 15 Nov). The owner called some switches "quack and gimmicky" and the jury saw
+   a plain pill beside C02-46. The character, shared by both: a recessed engraved TRACK with two seats (a small lit notch
+   under each rest position of the thumb, the detent), and an object that sits in it: a lit pebble with a dimple in its
+   face (C02-46's thumb has one). ON is the position, the accent fill (3:1) and the word, never a hue alone. The travel is
+   the thumb's `translate` in 160 ms and nothing else moves; the reduced-motion branch below stops it. Calm: no bounce,
+   no glow, no stretch. The track IS the focusable element, so it is 76 x 44 and measures 44 (it was 64 x 32 with an
+   ::after that only extended the pointer area, which a measurement of the element never saw). ---- */
 .k-switch-wrap { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-/* 64 x 32: the 3-letter word sits clear of the 26 px thumb; the ::after takes the track to a 48 x 72 px hit area */
 .k-switch {
-  position: relative; flex: none; width: var(--switch-w, 64px); height: var(--switch-h, 32px); min-height: var(--switch-h, 32px); padding: 0;
+  position: relative; flex: none; width: var(--switch-w, 76px); height: var(--switch-h, 44px); min-height: var(--switch-h, 44px); padding: 0;
   color: var(--ink-2); --well-face: var(--surface-sunk);
   border-radius: var(--r-pill, 999px); box-shadow: var(--elev-recessed, none); cursor: pointer;
   transition: background-color var(--dur-state, 160ms) cubic-bezier(.3, .7, .2, 1), color var(--dur-state, 160ms) cubic-bezier(.3, .7, .2, 1);
 }
-/* hit area around the 32 px track: 64 x 48. Vertical only: the track is already 64 wide, and a sideways extension put
-   the switch's own face under the ground probe beside it, so a filled ON track measured 1.00:1 against itself */
-.k-switch::after { content: ''; position: absolute; inset: -8px 0; }
-/* ON: the groove filled with the accent (3.22:1 on the light ground, 4.61 on the dark), its inset shade kept */
+/* the detent: a short notch under the centre of each rest position, in the label ink at 55 percent, so it shows on the
+   sunk track and on the orange one (the thumb covers the seat it rests in) */
+.k-switch::before {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 5px; height: 4px; pointer-events: none; opacity: .55;
+  background:
+    linear-gradient(currentColor, currentColor) left calc(var(--switch-h, 44px) / 2 - 1px) top 0 / 2px 4px no-repeat,
+    linear-gradient(currentColor, currentColor) right calc(var(--switch-h, 44px) / 2 - 1px) top 0 / 2px 4px no-repeat;
+}
+/* ON: the groove filled with the accent (3.22:1 on the light ground, 4.99 on the dark), its inset shade kept */
 .k-switch[data-on='true'] { --well-face: var(--switch-track-on, var(--k-on-fill, var(--selected-fill))); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--elev-press-fill, var(--elev-pressed, none)); }
 .k-switch-word { position: absolute; top: 50%; translate: 0 -50%; font: 700 11px/1 var(--font-sans, system-ui, sans-serif); letter-spacing: .06em; }
-.k-switch[data-on='false'] .k-switch-word { right: 9px; }
-.k-switch[data-on='true'] .k-switch-word { left: 10px; }
+.k-switch[data-on='false'] .k-switch-word { right: 11px; }
+.k-switch[data-on='true'] .k-switch-word { left: 12px; }
 .k-switch-thumb {
-  position: absolute; top: 2px; left: 2px; width: calc(var(--switch-h, 32px) - 6px); height: calc(var(--switch-h, 32px) - 6px); box-sizing: border-box; border-radius: 50%;
+  position: absolute; top: 4px; left: 4px; width: calc(var(--switch-h, 44px) - 10px); height: calc(var(--switch-h, 44px) - 10px); box-sizing: border-box; border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, var(--lit-hi, transparent), transparent 60%), var(--thumb, var(--surface-raised)); border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui));
   box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none); transition: translate var(--dur-state, 160ms) cubic-bezier(.3, .7, .2, 1);
 }
-.k-switch[data-on='true'] .k-switch-thumb { translate: calc(var(--switch-w, 64px) - var(--switch-h, 32px)) 0; }
+/* the dimple: a small cup in the face of the pebble, so the thumb reads as a thing you press a finger into */
+.k-switch-thumb::after { content: ''; position: absolute; inset: 11px; border-radius: 50%; box-shadow: var(--elev-dimple, none); pointer-events: none; }
+.k-switch[data-on='true'] .k-switch-thumb { translate: calc(var(--switch-w, 76px) - var(--switch-h, 44px)) 0; }
 .k-switch:is(:hover, [data-demo='hover']) .k-switch-thumb::before { opacity: 1; }
 .k-switch:is(:active, [data-demo='pressed']) .k-switch-thumb { box-shadow: var(--elev-flush, none); }
 .k-switch-label { font: 500 14px/1.3 var(--font-sans, system-ui, sans-serif); color: var(--ink-1); }
 :root[data-theme^='clay'] .k-switch[aria-disabled='true'] .k-switch-thumb { box-shadow: var(--elev-flush, none); }
 :root[data-theme^='clay'] .k-switch[data-state='planned'] .k-switch-thumb { box-shadow: none; border: 1px dashed var(--edge-ui); background: transparent; }
+:root[data-theme^='clay'] .k-switch[data-state='planned'] .k-switch-thumb::after { display: none; }
 
-/* ---- 3 Rocker: a shallow tray holding two raised keys (C02-46's OFF and ON keys); the lit key is pressed in and
-   filled with the accent, so ON is a position, a fill and a word, never a hue alone. Keys of at least 56 x 44 px. ---- */
+/* 3 Rocker: the same tray (recessed, engraved), the two keys 4 px apart with the seat notch between them, the lit key
+   pressed in and filled with the accent (C02-46's OFF and ON keys): ON is a position, a fill and a word. Keys of at least
+   56 x 44 px. */
 .k-rocker {
-  position: relative; display: inline-flex; flex: none; gap: 2px; padding: 3px; --well-face: var(--surface-ground);
+  position: relative; display: inline-flex; flex: none; gap: 4px; padding: 4px; --well-face: var(--surface-ground);
   border-radius: var(--r-pill, 999px); box-shadow: var(--elev-recessed, none);
 }
+.k-rocker::before { content: ''; position: absolute; left: 50%; top: 50%; width: 2px; height: 18px; translate: -50% -50%; border-radius: 1px; background: var(--ink-3); opacity: .55; pointer-events: none; }
 .k-rocker-half {
   position: relative; flex: 0 0 auto; min-width: 56px; height: 44px; padding: 0 16px; white-space: nowrap; cursor: pointer;
   font: 700 12px/1 var(--font-sans, system-ui, sans-serif); letter-spacing: .06em; color: var(--ink-2);
@@ -587,10 +602,13 @@ a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
 
 /* Segmented: a recessed channel the colour of the ground; the checked option is a raised accent piece (3.22:1 against
    the channel, the selected thumb sitting inside 4 px of padding so its shade is never cut) */
+/* RJ1: every option is 44 px high ON THE BUTTON (it was 36 to 40 with an ::after that a measurement of the element never
+   saw), and the options are 8 px apart, so a finger between two never lands on both */
 :root[data-theme^='clay'] .ww-seg {
-  gap: 4px; padding: 4px; --well-face: var(--surface-ground);
+  gap: 8px; padding: 4px; --well-face: var(--surface-ground);
   border-radius: var(--r-pill, 999px); box-shadow: var(--elev-recessed, none);
 }
+:root[data-theme^='clay'] .ww-seg .ww-seg-opt { --ctl-h: var(--hit, 44px); min-height: var(--hit, 44px); }
 :root[data-theme^='clay'] .ww-seg-opt { padding-inline: 16px; border: 1px solid transparent; border-radius: var(--r-pill, 999px); font-family: var(--font-sans, system-ui, sans-serif); font-weight: 500; color: var(--ink-2); transition: transform var(--dur-press, 90ms) ease-out; }
 :root[data-theme^='clay'] .ww-seg-opt:is(:active, [data-demo='pressed']) { transform: translateY(1px) scale(.98); }
 :root[data-theme^='clay'] .ww-seg-opt[aria-checked='true'] {
@@ -605,7 +623,8 @@ a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
   border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui));
   border-radius: var(--r-pill, 999px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
 }
-:root[data-theme^='clay'] button.ww-chip { padding-inline: 16px; cursor: pointer; transition: transform var(--dur-press, 90ms) ease-out; }
+/* RJ1: a chip that is a control is 44 px high on the button (it was 36 with an ::after extension); a plain label chip stays 24 */
+:root[data-theme^='clay'] button.ww-chip { --ctl-h: var(--hit, 44px); min-height: var(--hit, 44px); padding-inline: 16px; cursor: pointer; transition: transform var(--dur-press, 90ms) ease-out; }
 :root[data-theme^='clay'] button.ww-chip:hover { transform: translateY(-1px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none); }
 :root[data-theme^='clay'] button.ww-chip:active { transform: translateY(1px); box-shadow: var(--elev-pressed, none); }
 :root[data-theme^='clay'] .ww-chip[data-cycle-state='learned'] { background: var(--surface-sunk); box-shadow: var(--elev-pressed, none); border-color: var(--rim-shade, transparent); }

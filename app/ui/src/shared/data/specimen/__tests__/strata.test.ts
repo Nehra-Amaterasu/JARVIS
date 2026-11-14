@@ -72,9 +72,9 @@ describe('contours and leaders', () => {
       expect(pts[0]).toEqual([232, 100])
       expect(pts[pts.length - 1]).toEqual([360, 100 + dy])
       for (let i = 1; i < pts.length; i++) {
-        const ddx = Math.abs(pts[i][0] - pts[i - 1][0])
-        const ddy = Math.abs(pts[i][1] - pts[i - 1][1])
-        expect(ddx === 0 || ddy === 0 || ddx === ddy).toBe(true)
+        const stepX = Math.abs(pts[i][0] - pts[i - 1][0])
+        const stepY = Math.abs(pts[i][1] - pts[i - 1][1])
+        expect(stepX === 0 || stepY === 0 || stepX === stepY).toBe(true)
       }
     }
   })

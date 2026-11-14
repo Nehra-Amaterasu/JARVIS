@@ -46,7 +46,7 @@ const entries: GalleryEntryX[] = [
     group: 'section',
     merged: 'J01, wave 6',
     also: ['CoreTalkView', 'Transcript', 'TurnRow', 'Anatomy', 'CoreDrawer', 'LiveSigil'],
-    note: 'Fixtures, stamped SIMULATED. Asleep is the first screen most days: the hollow ring, the art in the empty stage, one accent key.',
+    note: 'Fixtures, stamped SIMULATED. Asleep and thinking are finished poses at rest (RC1): the hill as a dashed outline, the ASCII band axis, the Core sigil in the eye, formed and still asleep, forming once in three bounded passes while thinking; one clock (the THINK step), one accent key.',
     states: [
       { label: 'asleep', node: <Box><CoreFixture kind="asleep" /></Box> },
       { label: 'thinking (fixture turns)', node: <Box><CoreFixture kind="thinking" /></Box> },

@@ -2,6 +2,35 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-14: RC1 rework (the Core section after the wave 6 jury)
+
+**Question.** The wave 6 jury scored the rebuilt Core 4.5 of 10 for its signature moment and named eight faults (an empty ring when asleep or thinking, a thinking clock beside a WAITING lamp, a dead band and an empty upper console at 1366 px, a broken phone stage, dim and small text, developer words, small and unfocusable tiles, a second warm fill). Which of them are in the view, which in the harness or the shell, and can each be fixed inside the Core package with a test that measures it?
+
+**What I found, with the numbers.**
+- The 100 px band above the content at 1366 x 768 was the jury page itself (`e2e/core-v2.spec.ts` puts the view's 1302 x 668 box 100 px down to leave room for the shell's title bar and view row, and drew nothing there). In the real app at 1366 the view starts right under the view row. The empty upper console was real: four fitted turns used about 300 of the well's 471 px.
+- "Thinking 2.4 s" came from the voice strip's own label (`voiceState` prints elapsed seconds) while its lamp is WAITING (the level has no reading); the THINK step of the pipeline already carried the same clock with its own SIMULATED lamp. Two clocks, one of them beside the wrong lamp.
+- The Wake label measured 2.83:1 in the app (bone on the orange fill), not the 5.2:1 the tokens promise: the shell's reset `.s2 button { font: inherit; color: inherit }` (specificity 0,1,1) outranks the one-class `.jc-wake` rule. The "orange chip on orange" was the legacy global `kbd` rule (`styles/shell.css`: ink-3 text on a 6 percent white pill) reaching the shortcut inside the key. Every other text measured 4.5:1 or more once measured properly; the dim greys the jury saw were judged by eye.
+- Text under 11 px: the ring's state word (SVG text at 7.5 viewBox units, about 7.3 px drawn), the art plate (10 px, 9 px on the phone), the stage corner plates (10 px), the shortcut (10 px), the phone organ names (10 px), the Anatomy table head (10 px), the level scale (10 px).
+- A fixture's voice strip said LIVE (cyan lamp, "LIVE before the system volume", cyan points) under the stage's FIXTURE · SIMULATED stamp: generated frames labelled as measured.
+- The dashed (hollow) organ tiles lost their focus ring because the hollow rule (0,2,0, later in the file) reset the edge after the focus rule.
+
+**What changed** (`app/ui/src/jarvis/core/**`, `jarvis/voice/VoiceHill.tsx`, `voice.css`, the gallery entry, `e2e/core-v2.spec.ts`).
+- Signature: a new `StageRest` draws, whenever no measured frame exists, the hill's rest outline as three dashed contours on the hill's own geometry (baseline 300, half width 320, 9 px layer drop; dashed and unfilled is the WAITING form), an ASCII band axis either side of the ring (`HIGH |''''|''''|''''|''''|`), and the Core's sigil in the ring's eye. Asleep the sigil is formed and still (0 animation frames and 0 running animations, tested). Thinking, its strokes form in sequence, heaviest first, three passes of 1.4 s (4.5 s at most, under the 5 s bound); the Pause key and reduced motion show it formed and still (tested: every running animation ends by 5000 ms, none after Pause, none under reduced motion).
+- One clock: on the Core strip (`VoiceHill strip="core"`) THINKING carries no number and its lamp reason says why the level waits; the THINK step keeps the seconds with its own lamp. The level with no reading is a dashed, empty well plus a reason word ("no level: thinking") instead of a bare dash. The 1 s thinking timer is gone on Core.
+- The well fills with whole turns: it starts at four and adds one while the oldest row still clears the well's top (a layout effect that settles once per well height and turn count; no timer). At 1366 the fixture shows 5 of 7 turns with 0 cut, and a terminal rule at the top says the older turns are under Earlier. The jury page now draws an inert stand-in of the title bar, view row and rail, so the band reads as the shell it stands for.
+- Phone: the stage is square; the canvas keeps its 2:1 drawing in a box 140 percent wide and 70 percent tall, so the ring is about 68 percent of the width and whole, and the pose words sit under it; the input sits under the stage, above the pipeline; the pipeline is one row of four 48 px steps (it was four stacked bars about 230 px tall; now 64 px or less, tested).
+- Contrast and size are measured, not judged: a Playwright helper reads each visible text's computed colour (or SVG fill) composited by its ancestors' opacity, finds what is painted under it through the hit-test stack (a gradient counts as each stop, the worst wins), and applies the WCAG 2 formula; it asserts 4.5:1 and 11 px for the jury page in light and dark (asleep and thinking, 1366 and 390) and for the app (1366, 390, and the Anatomy drawer). Every size I set is 11 px or more; the ring's state word is HTML on a ground plate. The keys restate their ink and type at 0,2,0, so the Wake label is accent-on over accent-fill (5.2:1) in the app too, and the shortcut drops the global pill.
+- Words: "HOLLOW: NO FRAME" became "NO SOUND YET" (the other four states likewise), the art plate with `art.core.hill-ring` is hidden on the stage and the id is named only in the Anatomy drawer, the prompt is `jarvis talk`, and the asleep hint is "Voice opens the mic.".
+- Honesty: a fixture's strip lamp, legend and points are SIMULATED (`VoiceHill simulated`), never LIVE.
+- Focus and targets: focused organ and ribbon tiles turn a solid ink edge with a 2 px ring 3 px off it (measured 3:1 or more against the ground); every control of the view is at least 44 x 44 px at 1366 and 390 (tested at both).
+
+**Checks.** tsc 0; vitest 2443 of 2443 (114 files); bundle check 0; Playwright `core-v2`, `core-shot`, `shell-v2` and `themes-visual` together 68 passed (the classic frame unchanged with the flag off).
+
+**Not done, and why.**
+- The shell's `.s2 button` reset (`app/ui/src/shell/shell.css`, owned by the craft pass) still outranks any one-class button rule in every view; I restated the Core keys at 0,2,0 instead. Wrapping the reset in `:where()` would end the class of bug.
+- The optional Anatomy assembly from SpecimenLayout, StrataCore or SigilMark was not built: the drawer's ring and table already carry the organs, and RD2 is reworking those components' insides now.
+- Motion is proved in Chromium only, not inside the WebView2 window; the private art track was not shot in this round; no juror has rescored the view.
+
 ## 2026-11-14: wave 6 integrated, and what its jury said (6.6 design, 6.4 usability; pass line 8.0)
 
 **Question.** After the six wave 6 packages and the rebuilt Core section merged, does the new interface pass the screenshot jury, and what does the next round have to fix?

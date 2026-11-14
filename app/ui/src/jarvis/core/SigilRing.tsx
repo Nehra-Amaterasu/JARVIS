@@ -55,12 +55,13 @@ const disc = (r: number) => `M${C} ${C - r}A${r} ${r} 0 1 1 ${C} ${C + r}A${r} $
 /** The traced bezel (C02-07): four hairline arcs with gaps at the quarters, two heavier index bars, a 5-degree scale
  *  with longer marks every 45 degrees, and quarter notches. Static, built once per module. */
 const BEZEL = (() => {
-  // the top gap is 36 degrees (about 105 units at r 168), wide enough for the state word, so the word never sits on a line
-  const arcs = [arc(SIGIL.R_BEZEL, 18, 82), arc(SIGIL.R_BEZEL, 98, 172), arc(SIGIL.R_BEZEL, 188, 262), arc(SIGIL.R_BEZEL, 278, 342)].join('')
+  // the top gap is 44 degrees (126 units at r 168): the plain state word, set in HTML at 11 px or more on its own
+  // ground plate, fits it at the desktop ring (about 120 px for "SOUND, SIMULATED"), so the word never sits on a line
+  const arcs = [arc(SIGIL.R_BEZEL, 22, 82), arc(SIGIL.R_BEZEL, 98, 172), arc(SIGIL.R_BEZEL, 188, 262), arc(SIGIL.R_BEZEL, 278, 338)].join('')
   const heavy = [arc(SIGIL.R_BEZEL, 300, 318), arc(SIGIL.R_BEZEL, 122, 136)].join('')
   let scale = ''
   for (let d = 0; d < 360; d += 5) {
-    if (d < 18 || d > 342) continue // the word's gap stays clear
+    if (d < 22 || d > 338) continue // the word's gap stays clear
 
     const major = d % 45 === 0
     const a = polar(major ? SIGIL.R_SCALE_IN - 3 : SIGIL.R_SCALE_IN, d)
@@ -78,7 +79,8 @@ const BEZEL = (() => {
   return { arcs, heavy, scale, notch, inner }
 })()
 
-const STATE_WORD: Record<LampState, string> = { live: 'LIT BY THE SPECTRUM', simulated: 'LIT BY A FIXTURE', waiting: 'HOLLOW: NO FRAME', planned: 'HOLLOW: NOT BUILT', fault: 'HOLLOW: FAULT' }
+/** Plain words, not the lamp contract's internal ones: the jury of 14 Nov read "HOLLOW: NO FRAME" as debug text. */
+const STATE_WORD: Record<LampState, string> = { live: 'SOUND, LIVE', simulated: 'SOUND, SIMULATED', waiting: 'NO SOUND YET', planned: 'NOT BUILT YET', fault: 'SOUND FAULT' }
 
 function SigilRingImpl({ bands, state, glyphSet = 'jarvis.core.ring' }: SigilRingProps) {
   const lit = useMemo(() => sigilTicks(bands, state), [bands, state])
@@ -116,7 +118,6 @@ function SigilRingImpl({ bands, state, glyphSet = 'jarvis.core.ring' }: SigilRin
             <path key={k} d={GLYPHS[g]} data-lit={lit[k] ? 'true' : undefined} transform={`rotate(${(k * STEP).toFixed(2)} ${C} ${C}) translate(${C} ${C - MID})`} />
           ))}
         </g>
-        <text className="jc-sigil-word" x={C} y={C - SIGIL.R_BEZEL} textAnchor="middle" dominantBaseline="central">{STATE_WORD[state]}</text>
         {/* the hover target: the annulus of the band and the bars only, so the hill underneath stays reachable */}
         <path
           className="jc-sigil-hit"
@@ -132,6 +133,8 @@ function SigilRingImpl({ bands, state, glyphSet = 'jarvis.core.ring' }: SigilRin
           </g>
         )}
       </svg>
+      {/* HTML, not SVG text: an SVG word scales with the ring and fell to about 7 px; this one keeps 11 px or more */}
+      <span className="jc-sigil-word" aria-hidden="true">{STATE_WORD[state]}</span>
     </div>
   )
 }

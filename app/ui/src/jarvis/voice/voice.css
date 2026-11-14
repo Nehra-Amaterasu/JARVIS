@@ -84,7 +84,7 @@
 .vh-tick { position: absolute; top: -3px; block-size: 14px; inline-size: 2px; background: var(--vh-measured); }
 .vh-tick-thr { background: var(--ink-2); }
 .vh-scale { position: absolute; top: 8px; block-size: 3px; inline-size: 1px; background: var(--ink-3); }
-.vh-scale-text { display: flex; justify-content: space-between; font: 10px/1 var(--font-mono, ui-monospace, Consolas, monospace); color: var(--ink-3); margin-block-start: 5px; }
+.vh-scale-text { display: flex; justify-content: space-between; font: 11px/1 var(--font-mono, ui-monospace, Consolas, monospace); color: var(--ink-3); margin-block-start: 5px; }
 
 /* 44 px hit area, a 3:1 edge, the shared 2 px focus ring comes from focus.css */
 .vh-pause {

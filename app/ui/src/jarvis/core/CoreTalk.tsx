@@ -15,7 +15,7 @@
 //
 // Honesty: every number on this view is drawn only for LIVE or SIMULATED (shared/lamp showsNumber); the centrepiece art
 // is aria-hidden, fills only the empty stage and steps aside the moment a real frame arrives (core.css, :has()).
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { CoreInfo, Turn } from '../../lib/api'
 import { ArtSlot } from '../../art/ArtSlot'
 import { Lamp, showsNumber, type LampReading, type LampState } from '../../shared/lamp'
@@ -27,6 +27,7 @@ import { CoreDrawer } from './CoreDrawer'
 import { LiveSigil } from './LiveSigil'
 import { OrganStrip } from './OrganStrip'
 import { PipelineRibbon } from './PipelineRibbon'
+import { AsciiRuler, Eye, RestHill } from './StageRest'
 import { Transcript, TurnRow } from './Transcript'
 import { FIT_TURNS, FIT_TURNS_PHONE, fitTurns, type Organ, type OrganId, type RibbonStage, type StageId, type StageMedian } from './model'
 import { useCoreLive, type CoreActions } from './useCoreLive'
@@ -34,6 +35,10 @@ import './core.css'
 
 /** The phone layout begins below this width (the shell's own one-column break, D6). */
 export const PHONE_MAX = 899
+/** The most turns the desktop well tries to fit: it starts at FIT_TURNS and grows one turn at a time while the oldest
+ *  row still clears the well's top edge, so the well fills with whole turns and never shows a cut one (the wave 6
+ *  jury saw the upper half of the console empty with four short turns). */
+const FIT_TURNS_MAX = 8
 export const CORE_ART_ID = 'art.core.hill-ring'
 
 export interface CoreTalkViewProps {
@@ -155,20 +160,41 @@ function Controls({ core, busy, onWake, onSleep, mode, setMode, onAnatomy, simul
 }
 
 /* ------------------------------------------------------------------ the stage */
+/** The pose of an empty stage: asleep (the core is off) or thinking (the core says so); null when the picture may draw. */
+function restPose(running: boolean, coreView: CoreView): 'asleep' | 'thinking' | null {
+  if (!running) return 'asleep'
+  if (coreView.state === 'thinking' && !coreView.lastError) return 'thinking'
+  return null
+}
+
 function Stage({ signal, coreView, running, simulated, motion }: { signal: VoiceSignal; coreView: CoreView; running: boolean; simulated: boolean; motion: 'auto' | 'none' }) {
+  const pose = restPose(running, coreView)
   return (
-    <div className="jc-stage" data-running={running ? 'true' : 'false'}>
-      <VoiceHill signal={signal} core={coreView} motion={motion} className="jc-vh" />
-      {/* over the stage only (the top 720 x 360 of the hill): the art, the sigil ring, the HUD and the asleep scene */}
+    <div className="jc-stage" data-running={running ? 'true' : 'false'} data-pose={pose ?? undefined}>
+      <VoiceHill signal={signal} core={coreView} motion={motion} className="jc-vh" strip="core" simulated={simulated} />
+      {/* over the stage only (the top 720 x 360 of the hill): the art, the rest form, the sigil ring, the HUD and the pose
+          words. The plane is the canvas's own 720 x 360 box (the whole stage on the desktop, the upper 70 percent of the
+          square phone stage), so every layer in it lands on the canvas's geometry at both sizes. */}
       <div className="jc-over" data-scene="immersive">
         <div className="jc-art" aria-hidden="true"><ArtSlot id={CORE_ART_ID} fit="cover" ratio={2} /></div>
-        <div className="jc-sigil-at"><LiveSigil signal={signal} core={coreView} simulated={simulated} /></div>
+        <div className="jc-plane">
+          <RestHill />
+          <AsciiRuler />
+          <div className="jc-sigil-at"><LiveSigil signal={signal} core={coreView} simulated={simulated} /></div>
+          {pose && <Eye pose={pose} />}
+        </div>
         <span className="jc-hud" data-c="tl" aria-hidden="true">VOICE STAGE</span>
         <span className="jc-hud" data-c="tr">{simulated ? 'FIXTURE · SIMULATED' : <span aria-hidden="true">MIC · SPEAKER</span>}</span>
-        {!running && (
-          <div className="jc-asleep">
+        {pose === 'asleep' && (
+          <div className="jc-pose jc-asleep">
             <span className="jc-asleep-word">ASLEEP</span>
             <span className="jc-asleep-line">Wake JARVIS, or type</span>
+          </div>
+        )}
+        {pose === 'thinking' && (
+          <div className="jc-pose jc-thinking">
+            <span className="jc-asleep-word">THINKING</span>
+            <span className="jc-asleep-line">no level while thinking</span>
           </div>
         )}
       </div>
@@ -199,7 +225,7 @@ function Composer({ running, onSay }: { running: boolean; onSay: (t: string) => 
       <label className="jc-composer-ps" htmlFor="jc-say">you&gt;</label>
       <input
         id="jc-say" className="jc-composer-field" value={text} onChange={(e) => setText(e.target.value)} autoComplete="off"
-        placeholder={running ? 'Type to JARVIS' : 'Wake JARVIS first, then type'} aria-disabled={!running || undefined} readOnly={!running}
+        placeholder={running ? 'Type to JARVIS' : 'Wake JARVIS, then type'} aria-disabled={!running || undefined} readOnly={!running}
       />
       <button type="submit" className="jc-key jc-send" aria-disabled={!running || sending || !text.trim() || undefined}>Send</button>
     </form>
@@ -255,7 +281,34 @@ export function CoreTalkView(p: CoreTalkViewProps) {
 
   const ribbon = useMemo(() => stages.map((s) => ({ ...s, state: simState(s.state, simulated) })), [stages, simulated])
   const organsShown = useMemo(() => organs.map((o) => ({ ...o, reading: { ...o.reading, state: simState(o.reading.state, simulated) } })), [organs, simulated])
-  const fit = fitTurns(turns, narrow ? FIT_TURNS_PHONE : FIT_TURNS)
+  // the desktop well fills itself with whole turns: start at FIT_TURNS, add one while the oldest row clears the well's
+  // top, take one back when it does not, and settle for that well height and turn count (no loop: each key settles once)
+  const [cap, setCap] = useState(FIT_TURNS)
+  const [wellH, setWellH] = useState(0)
+  const settled = useRef('')
+  const fit = fitTurns(turns, narrow ? FIT_TURNS_PHONE : Math.min(cap, FIT_TURNS_MAX))
+  useEffect(() => {
+    const well = root.current?.querySelector<HTMLElement>('.jc-strata')
+    if (!well || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => setWellH(Math.round(well.clientHeight)))
+    ro.observe(well)
+    return () => ro.disconnect()
+  }, [])
+  useLayoutEffect(() => {
+    if (narrow) return
+    const ol = root.current?.querySelector<HTMLElement>('.jc-strata .jc-turns')
+    const first = ol?.querySelector<HTMLElement>('.jc-turn')
+    if (!ol || !first || !ol.clientHeight) return
+    const key = `${ol.clientHeight}:${turns.length}`
+    if (first.getBoundingClientRect().top < ol.getBoundingClientRect().top - 0.5) {
+      if (cap > 1) setCap((c) => c - 1)
+      settled.current = key
+      return
+    }
+    if (settled.current === key) return
+    if (cap < Math.min(turns.length, FIT_TURNS_MAX)) setCap((c) => c + 1)
+    else settled.current = key
+  }, [cap, turns.length, wellH, narrow])
   const count: LampReading = turns.length
     ? { state: simState('live', simulated), since: null, reason: 'turns of this run, from the core' }
     : { state: 'waiting', since: null, reason: running ? 'no turn yet' : 'asleep' }
@@ -265,7 +318,9 @@ export function CoreTalkView(p: CoreTalkViewProps) {
       <section className="jc-left" aria-label="Voice">
         <Controls core={core} busy={busy} onWake={wake} onSleep={sleep} mode={mode} setMode={setMode} onAnatomy={() => openAnat()} simulated={simulated} />
         <Stage signal={signal} coreView={coreView} running={running} simulated={simulated} motion={motion} />
-        <PipelineRibbon stages={ribbon} orientation={narrow ? 'column' : 'row'} />
+        {/* the phone puts the input right under the stage, above the pipeline: the thumb reaches it first (jury, 14 Nov) */}
+        {narrow && <Composer running={running} onSay={actions.say} />}
+        <PipelineRibbon stages={ribbon} />
         <OrganStrip organs={organsShown} onOpen={(id) => openAnat(id)} compact={narrow} />
       </section>
 
@@ -280,12 +335,17 @@ export function CoreTalkView(p: CoreTalkViewProps) {
             Earlier{fit.earlier.length > 0 && showsNumber(count.state) ? ` ${fit.earlier.length}` : ''}
           </button>
         </header>
-        <Transcript turns={fit.shown} all={turns} running={running} simulated={simulated} notifyPresent={notifyPresent} onFlag={actions.flag} onHandoff={onHandoff} />
-        <Composer running={running} onSay={actions.say} />
+        <Transcript
+          turns={fit.shown} all={turns} running={running} simulated={simulated} notifyPresent={notifyPresent} onFlag={actions.flag} onHandoff={onHandoff}
+          header={fit.earlier.length > 0 ? <div className="g-line jc-earlier-rule" aria-hidden="true">── earlier turns are under Earlier ──</div> : undefined}
+        />
+        {!narrow && <Composer running={running} onSay={actions.say} />}
       </section>
 
       <CoreDrawer open={anat.open} onClose={() => setAnat({ open: false, focus: null })} title="Anatomy" tag="SYS">
         <Anatomy organs={organsShown} last={last} medians={medians} focus={anat.focus} now={now} simulated={simulated} />
+        {/* internal ids live here, not on the stage (jury, 14 Nov: "art.core.hill-ring" read as a developer string) */}
+        <p className="jc-anat-note"><span className="jc-tag">[SYS]</span> Stage art <code>{CORE_ART_ID}</code>: drawn only on the private art track and only on an empty stage; it steps aside for a measured frame.</p>
       </CoreDrawer>
       <CoreDrawer open={earlier} onClose={() => setEarlier(false)} title="Earlier turns" tag="JRV">
         <ol className="jc-turns jc-earlier">

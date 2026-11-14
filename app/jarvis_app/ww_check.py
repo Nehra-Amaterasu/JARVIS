@@ -34,9 +34,11 @@ APP_DIR = Path(__file__).resolve().parent
 UI_DIRS = (APP_DIR.parent / "ui" / "src" / "germoney", APP_DIR / "phone_page")
 ROUTE_FILES = sorted(APP_DIR.glob("*.py"))          # server.py defines routes too (/api/kv, /api/game/result)
 DOC_FILES = (APP_DIR / "routes_mission.py", APP_DIR / "routes_ww_resources.py", APP_DIR / "routes_ww_knowledge.py", APP_DIR / "routes_phone_ww.py", APP_DIR / "routes_phone.py")
+# The question engine (wave EW7) keeps its route table in each routes_ww_pyq*.py docstring; the glob takes a new file in without an edit here.
+DOC_FILES += tuple(sorted(APP_DIR.glob("routes_ww_pyq*.py")))
 
-_DECOR = re.compile(r"@app\.(get|post|put|delete)\(\s*\"([^\"]+)\"")
-_DOCROW = re.compile(r"^\s{2,}(GET|POST|PUT|DELETE)\s+((?:/api/|/phone)\S*)", re.M)
+_DECOR = re.compile(r"@app\.(get|post|put|delete|patch)\(\s*\"([^\"]+)\"")
+_DOCROW = re.compile(r"^\s{2,}(GET|POST|PUT|DELETE|PATCH)\s+((?:/api/|/phone)\S*)", re.M)
 _UICALL = re.compile(r"[`'\"](/api/[^`'\"\s?]*)")
 _WS_OR_HEALTH = ("/ws/", "/api/health")
 

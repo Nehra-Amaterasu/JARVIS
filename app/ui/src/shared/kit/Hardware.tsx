@@ -267,6 +267,18 @@ export interface KnobProps extends StateForms {
   className?: string
 }
 
+/** The accent run of the knob, from the minimum (-135 degrees from the top) to the value, on a 32 radius between the cap
+ * (r 28) and the tick ring (r 36 to 45), as the orange arc of C02-46's dials. */
+function knobArc(frac: number) {
+  const R = 32
+  const pt = (deg: number) => {
+    const a = (deg * Math.PI) / 180
+    return `${(Math.sin(a) * R).toFixed(2)} ${(-Math.cos(a) * R).toFixed(2)}`
+  }
+  const end = -135 + 270 * Math.min(1, frac)
+  return `M ${pt(-135)} A ${R} ${R} 0 ${end + 135 > 180 ? 1 : 0} 1 ${pt(end)}`
+}
+
 /**
  * Component 1, the Knob: role=slider with the keys of a slider (arrows step, PageUp and PageDown ten steps, Home and
  * End the ends, Shift a fine step). Never the only way to set a value: the number field of the Setup sheet is its text
@@ -324,6 +336,7 @@ export function Knob({ value, onChange, label, min = 0, max = 100, step = 1, siz
             return <line key={i} className="k-tick" data-major={major ? 'true' : undefined} x1={Math.cos(a) * r1} y1={Math.sin(a) * r1} x2={Math.cos(a) * 45} y2={Math.sin(a) * 45} />
           })}
           <circle className="k-knob-cap" r="28" />
+          {!forms.planned && frac > 0 && <path className="k-knob-arc" d={knobArc(frac)} />}
           {!forms.planned && <line className="k-knob-notch" x1="0" y1="-8" x2="0" y2="-24" transform={`rotate(${angle})`} />}
         </svg>
       </span>

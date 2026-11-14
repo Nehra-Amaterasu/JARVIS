@@ -6,7 +6,7 @@
 // e2e/bench.spec.ts builds a virtual entry that imports e2e/bench/entry.tsx first and then this file.
 import { createRoot } from 'react-dom/client'
 import type { ReactNode } from 'react'
-import { LIT_ANGLES, LitPanel, PlannedGlyph } from '../../shared/kit'
+import { Button, LIT_ANGLES, LitPanel, PlannedGlyph } from '../../shared/kit'
 import { PlannedGlyph as LampPlannedGlyph } from '../../shared/lamp'
 import { PlannedPlate } from '../../shared/planned/PlannedPlate'
 import { PlannedChip } from '../../shared/planned/PlannedChip'
@@ -39,7 +39,7 @@ const SIZES = [12, 16, 24, 48] as const
 
 function Wave5() {
   return (
-    <main id="bn-g01" aria-label="Wave 5 material" style={{ padding: 16, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 16, maxWidth: 1280, margin: '0 auto' }}>
+    <main id="bn-g01" aria-label="Wave 5 material">
       <B name="LitPanel" pkg="kit">
         <F form="rest, light follows the pointer">
           <LitPanel>
@@ -58,6 +58,21 @@ function Wave5() {
           <LitPanel angle={315} planned>Planned panel</LitPanel>
         </F>
       </B>
+      <div className="ww bn-legacy" data-section="wellwisher" data-density="regular">
+      <B name="ButtonStates" pkg="kit">
+        {/* round two (14 Nov): the hover and pressed states painted still through the kit's data-demo hook, beside the
+            default, so a juror can compare the lift, the sink and the flat disabled form in one row */}
+        {(['quiet', 'primary', 'danger'] as const).map((tone) => (
+          <F key={tone} form={`${tone}: default, hover, pressed, loading, disabled`}>
+            <Button tone={tone}>Default</Button>
+            <Button tone={tone} data-demo="hover">Hover</Button>
+            <Button tone={tone} data-demo="pressed">Pressed</Button>
+            <Button tone={tone} loading>Saving</Button>
+            <Button tone={tone} disabledReason="needs a card">Pay</Button>
+          </F>
+        ))}
+      </B>
+      </div>
       <B name="PlannedGlyph" pkg="kit">
         <F form="sizes 12, 16, 24, 48">{SIZES.map((s) => <PlannedGlyph key={s} size={s} />)}</F>
       </B>

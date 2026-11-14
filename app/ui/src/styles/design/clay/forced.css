@@ -68,6 +68,9 @@
     --elev-low: none;
     --elev-high: none;
     --elev-well-deep: none;
+    --elev-groove: none;
+    --elev-press-fill: none;
+    --elev-imprint: none;
     --lip: inset 0 0 0 transparent;
 
     /* the craft pass's rims and engraved edges are system text: every control is outlined, nothing is a shadow */
@@ -75,6 +78,12 @@
     --rim-shade: CanvasText;
     --engrave-dark: CanvasText;
     --engrave-lit: CanvasText;
+    --engrave-side: CanvasText;
+    --lip-on-fill: inset 0 0 0 transparent;
+    --glow-fault: none;
+    --accent-state: Highlight;
+    --surface-raised-hi: Canvas;
+    --thumb: Canvas;
 
     /* the material: no grain, no light lip, and both ridge lips are the system text colour (depth becomes edges) */
     --tooth-opacity: 0;

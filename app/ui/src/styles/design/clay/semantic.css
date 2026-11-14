@@ -34,6 +34,9 @@
   --accent-on: var(--p-char-800);
   --accent-fill-hover: var(--p-orange-450);
   --accent-ink: var(--p-orange-700);  /* accent as text on light: 4.93 to 6.10:1 */
+  --accent-state: var(--p-orange-600); /* the accent as an ON or selected piece: 3.22 ground, 3.50 raised; #171717 on it 4.61 */
+  --surface-raised-hi: var(--p-clay-25); /* the hover face, 2 percent lighter */
+  --thumb: var(--p-clay-50);           /* a switch thumb or slider pebble */
 
   --state-measured: var(--p-cyan-700);
   --state-simulated: var(--p-amber-800);
@@ -68,6 +71,9 @@
   --accent-on: var(--p-char-800);
   --accent-fill-hover: var(--p-orange-450);
   --accent-ink: var(--p-orange-500);  /* 4.55 on raised, the thinnest dark pair */
+  --accent-state: var(--p-orange-600); /* 4.61 on the ground, 4.01 on raised */
+  --surface-raised-hi: var(--p-char-680);
+  --thumb: var(--p-char-550);          /* a lit pebble one step above the raised face */
 
   --state-measured: var(--p-cyan-300);
   --state-simulated: var(--p-amber-300);

@@ -530,7 +530,7 @@ for (const theme of THEMES) {
 // and wells off, the shade stays as feel, every rim and engraving becomes the strong edge) and forced colours (every
 // shade, grain and filter off). tokens.test.ts proves the OS route (prefers-contrast: more) carries the same
 // declarations as the switch, so one route is measured here.
-interface Material { key: string; keyRim: string[]; well: string; wellEdge: string[]; panel: string; panelShade: string; grain: number; grainShown: string; errBorder: string; plannedBorder: string }
+interface Material { key: string; keyRim: string[]; well: string; wellEdge: string[]; wellPaint: string; panel: string; panelShade: string; grain: number; grainShown: string; errBorder: string; plannedBorder: string }
 const layers = (v: string) => v.split(/,(?![^(]*\))/).map((x) => x.trim())
 /** the x and y offsets of one computed shadow layer ("rgba(...) 4px 6px 12px 0px [inset]") */
 const offsets = (layer: string) => layer.replace(/rgba?\([^)]*\)/, '').trim().split(/\s+/).slice(0, 2).map(parseFloat)
@@ -543,6 +543,7 @@ const material = (page: Page) =>
       keyRim: ['Top', 'Right', 'Bottom', 'Left'].map((s) => getComputedStyle(q('.k-key')).getPropertyValue(`border-${s.toLowerCase()}-color`)),
       well: getComputedStyle(q('.k-switch')).boxShadow,
       wellEdge: ['top', 'right', 'bottom', 'left'].map((s) => getComputedStyle(q('.k-switch[data-on="false"]')).getPropertyValue(`border-${s}-color`)),
+      wellPaint: getComputedStyle(q('.k-switch[data-on="false"]')).backgroundImage,
       panel: getComputedStyle(q('.k-panel:not([data-state])')).filter,
       panelShade: getComputedStyle(q('.k-panel:not([data-state]) .k-panel-in')).boxShadow,
       grain: Number(getComputedStyle(inner, '::before').opacity),
@@ -556,22 +557,28 @@ for (const theme of THEMES) {
   test(`(material) lit lip, shade, well and grain in normal, high-contrast and forced branches [${theme}]`, async ({ page }) => {
     await openBench(page, theme)
     const normal = await material(page)
-    // craft pass: the raised key is a 1 px lit lip drawn inside the face (one inset layer, down and right of the top-left
-    // edge, so it follows the curve) in front of the pair (a highlight up and left, a shade down and right); three
-    // layers, and no outline at all: the border is transparent on every side (14 Nov: a two-colour border lip notched
-    // the orange pill at the corners where its colours met)
+    // craft pass: the raised key is a 1 px lit lip drawn inside the face (one inset layer) in front of the pair (a
+    // highlight up and left, a shade down and right); three layers, and no outline at all: the border is transparent on
+    // every side (14 Nov: a two-colour border lip notched the orange pill at the corners where its colours met). Round
+    // two (14 Nov): the lip is on the TOP edge only (0 1px): a 1px 1px lip drew a white crescent down the left curve of
+    // every pill, which the second jury read as a notch on the primary and a broken arc on a dark disabled pill
     const kl = layers(normal.key)
     expect(kl.length, 'the lip plus the pair').toBe(3)
     expect(/inset/.test(kl[0]) && !/inset/.test(kl[1]) && !/inset/.test(kl[2]), `only the lip is inset: ${normal.key}`).toBe(true)
     const [lx, ly] = offsets(kl[0].replace('inset', ''))
-    expect([lx, ly], 'the lip sits on the lit edge').toEqual([1, 1])
+    expect([lx, ly], 'the lip sits on the lit top edge').toEqual([0, 1])
     const [hx, hy] = offsets(kl[1])
     const [sx, sy] = offsets(kl[2])
     expect([hx < 0, hy < 0, sx > 0, sy > 0], `the light comes from the top left: ${normal.key}`).toEqual([true, true, true, true])
     expect(normal.keyRim.every((c) => c === 'rgba(0, 0, 0, 0)'), 'no outline on any side').toBe(true)
     expect(normal.well, 'the switch track is a well').toMatch(/inset/)
-    expect(normal.wellEdge.every((c) => c !== 'rgba(0, 0, 0, 0)'), 'the well is engraved on all four sides').toBe(true)
+    // round two: the engraving is the top border (the wall in shade) and the bottom border (the lit lip), and the sides are
+    // transparent over a vertical gradient from one colour to the other painted on the border box, so the edge turns the
+    // curved corners with no hard join (the two-colour border met in a diagonal at each corner: the jury's "crescent rim")
+    expect([normal.wellEdge[0], normal.wellEdge[2]].every((c) => c !== 'rgba(0, 0, 0, 0)'), 'the well is engraved top and bottom').toBe(true)
     expect(normal.wellEdge[0], 'the engraving has two sides').not.toBe(normal.wellEdge[2])
+    expect([normal.wellEdge[1], normal.wellEdge[3]], 'the sides are the painted gradient, not a third colour').toEqual(['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0)'])
+    expect(normal.wellPaint, 'the sides are painted by a border-box gradient').toMatch(/linear-gradient/)
     expect(normal.panel, 'the soft card casts no filter shade (that was the chamfer)').toBe('none')
     expect(layers(normal.panelShade).length, 'the card is the lip plus the raised pair').toBe(3)
     expect(layers(normal.panelShade)[0], 'the card lip is the inset layer').toMatch(/inset/)

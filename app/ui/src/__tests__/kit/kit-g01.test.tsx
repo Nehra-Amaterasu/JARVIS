@@ -138,9 +138,12 @@ describe('the material recipe (elevation.css, contrast.css, forced.css)', () => 
       expect([hx < 0, hy < 0], `${k} highlight goes up and left`).toEqual([true, true])
       const [sx, sy, sb] = shade.split(/\s+/).map(parseFloat)
       expect([sx > 0, sy > 0], `${k} shade falls right and down`).toEqual([true, true])
-      // the fixed ratio: shade y at least 1.5 x and blur 3 x the shade's x offset (the float step has its own, wider blur)
-      expect(sy / sx, `${k} shade falls more than it slides`).toBeGreaterThanOrEqual(1.5)
-      if (k !== '--elev-float') expect(sb / sx, `${k} shade blur`).toBe(3)
+      // round two (14 Nov): the light is at 45 degrees, as C02-18 and C02-27 draw it, so a step is one number o: the
+      // highlight and the shade slide the same o on both axes and both blur 2o + 2 (round one let the shade fall 1.5 x
+      // further than it slid, with a 3 x blur; beside the sheets that read as a light from above, not from the top left)
+      const hb = parseFloat(hl.split(/\s+/)[2])
+      expect([sx, sy, -hx, -hy], `${k}: one offset on both axes, both layers`).toEqual([sx, sx, sx, sx])
+      expect([sb, hb], `${k}: both blurs are 2o + 2`).toEqual([2 * sx + 2, 2 * sx + 2])
     }
     // the steps climb: each shade is at least as far and as wide as the one below it
     const reach = (k: string) => parseFloat(e[k].split(/,(?![^(]*\))/)[1].trim().split(/\s+/)[1])

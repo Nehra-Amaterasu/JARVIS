@@ -528,6 +528,8 @@ describe('forced-colors: active', () => {
     '--accent-fill': 'ButtonFace', '--accent-on': 'ButtonText', '--accent-fill-hover': 'ButtonFace', '--accent-ink': 'CanvasText',
     '--state-measured': 'CanvasText', '--state-simulated': 'CanvasText', '--state-fault': 'CanvasText', '--state-planned': 'CanvasText', '--state-waiting': 'CanvasText',
     '--selected-fill': 'Highlight', '--selected-ink': 'HighlightText', '--focus-ring': 'Highlight',
+    // craft round two (14 Nov): the accent as a state fill and the 2 percent lighter hover face
+    '--accent-state': 'Highlight', '--surface-raised-hi': 'Canvas',
   }
   const pages: [string, Page][] = [
     ['clay-light', { theme: 'clay-light' }],

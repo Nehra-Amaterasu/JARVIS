@@ -39,11 +39,15 @@
     --lit-hi: transparent;
     --lit-lo: transparent;
     --elev-well-deep: none;
+    --elev-press-fill: none;
+    --elev-groove: none;
     --lip: inset 0 0 0 transparent;
     --rim-lit: var(--p-clay-700);
     --rim-shade: var(--p-clay-700);
     --engrave-dark: var(--p-clay-700);
     --engrave-lit: var(--p-clay-700);
+    --engrave-side: var(--p-clay-700);
+    --lip-on-fill: inset 0 0 0 transparent;
   }
   :root[data-theme='clay-dark'][data-contrast='high'],
   :root[data-theme='clay-light'][data-contrast='high'] [data-scene='immersive'],
@@ -60,11 +64,15 @@
     --lit-hi: transparent;
     --lit-lo: transparent;
     --elev-well-deep: none;
+    --elev-press-fill: none;
+    --elev-groove: none;
     --lip: inset 0 0 0 transparent;
     --rim-lit: var(--p-char-200);
     --rim-shade: var(--p-char-200);
     --engrave-dark: var(--p-char-200);
     --engrave-lit: var(--p-char-200);
+    --engrave-side: var(--p-char-200);
+    --lip-on-fill: inset 0 0 0 transparent;
   }
   :root[data-theme='clay-light'][data-contrast='high'] [data-section],
   :root[data-theme='clay-dark'][data-contrast='high'] [data-section] {
@@ -86,11 +94,15 @@
       --lit-hi: transparent;
       --lit-lo: transparent;
       --elev-well-deep: none;
+      --elev-press-fill: none;
+      --elev-groove: none;
       --lip: inset 0 0 0 transparent;
       --rim-lit: var(--p-clay-700);
       --rim-shade: var(--p-clay-700);
       --engrave-dark: var(--p-clay-700);
       --engrave-lit: var(--p-clay-700);
+      --engrave-side: var(--p-clay-700);
+      --lip-on-fill: inset 0 0 0 transparent;
     }
     :root[data-theme='clay-dark'],
     :root[data-theme='clay-light'] [data-scene='immersive'],
@@ -107,11 +119,15 @@
       --lit-hi: transparent;
       --lit-lo: transparent;
       --elev-well-deep: none;
+      --elev-press-fill: none;
+      --elev-groove: none;
       --lip: inset 0 0 0 transparent;
       --rim-lit: var(--p-char-200);
       --rim-shade: var(--p-char-200);
       --engrave-dark: var(--p-char-200);
       --engrave-lit: var(--p-char-200);
+      --engrave-side: var(--p-char-200);
+      --lip-on-fill: inset 0 0 0 transparent;
     }
     :root[data-theme='clay-light'] [data-section],
     :root[data-theme='clay-dark'] [data-section] {

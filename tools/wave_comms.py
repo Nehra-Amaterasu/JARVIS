@@ -24,6 +24,7 @@ Every write takes a lock file and replaces the board atomically, so two chats ca
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import os
 import subprocess
@@ -128,22 +129,35 @@ def split_list(text: str) -> list[str]:
     return [p.strip().replace("\\", "/") for p in text.replace(";", ",").split(",") if p.strip()]
 
 
-def stem(glob: str) -> str:
-    """The fixed folder or file prefix of a glob: 'app/ui/src/shell/**' gives 'app/ui/src/shell'."""
-    out = []
-    for part in glob.strip("/").split("/"):
-        if any(ch in part for ch in "*?["):
-            break
-        out.append(part)
-    return "/".join(out)
+WILD = "*?["
+
+
+def seg_overlap(a: str, b: str) -> bool:
+    """Can one path segment match a name the other also matches? Literal against pattern uses fnmatch; two patterns
+    are compared by their literal prefixes (d03* and d0* can both match d03x; d03* and core* cannot)."""
+    wa, wb = any(c in a for c in WILD), any(c in b for c in WILD)
+    if not wa and not wb:
+        return a == b
+    if wa and not wb:
+        return fnmatch.fnmatchcase(b, a)
+    if wb and not wa:
+        return fnmatch.fnmatchcase(a, b)
+    pa = a[: min((a.index(c) for c in WILD if c in a))]
+    pb = b[: min((b.index(c) for c in WILD if c in b))]
+    return pa.startswith(pb) or pb.startswith(pa)
 
 
 def overlaps(a: str, b: str) -> bool:
-    """Two ownership globs clash when one's fixed prefix lies inside the other's."""
-    sa, sb = stem(a), stem(b)
-    if not sa or not sb:
-        return True  # a bare '**' owns everything
-    return sa == sb or sa.startswith(sb + "/") or sb.startswith(sa + "/")
+    """Two ownership globs clash when some path could belong to both. Compared segment by segment: '**' owns
+    everything below it, and a path that ends first is treated as a folder that owns what lies under it.
+    (A whole-prefix rule refused app/ui/e2e/core-v2.spec.ts against app/ui/e2e/d03* on the first day.)"""
+    sa, sb = a.strip("/").split("/"), b.strip("/").split("/")
+    for x, y in zip(sa, sb):
+        if x == "**" or y == "**":
+            return True
+        if not seg_overlap(x, y):
+            return False
+    return True
 
 
 def clashes(data: dict, pkg: str, owns: list[str]) -> list[str]:

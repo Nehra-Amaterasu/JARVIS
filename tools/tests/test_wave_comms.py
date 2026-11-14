@@ -43,6 +43,10 @@ def test_a_claim_is_stored_and_shown(board, capsys):
     ("app/jarvis_app/ww_qstore.py", "app/jarvis_app/ww_qstore_tags.py", False),
     ("**", "app/ui/src/x.ts", True),
     ("app/ui/src/gallery/entries/d0*.tsx", "app/ui/src/gallery/entries/**", True),
+    ("app/ui/e2e/core-v2.spec.ts", "app/ui/e2e/d03*", False),
+    ("app/ui/e2e/d03-tables.spec.ts", "app/ui/e2e/d0*", True),
+    ("app/ui/src/shell/views/core*.view.ts", "app/ui/src/shell/views/day-*.view.ts", False),
+    ("app/ui/src/shell", "app/ui/src/shell/x.ts", True),
 ])
 def test_the_overlap_rule(mine, theirs, clash):
     assert wc.overlaps(mine, theirs) is clash

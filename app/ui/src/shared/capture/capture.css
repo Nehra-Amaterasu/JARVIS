@@ -1,0 +1,276 @@
+/* ==========================================================================
+   The Capture Line (spec 20.5, A.D04): a charcoal terminal well with a recessed 44 px prompt line, a plate header, chips
+   as small HUD plates and one status line. Every colour is a clay role (var with a fallback); there is no literal colour.
+   data-scene='immersive' on the root remaps the roles to the charcoal set in either theme (scene.css), which is also what
+   keeps the five state colours at 4.5:1 here.
+
+   The cursor is a solid block drawn by the component (the native caret is hidden because it blinks). Unfocused it is a
+   hollow block. Nothing here animates except a 140 ms one-shot seat-in of a chip, removed under calm and reduced motion.
+   ========================================================================== */
+
+.cl {
+  position: relative;
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-inline-size: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0 0 8px 0;
+  background: var(--term-ground, var(--surface-ground, Canvas));
+  color: var(--ink-1, CanvasText);
+  border: 1px solid var(--edge-ui, currentColor);
+  border-radius: 2px;
+  box-shadow: inset 0 1px 0 0 var(--p-shadow-black-60, transparent);
+  font-family: var(--font-mono, ui-monospace, 'Cascadia Mono', Consolas, monospace);
+  font-size: 14px;
+  line-height: 20px;
+}
+/* the tick ruler on the left edge, like the terminal well's */
+.cl::before {
+  content: '';
+  position: absolute;
+  inset-block: 34px 12px;
+  inset-inline-start: 8px;
+  inline-size: 6px;
+  color: var(--edge-ui, currentColor);
+  background:
+    repeating-linear-gradient(to bottom, currentColor 0 1px, transparent 1px 20px) left / 6px 100% no-repeat,
+    repeating-linear-gradient(to bottom, currentColor 0 1px, transparent 1px 5px) left / 3px 100% no-repeat;
+  pointer-events: none;
+}
+.cl > .cl-corner { position: absolute; inline-size: var(--bracket-arm, 8px); block-size: var(--bracket-arm, 8px); border: 0 solid var(--ink-2, currentColor); pointer-events: none; }
+.cl > .cl-corner[data-c='tl'] { inset-block-start: 3px; inset-inline-start: 3px; border-block-start-width: var(--sigil-w-2, 1.5px); border-inline-start-width: var(--sigil-w-2, 1.5px); }
+.cl > .cl-corner[data-c='tr'] { inset-block-start: 3px; inset-inline-end: 3px; border-block-start-width: var(--sigil-w-2, 1.5px); border-inline-end-width: var(--sigil-w-2, 1.5px); }
+.cl > .cl-corner[data-c='bl'] { inset-block-end: 3px; inset-inline-start: 3px; border-block-end-width: var(--sigil-w-2, 1.5px); border-inline-start-width: var(--sigil-w-2, 1.5px); }
+.cl > .cl-corner[data-c='br'] { inset-block-end: 3px; inset-inline-end: 3px; border-block-end-width: var(--sigil-w-2, 1.5px); border-inline-end-width: var(--sigil-w-2, 1.5px); }
+
+/* ------------------------------------------------------------ plate header: name left, state right, a ruler under */
+.cl-plate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-block-size: 28px;
+  padding: 4px 16px 4px 24px;
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2, currentColor);
+  background: repeating-linear-gradient(to right, var(--edge-hair, currentColor) 0 1px, transparent 1px 8px) left bottom / 100% 4px no-repeat;
+  border-block-end: 1px solid var(--edge-hair, currentColor);
+}
+.cl-tag { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-1, currentColor); font-weight: 600; }
+.cl-tag .g-sigil { color: var(--accent-ink, currentColor); }
+.cl-sub { color: var(--ink-2, currentColor); font-weight: 400; }
+.cl-sub::before { content: '/'; margin-inline-end: 8px; color: var(--ink-3, currentColor); }
+.cl-state { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--ink-2, currentColor); }
+.cl-state[data-status='ready'] { color: var(--ink-1, currentColor); }
+.cl-state[data-status='ambiguous'] { color: var(--state-waiting, currentColor); }
+.cl-state .lamp-glyph { flex: none; }
+.cl-return { font-size: 14px; letter-spacing: 0; }
+
+/* ------------------------------------------------------------ the 44 px prompt line, recessed */
+.cl-line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  margin: 10px 12px 0 24px;
+  min-block-size: var(--hit, 44px);
+  padding-inline-start: 10px;
+  background: var(--surface-sunk, transparent);
+  border: 1px solid var(--edge-ui, currentColor);
+  border-radius: var(--r-control, 6px);
+  box-shadow: var(--elev-recessed, none);
+}
+.cl-prompt { color: var(--accent-ink, currentColor); font-weight: 700; font-size: 16px; }
+.cl-field { position: relative; display: block; min-inline-size: 0; overflow: hidden; border-radius: 3px; font-size: 14px; letter-spacing: 0; }
+.cl-input {
+  display: block;
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: var(--hit, 44px);
+  margin: 0;
+  padding: 0 var(--cl-pad, 4px);
+  background: transparent;
+  color: var(--ink-1, CanvasText);
+  caret-color: transparent;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  font: inherit;
+  letter-spacing: 0;
+  text-overflow: clip;
+}
+.cl-input::selection { background: var(--selected-fill, Highlight); color: var(--selected-ink, HighlightText); }
+.cl-field:has(.cl-input:focus-visible) { outline: 2px solid var(--focus-ring, Highlight); outline-offset: 2px; }
+/* the block: a solid, still rectangle at the caret; hollow when the line is not focused */
+.cl-block {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: calc(var(--cl-pad, 4px) + var(--cl-col, 0) * 1ch - var(--cl-scroll, 0px));
+  inline-size: var(--cl-cur-w, 0.6em);
+  block-size: var(--cl-cur-h, 1.15em);
+  transform: translateY(-50%);
+  background: var(--ink-1, CanvasText);
+  /* difference: over a letter the block turns the letter dark, over the ground it is bone, as a terminal inverts the cell */
+  mix-blend-mode: difference;
+  pointer-events: none;
+}
+.cl-block[data-focus='false'] { background: transparent; box-shadow: inset 0 0 0 1px var(--ink-2, CanvasText); }
+.cl-field[data-selecting='true'] .cl-block { display: none; }
+
+/* the Enter key: raised clay, flat and dim until the line reads in one way */
+.cl-enter {
+  box-sizing: border-box;
+  inline-size: var(--hit, 44px);
+  block-size: var(--hit, 44px);
+  margin: -1px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font: 600 18px/1 var(--font-mono, ui-monospace, monospace);
+  color: var(--ink-1, CanvasText);
+  background: var(--surface-raised, ButtonFace);
+  border: 1px solid var(--edge-ui, ButtonBorder);
+  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui, currentColor) var(--ridge-lo, var(--edge-ui));
+  border-radius: var(--r-control, 6px);
+  box-shadow: var(--elev-raised, none);
+  cursor: pointer;
+  transition: transform var(--dur-state, 120ms), border-color var(--dur-state, 120ms);
+}
+.cl-enter:hover { transform: translateY(-1px); border-color: var(--ink-1, currentColor); }
+.cl-enter:active { transform: translateY(1px); box-shadow: var(--elev-pressed, none); }
+.cl-enter[data-ready='false'] { color: var(--ink-2, currentColor); box-shadow: none; border-color: var(--edge-ui, currentColor); background: transparent; cursor: default; }
+.cl-enter[data-ready='false']:hover { transform: none; border-color: var(--edge-ui, currentColor); }
+.cl-enter:focus-visible, .cl-chip-btn:focus-visible { outline: 2px solid var(--focus-ring, Highlight); outline-offset: 2px; }
+
+/* ------------------------------------------------------------ chips: small HUD plates, caption over value */
+.cl-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px 2px 24px;
+  list-style: none;
+}
+.cl-chip { position: relative; display: block; min-inline-size: 0; max-inline-size: 100%; animation: cl-seat 140ms cubic-bezier(0.3, 0, 0.2, 1) 1 backwards; }
+@keyframes cl-seat { from { opacity: 0; transform: translateY(3px); } }
+.cl-cap { display: block; font-size: 10px; line-height: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2, currentColor); white-space: nowrap; }
+.cl-val { display: block; font-size: 14px; line-height: 20px; font-weight: 600; color: var(--ink-1, currentColor); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-inline-size: 26ch; }
+
+.cl-chip-btn, .cl-edit {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  min-inline-size: 72px;
+  min-block-size: var(--hit, 44px);
+  max-inline-size: 100%;
+  margin: 0;
+  padding: 4px 14px 4px 10px;
+  text-align: start;
+  font: inherit;
+  color: var(--ink-1, CanvasText);
+  background: var(--surface-raised, ButtonFace);
+  border: 1px solid var(--edge-ui, ButtonBorder);
+  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui, currentColor) var(--ridge-lo, var(--edge-ui));
+  border-radius: 2px;
+  box-shadow: var(--elev-raised, none);
+  cursor: pointer;
+}
+/* bracket ticks on two opposite corners; they close in on press and step out on focus, like the frame's */
+.cl-chip-btn::before, .cl-chip-btn::after, .cl-edit::before, .cl-edit::after { content: ''; position: absolute; inline-size: 6px; block-size: 6px; border: 0 solid var(--ink-2, currentColor); pointer-events: none; transition: transform 100ms ease-out; }
+.cl-chip-btn::before, .cl-edit::before { inset-block-start: -3px; inset-inline-start: -3px; border-block-start-width: 1.5px; border-inline-start-width: 1.5px; }
+.cl-chip-btn::after, .cl-edit::after { inset-block-end: -3px; inset-inline-end: -3px; border-block-end-width: 1.5px; border-inline-end-width: 1.5px; }
+.cl-chip-btn:hover { border-color: var(--ink-1, currentColor); }
+.cl-chip-btn:hover::before, .cl-chip-btn:hover::after { border-color: var(--ink-1, currentColor); }
+.cl-chip-btn:focus-visible::before { transform: translate(-2px, -2px); }
+.cl-chip-btn:focus-visible::after { transform: translate(2px, 2px); }
+.cl-chip-btn:active { transform: translateY(1px); box-shadow: var(--elev-pressed, none); }
+
+/* a documented default (a log's day is today): the value is dimmer, the caption says so */
+.cl-chip[data-state='default'] .cl-val { color: var(--ink-2, currentColor); font-weight: 400; }
+/* missing: the hollow form, a dashed edge and a question mark in the accent; no fill, no shade */
+.cl-chip[data-state='missing'] .cl-chip-btn { background: transparent; box-shadow: none; border-style: dashed; border-color: var(--edge-ui, currentColor); }
+.cl-chip[data-state='missing'] .cl-val { color: var(--accent-ink, currentColor); }
+
+/* the verb plate: inverted, chamfered at the top right, not a control */
+.cl-plate-verb {
+  box-sizing: border-box;
+  display: grid;
+  align-content: center;
+  min-block-size: var(--hit, 44px);
+  padding: 4px 22px 4px 12px;
+  color: var(--surface-ground, Canvas);
+  background: var(--ink-1, CanvasText);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+.cl-plate-verb .cl-cap { color: inherit; opacity: 0.8; }
+.cl-plate-verb .cl-val { color: inherit; text-transform: uppercase; letter-spacing: 0.08em; }
+
+.cl-edit { cursor: text; border-color: var(--ink-1, currentColor); }
+.cl-chip-input {
+  box-sizing: content-box;
+  inline-size: calc(var(--cl-ch, 8) * 1ch);
+  max-inline-size: 100%;
+  margin: 0;
+  padding: 0;
+  font: 600 14px/20px var(--font-mono, ui-monospace, monospace);
+  color: var(--ink-1, CanvasText);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  caret-color: var(--ink-1, CanvasText);
+}
+.cl-edit:focus-within { outline: 2px solid var(--focus-ring, Highlight); outline-offset: 2px; }
+
+/* ------------------------------------------------------------ the status line */
+.cl-say { margin: 0; padding: 8px 16px 0 24px; min-block-size: 28px; font-size: 12.5px; line-height: 18px; color: var(--ink-2, currentColor); overflow-wrap: anywhere; }
+.cl-say[data-status='ambiguous'] { color: var(--ink-1, currentColor); font-size: 14px; line-height: 20px; }
+.cl-say[data-status='unknown'] { color: var(--ink-1, currentColor); }
+.cl-q { color: var(--accent-ink, currentColor); font-weight: 700; margin-inline-end: 0.5ch; }
+
+.cl-toast { padding: 0 12px 0 24px; min-block-size: 0; }
+.cl-toast:not(:empty) { padding-block-start: 8px; }
+.cl-toast .k-toast { max-inline-size: 100%; }
+
+/* very narrow hosts (the gallery lays a 390 px phone out at 1.5x zoom, so the line gets about 240 px): the plate wraps its
+   state word under the name instead of overflowing by 2 px, and a chip may shrink below its 72 px floor */
+.cl-plate { flex-wrap: wrap; row-gap: 0; }
+.cl-tag, .cl-state { min-inline-size: 0; }
+.cl-chip-btn, .cl-edit { min-inline-size: min(72px, 100%); }
+
+/* ------------------------------------------------------------ phones: the plate keeps one line, chips take the width */
+@media (max-width: 520px) {
+  .cl { font-size: 13px; }
+  .cl-plate { padding-inline: 20px 12px; letter-spacing: 0.06em; }
+  .cl-line { margin-inline: 20px 8px; }
+  .cl-chips { padding-inline: 20px 8px; gap: 6px; }
+  .cl-say, .cl-toast { padding-inline: 20px 8px; }
+  .cl-val { max-inline-size: 18ch; }
+}
+
+/* ------------------------------------------------------------ calm, reduced motion, forced colours */
+@media (prefers-reduced-motion: reduce) {
+  .cl-chip { animation: none; }
+  .cl-enter, .cl-chip-btn::before, .cl-chip-btn::after { transition: none; }
+}
+:root[data-motion='calm'] .cl-chip { animation: none; }
+:root[data-motion='calm'] .cl-enter, :root[data-motion='calm'] .cl-chip-btn::before, :root[data-motion='calm'] .cl-chip-btn::after { transition: none; }
+
+@media (forced-colors: active) {
+  .cl { background: Canvas; color: CanvasText; border: 1px solid CanvasText; }
+  .cl-line, .cl-chip-btn, .cl-edit, .cl-enter { background: Canvas; color: ButtonText; border: 1px solid ButtonBorder; box-shadow: none; }
+  .cl-chip[data-state='missing'] .cl-chip-btn { border-style: dashed; }
+  .cl-plate-verb { background: Canvas; color: CanvasText; border: 1px solid CanvasText; clip-path: none; }
+  .cl-block { forced-color-adjust: none; background: CanvasText; mix-blend-mode: normal; }
+  .cl-block[data-focus='false'] { background: Canvas; box-shadow: none; outline: 1px solid CanvasText; }
+  .cl-cap, .cl-val, .cl-say, .cl-state, .cl-tag, .cl-prompt, .cl-q { color: CanvasText; }
+  .cl-input, .cl-chip-input { color: CanvasText; }
+  .cl-field:has(.cl-input:focus-visible), .cl-enter:focus-visible, .cl-chip-btn:focus-visible, .cl-edit:focus-within { outline: 2px solid Highlight; }
+  .cl::before, .cl-plate { background: none; }
+  .cl > .cl-corner, .cl-chip-btn::before, .cl-chip-btn::after { border-color: CanvasText; }
+}

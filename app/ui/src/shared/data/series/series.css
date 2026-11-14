@@ -1,0 +1,321 @@
+/* The series forms (spec 20.5.2, package D02). The housing is matte clay hardware: a raised plate whose top and left
+   edges carry the lit ridge (--ridge-hi) and whose bottom and right fall into shade (--ridge-lo), with a recessed
+   charcoal screen in either theme (data-scene='immersive' remaps the roles). Inside the screen: hairlines, dot grids,
+   hatches and mono text only. Colour is a third cue: every state also has a shape and a word. Nothing moves at idle;
+   the two motions (the 320 ms draw, the 200 ms star fade) are one-shot and have a static form. */
+
+.sr-inst {
+  --sr-ink: var(--state-measured);
+  position: relative;
+  margin: 0;
+  padding: 16px 18px 14px;
+  display: grid;
+  gap: 12px;
+  /* width rule: fill the container up to --sr-max (960 px: a wider scope stops reading as one instrument), never below
+     the container; under 420 px of stage the compact form (below) drops the corner plate so nothing collides */
+  box-sizing: border-box;
+  inline-size: min(100%, var(--sr-max, 960px));
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  background: var(--surface-raised);
+  color: var(--ink-1);
+  border: 1px solid;
+  border-color: var(--ridge-hi) var(--ridge-lo) var(--ridge-lo) var(--ridge-hi);
+  border-radius: var(--r-clay, 18px);
+  box-shadow: var(--elev-raised);
+  font-family: var(--font-ui, system-ui, sans-serif);
+}
+.sr-inst[data-state='simulated'] { --sr-ink: var(--state-simulated); }
+
+.sr-head { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; min-block-size: 24px; flex-wrap: wrap; }
+.sr-title { display: inline-flex; align-items: center; gap: 10px; min-inline-size: 0; }
+.sr-serial {
+  font: var(--type-label, 500 12px/16px ui-monospace, monospace);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-sunk);
+  box-shadow: var(--elev-recessed);
+  color: var(--ink-2);
+}
+.sr-label {
+  font: var(--type-label, 500 12px/16px ui-monospace, monospace);
+  letter-spacing: var(--type-label-tracking, 0.08em);
+  text-transform: uppercase;
+  color: var(--ink-1);
+}
+
+.sr-lamp { display: inline-flex; align-items: center; gap: 6px; font: var(--type-meta, 400 12px/16px ui-monospace, monospace); color: var(--ink-2); flex-wrap: wrap; }
+.sr-lamp .lamp-glyph { color: var(--sr-lamp, currentColor); flex: none; }
+.sr-lamp-word { color: var(--ink-1); letter-spacing: 0.06em; }
+.sr-lamp-why { color: var(--ink-2); }
+
+/* the readout: big dot-matrix numerals on the datum, a mono sub line, the pinned difference */
+.sr-readout { display: grid; gap: 4px; min-inline-size: 0; }
+.sr-big { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.sr-num { font: var(--type-display-compact, 400 56px/56px ui-monospace, monospace); font-weight: 650; letter-spacing: -0.01em; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+.sr-num-hollow { color: var(--ink-3); letter-spacing: 0.1em; }
+.sr-unit { font: var(--type-label, 500 12px/16px ui-monospace, monospace); color: var(--ink-2); text-transform: lowercase; }
+.sr-asof { font: var(--type-meta, 400 12px/16px ui-monospace, monospace); color: var(--ink-2); }
+.sr-sub { display: flex; flex-wrap: wrap; gap: 4px 18px; font: var(--type-meta, 400 12px/16px ui-monospace, monospace); color: var(--ink-1); }
+.sr-k { color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
+.sr-kv { white-space: nowrap; }
+.sr-spark { font-family: var(--font-mono, ui-monospace, monospace); letter-spacing: 0.04em; color: var(--sr-ink); }
+.sr-diff { margin: 0; min-block-size: 16px; font: var(--type-meta, 400 12px/16px ui-monospace, monospace); color: var(--ink-1); }
+
+/* the screen: a charcoal glass seated in a recessed clay bezel (the well), four HUD brackets, two corner plates */
+.sr-stage { min-inline-size: 0; inline-size: 100%; }
+.sr-bezel {
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--surface-sunk);
+  box-shadow: var(--elev-recessed);
+}
+.sr-bezel[data-planned='true'] { background: transparent; box-shadow: none; border: 1.5px dashed var(--edge-ui); }
+.sr-screen {
+  position: relative;
+  inline-size: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 30% 0%, color-mix(in srgb, var(--ink-1) 6%, transparent), transparent 60%),
+    var(--surface-ground);
+  color: var(--ink-1);
+  border: 1px solid var(--edge-hair);
+  border-radius: 9px;
+}
+/* static scan lines at 3 percent: the glass, not a moving effect */
+.sr-scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, color-mix(in srgb, var(--ink-1) 3%, transparent) 0 1px, transparent 1px 3px);
+}
+.sr-tag {
+  position: absolute;
+  inset-block-start: 8px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-inline-size: calc(50% - 30px);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 1px 7px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  background: var(--surface-ground);
+  border: 1px solid var(--edge-hair);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.sr-tag[data-at='tl'] { inset-inline-start: 20px; }
+.sr-tag[data-at='tr'] { inset-inline-end: 20px; color: var(--ink-1); }
+.sr-tag .lamp-glyph { color: var(--tone, var(--state-measured)); flex: none; }
+.sr-inst[data-state='simulated'] .sr-tag { --tone: var(--state-simulated); }
+.sr-corner { position: absolute; inline-size: 10px; block-size: 10px; border: 0 solid var(--ink-3); pointer-events: none; z-index: 1; }
+.sr-corner[data-c='tl'] { inset-block-start: 5px; inset-inline-start: 5px; border-block-start-width: 1.5px; border-inline-start-width: 1.5px; }
+.sr-corner[data-c='tr'] { inset-block-start: 5px; inset-inline-end: 5px; border-block-start-width: 1.5px; border-inline-end-width: 1.5px; }
+.sr-corner[data-c='bl'] { inset-block-end: 5px; inset-inline-start: 5px; border-block-end-width: 1.5px; border-inline-start-width: 1.5px; }
+.sr-corner[data-c='br'] { inset-block-end: 5px; inset-inline-end: 5px; border-block-end-width: 1.5px; border-inline-end-width: 1.5px; }
+.sr-screen[data-planned='true'] { border-style: dashed; border-color: var(--edge-ui); }
+.sr-inst[data-state='waiting'] .sr-tag, .sr-inst[data-state='fault'] .sr-tag, .sr-inst[data-state='planned'] .sr-tag { --tone: var(--ink-2); }
+.sr-screen[data-planned='true'] .sr-corner { border-style: dashed; }
+
+.sr-plot { position: absolute; inset: 0; outline: none; touch-action: pan-y; }
+.sr-plot[role='slider'] { cursor: crosshair; }
+.sr-plot:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -3px; border-radius: 8px; }
+.sr-svg { display: block; overflow: visible; }
+.sr-hint { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* svg strokes and fills: one ink per role */
+.sr-svg { --tone: var(--state-measured); }
+.sr-svg[data-tone='simulated'] { --tone: var(--state-simulated); }
+.sr-grid-dot { fill: var(--ink-3); opacity: 0.45; }
+.sr-hatch-line { stroke: var(--ink-3); stroke-width: 1.2; opacity: 0.7; }
+.sr-gap-edge { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 2 3; fill: none; }
+.sr-base { stroke: var(--ink-3); stroke-width: 1; fill: none; }
+.sr-datum-hollow { stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 6 6; fill: none; }
+.sr-median { stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 4 4; fill: none; }
+.sr-median-tick { stroke: var(--ink-1); stroke-width: 1.5; stroke-dasharray: 3 3; fill: none; }
+.sr-bracket { stroke: var(--ink-2); stroke-width: 1.25; fill: none; }
+.sr-line { stroke: var(--tone); stroke-width: 1.5; fill: none; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.sr-ring { fill: var(--surface-ground); stroke: var(--tone); stroke-width: 1.25; }
+.sr-disc { fill: var(--tone); }
+.sr-halo { fill: none; stroke: var(--tone); stroke-width: 1; opacity: 0.45; stroke-dasharray: 2 2; }
+.sr-cursor { fill: none; stroke: var(--ink-1); stroke-width: 1.5; }
+.sr-pin { fill: var(--ink-1); }
+.sr-scrub { stroke: var(--ink-1); stroke-width: 1; fill: none; }
+.sr-scrub-pin { stroke-dasharray: 3 3; stroke: var(--ink-2); }
+.sr-svg-label { fill: var(--ink-2); font-family: var(--font-mono, ui-monospace, monospace); font-size: 11px; letter-spacing: 0.02em; }
+.sr-svg-word { fill: var(--ink-2); font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; letter-spacing: 0.1em; }
+.sr-ruler { fill: var(--ink-3); font-family: var(--font-mono, ui-monospace, monospace); font-size: 11px; }
+.sr-dot { fill: var(--tone); }
+.sr-dot-part { fill: none; stroke: var(--tone); stroke-width: 1.25; }
+.sr-socket { fill: var(--ink-3); opacity: 0.55; }
+.sr-col-sel { fill: color-mix(in srgb, var(--ink-1) 7%, transparent); stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 2 3; }
+.sr-stip-dot { fill: var(--tone); opacity: 0.85; }
+.sr-tone-dot { fill: var(--tone); opacity: 0.55; }
+.sr-gap-word { fill: var(--ink-2); font-family: var(--font-mono, ui-monospace, monospace); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; paint-order: stroke; stroke: var(--surface-ground); stroke-width: 4px; stroke-linejoin: round; }
+
+/* the leader and the callout: a flat plate on the screen, joined by a 1 px line that bends once */
+.sr-leader { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.sr-leader path { stroke: var(--ink-2); stroke-width: 1; fill: none; }
+.sr-callout {
+  position: absolute;
+  display: grid;
+  gap: 1px;
+  padding: 5px 8px;
+  background: var(--surface-raised);
+  border: 1px solid var(--edge-ui);
+  border-radius: 3px;
+  font: var(--type-meta, 400 12px/16px ui-monospace, monospace);
+  color: var(--ink-1);
+  pointer-events: none;
+  z-index: 2;
+}
+.sr-callout[data-pinned='true'] { border-style: dashed; }
+.sr-co-date { color: var(--ink-2); font-size: 11px; }
+.sr-co-val { color: var(--ink-1); }
+.sr-co-val small { color: var(--ink-2); font-size: 11px; }
+.sr-co-lamp { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-2); font-size: 11px; letter-spacing: 0.04em; }
+.sr-co-lamp .lamp-glyph { color: var(--tone, var(--state-measured)); }
+.sr-callout .sr-co-lamp { --tone: var(--state-measured); }
+.sr-inst[data-state='simulated'] .sr-co-lamp { --tone: var(--state-simulated); }
+
+/* the foot: legend glyphs drawn like the marks, and the form keys */
+.sr-foot { min-inline-size: 0; }
+.sr-foot-row { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
+.sr-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; font: var(--type-meta, 400 12px/16px ui-monospace, monospace); color: var(--ink-2); }
+.sr-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.sr-legend svg { overflow: visible; --tone: var(--sr-ink); }
+.sr-lg-line { stroke: var(--sr-ink); stroke-width: 1.5; fill: none; }
+.sr-lg-disc { fill: var(--sr-ink); }
+.sr-lg-ring { fill: none; stroke: var(--sr-ink); stroke-width: 1.25; }
+.sr-lg-median { stroke: var(--ink-1); stroke-width: 1.25; stroke-dasharray: 3 2; fill: none; }
+.sr-lg-bracket { stroke: var(--ink-1); stroke-width: 1.25; fill: none; }
+.sr-lg-gap { fill: none; stroke: var(--ink-2); stroke-dasharray: 2 2; }
+
+.sr-forms { display: inline-flex; gap: 0; border-radius: 10px; box-shadow: var(--elev-recessed); padding: 3px; background: var(--surface-sunk); }
+.sr-key {
+  min-block-size: 44px;
+  min-inline-size: 64px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-2);
+  font: var(--type-label, 500 12px/16px ui-monospace, monospace);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.sr-key[aria-pressed='true'] {
+  background: var(--surface-raised);
+  color: var(--ink-1);
+  border-color: var(--ridge-hi) var(--ridge-lo) var(--ridge-lo) var(--ridge-hi);
+  box-shadow: var(--elev-raised);
+}
+.sr-key:focus-visible, .sr-fold-key:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+.sr-stage[data-compact='true'] .sr-tag[data-at='tl'] { display: none; }
+
+/* the table twin */
+.sr-fold { min-inline-size: 0; }
+.sr-fold-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-block-size: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--edge-ui);
+  border-radius: 8px;
+  font: var(--type-label, 500 12px/16px ui-monospace, monospace);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-1);
+  cursor: pointer;
+  list-style: none;
+}
+.sr-fold-key::-webkit-details-marker { display: none; }
+.sr-fold-key::before { content: '[+]'; color: var(--ink-2); }
+.sr-fold[open] > .sr-fold-key::before { content: '[-]'; }
+.sr-fold-body { margin-block-start: 8px; max-block-size: 240px; overflow: auto; border: 1px solid var(--edge-hair); border-radius: 6px; }
+.sr-table { inline-size: 100%; border-collapse: collapse; font: var(--type-meta, 400 12px/16px ui-monospace, monospace); color: var(--ink-1); }
+.sr-table caption { text-align: start; padding: 6px 10px; color: var(--ink-2); }
+.sr-table th, .sr-table td { padding: 4px 10px; border-block-start: 1px solid var(--edge-hair); text-align: start; font-weight: 400; }
+.sr-table td { font-variant-numeric: tabular-nums; }
+.sr-table thead th { position: sticky; inset-block-start: 0; background: var(--surface-raised); color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
+
+/* ------------------------------------------------------------------------------------------------ SkyLedger */
+.sk-read { display: flex; align-items: center; gap: 14px; min-inline-size: 0; }
+.sk-words { display: grid; gap: 4px; min-inline-size: 0; }
+.sk-headline { margin: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.sk-of { font: var(--type-body, 400 15px/22px system-ui, sans-serif); color: var(--ink-1); }
+.sk-dial { flex: none; color: var(--ink-1); }
+.sk-dial-track { fill: none; stroke: var(--edge-hair); stroke-width: 4; }
+.sk-dial-tick { stroke: var(--ink-3); stroke-width: 1; }
+.sk-dial-kept { fill: none; stroke: var(--sr-ink); stroke-width: 4; }
+.sk-dial-rest { fill: none; stroke: var(--ink-2); stroke-width: 2; }
+.sk-dial-hub { fill: var(--ink-1); }
+.sk-dial-hub-hollow { fill: none; stroke: var(--ink-3); stroke-dasharray: 2 2; }
+.sk-svg { --tone: var(--state-measured); }
+.sk-svg[data-tone='simulated'] { --tone: var(--state-simulated); }
+.sk-star, .sr-legend .sk-star { fill: var(--tone); }
+.sk-glint { stroke: var(--tone); stroke-width: 0.75; opacity: 0.55; fill: none; }
+.sk-moon { fill: var(--ink-1); opacity: 0.88; }
+.sk-none { fill: var(--ink-3); opacity: 0.8; }
+.sk-fig { stroke: var(--tone); stroke-width: 0.75; opacity: 0.5; fill: none; }
+.sr-legend .sk-fig { stroke: var(--sr-ink); }
+.sk-today { fill: none; stroke: var(--ink-2); stroke-width: 1; stroke-dasharray: 2 3; }
+.sk-dust circle { fill: var(--ink-3); opacity: 0.35; }
+.sk-row { font-size: 11px; }
+.sk-day[data-fresh='true'] { animation: sk-fade var(--sk-fade, 200ms) ease-out both; }
+@keyframes sk-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ------------------------------------------------------------------------------------------------ the one-shot draw */
+.sr-screen[data-draw='pending'] .sr-line { stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+.sr-screen[data-draw='pending'] .sr-marks, .sr-screen[data-draw='pending'] .sr-area { opacity: 0; }
+.sr-screen[data-draw='in'] .sr-line { stroke-dasharray: 1 1; animation: sr-draw 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.sr-screen[data-draw='in'] .sr-marks, .sr-screen[data-draw='in'] .sr-area { animation: sr-marks 120ms 260ms ease-out both; }
+@keyframes sr-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes sr-marks { from { opacity: 0; } to { opacity: 1; } }
+
+/* calm and the OS reduce flag: the static form is the drawn line, no fade */
+:root[data-motion='calm'] .sr-screen .sr-line,
+:root[data-motion='calm'] .sr-screen .sr-marks,
+:root[data-motion='calm'] .sr-screen .sr-area,
+:root[data-motion='calm'] .sk-day { animation: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) .sr-screen .sr-line,
+  :root:not([data-motion='full']) .sr-screen .sr-marks,
+  :root:not([data-motion='full']) .sr-screen .sr-area,
+  :root:not([data-motion='full']) .sk-day { animation: none !important; stroke-dashoffset: 0 !important; opacity: 1 !important; }
+}
+
+/* ------------------------------------------------------------------------------------------------ forced colours */
+@media (forced-colors: active) {
+  .sr-inst { border-color: CanvasText; box-shadow: none; forced-color-adjust: none; background: Canvas; color: CanvasText; }
+  .sr-screen { background: Canvas; border-color: CanvasText; box-shadow: none; forced-color-adjust: none; }
+  .sr-inst, .sr-screen, .sr-svg, .sk-svg, .sr-legend svg, .sk-dial {
+    --tone: CanvasText; --sr-ink: CanvasText; --ink-1: CanvasText; --ink-2: CanvasText; --ink-3: GrayText;
+    --surface-ground: Canvas; --surface-raised: Canvas; --surface-sunk: Canvas; --edge-ui: CanvasText; --edge-hair: GrayText; --focus-ring: Highlight;
+  }
+  .sr-lamp .lamp-glyph, .sr-co-lamp .lamp-glyph { color: CanvasText; }
+  .sr-corner { border-color: CanvasText; }
+  .sr-bezel { background: Canvas; box-shadow: none; border: 1px solid CanvasText; }
+  .sr-scan { display: none; }
+  .sr-tag { background: Canvas; color: CanvasText; border-color: CanvasText; }
+  .sr-tag .lamp-glyph { color: CanvasText; }
+  .sr-serial { background: Canvas; color: CanvasText; box-shadow: none; border: 1px solid CanvasText; }
+  .sr-gap-word { fill: CanvasText; stroke: Canvas; }
+  .sr-callout { background: Canvas; border-color: CanvasText; }
+  .sr-key, .sr-fold-key { border-color: ButtonText; color: ButtonText; background: ButtonFace; }
+  .sr-key[aria-pressed='true'] { background: Highlight; color: HighlightText; border-color: Highlight; }
+  .sr-plot:focus-visible { box-shadow: none; outline: 2px solid Highlight; outline-offset: -2px; }
+  .sr-forms { box-shadow: none; background: Canvas; }
+}

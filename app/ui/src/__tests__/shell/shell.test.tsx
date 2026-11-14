@@ -6,6 +6,7 @@ import { mount } from '../ww/_stubs'
 import ShellV2 from '../../shell/ShellV2'
 import { resetShellForTests, useShell } from '../../shell/store'
 import { resetPortsForTests } from '../../shell/ports'
+import { registeredView } from '../../shell/views'
 
 const stub = (id: string) => () => createElement('div', { 'data-stub': id }, `stub ${id}`)
 const PAGES = Object.fromEntries(['core', 'limbs', 'aankhen', 'yaadash', 'connect', 'system'].map((t) => [t, stub(t)]))
@@ -37,7 +38,10 @@ describe('Shell v2', () => {
     expect([root.dataset.product, root.dataset.section, root.dataset.view]).toEqual(['jarvis', 'core', 'talk'])
     expect(document.documentElement.getAttribute('data-theme')).toBe('clay-dark')
     expect(document.documentElement.getAttribute('data-product')).toBe('jarvis')
-    expect(q('[data-stub="core"]')).not.toBeNull()
+    // core.talk has its own registration since A.J01 (shell/views/core.view.ts), which replaces the legacy page, so
+    // the legacy stub is not drawn; the registered view itself is tested in jarvis/core and e2e/core-v2.spec.ts
+    expect(q('[data-stub="core"]')).toBeNull()
+    expect(registeredView('core.talk')?.product).toBe('jarvis')
   })
 
   it('takes its <html> attributes away on unmount, so the old frame never sees a clay theme', () => {

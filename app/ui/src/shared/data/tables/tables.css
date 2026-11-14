@@ -1,0 +1,276 @@
+/* ==========================================================================
+   Tables, lists and the select (wave 6, D03): LedgerTable, SlotList, DetentRack.
+   Material: the ledger is matte clay hardware, a raised plate with a lit ridge (--ridge-hi on top, --ridge-lo below, the
+   real 3:1 edge), a sunk header plate with a ruler of ticks under it, HUD corner brackets, and rows that are flush with a
+   1 px rule (no shadow on repeated rows, no zebra). The rack is a recessed well; the active row is a raised key with a
+   notch and a pawl that clicks into place (a 90 ms transform). Every colour is a layer-2 role; the state hues come from
+   the lamp's own tokens, and the glyph and the word carry the state, never the hue.
+   Motion is transform and opacity only, bounded, and gone under prefers-reduced-motion and data-motion='calm'.
+   ========================================================================== */
+.d3, .d3 *, .d3 *::before, .d3 *::after,
+.d3r, .d3r *, .d3r *::before, .d3r *::after,
+.d3s, .d3s *, .d3s *::before, .d3s *::after { box-sizing: border-box; }
+
+.d3, .d3r, .d3s { --d3-slot-px: 52px; font: 400 13px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); }
+.d3-vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; }
+.d3-grow { flex: 1 1 auto; }
+.d3-unit { font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); margin-inline-start: 4px; }
+
+/* ---- the lamp tag: the contract's glyph plus the word ---- */
+.d3-lamp { display: inline-flex; align-items: center; gap: 6px; font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.04em; color: var(--d3-lamp-ink, var(--ink-2)); white-space: nowrap; }
+.d3-lamp .lamp-glyph { width: 12px; height: 12px; flex: none; }
+.d3-lamp-word { color: var(--ink-1); }
+
+/* ---- buttons: a small raised key, the kit's material in a wide form ---- */
+.d3-key {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--hit, 44px); padding: 0 14px;
+  font: 500 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-1);
+  background: var(--surface-raised); border: 1px solid var(--edge-ui);
+  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
+  border-radius: var(--r-control, 10px); box-shadow: var(--elev-raised, none); cursor: pointer;
+  transition: transform var(--dur-state, 120ms), border-color var(--dur-state, 120ms);
+}
+.d3-key:hover { transform: translateY(-1px); border-color: var(--ink-1); }
+.d3-key:active, .d3-key[aria-expanded='true'] { transform: translateY(1px); box-shadow: var(--elev-pressed, none); }
+.d3-key-sq { width: var(--hit, 44px); padding: 0; }
+.d3-key-n { color: var(--ink-2); }
+
+/* ==========================================================================
+   LedgerTable
+   ========================================================================== */
+.d3-ledger {
+  position: relative; display: flex; flex-direction: column; min-width: 0; background: var(--surface-raised);
+  border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
+  border-radius: var(--r-sharp, 2px); box-shadow: var(--elev-raised, none);
+}
+/* HUD corner brackets: two L-shapes on the opposite corners, drawn on the plate itself */
+.d3-ledger::before, .d3-ledger::after { content: ''; position: absolute; width: 14px; height: 14px; border: 0 solid var(--ink-1); pointer-events: none; z-index: 3; }
+.d3-ledger::before { inset-block-start: -5px; inset-inline-start: -5px; border-block-start-width: 2px; border-inline-start-width: 2px; }
+.d3-ledger::after { inset-block-end: -5px; inset-inline-end: -5px; border-block-end-width: 2px; border-inline-end-width: 2px; }
+
+.d3-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 6px 8px 6px 14px; border-block-end: 1px solid var(--edge-ui); min-height: var(--hit, 44px); }
+.d3-cap { margin: 0; font: 600 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 8px; }
+.d3-cap::before { content: ''; width: 6px; height: 14px; background: var(--ink-1); }
+.d3-why { margin: 0; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+
+.d3-chooser { display: flex; flex-wrap: wrap; gap: 0 18px; padding: 4px 14px; background: var(--surface-sunk); border-block-end: 1px solid var(--edge-ui); box-shadow: var(--elev-recessed, none); }
+.d3-choice { display: inline-flex; align-items: center; gap: 10px; min-height: var(--hit, 44px); font: 13px/1 var(--font-ui, system-ui, sans-serif); cursor: pointer; }
+.d3-choice input { width: 20px; height: 20px; accent-color: var(--ink-1); margin: 0; }
+
+.d3-body { display: flex; min-height: 0; position: relative; }
+.d3-scroll { flex: 1 1 auto; min-width: 0; overflow: auto; padding: var(--focus-bleed, 4px); scrollbar-width: thin; }
+.d3-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: auto; }
+
+/* the header plate: a sunk well with a ruler of ticks along its foot (a long tick at the start of each column) */
+.d3-table thead th {
+  position: sticky; inset-block-start: 0; z-index: 2; height: var(--hit, 44px); padding: 0 12px; text-align: start; font: 600 11px/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-1); background-color: var(--surface-sunk); border-block-end: 1px solid var(--edge-ui);
+  background-image:
+    linear-gradient(90deg, var(--ink-2) 0 1px, transparent 1px),
+    repeating-linear-gradient(90deg, var(--edge-ui) 0 1px, transparent 1px 8px);
+  background-size: 1px 9px, 100% 4px; background-position: left bottom, left bottom; background-repeat: no-repeat;
+}
+.d3-table thead th[data-kind='number'] { text-align: end; }
+.d3-gut-h { width: var(--hit, 44px); }
+.d3-sort { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; min-height: var(--hit, 44px); cursor: pointer; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; }
+.d3-sort-off { cursor: default; }
+.d3-table thead th[data-kind='number'] .d3-sort { flex-direction: row-reverse; }
+.d3-glyph { font-size: 9px; color: var(--ink-2); min-width: 1ch; }
+.d3-sort:hover .d3-glyph, th[aria-sort='ascending'] .d3-glyph, th[aria-sort='descending'] .d3-glyph { color: var(--ink-1); }
+.d3-sort:focus-visible, .d3-rowbtn:focus-visible, .d3-td:focus-visible, .d3-th:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+/* the row button is 44 px high in a 32 px row, so its neighbours' cells paint over the foot of its ring; lift it, and mark the whole row it belongs to with a 2 px rule above and below, so the ring reads as the row's */
+.d3-rowbtn:focus-visible, .d3-td:focus-visible { z-index: 2; }
+.d3-table tbody tr:has(.d3-rowbtn:focus-visible, .d3-td:focus-visible) td { box-shadow: inset 0 2px 0 var(--focus-ring), inset 0 -2px 0 var(--focus-ring); }
+.d3-table tbody tr:has(.d3-rowbtn:focus-visible, .d3-td:focus-visible) td:has(.d3-rowbtn) { box-shadow: inset 0 2px 0 var(--focus-ring), inset 0 -2px 0 var(--focus-ring), inset 2px 0 0 var(--focus-ring); }
+
+/* rows: 32 px, a 1 px rule, nothing else; the 44 px hit area is the row button reaching into its neighbours */
+.d3-table td { height: var(--d3-row, 32px); padding: 0 12px; border-block-end: 1px solid var(--edge-hair); vertical-align: middle; white-space: nowrap; position: relative; }
+.d3-ledger[data-density='dense'] { --d3-row: 28px; }
+.d3-ledger[data-density='dense'] .d3-table td { font-size: 12px; }
+.d3-table .d3-gut { width: var(--hit, 44px); padding: 0; }
+.d3-rowbtn {
+  all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 4px; width: var(--hit, 44px); height: var(--hit, 44px);
+  margin-block: calc((var(--d3-row, 32px) - var(--hit, 44px)) / 2); cursor: pointer; font: 500 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); position: relative;
+}
+.d3-idx { font: 500 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); letter-spacing: 0.04em; }
+.d3-mark { font: 600 13px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); width: 1ch; }
+.d3-table tbody tr:hover td { background: var(--surface-sunk); }
+.d3-table tbody tr:hover .d3-gut::before, .d3-table tbody tr[data-open] .d3-gut::before, .d3-table tbody tr[aria-selected='true'] .d3-gut::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 0; width: 3px; background: var(--ink-1); }
+.d3-table tbody tr[aria-selected='true'] td { background: var(--selected-fill); color: var(--selected-ink); }
+.d3-table tbody tr[aria-selected='true'] .d3-idx, .d3-table tbody tr[aria-selected='true'] .d3-mark, .d3-table tbody tr[aria-selected='true'] .d3-unit,
+.d3-table tbody tr[aria-selected='true'] .d3-lamp, .d3-table tbody tr[aria-selected='true'] .d3-lamp-word { color: var(--selected-ink); }
+.d3-table tbody tr[aria-selected='true'] .d3-hollow { border-color: var(--selected-ink); color: var(--selected-ink); }
+.d3-table td[data-kind='number'] { text-align: end; }
+.d3-num { font: 500 13px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; }
+.d3-spark { font: 13px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0; }
+.d3-text { display: inline-block; max-width: 36ch; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+.d3-td[data-editable]:hover { box-shadow: inset 0 -1px 0 var(--ink-2); }
+
+/* the 10-dot meter: a filled dot is a disc, an empty one a ring (the shape differs, not only the tone) */
+.d3-meterwrap { display: inline-flex; align-items: center; gap: 8px; vertical-align: middle; }
+.d3-meter { display: inline-flex; gap: 3px; vertical-align: middle; }
+/* the number beside the dots: 11 px mono, tabular, so a column of meters lines up on the slash */
+.d3-meter-n { min-inline-size: 4ch; font: 500 11px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; letter-spacing: 0.02em; color: var(--ink-2); text-align: end; }
+.d3-meter i { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; }
+.d3-meter i[data-on='true'] { background: currentColor; }
+
+/* the hollow form: a dashed outline and two short dashes, with the reason in its name; never a grey skeleton box */
+.d3-hollow { display: inline-block; min-width: 4.2ch; padding: 2px 6px; border: 1px dashed var(--edge-ui); font: 500 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; color: var(--ink-2); text-align: center; }
+.d3-ghost td { height: var(--d3-row, 32px); }
+
+.d3-edit { display: inline-flex; align-items: center; gap: 8px; width: 100%; }
+.d3-input { width: 100%; min-width: 6ch; height: 28px; padding: 0 8px; font: 500 13px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); background: var(--surface-sunk); border: 1px solid var(--edge-ui); border-radius: var(--r-sharp, 2px); box-shadow: var(--elev-recessed, none); }
+.d3-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.d3-input[aria-invalid='true'] { border-style: dashed; }
+.d3-err { font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); white-space: nowrap; }
+.d3-err::before { content: '▲ '; }
+
+.d3-empty { display: grid; justify-items: start; gap: 10px; margin: 14px; padding: 16px; border: 1px dashed var(--edge-ui); font: 13px/1.4 var(--font-ui, system-ui, sans-serif); }
+.d3-empty p { margin: 0; }
+
+.d3-foot { display: flex; flex-wrap: wrap; gap: 4px 20px; padding: 8px 14px; border-block-start: 1px solid var(--edge-ui); font: 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.04em; color: var(--ink-2); background-image: repeating-linear-gradient(90deg, var(--edge-hair) 0 1px, transparent 1px 8px); background-size: 100% 4px; background-repeat: no-repeat; background-position: left top; }
+
+/* ---- the drawer: docked on the right of the plate on a wide screen, a bottom sheet on a narrow one ---- */
+.d3-drawer { flex: 0 0 320px; width: 320px; max-width: 100%; display: flex; flex-direction: column; background: var(--surface-sunk); border-inline-start: 1px solid var(--edge-ui); box-shadow: var(--elev-recessed, none); animation: d3-in var(--dur-sheet-in, 200ms) both; }
+.d3-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 6px 4px 14px; border-block-end: 1px solid var(--edge-ui); }
+.d3-drawer-title { margin: 0; font: 600 12px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; }
+.d3-drawer[data-place='sheet'] { position: fixed; inset-inline: 0; inset-block-end: 0; z-index: 40; width: auto; flex: none; max-height: 72vh; overflow: auto; border-inline-start: 0; border-block-start: 1px solid var(--edge-ui); background: var(--surface-raised); box-shadow: var(--elev-float, none); }
+.d3-scrim { position: fixed; inset: 0; z-index: 39; background: var(--scrim); }
+.d3-kv { margin: 0; padding: 4px 14px 12px; display: grid; gap: 0; }
+.d3-kv-row { display: grid; grid-template-columns: minmax(8ch, 36%) 1fr; align-items: center; gap: 12px; min-height: 32px; border-block-end: 1px solid var(--edge-hair); }
+.d3-kv dt { font: 11px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+.d3-kv dd { margin: 0; justify-self: end; text-align: end; }
+
+/* ---- key-value cards (under 900 px): flush tiles with a lit top lip, three fields and one 44 px button ---- */
+.d3-cards { list-style: none; margin: 0; padding: 12px; display: grid; gap: 12px; flex: 1 1 auto; min-width: 0; }
+.d3-card { display: grid; gap: 4px; padding: 10px 12px 6px; background: var(--surface-raised); border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: var(--r-sharp, 2px); box-shadow: var(--elev-flush, none); }
+.d3-card[aria-current='true'] { background: var(--selected-fill); color: var(--selected-ink); }
+.d3-card[aria-current='true'] .d3-idx, .d3-card[aria-current='true'] .d3-kv dt, .d3-card[aria-current='true'] .d3-lamp-word, .d3-card[aria-current='true'] .d3-unit { color: var(--selected-ink); }
+.d3-card-head { display: flex; align-items: center; gap: 10px; min-height: 32px; }
+.d3-card-title { margin: 0; font: 600 15px/1.2 var(--font-ui, system-ui, sans-serif); flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.d3-kv-card { padding: 0; }
+.d3-card-more { justify-self: end; margin-block: 4px 2px; }
+
+/* ==========================================================================
+   SlotList
+   ========================================================================== */
+.d3s-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.d3s-item { position: relative; height: 48px; }
+.d3s-item[data-seat] { animation: d3-seat var(--dur-seat, 140ms) both; animation-delay: calc(var(--i, 0) * 40ms); }
+.d3s-item[data-leaving] { animation: d3-collapse var(--dur-seat, 140ms) both; overflow: hidden; pointer-events: none; }
+.d3s-row {
+  all: unset; box-sizing: border-box; display: grid; grid-template-columns: 28px 1fr auto auto 44px; align-items: center; gap: 12px; width: 100%; height: 48px; padding: 0 2px 0 12px; cursor: pointer;
+  background: var(--surface-raised); border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: var(--r-sharp, 2px);
+  box-shadow: var(--elev-flush, none); font: 500 14px/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); position: relative; z-index: 1;
+}
+.d3s-row:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.d3s-meta { font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); white-space: nowrap; }
+.d3s-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.d3s-grip { display: inline-grid; place-items: center; width: 44px; height: 44px; margin-block: -2px; border-radius: var(--r-control, 10px); cursor: grab; touch-action: none; color: var(--ink-2); font: 700 14px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: -0.1em; }
+/* the grip is not a tab stop of its own (the row is), so the row's focus lights the handle with its own 2 px ring: the thing the keyboard picks up is the thing that shows it */
+.d3s-row:focus-visible .d3s-grip { color: var(--ink-1); outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.d3s-grip::before { content: '::'; }
+.d3s-item[data-lifting] { z-index: 5; }
+.d3s-item[data-lifting] .d3s-row { background: var(--surface-raised); box-shadow: var(--elev-raised, none); transform: translateY(calc(var(--d3-dy, 0px) - 2px)); cursor: grabbing; }
+.d3s-item[data-lifting] .d3s-grip { cursor: grabbing; }
+/* the blanking plate: the seat the lifted row will land in, a dashed outline that stays put */
+.d3s-plate { position: absolute; inset: 0; border: 1px dashed var(--ink-2); border-radius: var(--r-sharp, 2px); display: grid; place-items: center; font: 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+.d3s-item[data-lifting] .d3s-row { z-index: 2; }
+.d3s-empty { margin: 0; padding: 16px; border: 1px dashed var(--edge-ui); font: 13px/1.4 var(--font-ui, system-ui, sans-serif); }
+.d3s-hint { margin: 8px 0 0; font: 11px/1.4 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.04em; color: var(--ink-2); }
+
+/* ==========================================================================
+   DetentRack
+   ========================================================================== */
+.d3r { position: relative; display: inline-grid; gap: 4px; min-width: 200px; max-width: 100%; }
+.d3r[data-flow] { display: grid; width: 100%; max-width: var(--d3-rack-w, 320px); }
+.d3r-label { font: 600 11px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+.d3r-trigger {
+  all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: var(--hit, 44px); padding: 0 12px 0 14px; cursor: pointer;
+  background: var(--surface-raised); border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
+  border-radius: var(--r-control, 10px); box-shadow: var(--elev-raised, none); font: 500 14px/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-1);
+  transition: transform var(--dur-state, 120ms), border-color var(--dur-state, 120ms);
+}
+.d3r-trigger:hover { transform: translateY(-1px); border-color: var(--ink-1); }
+.d3r-trigger:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.d3r-trigger[aria-expanded='true'], .d3r-trigger:active { transform: translateY(1px); box-shadow: var(--elev-pressed, none); }
+.d3r-trigger[aria-disabled='true'] { border-style: dashed; color: var(--ink-2); cursor: not-allowed; box-shadow: none; }
+.d3r-trigger[aria-disabled='true']:hover { transform: none; border-color: var(--edge-ui); }
+.d3r-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.d3r-caret { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
+.d3r-why { margin: 0; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+
+.d3r-rack {
+  display: block; position: absolute; inset-block-start: calc(100% + 6px); inset-inline-start: 0; z-index: 30; width: min(var(--d3-rack-w, 320px), calc(100vw - 32px)); max-height: min(60vh, 440px); overflow: auto; margin: 0; padding: 4px 0;
+  background: var(--surface-sunk); border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: var(--r-sharp, 2px);
+  box-shadow: var(--elev-recessed, none); animation: d3-unfold var(--dur-detent, 120ms) both; scrollbar-width: thin;
+}
+.d3r[data-flow] .d3r-rack { position: relative; inset: auto; width: 100%; z-index: auto; }
+.d3r-rack:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+/* focus stays on the listbox while the arrows move the active row (aria-activedescendant), so the ring is drawn on that row too */
+.d3r-rack:focus-visible .d3r-opt[data-active='true'] { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.d3r-group { margin: 0; padding: 0; list-style: none; }
+.d3r-head { padding: 8px 14px 4px; font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+.d3r-opt { position: relative; display: grid; grid-template-columns: 22px 16px 1fr auto; align-items: center; gap: 6px; min-height: var(--d3-rack-row, 44px); padding: 0 14px 0 10px; cursor: pointer; font: 500 14px/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); border-block: 1px solid transparent; }
+.d3r-gut { font: 13px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); text-align: end; }
+.d3r-disc { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid transparent; justify-self: center; }
+.d3r-opt[aria-selected='true'] .d3r-disc { background: currentColor; border-color: currentColor; }
+.d3r-opt[aria-selected='true'] .d3r-name { font-weight: 700; }
+.d3r-short { font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); letter-spacing: 0.04em; }
+.d3r-opt[aria-disabled='true'] { color: var(--ink-2); cursor: not-allowed; }
+.d3r-opt[aria-disabled='true'] .d3r-name { text-decoration: line-through; text-decoration-thickness: 1px; }
+/* the detent: the active row is a raised key with a notch on its left, and a pawl that clicks into place */
+.d3r-opt[data-active='true'] { background: var(--surface-raised); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); box-shadow: var(--elev-flush, none); }
+.d3r-opt[data-active='true']::before { content: ''; position: absolute; inset-block: 6px; inset-inline-start: 0; width: 3px; background: var(--ink-1); }
+.d3r-opt[data-active='true'] .d3r-gut { color: var(--ink-1); animation: d3-pawl var(--dur-pawl, 90ms) both; }
+
+.d3r-scrim { position: fixed; inset: 0; z-index: 59; background: var(--scrim); }
+.d3r-sheet { position: fixed; inset-inline: 0; inset-block-end: 0; z-index: 60; display: grid; gap: 0; max-height: 80vh; background: var(--surface-raised); border-block-start: 1px solid var(--edge-ui); box-shadow: var(--elev-float, none); animation: d3-rise var(--dur-sheet-in, 200ms) both; }
+.d3r[data-flow] .d3r-sheet, .d3r-sheet[data-flow] { position: relative; inset: auto; z-index: auto; border: 1px solid var(--edge-ui); animation: none; }
+.d3r-handle { justify-self: center; width: 44px; height: 0; margin: 10px 0 4px; border-block-start: 3px dotted var(--ink-2); }
+.d3r-sheet-head { margin: 0; padding: 4px 16px 8px; font: 600 12px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; }
+.d3r-sheet .d3r-rack { position: relative; inset: auto; width: 100%; max-height: 52vh; border-inline: 0; animation: none; }
+.d3r-sheet .d3r-opt { min-height: var(--hit, 44px); padding-inline: 16px 18px; }
+.d3r-cancel { margin: 8px 16px 16px; justify-self: stretch; }
+
+/* ---- motion: bounded, transform and opacity only ---- */
+@keyframes d3-seat { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes d3-collapse { from { opacity: 1; height: 48px; } to { opacity: 0; height: 0; margin-block-end: -4px; } }
+@keyframes d3-in { from { opacity: 0; transform: translateX(12px); } to { opacity: 1; transform: none; } }
+@keyframes d3-unfold { from { clip-path: inset(0 0 100% 0); opacity: 0.4; } to { clip-path: inset(0 0 0 0); opacity: 1; } }
+@keyframes d3-rise { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes d3-pawl { from { transform: translateX(-8px); } to { transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) :is(.d3, .d3r, .d3s) * { animation: none; transition: none; }
+}
+:root[data-motion='calm'] :is(.d3, .d3r, .d3s) * { animation: none; transition: none; }
+:root[data-motion='calm'] :is(.d3-key, .d3r-trigger):hover { transform: none; }
+
+@media (max-width: 899px) {
+  .d3-bar { padding-inline-start: 12px; }
+  .d3r-rack { width: 100%; }
+}
+
+/* ---- forced colours: every edge is CanvasText, selection is Highlight, shapes carry the rest ---- */
+@media (forced-colors: active) {
+  .d3-ledger, .d3-bar, .d3-chooser, .d3-table thead th, .d3-table td, .d3-foot, .d3-drawer, .d3-card, .d3-key, .d3-input, .d3s-row, .d3r-trigger, .d3r-rack, .d3r-sheet { border-color: CanvasText; }
+  .d3-ledger::before, .d3-ledger::after { border-color: CanvasText; }
+  .d3-table thead th { background-image: none; }
+  .d3-hollow, .d3s-plate, .d3-empty, .d3s-empty { border-color: CanvasText; color: CanvasText; }
+  .d3-meter i { border-color: CanvasText; }
+  .d3-meter-n { color: CanvasText; }
+  .d3-meter i[data-on='true'] { background: CanvasText; }
+  .d3-table tbody tr[aria-selected='true'] td, .d3-card[aria-current='true'] { background: Highlight; color: HighlightText; forced-color-adjust: none; }
+  .d3-table tbody tr[aria-selected='true'] :is(.d3-idx, .d3-mark, .d3-unit, .d3-lamp, .d3-lamp-word, .d3-hollow), .d3-card[aria-current='true'] :is(.d3-idx, .d3-lamp-word, .d3-unit, dt) { color: HighlightText; border-color: HighlightText; }
+  .d3r-opt[data-active='true'] { background: Highlight; color: HighlightText; forced-color-adjust: none; }
+  .d3r-opt[data-active='true'] :is(.d3r-gut, .d3r-short) { color: HighlightText; }
+  .d3r-opt[data-active='true']::before { background: HighlightText; }
+  .d3r-opt[aria-selected='true'] .d3r-disc { background: CanvasText; border-color: CanvasText; }
+  .d3r-opt[data-active='true'][aria-selected='true'] .d3r-disc { background: HighlightText; border-color: HighlightText; }
+  .d3-table tbody tr:hover td { background: Canvas; }
+  .d3-sort:focus-visible, .d3-rowbtn:focus-visible, .d3-td:focus-visible, .d3s-row:focus-visible, .d3r-trigger:focus-visible, .d3r-rack:focus-visible, .d3r-rack:focus-visible .d3r-opt[data-active='true'], .d3s-row:focus-visible .d3s-grip { outline-color: Highlight; }
+  .d3-lamp { color: CanvasText; }
+}
+
+.d3r-portal { display: contents; }

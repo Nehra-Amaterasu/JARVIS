@@ -87,6 +87,300 @@ One file for the JARVIS + Well Wisher product-design overhaul (the design source
 
 **What it changed.** The clay tokens (elevation, contrast, forced, primitive colour and scale, type), shared/kit/clay.css, the lamp reading and planned plate styling under clay, the bench rules and the kit tests. The classic interface is untouched (every rule is scoped to a clay theme or to `.k-*` classes the classic pages do not draw).
 
+## 2026-11-14: lanes: the lane check and one-command integration
+
+**Question.** Two chats now build at once (a UI lane and an engine lane). How do we make the lane rule (block C rule 8), the route rule (rule 9) and the exam freeze (D-V3-22) machine-checked, and make the post-merge checks one command that survives an outage?
+
+**What I built (package N03, `tools/` only).**
+- `tools/wave_check.py`, old behaviour kept (its self-tests and the wave 5 table still pass). Added: the lane check (a UI package owns no `.py` outside `tools/` and nothing in `app/jarvis_app`, `core`, `app/tests`, `tools/engine`; an engine package owns no `.ts`, `.tsx`, `.css`, `.json` or bare folder glob under `app/ui`; no package owns the state file, `docs/research/*.md` or the specification, with the engine's own research file as the one exception); the route check (every `/api/...` literal in a file under `app/ui/src/**/adapters/` must be listed in `docs/design/well-wisher-engine-plan.md`; `${id}`, `:id` and `{id}` count as one parameter form; convention text such as `/api/*` is not an entry; no adapter files passes); the freeze check (a feature package owns or changes nothing in `ww/study`, `ww/focus`, `ww_pyq` while the private file exists; absent file means no freeze; a package with `kind` fix, or a purpose starting "fix" or "bug", is exempt); `--exclude` globs and a table `exclude` list. `--board` reads the live wave comms board (read only, through `wave_comms.load`) and runs board clashes plus the three checks.
+- `tools/integrate_wave.py`: 14 steps (tsc, vitest twice, springs, bundle, wave-check, playwright or `--specs`, art tests, pytest for tools, root, core and app on fresh scratch data folders, commit check, leftovers list). Each step has its own exit code and time, the run continues after a failure, and the JSON report plus a text table are rewritten after every step (atomic replace). `--only`, `--skip`, `--dry-run`, `--report` (refused inside the repository). Steps that build or serve the UI are refused while something listens on 8777; the leftovers step only lists.
+
+**Numbers.** `pytest tools/tests -q`: 90 passed, three runs in a row (9.7 s, 9.9 s, 8.8 s). Against the live board (6 packages) `wave_check.py --board` gives 0 findings. A real run of `--only wave-check,commits,leftovers` took 0.3 s, 0.2 s and 1.6 s and exited 0.
+
+**Decisions.**
+- The freeze file is `data/notes/exam-freeze.json` in the main checkout (override `JARVIS_EXAM_FREEZE`); D-V3-22 says only "a private file", so the name is mine. Its existence alone turns the freeze on; the lead time is never read, so nothing about exam dates reaches a tracked file.
+- Rule 8 says a UI package owns `tools/**`, and N03 itself owns `.py` files there, so the `.py` ban stops at `tools/` (and `tools/engine/` stays engine).
+- Guarded steps (bundle, playwright, art) refuse on 8777. `bundle:check` and Playwright already build to `dist-e2e` and serve the sandbox on 8790; the guard is a second lock, not the only one.
+- A refusal counts as a failure in the exit code: a wave that was not fully checked must not look green.
+
+**What is not verified.** Leftover listing was run once on Windows (it listed 0 old processes); the POSIX `ps` branch is untested here. The route check has nothing to bite on yet: the engine plan lists no route and no adapter file exists (R-01 onward are written by the engine lane). The "every route in the plan has a pytest" half of rule 9 is not built: it needs the engine lane's route-table docstrings.
+
+**What it changed.** Merge test items (e) and (f) of 15.6.1 and A.N03's accept line are now code. Integrators run `python tools/integrate_wave.py` after each merge and read the `.txt` beside the report.
+
+
+## 2026-11-14: RD1 rework (number forms D01 and series forms D02)
+
+**Question.** The wave 6 jury named five faults in D01 and D02: grey ghost zeros in the Odometer, a Jar at 390 px with a clipped title and about 4000 px of empty space, a blank LedgerTape at 390 px, Trace and SkyLedger using a quarter of a 1366 px screen, and focus, target and text-size gaps. What is the cause of each, and what fixes it?
+
+**Found.**
+- Jar and LedgerTape at 390 px: rendered alone in a 358 and a 390 px host, the Jar states are 566 px (four jars wrapped) and 293 to 325 px tall, the tape states 215 to 263 px; no overflow. The component is not at fault. The jury shots are the What is new pane (gallery/gallery.css, owned by R01) captured while its grid row is `minmax(0, 1fr)` of a 100% height, so the stage clips the first state and the rest of the capture is empty pane. Not fixed here (see not done); a test now proves the components themselves.
+- Two real overflows found while rendering: the Odometer demo wrapper (a grid whose track grew to max-content, 418 px in a 358 px host) and the Dumbbell's visually hidden table (a table keeps its content width, so the 1 px sr-only table pushed the page to 563 px). Fixed: a `minmax(0, max-content)` track in the entry; `overflow-x: clip` on the Dumbbell card and a top-left anchor for `.d1-sr`.
+- Trace and SkyLedger: the specimen wrapper capped them at `min(760px, 100%)` and the figure had no width rule. Now the figure is `inline-size: min(100%, var(--sr-max, 960px))`; below 420 px of stage the left corner plate is hidden (compact form); below 600 px the existing phone height applies.
+- Odometer: padding wheels kept a glyph at 55 percent opacity (ghost zeros). They are now blank recessed sockets (the strip stays in the DOM, `visibility: hidden`, so a growing value still rolls in and the accessible text is unchanged). Wheels gain a CSS lens glint and a lit rim. The lamp is no longer bare on any form (Odometer hero and compact, Dumbbell, LedgerTape, Jar): glyph plus the state word. Hero padding-top grew from 18 to 40 px so the lamp word clears the ruler.
+- Text under 11 px: the series serial, corner tag, callout lamp, gap word and SkyLedger row labels were 10 px; now 11 px. Trace plot focus is a 2 px outline (offset -3) instead of an inset shadow that forced colours replaced.
+
+**Numbers.** tsc 0 errors; vitest 114 files, 2439 tests pass; bundle budget ok; e2e/gallery.spec.ts 10 of 10; new e2e/rd1-forms.spec.ts 24 of 24 (Jar under 700 px and no overflow at 358 and 390; LedgerTape lines drawn at 358 and 390; Trace, DotHistogram, SkyLedger exactly min(container, 960) wide at 360, 720 and 1100 and compact at 360; padding sockets glyph-free; every number form says its state word; no text under 11 px; 44 px targets; 2 px ring on each of the first eight tab stops of all seven forms). Screenshots: scratchpad/jury/rework/rd1/.
+
+**What changed.** shared/data/numbers (Odometer, Dumbbell, Jar, LedgerTape, numbers.css), shared/data/series (parts unchanged; Trace, DotHistogram, SkyLedger, series.css), the two gallery entry files, e2e/rd1-forms.spec.ts and e2e/rd1/entry.tsx.
+
+**Not done.** The gallery pane capture fault (R01 owns gallery.css); the wave 6 jury should re-shoot with the components in a plain host or after R01 merges. The clay recess and lamp word styles are R01 tokens: the Odometer takes the refined recipe when it merges.
+
+## 2026-11-14: RD2 rework (tables, specimen, capture line, Trim)
+
+**Question.** What did the wave 6 jury fault in D03, D04, D05 and L02, and which of it is the components' and which the gallery's?
+
+**Found.**
+- The capture line "clipped at the left and the frame cut at the bottom" was mostly gallery chrome: the state-switch pills (long state names) overlapped the picture, and the stage zooms 1.5x, so a 390 px phone gives the component about 240 px. Bare, the line was fine at 358 and 390; at 240 its plate header overflowed by 2 px.
+- The specimen had never been seen assembled. Bare at 1366 x 768 (the 1302 x 720 canvas) two faults showed: the datum line was painted over the third callout's value, and the footer's three-row telemetry rail (3 x 28 px) overflowed the 72 px strip and was cut at the foot of the canvas.
+- Ledger: dots with no number; the row button (44 px in a 32 px row) had its focus ring painted over by the next row; the slot grip was 32 px wide; the open rack showed no ring on the active detent.
+- Trim: the demo put a native range input in the well; the kit's TickSlider was not used.
+
+**Changed.** Meter number beside each dot meter (`n/10`, 11 px, only in the LIVE and SIMULATED branch); row focus lifted above its neighbours plus a 2 px rule above and below the row; grip 44 x 44 and lit with the row's focus; 2 px ring on the active detent while the listbox has focus; callouts above the datum; footer rail drawn as one line; capture plate wraps and chips can shrink; Trim demo uses `TickSlider`; every state label under 20 characters (spec updated by prefix). New proof: `e2e/d03/rework.tsx` renders the entries bare (no chrome, no zoom); new tests in the d03, d04 and d05 specs (stage fit, 390 reflow, label length, 240/358/390 capture overflow, focus rings, grip size, meter numbers).
+
+**Numbers.** tsc 0; vitest 2439 of 2439; bundle:check 0; Playwright d03, d04, d05, l02: 52 passed. Pictures: scratchpad `jury/rework/rd2/`.
+
+**Not done.** The gallery's 1.5x default zoom and its sticky toolbar (WhatIsNew, gallery.css, owned by R01) still crop a wide specimen in the gallery; the rocker's ring comes from the kit and was only verified, not changed.
+
+## 2026-11-14: RG1 rework (the jury evidence harness)
+
+**Question.** The wave 6 jury could not verify reflow because its evidence was broken: specimens cropped by the gallery pane, phone frames covered by the sticky switch row, one shot blank below the first card, and one juror could list only 100 of 206 files. What does a harness need so the next jury sees whole specimens and can read the list?
+
+**What I found (causes, from reading `e2e/gallery.spec.ts`, `src/gallery/WhatIsNew.tsx` and `gallery.css`).**
+- The gallery pane is a scroll box (`.gl-pane`, `overflow: auto`) inside a grid whose height is the viewport, so a viewport screenshot only ever holds what fits; a tall specimen is cut at the foot.
+- The page's default zoom is 1.5x (`scale` state), so a "390 px" specimen was really drawn 585 px wide inside a 390 px pane and cropped on the right.
+- The index band (40 % of the height at 760 px and below) and the bar sit above the pane, so a phone shot is half chrome.
+- Nothing wrote a list: no manifest, so a juror had to glob.
+
+**What changed (new files only, all under `app/ui/e2e/`).**
+- `jury.spec.ts`: skipped unless `JURY_SHOTS` names a folder; `JURY_ENTRIES` (comma-separated ids) narrows it; `JURY_SCALE` (1, 1.5, 2; default 1) picks the zoom. It opens the real gallery (built in memory, as `gallery.spec.ts` does), takes the index, the bar and the pane's scroll box out of the picture with one style block, picks each entry and each state through the page's own controls (`el.click()`, so the hidden controls still run their handlers), measures, and clips the picture to the specimen plus anything that sticks out of it. One page per theme and size (four loads in all), no fixed waits (fonts, images and two frames are awaited in the page).
+- Per entry and state: `<entry id, slashes as dashes>/<NN-state>-<width>-<theme>.png` at 1366 x 768 and 390 x 844, light and dark.
+- Per entry: a focus sheet, `focus-<n>.png`, Tab through up to 12 parts, a crop around each stop; the ring (outline width, style, colour or shadow) is in the report.
+- The shell with the flag on: `shell/<section>-<width>.png`, the first view of all ten sections at both sizes. The shot waits until no animation is running, because the section change cross-fades with a blur and the first trial run caught it mid-blur.
+- `report.json` (summary, entries with their state labels and focus stops, one row per file) and `index.md` (one line per file). Row fields: file, entry, state, width, theme, element width and height, `overflowPx` (content past the specimen's edge, or the document scrolling sideways), `clippedPx` (content cut by an `overflow: hidden` box, a silent crop) and `scrollers`, blank check (fewer than 8 distinct colours in a 24 x 24 grid, whole picture and lower half), smallest computed font and its element, count of text under 11 px, focusable parts and how many have a side under 44 px.
+- `jury/lib.ts` (helpers) and `jury/helpers.spec.ts` (3 always-run checks: names, report and index, and the blank check and measure on a synthetic page with known answers: 59 px spill, 80 px crop, 9 px text, one 30 px button).
+
+**Numbers (full run into the scratchpad, this laptop).**
+- 3.4 minutes for the gallery test, 3.9 minutes with the shell test (budget 6). 1269 files: 1016 whole-specimen shots, 233 focus stops, 20 shell shots, from 92 gallery entries.
+- 36 specimen shots overflow, all at 390: `data/StrataCore` 10, `data/SigilMark` 10, `data/Dumbbell` 6, `section/PipelineRibbon` 6, `data/Odometer` 2, `data/LedgerTable` 2 (counts are shots, over four states and two themes).
+- 229 shots have a silent crop (`clippedPx` above 0), for example `data/LedgerTape` at 390 (the amounts "120", "90" are cut at the right edge, 2 px at 1x, 112 px at 1.5x) and `data/CaptureLine` (a clipped part, 96 to 471 px inside its own box).
+- 164 shots hold text under 11 px; 47 shots at 390 hold a focusable part under 44 px (263 parts in all).
+- 0 blank pictures; 3 with a flat lower half (`art-PillarsChart` at 1366 light, shell `room` and `career` at 1366), which is a prompt to look, not a verdict.
+- `data/Jar` at 390 shows no overflow, no crop and no small target in isolation, at 1x and at 1.5x. The wave 6 Jar fault is therefore a fault of the phone frame it sat in (or of the jury's cropped evidence), not of the specimen drawn alone; I did not reproduce it and say so.
+
+A second full run (the final one) gave the same overflow and text counts and drifted by a few on the timing-dependent ones: 228 crops (was 229), 5 flat-lower-half pictures (was 3), 260 small targets (was 263). Treat those three as +/- 5.
+
+**What I checked and did not change.** The shell page at 390 is one column with no document scroll (`overflowPx` is 0 on all 20 shell rows). The gallery's own scale default stays 1.5x; the harness draws 1x because that is the size a phone frame really is.
+
+**Not done.** No source hook was added (none was needed). The shell shots are taken in the default theme only (the shell has one theme switch of its own; both gallery themes are covered by the specimens). At 1366 the specimen plate is 1042 px wide (viewport minus the hidden 276 px index column minus the pane padding), against 978 px in the real 1302 px shell canvas, because the shell's 64 px rail is not in the gallery page; the real canvas is what the shell rows show. `tsc -b` does not check `e2e/` (its tsconfig lists only `./*.ts`), so I type-checked the new files with a scratch tsconfig.
+
+## 2026-11-14: wave 6 integrated, and what its jury said (6.6 design, 6.4 usability; pass line 8.0)
+
+**Question.** After the six wave 6 packages and the rebuilt Core section merged, does the new interface pass the screenshot jury, and what does the next round have to fix?
+
+**What merged.** D01 number forms, D04 capture line, L02 Trim, D02 series forms, D03 tables, D05 specimen layout, and J01 (the Core section for shell v2), plus spec section 21 and the two-lane wave plan. Seven code merges with 0 code conflicts; the only conflicts were in this file, resolved by keeping both sides. Reviewers' design scores per package: 6.5 to 7.5.
+
+**Checks on main after the Core merge (`b8faede`).** tsc 0; vitest 2439 of 2439, twice; springs check 0; bundle check 0 (jarvis build 412 modules with 6 of its own tree, ww build 535 modules with 209 of its own tree, 0 modules of the other product in either). The full Playwright result is in the state file's log for this date.
+
+**Jury (two jurors, 206 screenshots, each read about 25 to 100 of them).**
+
+| Lens | Overall | Lowest criteria | Highest criteria |
+|---|---|---|---|
+| Design (40%) and creativity (20%) | 6.6 | signature moment 4.5; earned interactivity 5.5; depth and material 6; sigil, ASCII and terminal 6 | type hierarchy 7; originality 7 |
+| Usability (30%), content (10%), access gates | 6.4 | orientation 5; reflow at 390 px 5; target sizes 5.5; contrast 5.5 | honest state wording 7; copy 7; RackRow, Trim and capture honesty 7 |
+
+Compared with the wave 5 jury: honest states 6 to 7, copy 6 to 7, main action 6 to 6.5, signature moment 4 to 4.5, the sigil and terminal grammar 4 to 6. Contrast fell from 6 to 5.5 and orientation stayed at 5.
+
+**Hard gates.** No number without a lamp except two mild cases (the compact odometer rail has a bare dot with no word; the Core level meter shows a dash beside a WAITING lamp and amber timings). No camera element. Two gates are open: text contrast in the dark theme (white on the orange main button at about 3:1, an orange chip on orange, dim greys; judged by eye, not measured) and clipped content in evidence shots (Jar at 390 px renders a title then empty space; D04 phone frames and D05 are cropped).
+
+**What the jurors asked for, merged into one list and assigned.**
+
+1. Shell and kit: the shell's own buttons, tiles and inputs are flat outlined boxes beside clay data plates, "the exact thing the owner called boring". The craft pass (R01) owns this: lit clay on every kit control, a two-layer shadow (contact plus ambient) tuned per elevation, a pressed state that sinks, the dark theme checked.
+2. Core signature: only the speaking state is rich. The thinking and asleep states, which are seen most, need the hill resting at low amplitude or a sigil forming. Next Core round.
+3. Core layout: a dead band of about 100 px above the content at 1366 px and an empty upper console; at 390 px the label overprints the ring, the pipeline stacks as four full rows and the breadcrumb reads the wrong place ("Console / Health" on Core). Next Core round and a shell fix (bind the top-bar path to the active route).
+4. Contrast: dark label on the orange button as the light theme already does; lift the dim greys to 4.5:1; measure it in a test instead of by eye.
+5. Odometer: ghost leading zeros read as a rendering fault; make them blank sockets, give the wheels a true recess. The compact rail needs a named lamp.
+6. Focus and targets: a visible 2 px focus ring on rockers, drawer key, table rows, grips, chips and health tiles, with a Tab-through screenshot as proof; 44 px touch targets for tiles, chips, grips and top-bar lamps (principles 13 and 14 of the owner's checklist).
+7. Words: move developer strings (`art.core.hill-ring`, "HOLLOW: NO FRAME", the prompt label) behind the Anatomy drawer.
+8. Evidence harness: fix the capture so phone frames are whole and specimens are not cropped; give Trace and SkyLedger more than 25 percent of the width at 1366 px; assemble SpecimenLayout, StrataCore and SigilMark in the real shell so the specimen is seen whole.
+9. Colour: one warm accent per screen on the single main action; a second surface tone in the light theme.
+10. Type: nothing under 11 px; one rule for sans against mono inside a card.
+
+**What it changed.** Decision D-V3-28 in the spec (no hairline outline on a labelled control in the default themes; one accent fill per screen). A rework round for Core and the data forms goes into the next UI wave beside the Study screens, and the jury's evidence harness is fixed first so the next scores rest on whole screenshots. The owner's 20 principles are now a named input of every builder, reviewer and juror (D-V3-27, `docs/design/ux-principles-checklist.md`).
+
+**Honest limits.** Scores come from still screenshots, so motion (principles 1 to 12) was not judged. Contrast was judged by eye. One juror could list only 100 of the 206 files.
+
+**Housekeeping found on the way.** Finished agents had left a Playwright runner, a preview server and sandbox servers running for about 28 hours (across the overnight pause); they held two removed worktree folders open. Stopped, and the folders removed. The loop now checks for agent processes older than their workflow at each tick.
+
+**Sources.** The workflow journal of run `wf_6e5fcc6c-498` (jury results), the screenshots under the session scratchpad `jury/wave6/`, the commits `edc1944`, `3f25682`, `f6e9b31`, `a261169`, `b8faede`.
+
+## 2026-11-13: D01 number forms (Odometer, Dumbbell, LedgerTape, Jar)
+
+**Question.** Can the four number forms show data in an out-of-the-box way that still reads at a glance, with a state lamp on every figure and no scolding?
+
+**Built.** `app/ui/src/shared/data/numbers/`: Odometer (pixel-numeral wheels in a recessed well, one CSS `steps()` transition on `transform`, only while on screen and not Calm, four dashed wells plus the reason for any state but LIVE and SIMULATED), Dumbbell (ring for the earlier self, disc for now, shared ruler, rails sorted by gap, off-scale held at the end), LedgerTape (paper tape, deterministic torn end, double-rule total), Jar (recessed well, notch disc, hatch past the notch plus one text line, no red). Pure layout in `layout.ts` with named constants; a table or text equivalent on each; forced-colours branch. Gallery entry `d01-numbers.tsx` (group data, 24 states).
+
+**Numbers.** 0 requestAnimationFrame, 0 timers in the folder (grep); roll is one 140 ms transition. Screenshots at 1366x768 and 390x844, light and dark, reviewed.
+
+**Unverified.** Real-device wheel roll; the LedgerTape 390 viewport shot is clipped by the gallery scroll container (full-page shots are fine); look is on today's clay tokens and will shift when the craft pass merges (tokens used by name).
+
+**Changed.** J01 uses kit Readout until it swaps in the Odometer.
+
+## 2026-11-13: wave 6, L02 Trim and the settings registry
+
+**Question.** Can every setting live beside the variable it tunes (no settings page) and still be found, reset and audited?
+
+**Built.** `shared/trim`: `Trim` (44 px clay key with a slider glyph; popover at most 320 x 360 with the control in a recessed well, "Set to" and "Default" on dotted leaders, one "Read by" line, Reset; Esc returns focus; Tab wraps; a press outside or a resize closes it), `registry.ts` (`*.settings.ts` glob, pure `collectSettings`, alias table empty until E13, `auditTrims`, `searchSettings`), `SettingsIndex`, pure `placePopover`, and the palette mode `:` in `shell/modes/settings.mode.ts`. Hardware and brain settings (`risk`) keep a two-press Reset. Gallery entries `kit/Trim` and `kit/SettingsIndex`.
+
+**Numbers.** vitest 2027 of 2027 in 98 files (twice), tsc clean, bundle check ok (ww build 490 modules); 13 Playwright checks at 1366x768 and 390x844, light, dark, forced colours and reduced motion: key 44 px, popover within 320 x 360 and the viewport, every control inside at least 44 px, focus lands on the control and returns to the key on Esc. Screenshots: scratchpad `jury/wave6/l02/`.
+
+**Unverified.** No real `*.settings.ts` exists yet, so the glob and the "no unmounted entry" audit are proved on two fixtures only; the audit is not yet run against the live app. The `:` mode is tested as a function and as a collected mode, not typed into the real palette in a browser. Screen-reader output not listened to.
+
+**Changed.** Optional additive fields on `SettingDef` (`format`, `defaultText`, `isDefault`, `risk`) and on `Trim` (`def`, for the gallery and tests); the contract signatures stand.
+
+## 2026-11-13: D04 Capture line (wave 6)
+
+**Question.** Can one prompt line serve both Well Wisher capture (`spent 120 chai`, `water 250`, `gym legs 45`, `remind me next tue 7 pm physics`) and the JARVIS closed-verb lines, with a local deterministic tokenizer that never guesses, and still look like an instrument rather than a text box?
+
+**Built.** `shared/capture/`: `parse.ts` (`parseWw(text, now)`, `parseJarvis`, `parseCapture`, `rewrite`; no eval, no shell, no network, input capped at 160 characters), `when.ts` (weekday, month-end, year-end, leap-day and time resolution against an injected clock), `layout.ts` (pure status, chip, caret and history functions with named constants), `CaptureLine.tsx` and `capture.css` (recessed well, HUD corner brackets, sigil tag, a drawn solid block cursor because the native caret blinks, editable chips beneath, "? what is 120" waits, Enter commits, 6 s Undo toast through the kit's NotchedToast, Ctrl+Space through one shared window listener for `ww` only). Gallery entry `d04-capture.tsx` (two entries, 12 states, a reading table on a fixed clock of Fri 13 Nov 2026 10:30). `e2e/d04-capture.spec.ts` (keyboard, idle, screenshots).
+
+**Numbers.** vitest in `shared/capture`: 143 tests in 3 files (30 phrases as written, 10 ambiguous that wait, weekdays, month and year ends, leap days, times, rewrite round trip, no-execution and closed-verb cases). Playwright: 6 of 6 (ask on "120" and Enter commits nothing; clear line commits and clears; Undo restores the text; Ctrl+Space focuses from elsewhere; jarvis "unknown verb; try help" holds; cursor animation none, 0 rAF and 0 running animations in 1.5 s idle; no document scroll at 1366 x 768; no horizontal scroll and 44 px targets at 390 px).
+
+**Unverified.** The tokenizer reads English words and 12-hour times only (no other language, no relative phrases beyond the table). The phone gallery pane scrolls inside itself, so the phone screenshots of single states are partly covered by the sticky switch row; the component itself is not clipped at 390 px. Forced-colours was not screenshotted. Chips show the person's typed words, never a measurement, so no lamp is needed on them; the line's own state lamp follows ready, ask, waiting.
+
+**What it changed.** The Memory line (J04) and the Today footer (L04) can mount `CaptureLine` with a grammar and get the same ambiguity rule, Undo and keyboard path; the tokenizer is the single place date words are read.
+
+## 2026-11-13: D02 series forms (Trace, DotHistogram, SkyLedger)
+
+**Question.** Can the three series forms of spec 20.5.2 read at a glance and still look like small refined instruments (clay housing, recessed screen, HUD plates, halftone, dot matrix) while keeping every honesty rule: no number without a lamp, gaps never filled in, no run counter or loss wording?
+
+**Built** (`app/ui/src/shared/data/series/**`, gallery entry `d02-series.tsx`, resumed from a builder cut off by an outage). One housing for all three: a raised clay plate (tokens `--elev-raised`, `--ridge-hi/lo`) with a serial pill (TRC, HST, SKY), the lamp glyph plus word plus reason, and a charcoal screen seated in a recessed bezel (`--elev-recessed`), with HUD brackets, static 3 percent scan lines and two corner plates (what is shown, and the lamp word). Trace: 1.5 px hairline, a halftone dot ground under each run that stops where the line stops, hatched "no data" bands, ASCII ruler, own-median datum, last point a disc and the week before as rings, scrub and pin by pointer and keys, a two-point difference, a 320 ms one-shot draw. DotHistogram: towers of LED dots in socket grids, a stated unit per dot, part dots as rings, median tick and middle-half bracket, a Ridge form. SkyLedger: stars, crescents for rest days, faint points for untouched days, a ratio headline with a ticked dial, short habit figures.
+
+**Numbers.** Dot towers: 640 entries at one dot = 5 filled 5 of 21 socket rows before; now about 11 of 13 (the pitch picks the fewest dots across that keep the tallest column near 85 percent of the height). Sky figures: with no edge limit the 90-day fixture drew 33 lines crossing the whole field; the latest 12 stars per habit joined only within 1.6 cells gives short clusters. Tests: 38 new (layout, keyboard scrub, hollow states, deletion lowers the count, folder grep for the banned words, no timers, forced-colours and reduced-motion branches); full suite 2038 of 2038 twice, tsc clean, bundle check ok. No horizontal scroll at 1366 and 390 wide.
+
+**Unverified.** No screen-reader pass; no real data (every sample is a seeded fixture, shown as SIMULATED, plus a LIVE-ink state on the same fixture for the colour); the one-shot draw keeps a Trace's line hidden until it is first a quarter in view, so a full-page screenshot of an off-screen Trace shows no line until it is scrolled to (by design, but a juror may read it as empty). The FAULT lamp colour comes from the shared lamp token, not from this package.
+
+**Changed.** The series forms exist for J01 and the Well Wisher sections to adopt; SkyLedger takes an optional `habit` per day beyond the contract signature (a superset), and all three take optional `label`, `unit` and `reason`.
+
+## 2026-11-13: D03 tables, lists and the select (wave 6, resumed after an outage)
+
+**Question.** Can the product's three list forms (a table, a reorderable list, the select) be built as small instruments with full keyboard paths, 44 px targets and no native select, on the shared grammars and clay tokens only?
+
+**Built.** `LedgerTable` (32 px rows, sticky header, text sort glyph, F2 edit, column chooser, drawer, cards under 900 px, a lamp column; numbers drawn only for LIVE and SIMULATED, hollow with the reason otherwise), `SlotList` (Alt+Up and Alt+Down, Space lift with a dashed blanking plate, grip drag), `DetentRack` (listbox, `aria-activedescendant`, typeahead, bottom sheet under 900 px). 69 unit tests in `shared/data/tables/__tests__`, 15 Playwright tests in `e2e/d03-tables.spec.ts`.
+
+**Numbers.** tsc clean; vitest 2069 of 2069 twice (100 files); bundle:check ok; Playwright 15 of 15 (final run split: 14 + the cards test rerun alone after its fix).
+
+**Two real bugs found by the keyboard spec and fixed.** (1) The inline editor's ref callback called `select()` on every render, so each typed character replaced the previous one: typing "Unit 9 chai" committed "i". The select now runs once, from a stable callback. (2) The grip's pointer capture sat on a node that React moves while a row is carried (the dragged row is reordered live); capture now sits on the list, which stays mounted. The spec had two test-side faults too (grip read off-screen; the still "drawer open" form's fixed scrim covering the phone cards).
+
+**Unverified.** Pointer drag was only exercised with Playwright's mouse, not touch hardware. The cards jury picture still shows the still drawer form overlapping (a gallery artifact). Colours are the clay tokens by name, so they will change when the craft pass merges.
+
+**Changed.** Nothing outside the D03 folders.
+
+## 2026-11-13: D05, specimen layout, strata, sigil mark and rack row (wave 6)
+
+- **Question:** can the bento grid be replaced by one specimen with callouts on leaders, and can three data forms (strata, sigil, rack) show evidence and hardware state without a number or a lamp that was not earned?
+- **Built** (`app/ui/src/shared/data/specimen/`): SpecimenLayout (1302 x 720 desktop, specimen 760 x 560, up to 5 callouts on 1 px leaders bending once at 45 degrees, datum ticks every 40 px; reflow under 900 px as specimen first plus a dot carousel), StrataCore (thickness is evidence, flat dashed layer for none, hollow for WAITING, PLANNED and FAULT with the reason), SigilMark (reuses the shared sigil engine, same input gives the same bytes), RackRow (confirmed only with `reportedAt`; otherwise "sent, not acknowledged").
+- **Resumed after an outage:** the 16 files were complete and passing; this pass found by looking that the gallery squeezed StrataCore to a 130 px card (clipped rows, wrapped meta), the rack overflowed at 520 px (its compact layout keyed to the window, now to its own width by container query) and the demo leaders crossed the unit rows (anchors moved to the stack's edge). Added `e2e/d05-specimen.spec.ts`.
+- **Numbers:** vitest 2063 of 2063 (102 files; 63 in D05), tsc 0, bundle budget ok (ww build 493 modules), Playwright 7 of 7 (no document scroll at 1366x768 and 390x844, one object wider than 40 percent, strata rows 44 px, zero rAF at idle, forced colours).
+- **Unverified:** the composed look inside the real shell canvas (only the gallery stage was seen, zoomed 1.5x and clipped by its pane); the refined clay tokens from the craft pass; contrast measured by eye only.
+- **Changed:** nothing outside the owned folders except the new e2e spec.
+
+## 2026-11-14: critic pass on the expanded horizons (design expansion)
+
+**Question.** Is the integrator's report on section 21, the two-lane plan and the forecast right, checked against the owner's words, the arithmetic and the code that exists?
+
+**Method.** Read the owner's direction file, section 21, 15.6, the new decisions, Appendix A blocks and both wave contract tables; recomputed the forecast; listed `app/jarvis_app` and `core`, read the docstrings and public functions of the modules each engine package would touch (`ww_bank_store`, `ww_generator`, `ww_harvest`, `ww_exams`, `ww_attendance`, `ww_money`, `ww_body`, `ww_life`, `ww_learning`, `ww_insight`, `ww_director`, `ww_season`, `ww_trees`, `ww_career`, `reminders`, `routes_library`, `yaadash/library`, `core/ollama_guard`, `core/whisper_load`), `register_feature_routes` in `server.py`, and the engine plan file on main; scanned the new text for banned words, camera mentions and personal or institutional names.
+
+**Findings (what was wrong, and what was fixed in the two docs).**
+1. **Arithmetic.** Slot totals, B, C2 and D are right (3.25 / 5.5 / 8.8; 17.3 / 29.5 / 47.5; 20.5 / 35 / 56.3; 28 / 48 / 77). A (7.5 / 12.3 / 19) and C1b (10.8 / 17.8 / 27.8) were not: two and three whole slots plus the smoke test give A 8 / 13.5 / 21.6 and C1b 11.3 / 19 / 30.4. The day counts for A at 8 and 20 hours a day change (2 / 2 / 3 and 1 / 1 / 2). The "90 hours" stress case is above the high D of 77 and is now labelled a stress case.
+2. **A route prefix that does not exist.** The contract tables used `/api/ww/pyq/...`; every Well Wisher route in the code is under `/api/mission/...` and the engine plan file (which exists and governs route shapes) says so. All routes in the EW7 table are renamed.
+3. **A server edit that is not needed.** E05 was to own `server.py` "discovery of `routes_ww_*.py`", but `register_feature_routes` already imports every `routes_*.py`. The edit is dropped, which removes the one shared server file from EW7 (rule 6).
+4. **Duplicated modules.** Several engine packages would have written a parallel copy of code that exists, or left unnamed the module they sit on: `ww_reminders.py` (the app has `reminders.py`), `ww_logs.py` (`ww_money`, `ww_body`, `ww_life`), `ww_term` margin arithmetic (`ww_attendance`), a second review scheduler (`ww_learning` has a Leitner one), Next Three (`ww_director`, `ww_insight`, `ww_season`), the `.pptx` parser (python-pptx and `yaadash.library` exist), the model client (`ww_counsel`), OCR (the library's OCR hook), the GPU loader check (`ollama_guard`, `whisper_load`). The map is in 21.10 and each Files line is corrected.
+5. **A rule the bank enforces.** `ww_bank_store` refuses verbatim text without a recorded open licence, so the owner's own papers cannot be bank records. Accepted questions stay in the private Store and reach `ww_generator.generate` through its `bank` argument; `ww_bank_store` and its tests are not edited (D-V3-24).
+6. **Names that collide.** Two different lists were both "next three" (the gain-ranked Study list and the Today list): the Study one is now `practise_next` and `practiseNext`.
+7. **Engine plan file stale in the report.** The report said the file was not created; it exists (8e0933a). It also gives the engine lane `tools/engine/**`, `requirements/**` and its research file, which the lane rule now lists; the requirements files are edited by the engine integrator only.
+8. **Camera.** The Exam Hall text said "an answer-sheet photo"; reworded (no capture feature, a file he drops in).
+9. **Banned names.** `ProbabilityArc` and "overdue-range" in reserve component tables renamed (`PredictArc`, `past-range`) so a copy lint over the bundle stays clean.
+10. **Weakest three screens** (Connect Ladder, Intake ledger, Pattern Loom): improvements written into S1 and S4 of 21.4.2 and S3 of 21.3.2.
+11. **UW7 start condition.** UW7 imports D02 and D05 and the kit that G05 is rewriting; it starts only after wave 6 and G05 have merged. The adapter folders of L01 and Y01 are narrowed to the files they own.
+12. **Dropped from the plan:** the class notes were treated only as a source of exam questions; they also go to the existing Library ("my notes, asked with citations") from the same Intake row.
+13. **Privacy.** No institution, course, account or date found in either file beyond example dates of a sync log.
+
+**Not checked.** The Classroom quota figures and scope sensitivity (unchanged from the lens), the console labels of 21.4.1, the real behaviour of `find_tables()` on the owner's papers, and the engine chat's section 9 (empty when read).
+
+**What it changed.** Section 21.10 (new), D-V3-24 to D-V3-26, the EW7 and UW7 contract tables, rules 6, 8 and 9, the milestone table and day counts, the Files lines of A.E01 to A.E09, A.E12, A.X04, A.X07, A.HV01, A.HV02, A.X09, A.H03, A.DB11, A.JH01 and A.JH04.
+
+## 2026-11-14: expanded horizons, the forecast and the two-lane plan
+
+**Question.** After the owner's request of 13 Nov (refined components and shadows; the exam generator and the classroom connector before every other feature; dashboards; "all expanded horizons"; two chats building in parallel lanes), what is the design for the exam generator and its ingest, the Google Classroom connector, the dashboards and the wider feature set; in which order do two lanes of waves build it; and when does it finish?
+
+**Method.** Six lenses read the specification (sections 15.6, 20.7, 20.9, Appendix A) and the code named below, each writing one file: the exam engine, the classroom connector, the dashboards, wider Well Wisher horizons, wider JARVIS horizons, and the delivery forecast with the two-lane plan. The integrator before this one was cut off before writing anything; this section records the merge. The owner's answers of 13 Nov override the lenses wherever they differ (gcr is Google Classroom; personal account; Cloud project created without a client; approved installs; his material and where it lives; a harvester; two lanes). Results are written into section 21 of the design document, and 15.6, 16.9, 17.5, 19 and Appendix A.
+
+**Findings (design).**
+- The exam generator is crop-first (a question keeps its page crop; text is a status-bearing layer), reads text-layer PDFs with the installed PyMuPDF 1.28.0, slide decks as PDF or as `.pptx` text through the existing `yaadash.library.extract` (python-pptx is installed; the critic replaced the idea of a second parser), and scans with RapidOCR on onnxruntime (GPU) once installed; tables are read with `find_tables()` and Bloom and course-outcome columns seed difficulty. The generator fills slots by a printed seeded rule and refuses an unbalanced blueprint (the 9 Nov audit bug). The student marks; the checker marks numericals; the model never grades. Readiness is three counts with no score.
+- The smallest usable slice needs no install: text-layer PDFs and slide decks, rule segmentation, hand tags, an inferred blueprint, a generated paper and key printed from the browser, and typed marks. It is built in the engine lane (EW7) and the Study screens of the UI lane (UW7, UW8) and is usable at milestone A.
+- The Classroom connector is read-only on his personal account, uses the approved Google libraries with `keyring`, requests no Drive scope in its first version (attachments are downloaded by him into the watched folder), and treats the weekly sign-in of Testing status as an expected WAITING state. The Manual Intake desk (folder, paste, calendar file, archive) ships first and stands alone. Exact click-by-click steps for him are in 21.4.1.
+- Six dashboards plus the Deck follow Specimen and Datum; Today, Exam Season, the Week and Month Reviews, the Core glance strip, the System dashboard and the Deck are specified with sizes, lamps and hollow forms; Next Three is arithmetic with a model that may only reword.
+- The wider Well Wisher features are ranked with Term Ledger first; the wider JARVIS features with voice study intents first (11 and 10 features, 21.6 and 21.7). Only Term Ledger and three engine halves are scheduled before the flip; the rest is reserve.
+- Existing structure forced six choices (21.1.3): Study and Console are at the five-view maximum, so the Exam Room is a face of `study.plan`, the System dashboard a face of `console.health`, and desks are overlays; the view count stays 36. The lens ids collided in three places (the Runway board `P01` against the prototype block, two review queues, three step lists).
+
+**Numbers (forecast; the forecast lens, written 13 Nov, with the plan of this section).**
+- Measured inputs: a clean wave of 4 to 5 packages costs 85 to 100 minutes of agent time plus 40 to 70 minutes of integration; wave 5 took 4.8 hours, 100 minutes of it lost to two stalls; wave 6 (7 packages) lost 76 minutes to an outage and is not finished; no jury has reached 8.0.
+- Slot cost (hours, low / mid / high): builders 1.5 / 2.0 / 2.5; UI integration 0.7 / 1.0 / 1.2; engine integration 0.25 / 0.4 / 0.6; jury and records 0.3 / 0.4 / 0.5; rework 0.5 / 1.2 / 2.5; losses 0 / 0.5 / 1.5; total **3.25 / 5.5 / 8.8**. Rest of wave 6: 1 / 2 / 3.5. An engine wave alone: about 2.25 / 3.7 / 5.8.
+- Milestones in running hours (low / mid / high), as recomputed by the critic (the first draft's A 7.5 / 12.3 / 19 and C1b 10.8 / 17.8 / 27.8 did not follow from 2 and 3 slots): A exam generator usable 8 / 13.5 / 21.6; C1b classroom fallback complete 11.3 / 19 / 30.4; B every section visible 17.3 / 29.5 / 47.5; C2 classroom live 20.5 / 35 / 56.3 plus his sign-in; D flag flipped 28 / 48 / 77. The lens's own D for five UI slots was 18 / 31.5 / 50.5; this plan has eight (UW7 to UW14), which adds 9.75 / 16.5 / 26.4 hours.
+- Calendar days with wave 7 starting 14 Nov: at about 8 h a day, A in 2 / 2 / 3 days and D in 4 / 7 / 11 (17 to 24 Nov); at about 12 h a day, A in 1 / 2 / 2 and D in 3 / 5 / 7 (16 to 20 Nov); at about 20 h a day, A in 1 / 1 / 2 and D in 2 / 3 / 4 (15 to 17 Nov). The overnight gap of 13 to 14 Nov produced no work, so these hold only if the loop restarts on 14 Nov.
+- The engine lane (five waves) costs about 11 / 18.5 / 29 hours beside a UI lane of about 44 hours at the median, so it has about 25 hours of slack.
+- The plan adds 42 packages (24 UI, 18 engine) and moves 12 existing packages (15.6.5).
+
+**Sources opened by the lenses (with what they gave).**
+- Google Classroom authorisation and read-only scopes: https://developers.google.com/workspace/classroom/guides/auth (the page does not label scope sensitivity).
+- OAuth for desktop apps (loopback, PKCE, refresh tokens): https://developers.google.com/identity/protocols/oauth2/native-app
+- OAuth overview, 7-day refresh tokens in Testing status: https://developers.google.com/identity/protocols/oauth2 and https://support.google.com/cloud/answer/15549945 (testing mode, 100 test users, unverified warning)
+- Classroom quotas: https://developers.google.com/workspace/classroom/limits
+- Classroom REST reference: https://developers.google.com/workspace/classroom/reference/rest/v1/courses.courseWork , https://developers.google.com/workspace/classroom/reference/rest/v1/courses.courseWork.studentSubmissions , https://developers.google.com/workspace/classroom/reference/rest/v1/courses.courseWorkMaterials , https://developers.google.com/workspace/classroom/reference/rest/v1/Material
+- Drive scope classes (`drive.file` non-sensitive; `drive.readonly` restricted): https://developers.google.com/workspace/drive/api/guides/api-specific-auth
+- Administrator blocks (`access_not_configured`, `admin_policy_enforced`): https://developers.google.com/classroom/best-practices/access-control-enhancements
+- Scope names: https://developers.google.com/identity/protocols/oauth2/scopes (first 100,000 characters only)
+- Calendar sync (syncToken, 410): https://developers.google.com/workspace/calendar/api/guides/sync
+- Spaced repetition: https://github.com/open-spaced-repetition/py-fsrs (MIT, default retention 0.9) and https://docs.ankiweb.net/faqs/what-spaced-repetition-algorithm
+- OCR: https://github.com/RapidAI/RapidOCR (Apache-2.0, onnxruntime; nothing on formulas) and https://github.com/UB-Mannheim/tesseract/wiki (installer 5.5.3; no size given)
+- Practice-testing evidence (search result): https://www.psychologicalscience.org/news/releases/which-study-strategies-make-the-grade.html
+- Home Assistant and Rhasspy (rules, closed-grammar intents, energy needs a meter): https://www.home-assistant.io/docs/automation/ , https://www.home-assistant.io/voice_control/ , https://www.home-assistant.io/integrations/energy/ , https://rhasspy.readthedocs.io/en/latest/ ; daily notes: https://obsidian.md/help/plugins/daily-notes
+- Information is Beautiful Awards 2024 winners (borrowed the idea of personal, tangible forms): https://www.informationisbeautifulawards.com/news/680-announcing-the-2024-winners
+- Search snippets only, pages not opened: Dear Data (https://stefanieposavec.com/dear-data, https://www.pentagram.com/work/dear-data); Cepeda et al. 2006 (https://pubmed.ncbi.nlm.nih.gov/16719566/); Roediger and Karpicke 2006; YNAB four rules (https://www.ynab.com/ynab-four-rules-budgeting); Wilson interval; the Classroom export help page (https://support.google.com/edu/classroom/answer/10204459); blueprint practice (https://docs.examin8.com/blueprint/normal-blueprint); reference-class forecasting (https://qsm.com/blog/2025/are-late-software-projects-victim-planning-fallacy).
+
+**What could not be verified.**
+- The labels of Google's console after its 2025 reorganisation ("Google Auth Platform", Audience, Clients, Data Access); the click-by-click steps of 21.4.1 are from memory and state each step's purpose so he can find an equivalent.
+- Which Classroom scopes count as sensitive; whether a personal External project in Testing status may request them with only the 100-user cap and the warning; whether publishing unverified removes the 7-day token limit; whether a student account sees `assignedGrade` and whether `studentSubmissions.list` with `me` works under every policy.
+- Whether Classroom coursework appears in a Calendar export or as its own calendar; whether the Classroom export carries attachments owned by others; whether Google Takeout carries a student's own coursework.
+- `find_tables()` on real papers with merged cells; the text-layer, margin, Jaccard, 21-day and freshness thresholds; OCR on mathematics (crop-first is the safeguard); the install sizes and the VRAM cost of RapidOCR; the dependencies of the `fsrs` optimizer; whether the marks route accepts the ids of generated papers unchanged; `.pptx` text extraction on real decks; the Tesseract binary.
+- The harvester: the page structure of every source, whether each publisher's terms allow a local copy, and whether GRE publishes previous-year papers at all.
+- Ollama keep-alive behaviour (its page did not load); the Home Assistant companion app features; whether the speech model can spot a closed grammar.
+- The Do-not-build behaviours of the habit and engagement apps (reviews and blogs), the 2006 and 2024 effect sizes of if-then planning (secondary summaries), the 1,000-review cold start of the review queue (a forum) and vendor figures for FSRS: none is used as a claim.
+- Slot figures rest on two measured waves; the rework band is a guess; no forecast of the owner's availability, agent-plan limits or CPU and GPU contention.
+- No screen was rendered by any lens; the catalogue crops cited (C04-18, C04-113, C02-46, C04-19, C04-11, C02-16, C03-03, C04-15, C04-123, C02-13, C04-35, C04-119, C01-04, C02-12, C01-03, C02-02, C02-09, C03-01, C04-127, C01-08, C01-19, C04-14, C04-43) were taken from the specification's placements or titles and were not opened; each placement is a design claim until the gallery pass. The 8-subject limit, the 5-minute report window, the Next Three weights, the 45-minute lamp-off window and the 0.5 GB VRAM margin are proposals, not measured values.
+
+**What it changed.**
+- `docs/design/jarvis-product-overhaul.md`: a new section 21 (21.1 to 21.9); 15.6 rewritten as two lanes (rules 8 and 9, 15.6.1 to 15.6.1b, 15.6.2 rows, 15.6.4 checks, 15.6.5 moves, 15.6.6 sources); Appendix A gains the wave contract tables for UW7 and EW7, an amendments block, 42 package blocks and the Order lines of the moved packages; section 16.9 (D-V3-1 to D-V3-23, I44, I45), section 17.5 (closed questions and Q-V3-1 to Q-V3-13), and the additions to section 19.
+- Decisions: a view count of 36 with faces and overlays; no Drive scope first; the approved Google libraries and `keyring`; the harvester extended with a manifest; one review queue; the craft pass drops hairlines on labelled controls (D-V3-19).
+- Process: `docs/design/well-wisher-engine-plan.md` is the single source of route contracts (it exists since 14 Nov, commit 8e0933a; its section 9 must list the contracts before EW7); the engine chat has its own research topic file and plan file; `tools/wave_check.py` gains a lane check and a route check (A.N03).
+
+## 2026-11-14: J01 Core
+
+**Question.** Can the Core Talk view, rebuilt for shell v2 only (spec 20.9.1, 20.9.7, A.J01), fit one 1302 px page box with no document scroll while it carries the hill and ring, the sigil bezel, the pipeline, the organ lamps and a terminal transcript, and still read as one refined composition rather than a form page?
+
+**What was built** (`app/ui/src/jarvis/core/**`, `jarvis/handoff/**`, `shell/views/core.view.ts`, gallery entry `jarvis/j01-core.tsx`, `e2e/core-v2.spec.ts`). `VoiceHill` with `attachVoiceFeed` on the view's own refcounted `/ws/events` socket (only `core` `level`, `out_level`, `timing`, `state` pass; no frame means the hollow WAITING form); `SigilRing` (96 glyph ticks at r 123 to 131 from a 12-glyph generic alphabet chosen by FNV-1a, lit only where the ring's bands are, hollow in every no-frame state, a band and kHz crosshair on hover); the C02-07 bezel traced as hairline SVG; `art.core.hill-ring` through `ArtSlot`, screened into the empty stage and stepping aside (opacity 0) the moment the voice picture draws a measured frame; `PipelineRibbon` (HEAR, WRITE, THINK, SAY; a track fills only as elapsed over a median of at least 3 values, else dashed); `OrganStrip` (five lamps, LIVE "ok", WAITING "not tested", FAULT "down"; a LIVE reading older than 10 s falls to WAITING "no fresh report"); the transcript as `[YOU]` and `[JRV]` rows in a `TermWell`, a 12 px intent sigil in the margin, J, K and F keys and the four flags; the Anatomy drawer (5-spoke `RingBars`, last latency over its own median, no score); `HandoffChip` (a link to `#/day/today` with the notify port, text "the day planner is not here" without it); the asleep scene; the phone Talk layout under 900 px.
+
+**Measurements.**
+- 1366 x 768, flag on: the view box is 1302 x 665 (the spec's J box of 652 sits inside it), document scrollHeight equals the viewport, every part and all nine chips and nodes end inside the 720 px left column. The left column is 56 + 12 + 436 + 12 + 62 + 12 + 52 = 642 px. At a 1302 x 720 box every primary part is inside the box and above the fold.
+- Four fitted turns: worst case two three-line replies with a hand-off chip and two two-line lines of yours take 460 of the well's 471 px, which is why a reply clamps at three lines and your line at two.
+- Idle (asleep): 0 animation frames requested in 1.5 s and 0 running animations; reduced motion gives the static voice form and 0 running animations. The 1 s ribbon tick runs only while a stage runs; medians are fetched on mount and after each finished reply, never on a timer.
+- Every control 44 x 44 px or larger at 1366; 390 px is one column with no sideways scroll, the ribbon as four rows and the organs as five lamps.
+- Tests: tsc clean; vitest 2037 of 2037 (99 files); Playwright `core-v2` 10 of 10 on both art tracks, and `core-v2`, `themes-visual` and `shell-v2` together 64 of 64 (the classic frame unchanged with the flag off); bundle check ok, the Well Wisher only build 481 modules with no JARVIS module.
+
+**What the screenshots changed (this run).** The organ strip overflowed the 720 px column (five 136 px flex chips plus text widths: MEM sat under the conversation) and is now a 5-column grid of two-line modules; the ribbon nodes overlapped their own tracks and now sit in one recessed rail with a port at its left end; the sigil's state word sat on the top notch and now has a 36 degree gap of its own; the voice strip's immersive ink was unreadable on the light theme's ground, so the stage and its strip became one charcoal clay slab; the empty transcript well carries the Core's 48 px sigil at 96 px; the phone layout overlapped (rows of a fixed-height grid with min-height 0 shrank to nothing) and now sizes every row to its content; the shortcut's hairline box on the accent key read as a smudge and is plain text now.
+
+**Limits, said plainly.** The asleep glyph block from C04-125 and the C04-126 backdrop of WRITE and THINK are not drawn (no art id exists for them yet); `core.sound` keeps its legacy host. The hand-off chip reads a `handoff` field the core does not send yet, so it shows only on fixtures. `shell.test.tsx` had to change one line: core.talk is now a registered view, so the legacy stub is no longer drawn there. No jury score yet for this view.
+
 ## 2026-11-13: wave 5 integrated: the wave contract's first test, the second jury, and agent commits that hang
 
 **Question.** Does one shared wave contract stop parallel packages breaking at merge, and did the first visible wave (gallery, shell fixes, clay recipe, grammars, private art) move the jury's scores?

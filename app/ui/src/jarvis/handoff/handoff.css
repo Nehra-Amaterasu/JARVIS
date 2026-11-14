@@ -1,0 +1,35 @@
+/* HandoffChip (A.J01, spec 20.9.7). A recessed 28 px chip in mono; the link's hit area grows to 44 px with a
+   transparent ::before, so the chip stays small beside a transcript row and still meets the target rule.
+   Tokens only, by name; the craft pass retunes them without touching this file. */
+.hc {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  block-size: 28px;
+  max-inline-size: 100%;
+  padding: 0 10px;
+  border: 1px solid var(--edge-ui);
+  border-radius: var(--r-control, 10px);
+  background: var(--surface-sunk);
+  box-shadow: var(--elev-recessed, none);
+  color: var(--ink-1);
+  font: 500 12px/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  white-space: nowrap;
+  min-inline-size: 0;
+}
+a.hc::before { content: ''; position: absolute; inset: -8px -2px; }
+a.hc:hover { border-color: var(--ink-1); }
+a.hc:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.hc-tag { color: var(--ink-2); font-weight: 600; }
+.hc-text { overflow: hidden; text-overflow: ellipsis; min-inline-size: 0; }
+.hc-why { color: var(--ink-2); }
+.hc-arrow { flex: none; color: var(--ink-2); }
+.hc[data-state='unavailable'] { border-style: dashed; box-shadow: none; background: transparent; }
+
+@media (forced-colors: active) {
+  .hc { border-color: CanvasText; }
+  a.hc { color: LinkText; }
+}

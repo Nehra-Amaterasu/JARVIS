@@ -1,0 +1,193 @@
+/* ==========================================================================
+   The four number forms of package D01 (spec 20.5.2): Odometer, Dumbbell, LedgerTape, Jar.
+
+   Material: matte clay housings (--elev-raised, a 1 px edge of --edge-ui) with recessed wells (--elev-recessed) and
+   the pixel numerals of the owner's references (C01-05, C02-34). Every colour is a token; no hex, no red anywhere in
+   this file (the only red in the product is the FAULT lamp, drawn by the lamp package, never by a number form).
+   Motion: one transition, the Odometer wheel, on `transform` only, 140 ms in 4 steps (3 stops between), and only while
+   [data-roll='on'] (visible and not Calm). No keyframes, so nothing runs at idle.
+   ========================================================================== */
+
+.d1-sr { position: absolute; left: 0; top: 0; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+.d1-lamp { position: absolute; top: 10px; right: 12px; display: inline-flex; font-size: 12px; }
+.d1-why { margin: 0; font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.d1-stamp { display: inline-block; margin: 0; font: 600 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--state-simulated); border: 1px solid var(--state-simulated); padding: 2px 6px; }
+
+/* the two marks of the Dumbbell, also the legend glyphs */
+.d1-ring, .d1-disc { display: inline-block; box-sizing: border-box; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--ink-1); vertical-align: -2px; }
+.d1-ring { background: var(--surface-raised); box-shadow: 1px 2px 3px color-mix(in srgb, var(--ink-1) 26%, transparent); }
+.d1-disc { background: var(--ink-1); box-shadow: inset 1px 1px 0 var(--lit-hi), 1px 2px 3px color-mix(in srgb, var(--ink-1) 30%, transparent); }
+
+/* ---------------------------------------------------------------------- Odometer */
+.d1-odo {
+  position: relative; box-sizing: border-box; display: inline-flex; flex-direction: column; gap: 8px; width: max-content; max-width: 100%;
+  padding: 40px 18px 10px; border: 1px solid var(--edge-ui); border-radius: 12px; background: var(--surface-raised); box-shadow: var(--elev-raised);
+  color: var(--ink-1); font: 12px/1.3 var(--font-mono, ui-monospace, monospace); text-align: left;
+}
+button.d1-odo { appearance: none; cursor: pointer; min-height: 44px; }
+button.d1-odo:hover { transform: translateY(-1px); }
+.d1-odo:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+
+/* the registration ruler (C04-35): short ticks every 6 px, a long one every 30 px */
+.d1-rule { display: block; height: 9px; margin-top: -4px; background:
+  repeating-linear-gradient(90deg, var(--ink-2) 0 1px, transparent 1px 30px) left bottom / 100% 9px no-repeat,
+  repeating-linear-gradient(90deg, var(--edge-ui) 0 1px, transparent 1px 6px) left bottom / 100% 5px no-repeat; }
+.d1-odo[data-size='compact'] .d1-rule { display: none; }
+
+.d1-wells { display: flex; gap: 6px; align-items: stretch; }
+.d1-well {
+  position: relative; display: block; box-sizing: border-box; flex: none; height: var(--d1-h, 72px); aspect-ratio: 50 / 70; overflow: hidden;
+  border-radius: 5px; border: 1px solid var(--edge-ui); background: var(--surface-sunk); box-shadow: var(--elev-recessed); color: var(--ink-1);
+}
+/* the drum: shade at the top and bottom edge so the wheel reads as a cylinder behind a window */
+.d1-well::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to bottom, color-mix(in srgb, var(--ink-1) 22%, transparent), transparent 24%, transparent 76%, color-mix(in srgb, var(--ink-1) 22%, transparent)); }
+.d1-well::before { content: ''; position: absolute; z-index: 1; inset: 0; pointer-events: none;
+  /* the lens: a soft glint across the upper third and a thin lit rim, so the wheel is glass over a drum, drawn in CSS only */
+  background: linear-gradient(158deg, color-mix(in srgb, var(--lit-hi) 55%, transparent) 0, color-mix(in srgb, var(--lit-hi) 16%, transparent) 26%, transparent 42%);
+  border-radius: inherit; box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lit-hi) 40%, transparent); }
+/* a padding socket is a blank recess: no glyph, no glint, no drum shade */
+.d1-well[data-lead='true']::before, .d1-well[data-lead='true']::after { content: none; }
+.d1-well[data-lead='true'] .d1-strip { visibility: hidden; }
+.d1-strip { display: block; width: 100%; height: auto; transform: translateY(calc(var(--d, 0) * -10%)); }
+.d1-strip path { fill: currentColor; }
+.d1-odo[data-roll='on'] .d1-strip { transition: transform 140ms steps(4, end); }
+.d1-well[data-lead='true'] { background: var(--surface-sunk); box-shadow: var(--elev-recessed), inset 0 3px 5px color-mix(in srgb, var(--ink-1) 14%, transparent); }
+
+.d1-odo[data-form='hollow'] .d1-well { border-style: dashed; background: transparent; box-shadow: none; }
+.d1-odo[data-form='hollow'] .d1-well::after, .d1-odo[data-form='hollow'] .d1-well::before { content: none; }
+.d1-odo[data-form='hollow'] .d1-well:nth-child(2) { margin-right: 10px; }
+.d1-dash { display: block; width: 100%; height: 100%; }
+.d1-dash path { fill: var(--ink-3); }
+
+.d1-foot { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding-top: 6px; border-top: 1px solid var(--edge-ui); }
+.d1-unit { color: var(--ink-2); letter-spacing: 0.04em; }
+.d1-delta { margin-left: auto; color: var(--ink-2); white-space: nowrap; }
+.d1-odo[data-state='waiting'] .d1-unit, .d1-odo[data-state='planned'] .d1-unit { color: var(--ink-2); }
+
+.d1-odo[data-size='compact'] { flex-direction: row; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 8px; }
+.d1-odo[data-size='compact'] .d1-lamp { position: static; order: 3; }
+.d1-odo[data-size='compact'] .d1-foot { border-top: 0; padding: 0; }
+.d1-odo[data-size='compact'] .d1-well { border-radius: 3px; }
+.d1-odo[data-size='compact'] .d1-wells { gap: 3px; }
+.d1-odo[data-size='compact'][data-form='hollow'] .d1-well:nth-child(2) { margin-right: 5px; }
+
+/* ---------------------------------------------------------------------- Dumbbell */
+.d1-db {
+  --d1-lw: 96px; --d1-gw: 56px; --d1-cg: 12px;
+  position: relative; overflow-x: clip; box-sizing: border-box; display: grid; gap: 8px; width: 100%; max-width: 560px; padding: 14px 16px 12px;
+  border: 1px solid var(--edge-ui); border-radius: 12px; background: var(--surface-raised); box-shadow: var(--elev-raised); color: var(--ink-1);
+  font: 12px/1.3 var(--font-mono, ui-monospace, monospace);
+}
+.d1-db-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; }
+.d1-db-head .d1-lamp { position: static; margin-left: auto; }
+.d1-db-title { letter-spacing: 0.1em; color: var(--ink-2); }
+.d1-db-key { color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
+.d1-db-key .d1-ring, .d1-db-key .d1-disc { width: 10px; height: 10px; border-width: 1.5px; vertical-align: baseline; }
+.d1-db-key .d1-disc { margin-left: 8px; }
+
+.d1-db-grid { position: relative; display: grid; }
+.d1-db-grid::before {
+  content: ''; position: absolute; top: 22px; bottom: 0; left: calc(var(--d1-lw) + var(--d1-cg)); right: calc(var(--d1-gw) + var(--d1-cg)); pointer-events: none;
+  background: repeating-linear-gradient(90deg, var(--edge-hair) 0 1px, transparent 1px var(--d1-period, 25%)); border-right: 1px solid var(--edge-hair);
+}
+.d1-db-ruler { position: relative; height: 22px; margin: 0 calc(var(--d1-gw) + var(--d1-cg)) 0 calc(var(--d1-lw) + var(--d1-cg)); }
+.d1-db-tick { position: absolute; top: 0; padding-top: 9px; transform: translateX(-50%); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.d1-db-tick::before { content: ''; position: absolute; top: 0; left: 50%; width: 1px; height: 6px; background: var(--ink-2); }
+.d1-db-tick[data-end='lo'] { transform: none; }
+.d1-db-tick[data-end='lo']::before { left: 0; }
+.d1-db-tick[data-end='hi'] { transform: translateX(-100%); }
+.d1-db-tick[data-end='hi']::before { left: auto; right: 0; }
+
+.d1-db-rail { position: relative; display: grid; grid-template-columns: var(--d1-lw) 1fr var(--d1-gw); column-gap: var(--d1-cg); align-items: center; min-height: 44px; border-top: 1px solid var(--edge-hair); }
+.d1-db-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-1); }
+.d1-db-track { position: relative; display: block; height: 44px; }
+.d1-db-track::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--edge-ui); }
+.d1-db-bar { position: absolute; top: calc(50% - 4px); height: 8px; box-sizing: border-box; border-top: 1px solid var(--ink-1); border-bottom: 1px solid var(--ink-1); background: color-mix(in srgb, var(--ink-1) 10%, transparent); }
+.d1-db-mark { position: absolute; top: 50%; transform: translate(-50%, -50%); vertical-align: baseline; }
+.d1-db-mark[data-off='true'] { outline: 1px dashed var(--ink-2); outline-offset: 3px; }
+.d1-db-gap { text-align: right; font: 600 13px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; color: var(--ink-1); }
+.d1-db-rail[data-hollow='true'] .d1-db-label, .d1-db-rail[data-hollow='true'] .d1-db-gap { color: var(--ink-3); font-weight: 400; }
+.d1-db-rail[data-hollow='true'] .d1-db-track::before { height: 0; background: none; border-top: 1px dashed var(--edge-ui); }
+.d1-db-stamp { justify-self: start; }
+.d1-db[data-form='hollow'] .d1-db-grid::before { opacity: 0.5; }
+
+@media (max-width: 480px) {
+  .d1-db { --d1-lw: 72px; --d1-gw: 44px; --d1-cg: 10px; padding: 12px; }
+}
+
+/* ---------------------------------------------------------------------- LedgerTape */
+.d1-tape { position: relative; box-sizing: border-box; width: min(var(--d1-tape-w, 320px), 100%); color: var(--ink-1); font: 13px/1.7 var(--font-mono, ui-monospace, monospace); filter: var(--elev-raised-drop); }
+.d1-tape-sheet { position: relative; box-sizing: border-box; padding-bottom: 4px; background: var(--surface-paper); border: 1px solid var(--edge-ui); border-bottom: 0; border-radius: 3px 3px 0 0; }
+.d1-tape-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 0; min-height: 30px; }
+.d1-tape-head .d1-lamp { position: static; }
+.d1-tape-title { font-size: 12px; letter-spacing: 0.12em; color: var(--ink-2); }
+/* the registration bar of C04-35: ticks along the head and a crossed circle in the middle */
+.d1-tape-ruler { position: relative; height: 10px; margin: 6px 14px 4px; background: repeating-linear-gradient(90deg, var(--ink-2) 0 2px, transparent 2px 5px); }
+.d1-tape-ruler::after { content: '\00d7'; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: grid; place-items: center; width: 18px; height: 18px; border: 1.5px solid var(--ink-1); border-radius: 50%; background: var(--surface-paper); font: 600 12px/1 var(--font-mono, ui-monospace, monospace); }
+.d1-tape-lines { list-style: none; margin: 0; padding: 4px 14px 8px; }
+.d1-tape-line { margin: 0; overflow: hidden; white-space: pre; line-height: 1.7; background: linear-gradient(to bottom, transparent calc(1.7em - 1px), color-mix(in srgb, var(--ink-1) 9%, transparent) calc(1.7em - 1px)); }
+.d1-tape-more { margin: 0; color: var(--ink-2); font-size: 12px; }
+.d1-tape-blank .d1-tape-line { color: var(--ink-3); }
+.d1-tape-blank .d1-why { margin-top: 4px; }
+.d1-tape-total { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 14px; padding: 10px 0 8px; border-top: 2px double var(--ink-1); }
+.d1-tape-sum { font-size: 12px; letter-spacing: 0.12em; color: var(--ink-2); }
+.d1-tape-sheet > .d1-why { padding: 0 14px 6px; }
+.d1-tape-stamp { margin: 0 14px 8px; }
+.d1-tape-tear { display: block; width: 100%; height: 12px; margin-top: -1px; overflow: visible; }
+.d1-tape-paper { fill: var(--surface-paper); }
+.d1-tape-edge { fill: none; stroke: var(--edge-ui); stroke-width: 1; vector-effect: non-scaling-stroke; }
+
+/* ---------------------------------------------------------------------- Jar */
+.d1-jar { position: relative; box-sizing: border-box; display: grid; justify-items: center; gap: 6px; width: 120px; margin: 0; padding: 12px 8px 10px; border: 1px solid var(--edge-ui); border-radius: 12px; background: var(--surface-raised); box-shadow: var(--elev-raised); color: var(--ink-1); font: 12px/1.3 var(--font-mono, ui-monospace, monospace); text-align: center; }
+.d1-jar .d1-lamp { position: static; }
+.d1-jar-stage { box-sizing: border-box; padding: 6px 8px 4px; border: 1px solid var(--edge-ui); border-radius: 8px; background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
+.d1-jar-svg { display: block; width: 84px; height: auto; }
+.d1-jar-well { fill: none; stroke: var(--ink-2); stroke-width: 1.5; }
+.d1-jar-well[data-hollow='true'] { stroke: var(--edge-ui); stroke-dasharray: 4 3; }
+.d1-jar-tick { stroke: var(--ink-3); stroke-width: 1; }
+.d1-jar-dot { fill: var(--ink-1); }
+.d1-jar-hatch { stroke: var(--ink-1); stroke-width: 1.6; }
+.d1-jar-under { fill: color-mix(in srgb, var(--ink-1) 12%, transparent); }
+.d1-jar-over { fill: color-mix(in srgb, var(--ink-1) 6%, transparent); }
+.d1-jar-surface { stroke: var(--ink-1); stroke-width: 2; }
+.d1-jar-notch { stroke: var(--ink-1); stroke-width: 1; stroke-dasharray: 3 2; }
+.d1-jar-disc { fill: var(--surface-raised); stroke: var(--ink-1); stroke-width: 2; }
+.d1-jar-disc[data-hollow='true'] { stroke: var(--edge-ui); stroke-dasharray: 2 2; }
+.d1-jar[data-state='waiting'] .d1-jar-notch, .d1-jar[data-state='planned'] .d1-jar-notch, .d1-jar[data-state='fault'] .d1-jar-notch { stroke: var(--edge-ui); stroke-dasharray: 3 3; }
+.d1-jar-rim { fill: var(--surface-raised); stroke: var(--edge-ui); stroke-width: 1.5; }
+.d1-jar-cap { display: grid; gap: 2px; justify-items: center; max-width: 100%; }
+.d1-jar-label { max-width: 100%; overflow-wrap: anywhere; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-1); }
+.d1-jar-figure { color: var(--ink-2); }
+.d1-jar-line { min-height: 1.3em; font-weight: 600; font-size: 13px; color: var(--ink-1); }
+.d1-jar[data-form='hollow'] .d1-jar-line { font-weight: 400; font-size: 12px; color: var(--ink-2); }
+
+/* ---------------------------------------------------------------------- forced colours */
+@media (forced-colors: active) {
+  .d1-odo, .d1-db, .d1-jar, .d1-tape-sheet, .d1-jar-stage { border: 2px solid CanvasText; box-shadow: none; background: Canvas; }
+  .d1-tape { filter: none; }
+  .d1-well { border: 2px solid CanvasText; box-shadow: none; background: Canvas; }
+  .d1-well::after, .d1-well::before { content: none; }
+  .d1-odo[data-form='hollow'] .d1-well { border-style: dashed; }
+  .d1-strip path, .d1-dash path { fill: CanvasText; }
+  .d1-ring, .d1-disc { border-color: CanvasText; forced-color-adjust: none; box-shadow: none; }
+  .d1-ring { background: Canvas; }
+  .d1-disc { background: CanvasText; }
+  .d1-db-bar { border-color: CanvasText; background: Canvas; }
+  .d1-jar-under, .d1-jar-over { fill: none; }
+  .d1-jar-dot { fill: CanvasText; }
+  .d1-jar-hatch, .d1-jar-surface, .d1-jar-notch, .d1-jar-well, .d1-jar-tick, .d1-jar-rim, .d1-tape-edge { stroke: CanvasText; }
+  .d1-jar-disc { fill: Canvas; stroke: CanvasText; }
+  .d1-tape-paper { fill: Canvas; }
+  .d1-odo:focus-visible { outline-color: Highlight; }
+}
+
+/* the CSS-only fallback to the Calm switch: the roll is off whenever the OS asks for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .d1-odo .d1-strip { transition: none !important; }
+  button.d1-odo:hover { transform: none; }
+}
+
+/* the ledger total sits inside a card that already carries the lamp and the stamp: no second copy of either */
+.d1-tape-total .d1-stamp { display: none; }
+.d1-tape-total[data-hollow='true'] .d1-unit { display: none; }

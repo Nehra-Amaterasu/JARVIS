@@ -4,6 +4,8 @@ Written 2026-11-12
 
 **Direction v2 (13 Nov 2026).** The owner changed direction on 13 Nov 2026. Section 20 holds the revision and **governs wherever it contradicts an earlier section**; the earlier subsections it supersedes carry a one-line pointer. Read section 20 first, then the section you need.
 
+**Expanded horizons (14 Nov 2026).** The owner confirmed that "gcr" is Google Classroom, approved four installs and asked for an exam-paper harvester, dashboards and a wider feature set built in two parallel lanes by two chats. Section 21 holds the revision; **it governs wherever it contradicts section 20 or section 15.6**. Section 15.6 is rewritten as two lanes, and sections 16.9, 17.5, 19 and Appendix A carry the matching decisions, questions, rules and package blocks.
+
 **Status.** Design. This file is the design source of truth for the overhaul of JARVIS and Well Wisher. It supersedes nothing yet: until the flags it names (`app.shell`, `ww.ia`) flip, the existing plans keep governing the code that is built and running. The precise relation to the three existing design documents in this folder:
 
 | Document | Date | Relation to this specification |
@@ -37,8 +39,9 @@ The research behind every number is `docs/research/product-design-overhaul.md` (
 19. 18 Risks
 20. 19 Do-not-build list
 21. 20 Direction v2 (13 Nov 2026): what changed and what now governs (placed after section 19; it governs where it contradicts an earlier section)
-22. Appendix A Implementation prompts
-23. Appendix B Research index
+22. 21 Expanded horizons (13 to 14 Nov 2026): the exam generator first, the classroom connector, dashboards, and the wider feature set (placed after section 20; it governs where it contradicts section 20 or 15.6)
+23. Appendix A Implementation prompts
+24. Appendix B Research index
 
 ---
 ## 0 Executive summary and how to read this
@@ -3334,21 +3337,69 @@ The budgets enforced by work package Q01 are the single table in §14.1 (idle an
 
 ### 15.6 Wave plan of direction v2 (13 Nov 2026; governs 15.1 to 15.4 where they differ)
 
+**Rewritten 14 Nov 2026 as two lanes (section 21; it governs this section where they differ).** State it was written from: waves 1 to 5 are merged; of wave 6, D01, D04 and L02 are merged and D02, D03, D05 and J01 are in review (wave 6 as run holds D01 to D05, J01 and L02); a craft pass on the clay recipe, the kit and the shell chrome (G05) is in progress. The old single-lane wave table is kept below as 15.6.1a. The plan now has **two lanes on disjoint files**: a UI lane (this programme chat; `app/ui` only) that brings the Study screens and the dashboards early, and an engine lane (the second chat, the existing Well Wisher chat; Python only) that starts with the exam generator's smallest slice. Each lane has waves of 4 to 6 packages; a wave depends only on earlier waves of either lane (through a route contract and a null adapter, never through a shared file); the integrator of a lane is its only merger.
+
 **Why waves.** On 13 Nov the owner saw parallel branches break at merge and asked to see the new look inside the running application early. A wave is a set of 3 to 5 packages that own **disjoint files**, depend only on earlier waves, and start and merge together. The integrator is the only merger. Before a wave starts, every builder and every reviewer receives the wave contract table (Block C rule 13): one row per package with its id, purpose, owned files, the exports it adds and the exports of other packages it may import. Where this section and the older tables of 15.3 and 15.4 differ, this section governs.
 
 **Already merged on main and reused, not rebuilt (waves 1 to 4):** B01 (seam cuts), B02 (registry v2), B03 (tokens), B03b, B03c (38 components in `shared/kit` and `shared/art`), B04 (`shared/lamp`), B05 (shell v2 in `app/ui/src/shell` behind the `app.shell` flag, with a New UI button in the current dock and a Classic UI button in the new title bar, `shell/flag.ts` `setShellV2`), B05b (`tools/art`, `app/ui/src/art`), `shared/motion`, the kit bench (`app/ui/e2e/bench`, 28 passing checks and 18 measured failures listed as known debt in `e2e/bench/known.ts`), the Python half of B07 (`core/playback.py` output level) and the voice component (`app/ui/src/jarvis/voice`, not yet mounted). Every package below imports these; none re-implements them.
 
-**Seven rules that make the waves disjoint** (each is a test in 15.6.4):
+**Nine rules that make the waves disjoint** (rules 8 and 9 added 14 Nov) (each is a test in 15.6.4):
 
 1. **No barrel edits.** A package never edits an `index.ts` it does not own. Each new folder has its own `index.ts`, and consumers import the folder (`shared/data/numbers`), not a shared barrel.
 2. **Registration by glob, not by edit.** N02 (wave 5) turns three central lists into globbed folders: `shell/views/*.view.ts` (each file exports one `ViewRegistration`: `{ id, product, load }`), `shell/slots/<slot>.<name>.tsx` (title bar sigil, boot, cursor root, notify), and `shell/modes/*.mode.ts` (palette modes). A section package owns the files it adds to those folders and never edits `shell/hosts.ts`, `ShellV2.tsx` or `ids.ts` after wave 5.
 3. **Gallery by glob.** N01 (wave 5) globs `gallery/entries/*.tsx`. Every package adds exactly one file there, `gallery/entries/<package id>.tsx`, exporting `entry: GalleryEntry`. A package whose entry is missing does not merge (D-V2-23).
 4. **Adapter slots.** A section package declares an adapter folder (`ww/day/adapters/`) and loads `adapters/*.register.ts` with `import.meta.glob`. A later engine package adds its own `<engine>.register.ts` there and nothing else. Until it merges, the section runs on a null adapter and shows WAITING; on the bench it runs on a fixture adapter stamped SIMULATED. This is how sections (waves 7 to 9) come before engines (waves 10 to 12) without a section waiting for an engine.
 5. **Single-source tables are imported, never copied:** lamp states (`shared/lamp/types.ts`), tokens (`styles/design/clay`), section ids and view ids (`shell/ids.ts`), key bindings (`shell/keymap.ts`), art ids (`art/art-manifest.json`), the settings registry (`shared/trim`, from wave 7).
-6. **One owner per server file per wave.** `app/jarvis_app/server.py` is owned by E01 in wave 10, which adds discovery of `routes_ww_*.py`; E02 to E04 add only new route files. In waves 11 and 12 the route files are discovered the same way.
+6. **One owner per server file per wave.** Nobody owns `app/jarvis_app/server.py` in the plan: `register_feature_routes` already imports every `jarvis_app/routes_*.py` and calls its `register(app, svc, bus)` (checked 14 Nov), so every engine package adds only a new `routes_*.py` file (the earlier plan gave E05 a discovery edit of `server.py`; it is not needed and is dropped, which also removes the one shared server file from EW7). A route file that raises at import is skipped with only a bus event, so each route file has a test that its paths answer.
 7. **A shared file with two owners is a plan error.** If two packages of one wave need the same file, the integrator moves the need into one package or into an earlier wave before the wave starts. Disjointness is checked inside a wave: a later wave may edit or add files under a folder an earlier wave owned, but only the files its block names, and `tools/wave_check.py` checks that list.
+8. **The lane rule (14 Nov).** An engine package owns only Python folders (`app/jarvis_app/**`, `core/**`) and their tests (`app/tests/**`, `core/tests/**`) and exposes routes with a documented JSON shape; the engine lane also owns `tools/engine/**`, `requirements/**` (edited by its integrator only), `docs/design/well-wisher-engine-plan.md` and its research file `docs/research/well-wisher-engine.md` (the engine plan file, section 3). A UI package owns only `app/ui/**`, `phone_page/**`, `tools/**` except `tools/engine/**`, and the design documents. `tools/wave_comms.py` (the board, on main) is the live check: a claim whose paths overlap another active package in either lane is refused, and its bulletin is pasted unchanged at the top of every agent prompt of both lanes. A UI package reaches a route only through an adapter file it owns (`ww/<section>/adapters/<engine>.register.ts`, loaded by glob), with a null adapter until the route exists; on the bench the adapter is a fixture stamped SIMULATED. An engine package never edits a TypeScript file and a UI package never edits a Python file. Checked by `tools/wave_check.py` (lane check, N03).
+9. **Route contracts are written once** in `docs/design/well-wisher-engine-plan.md` (the file exists since 14 Nov, commit 8e0933a, with the conventions of its section 4: paths under `/api/mission/`, every success carries `state`, `reason` and `source`; the engine chat owns it and writes the contracts R-01 onward into its section 9 before EW7 starts; EW7 does not start until they are there), one section per route with its method, path, request and response JSON shape, error codes and the lamp state each answer implies. Both lanes read it from there; a Study port type in `ww/study/ports.ts` is derived from it, not written twice. A shape changes only by a dated entry in the plan file's "Changes" log, which the UI lane reads at the start of each wave. A UI route call that has no entry in the plan file fails a lint.
 
-#### 15.6.1 The waves
+#### 15.6.1 The waves (two lanes, rewritten 14 Nov 2026)
+
+**Why two lanes.** On 13 Nov the owner asked that the exam generator and the classroom connector come first among the features, and that the second chat build the logic while this chat builds the screens. The engine's first slice touches no UI file, so it runs beside the UI lane. A **slot** is one UI wave plus the engine wave beside it; the lanes meet at the end of a slot (the meet points are in 15.6.1b). Wave names: `UWn` is a UI wave and `EWn` an engine wave belonging to slot n; `UW5` and `UW6` are the older waves 5 and 6.
+
+**UI lane** (this programme chat; `app/ui` only; 4 to 6 packages per wave).
+
+| Wave | Packages | What the owner can look at when it merges |
+|---|---|---|
+| UW5 (merged) | N01, N02, G01, G02, G03 | The "What is new" gallery, the shell as it should behave, the clay recipe, the three grammars, the eleven centrepieces |
+| UW6 (as run; 3 merged, 4 in review, 1 in progress) | D01, D04, L02 merged; D02, D03, D05, J01 in review; G05 craft pass in progress | The number forms, the Capture Line and the Trim keys; the series forms, tables and the specimen layout; Core with its pipeline ribbon; the refined controls, shadows and chrome |
+| UW7 | L04, L01, Y01, Y02, DB01, DB02 | Today with the Day Arc and the Proof relief; the Life month calendar; the Paper Desk with import tray and Review Desk on a fixture; Focus with Drill; the countdown dots, Next Three and hand-off key; the Legend flip |
+| UW8 | Y03, X03, C03, DB03, DB04, AD08 | Study plan and practice; the Blueprint Editor, generator and print; the Intake ledger and Manual Intake desk; Today's hand-off and Ahead; Exam Season; the first real adapters (the exam slice end to end) |
+| UW9 | X06, L03, J02, DB07, AD09, T01 | The Pattern Loom and Variant Bench; the week, body, ledger and close views; Room; the Core glance strip; the intake and OCR adapters and the From Classroom fold; the Grove and tree |
+| UW10 | J04, J05, T02, X08, DB09, DB05 | Memory; Console as a terminal; the Career views; the Exam Hall and Marking Desk; the Deck; the Week and Month Reviews |
+| UW11 | J03, G04, X10, DB08, C08, AD10 | Senses; cursors, boot, route sigils and empty states; the Exam Room face with Readiness and Tonight; the System dashboard; the Connect Ladder, Link row, sync log and Delete sheet; the adapters for harvest, review queue, logs, intents and term |
+| UW12 | E10, E11, E13, AD11, RW1, H01 | Trees one to ten; settings dissolved into Trim; the Calendar, reminders, evidence, Classroom sync and dashboard adapters; the rework wave; the desk frame |
+| UW13 | E14, B09, B10, B12, AD12, H02 | The one-key links; the phone; learning loops; Coach; the career and coach adapters; the Term Ledger desk |
+| UW14 (flag flip) | B13, Q01, Q02, Q03, Q04 | The old layout retired; the contract sweep, the real-window pass, the privacy and claims audit, the gallery pass |
+
+**Engine lane** (the second chat; Python only; 4 to 6 packages per wave; it pushes main itself). Each wave is merged before the UI wave that needs it starts, and none of the UI packages above is blocked on it (null adapter).
+
+| Wave | Packages | What can be tried when it merges (through the routes, before any screen) |
+|---|---|---|
+| EW7 (exam slice) | E05, E06, E07, E08, C01 | A paper dropped in the watched folder becomes crop-first questions; tags, families and patterns as counts; an inferred blueprint; a seeded practice paper and key as print HTML; the numeric checker; the intake parsers |
+| EW8 | X04, X07, C02, HV01, E17, M01 | OCR of scans (RapidOCR on the GPU); variants and rubric drafts; the Intake store and routes; the harvester core with its manifest; the Classroom export import; the end-to-end exam-path test |
+| EW9 | HV02, C06, E01, E02, X09, H03 | The harvester adapters; the shared Google OAuth core; intents and recurrence; the life logs; readiness, Tonight and the review queue; the term arithmetic |
+| EW10 | C07, E03, E04, E09, DB11, JH01 | Classroom sync; reminder delivery; the Google Calendar link; the evidence ledger; the dashboard aggregations and Next Three; the voice study intents |
+| EW11 | E12, B09p, B12p, JH03, JH04 | Career data with "checked on" stamps; the phone routes; the Coach model path; the notices read model; the GPU readings and loader refusal |
+
+Engine reserve (not scheduled, 21.9): the backends of the reserve desks and JARVIS features. The engine lane has about 25 hours of slack beside the UI lane (21.2) and may take them first.
+
+**Adapters.** Each engine wave is followed in the UI lane by the adapter package that registers its routes: AD08 (EW7), AD09 (EW8), AD10 (EW9), AD11 (EW10), AD12 (EW11). Until an adapter merges, the screen runs on its null adapter and shows WAITING.
+
+#### 15.6.1b The meet points (checked by the integrator, never by feel)
+
+| Meet | What has to be true on main | Check |
+|---|---|---|
+| A. Exam generator usable (after UW8 and EW7, with AD08) | The exam slice of 21.3.5 works end to end | One invented 6-question fixture paper goes through drop, review, bank, blueprint, practice PDF, key and marks in Playwright and pytest; nothing enters the bank unreviewed; a smoke test on one real paper |
+| C1a. Classroom fallback, folder door (same as A) | A file saved into the watched folder reaches the Paper Desk | A fixture file lands as PENDING |
+| C1b. Fallback complete (after UW9 and EW8) | Paste and calendar-file doors fill the Life month | 40 parser cases each; a deadline never changes a count |
+| B. Every section visible (after UW11) | All ten sections and 36 views render behind the flag | `viewCount` 36; the section jury table |
+| C2. Classroom live (after UW12, EW10) | Sign in, sync, rows, notches | Fake provider reaches five states; the owner's own sign-in |
+| D. Flag flipped (UW14) | Old layout retired | B13's checks and the owner's OK |
+
+#### 15.6.1a The single-lane wave table of 13 Nov (superseded by the two lanes above; kept for the record)
 
 Wave 5 is first because the owner must see progress: the gallery shows every merged component in the running application on the day it merges, so each later wave is visible as it lands. Then the shared look and the most reused data components, then the sections (a JARVIS section and a Well Wisher section in the same wave wherever their files are disjoint), then the engines that give the sections real data, then verification.
 
@@ -3377,26 +3428,62 @@ Wave 5 is first because the owner must see progress: the gallery shows every mer
 | G02 | 5 | `shared/grammar/**` (sigil, ascii, term, `grammar.css`), `__tests__/grammar/**` | G01 tokens only through the CSS variable names listed in the contract |
 | G03 | 5 | `tools/art/**` (recipes for the eleven centrepieces and the sigil tracer), `art/**`, the git-ignored private folder (not tracked) | none |
 | D01 to D05 | 6 | one folder each under `shared/data/` and `shared/capture/` (see blocks) | G01, G02 |
-| J01 | 7 | `jarvis/core/**`, `jarvis/handoff/**`, `pages/Core.tsx`, `shell/views/core.view.ts` | voice, G02, D01 |
-| J02 | 7 | `jarvis/room/**`, `pages/Limbs.tsx`, `shell/views/room.view.ts` | G01, D05 (RackRow) |
-| L01 | 7 | `shared/almanac/**`, `ww/day/month/**`, `ww/day/drawer/**`, `shell/views/day-month.view.ts` | G02, D01, D02 |
-| L02 | 7 | `shared/trim/**`, `shell/modes/settings.mode.ts` | G01 |
-| L04 | 7 | `ww/day/today/**`, `ww/left/**`, `ww/proof/**`, `ww/frame/ProofRail.tsx`, `shell/views/day-today.view.ts`, `shell/views/proof-*.view.ts` | G01, G02, D01, D02, D04, D05 (not L01: no same-wave import) |
-| J03 | 8 | `jarvis/senses/**`, `pages/Aankhen.tsx`, `shell/views/senses.view.ts` | G02, D02 |
-| J04 | 8 | `jarvis/memory/**`, `pages/Yaadash.tsx`, `shell/views/memory.view.ts` | G02, D04 |
-| L03 | 8 | `ww/day/{week,body,ledger,close}/**`, `ww/life/**`, `shell/views/day-week.view.ts`, `day-body.view.ts`, `day-close.view.ts` | L01, D01 to D04 |
-| Y01 | 8 | `ww/study/papers/**`, `ww/study/review/**`, `shell/views/study-papers.view.ts` | G02, D02, D05 |
-| Y02 | 8 | `ww/focus/**`, `shell/views/focus-*.view.ts` | G02, D01 |
-| J05 | 9 | `jarvis/console/**`, `pages/System.tsx`, `pages/Connect.tsx`, `shell/views/console-*.view.ts` | D03, D04, D05 |
-| Y03 | 9 | `ww/study/{plan,practice,generator}/**`, legacy `ww/study/*.tsx`, `shell/views/study-plan.view.ts`, `study-practice.view.ts` | Y01, G02 |
-| T01 | 9 | `ww/tree/**` (UI, ports, art placement), `shell/views/tree.view.ts` | G02, G03 |
-| T02 | 9 | `ww/career/**`, `shell/views/career-*.view.ts` | G02, D03 |
-| G04 | 9 | `shared/grammar/cursor/**`, `shell/slots/{boot,titlebar-sigil,cursor-root}.*.tsx`, `shell/empty/**` | N02 slots |
-| E01 to E04 | 10 | server and adapter files, see blocks | sections of waves 7 to 9 |
-| E05 to E08 | 11 | `app/jarvis_app/ww_pyq/**` (one file each), see blocks | Y01 to Y03 |
-| E09 to E12 | 12 | evidence, data and career stores, see blocks | T01, T02 |
-| E13, E14, B09, B10, B12 | 13 | see blocks | all |
-| B13, Q01 to Q04 | 14 | see blocks | all |
+| J01 | 6 (as run) | `jarvis/core/**`, `jarvis/handoff/**`, `pages/Core.tsx`, `shell/views/core.view.ts` | voice, G02, D01 |
+| J02 | UW9 | `jarvis/room/**`, `pages/Limbs.tsx`, `shell/views/room.view.ts` | G01, D05 (RackRow) |
+| L01 | UW7 | `shared/almanac/**`, `ww/day/month/**`, `ww/day/drawer/**`, `shell/views/day-month.view.ts` | G02, D01, D02 |
+| L02 | 6 (as run) | `shared/trim/**`, `shell/modes/settings.mode.ts` | G01 |
+| L04 | UW7 | `ww/day/today/**`, `ww/left/**`, `ww/proof/**`, `ww/frame/ProofRail.tsx`, `shell/views/day-today.view.ts`, `shell/views/proof-*.view.ts` | G01, G02, D01, D02, D04, D05 (not L01: no same-wave import) |
+| J03 | UW11 | `jarvis/senses/**`, `pages/Aankhen.tsx`, `shell/views/senses.view.ts` | G02, D02 |
+| J04 | UW10 | `jarvis/memory/**`, `pages/Yaadash.tsx`, `shell/views/memory.view.ts` | G02, D04 |
+| L03 | UW9 | `ww/day/{week,body,ledger,close}/**`, `ww/life/**`, `shell/views/day-week.view.ts`, `day-body.view.ts`, `day-close.view.ts` | L01, D01 to D04 |
+| Y01 | UW7 | `ww/study/papers/**`, `ww/study/review/**`, `shell/views/study-papers.view.ts` | G02, D02, D05 |
+| Y02 | UW7 | `ww/focus/**`, `shell/views/focus-*.view.ts` | G02, D01 |
+| J05 | UW10 | `jarvis/console/**`, `pages/System.tsx`, `pages/Connect.tsx`, `shell/views/console-*.view.ts` | D03, D04, D05 |
+| Y03 | UW8 | `ww/study/{plan,practice,generator}/**`, legacy `ww/study/*.tsx`, `shell/views/study-plan.view.ts`, `study-practice.view.ts` | Y01, G02 |
+| T01 | UW9 | `ww/tree/**` (UI, ports, art placement), `shell/views/tree.view.ts` | G02, G03 |
+| T02 | UW10 | `ww/career/**`, `shell/views/career-*.view.ts` | G02, D03 |
+| G04 | UW11 | `shared/grammar/cursor/**`, `shell/slots/{boot,titlebar-sigil,cursor-root}.*.tsx`, `shell/empty/**` | N02 slots |
+| E01 to E04 | EW9, EW9, EW10, EW10 | server and adapter files, see blocks | sections of waves 7 to 9 |
+| E05 to E08 | EW7 | `app/jarvis_app/ww_pyq/**` (one file each), see blocks | Y01 to Y03 |
+| E09 to E12 | EW10 (E09), UW12 (E10, E11), EW11 (E12) | evidence, data and career stores, see blocks | T01, T02 |
+| E13, E14, B09, B10, B12 | UW12 (E13), UW13 (E14, B09, B10, B12) | see blocks | all |
+| B13, Q01 to Q04 | UW14 | see blocks | all |
+
+**Owned-file corrections of 14 Nov (two lanes).** The rows above keep their `Owns` text except for these, which the lane rule forces: E01 to E04 own Python only (their `ww/day/adapters/*.register.ts` and `intents.ts` move to AD10, `jarvis/reminders/**` and `shell/slots/notify.reminder.tsx` and `ww/day/link/**` to AD11); E05 owns no `server.py` edit (discovery already exists) and no TypeScript (`ww/study/adapters/pyq.register.ts` moves to AD08, `ww/study/ww-gcr.planned.ts` to C08); E06 to E08 own their own `routes_ww_pyq_*.py` files; E09 owns Python only (`ww/tree/adapters/evidence.*` moves to AD11); E10 and E11 are UI-lane data files; E12 owns Python only (its adapters move to AD12); Y01 owns every Study port; Y03 gives `generator/**` to X03 and the library tab host to C03; B09's `routes_phone*.py` is the engine package B09p; B12's `ww_coach.py` is B12p. The wave column of every row is replaced by the lane waves of 15.6.1.
+
+**Rows added by section 21** (paths under `app/ui/src` for UI rows, under the repository root for engine rows).
+
+| Pkg | Wave | Owns | Reads (earlier waves only) |
+|---|---|---|---|
+| G05 | UW6 | `styles/design/clay/**`, `shared/kit/**`, `shared/lamp/**`, `__tests__/kit/**`, `e2e/bench/known.ts`, the shell chrome files named in the wave contract | G01 |
+| N03 | before UW7 (integrator) | `tools/wave_check.py` (lane rule), `tools/integrate_wave.py`, `tools/tests/**` | none |
+| DB01 | UW7 | `shared/data/countdown/**`, `shared/data/nextthree/**`, `shared/data/handoff/**` | G01, D01 |
+| DB02 | UW7 | `shared/data/legend/**` | G01, D05 |
+| DB03 | UW8 | `ww/day/today/callouts/handoff.callout.tsx`, `ww/day/today/callouts/ahead.callout.tsx` | L04, DB01, DB02 |
+| DB04 | UW8 | `ww/exams/**`, `ww/day/today/modes/season.mode.tsx` | L04, D05, DB01, DB02 |
+| DB05 | UW10 | `ww/review/**`, `ww/day/week/faces/review.face.tsx`, `ww/day/month/faces/review.face.tsx` | L01, L03, D02, DB02 |
+| DB07 | UW9 | `jarvis/core/glance/**` (and one slot line in the Core home) | J01, D05 |
+| DB08 | UW11 | `jarvis/console/health/faces/system.face.tsx`, `jarvis/console/system/**` | J05, D05 |
+| DB09 | UW10 | `deck/**`, `shell/views/deck.view.ts` | DB03, DB07, J01 |
+| X03 | UW8 | `ww/study/{blueprint,generator,print}/**` | Y01, D03 |
+| X06 | UW9 | `ww/study/{patterns,variants}/**` | Y01, AD08 |
+| X08 | UW10 | `ww/focus/hall/**`, `ww/study/marking/**` | Y02, Y01 (RubricChips) |
+| X10 | UW11 | `ww/study/exam/**`, `ww/study/plan/faces/exam.face.tsx` | Y03, D01 to D05, AD08 |
+| C03 | UW8 | `ww/study/library/**` (intake, course map, provenance, tab host), `shared/provenance/**` | D03, D04, G01 |
+| C08 | UW11 | `ww/study/library/connect/**`, `jarvis/console/connections/classroom/**`, `ww/study/ww-gcr.planned.ts` | C03, J05 |
+| AD08 | UW8 | `ww/study/adapters/{pyq,review,generator}.{ts,register.ts}`, `e2e/exam-path.spec.ts` | Y01, EW7 routes |
+| AD09 | UW9 | `ww/study/adapters/{ocr,variants,intake}.{ts,register.ts}`, `ww/day/adapters/intake.register.ts`, `ww/day/classroom-fold/**` | AD08, C03, L01, EW8 routes |
+| AD10 | UW11 | `ww/study/adapters/{harvest,queue,tonight}.*`, `ww/day/adapters/{intents,logs,term}.*`, `jarvis/console/adapters/google.register.ts` | AD09, EW9 routes |
+| AD11 | UW12 | `ww/day/adapters/{gcal,reminders,dashboards}.*`, `ww/day/link/**`, `jarvis/reminders/**`, `shell/slots/notify.reminder.tsx`, `ww/tree/adapters/evidence.*`, `ww/study/adapters/classroom.*` | AD10, EW10 routes, T01, L01 |
+| AD12 | UW13 | `ww/career/adapters/*.register.ts`, `ww/study/coach/adapters/**`, `phone_page/adapters/**` | AD11, EW11 routes |
+| H01 | UW12 | `shell/desks/**`, `__tests__/shell/desks/**` | N02 |
+| H02 | UW13 | `ww/study/term/**` | H01, D03, D01, AD10 |
+| RW1 | UW12 | the folders the slot-11 jury names (never `*.settings.ts`, `links.register.ts`) | all sections |
+| E05 to E08, C01 | EW7 | `app/jarvis_app/ww_pyq/**` (one set of files each), `ww_intake/{paste,ics,match}.py`, route files, tests | none |
+| X04, X07, C02, HV01, E17, M01 | EW8 | `ww_pyq/{ocr,variants,rubric,takeout}.py`, `ww_intake/store.py` and `routes_ww_intake.py`, `ww_harvest.py`, `routes_ww_harvest.py`, `ww_check_harvest.py` (the three existing harvester files, HV01 only), `app/tests/test_exam_path.py` | EW7 |
+| HV02, C06, X09, H03 | EW9 | `ww_harvest_sources/**` (each adapter registers into the existing `SOURCES` dict and `fetch_*` pattern of `ww_harvest.py` by one line in its own module, not by editing that file), `ww_google/{oauth,token_store,fake}.py`, `ww_pyq/{readiness,tonight}.py`, `ww_review/**`, `ww_term/**` (extends `ww_attendance.py` by import; see 21.10) | EW7, EW8 |
+| C07, DB11, JH01 | EW10 | `ww_gcr/**`, `ww_dash/**`, `core/intents/**` | EW8, EW9 |
+| B09p, B12p, JH03, JH04 | EW11 | `routes_phone*.py`, `ww_coach.py`, `core/notify_read/**`, `core/gpu/**` | EW7 to EW10 |
 
 #### 15.6.3 Where the lens packages went
 
@@ -3430,6 +3517,60 @@ B06 and B11 (the section packages of 15.3) are replaced by J01 to J05, L01 to L0
 #### 15.6.4 The merge test (20.14) and the gallery pass (20.15) are run by the integrator at the end of every wave
 
 Merge test: (a) the contract table lists, per package, the folders it owns, and a script (`tools/wave_check.py`, written by N01) fails if two packages of a wave own an overlapping path or a package changed a file outside its folders; (b) `import.meta.glob` registrations resolve (every `*.view.ts`, `*.slot.tsx`, `*.mode.ts`, `*.register.ts` and gallery entry loads); (c) full vitest, `tsc -b`, the kit bench with its known-debt file unchanged or shorter, Playwright, the Python tests on scratch data dirs; (d) one gallery screenshot per package. Gallery pass: the owner opens "What is new" in the running application and judges each placement by eye; a placement he rejects goes back to its package. No placement of a catalogue picture is called done before this pass (every placement is a design claim until then, 20.12).
+
+Two lane checks are added to the merge test for every wave (15.6.1): (e) the lane check (rule 8): no package of a UI wave owns a `.py` path, no package of an engine wave owns a `.ts`, `.tsx`, `.css` or `.json` path under `app/ui`, and a shared file (the state file, the research files, this specification) is never in a package's owned list; (f) the route check (rule 9): every route an adapter file calls has an entry in `docs/design/well-wisher-engine-plan.md`, and every route in that file has a pytest. The integrator also runs `tools/integrate_wave.py` (tsc, vitest, bundle, `wave_check`, Playwright, the art build in one report, so that an outage resumes from the report). Jury scores ratchet: no section merges below its previous jury score; rework that is not a hard gate goes to RW1.
+
+#### 15.6.5 Which existing packages moved, and why (14 Nov 2026)
+
+| Package | From | To | Why |
+|---|---|---|---|
+| J01, L02 | wave 7 | wave 6 (as run) | pulled forward by the integrator; J01 is in review, L02 merged |
+| Y01, Y02 | wave 8 | UW7 | Study comes first (the owner's priority; milestone A) |
+| Y03 | wave 9 | UW8 | the practice and plan screens are part of the exam slice; it hands `generator/**` to X03 and the library host to C03 |
+| L01, L04 | wave 7 | UW7 | unchanged; the Life month carries Classroom deadlines and exam dates |
+| J02 | wave 7 | UW9 | Room works in the classic layout; Study and the dashboards come first |
+| L03 | wave 8 | UW9 | the week view hosts the Week Review face of DB05 |
+| T01 | wave 9 | UW9 | its ports must land before the evidence adapter (AD11) and E14 |
+| J04 | wave 8 | UW10 | Memory has no exam value; the classic page works meanwhile |
+| J05, T02 | wave 9 | UW10 | the Console hosts the System face (DB08) and the connection rows (C08) |
+| J03 | wave 8 | UW11 | Senses stays classic until the sections that serve exams are merged |
+| G04 | wave 9 | UW11 | cursors, boot and empty states polish; not on the exam path |
+| E01, E02 | wave 10 | EW9 | engine lane; their UI halves move to AD10 |
+| E03, E04 | wave 10 | EW10 | engine lane; E04 imports the shared OAuth core C06 (EW9); UI halves move to AD11 |
+| E05 to E08 | wave 11 | EW7 | the exam generator is the first feature; route discovery already exists in `register_feature_routes`, so no package edits `server.py` |
+| E09 | wave 12 | EW10 | engine lane; its adapter moves to AD11 |
+| E10, E11 | wave 12 | UW12 | JSON data under `app/ui`: UI lane |
+| E12 | wave 12 | EW11 | engine lane; its adapters move to AD12 |
+| E13 | wave 13 | UW12 | settings dissolve once all sections exist |
+| E14 | wave 13 | UW13 | needs E09's adapter (AD11) merged in an earlier wave |
+| B09, B10, B12 | wave 13 | UW13 (UI halves) | B09p and B12p are their Python halves in EW11 |
+| B13, Q01 to Q04 | wave 14 | UW14 | unchanged |
+
+#### 15.6.6 Where the new packages came from
+
+| Package | Lens ids folded in | Notes |
+|---|---|---|
+| E05 to E08 (extended) | exam lens X01, X02, X05 | crops, tables, slides, blueprint, generator v2, print, Quiet, Bloom |
+| X04, X07 | exam lens X04, X07 | OCR; variants and rubric drafts |
+| X03, X06, X08, X10 | exam lens X03, X06, X08, X10 | the exam screens; the rubric strip is part of Y01 |
+| X09 | exam lens X09, Well Wisher lens H06 | one review queue (`fsrs`) |
+| C01, C02 | classroom lens C01, C02 | parsers; the Intake store |
+| C03 | classroom lens C03, C04 | Intake UI with the Course Mapper and provenance |
+| AD09 (part) | classroom lens C05 | the calendar adapter and the From Classroom fold |
+| C06, C07 | classroom lens C06, C07; forecast lens E15; dashboards lens DB13; exam lens X11 | one OAuth core, one sync |
+| C08 | classroom lens C08, C09 | ladder, link row, sync log and Delete sheet |
+| E17 | forecast lens E17 | the Archive door |
+| M01 | forecast lens M01 | engine half (`test_exam_path.py`); its Playwright half is in AD08 |
+| HV01, HV02 | the owner's request of 13 Nov | harvester core and adapters |
+| DB01 | dashboards lens DB01, DB06 | plus `HandoffKey` |
+| DB02 to DB05, DB07 to DB09 | dashboards lens DB02 to DB05, DB07 to DB09 | DB03's work on Today is two callout files; DB04 merges the paper strip of Well Wisher lens H12 |
+| DB11 | dashboards lens DB11, DB12 | aggregations and Next Three |
+| DB10 | dashboards lens DB10 | reserve |
+| H01, H02, H03 | Well Wisher lens H01, H02, H03 | desk frame, Term Ledger UI and arithmetic |
+| JH01, JH03, JH04 | JARVIS lens JH01, JH03, JH04 | engine halves |
+| RB01 | forecast lens P01 | renamed (block A.P01 exists); reserve |
+| RW1 | forecast lens RW1 | one rework wave |
+| N03, G05 | forecast lens (tooling); the craft pass | |
 
 ---
 
@@ -3674,6 +3815,27 @@ The owner's change of direction is applied as below. The full wording and the te
 | D-V2-28 | Labelled summaries and a researcher agent that commits research | Unlabelled compaction summaries | The summaries are imported into other agents |
 | I42 | Where the lenses disagreed, the choices of 20.3 stand (13 rows: month geometry, Almanac naming, one sigil engine, one `CaptureLine`, one Memory constellation, the Room layout, Career at five views, Senses ids, cursors, seals, the scope of the 40 percent rule, package ids) | Each lens's own choice | One component per job, ids frozen, rules not weakened |
 | I43 | The ASCII budget target rises from 40 KB to 90 KB and the 2.5 percent tooth grain is adopted as a target; the 40 KB figure is the fallback if R01 measures a cost | Keep 40 KB | The ASCII grammar needs room for four data uses; unmeasured, so stated as a target |
+
+### 16.9 Expanded horizons of 13 to 14 Nov 2026 (D-V3)
+
+The owner's answers of 13 Nov and the six lenses are applied as below. The wording and the test of each decision are in 21.1.3; this table is the log entry. It narrows or overrides earlier decisions where stated and keeps every other decision above. Date for every row: 2026-11-14 (answers given 2026-11-13).
+
+| # | Decision | Alternatives and where they came from | Why |
+|---|---|---|---|
+| D-V3-1 | "gcr" is Google Classroom; `ww.gcr` stays PLANNED until the sync package merges. Closes Q-V2-1 and the lens question Q-C1. Overrides D-V2-14 in part | "gcr" a PLANNED control until the owner says what it means (D-V2-14) | The owner confirmed the term and that his classes are reachable from his personal account |
+| D-V3-2, D-V3-17, D-V3-18 | Two chats, two lanes on disjoint files; route contracts written once in `docs/design/well-wisher-engine-plan.md`; UI reaches a route only through an adapter file it owns with a null adapter; agents leave work uncommitted and each lane's integrator commits. Overrides the single-lane wave plan of 15.6 and D-V2-22 in part | One lane of waves (15.6 of 13 Nov); engine packages owning TypeScript adapter files (the forecast lens) | Owner direction: he likes two lanes in parallel, built by two chats, with shared files never edited by both; an agent's commit call has hung twice |
+| D-V3-3, D-V3-4, D-V3-5 | The exam generator is the first feature and its smallest slice is built first; questions are crop-first; slide decks are read as PDF or by `.pptx` text with the standard library | Text-first questions (20.7.9); a slide library | Owner priority; scans and slides are his real material; a crop cannot be mis-read by OCR |
+| D-V3-6, D-V3-7, D-V3-10 | The approved installs are four families; the Classroom connector uses the Google libraries and `keyring`, requests no Drive scope first, and the owner does every consent step himself with the client file at `data/ww/google/client.json`. Closes the lens questions Q-C8 and Q-C9 | A hand-written OAuth flow in the standard library (classroom lens); `requests_oauthlib` (forecast lens); a Drive scope for downloads (exam lens) | The owner approved the libraries; less custom security code; `drive.readonly` is restricted |
+| D-V3-8, D-V3-9 | The weekly sign-in in Testing status is WAITING, not FAULT; every arrival is an Intake row taken by his action and never enters his counts | An automatic sync that writes to the calendar and the engine | Honest states; a deadline is not his own work |
+| D-V3-11 | The harvester is extended with per-source adapters, a manifest and manual drop-in; local copies only per source on his switch. Overrides "pointers only" for those sources | A new harvester; pointers only for GATE | Owner request of 13 Nov; the manifest answers where each file came from |
+| D-V3-12, D-V3-13, D-V3-14 | Readiness is three counts and no score; the model drafts and never grades (`marked_by` is the student or the checker); one `fsrs` review queue | A combined readiness score; two schedulers (the exam and Well Wisher lenses) | The no-result-claim rule (2.5); one queue per job |
+| D-V3-15 | Exam Room is a face of `study.plan`, Exam Season a mode of `day.today`, the System dashboard a face of `console.health`, the reviews faces of `day.week` and `day.month`, and desks are overlays; the view count stays 36 | A 37th view `study.exam`; views `day.exams`, `console.system`; desks outside the count (Q-H1) | Study and Console are at the five-view maximum of section 3; faces and overlays reuse built mechanisms |
+| D-V3-16 | Dashboards are one `SpecimenLayout` each, every number in a body with a lamp, a Hollow form, no urgency theatre | The default bento grid | Owner direction on dashboards; D-V2-7 and D-V2-8 |
+| D-V3-19 | Default themes drop the hairline on labelled controls and keep a 3:1 cue inside state-bearing controls; hard 2 px edges in high contrast and forced colours. Revises the "every control edge at 3:1" part of G01 | A visible 3:1 edge on every control (G01) | "Highly refined components, buttons and shadows"; a text label identifies a control, a state-bearing control keeps an inner cue |
+| D-V3-20 to D-V3-23 | Network features opt-in and read-only; forecasts as ranges; an optional exam-season freeze; the private data folder backed up to his own private repository | Default-on links; single-date forecasts; a mandatory freeze (removed by I34) | Local-first; honest forecasts; the owner's own backup |
+| I44 | Where the lenses disagreed, the choices of the table in 21.1.3 stand (12 rows: ports ownership, adapter ownership, OAuth libraries, Drive scope, a 37th view, the season mode, two queues, three step lists, two fallbacks, the Runway id, E10 and E11 lane, the paper strip) | Each lens's own choice | One component per job, ids frozen, rules not weakened |
+| I45 | The ranking of the wider features (21.6, 21.7) puts exam-season value first; only Term Ledger and the engine halves of voice intents, notices and GPU readings are scheduled before the flip; the rest is reserve (21.9) | Schedule all of the lenses' packages | Each added wave costs one slot and moves the flip by about 5.5 hours at the median (21.2) |
+
 ---
 
 ## 17 Open questions for the owner
@@ -3757,6 +3919,41 @@ F10 (the shipped product uses only re-drawn derivatives) is superseded by D-V2-1
 | Q-V2-15 | Is the 90 KB ASCII budget and the 2.5 percent tooth grain acceptable on the laptop? | Adopted as targets; the 40 KB fallback applies if R01 measures a cost |
 | Q-V2-16 | Is the Life month grid a view `day.month` (Day at five views, total 36) or its own section, and should day cells carry seed glyphs? | `day.month`, with seed glyphs |
 | Q-V2-17 | Closed by the owner's note: Drill and Crucible both live in Focus | Closed |
+
+### 17.5 Questions closed and added by the expanded horizons (14 Nov 2026)
+
+**Closed by the owner's answers of 13 Nov.**
+
+| # | Closed how |
+|---|---|
+| Q-V2-1 | "gcr" is Google Classroom; his classes are reachable from his personal account |
+| Q-V2-2 (in part) | The account is his personal Google account; the Calendar link is read-only first and nothing is written to Google without its separate switch; the Cloud project exists, the client and consent screen do not (steps in 21.4.1) |
+| Q-V2-3 | The approved installs are PyMuPDF, RapidOCR with onnxruntime on the GPU, the Google libraries with keyring, and fsrs; his material is PDFs, slide decks and Classroom items; previous-year papers come from the university's question-paper site and the harvester |
+| Q-C1, Q-C2, Q-C3 (classroom lens) | Closed with Q-V2-1: a personal account makes an administrator block unlikely; the BLOCKED state stays designed |
+| Q-C8, Q-C9 (classroom lens) | Closed: the Google libraries and `keyring` are used |
+| Q-V2-11 (in part) | A fetch is a per-source harvester switch with a manifest, not a one-click page fetch of a university site; manual entry stays the fallback |
+
+**Still open from direction v2** (unchanged defaults): Q-V2-4 attendance wording and each subject's required percentage; Q-V2-5 a local helpline list; Q-V2-6 which Room channels are heavy loads; Q-V2-7 the WebGL twin; Q-V2-8 the chrome-emblem seals; Q-V2-9 evidence kinds for the self-defence and influence trees; Q-V2-10 Path constellation fields and the first Abroad comparison; Q-V2-12 the Memory constellation; Q-V2-13 reminders spoken-off by default; Q-V2-14 an image generator; Q-V2-15 the ASCII budget; Q-V2-16 closed in 21.1.3 as D-V3-15 for the view count only.
+
+**Added by the expanded horizons.**
+
+| # | Question | Default if unanswered |
+|---|---|---|
+| Q-V3-1 | Which folder should the watcher use for downloaded course files? | `data/ww/inbox/` under the private data folder |
+| Q-V3-2 | May the connector later request a Drive scope to download attachments (`drive.readonly` is restricted; `drive.file` needs a Picker per file)? | No; attachments are downloaded by him into the watched folder |
+| Q-V3-3 | A weekly sign-in in Testing status, or publish the client to production (still unverified; whether it removes the 7-day limit is not verified)? | A weekly sign-in |
+| Q-V3-4 | Show Classroom's "turned in, returned, late" states (default yes) and grades (default no)? | States yes, grades off |
+| Q-V3-5 | Pull announcements at all (they can name teachers and classmates)? | Off, per course |
+| Q-V3-6 | Does his Google Calendar export include the Classroom calendars? (unverified) | The paste and calendar-file doors work either way |
+| Q-V3-7 | Which harvester sources to switch on first (the university's question-paper site, GATE, GRE, the dMAT source), and for each whether a local copy is allowed after he has read its terms? | All off; manual drop-in |
+| Q-V3-8 | KaTeX in the print set (about 0.6 to 0.7 MB, an estimate), or maths printed as the crop? | Maths prints as the crop |
+| Q-V3-9 | Buy a metering plug so the Devices view can show measured watts? | Not measured; the EnergyNote says so |
+| Q-V3-10 | May desks be overlays and not views (D-V3-15; the lens question Q-H1)? | Overlays; he may veto |
+| Q-V3-11 | Remote access for the phone companion beyond the existing Tailscale decision? | None |
+| Q-V3-12 | When the GPU is shared by OCR and a resident local model, which waits? | The loader refuses a load that does not fit and names the numbers; OCR waits |
+| Q-V3-13 | Turn the exam-season freeze on (the lead time stays in a private file)? | Off |
+
+**Kept as still open from the lenses:** an online image generator (Q-V2-14), heavy Room loads (Q-V2-6), tree evidence kinds (Q-V2-9), and the Memory constellation (Q-V2-12).
 ---
 
 ## 18 Risks
@@ -3831,6 +4028,17 @@ F10 (the shipped product uses only re-drawn derivatives) is superseded by D-V2-1
 | Trees and Career | A node unlocked by a self-mark; XP bars or percentage spinners on trees; a free-scroll zoom between Tree scales; a tactic aimed at a named person in the influence tree; a Career fee or date shown without a "checked on" stamp; a Career figure quoted as verified other than the one in 20.8.6 |
 | Integrations and data | An automatic bank read; a Google Calendar write without its separate switch; credentials typed, read or stored by the assistant; a refresh token outside the OS credential store; a private catalogue picture in any tracked file, screenshot, README or store image; an image-generator output in a tracked file |
 | Structure and visual | A native `<select>` in a shipped view; a shell or `eval` behind the command line; an unlabelled model-written string; a number with no lamp; a sigil that replaces a lamp; ASCII atmosphere bound to a stored count; a hinged guard that makes OFF harder than ON; tooth or aimed light in forced colours; a custom cursor larger than 32 px; a pointer companion in calm, at governor `low`, on touch or in forced colours; a per-package edit to a barrel file or to a file another package of the wave owns |
+
+**Additions from the expanded horizons** (14 Nov 2026). Everything the lenses ruled out stands; the checkable form (each row has a copy, lint or scan test in Q03):
+
+| Category | Do not build (expanded horizons) |
+|---|---|
+| Classroom and Google | A write scope; a Drive scope without his explicit yes; a roster or teacher scope; a key that downloads an attachment for him; a Classroom deadline counted as his own work; a grade shown by default; a "connected" label before a first successful read; a token or client secret outside the credential store and `data/ww/google/client.json`; the assistant typing, reading, printing or storing a credential; a client library other than the approved ones |
+| Exam engine | A model that grades, marks or invents a number; unverified OCR text printed as text; a combined readiness score, or a percentage labelled ready, chance, likely or expected; a "due" wording on the Quiet list; a countdown or remaining count in Tonight; a pattern with fewer than 3 papers drawn as a finding; a generated paper that fails `paper_invariants` |
+| Harvester | A request while every source is off; a local copy without its own switch; a request that ignores `robots.txt`; more than 1 request per 3 seconds per host or 200 a day; a retry after a second 403 or 429; a file with no manifest line; a source without a recorded terms note switched on; a harvested file in a tracked path |
+| Dashboards | A red fill, pulse, shrinking bar, "only N days", streak or pass probability; a number outside a body with a lamp; two equal stat tiles in a row; a single-date forecast; a dashboard that writes anything but its own notes, carries and the exam window |
+| Wider features | A sleep score, "sleep debt" or medical advice; a streak or "days since" on a habit; a bank link; an opportunity rank by probability; a rule that switches a heavy load ON, that uses the words present or absent, or that decides a reminder; a model eviction without a refusal naming the numbers; a wattage digit without a metering source; a voice rule saved without Enter; an agent verb moved out of "May never" by the agent |
+| Process | An engine package that owns a TypeScript path; a UI package that owns a Python path; two chats editing one shared file; an agent-authored commit; a route call with no entry in the engine plan file; a view id `study.exam`, `day.exams` or `console.system` |
 
 ---
 
@@ -4199,6 +4407,8 @@ Lunar-phase year ring (decoration only); a sigil per habit grown by an L-system 
 
 ### 20.7 Study and Focus: the paper desk, the question engine, Drill in Focus
 
+*Superseded in part by 21.3 (crop-first questions, slides and scans, the stored blueprint, marking, the Exam Room face, the harvester), 21.4 (gcr is Google Classroom) and 15.6 (the engine is built in its own lane first).*
+
 **What changes.** Study becomes a "paper desk" built on a previous-year-question (PYQ) engine: papers go in as PDF or photos, questions come out into a review queue, nothing enters the bank until accepted. Patterns are counts, never forecasts. A Coverage Ledger sits on every Study view. Drill and Crucible both live in Focus (D-V2-11). Feedback is truthful and calm. Terminal and sigil work are structural: the extraction log is a real terminal frame, unit sigils are deterministic, empty states are ASCII.
 
 **Shared grammar for every Study and Focus view.** Ground `#E8EAE9` / `#171717`, accent `#F25623` as fill only, a lamp on every number (LIVE disc, WAITING half disc, SIMULATED diamond, PLANNED dashed ring, FAULT triangle), 44 px targets, a 2 px focus ring, at most one bounded 2D canvas per view (none in Study; the Focus dot field is SVG). Every motion below has a stated static form.
@@ -4252,7 +4462,7 @@ As specified in §4.4.5, with these additions. **Start.** Left 640: track `Segme
 
 **Paper generator** (overlay `pyq-gen`, 720 x 560, from `study.practice`). Steps, one deep: 1 pick a paper pattern (copy a real paper's structure); 2 review the proposed question list (drag to swap, 44 px rows, 8 visible); 3 preview the PDF (in the Reader), Save. Primary: **Make the PDF**. Questions from the reviewed bank carry `HAND` or `RULE`; any generated variant carries `MODEL` and a dashed outline until accepted. A section short of reviewed questions shows a hollow slot "needs 2 more". The PDF header reads "Practice paper from your bank. Not an official paper." Mobile: a three-screen wizard.
 
-**Planned: "Connect through gcr".** A `PlannedPlate` (lamp PLANNED) in `console.connections` and as a dashed plate in the Drop Slot: title "Connect through gcr", text "Not built. It would pull course files you can already open. The app never stores your password." It opens the honest explanation, never a form. Registry id `ww.gcr`, home `study.papers`, action "build" held until Q-V2-1 is answered. Beside it the working route: **Watch a folder** (WAITING until the student chooses a folder; the chosen path stays in `data/`).
+**Planned: "Connect through gcr".** A `PlannedPlate` (lamp PLANNED) in `console.connections` and as a dashed plate in the Drop Slot: title "Connect through gcr", text "Not built. It would pull course files you can already open. The app never stores your password." It opens the honest explanation, never a form. Registry id `ww.gcr`, home `study.papers`, action "build" held until Q-V2-1 is answered. Beside it the working route: **Watch a folder** (WAITING until the student chooses a folder; the chosen path stays in `data/`). *Superseded in part by 21.4: gcr is Google Classroom, and the plate opens the Connect Ladder once the connector merges.*
 
 #### 20.7.9 Logic and data of the engine
 
@@ -4438,7 +4648,7 @@ Ports only (`voice`, `memory`, `notify`, `ambient`). Core's voice can say "added
 
 Pipeline times come from the existing `timing` events; medians over 7 days of transcripts; no median, no fill. **Terrain:** per frame take the 51 amplitudes, normalise per column by a running 60 s percentile (target), resample to 24 rows at 2 per second (target), draw; no smoothing beyond one-frame interpolation. The presence probability is the existing model's output gated by the held-out day rule; no new model. The motion tape buckets stored motion events in 5-minute cells; retention equals the raw-signal retention (default 7 days); "Delete raw signal now" also clears the tape. Fix history: one local row per edit, 7 days, deletable. `CommandLine` is a registry of verbs mapped to existing routes. Needs the owner's consent or account: none in this subsection.
 
-**Components.** `SigilRing` (`bands`, `state`, `glyphSet`; live, hollow, simulated, fault), `PipelineRibbon` (`stages[{id,state,sec,median}]`; live, waiting, fault, off), `OrganStrip` (`organs`, `onOpen`), `GuardKey` (`heavy`, `summary`, `state`; closed, open for 5 s, asked, confirmed, unconfirmed), `DayRing24` (`rules`, `now`, `onPreview`; live, preview, empty), `SignalTerrain` (`frames`, `source`, `simulated`; live, hollow, simulated, paused), `LinkCube` (`fps`, `lossPct`, `ageMs`; live, stale, fault), `ProbabilityArc` (`band`, `p`, `trusted`; predicting, trusted, simulated, off), `MotionTape` (`buckets`, `pausedSpans`; live, empty), `MemoryConstellation` (`nodes`, `edges`, `selected`; live, sample, empty), `StrataBands` (`monthly`), `JobRow` (`fraction`, `state`; live, hollow, done, fault), `RoutePlates` (`registry`; planned, waiting, live), `ReminderChip` and `ReminderBell` (`reminder`, `receipt`; due, snoozed, done, failed), `HandoffChip` (`product`, `target`; live, unavailable); `CommandLine` is a `CaptureLine` with a closed grammar.
+**Components.** `SigilRing` (`bands`, `state`, `glyphSet`; live, hollow, simulated, fault), `PipelineRibbon` (`stages[{id,state,sec,median}]`; live, waiting, fault, off), `OrganStrip` (`organs`, `onOpen`), `GuardKey` (`heavy`, `summary`, `state`; closed, open for 5 s, asked, confirmed, unconfirmed), `DayRing24` (`rules`, `now`, `onPreview`; live, preview, empty), `SignalTerrain` (`frames`, `source`, `simulated`; live, hollow, simulated, paused), `LinkCube` (`fps`, `lossPct`, `ageMs`; live, stale, fault), `PredictArc` (`band`, `p`, `trusted`; predicting, trusted, simulated, off), `MotionTape` (`buckets`, `pausedSpans`; live, empty), `MemoryConstellation` (`nodes`, `edges`, `selected`; live, sample, empty), `StrataBands` (`monthly`), `JobRow` (`fraction`, `state`; live, hollow, done, fault), `RoutePlates` (`registry`; planned, waiting, live), `ReminderChip` and `ReminderBell` (`reminder`, `receipt`; due, snoozed, done, failed), `HandoffChip` (`product`, `target`; live, unavailable); `CommandLine` is a `CaptureLine` with a closed grammar.
 
 **Reserve (not built).** Walking back through the last minute of the hill by scrubbing real frames; a mouthless ASCII avatar of breath lines (C04-125); a rotary master dial for three scenes; an exploded-armillary wiring view (C03-04); a CRT heartbeat link-health strip (C04-14); a signal "weather" icon set; a night-sky Memory mode (C04-43); ASCII excavation on search (C04-114); a first-launch boot sequence of real startup checks; an event-density sigil heatmap; a quiet "lighthouse" pulse on the rail edge instead of a toast.
 
@@ -4453,7 +4663,7 @@ New components by owner package, using the package ids of the 47 in 15.6 (the bu
 | Life | `Almanac`, `DayCell`, `DayMark`, `StippleStrip`, `DayDrawer` (L01); `Trim`, `SettingsIndex` (L02); `WaterGauge`, `HabitRibbon` (L03); `IntentRule`, `IntentEditor` (E01); `LinkLamp` (E04); `DayArc`, `ProofRelief` (L04) | L01 to L04, E01, E04 |
 | Study and Focus | `PaperStrata`, `CoverageLedger`, `ReviewDesk`, `ExtractionTrace`, `PaperDrop` (Y01); `ParkField` (Y02); `SyllabusLandscape`, `RetentionOrbit` (the orrery; named `RetentionOrbit` here), `SigilGauge`, `BlueprintBar` (Y03) | Y01 to Y03 |
 | Tree and Career | `GroveRing`, `SkillNode`, `TraceEdge`, `EvidenceLedger`, `BranchSpine` (T01); `RoleConstellation`, `FlightBoard`, `SpecTable`, `RackChecklist`, `FundingBridge`, `PlateShelf` (T02) | T01, T02 |
-| JARVIS | `SigilRing`, `PipelineRibbon`, `OrganStrip`, `HandoffChip` (J01); `GuardKey`, `DayRing24` (J02); `SignalTerrain`, `LinkCube`, `ProbabilityArc`, `MotionTape` (J03); `MemoryConstellation`, `StrataBands` (J04); `JobRow`, `RoutePlates` (J05); `ReminderChip`, `ReminderBell` (E03) | J01 to J05, E03 |
+| JARVIS | `SigilRing`, `PipelineRibbon`, `OrganStrip`, `HandoffChip` (J01); `GuardKey`, `DayRing24` (J02); `SignalTerrain`, `LinkCube`, `PredictArc`, `MotionTape` (J03); `MemoryConstellation`, `StrataBands` (J04); `JobRow`, `RoutePlates` (J05); `ReminderChip`, `ReminderBell` (E03) | J01 to J05, E03 |
 
 Merged away (not built): `LifeCalendar`, `TetherMap`, a separate `Constellation` for Memory and Career, a separate `CommandLine` component (it is a `CaptureLine` grammar), `RackRow` in Room (the wall box stays).
 
@@ -4491,7 +4701,7 @@ The six lenses each numbered their packages from 01. They were first renumbered 
 
 ### 20.14 The wave contract and the merge test
 
-The rules that make a wave merge cleanly are 15.6 (seven rules), Block C rule 13 and the table of owned files in 15.6.2. The integrator runs the merge test of 15.6.4 at the end of every wave: no two packages own an overlapping path (`tools/wave_check.py`), every globbed registration loads, the suites and the kit bench are green, and one gallery screenshot per package is kept. A failing test sends the package back; it is never merged with a known conflict.
+The rules that make a wave merge cleanly are 15.6 (nine rules since 14 Nov 2026), Block C rule 13 and the table of owned files in 15.6.2. The integrator runs the merge test of 15.6.4 at the end of every wave: no two packages own an overlapping path (`tools/wave_check.py`), every globbed registration loads, the suites and the kit bench are green, and one gallery screenshot per package is kept. A failing test sends the package back; it is never merged with a known conflict.
 
 ### 20.15 The gallery pass
 
@@ -4530,9 +4740,740 @@ This subsection was written by the adversarial critic of the design revision. It
 
 ---
 
+## 21 Expanded horizons (13 to 14 Nov 2026): the exam generator first, the classroom connector, dashboards, and the wider feature set
+
+**Status.** Binding. Written on 14 Nov 2026 from six lenses (the exam engine, the classroom connector, the dashboards, wider Well Wisher horizons, wider JARVIS horizons, the delivery forecast) and the owner's answers of 13 Nov. **Where this section contradicts 20.7, 15.6 or an earlier section, this section governs**; everything it does not name stands. Nothing here edits code. Every size, timing and threshold is a target until measured in the real window (section 0.4). The lenses rendered nothing, and the catalogue crops they cite were mostly not opened, so every picture placement below stays a design claim until the gallery pass (20.15). Where the lenses disagreed, the choice and the reason are in 21.1.3.
+
+### 21.1 The owner's request, in public-safe words, and the decisions
+
+#### 21.1.1 What was asked (13 Nov)
+
+1. "I want highly refined components, buttons, shadows and overall aesthetics." The first design was "boring and lifeless"; the second jury scored design 6 to 7 of 10 and the signature moment 4 (pass line 8.0). A craft pass on the clay recipe, the kit and the shell chrome is in progress (package G05, 21.1.2 and 15.6).
+2. He asked for a status and a prediction of when the whole UI/UX overhaul completes, because after it the Well Wisher functions must be finished and then used for exams and for daily life (forecast: 21.2).
+3. Priority among features: the question-paper (exam) generator and the "gcr" connector come before every other feature. The UI/UX overhaul is still finished first.
+4. Do not forget the dashboards. Keep the research agents and the whole design document going.
+5. Plan more: expand to more features as part of the design, because the logic sits behind the UI. He wants a top-notch UI with all expanded horizons.
+
+#### 21.1.2 His answers since the lenses were written (13 Nov; they override any lens assumption)
+
+6. "gcr" is Google Classroom. His classes are reachable from his personal Google account. He has created the Google Cloud project under it; no OAuth client and no consent screen exist yet. He places the client file himself (click-by-click steps in 21.4.1).
+7. Installs are approved for the project's virtual environment: PyMuPDF (PDF text and page images), RapidOCR with onnxruntime on the GPU (scanned pages), the Google client libraries with keyring (the token goes in the Windows credential store) and fsrs (spaced review). Nothing else is approved by this list.
+8. Where his study material is: the syllabus, assignments and some internal-test papers are in Google Classroom; class notes are PDFs and slide decks (so slide ingestion is needed); previous-year papers will be downloaded from the university's question-paper site (public).
+9. He wants tools that make public previous-year papers of national and international exams available locally: GATE, GRE, an aptitude test the application already supports as dMAT, and his university's papers. Design: a polite, rate-limited, robots-respecting harvester with a per-source adapter, a manifest of what was fetched from where, and manual drop-in as the fallback. The backend already has a harvester module to extend (`app/jarvis_app/ww_harvest.py`).
+10. He likes two lanes running in parallel. The engine lane is built by a second chat (the existing Well Wisher chat), which owns only Python paths (the application's Python package, `core`, their tests) and pushes main itself. This programme chat owns `app/ui`. Shared files (the state file, the research files, this specification) must never be broken by two chats editing them: each chat has its own research topic file and its own plan file, appends to the state file only through its own section and one-line log entries, and never edits the other chat's files.
+11. The laptop stays awake; heavy use is fine; he wants the GPU used for local processing.
+12. The private data folder is backed up to a private repository of his own. The public repository rules are unchanged.
+
+Rules that hold throughout (the Do-not-build list of section 19 stands): honest states with the five-state lamp; camera-free sensing; no coercion, shame, streaks or variable rewards; no medical or psychological claims; no exam-result promise and no pass probability (prepare, then show evidence); one canvas at 1366x768 with a one-column reflow; light graphics with static forms; accessibility; local-first, where every network feature is opt-in, read-only by default, done by the owner in a browser consent screen and shown as PLANNED or WAITING until then; credentials are never typed, printed or stored in a tracked file; a local 4B model drafts and never grades.
+
+#### 21.1.3 Decisions (each testable)
+
+| # | Decision | Test that proves it |
+|---|---|---|
+| D-V3-1 | "gcr" is Google Classroom (closes Q-V2-1 and the lens question Q-C1). The registry entry `ww.gcr` stays PLANNED until the connector package C07 has merged, then follows the five states of 21.4 | The registry text names Google Classroom; on the bench with a fake provider no label says "connected" before a first successful `courses.list`; each of the five states is reachable |
+| D-V3-2 | Two chats, two lanes, disjoint files. The engine lane owns only Python (`app/jarvis_app/**`, `core/**`, `app/tests/**`, `core/tests/**`); this chat owns `app/ui/**`, `tools/**` except `tools/engine/**`, the design document and its research file; the engine lane also owns `tools/engine/**`, `requirements/**` (its integrator only), `docs/design/well-wisher-engine-plan.md` and `docs/research/well-wisher-engine.md`. The state file is edited only through each chat's own section and one-line log entries; the research files and plan files are one per chat | `tools/wave_check.py` (lane rule) fails a package that owns a path of the other lane; the integrator's pre-merge diff of each chat shows no edit to the other chat's files |
+| D-V3-3 | The exam generator is the first feature. Its smallest slice (21.3.5) is built in the first engine wave (EW7) beside the Study screens of the UI lane (UW7 and UW8) and is usable end to end at milestone A | The milestone check of 21.2: one invented 6-question paper goes through drop, review, bank, blueprint, practice paper, print and marks in Playwright and pytest, and nothing enters the bank unreviewed |
+| D-V3-4 | Questions are crop-first: each question keeps its page crop (page, bbox, PNG at 150 dpi under `data/`); text is a layer with status `verified`, `unverified` or `none`. Unverified text prints as the crop, never as raw OCR text | A fixture with a scanned page prints a practice paper whose unverified questions are images; a copy test finds no unverified string in the printed text layer |
+| D-V3-5 | Slide decks are read as PDF exports first (PyMuPDF), and `.pptx` files through the existing `yaadash.library.extract` (python-pptx is already installed and listed; critic check of 14 Nov, which replaces the lens idea of a second parser on `zipfile` and `xml.etree`, a parallel copy of code that exists). A slide is shown as a crop only when a PDF twin exists; otherwise its status is `text only`. No model reads or rewrites a slide | A fixture deck of 5 slides gives 5 `slide` units with their titles; a `.pptx` without a PDF twin produces no crop and says so in the trace |
+| D-V3-6 | The approved installs are exactly: PyMuPDF; RapidOCR with onnxruntime (GPU build); `google-auth-oauthlib`, `google-api-python-client` and `keyring`; `fsrs`. Their sizes and licences are measured and written to the research file before the package that needs them merges. Any other library needs a new yes | A dependency diff for each package lists only names from this list; the research file carries a size and a licence line for each |
+| D-V3-7 | The Classroom connector is read-only, on his personal account, built on the approved Google libraries (this replaces the lens advice to hand-write the OAuth flow: less custom security code, and the owner approved the libraries) with a loopback listener and PKCE, and the refresh token in the Windows credential store through `keyring` (closes the lens questions Q-C8 and Q-C9). The first version requests **no Drive scope**: attachments open in the browser and he saves them into the watched folder | A scope-list test fails if any `drive` scope or any write scope appears while the Drive switch is off; a scan finds no token or secret in the repository or in plain text under `data/` |
+| D-V3-8 | In Google's Testing status a refresh token lasts 7 days, so a weekly sign-in is expected, not a fault. The lamp goes WAITING with one key, "Reconnect"; cached rows stay | A fake provider answering `invalid_grant` gives WAITING (not FAULT) and the Intake rows are still listed |
+| D-V3-9 | Everything arriving from Classroom or from the manual doors is an Intake row with a source, a state and a Take action; nothing writes to the calendar or the exam engine until the row is accepted. A Classroom deadline never enters a count, and "turned in" by Classroom is drawn apart from his own "done" | A deadline row cannot change a counter (unit test); a Classroom "turned in" draws the outline-notch, never the done disc; a network call that downloads a file without a logged Take press is a failing test |
+| D-V3-10 | The owner does the consent steps himself in his browser, following 21.4.1. The assistant never types, reads, prints or stores a credential. The client file lives at `data/ww/google/client.json` (git-ignored); he places it himself | A scan of the tracked tree and of the logs finds no client id, secret or token; the Connect Ladder step 4 only reads the path and reports present or absent |
+| D-V3-11 | The harvester (`ww_harvest.py`) is extended, not replaced: a per-source adapter with a declared rights mode (`pointer` or `local copy`), a manifest of every fetch (source, url, fetched on, size, SHA-256, robots checked on, terms note), and manual drop-in as the fallback. A local copy is allowed only for a source the owner has switched on one by one, kept in the private data folder and never in a tracked file. This overrides the earlier "pointers only" rule for those sources and no others | With no source enabled the harvester opens zero sockets; a source without a recorded terms note stays off with the reason printed; a `robots.txt` disallow stops that path; a second 403 or 429 stops the host for the day |
+| D-V3-12 | Readiness is three counts and no combined score: practised weight, evidence (timed papers, questions marked, cards due) and five gaps. No percentage is labelled ready, chance, likely or expected | The copy grep over the exam views and the print set finds none of the banned words; the readiness function returns no scalar |
+| D-V3-13 | The local 4B model drafts and never grades: tags among existing topics, OCR clean-up diffs, rubric points, descriptive variants, reworded hints. Every stored mark has `marked_by` equal to `student` or `checker` | A schema test refuses any other `marked_by`; the rules-only switch removes every `MODEL` path and the exam path still passes |
+| D-V3-14 | One review queue serves four producers (the question bank, reading prompts, language cards, letters to self) with the `fsrs` package at default parameters (desired retention 0.90) and the chip `DEFAULT` until about 1,000 reviews | An AST check finds one scheduler module across `ww_review/**` and `ww_learning.py`: the existing Leitner-box recall of `ww_learning.py` (`box_of`, `due_date`) becomes a producer of cards into the queue in X09, or its interval function delegates to it, so there are not two schedulers; the retention estimate has no decimal in any output |
+| D-V3-15 | **Exam Room is a second face of `study.plan`**, not a sixth Study view (Study is at the section maximum of five views, section 3). Exam Season is a mode of `day.today` that swaps the specimen, not a view `day.exams`; the System dashboard is a face of `console.health` (Console is at five views), and the Week and Month Reviews are faces of `day.week` and `day.month`. Desks (Term Ledger, Fold, Tide and the others of 21.6) are overlays of the existing one-deep overlay layer, not views. The view count stays 36. This overrides lens 1 (a 37th view `study.exam`) and lens 4 (desks outside the view count; its question Q-H1 is answered by this row, and the owner may still veto) | `viewCount.test.ts` asserts 36; each face and desk id resolves from the palette; no Study view id other than the five exists |
+| D-V3-16 | Every dashboard is one `SpecimenLayout` with one object wider than 40 percent of the canvas, a datum line, at most five 88 px Callouts and a 72 px footer; every number sits in a body and carries a lamp; each dashboard has a Hollow form for an empty store; no urgency theatre (no red fill, pulse, shrinking bar, "only N days", streak or pass probability) | A DOM scan finds no numeric text node outside an element with `data-state` in the five lamp states; an empty-store fixture renders every dashboard with zero LIVE lamps and zero digits; a lint over dashboard CSS and strings finds none of the banned forms |
+| D-V3-17 | Route contracts are written once, in `docs/design/well-wisher-engine-plan.md` (it exists since 14 Nov; its section 4 sets the `/api/mission/` prefix and the `state`, `reason`, `source` envelope, and its section 9 must hold the contracts R-01 onward before EW7 starts; the engine chat owns it and changes a route shape only by appending a dated entry to its "Changes" log; where it and this document differ on a route shape or an engine package, the plan file governs). An engine package exposes routes with a documented JSON shape; a UI package reaches a route only through an adapter file it owns, with a null adapter until the route exists | `wave_check.py` fails an engine package that owns a TypeScript path and a UI package that owns a Python path; a UI route call with no entry in the plan file fails a lint; with the engine absent every Study screen renders WAITING |
+| D-V3-18 | Agents leave their work uncommitted; the integrator of each chat commits (an agent's `git commit` call has hung in two runs). Each chat commits and pushes only its own paths, pulls with rebase before pushing, and never rewrites the other chat's commits | The integrator's pre-merge diff lists only owned paths; `git log` shows no agent-authored commit |
+| D-V3-19 | In the default themes a control that carries a text label no longer draws a hairline edge: the label and the raised form identify it. A state-bearing control (switch, rocker, checkbox, radio, knob, slider, detent) keeps a 3:1 cue inside the control (ridge, recess edge or marker against its neighbour). In `prefers-contrast: more` and in forced colours every control has a hard 2 px edge in `CanvasText`. This revises the "every control edge at 3:1" part of G01 and is paid in the craft pass G05 | The contrast oracle computes the inner cue for every state-bearing control at 3:1 in light and dark, and the hard edge in the two high-contrast modes; a lint finds a hairline on a labelled control only inside those modes |
+| D-V3-20 | Every network feature is opt-in, read-only by default, PLANNED or WAITING until the owner has completed his own browser step. With no client file and no enabled harvester source the application opens no connection to an external host | A whole-app egress test on a fresh data folder lists zero external hosts |
+| D-V3-21 | A forecast is shown only as a range with an `estimate` chip and the PLANNED lamp, never as one date; a milestone turns LIVE only when its check passes on main | A lint over the Runway data and the research file finds no single-date forecast |
+| D-V3-22 | An optional exam-season freeze, set by the owner (the lead time stays in a private file, not in a tracked one): while it is set only bug fixes merge into `ww/study/**`, `ww/focus/**` and `ww_pyq/**`, and the old layout is not retired. The freeze is off by default (I34 stands) | `wave_check.py` refuses a feature package touching those folders while the private freeze file exists |
+| D-V3-23 | The private data folder is backed up to a private repository by the owner. Nothing changes in the public rules: no personal details in tracked files; names of institutions, courses and exams dates stay out | The privacy scan of A.Q03 finds no institution name, course name, account name or date in a tracked file |
+| D-V3-24 | Added by the critic, 14 Nov. Extend, never duplicate: every engine package names the existing module it extends (21.10), and a package that writes a parallel copy of a module on that map fails review. The owner's own papers and notes stay in the private review Store; they reach the generator through the `bank` argument of `ww_generator.generate`, and `ww_bank_store` is not edited (it refuses verbatim text without a recorded open licence, and keeps refusing) | The map of 21.10 lists the module for each of the 18 engine packages; a grep over `app/jarvis_app/ww_pyq/**` finds no write to `bank_root()`; `app/tests/test_ww_bank_store.py` is unchanged |
+| D-V3-25 | Added by the critic. The engine plan file governs route shapes and engine packages (its `/api/mission/` prefix and `state`, `reason`, `source` envelope); this document governs scope and screens. Where they differ on a route shape or on which engine package owns what, the plan file is corrected here, not the other way | `wave_check.py` route check reads paths from the plan file only; a diff between the route paths of Appendix A and the plan file is empty before EW7 |
+| D-V3-26 | Added by the critic. Two lists are never named alike: the gain-ranked "Practise next" of the Study side (E07, `practiseNext`) and the Today list "Next Three" (DB01, DB11); `ww_director.py` (the existing ordered next-action list) is the input DB11 extends, not a third ranking | A grep finds `next_three` and `nextThree` only in DB01 and DB11 files; DB11's tests import `ww_director` |
+| D-V3-27 | Added 14 Nov on the owner's instruction. The owner's 20 principles (animation 1 to 12, usability 13 to 20) are binding for every visible package and are written once, in `docs/design/ux-principles-checklist.md`, each with what it means in this product and a check. A builder reports which principles it applied and how; a reviewer checks them; a juror scores against them beside the rubric and the clay references. The wave comms board carries the rule as standing rule 7, so both lanes read it | The checklist file exists and lists 20 numbered principles each with a check; `python tools/wave_comms.py show` prints rule 7; a builder report with no principles line is returned by its reviewer |
+| D-V3-28 | Added 14 Nov after the wave 6 jury (6.6 design, 6.4 usability; pass line 8.0). In the default themes a labelled control is a clay object with no hairline outline (raised face, rim light, a pressed state that sinks); the shell's own buttons, tiles and inputs follow the same recipe as the data plates. A 3:1 cue stays inside every state-bearing control, and high-contrast and forced-colours themes keep hard edges. One warm accent fill per screen, on the single main action | The bench screenshot of each kit control in the default light and dark themes shows no 1 px border on a labelled control; the forced-colours spec still passes; a lint over the Core view finds one accent-filled control |
+
+**Where the lenses disagreed, and what was chosen.**
+
+| Question | Lens positions | Choice and reason |
+|---|---|---|
+| Who owns `ww/study/ports.ts` | Lens 1: the first engine package. Lens 6: the section package | The section package (Y01 owns every Study port). A port always lands one wave before its engine; an engine package may not own a UI file (D-V3-17) |
+| Who owns the TypeScript adapter files | Lens 6: the engine packages (E15, E16). The lane rule of this chat's brief | New UI packages AD08 to AD12 own the adapters of each engine wave; an engine owns Python only |
+| Hand-written OAuth or the Google libraries | Lens 2: standard library. Lens 6: `requests_oauthlib`. The owner: libraries approved | The approved Google libraries plus `keyring` (D-V3-7) |
+| Drive scope for attachments | Lens 2 and lens 6: none first. Lens 1: "probably a Drive read scope" | None in the first version; a separate switch later, only after his explicit yes per scope |
+| A 37th view `study.exam` | Lens 1: yes. Section 3: five views per section | A face of `study.plan` (D-V3-15), registered through a glob folder owned by Y03 |
+| Exam Season: view `day.exams` or a mode | Lens 3: a mode of Study and Today with its own id. Lens 4: Season mode of Today | One mode of `day.today` (the specimen swap) that also carries lens 4's paper strip; Exam Room holds the per-subject detail |
+| Two review queues (lens 1 FSRS in the question engine, lens 4 review queue module) | Two modules | One queue module, package X09 (D-V3-14) |
+| `ClassroomShelf` (lens 1), `ConnectLadder` (lens 2), `LinkSteps` (lens 6) | Three step lists | `ConnectLadder` and `ClassroomLink` only |
+| Classroom export import (lens 6) and Manual Intake (lens 2) | Two fallbacks | Both: the Archive door is a fourth door of the Manual Intake desk (package E17) |
+| Package id `P01` for the Runway board (lens 6) | Collides with the prototype block A.P01 | Renamed RB01 and left in reserve (21.9) |
+| E10 and E11 as engine packages | They are JSON data under `app/ui/src` | UI lane (data files), ids kept |
+| Where the paper-strip chips of lens 4 and the Exam Season rose of lens 3 live | Two season layouts of Today | Merged into DB04 |
+
+### 21.2 The forecast
+
+All figures come from the forecast lens (written 13 Nov). **The overnight gap of 13 to 14 Nov produced no work**, so wave 6 has not advanced since the lens; day 1 of the calendar below is 14 Nov and holds only if the loop restarts on 14 Nov. Every figure is an estimate, drawn with the PLANNED lamp and the `estimate` chip (D-V3-21), and is never one date.
+
+**Inputs (measured by the integrator).** A clean wave of 4 to 5 packages costs 85 to 100 minutes of agent time plus 40 to 70 minutes of integration. Wave 5 took 4.8 hours of wall time, 100 minutes of it lost to two agent stalls. Wave 6 (7 packages: D01 to D05, J01, L02) lost 76 minutes to an outage and has not finished; D01, D04 and L02 are merged, D02, D03, D05 and J01 are in review. Every jury so far scored below the 8.0 pass line. 35 packages remained after wave 6 before this section; this section adds 42 (21.8, Appendix A) and moves 12 engine packages into a parallel lane.
+
+**Cost of one slot** (one UI wave plus the engine wave beside it), in hours.
+
+| Part of a slot | Low | Mid | High | Basis |
+|---|---|---|---|---|
+| Builders, in parallel | 1.5 | 2.0 | 2.5 | Wave 5 builders took about 100 minutes; section packages are larger |
+| UI integration (commit, merge, tsc, vitest twice, bundle, full Playwright about 13 minutes, art build, preview) | 0.7 | 1.0 | 1.2 | Measured 40 to 70 minutes; sections add Playwright specs |
+| Engine integration (pytest on scratch dirs, bundle check) | 0.25 | 0.4 | 0.6 | No Playwright unless an adapter file changed |
+| Jury and records | 0.3 | 0.4 | 0.5 | Measured in wave 5 |
+| Rework | 0.5 | 1.2 | 2.5 | 0 to 2 rounds; no jury has passed yet |
+| Losses (stalls, outages) | 0 | 0.5 | 1.5 | 100 and 76 minutes in the last two waves |
+| **Slot total** | **3.25** | **5.5** | **8.8** | |
+
+The rest of wave 6 is estimated at 1 / 2 / 3.5 hours. The engine lane alone (no Playwright, no jury of its own) costs about 2.25 / 3.7 / 5.8 hours a wave (builders, engine integration, records, rework 0.2 / 0.6 / 1.2, losses 0 / 0.3 / 1.0): five engine waves are about 11 / 18.5 / 29 hours and run beside the UI waves, so the engine lane is not the critical path and has about 25 hours of slack for the reserve backends (21.9).
+
+**The plan of 15.6 (eight UI waves, UW7 to UW14, five engine waves EW7 to EW11), milestones in running hours from now.**
+
+| Milestone | What has to merge | Low | Mid | High |
+|---|---|---|---|---|
+| A. Exam generator usable end to end (smallest slice, 21.3.5) | rest of wave 6, two slots (UW7 with EW7, UW8 with EW8 and the adapters AD08), plus a 0.5 h smoke test on one real paper | 8 | 13.5 | 21.6 |
+| C1a. Classroom fallback, folder door | same as A | 8 | 13.5 | 21.6 |
+| C1b. Classroom fallback, paste and calendar-file doors on the Life month | A plus UW9 (three slots) | 11.3 | 19 | 30.4 |
+| B. Every section rebuilt and visible behind the flag | rest of wave 6, UW7 to UW11 | 17.3 | 29.5 | 47.5 |
+| C2. Classroom connector live | UW7 to UW12 (C08 in UW11, AD11 in UW12), EW9 and EW10, plus his own Google sign-in | 20.5 | 35 | 56.3 plus owner time |
+| D. Flag flipped, old layout retired | rest of wave 6, UW7 to UW14, plus his gallery pass (1 / 2 / 3 h) | 28 | 48 | 77 |
+
+**Arithmetic check (critic, 14 Nov).** Each milestone is the rest of wave 6 plus whole slots of 3.25 / 5.5 / 8.8 h (plus the 0.5 h smoke test for A and C1b and his gallery pass of 1 / 2 / 3 h for D). B (5 slots), C2 (6 slots) and D (8 slots) were right. A and C1b were not: the first draft gave A 7.5 / 12.3 / 19 and C1b 10.8 / 17.8 / 27.8, which does not follow from two and three slots (A is 1 + 2 x 3.25 = 7.25 low, 2 + 2 x 5.5 = 13 mid, 3.5 + 2 x 8.8 = 21.1 high, plus the smoke test; C1b is 1 + 3 x 3.25 = 10.75, 2 + 3 x 5.5 = 18.5, 3.5 + 3 x 8.8 = 29.9, plus the smoke test). The figures above are the recomputed ones, rounded to the half hour in the cautious direction; the rework band behind them is a guess (two measured waves), so none of them is better than plus or minus a third, and the table says "about" for that reason. The 90-hour case named below is above the high column of D (77) and is the stress case, not a bound.
+
+The forecast lens's own D, for a plan with five UI slots, was 18 / 31.5 / 50.5. This plan has three more UI slots (dashboards, the Study screens with their adapters, the Intake UI, the Exam Room), so D moves by 3 slots, 9.75 / 16.5 / 26.4 hours. A and C1a do not move because Study and its adapters come first.
+
+**Calendar days, with wave 7 starting on 14 Nov (day 1 = 14 Nov).** Effective hours are the daily hours minus 0.5 h to restart after each break. Each figure is the ceiling of hours over effective hours, shown low / mid / high, with the date range.
+
+| Laptop runs | A. exam slice | B. sections visible | C2. classroom live | D. flag flipped |
+|---|---|---|---|---|
+| about 8 h a day (7.5 effective) | 2 / 2 / 3 days (15 to 16 Nov) | 3 / 4 / 7 (16 to 20 Nov) | 3 / 5 / 8 (16 to 21 Nov) plus owner | 4 / 7 / 11 (17 to 24 Nov) |
+| about 12 h a day (11.5) | 1 / 2 / 2 (14 to 15 Nov; the high case needs 21.6 h, so day 2) | 2 / 3 / 5 (15 to 18 Nov) | 2 / 4 / 5 (15 to 18 Nov) plus owner | 3 / 5 / 7 (16 to 20 Nov) |
+| about 20 h a day (19.5) | 1 / 1 / 2 (14 to 15 Nov) | 1 / 2 / 3 (14 to 16 Nov) | 2 / 2 / 3 (15 to 16 Nov) plus owner | 2 / 3 / 4 (15 to 17 Nov) |
+
+**What the forecast cannot know.**
+- When wave 6 ends.
+- How many rework rounds the jury forces: two rounds on every section plus one outage per slot put D near 90 hours with eight slots.
+- When the owner is free for the gallery pass and for the retirement OK (B13).
+- Whether his personal account lets the application read Classroom through his own Cloud project (his classes are reachable from it, which is better than a school account, but only his sign-in will show it).
+- Agent-plan usage limits and outages.
+- CPU and GPU contention from about ten agents on one laptop, and from RapidOCR sharing the GPU with a resident local model.
+- Whether real papers have a text layer, and how the real decks and papers behave under `find_tables()`.
+- How the first jury of each new dashboard scores.
+
+**Each added expansion wave** costs one slot (3.25 / 5.5 / 8.8 hours) and pushes D back by that amount; reserve work of 21.9 is therefore placed after the flip.
+
+**The three cheapest ways to shorten the calendar.**
+1. Two lanes: four serial engine waves cost about 0.4 h each of extra integration instead of 5.5 h each, so about 20 hours (roughly 2 days at 12 hours a day) are saved.
+2. The laptop on mains and awake, the stall watchdog (relaunch an agent after 15 minutes with no output, on the same worktree and prompt) and the one-command offline integration `tools/integrate_wave.py` (tsc, vitest, bundle, `wave_check`, Playwright and the art build in one report): 0.5 to 1.5 hours of losses plus 15 to 25 minutes of integration per slot, about 4 to 10 hours in all.
+3. Batch the rework into one rework wave (RW1) and run the full Playwright suite once per slot with targeted specs on re-runs: rework falls from up to 2.5 hours a slot to about 1, which saves about 3 to 6 hours. Scores ratchet: no section merges below its previous jury score.
+
+**If the exam season arrives first.** Keep Y01 to Y03, X03, AD08, E05 to E08, M01, E17, L04 and L01 (exam dates on the month), C03. Defer the Syllabus Landscape, the Retention Orrery and the Exam Room face as plain lists with lamps; defer OCR and `MODEL` tags; use the folder door and the paste door instead of the live connector; enter exam dates by hand; keep the classic pages inside the new shell for J03 to J05; never flip the flag during exams. Turn the freeze of D-V3-22 on before the first paper.
+
+
+### 21.3 The exam generator: from a PDF, a deck or a scan to a marked practice paper
+
+**What 21 adds to 20.7, and which governs.** 20.7 (the Paper Desk, the Review Desk, patterns, Next three, the generator overlay, Drill) stands. 21 adds the following; **where they differ, 21 governs**:
+
+1. **Crop-first questions** (D-V3-4): 20.7.9 stored the stem as text; now each question stores its page crop and the text is a status-bearing layer.
+2. **Ingest of slides and of scans**: 20.7.9 left OCR "needs the owner's OK" and said nothing of slide decks; the installs are now approved (D-V3-6) and slides are read (D-V3-5). Text-layer PDFs need no model and no OCR.
+3. **Tables**: a page table with question, marks, course-outcome (CO) and Bloom-level (BL) columns is read as rows, and BL seeds the difficulty draft.
+4. **The blueprint is a stored, validated object per exam** (sections, set and attempt counts, marks each, internal choice, duration, total), with a Blueprint Editor. 20.7.6 "copy a real paper's structure" becomes "confirm an inferred blueprint".
+5. **The generator fills slots by a printed, seeded rule** (bank, then templates, then a dashed model draft, then a hollow slot) and may not emit an unbalanced paper (the 9 Nov audit bug: a 20-mark internal borrowing the 60-mark pattern).
+6. **The student marks; the model never grades** (D-V3-13): rubric chips, `marked_by`, a Marking Desk.
+7. **A timed attempt is a "paper" track of `focus.session`** (the Exam Hall).
+8. **The Exam Room** is a face of `study.plan` with a Readiness Ledger of three counts and no score (D-V3-12, D-V3-15), and **Tonight** is a state of it.
+9. **A Quiet list** (topics not set in the last r papers) beside the frequency counts, never worded "due".
+10. **Print by the browser's print to PDF** (A4 stylesheet): paper, key, marking sheet, Night sheet. No PDF library. KaTeX stays the open maths question (Q-V3-8).
+11. **The harvester** (21.3.6) brings public papers of GATE, GRE, the aptitude test of dMAT and the university's question-paper site into the same intake, with manual drop-in as the fallback.
+
+**Already on main and reused:** `ww_generator.py` (pattern generator, EWMA proficiency, `paper_invariants`), `ww_bank_store.py`, `ww_numericals.py` (sympy keys), `ww_exams.py`, `ww_harvest.py`, the marks route. In `.venv`: PyMuPDF 1.28.0, onnxruntime 1.27.0, sympy, `keyring` 25.7.0, `pytesseract` (no binary, unverified). The older harvester note on `pdftotext` ("no Python PDF library") is superseded by PyMuPDF.
+
+**Shared grammar of 20.7 holds:** ground `#E8EAE9` / `#171717`, `#F25623` as fill only, a lamp on every number, 44 px targets, a 2 px focus ring, a static form for every motion, no canvas in Study.
+
+#### 21.3.1 Ingest: the sources, in the order the student meets them
+
+| Source | Route | Result |
+|---|---|---|
+| Text-layer PDF (class notes, internal-test papers, previous-year papers) | PyMuPDF `get_text("dict")` per page; render each page once at 150 dpi; `find_tables()`; segmentation | crop-first questions, text `verified` |
+| Slide deck as PDF export | same route; each slide is one unit with its title | `slide` units with crop and text |
+| Slide deck as `.pptx` | the existing `yaadash.library.extract` (python-pptx, already installed): slide titles from the title placeholder, text runs, notes ignored; no new install | `slide` units with `text only` status (a crop only if a PDF twin with the same stem is present) |
+| Scan or photo | RapidOCR on onnxruntime, GPU build; page rendered at 150 dpi | text `unverified`, crop kept; with no engine the page reports FAULT and the rest of the paper imports |
+| Syllabus, assignments (from Classroom or pasted) | Intake (21.4) then the same ingest | units for the syllabus; assignments are Intake rows, not questions, unless he marks one as a paper |
+| Harvested or dropped previous-year papers | the harvester manifest (21.3.6) or manual drop-in, then the same ingest | as above, with a source note in the paper row |
+
+**Ingest rules (no model needed).**
+1. A page has a usable text layer when it gives at least 40 characters and at least 80 percent of its tokens are words, digits or maths symbols (targets, to tune on his real papers).
+2. Render each page once at 150 dpi; the crop PNG is stored under `data/` and never leaves it.
+3. Try `find_tables()`. When a header row names the question and marks columns, each table row is a question, and the CO and BL columns are read when present; the trace prints `p1 table 5 cols: Q, text, marks, CO, BL`, and the form shows `CO3` and `BL4` chips (`RULE`). BL1 and BL2 seed "easy", BL3 and BL4 "medium", BL5 and BL6 "hard" (`RULE`, replaced by his attempts after n of at least 5).
+4. Otherwise segment by the start pattern of 20.7.9, with a question's left edge within 12 pt of the page's modal left margin. The bbox is the union of the question's blocks plus 6 pt.
+5. A page without a text layer goes to OCR if an engine is installed; its text is `unverified`. With no engine it reports FAULT.
+6. The trace logs real events only (the log of 20.7.2 is the run's actual event list).
+7. Duplicates are found by file hash and skipped ("already on file").
+
+#### 21.3.2 Screens (all inside the existing Study and Focus homes; boxes at 1366x768)
+
+**S1. Import tray** (grows from the Drop Slot of 20.7.1). On hover or drop the 300 x 100 slot becomes a 300 x 260 tray: four 44 px route rows (Drop, Paste, Folder, Classroom) with lamps, then up to four queued rows with a `Trace` of words per page. Paste opens a 600 x 360 sheet. Data: queued files (LIVE count), method chip (`text-layer`, `ocr`, `pasted`, `slides`), the folder WAITING until chosen, Classroom PLANNED or its live state. Keys: `A` files, `V` paste, `W` folder; Enter on a row opens its Extraction Trace. Motion: rows rise 8 px and fade in, 160 ms (static: present). Mobile: a bottom sheet, paste only. Empty: "Nothing queued" in `AsciiPlate`. No art, so the Strata keeps attention.
+
+**S2. Review Desk additions** (overlay `pyq-review`). Crop handles: four 44 px corner handles per question box on the page image; `Shift+arrow` moves an edge 4 px; the crop re-renders on release. Tabular papers show CO and BL chips. Text status: `TEXT verified`, dashed `TEXT unverified` or `CROP only`; `T` toggles crop and text side by side; OCR clean-up arrives as a `MODEL` diff to accept. Rubric strip (`R`): 1 to 6 points with marks; "Draft points" asks the local model (dashed until accepted); points must sum to the question's marks.
+
+**S3. Pattern Loom** (overlay `pyq-patterns`, 1100 x 620). A 200 px rail of five 44 px tabs; canvas 900 x 620. Frequency: topic rows "k of N" with a Wilson bar. Marks weight: a `Ridge` per unit with a min-to-max band. Pairs: `PatternLoom` arcs for pairs set together in at least 3 papers, 1 to 4 px stroke. Quiet: `QuietList`, topics not set in the last r papers on file, r printed (r = 3, or N if fewer papers), never "due". Repeats: families, one row of year pips each. Figures are LIVE at N of at least 3 papers and 20 reviewed questions, else WAITING "too few papers". Footer: "From papers on file. This prepares practice; it does not predict a paper or a result." Keys: arrows within a lens, Enter opens the questions behind a figure, `p` practises the topic. Motion: arcs draw in 240 ms once per open (static: drawn). Mobile: one lens per screen under a `Segmented` row. Art: a quiet backdrop of C04-15 re-drawn as 1 px cells at 5 percent (private track); the cells encode nothing. Empty: an ASCII loom of bare threads, "Two more papers and the patterns open."
+
+**Improvement written by the critic (14 Nov; the third of the three weakest screens: five lenses of arcs, ridges and bars are figures with no reading, and the Pairs arcs in particular cannot be read by a screen reader or compared by eye).** (1) Every lens opens with one sentence in the page's own words, built from the same counts, before any figure ("Unit 2 and Unit 5 were set together in 4 of 6 papers."), so the figure confirms the sentence instead of asking to be decoded. (2) Every lens has a table twin on `v` (the same rows as a `LedgerTable`, sortable by count), which is also the accessible reading and the print form; the figure is the second view, not the only one. (3) Pairs shows only the top 8 pairs by count and says "8 of 31 pairs shown", with the rest in the table twin, so the arcs never become a knot. (4) The "too few papers" state shows the figure ghosted with the number of papers and questions still needed ("2 more papers, 9 more reviewed questions"), the counts the floor of E07 actually tests. Test: each lens has a sentence and a table twin with equal numbers; the Pairs lens draws at most 8 arcs on a 31-pair fixture.
+
+**S4. Blueprint Editor** (overlay `pyq-blueprint`, 1100 x 620). Top 1100 x 64: exam, duration `Odometer`, total Readout, source-paper chip, invariant lamp (LIVE "balanced" or FAULT with the reason). Main 700 x 556: `BlueprintTable`, one 56 px row per section (label, set and attempt `DetentRack` steppers, marks each, allowed types, choice rule `any k of n` or `OR pairs`, unit limit). Right 400 x 556: a live A4 skeleton at 0.42 scale and "minutes per mark: 3.0". Keys: `Alt+arrow` reorders, `+` adds a section; "Infer from a paper" proposes sections (`RULE` until saved). Motion: the lamp cross-fades in 120 ms. Mobile: rows as cards, preview behind a button. Empty: "No blueprint. Infer one from a paper on file."
+
+**S5. Generator and Variant Bench** (overlays `pyq-gen` and `pyq-variants`, 1100 x 620). Generator step 2 shows a `SlotStrip` per section: 44 px slots with a source chip (`HAND`, `RULE`, `TEMPLATE`, dashed `MODEL`, hollow "needs 1"), topic, marks and a reason line ("highest gain in Unit 3; not attempted for 18 days"). Reseed redraws; the seed is printed. Slots fill with a 30 ms stagger (static: filled). Variant Bench: original crop left (540), draft right (540) as a `VariantPair` with a word diff and check chips (similarity band, marks equal, topic equal). Enter accepts, `E` edits, Backspace rejects; accepted drafts keep "drafted by model, accepted by you".
+
+**S6. Exam Hall** (track "paper" of `focus.session`, 1230 x 652, charcoal). Left 760: the current question at reading size, internal-choice siblings as tabs. Right 454: `PaperClock` 360 x 360 (a ring segment per section sized by time share, a tick per elapsed minute), a `SlotList` of questions (not started, open, done, left), and the terminal strip `> sec B 22 min | q7 done | 3 left in section`. Keys: `j`/`k` question, `d` done, `s` leave for later, Space pause. "Print the paper first" is the default start; answers are written on paper as in the hall and the application records per-question time from key presses. Motion: one tick per minute, nothing at idle. Mobile: not offered (the print is the phone route). Art: C03-03 cropped to the ringed floor below the horizon, symbols removed, traced to 1 px contours at 5 percent behind the clock (private track). No camera is used and none is added: an answer sheet he has scanned by other means is an optional local file he drops in, never read by a model (critic, 14 Nov: "photo" removed; the application has no capture feature). End: "Paper closed. Mark it now or later."
+
+**S7. Marking Desk** (overlay `pyq-mark`, 1100 x 620). Left 540: the crop and an optional answer photo. Right 540: `RubricChips` (each point a 44 px chip), a numeric field for numericals ("matches the key" or "does not match"), and the total labelled "marked by you". Keys: `n` next, `0` to `9` toggle a point; without points, whole marks on a `DetentRack`. No colour for low marks. A question below half marks, or one marked "keep", becomes a review card, listed as "6 cards made".
+
+**S8. Exam Room, the second face of `study.plan`** (1230 x 612; a `Segmented` switch "Calendar | Exam room" at the top left; the Syllabus Landscape of 20.7.3 and the quilt are two projections of the same syllabus). Top 1230 x 72: subject `FolderTabs`, exam date and duration (LIVE from the date sheet), blueprint chip. Left 520 x 540: `CoverageQuilt`, the syllabus as a squarified quadtree whose cell area is the marks weight on file; solid is marked practice in the last 21 days, hatched is self-marked only, outline is untouched; caption "Topics practised: 14 of 23. Their share of marks weight on file: 58 of 100." Middle 340: `EvidenceTape` (a tick per attempt, a tall tick per timed paper, 30 days) and Readouts for timed papers, questions marked and cards due. Right 346: five gap rows ("Unit 4, transfer functions: set in 5 of 6 papers, not practised"), each with Practise, then "Make a paper on these gaps". Footer: "Evidence of practice, not a forecast of marks." Keys: arrows across the quilt (roving tabindex), Enter opens the topic, `g` makes the gap paper. Motion: cells fade in by area, cap 200 ms (static: drawn). Mobile: quilt 358 x 300, then Evidence, then Gaps. Art: C04-19 wireframe chart panel re-drawn as a 1 px grid with corner brackets at 6 percent behind Evidence (private track); C02-16 gives the Readout plate pattern, structure only. Empty: "Add a paper on file to weigh the syllabus."
+
+**S9. Tonight** (a state of the Exam Room). Offered as a 44 px plate when the date sheet has an exam tomorrow after 17:00, or opened with `t`; it never opens by itself. Left 640, charcoal: three lists from his own records (repeated families as crops, his formula and definition cards, three quick gaps). Right 574: a stop-time `TickSlider` (his choice), "Print the Night sheet" and art. Copy: "Go through what you choose, then stop at the time you set." No timer, no remaining count. Art: C04-11 cropped to the seated figure on the dune with the orbit arcs, text removed, grey duotone, 360 x 480, static (private track).
+
+**S10. Print set.** A4, 18 mm margins: the practice paper (header "Practice paper from your bank. Not an official paper.", the seed in the footer), a separate key, the marking sheet, the Night sheet and the pattern tables.
+
+#### 21.3.3 Logic and data
+
+**Storage** (the field lists below are the contract; the format is the engine chat's choice: today's Well Wisher code keeps JSON and JSONL files under the data directory, written atomically, and no database, so JSONL is the default and SQLite from the standard library an allowed alternative; nothing leaves `data/`): `crops` (question id, page, bbox, PNG path, text status); `blueprints` (exam id, source paper, duration, total, sections as JSON, origin); `gen_papers` (blueprint id, seed, question ids); `paper_attempts` (question id, opened, done, marks, `marked_by`); `rubric_points` (question id, text, marks, origin); `variants` (source question, draft, checks, status).
+
+**Tags and patterns** follow 20.7.9 with two additions: Bloom seeds (above) and Quiet (a topic that does not appear in the last r papers, r = 3 or N).
+
+**Blueprint inference.** A heading matching `^(section|part)\s+[A-Z]` opens a section. Its `marks_each` is the modal marks value of its questions, and an "attempt any k" phrase sets the attempt count. Three invariants hold: the sum of attempt times marks_each equals the total; the set count is at least the attempt count; OR choices come in pairs. An unbalanced blueprint is refused by the generator.
+
+**Generator (pure, seeded).**
+1. A question is a candidate for a slot when its type is allowed and its marks equal `marks_each`, or its sub-parts sum to it.
+2. Each candidate's weight is `gain_t` (20.7.9) times 0.3 if attempted in the last 14 days, else times 1. A family appears at most once in a paper.
+3. Draw the set count by seeded weighted sampling without replacement: at most 2 questions per topic in a section, distinct units where possible.
+4. Fill a shortfall with templates (`ww_numericals`), then the Variant Bench queue, then hollow slots.
+5. Emit nothing unless `paper_invariants` passes. Minutes per question = marks times duration over total.
+
+**Variants.** Numerical variants come from the templates only. For a descriptive variant the 4B model receives the stem and topic with the instruction "same concept, same marks, new context". The draft must have a 5-word-shingle Jaccard to the original between 0.2 and 0.7, and it stays `MODEL` and dashed until accepted.
+
+**Marking and review.** Marks go to `paper_attempts` and to the existing marks route, so the EWMA proficiency updates. A question below half marks, or one marked "keep", becomes an `fsrs` card (default parameters, desired retention 0.90). One queue (D-V3-14) serves all producers.
+
+**Readiness (counting only).** Practised weight: `w_t = m_t x k_t / N`, normalised to 100 points; practised weight is the sum of `w_t` over topics with a marked attempt in the last 21 days. Evidence: counts of timed papers, marked questions and due cards. Gaps: the five topics with the largest `w_t` and no marked attempt. No combined score exists.
+
+**The local model drafts only**, always labelled `MODEL`, and the rules-only switch turns all of it off: tags for uncertain questions (chosen among existing topics), OCR clean-up diffs, rubric points, descriptive variants, reworded hints. It never produces a grade, a numeric answer, a probability or a new topic.
+
+**New components** are in 21.8 (`CropCard`, `BlueprintTable`, `SlotStrip`, `VariantPair`, `PatternLoom`, `QuietList`, `CoverageQuilt`, `EvidenceTape`, `PaperClock`, `RubricChips`, `NightSheet`).
+
+#### 21.3.4 What needs the owner
+
+- GPU use for OCR: RapidOCR shares the GPU with the resident local model; the loader of JH04 refuses a load that does not fit and names the numbers (21.7).
+- The sizes of the four approved installs are measured before the package that needs them merges (D-V3-6).
+- KaTeX (about 0.6 to 0.7 MB, an estimate) for maths in the print set remains his decision (Q-V3-8); until then maths prints as the crop.
+- His own Google steps (21.4.1) for the Classroom route; Route B (the watched folder) needs none.
+
+#### 21.3.5 The smallest slice worth shipping first
+
+**Usable at milestone A** (the end of the second slot after wave 6). The backend is built in the engine lane (EW7: E05, E06, E07, E08, C01) while the UI lane builds the Study screens (UW7: Y01 and Y02; UW8: Y03, X03 and the adapters AD08). The student can:
+- drop text-layer PDFs and slide decks (as PDF, or `.pptx` text) on the Paper Desk or put them in the watched folder;
+- get crop-first questions from rule segmentation, with tables read when present;
+- accept, edit or reject them, with hand tags and the cosine `RULE` suggestions;
+- confirm a blueprint, inferred from a paper or copied from the exam's pattern;
+- generate a paper from the accepted questions, the existing bank and the templates;
+- print the paper and its key from the browser;
+- type marks per question into the existing marks loop.
+
+**It leaves out:** OCR of scans (reports FAULT), patterns beyond "k of N", model suggestions and variants, the Exam Hall and the Marking Desk, the Readiness Ledger, Tonight and the review queue, the harvester adapters and the Classroom live connector. Their order: OCR and variants (EW8), the review queue and readiness (EW9), the harvester (EW8 and EW9), the Exam Hall and Marking Desk (UW10), the Exam Room (UW11).
+
+#### 21.3.6 The harvester: public previous-year papers, locally
+
+**Purpose.** Make public previous-year papers of GATE, GRE, the aptitude test of dMAT and the university's question-paper site available on the laptop, politely, with a record of where each file came from. It extends `ww_harvest.py`, which already holds the politeness rules (robots per host once a day, one request at a time, 2 to 5 seconds between requests, a User-Agent that names the project and carries no address, every page cached, never a login, never a second 403 or 429) and the licence ledger of `docs/research/question-sources.md`.
+
+**Design.**
+1. **Per-source adapter.** One small module per source (`ww_harvest_sources/<source>.py`) with a fixed interface: `name`, `rights` (`pointer` or `local copy`), `terms_note`, `index(session) -> list[Item]` (what the publisher lists), `fetch(item) -> bytes`. The adapter holds only that site's list and file layout; the framework holds every politeness rule.
+2. **Manifest.** `data/bank/questions/_harvest/manifest.jsonl`: one line per fetch (source, url, fetched on, bytes, SHA-256, robots checked on, terms note, rights, local path or "pointer only"). Re-running is idempotent by hash. The manifest is the answer to "where did this file come from".
+3. **Switches.** Every source is off. He switches a source on in the Library, after reading its terms note, and a local copy needs a second, separate switch. A source with no recorded terms note stays off with the reason printed.
+4. **Rate and manners.** At most 1 request per 3 seconds per host (2 to 5 seconds, random), 200 requests per host per day, `robots.txt` honoured (a disallow stops that path), a conditional request when the host supports it, backoff on 429 and 503, and a stop for the day on a second 403 or 429.
+5. **Manual drop-in is the fallback and the default.** A file he downloads in his browser and puts in the watched folder joins the manifest as `source: manual`, so the pipeline below is identical.
+6. **Hand-off.** A fetched or dropped PDF enters the same ingest (21.3.1) as a pending paper; nothing enters the bank unreviewed.
+
+**What is not verified.** The page structure of each site, whether each publisher's terms allow a local copy, and whether GRE publishes previous-year papers at all (it may publish only practice material, in which case that adapter lists only what the publisher offers and the rest stays manual). Each adapter is written against the real page only after he has switched that source on and read its terms; the framework (HV01) ships first, the adapters (HV02) after. The earlier rule that GATE papers are pointers only stays for a source he has not switched to a local copy.
+
+**Needs the owner.** Each source switch and each local-copy switch; the terms note he is satisfied with; the watched folder.
+
+#### 21.3.7 Ideas kept in reserve (exam engine)
+
+- Oral viva: a spoken short answer, transcribed locally and self-marked.
+- Two mock sets that share no family.
+- A paper diff between two years of a subject, with families aligned.
+- A cross-subject Quiet board for the exam season.
+
+### 21.4 The classroom connector ("gcr" is Google Classroom)
+
+**Findings that shape the design** (from the pages the lens opened, section Sources of the research file).
+1. In Testing status, authorisations and refresh tokens of test users expire after 7 days once any scope beyond basic profile is requested. A personal client therefore needs a reconnect about weekly unless it is published (D-V3-8).
+2. A Workspace administrator can block or leave "unconfigured" third-party apps ("Access blocked: your institution's administrator needs to review [app]"; `access_not_configured`, `admin_policy_enforced`). He reaches his classes from a personal account, which makes this unlikely, but the state is designed anyway (BLOCKED).
+3. Drive: `drive.readonly` is a restricted scope; `drive.file` is non-sensitive but covers only files the user picks through a Picker. Attachments therefore cannot be fetched under a light scope, so the manual download into the watched folder is the main route for course material even when the API works (D-V3-7).
+4. A student-side read needs only read-only scopes for courses, own coursework, own submissions, course materials and (behind its own switch) announcements. Rosters and teacher scopes are never requested.
+
+**What this adds.**
+1. One honest control, `ClassroomLink`, with five states PLANNED, WAITING, LIVE, FAULT, BLOCKED (BLOCKED is a FAULT subtype with its own copy). The label never says "connected" before a first successful read.
+2. **The Manual Intake desk ships first and stands alone** (folder, paste, calendar file, and the Archive door). It needs no account.
+3. Classroom items are Intake rows with a source, a state and a Take action (D-V3-9).
+4. Deadlines land on the Life month as the existing "from Google" notch kind, with the words "from Classroom", never in his own counts; "turned in" is a separate outline-notch.
+5. Material becomes exam-engine input only on his action: a five-step ladder LINKED, ASKED, DOWNLOADED, MATCHED, INGESTED, of which the connector can reach LINKED alone.
+6. A per-course mapping to subjects (token overlap suggests, he confirms, a Trim key edits).
+7. Token age is a gauge: "token day 5 of 7" while in Testing; at expiry the lamp goes WAITING with one key "Reconnect".
+8. A sync log in the Console in the terminal grammar: one line per call group, counts only.
+9. Disconnect and Delete are two keys with plain consequences.
+10. Read-only, always. Writing planned blocks to Calendar stays in E04's separate, off-by-default switch.
+
+#### 21.4.1 What the owner does, click by click (he does all of it; the assistant never sees a credential)
+
+Menu labels in Google's console changed in 2025 ("Google Auth Platform" holds what used to be the OAuth consent screen). The labels below are from memory of the console and were **not verified in this session**; if one differs, the purpose of the step is stated so he can find the equivalent.
+
+1. **Open the project.** In a browser signed in to his personal Google account, open the Google Cloud console and choose the project he created from the project picker at the top of the page.
+2. **Enable three APIs.** Menu (three lines, top left) then "APIs & Services", then "Library". Search "Google Classroom API", open it, press **Enable**. Do the same for "Google Drive API" and "Google Calendar API". (The first version requests no Drive scope; enabling the API grants nothing by itself, and it is ready if he later says yes.)
+3. **Set up the consent screen.** Menu then "Google Auth Platform" (or "APIs & Services" then "OAuth consent screen", which redirects there). Press **Get started**. App information: any name he likes, and his own support email (he types it in the console). Audience: choose **External**. Contact information: his own email. Agree to the policy and press **Create**.
+4. **Keep it in Testing and add himself.** Under "Audience", check that Publishing status says **Testing**. Under "Test users" press **Add users** and add his own personal Google address, then **Save**. Only listed test users can sign in. The consent will show "Google hasn't verified this app", which is expected for a personal client.
+5. **List the scopes (optional but tidy).** Under "Data Access" press **Add or remove scopes** and add the read-only ones below, then **Save**. The application also names them at sign-in, so skipping this step does not block it.
+   - `classroom.courses.readonly`
+   - `classroom.coursework.me.readonly`
+   - `classroom.student-submissions.me.readonly`
+   - `classroom.courseworkmaterials.readonly`
+   - `classroom.announcements.readonly` (requested only if he switches announcements on)
+   - `calendar.events.readonly` (for the Calendar link, E04)
+   Scope names are the lens's list from Google's Classroom authorisation page; the exact calendar scopes are checked at build time.
+6. **Create the client.** Under "Clients" press **Create client**. Application type: **Desktop app**. Name: anything. Press **Create**, then **Download JSON** in the dialog.
+7. **Place the file.** Copy the downloaded file to `data\ww\google\client.json` inside the JARVIS project folder (create the `google` folder if it is missing). The file name must be exactly `client.json`. `data\` is git-ignored and backed up only to his own private repository. He never pastes the file's contents anywhere, and the application never prints its secret field.
+8. **Sign in.** In the application, open the Connect Ladder (Console, Connections, "Google Classroom") and press **Sign in**. The system browser opens Google's page. Pick his account, press **Continue** at the "hasn't verified" warning (Advanced, then "Go to the app"), tick the permissions listed, press **Continue** then **Allow**. The browser tells him to return to the application. The application waits 5 minutes for this and shows LIVE only after a first successful read of his courses.
+9. **Expect a weekly sign-in.** In Testing status the token lasts 7 days. The lamp shows "Reconnect" when it ends; nothing is lost. He may instead publish the client to production (status "In production", still unverified); whether that removes the 7-day limit is **not verified** (Q-V3-3).
+10. **If Google blocks it.** On `access_blocked` or an administrator message the application shows the BLOCKED copy and offers the Manual Intake desk, which gives most of the value.
+
+#### 21.4.2 Screens
+
+**S1. The Connect Ladder** (opens from `ww.gcr`, the Console Connections row and the Google lamp on `day.month`). A 760 x 640 panel centred over the dimmed shell. Left rail 220 px: the five steps as a vertical ladder, 56 px rows with a `SigilFrame` rule line between them: (1) "Create a Google Cloud project" (done by him), (2) "Set up the consent screen as External, add yourself as a test user", (3) "Enable the Classroom, Drive and Calendar APIs and create a Desktop client", (4) "Place the client file here" (the only file the application reads; shows present or absent), (5) "Sign in in your browser". Each step shows its own lamp: PLANNED until reached, WAITING while it waits for him, LIVE when verified by a harmless call. Step 5 shows the loopback listener countdown. Centre 520 px: the current step's text (at most 70 words), one primary key (44 px) and a "What this reads" strip listing the scopes in plain words ("your classes", "your coursework and due dates", "whether you turned in", "teacher materials", "announcements"), each with a hollow lock glyph. Foot 56 px: "Nothing leaves this computer except calls to Google. You can disconnect any time." and the token-age line. Mobile: the phone does not run the flow; the sheet says "Do this on the computer" and shows the lamp read-only. Keys: Tab follows the ladder; Enter opens a step; "Open Google Cloud" opens the system browser; Esc closes without changing state. Motion: the ladder draws the finished step's rule line over 160 ms; the listener countdown is a `DotTimer` of 5 minutes, one dot per 30 seconds (static: "4:30 left"). Art: C04-18 corner brackets and C04-113 as a 40 px border strip (duotone, cybersigil; the crops were not opened). WAITING (listener open): "Waiting for you in the browser. 3:10 left." with Cancel; after timeout the state returns to the step, not to a fault. BLOCKED copy: "Your account's administrator has not approved this app. You can ask the administrator to approve it, or use the Manual Intake desk, which gives most of the value." Two keys: "Copy the request text" (names the client id and the read-only scopes and nothing else about him) and "Open Manual Intake".
+
+**Improvement written by the critic (14 Nov; this was one of the three weakest screens: five coarse rungs hide the ten clicks of 21.4.1, and the application cannot see inside his browser, so a rung would turn LIVE on faith).** (1) Each rung expands in place into its own 44 px sub-checklist taken from 21.4.1 (rung 2 has four lines: Get started, External, Testing, add yourself as a test user; rung 3 has three: the three APIs; the Desktop client is its own line), each line with a hollow checkbox that **he** ticks ("I did this"; stored locally, never read as proof) and an "Open this page" key that opens the matching Google page in the system browser (the console URL of each page is built from the project id he types once, shown as text; the exact URLs are not verified in this session). (2) Rung 4 does one real check without reading any secret: it opens `data/ww/google/client.json`, parses it in memory and reports only three booleans, "file present", "type is Desktop (`installed`)" or "type is Web (wrong: create a Desktop client)", and "has a client id"; the secret field is never read into the UI. (3) A rung is LIVE only when a harmless API call succeeded, never because the box is ticked; a ticked box with no proof shows a half disc "ticked by you". (4) One line at the top, always visible: "About 10 minutes, once. Weekly after that." with the number of unticked lines left ("7 of 10 left"), which is a count, not a bar. Test: a fixture `client.json` of the Web type shows the wrong-type line; ticking every box with no client file leaves the Ladder at WAITING.
+
+**S2. The Link Lamp row** (`console.connections`). A 1230 x 72 row: `LinkLamp`, "Google Classroom", and three readings: Token ("day 5 of 7" with a 7-dot `DotTimer`), Last sync ("14:02, 6 courses, 41 items") and Next ("at most 4 a day"). Keys: Sync now (`s` when the row has focus), Reconnect (WAITING or FAULT only), Disconnect, Delete. A failed call shows FAULT with the one-line cause (network, token expired, blocked, quota). Static form: dots and words, no pulse.
+
+**S3. Course Mapper** (a popover 520 x 420 from a Trim key in the Study library header, and the Ladder after step 5). One 56 px `CourseMapRow` per course: the course name left (truncated at 36 characters, full name on focus), a `DetentRack` of subjects right, a "from Classroom" notch, a per-course switch "auto-accept new items" (off) and "pull announcements" (off). Empty: "No classes read yet." with the lamp state. Mobile: stacked rows, the dropdown a bottom sheet.
+
+**S4. The Intake ledger** (`study.library`, tab "Classroom"; the same component serves the Manual desk). Box 1230 x 612. Head 52 px: source filter (`Rocker` All, Classroom, Manual), the lamp, a count line ("11 new"), Sync now, and a Manual key opening S6. Table 860 x 548 (`LedgerTable`, 44 px rows, 11 visible): kind glyph (coursework, material, announcement), title, subject, due or posted date, source chip (`Classroom`, `Folder`, `Pasted`, `.ics`, `Archive`), state (NEW, ACCEPTED, DECLINED, DONE-BY-GOOGLE), attachments with their ladder. Detail 354 x 548: title, the first 300 characters of the description, the due date as local time (the original UTC value on hover), the `AttachmentLadder`, and keys Accept, Decline, Open in Classroom, Open in Drive. Keys: arrows, Enter, `a`, `d`, `o`, `x`, Shift+arrows for a batch Accept, Undo for ten seconds. Attachment actions: "I will download it" marks ASKED and opens the Drive link in the browser; he saves the file into the watched folder; the folder watch then offers MATCHED. **No key fetches the file for him.** Lamps: Classroom rows are LIVE only while the last sync succeeded, otherwise WAITING with "last read 12 Nov"; pasted and dropped rows are LIVE; bench fixtures are SIMULATED. Motion: new rows seat with a 40 ms stagger capped at 8 (static: none). Mobile: 358 px cards, the detail a bottom sheet. Empty (PLANNED): "Classroom is not linked. Drop a folder, paste a list or import a calendar below." WAITING after token expiry: rows stay, banner "Showing what was read on 8 Nov. Reconnect to refresh." Art: C02-46 for the Accept and Decline keys; the orrery C04-21 is not used here, to keep this screen quiet.
+
+**Improvement written by the critic (14 Nov; the second of the three weakest screens: an 11-row table of equal rows with a three-key detail is a chore queue, and 40 new items after a long weekend would be 40 decisions).** (1) Default order is by due date, grouped under three header rows in the table's own type, "Due this week", "Later" and "No date", each with its count, so the first screenful is what matters first. (2) One batch key per mapped course: "Accept all coursework from this course" (`Shift+A` on a course header), with the ten-second Undo, because a mapped course is already his decision; unmapped courses show a header "Map this course first" that opens the Course Mapper instead. (3) Rows he has seen and left alone for 14 days fold into one line, "6 older items, not accepted" (count only, no fault wording), never deleted. (4) The detail pane puts "Plan a block" next to Accept, so accepting a deadline and giving it a time is one flow ("Accept and plan" `Enter`, "Accept" `a`). Test: with 40 NEW fixture rows in two courses (one mapped) the first screen shows no more than 11 rows under at most 3 headers, and one `Shift+A` accepts the mapped course's rows only.
+
+**S5. Deadlines on the calendar.** Accepted coursework rows with a due date draw in the `day.month` cell as the notch mark: an outline notch if not turned in, a filled notch if Classroom reports TURNED_IN or RETURNED. The tooltip names course, title and local due time and says "from Classroom". The Day drawer gains a fourth fold, **From Classroom**, with "Open in Classroom" and "Plan a block" (a hollow planned block of his own, linked by id; marking his own work done is a separate tap). `day.today` "Due soon" lists the next three items with the words "from Classroom". Late and graded states appear only as Classroom reports them, in words ("Classroom says: returned"); the `assignedGrade` field is not read into the UI (Q-C6).
+
+**S6. The Manual Intake desk** (a mode of S4; the full product with no API). Four doors in a row, each 300 x 280, plus a drop target:
+1. **Folder.** "Download your Classroom files and drop the folder here"; the folder watch (E05) is WAITING until a folder is chosen and lists new files as Intake rows with source `Folder`.
+2. **Paste.** A `TermWell` text well: paste lines such as "Maths Assignment 3 - due 18 Nov 5pm". A live preview table shows the reading before anything is saved; unparseable lines are listed, not guessed.
+3. **Calendar file.** Drop an `.ics`; a preview table shows each event (title, start, end, whether it repeats) with a tick to keep.
+4. **Archive.** Drop a Classroom export `.zip` that he made himself: the files it holds are listed before anything is queued, and each is queued PENDING (E17; whether attachments owned by others are in the export is unverified).
+
+Keyboard: each door is one tab stop; Enter opens the picker; `Ctrl+V` in the Paste well parses. Mobile: paste and a file picker only. Previews have no animation.
+
+**S7. Sync log** (`console.connections`, a `TermWell` 600 x 260, 12 lines visible, newest on top, mono 12 px): `14:02 courses 6 ok . coursework 41 ok (3 new) . materials 12 ok . 612 ms`. Errors are a single `!` line with the cause. A Copy key exports the lines as plain text (no item content). The log never animates.
+
+**S8. Disconnect and Delete sheet** (480 x 360). Left: counts that would go ("41 coursework rows, 12 materials, 3 downloaded files, 1 token"). Right: **Disconnect** (revoke the token, keep rows) and **Delete everything** (revoke, remove rows, remove files the application downloaded or moved, never files he put in his own folders). The Delete key is held for 1.2 seconds with a `DotTimer` (static form: a two-step confirm). After it the lamp returns to PLANNED, Classroom rows are gone and manual rows stay.
+
+#### 21.4.3 Logic and data
+
+**Storage** (the field lists below are the contract; JSONL under the data folder by default, SQLite allowed, per the note in 21.3.3; nothing tracked): `gcr_courses` (course id, name, section, mapped subject, switches), `gcr_items` (key `gcr:<courseId>:<workId>`, kind, title, description, due UTC, due local, state, updated, submission state), `gcr_materials` (item key, kind drive, youtube, link or form; title; link; ladder stage; matched file path), `intake_events` (source, raw text hash, time), `gcr_sync_log` (time, call group, count, ms, ok). The token lives in the credential store (`keyring`) only.
+
+**Auth flow** (loopback, PKCE, through `google-auth-oauthlib`):
+1. The application reads `data/ww/google/client.json` in memory (client id and secret are never logged).
+2. It starts a listener on `127.0.0.1` on a random free port for 5 minutes, with a PKCE verifier and challenge and a random `state`.
+3. It opens the system browser to the consent URL with the read-only scopes and `access_type=offline`.
+4. On the redirect it checks `state`, exchanges the code, stores the refresh token in the credential store, discards the code, and shows LIVE only after a successful `courses.list`.
+5. `invalid_grant` gives WAITING with "Reconnect"; `admin_policy_enforced` or `access_not_configured` gives BLOCKED.
+
+**Sync (counting and rules only).**
+1. Runs on application start if the last sync is more than 6 hours old, on Sync now, and at most 4 times a day while the application runs.
+2. `courses.list` for ACTIVE courses; courses mapped to "ignore" are skipped.
+3. Per course: `courseWork.list` (published), `courseWorkMaterials.list`, and `studentSubmissions.list` with `me` for coursework; announcements only if the course switch is on. Page through `nextPageToken`.
+4. Upsert by key; compare `updateTime`; a `DELETED` state removes the row and its calendar mark but keeps his own planned blocks (unlinked, with "Classroom removed this item").
+5. Due dates convert from UTC to local time; a due date without a time shows as a date, not as midnight.
+6. About 3 calls per course, so 20 to 25 calls per sync for 6 courses, far below the documented limits (1,200 per user per minute, 3,000 per client per minute). `RESOURCE_EXHAUSTED` backs off exponentially, 3 tries.
+7. One log line per call group; titles and text are never logged.
+
+**Mapping.** Normalise course and subject names (lowercase, strip punctuation and stop words), score by token Jaccard; 0.6 or more is "suggested", below is "unmapped". His confirmation is stored and never overwritten by a later sync.
+
+**Material ladder.** LINKED (a link exists), ASKED (he pressed "I will download it"), DOWNLOADED (a new file in the watched folder after ASKED), MATCHED (file-name tokens overlap the attachment title at 0.8 Jaccard or more, or the same extension and name stem), INGESTED (the question engine read it). An unmatched file stays an unmatched Intake row that he pairs by hand.
+
+**Parsers (rules, stdlib).** Paste: line patterns for a title, a date (`18 Nov`, `18/11`, `Nov 18`, weekday words) and an optional time; ambiguous dates (`03/04`) are shown both ways and need a tap. `.ics`: unfold lines (RFC 5545), read `VEVENT` fields `SUMMARY`, `DTSTART`, `DTEND`, `RRULE` (weekly and daily expanded for 120 days, anything else listed as "repeats, not expanded"), convert `Z` and `TZID`. 40 test cases for each parser, including a time-zone shift and an all-day event.
+
+**What a local model drafts.** Nothing is required. Optionally (off by default, labelled "drafted by the local model") it rewords a long announcement into one line. It never classifies, grades or schedules.
+
+**Ethics and claims.** No grade, rank or comparison with classmates; rosters never requested; the connector says what Classroom reports, not what it means ("Classroom says: late"). No streak or urgency colouring: a due item is a notch, not a red alarm.
+
+#### 21.4.4 Ideas kept in reserve (connector)
+
+A Google Takeout reader; a Picker-based `drive.file` fetch of one attachment at a time; publishing the client to production to avoid the weekly sign-in; a Calendar-only mode that reads due dates from the Calendar scope; a phone share-sheet receiver; a weekly digest line on Today ("3 due, 2 new materials"); course "orbits" (C04-21) on the Course Mapper; teacher announcements rendered as ASCII plates; a local model that proposes the subject map (rules first, kept off).
+
+
+### 21.5 The dashboards
+
+Boxes assume the content box of 1302 x 720 at 1366x768 (rail 64, title bar 48); the JARVIS box is 1286 x 652. All follow Specimen and Datum (20.5.1): one specimen, one datum line, at most five 88 px Callouts, a 72 px footer. No bento, and no two equal stat tiles in a row.
+
+**What this adds.**
+1. Six dashboards in one grammar: Today (the Well Wisher home), Exam Season, Week Review, Month Review, JARVIS Core home, System (Console), plus the Deck that joins the two products (D-V3-16).
+2. **Today keeps the Day Arc of 20.16.1 as its specimen** and becomes a command deck by adding a Next Three card, a hand-off key and countdown dots in the margin. It adds no second chart.
+3. **Exam Season replaces the Today specimen when the student sets an exam window** (a switch, never automatic). The specimen is the `CoverageRose`, one `SigilMark` per subject with arms for units. Days left is shown as `CountdownDots`: one dot per day, a count that does not tick, no red, no bar filling toward zero.
+4. **Week and Month Reviews are postcards**, each with a Legend flip side (the idea comes from the Dear Data postcards, via search snippets only) that explains every mark. A review records what was done, with his own previous week as the only comparison.
+5. **The Deck is one 1302 x 720 sheet**, two halves joined by a datum, with three hand-off keys in the centre column.
+6. **A dashboard never invents**: with no data each draws its Hollow form (dashed, an ASCII empty state, one sentence, one action).
+7. **Next Three is arithmetic first**: a pure function ranks three actions from weak units, due items and free slots; a local model may reword the sentence and never chooses or scores.
+8. **No urgency theatre.** Days left appears once, as a number and dots, in the Ahead callout and the Exam header. Banned in dashboards: red fills, pulsing, shrinking bars, "only N days", streak counts, any pass probability.
+9. **Light.** SVG and CSS only; the only canvas is the existing Ridge in Core; zero idle loops; every motion has a static form; two new component families are lazy-loaded behind the product gate so the Well Wisher build adds no JARVIS modules.
+
+**Shared rule for all screens.** The footer holds three telemetry readouts (each with a lamp) and one accent Key. Callout leaders bend once at 45 degrees. Keyboard: the specimen is one composite (roving focus, arrows move between marks, Enter opens the drawer, Esc closes); Callouts are a `Tab` list; `?` flips the Legend. Targets 44 px, a 2 px focus ring; forced colours use outline shapes (disc, ring, dashed, half disc, triangle map to the five lamps by shape, not colour).
+
+#### 21.5.1 Today (`day.today`, the Well Wisher home)
+
+Purpose: show today as one instrument and the next thing that matters. The specimen, datum, four Callouts and footer of 20.16.1 govern; 21 adds three things.
+
+Data and lamps: class blocks, planned blocks and done blocks (the local timetable and block log, LIVE when entered today, WAITING "last entered 9 days ago" otherwise); minutes studied (the Odometer hero, block log, LIVE; SIMULATED never used here); the seven-day Trace and his own median; Next Three (the generator and checker once they exist, PLANNED until then, otherwise WAITING "needs papers on file"); calendar notches (the Google Calendar adapter, PLANNED until he connects it, read-only); Classroom due items (PLANNED until connected, then LIVE with "synced 14:02").
+
+Layout (1302 x 720): specimen 760 x 560 at x = 24; margin 470 at x = 808 with four Callouts (Now, Ahead, Counters, Reminders) of 88 px, then a fifth, **Hand-off**, of 88 px; footer 72 at y = 648.
+- **Ahead** gains a row of `CountdownDots` (at most 60 dots, one per day to the nearest dated item, 8 px; a dot fills as a day is lived and never refills) and the Next Three list inside the drawer it opens, not in the callout.
+- **Hand-off** (the fifth callout): one line, two keys. `Open Exam Season` appears only when an exam window exists; `Ask JARVIS` opens the Deck.
+- **Footer:** the Capture Line (`ww>`) on the left, the Plan key on the right.
+
+Mobile: a vertical spine, Now first, then the arc at 100 percent width 320 px high, then Ahead, Next Three, Counters, Reminders and Hand-off as a three-card swipe; the Capture Line docked. Keys: `n` starts a block, `Ctrl+Space` the Capture Line, `3` opens the Next Three drawer, `H` the hand-off. Motion: the notch at now steps once a minute; nothing else moves; static and reduced-motion: the arc drawn, the notch at the render time. Art: `art.day.sun` (private track, duotone ochre and charcoal) behind the arc at 12 percent; the Odometer corner uses C04-123 (numerals lotus), Atkinson-dithered, 200 x 200, behind the counters only; a plain placeholder on the default track. Empty or waiting: no classes, the arc is dashed and Now says "Add today's classes" with one key; no exam window, Ahead shows the next dated item or "nothing dated"; no data anywhere, the Odometer shows four dashed wells and a WAITING half disc.
+
+#### 21.5.2 Exam Season (a mode of `day.today`, and a hand-off into the Exam Room face of `study.plan`)
+
+Purpose: per subject, how much is covered, how much is practised, which units are weak, the next three actions and the days left. It states evidence, never a forecast.
+
+Data and lamps: coverage per unit (papers and syllabus on file, tagged units; LIVE when the unit list was entered or ingested, WAITING "no syllabus on file" otherwise); practice done (question-store attempts in the last 30 days, LIVE); weak units (the lowest first-try correct share in his own history, at least 5 attempts to count; below that the unit shows a dashed ring and "thin evidence"); Next three (PLANNED until the generator exists, a WAITING card meanwhile); days left (from dates he entered, LIVE).
+
+Layout: the specimen 760 x 560 holds the **CoverageRose**: up to 8 subjects as `SigilMark` figures in a 4 x 2 arrangement, each 170 x 250; arm length is evidence, a tip disc if practised in the last 7 days, a ring if not, a dashed ring if never (existing `SigilMark` states). A shared datum at y = 288 crosses all eight hubs. One subject is *selected* and enlarges to 340 x 340 by swapping with the neighbour pair (a layout swap, no animation), showing unit names in mono at the arm ends. Margin 470, five Callouts: **Subject** (name, `covered 14 of 22 units`, `practised 9 of 22`), **Weak units** (three names with dashed or solid rings and the attempt count), **Next three** (three short sentences, a Start key on the first), **Days left** (`CountdownDots` for the selected subject's exam, the number once in mono) and **Paper desk** (last paper opened, attempts, the Review Desk key, and the paper strip: each paper as a 44 px chip with a date, hours of free gap before it and a count of prepared topics, counts only; the sleep floor appears as a quiet detent only if he set one). Footer: `practice 30 d | papers on file | last checked`; one Key, `Start the first action`. Forbidden: a countdown below one hour, red, "behind", pass chance.
+
+Mobile: a subject picker (`DetentRack` as a bottom sheet), one enlarged SigilMark 320 px high, then Callouts as swipe cards. Keys: arrows between subjects, Enter selects, `U` jumps to the weakest unit's drawer, `Tab` moves to the margin. Motion: none; the selected swap is instant. Art: the ground is the Study contour, C04-23 re-derived at 6 percent; SigilMark arms use the C03-03 line style for the constellation links (private track). Empty or waiting: no subjects, eight dashed hubs and an ASCII empty state of 14 lines (the C04-119 branch) with `Add subjects` as the one key; subjects but no papers, arms dashed and Next three WAITING "needs papers on file"; Classroom not connected, the Paper desk callout shows a PLANNED plate "Classroom link not connected" that opens the honest explanation.
+
+#### 21.5.3 Week Review (`day.week`)
+
+Purpose: one postcard for the week, made by arithmetic from the logs and kept by the student. Data and lamps: the block log, counters, attendance, sleep-window and spending logs (only the logs he turned on); each part LIVE when logged that week, WAITING when not.
+
+Layout: the specimen 760 x 560 is the **WeekStrata**: seven columns (Mon to Sun), each a stack of strata: study (solid layers, one per block, height = minutes), classes (hollow), body log (a dotted band, only if enabled), spending (a thin ledger line, only if enabled). A faint ghost of the previous week behind each column (hairline, 40 percent opacity) is the only comparison. The datum at y = 288 marks his own median minutes. Margin, five Callouts: **Kept** (`5 of 7 days kept`, a ratio from SkyLedger logic), **Best block** (the longest unbroken block with its subject and date), **Moved** (a `Dumbbell` of this week against last for minutes, practice questions and attendance margin; before ring, after disc), **Left over** (items planned and not done, listed without fault wording, with a `Carry to next week` key) and **Note** (one sentence he writes; a local model may draft a neutral summary into this box, marked DRAFT until he accepts). Footer: `Save to Almanac` and `Export postcard` (an SVG of the specimen for his own use, serialised natively).
+
+Legend flip (`?`): the specimen turns over (an instant swap) to a plate listing every mark and its source lamp. Mobile: columns become a 7-row horizontal ledger (one day per row, an ASCII bar), callouts as a swipe carousel. Motion: the strata draw once in 320 ms, staggered by column, capped at 7 (static: drawn). Art: C02-13 wave ribbon at 4 percent as texture; C04-35 as the ruler. Empty: seven dashed columns, `Nothing logged this week` and one action `Log a block`.
+
+#### 21.5.4 Month Review (`day.month` review mode)
+
+Purpose: the month as a sky, with the habits he chose. Data: the SkyLedger (60 or 90 days) extended to a 5 x 7 month with week rows; days from the Almanac; a lamp per day (LIVE logged, WAITING untouched). Layout: the specimen 760 x 560 is the **MonthSky**: 35 cells of 100 x 80 as stars (kept disc, rest half moon, untouched faint dot), constellation hairlines joining days that share a habit (a pure function); under it the datum with a `Trace` of weekly minutes (4 points and the median). Margin: **Kept** (`19 of the last 30 days kept`), **Habits** (each habit's count, as a `Jar` strip if he set a limit, otherwise dots), **Spend** (a `LedgerTape` of the month's total, only if the spending log is on), **Exams** (countdown dots for dated items inside the month) and **Next month** (three suggested carries, each accepted by him). Footer: `Open Almanac`. Honesty: no chain wording; deleting a day lowers the count; no habit line claims a health effect. Mobile: a 7-wide sky at 100 percent, 5 rows, callouts as cards. Empty: 35 faint dots and `Start with one day`.
+
+#### 21.5.5 JARVIS Core home (`core.talk`, the rebuilt Core) at a glance
+
+Governed by 20.9.1; 21 adds the **at a glance strip** so Core is also the home dashboard. In the 1286 x 652 box: the left column 720 holds the voice stage (hill and SigilRing, 720 x 360) and the PipelineRibbon strip 720 x 88; the remainder 720 x 204 is the last turns. The right column 546 holds five Callouts of 88 px: **Health** (organ lamps from the Console report: voice, listen, speak, memory, board), **Room** (channels on, last confirmed time, from the board report), **Senses** (one presence word with source and age; WAITING if the link is silent), **Memory** (facts stored, last write) and **Jobs** (running and failed counts). Every row carries a three-letter tag `[HEA]`, `[ROM]`, `[SEN]`, `[MEM]`, `[SYS]` and a lamp. Footer: the telemetry rail and the Wake key. Mobile: stage first, ribbon, then callouts as swipe cards. Empty: core off, a ring of hollow ticks, hollow ribbon nodes, the strip says OFF, and callouts show WAITING with the age of the last report.
+
+#### 21.5.6 System dashboard (a face of `console.health`; the Console is at its five-view maximum, so there is no view `console.system`)
+
+Purpose: the whole system in one view, trust first. Layout (1286 x 652): left a **SystemRack** of 12 `RackRow` units (44 px each) in a column 640 high: voice, listen, memory store, question store, folder watch, reminder delivery, calendar link, classroom link, board, signal link, relays group, local model. To its right the specimen, a **StrataCore of system layers** (not mastery): hardware, links, services, data, each a band whose height is the count of units reporting in the last 5 minutes over the units expected. Margin: **Jobs** (queue length, last failure with its reason, a `LedgerTable` of 5 rows in a drawer), **Storage** (data folder size, last backup age, text only), **Devices** (relay board, the signal link, phones as transmitters, each with last-seen), **Models** (local model loaded, size) and **Privacy** (one line "network off" or the list of opt-in links that are on). A confirmed lamp appears only after a report; unreported units are UNCONFIRMED half discs. "Units expected" comes from the planned-feature registry; "reporting" means a report within 5 minutes. Mobile: RackRows as a single column list, the bands above as a 4-row stack. Empty: all rows PLANNED or WAITING; the bands are dashed.
+
+#### 21.5.7 The Deck (`deck.home`, a cross-product sheet)
+
+Purpose: both products at a glance, and hand-offs. Reached from the title bar's product switch or `Ctrl+Shift+D`. Layout (1302 x 720): a vertical datum at x = 651. Left half 640: a Well Wisher mini-specimen, a 300 x 300 Day Arc (read-only), then Next Three and days left. Right half 640: a 300 x 300 Core ring with the SigilBezel, then the system health line and the five organ lamps. Centre column 70: three hand-off keys stacked, 44 px each, in mono: `ww> exam run`, `J> remind me` (opens the Capture Line with the grammar prefilled), `J> room` (opens room channels). Footer 72: the Capture Line spanning both products with a grammar switch `ww>` and `remember>`. Hand-off rules: a hand-off only opens a view with context and never executes (a room action still needs its own press, a reminder still needs Enter); Back returns to the Deck. Mobile: two stacked cards with a swipe between, hand-off keys under each. Empty: both halves hollow; the one key says `Set up the day`. The Deck is reached by a palette place `deck.home` registered by glob; it is not one of the 36 views (like `app.new`).
+
+#### 21.5.8 Phone forms (reserve, DB10)
+
+The phone page serves four stripped forms (390 px): `Today` (Now card, three counters, Capture Line, Ahead), `Exam` (subject picker, Next three, days-left dots), `Week` (7-row ledger, Kept) and `Deck` (two cards, hand-off keys). No chart is wider than the screen; the Legend flip is a bottom sheet. The phone page is a LAN surface already in the product; no opt-in to anything beyond it is added.
+
+#### 21.5.9 Logic and data of the dashboards
+
+**Next Three (rule based).**
+1. Collect candidates: units with thin evidence in subjects with a dated exam; unfinished planned blocks; due items from Classroom when linked; one review item whose spaced-review date has passed.
+2. Score by integer rules: lowest first-try share with at least 5 attempts +3; due within 14 days +2; never practised +2; carried over twice +1. The scores are shown on focus in mono.
+3. Take the top three with at most one per subject; ties break by the earlier due date, then by id.
+4. Each item names its reason in one line from a template ("first try 3 of 9 on unit 4"). A local model may reword the line; it never changes the order or the numbers.
+5. If fewer than three exist, show fewer; never pad. The same store snapshot gives byte-identical output with the model off. (This is a different list from the gain-ranked "what to practise next" of 20.7.9, which fills the free gap; the two share the unit list and both print their terms, and the Today card shows this one while the Study card shows that one.)
+
+**Coverage and weak units.** Coverage = units with at least one tagged question or paper section on file over the units in the syllabus. Practice = attempts in 30 days. Weak = the lowest first-try correct share with at least 5 attempts; fewer attempts draw a dashed ring.
+
+**Days left.** From the dates he entered; the dots are a pure function of today and the target; no readiness estimate is derived.
+
+**Week and month.** Aggregations over the append-only local log keyed by date and action id; every picture is a pure function of it, so edits and deletes move the picture. The previous-week ghost is the same function on the earlier week.
+
+**Storage.** Local tables only (days, marks, intentions, attempts, reports). Derived art is not stored. No dashboard writes anything except Carry to next week, notes and the exam window.
+
+**Rules versus model.** Counting, ranking, margin arithmetic and bucketing are rules. The local model drafts the week note and rewords reason lines; it never grades, scores or writes a number without a lamp.
+
+**Consent and cost.** Google sign-in for Classroom and Calendar (browser consent, read-only, done by him); nothing else. No new library or account; Exam Season and System reuse built components.
+
+**The smallest slice worth shipping first** (one UI wave, usable the day after it merges): Today with the Day Arc, Now, Ahead (countdown dots), Counters and Reminders and the Capture Line (L04, then DB03); Exam Season with coverage from papers entered by hand and Next Three as WAITING until the generator exists, with a manual days-left entry (DB04); the Deck with two read-only halves and the three hand-off keys (DB09). It leaves out Week and Month Reviews, the System rack and strata, the Classroom and Calendar links (PLANNED plates only), the phone forms, the Legend flip (a static text list instead) and the model-drafted note.
+
+**Ideas kept in reserve (dashboards).** A printed week postcard as a real card in the room; an ASCII terminal-only Deck for the Console and the phone lock screen; subject sigils that are stable per subject across all views; a mid-season Dumbbell comparing first and latest paper attempts per unit; a night version of the Day Arc where the arc becomes the moon phase; the Core ring and the Day Arc in a shared 24-hour bezel; Month Review printed as a sky-map list of habits; a "season recap" book assembled from the weekly postcards; a tangible Room panel that mirrors the Deck hand-off keys.
+
+
+### 21.6 The wider Well Wisher features, ranked
+
+Section 20 already covers the planner, the Almanac, the body and ledger logs, the Paper Desk, the retention orrery, the trees and Career. What was missing is the layer that makes Well Wisher a life system, not a study tool: a term arithmetic, a reading shelf, an opportunity lookout, a weekly fold, a project bench and a few small logs that feed one shared engine. Ten sections and five views per section stay frozen, so the new screens are **desks**: full-canvas overlays (1230 x 664, a drawer layer opened by a key from an existing view, one deep, Esc closes) registered like the existing overlays, not views and not counted among the 36 (D-V3-15; the lens's question Q-H1 is answered by default, and he may still veto).
+
+**Research basis in one paragraph.** The best tools split into four camps: planners (a calm daily ritual and shutdown step; auto-scheduling), retention engines (spaced repetition where a desired-retention setting trades recall against reviews per day), money tools (every unit of money given a job; shared costs) and habit apps (streak-based against forgiving ones). Section 20 matches the first camp's ritual and the second's engine. On engagement, the evidence that pressure reduces the benefit of gamification is secondhand, so the rule is conservative: engagement comes from a finished-feeling artifact (a drawn page, a sealed letter, a printed portfolio page) and from closure rituals, never from loss, urgency or rewards that vary.
+
+**Ranking** (exam-season value first, ordinary-week value second; nothing ships whose honest state is only PLANNED unless it is the plate).
+
+| Rank | Feature | Exam-season value | Ordinary-week value | Size | Scheduled |
+|---|---|---|---|---|---|
+| 1 | Term Ledger | very high: which papers, how much margin on attendance and internals | high | M | H01, H02, H03 (UW12, UW13, EW9) |
+| 2 | Shelf (reading, notes, spaced review) | high: turns reading into recall | high | M | reserve (H06 is folded into X09) |
+| 3 | Fold (weekly review, journal) | medium: a 5-minute exam-week variant | very high | S | reserve, first after the flip |
+| 4 | Tide (sleep and energy self-report) | high: protects the sleep floor, shows the effect of late nights | high | S | reserve, first after the flip |
+| 5 | Purse (meals and money) | medium | high | M | reserve |
+| 6 | Lookout (opportunity radar) | low: parked in exam season | very high | M | reserve |
+| 7 | Ease (habits to reduce) | medium | high | S | reserve |
+| 8 | Workbench (projects, portfolio) | low | high | M | reserve |
+| 9 | Letters and Ladder (future self) | low | medium | S | reserve |
+| 10 | Tongue (languages) | low | medium | S (reuses the queue) | reserve |
+| 11 | Pair table (group work) | medium (shared deadlines) | medium | S | reserve |
+
+Season mode (a Paper strip, a quiet sleep floor) is folded into DB04 (21.5.2) and is not a separate package.
+
+**D1. Term Ledger** (`study.term` desk, key "Term" on `study.plan`). Purpose: answer "where do I stand per course" with arithmetic he can check, and show the free margin before a threshold. Data and lamps: courses and credits (HAND, typed once per term, LIVE); attendance from the existing attendance taps (LIVE); internal marks typed by him (HAND); exam dates from the Almanac (LIVE, or WAITING "unconfirmed" with a "checked on" stamp, per D-V2-18). The threshold rules (minimum attendance percent, internal weightage) are typed by him with a source note; the application ships none; no threshold typed means the cell shows WAITING "rule not set". Layout (box 1230 x 664): left a `LedgerTable` 760 x 664, one 52 px row per course (up to 8 visible, scrolling inside the table only): course code in mono, credits as a row of dots (one dot per credit), attendance as a `Dumbbell` (attended versus required, 180 px) with the number printed at the end, internals as an `Odometer` 3-digit slot, the exam date as a `DateWheel` chip. Right 450 x 664: a **Margin** specimen (`SpecimenLayout`, one datum line): "You can miss 3 more classes in course X before the typed minimum" for the selected row, with the formula printed beneath in a `TermWell` (`missable = floor(attended / min% - held)`, terms listed), then a `SlotList` of the next three exam days with free-gap hours from the Almanac. Mobile: rows become 88 px cards in one column, the Margin specimen first, formulas in a bottom drawer. Interactions: arrows move rows; Enter opens the drawer; "What if I skip tomorrow" previews the dumbbell without writing (labelled PREVIEW); credits and rules edit through Trim keys on the row. Motion: on a data change the one changed dumbbell draws over 200 ms (static: the final drawing). Art: C01-04 as a 120 px engraved margin strip; C02-12 radial-gauge shape language for the credit ring; inked engraving, no photo. Empty: a dashed plate "Add your courses (about 2 minutes)" with a `CaptureLine`; rules missing: WAITING "rule not set", never a default.
+
+**D2. Shelf** (`study.shelf` desk). Reading and notes with spaced review: a book, a paper or a lecture PDF becomes a row of highlights he types or pastes; each highlight can become a prompt (front and back) that enters the one review queue. Data: items (HAND, LIVE); highlights (HAND); prompts (tagged `HAND` or `MODEL`; a 4B model may reword a prompt he approves, never invent one); review state computed by the scheduler. Layout: left rail 300 x 664, the shelf as a vertical `Ridge` (one ridge per item, height = highlight count, no goal line); centre 600 x 664, the open item with a margin of highlight chips; right 330 x 664, a "Due today" `SlotList` of at most 12 prompts at 44 px and one **Review now** key (the same player as the orrery's, opened in Focus). Mobile: tabs Shelf, Item, Due. Keys: `h` adds a highlight with a page number, `p` turns it into a prompt. Motion: a new chip settles with a 120 ms opacity move. Art: C01-03 for card geometry. Empty: "Nothing on the shelf. Paste a title and a first highlight."
+
+**D3. Fold** (`day.fold` desk, a key at the end of `day.close`). A weekly closing ritual: look at the real week, name one thing to keep and one to change, set next week's three intents. Reads the week's logs, each with its own lamp; the answers are his typed text (HAND); no number is summarised into a score. Layout: left 640 x 664, a `WeekStrip` plus a `PillarsChart` of seven life pillars (study, body, rest, money, people, craft, play), counts only (the C02-09 treatment, ink on clay); right 560 x 664, three `CaptureLine` fields "Kept", "Changed", "Next three" (each intent creating an Almanac item on save) and a 10-minute `DotTimer` that never forces anything. Keys: Tab walks fields, Ctrl+Enter saves; "Skip this week" writes nothing (no penalty, no nag). Exam variant (5 minutes): in Season mode the pillars drop and the three questions stay. Empty: dashed pillars and "No logs this week. You can still write the three questions."
+
+**D4. Tide** (`day.tide` desk, a key on `day.body`). Self-reported sleep and energy, so he can see how a late night relates to the next day's study blocks. Bed time, wake time, energy 1 to 5 morning and evening (HAND). A `Trace` of 28 days of sleep length with energy dots on a second row (`DotHistogram`). A line compares his own days: "On days after under 6 h, afternoon energy averaged X (n = 9)"; with n below 7 it reads "too few days to show a pattern" (the rule of D-V2-15). Layout: top 1230 x 300 `Trace`; bottom left a two-key entry (a `DetentRack` for energy, 5 detents, 44 px); bottom right the pattern line in a `TermLine`. Fixed copy: "Notes you typed. Not medical advice." No sleep score, no "debt", no streak. Empty: a dashed trace, "Two nights make a first line."
+
+**D5. Purse** (`day.purse` desk). Meals and money in one ledger; one line captures "chai 20" or "lunch 80, mess". Spend and meal rows (HAND), categories he defines (up to 12), a monthly envelope he sets per category (a soft budget with no rollover maths in the first release). `Jar` shows an envelope as a level, `Odometer` the month's spent amount, a `LedgerTape` the last 20 rows; meals appear as a second glyph on the same row (a bowl) and can be logged without a price. Layout: left 700 x 664 `LedgerTape` over `CaptureLine`; right 500 x 664 a 2 x 3 grid of `Jar`s for the six largest categories; footer an `AsciiBar` for the day's total (ASCII carries real data here, per D-V2-4). Enter saves, `u` undoes. No bank link, no import in the first release; currency is a typed symbol; group costs are not split. Empty: dashed jars with "Set a number to see a level".
+
+**D6. Ease** (`day.ease` desk). For habits he wants to reduce (his words; the application never names them). One tap logs an occurrence; the screen shows a weekly count against a ceiling he sets and an if-then plan he wrote. Layout: left 600 x 664, one `Dumbbell` row per habit (this week's count versus the ceiling, both neutral graphite, no red zone) and a 12-week `DotHistogram`; right 600 x 664, plan cards in a `SlotList` with an "I used it" tap. `+` logs, `u` undoes, the ceiling is a Trim key. Evidence note: if-then planning has published support, but the effect size in secondary summaries fell from a 2006 pooled estimate to much smaller bias-corrected values in a 2024 re-analysis (not verified from the papers), so the screen makes no claim about results. Forbidden: streak counters, "days since", reset animations, congratulation on zero; weeks above the ceiling look identical in style to weeks below. Empty: "Name a habit you want to ease. Optional: add one if-then plan."
+
+**D7. Lookout** (`career.lookout` desk). Near opportunities (internships, hackathons, scholarships, competitions, deadlines) from sources he adds, then preparation. Sources are a HAND list (kinds: pasted text, RSS URL, ICS URL, manual). Rows have a title, kind, deadline, eligibility notes, a "checked on" stamp and a state NEW, WATCHING, PREPARING, APPLIED, LET GO; a row with no stamp shows WAITING "unconfirmed". The network is opt-in per source and off by default. Matching to his skills is a plain keyword overlap with his tree evidence, printed as "3 of 5 listed skills evidenced" with a `RULE` chip; no score and no rank by probability. Layout: the centrepiece 780 x 664 a `SkyLedger` (time on the horizontal axis, one star per opportunity at its deadline, size by an effort estimate he types, deadlines as vertical hairlines); right 430 x 664 a `LedgerTable` of rows with a "Prepare" key that creates an intent bundle (documents to gather, a draft checklist, a study-gap check that reads the Term Ledger so an application in exam week is flagged as a fact: "falls in your exam window"). A URL source fetches only on a visible "Check now" key; robots and terms are his responsibility and the key says so. `n` new row, `w` watch, `l` let go (a row leaves, no shame copy). Art: C02-02 as a quiet 8 percent backdrop. Empty: "Add a source or paste a posting."
+
+**D8. Workbench** (`career.bench` desk, feeds the Proof rail). Projects as bundles of evidence for the Proof rail and the Career runway. A project has a name, a one-line brief and skills claimed; evidence rows are a file path, a repository link as text or a write-up he typed, each with an add date. `StrataCore` draws a layer per evidence row; `SigilMark` is the project's deterministic sigil from its id; a `Seal` appears only with at least one evidence row. Export: one self-contained printable HTML page, generated locally, with no external URLs and no upload. Layout: left 360 project list, centre 520 strata specimen, right 350 evidence list with `RackRow`s. Empty: "A project is real when it has one file or link."
+
+**D9. Letters and Ladder** (`tree.letters` desk). A goals ladder (this term, this year, in five years) and "future self" letters he writes now and the application shows on a date he picks. Local; no server, no email. Letters are stored plainly in `data/`, so "sealed" means hidden, not secret, and the card says so. A `DateWheel` and a ladder drawn as `Ridge` steps; the letter view is a `TermWell`; the seal opens by a 200 ms opacity change (static: the opened text).
+
+**D10. Tongue** (`study.tongue`): word lists as prompts in the same queue (typed rows, no corpus shipped), a Trace of reviews per week, no streak, one `SlotList` of today's prompts. **D11. Pair table** (`study.pair`): local-only shared deadlines for a study group, exported as an ICS file or plain text he sends himself; no accounts, no sync, no presence; live sharing is PLANNED.
+
+**Mobile and accessibility for all desks.** One column under 900 px; every key 44 px; a 2 px focus ring; a forced-colours form that replaces fills with outlines; each `Dumbbell`, `Jar` and `Trace` has a text table twin reachable by `t`.
+
+**Logic and data.**
+- **Storage.** All new data is local files under the private notes and data folders (JSON lines per desk), written by route files discovered by the existing glob; no new library. Every write is undoable.
+- **Term arithmetic (counting, no model).** For each course `required = minPct x held`; `missable` is the largest k with `attended / (held + k) >= minPct`, that is `k = floor(attended / minPct - held)`, shown with its terms. Internals: a weighted sum of typed marks over typed weights, shown as "x of y typed so far". Nothing projects a final grade.
+- **Review queue.** One module with a scheduler interface (due list, grade write-back); `fsrs` at default parameters, desired retention 0.90 shown in a Trim with its trade (higher retention means more reviews a day); cold start under about 1,000 reviews uses fixed intervals (1, 3, 7, 16, 35 days) and says "learning your pattern" (the 1,000 figure is a design heuristic from a forum, not a research result). Producers: question bank, Shelf prompts, Tongue rows, letters. A model drafts reworded prompts only when he asks; each carries `MODEL` until he edits it to `HAND`.
+- **Pattern lines (counting).** Group by a condition he typed; report n; with n below 7 return "too few days"; otherwise print the mean and the interval method (Wilson 95 percent for proportions; mean with min and max otherwise).
+- **Lookout matching.** The keyword set of his evidenced tree nodes intersected with the posting's keywords: "k of m". Deadline flags are a window-overlap test against exam dates.
+- **Opportunity ingest.** Pasted text is parsed by rules (dates by pattern, a title line); an optional local 4B model may suggest fields, each shown as `MODEL` and needing a tap.
+- **Forbidden everywhere.** Streaks, leaderboards, variable rewards, pass probabilities, "overdue" in red, medical or psychological claims.
+
+**The smallest slice worth shipping first** (lens wave A, adjusted): `DeskFrame`, Term Ledger (with its arithmetic and store), and after the flip Fold and the Tide log with its pattern line. It needs no network, no model and no new engine, and Term Ledger plus Tide protect exam season directly. Reserve waves: B Shelf and Purse (the queue module is X09); C Lookout, Ease and Workbench; D Letters, Tongue and Pair table.
+
+**Ideas kept in reserve.** A gap finder that proposes 25-minute study slots from the Almanac's free time (after the Term Ledger exists); lecture-to-intent (paste a syllabus, get a dated intent list); an exam-week pantry list inside Purse; a quiet-hours wind-down that only dims the UI; a one-page "term in review" printable at term end; an internship letter drafter with the local 4B model (reword only); a reading-time budget per item as a `DotTimer`; skill decay reminders on tree nodes whose evidence is over a year old (a nudge to add evidence, never a loss).
+
+### 21.7 The wider JARVIS features, ranked
+
+Section 20.9 is the baseline: Core, Room, Senses, Memory and Console are designed with ids frozen. This adds eight screens and two shared surfaces without adding a section, a rail entry or a fifth port. Everything lives as views, drawers or panes inside the five JARVIS sections or as palette modes. All boxes are inside the JARVIS content box, 1286 x 652 at 1366x768; no screen scrolls the document; lists scroll inside their own frame.
+
+**What this adds.**
+1. **Briefing is a drawer, not a section** (key `B`, voice "brief me"), opened from Core and from Day, built only from counted data. Every line carries a source tag and a lamp; with no source the line is absent, never filled.
+2. **Scenes and routines share one grammar, "When / Only if / Then"**, as a visual rule editor in Room (`room.rules`, extended) and by voice ("when I start a focus block, turn on the desk lamp"). Voice always ends in a draft card he confirms; a rule saved by voice shows tag `[JRV]` and a confirm timestamp.
+3. **Presence-driven automation is allowed only as a suggestion plus a human-set condition.** Rules may use "motion seen in the last N minutes" (a counted fact) and, after readiness, the model's band; never the words present or absent, never mains, never a reminder decision. The rule editor offers no trigger named occupancy.
+4. **One Notifications hub** (`console.events` gains a "Notices" tab, and a bell drawer on every screen) holds reminders, rule firings, job results and device faults; Well Wisher writes into it through the existing `notify` port. The 4-step ladder of 20.9.6 stays the only escalation.
+5. **The Devices view lists only what a relay or plug can truly measure.** Relay state (confirmed by the board) is MEASURED; run time per channel is counted from confirmations; watts and kWh stay absent unless a metering plug is added (his purchase).
+6. **The phone is a companion, a remote and an optional extra transmitter** (tabs Today, Keys, Talk, Link); nothing works off the local network, and a "not on home Wi-Fi" state exists.
+7. **Memory becomes a second brain with four verbs: capture, recall, fix, forget**, plus a weekly "Review what I kept" card that asks him to confirm or delete five items; every stored item has Fix and Delete; Export and Delete-all reach both products' data.
+8. **The Agents console states permissions per agent** ("may do without asking", "asks first", "may never"; defaults are the strictest column); an agent with no card cannot run.
+9. **System health manages models on a small GPU:** one VRAM bar (a real reading), the resident models, a loader queue and a "free GPU" verb; loading a model that does not fit shows a refusal naming the numbers, never a silent eviction.
+10. **Study by voice has four fixed intents** ("quiz me", "read my plan", "start a focus block", "what is due"), each a counted lookup or a hand-off into Well Wisher; the model may reword a spoken line but never chooses an answer, marks one or states a result.
+
+**Ranking by daily value and exam-season value** (1 = first).
+
+| Rank | Feature | Package | Scheduled |
+|---|---|---|---|
+| 1 | Voice study intents | JH01 | EW10 (engine); the Core card in reserve (JH01u) |
+| 2 | Briefing drawer | JH02 | reserve, first after the flip |
+| 3 | Notifications hub | JH03 | EW11 (engine read model); UI in reserve (JH03u) |
+| 4 | Memory second brain | JH07 | reserve |
+| 5 | Routines and scenes | JH05, JH06 | reserve |
+| 6 | System health and models | JH04 | EW11 (engine VRAM readings and the refusal rule); UI in reserve (JH04u) |
+| 7 | Phone companion | JH08 | reserve; the revised B09 phone is scheduled |
+| 8 | Agents console | JH11 | reserve |
+| 9 | Devices view | JH10 | reserve |
+| 10 | Presence automation | JH09 | reserve, kept thin |
+
+**H1. Briefing drawer** (`core.brief`, palette "Brief me"). Purpose: start or end the day with one honest page, readable in 20 seconds and speakable in 40. Data and lamps: morning, today's blocks (Day, LIVE), the next two reminders (LIVE), the nearest due item and days left (counted; PLANNED when no calendar link), last night's board report ("lights off 23:41 confirmed", LIVE or WAITING), overnight job results, the three health lamps worth reading; evening, what got done as a count against the plan, tomorrow's first block, and one "carry over?" question per unfinished block with Keep, Move, Drop as equal keys. No streak, no percent-of-day score, no pass or readiness language. Layout: a 560 x 652 right drawer; a 56 px header with the date as a `DateWheel` mini and a Morning/Evening `Segmented` (chosen by clock, overridable); up to six `[BRF]`-tagged rows of 64 px (tag, one sentence, source word, lamp), from a fixed list of templates with slots, time-bound first; a 72 px foot with Read aloud (R) and Close (Esc). Mobile: a full-screen sheet; Read aloud is a 56 px key. Keys: `B` opens, `J`/`K` move rows, Enter opens the row's target through a `HandoffChip`; a row hides permanently from its own Trim. Motion: the drawer slides 160 ms (static: appears); rows never animate in sequence. Art: C04-119 ASCII branch at 8 percent as the empty backdrop; C03-01 contour for the 160 ms open. Empty: "Nothing planned today" plus "Plan today" (opens Day); board not reporting: the row reads WAITING "not tested", never "all off".
+
+**H2. Routines and scenes** (`room.rules`, extended; palette mode `scene`). Layout: left 360 px **SceneShelf** (up to 8 scene cards of 328 x 72: name, channel targets as 8 dots, last applied time, lamp); centre 560 px **RuleCanvas** (three stacked bands "When", "Only if", "Then" holding 44 px typed chips: time, "focus block starts", "motion seen in last 10 min", "channel is on"; actions apply scene, set channel, remind, say one line); right 330 px **Rehearsal** (a counted dry run: "would fire at 22:00 on weekdays; 3 of the last 7 days the condition held", from stored events, never a forecast). Safety: an action touching a channel he marked heavy load is a `GuardKey` chip; a rule can only raise a "turn on?" notice, ON for heavy loads keeps the two acts (lift, press within 5 seconds) on a human press, and OFF is allowed from a rule. Voice builder: a closed grammar in the Rhasspy and Home Assistant sentence style (custom sentences mapped to intents), not a model, produces a dashed draft with tag `[JRV]`; Enter saves, Esc discards. Keys: arrows between chips, Enter edit, Del remove, `[` `]` reorder, `Ctrl+Z` undo (10 steps). Motion: a chip drops with 120 ms travel (static: instant); a rule that fires gets one 160 ms lamp step. Art: C04-127 logic-gate schematic as the canvas backdrop at 8 percent; C01-08 device icons on channel chips; faces, eyes and bodies refused. Empty: three SAMPLE scene cards in dashed outline; board not linked: channel chips dashed. Mobile: a single column; chips as an ordered list; Rehearsal a collapsed row.
+
+**H3. Presence trigger panel** (inside `senses.presence`, a 510 x 120 strip under the Motion tape). A `MotionTrigger` row: "Motion seen in the last [10] min" and a count of times it held this week, with the readiness lamp (PREDICTING until the held-out day passes, then the band). Allowed actions: lamp on; lamp off after N quiet minutes (never fan, never heavy loads); a Study lights offer. Wording is "motion seen" and "no motion seen", with the caption "no motion seen is not proof of an empty room". Honest limit: one Wi-Fi link sees that a body moved, not who or how; a still, seated student reads as quiet, so an automatic lamp-off while he studies is a known failure; the panel defaults the lamp-off window to 45 minutes, shows "last motion 31 min ago" beside it, and a notice with Keep on appears one minute before anything switches off. Mobile: hidden. Without readiness the toggle is disabled and the row says PREDICTING.
+
+**H4. Notifications hub** (`console.events` tab "Notices"; bell drawer 420 x 652). Rows are tagged `[REM]`, `[RUL]`, `[JOB]`, `[SYS]`, `[WW]`; each has a time, one sentence, a receipt lamp (spoken, shown, queued, failed) and Done, Snooze, Skip where applicable. Quiet silences sound; rows still land silently. Layout: a 44 px filter row (tag chips, the Events filter grammar reused), a list of 56 px rows, a 72 px detail strip; the same component as `ReminderChip` for the toast form. "5 unread" is a count; there is no badge animation, no red and no growing number; the bell carries one 8 px dot. Mobile: a bottom sheet. Motion: none beyond the toast's 160 ms.
+
+**H5. Devices and energy** (`console.hardware`, extended). A `RackRow` per channel: name, state as last confirmed (LIVE with "confirmed 14:02:11"), run time today (counted from confirmed on to off intervals), switch count this week. **EnergyNote**: a fixed panel "No current sensor: power is not measured" with a PLANNED plate "Metering plug (needs an owner purchase)". If he adds a metering plug, readings appear as MEASURED watts per plug only; no whole-room estimate. A rated-wattage estimate may be drawn only in amber with the SIMULATED stamp. Art: C01-19 faceplate crop at 8 percent; C04-14 capsule for firmware identity.
+
+**H6. Phone companion** (the phone page, tabs Today, Keys, Talk, Link). Today (358 wide): next block, two reminders with the 3 keys, due list. Keys: the eight keys in two columns with the guarded cover (a tap lifts, a second tap presses). Talk: push-to-talk, a held 56 px key, no always-listening from the phone. Link: the phone as an optional extra Wi-Fi transmitter for sensing, with its own lamp, "adds a second path, still detects motion only", and a Stop sensing key; it explains that the phone sends ordinary packets and nothing is recorded from the phone's sensors. Features need the phone on the home network; away, the card shows WAITING "not on home Wi-Fi". No remote access beyond the existing Tailscale decision.
+
+**H7. Memory as a second brain** (`memory.recall`, `memory.keep`). A **Weekly review** card in Keep: 5 items drawn by a fixed rule (flagged Wrong first, then oldest never recalled, then a seeded random fill), each with Keep, Fix, Forget as equal keys; finishing it writes a line, not a score. **Corrections:** a "Why did it say that?" key on a Core turn opens the memory items the answer used, with Fix and Forget in place. **Source tags:** TYPED, VOICE, WW (from Well Wisher through the port), FILE. Forgetting removes the row and its index entry (and any `ww/*` mirror); the Fix history row stays 7 days then is purged; the delete confirmation names the count; a "Forget all from source" key exists per tag. Recall is keyword plus tags today; embedding search stays PLANNED and dashed.
+
+**H8. Agents console** (`console.crew`, "Route", plus a Jobs pane; 1286 x 652). Left 420 px **AgentList** (64 px rows: tag `[AGT]`, name, state lamp, last run); centre 480 px **PermissionCard** (three columns of verbs from a closed registry such as `read plan`, `write reminder`, `switch light`, `switch heavy load`, `open network`); right 386 px **JobBoard** (the JobRow component; the fraction is real or hollow). Defaults: a new agent has everything under "Asks first" except reads of its own folder; "switch heavy load" and "open network" are locked to "May never" and cannot be moved by the agent. A local 4B model drafts and rewords; an agent that proposes an action produces a card he confirms. Agents are PLANNED until built.
+
+**H9. System health and models** (`console.health`, extended; palette "Free GPU"). A **VRAM bar** 800 x 40 from the real reading, segmented per resident model with its size in GB and a lamp. A model table (name, role: voice, brain, embeddings or OCR, size, state resident, loading or idle-unload in N minutes, last used). A loader queue with the refusal "needs 3.1 GB, 1.4 GB free". Verbs `free gpu`, `unload <name>`, `load <name>` through the `CommandLine`. A laptop strip (plugged in or battery, disk free, temperature if the OS reports it, each with its source lamp, "not reported" otherwise). Exposing resident models (as Ollama's keep-alive does; its page did not load, so this is from memory) turns a silent slowdown into a visible, fixable state. The GPU is shared with RapidOCR (D-V3-6).
+
+**H10. Voice-first study flows** (`core.talk`, palette mode `say`). Closed intents: `quiz me [subject]`, `read my plan`, `start a focus block [minutes]`, `what is due`, `stop`; each has a spoken template and a visible `IntentCard`. Quiz: the question text comes from the question store and is spoken once; the answer is spoken or typed; **the checker** (rules: exact, numeric tolerance, keyword set) marks it, never the model; the card shows the marking rule used; the spoken result is "matches the key" or "does not match the key, here it is", never "you will pass". Plan: read the day's three first blocks; "added to your day" only if Day's `notify` port is present. Focus: "start a focus block" hands off to Focus with a `HandoffChip`; the lamp scene is offered, not applied, unless he turned the rule on. Mobile: push-to-talk on the Talk tab. Empty: no question store, "Add questions in Study first" with a link. The grammar is a closed list compiled to regex with slots; unrecognised speech returns "I did not catch a known request" and a list of four; the model may reword one confirmation line within a template under a banned-word lint (no pass, fail-prediction, guarantee, diagnose). Whether the current speech model can spot a closed grammar reliably is unmeasured.
+
+**Logic and data.**
+- **Briefing assembly** (no model): read today's Day blocks; read reminders due in the next 12 hours; read the nearest dated item and compute days by calendar subtraction; read the board's last report (older than 10 minutes means the row is WAITING); read job results since the last briefing; fill sentence templates by slot and drop any row whose source is missing; order by time then tag. Storage: `data/ww/briefs/YYYY-MM-DD.json` (counts and ids only, private).
+- **Rule engine.** Rules are rows `{when, only_if, then[], created_by, confirmed_at}`, evaluated on events (focus start, a one-minute clock tick, a motion count, a board report), never on a poll faster than 1 second. Match `when`; evaluate `only_if` against counted facts; for each action check the heavy-load flag (heavy and ON becomes a notice, not sent); send, wait up to 6 seconds for the board's confirmation, record confirmed or not confirmed; write a `[RUL]` event. Cooldown per rule 60 s; a rule may not trigger itself within 5 minutes.
+- **Motion facts.** "Motion seen in last N min" is the count of stored 5-minute motion cells (20.9.8); sensing paused by him produces no value, not "no motion".
+- **Agents.** A registry of verbs, each with a risk class (read, write local, device, network); a job requests a verb, the permission card decides (allow, ask with Allow once or Deny, refuse); heavy-load and network verbs default to refuse; every decision writes an `[AGT]` event.
+- **GPU management.** Source: the vendor tool's memory reading and the model runner's resident list. A load is refused unless requested size plus a 0.5 GB safety margin is at most free memory; the refusal names the numbers. Idle unload after a time he sets (default 10 minutes). The 0.5 GB margin and the 45-minute lamp-off window are proposals, not measured values; they need a trial on the real laptop and room.
+- **Consent and cost.** No account, consent or library is needed for H1, H2, H4, H5 (without metering), H7, H9 (using existing readings) and H10. Needs him: a metering plug (purchase), Tailscale or any remote access, the phone as transmitter (a device permission on his phone), Google Classroom or Calendar (read-only, browser consent by him), and possibly a speech model that can spot a closed grammar.
+
+**The smallest slice worth shipping first** (after one JARVIS wave): he can say "what is due", "read my plan", "start a focus block" and "quiz me" and get a card in Core; open the Briefing drawer in the morning and evening; see all reminders and rule firings in one Notices list with receipts; and see the VRAM bar with a Free GPU verb. That is `IntentCard` with four intents, `BriefingRow` with the drawer, `NoticeRow` with the Notices tab and `VramBar`. It leaves out the visual rule editor (a list of saved scenes applied by hand), presence automation, the phone Link tab, the agent permission cards, the weekly Memory review and metering. Only the engine halves of the first and third and sixth rows are scheduled before the flip (JH01, JH03, JH04); their screens wait.
+
+**Ideas kept in reserve (JARVIS).** A "study aloud" mode that reads a paper question and waits in silence for a set time; an evening shutdown ritual of five fixed steps on the board; a "room weather" icon from counted motion over the week; a shared-link guest mode for family (a read-only Today card); a hardware "panic" key that turns all lights off and Quiet on; spaced voice flashcards on walks through the phone; a "week review" page in the terminal grammar showing counts only; a BLE beacon on the desk to confirm the phone is at the desk (a purchase); Memory as a night-sky mode (C04-43); a wake-word sensitivity test bench.
+
+
+### 21.8 The merged list of new components (props and states)
+
+All use the built clay controls and the lamp; none adds a library; none adds a canvas. The blanket test of 20.16 (Tab stop or roving group, arrows and Enter, 2 px focus ring, 44 px hit area, reduced-motion form, forced-colours form, a text or table twin for every data drawing) applies to every row. "Pkg" is the package that builds it (Appendix A); rows marked "reserve" have no block until scheduled (21.9). Duplicates among the lenses are merged: `ClassroomShelf` and `LinkSteps` are dropped in favour of `ConnectLadder` and `ClassroomLink`; the lens's `PaperChip` lives inside DB04; `ExportImportDrop` is the Archive door of the Intake desk.
+
+| Name | Draws | Props | States | Extends | Pkg |
+|---|---|---|---|---|---|
+| `CropCard` | a question crop with its text layer and chips | `img, bbox, text, textStatus, chips` | verified, unverified, crop-only, editing | `SpecimenLayout` (D05) | Y01 |
+| `RubricChips` | tickable rubric points, 44 px each | `points, awarded, onToggle` | unmarked, partial, full, none | kit `Chip` | Y01 |
+| `ImportTray` | the 300 x 260 route list of the Drop Slot | `routes, queued, onFiles` | idle, hover, reading, refused-type | `PaperDrop` | Y01 |
+| `BlueprintTable` | section rows of a blueprint | `sections, total, duration, onChange` | balanced, fault, inferred | `LedgerTable`, `DetentRack` | X03 |
+| `SlotStrip` | generator slots with source chips | `slots, onSwap, onReseed` | filled, template, model-dashed, hollow | `SlotList` | X03 |
+| `VariantPair` | original against draft with a word diff | `original, draft, checks` | pending, accepted, rejected | `SpecimenLayout` | X06 |
+| `PatternLoom` | topic-pair arcs | `topics, pairs, n` | live, too-few | `Trace` | X06 |
+| `QuietList` | topics quiet for r papers | `items, r` | live, too-few, empty | `SlotList` | X06 |
+| `PaperClock` | section ring with a tick per minute | `sections, elapsedMin` | running, paused, closed | `DotTimer` | X08 |
+| `CoverageQuilt` | weighted quadtree of the syllabus | `cells, onOpen` | solid, hatched, outline, empty | new SVG; `AsciiPlate` when empty | X10 |
+| `EvidenceTape` | an attempt tick per attempt, a tall one per timed paper | `attempts, papers` | live, empty | `LedgerTape` | X10 |
+| `NightSheet` | one-page print | `lists, stopAt` | screen, print | print CSS | X10 |
+| `ClassroomLink` | panel plus lamp row of the connector | `state, tokenAgeDays, lastSync, onAction` | PLANNED, WAITING, LIVE, FAULT, BLOCKED | `LinkLamp` (E04 UI half), `Lamp`, `DotTimer` | C08 |
+| `ConnectLadder` | the five-step consent walkthrough | `steps[], current, listener` | per step PLANNED, WAITING, LIVE | `SigilFrame`, `Key` | C08 |
+| `TokenAge` | a 7-dot age gauge | `days, limit` | fresh, ageing (day 6), expired | `DotTimer` | C08 |
+| `SyncLog` | terminal log lines | `lines[]` | idle, new line | `TermWell`, `TermLine` | C08 |
+| `DeleteSheet` | counts plus a held key | `counts, onDisconnect, onDelete` | idle, holding | `Key` | C08 |
+| `CourseMapRow` | one course and its subject dropdown | `course, subjects, value, suggested` | unmapped, suggested, mapped, ignored | `DetentRack`, `SlotList` | C03 |
+| `IntakeLedger` | table plus detail of arrivals | `rows, filter, onAccept` | empty, filled, waiting | `LedgerTable` | C03 |
+| `AttachmentLadder` | five stations LINKED to INGESTED | `attachment, stage` | each station on or off | `Dumbbell` line style | C03 |
+| `ProvenanceChip` | a notch and the source word on any row | `source` (Classroom, Folder, Pasted, ics, Archive) | one per source | `DayMark` | C03 |
+| `PasteParser` | a well plus a preview table | `text, onCommit` | idle, parsed, partial | `TermWell` | C03 |
+| `IcsPreview` | an event table with ticks | `events, selected` | filled, repeating-note | `LedgerTable` | C03 |
+| `ExportImportDrop` | a well that takes one `.zip` and lists what it found before anything is queued | `onFile, found?` | idle, reading, found, refused-type, nothing-found | `PaperDrop` | C03 |
+| `CountdownDots` | one 8 px dot per day to a date | `from, to, state, label` | live, waiting (dashed row), planned | `DotMatrixMeter` | DB01 |
+| `NextThree` | three ranked actions with a reason line and a lamp | `items[], state` | live, waiting, planned | `Callout`, `SlotList` | DB01 |
+| `HandoffKey` | a 44 px mono key that opens a target view with context | `to, context, label` | idle, focused | `Key` | DB01 |
+| `Legend` | a flip-side plate generated from the specimen's own props | `entries[]` | shown, hidden | `Frame` | DB02 |
+| `CoverageRose` | a grid of `SigilMark` figures sharing a datum, one selected and enlarged | `subjects[{id,label,arms[]}], selected, state` | live, hollow | `SigilMark`, `SpecimenLayout` | DB04 |
+| `PaperChip` | a paper with date, free-gap hours and prepared count | `date, gapHours, prepared` | live, unconfirmed | `DateWheel`, `RackRow` | DB04 |
+| `WeekStrata` | seven strata columns plus the ghost of the last week | `days[7], ghost[7], median, state` | live, hollow | `StrataCore`, `Trace` | DB05 |
+| `MonthSky` | the month grid of SkyLedger stars with constellation links | `days[], habits[], state` | live, hollow | `SkyLedger` | DB05 |
+| `CoreGlance` | five tagged Callouts for the Core home | `organs, room, senses, memory, jobs` | live, off, waiting | `Callout`, `Datum` | DB07 |
+| `SystemRack` | a column of `RackRow` units with a roll-up of confirmed counts | `units[]` | live, unconfirmed | `RackRow`, `StrataCore` | DB08 |
+| `DeckSheet` | the two-half layout with the centre hand-off column | `left, right, handoffs[]` | live, hollow | `SpecimenLayout` | DB09 |
+| `DeskFrame` | the overlay shell of a desk: head 52 px, body 612 px, Esc, focus trap | `id, title, lamp, onClose` | open, closing, reduced | overlay layer, `SigilFrame` | H01 |
+| `MarginMeter` | "you can miss N" readout with the printed formula | `attended, held, minPct, formula` | LIVE, WAITING rule, PREVIEW | `Dumbbell`, `Odometer` | H02 |
+| `PillarFold` | a seven-pillar count radar, counts only | `counts, empty` | LIVE, EMPTY | `PillarsChart` | reserve |
+| `CeilingBar` | a week count against a typed ceiling in neutral colours | `count, ceiling` | under, at, over (same style) | `Dumbbell` | reserve |
+| `LevelJar` | an envelope level with a number, no red zone | `spent, envelope, label` | LIVE, unset | `Jar` | reserve |
+| `OpportunityStar` | a star at a deadline on the sky | `deadline, effort, state` | NEW, WATCHING, PREPARING, APPLIED, LET GO, unconfirmed | `SkyLedger` | reserve |
+| `EvidenceStrata` | layers per evidence row with a seal | `rows, sigilId` | none, some | `StrataCore`, `SigilMark`, `Seal` | reserve |
+| `PatternLine` | one sentence with its n and a "too few" fallback | `n, text, min` | enough, too few | `TermLine` | reserve |
+| `LetterSeal` | a sealed or open letter | `openOn, text` | sealed, open | `Seal` | reserve |
+| `BriefingRow` | a tagged one-sentence row with source word and lamp | `tag, text, source, lamp, target` | live, waiting, hidden | `Datum`, `HandoffChip` | reserve (JH02) |
+| `RuleCanvas` | three bands of typed chips | `rule, onChange, mode` | editing, preview, firing, fault | `DetentRack` | reserve (JH06) |
+| `SceneCard` | an 8-dot channel summary, name, last applied | `scene, onApply` | idle, previewing, applied, unconfirmed | `RackRow` | reserve (JH05) |
+| `Rehearsal` | a counted dry run with a mini `WeekStrip` | `ruleId, history` | live, empty | `WeekStrip` | reserve (JH06) |
+| `MotionTrigger` | a trigger row with a readiness lamp | `window, readiness` | predicting, trusted, off | `PredictArc` | reserve (JH09) |
+| `NoticeRow` | a tagged notice with a receipt lamp and 3 keys | `notice, receipt` | unread, done, snoozed, failed | `ReminderChip` | reserve (JH03u) |
+| `EnergyNote` | a fixed honest panel; later MEASURED watts | `meter?` | none, measured, simulated | `Callout` | reserve (JH10) |
+| `PermissionCard` | three-column verb lists | `agent, registry` | default, edited, locked | `Segmented`, `Key` | reserve (JH11) |
+| `VramBar` | a segmented bar per resident model | `models, freeGb` | live, loading, refused | `RingBars` linear, `Ridge` | reserve (JH04u) |
+| `WeeklyReview` | a five-card stack with equal keys | `items, onResolve` | ready, done, empty | `Callout`, `Key` | reserve (JH07) |
+| `IntentCard` | a spoken-line template and its marking rule | `intent, slots, result` | heard, working, done, refused | `TermLine` | reserve (JH01u) |
+| `PhoneKeys` | two-column guarded keys | `channels, guard` | idle, covered, asked, confirmed | `GuardKey` | reserve (JH08) |
+| `RunwayLanes` | two lanes by slot, package chips, meet threads | `slots, packages, meets, onOpen` | idle, focused, building, blocked, empty | `LedgerTape`, `RackRow`, `Seal` | reserve (RB01) |
+| `MilestoneGauge` | low, mid and high on one rule with the lamp and a basis line | `label, low, mid, high, unit, state, basis` | estimate, met, past-range (words, no red) | `Dumbbell` | reserve (RB01) |
+
+New components that the lens text names but this table does not list are built from these.
+
+### 21.9 What is deferred, and the reserve list
+
+**Rule.** Packages without an Appendix A block are reserve: a block is written, from the lens detail kept in 21.3 to 21.8, when the owner schedules the wave. Reserve waves run after the flip (UW14) unless a decision here says otherwise; each costs one slot (21.2). The engine lane has slack (21.2) and may take reserve backends first, because they touch no UI file.
+
+| Id | What | Lane | Why deferred | Trigger to schedule |
+|---|---|---|---|---|
+| H04, H05 | Fold and Tide desks (with `routes_ww_tide.py` as H05e) | UI and engine | ranks 3 and 4; small; need only E02 logs | first reserve wave after the flip |
+| H06 (folded into X09), H07 | Shelf desk | UI | rank 2; needs the review queue | after X09 and AD10 merged |
+| H08 to H11, H13 | Purse, Lookout, Ease, Workbench, Letters, Tongue, Pair table | UI and engine | ranks 5 to 11 | his call per desk |
+| H12 | Season mode | UI | folded into DB04 | none |
+| JH01u | Core `IntentCard` and four voice intents UI | UI | engine half JH01 is scheduled | with the first JARVIS reserve wave |
+| JH02 | Briefing drawer | UI | rank 2; reads Day, reminders and the board | first JARVIS reserve wave |
+| JH03u, JH04u | Notices tab and bell; VRAM bar and Free GPU | UI | engine halves JH03 and JH04 are scheduled | with JH02 |
+| JH05, JH06 | Scenes shelf, rule engine, canvas and voice builder | UI and engine (`core/rules`) | rank 5; needs the guard and board reports | after the reserve wave 1 |
+| JH07 | Memory weekly review and corrections | UI and engine | rank 4 | after J04 merged |
+| JH08 | Phone companion tabs | UI | the revised B09 phone is scheduled; tabs follow it | with DB10 |
+| JH09, JH10, JH11 | Presence trigger panel, Devices and energy, Agents console | UI and engine (`core/agents`) | ranks 8 to 10; JH09 needs readiness and a measured 45-minute window | his call |
+| DB10 | Phone forms of the dashboards | UI | follows B09 | with JH08 |
+| RB01, RB01e | Runway board (`app/ui/src/app/runway/**`) and its `waves.json` writer | UI | the gallery already shows progress; renamed from lens P01 to avoid the prototype block A.P01 | when he asks to see progress inside the app |
+| DSH extras | WeekStrata `Legend` for Month, printed postcard | UI | after DB05 | after the first jury |
+| Exam extras | Oral viva; a paper diff; two mock sets with no shared family; a cross-subject Quiet board | UI and engine | ideas in 21.3.7 | after the flip |
+| Drive switch | download of attachments through a Drive scope (`drive.readonly` is restricted; `drive.file` needs a Picker) | engine | needs his yes per scope (Q-V3-2) | his decision |
+| Production publish | publishing the Google client to avoid the weekly sign-in | owner | whether it removes the limit is unverified (Q-V3-3) | his decision |
+| WebGL twin | retiring the Senses twin | UI | needs his yes (Q-V2-7) | his decision |
+| Image generator | an online image generator with a paid account | owner | needs his account and consent (Q-V2-14) | his decision |
+
+**Also not in the scheduled plan.** KaTeX in the print set (Q-V3-8); embedding search for Memory (stays PLANNED); any heavy-load Room channel automation from voice; Monte Carlo forecasts (after 6 measured slots); a phone push when a meet point turns LIVE; a `plan` verb in Console that prints the runway; a Playwright hard-gate pre-check before each human jury; a Classroom due date turned into an `E01` intent previewed before saving (a one-key link after E14).
+
+### 21.10 What the engine packages extend, and where the plan can still break (critic pass, 14 Nov 2026)
+
+Checked against `app/jarvis_app` and `core` on 14 Nov. The lenses planned new modules without reading most of the 33 existing `ww_*.py` modules (40 files with the `routes_ww_*.py` ones); this map is the correction. **Rule (D-V3-24): an engine package imports and extends the module named here; it does not write a second copy.** The Files lines of Appendix A and the last column of the EW7 table carry the same names.
+
+| Engine package | Existing module it extends or reuses | What it adds on top, and what it must not redo |
+|---|---|---|
+| E05 store, folder watch | `yaadash/library.py`, `routes_library.py` (ingest of a file or folder as a background job); `ww_bank_store.py` (read only) | A review-staging Store with crops. Does not write a second folder watcher job model; does not edit the bank |
+| E06 ingest | `yaadash/library.py` `extract` (PyMuPDF, python-pptx, OCR hook); `ww_harvest.py` `split_problems`, `guess_marks` | Crops, tables, segmentation by page geometry. Does not write a second `.pptx` or PDF reader |
+| E07 tags, patterns | `ww_generator.py` `topic_key`, `topic_weights`, `proficiency`; `ww_mastery.py` | Families, Wilson counts, Quiet, `practise_next` |
+| E08 blueprint, generator | `ww_generator.py` `generate`, `effective_pattern`, `scale_pattern`, `paper_invariants`; `ww_numericals.py`; `ww_exams.py` | A Blueprint is the exam's `pattern` plus validation and a source paper; the print set; the numeric check. Does not write a second paper generator |
+| C01 intake parsers | none (new) | Pure parsers |
+| C02 intake store | `ww_exams.py` (the date sheet a deadline joins on Accept), `routes_library.py` job pattern | The Intake rows and Take actions |
+| X04 OCR | the OCR hook of `yaadash/library.py` | The RapidOCR engine behind that hook, shared by the Library and the paper ingest |
+| X07 variants, rubric | `ww_counsel.py` (the one model caller), `ww_numericals.make` | A prompt file and the drafts; no second model client |
+| E17 archive door | `yaadash/library.py` ingest queue | Zip listing and path-escape refusal |
+| HV01, HV02 harvester | `ww_harvest.py` (`SOURCES`, `fetch_*`, the polite `Harvester`, its cache under `_harvest/`), `routes_ww_harvest.py`, `ww_check_harvest.py` | The manifest, the two switches, PyMuPDF through E06, adapters by registration. Does not write a second fetcher |
+| C06 OAuth, C07 sync, E04 calendar | none (no Google code exists; `connect.py` only mentions Takeout) | One OAuth module that C07 and E04 import |
+| X09 review queue | `ww_learning.py` (Leitner recall) | The one `fsrs` queue; `ww_learning` becomes a producer or delegates |
+| E01 intents | `reminders.py` (`repeat`, `interval_min`) | Rule expansion as a pure function; hands dates to the scheduler |
+| E02 logs | `ww_money.py`, `ww_body.py`, `ww_life.py` | The append-only store they read; no second budget or habit arithmetic |
+| E03 reminder ladder | `reminders.py`, `routes_reminders.py`, `core/proactive.py` | Receipts, Quiet gate, wording; edits the existing module, no `ww_reminders.py` |
+| E09 evidence | `ww_trees.py`, `ww_proof.py` | The store of proofs and measures that `ww_trees` reads |
+| E12 career data | `ww_career.py` | The "checked on" data store |
+| H03 term | `ww_attendance.py` | Courses, credits, internals; imports the margin arithmetic |
+| DB11 dashboards | `ww_director.py`, `ww_insight.py`, `ww_season.py`, `ww_exams.py` | Month sky, strata inputs, Next Three scoring |
+| JH01 intents | `core/agent.py`, `core/away_mode.py`, `core/hinglish.py` | Four phrases registered where intents already live |
+| JH03 notices | `reminders.py` fired list, `crew/feed.py`, `core/proactive.py` | A read model with tags |
+| JH04 GPU | `core/ollama_guard.py`, `core/whisper_load.py` | One "does it fit" answer that those two call |
+
+**Merge risks the plan still carries** (what the integrator must watch; none is a plan error, each is a place two things touch one file).
+1. **E05 `schema.py`** is imported by E06, E07 and E08 in the same wave, through signatures only. Risk: a TypedDict field one of them needs is missing. Mitigation: E05 defines `Topic` and a `crop` field on `QuestionDraft` (added to the table), and E05 merges first inside EW7 (a two-stage merge, its tests green before the other three are reviewed).
+2. **`requirements/requirements.gpu.txt`** is edited by the first package that imports each install (the engine plan, rule 8): RapidOCR in EW8 (X04), the Google libraries and `fsrs` in EW9 (C06 and X09 in the same wave). Mitigation: the engine integrator adds every approved line in one commit at the start of each wave and no package edits the file.
+3. **`ww_harvest.py`** is edited by HV01 alone (EW8); HV02 adapters register from their own modules. If HV01 and E06 both touch `pdf_text` the same week they collide: E06 exports `read_pdf_text` and HV01 only calls it.
+4. **`reminders.py`** is edited by E03 (EW10) while E01 (EW9) only calls it; the app's running scheduler also lives there. A test on a scratch data directory proves the existing reminder, timer and alarm behaviour is unchanged.
+5. **UI: Y01 (UW7)** is the heaviest package (eight components and sixteen ports) and every Study package after it imports its ports. A late or reshaped `StudyPort` breaks AD08, X03, X06, X08, X10 and C03; freeze the port types at its review, and change them only by a dated line in the wave comms board.
+6. **UI: G05 against UW7.** UW7 imports `shared/kit` and `shared/lamp`, which G05 is rewriting; see the start condition of UW7.
+7. **Both lanes: this document and the engine plan file.** Two files, two owners, one rule (D-V3-25); the plan file is edited only by the engine chat, this document only here. The board (`tools/wave_comms.py`) refuses overlapping claims in either lane, which is the live check this document cannot give.
+8. **A stale worktree.** The worktree this revision was written in is 11 commits behind main on 14 Nov (the board, the checklist and the engine plan landed after it; a plain diff against main therefore shows deletions of files that exist on main); the integrator rebases before merging and commits only the two docs files.
+
+**Coverage of the owner's request, one by one (critic check).** Refined components, buttons, shadows (G05, D-V3-19): yes. Status and a prediction (21.2, ranges only): yes, with the A and C1b arithmetic corrected. The exam generator and the connector first (D-V3-3, EW7 and AD08): yes. Dashboards (21.5, DB01 to DB11): yes. Wider features (21.6, 21.7): yes. "gcr" is Google Classroom, click by click (21.4.1), no Drive scope: yes. The four installs and where each is used (D-V3-6): PyMuPDF (E06), RapidOCR on the GPU (X04), the Google libraries and `keyring` (C06), `fsrs` (X09). His material (syllabus, assignments and internal papers in Classroom; class notes as PDFs and slide decks; public papers from the university's site): the ladder and the folder door carry the Classroom material, E06 reads decks, HV02 and the drop-in carry the public papers. The harvester for national and international papers with a per-source adapter, a manifest and drop-in: HV01 and HV02. Two lanes with their own research and plan files and a safe state file: D-V3-2. The GPU for local processing: X04 and JH04. The laptop awake: the forecast assumes it. The private backup: D-V3-23. **One item was dropped and is added here:** the class notes are also study material to read and ask questions of, not only a source of exam questions. The slide and PDF notes he drops also go to the existing Library (`routes_library.py`, "my notes, asked with citations"), from the same Intake row, so one drop gives both his question bank and a notes library; the Library is not rebuilt, and the Intake row's Take action has a "Add to my notes" key beside "Send to the paper desk" (C03 owns the key, the Library route already exists).
+
+---
+
 ## Appendix A Implementation prompts
 
-Order of use (revised 2026-11-12 evening): the sequence in 15.4 governs. **Start with A.B03 now**, and A.B01 beside it (disjoint files). A.R01 to A.R04, A.V01 to A.V04 and A.P01 to A.P03 run alongside the build and do not gate it. Then A.B04, A.B03b, A.B02, A.B05b, A.B03c, A.B05 (the shared foundation, most reusable layer first), then A.B06, A.B11 and A.B06b, A.B07, A.B09, A.B10 (the sections on it), A.Q01 to A.Q04 with the flag flips, A.B13, and last A.B08 and A.B12, which resume after the remap. The integrator pastes **block C** at the top of every prompt, then the WP block. Each WP block is self-contained once C is attached. **Direction v2 (13 Nov 2026):** the order of use is now the wave plan of 15.6 (waves 5 to 14); the wave blocks that follow the older blocks below replace A.B06, A.B06b, A.B11 and the customer-track gate A.Q04, fold A.B08 into A.E07 and A.E08, and keep A.B09, A.B10, A.B12 and A.B13 in waves 13 and 14.
+Order of use (revised 2026-11-12 evening): the sequence in 15.4 governs. **Start with A.B03 now**, and A.B01 beside it (disjoint files). A.R01 to A.R04, A.V01 to A.V04 and A.P01 to A.P03 run alongside the build and do not gate it. Then A.B04, A.B03b, A.B02, A.B05b, A.B03c, A.B05 (the shared foundation, most reusable layer first), then A.B06, A.B11 and A.B06b, A.B07, A.B09, A.B10 (the sections on it), A.Q01 to A.Q04 with the flag flips, A.B13, and last A.B08 and A.B12, which resume after the remap. The integrator pastes **block C** at the top of every prompt, then the WP block. Each WP block is self-contained once C is attached. **Direction v2 (13 Nov 2026):** the order of use is now the wave plan of 15.6 (waves 5 to 14); the wave blocks that follow the older blocks below replace A.B06, A.B06b, A.B11 and the customer-track gate A.Q04, fold A.B08 into A.E07 and A.E08, and keep A.B09, A.B10, A.B12 and A.B13 in waves 13 and 14. **Two lanes (14 Nov 2026):** the order of use is now the two lanes of 15.6.1 (UI waves UW6 to UW14, engine waves EW7 to EW11); the wave blocks of the two-lane plan follow A.Q04, and the Order line of each older block names its new wave.
 
 ### Block C: common rules (attach to every prompt)
 
@@ -4832,207 +5773,503 @@ Rules of this table: a builder may call another package's export of the same wav
 **Tests:** vitest, Playwright geometry. **Record:** research file.
 
 ### A.J01 Core section (wave 7)
-**Files:** `app/ui/src/jarvis/core/**`, `app/ui/src/jarvis/handoff/**`, `app/ui/src/pages/Core.tsx`, `shell/views/core.view.ts`, gallery entry. **Depends on:** the voice component, G01 to G03, D01. **Order:** wave 7.
+**Files:** `app/ui/src/jarvis/core/**`, `app/ui/src/jarvis/handoff/**`, `app/ui/src/pages/Core.tsx`, `shell/views/core.view.ts`, gallery entry. **Depends on:** the voice component, G01 to G03, D01. **Order:** wave 6 (as run; pulled forward from wave 7).
 **Do:** 20.9.1 and 20.9.7: mount `VoiceHill` with `attachVoiceFeed`; `SigilRing(p: { bands: number[]; state: LampState; glyphSet?: string })`, `PipelineRibbon(p: { stages: { id: 'hear'\|'write'\|'think'\|'say'; state: LampState; sec?: number; median?: number }[] })` (fill only if a median exists), `OrganStrip`, the Anatomy drawer, transcript turns as terminal rows with `[YOU]` and `[JRV]` tags and four flags, `HandoffChip(p: { product: 'ww'; target: string; label: string })` with the deep link `#t=ww/day.today`; the asleep scene and `art.core.hill-ring`; the phone Talk layout under 900 px. The hand-off chip shows text only when the `notify` port is null.
 **Accept:** hollow whenever the core is off; no node solid without a fresh report; no list row without a tag and a lamp; zero rAF at idle off the hill; the eight voice states unchanged; no scroll at 1366x768.
 **Tests:** vitest, Playwright, the voice suite. **Record:** research file.
 
 ### A.J02 Room section (wave 7)
-**Files:** `app/ui/src/jarvis/room/**`, `pages/Limbs.tsx`, `shell/views/room.view.ts`, gallery entry. **Depends on:** G01 to G03, D05 (`RackRow`). **Order:** wave 7. **Contract import (same wave):** L02's `Trim(p: { settingId: string; label: string; readsBy: string; children })`; until it merges J02 renders the heavy-load flag inside its own popover with the same signature.
+**Files:** `app/ui/src/jarvis/room/**`, `pages/Limbs.tsx`, `shell/views/room.view.ts`, gallery entry. **Depends on:** G01 to G03, D05 (`RackRow`). **Order:** UW9 (UI lane; was wave 7). **Contract import (same wave):** L02's `Trim(p: { settingId: string; label: string; readsBy: string; children })`; until it merges J02 renders the heavy-load flag inside its own popover with the same signature.
 **Do:** 20.9.2: the wall-box faceplate over `art.room.faceplate`, eight keys with a three-phase LED (asked, confirmed, not confirmed after 6 s, absent "unavailable"), `GuardKey(p: { heavy: boolean; summary: string; state: 'closed'\|'open'\|'asked'\|'confirmed'\|'unconfirmed'; onPress(): void })` for channels the owner flags (two acts, OFF always one press), All off with a pre-press list, `DayRing24(p: { rules: Rule[]; now: Date; onPreview?(t: Date \| null): void })` with a PREVIEW-only scrubber, `room.rules` as a gate schematic, dial scenes previewed as dashed outlines. Delete the `r.present` filter and the Uno leftovers.
 **Accept:** key lamps follow the board's report only; the scrubber never sends and never changes a lamp (test); a flagged channel needs two acts and an unflagged one stays one press; no energy figure; no scroll at 1366x768 and 358 px layout.
 **Tests:** vitest, keyboard spec, the existing relay tests. **Record:** research file.
 
 ### A.L01 Life month calendar (wave 7)
-**Files:** `app/ui/src/shared/almanac/**` (Almanac, DayCell, DayMark, StippleStrip), `ww/day/month/**`, `ww/day/drawer/**` (DayDrawer), `ww/day/adapters/` (slot, empty), `shell/views/day-month.view.ts`, gallery entry. **Depends on:** G01 to G03, D01, D02. **Order:** wave 7.
+**Files:** `app/ui/src/shared/almanac/**` (Almanac, DayCell, DayMark, StippleStrip), `ww/day/month/**`, `ww/day/drawer/**` (DayDrawer), `ww/day/adapters/` (slot, empty), `shell/views/day-month.view.ts`, gallery entry. **Depends on:** G01 to G03, D01, D02. **Order:** UW7 (UI lane; unchanged).
 **Do:** 20.6.1: `Almanac(p: { mode: 'year'\|'month'\|'week'\|'day'; days: DayData[]; onPick(date): void; exams?: Exam[] })`, `DayCell`, `DayMark(p: { kind: Kind; done: boolean })` with the eight shapes and a Marks popover legend, the month grid (128 x 86 cells, side panel, 12 px strip), the year form, `DayDrawer` with Happened, Planned and Intents folds and Undo, Delete, Move, Done, "Not now" (a carried outline, no failure wording). The id `day.month` is already in the id table (N02). Reads the existing life store; the intent and Google sources arrive through `ww/day/adapters/*.register.ts` (null adapter now).
 **Accept:** a cell shows no number unless its source lamp is LIVE; the shape table is the test fixture; arrow-key roving with one tab stop; no `currentStreak` prop; copy grep finds none of the banned words of 20.6.7; no scroll at 1366x768; a bottom sheet on the phone.
 **Tests:** vitest, Playwright keyboard and geometry, forced colours. **Record:** research file.
 
 ### A.L02 Trim and the settings registry (wave 7)
-**Files:** `app/ui/src/shared/trim/**` (Trim, SettingsIndex, `registry.ts`), `shell/modes/settings.mode.ts`, gallery entry. **Depends on:** G01. **Order:** wave 7.
+**Files:** `app/ui/src/shared/trim/**` (Trim, SettingsIndex, `registry.ts`), `shell/modes/settings.mode.ts`, gallery entry. **Depends on:** G01. **Order:** wave 6 (as run; pulled forward from wave 7; merged).
 **Do:** 20.6.6: `Trim(p: { settingId: string; label: string; readsBy: string; children })` (a 44 px key with a slider glyph, a popover of at most 320 x 360 with the control, current value, default, Reset and one line saying what reads it; Esc returns focus); `registry.ts` collects `*.settings.ts` files by glob (`type SettingDef = { id: string; label: string; section: string; view: string; read(): unknown; reset(): void }`); `SettingsIndex` fills the palette mode `:`; a test fails when a registry entry has no mounted Trim or a form field is not in the registry.
 **Accept:** no orphan entry and no unregistered field (fixture table); every legacy `settings.*` id resolves to a Trim home through an alias table (empty until E13); hardware and brain settings keep their confirm step.
 **Tests:** vitest, keyboard spec. **Record:** research file.
 
 ### A.L04 Today and Proof (wave 7; added by the critic pass, 20.16)
-**Files:** `app/ui/src/ww/day/today/**`, `ww/left/**`, `ww/proof/**`, `ww/frame/ProofRail.tsx`, `shell/views/day-today.view.ts`, `shell/views/proof-*.view.ts`, gallery entry. **Depends on:** G01, G02, D01, D02, D04, D05 (L01 is the same wave: this package does not import the Almanac or `DayMark`; it draws its own plates). **Order:** wave 7. **Owner limits:** the built logic of `day.today` (plan editor, add-to-day, classes, counters) is moved, not rewritten.
+**Files:** `app/ui/src/ww/day/today/**`, `ww/left/**`, `ww/proof/**`, `ww/frame/ProofRail.tsx`, `shell/views/day-today.view.ts`, `shell/views/proof-*.view.ts`, gallery entry. **Depends on:** G01, G02, D01, D02, D04, D05 (L01 is the same wave: this package does not import the Almanac or `DayMark`; it draws its own plates). **Order:** UW7 (UI lane; unchanged). **Owner limits:** the built logic of `day.today` (plan editor, add-to-day, classes, counters) is moved, not rewritten.
 **Do:** 20.16.1 and 20.16.2: `DayArc(p: { blocks: { id: string; from: string; to: string; kind: 'class'\|'planned'\|'done'; label: string }[]; now: Date; state: LampState })` as one SVG half-ring of 18 hour ticks over `art.day.sun`, with the Odometer hero, the Trace datum, the `Ahead` card, the `Now` card and the footer `CaptureLine` (`ww`); `ProofRelief(p: { stats: { id: string; label: string; value: number; n: number; state: LampState; caption: string }[] })` as the embossed ring with a caption on every bar and a drill-down to a `Dumbbell` and a `DotHistogram`. Mobile: the arc becomes a vertical spine at 358 px.
 **Accept:** every number carries a lamp and a caption; the arc updates on the minute with no animation and no rAF at idle; no document scroll at 1366x768 and 358 px; the first-run state is one primary ("Start a 10-minute block"); no stat in Proof reads as a score or a promise (forbidden-word test); the existing `day.today` and proof tests keep passing.
 **Tests:** vitest, Playwright (`life`, `proof` specs), forced colours. **Record:** research file.
 
 ### A.J03 Senses section (wave 8)
-**Files:** `app/ui/src/jarvis/senses/**`, `pages/Aankhen.tsx`, `shell/views/senses.view.ts`, gallery entry. **Depends on:** G02, G03, D02. **Owner limits:** the Aankhen chat signs off on the look; the WebGL twin and its code stay where they are behind a "3D" key (D-V2-20); no new WebGL import. **Order:** wave 8.
+**Files:** `app/ui/src/jarvis/senses/**`, `pages/Aankhen.tsx`, `shell/views/senses.view.ts`, gallery entry. **Depends on:** G02, G03, D02. **Owner limits:** the Aankhen chat signs off on the look; the WebGL twin and its code stay where they are behind a "3D" key (D-V2-20); no new WebGL import. **Order:** UW11 (UI lane; was wave 8).
 **Do:** 20.9.3: `SignalTerrain(p: { frames: Frame[]; source: 'live'\|'simulated'\|'none'; paused?: boolean })` as the one bounded 720 x 360 canvas; `LinkCube`, `ChannelMatrix`, `ProbabilityArc(p: { band: 'low'\|'mid'\|'high'\|null; p?: number; trusted: boolean })` (no digit before the held-out check), `MotionTape` (hatched for "sensing paused by you", blank is not proof of an empty room), the SVG isometric floor plan as the default Map form, `senses.signal` as an SVG-only spectrum view, the Teach rings. On screen: "detects motion of anyone in range, identifies no one; one link, no pose."
 **Accept:** each Senses view holds at most one canvas; simulated shows the amber stamp; hollow with no frames; no eye, face or body form anywhere (grep of art ids); no present, absent or "empty room" wording (copy lint); the twin mounts only when 3D is selected.
 **Tests:** vitest, Playwright, the Aankhen tests on a scratch data dir. **Record:** research file.
 
 ### A.J04 Memory section (wave 8)
-**Files:** `app/ui/src/jarvis/memory/**`, `pages/Yaadash.tsx`, `shell/views/memory.view.ts`, gallery entry. **Depends on:** G02, G03, D04. **Order:** wave 8.
+**Files:** `app/ui/src/jarvis/memory/**`, `pages/Yaadash.tsx`, `shell/views/memory.view.ts`, gallery entry. **Depends on:** G02, G03, D04. **Order:** UW10 (UI lane; was wave 8).
 **Do:** 20.9.4: `MemoryConstellation(p: { nodes: Node[]; edges: Edge[]; selected?: string; onSelect(id): void })` (golden-angle layout, a pure function of the store, at most 120 nodes then clusters, text list as the keyboard equivalent), `StrataBands`, the Trail, the `remember>` capture line (`CaptureLine` grammar `jarvis`), Fix with a two-line diff and 7-day undo, Delete with the count, `ReminderChip` is not built here (E03). The three other Memory views follow 20.16.3 (Belief board, People ring, Keep vault). Node count equals Holdings (D-V2-25).
 **Accept:** deleting a node removes it with no celebration; no node carries stored text in the picture; embedding search drawn dashed PLANNED; one 240 ms path draw on recall and none under reduced motion.
 **Tests:** vitest (count equals store), Playwright. **Record:** research file.
 
 ### A.L03 Week, body, ledger and close (wave 8)
-**Files:** `app/ui/src/ww/day/{week,body,ledger,close}/**`, `ww/life/**`, `shell/views/day-week.view.ts`, `day-body.view.ts`, `day-close.view.ts`, `ww/day/adapters/` is read, not written, gallery entry. **Depends on:** L01, D01 to D04. **Order:** wave 8.
+**Files:** `app/ui/src/ww/day/{week,body,ledger,close}/**`, `ww/life/**`, `shell/views/day-week.view.ts`, `day-body.view.ts`, `day-close.view.ts`, `ww/day/adapters/` is read, not written, gallery entry. **Depends on:** L01, D01 to D04. **Order:** UW9 (UI lane; was wave 8).
 **Do:** 20.5.3 (the timetable rack with free-slot plates and the Bunk Ledger of attendance margins, built on `LedgerTable` and a 20-dot meter; the margin formula shown on focus; wording "margin", never "bunk" or red) and 20.6.2 to 20.6.5: the week form with planned (hollow) and done (solid) blocks and the keyboard `m` move; the body strip (gym session log, seven-day strip, `WaterGauge`, medicine reminders as "Reminders you set. Not medical advice.", class reminders); the Ledger drawer with the spending log, `HabitRibbon` and Trim counters; "Plan tomorrow" on `day.close`; neutral line "Pick up here." on return. Stores arrive through adapters (null now): water, spend and habit counts show WAITING until E02.
 **Accept:** no streak, reset or "days clean" anywhere; counts can fall; copy grep (20.6.7) passes; nothing says to take, how much, or why; no scroll at 1366x768 and 358 px.
 **Tests:** vitest, Playwright, copy grep test. **Record:** research file.
 
 ### A.Y01 Paper Desk and Review Desk (wave 8)
-**Files:** `app/ui/src/ww/study/papers/**`, `ww/study/review/**`, `shell/views/study-papers.view.ts`, `ww/study/adapters/` (slot, empty), gallery entry. **Depends on:** G02, D02, D05. **Order:** wave 8.
+**Files:** `app/ui/src/ww/study/papers/**`, `ww/study/review/**`, `shell/views/study-papers.view.ts`, `ww/study/adapters/` (slot, empty), gallery entry. **Depends on:** G02, D02, D05. **Order:** UW7 (UI lane; was wave 8).
 **Do:** 20.7.1 and 20.7.2: `PaperStrata(p: { cells: Cell[]; years: number[]; topics: Topic[]; coverage: Coverage; onOpen(q): void })`, `CoverageLedger`, `PaperDrop(p: { onFiles(files: File[]): void; accept: string[] })`, `ExtractionTrace(p: { events: TraceEvent[] })` (real events only), `ReviewDesk` with Accept, Edit, Merge, Split, Reject (undo 10 s), Next uncertain, and "Accept all certain and review the rest" (margin at least 0.5 and complete marks). Counts as "k of N" with the Wilson interval; below 3 papers "too few papers to show a pattern". The `gcr` plate is E05's.
 **Accept:** nothing enters the bank without review; each tag chip is `RULE`, `MODEL` or `HAND`; no "important", "likely", "expected" in any string (forbidden-word test); the footer sentence "From papers on file. This prepares practice; it does not predict a paper or a result."; fixtures run SIMULATED on the bench.
 **Tests:** vitest, Playwright keyboard path, forbidden-word test. **Record:** research file.
 
 ### A.Y02 Focus: start, session and Drill (wave 8)
-**Files:** `app/ui/src/ww/focus/**`, `shell/views/focus-*.view.ts` (start, session, rest, drill), gallery entry. **Depends on:** G02, D01. **Order:** wave 8.
+**Files:** `app/ui/src/ww/focus/**`, `shell/views/focus-*.view.ts` (start, session, rest, drill), gallery entry. **Depends on:** G02, D01. **Order:** UW7 (UI lane; was wave 8).
 **Do:** 20.7.7 and 20.7.8: the new view `focus.drill` (its id is already in the table, N02) with the question panel, progress dots, Park shelf, hint ladder (`h` reveals are logged), "Not yet. Worked answer below", counts-only set end; `ParkField`; the terminal strip updating on real events; the "Pick for me" strip. Drill and the Crucible both live in Focus (D-V2-11); the legacy id `drill` resolves to `focus.drill`.
 **Accept:** no red token on a miss (lint on tokens); a hint reveal is logged and lowers nothing; the strip changes only on an event; zero rAF at idle in the Drill; an early end keeps the filled dots.
 **Tests:** vitest, Playwright. **Record:** research file.
 
 ### A.J05 Console section (wave 9)
-**Files:** `app/ui/src/jarvis/console/**`, `pages/System.tsx`, `pages/Connect.tsx`, `shell/views/console-*.view.ts`, gallery entry. **Depends on:** D03, D04, D05, G02. **Order:** wave 9.
+**Files:** `app/ui/src/jarvis/console/**`, `pages/System.tsx`, `pages/Connect.tsx`, `shell/views/console-*.view.ts`, gallery entry. **Depends on:** D03, D04, D05, G02. **Order:** UW10 (UI lane; was wave 9).
 **Do:** 20.9.5: the terminal world (`TermWell` frame, rows with bracket tags and lamps, `CommandLine` as `CaptureLine` grammar `jarvis` with the closed verbs `status`, `test hearing`, `restart brain`, `free gpu`, `export memory`, `jobs`, `plan`, `help`), `JobRow(p: { label: string; fraction?: number; state })`, the events filter grammar, `RoutePlates(p: { registry: Planned[] })`, diagnostics with the relay `RackRow` inventory. Firmware never offers flash while the app holds the port.
 **Accept:** unknown verbs rejected; a verb that changes something asks once; a bar fills only to a reported fraction, else hollow; no shell, no eval.
 **Tests:** vitest, Playwright. **Record:** research file.
 
 ### A.Y03 Study plan, practice and generator UI (wave 9)
-**Files:** `app/ui/src/ww/study/{plan,practice,generator}/**`, legacy `ww/study/*.tsx`, `shell/views/study-plan.view.ts`, `study-practice.view.ts`, gallery entry. **Depends on:** Y01, G02. **Order:** wave 9.
+**Files:** `app/ui/src/ww/study/{plan,practice,generator}/**`, legacy `ww/study/*.tsx`, `shell/views/study-plan.view.ts`, `study-practice.view.ts`, gallery entry. **Depends on:** Y01, G02. **Order:** UW8 (UI lane; was wave 9).
 **Do:** 20.7.3 to 20.7.6 and the generator overlay: `SyllabusLandscape`, the `DateWheel` with real papers, `RetentionOrbit` (four bands, no digits, `DEFAULT` chip), `SigilGauge(p: { unitId: string; proficiency: number; n: number })` (dashed under n of 5), `BlueprintBar`, the practice set-up door into `focus.drill`, the "Pick for me" card with printed terms and "Not this" and "Choose another", the three-step generator overlay. Engines arrive through `ww/study/adapters` (null now).
 **Accept:** the formula terms are printed on the card; "Not an official paper" in the PDF header text; no decimal in the retention view.
 **Tests:** vitest, Playwright. **Record:** research file.
 
 ### A.T01 Tree (wave 9)
-**Files:** `app/ui/src/ww/tree/**` (components, views, `ports.ts`, `adapters/` slot), `shell/views/tree.view.ts`, gallery entry. **Depends on:** G02, G03. **Order:** wave 9.
+**Files:** `app/ui/src/ww/tree/**` (components, views, `ports.ts`, `adapters/` slot), `shell/views/tree.view.ts`, gallery entry. **Depends on:** G02, G03. **Order:** UW9 (UI lane; was wave 9).
 **Do:** 20.8.1 to 20.8.3: `GroveRing(p: { trees: TreeSummary[]; onOpen(id): void })`, `SkillNode(p: { tier: 1\|2\|3; state: 'locked'\|'open'\|'progress'\|'claimed'\|'evidenced'\|'stale'; pips: number; label: string })` (six states by shape plus glyph), `TraceEdge`, the tree canvas with level of detail and the keyboard model, `BranchSpine`, `EvidenceLedger`, the node drawer with Evidence, Needs, Do next and Used by. Declares `adapters/` and `data/` as slots (loaded by glob). Reads the evidence through `ports.ts` (null adapter: every node OPEN or LOCKED, the Grove shows dashed seeds).
 **Accept:** a self-mark draws CLAIMED and never EVIDENCED; growth is a pure function of the ledger and falls when a record is deleted; 300 nodes under 400 drawn DOM nodes (a measurement, not a promise); zero rAF at idle.
 **Tests:** vitest, Playwright keyboard traversal. **Record:** research file.
 
 ### A.T02 Career (wave 9)
-**Files:** `app/ui/src/ww/career/**`, `shell/views/career-*.view.ts`, gallery entry. **Depends on:** G02, D03. **Order:** wave 9.
+**Files:** `app/ui/src/ww/career/**`, `shell/views/career-*.view.ts`, gallery entry. **Depends on:** G02, D03. **Order:** UW10 (UI lane; was wave 9).
 **Do:** 20.8.6: Runway (`FlightBoard`), Ladder with Path as its second state (`RoleConstellation`), Abroad (`SpecTable`, `RackChecklist`), Certificates (`PlateShelf`), Money (`FundingBridge`); every date or fee cell is a `Readout` with a lamp, LIVE only when confirmed with a "checked on" stamp, else WAITING "unconfirmed"; the one verified figure (10,332 euros proof of finances, opened 13 Nov 2026) quoted with its source; "These are skill matches against role profiles you wrote or imported. It is not a prediction of being hired."
 **Accept:** no figure without a stamp (cell-lamp test); no outcome promise; rupee and euro columns separate and a typed, dated rate.
 **Tests:** vitest, Playwright. **Record:** research file.
 
 ### A.G04 Cursors, boot, route sigil, empty states (wave 9)
-**Files:** `app/ui/src/shared/grammar/cursor/**`, `shell/slots/boot.*.tsx`, `titlebar-sigil.*.tsx`, `cursor-root.*.tsx`, `shell/empty/**`, gallery entry. **Depends on:** N02, G02, G03. **Order:** wave 9.
+**Files:** `app/ui/src/shared/grammar/cursor/**`, `shell/slots/boot.*.tsx`, `titlebar-sigil.*.tsx`, `cursor-root.*.tsx`, `shell/empty/**`, gallery entry. **Depends on:** N02, G02, G03. **Order:** UW11 (UI lane; was wave 9).
 **Do:** 20.4.5 and 20.4.7: `CursorKit` (reticle, bracket, plan, wait, hold; at most 32 x 32 with a keyword fallback) and `useBracketHover`, hover brackets in 100 ms, the pointer companion off in calm, at `low`, on touch and in forced colours, one Trim switch in the title bar; the route sigil drawing into the title bar in 200 ms; the boot rows; one empty state per view (seed glyph, terminal well, grain strip).
 **Accept:** zero rAF 2 s after the last input; targets stay 44 px; hover never replaces focus; the cursor off in forced colours.
 **Tests:** vitest, Playwright, forced colours. **Record:** research file.
 
 ### A.E01 Intents and recurrence engine (wave 10)
-**Files:** `app/jarvis_app/ww_intents.py`, `app/jarvis_app/server.py` (adds discovery of `routes_ww_*.py`), `app/jarvis_app/routes_ww_intents.py`, `app/ui/src/ww/day/adapters/intents.register.ts`, `ww/day/adapters/intents.ts`, tests. **Depends on:** L01, L03. **Order:** wave 10.
-**Contract:** E01 merges first in the wave; E02 to E04 are tested against their own route modules mounted directly until E01's discovery is on main, so no package of the wave needs another's unmerged file.
+**Files:** `app/jarvis_app/ww_intents.py`, `app/jarvis_app/routes_ww_intents.py`, `app/tests/test_ww_intents.py` (Python only; the TypeScript adapter files `intents.register.ts` and `intents.ts` are AD10's). **Extends:** `app/jarvis_app/reminders.py` (the existing list, scheduler and `repeat`/`interval_min` fields: `ww_intents.expand` produces the dates and hands each to `reminders.py`; it does not keep a second scheduler). **Depends on:** none in the engine lane (UI side L01, L03 earlier). **Order:** EW9 (engine lane, Python only; was wave 10).
+**Contract:** discovery of route files already exists in `register_feature_routes` (no `server.py` edit), so E01 to E04 are independent inside their wave.
 **Do:** 20.6.2: `Intent` with a rule (weekday, month day, yearly date, every n days), a reminder offset and a Quiet gate; `expand(rule, from, to): string[]` as a pure function; `IntentRule` and `IntentEditor` (extends `Field`, `Segmented`); the adapter registers the planned marks.
 **Accept:** 40 recurrence cases pass (month ends, leap day, a 29 Feb yearly rule); the function runs twice with the same result.
 **Tests:** pytest on a scratch data dir, vitest. **Record:** research file.
 
 ### A.E02 Life logs store (wave 10)
-**Files:** `app/jarvis_app/ww_logs.py`, `routes_ww_logs.py`, `ww/day/adapters/logs.register.ts`, tests. **Depends on:** L03. **Order:** wave 10.
-**Do:** 20.6.7 tables `spend`, `habit_events`, `water`, `reminders` (local SQLite under the data folder, nothing tracked); append-only with delete; the adapter feeds the week, body and ledger views; limits are the student's own.
+**Files:** `app/jarvis_app/ww_logs.py`, `routes_ww_logs.py`, `app/tests/test_ww_logs.py` (the TypeScript adapter `logs.register.ts` is AD10's). **Extends:** `ww_money.py` (budget and savings log engine), `ww_body.py` (weekly habits with evidence) and `ww_life.py` (counters and the day log): `ww_logs` is the append-only store they read their `entries`, `habit_log` and `log` arguments from, and it adds no second budget or habit arithmetic. **Depends on:** none in the engine lane. **Order:** EW9 (engine lane, Python only; was wave 10).
+**Do:** 20.6.7 tables `spend`, `habit_events`, `water`, `reminders` (JSONL under the data folder by default, as the other Well Wisher stores; nothing tracked); append-only with delete; the adapter feeds the week, body and ledger views; limits are the student's own.
 **Accept:** deleting a row changes every derived picture honestly; no automatic bank read (grep); the Help list is shown identically at every count (no count-triggered line, no inference).
 **Tests:** pytest (scratch dir), vitest. **Record:** research file.
 
 ### A.E03 Reminder delivery (wave 10)
-**Files:** `app/jarvis_app/ww_reminders.py`, `routes_ww_reminders.py`, `app/ui/src/jarvis/reminders/**` (ReminderChip, ReminderBell), `shell/slots/notify.reminder.tsx`, tests. **Depends on:** J01, J04. **Order:** wave 10.
+**Files:** `app/jarvis_app/reminders.py` (extension: the receipt ladder and Quiet gate are added to the existing scheduler, which already fires reminders, timers and alarms from `data/app/reminders.json`) and `routes_reminders.py` (extension), `app/tests/test_ww_reminder_ladder.py`; no new `ww_reminders.py`. The UI files (`jarvis/reminders/**` ReminderChip and ReminderBell, `shell/slots/notify.reminder.tsx`) are AD11's. **Extends:** `reminders.py`, `routes_reminders.py`, `core/proactive.py` (the existing rule for when JARVIS may speak unasked). **Depends on:** none in the engine lane. **Order:** EW10 (engine lane, Python only; was wave 10).
 **Do:** 20.9.6: the fixed ladder (toast, chime if on, one spoken line if on, one snooze), receipts (spoken, queued, failed), Quiet unliftable, rule-based wording `Reminder: <title>, now.`, the `notify` port adapter; spoken off by default per reminder.
 **Accept:** no code path raises volume, frequency or wording severity (a test enumerates the ladder); presence never decides whether to speak; copy grep finds no "missed" or "overdue"; never reads a dose.
 **Tests:** pytest, vitest. **Record:** research file.
 
 ### A.E04 Google Calendar link (wave 10, Opus: security-sensitive)
-**Files:** `app/jarvis_app/ww_gcal/**`, `routes_ww_gcal.py`, `app/ui/src/ww/day/link/**` (LinkLamp), `ww/day/adapters/gcal.register.ts`, tests. **Depends on:** L01. **Owner limits:** the owner signs in himself in his browser; the assistant never types or stores credentials; needs his own Google Cloud client (Q-V2-2). **Order:** wave 10.
+**Files:** `app/jarvis_app/ww_gcal/**`, `routes_ww_gcal.py`, tests (the UI files `ww/day/link/**` LinkLamp and `gcal.register.ts` are AD11's). **Extends:** nothing existing (no Google code is in the backend today; `connect.py` only mentions Takeout); it imports C06 for sign-in. **Depends on:** C06 (EW9). **Owner limits:** the owner signs in himself in his browser; the assistant never types or stores credentials; needs his own Google Cloud client (Q-V2-2). **Order:** EW10 (engine lane, Python only; was wave 10).
 **Do:** 20.6.3: loopback PKCE listener (5 minutes), refresh token in the OS credential store only, read-only `calendar.events.readonly` by default, a second switch to write planned blocks with a preview list, per-calendar switches off by default, disconnect revokes and deletes the cache; states PLANNED, WAITING, LIVE, FAULT.
 **Accept:** all four states reachable on a bench with a fake provider; no secret in the repository or in `data/` as plain text (scan); imported events carry the notch and the words "from Google" and never enter counts.
 **Tests:** pytest with the fake provider, vitest. **Record:** research file (what was and was not verified about Google's scopes).
 
 ### A.E05 Question store, folder watch and the gcr plate (wave 11)
-**Files:** `app/jarvis_app/ww_pyq/{schema,store,routes,folder}.py`, `ww/study/adapters/pyq.register.ts`, `ww/study/ww-gcr.planned.ts` (entry `ww.gcr`, collected by G01's glob; `ww/plannedFeatures.ts` is not edited), tests. **Depends on:** Y01. **Order:** wave 11.
+**Files:** as the EW7 table: `app/jarvis_app/ww_pyq/{__init__,schema,store,folder}.py`, `routes_ww_pyq.py`, `app/tests/test_pyq_store.py` (no TypeScript: `pyq.register.ts` is AD08's and the `ww.gcr` plate `ww/study/ww-gcr.planned.ts` is C08's; no `server.py` edit). **Extends:** `yaadash/library.py` and `routes_library.py` (folder ingest job pattern); reads `ww_bank_store`. **Depends on:** none in the engine lane (UI: Y01 earlier). **Order:** EW7 (engine lane, Python only; was wave 11).
 **Do:** 20.7.9 storage: `papers`, `pages`, `questions`, `families`, `attempts`, `cards`; originals stay in `data/`; a folder watch (WAITING until a folder is chosen); the PLANNED `ww.gcr` plate that opens an explanation, never a form (Q-V2-1).
 **Accept:** the schema migrates on a scratch dir; stale-entry tests T1 to T10 pass; none of the owner's papers is in a tracked file.
 **Tests:** pytest, vitest. **Record:** research file.
 
 ### A.E06 Ingest and segmentation (wave 11)
-**Files:** `app/jarvis_app/ww_pyq/{ingest,segment,ocr}.py`, `app/tests/pyq_fixtures/**` (invented papers only). **Depends on:** E05 (the store contract). **Owner limits:** a PDF text library, a page renderer and an OCR engine each need the owner's OK with sizes stated first (Q-V2-3). **Order:** wave 11.
+**Files:** as the EW7 table: `app/jarvis_app/ww_pyq/{ingest,segment,crops,slides}.py`, `routes_ww_pyq_ingest.py`, `app/tests/pyq_fixtures/**` (invented papers only), `app/tests/test_pyq_ingest.py` (`ocr.py` is X04's, EW8). **Extends:** `yaadash/library.py` (`extract`: PyMuPDF text, python-pptx slides, the OCR hook) and `ww_harvest.py` (`split_problems`, `guess_marks`). **Depends on:** E05 (the store contract). **Owner limits:** PyMuPDF and python-pptx are already installed; the OCR engine (RapidOCR) is approved (D-V3-6) with its size stated first. **Order:** EW7 (engine lane, Python only; was wave 11).
 **Do:** 20.7.9 ingest steps 1 to 3 (text layer, else OCR; question starts by the stated pattern; marks; type by pattern); log events are the run's real events.
 **Accept:** on 10 invented fixture papers the question count equals the hand count on 9 and marks are found on 90 percent (targets); an OCR miss reports FAULT with the install message.
 **Tests:** pytest. **Record:** research file.
 
 ### A.E07 Tagging, families, patterns and Next three (wave 11)
-**Files:** `app/jarvis_app/ww_pyq/{tag,families,patterns,next}.py`. **Depends on:** E05. **Order:** wave 11.
+**Files:** as the EW7 table: `app/jarvis_app/ww_pyq/{tag,families,patterns,next}.py`, `routes_ww_pyq_patterns.py`, `app/tests/test_pyq_patterns.py`; the list function is `practise_next` (D-V3-26). **Extends:** `ww_generator.topic_key`, `topic_weights`, `proficiency`; `ww_mastery`. **Depends on:** E05. **Order:** EW7 (engine lane, Python only; was wave 11).
 **Do:** 20.7.9: cosine tagging with the 0.25 score and 0.15 margin, a `MODEL` proposal only among existing topics, families by 5-word shingles and Jaccard 0.8, counts with the Wilson interval, "too few papers" below 3, and `gain = (marks share x papers-seen share) x (1 - proficiency)` ranked per minute with the terms printed; `ww_check` runs each pure function twice.
 **Accept:** the Wilson interval matches a reference table to 4 places; a mutation lowering the margin to 0 fails a test; no string from the forbidden-word list in any output; five real cases the owner agrees with reproduce the ranking (V01) before it ships.
 **Tests:** pytest, the gate. **Record:** research file.
 
 ### A.E08 Generator, checker and spaced review (wave 11)
-**Files:** `app/jarvis_app/ww_generator.py` (extension), `ww_fsrs.py`, `ww_pyq/drill.py`, `routes_ww_drill.py`. **Depends on:** E05. **Order:** wave 11. (B08 is folded into E07 and E08.)
+**Files:** as the EW7 table: `app/jarvis_app/ww_pyq/{blueprint,generate,printset,check}.py`, `routes_ww_pyq_gen.py`, `app/tests/test_pyq_gen.py`; `ww_generator.py` is imported and not edited in EW7; `ww_fsrs.py` and the drill routes leave E08 (the review queue is X09, `ww_review/**`; drill reads the queue through its route). **Extends:** `ww_generator.generate`, `effective_pattern`, `scale_pattern`, `paper_invariants`; `ww_numericals`; `ww_exams`. **Depends on:** E05. **Order:** EW7 (engine lane, Python only; was wave 11). (B08 is folded into E07 and E08.)
 **Do:** the practice paper from the reviewed bank with the section blueprint and the header "Practice paper from your bank. Not an official paper."; the independent numeric checker route; the FSRS scheduler with default parameters until about 1,000 reviews (chip `DEFAULT`); a rules-only switch that turns every `MODEL` use off.
 **Accept:** the blueprint equals the source paper's marks per section; a variant stays dashed until accepted; the retention estimate has no decimal in any output.
 **Tests:** pytest, the gate on a scratch dir. **Record:** research file.
 
 ### A.E09 Evidence ledger (wave 12)
-**Files:** `app/jarvis_app/ww_evidence.py`, `routes_ww_evidence.py`, `app/ui/src/ww/tree/adapters/evidence.ts`, `ww/tree/adapters/evidence.register.ts`, tests. **Depends on:** T01. **Order:** wave 12.
+**Files:** `app/jarvis_app/ww_evidence.py`, `routes_ww_evidence.py`, `app/tests/test_ww_evidence.py` (the TypeScript adapter files are AD11's). **Extends:** `ww_trees.py` (nodes already "verified by evidence", with `proofs` and `measures` arguments) and `ww_proof.py`: the ledger is the store those arguments are read from, not a second verification rule. **Depends on:** T01. **Order:** EW10 (engine lane, Python only; was wave 12).
 **Do:** 20.8.4: the table `evidence`, six kinds, the unlock rule (sum of weights at least the requirement and one hard record of kind 1, 4 or 5), STALE windows (language 60, drills 90, body 30 days, proposals), a deleted record recomputes everything; a held-out Study pass writes a record.
 **Accept:** unit tests for every state; delete recomputes; a body node needs instructor-logged sessions or a grade.
 **Tests:** pytest, vitest. **Record:** research file.
 
 ### A.E10 Trees one to five (wave 12)
-**Files:** `app/ui/src/ww/tree/data/t01-*.json` to `t05-*.json` (academic core, engineering, languages, body and self-defence, social). **Depends on:** T01. **Order:** wave 12.
+**Files:** `app/ui/src/ww/tree/data/t01-*.json` to `t05-*.json` (academic core, engineering, languages, body and self-defence, social). **Depends on:** T01. **Order:** UW12 (UI lane, data files; was wave 12).
 **Do:** 20.8.5: 57 branches plus capstones for trees 1, 4 and 5 (60), each with at least 3 nodes, tier, prerequisites and accepted evidence kinds; the body tree needs instructor-logged sessions or a grade (Q-V2-9).
 **Accept:** a schema test per file; 60 branches counted by a test local to these five files.
 **Tests:** vitest. **Record:** research file.
 
 ### A.E11 Trees six to ten (wave 12)
-**Files:** `app/ui/src/ww/tree/data/t06-*.json` to `t10-*.json` (influence, money, craft, health basics, career skills). **Depends on:** T01. **Order:** wave 12.
+**Files:** `app/ui/src/ww/tree/data/t06-*.json` to `t10-*.json` (influence, money, craft, health basics, career skills). **Depends on:** T01. **Order:** UW12 (UI lane, data files; was wave 12).
 **Do:** 51 branches plus capstones for trees 8 and 10 (53); the influence tree teaches recognising and resisting manipulation and honest persuasion, no tactic aimed at a named person; the health tree says "learn and practise" and never "manage a condition".
 **Accept:** schema test; 53 branches counted; copy grep on influence and health nodes. The total of 113 is asserted by Q01.
 **Tests:** vitest. **Record:** research file.
 
 ### A.E12 Career data (wave 12)
-**Files:** `app/jarvis_app/ww_career_data.py`, `routes_ww_career_data.py`, `app/ui/src/ww/career/adapters/*.register.ts`, tests. **Depends on:** T02. **Order:** wave 12.
+**Files:** `app/jarvis_app/ww_career_data.py`, `routes_ww_career_data.py`, `app/tests/test_ww_career_data.py` (the TypeScript adapters are AD12's). **Extends:** `ww_career.py` (the career engine already ranks the next career action from nodes, deadlines and applications): `ww_career_data` is the "checked on" data store that engine reads. **Depends on:** T02. **Order:** EW11 (engine lane, Python only; was wave 12).
 **Do:** stores for applications, universities and their cells, certificates, funding sources and a typed dated rate; every date and fee has a `checked_on` field; a one-click fetch only if the owner agrees (Q-V2-11), else manual entry.
 **Accept:** no cell leaves the store without a stamp or the WAITING flag; deleting an application removes its notch.
 **Tests:** pytest, vitest. **Record:** research file.
 
 ### A.E13 Settings dissolved (wave 13)
-**Files:** `app/ui/src/ww/setup/**` (removed), `ww/**/*.settings.ts` and `jarvis/**/*.settings.ts` (new), `lib/settings.ts`, `shell/modes/settings.mode.ts` (data only). **Depends on:** L02 and all sections. **Order:** wave 13.
+**Files:** `app/ui/src/ww/setup/**` (removed), `ww/**/*.settings.ts` and `jarvis/**/*.settings.ts` (new), `lib/settings.ts`, `shell/modes/settings.mode.ts` (data only). **Depends on:** L02 and all sections. **Order:** UW12 (UI lane; was wave 13).
 **Do:** 20.6.6: place each of the 28 settings homes in the table, each with a Trim at its home, delete the sheet, keep every `settings.*` id as an alias that opens the Trim popover at the new home.
 **Accept:** the registry test passes (no orphan, no unregistered field); every alias resolves; hardware and brain changes keep their confirm step.
 **Tests:** vitest, Playwright deep-link specs. **Record:** research file.
 
 ### A.E14 Cross-links (wave 13)
-**Files:** `app/ui/src/shared/links/**`, `ww/**/adapters/links.register.ts`. **Depends on:** T01, T02, L01, Y03, E09. **Order:** wave 13.
+**Files:** `app/ui/src/shared/links/**`, `ww/**/adapters/links.register.ts`. **Depends on:** T01, T02, L01, Y03, E09. **Order:** UW13 (UI lane; was wave 13).
 **Do:** 20.8.6 cross-links: Tree gap to Life block (`P`), Do next to Drill, held-out pass to evidence, Career requirement to a Study block and a Life block, each a one-key action stating its source.
 **Accept:** each link has a test that the target opens and the source is named; absent target shows text.
 **Tests:** vitest, Playwright. **Record:** research file.
 
 ### A.B09 Phone, revised (wave 13; supersedes the B09 text above where it differs)
-**Files:** `phone_page/**` (not `ww.*` of another package), `app/jarvis_app/routes_phone*.py`. **Depends on:** B03, B05, L01. **Order:** wave 13.
+**Files:** `phone_page/**` (not `ww.*` of another package), `app/jarvis_app/routes_phone*.py`. **Depends on:** B03, B05, L01. **Order:** UW13 (UI lane; the Python half is B09p in EW11; was wave 13).
 **Do:** as B09 plus the phone Calendar tab (the Almanac at 390 px), the Day page, next paper and Next three; drill and paper drop stay desktop (PLANNED `phone-papers`).
 **Accept:** one palette; 44 px taps; Playwright phone specs.
 **Tests:** as B09. **Record:** research file.
 
 ### A.B10 Learning loops (wave 13, as before)
-**Files:** `app/ui/src/shared/learning/**`, `shared/learning/learning.settings.ts`. **Depends on:** B05, L02. **Owner limits:** UI chat; each loop off by default. **Order:** wave 13.
+**Files:** `app/ui/src/shared/learning/**`, `shared/learning/learning.settings.ts`. **Depends on:** B05, L02. **Owner limits:** UI chat; each loop off by default. **Order:** UW13 (UI lane; was wave 13).
 **Do:** as A.B10, with its settings group registered as a Trim home. **Accept:** as A.B10. **Tests:** vitest and the local-only network test. **Record:** research file.
 
 ### A.B12 Coach (wave 13, as before)
-**Files:** `app/jarvis_app/ww_coach.py`, `app/ui/src/ww/study/coach/**`. **Depends on:** E07, E08, R01 (the VRAM numbers). **Owner limits:** a model install needs the owner's OK. **Order:** wave 13.
+**Files:** `app/jarvis_app/ww_coach.py`, `app/ui/src/ww/study/coach/**`. **Depends on:** E07, E08, R01 (the VRAM numbers). **Owner limits:** a model install needs the owner's OK. **Order:** UW13 (UI lane; the Python half is B12p in EW11; was wave 13).
 **Do:** as A.B12; every output carries `MODEL` and a source link; a rules-only switch. **Accept:** as A.B12; the model unloads after idle. **Tests:** pytest, vitest. **Record:** research file.
 
 ### A.B13 Retire the old layout (wave 14, as before)
-**Files:** `germoney/pages/**`, `galaxy/**`, `components/{MemoryGalaxy,GrowthChart,PhoneCard}.tsx`. **Depends on:** all sections and the owner's OK. **Owner limits:** removal only after the owner agrees. **Order:** wave 14.
+**Files:** `germoney/pages/**`, `galaxy/**`, `components/{MemoryGalaxy,GrowthChart,PhoneCard}.tsx`. **Depends on:** all sections and the owner's OK. **Owner limits:** removal only after the owner agrees. **Order:** UW14 (UI lane; unchanged).
 **Do:** as A.B13. **Accept:** the bundle is smaller and no stale registry entry remains. **Tests:** all suites. **Record:** research file.
 
 ### A.Q01, A.Q02 and A.Q03 for direction v2 (wave 14)
-**Files:** reports in the research file. **Depends on:** every earlier wave. **Order:** wave 14.
+**Files:** reports in the research file. **Depends on:** every earlier wave. **Order:** UW14 (UI lane; adds the lane check, the route check and the assertion of 36 views).
 **Do:** the contract sweep of A.Q01 over 36 views (assert `viewCount` 36, `check_ids.py`, 113 branches across E10 and E11); the real-window pass of A.Q02 with the owner (idle CPU, minimised, the gallery pass of 20.15); the privacy and claims audit of A.Q03 extended with: no private picture in a tracked file or in any `dist` that leaves the machine, the Google link states, the reminder ladder, the banned-word greps of 20.6.7 and 20.7.9, no camera in any dependency list, a whole-app network trace against the egress register with Google and the optional image generator as the only declared external hosts and only when the owner has switched them on.
 **Accept:** a table of every budget and rule with a measured value and pass, fail or "not run" with the reason.
 
 ### A.Q04 Gallery pass (wave 14; replaces the customer-track gate, D-V2-1)
-**Files:** a signed checklist in the research file. **Depends on:** all waves. **Order:** wave 14.
+**Files:** a signed checklist in the research file. **Depends on:** all waves. **Order:** UW14 (UI lane; unchanged).
 **Do:** the owner opens "What is new" and each section in the running application; for each of the eleven centrepieces and each placement of a catalogue picture he marks keep, change or drop; changes go back to their package as a one-line brief.
 **Accept:** every placement has a mark; nothing is called finished without one.
+
+### Wave blocks of the two-lane plan (14 Nov 2026)
+
+These blocks follow 15.6.1 and section 21. A wave of either lane starts only when the earlier waves it depends on have merged and the integrator of that lane has pasted the wave contract table next to its packages (Block C rule 13). **Lane rule:** an engine package owns only Python folders and their tests and exposes routes whose shapes are written in `docs/design/well-wisher-engine-plan.md`; a UI package reaches a route only through an adapter file it owns, with a null adapter until the route exists. Unless a block says otherwise: Sonnet; agents leave their work uncommitted and the lane's integrator commits (D-V3-18); UI tests are vitest and `tsc -b` plus the Block C list that the package touches, engine tests are pytest on scratch data directories (`JARVIS_DATA_DIR`, `AANKHEN_DATA_DIR`), never the real `data/`; the research record of a UI package is a new dated section in `docs/research/product-design-overhaul.md`, that of an engine package a new dated section in the engine chat's own topic file `docs/research/well-wisher-engine.md` (private derivative work: `data/notes/research/`); installs are only the four families approved on 13 Nov (D-V3-6).
+
+#### Wave contract table for the next UI wave, UW7 (paste at the top of every UW7 prompt; paths under `app/ui/src`)
+
+**Start condition (critic, 14 Nov).** UW7 starts only when D02, D03, D05, J01 and G05 of wave 6 have merged: L04, Y01 and DB02 import D02 and D05, and G05 rewrites `shared/kit/**` and `shared/lamp/**`, which every UW7 package imports (a half-merged craft pass would change props under the builders). The rows below were checked on 14 Nov: no two packages own an overlapping path, every import is of an earlier wave or of a signature written here, and the adapter folders are narrowed to the files the package itself owns (every later adapter is another package's file, added by glob).
+
+| Pkg | Purpose in one line | Folders owned | Exports it will add (names and signatures) | Exports of other packages it may import |
+|---|---|---|---|---|
+| L04 | Today with the Day Arc and the Proof relief | `ww/day/today/**`, `ww/left/**`, `ww/proof/**`, `ww/frame/ProofRail.tsx`, `shell/views/day-today.view.ts`, `shell/views/proof-*.view.ts`, `gallery/entries/L04.tsx` | `default Today(): JSX`; `DayArc(p: { blocks: DayBlock[]; planned: DayBlock[]; done: DayBlock[]; now: Date; state: LampState })`; `ProofRelief(p: { stats: ProofStat[]; state: LampState })`; two glob hosts: `ww/day/today/modes/*.mode.tsx` (a file exports `{ id: string; label: string; Specimen: ComponentType; Margin?: ComponentType }`) and `ww/day/today/callouts/*.callout.tsx` (`{ id: string; order: number; Callout: ComponentType }`) | `shared/kit`, `shared/lamp`, `shared/grammar`, `shared/data/{numbers,series,tables,specimen}`, `shared/capture` (not L01) |
+| L01 | The Life month calendar and the Day ports | `shared/almanac/**`, `ww/day/month/**` (host of `faces/*.face.tsx`), `ww/day/drawer/**` (host of `folds/*.fold.tsx`), `ww/day/ports.ts`, `ww/day/adapters/types.ts` and `ww/day/adapters/null.register.ts` (the only adapter files L01 owns), `shell/views/day-month.view.ts`, `gallery/entries/L01.tsx` | `Almanac(p: { month: string; days: DayCell[]; onOpen(date: string): void; state: LampState })`; `DayCell`; `DayMark(p: { kind: 'done' \| 'planned' \| 'class' \| 'google' \| 'classroom' \| 'note'; filled?: boolean; label: string })`; `StippleStrip`; `DayDrawer(p: { date: string })`; `type DayPort` (members `month`, `day`, `intake`, `intents`, `logs`, `reminders`, `gcal`, `dashboards`, each with a null adapter) | `shared/kit`, `shared/lamp`, `shared/grammar`, `shared/data/{numbers,series}` |
+| Y01 | Paper Desk, Review Desk, import tray; all Study ports | `ww/study/papers/**`, `ww/study/review/**`, `ww/study/ports.ts`, `ww/study/adapters/types.ts` and `ww/study/adapters/null.register.ts` (the only adapter files Y01 owns; AD08 and later add theirs by glob), `shell/views/study-papers.view.ts`, `gallery/entries/Y01.tsx` | `PaperStrata`, `CoverageLedger`, `ReviewDesk`, `ExtractionTrace`, `PaperDrop`, `ImportTray`, `CropCard`, `RubricChips` (props in 21.8); `type StudyPort` with members `papers`, `questions`, `ingest`, `decide`, `crop`, `blueprints`, `generate`, `patterns`, `practiseNext` (the gain-ranked list of 20.7.9; the Today list `NextThree` of DB01 is another thing, fed by DB11), `check`, `readiness`, `tonight`, `queue`, `harvest`, `intake`, `classroom`, each derived from the engine plan file and each with a null adapter that answers WAITING | `shared/kit`, `shared/lamp`, `shared/grammar`, `shared/data/{series,tables,specimen}` |
+| Y02 | Focus: start, session (Crucible), rest, drill | `ww/focus/**` (host of `tracks/*.track.tsx`, `adapters/` with the legacy-bank adapter), `shell/views/focus-*.view.ts`, `gallery/entries/Y02.tsx` | `FocusStart`, `Crucible`, `FocusRest`, `Drill`, `ParkField`; `type FocusPort`; `type TrackRegistration = { id: string; Session: ComponentType<{ onEnd(): void }> }` | `shared/kit`, `shared/lamp`, `shared/grammar`, `shared/data/numbers` |
+| DB01 | Three small dashboard forms | `shared/data/countdown/**`, `shared/data/nextthree/**`, `shared/data/handoff/**`, `gallery/entries/DB01.tsx` | `CountdownDots(p: { from: string; to: string; state: LampState; label: string })`; `NextThree(p: { items: { id: string; text: string; reason: string; lamp: LampState }[]; state: LampState })`; `HandoffKey(p: { to: string; context?: Record<string, string>; label: string })` | `shared/kit`, `shared/lamp`, `shared/grammar`, `shared/data/numbers` |
+| DB02 | The Legend flip side | `shared/data/legend/**`, `gallery/entries/DB02.tsx` | `Legend(p: { entries: { mark: ReactNode; meaning: string; source: LampState }[] })` | `shared/kit`, `shared/lamp`, `shared/data/specimen` |
+
+Rules of this table are those of the wave 5 table: a builder calls another package's export of the same wave only through the signature written here, never re-implements a listed export, imports single-source tables, and ends its report with a "contract check" line.
+
+#### Wave contract table for the next engine wave, EW7 (paste at the top of every EW7 prompt; paths under `app/jarvis_app` unless stated; Python only)
+
+**Checked 14 Nov (critic).** The engine plan file `docs/design/well-wisher-engine-plan.md` exists (commit 8e0933a) and governs route shapes: paths are under `/api/mission/` (the existing Well Wisher prefix), every success carries `state`, `reason`, `source`, and its section 9 must list the route contracts R-01 onward before EW7 starts (it did not on 14 Nov). `server.py` is owned by nobody in EW7: `register_feature_routes` already mounts every `routes_*.py`, so a new route file is enough (a route module that raises at import is skipped silently, so each route file gets a test that its paths answer). The `requirements/` files are edited by the engine integrator only, once per wave. The last column names the existing module each package extends or reuses (full map in 21.10); a package that writes a parallel copy of one of them fails review.
+
+| Pkg | Purpose in one line | Files owned | Exports it will add (names and signatures) | Exports of other packages it may import | Existing module it extends or reuses |
+|---|---|---|---|---|---|
+| E05 | Review-staging question store with crops, schema, folder watch | `ww_pyq/{__init__,schema,store,folder}.py`, `routes_ww_pyq.py`, `app/tests/test_pyq_store.py` | `class Store(data_dir: Path)` with `add_paper(meta: PaperMeta) -> str`, `add_questions(paper_id: str, drafts: list[QuestionDraft]) -> list[str]`, `set_status(qid: str, status: Literal['pending','accepted','rejected'], by: Literal['hand','rule']) -> None`, `list_questions(paper_id: str \| None = None, status: str \| None = None) -> list[Question]`, `coverage(subject: str) -> Coverage`, `crop_path(qid: str) -> Path \| None`, `watch_folder(path: Path \| None) -> FolderState`; TypedDicts `PaperMeta`, `QuestionDraft` (carries `crop`: page, bbox, PNG path, and `text_status`), `Question`, `Topic`, `Coverage`, `FolderState`, `TextStatus = Literal['verified','unverified','none']` in `ww_pyq/schema.py`; routes under `/api/mission/pyq/`: `papers` (GET, POST), `papers/{id}`, `questions` (GET, PATCH), `crops/{id}`, `coverage`, `folder` (GET, PUT) | none | `ww_bank_store` (read only: slug and field names; accepted own-file questions stay in this private Store and reach the generator through the `bank` argument, so `ww_bank_store` is not edited and keeps refusing unlicensed text); `yaadash/library.py` and `routes_library.py` (the folder-ingest job pattern) |
+| E06 | Ingest of PDFs and slides, crops, segmentation | `ww_pyq/{ingest,segment,crops,slides}.py`, `routes_ww_pyq_ingest.py`, `app/tests/pyq_fixtures/**` (invented papers only), `app/tests/test_pyq_ingest.py` | `ingest_pdf(path: Path, *, ocr: Callable[[bytes], OcrResult] \| None = None) -> IngestResult`; `ingest_slides(path: Path) -> IngestResult`; `IngestResult = { paper: PaperMeta, drafts: list[QuestionDraft], trace: list[TraceEvent] }`; `segment_page(page: dict) -> list[Box]`; `read_pdf_text(data: bytes, first: int \| None = None, last: int \| None = None) -> str` (PyMuPDF; HV01 makes `ww_harvest.pdf_text` call it, so there is one PDF reader); `IngestResult`, `TraceEvent`, `OcrResult`, `Box` TypedDicts in `ww_pyq/ingest.py`; routes `POST /api/mission/pyq/ingest`, `GET /api/mission/pyq/ingest/{job}` | E05 `Store` and the TypedDicts, through the signatures above | `yaadash.library.extract` (PyMuPDF text, python-pptx slides, OCR hook: call it, do not rewrite it); `ww_harvest.split_problems`, `guess_marks` and `_PROB` (the start patterns that segmentation generalises) |
+| E07 | Tagging, families, patterns, Quiet, Practise next | `ww_pyq/{tag,families,patterns,next}.py`, `routes_ww_pyq_patterns.py`, `app/tests/test_pyq_patterns.py` | `tag_question(q: Question, topics: list[Topic]) -> TagResult`; `find_families(qs: list[Question]) -> list[Family]`; `compute_patterns(qs: list[Question], papers: list[PaperMeta], floor_papers: int = 3, floor_questions: int = 20) -> PatternSet`; `quiet_topics(papers: list[PaperMeta], r: int = 3) -> list[str]`; `wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]`; `practise_next(patterns: PatternSet, proficiency: dict[str, float], gap_minutes: int) -> list[Pick]` (named so it cannot be mistaken for the Today list "Next Three" of DB11); routes `GET /api/mission/pyq/patterns`, `GET /api/mission/pyq/practise-next`, `POST /api/mission/pyq/tags/suggest` | E05 TypedDicts | `ww_generator.topic_key`, `topic_weights`, `proficiency` (the gain terms of 20.7.9 call these); `ww_mastery` for proficiency inputs |
+| E08 | Blueprint, generator v2, checker, print set | `ww_pyq/{blueprint,generate,printset,check}.py`, `routes_ww_pyq_gen.py`, `app/tests/test_pyq_gen.py` | `infer_blueprint(paper: PaperMeta, qs: list[Question]) -> Blueprint`; `validate_blueprint(bp: Blueprint) -> list[Issue]`; `generate_paper(bp: Blueprint, bank: list[Question], seed: int) -> GeneratedPaper`; `render_print(paper: GeneratedPaper, kind: Literal['paper','key','marking','night']) -> str` (HTML); `check_numeric(key: str, answer: str) -> CheckResult`; routes `GET`/`PUT /api/mission/pyq/blueprints/{exam}`, `POST /api/mission/pyq/blueprints/infer`, `POST /api/mission/pyq/papers/generate`, `GET /api/mission/pyq/generated/{id}/print`, `POST /api/mission/pyq/check`; E08 stores its blueprints and generated papers itself as JSON under the data directory (no `Store` method is needed) | E05 `Store` and TypedDicts; existing `ww_generator.paper_invariants`, `ww_numericals` (imported, not edited) | `ww_generator.generate`, `effective_pattern`, `scale_pattern`, `paper_invariants`, `as_markdown` and `ww_numericals.make`, `pool` (`generate_paper` maps a Blueprint onto the exam's `pattern`, passes the accepted questions as the `bank` argument and adds the family rule, the 14-day weight and hollow slots around the call; `ww_generator.py` is not edited in EW7, so its existing tests stay green by construction); `ww_exams` (the exam row a Blueprint belongs to) |
+| C01 | Intake parsers (paste, calendar file, name match) | `ww_intake/{__init__,paste,ics,match}.py`, `app/tests/test_intake_parsers.py` | `parse_paste(text: str, now: datetime) -> ParseResult`; `parse_ics(text: str, now: datetime, horizon_days: int = 120) -> list[IcsEvent]`; `match_name(a: str, b: str) -> float` (token Jaccard); no routes | none | none (new package `ww_intake`); a parsed deadline becomes an `ww_exams` date-sheet row only on Accept (C02, EW8) |
+
+The route shapes (request and response JSON, error codes, lamp state) of every row are the entries of `docs/design/well-wisher-engine-plan.md`; a builder that needs a shape the file does not hold stops and reports.
+
+#### Amendments to the older blocks (two-lane plan)
+
+These lines are read together with the block named; where they differ, they govern.
+- **A.J01, A.L02:** Order is wave 6 (as run). A.J01 also declares a glob host `jarvis/core/glance/*.glance.tsx` for the Core home; if J01 merges without it, the integrator adds that one line before UW9.
+- **A.L04:** declares the two glob hosts of the UW7 table; its Ahead callout shows days left as a plain number until DB03 adds `CountdownDots`.
+- **A.L01:** hosts `faces/*.face.tsx` and `folds/*.fold.tsx`; its `DayMark` gains the kind `classroom`; it owns every Day port, with a null adapter each (D-V3-17).
+- **A.Y01:** owns every Study port (list in the UW7 table), the crop handles and rubric strip of 21.3.2 S2, the `ImportTray` of S1 and `CropCard`; it adds no route call except through `StudyPort`.
+- **A.Y02:** hosts `tracks/*.track.tsx` (the Crucible is the first track; the paper track is X08's); a legacy-bank adapter lives in `ww/focus/adapters/`.
+- **A.Y03:** hosts `ww/study/plan/faces/*.face.tsx` (the Exam Room is X10's); it gives `generator/**` to X03 and the library tab host to C03.
+- **A.L03:** hosts `ww/day/week/faces/*.face.tsx` (the Week Review is DB05's).
+- **A.J05:** hosts `jarvis/console/health/faces/*.face.tsx` (the System dashboard is DB08's; there is no view `console.system`).
+- **A.T01:** unchanged; its ports land before AD11 and E14.
+- **A.E05 to A.E08:** Python only (the lane rule). They add what 21.3 and the EW7 table name: crops, tables and slides in E05 and E06; Quiet, Bloom and the extra routes in E07; blueprint, generator v2, print and the numeric check in E08. The `ww.gcr` plate and the TypeScript adapter files named in their older blocks move to C08 and AD08. FSRS leaves E08 for X09.
+- **A.E01 to A.E04, A.E09, A.E12:** Python only; their `ww/**` and `jarvis/**` files move to AD09, AD10, AD11 and AD12 as 15.6.2 says. A.E04 imports the shared OAuth core (C06) and has no OAuth code of its own.
+- **A.B09, A.B12:** their UI halves stay in UW13; their Python halves are the packages B09p and B12p (EW11).
+- **A.Q01 to A.Q03:** add the lane check, the route check and the assertion that `viewCount` is 36 and that no view id `study.exam`, `day.exams` or `console.system` exists.
+
+### A.G05 Craft pass: components, buttons and shadows (UW6, UI lane; in progress)
+**Files:** `app/ui/src/styles/design/clay/**`, `shared/kit/**`, `shared/lamp/**`, `__tests__/kit/**`, `e2e/bench/known.ts`, and the shell chrome files (title bar, rail, dock) that the integrator names in the wave contract. **Depends on:** G01, N02 (merged). **Owner limits:** UI chat; no behaviour test changes; Opus for the contrast work if a second attempt is needed. **Order:** UW6, beside D02, D03, D05 and J01 (it is in progress).
+**Do:** the owner's "highly refined components, buttons, shadows and overall aesthetics", against his clay references (private): (a) D-V3-19: no hairline on a labelled control in the default themes; a 3:1 inner cue on switch, rocker, checkbox, radio, knob, slider and detent; hard 2 px `CanvasText` edges in `prefers-contrast: more` and forced colours; (b) one light, a ridge and at most two shadow layers per step, a pressed travel of 1 px, no animated `box-shadow`; (c) the title bar, rail and dock refined to the same recipe; (d) every change is measured, and each bench failure fixed is removed from `known.ts`.
+**Accept:** the contrast oracle computes the inner cue and the hard edges for every pair in light, dark and the two high-contrast modes; the bench is green with `known.ts` unchanged or shorter; the jury's depth and material score does not go down (ratchet); idle `getAnimations()` is empty.
+**Tests:** vitest, `tsc -b`, the bench spec, Playwright snapshots (say how many baselines changed). **Record:** research file, section "craft pass".
+
+### A.N03 Lane check and one-command integration (before UW7; process, the integrator)
+**Files:** `tools/wave_check.py` (lane rule), `tools/integrate_wave.py`, `tools/tests/**`. **Depends on:** N01 (merged). **Owner limits:** programme chat; both lanes read it. **Order:** before UW7 starts.
+**Do:** extend `wave_check.py` with the lane check (rule 8) and the route check (rule 9), a `freeze` check that refuses a feature package in the folders of D-V3-22 while the private freeze file exists, and exclusion globs; write `integrate_wave.py` (tsc, vitest, bundle, `wave_check`, Playwright, the art build and pytest on scratch dirs in one command that writes a report, so work in the worktrees survives an outage).
+**Accept:** the fixtures fail on a `.py` path in a UI package, a `.tsx` path in an engine package and a shared file in an owned list; the report names each failed check.
+**Tests:** pytest on fixture tables. **Record:** research file, section "lanes".
+
+### A.DB01 Countdown, Next Three and hand-off key (UW7, UI lane)
+**Files:** `app/ui/src/shared/data/{countdown,nextthree,handoff}/**`, gallery entry. **Depends on:** G01, G02, D01. **Owner limits:** UI chat. **Order:** UW7.
+**Do:** 21.5: `CountdownDots` (at most 60 dots of 8 px, one per day to a date, a dot fills as a day is lived and never refills, no colour change near the end, a dashed row when waiting); `NextThree` (up to three rows with a reason line and a lamp, shows fewer and never pads, the scores on focus in mono); `HandoffKey` (a 44 px mono key that opens a target with context and never executes).
+**Accept:** dots equal days; no animation; hollow and static forms; the same items give the same markup; a grep finds no "only N days".
+**Tests:** vitest, forced colours, the grammar lint. **Record:** research file.
+
+### A.DB02 Legend flip side (UW7, UI lane)
+**Files:** `app/ui/src/shared/data/legend/**`, gallery entry. **Depends on:** G01, D05. **Owner limits:** UI chat. **Order:** UW7.
+**Do:** 21.5: `Legend` generated from the same entries as the specimen so it cannot drift; the flip is an instant swap; `?` toggles it; a static text list is the reduced-motion and forced-colours form.
+**Accept:** legend entries equal specimen entries on three fixtures.
+**Tests:** vitest. **Record:** research file.
+
+### A.DB03 Today deltas (UW8, UI lane)
+**Files:** `app/ui/src/ww/day/today/callouts/{handoff,ahead}.callout.tsx`, gallery entry. **Depends on:** L04, DB01, DB02. **Owner limits:** UI chat; edits no other L04 file. **Order:** UW8.
+**Do:** 21.5.1: the fifth callout **Hand-off** (`Open Exam Season` only when an exam window exists, `Ask JARVIS` opens the Deck); **Ahead** with `CountdownDots` and the Next Three drawer; keys `3` and `H`.
+**Accept:** the 20.16.1 acceptance still holds; the empty and 390 px forms; Next Three WAITING "needs papers on file" with a null adapter.
+**Tests:** vitest, Playwright keyboard spec. **Record:** research file.
+
+### A.DB04 Exam Season (UW8, UI lane)
+**Files:** `app/ui/src/ww/exams/**`, `ww/day/today/modes/season.mode.tsx`, gallery entry. **Depends on:** L04, D05, DB01, DB02. **Owner limits:** UI chat. **Order:** UW8.
+**Do:** 21.5.2: the `CoverageRose` of up to 8 `SigilMark` subjects with a shared datum and one enlarged by a layout swap, the five Callouts (Subject, Weak units, Next three, Days left, Paper desk with the `PaperChip` strip), the footer, a switch to enter the mode (never automatic), the hollow and PLANNED forms.
+**Accept:** 8 subjects fit at 1366x768; the selected swap; weak units need at least 5 attempts else a dashed ring; no countdown below one hour, no red, no "behind" (lint).
+**Tests:** vitest, Playwright. **Record:** research file.
+
+### A.DB05 Week and Month Reviews (UW10, UI lane)
+**Files:** `app/ui/src/ww/review/**`, `ww/day/week/faces/review.face.tsx`, `ww/day/month/faces/review.face.tsx`, gallery entry. **Depends on:** L01, L03, D02, DB02. **Order:** UW10.
+**Do:** 21.5.3 and 21.5.4: `WeekStrata` with the ghost of the previous week, `MonthSky` with constellation hairlines, five Callouts each, the Legend flip, `Save to Almanac`, `Export postcard` (native SVG serialisation, no upload), the `Note` box with a model draft marked DRAFT until accepted.
+**Accept:** three fixtures; deleting a day lowers the count; no chain wording.
+**Tests:** vitest, forced colours, reduced motion. **Record:** research file.
+
+### A.DB07 Core glance strip (UW9, UI lane)
+**Files:** `app/ui/src/jarvis/core/glance/**`, gallery entry. **Depends on:** J01, D05. **Order:** UW9.
+**Do:** 21.5.5: `CoreGlance` with five tagged Callouts (`[HEA]`, `[ROM]`, `[SEN]`, `[MEM]`, `[SYS]`) from the Console report, the OFF form, mounted through the glance glob of J01.
+**Accept:** every row has a lamp; WAITING shows the age of the last report; no number without a lamp.
+**Tests:** vitest. **Record:** research file.
+
+### A.DB08 System dashboard (UW11, UI lane)
+**Files:** `app/ui/src/jarvis/console/health/faces/system.face.tsx`, `jarvis/console/system/**`, gallery entry. **Depends on:** J05, D05. **Order:** UW11.
+**Do:** 21.5.6: the `SystemRack` of 12 `RackRow` units, the strata of system layers, Jobs, Storage, Devices, Models and Privacy callouts; unreported units are UNCONFIRMED half discs.
+**Accept:** 12 rows at 1286 x 652; nothing green without a report in 5 minutes; empty form PLANNED.
+**Tests:** vitest, Playwright. **Record:** research file.
+
+### A.DB09 The Deck (UW10, UI lane)
+**Files:** `app/ui/src/deck/**`, `shell/views/deck.view.ts`, gallery entry. **Depends on:** DB03, DB07, J01. **Owner limits:** the place `deck.home` is not one of the 36 views; if `ViewRegistration.product` does not accept both products the view is registered once per product. **Order:** UW10.
+**Do:** 21.5.7: `DeckSheet`, a 300 x 300 Day Arc and Core ring, three hand-off keys, the Capture Line with a grammar switch, `Ctrl+Shift+D`.
+**Accept:** every hand-off opens its target with context and a Back crumb and executes nothing; both halves hollow when empty.
+**Tests:** vitest, Playwright. **Record:** research file.
+
+### A.X03 Blueprint Editor, generator and print (UW8, UI lane)
+**Files:** `app/ui/src/ww/study/{blueprint,generator,print}/**`, gallery entry. **Depends on:** Y01, D03. **Owner limits:** UI chat; takes `generator/**` from Y03. **Order:** UW8.
+**Do:** 21.3.2 S4, S5 and S10: `BlueprintTable` and the editor overlay, the generator overlay with `SlotStrip`, the print stylesheet (A4, 18 mm margins) for paper, key, marking sheet and Night sheet through the browser's print to PDF; every call through `StudyPort`.
+**Accept:** the preview's section count equals the PDF's; the lamp shows FAULT when unbalanced; Playwright prints a SIMULATED paper on the bench; unverified text prints as a crop.
+**Tests:** vitest, Playwright. **Record:** research file.
+
+### A.X06 Pattern Loom and Variant Bench (UW9, UI lane)
+**Files:** `app/ui/src/ww/study/{patterns,variants}/**`, gallery entry. **Depends on:** Y01, AD08. **Order:** UW9.
+**Do:** 21.3.2 S3 and S5: `PatternLoom`, `QuietList`, the five lenses with their footer, `VariantPair` with a word diff and check chips; a variant stays dashed until accepted.
+**Accept:** the forbidden-word test; an arc only for pairs in at least 3 papers; "too few papers" below the floor.
+**Tests:** vitest, forced colours. **Record:** research file.
+
+### A.X08 Exam Hall and Marking Desk (UW10, UI lane)
+**Files:** `app/ui/src/ww/focus/hall/**`, `ww/study/marking/**`, gallery entry. **Depends on:** Y02, Y01. **Order:** UW10.
+**Do:** 21.3.2 S6 and S7: the paper track of `focus.session` registered through the tracks glob, `PaperClock`, the question list, the terminal strip, the Marking Desk with `RubricChips`; "Print the paper first" is the default start.
+**Accept:** zero rAF at idle; `marked_by` is only `student` or `checker`; a question below half marks becomes a card.
+**Tests:** vitest, Playwright. **Record:** research file.
+
+### A.X10 Exam Room face (UW11, UI lane)
+**Files:** `app/ui/src/ww/study/exam/**`, `ww/study/plan/faces/exam.face.tsx`, gallery entry. **Depends on:** Y03, D01 to D05, AD08. **Owner limits:** a face of `study.plan`; no new view id. **Order:** UW11.
+**Do:** 21.3.2 S8 and S9: `CoverageQuilt`, `EvidenceTape`, the Readiness Ledger of three counts, five gaps, Tonight (offered, never opened by itself) and `NightSheet`.
+**Accept:** the copy grep passes; the quilt is reachable by keyboard; no combined score; Tonight has no timer.
+**Tests:** vitest, Playwright. **Record:** research file.
+
+### A.C03 Intake UI, Course Mapper and provenance (UW8, UI lane)
+**Files:** `app/ui/src/ww/study/library/**` (intake, coursemap, tab host), `shared/provenance/**`, gallery entry. **Depends on:** D03, D04, G01. **Owner limits:** owns the library tab host that Y03 gives up. **Order:** UW8.
+**Do:** 21.4.2 S3, S4 and S6: `IntakeLedger`, `AttachmentLadder`, `ProvenanceChip`, `PasteParser`, `IcsPreview`, `ExportImportDrop`, `CourseMapRow`, the four doors, Accept and Decline, a fixture adapter on the bench and a null adapter otherwise.
+**Accept:** all states in the gallery; the keyboard walk-through; 358 px reflow; no key fetches a file.
+**Tests:** vitest, Playwright. **Record:** research file.
+
+### A.C08 Connect Ladder, Link row, sync log and Delete sheet (UW11, UI lane)
+**Files:** `app/ui/src/ww/study/library/connect/**`, `jarvis/console/connections/classroom/**`, `ww/study/ww-gcr.planned.ts`, gallery entry. **Depends on:** C03, J05, C06, C07. **Order:** UW11.
+**Do:** 21.4.2 S1, S2, S7 and S8: `ConnectLadder` with the click-by-click text of 21.4.1, `ClassroomLink` with five states, `TokenAge`, `SyncLog`, `DeleteSheet`; the BLOCKED copy; the `ww.gcr` plate now opens the ladder.
+**Accept:** five states reachable with a fake provider; step 4 only reads the path and reports present or absent; a scan after Delete is empty.
+**Tests:** vitest, Playwright. **Record:** research file.
+
+### A.AD08 Study adapters for EW7 (UW8, UI lane)
+**Files:** `app/ui/src/ww/study/adapters/{pyq,review,generator}.{ts,register.ts}`, `e2e/exam-path.spec.ts`. **Depends on:** Y01, EW7 merged and its entries in the engine plan file. **Order:** UW8.
+**Do:** implement `StudyPort` members `papers`, `questions`, `ingest`, `decide`, `crop`, `blueprints`, `generate`, `patterns`, `practiseNext` and `check` over the routes; map every answer to a lamp; the e2e spec drives the invented 6-question paper through drop, review, bank, blueprint, practice PDF and Drill.
+**Accept:** milestone A passes; with the engine absent every screen shows WAITING; nothing enters the bank unreviewed.
+**Tests:** vitest, Playwright. **Record:** research file.
+
+### A.AD09 Adapters for EW8 and the From Classroom fold (UW9, UI lane)
+**Files:** `app/ui/src/ww/study/adapters/{ocr,variants,intake}.{ts,register.ts}`, `ww/day/adapters/intake.register.ts`, `ww/day/classroom-fold/**`. **Depends on:** AD08, C03, L01, EW8 merged. **Order:** UW9.
+**Do:** the OCR, variants and intake members of the ports; the From Classroom fold of the Day drawer and the notch kind `classroom`; `Plan a block` makes a hollow planned block linked by id.
+**Accept:** a deadline never changes a counter; a Classroom "turned in" never draws the done disc; the Archive door lists before queueing.
+**Tests:** vitest, Playwright. **Record:** research file.
+
+### A.AD10 Adapters for EW9 (UW11, UI lane)
+**Files:** `app/ui/src/ww/study/adapters/{harvest,queue,tonight}.*`, `ww/day/adapters/{intents,logs,term}.*`, `jarvis/console/adapters/google.register.ts`. **Depends on:** AD09, EW9 merged. **Order:** UW11.
+**Do:** the harvester sources and manifest view, the review queue and Tonight, intents and recurrence, logs, the term arithmetic, and the OAuth status members.
+**Accept:** each member has a null form; a source with no terms note shows off with its reason.
+**Tests:** vitest. **Record:** research file.
+
+### A.AD11 Adapters for EW10 and the reminder and link UI (UW12, UI lane)
+**Files:** `app/ui/src/ww/day/adapters/{gcal,reminders,dashboards}.*`, `ww/day/link/**` (`LinkLamp`), `jarvis/reminders/**` (`ReminderChip`, `ReminderBell`), `shell/slots/notify.reminder.tsx`, `ww/tree/adapters/evidence.*`, `ww/study/adapters/classroom.*`. **Depends on:** AD10, EW10 merged, T01, L01. **Order:** UW12.
+**Do:** the UI halves of E03, E04 and E09 and the Classroom sync and dashboard members; read-only first; the Calendar write switch stays off.
+**Accept:** imported events carry the notch and the words "from Google" and never enter counts; the ladder of reminders is unchanged (a test enumerates it).
+**Tests:** vitest, Playwright. **Record:** research file.
+
+### A.AD12 Adapters for EW11 (UW13, UI lane)
+**Files:** `app/ui/src/ww/career/adapters/*.register.ts`, `ww/study/coach/adapters/**`, `phone_page/adapters/**`. **Depends on:** AD11, EW11 merged. **Order:** UW13.
+**Do:** career data with stamps, the Coach model path, the phone routes.
+**Accept:** no Career cell without a stamp or the WAITING flag.
+**Tests:** vitest. **Record:** research file.
+
+### A.H01 Desk frame (UW12, UI lane)
+**Files:** `app/ui/src/shell/desks/**`, `__tests__/shell/desks/**`, gallery entry. **Depends on:** N02. **Order:** UW12.
+**Do:** 21.6: `DeskFrame` (head 52 px, body 612 px, Esc closes, focus trap), registered like the existing overlays.
+**Accept:** a desk opens from a key and Esc closes it; `viewCount` is still 36; the focus trap test.
+**Tests:** vitest, Playwright. **Record:** research file.
+
+### A.H02 Term Ledger desk (UW13, UI lane)
+**Files:** `app/ui/src/ww/study/term/**`, gallery entry. **Depends on:** H01, D03, D01, AD10. **Order:** UW13.
+**Do:** 21.6 D1: the `LedgerTable`, `MarginMeter` with the printed formula, the next three exam days with free-gap hours, a PREVIEW of "what if I skip tomorrow", Trim keys for credits and rules.
+**Accept:** a five-course fixture reproduces the hand-computed margins; WAITING "rule not set" with no default; 1366x768 without scroll.
+**Tests:** vitest, Playwright. **Record:** research file.
+
+### A.RW1 Rework wave (UW12, UI lane)
+**Files:** the folders the slot-11 jury names (never `*.settings.ts` or `links.register.ts`). **Depends on:** the jury of UW11. **Order:** UW12.
+**Do:** only the lowest-scored screens, taste and signature moments batched here; hard-gate failures are fixed inside their own wave.
+**Accept:** each named screen's score goes up and no hard gate fails.
+**Tests:** as the touched screens. **Record:** research file, the jury table.
+
+### A.C01 Intake parsers (EW7, engine lane)
+**Files:** `app/jarvis_app/ww_intake/{__init__,paste,ics,match}.py`, `app/tests/test_intake_parsers.py`. **Depends on:** none. **Owner limits:** engine chat; no network. **Order:** EW7.
+**Do:** 21.4.3: the paste parser (a title, a date such as `18 Nov`, `18/11`, `Nov 18` or a weekday word, an optional time; an ambiguous date is returned both ways), the `.ics` parser (RFC 5545 unfolding, `VEVENT`, `RRULE` weekly and daily expanded for 120 days, anything else "repeats, not expanded", `Z` and `TZID`), the token-Jaccard name match.
+**Accept:** 40 cases for each parser including a time-zone shift and an all-day event; an ambiguous date is never guessed.
+**Tests:** pytest. **Record:** the engine chat's research file.
+
+### A.C02 Intake store and routes (EW8, engine lane)
+**Files:** `app/jarvis_app/ww_intake/{store,routes}.py`, `routes_ww_intake.py`, tests. **Depends on:** C01, E05. **Order:** EW8.
+**Do:** the tables `intake_events`, rows with source, state NEW, ACCEPTED, DECLINED, DONE-BY-GOOGLE and the attachment ladder; Take actions; the folder watch of E05 hands files over as rows with source `Folder`; Delete removes only files the application owns.
+**Accept:** scratch-dir migration; nothing is written to the calendar or the question store until a row is accepted; Delete leaves files in his own folders.
+**Tests:** pytest. **Record:** the engine chat's research file.
+
+### A.X04 OCR route (EW8, engine lane)
+**Files:** `app/jarvis_app/ww_pyq/ocr.py`, `app/tests/test_pyq_ocr.py`. **Extends:** the OCR hook of `yaadash/library.py` (`ocr_available`, `_ocr_page`): `ocr.py` is the engine behind that hook, so the Library and the paper ingest share one OCR. **Depends on:** E06. **Owner limits:** RapidOCR with onnxruntime (GPU build) is approved; measure the install size and the VRAM used, and write both to the research file before merging; it asks the GPU loader (JH04, or a free-memory check until then) and never evicts a resident model. **Order:** EW8.
+**Do:** `ocr_page(png: bytes) -> OcrResult` with per-line confidence; every OCR text is `unverified` and the crop is kept; with no engine a page reports FAULT and the rest of the paper imports; a CPU fallback is labelled in the trace.
+**Accept:** a fixture scan of 3 pages gives words and confidences; all text is `unverified`; pages per second and VRAM are recorded.
+**Tests:** pytest. **Record:** the engine chat's research file.
+
+### A.X07 Variants and rubric drafts (EW8, engine lane)
+**Files:** `app/jarvis_app/ww_pyq/{variants,rubric}.py`, tests. **Extends:** `ww_counsel.py` (the only module that calls a model: Ollama on loopback, JSON output, validated, `no_model` and `unparsed` failures; a new prompt file under its `prompts/` folder, no second model client) and `ww_numericals.make` for numerical variants. **Depends on:** E08. **Order:** EW8.
+**Do:** 21.3.3: numerical variants from the templates only; descriptive variants from the 4B model with "same concept, same marks, new context" and a 5-word-shingle Jaccard between 0.2 and 0.7; rubric points that sum to the question's marks; status pending, accepted, rejected; the rules-only switch removes every `MODEL` path.
+**Accept:** the Jaccard band is enforced; no draft enters the bank without Accept; the exam path passes with the switch on.
+**Tests:** pytest. **Record:** the engine chat's research file.
+
+### A.E17 Classroom export import (EW8, engine lane)
+**Files:** `app/jarvis_app/ww_pyq/takeout.py`, tests with invented fixtures. **Depends on:** E05. **Order:** EW8.
+**Do:** read a Classroom export `.zip` that he made himself: list its files before anything is queued, queue each as PENDING, refuse path escapes and cap the size; nothing is extracted until he accepts a row.
+**Accept:** the zip is listed first; a fixture with a `../` entry is refused; attachments owned by others may be absent (unverified) and the listing says so.
+**Tests:** pytest. **Record:** the engine chat's research file.
+
+### A.M01 Exam path test (EW8, engine lane)
+**Files:** `app/tests/test_exam_path.py` and its fixtures under `app/tests/pyq_fixtures/exam_path/**`. **Depends on:** E05 to E08. **Order:** EW8.
+**Do:** drive the invented paper through ingest, review, bank, blueprint, generate and print with the model off.
+**Accept:** the forbidden-word grep over every output, the PDF header text "Practice paper from your bank. Not an official paper.", and the generated blueprint equals the source paper's.
+**Tests:** pytest. **Record:** the engine chat's research file.
+
+### A.HV01 Harvester core v2 (EW8, engine lane)
+**Files:** `app/jarvis_app/ww_harvest.py`, `routes_ww_harvest.py`, `ww_check_harvest.py`, tests. **Depends on:** none (extends the built module). **Owner limits:** every source off by default; a local copy only on a second switch (D-V3-11); PyMuPDF replaces `pdftotext` by `pdf_text` calling E06's `read_pdf_text`, not a second reader. A fetched item enters the same ingest and the same review Store as a dropped file; a local copy of a third-party paper is never a `ww_bank_store` record (the store refuses it), so the "pointers only" rule for GATE holds in the bank and the local copy lives in the private papers folder. **Order:** EW8.
+**Do:** 21.3.6: the per-source adapter interface (`name`, `rights`, `terms_note`, `index`, `fetch`), the manifest, the switches, the rate rules (1 request per 3 seconds per host, 200 a day, robots, backoff, a stop on a second 403 or 429), the drop-in path and its routes; the earlier rules of the module stay.
+**Accept:** zero sockets with every source off; a source without a terms note stays off with the reason; a `robots.txt` disallow stops the path; a manual file joins the manifest as `source: manual`.
+**Tests:** pytest against invented pages and a fake host, never the network. **Record:** the engine chat's research file; the terms read per source.
+
+### A.HV02 Harvester adapters (EW9, engine lane)
+**Files:** `app/jarvis_app/ww_harvest_sources/**`, tests with recorded invented pages. **Extends:** `ww_harvest.py` (the existing `SOURCES` dict and `fetch_<source>(h, st, it, gm, limit, recs)` pattern; each adapter module registers one entry and one fetch function and `ww_harvest.py` is edited only by HV01). **Depends on:** HV01. **Owner limits:** each adapter is written against the real page only after he has switched that source on and read its terms. **Order:** EW9.
+**Do:** adapters for the university's question-paper site, GATE, GRE (only what the publisher offers publicly) and the dMAT source, each with its `terms_note`; anything that is not offered stays manual drop-in.
+**Accept:** each adapter indexes a fixture page and fetches into the manifest; no adapter runs unswitched.
+**Tests:** pytest. **Record:** the engine chat's research file (what was and was not verified per site).
+
+### A.C06 Google OAuth core (EW9, engine lane, Opus: security-sensitive)
+**Files:** `app/jarvis_app/ww_google/{__init__,oauth,token_store,fake}.py`, `routes_ww_google.py`, tests. **Depends on:** none. **Owner limits:** the owner signs in himself; the assistant never types, reads or stores a credential; installs are `google-auth-oauthlib`, `google-api-python-client` and `keyring` only. **Order:** EW9.
+**Do:** 21.4.3: read `data/ww/google/client.json` in memory, a loopback listener on a random port for 5 minutes with PKCE and `state`, the refresh token in the credential store, the scope registry (read-only constants), revoke, a fake provider that reaches PLANNED, WAITING, LIVE, FAULT and BLOCKED; one module that E04 and C07 import.
+**Accept:** a scope-list test fails on any `drive` or write scope while the switch is off; a scan finds no secret in the repository or in plain text under `data/`; `invalid_grant` gives WAITING.
+**Tests:** pytest with the fake provider. **Record:** the engine chat's research file (what was and was not verified about Google's scopes).
+
+### A.C07 Classroom sync (EW10, engine lane, Opus: security-sensitive)
+**Files:** `app/jarvis_app/ww_gcr/{client,sync,map}.py`, `routes_ww_gcr.py`, tests. **Depends on:** C02, C06. **Order:** EW10.
+**Do:** 21.4.3: the sync rules (start, Sync now, at most 4 a day), the upsert by key, `DELETED` handling, local time conversion, backoff, the log of counts only, course-to-subject mapping by token Jaccard (0.6 suggests), Disconnect and Delete.
+**Accept:** the fake provider yields 6 courses and 41 items with a `DELETED` item and a quota retry in at most 25 calls; no title or text in the log; a scan after Delete finds no course id.
+**Tests:** pytest. **Record:** the engine chat's research file.
+
+### A.X09 Readiness, Tonight and the review queue (EW9, engine lane)
+**Files:** `app/jarvis_app/ww_pyq/{readiness,tonight}.py`, `ww_review/**`, `routes_ww_review.py`, tests. **Extends:** `ww_learning.py` (its Leitner-box recall becomes a producer of cards into the one `fsrs` queue, or delegates its interval function to it: D-V3-14). **Depends on:** E07, E08. **Owner limits:** `fsrs` is approved. **Order:** EW9.
+**Do:** 21.3.3: practised weight, evidence and five gaps (counts only), the Night sheet lists, one queue with `fsrs` default parameters (desired retention 0.90, chip `DEFAULT`) fed by the question bank, reading prompts, language cards and letters.
+**Accept:** no combined score in any output; pure functions run twice; no decimal on retention; an AST check finds one scheduler.
+**Tests:** pytest. **Record:** the engine chat's research file.
+
+### A.H03 Term arithmetic and store (EW9, engine lane)
+**Files:** `app/jarvis_app/ww_term/**`, `routes_ww_term.py`, tests. **Extends:** `ww_attendance.py` (it already computes, per subject, the classes of margin above the college's threshold from the typed rule: `ww_term` imports that arithmetic for `missable` and adds courses, credits and internals; a second margin formula is a review failure). **Depends on:** none. **Order:** EW9.
+**Do:** 21.6 D1: courses, credits, typed rules with a source note, `missable = floor(attended / minPct - held)` with its terms, internals as a weighted sum of typed marks; nothing projects a grade.
+**Accept:** boundary tests (held 0, minPct 0, attended above held); WAITING when the rule is unset.
+**Tests:** pytest. **Record:** the engine chat's research file.
+
+### A.DB11 Dashboard aggregations and Next Three (EW10, engine lane)
+**Files:** `app/jarvis_app/ww_dash/**`, `routes_ww_dash.py`, tests. **Extends:** `ww_director.py` (the existing ordered next-action list is the candidate source for Next Three), `ww_insight.py` (the weekly review: this week against the seven days before, totals, what moved and stalled: the Week Review aggregation calls it), `ww_season.py` (the season and evening state: Exam Season reads it) and `ww_exams.py`; `ww_dash` adds the month sky, the strata inputs and the Next Three scoring only. **Depends on:** E07, E08, H03. **Order:** EW10.
+**Do:** 21.5.9: pure aggregations (week strata, month sky, season coverage, system strata inputs) over the append-only log, and the Next Three scoring (+3, +2, +2, +1, one per subject, ties by due date then id).
+**Accept:** deterministic snapshots; byte-identical Next Three with the model off; fewer than three is shown as fewer.
+**Tests:** pytest snapshots. **Record:** the engine chat's research file.
+
+### A.JH01 Voice study intents (EW10, engine lane)
+**Files:** `core/intents/**`, `core/tests/test_intents.py`. **Extends:** the intent handling already in `core/agent.py` and `core/away_mode.py` (read both first: register the four phrases there, no second dispatcher) and `core/hinglish.py`. **Depends on:** E08. **Owner limits:** engine half only; the Core card is reserve (JH01u). **Order:** EW10.
+**Do:** 21.7 H10: a closed grammar compiled to regex with slots for `quiz me`, `read my plan`, `start a focus block`, `what is due` and `stop`; the checker marks, never the model; the banned-word lint.
+**Accept:** 20 sample sentences recognised; unrecognised speech returns the list of four; no result promise.
+**Tests:** pytest. **Record:** the engine chat's research file.
+
+### A.JH03 Notices read model (EW11, engine lane)
+**Files:** `core/notify_read/**`, tests. **Depends on:** E03. **Order:** EW11.
+**Do:** 21.7 H4: a read model over the events table with tags `[REM]`, `[RUL]`, `[JOB]`, `[SYS]`, `[WW]`, receipts and counts; no new escalation.
+**Accept:** every ladder step appears as a receipt; counts only.
+**Tests:** pytest. **Record:** the engine chat's research file.
+
+### A.JH04 GPU readings and loader refusal (EW11, engine lane)
+**Files:** `core/gpu/**`, tests. **Extends:** `core/ollama_guard.py` (keeps the model server up; the refusal rule asks it what is loaded) and `core/whisper_load.py` (the GPU/CPU choice for Whisper): `core/gpu` is the one place that answers "does this fit", and those two call it, they are not copied. **Depends on:** none. **Order:** EW11.
+**Do:** 21.7 H9: the VRAM reading, the resident model list, the refusal rule (requested size plus 0.5 GB at most free), `free gpu`, `unload`, `load`, idle unload (default 10 minutes); X04 and B12p call it.
+**Accept:** a load that does not fit is refused with the numbers; nothing is evicted silently.
+**Tests:** pytest with a fake reading. **Record:** the engine chat's research file (the 0.5 GB margin is unmeasured).
+
+### A.B09p Phone routes, revised (EW11, engine lane)
+**Files:** `app/jarvis_app/routes_phone*.py`, tests. **Depends on:** the earlier engine waves. **Order:** EW11. **Do** and **Accept** as A.B09's Python half (the phone page routes behind one palette); its UI half is A.B09 in UW13. **Tests:** pytest. **Record:** the engine chat's research file.
+
+### A.B12p Coach model path (EW11, engine lane)
+**Files:** `app/jarvis_app/ww_coach.py`, tests. **Depends on:** E07, E08, JH04. **Owner limits:** a model install needs the owner's OK. **Order:** EW11. **Do** and **Accept** as A.B12's Python half (every output carries `MODEL` and a source link; the model unloads after idle; a rules-only switch); its UI half is A.B12 in UW13. **Tests:** pytest. **Record:** the engine chat's research file.
 
 ---
 

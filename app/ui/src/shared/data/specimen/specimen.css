@@ -1,0 +1,208 @@
+/* The specimen family (package D05): SpecimenLayout, StrataCore, SigilMark, RackRow. Tokens only: clay surfaces and edges
+   (--surface-*, --elev-*, --ridge-*, --lit-hi, --edge-*), ink (--ink-*) and the five state tokens. Colour is never the only
+   cue: every state has its lamp shape and its word. No animation runs on its own; the few transitions are 120 ms state
+   changes that the reduced-motion branch removes. */
+
+/* ---------------------------------------------------------------- SpecimenLayout */
+
+.sp { position: relative; width: 100%; box-sizing: border-box; color: var(--ink-1); font-family: var(--font-ui, system-ui, sans-serif); }
+.sp[data-state='desktop'] { min-height: 720px; }
+.sp-svg { position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: visible; }
+.sp-datum-line { stroke: var(--ink-3); stroke-width: 1; fill: none; opacity: 0.9; }
+.sp-datum-ticks { stroke: var(--ink-3); stroke-width: 1; fill: none; }
+.sp-leader path { fill: none; stroke: var(--ink-2); stroke-width: 1; vector-effect: non-scaling-stroke; transition: stroke 120ms; }
+.sp-leader circle { fill: var(--ink-1); stroke: none; transition: r 120ms; }
+.sp-leader[data-hot='true'] path { stroke: var(--accent-ink, var(--ink-1)); stroke-width: 2; }
+.sp-leader[data-hot='true'] circle { fill: var(--accent-ink, var(--ink-1)); }
+
+.sp-specimen {
+  position: absolute; z-index: 1; box-sizing: border-box; overflow: hidden;
+  background: var(--surface-sunk); border: 1px solid var(--edge-ui); border-radius: var(--r-panel, 14px);
+  box-shadow: var(--elev-recessed, none);
+  display: grid; place-items: center;
+}
+/* the halftone ground: a 4 px dot field at 6 percent, on the specimen only, so it never fights the data (spec 20.5.1) */
+.sp-specimen::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.06;
+  background-image: radial-gradient(circle, var(--ink-1) 0.7px, transparent 0.9px), radial-gradient(circle, var(--ink-1) 0.7px, transparent 0.9px);
+  background-size: 8px 8px, 8px 8px; background-position: 0 0, 4px 4px;
+}
+.sp-specimen > * { position: relative; }
+/* StrataCore sets container-type: inline-size, so inside this centring grid its width collapses to nothing and the 579 px
+   container query stacks it (block 100 px wide, leaders hidden, last row clipped by the recess). Give it a real width. */
+.sp-specimen > .sp-strata { inline-size: min(calc(100% - 48px), 680px); }
+.sp-callouts { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; pointer-events: none; z-index: 2; }
+.sp-callout { position: absolute; box-sizing: border-box; pointer-events: auto; }
+/* the callouts stand above the datum line and the leaders: a plate is opaque, and the datum must not strike through its value (it did, on the third plate at 1366 x 768) */
+.sp[data-state='desktop'] .sp-callouts { z-index: 4; }
+/* the footer is 72 px high and three 28 px rail rows are 84, so the rail runs along the strip as one line of readouts; it clipped its last row at the foot of the 720 px canvas before */
+.sp-footer .k-rail { display: flex; flex-wrap: wrap; gap: 0 24px; align-items: center; }
+.sp-footer .k-rail-row { border-bottom: 0; grid-template-columns: 16px auto auto; }
+.sp-footer .k-rail-value { margin-inline-start: 6px; }
+.sp-footer {
+  position: absolute; z-index: 1; box-sizing: border-box; display: flex; align-items: center; gap: 16px; padding: 0 24px;
+  border-top: 1px solid var(--edge-hair); background: var(--surface-ground);
+}
+
+/* the callout plate: a flat plate with bracketed corners; the value is the one loud thing on it */
+.sp-plate { height: 100%; box-sizing: border-box; padding: 0; background: var(--surface-ground); border: 1px solid var(--edge-hair); }
+.sp-plate-in {
+  position: relative; box-sizing: border-box; height: 100%; padding: 12px 16px 10px; display: grid; grid-template-rows: auto 1fr auto; gap: 2px; border-radius: 2px;
+}
+.sp-plate-in:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.sp-plate-label { font: 12px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+.sp-plate-value { font: 500 28px/1.1 var(--font-numerals, var(--font-mono, ui-monospace, monospace)); font-variant-numeric: tabular-nums; color: var(--ink-1); align-self: center; }
+.sp-plate-value[data-hollow='true'] { color: var(--ink-3); letter-spacing: 0.2em; }
+.sp-plate-note { font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-plate-lamp { position: absolute; top: 10px; right: 14px; }
+.sp-plate-in[data-state='planned'] { border: 1px dashed var(--edge-ui); }
+
+/* reflow: one column, the specimen first, a swipe carousel with a dot index, a sticky datum rule */
+.sp[data-state='reflow'] { display: flex; flex-direction: column; gap: 12px; }
+.sp[data-state='reflow'] .sp-specimen { position: relative; width: 100%; }
+.sp-rule { position: sticky; top: 0; z-index: 4; height: 1px; background: var(--ink-3); }
+.sp-carousel { display: grid; gap: 4px; }
+.sp-track {
+  display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 2px 2px 6px; margin: 0 -2px;
+  -webkit-overflow-scrolling: touch;
+}
+.sp-track::-webkit-scrollbar { display: none; }
+.sp-track:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.sp-card { flex: 0 0 78%; height: 88px; scroll-snap-align: start; box-sizing: border-box; }
+.sp-dots { display: flex; justify-content: center; gap: 0; }
+.sp-dot { all: unset; box-sizing: border-box; inline-size: 44px; block-size: 44px; display: grid; place-items: center; cursor: pointer; }
+.sp-dot > span { inline-size: 8px; block-size: 8px; border-radius: 50%; border: 1.5px solid var(--ink-2); box-sizing: border-box; }
+.sp-dot[aria-current='true'] > span { background: var(--ink-1); border-color: var(--ink-1); }
+.sp-dot:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -4px; }
+.sp[data-state='reflow'] .sp-footer { position: relative; flex-wrap: wrap; padding: 12px 0 0; background: transparent; }
+
+/* ---------------------------------------------------------------- StrataCore */
+
+.sp-strata { margin: 0; display: grid; gap: 10px; color: var(--ink-1); container-type: inline-size; }
+.sp-strata-body { position: relative; display: grid; grid-template-columns: 360px minmax(0, 1fr); align-items: start; }
+.sp-strata-svg { display: block; overflow: visible; position: relative; z-index: 1; }
+.sp-strata-dither { position: absolute; left: 0; top: 0; z-index: 0; color: var(--ink-1); opacity: 0.06; pointer-events: none; overflow: hidden; max-width: 360px; }
+.sp-face-front { fill: var(--surface-raised); }
+.sp-face-top { fill: color-mix(in srgb, var(--lit-hi) 70%, var(--surface-raised)); }
+.sp-face-side { fill: color-mix(in srgb, var(--surface-sunk) 70%, var(--ink-3)); }
+.sp-slab-edge { fill: none; stroke: var(--ink-1); stroke-width: 1; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.sp-contour { fill: none; stroke: var(--ink-2); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: 0.85; }
+.sp-plinth { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 2 3; fill: none; }
+/* no evidence: a flat layer, dashed, no fill of its own (it is an outline, never a thin slab pretending to be data) */
+.sp-slab[data-flat='true'] .sp-face-front, .sp-slab[data-flat='true'] .sp-face-top, .sp-slab[data-flat='true'] .sp-face-side { fill: transparent; }
+.sp-slab[data-flat='true'] .sp-slab-edge { stroke-dasharray: 4 3; stroke: var(--ink-2); }
+.sp-slab[data-thin='true'] .sp-slab-edge { stroke-dasharray: 8 2; }
+.sp-slab[data-active='true'] .sp-slab-edge { stroke: var(--accent-ink, var(--ink-1)); stroke-width: 2; stroke-dasharray: none; }
+.sp-trace path { fill: none; stroke: var(--ink-3); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.sp-trace circle { fill: var(--ink-2); }
+.sp-trace[data-active='true'] path { stroke: var(--accent-ink, var(--ink-1)); stroke-width: 2; }
+.sp-trace[data-active='true'] circle { fill: var(--accent-ink, var(--ink-1)); }
+
+.sp-strata-rows { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-auto-rows: 44px; }
+.sp-strata-li { display: block; }
+.sp-strata-row {
+  all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: 12px; inline-size: 100%; block-size: 44px; padding: 0 12px;
+  border: 1px solid transparent; border-inline-start: 2px solid var(--edge-ui); cursor: pointer; color: var(--ink-1);
+  transition: background-color 120ms, border-color 120ms;
+}
+.sp-strata-row:hover { background: color-mix(in srgb, var(--surface-sunk) 60%, transparent); }
+.sp-strata-row[data-active='true'] { border-inline-start-color: var(--accent-ink, var(--ink-1)); background: color-mix(in srgb, var(--surface-sunk) 80%, transparent); }
+.sp-strata-row[data-evidence='none'] { border-inline-start-style: dashed; color: var(--ink-2); }
+.sp-strata-row:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.sp-row-main { display: grid; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.sp-row-label { font: 500 14px/1.2 var(--font-ui, system-ui, sans-serif); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-row-meta { white-space: nowrap; font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.sp-row-spark { font: 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: -0.02em; color: var(--ink-2); white-space: nowrap; }
+.sp-strata-row[data-evidence='solid'] .sp-row-spark { color: var(--ink-1); }
+.sp-strata-cap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.sp-strata-state { display: inline-flex; align-items: center; gap: 8px; }
+.sp-strata-state[data-state='live'] { color: var(--ink-1); }
+.sp-stamp { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.12em; padding: 3px 6px; border: 1px solid var(--edge-ui); color: var(--ink-1); }
+.sp-strata[data-state='hollow'] .sp-contour { display: none; }
+@container (max-width: 579px) {
+  .sp-strata-body { grid-template-columns: minmax(0, 1fr); }
+  .sp-strata-svg { max-inline-size: 100%; }
+  .sp-trace { display: none; }
+  .sp-strata-rows { margin-top: 8px; }
+}
+@container (max-width: 279px) {
+  .sp-row-spark { display: none; }
+}
+
+/* ---------------------------------------------------------------- SigilMark */
+
+.sp-sigil { margin: 0; display: inline-grid; position: relative; color: var(--ink-1); }
+.sp-sigil .g-sigil { display: inline-block; inline-size: var(--g-size, 96px); block-size: var(--g-size, 96px); }
+.sp-sigil[data-hollow='true'] { color: var(--ink-2); }
+
+/* ---------------------------------------------------------------- Rack */
+
+.sp-rack { display: grid; gap: 0; color: var(--ink-1); background: var(--surface-sunk); border: 1px solid var(--edge-ui); border-radius: var(--r-panel, 14px); box-shadow: var(--elev-recessed, none); overflow: hidden; container-type: inline-size; }
+.sp-rack-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 16px; border-bottom: 1px solid var(--edge-hair); }
+/* the dot-matrix header tile of C02-33: the title in a dot face, on a dotted ground */
+.sp-rack-title {
+  font: 600 14px/1 var(--font-numerals, var(--font-mono, ui-monospace, monospace)); letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-1);
+  padding: 8px 12px; border: 1px solid var(--edge-ui); background-image: radial-gradient(circle, var(--ink-3) 0.6px, transparent 0.8px); background-size: 4px 4px; background-color: var(--surface-ground);
+}
+.sp-rack-note { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.sp-rack-units { display: grid; }
+.sp-rack-row {
+  display: grid; grid-template-columns: minmax(150px, 1.1fr) auto minmax(190px, 1.2fr) minmax(70px, auto) 3ch; align-items: center; gap: 12px;
+  min-height: 56px; box-sizing: border-box; padding: 6px 16px; border-bottom: 1px solid var(--edge-hair);
+}
+.sp-rack-row:last-child { border-bottom: 0; }
+/* the unit plate: a chamfered plate (C02-25) with the serial in mono caps and the device name in the UI face */
+.sp-rack-plate {
+  --chamfer: 10px; display: inline-flex; flex-direction: column; justify-content: center; gap: 2px; min-height: 44px; box-sizing: border-box; padding: 4px 16px 4px 14px;
+  background: var(--surface-raised); box-shadow: var(--elev-flush, none); border: 1px solid var(--edge-ui);
+  clip-path: polygon(var(--chamfer) 0, 100% 0, 100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%, 0 100%, 0 var(--chamfer));
+}
+.sp-rack-serial { font: 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; color: var(--ink-2); text-transform: uppercase; }
+.sp-rack-device { font: 600 14px/1.2 var(--font-ui, system-ui, sans-serif); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-rack-rocker { display: inline-flex; }
+.sp-rack-lamp { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.sp-rack-word { font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
+.sp-rack-lamp[data-state='confirmed'] { color: var(--state-measured); }
+.sp-rack-lamp[data-state='unconfirmed'] { color: var(--state-waiting); }
+.sp-rack-lamp[data-state='fault'] { color: var(--state-fault); }
+.sp-rack-lamp[data-state='planned'] { color: var(--state-planned); }
+.sp-rack-lamp .sp-rack-word { color: var(--ink-1); }
+.sp-rack-seen { font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sp-rack-pulse { font: 14px/1 var(--font-mono, ui-monospace, monospace); color: var(--state-measured); min-width: 3ch; }
+.sp-rack-row[data-state='planned'] .sp-rack-plate { border-style: dashed; background: transparent; box-shadow: none; }
+.sp-rack-row[data-state='unconfirmed'] { background: color-mix(in srgb, var(--surface-ground) 50%, transparent); }
+.sp-rack-row[data-state='confirmed'] .sp-rack-plate { border-inline-start: 3px solid var(--state-measured); }
+/* the rack answers to its own width, not the window's: it sits in a gallery card as well as in a page */
+@container (max-width: 699px) {
+  .sp-rack-row { grid-template-columns: minmax(0, 1fr) auto auto; row-gap: 6px; }
+  .sp-rack-plate { grid-column: 1; }
+  .sp-rack-rocker { grid-column: 2 / -1; justify-self: end; }
+  .sp-rack-lamp { grid-column: 1; }
+  .sp-rack-seen { grid-column: 2; justify-self: end; }
+  .sp-rack-pulse { grid-column: 3; justify-self: end; }
+}
+
+/* ---------------------------------------------------------------- motion, contrast, forced colours */
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-leader path, .sp-leader circle, .sp-strata-row { transition: none; }
+}
+:root[data-motion='calm'] .sp-leader path, :root[data-motion='calm'] .sp-leader circle, :root[data-motion='calm'] .sp-strata-row { transition: none; }
+@media (prefers-contrast: more) {
+  .sp-contour { opacity: 1; }
+  .sp-specimen::before { opacity: 0; }
+  .sp-strata-dither { display: none; }
+}
+@media (forced-colors: active) {
+  .sp-specimen, .sp-plate, .sp-rack, .sp-rack-plate, .sp-rack-title { border: 1px solid CanvasText; forced-color-adjust: none; background: Canvas; color: CanvasText; box-shadow: none; }
+  .sp-specimen::before, .sp-strata-dither { display: none; }
+  .sp-datum-line, .sp-datum-ticks, .sp-leader path, .sp-trace path, .sp-slab-edge, .sp-contour, .sp-plinth { stroke: CanvasText; }
+  .sp-leader circle, .sp-trace circle { fill: CanvasText; }
+  .sp-face-front, .sp-face-top, .sp-face-side { fill: Canvas; }
+  .sp-strata-row { border: 1px solid CanvasText; color: CanvasText; }
+  .sp-strata-row:focus-visible, .sp-track:focus-visible, .sp-plate-in:focus-visible, .sp-dot:focus-visible { outline: 2px solid Highlight; }
+  .sp-rack-lamp, .sp-rack-pulse { color: CanvasText; }
+  .sp-dot > span { border-color: CanvasText; }
+  .sp-dot[aria-current='true'] > span { background: CanvasText; }
+  .sp-rule { background: CanvasText; }
+}

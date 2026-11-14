@@ -20,6 +20,11 @@ Usage:
   python tools/wave_check.py table.json --package G01 --base main   # what G01 changed since main stays inside G01
   python tools/wave_check.py --wave 5 --all --base main         # every package of the wave, each against its own branch name
   python tools/wave_check.py --self-test                        # two fixture tables (also: pytest tools/wave_check.py)
+Lane, route and freeze checks (N03; spec 15.6.1 e and f, rule 8 and 9 of block C, decision D-V3-22):
+  python tools/wave_check.py --board                  # the live wave comms board: lanes + routes + freeze (+ ownership clashes)
+  python tools/wave_check.py --board b.json --lanes   # only the lane check, on another board file
+  python tools/wave_check.py --wave 5 --exclude "**/package-lock.json" --package G01 --base main
+A board row (pkg, lane, owns) is read as a package; a table package may carry "lane" and "kind": "fix" too.
 Exit code 0 = clean, 1 = a finding, 2 = a bad table or call. Never writes anything.
 """
 from __future__ import annotations
@@ -28,6 +33,7 @@ import argparse
 import fnmatch
 import json
 import re
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -140,16 +146,18 @@ def check_entries(table: dict, root: Path, packages: Iterable[str] | None = None
     return out
 
 
-def check_changed(table: dict, pkg_id: str, files: Iterable[str]) -> list[str]:
-    """Rule 2: every changed file is inside the package's folders, the shared record, or its own gallery entry."""
+def check_changed(table: dict, pkg_id: str, files: Iterable[str], exclude: Iterable[str] = ()) -> list[str]:
+    """Rule 2: every changed file is inside the package's folders, the shared record, or its own gallery entry.
+    A file matching an exclusion glob (the table's "exclude" list plus the argument) is generated noise and never counts."""
     pkg = next((p for p in table["packages"] if p["id"] == pkg_id), None)
     if pkg is None:
         raise ValueError(f"no package {pkg_id} in the table")
     shared = [_norm(s) for s in table.get("shared", [])]
     entry_dir = _norm(table.get("entry_dir", "")).rstrip("/")
+    skip = [_norm(g) for g in (*table.get("exclude", []), *exclude)]
     out: list[str] = []
     for f in map(_norm, files):
-        if not f:
+        if not f or any(matches(g, f) for g in skip):
             continue
         if any(matches(o, f) for o in pkg["owns"]) or f in shared:
             continue
@@ -158,6 +166,166 @@ def check_changed(table: dict, pkg_id: str, files: Iterable[str]) -> list[str]:
         owner = next((q["id"] for q in table["packages"] if q["id"] != pkg_id and any(matches(o, f) for o in q["owns"])), None)
         out.append(f"{pkg_id} changed '{f}'" + (f", which {owner} owns" if owner else ", which no package of the wave owns"))
     return out
+
+
+# ----------------------------------------------------------------------------------- lane check (rule 8)
+# Engine folders a UI package never owns. 'tools/**' is a UI folder (spec 15.6 rule 8) except tools/engine/**, and a UI
+# package may own .py files there (this tool is one), so the .py ban stops at tools/.
+ENGINE_FOLDERS = ("app/jarvis_app/", "core/", "app/tests/", "tools/engine/")
+UI_ROOT = "app/ui/"
+UI_CODE_EXT = (".ts", ".tsx", ".css", ".json")
+# The state file, the research files and the specification are appended to by every package and owned by none. The
+# engine lane's own research file is the one exception (rule 8: it owns it).
+SHARED_FILES = ("data/notes/NOW.md", "docs/design/jarvis-product-overhaul.md", "docs/research/*.md")
+SHARED_EXEMPT = ("docs/research/well-wisher-engine.md",)
+
+
+def check_lanes(table: dict) -> list[str]:
+    """No UI package owns a .py path (outside tools/) or anything in an engine folder; no engine package owns a
+    .ts, .tsx, .css or .json path under app/ui (a folder glob there counts: it would include them); no package owns
+    a shared file. A package with no lane is checked for shared files only."""
+    out: list[str] = []
+    for p in table["packages"]:
+        lane, pid = p.get("lane"), p.get("id") or p.get("pkg")
+        for raw in p["owns"]:
+            o = _norm(raw)
+            if o not in SHARED_EXEMPT:
+                hit = next((s for s in SHARED_FILES if may_overlap(o, s)), None)
+                if hit:
+                    out.append(f"{pid} owns '{o}', which covers the shared file {hit}: shared files are appended to, never owned")
+            wild = bool(_WILD.search(o))
+            if lane == "ui":
+                if o.endswith(".py") and not (o.startswith("tools/") and not o.startswith("tools/engine/")):
+                    out.append(f"{pid} (ui lane) owns the Python path '{o}'")
+                    continue
+                for f in ENGINE_FOLDERS:
+                    # inside the folder, or a broad glob ('app/**') that would swallow it; tools/** is allowed by rule 8
+                    if o.startswith(f) or (wild and f.startswith(_literal_prefix(o)) and not o.startswith("tools/")):
+                        out.append(f"{pid} (ui lane) owns '{o}', in the engine folder {f}")
+                        break
+            elif lane == "engine":
+                under_ui = o.startswith(UI_ROOT) or (wild and UI_ROOT.startswith(_literal_prefix(o)))
+                if under_ui and (o.endswith(UI_CODE_EXT) or o.endswith("*") or "." not in o.rsplit("/", 1)[-1]):
+                    out.append(f"{pid} (engine lane) owns '{o}', under app/ui where only the UI lane writes code")
+    return out
+
+
+# -------------------------------------------------------------------------------- route check (rule 9)
+ENGINE_PLAN = "docs/design/well-wisher-engine-plan.md"
+_ROUTE_RX = re.compile(r"""["'`](/api/[A-Za-z0-9_\-./{}:$]+)""")
+_PLAN_RX = re.compile(r"(/api/[A-Za-z0-9_\-./{}:$*]+)")
+
+
+def norm_route(route: str) -> str:
+    """'/api/mission/q/${id}/x?y=1', '/api/mission/q/:id/x' and '/api/mission/q/{qid}/x' are one route."""
+    route = route.split("?", 1)[0]
+    route = re.sub(r"\$\{[^}]*\}", "{}", route)
+    route = re.sub(r"\{[^}/]*\}", "{}", route)
+    route = re.sub(r"/:[A-Za-z_]\w*", "/{}", route)
+    return route.rstrip("/")
+
+
+def plan_routes(plan_text: str) -> set[str]:
+    """Routes the engine plan lists. Convention text ('/api/*', '/api/mission/...', '/api/phone/') is not an entry:
+    a real route has at least three segments after the host and no wildcard or ellipsis."""
+    found = set()
+    for m in _PLAN_RX.finditer(plan_text):
+        raw = m.group(1)
+        r = raw.rstrip(".,;:)")
+        if "*" in r or raw.endswith("..") or r.endswith("/") or r.count("/") < 3:
+            continue
+        found.add(norm_route(r))
+    return found
+
+
+def adapter_files(root: Path) -> list[Path]:
+    base = root / "app" / "ui" / "src"
+    if not base.is_dir():
+        return []
+    return sorted(f for d in base.rglob("adapters") if d.is_dir() for f in d.rglob("*")
+                  if f.is_file() and f.suffix in (".ts", ".tsx", ".js", ".mjs"))
+
+
+def check_routes(root: Path, plan: Path | None = None) -> list[str]:
+    """Every route an adapter file under app/ui/src/**/adapters/ calls has an entry in the engine plan. No adapter
+    files passes (the null-adapter days); adapters with the plan file missing is a finding."""
+    files = adapter_files(root)
+    if not files:
+        return []
+    plan = plan or root / ENGINE_PLAN
+    if not plan.is_file():
+        return [f"{ENGINE_PLAN} is missing, so no adapter route can be checked"]
+    known = plan_routes(plan.read_text(encoding="utf-8"))
+    out: set[str] = set()
+    for f in files:
+        for m in _ROUTE_RX.finditer(f.read_text(encoding="utf-8", errors="replace")):
+            r = norm_route(m.group(1))
+            if r not in known:
+                out.add(f"{f.relative_to(root).as_posix()} calls {r}, which {ENGINE_PLAN} does not list")
+    return sorted(out)
+
+
+# ------------------------------------------------------------------------------------- freeze check (D-V3-22)
+FREEZE_FOLDERS = ("app/ui/src/ww/study/**", "app/ui/src/ww/focus/**", "app/jarvis_app/ww_pyq/**")
+
+
+def default_freeze_path() -> Path:
+    """The owner's exam-season freeze is a private file in the main checkout's notes (data/ is git-ignored, so the lead
+    time never reaches this public repository). JARVIS_EXAM_FREEZE overrides it; tests do. Existence turns it on."""
+    env = os.environ.get("JARVIS_EXAM_FREEZE")
+    if env:
+        return Path(env)
+    here = Path(__file__).resolve().parent
+    try:
+        common = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=here,
+                                capture_output=True, text=True, check=True).stdout.strip()
+        root = Path(common).parent
+    except (OSError, subprocess.CalledProcessError):
+        root = here.parent
+    return root / "data" / "notes" / "exam-freeze.json"
+
+
+def is_fix(pkg: dict) -> bool:
+    """Only bug fixes merge during the freeze: 'kind': 'fix', or a purpose or note that starts with fix or bug."""
+    if pkg.get("kind") == "fix":
+        return True
+    return any(str(pkg.get(k) or "").strip().lower().startswith(("fix", "bug")) for k in ("purpose", "note"))
+
+
+def check_freeze(table: dict, freeze_file: Path | None, changed: dict[str, list[str]] | None = None) -> list[str]:
+    """While the freeze file exists a feature package owns and changes nothing in the frozen folders. An absent file
+    means no freeze (the default, I34). `changed` maps a package id to its changed files, when they are known."""
+    if freeze_file is None or not freeze_file.exists():
+        return []
+    out: list[str] = []
+    for p in table["packages"]:
+        pid = p.get("id") or p.get("pkg")
+        if is_fix(p) or p.get("state") in ("merged", "dropped"):
+            continue
+        for o in p["owns"]:
+            hit = next((fz for fz in FREEZE_FOLDERS if may_overlap(o, fz)), None)
+            if hit:
+                out.append(f"{pid} owns '{o}' in the frozen folder {hit} while the exam freeze is set (D-V3-22)")
+        for f in (changed or {}).get(pid, []):
+            if any(matches(fz, f) for fz in FREEZE_FOLDERS):
+                out.append(f"{pid} changed '{f}' in a frozen folder while the exam freeze is set (D-V3-22)")
+    return out
+
+
+# --------------------------------------------------------------------------------------------- the board
+def board_table(board: dict, wave: int | None = None) -> dict:
+    """Read the wave comms board's active rows as a wave table (pkg becomes id; lane, state and purpose are kept)."""
+    rows = [r for r in board.get("packages", []) if r.get("state") in ("planned", "building", "review", "blocked")
+            and (wave is None or r.get("wave") == wave)]
+    return {"wave": wave if wave is not None else "board", "shared": [], "packages": [
+        {"id": r["pkg"], "lane": r.get("lane"), "state": r.get("state"), "purpose": r.get("purpose", ""),
+         "note": r.get("note", ""), "kind": r.get("kind"), "owns": list(r["owns"])} for r in rows]}
+
+
+def load_board(path: Path | None) -> dict:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import wave_comms  # read only: the board tool is never edited or written from here
+    return wave_comms.load(path or wave_comms.default_board_path())
 
 
 def git_changed(base: str, repo: Path, head: str = "HEAD") -> list[str]:
@@ -258,31 +426,59 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--files", help="a text file of changed paths instead of git")
     ap.add_argument("--repo", default=".", help="repo root (default .)")
     ap.add_argument("--no-entry", action="store_true", help="skip the entry-file rule")
+    ap.add_argument("--board", nargs="?", const="", default=None, metavar="FILE",
+                    help="read packages from the wave comms board (no FILE: the live board); runs the three new checks unless some are named")
+    ap.add_argument("--board-wave", type=int, help="with --board: only this wave's active rows")
+    ap.add_argument("--lanes", action="store_true", help="the lane check (rule 8)")
+    ap.add_argument("--routes", action="store_true", help="the route check (rule 9)")
+    ap.add_argument("--freeze", action="store_true", help="the exam-season freeze check (D-V3-22)")
+    ap.add_argument("--freeze-file", help="the private freeze file (default: data/notes/exam-freeze.json of the main checkout)")
+    ap.add_argument("--plan", help="the engine plan file the route check reads (default: docs/design/well-wisher-engine-plan.md)")
+    ap.add_argument("--exclude", action="append", default=[], metavar="GLOB", help="changed files matching this glob never count (repeatable)")
     ap.add_argument("--self-test", action="store_true")
     a = ap.parse_args(argv)
     if a.self_test:
         return self_test()
     try:
-        if a.wave is not None:
+        if a.board is not None:
+            data = load_board(Path(a.board) if a.board else None)
+            table = board_table(data, a.board_wave)  # an empty board is a clean pass here, not a bad table
+            if not (a.lanes or a.routes or a.freeze):
+                a.lanes = a.routes = a.freeze = True
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            import wave_comms
+            findings = sorted({f"{p['pkg']}: {c}" for p in data["packages"] if p["state"] in wave_comms.ACTIVE
+                               for c in wave_comms.clashes(data, p["pkg"], p["owns"])})
+        elif a.wave is not None:
             table = load_table(WAVE_TABLES[a.wave])
+            findings = check_disjoint(table)
         elif a.table:
             table = load_table(a.table)
+            findings = check_disjoint(table)
         else:
-            ap.error("give a table file or --wave N")
+            ap.error("give a table file, --wave N or --board")
         repo = Path(a.repo).resolve()
-        findings = check_disjoint(table)
+        if a.lanes:
+            findings += check_lanes(table)
+        if a.routes:
+            findings += check_routes(repo, Path(a.plan) if a.plan else None)
+        changed: dict[str, list[str]] = {}
         if a.package:
             files = Path(a.files).read_text(encoding="utf-8").splitlines() if a.files else git_changed(a.base, repo, a.head)
-            findings += check_changed(table, a.package, files)
+            changed[a.package] = files
+        if a.freeze:
+            findings += check_freeze(table, Path(a.freeze_file) if a.freeze_file else default_freeze_path(), changed)
+        if a.package:
+            findings += check_changed(table, a.package, files, a.exclude)
             if not a.no_entry:
                 findings += check_entries(table, repo, [a.package])
         elif a.all:
             for p in table["packages"]:
                 head = f"{a.branch_prefix}{p['id'].lower()}"
-                findings += check_changed(table, p["id"], git_changed(a.base, repo, head))
+                findings += check_changed(table, p["id"], git_changed(a.base, repo, head), a.exclude)
             if not a.no_entry:
                 findings += check_entries(table, repo)
-        elif not a.no_entry and (repo / table.get("entry_dir", "\0")).is_dir():
+        elif a.board is None and not a.no_entry and (repo / table.get("entry_dir", "\0")).is_dir():
             findings += check_entries(table, repo)
     except (ValueError, KeyError, RuntimeError, OSError) as e:
         print(f"wave_check: {e}", file=sys.stderr)

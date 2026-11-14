@@ -2,6 +2,27 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-14: lanes: the lane check and one-command integration
+
+**Question.** Two chats now build at once (a UI lane and an engine lane). How do we make the lane rule (block C rule 8), the route rule (rule 9) and the exam freeze (D-V3-22) machine-checked, and make the post-merge checks one command that survives an outage?
+
+**What I built (package N03, `tools/` only).**
+- `tools/wave_check.py`, old behaviour kept (its self-tests and the wave 5 table still pass). Added: the lane check (a UI package owns no `.py` outside `tools/` and nothing in `app/jarvis_app`, `core`, `app/tests`, `tools/engine`; an engine package owns no `.ts`, `.tsx`, `.css`, `.json` or bare folder glob under `app/ui`; no package owns the state file, `docs/research/*.md` or the specification, with the engine's own research file as the one exception); the route check (every `/api/...` literal in a file under `app/ui/src/**/adapters/` must be listed in `docs/design/well-wisher-engine-plan.md`; `${id}`, `:id` and `{id}` count as one parameter form; convention text such as `/api/*` is not an entry; no adapter files passes); the freeze check (a feature package owns or changes nothing in `ww/study`, `ww/focus`, `ww_pyq` while the private file exists; absent file means no freeze; a package with `kind` fix, or a purpose starting "fix" or "bug", is exempt); `--exclude` globs and a table `exclude` list. `--board` reads the live wave comms board (read only, through `wave_comms.load`) and runs board clashes plus the three checks.
+- `tools/integrate_wave.py`: 14 steps (tsc, vitest twice, springs, bundle, wave-check, playwright or `--specs`, art tests, pytest for tools, root, core and app on fresh scratch data folders, commit check, leftovers list). Each step has its own exit code and time, the run continues after a failure, and the JSON report plus a text table are rewritten after every step (atomic replace). `--only`, `--skip`, `--dry-run`, `--report` (refused inside the repository). Steps that build or serve the UI are refused while something listens on 8777; the leftovers step only lists.
+
+**Numbers.** `pytest tools/tests -q`: 90 passed, three runs in a row (9.7 s, 9.9 s, 8.8 s). Against the live board (6 packages) `wave_check.py --board` gives 0 findings. A real run of `--only wave-check,commits,leftovers` took 0.3 s, 0.2 s and 1.6 s and exited 0.
+
+**Decisions.**
+- The freeze file is `data/notes/exam-freeze.json` in the main checkout (override `JARVIS_EXAM_FREEZE`); D-V3-22 says only "a private file", so the name is mine. Its existence alone turns the freeze on; the lead time is never read, so nothing about exam dates reaches a tracked file.
+- Rule 8 says a UI package owns `tools/**`, and N03 itself owns `.py` files there, so the `.py` ban stops at `tools/` (and `tools/engine/` stays engine).
+- Guarded steps (bundle, playwright, art) refuse on 8777. `bundle:check` and Playwright already build to `dist-e2e` and serve the sandbox on 8790; the guard is a second lock, not the only one.
+- A refusal counts as a failure in the exit code: a wave that was not fully checked must not look green.
+
+**What is not verified.** Leftover listing was run once on Windows (it listed 0 old processes); the POSIX `ps` branch is untested here. The route check has nothing to bite on yet: the engine plan lists no route and no adapter file exists (R-01 onward are written by the engine lane). The "every route in the plan has a pytest" half of rule 9 is not built: it needs the engine lane's route-table docstrings.
+
+**What it changed.** Merge test items (e) and (f) of 15.6.1 and A.N03's accept line are now code. Integrators run `python tools/integrate_wave.py` after each merge and read the `.txt` beside the report.
+
+
 ## 2026-11-14: wave 6 integrated, and what its jury said (6.6 design, 6.4 usability; pass line 8.0)
 
 **Question.** After the six wave 6 packages and the rebuilt Core section merged, does the new interface pass the screenshot jury, and what does the next round have to fix?

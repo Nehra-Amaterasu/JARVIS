@@ -88,10 +88,11 @@ Until step 6, the connector's control reads PLANNED, then WAITING, and slice C's
 ### 9.0 Changes to route shapes and shared records (dated; the UI lane reads this at the start of each of its waves)
 
 - 2026-11-14: first issue. Routes R-01 to R-27 and the records of `app/jarvis_app/ww_pyq/schema.py` (schema version 1).
+- 2026-11-14 (after stage 1 of EW7; no path or payload name changed): (1) "reviewed questions" in the floor of R-09, R-16 and R-17 means **accepted** questions, because a pattern is counted over accepted questions only; (2) a draft always arrives `pending`, whatever status it carries; (3) setting a question's `text` by hand also sets `text_status: "verified"`; (4) R-06 clamps `limit` to 1..500 and `offset` to 0 or more instead of refusing; (5) a paper's `sha256` must be 64 lowercase hex or it is refused; (6) `Store` also has `update_questions(ids, changes, by)` (all or nothing, used by R-07) and `problems()` (files set aside as corrupt); (7) `parse_ics` returns skipped events in the list with `status: "skipped"` and a note, so C02 filters on `status`.
 
 ### 9.1 Wave EW7: the exam slice (planned 14 Nov 2026; the takeover note calls it "E1")
 
-**State: building.** Stage 1 (E05, C01) first, then stage 2 (E06, E07, E08), because the three stage 2 packages import E05's `Store`.
+**State: stage 1 merged to `engine/main` (14 Nov); stage 2 building.** Stage 1 (E05, C01) first, then stage 2 (E06, E07, E08), because the three stage 2 packages import E05's `Store`.
 
 #### 9.1.1 Reconciled with the specification
 
@@ -222,6 +223,16 @@ R-27 writes one line per question to `attempts.jsonl` (`question_id, paper_id, g
 
 Per package: its own tests; a reviewer reruns them, makes one mutation that a test must catch, and checks the contract (exports, routes, docstring table, states). E06 (files from a path he types, uploads, writes under the data directory) also gets a security review. Then, on `engine/main` rebased on `origin/main`: the full `app` suite on a scratch data directory, `core` tests untouched, `app/tests/test_ww_gate.py`, the root privacy and commit tests, and `requirements/check_requirements.py`. The end-to-end exam-path test is M01 (EW8); EW7 ends with a short integration test by the integrator: one invented 6-question paper through ingest, accept, blueprint inference, generate, print and marks.
 
-#### 9.1.8 Outcome
+#### 9.1.8 Stage 2 mechanisms (decided 14 Nov, after reading stage 1's code)
 
-*(written when the wave merges: what merged, the measured numbers, what was left out)*
+- **E08, how the wrapper keeps `ww_generator.py` unedited.** One call of `ww_generator.generate` with a copy of the exam row whose `pattern` is the blueprint's sections. Before the call the bank is prepared: one question per family is kept (seeded choice); a question attempted in the last 14 days is kept with probability 0.3 (seeded), which is the 0.3 weight as a thinning; a row keeps its `section` letter only when its marks equal that section's marks. After the call: a slot whose own question has other marks than the section, or a type the section does not allow, or that repeats a question, is emptied; an emptied or missing slot is filled from `ww_numericals.pool` templates not already on the paper, and what is still empty is a hollow slot named in `shortfall`. Then `ww_generator.paper_invariants` must return an empty list or nothing is stored.
+- **E08, print.** The print HTML is self-contained: every crop is embedded as a base64 PNG, because an `<img>` request cannot carry the token header. Every text that came from a paper is HTML-escaped.
+- **E06, ids and crops.** Question ids are given by `Store.add_questions`, so the ingest adds the drafts with their boxes first, then renders each crop to `crops/<paper_id>/<qid>.png` and calls `Store.set_crop`.
+- **E07 and E08, the plan store.** A route reads the subject and the exam through `svc.plan` (set by `routes_mission`), the way `Plan.practice_paper` does: units from the subject, topic states from `exam_prep`, marks from `paper_marks`.
+- **The gate.** `ww_check.py` now reads PATCH rows and every `routes_ww_pyq*.py` docstring (integrator's edit, 14 Nov): 11 pyq rows documented, 0 without a route.
+
+#### 9.1.9 Outcome
+
+**Stage 1 (14 Nov): merged to `engine/main`.** E05: 51 tests (store 40, routes 11); the review fixed two defects (a file hash that was not checked before it became an id, and a draft that could arrive already accepted) and its mutation (removing the "Give its marks first." refusal) failed 2 tests. C01: 194 tests in about 1 s; its mutation (removing the ambiguous-date branch) failed 7 tests. Open and accepted: the store has an in-process lock only (one app process owns the data directory); a pasted line with two date-like tokens keeps the stray number in its title.
+
+*(stage 2 and the wave's numbers are written when it merges)*

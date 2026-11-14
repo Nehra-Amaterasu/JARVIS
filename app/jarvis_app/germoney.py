@@ -3150,16 +3150,21 @@ class Plan:
                                        else "The harvester is off, so nothing is queued. Switch it on in Settings to fetch more.")
         return {"enabled": on, "short": short, "queued": len(queued), "note": note}
 
-    def paper_marks(self, exam_id: str, payload: dict, today: Optional[str] = None) -> dict:
+    def paper_marks(self, exam_id: str, payload: dict, today: Optional[str] = None,
+                    extra_bank: Optional[dict] = None) -> dict:
         """He marks a generated paper: {items: [{id, got}], seed?}. Each item's marks go to its
         topic (proficiency), and the sheet's total becomes the measured practice score the
-        exams engine shows. Unknown question ids and marks over the question's value are refused."""
+        exams engine shows. Unknown question ids and marks over the question's value are refused.
+        `extra_bank` (question id to a bank row) adds questions that live outside academics.json,
+        such as his own accepted papers in the pyq store (routes_ww_pyq_gen, R-27)."""
         today = today or date.today().isoformat()
         exam, sub = self._exam_and_subject(exam_id)
         # Disk-bank questions (chunk H, ids h:<subject>:<hash>) are served on papers too, so they are
         # markable; a typed question with the same id wins.
         bank = {q.get("id"): q for q in ww_bank_store.load_for(sub["id"])}
         bank.update({q.get("id"): q for q in sub.get("question_bank") or []})
+        if extra_bank:
+            bank.update({str(k): v for k, v in extra_bank.items() if isinstance(v, dict)})
         items = payload.get("items") if isinstance(payload.get("items"), list) else None
         if not items:
             raise ValueError("items: [{id, got}] is required")

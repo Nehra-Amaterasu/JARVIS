@@ -43,7 +43,7 @@ export function Dumbbell({ rows, scale, state, unit, earlierName = 'earlier', no
         <span className="d1-db-key" aria-hidden="true">
           <i className="d1-ring" /> {earlierName} <i className="d1-disc" /> {nowName}
         </span>
-        <span className="d1-lamp"><Lamp state={state} reason={reason} bare /></span>
+        <span className="d1-lamp"><Lamp state={state} reason={reason} /></span>
       </header>
 
       <div className="d1-db-grid" style={{ ['--d1-period' as string]: `${100 / (RULER_TICKS - 1)}%` }} aria-hidden="true">

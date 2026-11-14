@@ -8,9 +8,9 @@
    [data-roll='on'] (visible and not Calm). No keyframes, so nothing runs at idle.
    ========================================================================== */
 
-.d1-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
+.d1-sr { position: absolute; left: 0; top: 0; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
 
-.d1-lamp { position: absolute; top: 8px; right: 8px; display: inline-flex; }
+.d1-lamp { position: absolute; top: 10px; right: 12px; display: inline-flex; font-size: 12px; }
 .d1-why { margin: 0; font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
 .d1-stamp { display: inline-block; margin: 0; font: 600 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--state-simulated); border: 1px solid var(--state-simulated); padding: 2px 6px; }
 
@@ -22,7 +22,7 @@
 /* ---------------------------------------------------------------------- Odometer */
 .d1-odo {
   position: relative; box-sizing: border-box; display: inline-flex; flex-direction: column; gap: 8px; width: max-content; max-width: 100%;
-  padding: 18px 18px 10px; border: 1px solid var(--edge-ui); border-radius: 12px; background: var(--surface-raised); box-shadow: var(--elev-raised);
+  padding: 40px 18px 10px; border: 1px solid var(--edge-ui); border-radius: 12px; background: var(--surface-raised); box-shadow: var(--elev-raised);
   color: var(--ink-1); font: 12px/1.3 var(--font-mono, ui-monospace, monospace); text-align: left;
 }
 button.d1-odo { appearance: none; cursor: pointer; min-height: 44px; }
@@ -42,14 +42,20 @@ button.d1-odo:hover { transform: translateY(-1px); }
 }
 /* the drum: shade at the top and bottom edge so the wheel reads as a cylinder behind a window */
 .d1-well::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to bottom, color-mix(in srgb, var(--ink-1) 22%, transparent), transparent 24%, transparent 76%, color-mix(in srgb, var(--ink-1) 22%, transparent)); }
+.d1-well::before { content: ''; position: absolute; z-index: 1; inset: 0; pointer-events: none;
+  /* the lens: a soft glint across the upper third and a thin lit rim, so the wheel is glass over a drum, drawn in CSS only */
+  background: linear-gradient(158deg, color-mix(in srgb, var(--lit-hi) 55%, transparent) 0, color-mix(in srgb, var(--lit-hi) 16%, transparent) 26%, transparent 42%);
+  border-radius: inherit; box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lit-hi) 40%, transparent); }
+/* a padding socket is a blank recess: no glyph, no glint, no drum shade */
+.d1-well[data-lead='true']::before, .d1-well[data-lead='true']::after { content: none; }
+.d1-well[data-lead='true'] .d1-strip { visibility: hidden; }
 .d1-strip { display: block; width: 100%; height: auto; transform: translateY(calc(var(--d, 0) * -10%)); }
 .d1-strip path { fill: currentColor; }
 .d1-odo[data-roll='on'] .d1-strip { transition: transform 140ms steps(4, end); }
-.d1-well[data-lead='true'] { color: var(--ink-3); }
-.d1-well[data-lead='true'] .d1-strip { opacity: 0.55; }
+.d1-well[data-lead='true'] { background: var(--surface-sunk); box-shadow: var(--elev-recessed), inset 0 3px 5px color-mix(in srgb, var(--ink-1) 14%, transparent); }
 
 .d1-odo[data-form='hollow'] .d1-well { border-style: dashed; background: transparent; box-shadow: none; }
-.d1-odo[data-form='hollow'] .d1-well::after { content: none; }
+.d1-odo[data-form='hollow'] .d1-well::after, .d1-odo[data-form='hollow'] .d1-well::before { content: none; }
 .d1-odo[data-form='hollow'] .d1-well:nth-child(2) { margin-right: 10px; }
 .d1-dash { display: block; width: 100%; height: 100%; }
 .d1-dash path { fill: var(--ink-3); }
@@ -69,11 +75,12 @@ button.d1-odo:hover { transform: translateY(-1px); }
 /* ---------------------------------------------------------------------- Dumbbell */
 .d1-db {
   --d1-lw: 96px; --d1-gw: 56px; --d1-cg: 12px;
-  position: relative; box-sizing: border-box; display: grid; gap: 8px; width: 100%; max-width: 560px; padding: 14px 16px 12px;
+  position: relative; overflow-x: clip; box-sizing: border-box; display: grid; gap: 8px; width: 100%; max-width: 560px; padding: 14px 16px 12px;
   border: 1px solid var(--edge-ui); border-radius: 12px; background: var(--surface-raised); box-shadow: var(--elev-raised); color: var(--ink-1);
   font: 12px/1.3 var(--font-mono, ui-monospace, monospace);
 }
-.d1-db-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; padding-right: 22px; }
+.d1-db-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; }
+.d1-db-head .d1-lamp { position: static; margin-left: auto; }
 .d1-db-title { letter-spacing: 0.1em; color: var(--ink-2); }
 .d1-db-key { color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
 .d1-db-key .d1-ring, .d1-db-key .d1-disc { width: 10px; height: 10px; border-width: 1.5px; vertical-align: baseline; }
@@ -133,7 +140,7 @@ button.d1-odo:hover { transform: translateY(-1px); }
 
 /* ---------------------------------------------------------------------- Jar */
 .d1-jar { position: relative; box-sizing: border-box; display: grid; justify-items: center; gap: 6px; width: 120px; margin: 0; padding: 12px 8px 10px; border: 1px solid var(--edge-ui); border-radius: 12px; background: var(--surface-raised); box-shadow: var(--elev-raised); color: var(--ink-1); font: 12px/1.3 var(--font-mono, ui-monospace, monospace); text-align: center; }
-.d1-jar .d1-lamp { top: 6px; right: 6px; }
+.d1-jar .d1-lamp { position: static; }
 .d1-jar-stage { box-sizing: border-box; padding: 6px 8px 4px; border: 1px solid var(--edge-ui); border-radius: 8px; background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
 .d1-jar-svg { display: block; width: 84px; height: auto; }
 .d1-jar-well { fill: none; stroke: var(--ink-2); stroke-width: 1.5; }
@@ -160,7 +167,7 @@ button.d1-odo:hover { transform: translateY(-1px); }
   .d1-odo, .d1-db, .d1-jar, .d1-tape-sheet, .d1-jar-stage { border: 2px solid CanvasText; box-shadow: none; background: Canvas; }
   .d1-tape { filter: none; }
   .d1-well { border: 2px solid CanvasText; box-shadow: none; background: Canvas; }
-  .d1-well::after { content: none; }
+  .d1-well::after, .d1-well::before { content: none; }
   .d1-odo[data-form='hollow'] .d1-well { border-style: dashed; }
   .d1-strip path, .d1-dash path { fill: CanvasText; }
   .d1-ring, .d1-disc { border-color: CanvasText; forced-color-adjust: none; box-shadow: none; }

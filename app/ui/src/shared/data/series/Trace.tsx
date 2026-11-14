@@ -121,7 +121,7 @@ export function Trace({ points, median, state, label = 'Series', unit, reason, m
         />
       )}
     >
-      <div ref={stageRef} className="sr-stage">
+      <div ref={stageRef} className="sr-stage" data-compact={width < 420 ? 'true' : 'false'}>
         <Screen
           height={height} planned={state === 'planned'} draw={draw.phase} boxRef={draw.ref}
           tag={hollow ? 'no values' : `${width < TRACE_PHONE_W ? '' : 'series · '}${g.dots.length} pts${g.gaps.length ? ` · ${g.gaps.length} no data` : ''}`}

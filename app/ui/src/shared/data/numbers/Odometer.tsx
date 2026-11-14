@@ -45,6 +45,7 @@ function useOnScreen(ref: React.RefObject<Element | null>): boolean {
 function Wheel({ digit, lead }: { digit: number; lead: boolean }) {
   return (
     <span className="d1-well" data-lead={lead ? 'true' : undefined} aria-hidden="true">
+      {/* a padding position is a blank socket (the CSS hides the strip, keeping the wheel so a growing value still rolls in) */}
       <svg className="d1-strip" style={{ ['--d' as string]: digit }} viewBox={`0 0 ${SLOT_W} ${STRIP_HEIGHT}`} preserveAspectRatio="xMidYMin meet" focusable="false">
         <path d={STRIP_PATH} />
       </svg>
@@ -83,7 +84,7 @@ export function Odometer({ value, unit, state, size = 'hero', reason, delta, sin
       data-roll={onScreen && !calm ? 'on' : 'off'}
       style={{ ['--d1-h' as string]: `${h}px`, ['--d1-cells' as string]: cells }}
     >
-      {lamp && <span className="d1-lamp"><Lamp state={state} reason={reason} bare /></span>}
+      {lamp && <span className="d1-lamp"><Lamp state={state} reason={reason} /></span>}
       <span className="d1-rule" aria-hidden="true" />
       <span className="d1-wells" aria-hidden="true">
         {digits

@@ -10,7 +10,7 @@ const merged = 'D01, 13 Nov 2026'
 function RollDemo() {
   const [n, setN] = useState(41)
   return (
-    <div style={{ display: 'grid', gap: 12, justifyItems: 'start' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, max-content)', maxWidth: '100%', gap: 12, justifyItems: 'start' }}>
       <Odometer value={n} unit="questions answered" state="simulated" delta={n - 41} since="09:00" />
       <button type="button" className="gl-btn" style={{ minHeight: 44, minWidth: 120, font: '13px var(--font-mono, monospace)', padding: '0 14px', border: '1px solid var(--edge-ui)', borderRadius: 8, background: 'var(--surface-raised)', color: 'var(--ink-1)', boxShadow: 'var(--elev-raised)', cursor: 'pointer' }} onClick={() => setN((v) => v + 19)}>
         add 19

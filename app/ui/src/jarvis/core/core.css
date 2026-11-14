@@ -290,6 +290,7 @@
 .jc-ribbon[data-orientation='column'] .jc-rib-step { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: start; }
 .jc-ribbon[data-orientation='column'] .jc-rib-step::before { display: none; }
 .jc-ribbon[data-orientation='column'] .jc-rib-track { width: 2px; height: 10px; margin: 0 0 0 18px; flex: none; }
+.jc-ribbon[data-orientation='column'] .jc-rib-step:first-child .jc-rib-track { display: none; } /* a stub above HEAR joins nothing */
 .jc-ribbon[data-orientation='column'] .jc-rib-track[data-track='dashed'] { background: repeating-linear-gradient(180deg, var(--edge-ui) 0 3px, transparent 3px 5px); }
 .jc-ribbon[data-orientation='column'] .jc-rib-fill { inset: 0 0 auto 0; width: auto; height: calc(var(--f, 0) * 100%); }
 .jc-ribbon[data-orientation='column'] .jc-rib-node { justify-content: flex-start; width: 100%; }

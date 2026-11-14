@@ -44,6 +44,11 @@ describe('ribbon', () => {
     expect(ribbonFill({ state: 'waiting', sec: 1, median: 2, running: true })).toBeNull()
     expect(ribbonFill({ state: 'live', sec: 1, median: 0, running: true })).toBeNull()
   })
+
+  it('draws a number only for LIVE and SIMULATED, even when a stale second count is passed in', () => {
+    for (const state of ['waiting', 'planned', 'fault'] as const) expect(nodeText({ id: 'think', state, sec: 3.2 }).value).not.toMatch(/\d/)
+    expect(nodeText({ id: 'think', state: 'simulated', sec: 3.2 }).value).toBe('3.2 s')
+  })
   it('a fault on the running stage is FAULT with the reason, never a number', () => {
     const st = ribbonStages({ core: awake({ state: 'transcribing', last_error: 'whisper died' }), stateSince: NOW - 1000, now: NOW, last: none, medians: noMed })
     expect(st[1]).toMatchObject({ state: 'fault', reason: 'whisper died' })

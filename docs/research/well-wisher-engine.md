@@ -2,6 +2,44 @@
 
 The running research file of the engine lane (the Python side of Well Wisher). Newest section on top. The plan it serves is `docs/design/well-wisher-engine-plan.md`; the screens are the UI lane's (`docs/research/product-design-overhaul.md`).
 
+## 2026-11-14 (night): wave EW7 built, what it measured and what its reviews found
+
+**Question.** Does the exam slice work end to end on invented papers, how fast is it, and what did independent review find that the builders missed?
+
+**How it was built.** Five packages in two stages, each in its own git worktree, a builder then a reviewer (one deliberate mutation each), and a security reviewer for the two packages that read files from typed paths or return HTML. 13 agents in all, about 23 minutes for stage 1 and 60 for stage 2. Agents did not run git; the integrator committed, squashed and pushed.
+
+**Numbers.**
+
+| What | Result |
+|---|---|
+| Tests added by the wave | E05 51, C01 194, E06 87, E07 70, E08 78, the end-to-end slice test 1, the state-file tool 5 |
+| Segmentation on ten invented fixture papers (plain, sections, a ruled table with CO and BL, multi-page, OR pairs, sub-parts, a page with no text layer, a slide-deck PDF, five ways of printing marks, MCQ types) | Question count equals the hand count on 10 of 10; printed marks found on 48 of 48; the one question with no printed marks reads missing, not a guess |
+| Ingest speed, 20-page fixture (100 questions), this laptop while other builds ran | 2.29, 2.77, 2.29 s: 114 to 138 ms a page. Per page: PNG encode 70 to 110 ms, pixmap 28 ms, crop save about 6 ms each, text 0.8 ms; `find_tables` (61 ms) runs only on pages with drawn lines |
+| Ingest memory | Traced Python peak 6.8 MB for 20 pages (one 150 dpi page image at a time); process peak 98 MB with the libraries. MuPDF's own allocations are not seen by tracemalloc |
+| What made ingest 5 times faster | 12.0 s to 2.3 s: 7.1 s was 100 calls of `Store.set_crop`, each rewriting the questions file. The ingest now names each crop before one `add_questions` write |
+| Patterns | 500 questions over 20 papers in 0.42 s; 7 pure functions give the same answer twice |
+| Generator | 2 ms a paper; a question attempted in the last 14 days appears in 0.33 of the papers its unattempted twin appears in (200 seeds; the target weight is 0.3) |
+| Full app suite before the wave, after stage 1, after stage 2 | 1603, 1848, then the figure in the log line of the push |
+| Mutations | 5 of 5 caught by a test that existed (one reviewer's first mutation was behaviourally equivalent over HTTP and was replaced) |
+
+**What review found that the builders had not** (each is now a test).
+
+1. The store built a paper id from an unchecked file hash, and a draft could arrive already accepted (E05 reviewer).
+2. An upload named after a Windows device (`nul.pdf`, `com1.pptx`) would have sent the bytes to the device (E06 reviewer).
+3. The path route called `exists()` on whatever was typed. On Windows a network name there opens a connection to that host and offers the login to it. Network and device paths are now refused before any file call (E06 security).
+4. No limit on a PDF's page count or page size: one 14000 pt page would have drawn 2.5 GB at 150 dpi (E06 security).
+5. A slide deck is a zip: one that declares hundreds of megabytes went straight to the reader (E06 security).
+6. A blueprint with three million questions in a section balanced and matched the exam's maximum, so the generator tried to build it and hung (E08 security).
+7. `0e999999` as an answer raised an overflow in the numeric check (E08 security).
+
+**What a builder decided differently from the plan, and kept.** The ingest does not pass PDFs through `yaadash.library.extract`: its "at least 3 words" test is weaker than the specification's (40 characters, 80 percent word-like tokens), and a second parse doubled the time. Slide decks do go through it. The pattern floor counts accepted questions that have a topic, not all accepted ones, because a pattern is counted per topic; the waiting sentence says how many have none.
+
+**Not verified.** No real paper has been read. The fixtures are invented and drawn by the same library that reads them, so 10 of 10 is the easy case: real papers bring two columns, headers and footers, mixed fonts, scanned pages and maths. A two-column paper is known to merge. The tag thresholds (0.25 score, 0.15 margin) have no accuracy figure until hand tags exist to compare with.
+
+**Sources.** The agents' structured reports (workflows wf_3d16c161-145 and wf_60f545e6-d32) and the reruns by the reviewers and the integrator; the code under `app/jarvis_app/ww_pyq/`.
+
+**What it changed.** The plan file: section 9.0 (thirteen notes for the UI lane, no path changed) and 9.1.9 (the outcome). Next: wave EW8 (OCR, column detection, variants and rubric drafts, the intake store, the harvester core, the archive door, the exam-path test).
+
 ## 2026-11-14: the audit before wave EW7 (the exam slice), and two checks that were already red
 
 **Question.** What do the existing modules give the exam slice, where would a new package duplicate them, and is the base green before the lane starts?

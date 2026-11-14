@@ -256,10 +256,18 @@ def status(downloads: Optional[dict] = None) -> list[dict]:
         d = IMPORTS / s.id
         files = []
         if d.exists():
-            for f in sorted(d.iterdir(), key=lambda f: f.stat().st_mtime, reverse=True):
+            # The copy thread renames its .part file while this runs (2 failures in 7 runs of the settings
+            # suite, 14 Nov): skip the temporary names before any stat, and let a file that vanished
+            # between the listing and the stat drop out instead of raising FileNotFoundError.
+            seen = []
+            for f in d.iterdir():
                 if f.name.startswith(".") or f.name.endswith((".part", ".check")):
                     continue
-                st = f.stat()
+                try:
+                    seen.append((f, f.stat()))
+                except OSError:
+                    continue
+            for f, st in sorted(seen, key=lambda e: e[1].st_mtime, reverse=True):
                 files.append({"name": f.name, "size": st.st_size if f.is_file() else None, "mtime": st.st_mtime,
                               "folder": f.is_dir(), "read": _summary(f) if f.is_file() else None})
         have = {(f["name"], f["size"]) for f in files}

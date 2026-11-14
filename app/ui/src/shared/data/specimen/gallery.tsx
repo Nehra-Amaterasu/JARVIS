@@ -62,7 +62,7 @@ function Demo({ width }: { width?: number }) {
       width={width}
       specimen={<StrataCore units={UNITS} state="simulated" label="Physics units" />}
       callouts={plates}
-      anchors={[{ fx: 0.66, fy: 0.2 }, { fx: 0.66, fy: 0.25 }, { fx: 0.66, fy: 0.3 }, { fx: 0.66, fy: 0.35 }]}
+      anchors={[{ fx: 0.96, fy: 0.12 }, { fx: 0.96, fy: 0.3 }, { fx: 0.96, fy: 0.48 }, { fx: 0.96, fy: 0.66 }]}
       footer={
         <>
           <div style={{ flex: '1 1 auto', minWidth: 0 }}>

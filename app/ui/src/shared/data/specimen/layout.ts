@@ -97,12 +97,12 @@ export function specimenGeometry(width: number, count = 0): SpecimenGeometry {
 export interface AnchorFrac { fx: number; fy: number }
 
 /**
- * Default anchors for n callouts: spread down the specimen, alternating between the right third and the middle, so no two
+ * Default anchors for n callouts: spread down the specimen, alternating between two columns hugging the right edge (so a leader never crosses what the specimen draws), so no two
  * leaders start at the same point. A pure function of n and the index, so a layout is the same on every render.
  */
 export function defaultAnchors(n: number): AnchorFrac[] {
   const k = calloutCount(n)
-  return Array.from({ length: k }, (_, i) => ({ fx: i % 2 === 0 ? 0.78 : 0.56, fy: (i + 0.5) / Math.max(1, k) }))
+  return Array.from({ length: k }, (_, i) => ({ fx: i % 2 === 0 ? 0.96 : 0.92, fy: (i + 0.5) / Math.max(1, k) }))
 }
 
 export function anchorPoint(spec: Box, a: AnchorFrac): Pt {

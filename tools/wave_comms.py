@@ -86,21 +86,28 @@ class Lock:
                 self.fd = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
                 os.write(self.fd, str(os.getpid()).encode())
                 return self
-            except FileExistsError:
+            except (FileExistsError, PermissionError):
+                # Windows answers "access denied", not "exists", while another writer is deleting the lock file
+                # (seen as 1 failed write in 20 concurrent writers), so both mean "busy, try again".
                 try:
                     if time.time() - self.path.stat().st_mtime > LOCK_STALE_S:
                         self.path.unlink(missing_ok=True)
                         continue
-                except FileNotFoundError:
-                    continue
+                except (FileNotFoundError, PermissionError):
+                    pass
                 if time.monotonic() > deadline:
                     raise TimeoutError(f"wave comms board is locked: {self.path}")
-                time.sleep(0.05)
+                time.sleep(0.02)
 
     def __exit__(self, *exc) -> None:
         if self.fd is not None:
             os.close(self.fd)
-        self.path.unlink(missing_ok=True)
+        for _ in range(50):  # another writer's stat() can hold the file for an instant on Windows
+            try:
+                self.path.unlink(missing_ok=True)
+                return
+            except PermissionError:
+                time.sleep(0.01)
 
 
 def empty_board() -> dict:
@@ -123,7 +130,14 @@ def save(board: Path, data: dict) -> None:
     board.parent.mkdir(parents=True, exist_ok=True)
     tmp = board.with_suffix(board.suffix + ".tmp")
     tmp.write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
-    os.replace(tmp, board)
+    for attempt in range(50):  # a concurrent `show` may have the board open for reading
+        try:
+            os.replace(tmp, board)
+            return
+        except PermissionError:
+            if attempt == 49:
+                raise
+            time.sleep(0.01)
 
 
 def stamp() -> str:

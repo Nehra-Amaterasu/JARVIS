@@ -108,7 +108,9 @@
   border: 1px solid transparent; border-color: var(--engrave-dark, var(--edge-ui)) var(--engrave-lit, var(--edge-ui)) var(--engrave-lit, var(--edge-ui)) var(--engrave-dark, var(--edge-ui));
   border-radius: var(--r-pill, 999px); box-shadow: var(--elev-well-deep, var(--elev-recessed, none)); cursor: pointer;
 }
-.k-switch::after { content: ''; position: absolute; inset: -8px -4px; } /* hit area around the 32 px track */
+/* hit area around the 32 px track: 64 x 48. Vertical only: the track is already 64 wide, and a sideways extension put
+   the switch's own face under the ground probe beside it, so a filled ON track measured 1.00:1 against itself */
+.k-switch::after { content: ''; position: absolute; inset: -8px 0; }
 .k-switch[data-on='true'] { background: var(--switch-track-on, var(--k-on-fill, var(--selected-fill))); color: var(--k-on-ink, var(--selected-ink)); border-color: var(--rim-shade, transparent); }
 .k-switch-word { position: absolute; top: 50%; translate: 0 -50%; font: 700 11px/1 var(--font-sans, system-ui, sans-serif); letter-spacing: .06em; }
 .k-switch[data-on='false'] .k-switch-word { right: 9px; }
@@ -586,7 +588,10 @@ a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
 :root[data-theme^='clay'] .ww-md { inline-size: 100%; flex: 1 1 100%; }
 :root[data-theme^='clay'] .ww-md-list :is(ul, ol) { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 :root[data-theme^='clay'] .ww-md-list .ww-btn { inline-size: 100%; justify-content: flex-start; border-radius: var(--r-ctl, 14px); }
-:root[data-theme^='clay'] .ww-md-list .ww-btn[aria-current='true'], :root[data-theme^='clay'] .ww-md-list .ww-btn[aria-selected='true'] { background: var(--k-on-fill, var(--selected-fill)); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--elev-pressed, none); }
+/* a pressed toggle (TapGroup option, the MasterDetail row) is the same filled piece pressed in: its state is the
+   information, so it is 3:1 by its own fill (it measured 1.01:1 light and 1.31:1 dark as a plain raised pill) */
+:root[data-theme^='clay'] .ww-btn[aria-pressed='true'],
+:root[data-theme^='clay'] .ww-md-list .ww-btn[aria-current='true'], :root[data-theme^='clay'] .ww-md-list .ww-btn[aria-selected='true'] { border-color: var(--rim-shade, transparent); background: var(--k-on-fill, var(--selected-fill)); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--elev-pressed, none); }
 :root[data-theme^='clay'] .ww-md-detail {
   padding: 16px; min-width: 0; background: var(--surface-sunk); border-radius: var(--r-ctl, 14px); box-shadow: var(--elev-recessed, none);
   border: 1px solid transparent; border-color: var(--engrave-dark, var(--edge-hair)) var(--engrave-lit, var(--edge-hair)) var(--engrave-lit, var(--edge-hair)) var(--engrave-dark, var(--edge-hair));

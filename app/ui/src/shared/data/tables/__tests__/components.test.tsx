@@ -45,13 +45,14 @@ describe('LedgerTable honesty', () => {
       expect(qa('.d3-num').map((e) => e.textContent)).toEqual(['9', '14', '4'])
       expect(qa('.d3-spark').length).toBe(2)
       expect(qa('.d3-meter').length).toBe(3)
+      expect(qa('.d3-meter-n').map((e) => e.textContent).sort()).toEqual(['1/10', '5/10', '9/10'])
       m.unmount()
       m = null
     }
   })
   it.each(['waiting', 'planned', 'fault'] as const)('%s draws a hollow form for every number and says why', (s) => {
     m = mount(<LedgerTable columns={cols} rows={rows} state={s} reason={s === 'fault' ? 'the log did not answer' : undefined} />)
-    expect(qa('.d3-num, .d3-spark, .d3-meter').length).toBe(0)
+    expect(qa('.d3-num, .d3-spark, .d3-meter, .d3-meter-n').length).toBe(0)
     expect(qa('.d3-hollow').length).toBe(3 * 3)
     const bar = q('.d3-bar').textContent!
     expect(bar).toContain(s.toUpperCase())

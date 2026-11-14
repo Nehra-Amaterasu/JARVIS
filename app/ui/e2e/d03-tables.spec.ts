@@ -139,7 +139,7 @@ test.describe('LedgerTable', () => {
 
   test('the column chooser hides a column and keeps the pinned one', async ({ page }) => {
     await open(page)
-    const f = form(page, 'LedgerTable', 'column chooser open')
+    const f = form(page, 'LedgerTable', 'chooser open')
     await expect(f.locator('th')).toHaveCount(1 + 5) // gutter + 6 columns minus the hidden trend
     const spark = f.locator('.d3-choice', { hasText: 'Last 12' }).locator('input')
     await spark.check()
@@ -355,4 +355,65 @@ test.describe('idle, forced colours and the jury pictures', () => {
       await shot(page, `ledger-cards-390-${theme}.png`, form(page, 'LedgerTable', 'SIMULATED, sorted'))
     })
   }
+})
+
+// RD2: the jury's findings on D03 (wave 6 jury, usability 6.4).
+test.describe('RD2: tables', () => {
+  test.use({ viewport: DESKTOP })
+
+  test('every dot meter has its number beside it, only for LIVE and SIMULATED', async ({ page }) => {
+    await open(page)
+    const f = form(page, 'LedgerTable', 'SIMULATED, sorted')
+    const wraps = f.locator('.d3-meterwrap')
+    expect(await wraps.count()).toBe(6)
+    const text = await wraps.evaluateAll((els) => els.map((e) => e.querySelector('.d3-meter-n')?.textContent))
+    expect(text.sort()).toEqual(['0/10', '2/10', '4/10', '6/10', '7/10', '9/10'])
+    const w = form(page, 'LedgerTable', 'WAITING')
+    await expect(w.locator('.d3-meter-n')).toHaveCount(0)
+    const small = await f.locator('.d3-meter-n').evaluateAll((els) => els.filter((e) => parseFloat(getComputedStyle(e).fontSize) < 11).length)
+    expect(small).toBe(0)
+  })
+
+  test('the COLUMNS key is 44 px and a focused row shows a 2 px ring', async ({ page }) => {
+    await open(page)
+    const f = form(page, 'LedgerTable', 'SIMULATED, sorted')
+    const kb = (await f.locator('.d3-key').first().boundingBox())!
+    expect(kb.height).toBeGreaterThanOrEqual(43.5)
+    await page.keyboard.press('Tab')
+    const btn = f.locator('.d3-rowbtn').first()
+    await btn.focus()
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('ArrowUp')
+    await expect(btn).toBeFocused()
+    expect(await btn.evaluate((el) => { const s = getComputedStyle(el); return `${s.outlineWidth} ${s.outlineStyle}` })).toBe('2px solid')
+    const rule = await btn.evaluate((el) => getComputedStyle(el.closest('td')!).boxShadow)
+    expect(rule).not.toBe('none')
+    const cell = f.locator('.d3-td[data-pos="1:1"]')
+    await cell.focus()
+    await page.keyboard.press('ArrowRight')
+    expect(await f.locator('.d3-td:focus').evaluate((el) => `${getComputedStyle(el).outlineWidth} ${getComputedStyle(el).outlineStyle}`)).toBe('2px solid')
+  })
+
+  test('the slot grip is a 44 px target and lights with the row focus', async ({ page }) => {
+    await open(page)
+    const f = form(page, 'SlotList', 'idle')
+    const g = (await f.locator('.d3s-grip').first().boundingBox())!
+    expect(g.width).toBeGreaterThanOrEqual(43.5)
+    expect(g.height).toBeGreaterThanOrEqual(43.5)
+    await f.locator('.d3s-row').first().focus()
+    await page.keyboard.press('Shift+Tab')
+    await page.keyboard.press('Tab')
+    expect(await f.locator('.d3s-grip').first().evaluate((el) => `${getComputedStyle(el).outlineWidth} ${getComputedStyle(el).outlineStyle}`)).toBe('2px solid')
+    await page.keyboard.press('Alt+ArrowDown')
+    await expect(f.locator('[role="status"]')).toContainText('position 2 of 5')
+  })
+
+  test('the open rack rings its active detent', async ({ page }) => {
+    await open(page)
+    const f = form(page, 'DetentRack', 'open')
+    await f.locator('.d3r-rack').focus()
+    await page.keyboard.press('ArrowDown')
+    const o = await f.locator('.d3r-opt[data-active="true"]').evaluate((el) => `${getComputedStyle(el).outlineWidth} ${getComputedStyle(el).outlineStyle}`)
+    expect(o).toBe('2px solid')
+  })
 })

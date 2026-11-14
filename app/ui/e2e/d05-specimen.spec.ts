@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import type { Page } from '@playwright/test'
 import { build } from 'vite'
 import { expect, test } from '@playwright/test'
+import { openRework } from './d03/rework-page'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const SHOTS = process.env.D05_SHOTS ? resolve(process.env.D05_SHOTS) : resolve(ROOT, 'test-results', 'd05')
@@ -127,5 +128,75 @@ test.describe('phone 390 x 844', () => {
         expect(s.h, `${e} horizontal scroll`).toBeLessThanOrEqual(0)
       }
     }
+  })
+})
+
+// RD2: the whole specimen assembled, bare (the wave 6 pictures were gallery crops at 1.5x zoom).
+test.describe('RD2: the assembled specimen', () => {
+  test('at 1366 x 768 the 1302 x 720 canvas holds specimen, callouts, leaders and footer with nothing clipped', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 })
+    await openRework(page, 'id=data%2FSpecimenLayout&stage=1&theme=light')
+    const r = await page.evaluate(() => {
+      const stage = document.querySelector('[data-stage]')!.getBoundingClientRect()
+      const out: string[] = []
+      const inside = (name: string, el: Element) => {
+        const b = el.getBoundingClientRect()
+        if (b.left < stage.left - 0.5 || b.top < stage.top - 0.5 || b.right > stage.right + 0.5 || b.bottom > stage.bottom + 0.5) out.push(`${name} leaves the canvas: ${Math.round(b.left)},${Math.round(b.top)} ${Math.round(b.right)},${Math.round(b.bottom)}`)
+      }
+      const sp = document.querySelector('[data-object="specimen"]')!
+      inside('specimen', sp)
+      document.querySelectorAll('.sp-callout').forEach((c, i) => inside(`callout ${i + 1}`, c))
+      inside('footer', document.querySelector('.sp-footer')!)
+      // every drawn child of the specimen and of the footer stays inside its parent box (overflow is hidden: a child past the edge is a clipped one)
+      const within = (name: string, box: Element, sel: string) => {
+        const pb = box.getBoundingClientRect()
+        box.querySelectorAll(sel).forEach((el) => {
+          const b = el.getBoundingClientRect()
+          if (b.width && (b.bottom > pb.bottom + 0.5 || b.right > pb.right + 0.5 || b.top < pb.top - 0.5 || b.left < pb.left - 0.5)) out.push(`${name}: ${el.className || el.tagName} past the box`)
+        })
+      }
+      within('specimen', sp, '.sp-strata-row, .sp-strata-cap, .sp-strata-svg')
+      within('footer', document.querySelector('.sp-footer')!, '.k-rail-row, .k-key, button')
+      // the datum must not run through a callout's text: the plate is painted above the svg
+      const plate = document.querySelectorAll('.sp-callout')[2]
+      const pb = plate.getBoundingClientRect()
+      const top = document.elementFromPoint(pb.left + pb.width / 2, pb.top + pb.height / 2)
+      if (!plate.contains(top)) out.push('the datum line is painted over the third callout')
+      return out
+    })
+    expect(r).toEqual([])
+  })
+
+  test('at 390 px it is one column and the callouts follow as a swipe list with a dot each', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await openRework(page, 'id=data%2FSpecimenLayout&w=358&theme=light')
+    const f = page.locator('[data-form="reflow 390"]')
+    await expect(f.locator('[data-component="specimen-layout"]')).toHaveAttribute('data-state', 'reflow')
+    expect(await f.locator('.sp-card').count()).toBe(4)
+    expect(await f.locator('.sp-dot').count()).toBe(4)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0)
+    const b = await f.locator('.sp-specimen').boundingBox()
+    expect(b!.width).toBeLessThanOrEqual(358.5)
+  })
+
+  test('state names are short: none of the entries has a label over 20 characters', async ({ page }) => {
+    await openRework(page, 'theme=light')
+    const longest = await page.evaluate(() => [...document.querySelectorAll('[data-entry]')].map((e) => (e as HTMLElement).dataset.form ?? '').filter((l) => l.length > 20))
+    expect(longest).toEqual([])
+  })
+
+  test('the rocker of a rack row shows a 2 px focus ring, and the confirmed lamp still waits for the board', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 })
+    await openRework(page, 'id=data%2FRackRow&theme=light')
+    const half = page.locator('[data-form="six units"] .k-rocker-half[aria-checked="true"]').first()
+    await page.keyboard.press('Tab')
+    await half.focus()
+    await page.keyboard.press('Shift+Tab')
+    await page.keyboard.press('Tab')
+    await expect(half).toBeFocused()
+    const o = await half.evaluate((el) => { const s = getComputedStyle(el); return { w: s.outlineWidth, st: s.outlineStyle } })
+    expect(o).toEqual({ w: '2px', st: 'solid' })
+    // Relay 6 is marked confirmed but never reported: it must draw as sent, not acknowledged
+    await expect(page.locator('[data-form="six units"] [data-component="rack-row"]').nth(5)).toHaveAttribute('data-state', 'unconfirmed')
   })
 })

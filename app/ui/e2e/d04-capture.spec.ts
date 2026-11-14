@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url'
 import type { Page } from '@playwright/test'
 import { build } from 'vite'
 import { expect, test } from '@playwright/test'
+import { openRework } from './d03/rework-page'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const SHOTS = process.env.GALLERY_SHOTS ? resolve(process.env.GALLERY_SHOTS) : resolve(ROOT, 'test-results', 'd04')
@@ -172,4 +173,26 @@ test.describe('phone, at 390 x 844', () => {
       await states(page, `phone-${theme}-ww`)
     }
   })
+})
+
+// RD2: the line itself, bare, at the widths a phone gives it (358 and 390) and at the 240 a 1.5x gallery stage leaves it.
+test.describe('RD2: the capture line is not clipped on a phone', () => {
+  for (const w of [240, 358, 390]) {
+    test(`at ${w} px: no sideways overflow, every chip and the frame inside the viewport`, async ({ page }) => {
+      await page.setViewportSize({ width: Math.max(w, 240), height: 844 })
+      await openRework(page, `id=data%2FCaptureLine&theme=dark`)
+      const bad = await page.evaluate(() => {
+        const out: string[] = []
+        const vw = document.documentElement.clientWidth
+        if (document.documentElement.scrollWidth > vw) out.push(`page scrolls sideways: ${document.documentElement.scrollWidth} > ${vw}`)
+        document.querySelectorAll('.cl, .cl-chip, .cl-plate, .cl-line').forEach((el) => {
+          const b = el.getBoundingClientRect()
+          if (b.left < -0.5 || b.right > vw + 0.5) out.push(`${el.className} ${Math.round(b.left)}..${Math.round(b.right)} outside ${vw}`)
+        })
+        document.querySelectorAll('.cl').forEach((el) => { if (el.scrollWidth > el.clientWidth + 1) out.push(`.cl content wider than its frame (${el.scrollWidth} > ${el.clientWidth})`) })
+        return out
+      })
+      expect(bad).toEqual([])
+    })
+  }
 })

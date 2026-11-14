@@ -65,6 +65,10 @@
   box-shadow: var(--elev-recessed, none);
 }
 
+.tr-well input[type='range'] { accent-color: var(--selected-fill); color-scheme: inherit; }
+/* the kit slider sits flush in the well: its own label, ticks and value, no second frame */
+.tr-well .k-slider { inline-size: 100%; }
+
 .tr-vals { display: grid; gap: 4px; margin: 0; font: 13px/1.4 var(--font-mono, ui-monospace, monospace); }
 .tr-vals > div { display: flex; align-items: baseline; gap: 8px; }
 .tr-vals dt { flex: none; inline-size: 9ch; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; }

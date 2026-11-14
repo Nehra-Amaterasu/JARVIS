@@ -1,6 +1,7 @@
 // L02, 13 Nov 2026: Trim, the one key that holds a setting beside the thing it tunes, and the settings index that the
 // palette mode ":" lists. The settings here are inline fixtures (neutral words); none is in the product registry.
 import { useState } from 'react'
+import { TickSlider } from '../../shared/kit'
 import { SettingsIndex, Trim, type SettingDef } from '../../shared/trim'
 import type { GalleryEntryX } from '../types'
 
@@ -25,10 +26,8 @@ function Demo({ risk, plain }: { risk?: SettingDef['risk']; plain?: boolean }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
       <span style={{ font: '14px/1.4 var(--font-sans, system-ui)', color: 'var(--ink-1)' }}>{def.label}</span>
       <Trim settingId={def.id} def={def} label={def.label} readsBy={risk ? 'the relay driver holds a switch that long' : 'the Core ring draws that many segments'}>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, font: '12px/1.4 var(--font-mono, monospace)', color: 'var(--ink-2)' }}>
-          {risk ? 'Hold (ms)' : 'Segments'}
-          <input type="range" min={10} max={100} step={5} value={v} onChange={(e) => setV(Number(e.target.value))} style={{ minHeight: 44 }} />
-        </label>
+        {/* the kit's own slider, so the control in the well is the same clay object as everywhere else */}
+        <TickSlider label={risk ? 'Hold (ms)' : 'Segments'} value={v} min={10} max={100} step={5} unit={risk ? 'ms' : undefined} onChange={setV} />
       </Trim>
     </div>
   )
@@ -49,9 +48,9 @@ const entries: GalleryEntryX[] = [
     merged,
     note: 'A 44 px key with a slider glyph. It opens a popover of at most 320 x 360: the control in a recessed well, the value now, the default, Reset and one line saying what reads it. Esc returns focus to the key. A hardware or brain setting asks twice before it resets.',
     states: [
-      { label: 'at the default (press the key; Reset is inert)', node: <Demo /> },
-      { label: 'value changed (press the key; Reset is live)', node: <Demo plain /> },
-      { label: 'hardware setting (Reset asks twice)', node: <Demo risk="hardware" plain /> },
+      { label: 'at the default', node: <Demo /> },
+      { label: 'changed', node: <Demo plain /> },
+      { label: 'hardware', node: <Demo risk="hardware" plain /> },
     ],
   },
   {

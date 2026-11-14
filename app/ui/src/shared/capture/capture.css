@@ -237,6 +237,12 @@
 .cl-toast:not(:empty) { padding-block-start: 8px; }
 .cl-toast .k-toast { max-inline-size: 100%; }
 
+/* very narrow hosts (the gallery lays a 390 px phone out at 1.5x zoom, so the line gets about 240 px): the plate wraps its
+   state word under the name instead of overflowing by 2 px, and a chip may shrink below its 72 px floor */
+.cl-plate { flex-wrap: wrap; row-gap: 0; }
+.cl-tag, .cl-state { min-inline-size: 0; }
+.cl-chip-btn, .cl-edit { min-inline-size: min(72px, 100%); }
+
 /* ------------------------------------------------------------ phones: the plate keeps one line, chips take the width */
 @media (max-width: 520px) {
   .cl { font-size: 13px; }

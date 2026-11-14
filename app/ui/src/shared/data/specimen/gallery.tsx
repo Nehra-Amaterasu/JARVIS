@@ -98,8 +98,8 @@ export const entries = [
     group: 'data' as const,
     note: 'One specimen, callouts on 1 px leaders that bend once at 45 degrees, a datum line with a tick every 40 px, a footer. At 900 px and below it reflows: the specimen first, the callouts a swipe carousel.',
     states: [
-      { label: 'desktop, 1302 x 720 (the shell canvas at 1366 x 768)', node: <Scroller><Demo width={1302} /></Scroller> },
-      { label: 'reflow, 390 wide', node: <div style={{ width: 358, maxWidth: '100%' }}><Demo width={358} /></div> },
+      { label: 'desktop 1302', node: <Scroller><Demo width={1302} /></Scroller> },
+      { label: 'reflow 390', node: <div style={{ width: 358, maxWidth: '100%' }}><Demo width={358} /></div> },
     ],
     also: ['CalloutPlate'],
   },
@@ -109,11 +109,11 @@ export const entries = [
     group: 'data' as const,
     note: 'Units as strata: thickness is evidence. A dashed flat layer has none. Numbers only for LIVE and SIMULATED; every other state draws every layer hollow and says why.',
     states: [
-      { label: 'simulated, six units', node: <W w={400}><StrataCore units={UNITS} state="simulated" label="Physics units" /></W> },
-      { label: 'live, two units', node: <W w={400}><StrataCore units={UNITS.slice(0, 2)} state="live" label="Two units" /></W> },
-      { label: 'hollow: waiting', node: <W w={400}><StrataCore units={UNITS} state="waiting" reason="no answers logged yet" label="Physics units" /></W> },
-      { label: 'hollow: planned', node: <W w={400}><StrataCore units={UNITS.slice(0, 3)} state="planned" label="Planned" /></W> },
-      { label: 'hollow: fault', node: <W w={400}><StrataCore units={UNITS.slice(0, 3)} state="fault" reason="the question store did not answer" label="Fault" /></W> },
+      { label: 'simulated', node: <W w={400}><StrataCore units={UNITS} state="simulated" label="Physics units" /></W> },
+      { label: 'live', node: <W w={400}><StrataCore units={UNITS.slice(0, 2)} state="live" label="Two units" /></W> },
+      { label: 'waiting', node: <W w={400}><StrataCore units={UNITS} state="waiting" reason="no answers logged yet" label="Physics units" /></W> },
+      { label: 'planned', node: <W w={400}><StrataCore units={UNITS.slice(0, 3)} state="planned" label="Planned" /></W> },
+      { label: 'fault', node: <W w={400}><StrataCore units={UNITS.slice(0, 3)} state="fault" reason="the question store did not answer" label="Fault" /></W> },
     ],
   },
   {
@@ -122,9 +122,9 @@ export const entries = [
     group: 'data' as const,
     note: 'One arm per topic; arm length is evidence; a disc tip is recent practice, a ring is not recent, a dashed ring is never; an arm forks at three pieces of evidence. The same arms give the same bytes.',
     states: [
-      ...[6, 10, 16].map((n) => ({ label: `${n} arms, simulated`, node: <SigilMark arms={arms(n)} size={160} state="simulated" label={`${n} topics`} /> })),
-      { label: 'small, 48 px', node: <SigilMark arms={arms(8)} size={48} state="simulated" label="8 topics" /> },
-      { label: 'hollow: waiting', node: <SigilMark arms={arms(8)} size={160} state="waiting" reason="no evidence report" label="Topics" /> },
+      ...[6, 10, 16].map((n) => ({ label: `${n} arms`, node: <SigilMark arms={arms(n)} size={160} state="simulated" label={`${n} topics`} /> })),
+      { label: 'small', node: <SigilMark arms={arms(8)} size={48} state="simulated" label="8 topics" /> },
+      { label: 'waiting', node: <SigilMark arms={arms(8)} size={160} state="waiting" reason="no evidence report" label="Topics" /> },
       { label: 'planned', node: <SigilMark arms={[]} size={160} state="planned" label="Topics" /> },
     ],
   },
@@ -134,7 +134,7 @@ export const entries = [
     group: 'data' as const,
     note: 'A hardware rack unit. The confirmed lamp lights only after the board has reported: a row marked confirmed with no report time draws as "sent, not acknowledged" (Relay 6). Try the rockers: they change the commanded state, never the lamp.',
     states: [
-      { label: 'a rack of six units', node: <W w={520}><LiveRack /></W> },
+      { label: 'six units', node: <W w={520}><LiveRack /></W> },
       ...(['unconfirmed', 'confirmed', 'fault', 'planned'] as const).map((s) => ({
         label: s,
         node: <W w={520}><Rack title={s} note="one unit"><RackRow device="Relay 2" serial="RLY-0002" state={s} reportedAt={s === 'planned' ? undefined : NOW - 20_000} reason="no answer in 3 s" on now={NOW} /></Rack></W>,

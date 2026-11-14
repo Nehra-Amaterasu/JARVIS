@@ -67,7 +67,9 @@ describe('the collector', () => {
         h!.unmount()
       }
     }
-  })
+    // One test mounts every state of every entry, so it grows with each wave. After wave 6 it failed once in five
+    // full runs at 9.8 s while builds and Playwright shared the machine; alone it takes about 2 s. 60 s leaves room.
+  }, 60_000)
 })
 
 let m: ReturnType<typeof mount> | null = null

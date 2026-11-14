@@ -82,6 +82,9 @@
 
   --rim-lit: var(--p-shadow-white-90);
   --rim-shade: transparent;
+  /* the lip as an inset layer, composed in front of a raised pair by the kit: it follows a pill's curve (a two-colour
+     border met in a 45 degree notch at the corners, visible on the orange primary) */
+  --lip: inset 1px 1px 0 var(--p-shadow-white-70);
   --engrave-dark: var(--p-clay-500);
   --engrave-lit: var(--p-shadow-white-90);
 
@@ -106,6 +109,7 @@
 
   --rim-lit: var(--p-shadow-white-12);
   --rim-shade: transparent;
+  --lip: inset 1px 1px 0 var(--p-shadow-white-07);
   --engrave-dark: var(--p-shadow-black-50);
   --engrave-lit: var(--p-char-400);
 

@@ -5,9 +5,11 @@
    which nothing sets, so the app looks the same at this commit.
 
    CRAFT PASS (13 Nov; the owner: "highly refined components/buttons/shadows and overall aesthetics"). Every control
-   is an object made of one material (the recipe and its numbers are in styles/design/clay/elevation.css):
+   is an object made of one material (the recipe and its numbers are in the clay token folder's elevation.css):
      raised   a soft face lit from the top left: --elev-* pair (white highlight up-left, cool shade down-right) plus a
-              1 px lip (--rim-lit on top and left, --rim-shade, transparent, on bottom and right). No outline.
+              1 px lip drawn INSIDE the face as an inset layer (--lip, 1 px down and right of the top-left edge) so it follows
+              the curve of a pill with no corner joins; the border is --rim-shade on all four sides (transparent).
+              No outline. (14 Nov: a two-colour border lip notched the orange pill where its colours met.)
      hover    lifts one step: the face rises 1 px and a pre-painted ::before carrying --elev-high fades in (opacity
               only; a box-shadow is never transitioned).
      pressed  sinks: the drop pair is swapped for the inset pair (--elev-pressed), the lip goes, the face drops 1 px,
@@ -60,9 +62,9 @@
   color: var(--ink-1);
   background: var(--surface-raised);
   border: 1px solid transparent;
-  border-color: var(--rim-lit, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-lit, var(--edge-ui));
+  border-color: var(--rim-shade, var(--edge-ui));
   border-radius: var(--r-pill, 999px);
-  box-shadow: var(--elev-raised, none);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none);
   cursor: pointer;
   transition: transform var(--dur-state, 120ms) ease-out;
 }
@@ -113,8 +115,8 @@
 .k-switch[data-on='true'] .k-switch-word { left: 10px; }
 .k-switch-thumb {
   position: absolute; top: 2px; left: 2px; width: 26px; height: 26px; box-sizing: border-box; border-radius: 50%;
-  background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-lit, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-lit, var(--edge-ui));
-  box-shadow: var(--elev-low, none); transition: translate var(--dur-state, 160ms) cubic-bezier(.3, .7, .2, 1);
+  background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui));
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none); transition: translate var(--dur-state, 160ms) cubic-bezier(.3, .7, .2, 1);
 }
 .k-switch[data-on='true'] .k-switch-thumb { translate: 32px 0; }
 .k-switch:hover .k-switch-thumb::before { opacity: 1; }
@@ -129,8 +131,8 @@
 .k-rocker {
   position: relative; display: inline-flex; flex: none; gap: 4px; padding: 4px;
   background: var(--surface-raised); border: 1px solid transparent;
-  border-color: var(--rim-lit, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-lit, var(--edge-ui));
-  border-radius: calc(var(--r-ctl, 14px) + 4px); box-shadow: var(--elev-raised, none);
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: calc(var(--r-ctl, 14px) + 4px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none);
 }
 .k-rocker-half {
   flex: 0 0 auto; min-width: 56px; height: 44px; padding: 0 14px; white-space: nowrap; cursor: pointer;
@@ -174,8 +176,8 @@
 }
 .k-slider input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none; width: 24px; height: 24px; margin-top: -8px; border-radius: 50%;
-  background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-lit, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-lit, var(--edge-ui));
-  box-shadow: var(--elev-raised, none);
+  background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui));
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none);
 }
 .k-slider input[type='range']:active::-webkit-slider-thumb { box-shadow: var(--elev-low, none); }
 .k-slider input[type='range']::-moz-range-track { height: 10px; border-radius: var(--r-pill, 999px); background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); }
@@ -212,8 +214,8 @@
 .k-knob::before {
   content: ''; position: absolute; inset: 21%; border-radius: 50%; pointer-events: none;
   background: radial-gradient(circle at 34% 28%, var(--rim-lit, transparent), transparent 62%), var(--surface-raised);
-  border: 1px solid transparent; border-color: var(--rim-lit, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-lit, var(--edge-ui));
-  box-shadow: var(--elev-raised, none);
+  border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui));
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none);
 }
 .k-knob-wrap[data-size='compact'] .k-knob { --knob-d: 56px; width: 56px; height: 56px; min-height: 56px; }
 .k-knob-wrap[data-size='compact'] .k-knob::before { box-shadow: var(--elev-low, none); }
@@ -239,8 +241,8 @@
   position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px;
   font: 700 11px/1.2 var(--font-sans, system-ui, sans-serif); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-1);
   background: var(--surface-raised); border: 1px solid transparent;
-  border-color: var(--rim-lit, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-lit, var(--edge-ui));
-  border-radius: var(--r-ctl, 14px); box-shadow: var(--elev-low, none); text-decoration: none;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-ctl, 14px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none); text-decoration: none;
 }
 .k-plate.k-chamfer {
   --chamfer: 10px; border-radius: 0; border: 1px solid var(--edge-ui);
@@ -249,7 +251,7 @@
   clip-path: polygon(var(--chamfer) 0, 100% 0, 100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%, 0 100%, 0 var(--chamfer));
 }
 a.k-plate, button.k-plate { min-height: var(--hit, 44px); box-sizing: border-box; cursor: pointer; transition: transform var(--dur-state, 120ms) ease-out; }
-a.k-plate:hover { transform: translateY(-1px); box-shadow: var(--elev-raised, none); }
+a.k-plate:hover { transform: translateY(-1px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none); }
 a.k-plate.k-chamfer:hover { transform: none; border-color: var(--ink-1); box-shadow: var(--elev-flush, none); }
 a.k-plate:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
@@ -263,8 +265,8 @@ a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
 .k-panel { --chamfer: var(--chamfer-size, 10px); position: relative; isolation: isolate; padding: 0; filter: none; }
 .k-panel-in {
   padding: 24px; background: var(--panel-bg, var(--surface-raised)); border-radius: var(--r-card, 22px);
-  border: 1px solid transparent; border-color: var(--rim-lit, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-lit, var(--edge-ui));
-  box-shadow: var(--elev-raised, none);
+  border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui));
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none);
 }
 .k-panel-dash { display: none; }
 .k-panel[data-state='error'] .k-panel-in { border: 2px solid var(--state-fault); }
@@ -373,8 +375,8 @@ a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
 .k-palette {
   width: 560px; max-width: 100%; max-height: 440px; display: grid; grid-template-rows: auto 1fr; gap: 8px; padding: 12px; box-sizing: border-box;
   background: var(--surface-raised); border: 1px solid transparent;
-  border-color: var(--rim-lit, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-lit, var(--edge-ui));
-  border-radius: var(--r-card, 22px); box-shadow: var(--elev-float, none);
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-card, 22px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-float, none);
 }
 .k-palette-field {
   min-height: var(--hit, 44px); padding: 0 16px; font: 16px/1 var(--font-sans, system-ui, sans-serif); color: var(--ink-1); background: var(--surface-sunk);
@@ -394,8 +396,8 @@ a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
 .k-toast {
   display: flex; align-items: center; gap: 12px; width: auto; min-width: 0; max-width: 100%; box-sizing: border-box; padding: 8px 8px 8px 16px; min-height: 56px;
   background: var(--surface-raised); border: 1px solid transparent;
-  border-color: var(--rim-lit, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-lit, var(--edge-ui));
-  border-radius: 18px; box-shadow: var(--elev-high, none);
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: 18px; box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-high, none);
   font: 14px/1.35 var(--font-sans, system-ui, sans-serif); color: var(--ink-1);
 }
 .k-toast[data-tag='FAULT'] { border: 2px solid var(--state-fault); }
@@ -409,8 +411,8 @@ a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
 .k-dialog {
   position: relative; width: min(440px, calc(100vw - 32px)); box-sizing: border-box; overflow: hidden;
   background: var(--surface-raised); border: 1px solid transparent;
-  border-color: var(--rim-lit, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-lit, var(--edge-ui));
-  border-radius: var(--r-card, 22px); box-shadow: var(--elev-float, none);
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-card, 22px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-float, none);
 }
 .k-dialog[data-state='error'] { border: 2px solid var(--state-fault); }
 .k-dialog-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 12px 4px 24px; }
@@ -437,8 +439,8 @@ a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
 .k-tab:hover:not([aria-selected='true']) { color: var(--ink-1); }
 .k-tab:active { transform: translateY(1px); }
 .k-tab[aria-selected='true'] {
-  font-weight: 600; background: var(--k-on-fill, var(--selected-fill)); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--elev-low, none);
-  border-color: var(--rim-lit, transparent) var(--rim-shade, transparent) var(--rim-shade, transparent) var(--rim-lit, transparent);
+  font-weight: 600; background: var(--k-on-fill, var(--selected-fill)); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
+  border-color: var(--rim-shade, transparent);
 }
 .k-tab-count { margin-left: 8px; padding: 2px 7px; border-radius: var(--r-pill, 999px); font: 600 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); background: var(--surface-raised); }
 .k-tab[aria-selected='true'] .k-tab-count { color: var(--ink-1); }
@@ -495,9 +497,9 @@ a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
   color: var(--ink-1);
   background: var(--surface-raised);
   border: 1px solid transparent;
-  border-color: var(--rim-lit, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-lit, var(--edge-ui));
+  border-color: var(--rim-shade, var(--edge-ui));
   border-radius: var(--r-pill, 999px);
-  box-shadow: var(--elev-raised, none);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none);
   transition: transform var(--dur-state, 120ms) ease-out, background-color var(--dur-state, 120ms) ease-out;
 }
 :root[data-theme^='clay'] .ww-btn[data-size='sm'] { padding-inline: 16px; }
@@ -528,19 +530,19 @@ a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
 :root[data-theme^='clay'] .ww-seg-opt { padding-inline: 16px; border: 1px solid transparent; border-radius: var(--r-pill, 999px); font-family: var(--font-sans, system-ui, sans-serif); font-weight: 500; color: var(--ink-2); transition: transform var(--dur-press, 90ms) ease-out; }
 :root[data-theme^='clay'] .ww-seg-opt:active { transform: translateY(1px); }
 :root[data-theme^='clay'] .ww-seg-opt[aria-checked='true'] {
-  font-weight: 600; background: var(--k-on-fill, var(--selected-fill)); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--elev-low, none);
-  border-color: var(--rim-lit, transparent) var(--rim-shade, transparent) var(--rim-shade, transparent) var(--rim-lit, transparent);
+  font-weight: 600; background: var(--k-on-fill, var(--selected-fill)); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
+  border-color: var(--rim-shade, transparent);
 }
 :root[data-theme^='clay'] .ww-seg-opt[aria-disabled='true'] { box-shadow: none; background: transparent; }
 
 /* Chip: a small low pill; pressed or solid is a filled piece, learned is pressed in; the glyph and word carry the state */
 :root[data-theme^='clay'] .ww-chip {
   padding-inline: 12px; font-family: var(--font-sans, system-ui, sans-serif); font-weight: 500; color: var(--ink-1); background: var(--surface-raised);
-  border: 1px solid transparent; border-color: var(--rim-lit, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-lit, var(--edge-ui));
-  border-radius: var(--r-pill, 999px); box-shadow: var(--elev-low, none);
+  border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-pill, 999px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
 }
 :root[data-theme^='clay'] button.ww-chip { padding-inline: 16px; cursor: pointer; transition: transform var(--dur-press, 90ms) ease-out; }
-:root[data-theme^='clay'] button.ww-chip:hover { transform: translateY(-1px); box-shadow: var(--elev-raised, none); }
+:root[data-theme^='clay'] button.ww-chip:hover { transform: translateY(-1px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none); }
 :root[data-theme^='clay'] button.ww-chip:active { transform: translateY(1px); box-shadow: var(--elev-pressed, none); }
 :root[data-theme^='clay'] .ww-chip[data-cycle-state='learned'] { background: var(--surface-sunk); box-shadow: var(--elev-pressed, none); border-color: var(--rim-shade, transparent); }
 :root[data-theme^='clay'] .ww-chip:is([aria-pressed='true'], [data-cycle-state='solid']) { background: var(--k-on-fill, var(--selected-fill)); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--elev-pressed, none); border-color: var(--rim-shade, transparent); }
@@ -574,10 +576,10 @@ a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
 :root[data-theme^='clay'] .ww-fold-btn {
   padding-inline: 16px;
   border: 1px solid transparent;
-  border-color: var(--rim-lit, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-lit, var(--edge-ui));
+  border-color: var(--rim-shade, var(--edge-ui));
   border-radius: var(--r-ctl, 14px);
   background: var(--surface-raised);
-  box-shadow: var(--elev-low, none);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
 }
 :root[data-theme^='clay'] .ww-fold-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 :root[data-theme^='clay'] .ww-fold[data-open='true'] .ww-fold-btn { box-shadow: var(--elev-pressed, none); border-color: var(--rim-shade, transparent); }
@@ -592,15 +594,15 @@ a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
 :root[data-theme^='clay'] .ww-md-detail > :first-child { margin-top: 0; }
 
 /* Drawer (sheet), Popover and the legacy Toast: floating cards of the same material */
-:root[data-theme^='clay'] .ww-sheet { background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-lit, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-lit, var(--edge-ui)); box-shadow: var(--elev-float, none); }
+:root[data-theme^='clay'] .ww-sheet { background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui)); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-float, none); }
 :root[data-theme^='clay'] .ww-sheet[data-place='right'] { border-radius: var(--r-card, 22px) 0 0 var(--r-card, 22px); }
 :root[data-theme^='clay'] .ww-sheet[data-place='left'] { border-radius: 0 var(--r-card, 22px) var(--r-card, 22px) 0; }
 :root[data-theme^='clay'] .ww-sheet[data-place='bottom'] { border-radius: var(--r-card, 22px) var(--r-card, 22px) 0 0; }
 :root[data-theme^='clay'] .ww-sheet-head { padding: 16px 16px 8px 24px; border-block-end: 0; background: transparent; }
 :root[data-theme^='clay'] .ww-sheet-title { font: 600 17px/1.3 var(--font-sans, system-ui, sans-serif); letter-spacing: -.01em; }
 :root[data-theme^='clay'] .ww-sheet-body { padding: 8px 24px 24px; }
-:root[data-theme^='clay'] .ww-popover { padding: 16px; background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-lit, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-lit, var(--edge-ui)); border-radius: 18px; box-shadow: var(--elev-float, none); }
-:root[data-theme^='clay'] .ww-toast { min-height: var(--hit, 44px); padding: 8px 16px; background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-lit, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-shade, var(--edge-ui)) var(--rim-lit, var(--edge-ui)); border-radius: var(--r-pill, 999px); box-shadow: var(--elev-high, none); font-family: var(--font-sans, system-ui, sans-serif); }
+:root[data-theme^='clay'] .ww-popover { padding: 16px; background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui)); border-radius: 18px; box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-float, none); }
+:root[data-theme^='clay'] .ww-toast { min-height: var(--hit, 44px); padding: 8px 16px; background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui)); border-radius: var(--r-pill, 999px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-high, none); font-family: var(--font-sans, system-ui, sans-serif); }
 :root[data-theme^='clay'] .ww-toast[data-tone='fault'] { border: 2px solid var(--state-fault); }
 
 /* Reduced motion (spec 6.5): --dur-state is not zeroed by the OS setting, so the lift, the press, the sheen cross-fade and the switch thumb slide stop here; state is still shown by the fill, the word and the inset pair, in one frame. */

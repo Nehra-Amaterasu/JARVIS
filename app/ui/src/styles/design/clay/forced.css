@@ -68,6 +68,7 @@
     --elev-low: none;
     --elev-high: none;
     --elev-well-deep: none;
+    --lip: inset 0 0 0 transparent;
 
     /* the craft pass's rims and engraved edges are system text: every control is outlined, nothing is a shadow */
     --rim-lit: CanvasText;

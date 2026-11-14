@@ -556,16 +556,19 @@ for (const theme of THEMES) {
   test(`(material) lit lip, shade, well and grain in normal, high-contrast and forced branches [${theme}]`, async ({ page }) => {
     await openBench(page, theme)
     const normal = await material(page)
-    // craft pass: the raised key is the pair (a highlight up and left, a shade down and right), at most two layers,
-    // and its edge is a lip on the lit side only: top and left drawn, bottom and right transparent (no outline)
+    // craft pass: the raised key is a 1 px lit lip drawn inside the face (one inset layer, down and right of the top-left
+    // edge, so it follows the curve) in front of the pair (a highlight up and left, a shade down and right); three
+    // layers, and no outline at all: the border is transparent on every side (14 Nov: a two-colour border lip notched
+    // the orange pill at the corners where its colours met)
     const kl = layers(normal.key)
-    expect(kl.length, 'at most two layers').toBeLessThanOrEqual(2)
-    expect(kl.some((l) => /inset/.test(l)), 'a raised key is not inset').toBe(false)
-    const [hx, hy] = offsets(kl[0])
-    const [sx, sy] = offsets(kl[1])
+    expect(kl.length, 'the lip plus the pair').toBe(3)
+    expect(/inset/.test(kl[0]) && !/inset/.test(kl[1]) && !/inset/.test(kl[2]), `only the lip is inset: ${normal.key}`).toBe(true)
+    const [lx, ly] = offsets(kl[0].replace('inset', ''))
+    expect([lx, ly], 'the lip sits on the lit edge').toEqual([1, 1])
+    const [hx, hy] = offsets(kl[1])
+    const [sx, sy] = offsets(kl[2])
     expect([hx < 0, hy < 0, sx > 0, sy > 0], `the light comes from the top left: ${normal.key}`).toEqual([true, true, true, true])
-    expect(normal.keyRim[2], 'no outline on the shaded side').toBe('rgba(0, 0, 0, 0)')
-    expect(normal.keyRim[0], 'the lit lip is drawn').not.toBe('rgba(0, 0, 0, 0)')
+    expect(normal.keyRim.every((c) => c === 'rgba(0, 0, 0, 0)'), 'no outline on any side').toBe(true)
     expect(normal.well, 'the switch track is a well').toMatch(/inset/)
     expect(normal.wellEdge.every((c) => c !== 'rgba(0, 0, 0, 0)'), 'the well is engraved on all four sides').toBe(true)
     expect(normal.wellEdge[0], 'the engraving has two sides').not.toBe(normal.wellEdge[2])
@@ -579,7 +582,8 @@ for (const theme of THEMES) {
     const hc = await material(page)
     expect(hc.grain, 'high contrast: no grain').toBe(0)
     expect(hc.well, 'high contrast: the well is edge only').toBe('none')
-    expect(layers(hc.key)[0], 'high contrast: the highlight is transparent').toMatch(/^rgba\(0, 0, 0, 0\)/)
+    expect(layers(hc.key)[1], 'high contrast: the highlight is transparent').toMatch(/^rgba\(0, 0, 0, 0\)/)
+    expect(layers(hc.key)[0], 'high contrast: the lip is transparent').toMatch(/^rgba\(0, 0, 0, 0\)/)
     expect(new Set(hc.keyRim).size, 'high contrast: the key is outlined on all four sides in one strong edge').toBe(1)
     expect(hc.keyRim[0]).not.toBe('rgba(0, 0, 0, 0)')
     expect(new Set(hc.wellEdge).size, 'high contrast: the well edge is one strong edge').toBe(1)

@@ -2,6 +2,27 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-15: jury after UW7a (6.9 design, 7.3 usability; pass line 8.0)
+
+**Question.** After the craft pass, the rework round and UW7a, where does the new interface stand against the 8.0 line, on whole screenshots from the harness?
+
+**Scores (two Sonnet jurors, 24 and 23 images read, with the harness's geometry report).**
+
+| Lens | 14 Nov | 15 Nov | Highest | Lowest |
+|---|---|---|---|---|
+| Design and creativity | 6.6 | 6.9 | type 7.5, originality 7.5, sigil and terminal 7.5 | matte black clay 5.5, rebuilt against classic pages 5.0, interactivity 6.0 |
+| Usability, content, access | 6.4 | 7.3 | main action 8.0, honest states 8.0, focus 8.0, copy 8.0, Paper Desk 8.0 | classic pages in the shell 5.5, reflow at 390 px 6.5, density 6.5 |
+
+Moves worth noting: signature moment 4.5 to 6.5 (the Day Arc with the odometer); main action 6.5 to 8.0; orientation 5 to 7.5; focus visibility 6 to 8.0.
+
+**Hard gates open.** Numbers without a lamp word on Today ("15 days", the seven-day zeros, the Proof rail figure) and wordless lamps in the 390 px header; red used for failure on three classic pages (Console health, Room board status, the Senses source chip); text of 8 to 10.5 px on Senses, Tree, Room and Console; the kit Switch at 64 x 32 px; 303 clipped and 22 overflowing specimens in the report. No camera element.
+
+**Evidence faults.** Six of ten shell sections were shot while still loading (24 rows flagged), and the DB01 and DB02 forms were not in the set, so the classic pages and the dashboard forms are unjudged. The harness must wait for lazy shell views.
+
+**Fixes assigned (wave UW7b).** RJ1: lift the matte black surfaces (the jurors and the KB1 reviewer agree it reads flat), give the Switch a detent character, 44 px hit areas on Switch, Segmented and Chip. RT1: Today (a lamp word on every figure, a full half-dial at 390 px, agenda names that do not wrap per syllable, leader lines that route round text, a fuller Proof rail) and the Review Desk action row. RP1: chat export in the new Core (the parity ledger's regression), voice choice and pronunciation on core.talk, and the harness waiting for lazy shell views with the dashboard forms in the set. Next after that: the classic pages (red for failure, text sizes, targets, inner scroll), then L01 and Y02.
+
+**Honest limits.** Still images only, contrast by eye, everything SIMULATED, nothing seen on the owner's panel.
+
 ## 2026-11-14 (evening): the craft pass and the rework round integrated; what the owner said after testing; how the next wave is sized
 
 **Question.** Did the craft pass and the rework round lift the scores, what did the owner see when he tried the new interface, and how should agents be assigned so a wave costs what it needs and no more?

@@ -34,6 +34,19 @@ export interface VoiceHillProps {
   breath?: boolean
   /** "Hill sensitivity: High" shifts the dB window by +12 and the legend says so. Off by default. */
   sensitivity?: 'normal' | 'high'
+  /**
+   * `full` (default): the strip prints the thinking seconds itself and a dash when the level has no reading. `core`:
+   * the Core view's strip, where the pipeline's THINK step owns the thinking clock (one clock per screen, with its
+   * own LIVE or SIMULATED lamp), so the strip says THINKING with no number, and a level with no reading is a hollow
+   * well plus the reason word instead of a bare dash (the jury of 14 Nov read "THINKING 2.4 S" beside a WAITING lamp
+   * as a contradiction).
+   */
+  strip?: 'full' | 'core'
+  /**
+   * A fixture is feeding the signal (the gallery, the jury page): every LIVE lamp and word on the strip is drawn
+   * SIMULATED, as the rest of the Core view already does, so generated frames are never labelled as measured.
+   */
+  simulated?: boolean
   /** True while the owner's "Show a 5 s test pattern" button runs it. The component never starts it by itself. */
   testPattern?: boolean
   onTestPatternEnd?: () => void
@@ -42,6 +55,22 @@ export interface VoiceHillProps {
   clock?: () => number
   loopDeps?: LoopDeps
   contextFactory?: (canvas: HTMLCanvasElement) => Ctx2D | null
+}
+
+/** The Core strip's words for a level with no reading, by voice state: a reason, never a bare dash. */
+const NO_LEVEL_WORD: Partial<Record<VoiceStateResult['state'], string>> = { thinking: 'no level: thinking', idle: 'no level', 'no-signal': 'no level yet', between: 'no level: between sentences', muted: 'no level: mic off', error: 'no level: fault' }
+const CORE_THINKING_LEGEND = 'thinking: no sound level while he thinks; the THINK step below keeps the time'
+
+/** The Core strip (prop `strip="core"`): THINKING carries no number, and its lamp says why the level waits. */
+function coreStripView(vs: VoiceStateResult): VoiceStateResult {
+  if (vs.state !== 'thinking') return vs
+  return { ...vs, label: 'THINKING', legend: CORE_THINKING_LEGEND, lamp: { ...vs.lamp, reason: 'no sound level while thinking' } }
+}
+
+/** LIVE becomes SIMULATED, in the lamp and in the legend's words; nothing else changes. */
+function simulatedView(vs: VoiceStateResult): VoiceStateResult {
+  if (vs.lamp.state !== 'live') return vs
+  return { ...vs, lamp: { ...vs.lamp, state: 'simulated', reason: `${vs.lamp.reason}, from a fixture` }, legend: vs.legend?.replace(/\bLIVE\b/g, 'SIMULATED') ?? null }
 }
 
 const CANVAS_LABEL = 'Voice picture: spectrum of the microphone or the speaker, drawn only from measured levels'
@@ -111,8 +140,14 @@ function StaticRing() {
 }
 
 export function VoiceHill(props: VoiceHillProps) {
-  const { signal, core, tier = 1, quality: qProp = 'high', breath = false, sensitivity = 'normal', testPattern = false } = props
+  const { signal, core, tier = 1, quality: qProp = 'high', breath = false, sensitivity = 'normal', testPattern = false, strip = 'full' } = props
   const clock = props.clock ?? Date.now
+  const coreStrip = strip === 'core'
+  const sim = props.simulated === true
+  const shape = useCallback((vs: VoiceStateResult): VoiceStateResult => {
+    const a = coreStrip ? coreStripView(vs) : vs
+    return sim ? simulatedView(a) : a
+  }, [coreStrip, sim])
   const motion = useMotion(props.motion ?? 'auto')
   const quality: Quality = motion.lowLoad ? 'low' : qProp
   const shiftDb = sensitivity === 'high' ? SENSITIVITY_HIGH_DB : 0
@@ -121,13 +156,16 @@ export function VoiceHill(props: VoiceHillProps) {
   const [testSince, setTestSince] = useState<number | null>(null)
   const staticForm = motion.none || paused
 
-  const computeView = useCallback((now: number): VoiceStateResult => voiceState(core, { input: signal.view('in', now), output: signal.view('out', now) }, now, tier), [core, signal, tier])
+  const shapeRef = useRef(shape)
+  shapeRef.current = shape
+  const computeView = useCallback((now: number): VoiceStateResult => shape(voiceState(core, { input: signal.view('in', now), output: signal.view('out', now) }, now, tier)), [core, signal, tier, shape])
   const [view, setView] = useState<VoiceStateResult>(() => computeView(clock()))
   const [dbScale, setDbScale] = useState(false)
 
   const stageRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fillRef = useRef<HTMLDivElement>(null)
+  const barRef = useRef<HTMLDivElement>(null)
   const thrRef = useRef<HTMLSpanElement>(null)
   const peakRef = useRef<HTMLSpanElement>(null)
   const numRef = useRef<HTMLSpanElement>(null)
@@ -173,7 +211,12 @@ export function VoiceHill(props: VoiceHillProps) {
     if (!force && now - lastReadout.current < READOUT_MS) return
     lastReadout.current = now
     const has = showsNumber(vs.lamp.state) && r.fill !== null
-    if (numRef.current) numRef.current.textContent = !has ? '—' : r.db !== null ? `${Math.round(r.db)} dB` : `relative ${Math.round((r.fill ?? 0) * 100)}`
+    const none = coreStrip ? NO_LEVEL_WORD[vs.state] ?? 'no level' : '—'
+    if (numRef.current) {
+      numRef.current.textContent = !has ? none : r.db !== null ? `${Math.round(r.db)} dB` : `relative ${Math.round((r.fill ?? 0) * 100)}`
+      numRef.current.dataset.hollow = has ? 'false' : 'true'
+    }
+    if (barRef.current) barRef.current.dataset.hollow = has ? 'false' : 'true'
     if (meterRef.current && (force || now - lastMeterText.current >= METER_TEXT_MS)) {
       lastMeterText.current = now
       const m = meterRef.current
@@ -193,7 +236,7 @@ export function VoiceHill(props: VoiceHillProps) {
         m.setAttribute('aria-valuetext', 'no reading')
       }
     }
-  }, [signal])
+  }, [signal, coreStrip])
 
   // --- the state shown in the DOM (changes a few times per utterance) and the one timeout for the next time-based change ---
   const armDeadline = useCallback((now: number) => {
@@ -215,7 +258,7 @@ export function VoiceHill(props: VoiceHillProps) {
   const refresh = useCallback(() => {
     const now = clock()
     const l = live.current
-    const vs = l.testSince !== null ? testPatternView(l.testSince) : voiceState(l.core, { input: signal.view('in', now), output: signal.view('out', now) }, now, l.tier)
+    const vs = l.testSince !== null ? testPatternView(l.testSince) : shape(voiceState(l.core, { input: signal.view('in', now), output: signal.view('out', now) }, now, l.tier))
     const changed = !sameView(viewRef.current, vs)
     if (changed) {
       dirty.current = true
@@ -228,7 +271,7 @@ export function VoiceHill(props: VoiceHillProps) {
     armDeadline(now)
     if (changed || l.staticForm) paintLevel(vs, now, changed)
     if (changed) loopRef.current?.request()
-  }, [armDeadline, clock, paintLevel, signal])
+  }, [armDeadline, clock, paintLevel, signal, shape])
   refreshRef.current = refresh
 
   // Props that change the picture (core, tier, breath, test pattern) are a state change: recompute and redraw once.
@@ -257,7 +300,7 @@ export function VoiceHill(props: VoiceHillProps) {
     const scene = planScene({ core: l.core, signal, now, tier: l.tier, quality: l.quality, breath: l.breath, sensitivityDb: l.shiftDb, testPatternSince: since })
     drawScene(ctx, scene, paletteRef.current, { contrastMore: typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-contrast: more)').matches })
     dirty.current = false
-    paintLevel(scene.vs, now, false)
+    paintLevel(shapeRef.current(scene.vs), now, false)
     const sinceState = l.core.stateSince === null ? 0 : now - l.core.stateSince
     if (since !== null) return true
     if (scene.vs.measured) return now - lastNonFloor.current <= SETTLE_MS
@@ -272,8 +315,9 @@ export function VoiceHill(props: VoiceHillProps) {
       const c = el && typeof getComputedStyle === 'function' ? getComputedStyle(el).color : ''
       return c || FALLBACK_PALETTE[k as keyof Palette]
     }
-    paletteRef.current = { ink: px('ink'), measured: px('measured'), quiet: px('quiet'), simulated: px('simulated'), fault: px('fault') }
-  }, [])
+    // a fixture's points take the SIMULATED ink, never the measured one
+    paletteRef.current = { ink: px('ink'), measured: px(sim ? 'simulated' : 'measured'), quiet: px('quiet'), simulated: px('simulated'), fault: px('fault') }
+  }, [sim])
 
   // Mount: the context, the loop, the palette, the visibility listener, the signal subscription. Unmount undoes all of it.
   useEffect(() => {
@@ -349,12 +393,13 @@ export function VoiceHill(props: VoiceHillProps) {
     loopRef.current?.setPaused(paused)
   }, [paused])
 
-  // Thinking shows elapsed seconds: one 1 s tick, only while the state is thinking.
+  // Thinking shows elapsed seconds: one 1 s tick, only while the state is thinking (none on the Core strip, where
+  // the label carries no number and the pipeline's THINK step owns the clock).
   useEffect(() => {
-    if (view.state !== 'thinking') return
+    if (view.state !== 'thinking' || coreStrip) return
     const id = setInterval(() => refreshRef.current(), 1000)
     return () => clearInterval(id)
-  }, [view.state])
+  }, [view.state, coreStrip])
 
   // Nothing may outlive the component: the one deadline timeout is cleared with it.
   useEffect(
@@ -377,10 +422,11 @@ export function VoiceHill(props: VoiceHillProps) {
     if (!view.measured || !view.channel) return null
     const f = signal.latest(view.channel)
     const hasBands = !!f?.bands
-    return liveLegend(view.channel, hasBands ? 1 : 0, f?.rmsDb ?? null, signal.rateHz(view.channel), shiftDb)
+    const line = liveLegend(view.channel, hasBands ? 1 : 0, f?.rmsDb ?? null, signal.rateHz(view.channel), shiftDb)
+    return sim ? line.replace(/\bLIVE\b/g, 'SIMULATED') : line
     // The legend is rebuilt when the state changes, not per frame: the number itself is the live readout.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, shiftDb, signal])
+  }, [view, shiftDb, signal, sim])
   const legend = paused ? 'Paused' : (view.legend ?? legendLive ?? '')
 
   return (
@@ -413,7 +459,7 @@ export function VoiceHill(props: VoiceHillProps) {
           {view.measured && view.channel === 'out' && signal.latest('out')?.latMs != null && <span className="vh-chip" data-testid="vh-lat">{`device latency ${Math.round(signal.latest('out')!.latMs!)} ms`}</span>}
         </div>
         <div className="vh-row">
-          <div className="vh-bar" aria-hidden="true" data-db-scale={dbScale ? 'true' : 'false'}>
+          <div className="vh-bar" ref={barRef} aria-hidden="true" data-db-scale={dbScale ? 'true' : 'false'} data-hollow="true">
             <div className="vh-bar-well">
               <div className="vh-bar-fill" ref={fillRef} />
               <span className="vh-tick vh-tick-thr" ref={thrRef} hidden />
@@ -426,7 +472,7 @@ export function VoiceHill(props: VoiceHillProps) {
               </div>
             )}
           </div>
-          <span className="vh-number" data-testid="vh-number" ref={numRef}>—</span>
+          <span className="vh-number" data-testid="vh-number" ref={numRef} data-hollow="true">{coreStrip ? 'no level' : '—'}</span>
           <button type="button" className="vh-pause" aria-pressed={paused} onClick={() => setPaused((p) => !p)}>
             {paused ? 'Resume voice picture' : 'Pause voice picture'}
           </button>

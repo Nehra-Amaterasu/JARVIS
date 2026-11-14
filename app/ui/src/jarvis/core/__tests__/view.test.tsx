@@ -4,7 +4,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act } from 'react'
 import { mount } from '../../../__tests__/ww/_stubs'
-import { CoreFixture } from '../fixtures'
+import { CoreFixture, pulse } from '../fixtures'
+import { VoiceSignal } from '../../voice'
 import { HandoffChip } from '../../handoff'
 import { PipelineRibbon } from '../PipelineRibbon'
 import { OrganStrip } from '../OrganStrip'
@@ -96,6 +97,64 @@ describe('CoreTalkView, awake (fixture)', () => {
     const a = m.container.querySelector<HTMLAnchorElement>('a.hc')!
     expect(a.getAttribute('href')).toBe('#/day/today')
     expect(a.textContent).toContain('[WW]')
+  })
+})
+
+describe('CoreTalkView, the rework after the wave 6 jury (RC1)', () => {
+  it('asleep: a finished stage at rest, the hollow hill outline, the ASCII ruler and a formed sigil in the eye', () => {
+    m = mount(<CoreFixture kind="asleep" />)
+    const c = m.container
+    expect(c.querySelector('.jc-stage')!.getAttribute('data-pose')).toBe('asleep')
+    expect(c.querySelectorAll('.jc-rest path[data-layer]')).toHaveLength(3)
+    expect(c.querySelector('.jc-ruler')!.textContent).toMatch(/^HIGH \|.*\| HIGH$/)
+    expect(c.querySelector('.jc-eye[data-pose="asleep"] .g-sigil')).not.toBeNull()
+    // plain words on the first screen: no internal id, no lamp-contract jargon
+    // (the art slot keeps its id in the DOM for the art tests; core.css hides its plate when no art is on the track)
+    const left = c.querySelector('.jc-left')!.cloneNode(true) as HTMLElement
+    left.querySelector('.jc-art')!.remove()
+    expect(left.textContent ?? '').not.toMatch(/art\.core|HOLLOW|core\.talk/)
+    expect(c.querySelector('.jc-sigil-word')!.textContent).toBe('NO SOUND YET')
+    expect(c.querySelector('.g-prompt')!.textContent).toContain('jarvis talk')
+  })
+  it('thinking: one clock (the THINK step), the strip says THINKING with no number and a reason for the empty level', () => {
+    m = mount(<CoreFixture kind="thinking" />)
+    const c = m.container
+    expect(c.querySelector('.jc-stage')!.getAttribute('data-pose')).toBe('thinking')
+    expect(c.querySelector('[data-testid="vh-state"]')!.textContent).toBe('THINKING')
+    const num = c.querySelector('[data-testid="vh-number"]')!
+    expect(num.textContent).toMatch(/^no level/)
+    expect(num.getAttribute('data-hollow')).toBe('true')
+    expect(c.querySelector('.vh-bar')!.getAttribute('data-hollow')).toBe('true')
+    expect(digits.test(c.querySelector('.jc-vh .vh-strip')!.textContent ?? '')).toBe(false)
+    const think = c.querySelector('.jc-rib-step[data-stage="think"]')!
+    expect(think.getAttribute('data-state')).toBe('simulated')
+    expect(think.querySelector('.jc-rib-val')!.textContent).toMatch(/^\d+\.\d s$/)
+    expect(c.querySelector('.jc-eye[data-pose="thinking"]')).not.toBeNull()
+  })
+  it('a fixture voice frame is drawn SIMULATED on the strip too, never LIVE', () => {
+    const signal = new VoiceSignal()
+    m = mount(<CoreFixture kind="speaking" signal={signal} />)
+    act(() => pulse(signal, 'out', 1))
+    const c = m.container
+    expect(c.querySelector('.jc-stage')!.hasAttribute('data-pose')).toBe(false)
+    expect(c.querySelector('.jc-vh [data-lamp]')!.getAttribute('data-lamp')).toBe('simulated')
+    expect(c.querySelector('[data-testid="vh-legend"]')!.textContent).not.toMatch(/\bLIVE\b/)
+    expect(c.querySelector('[data-testid="vh-legend"]')!.textContent).toMatch(/SIMULATED/)
+  })
+  it('the phone input sits above the pipeline; the pipeline stays one row', () => {
+    const mq = window.matchMedia
+    window.matchMedia = ((q: string) => ({ matches: q.includes('max-width'), media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia
+    try {
+      m = mount(<CoreFixture kind="asleep" />)
+      const left = m.container.querySelector('.jc-left')!
+      const kids = [...left.children].map((e) => e.className.toString().split(' ')[0])
+      expect(kids.indexOf('jc-composer')).toBeGreaterThan(kids.indexOf('jc-stage'))
+      expect(kids.indexOf('jc-composer')).toBeLessThan(kids.indexOf('jc-ribbon'))
+      expect(m.container.querySelector('.jc-ribbon')!.getAttribute('data-orientation')).toBe('row')
+      expect(m.container.querySelectorAll('.jc-composer')).toHaveLength(1)
+    } finally {
+      window.matchMedia = mq
+    }
   })
 })
 

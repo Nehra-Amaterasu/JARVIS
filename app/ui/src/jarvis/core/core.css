@@ -91,12 +91,18 @@
 .jc-wake:active { transform: translateY(1px); box-shadow: var(--elev-pressed, none); }
 .jc-wake[aria-disabled='true'] { cursor: progress; }
 /* the shortcut as plain text in the key's own ink (accent-on over accent-fill is a token pair cleared for 4.5:1); a
-   hairline box at 10 px read as a faint smudge on the accent in the built app, so the box is gone */
+   hairline box at 10 px read as a faint smudge on the accent in the built app, so the box is gone. The legacy global
+   `kbd` rule (styles/shell.css: ink-3 text on a 6 percent white pill) reached this key in the app and drew the
+   jury's "orange chip on orange", so every property it sets is reset here: the key's own ink, no pill, 11 px. */
 .jc-wake kbd {
-  font: 650 10px/1 var(--font-mono, ui-monospace, monospace);
+  font: 650 11px/1 var(--font-mono, ui-monospace, monospace);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  padding-left: 10px;
+  color: inherit;
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0 0 0 10px;
   border-left: 1px solid currentColor;
 }
 .jc-sleep { min-height: 52px; }
@@ -158,7 +164,7 @@
 .jc-vh .vh-strip > .vh-row { min-width: 0; flex-wrap: nowrap; gap: 10px; }
 .jc-vh .vh-strip > .vh-legend { grid-column: 1 / -1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
 .jc-vh .vh-state { font: 650 13px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
-.jc-vh .vh-bar { inline-size: 168px; }
+.jc-vh .vh-bar { inline-size: 140px; }
 .jc-vh .vh-bar-well { block-size: 10px; border-radius: 5px; box-shadow: var(--elev-recessed, none); }
 .jc-vh .vh-pause {
   border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
@@ -182,23 +188,15 @@
 .jc-stage:has(.vh[data-measured='true']) .jc-art { opacity: 0; }
 .jc-art .art-slot, .jc-art .art-slot__box { height: 100%; }
 .jc-art .art-slot__box { border: 0; border-radius: 0; background: transparent; }
-/* the honest "private track off" form: a small dashed plate in the corner, not a hatch over the whole stage */
-.jc-art:has(.art-slot[data-state='absent']), .jc-art:has(.art-slot[data-state='loading']) {
-  inset: 34px auto auto 14px;
-  width: 232px;
-  height: auto;
-  opacity: 1;
-  mix-blend-mode: normal;
-  -webkit-mask-image: none;
-  mask-image: none;
-}
-.jc-art .art-slot[data-state='absent'] .art-slot__box,
-.jc-art .art-slot[data-state='loading'] .art-slot__box { aspect-ratio: auto; height: auto; border: 1px dashed var(--edge-ui); border-radius: 6px; }
-.jc-art .art-slot__ph { min-height: 0; padding: 6px 10px; gap: 2px; font-size: 10px; line-height: 14px; background: var(--surface-ground); color: var(--ink-2); }
-.jc-art .art-slot__ph-why { color: var(--ink-1); }
+/* With no art on this track the stage draws nothing for it: the plate that said "art.core.hill-ring / private track
+   off" was an internal id on the first screen (jury, 14 Nov). The id and the track are named in the Anatomy drawer. */
+.jc-art:has(.art-slot[data-state='absent']), .jc-art:has(.art-slot[data-state='loading']) { display: none; }
 
+/* the plane is the canvas's own 720 x 360 box: the whole stage on the desktop (the phone moves it, see below) */
+.jc-plane { position: absolute; inset: 0; }
 .jc-sigil-at { position: absolute; left: 25.5556%; top: 0; width: 48.8889%; aspect-ratio: 1; }
 .jc-sigil, .jc-sigil svg { display: block; width: 100%; height: 100%; }
+.jc-sigil { position: relative; }
 .jc-sigil-bezel path { fill: none; stroke: var(--ink-3); vector-effect: non-scaling-stroke; }
 .jc-sigil-arc { stroke-width: 1; }
 .jc-sigil-heavy { stroke: var(--ink-2) !important; stroke-width: 3; stroke-linecap: square; }
@@ -208,17 +206,31 @@
 .jc-sigil-band path { fill: none; stroke: var(--ink-3); stroke-width: 0.9; stroke-linecap: round; stroke-linejoin: round; }
 .jc-sigil-band path[data-lit] { stroke: var(--state-measured); stroke-width: 1.4; }
 .jc-sigil[data-state='simulated'] .jc-sigil-band path[data-lit] { stroke: var(--state-simulated); }
-.jc-sigil-word { font: 600 7.5px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.18em; fill: var(--ink-2); }
-.jc-sigil[data-state='live'] .jc-sigil-word { fill: var(--state-measured); }
-.jc-sigil[data-state='simulated'] .jc-sigil-word { fill: var(--state-simulated); }
+/* the ring's own state word in the bezel's top gap (r 168 of the 176 half box: 8 / 352 from the top), on a plate of
+   the stage's ground so a bezel line never runs through a letter; HTML so it keeps 11 px at every ring size */
+.jc-sigil-word {
+  position: absolute;
+  left: 50%;
+  top: 2.2727%;
+  translate: -50% -50%;
+  padding: 2px 8px;
+  background: var(--surface-ground);
+  font: 600 11px/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  color: var(--ink-2);
+  pointer-events: none;
+}
+.jc-sigil[data-state='live'] .jc-sigil-word { color: var(--state-measured); }
+.jc-sigil[data-state='simulated'] .jc-sigil-word { color: var(--state-simulated); }
 .jc-sigil-hit { fill: transparent; pointer-events: all; cursor: crosshair; }
 .jc-sigil-cross path { stroke: var(--state-measured); stroke-width: 1; fill: none; }
-.jc-sigil-cross text { font: 600 9px/1 var(--font-mono, ui-monospace, monospace); fill: var(--ink-1); }
+.jc-sigil-cross text { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); fill: var(--ink-1); }
 
 .jc-hud {
   position: absolute;
-  font: 600 10px/1 var(--font-mono, ui-monospace, monospace);
-  letter-spacing: 0.16em;
+  font: 600 11px/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.14em;
   color: var(--ink-2);
   padding: 4px 6px;
 }
@@ -226,19 +238,67 @@
 .jc-hud[data-c='tr'] { top: 10px; right: 12px; border-top: 1px solid var(--ink-3); border-right: 1px solid var(--ink-3); }
 .jc[data-simulated] .jc-hud[data-c='tr'] { color: var(--state-simulated); border-color: var(--state-simulated); }
 
-/* the asleep scene: the word in the ring's eye, the one line under it; the hill under it is the hollow placeholder */
-.jc-asleep {
+/* the stage at rest (StageRest.tsx): the hill's outline as three dashed contours (the WAITING form: hollow, never a
+   level), the ASCII band axis either side of the ring, and the Core's sigil in the ring's eye. All of it steps aside
+   the moment the voice picture draws a measured frame, exactly as the art does. */
+.jc-rest { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.jc-rest path { fill: none; stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 2 5; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.jc-rest path[data-layer='1'] { opacity: 0.7; }
+.jc-rest path[data-layer='2'] { opacity: 0.45; }
+.jc-rest .jc-rest-base { stroke: var(--edge-ui); stroke-dasharray: 1 3; opacity: 0.8; }
+/* the band axis sits 16 px under the hill's baseline (y 316 of 360), from x 40 to 680, the ring's gap between */
+.jc-ruler {
+  position: absolute;
+  left: 5.5556%;
+  right: 5.5556%;
+  top: 87.7778%;
+  display: flex;
+  justify-content: space-between;
+  font: 500 11px/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+  white-space: pre;
+  pointer-events: none;
+}
+.jc-stage:has(.vh[data-measured='true']) :is(.jc-rest, .jc-ruler) { display: none; }
+
+/* the eye: the sigil above the ring's centre (48.9 percent down the plane), the pose words below it */
+.jc-eye { position: absolute; left: 50%; top: calc(48.9% - 34px); translate: -50% -50%; line-height: 0; }
+.jc-eye .g-sigil { --g-size: 56px !important; color: var(--ink-3); }
+.jc-eye[data-pose='thinking'] .g-sigil { color: var(--ink-1); }
+/* thinking: the sigil's strokes form in sequence, heaviest first, three passes of 1.4 s and then still (4.5 s at most,
+   inside the standing bound of 5 s). It is tied to the thinking state, never to a sound level, and it is the only
+   motion on the stage while he thinks. Reduced motion and calm: the block at the end of this file shows it formed. */
+.jc-eye[data-pose='thinking'] .g-sigil path[pathLength] {
+  stroke-dasharray: 1;
+  animation: jc-form calc(var(--dur-travel, 400ms) * 3.5) var(--ease-standard, ease) 3 both;
+}
+.jc-eye[data-pose='thinking'] .g-sigil .sg-w2 { animation-delay: var(--dur-state, 160ms); }
+.jc-eye[data-pose='thinking'] .g-sigil .sg-w1 { animation-delay: calc(var(--dur-state, 160ms) * 2); }
+@keyframes jc-form { 0% { stroke-dashoffset: 1; } 55%, 100% { stroke-dashoffset: 0; } }
+/* the Pause key stops it: the formed sigil, still */
+.jc-stage:has(.vh[data-paused='true']) .jc-eye .g-sigil path { animation: none; stroke-dashoffset: 0; }
+
+/* the pose words: in the ring's eye on the desktop, under the ring on the phone */
+.jc-pose {
   position: absolute;
   left: 50%;
-  top: 48.9%;
+  top: calc(48.9% + 30px);
   translate: -50% -50%;
   display: grid;
   justify-items: center;
   gap: 8px;
   text-align: center;
+  white-space: nowrap;
 }
-.jc-asleep-word { font: 600 26px/1 var(--font-numerals, var(--font-mono, ui-monospace, monospace)); letter-spacing: 0.3em; margin-right: -0.3em; color: var(--ink-1); }
+.jc-asleep-word { font: 600 22px/1 var(--font-numerals, var(--font-mono, ui-monospace, monospace)); letter-spacing: 0.3em; margin-right: -0.3em; color: var(--ink-1); }
 .jc-asleep-line { font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); letter-spacing: 0.04em; }
+
+/* the level with no reading: a hollow well and a reason word, never a bare dash beside a lamp */
+.jc-vh .vh-bar[data-hollow='true'] .vh-bar-well { background: transparent; border-style: dashed; box-shadow: none; }
+.jc-vh .vh-bar[data-hollow='true'] .vh-bar-fill { visibility: hidden; }
+.jc-vh .vh-number { min-inline-size: 0; white-space: nowrap; }
+.jc-vh .vh-number[data-hollow='true'] { color: var(--ink-2); }
 
 /* ------------------------------------------------------------------ the pipeline ribbon */
 /* the ribbon sits in one recessed clay rail, so the four stages read as one instrument, not four loose buttons;
@@ -330,7 +390,7 @@
 .jc-organs[data-compact] { gap: 6px; }
 .jc-organs[data-compact] .jc-organ { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; padding: 6px 2px; min-height: 52px; }
 .jc-organs[data-compact] .jc-organ-lamp { grid-row: auto; }
-.jc-organs[data-compact] .jc-organ-name { font-size: 10px; letter-spacing: 0.06em; }
+.jc-organs[data-compact] .jc-organ-name { font-size: 11px; letter-spacing: 0.06em; }
 
 /* ------------------------------------------------------------------ conversation */
 .jc-convo-head { display: flex; align-items: center; gap: 12px; min-width: 0; }
@@ -342,6 +402,9 @@
 .jc-strata .g-well-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
 .jc-strata[data-dock] .g-prompt { display: none; }
 .jc-strata-empty { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; }
+/* the top of a full well: one terminal rule that says the older turns are under Earlier (no count here: the count
+   lives in the header beside its lamp), so the space the fitted turns leave above them reads as the log's edge */
+.jc-earlier-rule { flex: none; padding-inline-start: 26px; color: var(--ink-2); font-size: 12px; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; }
 .jc-strata-mark { flex: 1 1 auto; min-height: 120px; display: grid; place-items: center; opacity: 0.5; }
 /* the 48 px glyph (the sigil's full-detail size) drawn at 96 px: its viewBox scales, its geometry stays the 48 px one */
 .jc-strata-mark .g-sigil { --g-size: 96px !important; }
@@ -438,10 +501,12 @@
 .jc-anat-ring { width: 100%; display: flex; justify-content: center; }
 .jc-anat-table { width: 100%; border-collapse: collapse; font: 12px/1.35 var(--font-mono, ui-monospace, monospace); }
 .jc-anat-table th, .jc-anat-table td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--edge-hair); vertical-align: top; }
-.jc-anat-table thead th { color: var(--ink-2); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; font-size: 10px; }
+.jc-anat-table thead th { color: var(--ink-2); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; font-size: 11px; }
 .jc-anat-table tr[data-focus] { background: var(--surface-raised); }
 .jc-anat-why { display: block; color: var(--ink-2); margin-top: 4px; }
 .jc-anat-mono { font-variant-numeric: tabular-nums; }
+.jc-anat-note { margin: 0; justify-self: stretch; font: 12px/1.45 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.jc-anat-note code { font: inherit; color: var(--ink-1); }
 
 /* ------------------------------------------------------------------ phone Talk tab: below 900 px */
 @media (max-width: 899px) {
@@ -450,7 +515,7 @@
   .jc { grid-template-columns: minmax(0, 1fr); grid-auto-rows: max-content; row-gap: 20px; overflow-x: hidden; overflow-y: auto; align-content: start; padding: 12px 16px 28px; }
   .jc-left, .jc-right { min-height: auto; grid-auto-rows: max-content; }
   .jc-left { grid-template-rows: none; }
-  .jc-right { grid-template-rows: 44px minmax(280px, auto) auto; }
+  .jc-right { grid-template-rows: 44px minmax(280px, auto); }
   .jc-ribbon { border-radius: 16px; }
   .jc-controls { flex-wrap: wrap; row-gap: 8px; }
   .jc-status { flex-basis: 100%; order: 3; }
@@ -459,12 +524,62 @@
   .jc-vh .vh-strip > .vh-row { flex-wrap: wrap; }
   .jc-vh .vh-bar { inline-size: 120px; }
   .jc-hud { display: none; }
-  .jc-art:has(.art-slot[data-state='absent']), .jc-art:has(.art-slot[data-state='loading']) { inset: 8px auto auto 8px; width: auto; }
-  .jc-art .art-slot__ph-id { display: none; }
-  .jc-art .art-slot__ph { padding: 4px 8px; font-size: 9px; line-height: 12px; }
+
+  /* the square stage (jury, 14 Nov: the 2:1 stage collapsed to a thin strip at 390 px with the ring cut off). The
+     canvas keeps its own 2:1 drawing: its box is 140 percent of the stage wide and 70 percent tall, centred, so the
+     ring is about 68 percent of the width and sits in the upper part; the hill's outer ends fall outside, clipped by
+     the stage; the pose words sit under the ring in the remaining 30 percent. Every overlay layer rides in .jc-plane,
+     which takes the same box, so the ring, the eye and the rest form land on the canvas exactly. */
+  .jc-vh .vh-stage { aspect-ratio: 1 / 1; }
+  .jc-vh .vh-canvas, .jc-vh .vh-static { inset: 0 auto auto -20%; inline-size: 140%; block-size: 70%; }
+  .jc-vh .vh-bezel { top: 34.23%; inline-size: 46.62%; }
+  .jc-over { aspect-ratio: 1 / 1; }
+  .jc-plane { inset: 0 auto auto -20%; width: 140%; height: 70%; }
+  .jc-vh .vh-strip > .vh-legend { white-space: normal; }
+  .jc-ruler, .jc-sigil-word { display: none; }
+  .jc-eye { top: 48.9%; }
+  .jc-eye .g-sigil { --g-size: 44px !important; }
+  .jc-pose { top: 75%; translate: -50% 0; gap: 6px; }
   .jc-asleep-word { font-size: 18px; }
+
+  /* the pipeline as one compact four-step strip (it stacked as four full-width bars with grey stubs): four equal
+     cells, each a 48 px tall node with the lamp and the word over the value, joined by short tracks */
+  .jc-ribbon[data-orientation='row'] { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 6px 6px 6px 0; }
+  .jc-ribbon[data-orientation='row'] .jc-rib-step::before { display: none; }
+  .jc-ribbon[data-orientation='row'] .jc-rib-track { flex: 0 0 6px; min-width: 6px; margin: 0; }
+  .jc-ribbon[data-orientation='row'] .jc-rib-node {
+    flex: 1;
+    min-width: 0;
+    min-height: 48px;
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: center;
+    align-content: center;
+    column-gap: 5px;
+    row-gap: 4px;
+    padding: 4px 2px;
+  }
+  .jc-ribbon[data-orientation='row'] .jc-rib-word { font-size: 11px; letter-spacing: 0.04em; }
+  .jc-ribbon[data-orientation='row'] .jc-rib-val { grid-column: 1 / -1; min-width: 0; text-align: center; font-size: 11px; }
+
   .jc-turns { overflow: visible; }
 }
+
+/* ------------------------------------------------------------------ the shell's reset, and focus on hollow tiles */
+/* The shell resets every button (`.s2 button { font: inherit; color: inherit }`, specificity 0,1,1), which outranks a
+   one-class rule: in the app the Wake label inherited bone over the orange fill and measured 2.83:1 (the jury's
+   "white on orange at about 3:1"). The keys restate their ink and type at 0,2,0, so the app matches the jury page:
+   accent-on over accent-fill is 5.2:1. */
+.jc .jc-wake { color: var(--accent-on); font: 650 15px/1 var(--font-ui, system-ui, sans-serif); letter-spacing: 0.01em; }
+.jc .jc-key { color: var(--ink-1); font: 600 13px/1 var(--font-ui, system-ui, sans-serif); }
+.jc .jc-key-sm { font-size: 12px; }
+.jc .jc-key[aria-disabled='true'] { color: var(--ink-3); }
+.jc .jc-organ { color: var(--ink-1); font: 12px/1 var(--font-mono, ui-monospace, monospace); }
+/* a hollow (dashed) tile drew the ring 2 px off a broken edge and the jury could not find it: focused, the tile's edge
+   turns solid ink and the ring stands 3 px off it (focus-ring on the ground is 12.9 to 16.1:1, over the 3:1). Written
+   after the hollow rules, at their specificity or more, so it wins over the dashed edge. */
+.jc-organs .jc-organ:focus-visible,
+.jc-ribbon .jc-rib-step .jc-rib-node:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; border-style: solid; border-color: var(--ink-1); }
 
 @media (prefers-reduced-motion: reduce) {
   .jc *, .jc-drawer * { transition: none !important; animation: none !important; }

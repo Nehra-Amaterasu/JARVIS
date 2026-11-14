@@ -26,6 +26,8 @@ export interface TranscriptProps {
   onHandoff?: (place: { product: 'ww'; section: string; view: string }) => void
   /** Rendered under the rows, above the prompt (the Earlier key). */
   footer?: ReactNode
+  /** Rendered above the rows, at the top of the well (the rule that says older turns are under Earlier). */
+  header?: ReactNode
 }
 
 const asSim = (r: LampReading, sim: boolean): LampReading => (sim && r.state === 'live' ? { ...r, state: 'simulated', reason: 'fixture turn, not a recording' } : r)
@@ -137,7 +139,7 @@ function FlagDock({ turn, question, onFlag, onClose }: {
   )
 }
 
-export function Transcript({ turns, all, running, simulated = false, notifyPresent, onFlag, onHandoff, footer }: TranscriptProps) {
+export function Transcript({ turns, all, running, simulated = false, notifyPresent, onFlag, onHandoff, footer, header }: TranscriptProps) {
   const list = useRef<HTMLOListElement>(null)
   const [cur, setCur] = useState(Math.max(0, turns.length - 1))
   const [dock, setDock] = useState<number | null>(null)
@@ -170,7 +172,9 @@ export function Transcript({ turns, all, running, simulated = false, notifyPrese
   }
   return (
     <div className="jc-strata" data-dock={docked ? 'open' : undefined}>
-      <TermWell prompt="jarvis core.talk" label="Transcript" cursor={!docked}>
+      {/* the prompt is the product and the place in plain words; "core.talk" was the internal view id (jury, 14 Nov) */}
+      <TermWell prompt="jarvis talk" label="Transcript" cursor={!docked}>
+        {turns.length > 0 && header}
         {turns.length === 0 ? (
           <div className="jc-strata-empty">
             {/* the well's emblem: the Core's own generic sigil, decoration with a name, never a reading */}

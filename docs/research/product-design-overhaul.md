@@ -35,6 +35,35 @@ No juror has rescored the whole product yet; that is the next jury, on whole scr
 
 **Sources.** Workflow journals `wf_6e5fcc6c-498` and `wf_a4b608cc-3dc`; the `integrate_wave` reports in the session scratchpad; commits `8df448a`, `3f4b97c`, `5d303e7`, `d0be389`, `f0858f4`, `c34d80d`, `ccf0f4a`, `67c2fa7`.
 
+## 2026-11-14: QG1, the glitch sweep of the new shell
+
+**Question.** The owner opened the new interface on the evening of 14 Nov and saw "quite a lot of glitches". What are they, which are in the shell, the gallery and the kit, and how do we keep them fixed?
+
+**Built.** `e2e/glitch-sweep.spec.ts` with its in-page measurer `e2e/glitch/measure.ts`. Flag on; every section, first two views, at 1366x768 and 390x844, in both grounds (JARVIS is `clay-dark`, Well Wisher `clay-light`). It records console errors and warnings, failed requests, uncaught exceptions, document overflow, clipped or pill-wrapped text, overlapping or off-window controls, targets under 44 px, text under 11 px, a missing focus ring after Tab, and any scrolling box. It then flips New UI and Classic UI three times, opens the palette and What is new three times, resizes four times, and counts the chrome. `GLITCH_OUT=<folder>` writes `report.json` and `report.md`. It fails on an uncaught exception, a console error, document overflow, a stuck scrim, or duplicated chrome; the rest is data. A fifth test keeps three fixes (button reset specificity, gallery at 1x, drawn select).
+
+**Numbers.** First run: 949 distinct findings, 0 hard; most were measurer noise (a hidden "sr-only" heading, a control scrolled away under the title bar, a button's own height read as wrapped lines). After the measurer clipped to scrolling ancestors and counted text lines by range: 262; after the fixes below and a size-from-own-box rule: 247 distinct, 515 total, 0 hard, and no shell, gallery or kit control under 44 px. Sweep run 2.0 min.
+
+**Fixed (my files).**
+- (a) `shell.css`: the button reset is now `:where(.s2) button` (0,0,1). It was `.s2 button` (0,1,1) and outranked every one-class rule in a view (the 2.83:1 main button). A probe test in the spec proves a one-class rule wins.
+- (b) Gallery default scale 1x (was 1.5x, which cropped wide specimens). The bar is not sticky in code; the "row in the way" was the zoom.
+- (c) TickSlider: the readout moved to the label row, right-aligned; the focus ring went from a 2 px frame round the whole 44 px row to a 2 px ring round the pebble (the jury harness reads outlines only, so it prints "no ring drawn" for sliders; the ring is on the thumb).
+- (d) PLANNED: under clay the corner brackets (a second box round the dashed one) are gone; the 1 px dashed edge, the ring (now ink-2, 14 px) and the word PLANNED stay as the cue. `PLANNED_RING` is untouched because a kit test pins it.
+- (e) Gallery section select: `appearance: none`, a drawn chevron, 40 px reserved on the right.
+- (f) Title-bar crumb on a first run: a recessed well read as an empty search box. It is now flat, with a pin and the place in full ink.
+- (g) Switch and Rocker are one family: same recessed groove, same pebble recipe, pill radius, and one transition (160 ms, same curve) on colour only (a kit test forbids a shadow transition). The Switch thumb size and travel derive from `--switch-w` and `--switch-h`, so a resized switch cannot break its travel.
+- Rail labels 10.5 px to 11 px.
+
+**Found, not mine (hosted pages; the next wave).**
+- Text under 11 px in classic pages: `.eyebrow` 10.5 px (core, room, senses, memory, console), `.tw-ruler` 9 px, `.tw-label`, `.tw-zone`, `.tw-sensor` 9.5 px, `span.pill.sim` 10.5 px, the `0.1 ms` and `47 runs` spans 9.5 px, `lab grade` 8 px.
+- Targets under 44 px: `.btn.sm` 28 px, `.chip` 24 px, `.sys-row` 36 px, `.btn` 36 px, `select.cfg-select` 34 px, `.field.mono` 34 px (JARVIS pages); `.ww-seg-opt` 36 px, `.ww-chip` 36 px, `.ww-btn` 27 to 36 px, certificate links 17 px (Well Wisher pages).
+- Inner scrolling in the canvas: every classic JARVIS `.page` (room.rules scrolls 2702 px), `.hud-col-left` and `.hud-col-right` in senses, `aside.ww-left` (126 to 458 px, the rail the owner wants redesigned; L04 owns it), `.ww-tree-chips` sideways.
+- `GET /api/memory/people` answers 500 in the sandbox (no people.parquet in a scratch data dir; engine lane).
+- Wrapping in pills: `.ww-ctr.ww-tap` counter buttons (up to 4 lines at 1366), `Old layout`, `.chip` suggestions at 390.
+- `p.s2-interim` and `.cr-sub` cut with an ellipsis; `input.jc-composer-field` has no 2 px ring.
+
+**Not done.** The 390 px view strip (`.s2-views`) scrolls sideways and shows a half tab at the edge: a design choice for the next wave (fade, snap or a menu). Kit tests were not changed. The sweep samples two views per section; the other 20 views are the same chrome around other pages.
+
+
 ## 2026-11-14: adversarial review of the craft pass (r01)
 
 ## 2026-11-14: KB1, the JARVIS dark ground as a matte piano black (D-V3-30)

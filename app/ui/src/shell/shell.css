@@ -56,7 +56,9 @@
 :root[data-contrast='high'] .s2 { --s2-recess: inset 1px 1px 0 var(--edge-ui); }
 @media (prefers-contrast: more) { .s2 { --s2-recess: inset 1px 1px 0 var(--edge-ui); } }
 
-.s2 button { font: inherit; color: inherit; cursor: pointer; }
+/* :where() keeps this reset at specificity 0,1,0: written as `.s2 button` (0,1,1) it outranked every one-class button
+   rule inside a view and held a main button's label at 2.83:1 (14 Nov review) */
+:where(.s2) button { font: inherit; color: inherit; cursor: pointer; }
 
 /* ---- the raised pill of the shell (Skip, Classic UI, the shell's buttons, the folded frame tools): the kit's raised
    object without the kit class, so the markup and its test hooks stay as they are ---- */
@@ -285,16 +287,19 @@
 .s2-pill[data-pill='start'] .s2-pill-text { color: inherit; }
 .s2-pill[data-pill='start']:has(.s2-pill-go:hover) { background: var(--accent-fill-hover, var(--accent-fill)); }
 .s2-pill[data-pill='start'] .s2-kbd { background: color-mix(in srgb, var(--p-clay-50) 24%, transparent); box-shadow: none; border-color: transparent; color: inherit; }
-/* already home on a first run: a crumb that runs nothing, so it is pressed INTO the bar rather than raised out of it */
+/* already home on a first run: a crumb that runs nothing. A recessed well read as an empty search box (14 Nov), so it is
+   drawn as a location instead: flat on the bar, a pin in the accent ink, the place in full ink, no engraved edge */
 .s2-pill[data-pill='here'] {
   padding: 0 18px;
-  color: var(--ink-2);
-  --well-face: var(--surface-ground);
-  border-color: var(--k-engrave, var(--edge-hair));
-  background: linear-gradient(var(--well-face), var(--well-face)) padding-box, var(--k-engrave-paint, linear-gradient(transparent, transparent)), var(--well-face);
-  box-shadow: var(--elev-recessed, none);
+  gap: 8px;
+  justify-content: center;
+  color: var(--ink-1);
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
 }
-.s2-pill-here { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.s2-pill-pin { flex: none; color: var(--accent-ink, var(--ink-2)); }
+.s2-pill-here { min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* left long ago: the words, then two quiet text keys inside the pill */
 .s2-pill[data-pill='stale'] { padding-left: 16px; }
 .s2-pill[data-pill='stale']:hover { transform: none; }
@@ -395,8 +400,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font: 600 10.5px/1 var(--font-ui, Inter, system-ui, sans-serif);
-  letter-spacing: 0.01em;
+  font: 600 11px/1 var(--font-ui, Inter, system-ui, sans-serif);
+  letter-spacing: 0;
 }
 .s2-slot:not(.s2-ask):not([aria-current='page']):hover { transform: translateY(-1px); color: var(--ink-1); }
 .s2-slot:not(.s2-ask):not([aria-current='page']):hover::before { opacity: 1; }

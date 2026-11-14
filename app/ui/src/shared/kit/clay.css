@@ -98,9 +98,15 @@
   transition-duration: var(--dur-press, 90ms);
 }
 :is(.k-key, .k-btn, .k-console-follow, .k-toast-undo, .k-dialog-x):is(:active, [data-demo='pressed'])::before { opacity: 0; transition: none; }
-:where(.k-switch, .k-rocker-half, .k-key, .k-tab, .k-btn, .k-rail-btn, .k-console-follow, .k-toast-undo, .k-dialog-x, .k-knob, .k-console-log, .k-palette-field, .k-slider input):focus-visible {
+:where(.k-switch, .k-rocker-half, .k-key, .k-tab, .k-btn, .k-rail-btn, .k-console-follow, .k-toast-undo, .k-dialog-x, .k-knob, .k-console-log, .k-palette-field):focus-visible {
   outline: 2px solid var(--focus-ring); outline-offset: 2px;
 }
+/* a range is 44 px tall and as wide as its row: a 2 px outline round it drew a heavy frame (14 Nov), so the ring goes round
+   the pebble, 2 px thick at the same 2 px gap, and the groove stays clean */
+:where(.k-slider) input[type='range']:focus-visible { outline: none; }
+:where(.k-slider) input[type='range']:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px var(--surface-ground), 0 0 0 4px var(--focus-ring), var(--elev-low, none); }
+:where(.k-slider) input[type='range']:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px var(--surface-ground), 0 0 0 4px var(--focus-ring); }
+:where(.k-slider-num):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 [data-state='disabled'], [aria-disabled='true'] { color: var(--ink-off); border-color: var(--edge-hair); cursor: default; }
 [data-state='disabled']:hover, [aria-disabled='true']:hover { transform: none; }
 [data-state='error'] { border: 2px solid var(--state-fault); }
@@ -137,6 +143,7 @@
   position: relative; flex: none; width: var(--switch-w, 64px); height: var(--switch-h, 32px); min-height: var(--switch-h, 32px); padding: 0;
   color: var(--ink-2); --well-face: var(--surface-sunk);
   border-radius: var(--r-pill, 999px); box-shadow: var(--elev-recessed, none); cursor: pointer;
+  transition: background-color var(--dur-state, 160ms) cubic-bezier(.3, .7, .2, 1), color var(--dur-state, 160ms) cubic-bezier(.3, .7, .2, 1);
 }
 /* hit area around the 32 px track: 64 x 48. Vertical only: the track is already 64 wide, and a sideways extension put
    the switch's own face under the ground probe beside it, so a filled ON track measured 1.00:1 against itself */
@@ -147,11 +154,11 @@
 .k-switch[data-on='false'] .k-switch-word { right: 9px; }
 .k-switch[data-on='true'] .k-switch-word { left: 10px; }
 .k-switch-thumb {
-  position: absolute; top: 2px; left: 2px; width: 26px; height: 26px; box-sizing: border-box; border-radius: 50%;
+  position: absolute; top: 2px; left: 2px; width: calc(var(--switch-h, 32px) - 6px); height: calc(var(--switch-h, 32px) - 6px); box-sizing: border-box; border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, var(--lit-hi, transparent), transparent 60%), var(--thumb, var(--surface-raised)); border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui));
   box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none); transition: translate var(--dur-state, 160ms) cubic-bezier(.3, .7, .2, 1);
 }
-.k-switch[data-on='true'] .k-switch-thumb { translate: 32px 0; }
+.k-switch[data-on='true'] .k-switch-thumb { translate: calc(var(--switch-w, 64px) - var(--switch-h, 32px)) 0; }
 .k-switch:is(:hover, [data-demo='hover']) .k-switch-thumb::before { opacity: 1; }
 .k-switch:is(:active, [data-demo='pressed']) .k-switch-thumb { box-shadow: var(--elev-flush, none); }
 .k-switch-label { font: 500 14px/1.3 var(--font-sans, system-ui, sans-serif); color: var(--ink-1); }
@@ -161,15 +168,15 @@
 /* ---- 3 Rocker: a shallow tray holding two raised keys (C02-46's OFF and ON keys); the lit key is pressed in and
    filled with the accent, so ON is a position, a fill and a word, never a hue alone. Keys of at least 56 x 44 px. ---- */
 .k-rocker {
-  position: relative; display: inline-flex; flex: none; gap: 6px; padding: 6px; --well-face: var(--surface-ground);
-  border-radius: 20px; box-shadow: var(--elev-recessed, none);
+  position: relative; display: inline-flex; flex: none; gap: 2px; padding: 3px; --well-face: var(--surface-sunk);
+  border-radius: var(--r-pill, 999px); box-shadow: var(--elev-recessed, none);
 }
 .k-rocker-half {
   position: relative; flex: 0 0 auto; min-width: 56px; height: 44px; padding: 0 16px; white-space: nowrap; cursor: pointer;
   font: 700 12px/1 var(--font-sans, system-ui, sans-serif); letter-spacing: .06em; color: var(--ink-2);
-  background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-shade, transparent); border-radius: var(--r-ctl, 14px);
+  background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-shade, transparent); border-radius: var(--r-pill, 999px);
   box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
-  transition: transform var(--dur-press, 90ms) ease-out;
+  transition: background-color var(--dur-state, 160ms) cubic-bezier(.3, .7, .2, 1), color var(--dur-state, 160ms) cubic-bezier(.3, .7, .2, 1), transform var(--dur-press, 90ms) ease-out;
 }
 .k-rocker-half:is(:hover, [data-demo='hover']):not([data-active='true']) { color: var(--ink-1); background-color: var(--surface-raised-hi, var(--surface-raised)); }
 .k-rocker-half:is(:active, [data-demo='pressed']) { transform: translateY(1px) scale(.98); }
@@ -201,7 +208,13 @@
 
 /* ---- 8 Tick Slider: an 8 px engraved groove, the run up to the pebble filled with the accent (C02-46, C02-23), ticks under it ---- */
 .k-slider { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; align-items: center; }
-.k-slider-label { grid-column: 1 / -1; font: 500 13px/1.3 var(--font-sans, system-ui, sans-serif); color: var(--ink-2); }
+.k-slider-label { grid-column: 1; grid-row: 1; font: 500 13px/1.3 var(--font-sans, system-ui, sans-serif); color: var(--ink-2); }
+/* the readout shares the label's row, right-aligned over the groove (it sat cramped at the bottom right, under the ticks),
+   and the groove, ticks and exact-value field each take a full row */
+.k-slider > input[type='range'] { grid-column: 1 / -1; grid-row: 2; }
+.k-slider > .k-slider-value { grid-column: 2; grid-row: 1; justify-self: end; }
+.k-slider > .k-slider-num { grid-column: 1 / -1; grid-row: 4; justify-self: start; }
+.k-slider > :is(.k-reason, .k-err) { grid-column: 1 / -1; }
 .k-slider input[type='range'] { -webkit-appearance: none; appearance: none; width: 100%; height: var(--hit, 44px); margin: 0; background: transparent; cursor: pointer; accent-color: var(--k-on-fill, var(--selected-fill)); }
 .k-slider input[type='range']::-webkit-slider-runnable-track {
   height: 10px; box-sizing: border-box; border-radius: var(--r-pill, 999px);
@@ -218,10 +231,10 @@
 .k-slider input[type='range']::-moz-range-track { height: 8px; border-radius: var(--r-pill, 999px); background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); }
 .k-slider input[type='range']::-moz-range-progress { height: 8px; border-radius: var(--r-pill, 999px); background: var(--k-on-fill, var(--selected-fill)); }
 .k-slider input[type='range']::-moz-range-thumb { width: 26px; height: 26px; border-radius: 50%; background: var(--thumb, var(--surface-raised)); border: 0; box-shadow: var(--elev-low, none); }
-.k-ticks { grid-column: 1; display: flex; justify-content: space-between; height: 8px; margin-top: -8px; padding: 0 13px; }
+.k-ticks { grid-column: 1 / -1; grid-row: 3; display: flex; justify-content: space-between; height: 8px; margin-top: -8px; padding: 0 13px; }
 .k-ticks i { width: 1px; height: 4px; background: var(--ink-3); }
 .k-ticks i[data-major='true'] { height: 8px; background: var(--ink-2); }
-.k-slider-value { font: 500 13px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; color: var(--ink-1); }
+.k-slider-value { font: 600 14px/1.3 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; color: var(--ink-1); }
 .k-slider-num {
   width: 80px; min-height: var(--hit, 44px); box-sizing: border-box; padding: 0 12px; font: 500 14px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); --well-face: var(--surface-sunk);
   border-radius: var(--r-well, 14px); box-shadow: var(--elev-recessed, none);

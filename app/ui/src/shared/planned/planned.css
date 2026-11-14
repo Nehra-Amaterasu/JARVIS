@@ -196,7 +196,12 @@
    stay flat on purpose (no pair, no lift, no sink: a placeholder that rose would read as a live feature). The one cue
    is unchanged: the dashed edge, the dashed ring and the word PLANNED. */
 :root[data-theme^='clay'] .pl-plate { gap: 8px; padding: 16px 20px; border-radius: var(--r-ctl, 14px); }
-:root[data-theme^='clay'] .pl-plate::before { inset: -6px; }
+/* the corner brackets drew a second box round the dashed one, so a PLANNED plate read as a heavy double frame (14 Nov
+   review); under clay the 1 px dashed edge (3:1), the dashed ring and the word are the whole cue, and the brackets stay
+   for the sigil theme only */
+:root[data-theme^='clay'] .pl-plate::before { content: none; }
+:root[data-theme^='clay'] .pl-chip .pl-glyph, :root[data-theme^='clay'] .pl-plate .pl-glyph { color: var(--ink-2, currentColor); width: 14px; height: 14px; }
+:root[data-theme^='clay'] .pl-chip { gap: 8px; }
 :root[data-theme^='clay'] .pl-btn { padding: 0 20px; border-radius: var(--r-pill, 999px); font-family: var(--font-sans, system-ui, sans-serif); font-weight: 500; }
 :root[data-theme^='clay'] .pl-chip { padding: 0 16px; font-family: var(--font-sans, system-ui, sans-serif); }
 :root[data-theme^='clay'] .pl-label { font-family: var(--font-sans, system-ui, sans-serif); font-size: 14px; }

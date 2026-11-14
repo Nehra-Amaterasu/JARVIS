@@ -1,0 +1,19 @@
+/* HandoffKey (DB01): a 44 px clay key in mono. Neutral: the one warm accent of a screen stays on its main action. */
+.dg-hk { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; max-width: 100%; font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.dg-hk-key {
+  appearance: none; box-sizing: border-box; min-height: 44px; min-width: 44px; max-width: 100%; margin: 0; padding: 0 16px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 10px; border: 0; border-radius: 10px;
+  background: var(--surface-raised); box-shadow: var(--elev-raised); color: var(--ink-1); font: 600 13px/1 var(--font-mono, ui-monospace, monospace); white-space: nowrap;
+}
+.dg-hk-key:active { box-shadow: var(--elev-pressed); }
+.dg-hk-key:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+.dg-hk-label { overflow: hidden; text-overflow: ellipsis; }
+.dg-hk-arrow { flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.dg-hk[data-form='hollow'] .dg-hk-key { background: transparent; box-shadow: none; border: 2px dashed var(--ink-3); color: var(--ink-2); cursor: default; }
+.dg-hk-why { display: inline-flex; align-items: center; gap: 6px; }
+@media (forced-colors: active) {
+  .dg-hk-key { border: 1px solid ButtonText; box-shadow: none; background: ButtonFace; color: ButtonText; }
+  .dg-hk[data-form='hollow'] .dg-hk-key { border-style: dashed; color: GrayText; }
+}
+/* the kit paints any [data-state='planned'] with a dashed edge (clay.css); this wrapper is not the key, so it keeps no edge (the key draws its own dashed form) */
+:root:root .dg-hk[data-state] { border: 0; background: transparent; box-shadow: none; color: var(--ink-2); }

@@ -1,0 +1,36 @@
+/* Legend (DB02). The swap is instant: no transition, no flip. Tokens only. */
+.dg-lg { box-sizing: border-box; width: 100%; display: grid; gap: 8px; color: var(--ink-1); font: 13px/1.4 var(--font-ui, system-ui, sans-serif); }
+.dg-lg-key {
+  appearance: none; justify-self: end; box-sizing: border-box; width: 44px; height: 44px; margin: 0; padding: 0; cursor: pointer;
+  display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--surface-raised); box-shadow: var(--elev-raised);
+  color: var(--ink-1); font: 700 16px/1 var(--font-mono, ui-monospace, monospace);
+}
+.dg-lg-key[aria-pressed='true'] { box-shadow: var(--elev-pressed); }
+.dg-lg-key:active { box-shadow: var(--elev-pressed); }
+.dg-lg-key:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+.dg-lg-face[hidden], .dg-lg-back[hidden] { display: none; }
+.dg-lg-back { box-sizing: border-box; }
+/* flipped, the heading shares the row with the key (the key is 44 px and sits at the right): one head row, not two */
+.dg-lg[data-flipped='true'] .dg-lg-back { margin-top: -52px; }
+.dg-lg-h { margin: 0; min-height: 44px; display: flex; align-items: center; padding-right: 56px; font: 600 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+.dg-lg-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.dg-lg-item { display: grid; grid-template-columns: 24px minmax(88px, max-content) minmax(0, 1fr); gap: 4px 12px; align-items: center; min-height: 28px; }
+.dg-lg-name { font-weight: 600; }
+.dg-lg-meaning { color: var(--ink-2); font-size: 12px; overflow-wrap: anywhere; }
+.dg-lg-empty { margin: 0; color: var(--ink-2); font: 12px/1.4 var(--font-mono, ui-monospace, monospace); }
+.dg-lg-glyph { display: block; }
+.dg-lg-fill { fill: var(--ink-1); stroke: none; }
+.dg-lg-line { fill: none; stroke: var(--ink-1); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.dg-lg-dash { stroke-dasharray: 2.4 2.4; }
+@media (max-width: 420px) { .dg-lg-item { grid-template-columns: 24px minmax(0, 1fr); } .dg-lg-meaning { grid-column: 2; } }
+/* static form: the picture and the list stack, nothing swaps, the key has nothing to do */
+@media (prefers-reduced-motion: reduce), (forced-colors: active) {
+  .dg-lg-face[hidden], .dg-lg-back[hidden] { display: block; }
+  .dg-lg[data-flipped='true'] .dg-lg-back, .dg-lg-back { margin-top: 8px; }
+  .dg-lg-h { padding-right: 0; min-height: 0; margin-bottom: 8px; }
+  .dg-lg-key { display: none; }
+}
+@media (forced-colors: active) {
+  .dg-lg-fill { fill: CanvasText; }
+  .dg-lg-line { stroke: CanvasText; }
+}

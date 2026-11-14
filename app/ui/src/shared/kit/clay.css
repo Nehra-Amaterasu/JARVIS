@@ -4,26 +4,57 @@
    colour here. Nothing imports a .k-* class yet, and the Raised Pill rule is scoped to data-theme='clay-*'
    which nothing sets, so the app looks the same at this commit.
 
-   Edge discipline (7.7 rule 3): a control gets --edge-ui, a container gets --edge-hair, a shape that
-   carries information gets an outline in ink and a caption. Hit areas are 44 px (--hit).
-
-   Material (wave 5, G01; the tokens live in the clay elevation layer): a raised control is a lit ridge, not a
-   hairline. Its border IS the bevel: --ridge-hi on top, --edge-ui on the sides, --ridge-lo below, every side at
-   3:1 or more against the ground, plus the 1 px --lit-hi lip inside the top and an offset matte shade (light from
-   the top left). A well (switch track, knob bed, readout, field) is the inverse: --elev-recessed inside a flat
-   --edge-ui border. Hover lifts 1 px, focus settles 1 px into the ground, a press sinks 1 px and swaps to
-   --elev-pressed; only transform and border-color transition, never the shadow.
+   CRAFT PASS (13 Nov; the owner: "highly refined components/buttons/shadows and overall aesthetics"). Every control
+   is an object made of one material (the recipe and its numbers are in the clay token folder's elevation.css):
+     raised   a soft face lit from the top left: --elev-* pair (white highlight up-left, cool shade down-right) plus a
+              1 px lip drawn INSIDE the face as an inset layer (--lip, 1 px down and right of the top-left edge) so it follows
+              the curve of a pill with no corner joins; the border is --rim-shade on all four sides (transparent).
+              No outline. (14 Nov: a two-colour border lip notched the orange pill where its colours met.)
+     hover    lifts one step: the face rises 1 px and a pre-painted ::before carrying --elev-high fades in (opacity
+              only; a box-shadow is never transitioned).
+     pressed  sinks: the drop pair is swapped for the inset pair (--elev-pressed), the lip goes, the face drops 1 px,
+              in --dur-press (90 ms).
+     well     fields, tracks, the knob bed, readouts: sunk face, --elev-recessed or --elev-well-deep, and a 1 px
+              ENGRAVED edge (--engrave-dark top and left, --engrave-lit bottom and right) whose contrasty side is
+              3:1 against the surface: the boundary of a well is information, so it is drawn, as part of the object.
+     state    ON, selected, active: a filled piece (--k-on-fill, ink-2 in light, ink-3 in dark: 5 to 7:1 against
+              every neighbour) pressed into the channel or raised out of it; never a hue alone.
+   Edge discipline (7.7 rule 3, as decided in this pass): a LABELLED raised control (a button with 4.5:1 text, a key
+   with its glyph) is identified by its label and its shape and carries no hairline; a part whose boundary or state is
+   the information (field, well, switch track, the selected tab or segment, a pressed toggle, the knob bed) keeps a
+   3:1 cue drawn as part of the object. Focus is always the 2 px ring at a 2 px offset. High contrast turns every rim
+   and engraving into one strong edge (contrast.css), and forced colours give every control a 2 px ButtonText border
+   (the branch at the end of this file), as before. Hit areas are 44 px (--hit). Spacing is an 8 px rhythm.
    ========================================================================== */
 :where(.k-switch, .k-rocker-half, .k-key, .k-tab, .k-btn, .k-rail-btn, .k-console-follow, .k-toast-undo, .k-dialog-x, .k-palette-row, .k-knob, .k-slider input) {
   min-height: var(--hit, 44px);
 }
-.k-vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.k-reason, .k-readout-why, .k-unit { font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-3); }
-.k-err { display: inline-flex; gap: 6px; align-items: center; margin: 0; font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
-.k-stamp { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--state-simulated); border: 1px solid var(--state-simulated); padding: 2px 6px; }
+/* the filled piece of every ON / selected state; redeclared in a scene so it resolves against the scene's own inks */
+/* round two (14 Nov): ON and selected are the accent as a state fill (--accent-state, the C02-46 orange one step deeper
+   than the action fill so it is a 3:1 piece on every surface and carries #171717 at 4.61:1), never the dark slate that
+   read heavy; the engraved edge of a well is a list of four colours plus the gradient that paints its sides. Declared on
+   the root AND on the immersive scene, because a custom property inherits as the value computed where it is declared. */
+:root[data-theme^='clay'], :root[data-theme^='clay'] [data-scene='immersive'] {
+  --k-on-fill: var(--accent-state); --k-on-ink: var(--accent-on);
+  --k-engrave: var(--engrave-dark) var(--engrave-side) var(--engrave-lit) var(--engrave-side);
+  --k-engrave-paint: linear-gradient(to bottom, var(--engrave-dark) 6%, var(--engrave-lit) 55%) border-box;
+  --k-field-face: var(--surface-ground);
+}
+/* in the dark the 3:1 side is the lit LOWER lip, so the sides hold the dark wall longer and light only near the bottom */
+:root[data-theme='clay-dark'], :root[data-theme^='clay'] [data-scene='immersive'] {
+  --k-engrave-paint: linear-gradient(to bottom, var(--engrave-dark) 45%, var(--engrave-lit) 94%) border-box;
+  /* a dark field is the sunk face, so the well is a step below the ground and not only a shadow on it */
+  --k-field-face: var(--surface-sunk);
+}
 
-/* ---- 11 Lamp ---- */
-.k-lamp { display: inline-flex; align-items: center; gap: 6px; font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.k-vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.k-reason, .k-readout-why { font: 12px/1.4 var(--font-sans, system-ui, sans-serif); color: var(--ink-3); }
+.k-unit { font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-3); }
+.k-err { display: inline-flex; gap: 6px; align-items: center; margin: 0; font: 500 12px/1.4 var(--font-sans, system-ui, sans-serif); color: var(--ink-1); }
+.k-stamp { justify-self: start; font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: .06em; color: var(--state-simulated); border: 1px solid var(--state-simulated); border-radius: 6px; padding: 3px 6px; }
+
+/* ---- 11 Lamp: the words are codes (LIVE, WAITING), so they stay mono ---- */
+.k-lamp { display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: .02em; color: var(--ink-2); }
 .k-lamp-glyph { flex: none; width: var(--lamp-size, 12px); height: var(--lamp-size, 12px); }
 .k-lamp-glyph .k-fill { fill: currentColor; }
 .k-lamp-glyph .k-line { fill: none; stroke: currentColor; stroke-width: 1.5; }
@@ -32,22 +63,41 @@
 .k-lamp-glyph[data-state='simulated'] { color: var(--state-simulated); }
 .k-lamp-glyph[data-state='planned'] { color: var(--state-planned, var(--ink-3)); }
 .k-lamp-glyph[data-state='fault'] { color: var(--state-fault); }
+/* a glyph's data-state is the lamp's state, not a control state: the generic PLANNED and FAULT edges never reach it
+   (on a 12 px svg the dashed medium border drew a chequer round the dashed ring) */
+.k-lamp-glyph[data-state], :root[data-theme^='clay'] .k-lamp-glyph[data-state] { border: 0; }
 
-/* ---- shared control look: raised, edge-ui, hover 1 px toward ground, pressed sinks 2 px ---- */
-.k-switch, .k-rocker-half, .k-key, .k-tab, .k-btn, .k-console-follow, .k-toast-undo, .k-dialog-x {
-  font: 500 14px/1.2 var(--font-sans, system-ui, sans-serif);
+/* ---- the raised object: keys, kit buttons, the small console, toast and dialog buttons ---- */
+.k-key, .k-btn, .k-console-follow, .k-toast-undo, .k-dialog-x {
+  position: relative;
+  isolation: isolate;
+  font: 600 14px/1.2 var(--font-sans, system-ui, sans-serif);
+  letter-spacing: .01em;
   color: var(--ink-1);
   background: var(--surface-raised);
-  border: 1px solid var(--edge-ui);
-  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
-  border-radius: var(--r-control, 10px);
-  box-shadow: var(--elev-raised, none);
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-pill, 999px);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none);
   cursor: pointer;
-  transition: transform var(--dur-state, 120ms), border-color var(--dur-state, 120ms);
+  transition: transform var(--dur-state, 120ms) ease-out;
 }
-.k-switch:hover, .k-rocker-half:hover, .k-key:hover, .k-tab:hover, .k-btn:hover { transform: translateY(-1px); border-color: var(--ink-1); }
-.k-key:focus-visible, .k-btn:focus-visible { transform: translateY(1px); box-shadow: var(--elev-flush, none); }
-.k-switch:active, .k-rocker-half:active, .k-key:active, .k-tab:active, .k-btn:active { transform: translateY(1px); box-shadow: var(--elev-pressed, none); }
+/* the next step up, pre-painted and cross-faded by opacity, so hover never transitions a shadow */
+.k-key::before, .k-btn::before, .k-console-follow::before, .k-toast-undo::before, .k-dialog-x::before, .k-switch-thumb::before {
+  content: ''; position: absolute; inset: -1px; z-index: -1; border-radius: inherit; pointer-events: none;
+  box-shadow: var(--elev-high, none); opacity: 0;
+  transition: opacity var(--dur-state, 120ms) ease-out;
+}
+/* hover lifts one step and the face lightens 2 percent; [data-demo] paints the same state still, for the bench rows */
+:is(.k-key, .k-btn, .k-console-follow, .k-toast-undo, .k-dialog-x):is(:hover, [data-demo='hover']) { transform: translateY(-1px); }
+:is(.k-btn, .k-console-follow, .k-toast-undo, .k-dialog-x):is(:hover, [data-demo='hover']):not([data-primary='true'], [aria-pressed='true']) { background-color: var(--surface-raised-hi, var(--surface-raised)); }
+:is(.k-key, .k-btn, .k-console-follow, .k-toast-undo, .k-dialog-x):is(:hover, [data-demo='hover'])::before { opacity: 1; }
+/* a press sinks: the drop pair becomes the inset pair, the face drops 1 px and gives 2 percent, in --dur-press */
+:is(.k-key, .k-btn, .k-console-follow, .k-toast-undo, .k-dialog-x):is(:active, [data-demo='pressed']) {
+  transform: translateY(1px) scale(.98); box-shadow: var(--elev-pressed, none); border-color: var(--rim-shade, var(--edge-ui));
+  transition-duration: var(--dur-press, 90ms);
+}
+:is(.k-key, .k-btn, .k-console-follow, .k-toast-undo, .k-dialog-x):is(:active, [data-demo='pressed'])::before { opacity: 0; transition: none; }
 :where(.k-switch, .k-rocker-half, .k-key, .k-tab, .k-btn, .k-rail-btn, .k-console-follow, .k-toast-undo, .k-dialog-x, .k-knob, .k-console-log, .k-palette-field, .k-slider input):focus-visible {
   outline: 2px solid var(--focus-ring); outline-offset: 2px;
 }
@@ -56,117 +106,229 @@
 [data-state='error'] { border: 2px solid var(--state-fault); }
 [data-state='planned'] { border-style: dashed; border-color: var(--edge-ui); box-shadow: none; background: transparent; }
 /* Under clay a disabled-with-a-reason control stays legible (ink-3, at least 4.5:1: the jury measured the old ink-off
-   at 2.41:1 on "OFF" and "Soon") and keeps its 3:1 edge; it reads as inert by being flat (no ridge, no shade) and by
-   the printed reason, not by fading. PLANNED keeps its own cue: the dashed edge and the dashed-ring glyph. The classic
-   app never sets a clay theme, so the two unscoped rules above still govern it unchanged. */
-:root[data-theme^='clay'] :is([data-state='disabled'], [aria-disabled='true']) { color: var(--ink-3); border-color: var(--edge-ui); box-shadow: none; }
+   at 2.41:1 on "OFF" and "Soon"). It reads as inert by being FLAT, not by fading: the raised pair drops to the flush
+   step (a faint emboss that keeps the shape), the lip goes, hover does not lift, and the printed reason says why.
+   PLANNED keeps its own cue: the dashed edge and the dashed-ring glyph. The classic app never sets a clay theme, so
+   the two unscoped rules above still govern it unchanged. */
+:root[data-theme^='clay'] :is([data-state='disabled'], [aria-disabled='true']) { color: var(--ink-3); border-color: var(--rim-shade, var(--edge-ui)); box-shadow: var(--elev-imprint, none); background-color: transparent; }
+:root[data-theme^='clay'] :is(.k-key, .k-btn, .k-console-follow, .k-toast-undo, .k-dialog-x, .ww-btn):is([data-state='disabled'], [aria-disabled='true'])::before { opacity: 0; }
 :root[data-theme^='clay'] [data-state='planned'] { color: var(--ink-2); border-style: dashed; border-color: var(--edge-ui); box-shadow: none; background: transparent; }
+/* a failed action glows (round two: the 2 px red ring read as an outline, off the soft recipe). The glow is --glow-fault
+   over the part's own material; the triangle and the words beside it carry the fault without colour. Forced colours keep
+   the 2 px CanvasText border (the branch at the end). The wells and the panel and slider compose their own below. */
+:root[data-theme^='clay'] [data-state='error']:not(.k-panel, .k-slider) { border-width: 1px; border-color: var(--rim-shade, transparent); box-shadow: var(--glow-fault, none), var(--lip, inset 0 0 0 transparent), var(--elev-raised, none); }
 
-/* ---- 2 Switch ---- */
-.k-switch-wrap { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-/* The track is a well (recessed, flat edge-ui border) and the thumb is the raised part. 64 px wide so the 3-letter word
-   sits 6 px clear of the 24 px thumb (at 56 px the thumb covered the O of OFF); the ::after takes the 32 px track to
-   a 48 x 72 px hit area. */
-.k-switch { position: relative; width: var(--switch-w, 64px); height: var(--switch-h, 32px); min-height: var(--switch-h, 32px); padding: 0; background: var(--surface-sunk); border-color: var(--edge-ui); box-shadow: var(--elev-recessed, none); border-radius: 16px; }
-.k-switch::after { content: ''; position: absolute; inset: -8px -4px; } /* hit area around the 32 px track */
-.k-switch[data-on='true'] { background: var(--switch-track-on, var(--selected-fill)); color: var(--selected-ink); }
-.k-switch-word { position: absolute; top: 50%; translate: 0 -50%; font: 600 12px/1 var(--font-mono, ui-monospace, monospace); }
+/* ---- the well: fields, the switch track, the rocker tray, the tab channel, the knob bed, the readouts. Sunk face and
+   the inset pair; its 3:1 boundary is the ENGRAVED edge: the top border in --engrave-dark, the bottom in --engrave-lit
+   and the sides transparent over a vertical gradient from one to the other (--k-engrave-paint, on the border box), so
+   the edge turns every curved corner without the hard diagonal join of a two-colour border (the "crescent rim" the
+   second jury saw). A part sets --well-face for its face colour; a channel that holds a filled piece is the ground. ---- */
+:is(.k-switch, .k-slider-num, .k-knob, .k-readout, .k-numerals, .k-lines, .k-progress-track, .k-console, .k-palette-field, .k-tabs, .k-rocker) {
+  border: 1px solid transparent; border-color: var(--k-engrave, var(--edge-ui));
+  background: linear-gradient(var(--well-face, var(--surface-sunk)), var(--well-face, var(--surface-sunk))) padding-box, var(--k-engrave-paint, linear-gradient(transparent, transparent)), var(--well-face, var(--surface-sunk));
+}
+:root[data-theme^='clay'] :is(.k-switch, .k-slider-num, .k-knob, .k-tabs, .k-rocker):is([data-state='disabled'], [aria-disabled='true']):not([data-state='planned']) { border-color: var(--k-engrave, var(--edge-ui)); box-shadow: var(--elev-recessed, none); background-color: var(--well-face, var(--surface-sunk)); }
+:root[data-theme^='clay'] :is(.k-switch, .k-knob, .k-rocker, .k-slider-num)[data-state='error'] { border-color: var(--k-engrave, var(--edge-ui)); box-shadow: var(--glow-fault, none), var(--elev-recessed, none); }
+
+/* ---- 2 Switch: an engraved pill groove, a raised pebble, and the state as position + an accent track + the word ---- */
+.k-switch-wrap { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* 64 x 32: the 3-letter word sits clear of the 26 px thumb; the ::after takes the track to a 48 x 72 px hit area */
+.k-switch {
+  position: relative; flex: none; width: var(--switch-w, 64px); height: var(--switch-h, 32px); min-height: var(--switch-h, 32px); padding: 0;
+  color: var(--ink-2); --well-face: var(--surface-sunk);
+  border-radius: var(--r-pill, 999px); box-shadow: var(--elev-recessed, none); cursor: pointer;
+}
+/* hit area around the 32 px track: 64 x 48. Vertical only: the track is already 64 wide, and a sideways extension put
+   the switch's own face under the ground probe beside it, so a filled ON track measured 1.00:1 against itself */
+.k-switch::after { content: ''; position: absolute; inset: -8px 0; }
+/* ON: the groove filled with the accent (3.22:1 on the light ground, 4.61 on the dark), its inset shade kept */
+.k-switch[data-on='true'] { --well-face: var(--switch-track-on, var(--k-on-fill, var(--selected-fill))); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--elev-press-fill, var(--elev-pressed, none)); }
+.k-switch-word { position: absolute; top: 50%; translate: 0 -50%; font: 700 11px/1 var(--font-sans, system-ui, sans-serif); letter-spacing: .06em; }
 .k-switch[data-on='false'] .k-switch-word { right: 9px; }
-.k-switch[data-on='true'] .k-switch-word { left: 9px; }
-.k-switch-thumb { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; box-sizing: border-box; border-radius: 50%; background: var(--surface-raised); border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); box-shadow: var(--elev-raised, none); transition: translate var(--dur-state, 120ms); }
+.k-switch[data-on='true'] .k-switch-word { left: 10px; }
+.k-switch-thumb {
+  position: absolute; top: 2px; left: 2px; width: 26px; height: 26px; box-sizing: border-box; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--lit-hi, transparent), transparent 60%), var(--thumb, var(--surface-raised)); border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui));
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none); transition: translate var(--dur-state, 160ms) cubic-bezier(.3, .7, .2, 1);
+}
 .k-switch[data-on='true'] .k-switch-thumb { translate: 32px 0; }
-.k-switch:hover { transform: none; border-color: var(--ink-1); }
-.k-switch-label { font: 14px/1.3 var(--font-sans, system-ui, sans-serif); color: var(--ink-1); }
+.k-switch:is(:hover, [data-demo='hover']) .k-switch-thumb::before { opacity: 1; }
+.k-switch:is(:active, [data-demo='pressed']) .k-switch-thumb { box-shadow: var(--elev-flush, none); }
+.k-switch-label { font: 500 14px/1.3 var(--font-sans, system-ui, sans-serif); color: var(--ink-1); }
+:root[data-theme^='clay'] .k-switch[aria-disabled='true'] .k-switch-thumb { box-shadow: var(--elev-flush, none); }
+:root[data-theme^='clay'] .k-switch[data-state='planned'] .k-switch-thumb { box-shadow: none; border: 1px dashed var(--edge-ui); background: transparent; }
 
-/* ---- 3 Rocker ---- */
-/* Two halves of at least 48 px (they measured 13.9 px wide: the 64 px body shrank them below their words). The body
-   carries the ridge; the lit half is pressed in (--elev-pressed) and inverted, so ON is a position, a fill and a word,
-   never a hue. The fault line hangs below the body instead of being clipped inside it. */
-.k-rocker { position: relative; display: inline-flex; flex: none; height: 44px; border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: var(--r-control, 10px); background: var(--surface-raised); box-shadow: var(--elev-raised, none); }
-.k-rocker-half { flex: 0 0 auto; min-width: 48px; height: 100%; border: 0; border-radius: 0; box-shadow: none; font: 600 11px/1 var(--font-mono, ui-monospace, monospace); padding: 0 10px; white-space: nowrap; background: transparent; }
-.k-rocker-half:first-child { border-radius: var(--r-control, 10px) 0 0 var(--r-control, 10px); }
-.k-rocker-half:nth-child(2) { border-radius: 0 var(--r-control, 10px) var(--r-control, 10px) 0; }
-.k-rocker-half + .k-rocker-half { border-left: 1px solid var(--edge-ui); }
-.k-rocker-half:hover { transform: none; }
-.k-rocker-half[data-active='true'] { background: var(--selected-fill); color: var(--selected-ink); box-shadow: var(--elev-pressed, none); }
-.k-rocker > .k-err { position: absolute; top: calc(100% + 4px); left: 0; white-space: nowrap; }
-.k-rocker[data-state='error'] { margin-bottom: 20px; }
+/* ---- 3 Rocker: a shallow tray holding two raised keys (C02-46's OFF and ON keys); the lit key is pressed in and
+   filled with the accent, so ON is a position, a fill and a word, never a hue alone. Keys of at least 56 x 44 px. ---- */
+.k-rocker {
+  position: relative; display: inline-flex; flex: none; gap: 6px; padding: 6px; --well-face: var(--surface-ground);
+  border-radius: 20px; box-shadow: var(--elev-recessed, none);
+}
+.k-rocker-half {
+  position: relative; flex: 0 0 auto; min-width: 56px; height: 44px; padding: 0 16px; white-space: nowrap; cursor: pointer;
+  font: 700 12px/1 var(--font-sans, system-ui, sans-serif); letter-spacing: .06em; color: var(--ink-2);
+  background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-shade, transparent); border-radius: var(--r-ctl, 14px);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
+  transition: transform var(--dur-press, 90ms) ease-out;
+}
+.k-rocker-half:is(:hover, [data-demo='hover']):not([data-active='true']) { color: var(--ink-1); background-color: var(--surface-raised-hi, var(--surface-raised)); }
+.k-rocker-half:is(:active, [data-demo='pressed']) { transform: translateY(1px) scale(.98); }
+.k-rocker-half[data-active='true'] { background: var(--k-on-fill, var(--selected-fill)); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--elev-press-fill, var(--elev-pressed, none)); border-color: var(--rim-shade, transparent); }
+.k-rocker > .k-err { position: absolute; top: calc(100% + 6px); left: 0; white-space: nowrap; }
+.k-rocker[data-state='error'] { margin-bottom: 22px; }
+:root[data-theme^='clay'] .k-rocker[aria-disabled='true'] .k-rocker-half { box-shadow: var(--elev-imprint, none); background: transparent; }
+:root[data-theme^='clay'] .k-rocker[aria-disabled='true']:not([data-state='planned']) .k-rocker-half[data-active='true'] { color: var(--k-on-ink, var(--selected-ink)); background: var(--k-on-fill, var(--selected-fill)); box-shadow: var(--elev-press-fill, none); }
+/* PLANNED draws the hollow form: no fill on either key, the lit key outlined in the dashed planned edge */
+:root[data-theme^='clay'] .k-rocker[data-state='planned'] .k-rocker-half { background: transparent; box-shadow: none; color: var(--ink-2); }
+:root[data-theme^='clay'] .k-rocker[data-state='planned'] .k-rocker-half[data-active='true'] { border: 1px dashed var(--edge-ui); }
 
-/* ---- 4 Key ---- */
-.k-key { position: relative; width: var(--key-size, 56px); height: var(--key-size, 56px); border-radius: var(--r-control, 10px); display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0; background: var(--key-bg, var(--surface-raised)); border-color: var(--key-edge, var(--edge-ui)); }
+/* ---- 4 Key: a 56 px rounded square, raised; a toggled key is pressed in and filled with the accent ---- */
+.k-key { width: var(--key-size, 56px); height: var(--key-size, 56px); border-radius: var(--r-key, 16px); display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 0; background: var(--key-bg, var(--surface-raised)); }
 .k-key-icon { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; }
-.k-key-cap { font: 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
-.k-key[data-toggled='true'] { background: var(--selected-fill); color: var(--selected-ink); }
-.k-key-ind { position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor; }
+.k-key-cap { font: 600 11px/1 var(--font-sans, system-ui, sans-serif); letter-spacing: .02em; color: var(--ink-2); }
+.k-key[data-toggled='true'] { background: var(--k-on-fill, var(--selected-fill)); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--elev-press-fill, var(--elev-pressed, none)); border-color: var(--rim-shade, transparent); }
+.k-key[data-toggled='true'] .k-key-cap { color: inherit; }
+.k-key[data-toggled='true']:hover { transform: none; }
+.k-key[data-toggled='true']:hover::before { opacity: 0; }
+.k-key-ind { position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; }
 .k-key[data-toggled='true'] .k-key-ind { background: currentColor; }
+.k-key > .k-err { position: absolute; top: calc(100% + 6px); left: 0; white-space: nowrap; }
+.k-key[data-state='error'] { margin-bottom: 26px; }
 
 /* ---- Raised Pill (5): the existing Button, restyled only under a clay theme ---- */
-:root[data-theme^='clay'] .ww-btn.primary { min-height: var(--hit, 44px); border-radius: 14px; padding-inline: 16px; font-weight: 500; background: var(--btn-primary-bg, var(--accent-fill)); color: var(--btn-primary-ink, var(--accent-on)); border: 1px solid var(--btn-primary-edge, var(--ink-1)); }
+:root[data-theme^='clay'] .ww-btn.primary { min-height: var(--hit, 44px); padding-inline: 22px; font-weight: 600; background: var(--accent-fill); color: var(--accent-on); box-shadow: var(--lip-on-fill, inset 0 0 0 transparent), var(--elev-raised, none); }
 :root[data-theme^='clay'] .ww-btn.primary:hover { background: var(--accent-fill-hover); }
 
-/* ---- 8 Tick Slider ---- */
-.k-slider { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; }
-.k-slider-label { grid-column: 1 / -1; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
-.k-slider input[type='range'] { width: 100%; accent-color: var(--selected-fill); }
-.k-ticks { grid-column: 1; display: flex; justify-content: space-between; height: 8px; }
+/* ---- 8 Tick Slider: an 8 px engraved groove, the run up to the pebble filled with the accent (C02-46, C02-23), ticks under it ---- */
+.k-slider { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; align-items: center; }
+.k-slider-label { grid-column: 1 / -1; font: 500 13px/1.3 var(--font-sans, system-ui, sans-serif); color: var(--ink-2); }
+.k-slider input[type='range'] { -webkit-appearance: none; appearance: none; width: 100%; height: var(--hit, 44px); margin: 0; background: transparent; cursor: pointer; accent-color: var(--k-on-fill, var(--selected-fill)); }
+.k-slider input[type='range']::-webkit-slider-runnable-track {
+  height: 10px; box-sizing: border-box; border-radius: var(--r-pill, 999px);
+  border: 1px solid transparent; border-color: var(--k-engrave, var(--edge-ui));
+  background: linear-gradient(to right, var(--k-on-fill, var(--selected-fill)) 0 calc(12px + (100% - 24px) * var(--k-frac, 0)), var(--surface-sunk) 0) padding-box, var(--k-engrave-paint, linear-gradient(transparent, transparent)), var(--surface-sunk);
+  box-shadow: var(--elev-groove, none);
+}
+.k-slider input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 26px; height: 26px; margin-top: -9px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--lit-hi, transparent), transparent 60%), var(--thumb, var(--surface-raised)); border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui));
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
+}
+.k-slider input[type='range']:active::-webkit-slider-thumb { box-shadow: var(--elev-flush, none); }
+.k-slider input[type='range']::-moz-range-track { height: 8px; border-radius: var(--r-pill, 999px); background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); }
+.k-slider input[type='range']::-moz-range-progress { height: 8px; border-radius: var(--r-pill, 999px); background: var(--k-on-fill, var(--selected-fill)); }
+.k-slider input[type='range']::-moz-range-thumb { width: 26px; height: 26px; border-radius: 50%; background: var(--thumb, var(--surface-raised)); border: 0; box-shadow: var(--elev-low, none); }
+.k-ticks { grid-column: 1; display: flex; justify-content: space-between; height: 8px; margin-top: -8px; padding: 0 13px; }
 .k-ticks i { width: 1px; height: 4px; background: var(--ink-3); }
-.k-ticks i[data-major='true'] { height: 8px; background: var(--ink-1); }
-.k-slider-value { font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
-.k-slider-num { width: 72px; background: var(--surface-sunk); border: 1px solid var(--edge-ui); color: var(--ink-1); }
+.k-ticks i[data-major='true'] { height: 8px; background: var(--ink-2); }
+.k-slider-value { font: 500 13px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; color: var(--ink-1); }
+.k-slider-num {
+  width: 80px; min-height: var(--hit, 44px); box-sizing: border-box; padding: 0 12px; font: 500 14px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); --well-face: var(--surface-sunk);
+  border-radius: var(--r-well, 14px); box-shadow: var(--elev-recessed, none);
+}
+:root[data-theme^='clay'] .k-slider:is([aria-disabled='true'], [data-state='planned']) { box-shadow: none; background: transparent; }
+:root[data-theme^='clay'] .k-slider input[type='range']:is([aria-disabled='true'], [data-state]) { box-shadow: none; border-color: transparent; background: transparent; }
+.k-slider[data-state='planned'] input[type='range']::-webkit-slider-runnable-track { background: transparent; box-shadow: none; border: 1px dashed var(--edge-ui); }
+.k-slider[data-state='planned'] input[type='range']::-webkit-slider-thumb { box-shadow: none; border: 1px dashed var(--edge-ui); background: transparent; }
+.k-slider[data-state='error'] input[type='range']::-webkit-slider-runnable-track { box-shadow: var(--glow-fault, none), var(--elev-groove, none); }
+/* the fault is the groove's glow (above), not a square frame round the whole label, track, ticks and value grid */
+@media not (forced-colors: active) { .k-slider:is([data-state='error'], [data-state='planned']) { border: 0; } }
+:root[data-theme^='clay'] .k-slider[aria-disabled='true'] input[type='range']::-webkit-slider-thumb { box-shadow: var(--elev-flush, none); }
 
-/* ---- 1 Knob ---- */
-.k-knob-wrap { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; }
-.k-knob { display: block; box-sizing: border-box; width: var(--knob-d, 96px); height: var(--knob-d, 96px); border-radius: 50%; background: var(--surface-sunk); border: 1px solid var(--edge-ui); box-shadow: var(--elev-recessed, none); } /* the rim is the 3:1 edge (it measured 1.14:1 with the shadow alone) */
+/* ---- 1 Knob: a turned cap with a notch, standing in an engraved bed that carries the tick ring and the accent arc ---- */
+.k-knob-wrap { display: inline-flex; flex-direction: column; align-items: center; gap: 8px; }
+.k-knob {
+  position: relative; display: block; box-sizing: border-box; width: var(--knob-d, 96px); height: var(--knob-d, 96px); border-radius: 50%; cursor: grab;
+  --well-face: var(--surface-sunk); box-shadow: var(--elev-well-deep, var(--elev-recessed, none));
+} /* the bed's engraved edge is the 3:1 boundary (it measured 1.14:1 with the shadow alone) */
+/* the cap: a raised disc the size of the svg's r=28 circle (56 percent), lit from the top left like a turned cap */
+.k-knob::before {
+  content: ''; position: absolute; inset: 21%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle at 34% 28%, var(--rim-lit, transparent), transparent 62%), var(--surface-raised);
+  border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui));
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none);
+}
 .k-knob-wrap[data-size='compact'] .k-knob { --knob-d: 56px; width: 56px; height: 56px; min-height: 56px; }
-.k-knob-svg { width: 100%; height: 100%; }
-.k-tick { stroke: var(--ink-2); stroke-width: 1; }
-.k-tick[data-major='true'] { stroke: var(--ink-1); }
+.k-knob-wrap[data-size='compact'] .k-knob::before { box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none); }
+.k-knob-svg { position: relative; display: block; width: 100%; height: 100%; }
+.k-tick { stroke: var(--ink-3); stroke-width: 1; stroke-linecap: round; }
+.k-tick[data-major='true'] { stroke: var(--ink-1); stroke-width: 1.5; }
 .k-knob[data-at] .k-tick[data-major='true'] { stroke-width: 2; }
-.k-knob-cap { fill: var(--surface-raised); stroke: var(--ridge-lo, var(--edge-ui)); stroke-width: 1.5; }
-.k-knob-notch { stroke: var(--ink-1); stroke-width: 3; stroke-linecap: round; }
-.k-knob-value { font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
+.k-knob-cap { fill: none; stroke: none; }
+/* the run from the minimum to the value: the accent, as on C02-46's dials; the notch and the printed value carry it too */
+.k-knob-arc { fill: none; stroke: var(--k-on-fill, var(--selected-fill)); stroke-width: 3; stroke-linecap: round; }
+.k-knob-notch { stroke: var(--ink-1); stroke-width: 3.5; stroke-linecap: round; }
+.k-knob-value { font: 500 13px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; color: var(--ink-1); }
+:root[data-theme^='clay'] .k-knob[aria-disabled='true'] { cursor: default; }
+:root[data-theme^='clay'] .k-knob[aria-disabled='true']::before { box-shadow: var(--elev-flush, none); }
+:root[data-theme^='clay'] .k-knob[aria-disabled='true'] .k-knob-arc { stroke: var(--ink-3); }
+:root[data-theme^='clay'] .k-knob[data-state='planned']::before { box-shadow: none; background: transparent; border: 1px dashed var(--edge-ui); }
 
-/* ---- 10 Plate and 12 Panel: chamfer is two layers so the diagonal keeps a 3:1 edge ---- */
-/* The plate's edge is a real 1 px border (an inset box-shadow is invisible to WCAG 1.4.11 and measured 1.09:1), and the
-   two chamfer cuts, where clip-path removes the border, are painted back as 1 px diagonals of the same colour: the
-   135 and 315 degree gradients start at the cut corner, and the cut line lies chamfer x 0.7071 along them. A plate that
-   is a link is a 44 px target (it measured 59 x 24). */
-.k-plate { --chamfer: 10px; position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; font: 12px/1 var(--font-mono, ui-monospace, monospace); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-1); border: 1px solid var(--edge-ui); background: linear-gradient(135deg, var(--edge-ui) 0 calc(var(--chamfer) * 0.7071 + 1px), transparent 0) border-box, linear-gradient(315deg, var(--edge-ui) 0 calc(var(--chamfer) * 0.7071 + 1px), transparent 0) border-box, var(--surface-raised); box-shadow: var(--elev-flush, none); text-decoration: none; clip-path: polygon(var(--chamfer) 0, 100% 0, 100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%, 0 100%, 0 var(--chamfer)); }
-a.k-plate, button.k-plate { min-height: var(--hit, 44px); box-sizing: border-box; cursor: pointer; }
-a.k-plate:hover { border-color: var(--ink-1); }
-a.k-plate:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -5px; }
+/* ---- 10 Plate and 12 Panel ----
+   Default: soft objects. The plate is a low raised label (sans caps, the serial in mono); the panel is a large soft
+   card (r-card 22 px, the raised pair, 24 px padding). The CHAMFER is kept, on purpose only, as the .k-chamfer class
+   for HUD and terminal frames: two layers so the diagonal keeps a 3:1 edge (an inset box-shadow is invisible to WCAG
+   1.4.11 and measured 1.09:1), the cuts painted back as 1 px diagonals, the shade as a drop-shadow filter that follows
+   the clip. A plate that is a link is a 44 px target (it measured 59 x 24). */
+.k-plate {
+  position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px;
+  font: 700 11px/1.2 var(--font-sans, system-ui, sans-serif); text-transform: uppercase; letter-spacing: .08em; color: var(--ink-1);
+  background: var(--surface-raised); border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-ctl, 14px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none); text-decoration: none;
+}
+.k-plate.k-chamfer {
+  --chamfer: 10px; border-radius: 0; border: 1px solid var(--edge-ui);
+  background: linear-gradient(135deg, var(--edge-ui) 0 calc(var(--chamfer) * 0.7071 + 1px), transparent 0) border-box, linear-gradient(315deg, var(--edge-ui) 0 calc(var(--chamfer) * 0.7071 + 1px), transparent 0) border-box, var(--surface-raised);
+  box-shadow: var(--elev-flush, none);
+  clip-path: polygon(var(--chamfer) 0, 100% 0, 100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%, 0 100%, 0 var(--chamfer));
+}
+a.k-plate, button.k-plate { min-height: var(--hit, 44px); box-sizing: border-box; cursor: pointer; transition: transform var(--dur-state, 120ms) ease-out; }
+a.k-plate:hover { transform: translateY(-1px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none); }
+a.k-plate.k-chamfer:hover { transform: none; border-color: var(--ink-1); box-shadow: var(--elev-flush, none); }
+a.k-plate:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
 .k-plate[data-state='planned'] { border-style: dashed; background: transparent; box-shadow: none; }
-.k-plate-serial { color: var(--ink-3); }
+.k-plate-serial { font: 500 11px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: .02em; text-transform: none; color: var(--ink-3); }
 .k-barcode { display: inline-flex; gap: 1px; height: 14px; }
 .k-barcode i { width: 1px; background: var(--ink-1); }
 .k-barcode i[data-w='1'] { width: 2px; }
 .k-barcode i[data-w='2'] { width: 3px; }
 
-/* The outer edge layer is the clipped ::before, not the panel's own background: a clip-path on the panel would cut its
-   shade away (the bench showed every Panel with no lift at all), while a drop-shadow filter on an unclipped panel
-   follows the alpha of its clipped layers, so the shade takes the chamfer's shape. The filter is static (nothing on a
-   panel animates a filter) and none in forced colours. */
-.k-panel { --chamfer: var(--chamfer-size, 10px); position: relative; isolation: isolate; padding: 1px; filter: var(--elev-raised-drop, none); }
-.k-panel::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--edge-ui); clip-path: polygon(var(--chamfer) 0, 100% 0, 100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%, 0 100%, 0 var(--chamfer)); }
-.k-panel-in { padding: 16px; background: var(--panel-bg, var(--surface-raised)); clip-path: polygon(var(--chamfer) 0, 100% 0, 100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%, 0 100%, 0 var(--chamfer)); }
-.k-panel[data-state='error']::before { background: var(--state-fault); }
-/* The generic [data-state='error'] 2px border must not reach the unclipped panel: it drew a square frame round the
-   chamfer with red corner wedges from ::before. The fault edge is the clipped ::before, 2 px like every error edge.
-   Forced colours keep the generic 2px CanvasText border (the chamfer is a rectangle there). */
+.k-panel { --chamfer: var(--chamfer-size, 10px); position: relative; isolation: isolate; padding: 0; filter: none; }
+.k-panel-in {
+  padding: 24px; background: var(--panel-bg, var(--surface-raised)); border-radius: var(--r-card, 24px);
+  border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui));
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none);
+}
+.k-panel-dash { display: none; }
+.k-panel[data-state='error'] .k-panel-in { box-shadow: var(--glow-fault, none), var(--lip, inset 0 0 0 transparent), var(--elev-raised, none); }
+.k-panel[data-state='planned'] .k-panel-in { background: transparent; box-shadow: none; border: 1px dashed var(--edge-ui); }
+/* the chamfered form (HUD, terminal): the outer edge layer is the clipped ::before, not the panel's own background,
+   because a clip-path on the panel would cut its shade away; a drop-shadow filter on the unclipped panel follows the
+   alpha of its clipped layers, so the shade takes the chamfer's shape. Static, and none in forced colours. */
+.k-panel.k-chamfer { padding: 1px; filter: var(--elev-raised-drop, none); }
+.k-panel.k-chamfer::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--edge-ui); clip-path: polygon(var(--chamfer) 0, 100% 0, 100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%, 0 100%, 0 var(--chamfer)); }
+.k-panel.k-chamfer .k-panel-in { padding: 16px; border: 0; border-radius: 0; box-shadow: none; clip-path: polygon(var(--chamfer) 0, 100% 0, 100% calc(100% - var(--chamfer)), calc(100% - var(--chamfer)) 100%, 0 100%, 0 var(--chamfer)); }
+.k-panel.k-chamfer[data-state='error']::before { background: var(--state-fault); }
+.k-panel.k-chamfer .k-panel-dash { display: block; }
+/* The generic [data-state='error'] 2px border must not reach the panel itself (on the chamfer it drew a square frame
+   with red corner wedges); the fault edge is the card's own 2 px border, or the chamfer's clipped ::before. Forced
+   colours keep the generic 2px CanvasText border (every panel is a rectangle there). */
 @media not (forced-colors: active) {
-  .k-panel[data-state='error'] { border: 0; padding: 2px; }
-  /* the same for PLANNED: the generic dashed rule gave the unclipped panel a 3 px (medium) square frame over the
-     chamfered .k-panel-dash outline, which is the one PLANNED edge */
+  .k-panel[data-state='error'] { border: 0; }
+  .k-panel.k-chamfer[data-state='error'] { padding: 2px; }
+  /* the same for PLANNED: the generic dashed rule gave the panel a 3 px (medium) square frame over the one PLANNED edge */
   .k-panel[data-state='planned'] { border: 0; }
 }
 /* the fault line is its own row above the body (inline it ran into the text: "could not loadFaulty panel") */
 .k-panel-in > .k-err, .k-dialog-body > .k-err { display: flex; margin: 0 0 8px; }
 .k-panel[data-state='planned'] { filter: none; }
-.k-panel[data-state='planned']::before { content: none; }
+.k-panel.k-chamfer[data-state='planned']::before { content: none; }
 .k-panel-dash { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: var(--edge-ui); stroke-width: 1; pointer-events: none; }
-.k-panel[data-state='planned'] .k-panel-in { background: transparent; }
+.k-panel.k-chamfer[data-state='planned'] .k-panel-in { background: transparent; border: 0; }
 
-/* ---- 13 Frame ---- */
+/* ---- 13 Frame: the HUD bracket frame, square on purpose ---- */
 .k-frame { position: relative; padding: 16px; }
 .k-br { position: absolute; width: var(--bracket-len, 12px); height: var(--bracket-len, 12px); border: 0 solid var(--edge-ui); }
 .k-br[data-at='tl'] { top: 0; left: 0; border-top-width: var(--bracket-w, 2px); border-left-width: var(--bracket-w, 2px); }
@@ -176,83 +338,144 @@ a.k-plate:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 
 .k-frame[data-state='planned'] .k-br { border-style: dashed; }
 .k-frame-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
 
-/* ---- 6 Readout, 7 Numerals, 14 Lines ---- */
-.k-readout, .k-numerals { position: relative; min-height: 40px; padding: 8px 12px; background: var(--readout-bg, var(--surface-sunk)); border: 1px solid var(--readout-edge, var(--edge-ui)); box-shadow: var(--elev-sunk, none); display: grid; gap: 2px; }
-.k-readout-label { font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
-.k-readout-lamp { position: absolute; top: 8px; right: 8px; }
-.k-readout-value { font: 500 20px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
+/* ---- 6 Readout, 7 Numerals, 14 Lines: deep LCD wells with crisp numerals ---- */
+.k-readout, .k-numerals {
+  position: relative; min-height: 48px; padding: 12px 16px; display: grid; gap: 4px;
+  --well-face: var(--readout-bg, var(--surface-sunk));
+  border-radius: var(--r-well, 14px); box-shadow: var(--elev-well-deep, var(--elev-recessed, none));
+}
+.k-readout-label { font: 500 12px/1.2 var(--font-sans, system-ui, sans-serif); letter-spacing: .02em; color: var(--ink-2); }
+.k-readout-lamp { position: absolute; top: 12px; right: 12px; }
+.k-readout-value { font: 500 22px/1.15 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; letter-spacing: -.01em; color: var(--ink-1); }
 .k-readout[data-state='waiting'] .k-readout-value, .k-readout[data-state='planned'] .k-readout-value { color: var(--ink-3); }
+.k-readout[data-state='planned'] { box-shadow: none; }
+.k-numerals { padding: 14px 20px; }
 .k-numerals[data-size='72'] .k-numerals-value { font-size: 72px; }
-.k-numerals-value { font-size: 56px; line-height: 1; color: var(--ink-1); }
+.k-numerals-value { font-size: 56px; line-height: 1; letter-spacing: .02em; color: var(--ink-1); }
 .k-doto { font-family: var(--font-doto, var(--font-mono, ui-monospace, monospace)); font-variant-numeric: tabular-nums; }
-.k-lines { padding: 8px 12px; background: var(--surface-sunk); border: 1px solid var(--edge-ui); font: 13px/1.5 var(--font-mono, ui-monospace, monospace); }
+.k-lines {
+  padding: 12px 16px; font: 13px/1.6 var(--font-mono, ui-monospace, monospace); --well-face: var(--surface-sunk);
+  border-radius: var(--r-well, 14px); box-shadow: var(--elev-recessed, none);
+}
 .k-line-row { display: flex; gap: 12px; align-items: center; }
 .k-line-key { color: var(--ink-3); min-width: 8ch; }
-.k-line-value { color: var(--ink-1); }
+.k-line-value { color: var(--ink-1); font-variant-numeric: tabular-nums; }
 
 /* ---- 18 Rail, 19 Progress ---- */
 .k-rail { list-style: none; margin: 0; padding: 0; }
-.k-rail-row { display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: 10px; min-height: 28px; border-bottom: 1px solid var(--edge-hair); font: 12px/1.3 var(--font-mono, ui-monospace, monospace); }
+.k-rail-row { display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: 12px; min-height: 32px; border-bottom: 1px solid var(--edge-hair); font: 13px/1.3 var(--font-sans, system-ui, sans-serif); }
+.k-rail-row:last-child { border-bottom: 0; }
 .k-rail-row[data-actionable='true'] { min-height: var(--hit, 44px); }
 .k-rail-row[data-state='planned'] { border-bottom-style: dashed; }
 .k-rail-btn { display: contents; font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
-.k-rail-label { color: var(--ink-3); }
-.k-rail-value { color: var(--ink-1); }
-.k-progress { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
-.k-progress-track { position: relative; height: 8px; background: var(--surface-sunk); border: 1px solid var(--edge-ui); }
-.k-progress-fill { position: absolute; inset: 0 auto 0 0; background: var(--selected-fill); }
-.k-progress-ticks { position: absolute; inset: -5px 0; display: flex; justify-content: space-between; }
-.k-progress-ticks i { width: 1px; background: var(--ink-3); }
+.k-rail-label { color: var(--ink-2); }
+.k-rail-value { color: var(--ink-1); font: 500 13px/1.3 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; }
+.k-progress { flex: 1 1 240px; min-width: 200px; display: grid; grid-template-columns: minmax(120px, 1fr); grid-auto-flow: column; grid-auto-columns: auto; gap: 12px; align-items: center; font: 500 12px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; color: var(--ink-1); }
+.k-progress-track {
+  position: relative; height: 12px; box-sizing: border-box; --well-face: var(--surface-sunk); border-radius: var(--r-pill, 999px);
+  box-shadow: var(--elev-recessed, none);
+}
+.k-progress-fill { position: absolute; inset: 1px auto 1px 1px; min-width: 8px; max-width: calc(100% - 2px); border-radius: inherit; background: var(--k-on-fill, var(--selected-fill)); box-shadow: var(--lip-on-fill, inset 0 0 0 transparent); }
+.k-progress-ticks { position: absolute; inset: -6px 8px; display: flex; justify-content: space-between; pointer-events: none; }
+.k-progress-ticks i { width: 1px; background: var(--ink-3); opacity: .5; }
+.k-progress[data-known='false'] { grid-template-columns: auto; }
+/* data-state on a progress bar is the reading's lamp state, not a control state: no generic dashed or fault frame */
+.k-progress[data-state], :root[data-theme^='clay'] .k-progress[data-state] { border: 0; background: transparent; box-shadow: none; }
 
-/* ---- 15 Console ---- */
-.k-console { display: grid; background: var(--readout-bg, var(--surface-sunk)); border: 1px solid var(--edge-ui); font: 13px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
-.k-console-bar { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; border-bottom: 1px solid var(--edge-hair); }
-.k-console-log { height: calc(var(--log-line, 18px) * 12); overflow: auto; padding: 4px 8px; }
-.k-console-line { display: flex; gap: 8px; align-items: center; min-height: var(--log-line, 18px); }
+/* ---- 15 Console: a terminal well, mono on purpose ---- */
+.k-console {
+  display: grid; overflow: hidden; --well-face: var(--readout-bg, var(--surface-sunk)); font: 13px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1);
+  border-radius: var(--r-well, 14px); box-shadow: var(--elev-well-deep, var(--elev-recessed, none));
+}
+.k-console-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 8px 6px 14px; border-bottom: 1px solid var(--edge-hair); font-family: var(--font-sans, system-ui, sans-serif); font-weight: 600; background: var(--surface-raised); }
+/* the bar is the raised lid of the terminal well, so its pressed Follow key is a 3:1 accent piece against it (2.82 on the sunk face) */
+.k-console-follow { padding: 0 16px; font-size: 13px; }
+.k-console-follow[aria-pressed='true'] { background: var(--k-on-fill, var(--selected-fill)); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--elev-press-fill, var(--elev-pressed, none)); border-color: var(--rim-shade, transparent); }
+.k-console-log { height: calc(var(--log-line, 18px) * 12); overflow: auto; padding: 6px 14px; }
+.k-console-line { display: flex; gap: 8px; align-items: center; min-height: var(--log-line, 18px); border-radius: 4px; }
 .k-console-line[data-cursor='true'] { background: var(--selected-fill); color: var(--selected-ink); }
 .k-console-at, .k-console-tag { color: var(--ink-3); flex: none; }
 .k-console-line[data-cursor='true'] .k-console-at, .k-console-line[data-cursor='true'] .k-console-tag { color: inherit; }
-.k-console-prompt { display: flex; gap: 6px; align-items: center; padding: 4px 8px; border-top: 1px solid var(--edge-hair); }
+.k-console-prompt { display: flex; gap: 6px; align-items: center; padding: 0 14px; border-top: 1px solid var(--edge-hair); }
 .k-prompt-input { flex: 1; font: inherit; color: inherit; background: none; border: 0; min-height: var(--hit, 44px); }
 .k-prompt-cursor { width: 8px; height: 14px; background: var(--ink-1); } /* a solid block that never blinks */
-.k-console-prompt[data-state='planned'] { border-top-style: dashed; }
+.k-console-prompt[data-state='planned'] { border: 0; border-top: 1px dashed var(--edge-ui); }
 
-/* ---- 16 Palette ---- */
-.k-palette { width: 560px; max-width: 100%; max-height: 440px; display: grid; grid-template-rows: auto 1fr; background: var(--surface-raised); border: 1px solid var(--edge-ui); }
-.k-palette-field { min-height: var(--hit, 44px); padding: 0 12px; font: 16px/1 var(--font-sans, system-ui, sans-serif); color: var(--ink-1); background: transparent; border: 0; border-bottom: 1px solid var(--edge-ui); }
+/* ---- 16 Palette: a floating card, an engraved search well, rows that fill when active ---- */
+.k-palette {
+  width: 560px; max-width: 100%; max-height: 440px; display: grid; grid-template-rows: auto 1fr; gap: 8px; padding: 12px; box-sizing: border-box;
+  background: var(--surface-raised); border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-card, 22px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-float, none);
+}
+.k-palette-field {
+  min-height: var(--hit, 44px); padding: 0 16px; font: 16px/1 var(--font-sans, system-ui, sans-serif); color: var(--ink-1); --well-face: var(--surface-sunk);
+  border-radius: var(--r-well, 14px); box-shadow: var(--elev-recessed, none);
+}
 .k-palette-list { overflow: auto; }
-.k-palette-group { padding: 8px 12px 4px; font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-3); text-transform: uppercase; }
-.k-palette-row { display: grid; grid-template-columns: 9ch 1fr auto; gap: 10px; align-items: center; padding: 0 12px; color: var(--ink-1); cursor: pointer; }
-.k-palette-row[data-active='true'] { background: var(--selected-fill); color: var(--selected-ink); }
+.k-palette-group { padding: 12px 12px 4px; font: 600 11px/1 var(--font-sans, system-ui, sans-serif); letter-spacing: .08em; color: var(--ink-3); text-transform: uppercase; }
+.k-palette-row { display: grid; grid-template-columns: 9ch 1fr auto; gap: 12px; align-items: center; padding: 0 12px; border-radius: 10px; color: var(--ink-1); cursor: pointer; }
+.k-palette-row[data-active='true'] { background: var(--k-on-fill, var(--selected-fill)); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--elev-low, none); }
 .k-palette-row[data-state='planned'] { border: 1px dashed var(--edge-ui); }
 .k-palette-hint { font: 12px/1 var(--font-mono, ui-monospace, monospace); color: inherit; opacity: .85; }
-.k-palette-empty { margin: 0; padding: 12px; font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-3); border: 1px solid var(--edge-hair); }
+/* on the accent row the hint keeps full ink: at .85 it measured 3.95:1 on the orange */
+.k-palette-row[data-active='true'] .k-palette-hint { opacity: 1; }
+.k-palette-empty { margin: 0; padding: 12px; font: 13px/1.4 var(--font-sans, system-ui, sans-serif); color: var(--ink-3); border-radius: 10px; background: var(--surface-sunk); }
 
-/* ---- 17 Toast ---- */
-.k-toasts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; width: min(360px, 100%); min-width: 0; } /* it ran 27 px past a 390 px viewport */
-.k-toast { --notch: 6px; display: flex; align-items: center; gap: 10px; width: auto; min-width: 0; max-width: 100%; padding: 10px 14px; background: var(--surface-raised); box-shadow: inset 0 0 0 1px var(--edge-ui); clip-path: polygon(0 0, calc(100% - var(--notch)) 0, 100% var(--notch), 100% 100%, 0 100%); font: 14px/1.3 var(--font-sans, system-ui, sans-serif); color: var(--ink-1); }
-.k-toast[data-tag='FAULT'] { box-shadow: inset 0 0 0 2px var(--state-fault); }
-.k-toast-tag { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
-.k-toast-msg { flex: 1; }
+/* ---- 17 Toast: a small floating card; a FAULT toast keeps its 2 px fault edge (that edge is the information) ---- */
+.k-toasts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; width: min(360px, 100%); min-width: 0; } /* it ran 27 px past a 390 px viewport */
+.k-toast {
+  --notch: 6px; /* kept from wave 5 as a name only: the soft toast no longer clips a notch, but .k-chamfer rules may read it */
+  display: flex; align-items: center; gap: 12px; width: auto; min-width: 0; max-width: 100%; box-sizing: border-box; padding: 8px 8px 8px 16px; min-height: 56px;
+  background: var(--surface-raised); border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: 18px; box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-high, none);
+  font: 14px/1.35 var(--font-sans, system-ui, sans-serif); color: var(--ink-1);
+}
+.k-toast[data-tag='FAULT'] { box-shadow: var(--glow-fault, none), var(--lip, inset 0 0 0 transparent), var(--elev-high, none); }
+.k-toast-tag { flex: none; font: 700 11px/1 var(--font-sans, system-ui, sans-serif); letter-spacing: .08em; color: var(--ink-2); }
+.k-toast-msg { flex: 1; min-width: 0; }
+.k-toast-undo { flex: none; padding: 0 16px; font-size: 13px; }
 
-/* ---- 20 Dialog ---- */
+/* ---- 20 Dialog: a floating card; the title is a heading in the sans face, not a mono stamp ---- */
 .k-portal { position: fixed; inset: 0; z-index: var(--z-overlay, 50); display: grid; place-items: center; }
 .k-scrim { position: absolute; inset: 0; background: var(--scrim); }
-.k-dialog { position: relative; width: min(440px, calc(100vw - 32px)); background: var(--surface-raised); border: 1px solid var(--edge-ui); box-shadow: var(--elev-raised, none); }
-.k-dialog[data-state='error'] { border: 2px solid var(--state-fault); }
-.k-dialog-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 12px; border-bottom: 1px solid var(--edge-ui); background-image: repeating-linear-gradient(135deg, var(--edge-hair) 0 1px, transparent 1px 4px); background-size: 48px 100%; background-repeat: no-repeat; }
-.k-dialog-title { margin: 0; padding: 10px 0 10px 56px; font: 600 12px/1 var(--font-mono, ui-monospace, monospace); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-1); }
-.k-dialog-x { width: var(--hit, 44px); height: var(--hit, 44px); display: inline-flex; align-items: center; justify-content: center; padding: 0; }
-.k-dialog-body { padding: 16px; font: 14px/1.5 var(--font-sans, system-ui, sans-serif); color: var(--ink-1); }
-.k-dialog-foot { display: flex; justify-content: flex-end; gap: 12px; padding: 12px 16px 16px; }
-.k-btn { padding: 0 16px; border-radius: 14px; }
-.k-btn[data-primary='true'] { background: var(--accent-fill); color: var(--accent-on); border-color: var(--ink-1); }
+.k-dialog {
+  position: relative; width: min(440px, calc(100vw - 32px)); box-sizing: border-box; overflow: hidden;
+  background: var(--surface-raised); border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-card, 22px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-float, none);
+}
+.k-dialog[data-state='error'] { box-shadow: var(--glow-fault, none), var(--lip, inset 0 0 0 transparent), var(--elev-float, none); }
+.k-dialog-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 12px 4px 24px; }
+.k-dialog-title { margin: 0; padding: 0; font: 600 17px/1.3 var(--font-sans, system-ui, sans-serif); letter-spacing: -.01em; color: var(--ink-1); }
+.k-dialog-x { flex: none; width: var(--hit, 44px); height: var(--hit, 44px); display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--ink-2); }
+.k-dialog-body { padding: 4px 24px 8px; font: 14px/1.55 var(--font-sans, system-ui, sans-serif); color: var(--ink-1); }
+.k-dialog-foot { display: flex; justify-content: flex-end; gap: 12px; padding: 16px 24px 24px; }
+.k-btn { padding: 0 22px; }
+.k-btn[data-primary='true'] { background: var(--accent-fill); color: var(--accent-on); box-shadow: var(--lip-on-fill, inset 0 0 0 transparent), var(--elev-raised, none); }
+.k-btn[data-primary='true']:is(:hover, [data-demo='hover']) { background: var(--accent-fill-hover); }
+.k-btn[data-primary='true']:is(:active, [data-demo='pressed']) { box-shadow: var(--elev-press-fill, var(--elev-pressed, none)); }
 
-/* ---- 21 Folder Tabs ---- */
-.k-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--edge-ui); }
-.k-tab { padding: 0 16px; border-bottom: 0; border-radius: var(--r-control, 10px) var(--r-control, 10px) 0 0; background: var(--surface-sunk); margin-bottom: -1px; }
-.k-tab[aria-selected='true'] { background: var(--surface-raised); font-weight: 700; box-shadow: inset 0 -2px 0 var(--selected-fill); transform: translateY(-2px); }
-.k-tab-count { margin-left: 8px; font: 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-3); }
+/* ---- 21 Folder Tabs: a recessed channel; the selected tab is a raised, filled piece ---- */
+.k-tabs {
+  display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; max-width: 100%; box-sizing: border-box; --well-face: var(--surface-ground);
+  border-radius: calc(var(--r-ctl, 14px) + 4px); box-shadow: var(--elev-recessed, none);
+}
+.k-tab {
+  position: relative; padding: 0 18px; font: 500 14px/1.2 var(--font-sans, system-ui, sans-serif); color: var(--ink-2); cursor: pointer;
+  background: transparent; border: 1px solid transparent; border-radius: var(--r-ctl, 14px); box-shadow: none;
+  transition: transform var(--dur-press, 90ms) ease-out;
+}
+.k-tab:is(:hover, [data-demo='hover']):not([aria-selected='true']) { color: var(--ink-1); }
+.k-tab:is(:active, [data-demo='pressed']) { transform: translateY(1px) scale(.98); }
+/* the selected tab: the accent piece raised out of the channel (3.22:1 against the ground-coloured channel) */
+.k-tab[aria-selected='true'] {
+  font-weight: 600; background: var(--k-on-fill, var(--selected-fill)); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--lip-on-fill, inset 0 0 0 transparent), var(--elev-low, none);
+  border-color: var(--rim-shade, transparent);
+}
+.k-tab-count { margin-left: 8px; padding: 2px 7px; border-radius: var(--r-pill, 999px); font: 600 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); background: var(--surface-raised); }
+.k-tab[aria-selected='true'] .k-tab-count { color: var(--ink-1); }
 .k-tab .planned-glyph { margin-left: 8px; vertical-align: -1px; color: var(--state-planned, var(--ink-3)); }
 :root[data-theme^='clay'] .k-tab[data-state='planned'] { color: var(--ink-2); background: transparent; }
 
@@ -263,7 +486,7 @@ a.k-plate:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 
 :root { --tooth-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cfilter id='t' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.8 0 0 0 -0.6'/%3E%3C/filter%3E%3Crect width='64' height='64' filter='url(%23t)'/%3E%3C/svg%3E"); }
 .k-tooth, .k-panel-in { position: relative; isolation: isolate; }
 .k-tooth::before, .k-panel-in::before {
-  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit;
   background: var(--ink-1); opacity: calc(var(--tooth-opacity, 0) * var(--decor-opacity, 1));
   -webkit-mask: var(--tooth-tile) 0 0 / 64px 64px repeat; mask: var(--tooth-tile) 0 0 / 64px 64px repeat;
 }
@@ -272,7 +495,7 @@ a.k-plate:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 
    layer at the snapped angle (8 directions; 0 = from the top, clockwise); only its opacity changes (rest 0, lit 0.7,
    160 ms), only the hovered panel is lit, and the pointer angle is snapped in JS only when it crosses a 45 degree
    sector, so a pointer sweep repaints the layer at most 8 times. Focus settles the panel 1 px into the ground and
-   dims its siblings by 4 percent (opacity only). ---- */
+   dims its siblings by 4 percent (opacity only). The sheen reads --rim-lit: the lip's white, so it shows in dark too. ---- */
 .k-lit { position: relative; --lx: 15%; --ly: 0%; transition: translate var(--dur-state, 120ms), opacity var(--dur-state, 120ms); }
 .k-lit[data-angle='0'] { --lx: 50%; --ly: 0%; }
 .k-lit[data-angle='45'] { --lx: 100%; --ly: 0%; }
@@ -282,69 +505,172 @@ a.k-plate:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 
 .k-lit[data-angle='225'] { --lx: 0%; --ly: 100%; }
 .k-lit[data-angle='270'] { --lx: 0%; --ly: 50%; }
 .k-lit[data-angle='315'] { --lx: 0%; --ly: 0%; }
-.k-lit .k-panel-in { box-shadow: var(--elev-flush, none); }
 .k-lit .k-panel-in::after {
-  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  background: radial-gradient(circle at var(--lx) var(--ly), var(--lit-hi), transparent 65%);
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit;
+  background: radial-gradient(circle at var(--lx) var(--ly), var(--rim-lit, var(--lit-hi)), transparent 65%);
   opacity: 0; transition: opacity var(--dur-fade, 160ms);
 }
 .k-lit:hover .k-panel-in::after, .k-lit:focus-within .k-panel-in::after, .k-lit[data-lit='true'] .k-panel-in::after { opacity: 0.7; }
 .k-lit:focus-within { translate: 0 1px; }
 :has(> .k-lit:focus-within) > .k-lit:not(:focus-within) { opacity: 0.96; }
 
-/* ---- the legacy ww-* controls the kit still draws (Button, IconButton, Field, Fold, MasterDetail, the drawer field),
-   restyled ONLY under a clay theme so the classic pages are unchanged. Measured before: Button edge 1.23:1, Field edge
-   1.23:1 with no focus outline, Field 186 x 41 and IconButton 41 x 43 hit areas, Fold with no edge at all (1.00:1),
-   MasterDetail rows 64 x 40, its list drawn with bullets and its detail pane one word per line (container-type
-   inline-size gives a flex item zero intrinsic width). ---- */
+/* ---- the legacy ww-* controls the kit still draws (Button, IconButton, Segmented, Chip, Field, Fold, MasterDetail, the
+   overlays), restyled ONLY under a clay theme so the classic pages are unchanged. Measured before the first clay pass:
+   Button edge 1.23:1, Field edge 1.23:1 with no focus outline, Field 186 x 41 and IconButton 41 x 43 hit areas, Fold
+   with no edge at all (1.00:1), MasterDetail rows 64 x 40. ---- */
 :root[data-theme^='clay'] .ww-btn {
   --ctl-h: var(--hit, 44px);
   min-width: var(--hit, 44px);
+  isolation: isolate;
+  padding-inline: 20px;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-weight: 600;
+  letter-spacing: .01em;
   color: var(--ink-1);
   background: var(--surface-raised);
-  border: 1px solid var(--edge-ui);
-  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
-  box-shadow: var(--elev-raised, none);
-  transition: transform var(--dur-state, 120ms), border-color var(--dur-state, 120ms);
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-pill, 999px);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none);
+  transition: transform var(--dur-state, 120ms) ease-out;
 }
-:root[data-theme^='clay'] .ww-btn:hover { transform: translateY(-1px); border-color: var(--ink-1); }
-:root[data-theme^='clay'] .ww-btn:active { transform: translateY(1px); box-shadow: var(--elev-pressed, none); }
-:root[data-theme^='clay'] .ww-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; transform: translateY(1px); box-shadow: var(--elev-flush, none); }
-:root[data-theme^='clay'] .ww-btn.danger { color: var(--state-fault); border-color: var(--state-fault); }
+:root[data-theme^='clay'] .ww-btn[data-size='sm'] { padding-inline: 16px; }
+:root[data-theme^='clay'] .ww-btn[data-size='lg'] { padding-inline: 28px; }
+:root[data-theme^='clay'] .ww-iconbtn { padding-inline: 0; min-width: var(--hit, 44px); }
+:root[data-theme^='clay'] .ww-btn::before {
+  content: ''; position: absolute; inset: -1px; z-index: -1; border-radius: inherit; pointer-events: none;
+  box-shadow: var(--elev-high, none); opacity: 0; transition: opacity var(--dur-state, 120ms) ease-out;
+}
+/* hover: one step up and the face 2 percent lighter; pressed: the inset pair, 1 px down, 2 percent smaller, in --dur-press.
+   [data-demo] paints either state still, so the bench can show them in a row beside the default */
+:root[data-theme^='clay'] .ww-btn:is(:hover, [data-demo='hover']) { transform: translateY(-1px); background: var(--surface-raised-hi, var(--surface-raised)); }
+:root[data-theme^='clay'] .ww-btn.primary:is(:hover, :active, [data-demo='hover'], [data-demo='pressed']) { background: var(--accent-fill-hover); }
+:root[data-theme^='clay'] .ww-btn:is(:hover, [data-demo='hover'])::before { opacity: 1; }
+:root[data-theme^='clay'] .ww-btn:is(:active, [data-demo='pressed']) { transform: translateY(1px) scale(.98); box-shadow: var(--elev-pressed, none); border-color: var(--rim-shade, var(--edge-ui)); transition-duration: var(--dur-press, 90ms); }
+:root[data-theme^='clay'] .ww-btn:is(:active, [data-demo='pressed'])::before { opacity: 0; transition: none; }
+:root[data-theme^='clay'] .ww-btn.primary:is(:active, [data-demo='pressed']) { box-shadow: var(--elev-press-fill, var(--elev-pressed, none)); }
+:root[data-theme^='clay'] .ww-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+:root[data-theme^='clay'] .ww-btn.danger { color: var(--state-fault); }
+/* loading: a lower step (the press is under way) and a static ring with a gap before the label, in the label's ink. It
+   never spins: an indefinite spinner is the idle loop the bench forbids, and the words "Working" are read out */
+:root[data-theme^='clay'] .ww-btn[data-loading='true'] {
+  color: var(--ink-2); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none); cursor: progress; padding-inline-start: 44px;
+  background:
+    conic-gradient(from 300deg, var(--surface-raised) 0 70deg, transparent 0) 16px 50% / 18px 18px no-repeat,
+    radial-gradient(circle, transparent 0 6px, var(--ink-2) 6.5px 8px, transparent 8.5px) 16px 50% / 18px 18px no-repeat,
+    var(--surface-raised);
+}
+:root[data-theme^='clay'] .ww-btn.primary[data-loading='true'] {
+  color: var(--accent-on); box-shadow: var(--lip-on-fill, inset 0 0 0 transparent), var(--elev-low, none);
+  background:
+    conic-gradient(from 300deg, var(--accent-fill) 0 70deg, transparent 0) 16px 50% / 18px 18px no-repeat,
+    radial-gradient(circle, transparent 0 6px, var(--accent-on) 6.5px 8px, transparent 8.5px) 16px 50% / 18px 18px no-repeat,
+    var(--accent-fill);
+}
+/* disabled: flat. The drop pair goes, the face sinks to a faint imprint of the ground's colour; the label stays at ink-3
+   (4.5:1 or better) beside the lock and the printed reason, so the state is an object difference and words, not a fade */
+:root[data-theme^='clay'] .ww-btn[aria-disabled='true'] { color: var(--ink-3); background: var(--surface-ground); box-shadow: var(--elev-imprint, none); }
+:root[data-theme^='clay'] .ww-btn[aria-disabled='true']:is(:hover, :active) { transform: none; background: var(--surface-ground); box-shadow: var(--elev-imprint, none); }
+:root[data-theme^='clay'] .ww-reason { font-family: var(--font-sans, system-ui, sans-serif); color: var(--ink-2); }
+
+/* Segmented: a recessed channel the colour of the ground; the checked option is a raised accent piece (3.22:1 against
+   the channel, the selected thumb sitting inside 4 px of padding so its shade is never cut) */
+:root[data-theme^='clay'] .ww-seg {
+  gap: 4px; padding: 4px; --well-face: var(--surface-ground);
+  border-radius: var(--r-pill, 999px); box-shadow: var(--elev-recessed, none);
+}
+:root[data-theme^='clay'] .ww-seg-opt { padding-inline: 16px; border: 1px solid transparent; border-radius: var(--r-pill, 999px); font-family: var(--font-sans, system-ui, sans-serif); font-weight: 500; color: var(--ink-2); transition: transform var(--dur-press, 90ms) ease-out; }
+:root[data-theme^='clay'] .ww-seg-opt:is(:active, [data-demo='pressed']) { transform: translateY(1px) scale(.98); }
+:root[data-theme^='clay'] .ww-seg-opt[aria-checked='true'] {
+  font-weight: 600; background: var(--k-on-fill, var(--selected-fill)); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--lip-on-fill, inset 0 0 0 transparent), var(--elev-low, none);
+  border-color: var(--rim-shade, transparent);
+}
+:root[data-theme^='clay'] .ww-seg-opt[aria-disabled='true'] { box-shadow: none; background: transparent; }
+
+/* Chip: a small low pill; pressed or solid is a filled piece, learned is pressed in; the glyph and word carry the state */
+:root[data-theme^='clay'] .ww-chip {
+  padding-inline: 12px; font-family: var(--font-sans, system-ui, sans-serif); font-weight: 500; color: var(--ink-1); background: var(--surface-raised);
+  border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-pill, 999px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
+}
+:root[data-theme^='clay'] button.ww-chip { padding-inline: 16px; cursor: pointer; transition: transform var(--dur-press, 90ms) ease-out; }
+:root[data-theme^='clay'] button.ww-chip:hover { transform: translateY(-1px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none); }
+:root[data-theme^='clay'] button.ww-chip:active { transform: translateY(1px); box-shadow: var(--elev-pressed, none); }
+:root[data-theme^='clay'] .ww-chip[data-cycle-state='learned'] { background: var(--surface-sunk); box-shadow: var(--elev-pressed, none); border-color: var(--rim-shade, transparent); }
+:root[data-theme^='clay'] .ww-chip:is([aria-pressed='true'], [data-cycle-state='solid']) { background: var(--k-on-fill, var(--selected-fill)); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--elev-press-fill, var(--elev-pressed, none)); border-color: var(--rim-shade, transparent); }
+:root[data-theme^='clay'] .ww-chip:is([aria-pressed='true'], [data-cycle-state='solid']) .ww-chip-count { color: inherit; }
+
+/* Field: the label above in the sans face, the control a deep engraved well; the error is a 2 px fault edge plus words */
+:root[data-theme^='clay'] .ww-field { gap: 8px; }
+:root[data-theme^='clay'] .ww-field-label { font: 500 13px/1.3 var(--font-sans, system-ui, sans-serif); color: var(--ink-2); }
 :root[data-theme^='clay'] .ww-input {
   min-height: var(--hit, 44px);
   box-sizing: border-box;
+  padding-inline: 16px;
   color: var(--ink-1);
-  background: var(--surface-sunk);
-  border: 1px solid var(--edge-ui);
+  --well-face: var(--k-field-face, var(--surface-sunk)); /* light: a pale well (C02-03, C02-23), the recess is the inset pair and the engraving */
+  border-radius: var(--r-well, 14px);
   box-shadow: var(--elev-recessed, none);
 }
+/* the Well Wisher wells under clay: the same engraved edge and face as the kit's wells above */
+:root[data-theme^='clay'] :is(.ww-input, .ww-seg, .ww-md-detail) {
+  border: 1px solid transparent; border-color: var(--k-engrave, var(--edge-ui));
+  background: linear-gradient(var(--well-face, var(--surface-sunk)), var(--well-face, var(--surface-sunk))) padding-box, var(--k-engrave-paint, linear-gradient(transparent, transparent)), var(--well-face, var(--surface-sunk));
+}
+:root[data-theme^='clay'] textarea.ww-input { padding-block: 12px; }
+:root[data-theme^='clay'] .ww-input::placeholder { color: var(--ink-3); }
 :root[data-theme^='clay'] .ww-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-:root[data-theme^='clay'] .ww-field[data-error='true'] .ww-input { border: 2px solid var(--state-fault); }
-:root[data-theme^='clay'] .ww-field[data-disabled='true'] .ww-input { color: var(--ink-3); box-shadow: none; }
+:root[data-theme^='clay'] .ww-field[data-error='true'] .ww-input { box-shadow: var(--glow-fault, none), var(--elev-recessed, none); }
+:root[data-theme^='clay'] .ww-field[data-error='true'] .ww-field-note { color: var(--state-fault); }
+:root[data-theme^='clay'] .ww-field[data-disabled='true'] .ww-input { color: var(--ink-3); box-shadow: var(--elev-imprint, none); border-color: var(--k-engrave, var(--edge-ui)); background-color: var(--well-face, var(--surface-sunk)); }
+:root[data-theme^='clay'] .ww-field[data-disabled='true'] .ww-field-label { color: var(--ink-3); }
+:root[data-theme^='clay'] .ww-field-note { font: 12px/1.4 var(--font-sans, system-ui, sans-serif); color: var(--ink-2); }
+:root[data-theme^='clay'] .ww-field-unit { color: var(--ink-2); }
+
+/* Fold and MasterDetail */
 :root[data-theme^='clay'] .ww-fold-btn {
-  padding-inline: 12px;
-  border: 1px solid var(--edge-ui);
-  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
-  border-radius: var(--r-control, 10px);
+  padding-inline: 16px;
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-ctl, 14px);
   background: var(--surface-raised);
-  box-shadow: var(--elev-flush, none);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
 }
 :root[data-theme^='clay'] .ww-fold-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-:root[data-theme^='clay'] .ww-fold[data-open='true'] .ww-fold-btn { box-shadow: var(--elev-pressed, none); }
+:root[data-theme^='clay'] .ww-fold[data-open='true'] .ww-fold-btn { box-shadow: var(--elev-pressed, none); border-color: var(--rim-shade, transparent); }
 :root[data-theme^='clay'] .ww-md { inline-size: 100%; flex: 1 1 100%; }
-:root[data-theme^='clay'] .ww-md-list :is(ul, ol) { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-:root[data-theme^='clay'] .ww-md-list .ww-btn { inline-size: 100%; justify-content: flex-start; }
-:root[data-theme^='clay'] .ww-md-detail { padding: 12px; min-width: 0; background: var(--surface-sunk); border: 1px solid var(--edge-hair); box-shadow: var(--elev-recessed, none); }
+:root[data-theme^='clay'] .ww-md-list :is(ul, ol) { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+:root[data-theme^='clay'] .ww-md-list .ww-btn { inline-size: 100%; justify-content: flex-start; border-radius: var(--r-ctl, 14px); }
+/* a pressed toggle (TapGroup option, the MasterDetail row) is the same filled piece pressed in: its state is the
+   information, so it is 3:1 by its own fill (it measured 1.01:1 light and 1.31:1 dark as a plain raised pill) */
+:root[data-theme^='clay'] .ww-btn[aria-pressed='true'],
+:root[data-theme^='clay'] .ww-md-list .ww-btn[aria-current='true'], :root[data-theme^='clay'] .ww-md-list .ww-btn[aria-selected='true'] { border-color: var(--rim-shade, transparent); background: var(--k-on-fill, var(--selected-fill)); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--elev-press-fill, var(--elev-pressed, none)); }
+:root[data-theme^='clay'] .ww-md-detail { padding: 16px; min-width: 0; --well-face: var(--surface-sunk); border-radius: var(--r-ctl, 14px); box-shadow: var(--elev-recessed, none); }
 :root[data-theme^='clay'] .ww-md-detail > :first-child { margin-top: 0; }
 
-/* Reduced motion (spec 6.5): --dur-state is not zeroed by the OS setting, so the 1 px lift, 2 px press and the switch thumb slide stop here; state is still shown by the edge, fill and word. */
+/* Drawer (sheet), Popover and the legacy Toast: floating cards of the same material */
+:root[data-theme^='clay'] .ww-sheet { background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui)); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-float, none); }
+:root[data-theme^='clay'] .ww-sheet[data-place='right'] { border-radius: var(--r-card, 22px) 0 0 var(--r-card, 22px); }
+:root[data-theme^='clay'] .ww-sheet[data-place='left'] { border-radius: 0 var(--r-card, 22px) var(--r-card, 22px) 0; }
+:root[data-theme^='clay'] .ww-sheet[data-place='bottom'] { border-radius: var(--r-card, 22px) var(--r-card, 22px) 0 0; }
+:root[data-theme^='clay'] .ww-sheet-head { padding: 16px 16px 8px 24px; border-block-end: 0; background: transparent; }
+:root[data-theme^='clay'] .ww-sheet-title { font: 600 17px/1.3 var(--font-sans, system-ui, sans-serif); letter-spacing: -.01em; }
+:root[data-theme^='clay'] .ww-sheet-body { padding: 8px 24px 24px; }
+:root[data-theme^='clay'] .ww-popover { padding: 16px; background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui)); border-radius: 18px; box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-float, none); }
+:root[data-theme^='clay'] .ww-toast { min-height: var(--hit, 44px); padding: 8px 16px; background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui)); border-radius: var(--r-pill, 999px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-high, none); font-family: var(--font-sans, system-ui, sans-serif); }
+:root[data-theme^='clay'] .ww-toast[data-tone='fault'] { box-shadow: var(--glow-fault, none), var(--lip, inset 0 0 0 transparent), var(--elev-high, none); }
+
+/* Reduced motion (spec 6.5): --dur-state is not zeroed by the OS setting, so the lift, the press, the sheen cross-fade and the switch thumb slide stop here; state is still shown by the fill, the word and the inset pair, in one frame. */
 @media (prefers-reduced-motion: reduce) {
   .k-switch, .k-rocker-half, .k-key, .k-tab, .k-btn, .k-console-follow, .k-toast-undo, .k-dialog-x, .k-switch-thumb { transition: none; }
-  .k-switch:hover, .k-rocker-half:hover, .k-key:hover, .k-tab:hover, .k-btn:hover { transform: none; }
+  /* a press still sinks (the inset pair is the state) but does not shrink */
+  :is(.k-key, .k-btn, .k-console-follow, .k-toast-undo, .k-dialog-x, .k-rocker-half, .k-tab):is(:active, [data-demo='pressed']), :root[data-theme^='clay'] :is(.ww-btn, .ww-seg-opt):is(:active, [data-demo='pressed']), :is(.k-key, .k-btn, .k-console-follow, .k-toast-undo, .k-dialog-x, .k-rocker-half, .k-tab):is(:hover, [data-demo='hover']), :root[data-theme^='clay'] .ww-btn:is(:hover, [data-demo='hover']) { transform: none; }
+  .k-key::before, .k-btn::before, .k-console-follow::before, .k-toast-undo::before, .k-dialog-x::before, .k-switch-thumb::before, a.k-plate { transition: none; }
+  .k-switch:hover, .k-rocker-half:hover, .k-key:hover, .k-tab:hover, .k-btn:hover, .k-console-follow:hover, .k-toast-undo:hover, .k-dialog-x:hover, a.k-plate:hover { transform: none; }
+  .k-rocker-half:active, .k-tab:active, .k-key:active, .k-btn:active, .k-console-follow:active, .k-toast-undo:active, .k-dialog-x:active { transform: none; }
   /* the static form of the material: the sheen and the settle still change state, but in one frame */
-  .k-lit, .k-lit .k-panel-in::after, :root[data-theme^='clay'] .ww-btn { transition: none; }
-  :root[data-theme^='clay'] .ww-btn:hover { transform: none; }
+  .k-lit, .k-lit .k-panel-in::after, :root[data-theme^='clay'] .ww-btn, :root[data-theme^='clay'] .ww-btn::before, :root[data-theme^='clay'] .ww-seg-opt, :root[data-theme^='clay'] button.ww-chip { transition: none; }
+  :root[data-theme^='clay'] .ww-btn:hover, :root[data-theme^='clay'] .ww-btn:active, :root[data-theme^='clay'] button.ww-chip:hover, :root[data-theme^='clay'] button.ww-chip:active, :root[data-theme^='clay'] .ww-seg-opt:active { transform: none; }
 }
 
 /* ==========================================================================
@@ -356,7 +682,11 @@ a.k-plate:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 
   .k-switch, .k-rocker, .k-key, .k-tab, .k-btn, .k-dialog, .k-palette, .k-console, .k-readout, .k-numerals, .k-lines, .k-slider-num, .k-knob, .k-progress-track, .k-rail-row {
     border: 2px solid ButtonText; forced-color-adjust: auto;
   }
+  :root { --k-on-fill: Highlight; --k-on-ink: HighlightText; }
   .k-switch-thumb, .k-knob-cap { border: 2px solid ButtonText; stroke: CanvasText; }
+  /* the ON track opts out of forced adjustment to paint Highlight, and that is inherited: the pebble returns to the system face */
+  .k-switch-thumb { background: Canvas; forced-color-adjust: auto; }
+  .k-knob::before { border: 2px solid ButtonText; background: Canvas; }
   .k-rocker-half[data-active='true'], .k-switch[data-on='true'], .k-key[data-toggled='true'], .k-tab[aria-selected='true'], .k-palette-row[data-active='true'], .k-console-line[data-cursor='true'] { background: Highlight; color: HighlightText; forced-color-adjust: none; }
   .k-plate, .k-panel, .k-panel-in, .k-toast { clip-path: none; border: 1px solid CanvasText; box-shadow: none; }
   .k-panel { padding: 0; background: Canvas; filter: none; }
@@ -370,13 +700,19 @@ a.k-plate:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 
   [data-state='planned'] { border-style: dashed; border-color: ButtonText; }
   [data-state='error'], .k-toast[data-tag='FAULT'] { border: 2px solid CanvasText; }
   .k-stamp { border-color: CanvasText; color: CanvasText; }
-  /* depth is replaced by edges: no grain, no sheen, no settle; the plate's painted diagonals go with its chamfer */
+  /* depth is replaced by edges: no grain, no sheen, no settle, no lift layer; the plate's painted diagonals go with its chamfer */
   .k-tooth::before, .k-panel-in::before, .k-lit .k-panel-in::after { display: none; }
+  .k-key::before, .k-btn::before, .k-console-follow::before, .k-toast-undo::before, .k-dialog-x::before, .k-switch-thumb::before { display: none; }
   .k-lit, .k-lit:focus-within { translate: none; opacity: 1; }
   .k-plate { background: Canvas; border: 1px solid CanvasText; }
   a.k-plate:focus-visible { outline: 2px solid Highlight; }
   .k-switch-thumb { box-shadow: none; }
-  :root[data-theme^='clay'] .ww-btn, :root[data-theme^='clay'] .ww-input, :root[data-theme^='clay'] .ww-fold-btn { border: 2px solid ButtonText; box-shadow: none; }
+  /* the range input goes back to the system control, which forced colours draw with their own edges */
+  .k-slider input[type='range'] { -webkit-appearance: auto; appearance: auto; }
+  :root[data-theme^='clay'] .ww-btn, :root[data-theme^='clay'] .ww-input, :root[data-theme^='clay'] .ww-fold-btn, :root[data-theme^='clay'] .ww-seg, :root[data-theme^='clay'] .ww-chip { border: 2px solid ButtonText; box-shadow: none; }
+  .k-knob-arc { stroke: Highlight; }
+  :root[data-theme^='clay'] .ww-btn[data-loading='true'] { background: ButtonFace; padding-inline-start: 20px; }
+  :root[data-theme^='clay'] .ww-btn::before { display: none; }
   :root[data-theme^='clay'] .ww-input:focus-visible, :root[data-theme^='clay'] .ww-btn:focus-visible, :root[data-theme^='clay'] .ww-fold-btn:focus-visible { outline: 2px solid Highlight; outline-offset: 2px; }
-  :root[data-theme^='clay'] .ww-md-detail { border: 1px solid CanvasText; }
+  :root[data-theme^='clay'] .ww-md-detail, :root[data-theme^='clay'] .ww-sheet, :root[data-theme^='clay'] .ww-popover, :root[data-theme^='clay'] .ww-toast { border: 1px solid CanvasText; }
 }

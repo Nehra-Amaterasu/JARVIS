@@ -13,6 +13,12 @@
   --p-radius-6: 6px;
   --p-radius-10: 10px;
   --p-radius-14: 14px;
+  /* the soft scale of the craft pass (13 Nov): wells 12, keys 16, cards 22, pills fully round */
+  --p-radius-12: 12px;
+  --p-radius-16: 16px;
+  --p-radius-22: 22px;
+  --p-radius-24: 24px;
+  --p-radius-pill: 999px;
 
   --p-size-12: 12px;
   --p-size-13: 13px;

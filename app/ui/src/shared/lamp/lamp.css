@@ -105,3 +105,22 @@
 .lamp-reading[data-state='simulated'] {
   border-style: dashed;
 }
+
+/* Craft pass (13 Nov): under a clay theme a reading is the same deep engraved well as the kit's Readout (the classic
+   app never sets a clay theme, so the rules above still govern it). The label is a label, so it is in the sans face;
+   the number and the unit are data and stay mono. */
+:root[data-theme^='clay'] .lamp-reading {
+  gap: 4px 12px;
+  padding: 12px 16px;
+  border-color: var(--engrave-dark, var(--edge-ui)) var(--engrave-lit, var(--edge-ui)) var(--engrave-lit, var(--edge-ui)) var(--engrave-dark, var(--edge-ui));
+  border-radius: var(--r-well, 12px);
+  box-shadow: var(--elev-well-deep, var(--elev-recessed, none));
+}
+:root[data-theme^='clay'] .lamp-reading-label { font: 500 12px/16px var(--font-sans, system-ui, sans-serif); color: var(--ink-2); }
+:root[data-theme^='clay'] .lamp-reading-value { font-family: var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; font-weight: 500; font-size: 22px; }
+:root[data-theme^='clay'] .lamp-reading-why { font-family: var(--font-sans, system-ui, sans-serif); }
+:root[data-theme^='clay'] .lamp-reading[data-state='simulated'] { border-style: dashed; border-color: var(--edge-ui); }
+@media (forced-colors: active) {
+  :root[data-theme^='clay'] .lamp-reading { border: 1px solid CanvasText; box-shadow: none; }
+  :root[data-theme^='clay'] .lamp-reading[data-state='simulated'] { border-style: dashed; }
+}

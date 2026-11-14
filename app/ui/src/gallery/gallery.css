@@ -1,15 +1,26 @@
 /* ==========================================================================
-   What is new (N01). Every colour is a clay role (surface-*, ink-*, edge-*, selected-*, focus-ring) read by name, so the page
-   follows the light and dark theme and the forced-colours branch below. A control's boundary is a 1 px --edge-ui line, never a
-   shadow alone; hit areas are 44 px; focus is a 2 px ring; nothing transitions or animates, so reduced motion needs no branch.
-   The page fills its canvas (height 100%) and scrolls only inside the index and the specimen pane.
+   What is new (N01). Every colour is a clay role (surface-*, ink-*, edge-*, selected-*, focus-ring) read by name, and every
+   depth is a token of clay/elevation.css, so the page follows the light and dark theme, high contrast and the forced-colours
+   branch below. Hit areas are 44 px; focus is a 2 px ring; nothing animates, and the only motion (a raised chip lifting 1 px on
+   hover) is off under reduced motion. The page fills its canvas (height 100%) and scrolls only inside the index and the pane.
+
+   CHROME CRAFT PASS (14 Nov). The gallery was the shell's old grammar in miniature: square plates with 1 px hairlines, radios as
+   grey boxes with an inverted fill, mono labels on flat grey. It is now made of the same clay as the shell and the kit:
+     index    the entries are flush rows (no shadow on repeated rows); the current one is a raised piece with a 4 px accent mark
+              at its left, so it reads by shape, weight and mark, not by an inverted block;
+     filter   the group filter is a tray of raised chips; the checked chip is pressed in and filled with the accent state
+              (the kit's toggled key), its count in a small recessed well;
+     bar      the theme, scale and state switches are recessed channels holding a raised selected piece (the shell's view
+              switch); the section select is an engraved well;
+     stage    the specimen is a soft raised card (r 24) on the pane; its states stand as raised tiles on a recessed, ruled
+              floor (the bench), each captioned in sans.
    ========================================================================== */
 .gl {
   box-sizing: border-box;
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-columns: 276px minmax(0, 1fr);
+  grid-template-columns: 284px minmax(0, 1fr);
   background: var(--surface-ground);
   color: var(--ink-1);
   font-family: var(--font-ui, Inter, system-ui, sans-serif);
@@ -18,8 +29,8 @@
 }
 .gl *, .gl *::before, .gl *::after { box-sizing: border-box; }
 .gl :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.gl-list :focus-visible, .gl-pane:focus-visible, .gl-radios :focus-visible { outline-offset: -2px; }
-.gl code, .gl-kicker, .gl-item-meta, .gl-state-cap { font-family: var(--font-mono, ui-monospace, Consolas, monospace); }
+.gl-list :focus-visible, .gl-pane:focus-visible { outline-offset: -2px; }
+.gl code, .gl-specimen-id, .gl-specimen-merged { font-family: var(--font-mono, ui-monospace, Consolas, monospace); }
 
 /* ---------------------------------------------------------------- the index */
 .gl-side {
@@ -27,60 +38,152 @@
   min-height: 0;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
-  gap: 12px;
-  padding: 16px 0 0 16px;
-  border-right: 1px solid var(--edge-hair);
+  gap: 14px;
+  padding: 22px 0 0 18px;
   background: var(--surface-ground);
 }
-.gl-side-head { padding-right: 16px; }
-.gl-title { margin: 0; font-size: 22px; line-height: 1.15; font-weight: 650; letter-spacing: -0.01em; }
+.gl-side-head { padding-right: 18px; }
+.gl-title { margin: 0; font: 700 24px/1.15 var(--font-ui, Inter, system-ui, sans-serif); letter-spacing: -0.015em; }
 .gl-sub { margin: 6px 0 0; color: var(--ink-2); font-size: 13px; }
 .gl-count { font-family: var(--font-numerals, var(--font-mono, ui-monospace, monospace)); font-size: 18px; font-weight: 700; color: var(--ink-1); font-variant-numeric: tabular-nums; }
-.gl-filter { padding-right: 16px; }
+.gl-filter { padding: 2px 18px 4px 0; }
 
-.gl-radios { display: flex; flex-wrap: wrap; gap: 4px; }
+/* every radio of the page: no hairline, sans, the full 44 px as its hit area */
+.gl-radios { display: flex; flex-wrap: wrap; gap: 8px; }
 .gl-radio {
+  position: relative;
+  isolation: isolate;
   min-height: 44px;
   min-width: 44px;
   max-width: 180px;
-  padding: 0 12px;
+  padding: 0 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  font: 600 13px/1 var(--font-ui, Inter, system-ui, sans-serif);
+  gap: 8px;
+  font: 500 13px/1 var(--font-ui, Inter, system-ui, sans-serif);
+  color: var(--ink-2);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-pill, 999px);
+  cursor: pointer;
+  transition: transform var(--dur-press, 90ms) ease-out;
+}
+.gl-radio:hover { color: var(--ink-1); }
+.gl-radio:active { transform: translateY(1px) scale(0.98); }
+.gl-radio-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gl-radio-count { font: 600 11px/1 var(--font-numerals, var(--font-mono, ui-monospace, monospace)); font-variant-numeric: tabular-nums; }
+
+/* the group filter: a tray of raised chips; the checked chip is pressed in and filled with the accent state */
+.gl-filter .gl-radio {
+  min-height: 44px;
+  padding: 0 8px 0 14px;
   color: var(--ink-1);
   background: var(--surface-raised);
-  border: 1px solid var(--edge-ui);
-  border-radius: var(--r-control, 6px);
-  cursor: pointer;
+  border-color: var(--rim-shade, var(--edge-ui));
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
+  transition: transform var(--dur-state, 120ms) ease-out;
 }
-.gl-radio[aria-checked='true'] { background: var(--selected-fill); color: var(--selected-ink); box-shadow: inset 0 -3px 0 var(--selected-ink); }
-.gl-radio-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gl-radio-count { font: 600 11px/1 var(--font-numerals, var(--font-mono, ui-monospace, monospace)); font-variant-numeric: tabular-nums; opacity: 0.9; }
+.gl-filter .gl-radio:not([aria-checked='true']):hover { transform: translateY(-1px); background-color: var(--surface-raised-hi, var(--surface-raised)); }
+.gl-filter .gl-radio:active { transform: translateY(1px) scale(0.98); box-shadow: var(--elev-pressed, none); }
+.gl-filter .gl-radio[aria-checked='true'] {
+  background: var(--k-on-fill, var(--selected-fill));
+  color: var(--k-on-ink, var(--selected-ink));
+  font-weight: 600;
+  box-shadow: var(--elev-press-fill, var(--elev-pressed, none));
+}
+.gl-filter .gl-radio-count {
+  min-width: 26px;
+  padding: 5px 6px;
+  border-radius: var(--r-pill, 999px);
+  text-align: center;
+  color: var(--ink-2);
+  background: var(--surface-ground);
+  box-shadow: var(--elev-groove, none);
+}
+/* a filled chip on the lit piece, not a hairline ring (chrome jury); a fixed light clay keeps the label near 6:1 in both themes */
+.gl-filter .gl-radio[aria-checked='true'] .gl-radio-count { color: inherit; background: color-mix(in srgb, var(--p-clay-50) 24%, transparent); box-shadow: none; }
 
-.gl-index { min-height: 0; overflow-y: auto; overscroll-behavior: contain; border-top: 1px solid var(--edge-hair); margin-right: 0; }
-.gl-list { list-style: none; margin: 0; padding: 0; }
+/* the bar's switches: a recessed channel (the group's ::before, so each radio keeps its 44 px) and a raised selected piece */
+.gl-bar .gl-radios { position: relative; isolation: isolate; gap: 0; }
+/* a state name is information: it is never cut to "idle, no frames (placeh..." (chrome jury); a long one wraps the channel instead */
+.gl-bar .gl-radio { max-width: none; }
+.gl-bar .gl-radios::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 22px;
+  --well-face: var(--surface-ground);
+  border: 1px solid transparent;
+  border-color: var(--k-engrave, var(--edge-ui));
+  background: linear-gradient(var(--well-face), var(--well-face)) padding-box, var(--k-engrave-paint, linear-gradient(transparent, transparent)), var(--well-face);
+  box-shadow: var(--elev-recessed, none);
+}
+.gl-bar .gl-radio[aria-checked='true'] { color: var(--ink-1); font-weight: 650; }
+.gl-bar .gl-radio[aria-checked='true']::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  background: var(--surface-raised);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
+}
+.gl-bar .gl-radio[aria-checked='true']::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  width: 14px;
+  height: 3px;
+  margin-left: -7px;
+  border-radius: 2px;
+  background: var(--accent-state);
+  pointer-events: none;
+}
+
+.gl-index { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 10px 16px 0; margin-right: 0; }
+.gl-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+/* a row is flush (no shadow on repeated rows); the current one is a raised piece with an accent mark at its left */
 .gl-item {
+  position: relative;
   width: 100%;
   min-height: 52px;
-  padding: 6px 16px 6px 12px;
+  padding: 8px 14px 8px 16px;
   display: grid;
-  gap: 2px;
+  gap: 3px;
   text-align: left;
   font: inherit;
   color: var(--ink-1);
   background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--edge-hair);
-  border-left: 4px solid transparent;
-  border-radius: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-ctl, 14px);
   cursor: pointer;
 }
-.gl-item[aria-current='true'] { background: var(--selected-fill); color: var(--selected-ink); border-left-color: var(--selected-ink); }
+.gl-item:hover { background: var(--surface-raised-hi, var(--surface-raised)); }
+.gl-item[aria-current='true'] {
+  background: var(--surface-raised);
+  border-color: var(--rim-shade, var(--edge-ui));
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
+}
+.gl-item[aria-current='true']::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 6px;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--accent-state);
+}
 .gl-item-title { font-weight: 600; font-size: 14px; }
-.gl-item-meta { font-size: 11px; color: var(--ink-2); letter-spacing: 0.02em; }
-.gl-item[aria-current='true'] .gl-item-meta { color: inherit; }
+.gl-item[aria-current='true'] .gl-item-title { font-weight: 700; }
+.gl-item-meta { font-size: 12px; color: var(--ink-2); }
 .gl-none { padding: 16px; color: var(--ink-2); }
 
 /* ---------------------------------------------------------------- the bar and the pane */
@@ -90,111 +193,154 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px 16px;
-  padding: 10px 16px;
+  gap: 10px 18px;
+  padding: 14px 20px 12px;
   background: var(--surface-ground);
-  border-bottom: 1px solid var(--edge-hair);
 }
-.gl-bar-crumb { display: grid; gap: 2px; min-width: 0; }
-.gl-bar-name { font-weight: 650; font-size: 16px; }
-.gl-bar-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-width: 0; }
-.gl-kicker { margin: 0; font-size: 11px; line-height: 1; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
-.gl-select { display: inline-flex; align-items: center; gap: 8px; }
-.gl-select-label { font-size: 12px; color: var(--ink-2); }
+.gl-bar-crumb { display: grid; gap: 4px; min-width: 0; }
+.gl-bar-name { font: 650 17px/1.2 var(--font-ui, Inter, system-ui, sans-serif); letter-spacing: -0.01em; }
+.gl-bar-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; min-width: 0; }
+.gl-kicker { margin: 0; font: 650 11px/1 var(--font-ui, Inter, system-ui, sans-serif); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+.gl-select { display: inline-flex; align-items: center; gap: 10px; }
+.gl-select-label { font-size: 12px; font-weight: 500; color: var(--ink-2); }
+/* the select is a field: an engraved well (its boundary is information, so it keeps the 3:1 engraving) */
 .gl-select select {
   min-height: 44px;
-  padding: 0 12px;
-  font: 600 13px/1 var(--font-ui, Inter, system-ui, sans-serif);
+  padding: 0 14px;
+  font: 500 13px/1 var(--font-ui, Inter, system-ui, sans-serif);
   color: var(--ink-1);
-  background: var(--surface-raised);
-  border: 1px solid var(--edge-ui);
-  border-radius: var(--r-control, 6px);
+  border-radius: var(--r-well, 14px);
+  --well-face: var(--k-field-face, var(--surface-sunk));
+  border: 1px solid transparent;
+  border-color: var(--k-engrave, var(--edge-ui));
+  background: linear-gradient(var(--well-face), var(--well-face)) padding-box, var(--k-engrave-paint, linear-gradient(transparent, transparent)), var(--well-face);
+  box-shadow: var(--elev-recessed, none);
+  cursor: pointer;
 }
 
+/* the pane: the clay ground with a faint engineering dot grid (decoration only, off where decoration is off) */
 .gl-pane {
+  position: relative;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 20px 24px 32px;
-  background-color: var(--surface-sunk);
-  /* an engineering sheet: a dot grid, decoration only, at the kit's decoration opacity */
-  background-image: radial-gradient(var(--edge-hair) 1px, transparent 1.4px);
+  padding: 8px 28px 36px;
+  background-color: var(--surface-ground);
+  background-image: radial-gradient(color-mix(in srgb, var(--edge-ui) calc(28% * var(--decor-opacity, 1)), transparent) 1px, transparent 1.4px);
   background-size: 22px 22px;
 }
 
-/* ---------------------------------------------------------------- the specimen plate */
+/* ---------------------------------------------------------------- the specimen card */
 .gl-specimen {
   position: relative;
   max-width: 1100px;
   margin: 0 auto;
-  padding: 20px 24px 18px;
+  padding: 24px 28px 22px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
   background: var(--surface-raised);
-  border: 1px solid var(--edge-hair);
-  box-shadow: var(--elev-raised);
-  border-radius: var(--r-panel, 6px);
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-card, 24px);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none);
 }
-.gl-specimen-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-.gl-specimen-head .gl-kicker { flex: 0 0 100%; }
-.gl-specimen-title { margin: 0; font-size: 26px; line-height: 1.1; font-weight: 650; letter-spacing: -0.015em; }
-.gl-specimen-id { font-size: 12px; color: var(--ink-2); }
-.gl-specimen-note { margin: 0; max-width: 70ch; color: var(--ink-2); font-size: 14px; }
-.gl-specimen-warn { margin: 0; padding: 8px 12px; font-size: 13px; color: var(--ink-1); border: 1px dashed var(--edge-ui); background: var(--surface-ground); }
-.gl-specimen-merged { margin: 0; padding-top: 10px; border-top: 1px dashed var(--edge-ui); font-size: 12px; color: var(--ink-2); font-family: var(--font-mono, ui-monospace, Consolas, monospace); }
-.gl-specimen-merged span { text-transform: uppercase; letter-spacing: 0.08em; margin-right: 6px; }
+.gl-specimen-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.gl-specimen-head .gl-kicker { flex: 0 0 100%; color: var(--accent-ink); }
+.gl-specimen-title { margin: 0; font: 700 28px/1.1 var(--font-ui, Inter, system-ui, sans-serif); letter-spacing: -0.02em; }
+.gl-specimen-id { font-size: 12px; color: var(--ink-3); }
+.gl-specimen-note { margin: 0; max-width: 70ch; color: var(--ink-2); font-size: 14px; line-height: 1.5; }
+.gl-specimen-warn {
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--ink-1);
+  border-radius: var(--r-well, 14px);
+  --well-face: var(--surface-ground);
+  border: 1px solid transparent;
+  border-color: var(--k-engrave, var(--edge-ui));
+  background: linear-gradient(var(--well-face), var(--well-face)) padding-box, var(--k-engrave-paint, linear-gradient(transparent, transparent)), var(--well-face);
+  box-shadow: var(--elev-recessed, none);
+}
+.gl-specimen-merged { margin: 0; padding-top: 2px; font-size: 12px; color: var(--ink-2); }
+.gl-specimen-merged span { font-family: var(--font-ui, Inter, system-ui, sans-serif); font-weight: 650; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-right: 8px; color: var(--ink-3); }
 
+/* the stage: the states stand as raised tiles on a recessed, ruled floor, so the card reads as a bench and not a form */
 .gl-states {
   flex: 0 1 auto;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: flex-start;
-  gap: 16px;
+  gap: 18px;
   min-width: 0;
-  padding: 20px;
-  /* the stage: states sit on a sunk, ruled floor so the plate reads as a bench and not a form */
-  background-color: var(--surface-sunk);
-  background-image: linear-gradient(var(--edge-hair) 1px, transparent 1px), linear-gradient(90deg, var(--edge-hair) 1px, transparent 1px);
-  background-size: 44px 44px;
-  background-position: -1px -1px;
-  border: 1px solid var(--edge-hair);
+  padding: 22px;
+  border-radius: 20px;
+  --well-face: var(--surface-ground);
+  /* a floor, not a field: no engraved line round it (on a 1000 px well it read as an outline); high contrast puts the
+     strong edge back through --engrave-side */
+  border: 1px solid transparent;
+  border-color: var(--engrave-side, transparent);
+  background:
+    linear-gradient(color-mix(in srgb, var(--edge-hair) calc(55% * var(--decor-opacity, 1)), transparent) 1px, transparent 1px) padding-box,
+    linear-gradient(90deg, color-mix(in srgb, var(--edge-hair) calc(55% * var(--decor-opacity, 1)), transparent) 1px, transparent 1px) padding-box,
+    var(--well-face);
+  background-size: 44px 44px, 44px 44px;
+  background-position: -1px -1px, -1px -1px;
+  box-shadow: var(--elev-well-deep, var(--elev-recessed, none));
 }
 /* a state that is a grid of plates (the section themes, the art ids) takes the whole row */
 .gl-state:has(.gl-secgrid, .gl-artgrid) { flex: 1 1 100%; }
 .gl-state {
   margin: 0;
-  min-width: 132px;
+  min-width: 140px;
   min-height: 112px;
   align-content: start;
-  box-shadow: var(--elev-raised);
   max-width: 100%;
   display: grid;
-  gap: 8px;
-  padding: 12px 14px 14px;
-  background: var(--surface-ground);
-  border: 1px solid var(--edge-hair);
+  gap: 10px;
+  padding: 14px 16px 16px;
+  background: var(--surface-raised);
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-key, 16px);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
 }
-.gl-state-cap { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
+.gl-state-cap { font: 650 11px/1.2 var(--font-ui, Inter, system-ui, sans-serif); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
 .gl-state-body { min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 .gl-state-body .bn-cell { display: inline-flex; align-items: center; gap: 6px; }
 .gl-legacy { background: transparent; }
 .gl-legacy.ww { background: transparent; }
 
 /* ---------------------------------------------------------------- swatches, section plates, art plates */
-.gl-themeplate { padding: 14px; min-width: 300px; background: var(--surface-ground); color: var(--ink-1); border: 1px solid var(--edge-ui); }
+.gl-themeplate {
+  padding: 16px;
+  min-width: 300px;
+  background: var(--surface-ground);
+  color: var(--ink-1);
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-ctl, 14px);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
+}
 .gl-themeplate-h { margin: 0 0 6px; font-size: 14px; }
 .gl-themeplate-sample { margin: 0 0 10px; font-size: 18px; }
 .gl-themeplate-quiet { color: var(--ink-3); font-size: 14px; }
-.gl-swatches { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px 10px; }
+.gl-swatches { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px 10px; }
 .gl-swatch, .gl-secplate-chip { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.gl-swatch-chip { flex: none; width: 28px; height: 28px; border: 1px solid var(--edge-ui); background-clip: padding-box; }
+/* a swatch's edge IS the information (where the colour stops), so it keeps a real 3:1 line */
+.gl-swatch-chip { flex: none; width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--edge-ui); background-clip: padding-box; }
 .gl-swatch-name { font-size: 11px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.gl-secgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; width: 100%; }
-.gl-secplate { background: var(--surface-ground); border: 1px solid var(--edge-ui); border-radius: var(--r-panel, 6px); }
-.gl-secplate-in { padding: 12px; display: grid; gap: 8px; }
+.gl-secgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; width: 100%; }
+.gl-secplate {
+  background: var(--surface-ground);
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-ctl, 14px);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
+}
+.gl-secplate-in { padding: 14px; display: grid; gap: 8px; }
 .gl-secplate-h { margin: 0; font-size: 16px; }
 .gl-secplate-meta { margin: 0; font-size: 12px; color: var(--ink-2); }
 .gl-secplate-chips { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -202,36 +348,60 @@
 .gl-secplate-control { width: 56px; height: 28px; background: var(--sec-art-1); border-radius: var(--r-control, 6px); border: 1px solid var(--edge-ui); }
 .gl-secplate-panel { flex: 1; height: 28px; background: var(--sec-art-3); border-radius: var(--r-panel, 6px); border: 1px solid var(--edge-ui); }
 
-.gl-artgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; width: 100%; }
-.gl-artplate { margin: 0; display: grid; gap: 6px; }
-.gl-artplate-box { height: 168px; display: grid; place-items: center; overflow: hidden; background: var(--surface-sunk); border: 1px solid var(--edge-ui); }
+.gl-artgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; width: 100%; }
+.gl-artplate { margin: 0; display: grid; gap: 8px; }
+/* the art stands in a recessed bed */
+.gl-artplate-box {
+  height: 168px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--r-well, 14px);
+  --well-face: var(--surface-sunk);
+  border: 1px solid transparent;
+  border-color: var(--k-engrave, var(--edge-ui));
+  background: linear-gradient(var(--well-face), var(--well-face)) padding-box, var(--k-engrave-paint, linear-gradient(transparent, transparent)), var(--well-face);
+  box-shadow: var(--elev-recessed, none);
+}
 .gl-artplate-box img { max-width: 100%; max-height: 100%; object-fit: contain; image-rendering: auto; }
 .gl-artplate-txt { margin: 0; font: 6px/6px var(--font-mono, ui-monospace, monospace); color: var(--ink-1); overflow: hidden; max-width: 100%; max-height: 100%; }
-.gl-artplate-none { padding: 8px; text-align: center; font-size: 12px; color: var(--ink-2); border: 1px dashed var(--edge-ui); }
+.gl-artplate-none { padding: 8px; text-align: center; font-size: 12px; color: var(--ink-2); border: 1px dashed var(--edge-ui); border-radius: 10px; }
 .gl-artplate-cap { display: grid; gap: 2px; font-size: 11px; color: var(--ink-2); }
 .gl-artplate-cap code { color: var(--ink-1); overflow-wrap: anywhere; }
 
 /* ---------------------------------------------------------------- narrow screens: the index becomes a band above the pane */
 @media (max-width: 760px) {
   .gl { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 40%) minmax(0, 1fr); }
-  .gl-side { padding: 12px 0 0 12px; gap: 8px; border-right: 0; border-bottom: 1px solid var(--edge-hair); grid-template-rows: auto auto minmax(0, 1fr); }
+  .gl-side { padding: 14px 0 0 12px; gap: 10px; grid-template-rows: auto auto minmax(0, 1fr); }
   .gl-sub, .gl-bar-crumb { display: none; }
-  .gl-filter { padding-right: 12px; flex-wrap: nowrap; overflow-x: auto; }
+  .gl-filter { padding: 2px 12px 6px 2px; flex-wrap: nowrap; overflow-x: auto; }
   .gl-filter .gl-radio { flex: none; }
-  .gl-bar { padding: 8px 12px; }
-  .gl-pane { padding: 12px; }
-  .gl-specimen { padding: 14px 14px 12px; }
+  .gl-bar { padding: 10px 12px; }
+  .gl-pane { padding: 4px 12px 16px; }
+  .gl-specimen { padding: 16px 16px 14px; border-radius: 20px; }
   .gl-specimen-title { font-size: 22px; }
+  .gl-states { padding: 12px; gap: 12px; }
   .gl-state { padding: 10px; }
 }
 
-/* ---------------------------------------------------------------- forced colours: system colours, real edges, no gradients, no clip */
+@media (prefers-reduced-motion: reduce) {
+  .gl-radio, .gl-filter .gl-radio { transition: none; }
+  .gl-radio:hover, .gl-radio:active, .gl-filter .gl-radio:hover, .gl-filter .gl-radio:active { transform: none; }
+}
+
+/* ---------------------------------------------------------------- forced colours: system colours, real edges, no gradients */
 @media (forced-colors: active) {
-  .gl-pane, .gl-states { background-image: none; }
+  .gl-pane { background-image: none; }
+  .gl-states { background: Canvas; border: 1px solid CanvasText; }
   .gl-specimen { border: 1px solid CanvasText; box-shadow: none; }
   .gl-radio, .gl-select select, .gl-state, .gl-secplate, .gl-themeplate, .gl-artplate-box { border: 1px solid ButtonText; }
+  .gl-bar .gl-radios::before { border: 1px solid CanvasText; background: Canvas; }
+  .gl-bar .gl-radio::before, .gl-bar .gl-radio::after, .gl-item::before { content: none; }
+  /* the checked piece is drawn by the more specific [aria-checked]::before, which beat the line above (r01 review) */
+  .gl-bar .gl-radio[aria-checked='true']::before, .gl-bar .gl-radio[aria-checked='true']::after, .gl-item[aria-current='true']::before { content: none; }
+  .gl-filter .gl-radio[aria-checked='true'] .gl-radio-count { background: transparent; box-shadow: inset 0 0 0 1px currentColor; }
   .gl-radio[aria-checked='true'], .gl-item[aria-current='true'] { background: Highlight; color: HighlightText; forced-color-adjust: none; box-shadow: none; }
-  .gl-item[aria-current='true'] { border-left-color: HighlightText; }
+  .gl-item[aria-current='true'] { border: 2px solid HighlightText; }
   .gl-swatch-chip { forced-color-adjust: none; border: 1px solid CanvasText; }
   .gl :focus-visible { outline: 2px solid Highlight; }
 }

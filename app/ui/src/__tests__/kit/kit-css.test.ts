@@ -47,15 +47,24 @@ describe('clay kit stylesheet', () => {
     expect(forced).toContain('ButtonText')
     expect(forced).toContain('CanvasText')
   })
-  it('the chamfer is two layers (outer edge fill plus inset inner), so the diagonal keeps a 3:1 edge', () => {
+  // craft pass (14 Nov): the chamfer is no longer the default corner. The default panel is a soft card (r-card, the
+  // raised pair, no clip); the chamfer is the opt-in .k-chamfer class for HUD and terminal frames, and it keeps the
+  // two-layer construction of wave 5 (asserted here on the class instead of on the bare .k-panel).
+  it('the default panel is a soft card: a large radius, the raised pair, no clip and no filter', () => {
+    expect(normal).toMatch(/\.k-panel-in \{[^}]*border-radius: var\(--r-card, 2[0-4]px\)[^}]*box-shadow: var\(--lip, [^;]*var\(--elev-raised/)
+    expect(normal).toMatch(/\.k-panel \{[^}]*filter: none/)
+    // anchored at a line start: the bare rules, not the chamfered ones ('.k-panel.k-chamfer .k-panel-in {') below
+    expect(normal).not.toMatch(/(^|\n)\.k-panel \{[^}]*clip-path/)
+    expect(normal).not.toMatch(/(^|\n)\.k-panel-in \{[^}]*clip-path/)
+  })
+  it('the opt-in chamfer is two layers (outer edge fill plus inset inner), so the diagonal keeps a 3:1 edge', () => {
     // wave 5: the outer layer is the clipped ::before, so the panel itself is unclipped and can cast its shade
-    expect(normal).toMatch(/\.k-panel \{[^}]*padding: 1px/)
-    expect(normal).toMatch(/\.k-panel::before \{[^}]*background: var\(--edge-ui\)[^}]*clip-path/)
-    expect(normal).toMatch(/\.k-panel-in \{[^}]*clip-path/)
+    expect(normal).toMatch(/\.k-panel\.k-chamfer \{[^}]*padding: 1px/)
+    expect(normal).toMatch(/\.k-panel\.k-chamfer::before \{[^}]*background: var\(--edge-ui\)[^}]*clip-path/)
+    expect(normal).toMatch(/\.k-panel\.k-chamfer \.k-panel-in \{[^}]*clip-path/)
   })
   it('the chamfered panel casts the raised shade as a drop-shadow that follows the chamfer, and none in forced colours', () => {
-    expect(normal).toMatch(/\.k-panel \{[^}]*filter: var\(--elev-raised-drop, none\)/)
-    expect(normal).not.toMatch(/\.k-panel \{[^}]*clip-path/)
+    expect(normal).toMatch(/\.k-panel\.k-chamfer \{[^}]*filter: var\(--elev-raised-drop, none\)/)
     expect(forced).toMatch(/\.k-panel \{[^}]*filter: none/)
   })
   it('the Raised Pill restyle is scoped to a clay theme, so no existing page changes', () => {

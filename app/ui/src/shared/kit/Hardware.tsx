@@ -2,7 +2,7 @@
 // Every control follows the 7.1 state grammar: default, hover and pressed are CSS; disabled-with-a-reason,
 // loading, error and planned are data attributes set here, so a test (and forced colours) can read them.
 // A planned control is aria-disabled, never `disabled`, and a press calls onPlanned (it opens "What is coming").
-import { useId, useRef, type KeyboardEvent, type ReactNode } from 'react'
+import { useId, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import { LampGlyph, type LampState } from './Lamp'
 import { cx } from './util'
 
@@ -207,7 +207,7 @@ export interface TickSliderProps extends StateForms {
   className?: string
 }
 
-/** Component 8, the Tick Slider: a native range input (arrows, Home and End are the browser's) with a tick row and a value readout. */
+/** Component 8, the Tick Slider: a native range input (arrows, Home and End are the browser's) with a tick row and a value readout. --k-frac (0 to 1) lets the stylesheet fill the recessed track up to the thumb. */
 export function TickSlider({ value, onChange, label, min = 0, max = 100, step = 1, unit, withNumber, className, ...forms }: TickSliderProps) {
   const errId = useId()
   const id = useId()
@@ -230,6 +230,7 @@ export function TickSlider({ value, onChange, label, min = 0, max = 100, step = 
         max={max}
         step={step}
         value={value}
+        style={{ '--k-frac': max === min ? 0 : (Math.min(max, Math.max(min, value)) - min) / (max - min) } as CSSProperties}
         aria-disabled={frozen || undefined}
         aria-valuetext={`${value}${unit ? ' ' + unit : ''}`}
         onChange={(e) => apply(e.currentTarget.value)}
@@ -264,6 +265,18 @@ export interface KnobProps extends StateForms {
   size?: 'hero' | 'compact'
   unit?: string
   className?: string
+}
+
+/** The accent run of the knob, from the minimum (-135 degrees from the top) to the value, on a 32 radius between the cap
+ * (r 28) and the tick ring (r 36 to 45), as the orange arc of C02-46's dials. */
+function knobArc(frac: number) {
+  const R = 32
+  const pt = (deg: number) => {
+    const a = (deg * Math.PI) / 180
+    return `${(Math.sin(a) * R).toFixed(2)} ${(-Math.cos(a) * R).toFixed(2)}`
+  }
+  const end = -135 + 270 * Math.min(1, frac)
+  return `M ${pt(-135)} A ${R} ${R} 0 ${end + 135 > 180 ? 1 : 0} 1 ${pt(end)}`
 }
 
 /**
@@ -323,6 +336,7 @@ export function Knob({ value, onChange, label, min = 0, max = 100, step = 1, siz
             return <line key={i} className="k-tick" data-major={major ? 'true' : undefined} x1={Math.cos(a) * r1} y1={Math.sin(a) * r1} x2={Math.cos(a) * 45} y2={Math.sin(a) * 45} />
           })}
           <circle className="k-knob-cap" r="28" />
+          {!forms.planned && frac > 0 && <path className="k-knob-arc" d={knobArc(frac)} />}
           {!forms.planned && <line className="k-knob-notch" x1="0" y1="-8" x2="0" y2="-24" transform={`rotate(${angle})`} />}
         </svg>
       </span>

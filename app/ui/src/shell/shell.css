@@ -3,15 +3,43 @@
    Loaded only with the app.shell flag on (ShellV2 is a lazy chunk), and every rule is under .s2 or a
    data-overlay the shell renders, so the flag-off frame gets none of it.
 
-   Colour comes only from the clay layer-2 roles (surface-*, ink-*, edge-*, selected-*, focus-ring). A
-   control's boundary is a 1 px --edge-ui line (3.5:1 and up), never a shadow alone. Hit areas are 44 px.
-   No transition runs on its own: the only motion is the hover/press colour change, and reduced motion
-   turns even that off.
+   Colour comes only from the clay layer-2 roles (surface-*, ink-*, edge-*, selected-*, focus-ring) and the
+   material tokens of clay/elevation.css; the one shell-only token (--s2-bay) is a pair of those primitives.
+
+   CHROME CRAFT PASS (14 Nov, after the owner's "highly refined components/buttons/shadows"). The chrome was a
+   frame of 1 px grey hairlines: a border under the title bar, beside the rail, round every switch, and a 3 px
+   ink bar for the active slot. The owner's sheets (C02-03, C02-04, C02-27, C02-21, C02-46) build the same
+   things from one material, so the chrome is now one slab of clay with the canvas pressed into it:
+     slab      the title bar and the rail are the ground itself (--surface-ground), no border between them;
+     bay       the canvas is a recessed bay: a 22 px corner where the rail meets the title bar and a soft inner
+               shade on its lit-from-top-left walls (--s2-bay, drawn by a non-interactive ::after so it lies
+               over whatever page fills the canvas);
+     keys      each rail slot is a raised 52 px key (--elev-low and the top lip) that SINKS when it is the
+               current section (--elev-pressed) and carries a 4 x 20 px accent mark at the rail's edge; the
+               heavier icon and ink-1 say it too, so the state is never colour alone (4.2.2);
+     channels  the product switch and the view switch are recessed channels (engraved edge, --elev-recessed)
+               holding a raised selected piece with a 3 px accent mark: the mark is the 3:1 cue (3.50:1 on the
+               raised face), the piece and the weight are the shape cue;
+     pills     Resume, Classic UI, the frame's folded tools and the shell's buttons are raised pills with no
+               outline; Resume says "Back to <place>" in words, so it can never read as a location label;
+     wells     the lamps stand in a small recessed well; the palette's input is an engraved well in a floating
+               soft panel (--elev-float, r 24).
+   Labels are sans (Inter); mono is kept for data and key hints (the clock, the keycaps, the lamp codes).
+   The 3:1 rule holds where the boundary IS the information (the channels' engraved edge, the selected piece's
+   mark, the wells); high contrast turns every rim and engraving into one strong edge (clay/contrast.css), and
+   the forced-colours branch at the end gives every control a CanvasText or ButtonText border.
+   Motion: hover lifts a key 1 px and cross-fades a pre-painted ::before one step up (opacity only, a shadow is
+   never transitioned); a press sinks it in --dur-press. Reduced motion turns all of it off.
    ========================================================================== */
 .s2 {
   --s2-title: 48px;
   --s2-rail: 64px;
   --s2-hit: 44px;
+  /* the bay's inner wall: a soft shade thrown in from the top left and a 1 px darker lip right at the edge */
+  --s2-bay: inset 6px 6px 14px var(--p-shade-cool-20), inset 1px 1px 0 var(--p-shade-cool-14);
+  /* a panel floating over the scrim: the lip and a long soft drop, and no white highlight (thrown up-left onto a light
+     scrim, --elev-float's highlight drew a glowing halo round the palette) */
+  --s2-float: inset 0 1px 0 var(--p-shadow-white-70), 0 24px 48px -12px var(--p-shade-cool-30), 0 6px 14px var(--p-shade-cool-14);
   position: fixed;
   inset: 0;
   display: grid;
@@ -22,10 +50,55 @@
   color: var(--ink-1);
   font-family: var(--font-ui, Inter, system-ui, sans-serif);
 }
+:root[data-theme='clay-dark'] .s2 { --s2-bay: inset 6px 6px 14px var(--p-shadow-black-60), inset 1px 1px 0 var(--p-shadow-black-50); }
+:root[data-theme='clay-dark'] .s2, :root[data-theme='clay-dark'] .s2-scrim { --s2-float: inset 0 1px 0 var(--p-shadow-white-07), 0 24px 48px -12px var(--p-shadow-black-75), 0 6px 14px var(--p-shadow-black-50); }
+/* high contrast: the bay keeps one strong edge instead of a soft shade */
+:root[data-contrast='high'] .s2 { --s2-bay: inset 1px 1px 0 var(--edge-ui); }
+@media (prefers-contrast: more) { .s2 { --s2-bay: inset 1px 1px 0 var(--edge-ui); } }
 
 .s2 button { font: inherit; color: inherit; cursor: pointer; }
 
-/* (A.N02 f) Skip to canvas: the first Tab stop, off screen until focused, then a 44 px plate over the title bar */
+/* ---- the raised pill of the shell (Skip, Classic UI, the shell's buttons, the folded frame tools): the kit's raised
+   object without the kit class, so the markup and its test hooks stay as they are ---- */
+.s2-skip, .s2-btn, .s2-classic, .s2 .ww-shell-tools button:not([role='radio']) {
+  position: relative;
+  isolation: isolate;
+  min-height: var(--s2-hit);
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-pill, 999px);
+  background: var(--surface-raised);
+  color: var(--ink-1);
+  font: 600 13px/1 var(--font-ui, Inter, system-ui, sans-serif);
+  letter-spacing: 0.01em;
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
+  transition: transform var(--dur-state, 120ms) ease-out;
+}
+.s2-skip::before, .s2-btn::before, .s2-classic::before, .s2 .ww-shell-tools button:not([role='radio'])::before,
+.s2-slot:not(.s2-ask)::before, .s2-pill:not([data-pill='here'])::before, .s2-orb::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: var(--elev-raised, none);
+  opacity: 0;
+  transition: opacity var(--dur-state, 120ms) ease-out;
+}
+:is(.s2-btn, .s2-classic, .s2 .ww-shell-tools button:not([role='radio'])):not(:disabled):hover { transform: translateY(-1px); background-color: var(--surface-raised-hi, var(--surface-raised)); }
+:is(.s2-btn, .s2-classic, .s2 .ww-shell-tools button:not([role='radio'])):not(:disabled):hover::before { opacity: 1; }
+:is(.s2-btn, .s2-classic, .s2 .ww-shell-tools button:not([role='radio'])):not(:disabled):active {
+  transform: translateY(1px) scale(0.98);
+  box-shadow: var(--elev-pressed, none);
+  transition-duration: var(--dur-press, 90ms);
+}
+:is(.s2-btn, .s2-classic, .s2 .ww-shell-tools button:not([role='radio'])):active::before { opacity: 0; transition: none; }
+/* disabled is flat, not faded: pressed into the clay with a faint imprint, ink-3 (4.5:1 and up) */
+.s2-btn:disabled { color: var(--ink-3); background: transparent; box-shadow: var(--elev-imprint, none); cursor: default; }
+
+/* (A.N02 f) Skip to canvas: the first Tab stop, off screen until focused, then a 44 px pill over the title bar */
 .s2-skip {
   position: fixed;
   top: 2px;
@@ -33,90 +106,162 @@
   z-index: 80;
   display: inline-flex;
   align-items: center;
-  min-height: var(--s2-hit);
-  padding: 0 16px;
-  border: 1px solid var(--edge-ui);
-  border-radius: 10px;
-  background: var(--surface-raised);
-  color: var(--ink-1);
-  font-weight: 600;
   text-decoration: none;
   transform: translateY(-200%);
+  /* it appears at once on focus: a slide-in left it 20 px above the window when the test (and a fast keyboard) looked */
+  transition: none;
 }
 .s2-skip:focus, .s2-skip:focus-visible { transform: none; outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .s2 :focus-visible { outline: 2px solid var(--focus-ring); }
 .s2 [data-focus-inset] :focus-visible { outline-offset: -2px; }
+
+/* a key hint is a small keycap: mono (it is a key name), a raised face one step above whatever holds it */
 .s2-kbd {
-  font: 600 11px/1 var(--font-mono, ui-monospace, monospace);
-  padding: 3px 6px;
-  border: 1px solid var(--edge-ui);
-  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  font: 500 11px/1 var(--font-mono, ui-monospace, monospace);
+  padding: 4px 7px;
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: 7px;
+  background: var(--surface-ground);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-flush, none);
   color: var(--ink-2);
   white-space: nowrap;
 }
-.s2-btn {
-  min-height: var(--s2-hit);
-  padding: 0 16px;
-  border: 1px solid var(--edge-ui);
-  border-radius: 10px;
-  background: var(--surface-raised);
-}
-.s2-btn:disabled { color: var(--ink-off); cursor: default; }
 .s2-muted { color: var(--ink-2); }
 
 /* ------------------------------------------------------------------ title bar */
 .s2-title {
   grid-area: title;
+  position: relative;
+  z-index: 3;
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 0;
-  padding: 0 0 0 16px;
-  border-bottom: 1px solid var(--edge-ui);
-  background: var(--surface-raised);
+  padding: 0 0 0 20px;
+  background: var(--surface-ground);
   -webkit-app-region: drag;
 }
 .s2-title button, .s2-title .s2-lamps, .s2-title .s2-fault, .s2-title .s2-classic { -webkit-app-region: no-drag; }
+/* the wordmark: sans, heavy and widely tracked, after a small raised accent stud (the one warm point of the chrome) */
 .s2-wordmark {
   flex: none;
-  width: 152px;
-  font: 700 15px/1 var(--font-mono, ui-monospace, monospace);
-  letter-spacing: 0.12em;
+  width: 148px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font: 800 14px/1 var(--font-ui, Inter, system-ui, sans-serif);
+  letter-spacing: 0.16em;
   text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink-1);
 }
-.s2-product {
+.s2-wordmark::before {
+  content: '';
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--lit-hi, transparent), transparent 65%), var(--accent-state);
+  box-shadow: var(--lip-on-fill, inset 0 0 0 transparent), var(--elev-flush, none);
+}
+
+/* ---- a recessed channel holding a raised selected piece (the product switch and the view switch). The channel is
+   the ::before of the group, so every segment button keeps the full 44 px height as its hit area; the raised piece
+   is the selected button's own ::before, 4 px inside it, and its accent mark is the ::after. ---- */
+.s2-product, .s2-viewlist {
+  position: relative;
+  isolation: isolate;
   flex: none;
   display: inline-flex;
   height: var(--s2-hit);
-  border: 1px solid var(--edge-ui);
-  border-radius: 10px;
-  overflow: hidden;
 }
-.s2-product button {
-  min-width: 96px;
+.s2-product::before, .s2-viewlist::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: var(--r-pill, 999px);
+  --well-face: var(--surface-ground);
+  border: 1px solid transparent;
+  border-color: var(--k-engrave, var(--edge-ui));
+  background: linear-gradient(var(--well-face), var(--well-face)) padding-box, var(--k-engrave-paint, linear-gradient(transparent, transparent)), var(--well-face);
+  box-shadow: var(--elev-recessed, none);
+}
+.s2-product button, .s2-view {
+  position: relative;
+  isolation: isolate;
   min-height: var(--s2-hit);
-  padding: 0 14px;
+  padding: 0 18px;
   border: 0;
+  border-radius: var(--r-pill, 999px);
   background: transparent;
-  font-weight: 600;
+  color: var(--ink-2);
+  font: 500 13px/1 var(--font-ui, Inter, system-ui, sans-serif);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  transition: transform var(--dur-press, 90ms) ease-out;
 }
-.s2-product button + button { border-left: 1px solid var(--edge-ui); }
-.s2-product button[aria-checked='true'] { background: var(--selected-fill); color: var(--selected-ink); }
+.s2-product button { min-width: 100px; }
+.s2-view { min-width: 76px; }
+.s2-product button:hover, .s2-view:hover { color: var(--ink-1); }
+.s2-product button:active, .s2-view:active { transform: translateY(1px) scale(0.98); }
+.s2-product button[aria-checked='true'], .s2-view[aria-selected='true'] { color: var(--ink-1); font-weight: 650; }
+.s2-product button[aria-checked='true']::before, .s2-view[aria-selected='true']::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  background: var(--surface-raised);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
+}
+.s2-product button[aria-checked='true']::after, .s2-view[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  width: 16px;
+  height: 3px;
+  margin-left: -8px;
+  border-radius: 2px;
+  background: var(--accent-state);
+  pointer-events: none;
+}
 
+/* ---- the Resume pill: a soft raised pill that says "Back to <place>"; the first-run crumb is a quiet recessed well ---- */
 .s2-pill {
-  flex: 0 1 380px;
+  position: relative;
+  isolation: isolate;
+  flex: 0 1 400px;
   min-width: 0;
   min-height: var(--s2-hit);
   margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   padding: 0;
-  border: 1px solid var(--edge-ui);
-  border-radius: 23px;
-  background: var(--surface-sunk);
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-pill, 999px);
+  background: var(--surface-raised);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
   text-align: left;
+  font: 500 13px/1 var(--font-ui, Inter, system-ui, sans-serif);
+  transition: transform var(--dur-state, 120ms) ease-out;
 }
+.s2-pill:has(.s2-pill-go:hover) { transform: translateY(-1px); }
+.s2-pill:has(.s2-pill-go:hover)::before { opacity: 1; }
+.s2-pill:has(.s2-pill-go:active) { transform: translateY(1px) scale(0.99); box-shadow: var(--elev-pressed, none); transition-duration: var(--dur-press, 90ms); }
+.s2-pill:has(.s2-pill-go:active)::before { opacity: 0; transition: none; }
 /* the pill is a nav landmark (A.N02 d); its one button fills it, so the whole 44 px pill is the hit area */
 .s2-pill-go {
   flex: 1;
@@ -132,122 +277,203 @@
   text-align: left;
   font-weight: inherit;
 }
-.s2-pill[data-pill='start'] { background: var(--accent-fill); color: var(--accent-on); font-weight: 700; border-color: var(--edge-ui); }
-.s2-pill[data-pill='here'] { padding: 0 16px; color: var(--ink-2); border-color: var(--edge-hair); background: transparent; }
-.s2-pill-here { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.s2-pill-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.s2-pill-act { min-height: var(--s2-hit); padding: 0 12px; border: 1px solid var(--edge-ui); border-radius: 22px; background: var(--surface-raised); }
-.s2-pill[data-pill='stale'] { padding-left: 16px; }
-.s2-pillrow { display: none; }
-
-.s2-lamps { flex: none; display: flex; align-items: center; min-height: var(--s2-hit); }
-.s2-lamps .lamp-bar { display: flex; gap: 12px; margin: 0; padding: 0 4px; list-style: none; }
-.s2-lamps .lamp-bar-item { display: inline-flex; align-items: center; gap: 6px; }
-.s2-lamps .lamp-bar-name { font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); white-space: nowrap; }
-@media (max-width: 1279px) { .s2-lamps .lamp-bar-name { display: none; } }
-.s2-fault {
-  flex: none;
-  min-height: 40px;
-  padding: 0 12px;
-  display: inline-flex;
-  align-items: center;
-  border: 2px solid var(--state-fault);
-  border-radius: 8px;
-  background: var(--surface-raised);
-  font: 600 12px/1 var(--font-mono, ui-monospace, monospace);
+.s2-pill-icon { flex: none; color: var(--ink-2); }
+.s2-pill-pre { flex: none; color: var(--ink-2); }
+.s2-pill-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-1); }
+/* no place before: the pill is the one primary action of the bar, the accent fill */
+.s2-pill[data-pill='start'] { background: var(--accent-fill); color: var(--accent-on); box-shadow: var(--lip-on-fill, inset 0 0 0 transparent), var(--elev-low, none); font-weight: 600; }
+.s2-pill[data-pill='start'] .s2-pill-text { color: inherit; }
+.s2-pill[data-pill='start']:has(.s2-pill-go:hover) { background: var(--accent-fill-hover, var(--accent-fill)); }
+.s2-pill[data-pill='start'] .s2-kbd { background: color-mix(in srgb, var(--p-clay-50) 24%, transparent); box-shadow: none; border-color: transparent; color: inherit; }
+/* already home on a first run: a crumb that runs nothing, so it is pressed INTO the bar rather than raised out of it */
+.s2-pill[data-pill='here'] {
+  padding: 0 18px;
+  color: var(--ink-2);
+  --well-face: var(--surface-ground);
+  border-color: var(--k-engrave, var(--edge-hair));
+  background: linear-gradient(var(--well-face), var(--well-face)) padding-box, var(--k-engrave-paint, linear-gradient(transparent, transparent)), var(--well-face);
+  box-shadow: var(--elev-recessed, none);
 }
-.s2-classic {
+.s2-pill-here { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* left long ago: the words, then two quiet text keys inside the pill */
+.s2-pill[data-pill='stale'] { padding-left: 16px; }
+.s2-pill[data-pill='stale']:hover { transform: none; }
+.s2-pill-act {
   flex: none;
   min-height: var(--s2-hit);
   padding: 0 12px;
-  border: 1px solid var(--edge-ui);
-  border-radius: 8px;
+  border: 0;
+  border-radius: var(--r-pill, 999px);
   background: transparent;
-  color: var(--ink-2);
-  font: 600 11px/1 var(--font-mono, ui-monospace, monospace);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
+  font-weight: 600;
 }
-.s2-clock { flex: none; width: 56px; text-align: center; font: 500 13px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.s2-pill-act:first-of-type { color: var(--accent-ink); }
+.s2-pill-act:hover { background: var(--surface-ground); }
+.s2-pillrow { display: none; }
+
+/* ---- the lamps stand in a small recessed well, as an annunciator panel does ---- */
+.s2-lamps {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--r-pill, 999px);
+  --well-face: var(--surface-sunk);
+  border: 1px solid transparent;
+  border-color: var(--k-engrave, var(--edge-hair));
+  background: linear-gradient(var(--well-face), var(--well-face)) padding-box, var(--k-engrave-paint, linear-gradient(transparent, transparent)), var(--well-face);
+  box-shadow: var(--elev-recessed, none);
+}
+.s2-lamps .lamp-bar { display: flex; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.s2-lamps .lamp-bar-item { display: inline-flex; align-items: center; gap: 6px; }
+.s2-lamps .lamp-bar-name { font: 500 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.02em; color: var(--ink-2); white-space: nowrap; }
+@media (max-width: 1279px) { .s2-lamps .lamp-bar-name { display: none; } }
+/* a fault glows over its own raised face (the 2 px red frame read as an outline); the word "Fault" carries it */
+.s2-fault {
+  flex: none;
+  min-height: var(--s2-hit);
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-pill, 999px);
+  background: var(--surface-raised);
+  box-shadow: var(--glow-fault, none), var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
+  font: 600 13px/1 var(--font-ui, Inter, system-ui, sans-serif);
+  color: var(--ink-1);
+}
+.s2-classic { flex: none; padding: 0 16px; color: var(--ink-2); }
+.s2-classic:hover { color: var(--ink-1); }
+.s2-clock { flex: none; width: 56px; text-align: center; font: 500 13px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; letter-spacing: 0.02em; color: var(--ink-2); }
 .s2-win { flex: none; display: flex; }
-.s2-win button { width: 46px; height: var(--s2-title); border: 0; background: transparent; display: grid; place-items: center; }
+.s2-win button { width: 46px; height: var(--s2-title); border: 0; background: transparent; display: grid; place-items: center; color: var(--ink-2); }
+.s2-win button:hover { background: var(--surface-raised); color: var(--ink-1); }
 
 /* ------------------------------------------------------------------ rail */
 .s2-rail {
   grid-area: rail;
+  position: relative;
+  z-index: 3;
   min-height: 0;
-  border-right: 1px solid var(--edge-ui);
-  background: var(--surface-raised);
+  background: var(--surface-ground);
 }
 .s2-rail-list {
   height: 100%;
   margin: 0;
-  padding: 4px 0 8px;
+  padding: 6px 0 14px;
   list-style: none;
   display: flex;
   flex-direction: column;
+  gap: 10px;
 }
 .s2-rail-air { flex: 1; }
+/* a slot is a raised key, 52 px, centred in the 64 px rail */
 .s2-slot {
   position: relative;
-  width: 100%;
-  min-height: 56px;
-  padding: 6px 2px 4px;
-  border: 0;
-  background: transparent;
+  isolation: isolate;
+  width: 52px;
+  min-height: 52px;
+  margin: 0 auto;
+  padding: 7px 2px 6px;
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-key, 16px);
+  background: var(--surface-raised);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
   color: var(--ink-2);
+  transition: transform var(--dur-state, 120ms) ease-out;
 }
 .s2-slot-label {
-  max-width: 60px;
+  max-width: 48px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font: 600 10px/1 var(--font-mono, ui-monospace, monospace);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font: 600 10.5px/1 var(--font-ui, Inter, system-ui, sans-serif);
+  letter-spacing: 0.01em;
 }
-/* the active slot: a 3 px edge on the inner side and the filled, heavier icon, never colour alone (4.2.2) */
-.s2-slot[aria-current='page'] { color: var(--ink-1); background: var(--surface-sunk); }
-.s2-slot[aria-current='page']::after { content: ''; position: absolute; top: 6px; bottom: 6px; right: 0; width: 3px; background: var(--ink-1); }
+.s2-slot:not(.s2-ask):not([aria-current='page']):hover { transform: translateY(-1px); color: var(--ink-1); }
+.s2-slot:not(.s2-ask):not([aria-current='page']):hover::before { opacity: 1; }
+.s2-slot:not(.s2-ask):active { transform: translateY(1px) scale(0.97); box-shadow: var(--elev-pressed, none); transition-duration: var(--dur-press, 90ms); }
+.s2-slot:not(.s2-ask):active::before { opacity: 0; transition: none; }
+/* the current section: the key is pressed in and stays down (inset pair, the ground face), the icon is heavier and
+   ink-1, and a 4 x 20 px accent mark sits at the rail's edge beside it: shape, weight and mark, never colour alone */
+.s2-slot[aria-current='page'] {
+  color: var(--ink-1);
+  background: var(--surface-ground);
+  box-shadow: var(--elev-pressed, none);
+}
+.s2-slot[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -7px;
+  width: 4px;
+  height: 20px;
+  margin-top: -10px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent-state);
+}
+/* Ask is not a section: its key is the round pebble below, the slot itself stays flat */
+.s2-ask { background: transparent; border-color: transparent; box-shadow: none; }
 .s2-orb {
-  width: 32px;
-  height: 32px;
+  position: relative;
+  isolation: isolate;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  border: 2px solid var(--edge-ui);
+  color: var(--accent-ink);
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  background: radial-gradient(circle at 35% 30%, var(--lit-hi, transparent), transparent 62%), var(--surface-raised);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none);
+  transition: transform var(--dur-state, 120ms) ease-out;
 }
-.s2-orb[data-level='live'] { box-shadow: 0 0 0 calc(var(--lvl, 0) * 6px) var(--state-measured); border-color: var(--state-measured); }
+.s2-ask:hover .s2-orb { transform: translateY(-1px); }
+.s2-ask:hover .s2-orb::before { opacity: 1; }
+.s2-ask:active .s2-orb { transform: translateY(1px) scale(0.96); box-shadow: var(--elev-pressed, none); }
+.s2-ask:hover .s2-slot-label { color: var(--ink-1); }
+/* the ring shows the real input level only when one exists (a measured reading, so the measured colour) */
+.s2-orb[data-level='live'] { box-shadow: 0 0 0 calc(var(--lvl, 0) * 6px) var(--state-measured), var(--lip, inset 0 0 0 transparent), var(--elev-low, none); border-color: var(--state-measured); }
 
-/* ------------------------------------------------------------------ canvas */
+/* ------------------------------------------------------------------ canvas: the recessed bay */
 .s2-canvas {
   grid-area: canvas;
+  position: relative;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border-top-left-radius: 22px;
   view-transition-name: page;
+}
+/* the bay's soft inner wall, laid over whatever page fills the canvas (it takes no pointer and no focus) */
+.s2-canvas::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: var(--s2-bay);
 }
 .s2-views {
   flex: none;
-  min-height: 52px;
+  min-height: 56px;
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 4px 8px;
-  border-bottom: 1px solid var(--edge-hair);
+  padding: 6px 12px 4px 18px;
 }
-.s2-viewlist { display: inline-flex; border: 1px solid var(--edge-ui); border-radius: 10px; overflow: hidden; flex: none; }
-.s2-view { min-height: var(--s2-hit); min-width: 80px; padding: 0 16px; border: 0; background: transparent; font-weight: 600; }
-.s2-view + .s2-view { border-left: 1px solid var(--edge-ui); }
-.s2-view[aria-selected='true'] { background: var(--selected-fill); color: var(--selected-ink); }
 .s2-interim { margin: 0; min-width: 0; color: var(--ink-2); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* the page root: legacy .page is position:absolute inset:0 and scrolls inside itself, so the document never does */
@@ -265,11 +491,11 @@
 /* the frame's tools, folded into the shell's view row: right-aligned, one line, never wrapping into the canvas */
 .s2-frametools { margin-left: auto; display: flex; align-items: center; min-width: 0; }
 .s2-frametools:empty { display: none; }
-.s2 .ww-shell-tools { display: flex; align-items: center; gap: 12px; background: transparent; }
+.s2 .ww-shell-tools { display: flex; align-items: center; gap: 12px; padding-right: 2px; background: transparent; }
 /* the shell's 44 px hit rule holds for the folded tools too (the frame's compact strip sizes are 32 px) */
 .s2 .ww-shell-tools button { min-height: var(--s2-hit); min-width: var(--s2-hit); }
-/* every folded button gets the shell's control edge (the extras came as bare text in the strip) */
-.s2 .ww-shell-tools button:not([role='radio']) { padding: 0 14px; border: 1px solid var(--edge-ui); border-radius: 10px; background: transparent; }
+/* every folded button is the shell's raised pill (see the top of this file); the season switch keeps its own channel */
+.s2 .ww-shell-tools button:not([role='radio']) { padding: 0 16px; }
 
 /* (A.N02 b) one view switch: where the shell's switch owns the section's views, a legacy Well Wisher page's own
    switch of the same views is hidden. The page is not edited; its markup stays, so the flag-off frame is
@@ -345,21 +571,31 @@
 
 /* the shell's own place (app.new): fills the canvas; the gallery or its "not built yet" plate scrolls inside it */
 .s2-place { position: absolute; inset: 0; overflow: auto; }
-.s2-notbuilt, .s2-plate-wrap, .s2-events { position: absolute; inset: 0; overflow: auto; padding: 32px; }
-.s2-notbuilt { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; max-width: 640px; }
-.s2-notbuilt h2, .s2-events h2 { margin: 0; font-size: 22px; }
-.s2-notbuilt p { margin: 0; color: var(--ink-2); line-height: 1.5; }
-.s2-plate-wrap { max-width: 720px; }
+.s2-notbuilt, .s2-plate-wrap, .s2-events { position: absolute; inset: 0; overflow: auto; padding: 32px 36px; }
+.s2-notbuilt { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; max-width: 680px; }
+.s2-notbuilt h2, .s2-events h2 { margin: 0; font: 650 24px/1.2 var(--font-ui, Inter, system-ui, sans-serif); letter-spacing: -0.01em; }
+.s2-notbuilt p { margin: 0; color: var(--ink-2); line-height: 1.55; }
+.s2-plate-wrap { max-width: 760px; }
 
-.s2-events-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-.s2-events-list { margin: 0; padding: 0; list-style: none; border: 1px solid var(--edge-ui); border-radius: 10px; }
+.s2-events-head { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+/* the log is one raised card; its rows are flush and split by a hairline (rows never carry a shadow) */
+.s2-events-list {
+  margin: 0;
+  padding: 6px 8px;
+  list-style: none;
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-card, 24px);
+  background: var(--surface-raised);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none);
+}
 .s2-events-list li { display: grid; grid-template-columns: 72px 1fr auto auto; gap: 12px; align-items: center; min-height: 40px; padding: 0 12px; }
 .s2-events-list li + li { border-top: 1px solid var(--edge-hair); }
 .s2-events-list b { font: 600 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
-.s2-events-list time { font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
-.s2-pager { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.s2-events-list time { font: 12px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.s2-pager { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
 
-/* ------------------------------------------------------------------ overlays (one deep) */
+/* ------------------------------------------------------------------ overlays (one deep): floating soft panels */
 .s2-scrim {
   position: fixed;
   inset: 0;
@@ -369,48 +605,85 @@
   padding: 16px;
   background: var(--scrim, rgba(0, 0, 0, 0.5));
 }
-.s2-scrim > .pl-overlay { max-height: calc(100vh - 32px); overflow: auto; background: var(--surface-raised); color: var(--ink-1); border: 1px solid var(--edge-ui); border-radius: 14px; }
-.s2-sheet {
-  width: min(560px, 100%);
+.s2-scrim > .pl-overlay {
   max-height: calc(100vh - 32px);
   overflow: auto;
-  padding: 20px 24px;
-  border: 1px solid var(--edge-ui);
-  border-radius: 14px;
   background: var(--surface-raised);
+  color: var(--ink-1);
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-card, 24px);
+  box-shadow: var(--s2-float);
+}
+.s2-sheet {
+  width: min(580px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 22px 28px 26px;
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-card, 24px);
+  background: var(--surface-raised);
+  box-shadow: var(--s2-float);
   color: var(--ink-1);
 }
 .s2-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.s2-sheet h2 { margin: 0; font-size: 20px; }
-.s2-sheet h3 { margin: 16px 0 6px; font: 600 12px/1 var(--font-mono, ui-monospace, monospace); text-transform: uppercase; color: var(--ink-2); }
+.s2-sheet h2 { margin: 0; font: 650 20px/1.25 var(--font-ui, Inter, system-ui, sans-serif); letter-spacing: -0.01em; }
+.s2-sheet h3 { margin: 20px 0 8px; font: 650 11px/1 var(--font-ui, Inter, system-ui, sans-serif); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
 .s2-keys { margin: 0; }
-.s2-keys > div { display: grid; grid-template-columns: 180px 1fr; gap: 12px; align-items: center; min-height: 32px; }
+.s2-keys > div { display: grid; grid-template-columns: 180px 1fr; gap: 12px; align-items: center; min-height: 36px; }
 .s2-keys dt { display: flex; gap: 6px; flex-wrap: wrap; }
-.s2-keys dd { margin: 0; }
+.s2-keys dd { margin: 0; color: var(--ink-1); }
 .s2-down { text-align: center; }
 
 .s2-palette {
   width: min(640px, 100%);
   align-self: start;
   margin-top: 12vh;
-  border: 1px solid var(--edge-ui);
-  border-radius: 14px;
+  padding: 12px 8px 4px;
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-card, 24px);
   background: var(--surface-raised);
+  box-shadow: var(--s2-float);
   color: var(--ink-1);
   overflow: hidden;
 }
-.s2-palette-field { display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 16px; border-bottom: 1px solid var(--edge-ui); }
-.s2-palette-field input { flex: 1; min-width: 0; height: 44px; border: 0; background: transparent; color: inherit; font: inherit; font-size: 16px; }
-.s2-palette-field input:focus-visible { outline-offset: 0; }
-.s2-palette-list { margin: 0; padding: 0; list-style: none; }
-.s2-row { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 16px; cursor: pointer; }
-.s2-row[aria-selected='true'] { background: var(--selected-fill); color: var(--selected-ink); }
-.s2-row[aria-selected='true'] .s2-row-group, .s2-row[aria-selected='true'] .s2-row-detail, .s2-row[aria-selected='true'] .s2-kbd { color: inherit; border-color: currentColor; }
-.s2-row[data-absent] { border: 1px dashed var(--edge-ui); margin: 4px 8px; border-radius: 8px; }
-.s2-row-group { flex: none; width: 28px; font: 600 10px/1 var(--font-mono, ui-monospace, monospace); text-transform: uppercase; color: var(--ink-2); }
-.s2-row-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* the search field: an engraved well in the panel (its boundary is information, so it keeps the 3:1 engraving) */
+.s2-palette-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 54px;
+  margin: 0 4px 8px;
+  padding: 0 16px;
+  color: var(--ink-2);
+  border-radius: var(--r-well, 14px);
+  --well-face: var(--k-field-face, var(--surface-sunk));
+  border: 1px solid transparent;
+  border-color: var(--k-engrave, var(--edge-ui));
+  background: linear-gradient(var(--well-face), var(--well-face)) padding-box, var(--k-engrave-paint, linear-gradient(transparent, transparent)), var(--well-face);
+  box-shadow: var(--elev-recessed, none);
+}
+.s2-palette-field input { flex: 1; min-width: 0; height: 44px; border: 0; background: transparent; color: var(--ink-1); font: 400 16px/1 var(--font-ui, Inter, system-ui, sans-serif); }
+.s2-palette-field input::placeholder { color: var(--ink-3); }
+/* the input always holds focus while the palette is open, so the 2 px ring is drawn round the whole well, not as a
+   hard box inside it */
+.s2-palette-field input:focus-visible { outline: none; }
+.s2-palette-field:has(input:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.s2-palette-list { margin: 0; padding: 0 4px; list-style: none; }
+.s2-row { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 12px; cursor: pointer; }
+/* the active row: the accent as a state fill raised out of the panel, as the kit's palette draws it */
+.s2-row[aria-selected='true'] { background: var(--k-on-fill, var(--selected-fill)); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--lip-on-fill, inset 0 0 0 transparent), var(--elev-low, none); }
+.s2-row[aria-selected='true'] .s2-row-group, .s2-row[aria-selected='true'] .s2-row-detail { color: inherit; }
+/* the key hint on the lit row is a filled chip, not a hairline ring (chrome jury); the fill is a fixed light clay so the
+   #171717 label stays near 6:1 on the orange in both themes (a raised-surface mix went to 2.75:1 in dark) */
+.s2-row[aria-selected='true'] .s2-kbd { color: inherit; background: color-mix(in srgb, var(--p-clay-50) 24%, transparent); border-color: transparent; box-shadow: none; }
+.s2-row[data-absent] { border: 1px dashed var(--edge-ui); margin: 4px 4px; }
+.s2-row-group { flex: none; width: 30px; font: 650 10.5px/1 var(--font-ui, Inter, system-ui, sans-serif); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.s2-row-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .s2-row-detail { flex: none; color: var(--ink-2); font-size: 13px; }
-.s2-palette-foot { margin: 0; padding: 8px 16px; border-top: 1px solid var(--edge-hair); color: var(--ink-2); font-size: 12px; }
+.s2-palette-foot { margin: 4px 0 0; padding: 8px 16px 10px; color: var(--ink-3); font-size: 12px; }
 
 /* ------------------------------------------------------------------ narrow: one column (below about 900 px, D6) */
 @media (max-width: 899px) {
@@ -422,32 +695,59 @@
   .s2-wordmark, .s2-clock, .s2-win { display: none; }
   .s2-title { padding: 0 8px; gap: 8px; }
   .s2-product { flex: 1; min-width: 0; }
-  .s2-product button { flex: 1; min-width: 0; padding: 0 8px; }
+  .s2-product button { flex: 1; min-width: 0; padding: 0 8px; font-size: 12.5px; }
+  /* at 390 px JARVIS has four lamps: the well, the switch and Classic UI tighten so "Well Wisher" never runs under the
+     lamps (it did at 8 px less) */
+  .s2-lamps { padding: 0 9px; }
+  .s2-lamps .lamp-bar { gap: 7px; }
+  .s2-classic { padding: 0 12px; font-size: 12px; }
   /* the Resume pill is its own 44 px row under the title bar (4.2.3 mobile) */
-  .s2-pillrow { display: block; grid-area: pill; padding: 4px 8px; border-bottom: 1px solid var(--edge-hair); }
+  .s2-pillrow { display: block; grid-area: pill; position: relative; z-index: 3; padding: 4px 10px 10px; background: var(--surface-ground); }
   .s2-pillrow .s2-pill { margin: 0; max-width: none; width: 100%; }
   .s2-title .s2-pill { display: none; }
-  .s2-rail { border-right: 0; border-top: 1px solid var(--edge-ui); }
-  .s2-rail-list { flex-direction: row; padding: 0; height: auto; }
+  /* the bay is a tray between the pill row and the bottom bar: both top corners round, the shade from above */
+  .s2-canvas { border-radius: 20px 20px 0 0; }
+  .s2 { --s2-bay: inset 0 5px 12px var(--p-shade-cool-16), inset 0 1px 0 var(--p-shade-cool-12); }
+  :root[data-theme='clay-dark'] .s2 { --s2-bay: inset 0 6px 14px var(--p-shadow-black-60), inset 0 1px 0 var(--p-shadow-black-50); }
+  .s2-rail-list { flex-direction: row; padding: 8px 4px 10px; gap: 4px; height: auto; }
   .s2-rail-list > li { flex: 1; min-width: 0; }
   .s2-rail-air { display: none; }
-  .s2-slot[aria-current='page']::after { top: 0; bottom: auto; left: 8px; right: 8px; width: auto; height: 3px; }
-  .s2-views { overflow-x: auto; }
+  .s2-slot { width: calc(100% - 4px); max-width: 60px; }
+  .s2-slot[aria-current='page']::after { top: -8px; left: 50%; width: 20px; height: 4px; margin: 0 0 0 -10px; border-radius: 0 0 3px 3px; }
+  .s2-views { overflow-x: auto; padding: 6px 10px 4px; }
   .s2-interim { display: none; }
 }
+@media (max-width: 899px) and (prefers-contrast: more) { .s2 { --s2-bay: inset 0 1px 0 var(--edge-ui); } }
+@media (max-width: 899px) { :root[data-contrast='high'] .s2 { --s2-bay: inset 0 1px 0 var(--edge-ui); } }
 
 @media (prefers-reduced-motion: reduce) {
   .s2 *, .s2-scrim * { transition: none !important; animation: none !important; }
-  .s2-orb[data-level='live'] { box-shadow: none; }
+  .s2 *:hover, .s2 *:active { transform: none !important; }
+  .s2-orb[data-level='live'] { box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low, none); }
 }
 
 @media (forced-colors: active) {
+  /* every control and well gets a real system edge; the pre-painted pieces and lift layers are not drawn */
+  .s2-skip, .s2-btn, .s2-classic, .s2-slot:not(.s2-ask), .s2-orb, .s2-pill, .s2-kbd, .s2 .ww-shell-tools button:not([role='radio']) { border: 1px solid ButtonText; }
+  .s2-lamps, .s2-palette-field, .s2-palette, .s2-sheet, .s2-events-list, .s2-scrim > .pl-overlay { border: 1px solid CanvasText; }
+  .s2-product::before, .s2-viewlist::before { border: 1px solid CanvasText; background: Canvas; }
+  .s2-product button::before, .s2-view::before, .s2-slot::before, .s2-pill::before, .s2-orb::before, .s2-btn::before, .s2-classic::before, .s2-skip::before { content: none; }
+  .s2-product button::after, .s2-view::after { content: none; }
+  /* the selected piece and its mark are drawn by more specific rules ([aria-checked]::before), which beat the two
+     lines above: the piece painted Canvas over the Highlight fill and hid the HighlightText label (r01 review, the
+     selected "Well Wisher" read as an empty ring in forced colours) */
+  .s2-product button[aria-checked='true']::before, .s2-product button[aria-checked='true']::after,
+  .s2-view[aria-selected='true']::before, .s2-view[aria-selected='true']::after { content: none; }
+  .s2-row[aria-selected='true'] .s2-kbd, .s2-pill[data-pill='start'] .s2-kbd { background: transparent; border: 1px solid currentColor; }
+  .s2-canvas::after { box-shadow: none; border-top: 1px solid CanvasText; border-left: 1px solid CanvasText; }
   .s2-slot[aria-current='page']::after { background: CanvasText; forced-color-adjust: none; }
+  .s2-slot[aria-current='page'] { border-width: 2px; }
   .s2-product button[aria-checked='true'], .s2-view[aria-selected='true'], .s2-row[aria-selected='true'] {
     forced-color-adjust: none;
     background: Highlight;
     color: HighlightText;
   }
-  .s2-fault { border-color: CanvasText; }
+  .s2-wordmark::before { forced-color-adjust: none; background: CanvasText; }
+  .s2-fault { border: 2px solid CanvasText; }
   .s2-orb { border-color: CanvasText; }
 }

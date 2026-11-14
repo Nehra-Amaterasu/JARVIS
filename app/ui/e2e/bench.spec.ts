@@ -69,6 +69,167 @@ function buildBench() {
   return bundle
 }
 
+// ------------------------------------------------------------------------------------------------ the edge rule (craft pass)
+// Decided 13 Nov (craft pass, docs/research/product-design-overhaul.md): WCAG 1.4.11 asks for 3:1 on the visual
+// information needed to IDENTIFY a component or its STATE. So, in the default light and dark themes:
+//   state-bearing parts keep the old 3:1 check (own fill, own border, an SVG stroke, or a bordered container two levels
+//     up): fields (input, textarea, select, textbox, combobox, spinbutton), switches, sliders and custom checkboxes;
+//   a SELECTED piece (aria-selected, aria-checked or aria-pressed true on a tab, radio, option-like or toggle button)
+//     must be 3:1 by its OWN fill or border against what is around it (no container fallback: the piece itself is the
+//     information);
+//   every other control is identified by its label and its shape: it passes when it has a visible text label at 4.5:1
+//     (3:1 large) against its own face, or a named icon whose stroke or fill is 3:1 against its face; a control with
+//     neither still needs the old 3:1 edge.
+// Focus is checked in these themes too (it was only checked under forced colours): every kit and lamp control, on
+// focus, draws a ring at least 2 px wide, at 3:1 against the ground beside it, with an offset of at least 2 px (an
+// inset ring is allowed where the spec asks for one: inside [data-focus-inset] bars and on the chamfered plate).
+// The high-contrast theme and forced colours keep the old rule for EVERY control: (h) below runs the original
+// scanContrast with data-contrast='high', and (a) keeps the forced-colours edge scan unchanged.
+const EDGE_RULES = `(() => {
+  const bn = window.__bn
+  if (!bn || bn.__craft) return
+  bn.__craft = true
+  const cv = document.createElement('canvas'); cv.width = cv.height = 1
+  const cx = cv.getContext('2d', { willReadFrequently: true })
+  const rgba = (s) => { if (!s || s === 'transparent' || s === 'none') return [0, 0, 0, 0]; cx.clearRect(0, 0, 1, 1); cx.fillStyle = '#010203'; cx.fillStyle = s; cx.fillRect(0, 0, 1, 1); const d = cx.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2], d[3] / 255] }
+  const over = (t, b) => { const a = t[3]; return [t[0] * a + b[0] * (1 - a), t[1] * a + b[1] * (1 - a), t[2] * a + b[2] * (1 - a), a + b[3] * (1 - a)] }
+  const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4) }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]) }
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05) }
+  const backdrop = (el, x, y) => {
+    const stack = document.elementsFromPoint(x, y)
+    let i = stack.indexOf(el); if (i < 0) i = 0
+    const layers = []
+    for (; i < stack.length; i++) {
+      const cs = getComputedStyle(stack[i])
+      if (stack[i] instanceof SVGElement) continue
+      const c = rgba(cs.backgroundColor); c[3] *= parseFloat(cs.opacity)
+      if (c[3] > 0) { layers.push(c); if (c[3] >= 0.999) break }
+    }
+    let acc = [255, 255, 255, 1]
+    const root = rgba(getComputedStyle(document.documentElement).backgroundColor)
+    if (!layers.length || layers[layers.length - 1][3] < 0.999) acc = root[3] > 0 ? root : acc
+    for (let k = layers.length - 1; k >= 0; k--) acc = over(layers[k], acc)
+    return acc
+  }
+  const worse = (map, key, score, text) => { const cur = map[key]; if (!cur) map[key] = { score, text, count: 1 }; else { cur.count++; if (score < cur.score) { cur.score = score; cur.text = text } } }
+  const describe = (el) => { const t = (el.getAttribute('aria-label') || el.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 28); const c = (el.getAttribute('class') || '').split(' ')[0]; return el.tagName.toLowerCase() + (el.getAttribute('role') ? '[' + el.getAttribute('role') + ']' : '') + (c ? '.' + c : '') + ' "' + t + '"' }
+  const FIELD = 'input:not([type=button]):not([type=submit]):not([type=reset]):not([type=range]):not([type=checkbox]):not([type=radio]), textarea, select, [role=textbox], [role=combobox], [role=searchbox], [role=spinbutton]'
+  const on = (el) => ['aria-selected', 'aria-checked', 'aria-pressed'].some((a) => el.getAttribute(a) === 'true')
+  const kind = (el) => {
+    const role = el.getAttribute('role') || ''
+    if (el instanceof SVGElement) return 'mark' // an SVG mark: its edge is its stroke, judged by the original rule
+    if (el.matches(FIELD) || ['switch', 'slider', 'checkbox'].includes(role)) return 'state'
+    if (on(el) && (['tab', 'radio', 'menuitemradio', 'menuitemcheckbox'].includes(role) || el.hasAttribute('aria-pressed'))) return 'selected'
+    return 'labelled'
+  }
+  const face = (el) => { const r = el.getBoundingClientRect(); const outside = backdrop(el.parentElement || el, Math.max(0, r.left - 3), r.top + r.height / 2); return over(rgba(getComputedStyle(el).backgroundColor), outside) }
+  const hiddenText = (n) => !!n.parentElement.closest('.k-vh, .ww-sr-only, .art-sr, [hidden]')
+  const label = (el) => {
+    const f = face(el)
+    let best = null
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+    const range = document.createRange()
+    let n
+    while ((n = walker.nextNode())) {
+      if (!n.nodeValue.trim() || hiddenText(n)) continue
+      range.selectNodeContents(n)
+      const rc = range.getBoundingClientRect()
+      if (rc.width < 2 || rc.height < 2) continue
+      const cs = getComputedStyle(n.parentElement)
+      const fs = parseFloat(cs.fontSize)
+      const need = fs >= 24 || (fs >= 18.66 && parseInt(cs.fontWeight, 10) >= 700) ? 3 : 4.5
+      const r = ratio(over(rgba(cs.color), f), f)
+      if (!best || r - need > best.margin) best = { margin: r - need, text: r.toFixed(2) + ':1 text "' + n.nodeValue.trim().slice(0, 16) + '" (needs ' + need + ')' }
+    }
+    if (best && best.margin >= 0) return { ok: true }
+    const named = el.getAttribute('aria-label') || el.getAttribute('aria-labelledby') || el.getAttribute('title')
+    if (named) for (const sh of el.querySelectorAll('svg path, svg circle, svg rect, svg line, svg polyline, svg polygon, svg ellipse')) {
+      const sc = getComputedStyle(sh)
+      for (const p of [sc.stroke, sc.fill]) { if (!p || p === 'none') continue; if (ratio(over(rgba(p), f), f) >= 3) return { ok: true } }
+    }
+    return { ok: false, why: best ? best.text : 'no visible label' }
+  }
+  const ownEdge = (el) => {
+    const cs = getComputedStyle(el); const r = el.getBoundingClientRect()
+    const outside = backdrop(el.parentElement || el, Math.max(0, r.left - 3), r.top + r.height / 2)
+    let best = ratio(over(rgba(cs.backgroundColor), outside), outside)
+    for (const s of ['top', 'right', 'bottom', 'left']) if (parseFloat(cs['border-' + s + '-width']) >= 1 && cs['border-' + s + '-style'] !== 'none') best = Math.max(best, ratio(over(rgba(cs['border-' + s + '-color']), outside), outside))
+    return best
+  }
+  const original = bn.scanContrast
+  bn.scanContrastAll = original
+  bn.scanContrast = () => {
+    const r = original()
+    for (const k of Object.keys(r.out)) if (k.endsWith('|edge-contrast')) delete r.out[k]
+    // the old per-control verdicts, re-run one control at a time so each can be judged by its kind
+    for (const el of bn.interactive()) {
+      if (['img', 'group', 'presentation'].includes(el.getAttribute('role') || '') && el.tagName !== 'BUTTON') continue
+      if (el.tagName === 'INPUT' && ['range', 'checkbox', 'radio'].includes(el.type)) continue
+      if (el.getAttribute('role') === 'option') continue
+      el.scrollIntoView({ block: 'center', inline: 'center' })
+      const o = bn.owner(el)
+      const k = kind(el)
+      bn.stats['edge-kind:' + k] = (bn.stats['edge-kind:' + k] || 0) + 1
+      if (k === 'selected') {
+        const e = ownEdge(el)
+        if (e < 3) worse(r.out, o + '|edge-contrast', e - 3, 'selected piece ' + e.toFixed(2) + ':1 against its neighbours needs 3:1: ' + describe(el))
+        continue
+      }
+      if (k === 'labelled') {
+        const l = label(el)
+        if (l.ok) continue
+        if (ownEdge(el) >= 3) continue
+      }
+      // state-bearing, or an unlabelled control: the original rule, as the original scan judged this owner
+      const key = o + '|edge-contrast'
+      const e = (() => {
+        let best = ownEdge(el)
+        if (el instanceof SVGElement) for (const sh of el.querySelectorAll('circle, rect, path, polygon, ellipse, line')) { const sc = getComputedStyle(sh); const rr = el.getBoundingClientRect(); const out = backdrop(el.parentElement || el, Math.max(0, rr.left - 3), rr.top + rr.height / 2); for (const p of [sc.stroke, sc.fill]) { if (p === 'none') continue; const col = rgba(p); col[3] *= parseFloat(sc.strokeOpacity) || 1; best = Math.max(best, ratio(over(col, out), out)) } }
+        let p = el.parentElement
+        for (let i = 0; i < 2 && p && best < 3; i++, p = p.parentElement) {
+          const pc = getComputedStyle(p); const pr = p.getBoundingClientRect()
+          const po = backdrop(p.parentElement || p, Math.max(0, pr.left - 3), pr.top + 2)
+          for (const s of ['top', 'right', 'bottom', 'left']) if (parseFloat(pc['border-' + s + '-width']) >= 1 && pc['border-' + s + '-style'] !== 'none') best = Math.max(best, ratio(over(rgba(pc['border-' + s + '-color']), po), po))
+        }
+        return best
+      })()
+      if (e < 3) worse(r.out, key, e - 3, (k === 'state' ? 'state-bearing part ' : k === 'mark' ? 'mark ' : 'unlabelled control ') + e.toFixed(2) + ':1 needs 3:1: ' + describe(el))
+    }
+    return r
+  }
+  // the ring in the default themes: at least 2 px, 3:1 against the ground beside it, offset 2 px or more (inset only where the spec allows)
+  bn.scanRings = () => {
+    const out = {}
+    for (const el of bn.interactive()) {
+      const o = bn.owner(el)
+      if (!/^(kit|lamp)\\//.test(o) && !(bn.OPEN && o !== 'page')) continue
+      if (el.getAttribute('role') === 'option') continue
+      el.scrollIntoView({ block: 'center', inline: 'center' })
+      el.focus({ preventScroll: true })
+      let host = null
+      for (let e = el, i = 0; e && i < 4; e = e.parentElement, i++) {
+        if (e !== el && !e.matches(':focus-within')) continue
+        const cs = getComputedStyle(e)
+        if (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0 && rgba(cs.outlineColor)[3] > 0) { host = e; break }
+      }
+      bn.stats['ring:' + (host ? (host === el ? 'self' : 'ancestor') : 'none')] = (bn.stats['ring:' + (host ? (host === el ? 'self' : 'ancestor') : 'none')] || 0) + 1
+      if (!host) { if (!(el instanceof SVGElement)) worse(out, o + '|focus', 0, 'no focus ring in the default theme: ' + describe(el)); el.blur(); continue }
+      const cs = getComputedStyle(host)
+      const w = parseFloat(cs.outlineWidth)
+      const off = parseFloat(cs.outlineOffset)
+      const inset = !!host.closest('[data-focus-inset]') || host.classList.contains('k-chamfer')
+      const r = host.getBoundingClientRect()
+      const ground = backdrop(host.parentElement || host, Math.max(0, r.left - Math.max(off, 0) - w - 2), r.top + r.height / 2)
+      const c = ratio(over(rgba(cs.outlineColor), ground), ground)
+      if (w < 2) worse(out, o + '|focus', w - 2, 'ring ' + w + ' px needs 2 px: ' + describe(el))
+      else if (!inset && off < 2) worse(out, o + '|focus', off - 2, 'ring offset ' + off + ' px needs 2 px: ' + describe(el))
+      else if (c < 3) worse(out, o + '|focus', c - 3, 'ring ' + c.toFixed(2) + ':1 against the ground needs 3:1: ' + describe(el))
+      el.blur()
+    }
+    return out
+  }
+})()`
+
 const FONTS = `html{--f-ui:system-ui,'Segoe UI',sans-serif;--f-mono:ui-monospace,Consolas,monospace;--f-dot:ui-monospace,Consolas,monospace;--font-sans:system-ui,'Segoe UI',sans-serif;--font-mono:ui-monospace,Consolas,monospace}`
 
 async function openBench(page: Page, theme: Theme, open = '') {
@@ -79,6 +240,7 @@ async function openBench(page: Page, theme: Theme, open = '') {
   await page.goto(`${URL_}?theme=${theme}${open ? `&open=${open}` : ''}`)
   await page.locator('[data-bench]').first().waitFor()
   await page.evaluate(INPAGE)
+  await page.evaluate(EDGE_RULES)
   await page.waitForTimeout(400) // the 160 ms colour cross-fades of the ww controls must finish before any colour is sampled
 }
 
@@ -333,6 +495,23 @@ for (const theme of THEMES) {
       writeFileSync(resolve(OUT, `contrast-skips-${theme}.json`), JSON.stringify(skipped))
       settle(theme, ['contrast', 'edge-contrast'], scan)
     })
+
+    // ---------------------------------------------------------------------------------------- f2: the ring, default theme
+    test(`(f) every kit and lamp control draws a 2 px focus ring at 3:1 with a 2 px offset [${theme}]`, async ({ page }) => {
+      const scan = await scanAllPages(page, theme, () => page.evaluate('window.__bn.scanRings()') as Promise<Scan>)
+      settle(theme, ['focus'], scan)
+    })
+
+    // ---------------------------------------------------------------------------------------- h: high contrast, the old rule for every control
+    test(`(h) high contrast: text 4.5:1 and EVERY control's edge 3:1, labelled or not [${theme}]`, async ({ page }) => {
+      const run = async () => {
+        await page.evaluate(() => document.documentElement.setAttribute('data-contrast', 'high'))
+        await page.waitForTimeout(300) // the 120 ms colour cross-fades of the ww controls settle before any colour is sampled
+        return ((await page.evaluate('window.__bn.scanContrastAll()')) as { out: Scan }).out
+      }
+      const scan = await scanAllPages(page, theme, run)
+      settle(theme, ['contrast', 'edge-contrast'], scan)
+    })
   })
 }
 
@@ -346,22 +525,30 @@ for (const theme of THEMES) {
 }
 
 // ------------------------------------------------------------------------------------------------ material branches
-// The clay recipe (20.4.4) as the browser computes it, in its four branches: normal (lit lip, shade, well, grain),
-// high contrast by the in-app switch (grain, lip and wells off; the shade stays as feel, the edge carries the boundary)
-// and forced colours (every shade, grain and the panel's drop filter off). tokens.test.ts proves the OS route
-// (prefers-contrast: more) carries the same declarations as the switch, so one route is measured here.
-interface Material { key: string; well: string; panel: string; grain: number; grainShown: string; errBorder: string; plannedBorder: string }
+// The clay recipe (20.4.4, and the craft pass of 13 Nov) as the browser computes it, in its four branches: normal (the
+// highlight and shade pair, the rim, the engraved well, grain), high contrast by the in-app switch (grain, highlight
+// and wells off, the shade stays as feel, every rim and engraving becomes the strong edge) and forced colours (every
+// shade, grain and filter off). tokens.test.ts proves the OS route (prefers-contrast: more) carries the same
+// declarations as the switch, so one route is measured here.
+interface Material { key: string; keyRim: string[]; well: string; wellEdge: string[]; wellPaint: string; panel: string; panelShade: string; grain: number; grainShown: string; errBorder: string; plannedBorder: string }
+const layers = (v: string) => v.split(/,(?![^(]*\))/).map((x) => x.trim())
+/** the x and y offsets of one computed shadow layer ("rgba(...) 4px 6px 12px 0px [inset]") */
+const offsets = (layer: string) => layer.replace(/rgba?\([^)]*\)/, '').trim().split(/\s+/).slice(0, 2).map(parseFloat)
 const material = (page: Page) =>
   page.evaluate((): Material => {
     const q = (s: string) => document.querySelector(s) as HTMLElement
     const inner = q('.k-panel .k-panel-in')
     return {
       key: getComputedStyle(q('.k-key')).boxShadow,
+      keyRim: ['Top', 'Right', 'Bottom', 'Left'].map((s) => getComputedStyle(q('.k-key')).getPropertyValue(`border-${s.toLowerCase()}-color`)),
       well: getComputedStyle(q('.k-switch')).boxShadow,
+      wellEdge: ['top', 'right', 'bottom', 'left'].map((s) => getComputedStyle(q('.k-switch[data-on="false"]')).getPropertyValue(`border-${s}-color`)),
+      wellPaint: getComputedStyle(q('.k-switch[data-on="false"]')).backgroundImage,
       panel: getComputedStyle(q('.k-panel:not([data-state])')).filter,
+      panelShade: getComputedStyle(q('.k-panel:not([data-state]) .k-panel-in')).boxShadow,
       grain: Number(getComputedStyle(inner, '::before').opacity),
       grainShown: getComputedStyle(inner, '::before').display,
-      // the error panel's edge is its clipped ::before; a box border would frame the chamfer as a square
+      // the error panel's edge is the card's own 2 px border (or, chamfered, its clipped ::before); a box border would frame it as a square
       errBorder: getComputedStyle(q(".k-panel[data-state='error']")).borderTopWidth,
       plannedBorder: getComputedStyle(q(".k-panel[data-state='planned']")).borderTopWidth,
     }
@@ -370,19 +557,44 @@ for (const theme of THEMES) {
   test(`(material) lit lip, shade, well and grain in normal, high-contrast and forced branches [${theme}]`, async ({ page }) => {
     await openBench(page, theme)
     const normal = await material(page)
-    expect(normal.key, 'a raised key has the lit lip and a shade').toMatch(/inset/)
-    expect(normal.key.split(/,(?![^(]*\))/).length, 'at most two layers').toBeLessThanOrEqual(2)
+    // craft pass: the raised key is a 1 px lit lip drawn inside the face (one inset layer) in front of the pair (a
+    // highlight up and left, a shade down and right); three layers, and no outline at all: the border is transparent on
+    // every side (14 Nov: a two-colour border lip notched the orange pill at the corners where its colours met). Round
+    // two (14 Nov): the lip is on the TOP edge only (0 1px): a 1px 1px lip drew a white crescent down the left curve of
+    // every pill, which the second jury read as a notch on the primary and a broken arc on a dark disabled pill
+    const kl = layers(normal.key)
+    expect(kl.length, 'the lip plus the pair').toBe(3)
+    expect(/inset/.test(kl[0]) && !/inset/.test(kl[1]) && !/inset/.test(kl[2]), `only the lip is inset: ${normal.key}`).toBe(true)
+    const [lx, ly] = offsets(kl[0].replace('inset', ''))
+    expect([lx, ly], 'the lip sits on the lit top edge').toEqual([0, 1])
+    const [hx, hy] = offsets(kl[1])
+    const [sx, sy] = offsets(kl[2])
+    expect([hx < 0, hy < 0, sx > 0, sy > 0], `the light comes from the top left: ${normal.key}`).toEqual([true, true, true, true])
+    expect(normal.keyRim.every((c) => c === 'rgba(0, 0, 0, 0)'), 'no outline on any side').toBe(true)
     expect(normal.well, 'the switch track is a well').toMatch(/inset/)
-    expect(normal.panel, 'the chamfered panel casts its shade').toMatch(/drop-shadow/)
+    // round two: the engraving is the top border (the wall in shade) and the bottom border (the lit lip), and the sides are
+    // transparent over a vertical gradient from one colour to the other painted on the border box, so the edge turns the
+    // curved corners with no hard join (the two-colour border met in a diagonal at each corner: the jury's "crescent rim")
+    expect([normal.wellEdge[0], normal.wellEdge[2]].every((c) => c !== 'rgba(0, 0, 0, 0)'), 'the well is engraved top and bottom').toBe(true)
+    expect(normal.wellEdge[0], 'the engraving has two sides').not.toBe(normal.wellEdge[2])
+    expect([normal.wellEdge[1], normal.wellEdge[3]], 'the sides are the painted gradient, not a third colour').toEqual(['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0)'])
+    expect(normal.wellPaint, 'the sides are painted by a border-box gradient').toMatch(/linear-gradient/)
+    expect(normal.panel, 'the soft card casts no filter shade (that was the chamfer)').toBe('none')
+    expect(layers(normal.panelShade).length, 'the card is the lip plus the raised pair').toBe(3)
+    expect(layers(normal.panelShade)[0], 'the card lip is the inset layer').toMatch(/inset/)
     expect(normal.grain).toBeCloseTo(0.025, 3)
-    expect(normal.errBorder, 'the error panel has no square box border round its chamfer').toBe('0px')
-    expect(normal.plannedBorder, 'the planned panel is drawn by its dashed chamfer, not a square box border').toBe('0px')
+    expect(normal.errBorder, 'the error panel draws its fault edge on the card, not a square box border round it').toBe('0px')
+    expect(normal.plannedBorder, 'the planned panel is drawn by the dashed edge of the card, not a square box border').toBe('0px')
 
     await page.evaluate(() => document.documentElement.setAttribute('data-contrast', 'high'))
     const hc = await material(page)
     expect(hc.grain, 'high contrast: no grain').toBe(0)
     expect(hc.well, 'high contrast: the well is edge only').toBe('none')
-    expect(hc.key, 'high contrast: the lit lip is transparent').toMatch(/rgba\(0, 0, 0, 0\)[^,]*inset|inset[^,]*rgba\(0, 0, 0, 0\)/)
+    expect(layers(hc.key)[1], 'high contrast: the highlight is transparent').toMatch(/^rgba\(0, 0, 0, 0\)/)
+    expect(layers(hc.key)[0], 'high contrast: the lip is transparent').toMatch(/^rgba\(0, 0, 0, 0\)/)
+    expect(new Set(hc.keyRim).size, 'high contrast: the key is outlined on all four sides in one strong edge').toBe(1)
+    expect(hc.keyRim[0]).not.toBe('rgba(0, 0, 0, 0)')
+    expect(new Set(hc.wellEdge).size, 'high contrast: the well edge is one strong edge').toBe(1)
 
     await page.evaluate(() => document.documentElement.removeAttribute('data-contrast'))
     await page.emulateMedia({ forcedColors: 'active' })
@@ -390,6 +602,7 @@ for (const theme of THEMES) {
     expect(forced.key, 'forced colours: no shade').toBe('none')
     expect(forced.well).toBe('none')
     expect(forced.panel, 'forced colours: no drop filter').toBe('none')
+    expect(forced.panelShade, 'forced colours: the card casts no shade').toBe('none')
     expect(forced.grainShown, 'forced colours: no grain layer').toBe('none')
     expect(forced.errBorder, 'forced colours: the error panel keeps its 2 px border').toBe('2px')
   })

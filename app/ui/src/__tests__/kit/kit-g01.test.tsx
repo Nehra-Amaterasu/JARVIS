@@ -125,14 +125,48 @@ describe('the material recipe (elevation.css, contrast.css, forced.css)', () => 
     for (const k of ['--lit-hi', '--lit-lo', '--tooth-opacity', '--elev-flush', '--elev-raised', '--elev-float', '--elev-recessed', '--elev-pressed']) expect(e[k], k).toBeTruthy()
     expect(Number(e['--tooth-opacity'])).toBeCloseTo(0.025, 5)
     for (const k of ['--elev-flush', '--elev-raised', '--elev-float']) expect(e[k], `${k} carries the lit lip`).toContain('var(--lit-hi)')
-    // the light is aimed from the top left: every outer shade falls right and down
-    for (const k of ['--elev-raised', '--elev-float']) {
-      const outer = e[k].split(/,(?![^(]*\))/).map((x) => x.trim()).filter((x) => !x.startsWith('inset'))
-      for (const o of outer) {
-        const [x, y] = o.split(/\s+/).map(parseFloat)
-        expect(x, `${k} x offset`).toBeGreaterThan(0)
-        expect(y, `${k} y offset`).toBeGreaterThan(0)
-      }
+    // craft pass: the light is aimed from the top left, so every raised step is exactly two outer layers, a highlight in
+    // --lit-hi thrown up and left and a shade thrown right and down (the old test saw only the shade, so it asked for
+    // every outer layer to fall right and down; the pair is stricter: both layers, both directions)
+    for (const k of ['--elev-flush', '--elev-low', '--elev-raised', '--elev-high', '--elev-float']) {
+      const layers = e[k].split(/,(?![^(]*\))/).map((x) => x.trim())
+      expect(layers, k).toHaveLength(2)
+      expect(layers.some((l) => l.startsWith('inset')), `${k} is raised, not inset`).toBe(false)
+      const [hl, shade] = layers
+      expect(hl, `${k}: the first layer is the highlight`).toContain('var(--lit-hi)')
+      const [hx, hy] = hl.split(/\s+/).map(parseFloat)
+      expect([hx < 0, hy < 0], `${k} highlight goes up and left`).toEqual([true, true])
+      const [sx, sy, sb] = shade.split(/\s+/).map(parseFloat)
+      expect([sx > 0, sy > 0], `${k} shade falls right and down`).toEqual([true, true])
+      // round two (14 Nov): the light is at 45 degrees, as C02-18 and C02-27 draw it, so a step is one number o: the
+      // highlight and the shade slide the same o on both axes and both blur 2o + 2 (round one let the shade fall 1.5 x
+      // further than it slid, with a 3 x blur; beside the sheets that read as a light from above, not from the top left)
+      const hb = parseFloat(hl.split(/\s+/)[2])
+      expect([sx, sy, -hx, -hy], `${k}: one offset on both axes, both layers`).toEqual([sx, sx, sx, sx])
+      expect([sb, hb], `${k}: both blurs are 2o + 2`).toEqual([2 * sx + 2, 2 * sx + 2])
+    }
+    // the steps climb: each shade is at least as far and as wide as the one below it
+    const reach = (k: string) => parseFloat(e[k].split(/,(?![^(]*\))/)[1].trim().split(/\s+/)[1])
+    const order = ['--elev-flush', '--elev-low', '--elev-raised', '--elev-high', '--elev-float'].map(reach)
+    expect([...order].sort((a, b) => a - b)).toEqual(order)
+    // the wells and the press are the inverse: two inset layers, the shade inside the top left, the highlight inside the bottom right
+    for (const k of ['--elev-recessed', '--elev-well-deep', '--elev-pressed']) {
+      const layers = e[k].split(/,(?![^(]*\))/).map((x) => x.trim())
+      expect(layers, k).toHaveLength(2)
+      expect(layers.every((l) => l.startsWith('inset')), `${k} is inset`).toBe(true)
+      const [sx, sy] = layers[0].replace('inset', '').trim().split(/\s+/).map(parseFloat)
+      const [hx, hy] = layers[1].replace('inset', '').trim().split(/\s+/).map(parseFloat)
+      expect([sx > 0, sy > 0, hx < 0, hy < 0], k).toEqual([true, true, true, true])
+    }
+  })
+  it.each(themes)('%s: the rims and the engraved well edges; the engraved edge has one side at 3:1 on the ground, raised and sunk', (_t, e, s) => {
+    expect(e['--rim-shade'], 'a raised part has no outline on its shaded side').toBe('transparent')
+    expect(e['--rim-lit'], 'its lit lip is a translucent white').toMatch(/^var\(--p-shadow-white-\d+\)$/)
+    // the 3:1 side is the side physics makes contrasty: the dark top-left wall in light, the lit lower lip in dark
+    const side = _t === 'light' ? e['--engrave-dark'] : e['--engrave-lit']
+    for (const surface of ['--surface-ground', '--surface-raised', '--surface-sunk']) {
+      const r = ratio(hex(side), hex(s[surface]))
+      expect(r, `${_t} engraved edge on ${surface}: ${r.toFixed(2)}`).toBeGreaterThanOrEqual(3)
     }
   })
   it.each(themes)('%s: the raised shade in filter form (for the chamfered panel) is one layer that falls right and down', (_t, e) => {

@@ -1,19 +1,25 @@
 /* Bench layout only: no component styling lives here. The two portal stacks are made static so the page stays one
-   readable sheet; the finding they would otherwise hide (a fixed stack covering content) is not what this bench tests. */
+   readable sheet; the finding they would otherwise hide (a fixed stack covering content) is not what this bench tests.
+   14 Nov (craft round two): one ground for every sheet, the clay ground, also behind the legacy ww-* controls (the Well
+   Wisher wrapper painted its own Paper cream #F4F1EA in light and Ash #050505 in dark, so the jury saw two grounds and
+   two light sources); captions in the sans face (mono is for data); two columns of sheets capped at 1320 px so the
+   overview can be judged at a glance (one column was 22,330 px tall). */
 :root { color-scheme: light dark; }
 html[data-theme='clay-light'] { color-scheme: light; }
 html[data-theme='clay-dark'] { color-scheme: dark; }
 body { margin: 0; background: var(--surface-ground); color: var(--ink-1); font: 14px/1.4 system-ui, 'Segoe UI', sans-serif; }
-#bn-root { padding: 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 1280px; margin: 0 auto; }
-.bn-title { font-size: 20px; margin: 0; }
-.bn-block { min-width: 0; border: 1px solid var(--edge-hair, currentColor); padding: 12px; display: grid; gap: 8px; background: var(--surface-ground); }
-.bn-h { font: 600 14px/1.2 ui-monospace, Consolas, monospace; margin: 0; }
-.bn-forms { display: grid; gap: 12px; }
-.bn-form { min-width: 0; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-start; }
-.bn-cap { flex: 0 0 100%; margin: 0; font: 12px/1.2 ui-monospace, Consolas, monospace; color: var(--ink-3); }
+#bn-root, #bn-g01 { padding: 24px 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 600px), 1fr)); gap: 24px; max-width: 1320px; margin: 0 auto; align-items: start; }
+.bn-title { grid-column: 1 / -1; font: 600 20px/1.3 system-ui, 'Segoe UI', sans-serif; margin: 0; }
+.bn-block { min-width: 0; border: 0; border-radius: 24px; padding: 24px; display: grid; gap: 16px; background: var(--surface-ground); }
+.bn-block[data-pkg='art'] { grid-column: 1 / -1; }
+.bn-h { font: 600 15px/1.2 system-ui, 'Segoe UI', sans-serif; margin: 0; color: var(--ink-1); }
+.bn-forms { display: grid; gap: 20px; }
+.bn-form { min-width: 0; display: flex; flex-wrap: wrap; gap: 16px 20px; align-items: center; }
+.bn-cap { flex: 0 0 100%; margin: 0; font: 500 12px/1.2 system-ui, 'Segoe UI', sans-serif; letter-spacing: .02em; color: var(--ink-3); }
 .bn-cell { display: inline-flex; align-items: center; gap: 6px; }
-.bn-legacy { display: grid; gap: 16px; }
-.bn-legacy .bn-block { min-width: 0; background: var(--surface-0); }
+/* the legacy wrapper spans the grid and lays its own sheets out the same way, on the clay ground */
+.bn-legacy { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 600px), 1fr)); gap: 24px; align-items: start; }
+html[data-theme^='clay'] .bn-legacy, html[data-theme^='clay'] .bn-legacy .bn-block { background: var(--surface-ground); }
 .bn-legacy .bn-h, .bn-legacy .bn-cap { color: var(--ink-2); }
 .ww-toasts, .ww-toasts.ww-portal { position: static !important; pointer-events: auto !important; }
 .k-toasts { position: static; }

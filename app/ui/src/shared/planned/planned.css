@@ -191,3 +191,13 @@
     border-style: solid;
   }
 }
+
+/* Craft pass (13 Nov): under a clay theme the placeholders take the material's soft corners and its 8 px rhythm, and
+   stay flat on purpose (no pair, no lift, no sink: a placeholder that rose would read as a live feature). The one cue
+   is unchanged: the dashed edge, the dashed ring and the word PLANNED. */
+:root[data-theme^='clay'] .pl-plate { gap: 8px; padding: 16px 20px; border-radius: var(--r-ctl, 14px); }
+:root[data-theme^='clay'] .pl-plate::before { inset: -6px; }
+:root[data-theme^='clay'] .pl-btn { padding: 0 20px; border-radius: var(--r-pill, 999px); font-family: var(--font-sans, system-ui, sans-serif); font-weight: 500; }
+:root[data-theme^='clay'] .pl-chip { padding: 0 16px; font-family: var(--font-sans, system-ui, sans-serif); }
+:root[data-theme^='clay'] .pl-label { font-family: var(--font-sans, system-ui, sans-serif); font-size: 14px; }
+:root[data-theme^='clay'] :is(.pl-line, .pl-hint) { font-family: var(--font-sans, system-ui, sans-serif); }

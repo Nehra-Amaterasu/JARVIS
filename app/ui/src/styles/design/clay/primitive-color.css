@@ -90,4 +90,40 @@
   --p-shadow-ink-24: rgb(23 23 23 / 0.24);
   --p-shadow-black-40: rgb(0 0 0 / 0.4);
   --p-shadow-black-50: rgb(0 0 0 / 0.5);
+
+  /* the refined pair (craft pass, 13 Nov; retinted 14 Nov): the light theme's shade is the navy C02-18 writes on its
+     sheet, #0D2750 at low alpha, not ink and not the warm slate of round one (the second jury read that as warm grey).
+     A black or ink shade at the same alpha reads as dirt on the #E8EAE9 ground. One hue, one alpha per step. */
+  --p-shade-cool-10: rgb(13 39 80 / 0.1);
+  --p-shade-cool-12: rgb(13 39 80 / 0.12);
+  --p-shade-cool-14: rgb(13 39 80 / 0.14);
+  --p-shade-cool-16: rgb(13 39 80 / 0.16);
+  --p-shade-cool-18: rgb(13 39 80 / 0.18);
+  --p-shade-cool-20: rgb(13 39 80 / 0.2);
+  --p-shade-cool-22: rgb(13 39 80 / 0.22);
+  --p-shade-cool-24: rgb(13 39 80 / 0.24);
+  --p-shade-cool-30: rgb(13 39 80 / 0.3);
+  /* the dark theme's highlight: a lighter grey at low alpha (C02-21 lifts #292D32 by #30343A); on #171717 six percent
+     of white is the same step, ten read as a halo on the bench */
+  --p-shadow-white-04: rgb(255 255 255 / 0.04);
+  --p-shadow-white-07: rgb(255 255 255 / 0.07);
+  --p-shadow-white-12: rgb(255 255 255 / 0.12);
+  --p-shadow-white-35: rgb(255 255 255 / 0.35);
+  --p-shadow-black-70: rgb(0 0 0 / 0.7);
+
+  /* round two of the craft pass (14 Nov): the accent as a STATE fill (an ON track, a selected segment, a lit rocker key,
+     the slider's run, the knob's arc), the C02-46 orange one step deeper than the action fill #F25623 so it is a 3:1
+     piece on every clay surface it sits on (3.22 on the ground, 3.50 on raised, 4.61 on the dark ground) and carries
+     #171717 text at 4.61:1. It is never --accent-fill: the bright fill stays the one primary action per view. */
+  --p-orange-600: #e2501f;
+  /* the hover face: the raised face 2 percent lighter (C02-03 "Hover"), light and dark */
+  --p-clay-25: #f7f8f7;
+  --p-char-680: #282a2d;
+  /* the dark switch thumb: a lit pebble one step above the raised face, so the thumb reads as the object on both tracks */
+  --p-char-550: #4a4e52;
+  /* the fault as a soft glow over the material instead of a hard red ring (the triangle and the words carry it) */
+  --p-fault-glow-18: rgb(179 38 30 / 0.18);
+  --p-fault-glow-25: rgb(179 38 30 / 0.25);
+  --p-fault-glow-dk-25: rgb(255 107 94 / 0.25);
+  --p-fault-glow-dk-35: rgb(255 107 94 / 0.35);
 }

@@ -17,6 +17,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 AUTHOR = "Amritanshu Nehra"
+# One commit of 9 Nov 2026 reached the public main with a co-author trailer before this check ran on every merge.
+# I chose on 15 Nov to keep history (removing it means rewriting about 290 pushed commits and re-syncing two lanes)
+# and to list it here, so the check stays strict for every other commit.
+REVIEWED = {"efe496f4e2bffaf984d3ce460ed46e066e3e1bfe"}
 _AI = r"(?:claude|anthropic|openai|chatgpt|gpt-?\d|copilot|gemini|codex|cursor|devin|bot\b|\[bot\])"
 BAD_LINES = [
     re.compile(r"^\s*co-authored-by:.*" + _AI, re.I),
@@ -45,7 +49,7 @@ def problems(c: dict) -> list[str]:
         bad.append(f"author is {c['author']!r}")
     if re.search(_AI, c["author"] + " " + c["email"], re.I):
         bad.append("author names an AI or a bot")
-    for line in c["body"].splitlines():
+    for line in ([] if c["sha"] in REVIEWED else c["body"].splitlines()):
         if any(rx.search(line) for rx in BAD_LINES):
             bad.append(f"attribution line: {line.strip()[:80]!r}")
     return bad

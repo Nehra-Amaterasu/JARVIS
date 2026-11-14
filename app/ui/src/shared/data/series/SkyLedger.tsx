@@ -133,7 +133,7 @@ export function SkyLedger({ days, window, state, label = 'Days kept', today, rea
         />
       )}
     >
-      <div ref={stageRef} className="sr-stage">
+      <div ref={stageRef} className="sr-stage" data-compact={width < 420 ? 'true' : 'false'}>
         <Screen
           height={h} planned={state === 'planned'}
           tag={width < 600 ? `${win} days` : `sky · last ${win} days · one star a day`}

@@ -106,7 +106,7 @@ export function DotHistogram({ values, bins = HIST_DEFAULT_BINS, unitPerDot, sta
         />
       )}
     >
-      <div ref={stageRef} className="sr-stage">
+      <div ref={stageRef} className="sr-stage" data-compact={width < 420 ? 'true' : 'false'}>
         <Screen
           height={height} planned={state === 'planned'}
           tag={hollow ? 'no values' : `${width < PHONE_W ? '' : 'distribution · '}${b.n} obs · 1 dot = ${u}`}

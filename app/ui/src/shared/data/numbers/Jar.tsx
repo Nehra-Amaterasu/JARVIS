@@ -52,7 +52,7 @@ export function Jar({ level, plan, label, state, unit, reason, className }: JarP
       aria-label={spoken}
       role="group"
     >
-      <span className="d1-lamp"><Lamp state={state} reason={reason} bare /></span>
+      <span className="d1-lamp"><Lamp state={state} reason={reason} /></span>
       <div className="d1-jar-stage">
       <svg className="d1-jar-svg" viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false">
         <defs>

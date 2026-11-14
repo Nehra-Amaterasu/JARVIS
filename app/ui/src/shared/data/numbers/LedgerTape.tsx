@@ -42,7 +42,7 @@ export function LedgerTape({ entries, total, state, title = 'today', unit, reaso
       <div className="d1-tape-sheet">
         <header className="d1-tape-head">
           <span className="d1-tape-title">TAPE / {title.toUpperCase()}</span>
-          <span className="d1-lamp"><Lamp state={state} reason={reason} bare /></span>
+          <span className="d1-lamp"><Lamp state={state} reason={reason} /></span>
         </header>
         <div className="d1-tape-ruler" aria-hidden="true" />
 

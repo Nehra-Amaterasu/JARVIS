@@ -51,7 +51,7 @@ function skyDays(): SkyDay[] {
 const SKY = skyDays()
 const TODAY = '2026-11-13'
 
-const wrap = (node: ReactElement) => <div style={{ inlineSize: 'min(760px, 100%)' }}>{node}</div>
+const wrap = (node: ReactElement) => <div style={{ inlineSize: '100%', minInlineSize: 0 }}>{node}</div>
 
 const entries: GalleryEntryX[] = [
   {

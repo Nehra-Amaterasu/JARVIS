@@ -23,6 +23,23 @@ One file for the JARVIS + Well Wisher product-design overhaul (the design source
 **What it changed.** Merge test items (e) and (f) of 15.6.1 and A.N03's accept line are now code. Integrators run `python tools/integrate_wave.py` after each merge and read the `.txt` beside the report.
 
 
+## 2026-11-14: RD1 rework (number forms D01 and series forms D02)
+
+**Question.** The wave 6 jury named five faults in D01 and D02: grey ghost zeros in the Odometer, a Jar at 390 px with a clipped title and about 4000 px of empty space, a blank LedgerTape at 390 px, Trace and SkyLedger using a quarter of a 1366 px screen, and focus, target and text-size gaps. What is the cause of each, and what fixes it?
+
+**Found.**
+- Jar and LedgerTape at 390 px: rendered alone in a 358 and a 390 px host, the Jar states are 566 px (four jars wrapped) and 293 to 325 px tall, the tape states 215 to 263 px; no overflow. The component is not at fault. The jury shots are the What is new pane (gallery/gallery.css, owned by R01) captured while its grid row is `minmax(0, 1fr)` of a 100% height, so the stage clips the first state and the rest of the capture is empty pane. Not fixed here (see not done); a test now proves the components themselves.
+- Two real overflows found while rendering: the Odometer demo wrapper (a grid whose track grew to max-content, 418 px in a 358 px host) and the Dumbbell's visually hidden table (a table keeps its content width, so the 1 px sr-only table pushed the page to 563 px). Fixed: a `minmax(0, max-content)` track in the entry; `overflow-x: clip` on the Dumbbell card and a top-left anchor for `.d1-sr`.
+- Trace and SkyLedger: the specimen wrapper capped them at `min(760px, 100%)` and the figure had no width rule. Now the figure is `inline-size: min(100%, var(--sr-max, 960px))`; below 420 px of stage the left corner plate is hidden (compact form); below 600 px the existing phone height applies.
+- Odometer: padding wheels kept a glyph at 55 percent opacity (ghost zeros). They are now blank recessed sockets (the strip stays in the DOM, `visibility: hidden`, so a growing value still rolls in and the accessible text is unchanged). Wheels gain a CSS lens glint and a lit rim. The lamp is no longer bare on any form (Odometer hero and compact, Dumbbell, LedgerTape, Jar): glyph plus the state word. Hero padding-top grew from 18 to 40 px so the lamp word clears the ruler.
+- Text under 11 px: the series serial, corner tag, callout lamp, gap word and SkyLedger row labels were 10 px; now 11 px. Trace plot focus is a 2 px outline (offset -3) instead of an inset shadow that forced colours replaced.
+
+**Numbers.** tsc 0 errors; vitest 114 files, 2439 tests pass; bundle budget ok; e2e/gallery.spec.ts 10 of 10; new e2e/rd1-forms.spec.ts 24 of 24 (Jar under 700 px and no overflow at 358 and 390; LedgerTape lines drawn at 358 and 390; Trace, DotHistogram, SkyLedger exactly min(container, 960) wide at 360, 720 and 1100 and compact at 360; padding sockets glyph-free; every number form says its state word; no text under 11 px; 44 px targets; 2 px ring on each of the first eight tab stops of all seven forms). Screenshots: scratchpad/jury/rework/rd1/.
+
+**What changed.** shared/data/numbers (Odometer, Dumbbell, Jar, LedgerTape, numbers.css), shared/data/series (parts unchanged; Trace, DotHistogram, SkyLedger, series.css), the two gallery entry files, e2e/rd1-forms.spec.ts and e2e/rd1/entry.tsx.
+
+**Not done.** The gallery pane capture fault (R01 owns gallery.css); the wave 6 jury should re-shoot with the components in a plain host or after R01 merges. The clay recess and lamp word styles are R01 tokens: the Odometer takes the refined recipe when it merges.
+
 ## 2026-11-14: wave 6 integrated, and what its jury said (6.6 design, 6.4 usability; pass line 8.0)
 
 **Question.** After the six wave 6 packages and the rebuilt Core section merged, does the new interface pass the screenshot jury, and what does the next round have to fix?

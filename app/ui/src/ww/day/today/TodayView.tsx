@@ -11,10 +11,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { leaderPath } from '../../../shared/data/specimen'
 import { CaptureLine, type Parsed } from '../../../shared/capture'
-import { Button, Segmented } from '../../../shared/kit'
+import { Button, Fold, Segmented } from '../../../shared/kit'
+import { RailFormProvider } from '../../left/railForm'
 import { SpecimenBoxProvider, TodayProvider, type TodayCtx } from './context'
 import { arcFrac, arcGeometry, arcPoint, minOfDate, type Pt } from './model'
-import { arcHeightFor } from './modes/day.mode'
+import { arcHeightFor, heroRight } from './modes/day.mode'
 import { CALLOUTS, MAX_CALLOUTS, MODES } from './registry'
 // the space roles (--space-1 to 7) live in the shared primitive sheet; the frame loads it through ww/design/base.css, and
 // Today, which replaces the frame on its view, loads it itself
@@ -23,13 +24,18 @@ import './today.css'
 
 export const PHONE_BELOW = 900
 export const RAIL_L = 248
-export const RAIL_R = 64
+/** The Proof rail is an instrument of the left rail's weight (a ring, three figures with their lamp words): 96 px, not the 64 px
+ *  of five bare pins. */
+export const RAIL_R = 96
 const PAD = 16
 const GAP = 16
 /** The Capture Line (D04) is a 104 px terminal well with its hint row; the footer holds it whole. */
 const FOOT = 108
 const PLATE_GAP = 14
 const SPEC_INSET = 12
+/** How tall each plate is, as a share of the margin: Now holds the one accent key (48 px) and its sentence, Reminders two hollow
+ *  rows. Equal 116 px plates left Now's text touching its header (jury, 14 Nov). Unknown ids weigh 1. */
+const WEIGHT: Record<string, number> = { now: 1.4, ahead: 1, counters: 1.2, reminders: 0.9 }
 
 export interface TodayGeom {
   phone: boolean
@@ -40,38 +46,41 @@ export interface TodayGeom {
 }
 
 /** The boxes of the desk form for a container w x h with n callouts (pure, so the test checks 1366 x 768 without a DOM). */
-export function todayGeometry(w: number, h: number, n: number, rails: { left: boolean; right: boolean }): TodayGeom {
+export function todayGeometry(w: number, h: number, n: number, rails: { left: boolean; right: boolean }, ids: readonly string[] = []): TodayGeom {
   const phone = w < PHONE_BELOW
-  const mw = Math.max(320, w - 2 * PAD - (rails.left ? RAIL_L + GAP : 0) - (rails.right ? RAIL_R + GAP : 0))
+  // the phone form has no rails beside it and no clamp: the box is exactly what is left of the width after the page's padding
+  // (the 320 px floor of the desk made a 286 px phone well draw 320 px of dial and strip, cut at both edges)
+  const mw = phone ? Math.max(0, w - 2 * PAD) : Math.max(320, w - 2 * PAD - (rails.left ? RAIL_L + GAP : 0) - (rails.right ? RAIL_R + GAP : 0))
   const mh = Math.max(420, h - 2 * PAD)
   const body = mh - FOOT - GAP
   const sw = Math.max(380, Math.min(640, Math.round(mw * 0.57)))
   const mx = sw + 44
   const k = Math.max(1, n)
-  const ph = Math.min(140, Math.floor((body - (k - 1) * PLATE_GAP) / k))
-  const used = k * ph + (k - 1) * PLATE_GAP
+  const wt = Array.from({ length: n }, (_, i) => WEIGHT[ids[i] ?? ''] ?? 1)
+  const unit = (body - (k - 1) * PLATE_GAP) / Math.max(1, wt.reduce((a, b) => a + b, 0))
+  const hs = wt.map((x) => Math.min(168, Math.floor(unit * x)))
+  const used = hs.reduce((a, b) => a + b, 0) + (k - 1) * PLATE_GAP
   const top = Math.max(0, Math.round((body - used) / 2))
-  return {
-    phone,
-    main: { w: mw, h: mh },
-    spec: { x: 0, y: 0, w: sw, h: body },
-    margin: { x: mx, w: mw - mx },
-    plates: Array.from({ length: n }, (_, i) => ({ y: top + i * (ph + PLATE_GAP), h: ph })),
-  }
+  let y = top
+  const plates = hs.map((ph) => { const p = { y, h: ph }; y += ph + PLATE_GAP; return p })
+  return { phone, main: { w: mw, h: mh }, spec: { x: 0, y: 0, w: sw, h: body }, margin: { x: mx, w: mw - mx }, plates }
 }
 
-/** Where each callout's leader starts on the specimen: the Now leader on the now notch, Ahead on the evening end, Counters on
- *  the hero, Reminders on the Trace; any later callout on the specimen's right edge at its own height. */
+/** Where each callout's leader starts on the specimen. Every leader leaves from the open side of its figure and runs where there is
+ *  no text (the geometry test measures it against every text box of the specimen): the Now leader starts OUTSIDE the hour labels
+ *  on the notch's own ray, Ahead on the class track's evening part between two hour labels, Counters on the right edge of the
+ *  minutes figure at 24 px above the datum (between the 23:00 dot and the 24 label), Reminders at the strip's right margin;
+ *  any later callout on the specimen's right edge at its own height. */
 export function anchorsFor(ids: string[], g: TodayGeom, now: Date): Pt[] {
   const iw = g.spec.w - 2 * SPEC_INSET
-  const ah = arcHeightFor(g.spec.h - 2 * SPEC_INSET)
+  const ah = arcHeightFor(g.spec.h - 2 * SPEC_INSET, iw)
   const a = arcGeometry(iw, ah)
   const at = (p: Pt) => ({ x: Math.round(p.x + SPEC_INSET), y: Math.round(p.y + SPEC_INSET) })
   return ids.map((id, i) => {
-    if (id === 'now') return at(arcPoint(a.cx, a.cy, a.tickR + 8, arcFrac(minOfDate(now))))
-    if (id === 'ahead') return at(arcPoint(a.cx, a.cy, a.r.class, 0.97))
-    if (id === 'counters') return at({ x: a.cx + Math.round(a.r.done * 0.55), y: a.cy - Math.round(a.r.done * 0.45) })
-    if (id === 'reminders') return at({ x: iw - 16, y: ah + Math.round((g.spec.h - ah) * 0.45) })
+    if (id === 'now') return at(arcPoint(a.cx, a.cy, a.labelR + 16, arcFrac(minOfDate(now))))
+    if (id === 'ahead') return at(arcPoint(a.cx, a.cy, a.r.class, 0.85))
+    if (id === 'counters') return at(heroRight(iw, ah))
+    if (id === 'reminders') return at({ x: iw - 4, y: ah + Math.round((g.spec.h - 2 * SPEC_INSET - ah) * 0.62) })
     const p = g.plates[i]
     return { x: g.spec.w - 6, y: p ? p.y + Math.round(p.h / 2) : g.spec.h / 2 }
   })
@@ -118,7 +127,7 @@ export function TodayView({ ctx, left, right, size, onCapture, children }: Today
   const [modeId, setModeId] = useState(modes[0]?.id ?? 'day')
   const mode = modes.find((m) => m.id === modeId) ?? modes[0]
   const callouts = CALLOUTS.list.slice(0, MAX_CALLOUTS)
-  const g = useMemo(() => todayGeometry(box.w, box.h, callouts.length, { left: !!left, right: !!right }), [box.w, box.h, callouts.length, left, right])
+  const g = useMemo(() => todayGeometry(box.w, box.h, callouts.length, { left: !!left, right: !!right }, callouts.map((c) => c.id)), [box.w, box.h, callouts, left, right])
   const anchors = useMemo(() => anchorsFor(callouts.map((c) => c.id), g, ctx.raw.now), [callouts, g, ctx.raw.now])
   const [hot, setHot] = useState<number | null>(null)
   const startBlock = ctx.actions.startBlock
@@ -149,19 +158,22 @@ export function TodayView({ ctx, left, right, size, onCapture, children }: Today
 
   if (g.phone) {
     const now = callouts.find((c) => c.id === 'now')
-    const rest = callouts.filter((c) => c.id !== 'now')
+    const reminders = callouts.find((c) => c.id === 'reminders')
+    const rest = callouts.filter((c) => c.id !== 'now' && c.id !== 'reminders')
+    // one column, about 1,400 px: Now first, the dial with its figures, Ahead and Counters, then the Capture Line; what is not
+    // needed at once (Reminders, the whole left rail) is behind one key each, and the Proof rail is one short instrument
     return (
       <TodayProvider value={ctx}>
         <div ref={ref} className="td" data-form="phone" data-simulated={ctx.raw.simulated ? 'true' : undefined} data-first-run={ctx.model.firstRun ? 'true' : undefined}>
-          {ctx.raw.simulated && <p className="td-stamp">SIMULATED: fixture rows, not your day</p>}
           {now && <div className="td-phone-now"><now.Callout /></div>}
-          <section className="td-spec" aria-label="Today, as a spine">
-            <SpecimenBoxProvider value={{ w: g.main.w, h: 320, phone: true }}>{Specimen && <Specimen />}</SpecimenBoxProvider>
+          <section className="td-spec" aria-label="Today, the day arc">
+            <SpecimenBoxProvider value={{ w: g.main.w - 2 * SPEC_INSET, h: 0, phone: true }}>{Specimen && <Specimen />}</SpecimenBoxProvider>
           </section>
           <div className="td-phone-cards">{rest.map((c) => <c.Callout key={c.id} />)}</div>
+          {reminders && <Fold title="Reminders"><div className="td-phone-cards"><reminders.Callout /></div></Fold>}
           {footer}
-          {left && <div className="td-phone-rail">{left}</div>}
-          {right && <div className="td-phone-rail">{right}</div>}
+          {left && <div className="td-phone-rail" data-rail="left"><RailFormProvider value="row">{left}</RailFormProvider></div>}
+          {right && <div className="td-phone-rail" data-rail="right">{right}</div>}
           {children}
         </div>
       </TodayProvider>
@@ -190,7 +202,6 @@ export function TodayView({ ctx, left, right, size, onCapture, children }: Today
               })}
             </svg>
             <section className="td-spec" aria-label="Today, the day arc" style={{ width: g.spec.w, height: bodyH }}>
-              {ctx.raw.simulated && <p className="td-stamp">SIMULATED</p>}
               <SpecimenBoxProvider value={{ w: g.spec.w - 2 * SPEC_INSET, h: bodyH - 2 * SPEC_INSET, phone: false }}>{Specimen && <Specimen />}</SpecimenBoxProvider>
             </section>
             <ol className="td-margin" style={{ left: g.margin.x, width: g.margin.w }}>

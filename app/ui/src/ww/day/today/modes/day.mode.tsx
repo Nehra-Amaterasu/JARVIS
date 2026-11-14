@@ -54,12 +54,32 @@ export function DatumStrip({ week, median, state, width }: { week: { date: strin
   )
 }
 
+const KIND_WORD = { class: 'class', planned: 'planned', done: 'done' } as const
+
+/** Beside the spine on the phone: the same blocks in words, by start time (the drawing's twin, and nothing is cut). */
+function SpineList() {
+  const { model } = useToday()
+  const all = [...model.classes, ...model.planned, ...model.done].sort((a, b) => a.from.localeCompare(b.from))
+  const drawn = model.state === 'live' || model.state === 'simulated'
+  if (!drawn || !all.length) return <p className="td-quiet td-spine-empty">{drawn ? 'No blocks yet today.' : 'Waiting for the timetable and the block log.'}</p>
+  return (
+    <ol className="td-spine-list" aria-label="Today's blocks">
+      {all.map((b) => (
+        <li key={b.id} data-kind={b.kind}>
+          <span className="td-mono">{b.from}</span>
+          <span className="td-spine-what">{b.label}<small>{KIND_WORD[b.kind]}</small></span>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
 function DaySpecimen() {
   const { model, raw } = useToday()
   const box = useSpecimenBox()
   const [trace, setTrace] = useState(false)
   const hero = (
-    <Odometer value={model.minutes ?? 0} unit="min today" state={model.minutesState} size={box.phone ? 'compact' : 'hero'} reason={model.minutesReason}
+    <Odometer value={model.minutes ?? 0} unit="min today" state={model.minutesState} size="compact" reason={model.minutesReason}
       onOpen={model.weekState === 'waiting' ? undefined : () => setTrace(true)} />
   )
   const points = model.week.map((d) => ({ t: new Date(`${d.date}T12:00:00`).getTime(), v: d.minutes }))
@@ -73,7 +93,10 @@ function DaySpecimen() {
     return (
       <div className="td-spec-phone">
         <div className="td-hero-phone">{hero}</div>
-        <DaySpine blocks={model.classes} planned={model.planned} done={model.done} now={raw.now} state={model.state} dashed={model.noClasses} width={320} height={320} />
+        <div className="td-spine-wrap">
+          <DaySpine blocks={model.classes} planned={model.planned} done={model.done} now={raw.now} state={model.state} dashed={model.noClasses} width={124} height={320} />
+          <SpineList />
+        </div>
         {strip}
         {drawer}
       </div>

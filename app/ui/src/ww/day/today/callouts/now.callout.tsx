@@ -9,8 +9,7 @@ function Now() {
   const n = model.now
   return (
     <TodayPlate id="now" label="Now" state={n.state} reason={n.reason}>
-      <p className="td-now-head">{n.head}</p>
-      <p className="td-now-line">{n.line}</p>
+      <p className="td-now-line"><span className="td-sr">{n.head}: </span>{n.line}</p>
       <Button tone="primary" size="lg" className="td-start" data-primary="" aria-keyshortcuts="n" onClick={actions.startBlock}>
         {n.action}
       </Button>

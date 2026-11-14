@@ -16,6 +16,9 @@ import { SpecimenBoxProvider, TodayProvider, type TodayCtx } from './context'
 import { arcFrac, arcGeometry, arcPoint, minOfDate, type Pt } from './model'
 import { arcHeightFor } from './modes/day.mode'
 import { CALLOUTS, MAX_CALLOUTS, MODES } from './registry'
+// the space roles (--space-1 to 7) live in the shared primitive sheet; the frame loads it through ww/design/base.css, and
+// Today, which replaces the frame on its view, loads it itself
+import '../../../styles/design/primitive.css'
 import './today.css'
 
 export const PHONE_BELOW = 900

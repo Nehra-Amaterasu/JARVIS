@@ -74,7 +74,7 @@ export function DayArc({ blocks, planned, done, now, state, width = 560, height 
           </g>
         )}
       </svg>
-      {children && <div className="td-arc-centre" style={{ left: g.cx, top: g.cy - g.r.done + g.track + 6, width: (g.r.done - g.track - 8) * 2 }}>{children}</div>}
+      {children && <div className="td-arc-centre" style={{ left: g.cx, bottom: height - g.cy + 10, width: (g.r.done - g.track - 8) * 2, maxHeight: g.r.done - g.track - 10 }}>{children}</div>}
       <figcaption className="td-arc-legend">
         <span><i data-kind="class" />class</span>
         <span><i data-kind="planned" />planned</span>

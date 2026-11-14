@@ -42,7 +42,7 @@ export function fixtureRaw(kind: 'day' | 'first' | 'waiting'): TodayRaw {
     classes: [
       { id: 's1', start: '09:00', end: '10:00', name: 'Signals', status: 'present' },
       { id: 's2', start: '10:15', end: '11:15', name: 'Applied maths', status: 'present' },
-      { id: 's3', start: '15:30', end: '17:30', name: 'Circuits lab', status: null },
+      { id: 's3', start: '15:30', end: '17:30', name: 'Circuits', status: null },
     ],
     plan: [
       { id: 'b1', label: 'Library block', start: '14:00', minutes: 60 },
@@ -72,7 +72,7 @@ export function fixtureRail(kind: 'day' | 'first' | 'waiting'): RailFixture {
     leftTop: 'countdown',
     papers: raw.papers?.map((p) => ({ id: p.id, title: p.title, date: '', days_left: p.days_left, kind: p.id === 'p1' ? 'cie' : 'end', approx: p.approx })) ?? null,
     now: raw.step ? { kind: 'study', title: raw.step.title, minutes: raw.step.minutes, why: null, paper: null } : null,
-    classes: raw.classes?.map((c) => ({ id: c.id, start: c.start, end: c.end, name: c.name, kind: c.name.includes('lab') ? 'lab' : 'lecture', status: c.status })) ?? null,
+    classes: raw.classes?.map((c) => ({ id: c.id, start: c.start, end: c.end, name: c.name, kind: c.id === 's3' ? 'lab' : 'lecture', status: c.status })) ?? null,
     counters: raw.counters,
     paired: kind === 'day' ? 1 : 0,
     lastCount: null,

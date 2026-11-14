@@ -203,7 +203,9 @@ const CountersPart = memo(function CountersPart({ tiles, go }: { tiles: number; 
   const phase = useRail((s) => s.phase.life)
   const last = useRail((s) => s.lastCount)
   const m = buildL4({ counters })
-  const shown = m.tiles.slice(0, tiles)
+  // when not every counter fits, the last key of the grid is "+N" (it opens Day / Week), so the part never grows a row
+  const fits = m.tiles.length <= tiles
+  const shown = m.tiles.slice(0, fits ? tiles : tiles - 1)
   const more = m.tiles.length - shown.length
   const state = useLamp(lampOf(phase, counters !== null))
   const lastName = m.tiles.find((t) => t.id === last)?.name
@@ -226,9 +228,16 @@ const CountersPart = memo(function CountersPart({ tiles, go }: { tiles: number; 
               </button>
             </li>
           ))}
+          {more > 0 && (
+            <li>
+              <button type="button" className="lr-key lr-ctr" aria-label={`${more} more counters in Day, Week`} onClick={() => go('day', 'week')}>
+                <span className="lr-num">+{more}</span>
+                <span className="lr-ctr-name">more</span>
+              </button>
+            </li>
+          )}
         </ul>
       )}
-      {more > 0 && <button type="button" className="lr-more" onClick={() => go('day', 'week')}>+{more} more<ChevronRight size={14} aria-hidden="true" /></button>}
     </section>
   )
 })

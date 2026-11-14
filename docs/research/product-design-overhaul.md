@@ -2,6 +2,27 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-14: L04 (Today, the Day Arc, the Proof relief and both Well Wisher side rails)
+
+**Question.** Can the Well Wisher home (Day / Today) and its two side rails become one calm instrument on the 1302 x 664 canvas the shell leaves at 1366 x 768, with every number on a lamp, nothing cluttered, no document scroll and no inner scrollbar (spec 20.16.1, 20.16.2, 21.5.1; D-V3-31)?
+
+**What was built (UI lane, uncommitted in `overhaul/l04`).**
+- `ww/day/today/`: `Today` (registered as `shell/views/day-today.view.ts`, so it replaces the frame on Day / Today under shell v2 only; flag off, nothing changes), `DayArc` (half ring 06:00 to 24:00, 18 hour dots, outer class / middle planned / inner done tracks, one notch at now) and `DaySpine` (the phone form), `TodayView` (the composition), the two glob hosts (`modes/*.mode.tsx`, `callouts/*.callout.tsx`) with four callouts (Now with the one accent key, Ahead, Counters with Undo, Reminders on a PLANNED null adapter) and the `day` mode.
+- The built logic is reused, not rewritten: classes, counters, the date sheet and the director's step come from the left column's store (`end` is now kept for the arc); plan blocks and the block log from the plan store; the plan editor, add-to-day, attendance and quests are the Life cards, opened in one drawer by the Plan key.
+- `ww/left/Rail.tsx`: the left rail as one recessed channel with corner ticks: the next sitting as a numeral plus a notch scale (one notch a week, eight weeks), the classes as raised P / A / C keys (pressed sinks), counters as raised keys, the phone as one lamp line. The frame draws it instead of the classic cards under shell v2 only; on Today it leaves out Now and Counters (the callouts own them).
+- `ww/proof/`: `ProofRelief` (embossed ring, one bar per statistic, a caption of n on every bar, dashed where there is no count, no total; drill-down to a `Dumbbell` of the first week against the last and a `DotHistogram`), `ProofStrip` (the 64 px rail: five pins in grooves plus one 44 px key; the drawer holds the relief and every classic Proof card behind one fold).
+
+**Numbers (measured).** Jury harness on the gallery entry: 20 whole-specimen shots, overflow 0, blank 0, smallest text 11 px, targets under 44 px at 390: 0 (desk figures are under the gallery's 0.72 zoom). `e2e/l04-today.spec.ts`, 4 checks: at 1366 x 768 the page box, the left rail and the Proof rail each have scrollHeight equal to clientHeight in all three states, every rail part lies inside its rail, every focusable part is 44 x 44 or more, one accent key, a lamp on every plate; at 358 px the document has no sideways scroll and Now comes first. Vitest: 23 new tests (model, minute clock with one timeout and no animation frame, glob hosts, composition, rail, relief and the forbidden-word check).
+
+**Decisions and why.**
+- SpecimenLayout is a fixed 1302 x 720 stage; with two rails and the shell's 56 px view row it would be cut by 56 px, so Today places its own boxes and reuses its leader geometry (`leaderPath`), datum and plate grammar.
+- The D02 `Trace` is a 330 px card; under the datum there are 178 px. The datum holds a seven-bar strip with his own median dashed; the full Trace opens from the Odometer.
+- The D04 Capture Line is 104 px tall with its hint row, so the footer is 108 px, not 72.
+- Proof shows two measured statistics (counters kept, days logged) and three PLANNED ones (recall, questions matched, papers reviewed): there is no source for those yet, so they are dashed, not invented.
+- The kit's global `[data-state='planned']` rule draws a 3 px dashed border on any element; the new parts carry `data-lamp` instead, and a PLANNED or WAITING plate is sunk into the ground (a hollow form) rather than outlined.
+
+**Not done.** The ASCII rays and the sun art behind the arc; the Ahead countdown dots and the Hand-off callout (DB03); calendar notches (adapter not built); `proof-*.view.ts` (there is no Proof section in the id table, so Proof stays a rail and a drawer); the shell-fixes e2e checks (a) and (b) assume Day / Today shows the frame and need to point at Day / Week; the clipped figure (34 to 91 px per Today shot) is assumed to be the Odometer's digit reels, not checked element by element.
+
 ## 2026-11-14: adversarial review of the craft pass (r01)
 
 **Question.** Do the kit and chrome builders' reports hold up: contract, tests, bench rules, contrast, focus, targets, motion and forced colours?

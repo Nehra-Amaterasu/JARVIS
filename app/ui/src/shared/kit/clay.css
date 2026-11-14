@@ -98,14 +98,13 @@
   transition-duration: var(--dur-press, 90ms);
 }
 :is(.k-key, .k-btn, .k-console-follow, .k-toast-undo, .k-dialog-x):is(:active, [data-demo='pressed'])::before { opacity: 0; transition: none; }
-:where(.k-switch, .k-rocker-half, .k-key, .k-tab, .k-btn, .k-rail-btn, .k-console-follow, .k-toast-undo, .k-dialog-x, .k-knob, .k-console-log, .k-palette-field):focus-visible {
+:where(.k-switch, .k-rocker-half, .k-key, .k-tab, .k-btn, .k-rail-btn, .k-console-follow, .k-toast-undo, .k-dialog-x, .k-knob, .k-console-log, .k-palette-field, .k-slider input):focus-visible {
   outline: 2px solid var(--focus-ring); outline-offset: 2px;
 }
-/* a range is 44 px tall and as wide as its row: a 2 px outline round it drew a heavy frame (14 Nov), so the ring goes round
-   the pebble, 2 px thick at the same 2 px gap, and the groove stays clean */
-:where(.k-slider) input[type='range']:focus-visible { outline: none; }
-:where(.k-slider) input[type='range']:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px var(--surface-ground), 0 0 0 4px var(--focus-ring), var(--elev-low, none); }
-:where(.k-slider) input[type='range']:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px var(--surface-ground), 0 0 0 4px var(--focus-ring); }
+/* the range keeps its own 2 px ring at a 2 px gap (the e2e bench reads the ring off the focused element, and a ring on the
+   thumb pseudo-element is invisible to it: 14 Nov, 3 failures). The 44 px frame was heavy as a square, so it is a pill that
+   hugs the groove and the pebble */
+:where(.k-slider) input[type='range']:focus-visible { border-radius: var(--r-pill, 999px); }
 :where(.k-slider-num):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 [data-state='disabled'], [aria-disabled='true'] { color: var(--ink-off); border-color: var(--edge-hair); cursor: default; }
 [data-state='disabled']:hover, [aria-disabled='true']:hover { transform: none; }
@@ -168,7 +167,7 @@
 /* ---- 3 Rocker: a shallow tray holding two raised keys (C02-46's OFF and ON keys); the lit key is pressed in and
    filled with the accent, so ON is a position, a fill and a word, never a hue alone. Keys of at least 56 x 44 px. ---- */
 .k-rocker {
-  position: relative; display: inline-flex; flex: none; gap: 2px; padding: 3px; --well-face: var(--surface-sunk);
+  position: relative; display: inline-flex; flex: none; gap: 2px; padding: 3px; --well-face: var(--surface-ground);
   border-radius: var(--r-pill, 999px); box-shadow: var(--elev-recessed, none);
 }
 .k-rocker-half {

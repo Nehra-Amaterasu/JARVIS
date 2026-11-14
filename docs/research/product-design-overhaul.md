@@ -2,6 +2,39 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-14 (evening): the craft pass and the rework round integrated; what the owner said after testing; how the next wave is sized
+
+**Question.** Did the craft pass and the rework round lift the scores, what did the owner see when he tried the new interface, and how should agents be assigned so a wave costs what it needs and no more?
+
+**Integrated on main (`67c2fa7`).** R01 craft pass; RC1 Core rework; RD1 number and series forms; RD2 tables, specimen, capture, Trim; RG1 jury harness; N03 lane check and `tools/integrate_wave.py`. Six merges, 0 code conflicts (this file only, both sides kept).
+
+**Checks (one `integrate_wave` run per batch).** tsc 0; vitest twice 0; springs 0; bundle 0; wave check 0; full Playwright 0 (766 s on the first batch, 876 s on the second); tools, core and app Python 0. Red: the root commit test on one old commit (owner's decision pending). One app test failed in 2 of 7 runs: a race in the imports status listing, filed on the board for the engine lane.
+
+**Scores (reviewers, strict, against the owner's references; pass line 8.0).**
+
+| Package | Before | After | What still holds it down |
+|---|---|---|---|
+| Kit (R01) | 5.3 (kit jury, round 1) | 7 | small surface steps, planned forms read as wireframes, the slider |
+| Shell chrome (R01) | not scored | 5.5 (juror), "acceptable" (reviewer) | page content inside the canvas is still flat hairline cards |
+| Core (RC1) | signature 4.5 | 7.0 | dashed tiles and ribbon read as wireframe; an empty transcript well |
+| Number and series forms (RD1) | 6.5 to 7 | 6.5 | flat dark look; faint glint |
+| Tables, specimen, capture, Trim (RD2) | 6.5 | 6.5 | strata small in a large box; Trim's own users not yet on the kit slider |
+
+No juror has rescored the whole product yet; that is the next jury, on whole screenshots from `e2e/jury.spec.ts`.
+
+**Two findings worth keeping.**
+- The wave 6 jury's "blank Jar at 390 px" was a capture fault: the gallery's default zoom of 1.5 and its sticky state row cropped the specimen. The component was sound. A jury is only as good as its evidence; the harness now shoots specimens whole with a geometry report.
+- A reset in the shell stylesheet (a one-class-plus-element selector on every button) outranked view styles and made a main button's label 2.83:1. A reset must be wrapped so that it never outranks a component (it goes to QG1).
+- The privacy scan flagged ordinary words twice (a variable name, a CSS token word) because they equal short names in the private contact store. The scan is right to be strict; the fix is a rename, and `integrate_wave` now runs the scan on every merge.
+
+**What the owner said after trying it (14 Nov, about 19:30; public-safe words).** Many glitches in the JARVIS interface; nothing of the old interface may be lost (he names chat export, retrieval of chats for other assistants, rating of chats and responses, the voice modes, static pictures); Well Wisher must be refined, uncluttered and without long scrolling; some switches look refined and some gimmicky; the JARVIS ground should be a matte piano black; the Well Wisher side rails should be more than boxes; give an estimate and a plan, size each agent to its task, and do not exhaust the budget. Decisions D-V3-29 to D-V3-33 in the spec.
+
+**How the next wave is sized (D-V3-33).** From this project's own record: well-specified component packages on Sonnet came back "merge" or "merge after fixes" on the first pass in 12 of 13 cases; the two design-heavy Opus jobs (kit recipe, Core) needed a second round to pass 6. Agent tokens: 4.1 million for 15 agents (Opus-heavy), 2.3 million for 10 agents (mostly Sonnet). So: Sonnet at low effort for small forms and documents, Sonnet at medium or high for specified builds, Opus only where design judgement or contrast arithmetic is the hard part, Haiku to verify documents by sampling; builders and reviewers run their own tests and the integrator runs the full suite once. UW7a's table with expected and actual results is in the state file.
+
+**What it changed.** UW7 is split: UW7a tonight (L04, Y01, DB01, DB02, plus QG1 glitch sweep, KB1 matte black ground, PL1 parity ledger and switch census); UW7b after it (L01, Y02, the ledger's gaps, the page-level glitches). The new interface is now shown from a separate checkout on its own port, so it can be refreshed while the owner's app runs.
+
+**Sources.** Workflow journals `wf_6e5fcc6c-498` and `wf_a4b608cc-3dc`; the `integrate_wave` reports in the session scratchpad; commits `8df448a`, `3f4b97c`, `5d303e7`, `d0be389`, `f0858f4`, `c34d80d`, `ccf0f4a`, `67c2fa7`.
+
 ## 2026-11-14: adversarial review of the craft pass (r01)
 
 **Question.** Do the kit and chrome builders' reports hold up: contract, tests, bench rules, contrast, focus, targets, motion and forced colours?

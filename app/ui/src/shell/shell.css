@@ -4,15 +4,15 @@
    data-overlay the shell renders, so the flag-off frame gets none of it.
 
    Colour comes only from the clay layer-2 roles (surface-*, ink-*, edge-*, selected-*, focus-ring) and the
-   material tokens of clay/elevation.css; the one shell-only token (--s2-bay) is a pair of those primitives.
+   material tokens of clay/elevation.css; the one shell-only token (--s2-recess) is a pair of those primitives.
 
    CHROME CRAFT PASS (14 Nov, after the owner's "highly refined components/buttons/shadows"). The chrome was a
    frame of 1 px grey hairlines: a border under the title bar, beside the rail, round every switch, and a 3 px
    ink bar for the active slot. The owner's sheets (C02-03, C02-04, C02-27, C02-21, C02-46) build the same
    things from one material, so the chrome is now one slab of clay with the canvas pressed into it:
      slab      the title bar and the rail are the ground itself (--surface-ground), no border between them;
-     bay       the canvas is a recessed bay: a 22 px corner where the rail meets the title bar and a soft inner
-               shade on its lit-from-top-left walls (--s2-bay, drawn by a non-interactive ::after so it lies
+     recess       the canvas is a recessed recess: a 22 px corner where the rail meets the title bar and a soft inner
+               shade on its lit-from-top-left walls (--s2-recess, drawn by a non-interactive ::after so it lies
                over whatever page fills the canvas);
      keys      each rail slot is a raised 52 px key (--elev-low and the top lip) that SINKS when it is the
                current section (--elev-pressed) and carries a 4 x 20 px accent mark at the rail's edge; the
@@ -35,8 +35,8 @@
   --s2-title: 48px;
   --s2-rail: 64px;
   --s2-hit: 44px;
-  /* the bay's inner wall: a soft shade thrown in from the top left and a 1 px darker lip right at the edge */
-  --s2-bay: inset 6px 6px 14px var(--p-shade-cool-20), inset 1px 1px 0 var(--p-shade-cool-14);
+  /* the recess's inner wall: a soft shade thrown in from the top left and a 1 px darker lip right at the edge */
+  --s2-recess: inset 6px 6px 14px var(--p-shade-cool-20), inset 1px 1px 0 var(--p-shade-cool-14);
   /* a panel floating over the scrim: the lip and a long soft drop, and no white highlight (thrown up-left onto a light
      scrim, --elev-float's highlight drew a glowing halo round the palette) */
   --s2-float: inset 0 1px 0 var(--p-shadow-white-70), 0 24px 48px -12px var(--p-shade-cool-30), 0 6px 14px var(--p-shade-cool-14);
@@ -50,11 +50,11 @@
   color: var(--ink-1);
   font-family: var(--font-ui, Inter, system-ui, sans-serif);
 }
-:root[data-theme='clay-dark'] .s2 { --s2-bay: inset 6px 6px 14px var(--p-shadow-black-60), inset 1px 1px 0 var(--p-shadow-black-50); }
+:root[data-theme='clay-dark'] .s2 { --s2-recess: inset 6px 6px 14px var(--p-shadow-black-60), inset 1px 1px 0 var(--p-shadow-black-50); }
 :root[data-theme='clay-dark'] .s2, :root[data-theme='clay-dark'] .s2-scrim { --s2-float: inset 0 1px 0 var(--p-shadow-white-07), 0 24px 48px -12px var(--p-shadow-black-75), 0 6px 14px var(--p-shadow-black-50); }
-/* high contrast: the bay keeps one strong edge instead of a soft shade */
-:root[data-contrast='high'] .s2 { --s2-bay: inset 1px 1px 0 var(--edge-ui); }
-@media (prefers-contrast: more) { .s2 { --s2-bay: inset 1px 1px 0 var(--edge-ui); } }
+/* high contrast: the recess keeps one strong edge instead of a soft shade */
+:root[data-contrast='high'] .s2 { --s2-recess: inset 1px 1px 0 var(--edge-ui); }
+@media (prefers-contrast: more) { .s2 { --s2-recess: inset 1px 1px 0 var(--edge-ui); } }
 
 .s2 button { font: inherit; color: inherit; cursor: pointer; }
 
@@ -444,7 +444,7 @@
 /* the ring shows the real input level only when one exists (a measured reading, so the measured colour) */
 .s2-orb[data-level='live'] { box-shadow: 0 0 0 calc(var(--lvl, 0) * 6px) var(--state-measured), var(--lip, inset 0 0 0 transparent), var(--elev-low, none); border-color: var(--state-measured); }
 
-/* ------------------------------------------------------------------ canvas: the recessed bay */
+/* ------------------------------------------------------------------ canvas: the recessed recess */
 .s2-canvas {
   grid-area: canvas;
   position: relative;
@@ -456,7 +456,7 @@
   border-top-left-radius: 22px;
   view-transition-name: page;
 }
-/* the bay's soft inner wall, laid over whatever page fills the canvas (it takes no pointer and no focus) */
+/* the recess's soft inner wall, laid over whatever page fills the canvas (it takes no pointer and no focus) */
 .s2-canvas::after {
   content: '';
   position: absolute;
@@ -464,7 +464,7 @@
   z-index: 2;
   pointer-events: none;
   border-radius: inherit;
-  box-shadow: var(--s2-bay);
+  box-shadow: var(--s2-recess);
 }
 .s2-views {
   flex: none;
@@ -705,10 +705,10 @@
   .s2-pillrow { display: block; grid-area: pill; position: relative; z-index: 3; padding: 4px 10px 10px; background: var(--surface-ground); }
   .s2-pillrow .s2-pill { margin: 0; max-width: none; width: 100%; }
   .s2-title .s2-pill { display: none; }
-  /* the bay is a tray between the pill row and the bottom bar: both top corners round, the shade from above */
+  /* the recess is a tray between the pill row and the bottom bar: both top corners round, the shade from above */
   .s2-canvas { border-radius: 20px 20px 0 0; }
-  .s2 { --s2-bay: inset 0 5px 12px var(--p-shade-cool-16), inset 0 1px 0 var(--p-shade-cool-12); }
-  :root[data-theme='clay-dark'] .s2 { --s2-bay: inset 0 6px 14px var(--p-shadow-black-60), inset 0 1px 0 var(--p-shadow-black-50); }
+  .s2 { --s2-recess: inset 0 5px 12px var(--p-shade-cool-16), inset 0 1px 0 var(--p-shade-cool-12); }
+  :root[data-theme='clay-dark'] .s2 { --s2-recess: inset 0 6px 14px var(--p-shadow-black-60), inset 0 1px 0 var(--p-shadow-black-50); }
   .s2-rail-list { flex-direction: row; padding: 8px 4px 10px; gap: 4px; height: auto; }
   .s2-rail-list > li { flex: 1; min-width: 0; }
   .s2-rail-air { display: none; }
@@ -717,8 +717,8 @@
   .s2-views { overflow-x: auto; padding: 6px 10px 4px; }
   .s2-interim { display: none; }
 }
-@media (max-width: 899px) and (prefers-contrast: more) { .s2 { --s2-bay: inset 0 1px 0 var(--edge-ui); } }
-@media (max-width: 899px) { :root[data-contrast='high'] .s2 { --s2-bay: inset 0 1px 0 var(--edge-ui); } }
+@media (max-width: 899px) and (prefers-contrast: more) { .s2 { --s2-recess: inset 0 1px 0 var(--edge-ui); } }
+@media (max-width: 899px) { :root[data-contrast='high'] .s2 { --s2-recess: inset 0 1px 0 var(--edge-ui); } }
 
 @media (prefers-reduced-motion: reduce) {
   .s2 *, .s2-scrim * { transition: none !important; animation: none !important; }

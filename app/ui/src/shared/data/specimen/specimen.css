@@ -33,6 +33,12 @@
 .sp-specimen > .sp-strata { inline-size: min(calc(100% - 48px), 680px); }
 .sp-callouts { position: absolute; inset: 0; margin: 0; padding: 0; list-style: none; pointer-events: none; z-index: 2; }
 .sp-callout { position: absolute; box-sizing: border-box; pointer-events: auto; }
+/* the callouts stand above the datum line and the leaders: a plate is opaque, and the datum must not strike through its value (it did, on the third plate at 1366 x 768) */
+.sp[data-state='desktop'] .sp-callouts { z-index: 4; }
+/* the footer is 72 px high and three 28 px rail rows are 84, so the rail runs along the strip as one line of readouts; it clipped its last row at the foot of the 720 px canvas before */
+.sp-footer .k-rail { display: flex; flex-wrap: wrap; gap: 0 24px; align-items: center; }
+.sp-footer .k-rail-row { border-bottom: 0; grid-template-columns: 16px auto auto; }
+.sp-footer .k-rail-value { margin-inline-start: 6px; }
 .sp-footer {
   position: absolute; z-index: 1; box-sizing: border-box; display: flex; align-items: center; gap: 16px; padding: 0 24px;
   border-top: 1px solid var(--edge-hair); background: var(--surface-ground);

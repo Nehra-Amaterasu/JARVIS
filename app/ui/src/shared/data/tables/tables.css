@@ -78,6 +78,10 @@
 .d3-glyph { font-size: 9px; color: var(--ink-2); min-width: 1ch; }
 .d3-sort:hover .d3-glyph, th[aria-sort='ascending'] .d3-glyph, th[aria-sort='descending'] .d3-glyph { color: var(--ink-1); }
 .d3-sort:focus-visible, .d3-rowbtn:focus-visible, .d3-td:focus-visible, .d3-th:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+/* the row button is 44 px high in a 32 px row, so its neighbours' cells paint over the foot of its ring; lift it, and mark the whole row it belongs to with a 2 px rule above and below, so the ring reads as the row's */
+.d3-rowbtn:focus-visible, .d3-td:focus-visible { z-index: 2; }
+.d3-table tbody tr:has(.d3-rowbtn:focus-visible, .d3-td:focus-visible) td { box-shadow: inset 0 2px 0 var(--focus-ring), inset 0 -2px 0 var(--focus-ring); }
+.d3-table tbody tr:has(.d3-rowbtn:focus-visible, .d3-td:focus-visible) td:has(.d3-rowbtn) { box-shadow: inset 0 2px 0 var(--focus-ring), inset 0 -2px 0 var(--focus-ring), inset 2px 0 0 var(--focus-ring); }
 
 /* rows: 32 px, a 1 px rule, nothing else; the 44 px hit area is the row button reaching into its neighbours */
 .d3-table td { height: var(--d3-row, 32px); padding: 0 12px; border-block-end: 1px solid var(--edge-hair); vertical-align: middle; white-space: nowrap; position: relative; }
@@ -103,7 +107,10 @@
 .d3-td[data-editable]:hover { box-shadow: inset 0 -1px 0 var(--ink-2); }
 
 /* the 10-dot meter: a filled dot is a disc, an empty one a ring (the shape differs, not only the tone) */
+.d3-meterwrap { display: inline-flex; align-items: center; gap: 8px; vertical-align: middle; }
 .d3-meter { display: inline-flex; gap: 3px; vertical-align: middle; }
+/* the number beside the dots: 11 px mono, tabular, so a column of meters lines up on the slash */
+.d3-meter-n { min-inline-size: 4ch; font: 500 11px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; letter-spacing: 0.02em; color: var(--ink-2); text-align: end; }
 .d3-meter i { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; }
 .d3-meter i[data-on='true'] { background: currentColor; }
 
@@ -152,14 +159,16 @@
 .d3s-item[data-seat] { animation: d3-seat var(--dur-seat, 140ms) both; animation-delay: calc(var(--i, 0) * 40ms); }
 .d3s-item[data-leaving] { animation: d3-collapse var(--dur-seat, 140ms) both; overflow: hidden; pointer-events: none; }
 .d3s-row {
-  all: unset; box-sizing: border-box; display: grid; grid-template-columns: 28px 1fr auto auto 32px; align-items: center; gap: 12px; width: 100%; height: 48px; padding: 0 8px 0 12px; cursor: pointer;
+  all: unset; box-sizing: border-box; display: grid; grid-template-columns: 28px 1fr auto auto 44px; align-items: center; gap: 12px; width: 100%; height: 48px; padding: 0 2px 0 12px; cursor: pointer;
   background: var(--surface-raised); border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: var(--r-sharp, 2px);
   box-shadow: var(--elev-flush, none); font: 500 14px/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); position: relative; z-index: 1;
 }
 .d3s-row:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .d3s-meta { font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); white-space: nowrap; }
 .d3s-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.d3s-grip { display: inline-grid; place-items: center; width: 32px; height: 44px; margin-block: -2px; cursor: grab; touch-action: none; color: var(--ink-2); font: 700 14px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: -0.1em; }
+.d3s-grip { display: inline-grid; place-items: center; width: 44px; height: 44px; margin-block: -2px; border-radius: var(--r-control, 10px); cursor: grab; touch-action: none; color: var(--ink-2); font: 700 14px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: -0.1em; }
+/* the grip is not a tab stop of its own (the row is), so the row's focus lights the handle with its own 2 px ring: the thing the keyboard picks up is the thing that shows it */
+.d3s-row:focus-visible .d3s-grip { color: var(--ink-1); outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .d3s-grip::before { content: '::'; }
 .d3s-item[data-lifting] { z-index: 5; }
 .d3s-item[data-lifting] .d3s-row { background: var(--surface-raised); box-shadow: var(--elev-raised, none); transform: translateY(calc(var(--d3-dy, 0px) - 2px)); cursor: grabbing; }
@@ -198,6 +207,8 @@
 }
 .d3r[data-flow] .d3r-rack { position: relative; inset: auto; width: 100%; z-index: auto; }
 .d3r-rack:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+/* focus stays on the listbox while the arrows move the active row (aria-activedescendant), so the ring is drawn on that row too */
+.d3r-rack:focus-visible .d3r-opt[data-active='true'] { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .d3r-group { margin: 0; padding: 0; list-style: none; }
 .d3r-head { padding: 8px 14px 4px; font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
 .d3r-opt { position: relative; display: grid; grid-template-columns: 22px 16px 1fr auto; align-items: center; gap: 6px; min-height: var(--d3-rack-row, 44px); padding: 0 14px 0 10px; cursor: pointer; font: 500 14px/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); border-block: 1px solid transparent; }
@@ -248,6 +259,7 @@
   .d3-table thead th { background-image: none; }
   .d3-hollow, .d3s-plate, .d3-empty, .d3s-empty { border-color: CanvasText; color: CanvasText; }
   .d3-meter i { border-color: CanvasText; }
+  .d3-meter-n { color: CanvasText; }
   .d3-meter i[data-on='true'] { background: CanvasText; }
   .d3-table tbody tr[aria-selected='true'] td, .d3-card[aria-current='true'] { background: Highlight; color: HighlightText; forced-color-adjust: none; }
   .d3-table tbody tr[aria-selected='true'] :is(.d3-idx, .d3-mark, .d3-unit, .d3-lamp, .d3-lamp-word, .d3-hollow), .d3-card[aria-current='true'] :is(.d3-idx, .d3-lamp-word, .d3-unit, dt) { color: HighlightText; border-color: HighlightText; }
@@ -257,7 +269,7 @@
   .d3r-opt[aria-selected='true'] .d3r-disc { background: CanvasText; border-color: CanvasText; }
   .d3r-opt[data-active='true'][aria-selected='true'] .d3r-disc { background: HighlightText; border-color: HighlightText; }
   .d3-table tbody tr:hover td { background: Canvas; }
-  .d3-sort:focus-visible, .d3-rowbtn:focus-visible, .d3-td:focus-visible, .d3s-row:focus-visible, .d3r-trigger:focus-visible, .d3r-rack:focus-visible { outline-color: Highlight; }
+  .d3-sort:focus-visible, .d3-rowbtn:focus-visible, .d3-td:focus-visible, .d3s-row:focus-visible, .d3r-trigger:focus-visible, .d3r-rack:focus-visible, .d3r-rack:focus-visible .d3r-opt[data-active='true'], .d3s-row:focus-visible .d3s-grip { outline-color: Highlight; }
   .d3-lamp { color: CanvasText; }
 }
 

@@ -40,6 +40,22 @@ One file for the JARVIS + Well Wisher product-design overhaul (the design source
 
 **Not done.** The gallery pane capture fault (R01 owns gallery.css); the wave 6 jury should re-shoot with the components in a plain host or after R01 merges. The clay recess and lamp word styles are R01 tokens: the Odometer takes the refined recipe when it merges.
 
+## 2026-11-14: RD2 rework (tables, specimen, capture line, Trim)
+
+**Question.** What did the wave 6 jury fault in D03, D04, D05 and L02, and which of it is the components' and which the gallery's?
+
+**Found.**
+- The capture line "clipped at the left and the frame cut at the bottom" was mostly gallery chrome: the state-switch pills (long state names) overlapped the picture, and the stage zooms 1.5x, so a 390 px phone gives the component about 240 px. Bare, the line was fine at 358 and 390; at 240 its plate header overflowed by 2 px.
+- The specimen had never been seen assembled. Bare at 1366 x 768 (the 1302 x 720 canvas) two faults showed: the datum line was painted over the third callout's value, and the footer's three-row telemetry rail (3 x 28 px) overflowed the 72 px strip and was cut at the foot of the canvas.
+- Ledger: dots with no number; the row button (44 px in a 32 px row) had its focus ring painted over by the next row; the slot grip was 32 px wide; the open rack showed no ring on the active detent.
+- Trim: the demo put a native range input in the well; the kit's TickSlider was not used.
+
+**Changed.** Meter number beside each dot meter (`n/10`, 11 px, only in the LIVE and SIMULATED branch); row focus lifted above its neighbours plus a 2 px rule above and below the row; grip 44 x 44 and lit with the row's focus; 2 px ring on the active detent while the listbox has focus; callouts above the datum; footer rail drawn as one line; capture plate wraps and chips can shrink; Trim demo uses `TickSlider`; every state label under 20 characters (spec updated by prefix). New proof: `e2e/d03/rework.tsx` renders the entries bare (no chrome, no zoom); new tests in the d03, d04 and d05 specs (stage fit, 390 reflow, label length, 240/358/390 capture overflow, focus rings, grip size, meter numbers).
+
+**Numbers.** tsc 0; vitest 2439 of 2439; bundle:check 0; Playwright d03, d04, d05, l02: 52 passed. Pictures: scratchpad `jury/rework/rd2/`.
+
+**Not done.** The gallery's 1.5x default zoom and its sticky toolbar (WhatIsNew, gallery.css, owned by R01) still crop a wide specimen in the gallery; the rocker's ring comes from the kit and was only verified, not changed.
+
 ## 2026-11-14: wave 6 integrated, and what its jury said (6.6 design, 6.4 usability; pass line 8.0)
 
 **Question.** After the six wave 6 packages and the rebuilt Core section merged, does the new interface pass the screenshot jury, and what does the next round have to fix?

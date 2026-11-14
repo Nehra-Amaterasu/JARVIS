@@ -213,8 +213,12 @@ export function LedgerTable({
         if (!live || typeof v !== 'number') return hollow(col)
         const n = meterFill(v)
         return (
-          <span className="d3-meter" role="img" aria-label={`${col.label}: ${n} of ${METER_DOTS}`}>
-            {Array.from({ length: METER_DOTS }, (_, i) => <i key={i} data-on={i < n ? 'true' : 'false'} />)}
+          <span className="d3-meterwrap">
+            <span className="d3-meter" role="img" aria-label={`${col.label}: ${n} of ${METER_DOTS}`}>
+              {Array.from({ length: METER_DOTS }, (_, i) => <i key={i} data-on={i < n ? 'true' : 'false'} />)}
+            </span>
+            {/* the dots are a shape; the number beside them is the reading (drawn only here, so only for LIVE and SIMULATED) */}
+            <span className="d3-meter-n" aria-hidden="true">{n}/{METER_DOTS}</span>
           </span>
         )
       }

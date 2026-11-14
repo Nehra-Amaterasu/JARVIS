@@ -184,7 +184,7 @@ const EDGE_RULES = `(() => {
       const key = o + '|edge-contrast'
       const e = (() => {
         let best = ownEdge(el)
-        if (el instanceof SVGElement) for (const sh of el.querySelectorAll('circle, rect, path, polygon, ellipse, line')) { const sc = getComputedStyle(sh); const rr = el.getBoundingClientRect(); const out = backdrop(el.parentElement || el, Math.max(0, rr.left - 3), rr.top + rr.height / 2); for (const p of [sc.stroke, sc.fill]) { if (p === 'none') continue; best = Math.max(best, ratio(over(rgba(p), out), out)) } }
+        if (el instanceof SVGElement) for (const sh of el.querySelectorAll('circle, rect, path, polygon, ellipse, line')) { const sc = getComputedStyle(sh); const rr = el.getBoundingClientRect(); const out = backdrop(el.parentElement || el, Math.max(0, rr.left - 3), rr.top + rr.height / 2); for (const p of [sc.stroke, sc.fill]) { if (p === 'none') continue; const col = rgba(p); col[3] *= parseFloat(sc.strokeOpacity) || 1; best = Math.max(best, ratio(over(col, out), out)) } }
         let p = el.parentElement
         for (let i = 0; i < 2 && p && best < 3; i++, p = p.parentElement) {
           const pc = getComputedStyle(p); const pr = p.getBoundingClientRect()

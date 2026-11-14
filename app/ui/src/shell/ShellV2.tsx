@@ -8,7 +8,7 @@
  * Wisher frame's own workspace strip is hidden under this root (CSS, so ww/frame is not edited). Everything
  * the canvas shows is an existing page, the event log, a planned plate, or a "not built" plate (hosts.ts).
  */
-import { AudioLines, BookOpen, BrainCircuit, Briefcase, CalendarDays, Gauge, Hand, Maximize2, MessageCircle, Minus, ScanEye, Sprout, Timer, X } from 'lucide-react'
+import { AudioLines, BookOpen, BrainCircuit, Briefcase, CalendarDays, CornerUpLeft, Gauge, Hand, Maximize2, MessageCircle, Minus, ScanEye, Sprout, Timer, X } from 'lucide-react'
 import { lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { Toasts } from '../components/Shell'
 import { clock, useNow } from '../lib/format'
@@ -350,6 +350,9 @@ function ResumePill({ product, now }: { product: ProductId; now: number }) {
         <button type="button" className="s2-pill-go"
           aria-label={`${state.kind === 'start' ? state.text : `Back to ${state.text}`}${hint ? `, ${hint}` : ''}`}
           onClick={() => go(resumeTarget(product, prev))}>
+          {/* "Back to" is printed, not only spoken: without it the pill read as a label of where you ARE (chrome jury) */}
+          {state.kind !== 'start' && <CornerUpLeft className="s2-pill-icon" size={15} strokeWidth={2} aria-hidden="true" />}
+          {state.kind !== 'start' && <span className="s2-pill-pre">Back to</span>}
           <span className="s2-pill-text">{state.text}</span>
           {hint && <kbd className="s2-kbd" aria-hidden="true">{hint}</kbd>}
         </button>

@@ -1,0 +1,484 @@
+/* ==========================================================================
+   Core, Talk view of shell v2 (A.J01, spec 20.9.1). Loaded only by the lazy Core view chunk, every rule under .jc
+   (or the two drawers it opens), so the classic page and the other views get none of it.
+
+   The box (spec 20.9, content box J): the page area under the view row is 1302 x 668; with an 8 px gutter the view
+   is 1286 x 652. Left column 720, gap 16, right column 550. Left rows: controls 56, stage 360 plus its strip 64,
+   ribbon 44, organs 44, gaps 12 (56 + 12 + 432 + 12 + 44 + 12 + 44 = 612, 40 px of air under 652). Right rows:
+   header 44, strata (the rest), composer 56, gaps 12.
+
+   Material: every surface is a clay token BY NAME (--surface-*, --elev-*, --ridge-*, --edge-*), so the craft pass that
+   retunes the recipe in another worktree reaches this view without an edit here. Charcoal wells (the stage, the
+   transcript, the drawers) carry data-scene='immersive'; the controls around them are raised clay with a lit top
+   lip (--ridge-hi) and a shaded bottom lip (--ridge-lo). The one accent fill is the Wake key.
+   No hex, no rgba literal: the only colours are tokens and system colours in the forced-colours branch.
+   ========================================================================== */
+.jc {
+  --jc-left: 720px;
+  --jc-gap: 12px;
+  --jc-stage-h: 360px;
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: var(--jc-left) minmax(0, 1fr);
+  column-gap: 16px;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--ink-1);
+  font-family: var(--font-ui, system-ui, sans-serif);
+}
+.jc *, .jc *::before, .jc *::after { box-sizing: border-box; }
+.jc-left, .jc-right { min-width: 0; min-height: 0; display: grid; row-gap: var(--jc-gap); }
+/* 56 + 12 + 424 (stage 360 and its strip) + 12 + 62 + 12 + 52 = 630 of the 652 px box */
+.jc-left { grid-template-rows: 56px auto 62px 52px; align-content: start; }
+.jc-right { grid-template-rows: 44px minmax(0, 1fr) 56px; }
+.jc-tag { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.04em; color: var(--ink-2); }
+.jc-dim { color: var(--ink-2); }
+.jc-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ------------------------------------------------------------------ keys: raised clay, lit top lip, shaded bottom lip */
+.jc-key, .jc-drawer .jc-key {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--edge-ui);
+  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
+  border-radius: var(--r-control, 10px);
+  background: var(--surface-raised);
+  box-shadow: var(--elev-raised, none);
+  color: var(--ink-1);
+  font: 600 13px/1 var(--font-ui, system-ui, sans-serif);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform var(--dur-state, 120ms) var(--ease-standard, ease);
+}
+.jc-key:hover { transform: translateY(-1px); border-color: var(--ink-2) var(--ink-2) var(--ridge-lo, var(--ink-2)); }
+.jc-key:active { transform: translateY(1px); box-shadow: var(--elev-pressed, none); }
+.jc-key[aria-disabled='true'] { color: var(--ink-3); box-shadow: var(--elev-flush, none); cursor: default; transform: none; }
+.jc-key-sm { padding: 0 12px; font-size: 12px; }
+.jc :focus-visible, .jc-drawer :focus-visible,
+.jc-rib-node:focus-visible, .jc-organ:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* ------------------------------------------------------------------ controls row */
+.jc-controls { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.jc-wake {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 14px 0 18px;
+  border: 1px solid var(--edge-ui);
+  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
+  border-radius: var(--r-control, 10px);
+  background: var(--accent-fill);
+  color: var(--accent-on);
+  box-shadow: var(--elev-raised, none);
+  font: 650 15px/1 var(--font-ui, system-ui, sans-serif);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform var(--dur-state, 120ms) var(--ease-standard, ease);
+}
+.jc-wake:hover { background: var(--accent-fill-hover, var(--accent-fill)); transform: translateY(-1px); }
+.jc-wake:active { transform: translateY(1px); box-shadow: var(--elev-pressed, none); }
+.jc-wake[aria-disabled='true'] { cursor: progress; }
+/* the shortcut as plain text in the key's own ink (accent-on over accent-fill is a token pair cleared for 4.5:1); a
+   hairline box at 10 px read as a faint smudge on the accent in the built app, so the box is gone */
+.jc-wake kbd {
+  font: 650 10px/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding-left: 10px;
+  border-left: 1px solid currentColor;
+}
+.jc-sleep { min-height: 52px; }
+.jc-mode {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid var(--edge-ui);
+  border-radius: calc(var(--r-control, 10px) + 3px);
+  background: var(--surface-sunk);
+  box-shadow: var(--elev-recessed, none);
+}
+.jc-mode button {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: var(--r-control, 10px);
+  background: transparent;
+  color: var(--ink-2);
+  font: 600 13px/1 var(--font-ui, system-ui, sans-serif);
+  cursor: pointer;
+}
+.jc-mode button[aria-checked='true'] {
+  background: var(--surface-raised);
+  color: var(--ink-1);
+  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
+  box-shadow: var(--elev-raised, none);
+}
+.jc-status { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.jc-status-line { font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.jc-up { color: var(--ink-1); font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------------ the stage: hill, sigil ring, art, HUD */
+.jc-stage { position: relative; min-width: 0; }
+/* the voice picture and its strip are one instrument body: a charcoal clay slab (the voice section is an immersive
+   scene, so --surface-ground is charcoal in both themes and the strip's ink reads on it) with the stage set into it */
+.jc-vh {
+  max-inline-size: none;
+  gap: 4px;
+  padding: 6px 6px 2px;
+  background: var(--surface-ground);
+  border: 1px solid var(--edge-ui);
+  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
+  border-radius: 20px;
+  box-shadow: var(--elev-raised, none);
+}
+.jc-vh .vh-strip { padding: 0 10px; }
+/* the stage is a deep charcoal well with one soft clay pool of light under the ring (two tokens, no literal), so the
+   eye lands on the ring first; the hill draws over it on its own canvas */
+.jc-vh .vh-stage {
+  border-radius: 16px;
+  box-shadow: var(--elev-recessed, none);
+  border-color: var(--edge-ui);
+  background: radial-gradient(ellipse 34% 62% at 50% 49%, var(--surface-raised) 0%, var(--surface-ground) 100%);
+}
+/* the voice strip, folded into two lines so the stage, the ribbon and the organs fit the 652 px box:
+   state, lamp and source on the left; level, number and Pause on the right; the legend under both */
+.jc-vh .vh-strip { grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 2px; align-items: center; }
+.jc-vh .vh-strip > .vh-row { min-width: 0; flex-wrap: nowrap; gap: 10px; }
+.jc-vh .vh-strip > .vh-legend { grid-column: 1 / -1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.jc-vh .vh-state { font: 650 13px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+.jc-vh .vh-bar { inline-size: 168px; }
+.jc-vh .vh-bar-well { block-size: 10px; border-radius: 5px; box-shadow: var(--elev-recessed, none); }
+.jc-vh .vh-pause {
+  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
+  box-shadow: var(--elev-raised, none);
+  border-radius: var(--r-control, 10px);
+  white-space: nowrap;
+}
+
+.jc-over {
+  position: absolute;
+  inset: 7px 7px auto 7px; /* the slab's 1 px edge and 6 px padding: the overlay sits exactly on the stage */
+  aspect-ratio: 2 / 1;
+  border-radius: 16px;
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--ink-1);
+}
+/* the centrepiece (art.core.hill-ring, private track): it fills the EMPTY stage only, screened onto the charcoal, and
+   steps aside (opacity 0) the moment the voice picture is drawing a measured frame, so the art is never read as data */
+.jc-art { position: absolute; inset: 0; opacity: 0.3; mix-blend-mode: screen; -webkit-mask-image: radial-gradient(ellipse 70% 90% at 50% 40%, black 30%, transparent 85%); mask-image: radial-gradient(ellipse 70% 90% at 50% 40%, black 30%, transparent 85%); }
+.jc-stage:has(.vh[data-measured='true']) .jc-art { opacity: 0; }
+.jc-art .art-slot, .jc-art .art-slot__box { height: 100%; }
+.jc-art .art-slot__box { border: 0; border-radius: 0; background: transparent; }
+/* the honest "private track off" form: a small dashed plate in the corner, not a hatch over the whole stage */
+.jc-art:has(.art-slot[data-state='absent']), .jc-art:has(.art-slot[data-state='loading']) {
+  inset: 34px auto auto 14px;
+  width: 232px;
+  height: auto;
+  opacity: 1;
+  mix-blend-mode: normal;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+.jc-art .art-slot[data-state='absent'] .art-slot__box,
+.jc-art .art-slot[data-state='loading'] .art-slot__box { aspect-ratio: auto; height: auto; border: 1px dashed var(--edge-ui); border-radius: 6px; }
+.jc-art .art-slot__ph { min-height: 0; padding: 6px 10px; gap: 2px; font-size: 10px; line-height: 14px; background: var(--surface-ground); color: var(--ink-2); }
+.jc-art .art-slot__ph-why { color: var(--ink-1); }
+
+.jc-sigil-at { position: absolute; left: 25.5556%; top: 0; width: 48.8889%; aspect-ratio: 1; }
+.jc-sigil, .jc-sigil svg { display: block; width: 100%; height: 100%; }
+.jc-sigil-bezel path { fill: none; stroke: var(--ink-3); vector-effect: non-scaling-stroke; }
+.jc-sigil-arc { stroke-width: 1; }
+.jc-sigil-heavy { stroke: var(--ink-2) !important; stroke-width: 3; stroke-linecap: square; }
+.jc-sigil-scale { stroke-width: 1; opacity: 0.8; }
+.jc-sigil-notch { stroke: var(--ink-2) !important; stroke-width: 1.25; }
+.jc-sigil-inner { stroke-dasharray: 2 4; }
+.jc-sigil-band path { fill: none; stroke: var(--ink-3); stroke-width: 0.9; stroke-linecap: round; stroke-linejoin: round; }
+.jc-sigil-band path[data-lit] { stroke: var(--state-measured); stroke-width: 1.4; }
+.jc-sigil[data-state='simulated'] .jc-sigil-band path[data-lit] { stroke: var(--state-simulated); }
+.jc-sigil-word { font: 600 7.5px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.18em; fill: var(--ink-2); }
+.jc-sigil[data-state='live'] .jc-sigil-word { fill: var(--state-measured); }
+.jc-sigil[data-state='simulated'] .jc-sigil-word { fill: var(--state-simulated); }
+.jc-sigil-hit { fill: transparent; pointer-events: all; cursor: crosshair; }
+.jc-sigil-cross path { stroke: var(--state-measured); stroke-width: 1; fill: none; }
+.jc-sigil-cross text { font: 600 9px/1 var(--font-mono, ui-monospace, monospace); fill: var(--ink-1); }
+
+.jc-hud {
+  position: absolute;
+  font: 600 10px/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.16em;
+  color: var(--ink-2);
+  padding: 4px 6px;
+}
+.jc-hud[data-c='tl'] { top: 10px; left: 12px; border-top: 1px solid var(--ink-3); border-left: 1px solid var(--ink-3); }
+.jc-hud[data-c='tr'] { top: 10px; right: 12px; border-top: 1px solid var(--ink-3); border-right: 1px solid var(--ink-3); }
+.jc[data-simulated] .jc-hud[data-c='tr'] { color: var(--state-simulated); border-color: var(--state-simulated); }
+
+/* the asleep scene: the word in the ring's eye, the one line under it; the hill under it is the hollow placeholder */
+.jc-asleep {
+  position: absolute;
+  left: 50%;
+  top: 48.9%;
+  translate: -50% -50%;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+}
+.jc-asleep-word { font: 600 26px/1 var(--font-numerals, var(--font-mono, ui-monospace, monospace)); letter-spacing: 0.3em; margin-right: -0.3em; color: var(--ink-1); }
+.jc-asleep-line { font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); letter-spacing: 0.04em; }
+
+/* ------------------------------------------------------------------ the pipeline ribbon */
+/* the ribbon sits in one recessed clay rail, so the four stages read as one instrument, not four loose buttons;
+   the first track is the inlet from the rail's port (a small ring at the left end) */
+.jc-ribbon {
+  list-style: none;
+  margin: 0;
+  padding: 0 9px 0 0;
+  display: grid;
+  grid-template-columns: auto 1fr 1fr 1fr;
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+  border: 1px solid var(--edge-hair, var(--edge-ui));
+  border-radius: calc(var(--r-control, 10px) + 8px);
+  background: var(--surface-sunk);
+  box-shadow: var(--elev-recessed, none);
+}
+.jc-rib-step { display: flex; align-items: center; gap: 0; min-width: 0; }
+.jc-rib-track { position: relative; flex: 1; min-width: 12px; height: 2px; margin: 0 8px; background: var(--edge-ui); overflow: hidden; }
+.jc-rib-step:first-child::before { content: ''; flex: none; width: 8px; height: 8px; margin-left: 14px; border: 2px solid var(--edge-ui); border-radius: 50%; }
+.jc-rib-step:first-child .jc-rib-track { margin-left: 0; }
+.jc-rib-track[data-track='dashed'] { background: repeating-linear-gradient(90deg, var(--edge-ui) 0 5px, transparent 5px 9px); }
+.jc-rib-fill { position: absolute; inset: 0 auto 0 0; width: calc(var(--f, 0) * 100%); background: var(--lamp-ink, var(--state-measured)); transition: width 160ms steps(1, end); }
+.jc-rib-node {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--edge-ui);
+  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
+  border-radius: var(--r-control, 10px);
+  background: var(--surface-raised);
+  box-shadow: var(--elev-raised, none);
+  font: 12px/1 var(--font-mono, ui-monospace, monospace);
+  white-space: nowrap;
+}
+.jc-rib-lamp { width: 12px; height: 12px; color: var(--lamp-ink, var(--ink-2)); flex: none; }
+.jc-rib-word { font-weight: 650; letter-spacing: 0.1em; }
+.jc-rib-val { color: var(--ink-2); font-family: var(--font-numerals, var(--font-mono, ui-monospace, monospace)); font-variant-numeric: tabular-nums; min-width: 4.5ch; }
+/* hollow: no fresh report, no solid node (spec 20.9.1) */
+.jc-rib-step:not([data-state='live']):not([data-state='simulated']) .jc-rib-node { background: transparent; box-shadow: none; border-style: dashed; border-color: var(--edge-ui); color: var(--ink-2); }
+.jc-rib-step[data-running] .jc-rib-node { border-color: var(--lamp-ink, var(--ink-1)); }
+.jc-rib-step[data-running] .jc-rib-val { color: var(--ink-1); }
+/* phone: four rows in the rail, the track a short vertical line above each node */
+.jc-ribbon[data-orientation='column'] { grid-template-columns: minmax(0, 1fr); row-gap: 0; padding: 6px 8px 8px; }
+.jc-ribbon[data-orientation='column'] .jc-rib-step { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: start; }
+.jc-ribbon[data-orientation='column'] .jc-rib-step::before { display: none; }
+.jc-ribbon[data-orientation='column'] .jc-rib-track { width: 2px; height: 10px; margin: 0 0 0 18px; flex: none; }
+.jc-ribbon[data-orientation='column'] .jc-rib-step:first-child .jc-rib-track { display: none; } /* a stub above HEAR joins nothing */
+.jc-ribbon[data-orientation='column'] .jc-rib-track[data-track='dashed'] { background: repeating-linear-gradient(180deg, var(--edge-ui) 0 3px, transparent 3px 5px); }
+.jc-ribbon[data-orientation='column'] .jc-rib-fill { inset: 0 0 auto 0; width: auto; height: calc(var(--f, 0) * 100%); }
+.jc-ribbon[data-orientation='column'] .jc-rib-node { justify-content: flex-start; width: 100%; }
+
+/* ------------------------------------------------------------------ the organ strip */
+/* five equal modules across the 720 px column (about 136 px each): a lamp, then the name over its one word */
+.jc-organs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; min-width: 0; }
+.jc-organ {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  row-gap: 4px;
+  align-content: center;
+  justify-items: start;
+  text-align: left;
+  min-width: 0;
+  min-height: 52px;
+  padding: 0 12px 0 14px;
+  border: 1px solid var(--edge-ui);
+  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
+  border-radius: var(--r-control, 10px);
+  background: var(--surface-raised);
+  box-shadow: var(--elev-raised, none);
+  color: var(--ink-1);
+  font: 12px/1 var(--font-mono, ui-monospace, monospace);
+  cursor: pointer;
+  transition: transform var(--dur-state, 120ms) var(--ease-standard, ease);
+}
+.jc-organ:hover { transform: translateY(-1px); }
+.jc-organ:active { transform: translateY(1px); box-shadow: var(--elev-pressed, none); }
+.jc-organ-lamp { grid-row: 1 / span 2; align-self: center; width: 12px; height: 12px; color: var(--lamp-ink, var(--ink-2)); }
+.jc-organ-name { font-weight: 650; letter-spacing: 0.12em; font-size: 12px; }
+.jc-organ-word { color: var(--ink-2); font-size: 11px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jc-organ[data-state='waiting'], .jc-organ[data-state='planned'] { background: transparent; box-shadow: none; border-style: dashed; border-color: var(--edge-ui); }
+.jc-organ[data-state='fault'] .jc-organ-word { color: var(--ink-1); }
+.jc-organs[data-compact] { gap: 6px; }
+.jc-organs[data-compact] .jc-organ { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; padding: 6px 2px; min-height: 52px; }
+.jc-organs[data-compact] .jc-organ-lamp { grid-row: auto; }
+.jc-organs[data-compact] .jc-organ-name { font-size: 10px; letter-spacing: 0.06em; }
+
+/* ------------------------------------------------------------------ conversation */
+.jc-convo-head { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.jc-convo-head h2 { margin: 0; flex: 1; min-width: 0; font: 650 13px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.12em; text-transform: uppercase; }
+.jc-count { display: inline-flex; align-items: center; gap: 8px; font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.jc-strata { min-height: 0; display: flex; }
+.jc-strata > .g-well { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; border-radius: 14px; box-shadow: var(--elev-recessed, none); padding: 14px 14px 12px 26px; }
+.jc-strata .g-well-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.jc-strata[data-dock] .g-prompt { display: none; }
+.jc-strata-empty { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; }
+.jc-strata-mark { flex: 1 1 auto; min-height: 120px; display: grid; place-items: center; opacity: 0.5; }
+/* the 48 px glyph (the sigil's full-detail size) drawn at 96 px: its viewBox scales, its geometry stays the 48 px one */
+.jc-strata-mark .g-sigil { --g-size: 96px !important; }
+
+/* a turn is a terminal row with room to breathe: replies sit on a raised clay slab, your lines stay on the well */
+.jc-turns { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; }
+.jc-turn {
+  position: relative;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 6px;
+  padding: 10px 14px 10px 10px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+}
+.jc-turn[data-tag='JRV'] { background: var(--surface-raised); border-color: var(--ridge-hi, var(--edge-hair)) var(--edge-hair) var(--ridge-lo, var(--edge-hair)); box-shadow: var(--elev-raised, none); }
+.jc-turn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 0; }
+.jc-turn-glyph { grid-row: 1 / span 3; padding-top: 1px; color: var(--ink-2); }
+.jc-turn-glyph .g-sigil { --g-size: 12px !important; width: 12px; height: 12px; display: block; }
+.jc-turn-glyph svg { width: 12px; height: 12px; display: block; }
+.jc-turn-head { display: flex; align-items: center; gap: 8px; min-width: 0; font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.jc-turn[data-tag='JRV'] .jc-tag { color: var(--ink-1); }
+.jc-turn-time { font-variant-numeric: tabular-nums; }
+.jc-turn-secs { margin-left: auto; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+.jc-turn-why { margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* four fitted turns, worst case two replies of three lines with a hand-off chip and two lines of yours, fill 460 of
+   the well's 471 px: so a reply clamps at three lines and your line at two (the full text is the row's name) */
+.jc-turn[data-tag='YOU'] .jc-turn-text { -webkit-line-clamp: 2; }
+.jc-turn-text { margin: 0; font: 14px/21px var(--font-mono, ui-monospace, monospace); color: var(--ink-1); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; white-space: pre-wrap; text-indent: 0; }
+.jc-turn[data-tag='YOU'] .jc-turn-text { color: var(--ink-2); }
+.jc-turn-hand { padding-top: 2px; }
+.jc-earlier { overflow: visible; justify-content: flex-start; }
+.jc-earlier .jc-turn .jc-turn-text { -webkit-line-clamp: unset; display: block; }
+
+.jc-dock { display: flex; align-items: center; gap: 8px; min-height: 44px; padding-top: 8px; border-top: 1px solid var(--edge-hair); flex-wrap: wrap; }
+.jc-dock-ps { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); white-space: nowrap; }
+.jc-dock-said { flex: 1; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
+.jc-dock-field { flex: 1; min-width: 120px; min-height: 44px; padding: 0 10px; border: 1px solid var(--edge-ui); border-radius: 8px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); color: var(--ink-1); font: 13px/1 var(--font-mono, ui-monospace, monospace); }
+.jc-dock-teach { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
+.jc-dock-x { margin-left: auto; }
+
+.jc-composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 5px 5px 16px;
+  border: 1px solid var(--edge-ui);
+  border-radius: 14px;
+  background: var(--surface-sunk);
+  box-shadow: var(--elev-recessed, none);
+  min-width: 0;
+}
+.jc-composer:focus-within { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.jc-composer-ps { font: 600 13px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.jc-composer-field { flex: 1; min-width: 0; min-height: 44px; border: 0; background: transparent; color: var(--ink-1); font: 14px/1 var(--font-mono, ui-monospace, monospace); outline: none; }
+.jc-composer-field::placeholder { color: var(--ink-2); }
+.jc .jc-composer-field:focus-visible { outline: none; }
+.jc-send { border-radius: 10px; }
+
+/* ------------------------------------------------------------------ drawers (native <dialog>) */
+.jc-drawer {
+  position: fixed;
+  inset: 56px 8px 8px auto;
+  width: min(560px, calc(100vw - 16px));
+  height: auto;
+  max-height: calc(100vh - 64px);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-1);
+  overflow: visible;
+}
+.jc-drawer::backdrop { background: var(--scrim, transparent); }
+.jc-drawer-in {
+  height: 100%;
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-ground);
+  color: var(--ink-1);
+  border: 1px solid var(--edge-ui);
+  border-radius: 14px;
+  box-shadow: var(--elev-float, none);
+  overflow: hidden;
+}
+.jc-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px 10px 18px; border-bottom: 1px solid var(--edge-hair); }
+.jc-drawer-head h2 { margin: 0; font: 650 14px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; text-transform: uppercase; }
+.jc-drawer-body { flex: 1; min-height: 0; overflow: auto; padding: 16px 18px; }
+.jc-drawer .jc-turns { gap: 8px; }
+
+.jc-anat { display: grid; gap: 16px; justify-items: center; }
+.jc-anat-ring { width: 100%; display: flex; justify-content: center; }
+.jc-anat-table { width: 100%; border-collapse: collapse; font: 12px/1.35 var(--font-mono, ui-monospace, monospace); }
+.jc-anat-table th, .jc-anat-table td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--edge-hair); vertical-align: top; }
+.jc-anat-table thead th { color: var(--ink-2); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; font-size: 10px; }
+.jc-anat-table tr[data-focus] { background: var(--surface-raised); }
+.jc-anat-why { display: block; color: var(--ink-2); margin-top: 4px; }
+.jc-anat-mono { font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------------ phone Talk tab: below 900 px */
+@media (max-width: 899px) {
+  /* one column that scrolls inside itself; every row sizes to its content (min-height auto: with the desktop's
+     min-height 0 the rows of a fixed-height grid shrink to nothing and the parts overlap) */
+  .jc { grid-template-columns: minmax(0, 1fr); grid-auto-rows: max-content; row-gap: 20px; overflow-x: hidden; overflow-y: auto; align-content: start; padding: 12px 16px 28px; }
+  .jc-left, .jc-right { min-height: auto; grid-auto-rows: max-content; }
+  .jc-left { grid-template-rows: none; }
+  .jc-right { grid-template-rows: 44px minmax(280px, auto) auto; }
+  .jc-ribbon { border-radius: 16px; }
+  .jc-controls { flex-wrap: wrap; row-gap: 8px; }
+  .jc-status { flex-basis: 100%; order: 3; }
+  .jc-wake kbd { display: none; }
+  .jc-vh .vh-strip { grid-template-columns: minmax(0, 1fr); row-gap: 6px; padding-bottom: 6px; }
+  .jc-vh .vh-strip > .vh-row { flex-wrap: wrap; }
+  .jc-vh .vh-bar { inline-size: 120px; }
+  .jc-hud { display: none; }
+  .jc-art:has(.art-slot[data-state='absent']), .jc-art:has(.art-slot[data-state='loading']) { inset: 8px auto auto 8px; width: auto; }
+  .jc-art .art-slot__ph-id { display: none; }
+  .jc-art .art-slot__ph { padding: 4px 8px; font-size: 9px; line-height: 12px; }
+  .jc-asleep-word { font-size: 18px; }
+  .jc-turns { overflow: visible; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jc *, .jc-drawer * { transition: none !important; animation: none !important; }
+}
+:root[data-motion='calm'] .jc *, :root[data-motion='calm'] .jc-drawer * { transition: none !important; animation: none !important; }
+
+@media (forced-colors: active) {
+  .jc-key, .jc-wake, .jc-organ, .jc-rib-node, .jc-mode button, .jc-composer, .jc-drawer-in { border: 1px solid CanvasText; forced-color-adjust: auto; }
+  .jc-mode button[aria-checked='true'] { forced-color-adjust: none; background: Highlight; color: HighlightText; }
+  .jc-sigil-band path { stroke: GrayText; }
+  .jc-sigil-band path[data-lit] { stroke: Highlight; }
+  .jc-sigil-bezel path { stroke: CanvasText; }
+  .jc-rib-fill { background: Highlight; forced-color-adjust: none; }
+  .jc-rib-track { background: CanvasText; }
+  .jc-art { display: none; }
+  .jc-turn[data-tag='JRV'] { border-color: CanvasText; }
+}

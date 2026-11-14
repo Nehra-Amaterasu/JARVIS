@@ -31,7 +31,8 @@
 }
 .jc *, .jc *::before, .jc *::after { box-sizing: border-box; }
 .jc-left, .jc-right { min-width: 0; min-height: 0; display: grid; row-gap: var(--jc-gap); }
-.jc-left { grid-template-rows: 56px auto 44px 44px; align-content: start; }
+/* 56 + 12 + 424 (stage 360 and its strip) + 12 + 62 + 12 + 52 = 630 of the 652 px box */
+.jc-left { grid-template-rows: 56px auto 62px 52px; align-content: start; }
 .jc-right { grid-template-rows: 44px minmax(0, 1fr) 56px; }
 .jc-tag { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.04em; color: var(--ink-2); }
 .jc-dim { color: var(--ink-2); }
@@ -95,7 +96,6 @@
   padding: 4px 6px;
   border: 1px solid currentColor;
   border-radius: 4px;
-  opacity: 0.85;
 }
 .jc-sleep { min-height: 52px; }
 .jc-mode {
@@ -130,7 +130,14 @@
 /* ------------------------------------------------------------------ the stage: hill, sigil ring, art, HUD */
 .jc-stage { position: relative; min-width: 0; }
 .jc-vh { max-inline-size: none; background: transparent; gap: 8px; }
-.jc-vh .vh-stage { border-radius: 14px; box-shadow: var(--elev-recessed, none); border-color: var(--edge-ui); }
+/* the stage is a deep charcoal well with one soft clay pool of light under the ring (two tokens, no literal), so the
+   eye lands on the ring first; the hill draws over it on its own canvas */
+.jc-vh .vh-stage {
+  border-radius: 16px;
+  box-shadow: var(--elev-recessed, none);
+  border-color: var(--edge-ui);
+  background: radial-gradient(ellipse 34% 62% at 50% 49%, var(--surface-raised) 0%, var(--surface-ground) 100%);
+}
 /* the voice strip, folded into two lines so the stage, the ribbon and the organs fit the 652 px box:
    state, lamp and source on the left; level, number and Pause on the right; the legend under both */
 .jc-vh .vh-strip { grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 2px; align-items: center; }
@@ -187,7 +194,9 @@
 .jc-sigil-band path { fill: none; stroke: var(--ink-3); stroke-width: 0.9; stroke-linecap: round; stroke-linejoin: round; }
 .jc-sigil-band path[data-lit] { stroke: var(--state-measured); stroke-width: 1.4; }
 .jc-sigil[data-state='simulated'] .jc-sigil-band path[data-lit] { stroke: var(--state-simulated); }
-.jc-sigil-word { font: 600 7px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.2em; fill: var(--ink-2); }
+.jc-sigil-word { font: 600 7.5px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.18em; fill: var(--ink-2); }
+.jc-sigil[data-state='live'] .jc-sigil-word { fill: var(--state-measured); }
+.jc-sigil[data-state='simulated'] .jc-sigil-word { fill: var(--state-simulated); }
 .jc-sigil-hit { fill: transparent; pointer-events: all; cursor: crosshair; }
 .jc-sigil-cross path { stroke: var(--state-measured); stroke-width: 1; fill: none; }
 .jc-sigil-cross text { font: 600 9px/1 var(--font-mono, ui-monospace, monospace); fill: var(--ink-1); }
@@ -218,13 +227,30 @@
 .jc-asleep-line { font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); letter-spacing: 0.04em; }
 
 /* ------------------------------------------------------------------ the pipeline ribbon */
-.jc-ribbon { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; min-width: 0; }
+/* the ribbon sits in one recessed clay rail, so the four stages read as one instrument, not four loose buttons;
+   the first track is the inlet from the rail's port (a small ring at the left end) */
+.jc-ribbon {
+  list-style: none;
+  margin: 0;
+  padding: 0 9px 0 0;
+  display: grid;
+  grid-template-columns: auto 1fr 1fr 1fr;
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+  border: 1px solid var(--edge-hair, var(--edge-ui));
+  border-radius: calc(var(--r-control, 10px) + 8px);
+  background: var(--surface-sunk);
+  box-shadow: var(--elev-recessed, none);
+}
 .jc-rib-step { display: flex; align-items: center; gap: 0; min-width: 0; }
-.jc-rib-track { position: relative; flex: 1; min-width: 12px; height: 2px; margin: 0 6px; background: var(--edge-ui); overflow: hidden; }
-.jc-rib-step:first-child .jc-rib-track { flex: 0 0 18px; margin-left: 0; }
+.jc-rib-track { position: relative; flex: 1; min-width: 12px; height: 2px; margin: 0 8px; background: var(--edge-ui); overflow: hidden; }
+.jc-rib-step:first-child::before { content: ''; flex: none; width: 8px; height: 8px; margin-left: 14px; border: 2px solid var(--edge-ui); border-radius: 50%; }
+.jc-rib-step:first-child .jc-rib-track { margin-left: 0; }
 .jc-rib-track[data-track='dashed'] { background: repeating-linear-gradient(90deg, var(--edge-ui) 0 5px, transparent 5px 9px); }
 .jc-rib-fill { position: absolute; inset: 0 auto 0 0; width: calc(var(--f, 0) * 100%); background: var(--lamp-ink, var(--state-measured)); transition: width 160ms steps(1, end); }
 .jc-rib-node {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -245,20 +271,30 @@
 .jc-rib-step:not([data-state='live']):not([data-state='simulated']) .jc-rib-node { background: transparent; box-shadow: none; border-style: dashed; border-color: var(--edge-ui); color: var(--ink-2); }
 .jc-rib-step[data-running] .jc-rib-node { border-color: var(--lamp-ink, var(--ink-1)); }
 .jc-rib-step[data-running] .jc-rib-val { color: var(--ink-1); }
-.jc-ribbon[data-orientation='column'] { grid-template-columns: minmax(0, 1fr); row-gap: 8px; }
-.jc-ribbon[data-orientation='column'] .jc-rib-step { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 4px; }
-.jc-ribbon[data-orientation='column'] .jc-rib-track { order: 2; margin: 0; flex: none; width: 100%; }
-.jc-ribbon[data-orientation='column'] .jc-rib-node { justify-content: flex-start; }
+/* phone: four rows in the rail, the track a short vertical line above each node */
+.jc-ribbon[data-orientation='column'] { grid-template-columns: minmax(0, 1fr); row-gap: 0; padding: 6px 8px 8px; }
+.jc-ribbon[data-orientation='column'] .jc-rib-step { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: start; }
+.jc-ribbon[data-orientation='column'] .jc-rib-step::before { display: none; }
+.jc-ribbon[data-orientation='column'] .jc-rib-track { width: 2px; height: 10px; margin: 0 0 0 18px; flex: none; }
+.jc-ribbon[data-orientation='column'] .jc-rib-track[data-track='dashed'] { background: repeating-linear-gradient(180deg, var(--edge-ui) 0 3px, transparent 3px 5px); }
+.jc-ribbon[data-orientation='column'] .jc-rib-fill { inset: 0 0 auto 0; width: auto; height: calc(var(--f, 0) * 100%); }
+.jc-ribbon[data-orientation='column'] .jc-rib-node { justify-content: flex-start; width: 100%; }
 
 /* ------------------------------------------------------------------ the organ strip */
-.jc-organs { display: flex; gap: 10px; min-width: 0; }
+/* five equal modules across the 720 px column (about 136 px each): a lamp, then the name over its one word */
+.jc-organs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; min-width: 0; }
 .jc-organ {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex: 0 0 136px;
-  min-height: 44px;
-  padding: 0 12px;
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  row-gap: 4px;
+  align-content: center;
+  justify-items: start;
+  text-align: left;
+  min-width: 0;
+  min-height: 52px;
+  padding: 0 12px 0 14px;
   border: 1px solid var(--edge-ui);
   border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
   border-radius: var(--r-control, 10px);
@@ -271,10 +307,15 @@
 }
 .jc-organ:hover { transform: translateY(-1px); }
 .jc-organ:active { transform: translateY(1px); box-shadow: var(--elev-pressed, none); }
-.jc-organ-lamp { width: 12px; height: 12px; flex: none; color: var(--lamp-ink, var(--ink-2)); }
-.jc-organ-name { font-weight: 650; letter-spacing: 0.1em; }
-.jc-organ-word { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.jc-organs[data-compact] .jc-organ { flex: 1 1 0; min-width: 0; flex-direction: column; justify-content: center; gap: 4px; padding: 4px 2px; min-height: 52px; }
+.jc-organ-lamp { grid-row: 1 / span 2; align-self: center; width: 12px; height: 12px; color: var(--lamp-ink, var(--ink-2)); }
+.jc-organ-name { font-weight: 650; letter-spacing: 0.12em; font-size: 12px; }
+.jc-organ-word { color: var(--ink-2); font-size: 11px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jc-organ[data-state='waiting'], .jc-organ[data-state='planned'] { background: transparent; box-shadow: none; border-style: dashed; border-color: var(--edge-ui); }
+.jc-organ[data-state='fault'] .jc-organ-word { color: var(--ink-1); }
+.jc-organs[data-compact] { gap: 6px; }
+.jc-organs[data-compact] .jc-organ { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; padding: 6px 2px; min-height: 52px; }
+.jc-organs[data-compact] .jc-organ-lamp { grid-row: auto; }
+.jc-organs[data-compact] .jc-organ-name { font-size: 10px; letter-spacing: 0.06em; }
 
 /* ------------------------------------------------------------------ conversation */
 .jc-convo-head { display: flex; align-items: center; gap: 12px; min-width: 0; }
@@ -286,19 +327,21 @@
 .jc-strata .g-well-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
 .jc-strata[data-dock] .g-prompt { display: none; }
 .jc-strata-empty { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; }
+.jc-strata-mark { flex: 1 1 auto; min-height: 120px; display: grid; place-items: center; color: var(--ink-2); opacity: 0.45; }
 
-.jc-turns { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; }
+/* a turn is a terminal row with room to breathe: replies sit on a raised clay slab, your lines stay on the well */
+.jc-turns { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; }
 .jc-turn {
   position: relative;
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr);
-  column-gap: 10px;
-  row-gap: 4px;
-  padding: 8px 10px 8px 8px;
-  border-radius: 8px;
+  column-gap: 12px;
+  row-gap: 6px;
+  padding: 10px 14px 10px 10px;
+  border-radius: 12px;
   border: 1px solid transparent;
 }
-.jc-turn[data-tag='JRV'] { background: var(--surface-raised); border-color: var(--edge-hair); }
+.jc-turn[data-tag='JRV'] { background: var(--surface-raised); border-color: var(--ridge-hi, var(--edge-hair)) var(--edge-hair) var(--ridge-lo, var(--edge-hair)); box-shadow: var(--elev-raised, none); }
 .jc-turn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 0; }
 .jc-turn-glyph { grid-row: 1 / span 3; padding-top: 1px; color: var(--ink-2); }
 .jc-turn-glyph .g-sigil { --g-size: 12px !important; width: 12px; height: 12px; display: block; }
@@ -308,11 +351,14 @@
 .jc-turn-time { font-variant-numeric: tabular-nums; }
 .jc-turn-secs { margin-left: auto; color: var(--ink-1); font-variant-numeric: tabular-nums; }
 .jc-turn-why { margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.jc-turn-text { margin: 0; font: 13px/20px var(--font-mono, ui-monospace, monospace); color: var(--ink-1); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; white-space: pre-wrap; text-indent: 0; }
+/* four fitted turns, worst case two replies of three lines with a hand-off chip and two lines of yours, fill 460 of
+   the well's 471 px: so a reply clamps at three lines and your line at two (the full text is the row's name) */
+.jc-turn[data-tag='YOU'] .jc-turn-text { -webkit-line-clamp: 2; }
+.jc-turn-text { margin: 0; font: 14px/21px var(--font-mono, ui-monospace, monospace); color: var(--ink-1); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; white-space: pre-wrap; text-indent: 0; }
 .jc-turn[data-tag='YOU'] .jc-turn-text { color: var(--ink-2); }
 .jc-turn-hand { padding-top: 2px; }
 .jc-earlier { overflow: visible; justify-content: flex-start; }
-.jc-earlier .jc-turn-text { -webkit-line-clamp: unset; display: block; }
+.jc-earlier .jc-turn .jc-turn-text { -webkit-line-clamp: unset; display: block; }
 
 .jc-dock { display: flex; align-items: center; gap: 8px; min-height: 44px; padding-top: 8px; border-top: 1px solid var(--edge-hair); flex-wrap: wrap; }
 .jc-dock-ps { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); white-space: nowrap; }
@@ -382,9 +428,13 @@
 
 /* ------------------------------------------------------------------ phone Talk tab: below 900 px */
 @media (max-width: 899px) {
-  .jc { grid-template-columns: minmax(0, 1fr); row-gap: 16px; overflow-x: hidden; overflow-y: auto; align-content: start; padding: 8px 8px 24px; }
+  /* one column that scrolls inside itself; every row sizes to its content (min-height auto: with the desktop's
+     min-height 0 the rows of a fixed-height grid shrink to nothing and the parts overlap) */
+  .jc { grid-template-columns: minmax(0, 1fr); grid-auto-rows: max-content; row-gap: 20px; overflow-x: hidden; overflow-y: auto; align-content: start; padding: 12px 16px 28px; }
+  .jc-left, .jc-right { min-height: auto; grid-auto-rows: max-content; }
   .jc-left { grid-template-rows: none; }
-  .jc-right { grid-template-rows: 44px minmax(300px, auto) auto; }
+  .jc-right { grid-template-rows: 44px minmax(280px, auto) auto; }
+  .jc-ribbon { border-radius: 16px; }
   .jc-controls { flex-wrap: wrap; row-gap: 8px; }
   .jc-status { flex-basis: 100%; order: 3; }
   .jc-wake kbd { display: none; }
@@ -392,7 +442,9 @@
   .jc-vh .vh-strip > .vh-row { flex-wrap: wrap; }
   .jc-vh .vh-bar { inline-size: 120px; }
   .jc-hud { display: none; }
-  .jc-art:has(.art-slot[data-state='absent']), .jc-art:has(.art-slot[data-state='loading']) { inset: 8px auto auto 8px; width: 180px; }
+  .jc-art:has(.art-slot[data-state='absent']), .jc-art:has(.art-slot[data-state='loading']) { inset: 8px auto auto 8px; width: auto; }
+  .jc-art .art-slot__ph-id { display: none; }
+  .jc-art .art-slot__ph { padding: 4px 8px; font-size: 9px; line-height: 12px; }
   .jc-asleep-word { font-size: 18px; }
   .jc-turns { overflow: visible; }
 }

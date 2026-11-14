@@ -55,17 +55,20 @@ const disc = (r: number) => `M${C} ${C - r}A${r} ${r} 0 1 1 ${C} ${C + r}A${r} $
 /** The traced bezel (C02-07): four hairline arcs with gaps at the quarters, two heavier index bars, a 5-degree scale
  *  with longer marks every 45 degrees, and quarter notches. Static, built once per module. */
 const BEZEL = (() => {
-  const arcs = [arc(SIGIL.R_BEZEL, 8, 82), arc(SIGIL.R_BEZEL, 98, 172), arc(SIGIL.R_BEZEL, 188, 262), arc(SIGIL.R_BEZEL, 278, 352)].join('')
+  // the top gap is 36 degrees (about 105 units at r 168), wide enough for the state word, so the word never sits on a line
+  const arcs = [arc(SIGIL.R_BEZEL, 18, 82), arc(SIGIL.R_BEZEL, 98, 172), arc(SIGIL.R_BEZEL, 188, 262), arc(SIGIL.R_BEZEL, 278, 342)].join('')
   const heavy = [arc(SIGIL.R_BEZEL, 300, 318), arc(SIGIL.R_BEZEL, 122, 136)].join('')
   let scale = ''
   for (let d = 0; d < 360; d += 5) {
+    if (d < 18 || d > 342) continue // the word's gap stays clear
+
     const major = d % 45 === 0
     const a = polar(major ? SIGIL.R_SCALE_IN - 3 : SIGIL.R_SCALE_IN, d)
     const b = polar(SIGIL.R_SCALE_OUT, d)
     scale += `M${a.x.toFixed(2)} ${a.y.toFixed(2)}L${b.x.toFixed(2)} ${b.y.toFixed(2)}`
   }
   let notch = ''
-  for (const d of [0, 90, 180, 270]) {
+  for (const d of [90, 180, 270]) {
     const a = polar(SIGIL.R_BEZEL - 4, d - 2.2)
     const b = polar(SIGIL.R_BEZEL + 4, d)
     const c2 = polar(SIGIL.R_BEZEL - 4, d + 2.2)
@@ -113,7 +116,7 @@ function SigilRingImpl({ bands, state, glyphSet = 'jarvis.core.ring' }: SigilRin
             <path key={k} d={GLYPHS[g]} data-lit={lit[k] ? 'true' : undefined} transform={`rotate(${(k * STEP).toFixed(2)} ${C} ${C}) translate(${C} ${C - MID})`} />
           ))}
         </g>
-        <text className="jc-sigil-word" x={C} y={C - SIGIL.R_BEZEL - 0.5} textAnchor="middle" dominantBaseline="auto">{STATE_WORD[state]}</text>
+        <text className="jc-sigil-word" x={C} y={C - SIGIL.R_BEZEL} textAnchor="middle" dominantBaseline="central">{STATE_WORD[state]}</text>
         {/* the hover target: the annulus of the band and the bars only, so the hill underneath stays reachable */}
         <path
           className="jc-sigil-hit"

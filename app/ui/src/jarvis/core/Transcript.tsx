@@ -173,6 +173,8 @@ export function Transcript({ turns, all, running, simulated = false, notifyPrese
       <TermWell prompt="jarvis core.talk" label="Transcript" cursor={!docked}>
         {turns.length === 0 ? (
           <div className="jc-strata-empty">
+            {/* the well's emblem: the Core's own generic sigil, decoration with a name, never a reading */}
+            <div className="jc-strata-mark" aria-hidden="true"><Sigil seed="jarvis.core.talk" size={88} fold={8} /></div>
             <div className="g-line" data-kind="out">[JRV] {running ? 'listening. Say "Hey Jarvis", or type below.' : 'asleep. Wake JARVIS, or type.'}</div>
             <div className="g-line">no turns in this run yet</div>
           </div>

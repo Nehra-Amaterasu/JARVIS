@@ -108,7 +108,7 @@ function Controls({ core, busy, onWake, onSleep, mode, setMode, onAnatomy, simul
   const up = running && !booting && showsNumber(reading.state) ? uptimeText(core?.uptime_s) : null
   const hint = running
     ? core?.status_line || (core?.mode === 'voice' ? 'Say "Hey Jarvis", or type.' : 'Text only: no microphone, no speech.')
-    : mode === 'voice' ? 'Voice loads Whisper on the GPU and opens the microphone.' : 'Text only starts in seconds and never opens the microphone.'
+    : mode === 'voice' ? 'Voice opens the microphone.' : 'Text only: no microphone.'
   const onRadioKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return
     e.preventDefault()

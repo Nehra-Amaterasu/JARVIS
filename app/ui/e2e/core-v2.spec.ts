@@ -46,7 +46,7 @@ test.describe('Core v2, the app (flag on)', () => {
     const m = await page.evaluate(() => {
       const jc = document.querySelector<HTMLElement>('.jc')!
       const box = jc.getBoundingClientRect()
-      const parts = [...document.querySelectorAll<HTMLElement>('.jc-left > *, .jc-right > *, .jc-vh .vh-strip, .jc-vh .vh-legend')]
+      const parts = [...document.querySelectorAll<HTMLElement>('.jc-left > *, .jc-right > *, .jc-vh .vh-strip, .jc-vh .vh-legend, .jc-organ, .jc-rib-node')]
       const out = parts.map((el) => {
         const r = el.getBoundingClientRect()
         return { cls: el.className.toString().slice(0, 40), top: r.top, bottom: r.bottom, left: r.left, right: r.right, sh: el.scrollHeight, ch: el.clientHeight }
@@ -60,7 +60,12 @@ test.describe('Core v2, the app (flag on)', () => {
     expect(m.doc.sh).toBeLessThanOrEqual(m.doc.ih)
     expect(m.doc.sw).toBeLessThanOrEqual(m.doc.iw)
     expect(m.jc.sh).toBeLessThanOrEqual(m.jc.ch)
-    expect([Math.round(m.jc.w), Math.round(m.jc.h)]).toEqual([1302, 668])
+    // the shell's page box: 1302 wide; 665 tall with today's title bar and view row (the spec's J box is 652 inside it)
+    expect(Math.round(m.jc.w)).toBe(1302)
+    expect(m.jc.h).toBeGreaterThanOrEqual(652)
+    const left = m.parts.filter((p) => ['jc-organ', 'jc-rib-node'].includes(p.cls.split(' ')[0]))
+    expect(left.length).toBe(9) // five organs and four ribbon nodes, every one inside the left column
+    for (const p of left) expect(p.right, `${p.cls} inside the 720 px column`).toBeLessThanOrEqual(m.jc.left + 8 + 720 + 0.5)
     for (const p of m.parts) {
       expect(p.bottom, `${p.cls} bottom`).toBeLessThanOrEqual(m.jc.bottom - 7)
       expect(p.right, `${p.cls} right`).toBeLessThanOrEqual(m.jc.right - 7)
@@ -202,13 +207,13 @@ function buildJury() {
   return bundle
 }
 
-async function openJury(page: Page, kind: string, theme: 'light' | 'dark', size: { width: number; height: number }) {
+async function openJury(page: Page, kind: string, theme: 'light' | 'dark', size: { width: number; height: number }, boxH = 668) {
   await page.setViewportSize(size)
   const { js, css } = await buildJury()
   const safe = js.replace(/<\/script/gi, '<' + String.fromCharCode(92) + '/script')
   // the shell's page box: under the 48 px title bar and the 52 px view row, right of the 64 px rail (1302 x 668)
   const desk = size.width >= 900
-  const box = desk ? 'position:fixed;left:64px;top:100px;width:1302px;height:668px' : 'position:fixed;left:0;top:0;right:0;bottom:0'
+  const box = desk ? `position:fixed;left:64px;top:100px;width:1302px;height:${boxH}px` : 'position:fixed;left:0;top:0;right:0;bottom:0'
   const doc = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Core v2</title><style>${FONTS}</style><style>${css}</style><style>body{margin:0;background:var(--surface-ground)}</style></head><body><div style="${box}"><div id="root" style="position:absolute;inset:0"></div></div><script>${safe}</script></body></html>`
   await page.route(`${URL_}**`, (route) => route.fulfill({ contentType: 'text/html', body: doc }))
   await page.goto(`${URL_}?kind=${kind}&theme=${theme}`)
@@ -248,6 +253,30 @@ test.describe('Core v2, the jury page (fixtures, SIMULATED)', () => {
       await page.screenshot({ path: shot(`jury-390-${theme}-thinking-bottom-${TRACK}`) })
     })
   }
+
+  test('one canvas at 1302 x 720: no primary part clipped, outside the box or below the fold', async ({ page }) => {
+    await openJury(page, 'thinking', 'dark', { width: 1366, height: 820 }, 720)
+    const m = await page.evaluate(() => {
+      const jc = document.querySelector<HTMLElement>('.jc')!
+      const box = jc.getBoundingClientRect()
+      const sel = '.jc-controls, .jc-stage, .jc-ribbon, .jc-organs, .jc-organ, .jc-rib-node, .jc-convo-head, .jc-strata, .jc-composer'
+      const parts = [...document.querySelectorAll<HTMLElement>(sel)].map((el) => {
+        const r = el.getBoundingClientRect()
+        return { cls: el.className.toString().slice(0, 30), top: r.top, bottom: r.bottom, left: r.left, right: r.right }
+      })
+      return { box: { w: box.width, h: box.height, top: box.top, bottom: box.bottom, left: box.left, right: box.right }, sh: jc.scrollHeight, ch: jc.clientHeight, ih: innerHeight, parts }
+    })
+    expect([Math.round(m.box.w), Math.round(m.box.h)]).toEqual([1302, 720])
+    expect(m.sh).toBeLessThanOrEqual(m.ch)
+    for (const p of m.parts) {
+      expect(p.top, `${p.cls} top`).toBeGreaterThanOrEqual(m.box.top)
+      expect(p.bottom, `${p.cls} bottom`).toBeLessThanOrEqual(m.box.bottom)
+      expect(p.right, `${p.cls} right`).toBeLessThanOrEqual(m.box.right)
+      expect(p.left, `${p.cls} left`).toBeGreaterThanOrEqual(m.box.left)
+      expect(p.bottom, `${p.cls} below the fold`).toBeLessThanOrEqual(m.ih)
+    }
+    await page.screenshot({ path: shot(`jury-1302x720-dark-thinking-${TRACK}`) })
+  })
 
   test('idle (asleep): no animation frame requested and no running animation once settled', async ({ page }) => {
     await openJury(page, 'asleep', 'dark', DESKTOP)

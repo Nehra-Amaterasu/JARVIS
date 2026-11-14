@@ -1,0 +1,238 @@
+/* The Paper Desk (package Y01): the ledger, the Paper Strata, the paper list, the Import Tray and the detail column. Tokens only
+   (--surface-*, --ink-*, --elev-*, --r-*, --edge-*, --focus-ring, the five state tokens); no shadow or colour is written here
+   where a token exists. Nothing outlines a labelled control: the part is lifted (raised) or sunk (well), and a hairline appears
+   only as a divider between flush list rows. The only motion is a 120 ms state change and, while a file is being read, one
+   3 s sweep of the ASCII rule; the reduced-motion branch removes both. Forced colours draw every shape in CanvasText. */
+
+/* ---------------------------------------------------------------- the desk */
+.pp-desk, .rv-desk { --line-ui: var(--edge-ui); }
+.pp-desk {
+  position: relative; box-sizing: border-box; inline-size: 100%; block-size: 100%; min-block-size: 0; container-type: inline-size;
+  color: var(--ink-1); font-family: var(--font-ui, system-ui, sans-serif);
+}
+.pp-desk-in { box-sizing: border-box; inline-size: 100%; block-size: 100%; min-block-size: 0; display: grid; grid-template-rows: 56px minmax(0, 1fr) 24px; gap: 0.5rem; }
+.pp-top { min-inline-size: 0; }
+.pp-main { display: grid; grid-template-columns: minmax(0, 1fr) clamp(240px, 24%, 300px) clamp(240px, 24%, 298px); gap: 1rem; min-block-size: 0; }
+.pp-col { min-inline-size: 0; min-block-size: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.pp-classic { min-block-size: 0; overflow: auto; }
+.pp-foot { font: 12px/24px var(--font-mono, ui-monospace, monospace); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.pp-key {
+  display: inline-grid; place-items: center; min-inline-size: 20px; block-size: 20px; padding: 0 0.3125rem; margin-inline-start: 0.375rem; border-radius: 0.375rem;
+  font: 500 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); background: var(--surface-sunk); box-shadow: var(--elev-imprint, none);
+}
+.pp-stamp {
+  display: inline-block; font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.06em; color: var(--state-simulated);
+  border: 1px solid var(--state-simulated); border-radius: 0.375rem; padding: 0.1875rem 0.375rem;
+}
+
+/* ---------------------------------------------------------------- the ledger: five readouts squeezed to 56 px */
+.pp-ledger { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.5rem; min-block-size: 56px; }
+.pp-ledger .k-readout { min-block-size: 0; block-size: 56px; padding: 0.5rem 0.875rem; gap: 1px; align-content: center; overflow: hidden; }
+.pp-ledger .k-readout-label { font-size: 0.75rem; line-height: 14px; }
+.pp-ledger .k-readout-lamp { top: 9px; right: 12px; }
+.pp-ledger .k-readout-value { font-size: 1.25rem; line-height: 22px; white-space: nowrap; }
+.pp-ledger .k-stamp { position: absolute; right: 12px; bottom: 8px; padding: 0.125rem 0.3125rem; font-size: 0.6875rem; }
+.pp-ledger .k-readout-why { position: absolute; left: 14px; right: 12px; bottom: 6px; font-size: 0.6875rem; line-height: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: end; }
+.pp-ledger .k-readout[data-state='waiting'] .k-readout-value, .pp-ledger .k-readout[data-state='planned'] .k-readout-value { font-size: 1.125rem; }
+
+/* the unit filter and the desk-face switch: the checked piece is a raised ground-coloured pill with ink, so the one warm fill stays on the main action */
+.pp-strata, .pp-col-detail { --k-on-fill: var(--surface-ground); --k-on-ink: var(--ink-1); }
+
+/* ---------------------------------------------------------------- the strata */
+.pp-strata {
+  position: relative; box-sizing: border-box; flex: 1 1 auto; min-block-size: 0; display: grid; grid-template-rows: 44px minmax(0, 1fr) 44px auto; gap: 0.25rem;
+  padding: 0.75rem 0.75rem 0.5rem; background: var(--surface-raised); border-radius: var(--r-card); box-shadow: var(--elev-raised);
+}
+.pp-strata-bar { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-inline-size: 0; }
+.pp-strata-title { font: 600 14px/1 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.pp-strata-lamp { display: inline-flex; align-items: center; gap: 0.5rem; margin-inline-start: auto; }
+.pp-gridwrap { position: relative; min-block-size: 0; background: var(--surface-sunk); border-radius: var(--r-well); box-shadow: var(--elev-recessed); padding: 0 0.375rem; overflow: hidden; }
+.pp-gridwrap::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0.05;
+  background-image: radial-gradient(circle, var(--ink-1) 0.7px, transparent 0.9px); background-size: 8px 8px;
+}
+.pp-yearhead, .pp-row { position: relative; display: grid; grid-template-columns: var(--lab, 132px) repeat(var(--cols, 8), 44px) var(--cnt, 76px); align-items: center; }
+.pp-yearhead { block-size: 36px; font: 500 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.pp-yh { text-align: center; }
+.pp-yh[data-selected='true'] { color: var(--ink-1); font-weight: 700; }
+.pp-yh-count { text-align: start; padding-inline-start: 0.5rem; }
+.pp-row { block-size: 44px; border-radius: 0.625rem; }
+.pp-row:hover { background: var(--surface-ground); }
+.pp-row[data-pinned='dim'] { opacity: 0.45; }
+.pp-row[data-pinned='true'] { background: var(--selected-fill); }
+.pp-rowhead { padding-inline-end: 0.5rem; font: 13px/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-inline-start: 0.375rem; }
+.pp-cell { inline-size: 44px; block-size: 44px; }
+.pp-cell[data-selected='true'] { background: var(--selected-fill); }
+.pp-dot { all: unset; box-sizing: border-box; inline-size: 44px; block-size: 44px; display: grid; place-items: center; cursor: pointer; border-radius: 0.75rem; }
+.pp-dot[data-empty='true'] { cursor: default; }
+.pp-dot:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.pp-none { color: var(--ink-3); font: 14px/1 var(--font-mono, ui-monospace, monospace); }
+.pp-glyph { overflow: visible; transition: transform var(--dur-state); fill: var(--ink-1); stroke: none; }
+.pp-glyph[data-kind='cross'], .pp-glyph[data-kind='tick'] { fill: none; stroke: var(--ink-1); stroke-width: 2.6; }
+.pp-glyph[data-dashed='true'] * { fill: none; stroke: var(--ink-1); stroke-width: 1.6; stroke-dasharray: 2.6 2.2; }
+.pp-glyph[data-kind='cross'][data-dashed='true'] * { stroke-width: 1.8; }
+.pp-glyph .pp-hand { stroke: var(--ink-1); stroke-width: 2; fill: none; stroke-linecap: round; }
+.pp-dot:hover .pp-glyph, .pp-dot:focus-visible .pp-glyph { transform: scale(1.12); }
+.pp-count { display: grid; gap: 0.1875rem; justify-items: start; padding-inline-start: 0.5rem; }
+.pp-count-text { font: 500 12px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; color: var(--ink-1); }
+.pp-wb { position: relative; display: block; inline-size: 52px; block-size: 8px; border-radius: 0.25rem; background: var(--surface-ground); box-shadow: var(--elev-groove, none); overflow: hidden; }
+.pp-wb-band { position: absolute; inset-block: 0; background: var(--ink-2); opacity: 0.5; border-radius: 0.25rem; }
+.pp-wb-tick { position: absolute; inset-block: -1px; inline-size: 2px; margin-inline-start: -1px; background: var(--ink-1); }
+.pp-wb-hollow { background: none; box-shadow: none; border: 1.5px dashed var(--line-ui); }
+
+.pp-strata-foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-inline-size: 0; }
+.pp-legend { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.125rem 0.75rem; font: 11.5px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); min-inline-size: 0; }
+.pp-legend-item { display: inline-flex; align-items: center; gap: 0.25rem; }
+.pp-legend-item svg { fill: var(--ink-1); stroke: none; }
+.pp-legend-item svg .pp-lx { fill: none; stroke: var(--ink-1); stroke-width: 2; }
+.pp-legend-size { flex-basis: 100%; }
+.pp-pagers { display: inline-flex; gap: 0.5rem; align-items: center; flex: none; }
+.pp-pager { display: inline-flex; gap: 0.5rem; }
+.pp-pattern-note { margin: 0; padding: 0 0.375rem 0.25rem; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.pp-pg {
+  all: unset; box-sizing: border-box; min-inline-size: 44px; block-size: 44px; padding: 0 0.75rem; display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem;
+  border-radius: var(--r-ctl, 0.875rem); background: var(--surface-raised); box-shadow: var(--elev-low); color: var(--ink-1); font: 600 15px/1 var(--font-ui, system-ui, sans-serif);
+  cursor: pointer; transition: transform var(--dur-state);
+}
+.pp-pg-word { font-size: 0.8125rem; }
+.pp-pg:hover:not(:disabled) { transform: translateY(-1px); }
+.pp-pg:active:not(:disabled), .pp-pg[aria-pressed='true'] { box-shadow: var(--elev-pressed); transform: none; }
+.pp-pg:disabled { color: var(--ink-3); box-shadow: var(--elev-imprint, none); cursor: default; }
+.pp-pg:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+.pp-strata-empty { display: grid; align-content: center; justify-items: center; gap: 0.5rem; padding: 0.75rem; text-align: center; background: var(--surface-sunk); border-radius: var(--r-well); box-shadow: var(--elev-recessed); }
+.pp-empty-line { margin: 0; font: 600 16px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); }
+.pp-empty-note { margin: 0; max-inline-size: 44ch; font: 13px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.pp-twin { min-block-size: 0; overflow: hidden; border-radius: var(--r-well); }
+
+.pp-tip {
+  position: absolute; z-index: 5; inline-size: 296px; box-sizing: border-box; padding: 0.5rem; display: grid; gap: 0.375rem; pointer-events: none;
+  background: var(--surface-raised); border-radius: var(--r-ctl, 0.875rem); box-shadow: var(--elev-float);
+}
+.pp-tip-line { margin: 0; display: flex; align-items: center; gap: 0.375rem; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+
+/* ---------------------------------------------------------------- the paper list */
+.pp-list { flex: 1 1 auto; min-block-size: 0; display: flex; flex-direction: column; background: var(--surface-raised); border-radius: var(--r-card); box-shadow: var(--elev-low); padding: 0.5rem; }
+.pp-list ul { list-style: none; margin: 0; padding: 0; flex: 1 1 auto; }
+.pp-list-empty { margin: 0; padding: 1rem 0.5rem; font: 13px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.pp-paper {
+  all: unset; box-sizing: border-box; inline-size: 100%; block-size: 56px; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; align-items: center; column-gap: 8px; padding: 0 0.625rem;
+  border-radius: 0.75rem; cursor: pointer; border-block-end: 1px solid var(--edge-hair);
+}
+.pp-paper:hover { background: var(--surface-ground); }
+.pp-paper[aria-current='true'] { background: var(--selected-fill); }
+.pp-paper:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.pp-paper-name { font: 600 14px/1.2 var(--font-ui, system-ui, sans-serif); }
+.pp-paper-meta { grid-column: 1; font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp-paper .ww-chip { grid-row: 1 / span 2; grid-column: 2; }
+.pp-listpager { display: flex; align-items: center; justify-content: space-between; font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); padding-top: 0.25rem; }
+
+/* ---------------------------------------------------------------- the drop slot and the import tray */
+.pp-tray { position: relative; flex: none; block-size: 100px; z-index: 3; }
+.pp-tray-body { position: absolute; inset-inline: 0; inset-block-end: 0; display: flex; flex-direction: column-reverse; gap: 0.25rem; box-sizing: border-box; }
+.pp-tray[data-open='true'] .pp-tray-body { block-size: 260px; padding: 0.5rem; background: var(--surface-raised); border-radius: var(--r-card); box-shadow: var(--elev-float); }
+.pp-drop { position: relative; flex: none; }
+.pp-drop[data-variant='well'] { block-size: 100px; background: var(--surface-sunk); border-radius: var(--r-well); box-shadow: var(--elev-recessed); }
+.pp-drop[data-variant='row'] { block-size: 44px; }
+.pp-drop-btn {
+  all: unset; box-sizing: border-box; inline-size: 100%; block-size: 100%; display: grid; align-content: center; justify-items: center; gap: 0.1875rem; cursor: pointer; border-radius: inherit; text-align: center;
+  position: relative;
+}
+.pp-drop-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -3px; }
+.pp-drop-rule { font: 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-3); letter-spacing: 0.02em; }
+.pp-drop-rule[data-sweep='true'] { animation: pp-sweep var(--dur-travel) steps(12, end) 7 both; background: linear-gradient(90deg, var(--ink-1) 0 25%, var(--ink-3) 25% 100%) 0 0 / 400% 100% no-repeat; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+@keyframes pp-sweep { from { background-position: 0 0; } to { background-position: 100% 0; } }
+.pp-drop-title { font: 600 14px/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); }
+.pp-drop-sub { font: 12px/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); max-inline-size: 90%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp-drop .pp-key { position: absolute; inset-block-start: 10px; inset-inline-end: 12px; }
+.pp-drop[data-variant='row'] .pp-drop-btn { grid-template-columns: auto 1fr; justify-items: start; align-content: center; padding: 0 0.75rem; column-gap: 10px; background: var(--surface-sunk); box-shadow: var(--elev-recessed); border-radius: var(--r-well); }
+.pp-drop[data-variant='row'] .pp-drop-rule { display: none; }
+.pp-drop[data-variant='row'] .pp-drop-sub { grid-column: 2; display: none; }
+.pp-drop[data-variant='row'] .pp-key { inset-block-start: 12px; }
+.pp-drop[data-state='hover'] .pp-drop-btn { box-shadow: var(--elev-well-deep); }
+.pp-drop[data-state='refused-type'] .pp-drop-sub { color: var(--state-fault); }
+.pp-routes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; flex: 1 1 auto; min-block-size: 0; }
+.pp-route {
+  all: unset; box-sizing: border-box; inline-size: 100%; block-size: 44px; display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 0.5rem; padding: 0 0.75rem; cursor: pointer;
+  border-radius: var(--r-ctl, 0.875rem); background: var(--surface-raised); box-shadow: var(--elev-low); font: 600 13px/1 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); transition: transform var(--dur-state);
+}
+.pp-route:hover { transform: translateY(-1px); }
+.pp-route:active { box-shadow: var(--elev-pressed); transform: none; }
+.pp-route:focus-visible, .pp-qrow:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.pp-queue { display: grid; align-content: start; gap: 0.25rem; padding-top: 0.125rem; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.pp-queue-none { padding: 0.375rem 0.25rem; }
+.pp-qrow { all: unset; box-sizing: border-box; inline-size: 100%; block-size: 44px; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; align-items: center; padding: 0 0.625rem; cursor: pointer; border-radius: 0.75rem; background: var(--surface-sunk); box-shadow: var(--elev-imprint, none); }
+.pp-qname { font: 600 12px/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp-qmeth { font: 11px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); text-align: end; }
+.pp-qtrace { grid-column: 1 / -1; font: 12px/1.1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); letter-spacing: 0.08em; }
+.pp-queue-more { padding: 0 0.25rem; }
+
+/* ---------------------------------------------------------------- the detail column */
+.pp-col-detail { gap: 0.5rem; }
+.pp-detail { background: var(--surface-raised); border-radius: var(--r-card); box-shadow: var(--elev-low); padding: 0.875rem 1rem; display: grid; gap: 0.625rem; align-content: start; }
+.pp-detail h2 { margin: 0; font: 600 18px/1.2 var(--font-ui, system-ui, sans-serif); }
+.pp-detail-none p { margin: 0; font: 13px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.pp-facts { margin: 0; display: grid; gap: 0.375rem; }
+.pp-facts > div { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.pp-facts dt { font: 12px/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.pp-facts dd { margin: 0; font: 500 16px/1.2 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; }
+.pp-detail-act { display: grid; }
+.pp-detail-act .k-btn { inline-size: 100%; }
+.pp-notice { margin: 0; display: flex; gap: 0.5rem; align-items: flex-start; font: 12px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); padding: 0 0.25rem; }
+.pp-trace .g-well { font-size: 0.75rem; line-height: 18px; }
+
+/* ---------------------------------------------------------------- overlays over the desk */
+.pp-scrim { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; background: var(--scrim); border-radius: var(--r-card); padding: 0.5rem; box-sizing: border-box; }
+.pp-sheet { inline-size: min(600px, 100%); box-sizing: border-box; padding: 1.25rem; display: grid; gap: 0.75rem; background: var(--surface-raised); border-radius: var(--r-card); box-shadow: var(--elev-float); }
+.pp-sheet h2 { margin: 0; font: 600 18px/1.2 var(--font-ui, system-ui, sans-serif); }
+.pp-sheet p { margin: 0; font: 13px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.pp-paste { box-sizing: border-box; inline-size: 100%; padding: 0.75rem; resize: none; border: 0; border-radius: var(--r-well); background: var(--surface-sunk); box-shadow: var(--elev-recessed); color: var(--ink-1); font: 13px/1.4 var(--font-mono, ui-monospace, monospace); }
+.pp-paste:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.pp-sheet-act { display: flex; justify-content: flex-end; gap: 0.5rem; }
+
+/* ---------------------------------------------------------------- narrower than the shell canvas (1230 px): two columns, then one.
+   The desk is a container, so the same rules serve a half-width window, the gallery pane and the phone. Below 1180 px the desk
+   takes its natural height and the page scrolls; the 1230 x 664 box is the one that must not scroll. */
+@container (max-width: 1179px) {
+  .pp-desk-in { block-size: auto; grid-template-rows: auto auto auto; }
+  .pp-ledger { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+  .pp-main { grid-template-columns: minmax(0, 1fr) clamp(240px, 36%, 300px); grid-template-rows: auto auto; }
+  .pp-col-strata { grid-row: 1 / span 2; }
+  .pp-strata { min-block-size: 36rem; }
+  .pp-col-list { block-size: 28rem; }
+  .pp-foot { white-space: normal; line-height: 1.4; block-size: auto; }
+}
+@container (max-width: 759px) {
+  .pp-main { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .pp-col-strata { grid-row: auto; }
+  .pp-strata { grid-template-rows: auto auto auto auto; }
+  .pp-gridwrap { overflow-x: auto; }
+  .pp-col-list { block-size: auto; }
+  .pp-list { min-block-size: 18rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pp-glyph, .pp-pg, .pp-route { transition: none; }
+  .pp-pg:hover:not(:disabled), .pp-route:hover { transform: none; }
+  .pp-dot:hover .pp-glyph, .pp-dot:focus-visible .pp-glyph { transform: none; }
+  .pp-drop-rule[data-sweep='true'] { animation: none; background: none; -webkit-text-fill-color: currentColor; }
+}
+@media (forced-colors: active) {
+  .pp-strata, .pp-list, .pp-detail, .pp-pg, .pp-route, .pp-sheet, .pp-tip, .pp-tray[data-open='true'] .pp-tray-body { border: 1px solid CanvasText; box-shadow: none; }
+  .pp-gridwrap, .pp-drop[data-variant='well'], .pp-drop[data-variant='row'] .pp-drop-btn, .pp-strata-empty { border: 1px solid CanvasText; box-shadow: none; }
+  .pp-glyph, .pp-glyph * { fill: CanvasText; stroke: CanvasText; }
+  .pp-glyph[data-dashed='true'] * { fill: none; }
+  .pp-wb-tick, .pp-wb-band { background: CanvasText; opacity: 1; }
+  .pp-dot:focus-visible, .pp-pg:focus-visible, .pp-route:focus-visible { outline-color: Highlight; }
+  .pp-cell[data-selected='true'], .pp-paper[aria-current='true'] { background: Highlight; color: HighlightText; }
+}
+
+/* ---------------------------------------------------------------- gallery boxes (the shell canvas size, the real-size review overlay) */
+.y01-box { position: relative; box-sizing: border-box; inline-size: 100%; max-inline-size: 1230px; block-size: 664px; }
+.y01-review { position: relative; inline-size: 100%; max-inline-size: 1100px; block-size: 620px; display: grid; }
+.y01-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+.y01-rubrics { display: grid; gap: 1rem; }
+@media (max-width: 899px) {
+  .y01-box, .y01-review { block-size: auto; }
+}

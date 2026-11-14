@@ -77,7 +77,7 @@
 .pp-dot:hover .pp-glyph, .pp-dot:focus-visible .pp-glyph { transform: scale(1.12); }
 .pp-count { display: grid; gap: 0.1875rem; justify-items: start; padding-inline-start: 0.5rem; }
 .pp-count-text { font: 500 12px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; color: var(--ink-1); }
-.pp-wb { position: relative; display: block; inline-size: 52px; block-size: 8px; border-radius: 0.25rem; background: var(--surface-ground); box-shadow: var(--elev-groove, none); overflow: hidden; }
+.pp-wb { position: relative; display: block; inline-size: 52px; max-inline-size: calc(var(--cnt, 76px) - 8px); block-size: 8px; border-radius: 0.25rem; background: var(--surface-ground); box-shadow: var(--elev-groove, none); overflow: hidden; }
 .pp-wb-band { position: absolute; inset-block: 0; background: var(--ink-2); opacity: 0.5; border-radius: 0.25rem; }
 .pp-wb-tick { position: absolute; inset-block: -1px; inline-size: 2px; margin-inline-start: -1px; background: var(--ink-1); }
 .pp-wb-hollow { background: none; box-shadow: none; border: 1.5px dashed var(--line-ui); }
@@ -142,8 +142,10 @@
 }
 .pp-drop-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -3px; }
 .pp-drop-rule { font: 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-3); letter-spacing: 0.02em; }
-.pp-drop-rule[data-sweep='true'] { animation: pp-sweep var(--dur-travel) steps(12, end) 7 both; background: linear-gradient(90deg, var(--ink-1) 0 25%, var(--ink-3) 25% 100%) 0 0 / 400% 100% no-repeat; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-@keyframes pp-sweep { from { background-position: 0 0; } to { background-position: 100% 0; } }
+.pp-drop-rule { position: relative; }
+/* while a file is being read a bright copy of the rule is revealed left to right, 12 steps, 7 times at the travel duration (about 2.8 s, under the 3 s cap); clip-path only, never at idle */
+.pp-drop-rule[data-sweep='true']::after { content: attr(data-rule); position: absolute; inset: 0; color: var(--ink-1); animation: pp-sweep var(--dur-travel) steps(12, end) 7 both; }
+@keyframes pp-sweep { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
 .pp-drop-title { font: 600 14px/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); }
 .pp-drop-sub { font: 12px/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); max-inline-size: 90%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pp-drop .pp-key { position: absolute; inset-block-start: 10px; inset-inline-end: 12px; }
@@ -206,6 +208,8 @@
 }
 @container (max-width: 759px) {
   .pp-strata-foot { flex-wrap: wrap; }
+  .pp-pagers { flex-wrap: wrap; max-inline-size: 100%; }
+  :root[data-theme^='clay'] .pp-strata .ww-seg-opt { padding-inline: 0.3125rem; }
   .pp-ledger { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pp-ledger .k-readout { block-size: auto; min-block-size: 4.5rem; padding-block-end: 0.5rem; }
   .pp-ledger .k-stamp { position: static; justify-self: start; margin-block-start: 0.125rem; }
@@ -222,7 +226,7 @@
   .pp-glyph, .pp-pg, .pp-route { transition: none; }
   .pp-pg:hover:not(:disabled), .pp-route:hover { transform: none; }
   .pp-dot:hover .pp-glyph, .pp-dot:focus-visible .pp-glyph { transform: none; }
-  .pp-drop-rule[data-sweep='true'] { animation: none; background: none; -webkit-text-fill-color: currentColor; }
+  .pp-drop-rule[data-sweep='true']::after { animation: none; content: none; }
 }
 @media (forced-colors: active) {
   .pp-strata, .pp-list, .pp-detail, .pp-pg, .pp-route, .pp-sheet, .pp-tip, .pp-tray[data-open='true'] .pp-tray-body { border: 1px solid CanvasText; box-shadow: none; }
@@ -235,7 +239,7 @@
 }
 
 /* ---------------------------------------------------------------- gallery boxes (the shell canvas size, the real-size review overlay) */
-.y01-box { position: relative; box-sizing: border-box; inline-size: 1230px; max-inline-size: 100%; block-size: 664px; }
+.y01-box { position: relative; box-sizing: border-box; inline-size: 1230px; max-inline-size: 100%; min-block-size: 664px; display: grid; }
 .y01-review { position: relative; inline-size: 1100px; max-inline-size: 100%; block-size: 620px; display: grid; }
 .y01-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
 .y01-rubrics { display: grid; gap: 1rem; }

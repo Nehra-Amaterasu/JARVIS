@@ -300,6 +300,7 @@ export function ReviewDesk({
                 onText={(v) => setDraft((d) => (d ? { ...d, stem: v } : d))}
                 onVerify={(v) => dispatch({ type: 'verify', verified: v })}
                 sideBySide={side}
+                compact={rubric}
                 simulated={state === 'simulated'}
                 label={`${cur.number} of ${topic(cur.topicId)?.label ?? 'topic'}`}
                 chips={<><TagChip source={cur.tag} label={`margin ${cur.margin.toFixed(2)}`} />{cur.hand?.includes('stem') && <TagChip source="HAND" label="text" />}</>}
@@ -308,10 +309,12 @@ export function ReviewDesk({
                 <div className="rv-rubric-strip">
                   <RubricChips points={cur.rubric} awarded={[]} onToggle={() => undefined} label={`Rubric points of ${cur.number}`} />
                   <RubricAdd onAdd={(text, marks) => dispatch({ type: 'addPoint', text, marks })} />
-                  <p className="rv-sum" data-ok={sum?.ok ? 'true' : undefined}>
-                    {sum && sum.total !== null ? COPY.rubricSum(sum.sum, sum.total) : 'Set the marks first: points must sum to them'}
-                  </p>
-                  <Button size="sm" onClick={() => cur && onDraftPoints?.(cur.id)} disabledReason={onDraftPoints ? undefined : COPY.draftWaiting}>{COPY.draftPoints}</Button>
+                  <div className="rv-sumrow">
+                    <p className="rv-sum" data-ok={sum?.ok ? 'true' : undefined}>
+                      {sum && sum.total !== null ? COPY.rubricSum(sum.sum, sum.total) : 'Set the marks first: points must sum to them'}
+                    </p>
+                    <Button size="sm" onClick={() => cur && onDraftPoints?.(cur.id)} disabledReason={onDraftPoints ? undefined : COPY.draftWaiting}>{COPY.draftPoints}</Button>
+                  </div>
                 </div>
               ) : (
                 <div className="rv-fields">

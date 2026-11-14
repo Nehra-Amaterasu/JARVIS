@@ -66,7 +66,7 @@ export function PaperDrop({ onFiles, accept, reading, variant = 'well', inputRef
       onDrop={onDrop}
     >
       <button type="button" className="pp-drop-btn" onClick={() => input.current?.click()} aria-keyshortcuts="A">
-        <span className="pp-drop-rule" aria-hidden="true" data-sweep={reading ? 'true' : undefined}>{RULE}</span>
+        <span className="pp-drop-rule" aria-hidden="true" data-rule={RULE} data-sweep={reading ? 'true' : undefined}>{RULE}</span>
         <span className="pp-drop-title">{reading ? 'Reading the file' : variant === 'row' ? 'Drop PDF or photos' : 'Drop a paper here'}</span>
         <span className="pp-drop-sub">
           {refused.length ? `${COPY.refusedType}: ${refused.slice(0, 2).join(', ')}` : variant === 'row' ? 'or choose files' : 'PDF or photos, or choose files'}

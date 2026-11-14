@@ -35,6 +35,14 @@ describe('Paper Desk', () => {
     expect(qa('.pp-dot')).toHaveLength(0)
     expect(qa('[data-component="strata-empty"]')).toHaveLength(1)
   })
+  it('a WAITING or FAULT desk that still holds rows draws no number and no dot (the state decides, not the data)', () => {
+    for (const state of ['waiting', 'fault', 'planned'] as const) {
+      m = mount(<PaperDesk data={{ ...FIX, state, reason: 'engine paused' }} classic={false} now={NOW} />)
+      expect(qa('.pp-ledger .k-readout-value').map((e) => e.textContent), state).toEqual(['--', '--', '--', '--', '--'])
+      expect(qa('.pp-dot'), state).toHaveLength(0)
+      m.unmount(); m = null
+    }
+  })
   it('a live desk with no papers invites the first one', () => {
     m = mount(<PaperDesk data={{ ...EMPTY_DATA, state: 'live', reason: '' }} classic={false} now={NOW} />)
     expect(m.container.textContent).toContain(COPY.empty)

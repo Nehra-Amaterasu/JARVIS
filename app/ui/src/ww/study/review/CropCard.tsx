@@ -25,6 +25,8 @@ export interface CropCardProps {
   onVerify?: (verified: boolean) => void
   /** `callout` is the 280 x 120 crop of a Strata hover: the image and the chips only. */
   size?: 'card' | 'callout'
+  /** Draw the text and the chips without the image (the rubric strip: the page beside it already shows the crop). */
+  compact?: boolean
   /** A fixture crop is stamped, so a drawing is never read as a scan. */
   simulated?: boolean
   label?: string
@@ -33,11 +35,11 @@ export interface CropCardProps {
 const STATUS_WORD: Record<TextStatus, string> = { verified: 'TEXT verified', unverified: 'TEXT unverified', 'crop-only': 'CROP only' }
 const STATUS_NOTE: Record<TextStatus, string> = { verified: COPY.textVerified, unverified: COPY.textUnverified, 'crop-only': COPY.cropOnly }
 
-export function CropCard({ img, bbox, text, textStatus, chips, sideBySide, editing, onText, onVerify, size = 'card', simulated, label = 'Question crop' }: CropCardProps) {
+export function CropCard({ img, bbox, text, textStatus, chips, sideBySide, editing, onText, onVerify, size = 'card', compact, simulated, label = 'Question crop' }: CropCardProps) {
   const state: CropCardState = editing ? 'editing' : textStatus
   const callout = size === 'callout'
   return (
-    <figure className="rv-crop" data-component="crop-card" data-state={state} data-size={size} data-side={sideBySide ? 'true' : undefined} aria-label={label}>
+    <figure className="rv-crop" data-component="crop-card" data-state={state} data-size={size} data-compact={compact ? 'true' : undefined} data-side={sideBySide ? 'true' : undefined} aria-label={label}>
       <div className="rv-crop-img">
         {img ? <img src={img} alt={`${label}: the page as printed, the source of truth`} draggable={false} /> : <div className="rv-crop-none">crop not rendered</div>}
         {simulated && <span className="rv-stamp">SIMULATED</span>}

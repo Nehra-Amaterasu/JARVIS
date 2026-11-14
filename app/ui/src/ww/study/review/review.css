@@ -3,7 +3,7 @@
    accepts them; every state also has its word. No hairline outlines a labelled control; the dashed edge is data (provenance). */
 
 .rv-desk {
-  box-sizing: border-box; inline-size: min(1100px, 100%); block-size: min(620px, 100%); display: grid; grid-template-rows: 56px auto minmax(0, 1fr) 28px; grid-auto-rows: 0; gap: 0.5rem; padding: 0 1rem;
+  container-type: inline-size; box-sizing: border-box; inline-size: min(1100px, 100%); block-size: min(620px, 100%); display: grid; grid-template-rows: 56px auto minmax(0, 1fr) 28px; grid-auto-rows: 0; gap: 0.5rem; padding: 0 1rem;
   background: var(--surface-raised); border-radius: var(--r-card); box-shadow: var(--elev-float); color: var(--ink-1); font-family: var(--font-ui, system-ui, sans-serif); outline: none; overflow: hidden;
 }
 .rv-desk:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
@@ -64,11 +64,13 @@
   all: unset; box-sizing: border-box; inline-size: 100%; block-size: 32px; padding: 0 0.625rem; border-radius: 0.625rem; background: var(--surface-ground); box-shadow: var(--elev-groove, none);
   font: 600 14px/1 var(--font-ui, system-ui, sans-serif); color: var(--ink-1);
 }
+.rv-field .rv-input, .rv-add .rv-input { block-size: 44px; }
 .rv-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .rv-input-n { inline-size: 64px; flex: none; }
 .rv-none { padding: 1.5rem 0.5rem; font: 14px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
 .rv-none p { margin: 0; }
 .rv-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-block-start: auto; }
+@container (max-width: 1000px) { .rv-keys { display: none; } }
 .rv-step { display: inline-flex; gap: 0.5rem; margin-inline-start: auto; }
 .rv-keys { margin: 0; font: 11px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
 .rv-work .pp-trace .g-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -82,6 +84,7 @@
 
 /* the crop card */
 .rv-crop { margin: 0; display: grid; gap: 0.375rem; min-inline-size: 0; }
+.rv-crop[data-compact='true'] .rv-crop-img { display: none; }
 .rv-crop[data-side='true'] { grid-template-columns: 1fr 1fr; align-items: start; }
 .rv-crop[data-side='true'] .rv-crop-body { -webkit-line-clamp: 4; }
 .rv-crop[data-side='true'] .rv-crop-chips { grid-column: 1 / -1; }
@@ -123,16 +126,20 @@
 .rv-rubric-total { margin: 0; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
 .rv-rubric-strip { display: grid; gap: 0.5rem; }
 .rv-add { display: flex; gap: 0.5rem; align-items: center; }
-.rv-sum { margin: 0; font: 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.rv-sumrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.25rem 0.75rem; }
+.rv-rubric-strip .rv-rubric-total { display: none; }
+.rv-sum { margin: 0; flex: 1 1 12rem; font: 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
 .rv-sum[data-ok='true'] { color: var(--ink-1); }
 
 @media (max-width: 899px) {
   .rv-desk { block-size: auto; inline-size: 100%; grid-template-rows: auto auto auto auto; padding: 0 0.75rem 0.5rem; }
   .rv-head { flex-wrap: wrap; gap: 0.5rem 0.75rem; padding-top: 0.5rem; }
   .rv-primary { order: 5; inline-size: 100%; }
+  :root[data-theme^='clay'] .rv-desk .rv-primary { white-space: normal; line-height: 1.25; height: auto; min-height: 3rem; padding-block: 0.5rem; }
   .rv-body { grid-template-columns: minmax(0, 1fr); }
   .rv-page { grid-template-rows: auto auto; }
-  .rv-sheet { aspect-ratio: 500 / 560; }
+  /* taller than a page on a phone, so each box is 44 px or more; the boxes are drawn in percent and the drag maths reads each axis */
+  .rv-sheet { aspect-ratio: 500 / 820; }
   .rv-foot { white-space: normal; line-height: 1.4; block-size: auto; }
   .rv-fields { grid-template-columns: 1fr; }
 }

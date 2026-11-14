@@ -109,9 +109,9 @@ export function PaperStrata({
     if (!el || typeof ResizeObserver === 'undefined') return
     const ro = new ResizeObserver(() => {
       const w = el.clientWidth
-      const d: [number, number] = w < 480 ? [88, 64] : [132, 76]
+      const d: [number, number] = w < 480 ? [84, 56] : [132, 76]
       setDim((c) => (c[0] === d[0] ? c : d))
-      setFit(Math.max(3, Math.min(YEAR_WINDOW, Math.floor((w - 12 - d[0] - d[1]) / 44))))
+      setFit(Math.max(2, Math.min(YEAR_WINDOW, Math.floor((w - 12 - d[0] - d[1]) / 44))))
     })
     ro.observe(el)
     return () => ro.disconnect()

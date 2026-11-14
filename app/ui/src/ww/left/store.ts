@@ -29,7 +29,7 @@ interface DirectorRes {
 }
 interface AttendanceRes {
   status?: string
-  today?: { id: string; start: string; name: string; kind?: string; status: ClassStatus | null }[]
+  today?: { id: string; start: string; end?: string | null; name: string; kind?: string; status: ClassStatus | null }[]
 }
 interface LifeRes {
   status?: string
@@ -81,6 +81,9 @@ function tomorrowOf(r: ExamsRes, now = new Date()): string | null {
   return b ? `${b.title}${b.focus?.[0] ? `: ${b.focus[0].title}` : ''}` : null
 }
 
+/** One class row as the column keeps it; `end` is kept for Today's arc (L04), the cards never read it. */
+const toClass = (c: NonNullable<AttendanceRes['today']>[number]): RawClass => ({ id: c.id, start: c.start, end: c.end ?? null, name: c.name, kind: c.kind, status: c.status ?? null })
+
 let countSeq = 0
 
 export const useLeft = create<LeftData & LeftActions>((set, get) => {
@@ -97,7 +100,7 @@ export const useLeft = create<LeftData & LeftActions>((set, get) => {
     },
     attendance: async () => {
       const r = await api<AttendanceRes>('/api/mission/attendance')
-      set({ classes: r?.status === 'ok' && Array.isArray(r.today) ? r.today.map((c) => ({ id: c.id, start: c.start, name: c.name, kind: c.kind, status: c.status ?? null })) : [] })
+      set({ classes: r?.status === 'ok' && Array.isArray(r.today) ? r.today.map(toClass) : [] })
     },
     life: async () => {
       const r = await api<LifeRes>('/api/mission/life')
@@ -131,7 +134,7 @@ export const useLeft = create<LeftData & LeftActions>((set, get) => {
       set({ classes: before.map((c) => (c.id === slot ? { ...c, status: status === 'clear' ? null : status } : c)) })
       try {
         const r = await post<AttendanceRes>(`/api/mission/attendance/${encodeURIComponent(slot)}/${status}`, {})
-        if (r?.status === 'ok' && Array.isArray(r.today)) set({ classes: r.today.map((c) => ({ id: c.id, start: c.start, name: c.name, kind: c.kind, status: c.status ?? null })) })
+        if (r?.status === 'ok' && Array.isArray(r.today)) set({ classes: r.today.map(toClass) })
       } catch {
         set({ classes: before })
         toast('Could not save that class. Nothing changed.', 'fault')

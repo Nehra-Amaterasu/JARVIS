@@ -1,0 +1,115 @@
+/* The left rail under shell v2 (Rail.tsx, D-V3-31): one recessed clay channel, sections separated by air, not by lines.
+   Every colour, shadow and radius is a clay token; the 1 px marks are scale notches and corner ticks, never an outline. */
+
+/* the frame's column box under the shell: the rail is the instrument, so the column draws no rule and never scrolls */
+.ww-frame[data-shell-hosted] .ww-left { border-right: 0; overflow: hidden; padding: var(--space-4) 0 var(--space-4) var(--space-4); display: block; }
+
+.lr {
+  position: relative;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border-radius: var(--r-well);
+  background: var(--surface-sunk);
+  box-shadow: var(--elev-recessed);
+  color: var(--ink-1);
+  font: var(--type-body);
+}
+.lr-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* corner ticks: four 10 px L marks in the corners (the HUD idea), drawn by two gradients each, no border */
+.lr-corners, .lr-corners i { position: absolute; pointer-events: none; }
+.lr-corners { inset: 8px; }
+.lr-corners i { width: 10px; height: 10px; background:
+  linear-gradient(var(--ink-3), var(--ink-3)) 0 0 / 10px 1.5px no-repeat,
+  linear-gradient(var(--ink-3), var(--ink-3)) 0 0 / 1.5px 10px no-repeat; opacity: .55; }
+.lr-corners i:nth-child(1) { left: 0; top: 0; }
+.lr-corners i:nth-child(2) { right: 0; top: 0; transform: scaleX(-1); }
+.lr-corners i:nth-child(3) { left: 0; bottom: 0; transform: scaleY(-1); }
+.lr-corners i:nth-child(4) { right: 0; bottom: 0; transform: scale(-1); }
+
+.lr-head { margin: 0; display: flex; justify-content: space-between; align-items: baseline; font: var(--type-small); color: var(--ink-2); }
+.lr-head .lr-num { font: 500 12px/16px var(--font-mono); letter-spacing: .04em; }
+
+.lr-sec { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.lr-label { margin: 0; display: flex; align-items: center; gap: var(--space-1); font: 600 12px/16px var(--font-ui); letter-spacing: .02em; color: var(--ink-2); }
+.lr-why { margin-left: auto; font: 400 11px/16px var(--font-mono); color: var(--ink-2); white-space: nowrap; }
+.lr-label-row { display: flex; align-items: center; justify-content: space-between; min-height: 44px; margin: calc(-1 * var(--space-2)) 0 calc(-1 * var(--space-1)); }
+.lr-text { margin: 0; font: var(--type-small); color: var(--ink-1); overflow-wrap: anywhere; }
+.lr-strong { font-weight: 600; }
+.lr-quiet { color: var(--ink-2); }
+.lr-meta, .lr-meta-line { margin: 0; font: var(--type-meta); color: var(--ink-2); }
+.lr-meta { display: flex; gap: var(--space-1); align-items: baseline; }
+.lr-meta span { font: 400 11px/16px var(--font-ui); color: var(--ink-2); margin-left: var(--space-1); }
+.lr-meta span:first-child { margin-left: 0; }
+
+/* the sitting: one numeral, the Edit key beside it */
+.lr-sitting { display: flex; align-items: center; justify-content: space-between; min-height: 48px; }
+.lr-big { margin: 0; display: flex; align-items: baseline; gap: var(--space-1); }
+.lr-big .lr-num { font: 500 40px/44px var(--font-mono); letter-spacing: -.02em; color: var(--ink-1); }
+.lr-big small { font: var(--type-small); color: var(--ink-2); }
+.lr-big[data-hollow] .lr-num { color: var(--ink-3); letter-spacing: .1em; }
+
+.lr-scale { display: block; height: 30px; }
+.lr-scale-line { stroke: var(--ink-3); stroke-width: 1.5; fill: none; opacity: .7; }
+.lr-scale-notch { stroke: var(--ink-3); stroke-width: 1.5; }
+.lr-scale-dot { fill: var(--surface-raised); stroke: var(--ink-2); stroke-width: 1.5; }
+.lr-scale-dot[data-first] { fill: var(--ink-1); stroke: var(--ink-1); }
+.lr-scale-far { fill: none; stroke: var(--ink-2); stroke-width: 1.5; }
+
+/* raised keys: the same clay object as the kit's Key, sized 44 x 44 at least, pressed sinks into the channel */
+.lr-key {
+  min-width: 44px; min-height: 44px; padding: 0 var(--space-2);
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
+  border: 0; border-radius: var(--r-key);
+  background: var(--surface-raised); box-shadow: var(--elev-raised);
+  color: var(--ink-1); font: 600 13px/16px var(--font-ui); cursor: pointer;
+  transition: transform var(--dur-feedback) var(--ease-standard);
+}
+.lr-key:hover { background: var(--surface-raised-hi, var(--surface-raised)); }
+.lr-key:active, .lr-key[aria-pressed='true'] { box-shadow: var(--elev-pressed); transform: translateY(1px); background: var(--surface-sunk); }
+.lr-key[aria-pressed='true'] { color: var(--ink-1); font-weight: 700; }
+.lr-key:focus-visible, .lr-more:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.lr-keys, .lr-row { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.lr-keys .lr-key { flex: 1; padding: 0 var(--space-1); }
+
+.lr-classes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.lr-class { display: flex; flex-direction: column; gap: var(--space-1); }
+.lr-class-name { margin: 0; font: var(--type-small); overflow-wrap: anywhere; }
+.lr-class-name .lr-num { font: 500 12px/18px var(--font-mono); color: var(--ink-2); margin-right: var(--space-1); }
+.lr-class-name em { font-style: normal; color: var(--ink-2); }
+.lr-trio { display: flex; gap: var(--space-2); }
+.lr-tap { flex: 1; }
+
+.lr-ctrs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.lr-ctr { width: 100%; min-height: 56px; flex-direction: column; gap: 0; padding: var(--space-1); }
+.lr-ctr .lr-num { font: 500 18px/22px var(--font-mono); }
+.lr-ctr .lr-num[data-hollow] { color: var(--ink-3); }
+.lr-ctr-name { font: 500 11px/14px var(--font-ui); color: var(--ink-2); max-width: 100%; overflow-wrap: anywhere; text-align: center; }
+
+.lr-more {
+  align-self: flex-start; min-height: 44px; padding: 0 var(--space-1); border: 0; background: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: var(--space-1); font: var(--type-small); color: var(--ink-2); border-radius: var(--r-ctl);
+}
+.lr-more:hover { color: var(--ink-1); }
+
+.lr-foot { margin-top: auto; }
+.lr-phone { margin: 0; min-height: 44px; display: flex; align-items: center; gap: var(--space-2); font: var(--type-small); color: var(--ink-2); }
+.lr-phone-key { width: 100%; justify-content: flex-start; gap: var(--space-2); }
+
+@media (prefers-reduced-motion: reduce) { .lr-key { transition: none; } .lr-key:active, .lr-key[aria-pressed='true'] { transform: none; } }
+html[data-motion='calm'] .lr-key { transition: none; }
+
+/* forced colours: the clay is gone, so the channel and every key get a real system border and the pressed key a fill */
+@media (forced-colors: active) {
+  .lr { border: 1px solid CanvasText; }
+  .lr-key { border: 1px solid ButtonText; }
+  .lr-key[aria-pressed='true'] { background: Highlight; color: HighlightText; forced-color-adjust: none; }
+  .lr-corners { display: none; }
+  .lr-scale-dot[data-first] { fill: CanvasText; }
+}

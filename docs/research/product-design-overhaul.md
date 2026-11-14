@@ -2,6 +2,46 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-14: wave 6 integrated, and what its jury said (6.6 design, 6.4 usability; pass line 8.0)
+
+**Question.** After the six wave 6 packages and the rebuilt Core section merged, does the new interface pass the screenshot jury, and what does the next round have to fix?
+
+**What merged.** D01 number forms, D04 capture line, L02 Trim, D02 series forms, D03 tables, D05 specimen layout, and J01 (the Core section for shell v2), plus spec section 21 and the two-lane wave plan. Seven code merges with 0 code conflicts; the only conflicts were in this file, resolved by keeping both sides. Reviewers' design scores per package: 6.5 to 7.5.
+
+**Checks on main after the Core merge (`b8faede`).** tsc 0; vitest 2439 of 2439, twice; springs check 0; bundle check 0 (jarvis build 412 modules with 6 of its own tree, ww build 535 modules with 209 of its own tree, 0 modules of the other product in either). The full Playwright result is in the state file's log for this date.
+
+**Jury (two jurors, 206 screenshots, each read about 25 to 100 of them).**
+
+| Lens | Overall | Lowest criteria | Highest criteria |
+|---|---|---|---|
+| Design (40%) and creativity (20%) | 6.6 | signature moment 4.5; earned interactivity 5.5; depth and material 6; sigil, ASCII and terminal 6 | type hierarchy 7; originality 7 |
+| Usability (30%), content (10%), access gates | 6.4 | orientation 5; reflow at 390 px 5; target sizes 5.5; contrast 5.5 | honest state wording 7; copy 7; RackRow, Trim and capture honesty 7 |
+
+Compared with the wave 5 jury: honest states 6 to 7, copy 6 to 7, main action 6 to 6.5, signature moment 4 to 4.5, the sigil and terminal grammar 4 to 6. Contrast fell from 6 to 5.5 and orientation stayed at 5.
+
+**Hard gates.** No number without a lamp except two mild cases (the compact odometer rail has a bare dot with no word; the Core level meter shows a dash beside a WAITING lamp and amber timings). No camera element. Two gates are open: text contrast in the dark theme (white on the orange main button at about 3:1, an orange chip on orange, dim greys; judged by eye, not measured) and clipped content in evidence shots (Jar at 390 px renders a title then empty space; D04 phone frames and D05 are cropped).
+
+**What the jurors asked for, merged into one list and assigned.**
+
+1. Shell and kit: the shell's own buttons, tiles and inputs are flat outlined boxes beside clay data plates, "the exact thing the owner called boring". The craft pass (R01) owns this: lit clay on every kit control, a two-layer shadow (contact plus ambient) tuned per elevation, a pressed state that sinks, the dark theme checked.
+2. Core signature: only the speaking state is rich. The thinking and asleep states, which are seen most, need the hill resting at low amplitude or a sigil forming. Next Core round.
+3. Core layout: a dead band of about 100 px above the content at 1366 px and an empty upper console; at 390 px the label overprints the ring, the pipeline stacks as four full rows and the breadcrumb reads the wrong place ("Console / Health" on Core). Next Core round and a shell fix (bind the top-bar path to the active route).
+4. Contrast: dark label on the orange button as the light theme already does; lift the dim greys to 4.5:1; measure it in a test instead of by eye.
+5. Odometer: ghost leading zeros read as a rendering fault; make them blank sockets, give the wheels a true recess. The compact rail needs a named lamp.
+6. Focus and targets: a visible 2 px focus ring on rockers, drawer key, table rows, grips, chips and health tiles, with a Tab-through screenshot as proof; 44 px touch targets for tiles, chips, grips and top-bar lamps (principles 13 and 14 of the owner's checklist).
+7. Words: move developer strings (`art.core.hill-ring`, "HOLLOW: NO FRAME", the prompt label) behind the Anatomy drawer.
+8. Evidence harness: fix the capture so phone frames are whole and specimens are not cropped; give Trace and SkyLedger more than 25 percent of the width at 1366 px; assemble SpecimenLayout, StrataCore and SigilMark in the real shell so the specimen is seen whole.
+9. Colour: one warm accent per screen on the single main action; a second surface tone in the light theme.
+10. Type: nothing under 11 px; one rule for sans against mono inside a card.
+
+**What it changed.** Decision D-V3-28 in the spec (no hairline outline on a labelled control in the default themes; one accent fill per screen). A rework round for Core and the data forms goes into the next UI wave beside the Study screens, and the jury's evidence harness is fixed first so the next scores rest on whole screenshots. The owner's 20 principles are now a named input of every builder, reviewer and juror (D-V3-27, `docs/design/ux-principles-checklist.md`).
+
+**Honest limits.** Scores come from still screenshots, so motion (principles 1 to 12) was not judged. Contrast was judged by eye. One juror could list only 100 of the 206 files.
+
+**Housekeeping found on the way.** Finished agents had left a Playwright runner, a preview server and sandbox servers running for about 28 hours (across the overnight pause); they held two removed worktree folders open. Stopped, and the folders removed. The loop now checks for agent processes older than their workflow at each tick.
+
+**Sources.** The workflow journal of run `wf_6e5fcc6c-498` (jury results), the screenshots under the session scratchpad `jury/wave6/`, the commits `edc1944`, `3f25682`, `f6e9b31`, `a261169`, `b8faede`.
+
 ## 2026-11-13: D01 number forms (Odometer, Dumbbell, LedgerTape, Jar)
 
 **Question.** Can the four number forms show data in an out-of-the-box way that still reads at a glance, with a state lamp on every figure and no scolding?

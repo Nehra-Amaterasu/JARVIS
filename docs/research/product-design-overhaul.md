@@ -2,6 +2,23 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-14: adversarial review of the craft pass (r01)
+
+**Question.** Do the kit and chrome builders' reports hold up: contract, tests, bench rules, contrast, focus, targets, motion and forced colours?
+
+**Method.** Compared every custom property and class of the clay token files, clay.css, shell.css, gallery.css, lamp.css and planned.css with main; ran the checks with real exit codes; read the changed bench rules line by line; measured the chrome in the real app with a temporary in-page probe (sandbox ports 8842 and 5242; the probe file was deleted after).
+
+**Findings (numbers).**
+- Contract: no token, class, prop or export removed; one local custom property, `--notch` on .k-toast, was dropped with the chamfer and is restored as a name. No change inside shared/data, shared/capture, shared/trim, jarvis/core, jarvis/handoff, shell/views, shell/modes or gallery/entries (main-side wave 6 files are absent from this branch only because it forked before them).
+- Bench rules: the new edge scan matches the allowed relaxation (labelled controls by label at 4.5:1 plus the new default-theme 2 px ring test); state parts, selected pieces (now stricter: own fill or border), high contrast and forced colours keep the hard rule. One silent weakening reversed: the SVG mark branch ignored stroke-opacity, which the original scan applied.
+- Chrome text, measured: JARVIS (clay-dark) 18 runs, minimum 8.97:1; Well Wisher (clay-light) 25, minimum 4.61; palettes 20 and 19, minimum 4.61; gallery chrome 384, minimum 4.61. The jury's suspected under-4.5 "GO" tags and kickers measured at 4.61 or more. Rings: 118 controls, all 2 px, 3:1 and 44 px. Reduced motion: every chrome transition computes to none.
+- Defect found and fixed: in forced colours the selected product, view and gallery-bar pieces were drawn by `[aria-checked='true']::before`, which out-ranked the forced block's `::before { content: none }`; the Canvas piece covered the Highlight fill and the selected "Well Wisher" label disappeared. Fixed with matching selectors in both forced blocks.
+- Jury cheap items fixed: filled key chips (light clay at 24 percent, about 6:1 for the #171717 label in both themes; a raised-surface mix measured 2.75:1 in dark) instead of hairline rings on the lit palette row, the start pill and the checked filter chip; gallery state names no longer cut at 180 px.
+
+**Sources.** Owner sheet ids C02-03, C02-04, C02-18, C02-21, C02-27, C02-46 (private notes); WCAG 2.2 1.4.3, 1.4.11, 2.4.7.
+
+**What it changed.** Five CSS fixes and one bench parity fix; tsc 0, vitest 2003 twice, bundle 0, springs 0, six specs 115 passed and 1 skipped.
+
 ## 2026-11-14: craft pass, the shell chrome and the gallery chrome (refine chrome-1)
 
 **Question.** The kit was rebuilt in clay (sections below), but the chrome around it (title bar, rail, product switch, Resume pill, lamps, view switch, canvas edge, palette, fault chip, Classic UI, and the gallery's index, filter and specimen stage) was still the old grammar: 1 px grey hairlines round every part, a hairline under the title bar and beside the rail, a 3 px ink bar for the active slot, inverted slate fills for selection, mono caps labels on flat grey. Can the chrome read as one instrument made of the same clay, in both themes, without moving a single geometry the tests pin (title 48, rail 64, canvas 1302 x 720 at 1366 x 768 and 1302 x 672 at the T720 floor, 44 px targets, the 390 px column)?

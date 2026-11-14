@@ -28,6 +28,10 @@ import { LiveSigil } from './LiveSigil'
 import { OrganStrip } from './OrganStrip'
 import { PipelineRibbon } from './PipelineRibbon'
 import { AsciiRuler, Eye, RestHill } from './StageRest'
+import { ReviewStatus, ShareReviewKey, LIVE_REVIEW, useShareReview, type ReviewApi } from './ShareReview'
+import { SpeechTrim } from './SpeechTrim'
+import { LIVE_SPEECH, type SpeechPort } from './speech'
+import { useLastRecorded } from './lastRecorded'
 import { Transcript, TurnRow } from './Transcript'
 import { FIT_TURNS, FIT_TURNS_PHONE, fitTurns, type Organ, type OrganId, type RibbonStage, type StageId, type StageMedian } from './model'
 import { useCoreLive, type CoreActions } from './useCoreLive'
@@ -59,6 +63,12 @@ export interface CoreTalkViewProps {
   onHandoff?: (place: { product: 'ww'; section: string; view: string }) => void
   /** `none` forces the static voice picture (the gallery); default `auto`. */
   motion?: 'auto' | 'none'
+  /** "Share a review" (parity O1): the key in the conversation header and the status line under the rows. Absent: no key. */
+  review?: ReviewApi
+  /** The last real exchange from an earlier run, drawn only while this run has no turns. */
+  recorded?: Turn[]
+  /** The voice and spoken-words Trim (parity O4b, O4d) and the port it talks to. Absent: no key. */
+  speech?: SpeechPort
 }
 
 /** LIVE becomes SIMULATED for a fixture; nothing else changes. */
@@ -93,7 +103,7 @@ const uptimeText = (s: number | null | undefined): string | null => {
 }
 
 /* ------------------------------------------------------------------ controls */
-function Controls({ core, busy, onWake, onSleep, mode, setMode, onAnatomy, simulated }: {
+function Controls({ core, busy, onWake, onSleep, mode, setMode, onAnatomy, simulated, speech }: {
   core: CoreInfo | null
   busy: boolean
   onWake: () => void
@@ -102,6 +112,7 @@ function Controls({ core, busy, onWake, onSleep, mode, setMode, onAnatomy, simul
   setMode: (m: 'voice' | 'text') => void
   onAnatomy: () => void
   simulated: boolean
+  speech?: SpeechPort
 }) {
   const running = !!core?.running
   const booting = core?.state === 'booting'
@@ -155,6 +166,7 @@ function Controls({ core, busy, onWake, onSleep, mode, setMode, onAnatomy, simul
         <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="2" fill="currentColor" /><path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3M3.4 3.4l2.1 2.1M10.5 10.5l2.1 2.1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
         Anatomy
       </button>
+      {speech && <SpeechTrim port={speech} simulated={simulated} />}
     </div>
   )
 }
@@ -234,7 +246,7 @@ function Composer({ running, onSay }: { running: boolean; onSay: (t: string) => 
 
 /* ------------------------------------------------------------------ the view */
 export function CoreTalkView(p: CoreTalkViewProps) {
-  const { core, coreView, turns, organs, stages, last, medians, signal, now, actions, simulated = false, notifyPresent = true, onHandoff, motion = 'auto' } = p
+  const { core, coreView, turns, organs, stages, last, medians, signal, now, actions, simulated = false, notifyPresent = true, onHandoff, motion = 'auto', review, recorded, speech } = p
   const running = !!core?.running
   const narrow = useNarrow()
   const [mode, setMode] = useState<'voice' | 'text'>('voice')
@@ -272,6 +284,8 @@ export function CoreTalkView(p: CoreTalkViewProps) {
   const onRootKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return
     const t = e.target as HTMLElement
+    // a Trim popover is portalled to <body> but its key presses still bubble here through React: they are not the view's
+    if (!root.current?.contains(t)) return
     if (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable) return
     if (e.key === 'i' || e.key === 'I') {
       e.preventDefault()
@@ -316,7 +330,7 @@ export function CoreTalkView(p: CoreTalkViewProps) {
   return (
     <div className="jc" ref={root} data-core={running ? 'awake' : 'asleep'} data-narrow={narrow ? 'true' : undefined} data-simulated={simulated ? 'true' : undefined} onKeyDown={onRootKey}>
       <section className="jc-left" aria-label="Voice">
-        <Controls core={core} busy={busy} onWake={wake} onSleep={sleep} mode={mode} setMode={setMode} onAnatomy={() => openAnat()} simulated={simulated} />
+        <Controls core={core} busy={busy} onWake={wake} onSleep={sleep} mode={mode} setMode={setMode} onAnatomy={() => openAnat()} simulated={simulated} speech={speech} />
         <Stage signal={signal} coreView={coreView} running={running} simulated={simulated} motion={motion} />
         {/* the phone puts the input right under the stage, above the pipeline: the thumb reaches it first (jury, 14 Nov) */}
         {narrow && <Composer running={running} onSay={actions.say} />}
@@ -331,12 +345,14 @@ export function CoreTalkView(p: CoreTalkViewProps) {
             <Lamp reading={count} showLabel={false} subject="Turns" />
             {showsNumber(count.state) ? <span>{fit.shown.length} of {turns.length} turns</span> : <span className="jc-dim">{count.reason}</span>}
           </span>
+          {review && <ShareReviewKey review={review} />}
           <button type="button" className="jc-key jc-key-sm" onClick={() => { if (fit.earlier.length) setEarlier(true) }} aria-disabled={!fit.earlier.length || undefined}>
             Earlier{fit.earlier.length > 0 && showsNumber(count.state) ? ` ${fit.earlier.length}` : ''}
           </button>
         </header>
         <Transcript
           turns={fit.shown} all={turns} running={running} simulated={simulated} notifyPresent={notifyPresent} onFlag={actions.flag} onHandoff={onHandoff}
+          recorded={recorded} footer={review ? <ReviewStatus review={review} /> : undefined}
           header={fit.earlier.length > 0 ? <div className="g-line jc-earlier-rule" aria-hidden="true">── earlier turns are under Earlier ──</div> : undefined}
         />
         {!narrow && <Composer running={running} onSay={actions.say} />}
@@ -359,7 +375,9 @@ export function CoreTalkView(p: CoreTalkViewProps) {
 /** The registered view (shell/views/core.view.ts): the live data, the ports and the shell's navigation. */
 export default function CoreTalk() {
   const live = useCoreLive()
+  const review = useShareReview(LIVE_REVIEW)
+  const recorded = useLastRecorded(live.turns.length === 0)
   const notifyPresent = useNotifyPresent()
   const onHandoff = useCallback((place: { product: 'ww'; section: string; view: string }) => useShell.getState().go(place), [])
-  return <CoreTalkView {...live} notifyPresent={notifyPresent} onHandoff={onHandoff} />
+  return <CoreTalkView {...live} notifyPresent={notifyPresent} onHandoff={onHandoff} review={review} recorded={recorded} speech={LIVE_SPEECH} />
 }

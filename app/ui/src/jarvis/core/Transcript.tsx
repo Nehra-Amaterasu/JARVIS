@@ -28,13 +28,21 @@ export interface TranscriptProps {
   footer?: ReactNode
   /** Rendered above the rows, at the top of the well (the rule that says older turns are under Earlier). */
   header?: ReactNode
+  /** The last real exchange from the transcript store (an earlier run), drawn only while this run has no turns. */
+  recorded?: Turn[]
 }
+
+const FIXTURE_RUN: LampReading = { state: 'simulated', since: null, reason: 'fixture turn, not a recording' }
+/** The lamp of a turn from an earlier run: a real record, but not a signal arriving now, so WAITING with the reason. */
+const EARLIER_RUN: LampReading = { state: 'waiting', since: null, reason: 'from an earlier run' }
 
 const asSim = (r: LampReading, sim: boolean): LampReading => (sim && r.state === 'live' ? { ...r, state: 'simulated', reason: 'fixture turn, not a recording' } : r)
 
-export function TurnRow({ turn, simulated = false, notifyPresent, onHandoff, focusable, tabIndex, onFocus }: {
+export function TurnRow({ turn, simulated = false, notifyPresent, onHandoff, focusable, tabIndex, onFocus, lamp: given }: {
   turn: Turn
   simulated?: boolean
+  /** Replaces the turn's own lamp (a turn read back from an earlier run). */
+  lamp?: LampReading
   notifyPresent: boolean
   onHandoff?: TranscriptProps['onHandoff']
   focusable?: boolean
@@ -42,7 +50,7 @@ export function TurnRow({ turn, simulated = false, notifyPresent, onHandoff, foc
   onFocus?: () => void
 }) {
   const tag = tagOf(turn)
-  const lamp = asSim(turnLamp(turn), simulated)
+  const lamp = given ?? asSim(turnLamp(turn), simulated)
   const text = cleanText(turn.text)
   const intent = intentOf(text)
   const h = handoffOf(turn)
@@ -139,7 +147,7 @@ function FlagDock({ turn, question, onFlag, onClose }: {
   )
 }
 
-export function Transcript({ turns, all, running, simulated = false, notifyPresent, onFlag, onHandoff, footer, header }: TranscriptProps) {
+export function Transcript({ turns, all, running, simulated = false, notifyPresent, onFlag, onHandoff, footer, header, recorded = [] }: TranscriptProps) {
   const list = useRef<HTMLOListElement>(null)
   const [cur, setCur] = useState(Math.max(0, turns.length - 1))
   const [dock, setDock] = useState<number | null>(null)
@@ -179,6 +187,14 @@ export function Transcript({ turns, all, running, simulated = false, notifyPrese
           <div className="jc-strata-empty">
             {/* the well's emblem: the Core's own generic sigil, decoration with a name, never a reading */}
             <div className="jc-strata-mark" aria-hidden="true"><Sigil seed="jarvis.core.talk" size={48} fold={8} /></div>
+            {recorded.length > 0 && (
+              <>
+                <div className="g-line jc-recorded-rule">{simulated ? '── fixture exchange, not a recording ──' : '── last recorded exchange, from an earlier run ──'}</div>
+                <ol className="jc-turns jc-recorded" aria-label="The last recorded exchange, from an earlier run">
+                  {recorded.map((t) => <TurnRow key={t.id} turn={t} notifyPresent={notifyPresent} lamp={simulated ? FIXTURE_RUN : EARLIER_RUN} />)}
+                </ol>
+              </>
+            )}
             <div className="g-line" data-kind="out">[JRV] {running ? 'listening. Say "Hey Jarvis", or type below.' : 'asleep. Wake JARVIS, or type.'}</div>
             <div className="g-line">no turns in this run yet</div>
           </div>

@@ -6,6 +6,9 @@ import { useMemo, useState } from 'react'
 import type { CoreInfo, Turn } from '../../lib/api'
 import { N_BANDS, VoiceSignal, type VoiceFrame } from '../voice'
 import { CoreTalkView } from './CoreTalk'
+import { useShareReview, type ReviewPort } from './ShareReview'
+import type { SpeechPort } from './speech'
+import type { VoiceView } from '../../lib/settings'
 import type { CoreActions } from './useCoreLive'
 import { coreViewOf, ribbonStages, stageSeconds, type Organ, type StageId, type StageMedian } from './model'
 
@@ -62,6 +65,35 @@ const FIXTURE_ACTIONS: CoreActions = {
   flag: async () => 'fixture: nothing was saved',
 }
 
+/** The review key on a fixture: the routes answer from memory and no file is written (the status line says so). */
+export const FIXTURE_REVIEW: ReviewPort = {
+  summary: async () => ({ turns: FIXTURE_TURNS.length, flags: { wrong: 1 } }),
+  exportReview: async () => ({ name: 'fixture-review.md', summary: { turns: FIXTURE_TURNS.length, flags: { wrong: 1 } } }),
+  openFolder: async () => undefined,
+}
+
+/** A voice list and word table that live in memory, so the Trim works in the gallery with no server. Neutral examples. */
+export function createFixtureSpeech(): SpeechPort {
+  const voices = (engine: 'edge' | 'kokoro', accent: string, names: string[]) => names.map((n) => ({ id: `${engine}:${n}`, engine, name: n, accent, gender: 'Male', online: engine === 'edge' }))
+  let view: VoiceView = {
+    chosen: 'edge:Ryan', speed: 1, speed_range: [0.7, 1.4], default: 'edge:Ryan', edge_source: 'built-in', kokoro_missing: null,
+    edge: [...voices('edge', 'British', ['Ryan', 'Thomas']), ...voices('edge', 'American', ['Guy']), ...voices('edge', 'Indian English', ['Prabhat'])],
+    kokoro: voices('kokoro', 'British', ['Daniel']),
+  }
+  let table: Record<string, string> = { Aankhen: 'Aan-khen' }
+  return {
+    loadVoice: async () => view,
+    chooseVoice: async (b) => (view = { ...view, ...(b.id ? { chosen: b.id } : {}), ...(typeof b.speed === 'number' ? { speed: b.speed } : {}) }),
+    testVoice: async () => 'window',
+    loadPronunciations: async () => ({ table }),
+    setPronunciation: async (w, s) => ({ table: (table = { ...table, [w]: s }) }),
+    removePronunciation: async (w) => {
+      const { [w]: _gone, ...rest } = table
+      return { table: (table = rest) }
+    },
+  }
+}
+
 export function useFixture(kind: CoreFixtureKind, now = Date.now(), external?: VoiceSignal) {
   const own = useMemo(() => new VoiceSignal(), [])
   const signal = external ?? own
@@ -91,5 +123,8 @@ export function useFixture(kind: CoreFixtureKind, now = Date.now(), external?: V
 export function CoreFixture({ kind, motion = 'none', signal }: { kind: CoreFixtureKind; motion?: 'auto' | 'none'; signal?: VoiceSignal }) {
   const [now] = useState(() => Date.now())
   const f = useFixture(kind, now, signal)
-  return <CoreTalkView {...f} simulated motion={motion} notifyPresent />
+  const review = useShareReview(FIXTURE_REVIEW, true)
+  const speech = useMemo(createFixtureSpeech, [])
+  // an asleep fixture has no turns of its own, so it shows the exchange the way a first frame with a record would
+  return <CoreTalkView {...f} simulated motion={motion} notifyPresent review={review} speech={speech} recorded={kind === 'asleep' ? FIXTURE_TURNS.slice(0, 2) : undefined} />
 }

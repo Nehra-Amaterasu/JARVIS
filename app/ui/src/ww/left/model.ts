@@ -39,6 +39,8 @@ export interface RawNow {
 export interface RawClass {
   id: string
   start: string
+  /** The class's end time when the timetable has one (Today's arc reads it). */
+  end?: string | null
   name: string
   kind?: string | null
   status: ClassStatus | null

@@ -1,0 +1,72 @@
+/* The Proof relief and the Proof rail (L04). Clay tokens only; the ring is embossed by a lit and a shaded copy of its base
+   (one light from the top left), the pins stand in one recessed slot. No outline on any control in the default themes. */
+
+.pr { display: flex; flex-direction: column; gap: 16px; color: var(--ink-1); font: var(--type-body); }
+.pr-top { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.pr-ring { flex: none; overflow: visible; }
+.pr-base-shade { fill: var(--p-shade-cool-16); }
+.pr-base { fill: var(--surface-raised); }
+.pr-base-lit { fill: none; stroke: var(--lit-hi); stroke-width: 2; opacity: .9; }
+.pr-well { fill: var(--surface-sunk); }
+.pr-slot { fill: var(--surface-sunk); }
+.pr-fill { fill: var(--ink-2); }
+.pr-bar[data-on] .pr-fill { fill: var(--ink-1); }
+.pr-bar:not([data-dashed]) { cursor: pointer; }
+.pr-bar[data-dashed] .pr-fill { fill: none; stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.pr-cap { font: 500 11px/1 var(--font-mono); fill: var(--ink-2); }
+.pr-centre { font: 600 13px/1 var(--font-ui); fill: var(--ink-1); }
+.pr-centre-sub { font: 400 11px/1 var(--font-ui); fill: var(--ink-2); }
+
+.pr-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 220px; flex: 1; }
+.pr-row {
+  width: 100%; min-height: 44px; display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  padding: 6px 12px; border: 0; border-radius: var(--r-ctl, 10px); background: var(--surface-raised); box-shadow: var(--elev-raised);
+  color: var(--ink-1); font: var(--type-small); text-align: left; cursor: pointer;
+}
+.pr-row[aria-pressed='true'] { box-shadow: var(--elev-pressed); background: var(--surface-sunk); }
+.pr-row:disabled { cursor: default; box-shadow: none; background: transparent; }
+.pr-row:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.pr-row-cap { font: var(--type-meta); color: var(--ink-2); white-space: nowrap; }
+.pr-drill { display: flex; flex-direction: column; gap: 16px; padding: 16px; border-radius: var(--r-well, 22px); background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
+
+/* ---- the rail: one recessed slot of pins ---- */
+.ww-frame[data-shell-hosted][data-proof] { --col-r: 80px; }
+.ww-frame[data-shell-hosted] .ww-right[data-mode='shell'] { border-left: 0; padding: 16px 16px 16px 0; overflow: hidden; display: block; }
+.ps {
+  position: relative; box-sizing: border-box; height: 100%; min-height: 0; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px 6px 12px;
+  border-radius: var(--r-well, 22px); background: var(--surface-sunk); box-shadow: var(--elev-recessed); color: var(--ink-1);
+}
+.ps-corners, .ps-corners i { position: absolute; pointer-events: none; }
+.ps-corners { inset: 7px; }
+.ps-corners i { width: 8px; height: 8px; opacity: .55; background:
+  linear-gradient(var(--ink-3), var(--ink-3)) 0 0 / 8px 1.5px no-repeat,
+  linear-gradient(var(--ink-3), var(--ink-3)) 0 0 / 1.5px 8px no-repeat; }
+.ps-corners i:nth-child(1) { left: 0; top: 0; }
+.ps-corners i:nth-child(2) { right: 0; top: 0; transform: scaleX(-1); }
+.ps-corners i:nth-child(3) { left: 0; bottom: 0; transform: scaleY(-1); }
+.ps-corners i:nth-child(4) { right: 0; bottom: 0; transform: scale(-1); }
+.ps-open {
+  width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 0; border-radius: var(--r-key, 12px);
+  background: var(--surface-raised); box-shadow: var(--elev-raised); color: var(--ink-1); cursor: pointer;
+}
+.ps-open:active { box-shadow: var(--elev-pressed); }
+.ps-open:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.ps-word { font: 600 11px/14px var(--font-ui); color: var(--ink-2); letter-spacing: .02em; }
+.ps-pins { list-style: none; margin: 0; padding: 0 2px; flex: 1; min-height: 0; max-height: 360px; width: 100%; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+.ps-pins li { display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
+.ps-slot { height: 10px; display: block; border-radius: 5px; background: var(--surface-ground); box-shadow: var(--elev-groove); overflow: hidden; }
+.ps-fill { display: block; height: 100%; border-radius: 5px; background: var(--ink-2); }
+.ps-pins li[data-dashed] .ps-slot { background: transparent; box-shadow: none; }
+.ps-pins li[data-dashed] .ps-fill { background: repeating-linear-gradient(90deg, var(--ink-3) 0 4px, transparent 4px 8px); opacity: .6; height: 2px; margin-top: 4px; }
+.ps-n { font: 500 11px/1 var(--font-mono); color: var(--ink-2); text-align: center; }
+.ps-lamp { margin-top: auto; }
+
+.ps-body { display: flex; flex-direction: column; gap: 16px; }
+
+@media (forced-colors: active) {
+  .ps, .pr-drill { border: 1px solid CanvasText; }
+  .ps-open, .pr-row { border: 1px solid ButtonText; }
+  .pr-fill, .ps-fill { fill: CanvasText; background: CanvasText; forced-color-adjust: none; }
+  .ps-corners { display: none; }
+}

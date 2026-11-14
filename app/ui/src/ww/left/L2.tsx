@@ -25,15 +25,10 @@ import { useLeft } from './store'
 
 const WHERE: Record<RawNow['kind'], WsId> = { study: 'study', recall: 'study', habit: 'life', build: 'focus' }
 
-export const L2Card = memo(function L2Card({ nowCard }: { nowCard: 'now' | 'close_the_day' }) {
-  bump('L2')
-  const now = useLeft((s) => s.now)
-  const phase = useLeft((s) => s.phase.director)
-  const day = useDay()
-  const m = buildL2({ season: { left_top: 'horizon', now_card: nowCard }, now, day })
-  const close = m.variant === 'close'
-
-  const logMinutes = useCallback(async (minutes: number) => {
+/** Post minutes for the current step: the "Logged today" line moves at once and is taken back if the server refuses
+ *  (shared by this card and the shell rail, ww/left/Rail.tsx, so the two never disagree). */
+export function useLogMinutes(now: RawNow | null) {
+  return useCallback(async (minutes: number) => {
     const left = useLeft.getState()
     left.addPending(minutes)
     const toast = useStore.getState().toast
@@ -48,6 +43,17 @@ export const L2Card = memo(function L2Card({ nowCard }: { nowCard: 'now' | 'clos
       left.addPending(-minutes)
     }
   }, [now])
+}
+
+export const L2Card = memo(function L2Card({ nowCard }: { nowCard: 'now' | 'close_the_day' }) {
+  bump('L2')
+  const now = useLeft((s) => s.now)
+  const phase = useLeft((s) => s.phase.director)
+  const day = useDay()
+  const m = buildL2({ season: { left_top: 'horizon', now_card: nowCard }, now, day })
+  const close = m.variant === 'close'
+
+  const logMinutes = useLogMinutes(now)
 
   const waiting = !close && now === null && phase === 'loading'
   return (

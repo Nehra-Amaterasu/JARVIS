@@ -1,10 +1,11 @@
-import { Component, type ReactNode } from 'react'
+import { Component, useState, type ReactNode } from 'react'
 import { BarChart3 } from 'lucide-react'
 import { Drawer } from '../kit'
 import { IconButton } from '../kit'
 import { useFrame } from './frameStore'
 import type { ProofMode } from './density'
 import { ProofPanel } from '../proof'
+import { ProofStrip } from '../proof/ProofStrip'
 
 /**
  * The Proof column (plan 3.1 R, 5.4): a 56 px rail below 1500 px that opens a 320 px panel over the
@@ -13,8 +14,18 @@ import { ProofPanel } from '../proof'
  * panel owns none), which is why it holds no Button.
  */
 export function ProofRail({ mode }: { mode: ProofMode }) {
+  // under shell v2 (D-V3-31) the rail is one instrument, the relief in miniature; read once at mount, as the left column
+  // does, so with the flag off the three classic modes below are drawn exactly as before
+  const [shell] = useState(() => typeof document !== 'undefined' && document.querySelector('[data-shell="v2"]') !== null)
   const open = useFrame((s) => s.proofOpen)
   const setOpen = useFrame((s) => s.setProof)
+  if (shell) {
+    return (
+      <aside className="ww-right" aria-label="Proof" data-mode="shell">
+        <ProofGuard><ProofStrip /></ProofGuard>
+      </aside>
+    )
+  }
   const body = <ProofGuard><ProofPanel mode={mode} /></ProofGuard>
   if (mode === 'pinned') {
     return (

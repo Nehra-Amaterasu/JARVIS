@@ -1,0 +1,179 @@
+/* Today (L04, spec 20.16.1): one canvas. The specimen is a recessed well, the callouts are raised plates on the margin, the
+   leaders are 1 px rules that bend once. Clay tokens by name only; the 1 px lines are leaders, notches and corner ticks,
+   never an outline round a labelled control. */
+
+.td {
+  position: absolute; inset: 0; box-sizing: border-box;
+  display: grid; gap: 16px; padding: 16px;
+  background: var(--surface-ground); color: var(--ink-1); font: var(--type-body);
+  overflow: hidden;
+}
+.td *, .td *::before, .td *::after { box-sizing: border-box; }
+.td-rail { min-height: 0; height: 100%; }
+.td-main { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 16px; }
+.td-body { position: relative; flex: none; }
+.td-num, .td-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* ---- the specimen: a recessed well holding the mode's drawing ---- */
+.td-spec {
+  position: absolute; left: 0; top: 0; padding: 12px; overflow: hidden;
+  border-radius: var(--r-well, 22px); background: var(--surface-sunk); box-shadow: var(--elev-recessed);
+}
+.td-stamp {
+  position: absolute; right: 14px; top: 10px; z-index: 2; margin: 0; padding: 2px 8px; border-radius: var(--r-pill, 999px);
+  font: 600 11px/16px var(--font-mono); letter-spacing: .06em; color: var(--ink-1); background: var(--surface-raised); box-shadow: var(--elev-raised);
+}
+.td-spec-desk { display: flex; flex-direction: column; height: 100%; }
+.td-strip { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+.td-strip-head { margin: 0; align-self: stretch; display: flex; align-items: center; gap: 8px; padding: 0 8px; font: 600 12px/16px var(--font-ui); color: var(--ink-2); }
+.td-strip-why { margin-left: auto; font: 400 11px/14px var(--font-ui); color: var(--ink-2); }
+.td-strip svg { display: block; overflow: visible; }
+.td-strip-base { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 2 6; }
+.td-strip-slot { fill: var(--surface-ground); }
+.td-strip-bar { fill: var(--ink-3); }
+.td-strip-day[data-today] .td-strip-bar { fill: var(--ink-1); }
+.td-strip-median { stroke: var(--ink-2); stroke-width: 1.5; stroke-dasharray: 5 4; fill: none; }
+.td-strip-n { font: 500 11px/1 var(--font-mono); fill: var(--ink-1); }
+.td-strip-wd { font: 400 11px/1 var(--font-ui); fill: var(--ink-2); }
+
+/* the arc */
+.td-arc { position: relative; margin: 0; flex: none; }
+.td-arc svg { display: block; overflow: visible; }
+.td-groove { fill: none; stroke: var(--surface-ground); stroke-linecap: round; opacity: .9; }
+.td-groove[data-track='class'] { stroke: var(--surface-ground); }
+.td-groove[data-dashed] { stroke-dasharray: 6 8; opacity: .7; }
+.td-tick circle { fill: var(--ink-3); }
+.td-tick[data-past] circle { fill: var(--ink-2); }
+.td-tick[data-major] circle { fill: var(--ink-2); }
+.td-tick text { font: 500 11px/1 var(--font-mono); fill: var(--ink-2); }
+.td-block-body { fill: none; stroke-linecap: round; }
+.td-block[data-kind='class'] .td-block-body { stroke: var(--ink-3); }
+.td-block[data-kind='planned'] .td-block-rim { fill: none; stroke: var(--ink-2); stroke-linecap: round; }
+.td-block[data-kind='planned'] .td-block-body { stroke: var(--surface-raised); }
+.td-block[data-kind='done'] .td-block-body { stroke: var(--ink-1); }
+.td-datum { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 2 6; fill: none; }
+.td-now path { stroke: var(--ink-1); stroke-width: 2; stroke-linecap: round; fill: none; }
+.td-now circle { fill: var(--surface-raised); stroke: var(--ink-1); stroke-width: 2; }
+.td-arc-centre { position: absolute; transform: translateX(-50%); display: flex; justify-content: center; }
+.td-arc-legend {
+  position: absolute; left: 4px; top: 0; display: flex; gap: 12px; flex-wrap: wrap; max-width: 46%;
+  font: 500 11px/16px var(--font-ui); color: var(--ink-2);
+}
+.td-arc-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.td-arc-legend i { width: 14px; height: 6px; border-radius: 3px; display: inline-block; }
+.td-arc-legend i[data-kind='class'] { background: var(--ink-3); }
+.td-arc-legend i[data-kind='planned'] { background: var(--surface-raised); box-shadow: inset 0 0 0 2px var(--ink-2); }
+.td-arc-legend i[data-kind='done'] { background: var(--ink-1); }
+.td-arc-lamp { color: var(--ink-2); }
+
+/* the spine (phone) */
+.td-spine { margin: 0; }
+.td-spine svg { display: block; }
+
+/* ---- leaders ---- */
+.td-leaders { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 1; overflow: visible; }
+.td-leader path { fill: none; stroke: var(--ink-3); stroke-width: 1; }
+.td-leader circle { fill: var(--surface-raised); stroke: var(--ink-2); stroke-width: 1.5; }
+.td-leader[data-hot] path { stroke: var(--ink-1); }
+.td-leader[data-hot] circle { stroke: var(--ink-1); }
+
+/* ---- the margin and its plates ---- */
+.td-margin { position: absolute; top: 0; margin: 0; padding: 0; list-style: none; z-index: 2; }
+.td-margin > li { position: absolute; left: 0; right: 0; }
+.td-plate {
+  position: relative; height: 100%; display: flex; flex-direction: column; gap: 6px; padding: 12px 14px;
+  border-radius: var(--r-card, 16px); background: var(--surface-raised); box-shadow: var(--elev-raised);
+}
+.td-phone-cards .td-plate, .td-phone-now .td-plate { height: auto; }
+/* a PLANNED or WAITING plate is a hollow form: sunk into the ground instead of raised, no dashed outline */
+.td-plate:is([data-lamp='planned'], [data-lamp='waiting']) { background: transparent; box-shadow: var(--elev-recessed); }
+.td-corners, .td-corners i { position: absolute; pointer-events: none; }
+.td-corners { inset: 6px; }
+.td-corners i { width: 8px; height: 8px; opacity: .5; background:
+  linear-gradient(var(--ink-3), var(--ink-3)) 0 0 / 8px 1.5px no-repeat,
+  linear-gradient(var(--ink-3), var(--ink-3)) 0 0 / 1.5px 8px no-repeat; }
+.td-corners i:nth-child(1) { left: 0; top: 0; }
+.td-corners i:nth-child(2) { right: 0; top: 0; transform: scaleX(-1); }
+.td-corners i:nth-child(3) { left: 0; bottom: 0; transform: scaleY(-1); }
+.td-corners i:nth-child(4) { right: 0; bottom: 0; transform: scale(-1); }
+.td-plate-head { display: flex; align-items: center; gap: 8px; min-height: 20px; }
+.td-plate-label { margin: 0; font: 600 13px/16px var(--font-ui); color: var(--ink-1); }
+.td-plate-why { font: 400 11px/14px var(--font-ui); color: var(--ink-2); min-width: 0; overflow-wrap: anywhere; }
+.td-plate-corner { margin-left: auto; margin-top: -10px; margin-right: -8px; }
+.td-plate-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+.td-quiet { margin: 0; font: var(--type-small); color: var(--ink-2); }
+
+.td-now-head { margin: 0; font: var(--type-small); color: var(--ink-2); }
+.td-now-line { margin: 0; font: 600 15px/20px var(--font-ui); color: var(--ink-1); overflow-wrap: anywhere; }
+.td-plate .td-start { align-self: flex-start; min-height: 48px; }
+
+.td-ahead { display: flex; align-items: center; gap: 14px; }
+.td-num { font-size: 34px; line-height: 38px; font-weight: 500; letter-spacing: -.02em; color: var(--ink-1); display: inline-flex; align-items: baseline; gap: 4px; }
+.td-num small { font: var(--type-small); color: var(--ink-2); letter-spacing: 0; }
+.td-num[data-hollow] { color: var(--ink-3); letter-spacing: .1em; }
+.td-ahead-what { margin: 0; font: var(--type-small); color: var(--ink-1); overflow-wrap: anywhere; }
+.td-ahead-more { color: var(--ink-2); }
+
+.td-keys { list-style: none; margin: 0; padding: 0; display: flex; gap: 8px; }
+.td-keys li { flex: 1; min-width: 0; }
+.td-key {
+  width: 100%; min-height: 52px; padding: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--r-key, 12px); background: var(--surface-raised); box-shadow: var(--elev-raised); cursor: pointer; color: var(--ink-1);
+  transition: box-shadow var(--dur-feedback) var(--ease-standard), transform var(--dur-feedback) var(--ease-standard);
+}
+.td-key:active { box-shadow: var(--elev-pressed); transform: translateY(1px); }
+.td-key:disabled { cursor: default; box-shadow: none; background: transparent; }
+.td-key:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.td-key-n { font: 500 18px/22px var(--font-mono); font-variant-numeric: tabular-nums; }
+.td-key-n[data-hollow] { color: var(--ink-3); }
+.td-key-name { font: 500 11px/14px var(--font-ui); color: var(--ink-2); max-width: 100%; overflow-wrap: anywhere; text-align: center; }
+
+.td-rems { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font: var(--type-small); }
+.td-rems li { display: flex; align-items: center; gap: 10px; }
+.td-rems .td-mono { font-size: 12px; color: var(--ink-2); }
+.td-rems[data-hollow] .td-mono { color: var(--ink-3); }
+.td-dash { flex: 1; height: 0; border-top: 2px dashed var(--ink-3); opacity: .45; }
+
+/* ---- footer ---- */
+.td-foot { flex: none; height: 108px; display: flex; align-items: center; gap: 16px; padding: 0 4px; }
+.td-capture { flex: 1; min-width: 0; }
+
+/* ---- phone ---- */
+.td[data-form='phone'] { display: flex; flex-direction: column; gap: 16px; overflow-y: auto; overflow-x: hidden; padding: 16px; }
+.td[data-form='phone'] .td-spec { position: relative; padding: 12px; }
+.td[data-form='phone'] .td-stamp { position: static; align-self: flex-start; }
+.td-spec-phone { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+.td-spec-phone .td-strip { width: 100%; }
+.td-hero-phone { display: flex; justify-content: center; }
+.td-phone-cards { display: flex; flex-direction: column; gap: 14px; }
+.td[data-form='phone'] .td-foot { height: auto; flex-wrap: wrap; }
+.td[data-form='phone'] .td-capture { flex-basis: 100%; }
+.td-phone-rail { flex: none; }
+.td-phone-rail .lr, .td-phone-rail .ps { height: auto; }
+.td-phone-rail .ps { flex-direction: row; align-items: center; padding: 10px 14px; gap: 14px; }
+.td-phone-rail .ps-pins { flex-direction: row; gap: 10px; }
+.td-phone-rail .ps-pins li { flex: 1; }
+.td-phone-rail .ps-lamp { margin: 0; }
+
+/* ---- the gallery's box: the real canvas height on the desk; on a phone the page grows instead of scrolling inside ---- */
+/* the desk is the real 1302 x 664 canvas, drawn at 0.74 so it fits the gallery's pane (the layout is computed at 1302) */
+.td-gallery-box { position: relative; width: 1302px; height: 664px; zoom: .74; }
+@media (max-width: 899px) {
+  .td-gallery-box { width: calc(100vw - 72px); height: auto; zoom: 1; }
+  .td-gallery-box .td[data-form='phone'] { position: relative; inset: auto; overflow: visible; }
+}
+
+/* ---- the plan drawer: the Life cards in one column ---- */
+.td-plan-body { display: flex; flex-direction: column; gap: 16px; background: transparent; }
+
+@media (prefers-reduced-motion: reduce) { .td-key { transition: none; } .td-key:active { transform: none; } }
+html[data-motion='calm'] .td-key { transition: none; }
+
+@media (forced-colors: active) {
+  .td-spec, .td-plate, .td-key { border: 1px solid CanvasText; }
+  .td-corners { display: none; }
+  .td-block[data-kind='class'] .td-block-body, .td-block[data-kind='done'] .td-block-body, .td-now path { stroke: CanvasText; }
+  .td-block[data-kind='planned'] .td-block-rim { stroke: CanvasText; }
+  .td-block[data-kind='planned'] .td-block-body { stroke: Canvas; }
+  .td-leader path { stroke: CanvasText; }
+}

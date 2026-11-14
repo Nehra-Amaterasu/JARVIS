@@ -163,7 +163,7 @@ export function PaperStrata({
       <header className="pp-strata-bar">
         {units.length > 1 && live ? (
           <Segmented
-            variant="compact"
+            variant="choice"
             label="Unit filter"
             value={unit}
             onChange={(u) => { setUnit(u); setTPage(0); setAt([0, 0]) }}
@@ -254,7 +254,7 @@ export function PaperStrata({
           <span className="pp-legend-item"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="2" y="2" width="10" height="10" rx="2" /></svg>derivation</span>
           <span className="pp-legend-item"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2 L12 11 L2 11 Z" strokeLinejoin="round" /></svg>short</span>
           <span className="pp-legend-item"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path className="pp-lx" d="M3 3 L11 11 M11 3 L3 11" strokeLinecap="round" /></svg>choice</span>
-          <span className="pp-legend-size">size = share of marks · dashed = model tag · underline = hand tag</span>
+          <span className="pp-legend-size">size: marks · dashed: model · underline: hand</span>
         </p>
         <span className="pp-pagers">
           {yw.pages > 1 && !twin && (

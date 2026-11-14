@@ -44,8 +44,11 @@ export function CropCard({ img, bbox, text, textStatus, chips, sideBySide, editi
       </div>
       {!callout && (
         <figcaption className="rv-crop-text">
-          <span className="rv-crop-status" data-status={textStatus} title={STATUS_NOTE[textStatus]}>
-            {editing ? 'EDITING' : STATUS_WORD[textStatus]}
+          <span className="rv-crop-head">
+            <span className="rv-crop-status" data-status={textStatus} title={STATUS_NOTE[textStatus]}>
+              {editing ? 'EDITING' : STATUS_WORD[textStatus]}
+            </span>
+            {chips}
           </span>
           {editing ? (
             <textarea className="rv-crop-field" value={text ?? ''} aria-label="Question text" rows={3} onChange={(e) => onText?.(e.target.value)} />
@@ -54,15 +57,17 @@ export function CropCard({ img, bbox, text, textStatus, chips, sideBySide, editi
           ) : (
             <p className="rv-crop-body" data-unverified={textStatus === 'unverified' ? 'true' : undefined}>{text}</p>
           )}
-          {bbox && <span className="rv-crop-bbox">box {bbox.join(' ')}</span>}
-          {onVerify && textStatus !== 'crop-only' && (
-            <button type="button" className="rv-link" aria-pressed={textStatus === 'verified'} onClick={() => onVerify(textStatus !== 'verified')}>
-              {textStatus === 'verified' ? 'Text checked' : 'I checked the text'}
-            </button>
-          )}
+          <span className="rv-crop-meta">
+            {bbox && <span className="rv-crop-bbox">box {bbox.map((n) => Math.round(n)).join(' ')}</span>}
+            {onVerify && textStatus !== 'crop-only' && (
+              <button type="button" className="rv-link" aria-pressed={textStatus === 'verified'} onClick={() => onVerify(textStatus !== 'verified')}>
+                {textStatus === 'verified' ? 'Text checked' : 'I checked the text'}
+              </button>
+            )}
+          </span>
         </figcaption>
       )}
-      {chips && <div className="rv-crop-chips">{chips}</div>}
+      {callout && chips && <div className="rv-crop-chips">{chips}</div>}
     </figure>
   )
 }

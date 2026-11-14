@@ -70,7 +70,7 @@ export const QUESTIONS: QuestionRow[] = YEARS.flatMap((y) =>
     const cropOnly = pending && i === 4
     const crop: CropInfo = {
       img: fixtureCrop(y * 10 + i, 3 + (i % 3)),
-      bbox: [20, 12 + i * 66, 460, 54],
+      bbox: [20, 12 + i * 66, 460, 56],
       text: cropOnly ? undefined : STEM[type](topic.label, y),
       textStatus: cropOnly ? 'crop-only' : pending ? 'unverified' : 'verified',
     }

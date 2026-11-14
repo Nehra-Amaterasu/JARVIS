@@ -86,10 +86,10 @@ export function ReviewDesk({
   const [boxes, setBoxes] = useState<Record<string, Box>>({})
   const [say, setSay] = useState('')
   const root = useRef<HTMLDivElement>(null)
-  const drag = useRef<{ id: string; corner: Corner; x: number; y: number; box: Box; scale: number } | null>(null)
+  const drag = useRef<{ id: string; corner: Corner; x: number; y: number; box: Box; scale: { x: number; y: number } } | null>(null)
   const sheet = useRef<HTMLDivElement>(null)
-  // screen px per page unit, read when a move starts: the page is as wide as its column lets it be
-  const scaleOf = () => (sheet.current?.clientWidth || PAGE.w * FALLBACK_SCALE) / PAGE.w
+  // screen px per page unit on each axis, read when a move starts: the page is as wide as its column lets it be, and on a phone it is taller than 500 by 480
+  const scaleOf = () => ({ x: (sheet.current?.clientWidth || PAGE.w * FALLBACK_SCALE) / PAGE.w, y: (sheet.current?.clientHeight || PAGE.h * FALLBACK_SCALE) / PAGE.h })
 
   const cur = rs.items.find((i) => i.id === rs.cursorId) ?? null
   const waiting = pending(rs)
@@ -97,7 +97,7 @@ export function ReviewDesk({
   const done = rs.items.length - waiting.length
   const topic = (id: string) => topics.find((t) => t.id === id)
   const sameFile = useMemo(() => rs.items.filter((i) => i.paperId === (cur?.paperId ?? rs.items[0]?.paperId)), [rs.items, cur?.paperId])
-  const boxOf = (i: ReviewItem): Box => boxes[i.id] ?? i.crop.bbox ?? [20, 12 + sameFile.indexOf(i) * 66, 460, 54]
+  const boxOf = (i: ReviewItem): Box => boxes[i.id] ?? i.crop.bbox ?? [20, 12 + sameFile.indexOf(i) * 66, 460, 56]
 
   // an open edit follows the question under the cursor
   useEffect(() => {
@@ -178,7 +178,7 @@ export function ReviewDesk({
     if (!e.shiftKey || !e.key.startsWith('Arrow')) return
     e.preventDefault()
     e.stopPropagation()
-    setBoxes((b) => ({ ...b, [i.id]: moveEdge(boxes[i.id] ?? boxOf(i), corner, e.key as ArrowKey, EDGE_STEP_PX / scaleOf(), PAGE) }))
+    setBoxes((b) => ({ ...b, [i.id]: moveEdge(boxes[i.id] ?? boxOf(i), corner, e.key as ArrowKey, EDGE_STEP_PX / (e.key === 'ArrowLeft' || e.key === 'ArrowRight' ? scaleOf().x : scaleOf().y), PAGE) }))
   }
   const onHandleUp = (e: KeyboardEvent, i: ReviewItem) => { if (e.shiftKey || e.key === 'Shift' || e.key.startsWith('Arrow')) commit(i, boxes[i.id] ?? boxOf(i)) }
   const down = (e: RPointerEvent, i: ReviewItem, corner: Corner) => {
@@ -188,7 +188,7 @@ export function ReviewDesk({
   const moveDrag = (e: RPointerEvent) => {
     const d = drag.current
     if (!d) return
-    setBoxes((b) => ({ ...b, [d.id]: dragCorner(d.box, d.corner, (e.clientX - d.x) / d.scale, (e.clientY - d.y) / d.scale, PAGE) }))
+    setBoxes((b) => ({ ...b, [d.id]: dragCorner(d.box, d.corner, (e.clientX - d.x) / d.scale.x, (e.clientY - d.y) / d.scale.y, PAGE) }))
   }
   const upDrag = () => {
     const d = drag.current
@@ -354,6 +354,10 @@ export function ReviewDesk({
                 <Button size="sm" onClick={split} disabled={!cur} aria-keyshortcuts="S">Split</Button>
                 <Button size="sm" onClick={reject} disabled={!cur || cur.status === 'rejected'} aria-keyshortcuts="Backspace">Reject</Button>
                 <Button size="sm" onClick={next} disabled={pend < 2} aria-keyshortcuts="N">Next uncertain</Button>
+                <span className="rv-step" role="group" aria-label="Step between questions">
+                  <button type="button" className="pp-pg" aria-label="Previous question" aria-keyshortcuts="K" onClick={() => dispatch({ type: 'step', by: -1 })}>‹</button>
+                  <button type="button" className="pp-pg" aria-label="Next question" aria-keyshortcuts="J" onClick={() => dispatch({ type: 'step', by: 1 })}>›</button>
+                </span>
               </>
             )}
           </div>

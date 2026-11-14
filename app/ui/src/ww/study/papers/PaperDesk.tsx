@@ -211,7 +211,7 @@ export function PaperDesk({ port = STUDY_PORT, data, now, classic = true, trayOp
           <aside className="pp-col pp-col-detail" aria-label="The chosen paper">
             {classic && (
               <Segmented<Face>
-                variant="compact"
+                variant="choice"
                 label="Desk face"
                 value={face}
                 onChange={setFace}

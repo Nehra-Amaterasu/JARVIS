@@ -75,11 +75,10 @@ export function PaperDrop({ onFiles, accept, reading, variant = 'well', inputRef
       </button>
       <input
         ref={input}
-        className="ww-sr-only"
+        hidden
         type="file"
         multiple
         accept={accept.join(',')}
-        tabIndex={-1}
         aria-label="Choose paper files"
         onChange={(e) => { take(e.target.files); e.target.value = '' }}
       />

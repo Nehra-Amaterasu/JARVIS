@@ -1,0 +1,49 @@
+/* The voice drawer's body (SpeechPanel.tsx), inside the Core drawer (a charcoal well, data-scene immersive). Every rule is
+   written under .sp-* and takes its colours from tokens by name. No hairline on a labelled control: the fields and the
+   list are recessed clay (--elev-recessed), the keys are the view's own .jc-key. 44 px hit areas, nothing under 12 px. */
+.sp-panel { display: flex; flex-direction: column; gap: 14px; min-inline-size: 0; }
+.sp-tabs { align-self: flex-start; }
+.sp-now-line { margin: 0; font: 13px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); overflow-wrap: anywhere; }
+.sp-k { margin-inline-end: 8px; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+.sp-tab { display: flex; flex-direction: column; gap: 8px; min-inline-size: 0; }
+.sp-label { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font: 600 12px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+.sp-val { font: 600 13px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+.sp-hint { margin: 0; font: 12px/1.45 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); overflow-wrap: anywhere; }
+.sp-select, .sp-field {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--surface-ground, var(--surface-sunk));
+  box-shadow: var(--elev-recessed, none);
+  color: var(--ink-1);
+  font: 14px/1.2 var(--font-sans, system-ui, sans-serif);
+}
+.sp-field::placeholder { color: var(--ink-2); }
+.sp-select:focus-visible, .sp-field:focus-visible, .sp-range:focus-visible, .sp-btn:focus-visible, .sp-ico:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.sp-select:disabled { color: var(--ink-3); }
+.sp-range { inline-size: 100%; min-block-size: 44px; margin: 0; accent-color: var(--selected-fill); color-scheme: inherit; }
+.sp-row { display: flex; align-items: center; gap: 12px; min-inline-size: 0; flex-wrap: wrap; }
+.sp-btn { min-block-size: 44px; padding-inline: 18px; }
+.sp-btn[aria-disabled='true'], .sp-ico[aria-disabled='true'] { color: var(--ink-3); cursor: default; }
+.jc .jc-voice-key { flex: none; }
+.sp-warn { font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); overflow-wrap: anywhere; flex: 1; min-inline-size: 0; }
+/* a failure is the word FAULT and the triangle, never red alone (the lamp carries both) */
+.sp-note { display: flex; align-items: flex-start; gap: 8px; margin: 0; min-block-size: 18px; font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); overflow-wrap: anywhere; }
+.sp-note:empty { min-block-size: 0; }
+.sp-note > .lamp { flex: none; }
+.sp-words { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.sp-words li { display: flex; align-items: center; gap: 6px; min-block-size: 44px; padding: 0 4px 0 10px; border-radius: 8px; background: var(--surface-ground, var(--surface-sunk)); box-shadow: var(--elev-recessed, none); }
+.sp-word { flex: 1; min-inline-size: 0; font: 13px/1.3 var(--font-mono, ui-monospace, monospace); overflow-wrap: anywhere; color: var(--ink-1); }
+.sp-word b { font-weight: 650; }
+.sp-say { color: var(--ink-2); }
+.sp-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.sp-ico { min-block-size: 44px; min-inline-size: 44px; padding-inline: 10px; font-size: 12px; }
+.sp-form { display: flex; flex-direction: column; gap: 6px; }
+
+@media (forced-colors: active) {
+  .sp-select, .sp-field, .sp-words li { border: 1px solid CanvasText; }
+  .sp-tabs button[aria-checked='true'] { forced-color-adjust: none; background: Highlight; color: HighlightText; }
+}

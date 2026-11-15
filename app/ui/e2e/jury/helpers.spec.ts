@@ -1,7 +1,7 @@
 // Checks of the jury harness's own helpers (package RG1): file naming, the report and the index, and the blank check,
 // proved on a real page with a flat picture and a busy one. These always run; the harness itself (e2e/jury.spec.ts) does not.
 import { expect, test } from '@playwright/test'
-import { BLANK_BELOW, distinctColours, folderOf, indexMarkdown, measure, shotName, slug, stateFile, summarize, type Row } from './lib'
+import { BLANK_BELOW, REQUIRED_ENTRIES, distinctColours, folderOf, indexMarkdown, measure, shotName, slug, stateFile, summarize, waitNotLoading, waitSettled, type Row } from './lib'
 
 const row = (o: Partial<Row>): Row => ({
   file: 'a/01-x-390-light.png', kind: 'specimen', entry: 'a/b', state: 'x', width: 390, theme: 'light', elW: 366, elH: 400, overflowPx: 0, clippedPx: 0, scrollers: 0,
@@ -43,4 +43,37 @@ test('the blank check tells a flat picture from a drawn one, and the measure see
   expect(m.focusable).toBe(1)
   expect(m.under44).toBe(1)
   expect(m.clip.width).toBeGreaterThanOrEqual(260)
+})
+
+test('waitSettled waits for a Suspense fallback, aria-busy and a finite animation to go, and says what kept it waiting', async ({ page }) => {
+  await page.setContent(`<body><main id="root"><div class="s2-loading" role="status">Loading…</div></main>
+    <style>@keyframes spin { to { transform: rotate(360deg) } } .loop { animation: spin 1s linear infinite } .blur { animation: spin 700ms linear 1 }</style></body>`)
+  // the fallback is replaced after 300 ms by the page: a settled answer, and only after it went
+  await page.evaluate(() => setTimeout(() => { document.querySelector('#root')!.innerHTML = '<h1>Room</h1><div class="loop">ambient</div>' }, 300))
+  const t0 = Date.now()
+  expect(await waitSettled(page, '#root', { animations: true, busy: true })).toEqual({ settled: true, why: [] })
+  expect(Date.now() - t0).toBeGreaterThanOrEqual(280)
+
+  // a fallback that never goes is reported, with its words, once the (short) bound is up
+  await page.evaluate(() => { document.querySelector('#root')!.innerHTML = '<p role="status">Loading the Well Wisher state…</p>' })
+  const stuck = await waitSettled(page, '#root', { timeout: 400 })
+  expect(stuck.settled).toBe(false)
+  expect(stuck.why[0]).toContain('Loading the Well Wisher state')
+  expect(await waitNotLoading(page, '#root', 300)).toBe(false)
+
+  // aria-busy counts for a shell page, and not for a specimen that shows a busy state on purpose
+  await page.evaluate(() => { document.querySelector('#root')!.innerHTML = '<button aria-busy="true">Saving</button>' })
+  expect((await waitSettled(page, '#root', { busy: true, timeout: 300 })).why).toEqual(['an element is aria-busy'])
+  expect((await waitSettled(page, '#root', { timeout: 300 })).settled).toBe(true)
+
+  // a finite animation (the section cross-fade) is waited for; an endless loop is not
+  await page.evaluate(() => { document.querySelector('#root')!.innerHTML = '<div class="blur">fade</div><div class="loop">ambient</div>' })
+  const t1 = Date.now()
+  expect((await waitSettled(page, '#root', { animations: true })).settled).toBe(true)
+  expect(Date.now() - t1).toBeGreaterThanOrEqual(500)
+})
+
+test('a full run requires the dashboard entries and the lazy product canary to be listed', () => {
+  expect(REQUIRED_ENTRIES).toEqual(expect.arrayContaining(['data/CountdownDots', 'data/NextThree', 'data/HandoffKey', 'data/Legend']))
+  expect(new Set(REQUIRED_ENTRIES).size).toBe(REQUIRED_ENTRIES.length)
 })

@@ -173,6 +173,15 @@ export function buildGallery() {
   return bundle
 }
 
+/**
+ * Entries a full run must list. The four dashboard entries (DB01, DB02) were reported missing from the set the jury read on
+ * 14 Nov; the final run does list them, but the index is filled in two steps (the shared entries at once, the product's own
+ * ones a moment later, gallery/collect.ts), so the old "index stopped growing for 300 ms" test could end before the second
+ * step on a slow machine. The wait below now also waits for these ids (bounded), and a full run fails loudly if one is absent.
+ * `section/CoreTalk` is the lazy canary: it lives in entries/jarvis and only arrives with the product step.
+ */
+export const REQUIRED_ENTRIES = ['data/CountdownDots', 'data/NextThree', 'data/HandoffKey', 'data/Legend', 'L04', 'Y01', 'section/CoreTalk'] as const
+
 const routed = new WeakSet<Page>()
 /** Opens the gallery in one theme, at the chosen scale (1x unless asked), with the specimen isolated; resolves with every entry id the index lists. */
 export async function openGallery(page: Page, theme: Theme, scale: '1' | '1.5' | '2' = '1'): Promise<string[]> {
@@ -188,11 +197,13 @@ export async function openGallery(page: Page, theme: Theme, scale: '1' | '1.5' |
   // the product's own entries arrive a moment after the shared ones (collect.ts): wait until the index stops growing
   let last = -1
   let same = 0
-  for (let i = 0; i < 100 && same < 3; i++) {
+  for (let i = 0; i < 150; i++) {
     const n = await page.locator('.gl-item').count()
     same = n === last ? same + 1 : 0
     last = n
-    if (same < 3) await page.waitForTimeout(100)
+    const have = await page.locator('.gl-item').evaluateAll((els) => els.map((e) => e.getAttribute('data-entry-id') ?? ''))
+    if (same >= 3 && REQUIRED_ENTRIES.every((id) => have.includes(id))) break
+    await page.waitForTimeout(100)
   }
   // 1x by default: the real size, so a phone frame is a phone frame (the gallery's own default is 1.5x, which zooms the specimen; JURY_SCALE=1.5 draws that)
   await press(page, `.gl-radios[aria-label="Scale"] [role="radio"]:nth-child(${['1', '1.5', '2'].indexOf(scale) + 1})`)
@@ -219,24 +230,63 @@ export async function showState(page: Page, i: number | null, count: number) {
 }
 
 /**
- * Waits until no Suspense fallback is on screen inside `root`: a lazy gallery entry (L04, Y01) draws a `role="status"` line
- * that starts with "Loading" (or an element marked aria-busy) until its chunk arrives, and a picture taken before that shows
- * the fallback instead of the state. Bounded: it returns false when the time runs out, so the caller records "still loading"
- * in report.json instead of hanging.
+ * What "still loading" means, in one place (RP1, 15 Nov). Read inside the page, over `root`:
+ *   - a Suspense fallback: an element whose own text starts with "Loading" or "Opening" in a status line, an `.empty` or an
+ *     `.s2-loading` box (the shell, the gallery's lazy product entries and the Well Wisher frame each draw one of those);
+ *   - `busy` (shell pages only): an element with aria-busy="true". A gallery specimen that SHOWS a busy state (Button
+ *     loading, ProgressBar, Skeleton) is not loading, so specimens leave this off. The first RG1 run flagged 24 such rows;
+ *   - `animations` (shell pages only): a running animation with a finite end inside `root` (the section cross-fade blurs the
+ *     page for a moment: the 14 Nov shell shots of Room, Memory and Console were taken in it). Endless ambient loops are not
+ *     waited for, they never finish.
+ * The answer must hold for three frames in a row, so the gap between two lazy chunks is not taken for "done".
  */
-export async function waitNotLoading(page: Page, root: string, timeout = 8000): Promise<boolean> {
+export interface SettleOptions { timeout?: number; busy?: boolean; animations?: boolean }
+export interface Settled { settled: boolean; why: string[] }
+
+type Arg = { sel: string; busy: boolean; animations: boolean }
+type Probed = Window & { __juryProbe?: (a: Arg) => string[]; __jurySteady?: number }
+
+/** The probe runs in the page: installed once as a plain function there, so nothing is serialised from this file's own scope. */
+async function installProbe(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    ;(window as unknown as Probed).__juryProbe = (arg: Arg): string[] => {
+      const el = document.querySelector(arg.sel)
+      if (!el) return ['the page is not there yet']
+      const why: string[] = []
+      const loading = [...el.querySelectorAll('[role="status"], .empty, .s2-loading, .pp-notice')].filter((n) => /^\s*(Loading|Opening)\b/i.test(n.textContent ?? ''))
+      if (loading.length) why.push(`"${(loading[0].textContent ?? '').trim().slice(0, 40)}" is on screen`)
+      if (arg.busy && el.querySelector('[aria-busy="true"]')) why.push('an element is aria-busy')
+      if (arg.animations) {
+        const running = (el as Element & { getAnimations(o?: { subtree: boolean }): Animation[] }).getAnimations({ subtree: true })
+          .filter((a) => a.playState === 'running' && Number.isFinite(a.effect?.getComputedTiming().endTime as number))
+        if (running.length) why.push(`${running.length} animation${running.length === 1 ? '' : 's'} still running`)
+      }
+      return why
+    }
+    ;(window as unknown as Probed).__jurySteady = 0
+  })
+}
+
+export async function waitSettled(page: Page, root: string, opts: SettleOptions = {}): Promise<Settled> {
+  const { timeout = 10_000, busy = false, animations = false } = opts
+  const arg: Arg = { sel: root, busy, animations }
+  await installProbe(page)
   try {
-    await page.waitForFunction((sel) => {
-      const el = document.querySelector(sel)
-      if (!el) return false
-      if (el.querySelector('[aria-busy="true"]')) return false
-      return ![...el.querySelectorAll('[role="status"]')].some((n) => /^\s*Loading/i.test(n.textContent ?? ''))
-    }, root, { timeout })
-    return true
+    await page.waitForFunction((a) => {
+      const w = window as unknown as Probed
+      const why = w.__juryProbe!(a)
+      w.__jurySteady = why.length ? 0 : (w.__jurySteady ?? 0) + 1
+      return w.__jurySteady >= 3
+    }, arg, { timeout, polling: 'raf' })
+    return { settled: true, why: [] }
   } catch {
-    return false
+    const why = await page.evaluate((a) => (window as unknown as Probed).__juryProbe!(a), arg).catch(() => ['the page could not be read'])
+    return { settled: false, why }
   }
 }
+
+/** A gallery specimen: waits only for a lazy part's Suspense fallback to give way to the state (see waitSettled). */
+export const waitNotLoading = async (page: Page, root: string, timeout = 10_000): Promise<boolean> => (await waitSettled(page, root, { timeout })).settled
 
 // ---------------------------------------------------------------- measuring (runs in the page)
 

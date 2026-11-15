@@ -20,7 +20,7 @@ import { mkdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 import {
-  MAX_SHOT_HEIGHT, SIZES, THEMES, BLANK_BELOW, distinctColours, folderOf, measure, openGallery, pickEntry, shotName, showState, stateFile, waitNotLoading, writeReport,
+  MAX_SHOT_HEIGHT, REQUIRED_ENTRIES, SIZES, THEMES, BLANK_BELOW, distinctColours, folderOf, measure, openGallery, pickEntry, shotName, showState, stateFile, waitNotLoading, waitSettled, writeReport,
   type EntryInfo, type Row, type Theme,
 } from './jury/lib'
 
@@ -66,7 +66,7 @@ async function specimenShots(page: Page, id: string, states: string[], width: nu
     const name = shotName(base, width, theme)
     const { png, truncated } = await shoot(page, resolve(dir, name), m.clip)
     const colours = await distinctColours(page, png)
-    rows.push({ file: `${folderOf(id)}/${name}`, kind: 'specimen', entry: id, state: list[i], width, theme, ...m, ...blankFields(colours), truncated, ...(loaded ? {} : { stillLoading: true, note: 'still loading: the Suspense fallback was on screen after 8 s' }) })
+    rows.push({ file: `${folderOf(id)}/${name}`, kind: 'specimen', entry: id, state: list[i], width, theme, ...m, ...blankFields(colours), truncated, ...(loaded ? {} : { stillLoading: true, note: 'still loading: the Suspense fallback was on screen after 10 s' }) })
   }
   await showState(page, null, count)
 }
@@ -125,6 +125,8 @@ test('every gallery entry, every state, both sizes, both themes, plus a focus sh
       const all = await openGallery(page, theme, SCALE)
       const ids = ONLY.length ? ONLY : all
       expect(ids.length, 'the gallery lists no entries').toBeGreaterThan(0)
+      // a full run must list the entries the jury once found absent (see REQUIRED_ENTRIES); one pass is enough to say so
+      if (!ONLY.length && size === SIZES[0] && theme === THEMES[0]) for (const id of REQUIRED_ENTRIES.filter((r) => !all.includes(r))) failures.push(`${id}: required entry missing from the gallery index`)
       const missing = ONLY.filter((id) => !all.includes(id))
       for (const id of missing) failures.push(`${id}: not in the gallery index`)
       for (const id of ids.filter((i) => all.includes(i))) {
@@ -171,13 +173,15 @@ test('the shell, flag on: the first view of every section at both sizes', async 
         try {
           await page.keyboard.press(`Control+${n}`)
           await expect(page.locator('.s2-page')).toHaveAttribute('data-section', section)
-          // the section change cross-fades with a blur: a picture taken mid-change is blurred (seen in the first trial run), so wait for the page to be still
-          await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'), null, { timeout: 3000 }).catch(() => undefined)
+          // a lazy view draws "Loading..." while its chunk arrives and the section change cross-fades with a blur: a picture taken
+          // then shows the fallback or a blurred page (the 14 Nov shots of Room, Memory, Console and three more were). Wait, bounded
+          // at 10 s, for no Suspense fallback, no aria-busy and no finite animation to be left; a timeout is data in the report.
+          const settled = await waitSettled(page, '.s2-page', { busy: true, animations: true })
           const m = await measure(page, '.s2-page', '[data-shell="v2"]')
           const name = `${section}-${size.width}.png`
           const png = await page.screenshot({ path: resolve(dir, name), animations: 'allow' })
           const theme = await page.evaluate(() => document.documentElement.getAttribute('data-theme') ?? 'default')
-          rows.push({ file: `shell/${name}`, kind: 'shell', entry: `shell/${section}`, state: 'first view', width: size.width, theme, ...m, ...blankFields(await distinctColours(page, png)), truncated: false })
+          rows.push({ file: `shell/${name}`, kind: 'shell', entry: `shell/${section}`, state: 'first view', width: size.width, theme, ...m, ...blankFields(await distinctColours(page, png)), truncated: false, ...(settled.settled ? {} : { stillLoading: true, note: `still loading after 10 s: ${settled.why.join('; ')}` }) })
           entries.set(`shell/${section}`, { id: `shell/${section}`, group: 'shell', states: ['first view'], focusStops: 0 })
         } catch (e) {
           bad.push(`shell/${section} ${size.width}: ${(e as Error).message.split('\n')[0]}`)

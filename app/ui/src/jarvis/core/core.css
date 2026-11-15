@@ -465,6 +465,26 @@
 .jc .jc-composer-field:focus-visible { outline: none; }
 .jc-send { border-radius: 10px; }
 
+/* ------------------------------------------------------------------ share a review, the quiet key and its status line (parity O1) */
+/* a quiet key: the same 44 px target and focus ring as every key, but no raised slab and no edge, so the header carries
+   one control more without a second row of buttons (jury: "no hairline on a labelled control") */
+.jc .jc-key-quiet { border-color: transparent; background: transparent; box-shadow: none; color: var(--ink-2); }
+.jc .jc-key-quiet:hover { border-color: transparent; background: var(--surface-sunk); color: var(--ink-1); transform: none; }
+.jc .jc-key-quiet:active { box-shadow: var(--elev-pressed, none); transform: none; }
+.jc .jc-key-quiet[aria-disabled='true'] { color: var(--ink-3); }
+.jc .jc-key-quiet[aria-busy='true'] { cursor: progress; }
+.jc-share svg { flex: none; }
+.jc-review { flex: none; display: flex; align-items: center; gap: 8px; min-height: 44px; padding-top: 6px; font: 12px/1.35 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
+.jc-review .lamp { flex: none; }
+.jc-review-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.jc-review .jc-key { flex: none; }
+
+/* the last real exchange of an earlier run, in an otherwise empty well: it sits above the "no turns" lines */
+.jc-recorded-rule { flex: none; color: var(--ink-2); font-size: 12px; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jc-recorded { flex: none; justify-content: flex-start; opacity: 0.92; }
+.jc-recorded .jc-turn-text { -webkit-line-clamp: 3; }
+
+
 /* ------------------------------------------------------------------ drawers (native <dialog>) */
 .jc-drawer {
   position: fixed;
@@ -515,7 +535,12 @@
   .jc { grid-template-columns: minmax(0, 1fr); grid-auto-rows: max-content; row-gap: 20px; overflow-x: hidden; overflow-y: auto; align-content: start; padding: 12px 16px 28px; }
   .jc-left, .jc-right { min-height: auto; grid-auto-rows: max-content; }
   .jc-left { grid-template-rows: none; }
-  .jc-right { grid-template-rows: 44px minmax(280px, auto); }
+  .jc-right { grid-template-rows: auto minmax(280px, auto); }
+  /* the header now carries the count, "Share a review" and Earlier: at 358 px they do not fit beside the title, so the
+     title takes the first row and the three sit under it (the first try overlapped the title with the count) */
+  .jc-convo-head { flex-wrap: wrap; row-gap: 4px; }
+  .jc-convo-head h2 { flex: 1 0 100%; }
+  .jc-convo-head .jc-count { flex: 1; min-width: 0; white-space: normal; }
   .jc-ribbon { border-radius: 16px; }
   .jc-controls { flex-wrap: wrap; row-gap: 8px; }
   .jc-status { flex-basis: 100%; order: 3; }

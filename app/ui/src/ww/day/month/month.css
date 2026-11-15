@@ -34,7 +34,7 @@
 .mo-kinds li { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto 24px; align-items: center; column-gap: var(--space-2); min-height: 24px; font: 12px/16px var(--font-ui); color: var(--ink-1); }
 .mo-kind-word { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mo-kind-n { text-align: right; font: 500 12px/16px var(--font-mono); font-variant-numeric: tabular-nums; }
-.mo-run { display: inline-flex; align-items: center; gap: 2px; }
+.mo-run { display: inline-flex; align-items: center; gap: var(--space-1); }
 .mo-run i { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-1); }
 .mo-run i[data-done='false'] { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-2); }
 .mo-run b { font: 600 11px/6px var(--font-mono); color: var(--ink-2); }
@@ -50,12 +50,12 @@
 .mo-intent {
   position: relative; isolation: isolate; width: 100%; min-height: 44px; display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-2);
   padding: var(--space-1) var(--space-3); border: 0; border-radius: var(--r-key); background: var(--surface-raised); color: var(--ink-1); text-align: left; cursor: pointer;
-  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low); transition: transform var(--dur-state, 120ms) ease-out;
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low); transition: transform var(--dur-state) ease-out;
 }
-.mo-intent::before { content: ''; position: absolute; inset: -1px; z-index: -1; border-radius: inherit; pointer-events: none; box-shadow: var(--elev-raised); opacity: 0; transition: opacity var(--dur-state, 120ms) ease-out; }
+.mo-intent::before { content: ''; position: absolute; inset: -1px; z-index: -1; border-radius: inherit; pointer-events: none; box-shadow: var(--elev-raised); opacity: 0; transition: opacity var(--dur-state) ease-out; }
 .mo-intent:hover { transform: translateY(-1px); background-color: var(--surface-raised-hi, var(--surface-raised)); }
 .mo-intent:hover::before { opacity: 1; }
-.mo-intent:active { transform: translateY(1px) scale(.985); box-shadow: var(--elev-pressed); transition-duration: var(--dur-press, 90ms); }
+.mo-intent:active { transform: translateY(1px) scale(.985); box-shadow: var(--elev-pressed); transition-duration: var(--dur-press); }
 .mo-intent:active::before { opacity: 0; transition: none; }
 .mo-intent-rule { font: 500 12px/16px var(--font-ui); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .mo-intent-due { font: 500 12px/16px var(--font-mono); color: var(--ink-2); white-space: nowrap; }
@@ -65,19 +65,27 @@
 
 /* ---- the popovers: their own opaque surface and ink (a popover must never sit on glass) ---- */
 .ww-popover.mo-pop, :root[data-theme^='clay'] .ww-popover.mo-pop {
-  width: 400px; max-width: calc(100vw - 16px); padding: var(--space-4);
+  width: min(400px, calc(100vw - 16px)); padding: var(--space-4);
   background: var(--surface-raised, Canvas); background-color: var(--surface-raised, Canvas); color: var(--ink-1, CanvasText); opacity: 1;
-  backdrop-filter: none; -webkit-backdrop-filter: none;
 }
-.ww-popover.mo-menu, :root[data-theme^='clay'] .ww-popover.mo-menu { width: 248px; padding: var(--space-3); }
+.ww-popover.mo-menu, :root[data-theme^='clay'] .ww-popover.mo-menu { width: min(248px, calc(100vw - 16px)); padding: var(--space-3); }
+/* The Switches inside are neutral, not the accent: the screen already holds one warm fill (the form key), and nine orange pills in
+   a list is the noise the owner asked to remove. (Month.tsx pins the popover inside the viewport through its anchor.) */
+.ww-popover.mo-pop { --k-on-fill: var(--ink-2); --k-on-ink: var(--surface-raised); }
 .mo-menu-items { display: flex; flex-direction: column; gap: var(--space-2); align-items: stretch; }
 .mo-menu-items .ww-btn { justify-content: flex-start; }
 
 /* ---- the phone: one column inside its own box ---- */
 .mo[data-form='phone'] { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3); overflow-x: hidden; overflow-y: auto; }
-.mo[data-form='phone'] .mo-head { flex: none; flex-direction: column; align-items: stretch; gap: var(--space-2); }
-.mo[data-form='phone'] .mo-month { font-size: 24px; line-height: 28px; }
-.mo[data-form='phone'] .mo-keys { flex-wrap: wrap; gap: var(--space-2); }
+.mo[data-form='phone'] .mo-head { flex: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); }
+.mo[data-form='phone'] .mo-keys { display: contents; }
+.mo[data-form='phone'] .mo-title { grid-column: 1; grid-row: 1; }
+.mo[data-form='phone'] .mo-step { grid-column: 2; grid-row: 1; justify-self: end; }
+.mo[data-form='phone'] .ww-seg-wrap { grid-column: 1; grid-row: 2; }
+.mo[data-form='phone'] [data-key='today'] { grid-column: 2; grid-row: 2; }
+.mo[data-form='phone'] .mo-google { grid-column: 1; grid-row: 3; justify-self: start; }
+.mo[data-form='phone'] [data-key='marks'] { grid-column: 2; grid-row: 3; }
+.mo[data-form='phone'] .mo-month { font: 600 24px/28px var(--font-ui); }
 .mo[data-form='phone'] .mo-main { flex: none; }
 .mo[data-form='phone'] .mo-side { flex: none; overflow: visible; padding: var(--space-3); }
 .mo[data-form='phone'] .mo-google { padding: 0 var(--space-2); }

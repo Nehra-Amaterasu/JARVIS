@@ -249,11 +249,35 @@ test.describe('L01 Life month calendar', () => {
       expect(p.opacity, 'popover opacity').toBe(1)
       const switches = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.mo-pop [role="switch"]')].map((s) => Math.round(s.getBoundingClientRect().height)))
       expect(switches.length).toBe(9)
+      // the gallery sits the page 340 px down its own scroll, so only the width is judged here; in the shell the key is at the top and
+      // a popover of this height (under 540 px) clears the 768 px viewport from there
+      const pop = await page.evaluate(() => { const r = document.querySelector('.mo-pop')!.getBoundingClientRect(); return { across: r.left >= 0 && r.right <= innerWidth, h: Math.round(r.height) } })
+      expect(pop.across, 'the Marks popover is inside the viewport sideways').toBe(true)
+      expect(pop.h, 'the Marks popover is short enough to hang from the head').toBeLessThanOrEqual(540)
       expect(Math.min(...switches)).toBeGreaterThanOrEqual(44)
       expect(worst(await contrast(page, '.mo-pop')), 'popover text under its contrast').toEqual([])
       await shoot(page, `desk-1366-marks-${theme}`, true)
     })
   }
+
+  test('the add menu (right click) opens above a low cell, inside the viewport, opaque, with 44 px keys; Esc closes it', async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 })
+    await open(page, S.month)
+    await page.locator('button[data-date="2026-11-27"]').click({ button: 'right' })
+    await page.locator('.mo-menu[data-state="open"]').waitFor()
+    const m = await page.evaluate(() => {
+      const el = document.querySelector<HTMLElement>('.mo-menu')!
+      const r = el.getBoundingClientRect()
+      return { inView: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, keys: [...el.querySelectorAll('button')].map((b) => Math.round(b.getBoundingClientRect().height)), names: [...el.querySelectorAll('button')].map((b) => b.textContent?.trim()) }
+    })
+    expect(m.inView).toBe(true)
+    expect(m.names).toEqual(['Add intent', 'Log something done', 'Move planned here'])
+    expect(Math.min(...m.keys)).toBeGreaterThanOrEqual(44)
+    expect((await opaque(page, '.mo-menu')).alpha).toBe(1)
+    expect(worst(await contrast(page, '.mo-menu'))).toEqual([])
+    await page.keyboard.press('Escape')
+    await page.locator('.mo-menu').waitFor({ state: 'detached' })
+  })
 
   test('desk, the dark theme month reads as well as the light one', async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 })
@@ -268,10 +292,10 @@ test.describe('L01 Life month calendar', () => {
     await page.setViewportSize({ width: 1366, height: 768 })
     await open(page, S.year)
     const y = await page.evaluate(() => ({
-      cells: document.querySelectorAll('.alm-yc').length,
+      cells: document.querySelectorAll('.alm-ygrid .alm-yc').length,
       stops: [...document.querySelectorAll('.alm [tabindex="0"]')].length,
       keys: [...document.querySelectorAll<HTMLElement>('.alm-ykey')].map((k) => Math.round(k.getBoundingClientRect().height / (Number(getComputedStyle(document.querySelector('.mo-gallery-box')!).zoom) || 1))),
-      levels: [...new Set([...document.querySelectorAll('.alm-yc')].map((c) => c.getAttribute('data-level')))].sort(),
+      levels: [...new Set([...document.querySelectorAll('.alm-ygrid .alm-yc')].map((c) => c.getAttribute('data-level')))].sort(),
     }))
     expect(y.cells).toBe(371)
     expect(y.stops).toBe(1)

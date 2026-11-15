@@ -279,7 +279,8 @@ describe('the Almanac in a page', () => {
     const { container } = render(<Almanac mode="year" days={[day('2026-11-10', { minutes: 100, marks: [] })]} month="2026-11" today="2026-11-18" onPick={() => {}} onJump={onJump} />)
     const grid = container.querySelector<HTMLElement>('.alm-ygrid')!
     expect(grid.tabIndex).toBe(0)
-    expect(container.querySelectorAll('.alm-yc').length).toBe(7 * 53)
+    expect(container.querySelectorAll('.alm-ygrid .alm-yc').length).toBe(7 * 53)
+    expect(container.querySelectorAll('.alm-ylegend .alm-yc').length).toBe(4)
     expect(container.querySelector('.alm-yc[data-date="2026-11-10"]')!.getAttribute('data-level')).toBe('3')
     keyDown(grid, 'Enter')
     expect(onJump).toHaveBeenCalledWith('2026-11')

@@ -56,6 +56,27 @@ function useToday(fixed?: string): string {
 
 const PHONE_MAX = 700
 
+/**
+ * An anchor for the kit Popover, which hangs from its anchor's left edge and never flips. This one answers with the key's rectangle
+ * moved so that a popover of `width` stays inside the viewport (right edge of the key for `end`, its left edge for `start`, with an
+ * 8 px margin); focus and the outside-press test still go to the key itself.
+ */
+function pinned(get: () => HTMLElement | null, width: number, align: 'start' | 'end'): HTMLElement {
+  const proxy = {
+    getBoundingClientRect: () => {
+      const el = get()
+      if (!el) return new DOMRect(0, 0, 0, 0)
+      const r = el.getBoundingClientRect()
+      const w = Math.min(width, window.innerWidth - 16)
+      const left = Math.max(8, Math.min(align === 'end' ? r.right - w : r.left, window.innerWidth - w - 8))
+      return new DOMRect(left, r.top, w, r.height)
+    },
+    focus: (o?: FocusOptions) => get()?.focus(o),
+    contains: (n: Node | null) => !!get()?.contains(n),
+  }
+  return proxy as unknown as HTMLElement
+}
+
 /** The phone form below 700 px of the page's own width, read once at mount from the window and then from the page. */
 function useForm(ref: RefObject<HTMLElement | null>, forced?: 'desk' | 'phone'): 'desk' | 'phone' {
   const [form, setForm] = useState<'desk' | 'phone'>(forced ?? (typeof window !== 'undefined' && window.innerWidth < 900 ? 'phone' : 'desk'))
@@ -116,9 +137,12 @@ export function MonthPage({ port = DAY_PORT, today: fixedToday, live = false, fo
   const [kindsOn, setKindsOn] = useState<ReadonlySet<Kind>>(KIND_SET)
   const [marksOpen, setMarksOpen] = useState(initialMarks)
   const [menu, setMenu] = useState<string | null>(null)
+  const [menuPlace, setMenuPlace] = useState<'top' | 'bottom'>('bottom')
   const [note, setNote] = useState<string | null>(null)
   const [version, setVersion] = useState(0)
   const marksKey = useRef<HTMLButtonElement>(null)
+  const marksAnchor = useRef<HTMLElement | null>(null)
+  if (!marksAnchor.current) marksAnchor.current = pinned(() => marksKey.current, 400, 'end')
   const menuAnchor = useRef<HTMLElement | null>(null)
   const slide = useRef<HTMLDivElement>(null)
 
@@ -215,7 +239,7 @@ export function MonthPage({ port = DAY_PORT, today: fixedToday, live = false, fo
           onMode={onMode}
           onToday={goToday}
           onAdd={(d) => void runMenu('addIntent', d)}
-          onMenu={(d, el) => { menuAnchor.current = el; setMenu(d) }}
+          onMenu={(d, el) => { menuAnchor.current = pinned(() => el, 248, 'start'); setMenuPlace(el.getBoundingClientRect().top > window.innerHeight / 2 ? 'top' : 'bottom'); setMenu(d) }}
           onJump={(m) => { setMonth(m); setMode('month') }}
         />
       </div>
@@ -232,8 +256,8 @@ export function MonthPage({ port = DAY_PORT, today: fixedToday, live = false, fo
                 <DayMark kind={r.kind} done decorative />
                 <span className="mo-kind-word">{SHAPES[r.kind].word}</span>
                 <span className="mo-run" aria-hidden="true">
-                  {Array.from({ length: Math.min(12, r.done + r.planned) }, (_, i) => <i key={i} data-done={i < r.done ? 'true' : 'false'} />)}
-                  {r.done + r.planned > 12 && <b>+</b>}
+                  {Array.from({ length: Math.min(10, r.done + r.planned) }, (_, i) => <i key={i} data-done={i < r.done ? 'true' : 'false'} />)}
+                  {r.done + r.planned > 10 && <b>+</b>}
                 </span>
                 <span className="mo-kind-n">{r.done + r.planned}</span>
               </li>
@@ -270,10 +294,10 @@ export function MonthPage({ port = DAY_PORT, today: fixedToday, live = false, fo
         {note && <p className="mo-note" role="status">{note}</p>}
       </aside>
 
-      <Popover open={marksOpen} onClose={() => setMarksOpen(false)} anchor={marksKey} label="Marks" className="mo-pop">
+      <Popover open={marksOpen} onClose={() => setMarksOpen(false)} anchor={marksAnchor} label="Marks" className="mo-pop">
         <MarksLegend on={kindsOn} onToggle={(k, next) => setKindsOn((s) => { const n = new Set(s); if (next) n.add(k); else n.delete(k); return n })} />
       </Popover>
-      <Popover open={menu !== null} onClose={() => setMenu(null)} anchor={menuAnchor} label="Add to this day" className="mo-pop mo-menu">
+      <Popover open={menu !== null} onClose={() => setMenu(null)} anchor={menuAnchor} placement={menuPlace} label="Add to this day" className="mo-pop mo-menu">
         <div className="mo-menu-items">
           <Button grouped onClick={() => menu && void runMenu('addIntent', menu)}>Add intent</Button>
           <Button grouped onClick={() => menu && void runMenu('logDone', menu)}>Log something done</Button>

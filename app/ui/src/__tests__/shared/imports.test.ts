@@ -20,10 +20,12 @@ const LAZY_WW_MOUNTS = [
   'shell/views/focus-session.view.ts',
   'shell/views/focus-rest.view.ts',
   'shell/views/focus-drill.view.ts',
+  'shell/views/study-generator.view.ts',
   'shell/views/study-papers.view.ts',
   'gallery/entries/L01.tsx',
   'gallery/entries/L04.tsx',
   'gallery/entries/Y01.tsx',
+  'gallery/entries/X03.tsx',
   'gallery/entries/Y02.tsx',
 ]
 

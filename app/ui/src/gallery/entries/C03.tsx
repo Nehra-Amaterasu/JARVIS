@@ -20,6 +20,7 @@ const LABELS = [
   'Course Mapper: mapped, suggested, unmapped',
   'Folder door',
   'Parts: ProvenanceChip and AttachmentLadder',
+  'Intake desk, live and empty: the tray picture moves (SIMULATED)',
 ]
 
 const State: ComponentType<{ index: number }> | null = import.meta.env.VITE_PRODUCT !== 'jarvis'

@@ -7,6 +7,7 @@ import { CalendarDays, FileText, Flag } from 'lucide-react'
 import { COPY } from './copy'
 import { PER_PAGE, dueWords, pageOf, provenanceLine, walkOrder } from './model'
 import { ProvenanceChip } from './ProvenanceChip'
+import { TrayArt } from './TrayArt'
 import type { IntakeKind, IntakeRow, SubjectOption } from './types'
 
 const KIND_ICON: Record<IntakeKind, typeof Flag> = { deadline: Flag, event: CalendarDays, file: FileText }
@@ -28,9 +29,11 @@ export interface IntakeLedgerProps {
   older: number
   showOlder: boolean
   onToggleOlder: () => void
+  /** True when the desk is LIVE and empty: the tray picture moves. A WAITING desk shows it still. */
+  live?: boolean
 }
 
-export function IntakeLedger({ rows, subjects, now, page, onPage, selId, onSelect, emptyTitle, emptyNote, older, showOlder, onToggleOlder }: IntakeLedgerProps) {
+export function IntakeLedger({ rows, subjects, now, page, onPage, selId, onSelect, emptyTitle, emptyNote, older, showOlder, onToggleOlder, live = false }: IntakeLedgerProps) {
   const pg = pageOf(rows, page, now)
   const root = useRef<HTMLDivElement>(null)
   const pending = useRef<string | null>(null)
@@ -62,6 +65,7 @@ export function IntakeLedger({ rows, subjects, now, page, onPage, selId, onSelec
       <div className="ik-list" ref={root}>
         {rows.length === 0 ? (
           <div className="ik-empty" data-component="intake-empty">
+            <TrayArt moving={live} />
             <p className="ik-empty-line">{emptyTitle}</p>
             <p className="ik-empty-note">{emptyNote}</p>
           </div>

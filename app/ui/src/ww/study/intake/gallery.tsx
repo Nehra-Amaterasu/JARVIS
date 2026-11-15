@@ -26,6 +26,7 @@ export const C03_LABELS = [
   'Course Mapper: mapped, suggested, unmapped',
   'Folder door',
   'Parts: ProvenanceChip and AttachmentLadder',
+  'Intake desk, live and empty: the tray picture moves (SIMULATED)',
 ] as const
 
 const study: StudyPort = { ...nullStudyPort, intake: async () => ({ state: 'simulated', reason: 'invented folder', since: NOW, data: { files: 2, folderChosen: true } }) }
@@ -53,6 +54,7 @@ export function C03State({ index }: { index: number }) {
     case 8: return <Desk open="archive" demo />
     case 9: return <Desk open="courses" />
     case 10: return <Desk open="folder" />
+    case 12: return <Desk rows={[]} />
     default:
       return (
         <div className="c03-parts">

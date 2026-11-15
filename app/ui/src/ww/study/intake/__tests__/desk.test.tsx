@@ -11,11 +11,13 @@ import { NOW, makeFixtureDesk, manyRows } from '../fixtures'
 import entries from '../../../../gallery/entries/C03'
 import { C03_LABELS } from '../gallery'
 import { IntakeDesk } from '../IntakeDesk'
+import { TRAY_FRAMES, TRAY_STEP_MS, trayFrame } from '../TrayArt'
 import { nullIntakeDesk } from '../port'
 import { registeredView } from '../../../../shell/views'
 
 let m: ReturnType<typeof mount> | null = null
-afterEach(() => { m?.unmount(); m = null; document.body.innerHTML = '' })
+const reset = () => { m?.unmount(); m = null; document.body.innerHTML = '' }
+afterEach(reset)
 
 const STUDY: StudyPort = { ...nullStudyPort, intake: async () => ({ state: 'simulated', reason: 'invented folder', since: NOW, data: { files: 2, folderChosen: true } }) }
 const flush = async () => { for (let i = 0; i < 5; i++) await act(async () => { await Promise.resolve() }) }
@@ -59,6 +61,37 @@ describe('on the null adapters', () => {
     const all = document.body.textContent ?? ''
     for (const w of FORBIDDEN_WORDS) expect(all.toLowerCase()).not.toContain(w)
     for (const v of Object.values(COPY)) for (const w of FORBIDDEN_WORDS) expect(v.toLowerCase()).not.toContain(w)
+  })
+})
+
+describe('the empty tray picture', () => {
+  it('a WAITING desk shows the tray still; a LIVE empty desk moves it, and Calm stops it', async () => {
+    vi.useFakeTimers()
+    try {
+      await start({ desk: nullIntakeDesk, study: nullStudyPort })
+      expect(q('[data-component="tray-art"]').dataset.form).toBe('still')
+      reset()
+      await start({ desk: makeFixtureDesk({ rows: [] }) })
+      const tray = q('[data-component="tray-art"]')
+      expect(tray.dataset.form).toBe('moving')
+      const first = tray.textContent
+      await act(async () => { vi.advanceTimersByTime(TRAY_STEP_MS * 2) })
+      expect(q('[data-component="tray-art"]').textContent).not.toBe(first)
+      expect(q('[data-component="tray-art"]').getAttribute('aria-hidden')).toBe('true')
+      reset()
+      document.documentElement.setAttribute('data-motion', 'calm')
+      await start({ desk: makeFixtureDesk({ rows: [] }) })
+      expect(q('[data-component="tray-art"]').dataset.form).toBe('still')
+    } finally {
+      document.documentElement.removeAttribute('data-motion')
+      vi.useRealTimers()
+    }
+  })
+  it('every frame is the same size, plain ASCII, and the sheet ends inside the tray', () => {
+    const frames = TRAY_FRAMES.map(trayFrame)
+    expect(new Set(frames.map((f) => f.split('\n').length)).size).toBe(1)
+    for (const f of frames) expect(/^[ -~\n]+$/.test(f)).toBe(true)
+    expect(frames.at(-1)).toBe(trayFrame(null))
   })
 })
 

@@ -204,6 +204,7 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, now: nowPr
             older={olderRows.length}
             showOlder={showOlder}
             onToggleOlder={() => setShowOlder((v) => !v)}
+            live={live && rows.length === 0}
           />
           <IntakeDetail
             key={selRow?.id ?? 'none'}

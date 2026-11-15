@@ -136,7 +136,7 @@ test.describe('C03 geometry', () => {
   }
 
   test('the empty desk, the ambiguous item, the folder file, the accepted list and forty rows each fit the same box', async ({ page }) => {
-    for (const i of [1, 2, 3, 4, 5]) {
+    for (const i of [1, 2, 3, 4, 5, 12]) {
       await state(page, i)
       const m = await page.evaluate(() => {
         const inner = document.querySelector<HTMLElement>('.c03-box')!
@@ -153,6 +153,19 @@ test.describe('C03 geometry', () => {
       expect(m.detail, `state ${i}: the chosen item overflows its card`).toBeLessThanOrEqual(1)
       expect(await smallTargets(page, TARGETS), `state ${i}: targets under 44 px`).toEqual([])
     }
+  })
+
+  test('the tray picture moves on a live empty desk and stands still on a waiting one; it is plain text and animates no CSS', async ({ page }) => {
+    await state(page, 12)
+    const tray = page.locator('[data-component="tray-art"]')
+    await expect(tray).toHaveAttribute('data-form', 'moving')
+    const seen = new Set<string>()
+    for (let i = 0; i < 8; i++) { seen.add((await tray.textContent()) ?? ''); await page.waitForTimeout(170) }
+    expect(seen.size, 'the frames change while it runs').toBeGreaterThan(2)
+    expect(await page.evaluate(() => document.getAnimations().length)).toBe(0)
+    await shot(page, '.c03-box', 'desk-live-empty.png')
+    await state(page, 1)
+    await expect(page.locator('[data-component="tray-art"]')).toHaveAttribute('data-form', 'still')
   })
 
   test('the sheets: paste, calendar file, archive, courses and folder open over the desk, opaque, with text at 4.5:1', async ({ page }) => {
@@ -298,6 +311,12 @@ test.describe('C03 branches', () => {
     expect(parseFloat(t)).toBe(0)
   })
 
+  test('reduced motion stills the tray picture', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await state(page, 12)
+    await expect(page.locator('[data-component="tray-art"]')).toHaveAttribute('data-form', 'still')
+  })
+
   test('forced colours draw a door with a border and the plate dashed', async ({ page }) => {
     await page.emulateMedia({ forcedColors: 'active' })
     await state(page, 0)
@@ -311,7 +330,7 @@ test.describe('C03 branches', () => {
 
   test('shots of the rest of the states for the jury', async ({ page }) => {
     test.skip(!SHOTS, 'C03_SHOTS is not set')
-    for (const i of [0, 1, 2, 3, 5, 11]) {
+    for (const i of [0, 1, 2, 3, 5, 11, 12]) {
       for (const theme of ['light', 'dark'] as const) {
         await state(page, i, theme)
         await shot(page, '.c03-box, .c03-parts', `state-${i}-${theme}.png`)

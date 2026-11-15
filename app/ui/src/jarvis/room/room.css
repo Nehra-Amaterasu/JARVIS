@@ -1,0 +1,355 @@
+/* ==========================================================================
+   Room, Switches and Rules of shell v2 (A.J02, spec 20.9.2). Loaded only by the lazy Room view chunks; every rule is under
+   .jr (the view root) or .jr-drawer-body (the two drawers), so the classic page and the other views get none of it.
+
+   The box (spec 20.9, content box J): the page area under the view row is 1302 x 668; with an 8 px gutter the view is
+   1286 x 652. Switches: top row 300 (faceplate 900, board plate 370), a 12 px gap, bottom row 336 (day ring 400, then the
+   modes strip, the log and "what to say" 870 wide): 300 + 12 + 336 = 648 of 652. Rules: three gates 640 wide, modes and the
+   pin map in the remaining 630.
+
+   Material: clay tokens BY NAME, no colour literal. The faceplate is the charcoal slab of the Core stage (data-scene
+   immersive) with raised keys, a lit top lip and a shaded bottom lip. The one warm colour on the screen is the kit's own ON
+   fill (a key that the board reports ON); the dial and the chips stay in ink. The kit's own
+   controls (Key, Switch, Plate, Trim) draw themselves from clay.css. The shared kit's Button, Chip, Field and Fold are
+   drawn by the Well Wisher stylesheet, which a JARVIS-first page may not have loaded, so .jr-kit below draws those four
+   from tokens inside this view only (the same reason Core carries its own .jc-key and drawer).
+   ========================================================================== */
+.jr, .jr-kit {
+  --jr-ink: var(--ink-1);
+  --jr-dim: var(--ink-2);
+  font-family: var(--font-ui, system-ui, sans-serif);
+}
+.jr {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: 900px minmax(0, 1fr);
+  grid-template-rows: 300px 336px;
+  gap: 12px 16px;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--jr-ink);
+}
+.jr *, .jr *::before, .jr *::after { box-sizing: border-box; }
+.jr :focus-visible, .jr-drawer-body :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.jr-tag { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.06em; color: var(--jr-dim); white-space: nowrap; }
+.jr-mark { display: inline-flex; flex: none; color: var(--ink-2); line-height: 0; }
+.jr-mark .g-sigil { --g-size: 24px; }
+.jr-head-l { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.jr-note { margin: 0; font: 12px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--jr-dim); }
+.jr-stamp { position: absolute; left: 252px; top: 26px; z-index: 2; margin: 0; display: inline-flex; align-items: center; gap: 6px; font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.05em; color: var(--jr-dim); }
+
+/* ------------------------------------------------------------------ the shared kit's ww controls inside this view
+   clay.css already draws .ww-btn, .ww-chip, .ww-input and .ww-fold-btn for the clay themes; only the structure that the Well
+   Wisher sheet alone gives (a field's label above its box, the screen-reader text, the folded body) is restated here. */
+.jr-kit .ww-field { display: grid; gap: 4px; min-width: 0; }
+.jr-kit .ww-field-label { font: 600 12px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.04em; color: var(--ink-2); }
+.jr-kit .ww-field-box { display: flex; align-items: center; gap: 6px; }
+.jr-kit .ww-field-note { margin: 0; font: 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.jr-kit .ww-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 14px; white-space: nowrap; }
+.jr-kit .ww-iconbtn { min-width: 44px; padding: 0; }
+.jr-kit .ww-btn-wrap { display: inline-flex; align-items: center; gap: 8px; }
+.jr-kit .ww-reason { font: 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.jr-kit .ww-fold-head { margin: 0; font: inherit; }
+.jr-kit .ww-fold-btn { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; text-align: left; }
+.jr-kit .ww-fold-body[hidden] { display: none; }
+.jr-kit .ww-sr-only, .jr-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.jr-kit .k-lamp { display: inline-flex; align-items: center; gap: 6px; font: 600 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
+.jr-kit .ww-iconbtn[data-armed='true'] { border-style: dashed; }
+
+/* drop-up folds: the open body hangs above its key as an opaque sheet, so a fold that is 44 px closed never moves the canvas */
+.jr-dropup { position: relative; }
+.jr-dropup .ww-fold[data-open='true'] .ww-fold-body {
+  position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); z-index: 6; max-height: 360px; overflow: hidden;
+  padding: 12px 14px; border: 1px solid var(--edge-ui); border-radius: 14px; background: var(--surface-raised); color: var(--ink-1); box-shadow: var(--elev-float, var(--elev-raised, none));
+}
+
+/* ------------------------------------------------------------------ the faceplate */
+.jr-plate-slot { position: relative; min-width: 0; min-height: 0; }
+.jr-face-plate {
+  position: relative; height: 100%; display: grid; grid-template-rows: 44px minmax(0, 1fr); row-gap: 6px; padding: 8px 14px 14px;
+  background: var(--surface-faceplate, var(--surface-ground)); border: 1px solid var(--edge-ui);
+  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: 20px; box-shadow: var(--elev-raised, none); overflow: hidden;
+}
+.jr-art { position: absolute; inset: 0; opacity: 0.22; mix-blend-mode: screen; pointer-events: none; }
+.jr-art .art-slot, .jr-art .art-slot__box { height: 100%; }
+.jr-art .art-slot__box { border: 0; border-radius: 0; background: transparent; }
+.jr-art:has(.art-slot[data-state='absent']), .jr-art:has(.art-slot[data-state='loading']) { display: none; }
+.jr-plate-head { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.jr-plate-body { position: relative; display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 16px; min-height: 0; }
+.jr-keys { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 10px; min-height: 0; }
+
+/* the mode dial: detents on a 270 degree arc, one accent notch */
+.jr-dial { display: grid; grid-template-rows: auto auto; justify-items: center; align-content: center; gap: 4px; min-width: 0; }
+.jr-dial-body { width: 168px; height: 168px; border-radius: 50%; cursor: default; }
+.jr-dial-body svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.jr-dial-face { fill: var(--surface-raised); }
+.jr-dial-lip { fill: none; stroke: var(--ridge-hi, var(--edge-ui)); stroke-width: 1.5; stroke-dasharray: 120 270; }
+.jr-dial-det { fill: var(--ink-3); }
+.jr-dial-hit { fill: transparent; }
+.jr-dial g[data-on='true'] .jr-dial-det { fill: var(--ink-1); }
+.jr-dial g[data-last='true']:not([data-on='true']) .jr-dial-det { fill: var(--ink-1); }
+.jr-dial-notch { stroke: var(--ink-1); stroke-width: 4; stroke-linecap: round; transition: transform var(--dur-state, 120ms) var(--ease-standard, ease); }
+.jr-dial-body:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+.jr-dial-read { display: grid; justify-items: center; gap: 2px; text-align: center; min-height: 36px; }
+.jr-dial-name { font: 650 14px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-1); max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jr-dial-hint { font: 11px/1.25 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); max-width: 190px; }
+.jr-dial[data-armed='true'] .jr-dial-hint { color: var(--ink-1); font-weight: 600; }
+
+/* a key: a kit Key stretched to the cell, with the engraving inside it */
+.jr-cell { position: relative; min-width: 0; min-height: 0; }
+.jr-cell .jr-cap.k-key { width: 100%; height: 100%; min-height: 0; border-radius: 14px; align-items: stretch; justify-content: stretch; padding: 8px 10px 8px; text-align: left; }
+.jr-cap .k-key-icon { width: 100%; height: 100%; align-items: stretch; justify-content: stretch; }
+.jr-cap .k-key-ind { top: 9px; right: 9px; }
+.jr-face { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; width: 100%; height: 100%; min-width: 0; text-align: left; }
+.jr-top { display: flex; align-items: baseline; gap: 6px; min-width: 0; padding-right: 14px; }
+.jr-no { font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.06em; color: var(--ink-2); font-style: normal; }
+.jr-name { font: 650 13px/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.jr-mid { display: flex; align-items: center; justify-content: space-between; min-height: 0; }
+.jr-ico { display: inline-flex; color: var(--ink-1); }
+.jr-ico[data-kind='fan'] svg { transform-origin: 50% 50%; }
+.jr-prev { position: absolute; right: 12px; bottom: 36px; font: 700 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.06em; color: var(--ink-1); }
+.jr-lamp { display: flex; align-items: flex-start; gap: 6px; min-height: 28px; min-width: 0; }
+.jr-led { position: relative; display: inline-flex; flex: none; margin-top: 1px; }
+.jr-word { font: 11.5px/1.25 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-width: 0; }
+.jr-cap[data-toggled='true'] .jr-name, .jr-cap[data-toggled='true'] .jr-ico, .jr-cap[data-toggled='true'] .jr-word, .jr-cap[data-toggled='true'] .jr-no { color: inherit; }
+/* a covered key is not "disabled": the cover says why, so the kit's dimming is taken off */
+.jr-cell[data-heavy] .jr-cap[aria-disabled='true'] { opacity: 1; filter: none; color: inherit; }
+.jr-cell[data-absent='true'] .jr-cap.k-key { border-style: dashed; background: transparent; box-shadow: none; }
+.jr-cell[data-absent='true'] .jr-name, .jr-cell[data-absent='true'] .jr-word { color: var(--ink-3); }
+.jr-cell[data-preview] .jr-cap.k-key { outline: 2px dashed var(--ink-1); outline-offset: -5px; }
+/* the three phases of the lamp: asked sweeps once over 6 s, then the board answers or the word says so */
+.jr-cell[data-state='asked'] .jr-led::after {
+  content: ''; position: absolute; inset: -4px; border-radius: 50%;
+  background: conic-gradient(from 0deg, var(--state-waiting) 0 var(--jr-sweep, 0%), transparent var(--jr-sweep, 0%));
+  -webkit-mask: radial-gradient(circle, transparent 5px, currentColor 5.5px); mask: radial-gradient(circle, transparent 5px, currentColor 5.5px);
+  animation: jr-sweep 6s linear 1 both;
+}
+@property --jr-sweep { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
+@keyframes jr-sweep { from { --jr-sweep: 0%; } to { --jr-sweep: 100%; } }
+.jr-cell[data-state='unconfirmed'] .jr-word { color: var(--ink-1); font-weight: 700; }
+.jr-cell[data-state='confirmed'] .jr-word { color: var(--ink-1); }
+
+/* the cover: a hinged plate over the icon row of a heavy-load channel */
+.jr-cover {
+  position: absolute; left: 6px; right: 6px; top: 29px; height: 44px; z-index: 2; display: flex; align-items: center; justify-content: center; padding: 0 6px;
+  border: 1px solid var(--edge-ui); border-radius: 8px 8px 4px 4px; color: var(--ink-1); cursor: pointer;
+  font: 700 11px/1.1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.05em; text-align: center;
+  background: repeating-linear-gradient(135deg, var(--surface-raised-hi, var(--surface-raised)) 0 8px, var(--surface-sunk) 8px 16px);
+  box-shadow: var(--elev-raised, none);
+  transform-origin: 50% 0; transition: transform 160ms var(--ease-standard, ease), opacity 160ms var(--ease-standard, ease);
+}
+.jr-cover[data-needed='false'] { pointer-events: none; left: auto; right: 10px; top: 36px; width: auto; height: 22px; padding: 0 8px; background: transparent; box-shadow: none; border-style: dashed; border-radius: 6px; cursor: default; color: var(--ink-2); }
+.jr-cover[data-open='true'] { transform: perspective(240px) rotateX(-64deg); opacity: 0.4; }
+.jr-cover span { pointer-events: none; }
+
+/* ------------------------------------------------------------------ the board plate */
+.jr-board {
+  position: relative; display: grid; grid-template-rows: 44px auto auto auto 1fr; row-gap: 6px; padding: 8px 14px 14px; min-width: 0; min-height: 0;
+  background: var(--surface-faceplate, var(--surface-ground)); border: 1px solid var(--edge-ui);
+  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: 20px; box-shadow: var(--elev-raised, none);
+}
+.jr-board-list { margin: 0; display: grid; gap: 2px; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); }
+.jr-board-list > div { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 24px; }
+.jr-board-list dt { color: var(--ink-2); letter-spacing: 0.06em; }
+.jr-board-list dd { margin: 0; color: var(--ink-1); display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jr-lcd { margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); color: var(--ink-1); font: 600 14px/1.35 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.12em; white-space: pre; overflow: hidden; }
+.jr-board-problems { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font: 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); }
+.jr-board-problems li { display: flex; gap: 6px; align-items: flex-start; }
+.jr-alloff { position: relative; align-self: end; }
+.jr-alloff .jr-alloff-key.k-key { width: 100%; height: 56px; flex-direction: row; gap: 10px; border-radius: 14px; box-shadow: var(--elev-recessed, none); }
+.jr-alloff-word { font: 650 14px/1 var(--font-ui, system-ui, sans-serif); }
+.jr-alloff-count { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.jr-alloff-key[data-empty='true'] .jr-alloff-count { color: var(--ink-3); }
+.jr-pop { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); z-index: 6; display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--edge-ui); border-radius: 14px;
+  background: var(--surface-raised); color: var(--ink-1); box-shadow: var(--elev-float, var(--elev-raised, none)); }
+.jr-pop-head { margin: 0; font: 650 13px/1.3 var(--font-ui, system-ui, sans-serif); }
+.jr-pop-list { margin: 0; padding: 0 0 0 18px; font: 13px/1.5 var(--font-ui, system-ui, sans-serif); max-height: 96px; overflow: hidden; }
+.jr-pop-go.k-key { width: 100%; height: 48px; flex-direction: row; gap: 8px; }
+
+/* ------------------------------------------------------------------ the bottom row */
+.jr-bottom { grid-column: 1 / -1; display: grid; grid-template-columns: 400px minmax(0, 1fr); gap: 16px; min-height: 0; }
+.jr-day { display: grid; grid-template-rows: 28px minmax(0, 1fr); justify-items: center; padding: 8px 12px 10px; min-height: 0; min-width: 0;
+  background: var(--surface-ground); border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: 20px; box-shadow: var(--elev-raised, none); }
+.jr-day-head { justify-self: start; align-self: center; }
+.jr-lower { display: grid; grid-template-rows: auto minmax(0, 1fr) 44px; gap: 10px; min-width: 0; min-height: 0; }
+.jr-modes { display: grid; gap: 6px; }
+.jr-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.jr-armed { margin: 0; display: flex; align-items: center; gap: 6px; font: 600 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); }
+.jr-strip { color: var(--ink-1); white-space: pre; }
+.jr-strip-legend { color: var(--ink-2); }
+.jr-lower .g-well { height: 100%; min-height: 0; border-radius: 14px; box-shadow: var(--elev-recessed, none); padding: 10px 14px; overflow: hidden; }
+.jr-log-line { font: 12px/1.45 var(--font-mono, ui-monospace, monospace); }
+.jr-log-tag { color: var(--ink-1); font-weight: 650; }
+.jr-log-lamp { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-2); }
+.jr-log-line[data-state='fault'] .jr-log-text { color: var(--ink-1); font-weight: 700; }
+.jr-voice { width: 100%; border-collapse: collapse; font: 12px/1.35 var(--font-ui, system-ui, sans-serif); }
+.jr-voice td { padding: 3px 8px 3px 0; vertical-align: top; }
+.jr-voice td:first-child { font-family: var(--font-mono, ui-monospace, monospace); color: var(--ink-1); white-space: nowrap; }
+.jr-voice td:last-child { color: var(--ink-2); }
+.jr-dropup .ww-fold-body { max-height: 300px; overflow: hidden; }
+
+/* the ASCII ruler under the log: a caret sweeps it in 36 steps over 7 s; reduced motion and calm hold it at the middle */
+.jr-ruler { display: block; margin-top: 6px; font: 11.5px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-3); white-space: pre; overflow: hidden; }
+.jr-ruler-caret { display: inline-block; color: var(--ink-1); animation: jr-scan 7s steps(36, end) infinite alternate; }
+@keyframes jr-scan { from { transform: translateX(0); } to { transform: translateX(35ch); } }
+@media (prefers-reduced-motion: reduce) { .jr-ruler-caret { animation: none; transform: translateX(17ch); } }
+:root[data-motion='calm'] .jr-ruler-caret { animation: none; transform: translateX(17ch); }
+
+/* ------------------------------------------------------------------ the day ring */
+.jr-ring { margin: 0; display: grid; justify-items: center; align-content: start; gap: 0; min-width: 0; }
+.jr-ring svg { display: block; touch-action: none; }
+.jr-ring-ticks line { stroke: var(--ink-3); stroke-width: 1; }
+.jr-ring-ticks line[data-hour] { stroke: var(--ink-2); stroke-width: 1.4; }
+.jr-ring-ticks line[data-six] { stroke: var(--ink-1); stroke-width: 2; }
+.jr-ring-hours text { font: 600 12px var(--font-mono, ui-monospace, monospace); fill: var(--ink-2); }
+.jr-ring-track { stroke: var(--edge-hair); stroke-width: 1; }
+.jr-ring-lane-track { stroke: var(--edge-hair); stroke-width: 6; }
+.jr-ring-lane path { stroke: var(--ink-2); stroke-width: 8; stroke-linecap: round; }
+.jr-ring-lane[data-kind='night'] path { stroke: var(--ink-1); }
+.jr-ring-lane[data-state='waiting'] path { stroke-dasharray: 3 6; }
+.jr-ring-empty { stroke: var(--edge-ui); stroke-width: 6; stroke-dasharray: 2 8; stroke-linecap: round; }
+.jr-ring-now { stroke: var(--ink-1); stroke-width: 3; stroke-linecap: round; }
+.jr-ring-hit { fill: transparent; cursor: grab; }
+.jr-ring-cap { fill: var(--surface-raised); stroke: var(--ink-1); stroke-width: 2; }
+.jr-ring-cap[data-previewing='true'] { stroke-dasharray: 3 3; fill: var(--surface-sunk); }
+.jr-ring-handle:focus-visible { outline: none; }
+.jr-ring-handle:focus-visible .jr-ring-cap { stroke: var(--focus-ring); stroke-width: 4; }
+.jr-ring-big { font: 650 30px var(--font-mono, ui-monospace, monospace); fill: var(--ink-1); letter-spacing: 0.02em; }
+.jr-ring-big[data-preview='true'] { fill: var(--ink-1); }
+.jr-ring-cap-word { font: 700 12px var(--font-mono, ui-monospace, monospace); letter-spacing: 0.16em; fill: var(--ink-2); }
+.jr-ring-cap-word[data-preview='true'] { fill: var(--ink-1); }
+.jr-ring-sub { font: 12px var(--font-mono, ui-monospace, monospace); fill: var(--ink-2); }
+.jr-ring-cap-line { margin: 2px 0 0; min-height: 28px; max-width: 360px; text-align: center; font: 11.5px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.jr-ring-prev { display: inline-flex; align-items: flex-start; gap: 6px; text-align: left; color: var(--ink-1); }
+.jr-ring-prev svg { flex: none; margin-top: 1px; }
+
+/* ------------------------------------------------------------------ rules */
+.jr-rules { grid-template-columns: 640px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.jr-gates { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 10px; min-height: 0; }
+.jr-side { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto auto; gap: 12px; min-height: 0; min-width: 0; }
+.jr-gate { display: grid; grid-template-rows: 36px minmax(0, 1fr) auto; row-gap: 6px; padding: 8px 14px 10px; min-width: 0; min-height: 0; overflow: hidden;
+  background: var(--surface-ground); border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: 18px; box-shadow: var(--elev-raised, none); }
+.jr-gate[data-hollow='true'] { border-style: dashed; box-shadow: none; }
+.jr-gate-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.jr-gate-title { margin: 0; font: 650 13px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
+.jr-gate-lamp { display: inline-flex; align-items: center; gap: 6px; font: 11.5px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); min-width: 0; flex: 1 1 0; overflow: hidden; }
+.jr-gate-lamp b { color: var(--ink-1); font-weight: 650; }
+.jr-gate-reason { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.jr-gate-lead { margin-left: auto; flex: none; }
+.jr-gate-art { display: grid; grid-template-columns: minmax(0, 1fr) 50px 190px; align-items: stretch; min-height: calc(var(--rows, 1) * 28px); min-width: 0; }
+.jr-gate-in { margin: 0; padding: 0; list-style: none; display: grid; grid-auto-rows: 1fr; min-width: 0; }
+.jr-gate-in li { display: flex; align-items: center; gap: 8px; min-width: 0; font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
+.jr-gate-label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; letter-spacing: 0.03em; }
+.jr-gate-not { font: 700 11px/1 var(--font-mono, ui-monospace, monospace); padding: 2px 4px; border: 1px solid var(--ink-2); border-radius: 8px; font-style: normal; color: var(--ink-2); }
+.jr-gate-holds { color: var(--ink-2); white-space: nowrap; font-size: 11.5px; }
+.jr-gate-in li[data-holds='no'] .jr-gate-holds { color: var(--ink-1); font-weight: 700; }
+.jr-gate-wire { flex: 1 1 8px; min-width: 8px; height: 0; border-bottom: 2px solid var(--ink-3); }
+.jr-gate-in li[data-holds='unknown'] .jr-gate-wire { border-bottom-style: dashed; }
+.jr-gate-sym { width: 100%; height: 100%; display: block; }
+.jr-gate-sym path { fill: var(--surface-raised); stroke: var(--ink-2); stroke-width: 2; }
+.jr-gate[data-state='live'] .jr-gate-sym path, .jr-gate[data-state='simulated'] .jr-gate-sym path { stroke: var(--ink-1); }
+.jr-gate[data-state='planned'] .jr-gate-sym path { stroke-dasharray: 4 4; fill: none; }
+.jr-gate-and { grid-column: 2; grid-row: 1; place-self: center; font: 700 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; color: var(--ink-1); pointer-events: none; }
+.jr-gate-sym { grid-column: 2; grid-row: 1; }
+.jr-gate-out { grid-column: 3; grid-row: 1; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.jr-gate-out .jr-gate-wire { flex: 0 0 16px; min-width: 16px; }
+.jr-gate-out-text { font: 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); min-width: 0; }
+.jr-gate-foot { display: flex; align-items: center; gap: 12px; min-height: 44px; min-width: 0; }
+.jr-gate-last { font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); min-width: 0; flex: 1 1 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jr-gate-last b { color: var(--ink-1); letter-spacing: 0.06em; margin-right: 6px; }
+.jr-gate-foot-ctl { flex: none; display: inline-flex; align-items: center; }
+.jr-foot-keys { display: inline-flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
+.jr-quiet { display: inline-flex; gap: 8px; align-items: center; }
+.jr-quiet .ww-field { width: 124px; }
+.jr-quiet .ww-field-label { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.jr-quiet .ww-input { padding: 0 8px; font-size: 13px; }
+.jr-gate .ww-btn { min-height: 44px; padding: 0 12px; }
+
+/* modes and the hardware setting */
+.jr-modes-panel { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 8px; padding: 10px 14px 12px; min-height: 0; min-width: 0; overflow: hidden;
+  background: var(--surface-ground); border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: 18px; box-shadow: var(--elev-raised, none); }
+.jr-panel-head { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.jr-panel-head .jr-note { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jr-mode-list { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; align-content: start; }
+.jr-mode-list[data-many='true'] { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 14px; }
+.jr-mode-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 44px 44px; align-items: center; column-gap: 8px; min-height: 52px; }
+.jr-mode-list[data-many='true'] .jr-mode-row { min-height: 48px; }
+.jr-mode-strip { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.12em; color: var(--ink-1); white-space: pre; }
+.jr-mode-list[data-many='true'] .jr-mode-strip { display: none; }
+.jr-mode-name { display: grid; gap: 2px; min-width: 0; }
+.jr-mode-name b { font: 650 13px/1.2 var(--font-ui, system-ui, sans-serif); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jr-mode-detail { font: 11.5px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jr-mode-row[data-last='true'] .jr-mode-name b::after { content: ' ·'; color: var(--ink-2); }
+.jr-editor { display: grid; gap: 8px; align-content: start; min-height: 0; }
+.jr-editor-head { display: flex; align-items: center; justify-content: space-between; }
+.jr-editor-devices { display: flex; flex-wrap: wrap; gap: 8px; }
+.jr-hw { display: grid; gap: 6px; padding: 10px 14px 12px; background: var(--surface-ground); border: 1px solid var(--edge-ui); border-radius: 18px; box-shadow: var(--elev-raised, none); }
+.jr-hw .jr-tag { margin-bottom: 2px; }
+
+/* the heavy-load flags: the same switches the keys' Trim holds, listed where the rules are */
+.jr-heavy { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; padding: 10px 14px 12px; background: var(--surface-ground); border: 1px solid var(--edge-ui);
+  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: 18px; box-shadow: var(--elev-raised, none); }
+.jr-heavy-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 16px; }
+.jr-heavy-grid .k-switch-wrap { min-height: 44px; }
+:root[data-theme^='clay'] .jr .ww-chip[aria-pressed='true'] { background: var(--selected-fill); color: var(--selected-ink); }
+
+/* drawers */
+.jr-drawer-body { display: grid; gap: 10px; align-content: start; color: var(--ink-1); }
+.jr-drawer-h { margin: 6px 0 0; font: 650 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; text-transform: uppercase; }
+.jr-drawer-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.jr-nudge { display: grid; gap: 4px; }
+.jr-nudge-top { font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.jr-nudge-text { font: 13px/1.4 var(--font-ui, system-ui, sans-serif); }
+.jr-heavy-list { display: grid; gap: 4px; }
+
+/* ------------------------------------------------------------------ one column below 900 px */
+@media (max-width: 899px) {
+  .jr { display: flex; flex-direction: column; gap: 12px; overflow-x: hidden; overflow-y: auto; padding: 8px 16px 0; }
+  .jr-plate-slot { order: 1; flex: none; }
+  .jr-face-plate { height: auto; grid-template-rows: 44px auto; }
+  .jr-plate-body { grid-template-columns: minmax(0, 1fr); }
+  .jr-dial { display: none; }
+  .jr-keys { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: 116px; }
+  .jr-board { display: contents; }
+  .jr-board > * { order: 3; }
+  .jr-board > .jr-plate-head { background: transparent; }
+  .jr-bottom { order: 4; display: flex; flex-direction: column; gap: 12px; flex: none; }
+  .jr-day { padding: 8px 8px 10px; }
+  .jr-lower { grid-template-rows: auto 150px 44px; }
+  .jr-alloff { order: 9; position: sticky; bottom: 0; z-index: 5; padding: 8px 0 10px; background: var(--surface-ground); align-self: stretch; }
+  .jr-stamp { position: static; order: 2; }
+  .jr-strip-legend { display: none; }
+  .jr-rules { grid-template-columns: minmax(0, 1fr); }
+  .jr-gates { grid-template-rows: none; grid-auto-rows: auto; }
+  .jr-gates, .jr-side { flex: none; }
+  .jr-gate { overflow: visible; grid-template-rows: auto auto auto; }
+  .jr-gate-head { flex-wrap: wrap; }
+  .jr-gate-lamp { flex-basis: 100%; order: 3; }
+  .jr-gate-art { grid-template-columns: minmax(0, 1fr) 44px; row-gap: 6px; }
+  .jr-gate-label { white-space: normal; }
+  .jr-gate-sym, .jr-gate-and { grid-column: 2; grid-row: 1; }
+  .jr-gate-out { grid-column: 1 / -1; grid-row: 2; }
+  .jr-panel-head .jr-note { display: none; }
+  .jr-heavy-grid { grid-template-columns: minmax(0, 1fr); }
+  .jr-modes-panel { grid-template-rows: auto auto; }
+  .jr-quiet { flex-wrap: wrap; }
+  .jr-gate-foot { flex-wrap: wrap; }
+  .jr-gate-last { flex-basis: 100%; white-space: normal; }
+  .jr-side { grid-template-rows: none; }
+  .jr-mode-list { grid-template-columns: minmax(0, 1fr); }
+  .jr-dropup .ww-fold[data-open='true'] .ww-fold-body { position: static; max-height: none; }
+}
+
+/* motion: the sweep and the cover tilt are the only moving parts; reduced motion and calm show their end state */
+@media (prefers-reduced-motion: reduce) {
+  .jr *, .jr-drawer-body * { transition: none !important; animation: none !important; }
+  .jr-cover[data-open='true'] { transform: none; opacity: 0.2; }
+}
+:root[data-motion='calm'] .jr *, :root[data-motion='calm'] .jr-drawer-body * { transition: none !important; animation: none !important; }
+@media (forced-colors: active) {
+  .jr-cell .jr-cap.k-key, .jr-cover, .jr-gate, .jr-face-plate, .jr-board, .jr-day, .jr-modes-panel, .jr-hw, .jr-pop { border: 1px solid CanvasText; forced-color-adjust: auto; }
+  .jr-ring-lane path, .jr-ring-now, .jr-gate-sym path { stroke: CanvasText; }
+}

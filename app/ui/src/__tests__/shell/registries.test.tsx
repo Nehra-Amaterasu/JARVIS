@@ -70,8 +70,9 @@ describe('shell/views/*.view.ts', () => {
 
     it('an id with no registration and no host shows the PLANNED plate', () => {
       m = mount(createElement(ShellV2, { pages: {}, wwRoot: null, verbs: [], serverUp: true }))
-      act(() => useShell.getState().go({ product: 'ww', section: 'day', view: 'month' }))
-      const plate = m.container.querySelector('[data-notbuilt="day.month"]')
+      // day.week has no registration yet (day.month got one on 15 Nov, which is why this test moved off it)
+      act(() => useShell.getState().go({ product: 'ww', section: 'day', view: 'week' }))
+      const plate = m.container.querySelector('[data-notbuilt="day.week"]')
       expect(plate).not.toBeNull()
       expect(plate!.querySelector('[data-lamp="planned"], .lamp')).not.toBeNull()
     })

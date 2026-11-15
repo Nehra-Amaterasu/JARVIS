@@ -16,10 +16,15 @@ import { dirname, join, relative, resolve, sep } from 'node:path'
 const LAZY_WW_MOUNTS = [
   'shell/views/day-today.view.ts',
   'shell/views/day-month.view.ts',
+  'shell/views/focus-start.view.ts',
+  'shell/views/focus-session.view.ts',
+  'shell/views/focus-rest.view.ts',
+  'shell/views/focus-drill.view.ts',
   'shell/views/study-papers.view.ts',
   'gallery/entries/L01.tsx',
   'gallery/entries/L04.tsx',
   'gallery/entries/Y01.tsx',
+  'gallery/entries/Y02.tsx',
 ]
 
 const SRC = resolve(__dirname, '..', '..')

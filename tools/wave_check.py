@@ -256,6 +256,11 @@ def check_routes(root: Path, plan: Path | None = None) -> list[str]:
     if not plan.is_file():
         return [f"{ENGINE_PLAN} is missing, so no adapter route can be checked"]
     known = plan_routes(plan.read_text(encoding="utf-8"))
+    # Routes that were merged before the plan file existed are listed in the docstring table of their routes file
+    # (the app's own route-drift gate keeps those tables true). An adapter may call them too: on 15 Nov the first real
+    # adapter was refused for /api/mission/academics and /api/mission/exams, both in routes_mission.py since October.
+    for rf in sorted((root / "app" / "jarvis_app").glob("routes_*.py")):
+        known |= plan_routes(rf.read_text(encoding="utf-8", errors="replace"))
     out: set[str] = set()
     for f in files:
         for m in _ROUTE_RX.finditer(f.read_text(encoding="utf-8", errors="replace")):

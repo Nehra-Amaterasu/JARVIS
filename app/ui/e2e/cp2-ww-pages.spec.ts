@@ -93,7 +93,9 @@ const PROBE = `(() => {
     if ((r.width < 43.5 || r.height < 43.5) && !via) out.targets.push(nm(el) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height))
   }
   for (const el of root.querySelectorAll('*')) {
-    if (el.children.length === 0 && (el.textContent || '').trim().length > 0 && vis(el)) {
+    // text made only of zero-width characters is a layout strut, not something to read: the maths renderer puts a
+    // 1 px one inside every formula (span.vlist-s), which this probe reported as small text on the library page
+    if (el.children.length === 0 && (el.textContent || '').replace(/[​-‍⁠﻿]/g, '').trim().length > 0 && vis(el)) {
       const cs = getComputedStyle(el); const fs = parseFloat(cs.fontSize)
       if (fs < 10.95) out.small.push(nm(el) + ' ' + fs + 'px')
       if ((cs.overflowX === 'hidden' || cs.overflowX === 'clip') && el.scrollWidth > el.clientWidth + 1 && cs.textOverflow === 'ellipsis') out.ellipsis.push(nm(el))

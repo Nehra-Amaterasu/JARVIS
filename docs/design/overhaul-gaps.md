@@ -54,3 +54,40 @@ How to use: a builder, reviewer or juror who finds a shortfall adds a row. The p
 | 18 | Tree | Top labels clipped by the stage; Career notes orphan a letter on the last line | CP2 review |
 | 19 | Native select | Its popup is checked by computed colours only, never seen | VIS1 review |
 | 20 | Evidence | Whole-product jury rerun owed after part B | integrator |
+
+## D. Asked for and not yet in the product (audit of 15 Nov 2026)
+
+Source: a read of the compacted chats and the owner's direction notes against the plan files and the merged code on 15 Nov. These rows are to be fixed later, not now: the build of part B comes first, then the polish of part C, then these. "Needs a package" means no wave in 15.6.1 or the reserve list (21.9) names it.
+
+| id | Area | Asked for (neutral words) | Status on 15 Nov | Package or wave |
+|---|---|---|---|---|
+| D1 | JARVIS Core | The voice picture moves with the real voice level and rests as a formed still | PARTLY: still image; Python half of B07 merged | B07 UI half (needs a wave slot) |
+| D2 | JARVIS Core / Memory | Choose the span, format or one chat when exporting chats | NO HOME (parity O1b) | engine route plus J04 |
+| D3 | JARVIS Core / Console | An outside agent can ask JARVIS what was said about a topic (read-only, token-guarded) | NO HOME (parity O2) | engine route plus J04 and J05 |
+| D4 | JARVIS Core | Rate a whole chat, not only single replies | NO HOME (parity O3) | engine verdict record plus J01 follow-up |
+| D5 | JARVIS Core | The pronunciation table and the media plate and library inside Core | PARTLY: reachable only in classic pages | J01 reopened or a new sound package (needs a package) |
+| D6 | JARVIS Room | Relay pins editable in a compact form with a confirm step | BUILT (RW1); the Room section itself is still classic | J02 (UW9) |
+| D7 | JARVIS Senses | Aankhen section with the shared components and its charts | classic page hosted | J03 (UW11) |
+| D8 | JARVIS Memory | New interactive Yaadash components; weekly review and corrections | classic page hosted; review is reserve | J04 (UW10), JH07 (reserve) |
+| D9 | JARVIS Console | Terminal-style console, crew roster, connections and hardware | classic page hosted | J05 (UW10) |
+| D10 | JARVIS agents | An agents console, scene and rule engine, devices and energy view, briefing drawer, notices | reserve list only; no `core/agents` or `core/rules` code | JH02, JH05, JH09 to JH11 (reserve; needs a scheduled wave) |
+| D11 | Well Wisher Day | Week, body (gym, water, medicines) and day-close views | classic page hosted | L03 (UW9) |
+| D12 | Well Wisher Day | The month calendar redrawn to the Focus ring's quality, with a link to the user's own calendar | PARTLY: Month built; calendar link planned | gap C2; E13 (UW12) |
+| D13 | Well Wisher Study | Intake desk for notes, decks and scans | builder cut off; checkpointed | C03 relaunch, then AD09 (UW9) |
+| D14 | Well Wisher Study | Question-paper generator reviewed and merged; tested on one real paper | built, review owed | X03 integration; owner smoke test |
+| D15 | Well Wisher Study | Scanned pages read by OCR, drafts that wait for acceptance, a question harvester, a Classroom export door | planned, work paused | EW8 relaunch |
+| D16 | Well Wisher Study | Spaced review of mistakes | planned | X09, EW9 |
+| D17 | Well Wisher Study | Study plan and practice, library and the dMAT view | classic pages tidied; dMAT view has no owner | Y03 (propose Y03 for study.dmat) |
+| D18 | Well Wisher Classroom | Read classes, notes and deadlines from the user's Classroom | planned; no OAuth client yet | C06 (EW9), C08 (UW11), AD11 (UW12); owner sign-in |
+| D19 | Well Wisher Tree | Ten expanded skill trees with imagery; keyboard navigation; in-app links | pages tidied only | T01 (UW9), E10, E11 (UW12) |
+| D20 | Well Wisher Career | Revamp: internships, jobs, courses abroad, certificates, money plan | page tidied only | T02 (UW10) |
+| D21 | Well Wisher habits | Counters, impulse tracking and ranking views | classic counters only; desks deferred | H04, H05 (reserve) |
+| D22 | Well Wisher spending | Daily spending view | engine exists; desk deferred | H08 (reserve) |
+| D23 | Well Wisher shelf | Books, music and media with explain-back | NOT PLANNED beyond a deferred shelf | H06, H07 (reserve); media parts need a package |
+| D24 | Well Wisher planners | Holiday and equipment planners | NOT PLANNED | needs a package |
+| D25 | Well Wisher mail | Read the user's mail and take basic actions on it | NOT PLANNED | needs a package |
+| D26 | Yaadash into Well Wisher | The planner and counsel use stored memory | NOT PLANNED as work; only a shared memory port in the spec | needs a package (engine, then adapter) |
+| D27 | Phone | Well Wisher Study page and the phone companion tabs | partial web page; companion is reserve | B09 (UW13), JH08, DB10 (reserve); Study page needs a package |
+| D28 | Dashboards | Dashboards for every section | 4 forms built | DB05 to DB09 (UW10, UW11) |
+| D29 | Whole application | Retire the old layout after the owner's OK | not started | B13 (UW14) |
+| D30 | Verification | One jury and one verification wave after the build; the pass line 8.0 has not been reached | owed by the 15 Nov decision | Q01 to Q04 (UW14) and the polish pass |

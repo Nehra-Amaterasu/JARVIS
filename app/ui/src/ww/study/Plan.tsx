@@ -10,6 +10,7 @@ import { Button, Card, EmptyState, Fold, Row } from '../kit'
 import { switchWorkspace } from '../frame/navigate'
 import { fmtMin } from './format'
 import { useStudy } from './studyStore'
+import './plan/plan.css'
 
 const SLOT_WORD: Record<string, string> = { library: 'Library', evening: 'Evening', weekend: 'Weekend', extra: 'Extra', quest: 'Quest' }
 

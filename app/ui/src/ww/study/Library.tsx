@@ -10,12 +10,17 @@ import { loadBank } from '../../germoney/data/bank'
 import { usePlan } from '../../germoney/game/plan'
 import { useStudyNode, type StudyAnswer } from '../../germoney/pages/Study'
 import type { LearnAnswer } from '../../germoney/pages/Today'
-import { Button, Card, EmptyState, Field } from '../kit'
+import { Button, Card, EmptyState, Field, Fold } from '../kit'
 import { useFrame } from '../frame/frameStore'
 import { resolveSeason, type ServerSeason } from '../frame/season'
 import { MathText } from '../math/MathText'
 import { Planned } from '../Planned'
+import { inShell } from '../tree/inShell'
 import { fmtMin } from './format'
+import './library/library.css'
+
+/** Resources shown before the fold under the new shell. */
+const SHOWN = 2
 
 function Concept() {
   const [l, setL] = useState<LearnAnswer | null | 'failed'>(null)
@@ -71,6 +76,7 @@ function NodeStudy() {
   const [what, setWhat] = useState('')
   const [minutes, setMinutes] = useState('45')
   const [say, setSay] = useState<string | null>(null)
+  const [shell] = useState(inShell)   // under the new shell the list shows two resources and folds the rest (one canvas at 1366x768)
   const reload = () => api<StudyAnswer>(`/api/mission/study/${encodeURIComponent(id)}`).then(setA).catch(() => setA('failed'))
   useEffect(() => { if (id) void reload() }, [id])   // eslint-disable-line react-hooks/exhaustive-deps
   const open = useMemo(() => bank.order.filter((n) => statuses?.[n] === 'in_progress' || statuses?.[n] === 'available'), [bank, statuses])
@@ -99,7 +105,7 @@ function NodeStudy() {
           <p className="ww-papers-line" data-stage="">Stage: {a.stage ?? 'not started'}{a.next ? `. Next: ${a.next.title}${a.next.minutes ? `, ${fmtMin(a.next.minutes)}` : ''}.` : ''}</p>
           <ul className="ww-resources" aria-label="Resources">
             {res.length === 0 && <li className="ww-papers-line">No resource is listed for this node.</li>}
-            {res.map((r) => {
+            {(shell ? res.slice(0, SHOWN) : res).map((r) => {
               const on = a.primary?.id === r.id
               const meta = [r.kind, r.free ? 'free' : '', r.hours ? `about ${r.hours} h` : ''].filter(Boolean).join(' · ')
               return (
@@ -116,6 +122,22 @@ function NodeStudy() {
               )
             })}
           </ul>
+          {shell && res.length > SHOWN && (
+            <Fold title={`${res.length - SHOWN} more ${res.length - SHOWN === 1 ? 'resource' : 'resources'}`} level={4}>
+              <ul className="ww-resources" aria-label="More resources">
+                {res.slice(SHOWN).map((r) => (
+                  <li key={r.id} className="ww-resource" data-resource={r.id}>
+                    <span className="ww-resource-title">{r.title}</span>
+                    <span className="ww-resource-meta">{[r.kind, r.free ? 'free' : '', r.hours ? `about ${r.hours} h` : ''].filter(Boolean).join(' · ')}</span>
+                    <span className="ww-log-acts">
+                      {r.url ? <a className="ww-btn ww-tap quiet ww-link" data-size="sm" href={r.url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${r.title}`}>Open</a> : <span className="ww-resource-meta">no link</span>}
+                      <Button size="sm" onClick={() => void post<StudyAnswer>(`/api/mission/study/${encodeURIComponent(id)}/primary`, { resource: r.id }).then(setA)}>Use this one</Button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Fold>
+          )}
           <Planned id="resource-progress" hint />
           <form className="ww-studylog" onSubmit={(e) => { e.preventDefault(); if (what.trim()) void log() }}>
             <Field label="What you studied" value={what} onChange={(e) => setWhat(e.target.value)} />

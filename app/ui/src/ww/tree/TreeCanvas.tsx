@@ -20,6 +20,8 @@ import { PREF_SENS, readSensitivity, writePref } from '../../germoney/tree/prefs
 import { workspaceMemory } from '../frame/workspaceMemory'
 import { Button, Chip, CoachMark, CursorLabel, IconButton, Popover } from '../kit'
 import { StudyPrimary } from './Inspector'
+import { BranchMenu, Panel } from './ShellBars'
+import { inShell } from './inShell'
 import { decodeView, encodeView } from './scene'
 import { K_FOCUS, parseBox, useViewport } from './viewport'
 
@@ -125,6 +127,8 @@ export function TreeCanvas({ treeId, bank, status, career, switcher, viewExtra, 
   const [query, setQuery] = useState('')
   const [hit, setHit] = useState(0)
   const [menu, setMenu] = useState(false)
+  const [shell] = useState(inShell)   // under the new shell the branch chips fold behind one key (ShellBars.tsx); the classic page keeps its row
+  const Pop = shell ? Panel : Popover   // Panel: the portaled kit popover loses the shell's inks (ShellBars.tsx)
   const [sensUi, setSensUi] = useState(readSensitivity)
   const sens = useRef(sensUi)
   const refs = useRef<Record<string, SVGGElement | null>>({})
@@ -247,7 +251,7 @@ export function TreeCanvas({ treeId, bank, status, career, switcher, viewExtra, 
   const nextP = next ? layout.byId[next] : null
   const showPanel = open && !!sel && !!bank.nodes[sel]
   return (
-    <div className="ww-tree" data-docked={docked ? 'true' : 'false'} data-tree={treeId} onKeyDown={onPageKey}>
+    <div className="ww-tree" data-docked={docked ? 'true' : 'false'} data-tree={treeId} data-shell-bars={shell ? 'true' : undefined} onKeyDown={onPageKey}>
       <div className="ww-tree-bar" role="toolbar" aria-label="Tree view">
         <div className="ww-tree-switch">{switcher}</div>
         <div className="ww-tree-find">
@@ -270,10 +274,13 @@ export function TreeCanvas({ treeId, bank, status, career, switcher, viewExtra, 
           <span className="ww-tree-zoomtext" ref={vp.zoomText} aria-live="off">100%</span>
           <IconButton label="Zoom in" size="sm" grouped onClick={vp.zoomIn}><Plus size={16} aria-hidden="true" /></IconButton>
         </div>
-        <Button size="sm" grouped onClick={() => vp.fit()} title="Fit the whole tree (F or 0)"><Maximize2 size={16} aria-hidden="true" />Fit</Button>
+        {shell
+          ? <IconButton label="Fit the whole tree (F or 0)" size="sm" grouped onClick={() => vp.fit()}><Maximize2 size={16} aria-hidden="true" /></IconButton>
+          : <Button size="sm" grouped onClick={() => vp.fit()} title="Fit the whole tree (F or 0)"><Maximize2 size={16} aria-hidden="true" />Fit</Button>}
         <Button size="sm" grouped onClick={() => go(next)} disabledReason={next ? undefined : 'Nothing is open or in progress.'} title="Jump to what is next (N)"><Crosshair size={16} aria-hidden="true" />Next</Button>
+        {shell && <BranchMenu options={chips.map((c) => ({ id: c.name, label: c.label, count: `${c.mastered}/${c.total}` }))} stats={stats} onPick={(n) => { const c = chips.find((x) => x.name === n); if (c) zoomBranch(c) }} />}
         <span ref={gear}><IconButton label="View settings" size="sm" grouped aria-expanded={menu} onClick={() => setMenu((m) => !m)}><SlidersHorizontal size={16} aria-hidden="true" /></IconButton></span>
-        <Popover open={menu} onClose={() => setMenu(false)} anchor={gear} label="View settings">
+        <Pop open={menu} onClose={() => setMenu(false)} anchor={gear} label="View settings">
           <div className="ww-tree-menu">
             <label className="ww-tree-sens">
               <span>Zoom sensitivity</span>
@@ -283,8 +290,8 @@ export function TreeCanvas({ treeId, bank, status, career, switcher, viewExtra, 
             {viewExtra}
             <p className="ww-tree-hint">+ / − zoom · 0 fits · arrows move · Enter opens · Esc closes · double-click zooms in</p>
           </div>
-        </Popover>
-        {!showPanel && next && skills && <StudyPrimary id={next} label="Study this node" />}
+        </Pop>
+        {!shell && !showPanel && next && skills && <StudyPrimary id={next} label="Study this node" />}
       </div>
 
       <div className="ww-tree-body">
@@ -312,6 +319,7 @@ export function TreeCanvas({ treeId, bank, status, career, switcher, viewExtra, 
             <span><LegendHex s="in_progress" />In progress {counts.in_progress ?? 0}</span>
             <span><LegendHex s="mastered" />Mastered {counts.mastered ?? 0}</span>
           </div>
+          {shell && !showPanel && next && skills && <div className="ww-tree-cta"><StudyPrimary id={next} label="Study this node" /></div>}
           <CursorLabel />
         </div>
         {(showPanel || docked) && (
@@ -323,11 +331,13 @@ export function TreeCanvas({ treeId, bank, status, career, switcher, viewExtra, 
         )}
       </div>
 
-      <div className="ww-tree-chips" role="group" aria-label="Branches">
-        <span className="ww-kicker">Branches</span>
-        {chips.map((c) => <Chip key={c.name} grouped onClick={() => zoomBranch(c)}>{`${c.label} ${c.mastered}/${c.total}`}</Chip>)}
-        <span className="ww-tree-stats">{stats}</span>
-      </div>
+      {!shell && (
+        <div className="ww-tree-chips" role="group" aria-label="Branches">
+          <span className="ww-kicker">Branches</span>
+          {chips.map((c) => <Chip key={c.name} grouped onClick={() => zoomBranch(c)}>{`${c.label} ${c.mastered}/${c.total}`}</Chip>)}
+          <span className="ww-tree-stats">{stats}</span>
+        </div>
+      )}
     </div>
   )
 }

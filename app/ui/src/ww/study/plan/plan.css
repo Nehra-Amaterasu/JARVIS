@@ -1,0 +1,22 @@
+/* ==========================================================================
+   CP2 (15 Nov): Study > Plan hosted by the new shell. Scoped under .s2, so the classic frame is unchanged.
+   ========================================================================== */
+.s2 .ww-plan {
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--gap-card);
+}
+.s2 .ww-frame[data-density='narrow'] .ww-plan {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* at 390 px the frame's centre row is minmax(0, 1fr) between the Today column and the Proof rail and clips what does
+   not fit (it was 0 px high, so this page was not on screen). While this page is on screen the rows size to their
+   content and the frame, which already scrolls, carries the page. ww/frame/frame.css owns the rule: when it gives the
+   centre its content height at 390, this block is redundant and can go. */
+.s2 .ww-frame[data-density='narrow']:has(.ww-plan) {
+  grid-template-rows: auto auto auto auto;
+}
+.s2 .ww-frame[data-density='narrow']:has(.ww-plan) .ww-centre {
+  overflow: visible;
+}

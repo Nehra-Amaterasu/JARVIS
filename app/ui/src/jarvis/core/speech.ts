@@ -1,10 +1,10 @@
 // The spoken side of Core Talk (parity ledger O4b and O4d): which voice JARVIS uses, how fast, and the table of words he
 // is taught to say differently. The classic page keeps both in ConnectControls; the new Core reaches them through two
-// Trims (SpeechTrims.tsx). No new route: every call is a helper lib/settings.ts already exports (loadVoice, chooseVoice,
+// drawer (SpeechPanel.tsx). No new route: every call is a helper lib/settings.ts already exports (loadVoice, chooseVoice,
 // testVoice, loadPronunciations, setPronunciation, removePronunciation).
 //
-// Why a store and not component state: a Trim's setting is registered once (speech.settings.ts) and read by the palette
-// index and by the Trim's own "Set to" line through a plain `read()`, so the value it reads has to live outside React.
+// Why a store and not component state: the drawer is drawn only while it is open, and its two tabs and the key that opens
+// it all read the same last answer from the server, so that answer lives outside any one component.
 // Why a port: the gallery and the jury page run on fixtures with no server, so the calls are handed in; the fixture port
 // keeps its words in memory and says SIMULATED, it never reaches the network.
 //
@@ -163,14 +163,14 @@ export function createSpeechStore(): SpeechStore {
   return self
 }
 
-/** The one store the registered settings read (speech.settings.ts) and the Trims write. */
+/** The one store the Voice drawer reads and writes. */
 export const speechStore: SpeechStore = createSpeechStore()
 
 export function useSpeech(store: SpeechStore = speechStore): SpeechState {
   return useSyncExternalStore(store.subscribe, store.get, store.get)
 }
 
-/** The words a setting's "Set to" line prints. Empty until the server has answered: never a guessed value. */
+/** The words the drawer's "Now" line prints. Empty until the server has answered: never a guessed value. */
 export function voiceValueText(s: SpeechState): string {
   if (!s.voice) return 'not loaded yet'
   return `${voiceLabel(s.voice, s.voice.chosen)}, ${s.voice.speed.toFixed(2)}×${s.simulated ? ' (fixture)' : ''}`

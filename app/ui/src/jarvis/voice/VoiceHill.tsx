@@ -7,7 +7,7 @@
 //    setTimeout is armed only for the next moment the state can change by time alone (voiceState.nextChangeAt);
 //  - hidden, paused and reduced motion draw nothing; the level bar and the text twin go on at 4 Hz;
 //  - no number without a lamp: the dB text exists only when the lamp state is LIVE or SIMULATED (shared/lamp showsNumber).
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Lamp, showsNumber } from '../../shared/lamp'
 import { levelFill } from './bands'
 import {
@@ -50,6 +50,9 @@ export interface VoiceHillProps {
   /** True while the owner's "Show a 5 s test pattern" button runs it. The component never starts it by itself. */
   testPattern?: boolean
   onTestPatternEnd?: () => void
+  /** Rendered at the end of the strip's second row, after the Pause key: the Core view hangs the voice Trim there, beside
+   *  the picture of the voice it tunes (RP1). Nothing is drawn when absent. */
+  aside?: ReactNode
   className?: string
   /** Test seams: the clock, the rAF functions, and a context factory (happy-dom has no 2D context). */
   clock?: () => number
@@ -476,6 +479,7 @@ export function VoiceHill(props: VoiceHillProps) {
           <button type="button" className="vh-pause" aria-pressed={paused} onClick={() => setPaused((p) => !p)}>
             {paused ? 'Resume voice picture' : 'Pause voice picture'}
           </button>
+          {props.aside}
         </div>
         <p className="vh-legend" data-testid="vh-legend">{legend}</p>
         <div className="vh-meter" ref={meterRef} role="meter" aria-label="Voice level" aria-valuemin={METER_MIN_DB} aria-valuemax={METER_MAX_DB} aria-valuetext="no reading" />

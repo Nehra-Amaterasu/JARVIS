@@ -195,6 +195,7 @@ test.describe('Core v2, the app (flag on)', () => {
         if (a.closest('.jc-mode')) return 'mode'
         if (a.classList.contains('jc-anat-key')) return 'anatomy'
         if (a.classList.contains('vh-pause')) return 'pause'
+        if (a.dataset.testid === 'voice-key') return 'voice'
         if (a.closest('.jc-ribbon')) return 'ribbon'
         if (a.closest('.jc-organs')) return 'organs'
         if (a.closest('.jc-convo-head')) return 'earlier'
@@ -207,7 +208,8 @@ test.describe('Core v2, the app (flag on)', () => {
       if (id === 'send') break
       await page.keyboard.press('Tab')
     }
-    expect(seen).toEqual(['wake', 'mode', 'anatomy', 'pause', 'ribbon', 'organs', 'earlier', 'composer', 'send'])
+    // the Voice key hangs on the strip right after Pause; "Share a review" and Earlier are both in the conversation header ('earlier')
+    expect(seen).toEqual(['wake', 'mode', 'anatomy', 'pause', 'voice', 'ribbon', 'organs', 'earlier', 'composer', 'send'])
     // Alt+I opens Anatomy; Esc closes it and focus comes back
     await page.locator('.jc-wake').focus()
     await page.keyboard.press('Alt+i')
@@ -215,6 +217,55 @@ test.describe('Core v2, the app (flag on)', () => {
     await page.screenshot({ path: shot(`app-1366-dark-anatomy-${TRACK}`) })
     await page.keyboard.press('Escape')
     await expect(page.locator('dialog.jc-drawer[open]')).toHaveCount(0)
+  })
+
+  // RP1, parity ledger O1 and O4b/d: the classic Core page's chat export and voice choice are reachable under the flag.
+  // The sandbox core is asleep and holds no transcripts, so the honest answers are "nothing to write yet" or the route's
+  // own words; whichever comes, the line must name its state with the lamp word and say only what the route answered.
+  test('Share a review and the Voice drawer: keyboard reachable, 44 px, and they say only what the server answered', async ({ page, baseURL }) => {
+    await page.setViewportSize(DESKTOP)
+    await openCore(page, baseURL)
+    const share = page.getByTestId('share-review')
+    const box = (await share.boundingBox())!
+    expect(box.height).toBeGreaterThanOrEqual(44)
+    expect(box.width).toBeGreaterThanOrEqual(44)
+    await expect(page.locator('.jc-review')).toHaveCount(0) // nothing is claimed before a press
+    await share.focus()
+    await page.keyboard.press('Enter')
+    const line = page.locator('.jc-review')
+    await expect(line).toBeVisible()
+    await expect(line).toHaveAttribute('data-phase', /^(done|fault|empty)$/, { timeout: 15_000 })
+    const phase = (await line.getAttribute('data-phase'))!
+    const text = (await line.innerText()).replace(/\s+/g, ' ')
+    expect(text).toMatch(/WAITING|LIVE|FAULT/)
+    if (phase === 'done') expect(text).toMatch(/written to the reviews folder as \S+\.md/)
+    if (phase === 'fault') expect(text).toMatch(/not written: .+/)
+    if (phase === 'empty') expect(text).toMatch(/nothing to write yet/)
+    await page.screenshot({ path: shot(`app-1366-dark-share-review-${phase}-${TRACK}`) })
+
+    const key = page.getByTestId('voice-key')
+    await key.focus()
+    expect((await key.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+    await page.keyboard.press('Enter')
+    const panel = page.locator('.sp-panel')
+    await expect(panel).toBeVisible()
+    await expect(panel.locator('.sp-now-line')).not.toBeEmpty()
+    await expect(panel.locator('select')).toHaveCount(1)
+    await expect(panel.locator('input[type="range"]')).toHaveCount(1)
+    const small = await panel.locator('button, select, input').evaluateAll((els) => els.filter((e) => (e as HTMLElement).offsetParent !== null).map((e) => { const r = (e as HTMLElement).getBoundingClientRect(); return { el: e.tagName + '.' + (e.getAttribute('class') ?? '').slice(0, 24), w: r.width, h: r.height } }).filter((r) => r.h < 44))
+    expect(small).toEqual([])
+    // the parts of the drawer sit one under the other (the Trim popover this replaced drew them over each other) and the body does not scroll
+    const geo = await page.evaluate(() => {
+      const parts = [...document.querySelectorAll('.sp-panel > :not(.sp-tab), .sp-tab > *')].filter((e) => (e as HTMLElement).offsetParent !== null && e.getBoundingClientRect().height > 0).map((e) => { const r = e.getBoundingClientRect(); return { cls: (e.getAttribute('class') ?? e.tagName).slice(0, 24), t: r.top, b: r.bottom } })
+      const body = document.querySelector('dialog.jc-drawer[open] .jc-drawer-body') as HTMLElement
+      return { parts, sh: body.scrollHeight, ch: body.clientHeight }
+    })
+    expect(geo.sh).toBeLessThanOrEqual(geo.ch)
+    for (const p of geo.parts) for (const q of geo.parts) if (p !== q && p.t < q.t) expect(p.b, `${p.cls} runs into ${q.cls}`).toBeLessThanOrEqual(q.t + 0.5)
+    await page.screenshot({ path: shot(`app-1366-dark-voice-drawer-${TRACK}`) })
+    await page.keyboard.press('Escape')
+    await expect(page.locator('dialog.jc-drawer[open]')).toHaveCount(0)
+    await expect(key).toBeFocused()
   })
 
   test('every control of the view is at least 44 x 44 px', async ({ page, baseURL }) => {
@@ -243,6 +294,7 @@ test.describe('Core v2, the app (flag on)', () => {
         cols: getComputedStyle(document.querySelector('.jc')!).gridTemplateColumns.split(' ').length,
         stage: box('.jc-vh .vh-stage'), ring: box('.jc-sigil'), pose: box('.jc-pose'), composer: box('.jc-composer'), rib: box('.jc-ribbon'),
         nodeTops: nodes.map((n) => Math.round(n.top)),
+        head: [...document.querySelectorAll('.jc-convo-head > *')].map((el) => { const r = el.getBoundingClientRect(); return { cls: el.className.toString().slice(0, 24) || el.tagName, l: r.left, r: r.right, t: r.top, b: r.bottom } }),
         small: [...document.querySelectorAll<HTMLElement>('.jc button, .jc input, .jc a[href], .jc [tabindex="0"]')]
           .filter((el) => el.offsetParent !== null && !el.closest('dialog') && !el.classList.contains('jc-turn'))
           .map((el) => ({ el: `${el.tagName}.${el.className.toString().slice(0, 30)}`, w: el.getBoundingClientRect().width, h: el.getBoundingClientRect().height }))
@@ -252,6 +304,16 @@ test.describe('Core v2, the app (flag on)', () => {
     expect(m.sw).toBeLessThanOrEqual(m.iw)
     expect(m.jcW).toBeLessThanOrEqual(m.jcCW)
     expect(m.compact).toBe(true)
+    // RP1: the header carries the title, the count, "Share a review" and Earlier; at 390 px none of them may overlap another
+    for (let i = 0; i < m.head.length; i++) {
+      for (let j = i + 1; j < m.head.length; j++) {
+        const a = m.head[i]
+        const b = m.head[j]
+        const apart = a.r <= b.l + 0.5 || b.r <= a.l + 0.5 || a.b <= b.t + 0.5 || b.b <= a.t + 0.5
+        expect(apart, `header parts ${a.cls} and ${b.cls} overlap`).toBe(true)
+      }
+    }
+    expect(m.head.length).toBeGreaterThanOrEqual(4)
     expect(m.cols).toBe(1)
     // the stage is square and the ring is whole inside it, its words under it, never over it
     expect(Math.abs(m.stage.width - m.stage.height)).toBeLessThanOrEqual(2)

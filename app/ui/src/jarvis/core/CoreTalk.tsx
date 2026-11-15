@@ -29,7 +29,7 @@ import { OrganStrip } from './OrganStrip'
 import { PipelineRibbon } from './PipelineRibbon'
 import { AsciiRuler, Eye, RestHill } from './StageRest'
 import { ReviewStatus, ShareReviewKey, LIVE_REVIEW, useShareReview, type ReviewApi } from './ShareReview'
-import { SpeechTrim } from './SpeechTrim'
+import { SpeechPanel, VoiceKey } from './SpeechPanel'
 import { LIVE_SPEECH, type SpeechPort } from './speech'
 import { useLastRecorded } from './lastRecorded'
 import { Transcript, TurnRow } from './Transcript'
@@ -103,7 +103,7 @@ const uptimeText = (s: number | null | undefined): string | null => {
 }
 
 /* ------------------------------------------------------------------ controls */
-function Controls({ core, busy, onWake, onSleep, mode, setMode, onAnatomy, simulated, speech }: {
+function Controls({ core, busy, onWake, onSleep, mode, setMode, onAnatomy, simulated }: {
   core: CoreInfo | null
   busy: boolean
   onWake: () => void
@@ -112,7 +112,6 @@ function Controls({ core, busy, onWake, onSleep, mode, setMode, onAnatomy, simul
   setMode: (m: 'voice' | 'text') => void
   onAnatomy: () => void
   simulated: boolean
-  speech?: SpeechPort
 }) {
   const running = !!core?.running
   const booting = core?.state === 'booting'
@@ -130,7 +129,8 @@ function Controls({ core, busy, onWake, onSleep, mode, setMode, onAnatomy, simul
     e.preventDefault()
     const next = mode === 'voice' ? 'text' : 'voice'
     setMode(next)
-    requestAnimationFrame(() => (e.currentTarget.querySelector<HTMLElement>(`[data-mode='${next}']`))?.focus())
+    const group = e.currentTarget // React clears currentTarget once the handler returns: the frame callback would read null
+    requestAnimationFrame(() => group.querySelector<HTMLElement>(`[data-mode='${next}']`)?.focus())
   }
   return (
     <div className="jc-controls">
@@ -166,7 +166,6 @@ function Controls({ core, busy, onWake, onSleep, mode, setMode, onAnatomy, simul
         <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="2" fill="currentColor" /><path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3M3.4 3.4l2.1 2.1M10.5 10.5l2.1 2.1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
         Anatomy
       </button>
-      {speech && <SpeechTrim port={speech} simulated={simulated} />}
     </div>
   )
 }
@@ -179,11 +178,15 @@ function restPose(running: boolean, coreView: CoreView): 'asleep' | 'thinking' |
   return null
 }
 
-function Stage({ signal, coreView, running, simulated, motion }: { signal: VoiceSignal; coreView: CoreView; running: boolean; simulated: boolean; motion: 'auto' | 'none' }) {
+function Stage({ signal, coreView, running, simulated, motion, onVoice }: { signal: VoiceSignal; coreView: CoreView; running: boolean; simulated: boolean; motion: 'auto' | 'none'; onVoice?: () => void }) {
   const pose = restPose(running, coreView)
   return (
     <div className="jc-stage" data-running={running ? 'true' : 'false'} data-pose={pose ?? undefined}>
-      <VoiceHill signal={signal} core={coreView} motion={motion} className="jc-vh" strip="core" simulated={simulated} />
+      {/* the Voice key hangs at the end of the strip, beside the picture of the voice it tunes (the controls row has no room) */}
+      <VoiceHill
+        signal={signal} core={coreView} motion={motion} className="jc-vh" strip="core" simulated={simulated}
+        aside={onVoice ? <VoiceKey onOpen={onVoice} /> : undefined}
+      />
       {/* over the stage only (the top 720 x 360 of the hill): the art, the rest form, the sigil ring, the HUD and the pose
           words. The plane is the canvas's own 720 x 360 box (the whole stage on the desktop, the upper 70 percent of the
           square phone stage), so every layer in it lands on the canvas's geometry at both sizes. */}
@@ -253,6 +256,7 @@ export function CoreTalkView(p: CoreTalkViewProps) {
   const [busy, setBusy] = useState(false)
   const [anat, setAnat] = useState<{ open: boolean; focus: OrganId | null }>({ open: false, focus: null })
   const [earlier, setEarlier] = useState(false)
+  const [voiceOpen, setVoiceOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
 
   const run = useCallback(async (fn: () => Promise<void>) => {
@@ -330,8 +334,8 @@ export function CoreTalkView(p: CoreTalkViewProps) {
   return (
     <div className="jc" ref={root} data-core={running ? 'awake' : 'asleep'} data-narrow={narrow ? 'true' : undefined} data-simulated={simulated ? 'true' : undefined} onKeyDown={onRootKey}>
       <section className="jc-left" aria-label="Voice">
-        <Controls core={core} busy={busy} onWake={wake} onSleep={sleep} mode={mode} setMode={setMode} onAnatomy={() => openAnat()} simulated={simulated} speech={speech} />
-        <Stage signal={signal} coreView={coreView} running={running} simulated={simulated} motion={motion} />
+        <Controls core={core} busy={busy} onWake={wake} onSleep={sleep} mode={mode} setMode={setMode} onAnatomy={() => openAnat()} simulated={simulated} />
+        <Stage signal={signal} coreView={coreView} running={running} simulated={simulated} motion={motion} onVoice={speech ? () => setVoiceOpen(true) : undefined} />
         {/* the phone puts the input right under the stage, above the pipeline: the thumb reaches it first (jury, 14 Nov) */}
         {narrow && <Composer running={running} onSay={actions.say} />}
         <PipelineRibbon stages={ribbon} />
@@ -363,6 +367,11 @@ export function CoreTalkView(p: CoreTalkViewProps) {
         {/* internal ids live here, not on the stage (jury, 14 Nov: "art.core.hill-ring" read as a developer string) */}
         <p className="jc-anat-note"><span className="jc-tag">[SYS]</span> Stage art <code>{CORE_ART_ID}</code>: drawn only on the private art track and only on an empty stage; it steps aside for a measured frame.</p>
       </CoreDrawer>
+      {speech && (
+        <CoreDrawer open={voiceOpen} onClose={() => setVoiceOpen(false)} title="Voice" tag="JRV">
+          <SpeechPanel port={speech} simulated={simulated} />
+        </CoreDrawer>
+      )}
       <CoreDrawer open={earlier} onClose={() => setEarlier(false)} title="Earlier turns" tag="JRV">
         <ol className="jc-turns jc-earlier">
           {fit.earlier.map((t) => <TurnRow key={t.id} turn={t} simulated={simulated} notifyPresent={notifyPresent} onHandoff={onHandoff} />)}

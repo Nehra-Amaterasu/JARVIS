@@ -9,7 +9,7 @@ import { CoreTalkView } from '../CoreTalk'
 import { FIXTURE_TURNS, useFixture } from '../fixtures'
 import { lastExchange, useLastRecorded, type RecordedEntry } from '../lastRecorded'
 import { useShareReview, type ReviewPort } from '../ShareReview'
-import { createSpeechStore, speechStore, type SpeechPort } from '../speech'
+import type { SpeechPort } from '../speech'
 
 let m: ReturnType<typeof mount> | null = null
 beforeEach(() => { window.matchMedia ??= (() => ({ matches: false, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia })
@@ -104,9 +104,10 @@ describe('Share a review (parity O1)', () => {
   })
 
   it('on a fixture the line says no file was written, SIMULATED, with no Open folder key', async () => {
+    const port = reviewPort()
     function Sim() {
       const f = useFixture('thinking', 1_763_000_000_000)
-      const review = useShareReview(reviewPort(), true)
+      const review = useShareReview(port, true)
       return <CoreTalkView {...f} simulated review={review} />
     }
     m = mount(<Sim />)
@@ -167,11 +168,12 @@ function speechPort(over: Partial<SpeechPort> = {}): SpeechPort {
 
 function SpeechHarness({ port }: { port: SpeechPort }) {
   const f = useFixture('asleep', 1_763_000_000_000)
-  return <CoreTalkView {...f} simulated speech={port} />
+  // not a fixture view: the server's answers are the test's, so the notes are LIVE, not SIMULATED
+  return <CoreTalkView {...f} speech={port} />
 }
-const pop = () => document.body.querySelector<HTMLElement>('.tr-pop')
+const pop = () => m!.container.querySelector<HTMLElement>('.sp-panel')
 const openTrim = async () => {
-  press(m!.container.querySelector('[data-trim="core.voice"]'))
+  press(m!.container.querySelector('[data-testid="voice-key"]'))
   await flush()
 }
 const change = (el: HTMLSelectElement | HTMLInputElement, value: string) => act(() => {
@@ -180,18 +182,20 @@ const change = (el: HTMLSelectElement | HTMLInputElement, value: string) => act(
   el.dispatchEvent(new Event(el instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true }))
 })
 
-describe('Voice and spoken words behind one Trim key (parity O4b, O4d)', () => {
-  it('the key is on the controls row, named, and the popover shows the value read back from the server', async () => {
+describe('Voice and spoken words behind one Voice key (parity O4b, O4d)', () => {
+  it('the key hangs on the voice strip under the stage, named, and the drawer shows the value read back from the server', async () => {
     m = mount(<SpeechHarness port={speechPort()} />)
     await flush()
-    const key = m.container.querySelector<HTMLElement>('.jc-controls [data-trim="core.voice"]')!
-    expect(key.getAttribute('aria-label')).toBe('JARVIS voice and words setting')
+    const key = m.container.querySelector<HTMLElement>('.jc-stage .vh-strip [data-testid="voice-key"]')!
+    expect(key.textContent).toBe('Voice')
+    expect(key.getAttribute('aria-haspopup')).toBe('dialog')
+    expect(pop()).toBeNull() // nothing is loaded or drawn before the key is pressed
     await openTrim()
     expect(pop()).not.toBeNull()
     const sel = pop()!.querySelector<HTMLSelectElement>('select')!
     expect(sel.value).toBe('edge:Ryan')
     expect([...sel.querySelectorAll('optgroup')].map((g) => g.label)).toEqual(['British', 'American', 'Offline'])
-    expect(pop()!.querySelector('[data-testid="trim-value"]')!.textContent).toBe('Ryan · British, 1.00×; 1 word taught')
+    expect(pop()!.querySelector('.sp-now-line')!.textContent).toBe('Now Ryan · British, 1.00×')
   })
 
   it('choosing a voice asks the server, says WAITING, then LIVE with what it saved; a refusal is a FAULT and the old voice stays', async () => {
@@ -239,6 +243,32 @@ describe('Voice and spoken words behind one Trim key (parity O4b, O4d)', () => {
     expect(pop()!.querySelector('.sp-note')!.textContent).toContain('JARVIS is not listening')
   })
 
+  it('Back to the default asks for the default voice at normal speed, and says it is at the default when it is', async () => {
+    const chooseVoice = vi.fn(async (b: { id?: string; speed?: number }) => voiceView({ chosen: b.id ?? 'edge:Guy', speed: b.speed ?? 1.2 }))
+    m = mount(<SpeechHarness port={speechPort({ loadVoice: async () => voiceView({ chosen: 'edge:Guy', speed: 1.2 }), chooseVoice })} />)
+    await flush()
+    await openTrim()
+    const back = () => [...pop()!.querySelectorAll<HTMLButtonElement>('button')].find((b) => /default/.test(b.textContent ?? ''))!
+    expect(back().textContent).toBe('Back to the default')
+    await act(async () => { back().click() })
+    expect(chooseVoice).toHaveBeenCalledWith({ id: 'edge:Ryan', speed: 1 })
+    await flush()
+    expect(pop()!.querySelector('.sp-note')!.textContent).toContain('back to the default: Ryan · British, 1.00×')
+    expect(back().textContent).toBe('At the default')
+    expect(back().getAttribute('aria-disabled')).toBe('true')
+  })
+
+  it('the two tabs are a radio group the arrow keys move between', async () => {
+    m = mount(<SpeechHarness port={speechPort()} />)
+    await flush()
+    await openTrim()
+    const tabs = () => [...pop()!.querySelectorAll<HTMLElement>('[role="radio"]')]
+    expect(tabs().map((t) => t.getAttribute('aria-checked'))).toEqual(['true', 'false'])
+    await act(async () => { tabs()[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })) })
+    expect(tabs().map((t) => t.getAttribute('aria-checked'))).toEqual(['false', 'true'])
+    expect(pop()!.querySelector('.sp-now-line')!.textContent).toBe('Now 1 word taught')
+  })
+
   it('the Words tab lists each taught word with Hear and Remove, and Teach adds one through the same route as the classic card', async () => {
     const port = speechPort()
     const setPronunciation = vi.spyOn(port, 'setPronunciation')
@@ -247,7 +277,7 @@ describe('Voice and spoken words behind one Trim key (parity O4b, O4d)', () => {
     m = mount(<SpeechHarness port={port} />)
     await flush()
     await openTrim()
-    press([...pop()!.querySelectorAll('[role="radio"]')].find((b) => b.textContent === 'Words') ?? null)
+    press(pop()!.querySelector('[data-tab="words"]'))
     expect(pop()!.querySelector('.sp-words li')!.textContent).toContain('Aankhen')
     const [w, s] = [...pop()!.querySelectorAll<HTMLInputElement>('.sp-form input')]
     change(w, 'Yaadash')
@@ -271,7 +301,7 @@ describe('Voice and spoken words behind one Trim key (parity O4b, O4d)', () => {
     m = mount(<SpeechHarness port={port} />)
     await flush()
     await openTrim()
-    press([...pop()!.querySelectorAll('[role="radio"]')].find((b) => b.textContent === 'Words') ?? null)
+    press(pop()!.querySelector('[data-tab="words"]'))
     const [w, s] = [...pop()!.querySelectorAll<HTMLInputElement>('.sp-form input')]
     change(w, '[us]')
     change(s, 'you ess')
@@ -284,15 +314,27 @@ describe('Voice and spoken words behind one Trim key (parity O4b, O4d)', () => {
     m = mount(<SpeechHarness port={speechPort({ loadVoice: async () => { throw new Error('offline') }, loadPronunciations: async () => { throw new Error('offline') } })} />)
     await flush()
     await openTrim()
-    expect(pop()!.querySelector('[data-testid="trim-value"]')!.textContent).toBe('not loaded yet; not loaded yet')
+    expect(pop()!.querySelector('.sp-now-line')!.textContent).toBe('Now not loaded yet')
     expect(pop()!.querySelector('select')!.disabled).toBe(true)
     expect(pop()!.querySelector('.sp-note')!.getAttribute('data-state')).toBe('fault')
   })
+})
 
-  it('the speech store keeps no timer and a fixture port never reaches the network', () => {
-    const s = createSpeechStore()
-    expect(s.get().voice).toBeNull()
-    expect(speechStore.get()).toBeDefined()
+describe('The wake-mode radio (a fix found while adding the tabs)', () => {
+  it('an arrow key moves the choice and focus follows, with no error from a cleared event target', async () => {
+    const errors: unknown[] = []
+    const onErr = (e: ErrorEvent) => errors.push(e.error)
+    window.addEventListener('error', onErr)
+    m = mount(<SpeechHarness port={speechPort()} />)
+    const radios = () => [...m!.container.querySelectorAll<HTMLElement>('.jc-mode [role="radio"]')]
+    expect(radios().map((r) => r.getAttribute('aria-checked'))).toEqual(['true', 'false'])
+    act(() => radios()[0].focus())
+    await act(async () => { radios()[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })) })
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(radios().map((r) => r.getAttribute('aria-checked'))).toEqual(['false', 'true'])
+    expect(document.activeElement).toBe(radios()[1])
+    window.removeEventListener('error', onErr)
+    expect(errors).toEqual([])
   })
 })
 

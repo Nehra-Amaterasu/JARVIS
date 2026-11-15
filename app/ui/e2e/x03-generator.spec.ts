@@ -98,7 +98,8 @@ const fit = (page: Page) => page.evaluate(() => {
     return r.width > 0 && r.height > 0 && (r.right > b.right + 1 || r.bottom > b.bottom + 1 || r.left < b.left - 1 || r.top < b.top - 1) && getComputedStyle(e).position !== 'fixed'
   }).map((e) => `${e.tagName.toLowerCase()}.${e.className.toString().slice(0, 40)}`)
   const cols = [...document.querySelectorAll<HTMLElement>('.gx-left, .gx-right, .gx-bt, .gx-ss-panel, .gx-ss-rail, .gx-prev-card')].map((c) => `${c.className.toString().slice(0, 18)} ${c.scrollHeight - c.clientHeight}`)
-  return { boxW: Math.round(b.width), boxH: Math.round(b.height), innerY: inner.scrollHeight - inner.clientHeight, innerX: inner.scrollWidth - inner.clientWidth, docY: document.documentElement.scrollHeight - innerHeight, outside, cols }
+  const dbg = ['.gx-top', '.gx-main', '.gx-left', '.gx-right', '.gx-foot', '.gx-ss', '.gx-bar'].map((q) => { const e = document.querySelector(q); if (!e) return q + ' -'; const r = e.getBoundingClientRect(); return q + ' ' + Math.round(r.top - b.top) + '..' + Math.round(r.bottom - b.top) }).join(' | ')
+  return { dbg, boxW: Math.round(b.width), boxH: Math.round(b.height), innerY: inner.scrollHeight - inner.clientHeight, innerX: inner.scrollWidth - inner.clientWidth, docY: document.documentElement.scrollHeight - innerHeight, outside, cols }
 })
 
 const small = (page: Page, sel: string) => page.evaluate((s) => [...document.querySelectorAll<HTMLElement>(s)]
@@ -119,7 +120,7 @@ test.describe('X03 geometry', () => {
         expect(m.boxW).toBe(1230)
         expect(m.boxH).toBe(664)
         expect(m.docY, `${name}: the document scrolls`).toBeLessThanOrEqual(0)
-        expect(m.innerY, `${name}: the desk scrolls inside`).toBeLessThanOrEqual(1)
+        expect(m.innerY, `${name}: the desk scrolls inside; ${m.dbg}`).toBeLessThanOrEqual(1)
         expect(m.innerX).toBeLessThanOrEqual(1)
         expect(m.outside, `${name}: parts outside the canvas`).toEqual([])
         for (const c of m.cols) expect(Number(c.split(' ').pop()), `${name}: ${c}`).toBeLessThanOrEqual(1)
@@ -154,7 +155,7 @@ test.describe('X03 lamps and refusals', () => {
     await expect(page.locator('.gx-issues')).toContainText('55 marks')
     const cta = page.getByRole('button', { name: /Confirm and draw a paper/ })
     await expect(cta).toHaveAttribute('aria-disabled', 'true')
-    await cta.click()
+    await cta.click({ force: true })
     await expect(page.locator('[data-step="blueprint"]')).toBeVisible()
     await expect(page.locator('.gx-main-bp')).toContainText('does not balance')
     // the second step cannot be reached either
@@ -196,16 +197,16 @@ test.describe('X03 slots', () => {
     await shot(page, '.x03-box', 'slots-hollow.png')
     await page.getByRole('tab', { name: /Section A/ }).click()
     const before = await page.locator('.gx-slot-main b').allInnerTexts()
-    const seedBefore = await page.getByLabel('Seed').inputValue()
+    const seedBefore = await page.getByRole('textbox', { name: 'Seed', exact: true }).inputValue()
     expect(seedBefore).toBe('48271')
     await page.getByRole('button', { name: /^Reseed/ }).click()
-    await expect(page.getByLabel('Seed')).not.toHaveValue(seedBefore)
+    await expect(page.getByRole('textbox', { name: 'Seed', exact: true })).not.toHaveValue(seedBefore)
     await expect.poll(async () => (await page.locator('.gx-slot-main b').allInnerTexts()).join('|')).not.toBe(before.join('|'))
     // the same seed again draws the same paper
-    const seed = await page.getByLabel('Seed').inputValue()
+    const seed = await page.getByRole('textbox', { name: 'Seed', exact: true }).inputValue()
     const after = (await page.locator('.gx-slot-main b').allInnerTexts()).join('|')
     await page.getByRole('button', { name: 'Draw with this seed' }).click()
-    await expect.poll(async () => page.getByLabel('Seed').inputValue()).toBe(seed)
+    await expect.poll(async () => page.getByRole('textbox', { name: 'Seed', exact: true }).inputValue()).toBe(seed)
     expect((await page.locator('.gx-slot-main b').allInnerTexts()).join('|')).toBe(after)
   })
 
@@ -283,7 +284,7 @@ test.describe('X03 print', () => {
 
   test('a question whose text is not checked prints as its crop and never as text', async ({ page }) => {
     await state(page, S.printPaper)
-    const note = await page.locator('.gx-pnote').filter({ hasText: 'print as the page crop' }).innerText().catch(() => page.locator('.gx-pnote').filter({ hasText: 'prints as the page crop' }).innerText())
+    const note = await page.locator('.gx-pnote').filter({ hasText: 'as the page crop' }).innerText()
     const n = Number(/^(\d+) question/.exec(note)![1])
     expect(n).toBeGreaterThan(0)
     await expect.poll(() => inFrame(page, (d) => d.querySelectorAll('.gx-q[data-crop]').length)).toBe(n)
@@ -324,11 +325,11 @@ test.describe('X03 print', () => {
   test('the key and the marking sheet list every slot of the paper; the night sheet is planned', async ({ page }) => {
     await state(page, S.printKey)
     await expect.poll(() => inFrame(page, (d) => d.querySelectorAll('.gx-grid tbody tr').length)).toBe(18)
-    expect(await inFrame(page, (d) => d.body.innerText)).toContain('Answer key')
+    expect(await inFrame(page, (d) => d.body.innerText)).toContain('answer key')
     await expect(page.locator('.gx-night .k-lamp-word')).toHaveText('PLANNED')
     await state(page, S.printMarking)
     await expect.poll(() => inFrame(page, (d) => d.querySelectorAll('.gx-grid tbody tr').length)).toBe(18)
-    expect(await inFrame(page, (d) => d.body.innerText)).toContain('Marking sheet')
+    expect(await inFrame(page, (d) => d.body.innerText)).toContain('marking sheet')
     await shot(page, '.x03-box', 'print-marking.png')
   })
 })
@@ -341,11 +342,11 @@ test.describe('X03 on a phone and under the media branches', () => {
       await state(page, i, 'light', 390)
       const m = await page.evaluate(() => {
         const main = document.querySelector<HTMLElement>('.gx-main')
-        return { x: document.documentElement.scrollWidth - innerWidth, cols: main ? getComputedStyle(main).gridTemplateColumns.split(' ').length : 1, over: [...document.querySelectorAll<HTMLElement>('.gx-desk *')].filter((e) => !e.closest('.gx-prev, svg, .gx-frame') && e.getBoundingClientRect().right > innerWidth + 1).map((e) => e.className.toString().slice(0, 30)) }
+        return { x: document.documentElement.scrollWidth - innerWidth, cols: main ? getComputedStyle(main).gridTemplateColumns.split(' ').length : 1, over: [...document.querySelectorAll<HTMLElement>('.gx-desk *, .x03-part *')].filter((e) => !e.closest('.gx-prev, svg, .gx-frame') && e.getBoundingClientRect().right > innerWidth + 1).map((e) => e.className.toString().slice(0, 30)) }
       })
+      expect(m.over).toEqual([])
       expect(m.x).toBeLessThanOrEqual(0)
       expect(m.cols).toBe(1)
-      expect(m.over).toEqual([])
       await shot(page, '[data-stage]', `phone-${name}.png`)
     })
   }

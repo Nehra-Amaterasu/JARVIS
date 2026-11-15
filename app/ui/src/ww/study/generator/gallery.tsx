@@ -32,7 +32,25 @@ const SLOTS: Slot[] = [
 ]
 const STRIP: PaperSection[] = [{ name: 'Section A', marks: 2, attempt: 5, set: 5, choice: 'all', slots: SLOTS }]
 
-export const X03_STATES = 16
+/** The state labels, in the order of X03State; gallery/entries/X03.tsx lists them itself (a JARVIS only build holds no ww/ module) and a test pins the two. */
+export const X03_LABELS = [
+  'Blueprint step, balanced (SIMULATED)',
+  'Blueprint step, unbalanced: the lamp shows FAULT with the reason and drawing is refused',
+  'Blueprint step, null adapter (WAITING: no blueprint yet)',
+  'Blueprint step, inferred by a rule (RULE, not saved)',
+  'Blueprint step, seven sections in 48 px rows',
+  'Slots step, drawn from seed 48271 with one hollow slot',
+  'Slots step with a dashed MODEL slot',
+  'Print step, the paper (preview of page 1)',
+  'Print step, the answer key',
+  'Print step, the marking sheet',
+  'BlueprintTable, balanced',
+  'BlueprintTable, unbalanced (FAULT)',
+  'SlotStrip: HAND, RULE, TEMPLATE, MODEL, hollow',
+  'Paper skeleton at 0.42',
+  'Printed paper at A4, page 1 (black on white, SIMULATED stamp)',
+  'Printed paper, key and marking sheet in order',
+]
 
 export function X03State({ index }: { index: number }) {
   switch (index) {
@@ -47,17 +65,17 @@ export function X03State({ index }: { index: number }) {
     case 8: return <Desk port={sim} extras={fixtureExtras} initial={{ step: 'print', kind: 'key' }} />
     case 9: return <Desk port={sim} extras={fixtureExtras} initial={{ step: 'print', kind: 'marking' }} />
     case 10: return (
-      <div className="x03-part" style={{ inlineSize: 900 }}>
+      <div className="x03-part" style={{ inlineSize: '100%', maxInlineSize: 900 }}>
         <BlueprintTable sections={BP.sections} total={60} duration={120} state="simulated" reason="invented blueprint" onChange={() => undefined} />
       </div>
     )
     case 11: return (
-      <div className="x03-part" style={{ inlineSize: 900 }}>
+      <div className="x03-part" style={{ inlineSize: '100%', maxInlineSize: 900 }}>
         <BlueprintTable sections={toGen(BLUEPRINT_UNBALANCED).sections} total={60} duration={120} state="simulated" reason="invented blueprint" issues={[{ code: 'total', section: null, text: 'The sections add up to 55 marks, the total says 60 (5 short).' }]} onChange={() => undefined} />
       </div>
     )
-    case 12: return <div className="x03-part" style={{ inlineSize: 900 }}><SlotStrip sections={STRIP} state="simulated" reason="invented questions" onSwap={() => undefined} onReseed={() => undefined} /></div>
-    case 13: return <div className="x03-part" style={{ inlineSize: 360 }}><PaperSkeleton blueprint={BP} /></div>
+    case 12: return <div className="x03-part" style={{ inlineSize: '100%', maxInlineSize: 900 }}><SlotStrip sections={STRIP} state="simulated" reason="invented questions" onSwap={() => undefined} onReseed={() => undefined} /></div>
+    case 13: return <div className="x03-part" style={{ inlineSize: '100%', maxInlineSize: 360 }}><PaperSkeleton blueprint={BP} /></div>
     case 14: return <div className="x03-sheet"><PrintSheet paper={PAPER} kind="paper" stamp="SIMULATED" /></div>
     default: return <div className="x03-sheet"><PrintSheet paper={PAPER} kind="all" stamp="SIMULATED" /></div>
   }

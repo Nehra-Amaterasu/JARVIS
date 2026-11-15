@@ -199,7 +199,7 @@ export function GeneratorDesk({ port = STUDY_PORT, extras = NO_EXTRAS, initial, 
   const stepNeed = !bp || !balanced ? COPY.stepNeedsBlueprint : undefined
   const paperNeed = paper ? undefined : COPY.stepNeedsPaper
   const confirmReason = !bp ? 'no blueprint to confirm'
-    : !balanced ? `The blueprint does not balance: ${issues[0]?.text ?? ''}`
+    : !balanced ? COPY.refuseUnbalanced
     : (dirty || base === null) && !extras.save ? COPY.unsavedEdits
     : seedBad ? COPY.seedBad : undefined
 
@@ -255,7 +255,7 @@ export function GeneratorDesk({ port = STUDY_PORT, extras = NO_EXTRAS, initial, 
                     <div className="gx-fact gx-fact-mpm" role="group" aria-label={COPY.minutesPerMark}>
                       <span className="gx-fact-l">{COPY.minutesPerMark}</span>
                       <span className="gx-fact-v">{minutesText(mpm)}</span>
-                      <span className="gx-fact-s">{mpm === null ? COPY.noDuration : 'counted from your own entries'}</span>
+                      <span className="gx-fact-s"><Lamp state={mpm === null ? 'waiting' : src.state === 'simulated' ? 'simulated' : 'live'} reason={mpm === null ? COPY.noDuration : 'minutes divided by marks of this blueprint'} /></span>
                     </div>
                     <div className="gx-inv" role="status" aria-live="polite">
                       <Lamp state={invariant} reason={issues[0]?.text ?? COPY.balanced(totalOf(bp))} />
@@ -274,7 +274,9 @@ export function GeneratorDesk({ port = STUDY_PORT, extras = NO_EXTRAS, initial, 
                     state={src.state}
                     reason={src.reason}
                     inferred={inferred}
+                    actions={<Button size="sm" disabledReason={extras.infer ? undefined : COPY.inferWaiting} loading={busy === 'infer'} onClick={() => void infer()}>{COPY.infer}</Button>}
                   />
+                  {bp.sections.length <= 5 && <p className="gx-hint">{COPY.rowHint}</p>}
                   {issues.length > 0 && (
                     <ul className="gx-issues" aria-label="Issues to settle before drawing">
                       {issues.slice(0, 3).map((x, i) => (
@@ -292,7 +294,6 @@ export function GeneratorDesk({ port = STUDY_PORT, extras = NO_EXTRAS, initial, 
                   <PaperSkeleton blueprint={bp} />
                   {notice && <p className="gx-notice" role="status" data-state={notice.state}><Lamp state={notice.state} bare /><span>{notice.text}</span></p>}
                   <span className="gx-right-act">
-                    <Button disabledReason={extras.infer ? undefined : COPY.inferWaiting} loading={busy === 'infer'} onClick={() => void infer()}>{COPY.infer}</Button>
                     <PrimaryButton claimId="gen-confirm" rank="workspace" size="lg" loading={busy === 'draw' || busy === 'save'} disabledReason={confirmReason} onClick={() => void confirm()}>{COPY.save}</PrimaryButton>
                   </span>
                 </aside>
@@ -320,12 +321,11 @@ export function GeneratorDesk({ port = STUDY_PORT, extras = NO_EXTRAS, initial, 
                 value={seedText}
                 inputMode="numeric"
                 error={seedBad ? COPY.seedBad : undefined}
-                hint={COPY.seedNote}
+                hint={COPY.seedShort}
                 onChange={(e) => setSeedText(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') void drawAgain() }}
               />
               <Button loading={busy === 'draw'} onClick={() => void drawAgain()}>Draw with this seed</Button>
-              {stats.hollow > 0 && <span className="gx-bar-note">{COPY.hollowTitle(stats.hollow)}. {COPY.hollowNote}</span>}
               {notice && <span className="gx-notice" role="status" data-state={notice.state}><Lamp state={notice.state} bare /><span>{notice.text}</span></span>}
               <span className="gx-bar-end">
                 <Button onClick={() => setStep('blueprint')}>Back to the blueprint</Button>

@@ -6,7 +6,7 @@
 //
 // States (`data-state`): balanced, fault, inferred. Keys: Alt+Up and Alt+Down move the chosen section; each stepper is one tab stop
 // (a spinbutton: Up, Down, Page Up, Page Down, Home, End); the minus and plus beside it are mouse targets of 44 px.
-import { useId, type KeyboardEvent } from 'react'
+import { useId, type KeyboardEvent, type ReactNode } from 'react'
 import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import { Button, Chip, IconButton, Lamp, type LampState } from '../../../shared/kit'
 import { DetentRack, type Opt } from '../../../shared/data/tables'
@@ -77,11 +77,13 @@ export interface BlueprintTableProps {
   /** Proposed by a rule and not yet saved. */
   inferred?: boolean
   readOnly?: boolean
+  /** Extra actions drawn in the caption, left of the add button (the desk puts "Infer from a paper" here). */
+  actions?: ReactNode
 }
 
 const CHOICE_OPTS: Opt[] = CHOICES.map((c) => ({ value: c, label: CHOICE_LABEL[c] }))
 
-export function BlueprintTable({ sections, total, duration, onChange, issues = [], selected = 0, onSelect, state = 'waiting', reason, inferred, readOnly }: BlueprintTableProps) {
+export function BlueprintTable({ sections, total, duration, onChange, issues = [], selected = 0, onSelect, state = 'waiting', reason, inferred, readOnly, actions }: BlueprintTableProps) {
   const uid = useId()
   const sum = sections.reduce((n, s) => n + s.attempt * s.marks, 0)
   const at = Math.min(Math.max(selected, 0), Math.max(0, sections.length - 1))
@@ -102,6 +104,7 @@ export function BlueprintTable({ sections, total, duration, onChange, issues = [
         <span className="gx-bt-title">Sections</span>
         <span className="gx-bt-lamp"><Lamp state={state} reason={reason} /></span>
         {inferred && <span className="gx-chip-rule" title="proposed by a counted rule, not saved yet">RULE, not saved</span>}
+        {actions}
         {!readOnly && (
           <Button
             size="sm"

@@ -31,7 +31,7 @@ export const BLUEPRINT_BALANCED: PortBlueprint = {
 export const BLUEPRINT_UNBALANCED: PortBlueprint = {
   ...BLUEPRINT_BALANCED,
   id: 'bp-b',
-  label: 'Paper B (invented, unbalanced)',
+  label: 'Paper B (invented)',
   sections: BLUEPRINT_BALANCED.sections.map((s, i) => (i === 1 ? { ...s, attempt: 3 } : s)),
 }
 
@@ -86,7 +86,7 @@ function slotFor(bp: GenBlueprint, si: number, n: number, seed: number, hollowFr
   const r = nextSeed(seed + si * 7919 + n * 104729)
   const pool = TOPICS.filter((t) => s.types.length === 0 || s.types.includes(t.type))
   const pick = (pool.length ? pool : TOPICS)[r % (pool.length || TOPICS.length)]
-  if (hollowFrom !== null && n >= hollowFrom) {
+  if (hollowFrom !== null && n > hollowFrom) {
     const need = s.set - hollowFrom
     return { n, source: 'hollow', questionId: null, text: '', textStatus: 'crop-only', marks: s.marks, unit: '', topic: '', type: null, reason: `needs ${need === 1 ? '1 more' : `${need} more`} ${s.marks}-mark question${need === 1 ? '' : 's'}: too few reviewed questions` }
   }

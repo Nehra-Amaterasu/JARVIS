@@ -8,6 +8,7 @@
 // Keys: Up and Down move between sections (one tab stop for the rail), Page Up and Page Down turn the slot pages, R reseeds.
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { Button, Lamp, type LampState } from '../../../shared/kit'
+import { COPY } from './copy'
 import { instruction, isHollow, printsAsCrop, QTYPE_LABEL, type PaperSection, type Slot, type SlotSource } from './model'
 
 export const SOURCE_WORD: Record<SlotSource, string> = { hand: 'HAND', rule: 'RULE', template: 'TEMPLATE', model: 'MODEL', hollow: 'HOLLOW' }
@@ -113,6 +114,7 @@ export function SlotStrip({ sections, state, reason, onSwap, onReseed, pageSize 
           <ol className="gx-slots" aria-label={sec ? `Slots of ${sec.name}` : 'Slots'}>
             {shown.map((s, k) => <SlotRow key={`${pg}-${s.n}-${s.questionId ?? 'h'}`} slot={s} i={k} onSwap={onSwap && sec ? () => onSwap(sec.name, s.n) : undefined} />)}
           </ol>
+          {hollow > 0 && <p className="gx-ss-note">{COPY.hollowNote}</p>}
           {pages > 1 && (
             <div className="gx-pager" role="group" aria-label={`Slots, page ${pg + 1} of ${pages}`}>
               <Button size="sm" aria-label="Earlier slots" disabled={pg === 0} onClick={() => setPage(pg - 1)}>‹</Button>
@@ -136,7 +138,7 @@ function SlotRow({ slot: s, i, onSwap }: { slot: Slot; i: number; onSwap?: () =>
         {hollow ? <b>Left hollow</b> : <b>{s.topic}</b>}
         <span className="gx-slot-meta">{hollow ? `${s.marks} marks` : `${s.unit} · ${s.marks} marks${s.type ? ` · ${QTYPE_LABEL[s.type]}` : ''}`}</span>
       </span>
-      <span className="gx-slot-why" title={s.reason}>{s.reason}{printsAsCrop(s) ? ' Prints as the page crop.' : ''}</span>
+      <span className="gx-slot-why" title={s.reason}>{s.reason}{printsAsCrop(s) ? '. Prints as the page crop.' : ''}</span>
       {onSwap && !hollow && <Button size="sm" className="gx-slot-swap" onClick={onSwap}>Swap</Button>}
     </li>
   )

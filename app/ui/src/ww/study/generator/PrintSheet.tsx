@@ -56,7 +56,7 @@ function Sheet({ paper, kind, stamp, later }: { paper: PaperView; kind: Exclude<
         </td></tr>
       </thead>
       <tfoot>
-        <tr><td><p className="gx-foot">Seed {paper.seed}. Drawn again with the same seed, the same paper comes out.</p></td></tr>
+        <tr><td><p className="gx-sheetfoot">Seed {paper.seed}. Drawn again with the same seed, the same paper comes out.</p></td></tr>
       </tfoot>
       <tbody>
         <tr><td>

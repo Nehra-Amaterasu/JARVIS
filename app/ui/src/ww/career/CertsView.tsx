@@ -30,7 +30,7 @@ function CertLine({ c }: { c: CertRow }) {
           {meta}
         </span>
       </span>
-      <span className="cr-cost">{c.cost_inr ? inr(c.cost_inr) : 'free'}</span>
+      <span className="cr-cost" data-free={c.cost_inr ? undefined : 'true'}>{c.cost_inr ? inr(c.cost_inr) : 'free'}</span>
       <Chip tone={FIT_TONE[c.budget_fit]}>{c.budget_fit}</Chip>
       <input className="ww-input cr-link" aria-label={`Certificate link for ${c.name}`} placeholder="certificate link" value={url} onChange={(e) => setUrl(e.target.value)} />
       <Button

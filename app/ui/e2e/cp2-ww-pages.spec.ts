@@ -140,4 +140,56 @@ test.describe('CP2: Well Wisher classic pages under the new shell', () => {
       expect(problems, problems.join('\n')).toEqual([])
     })
   }
+
+  for (const size of SIZES) {
+    test(`${size.w}x${size.h}: the Tree with a node open (inspector) and with its two lists open`, async ({ page, baseURL }) => {
+      test.setTimeout(120_000)
+      await page.setViewportSize({ width: size.w, height: size.h })
+      await openWw(page, baseURL)
+      await visit(page, 'tree', 'tree')
+      const problems: string[] = []
+      const measure = async (at: string) => {
+        const m = (await page.evaluate(PROBE)) as Probe
+        for (const k of ['small', 'targets', 'sideways', 'wraps'] as const) for (const d of m[k]) problems.push(`${at} ${k}: ${d}`)
+        if (m.docOverflow > 1) problems.push(`${at} document overflow ${m.docOverflow}px`)
+      }
+      // the two lists: opaque, readable (ink against the face of the panel), 44 px rows, inside the window
+      for (const key of ['Tree', 'Branches']) {
+        await page.locator('.ww-tree-key', { hasText: key }).first().click()
+        const panel = page.locator('.ww-tree-panel')
+        await expect(panel).toBeVisible()
+        const r = await panel.evaluate((el) => {
+          const rgb = (c: string) => (c.match(/[\d.]+/g) ?? []).map(Number)
+          const lum = (c: number[]) => { const f = (v: number) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]) }
+          const ratio = (a: number[], b: number[]) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05) }
+          const cs = getComputedStyle(el)
+          const bg = rgb(cs.backgroundColor)
+          const rows = [...el.querySelectorAll<HTMLElement>('.ww-tree-opt')]
+          const unselected = rows.find((o) => o.getAttribute('aria-checked') !== 'true')
+          const sel = rows.find((o) => o.getAttribute('aria-checked') === 'true')
+          const box = el.getBoundingClientRect()
+          return {
+            alpha: bg.length > 3 ? bg[3] : 1,
+            ink: unselected ? ratio(rgb(getComputedStyle(unselected).color), bg) : 99,
+            selected: sel ? ratio(rgb(getComputedStyle(sel).color), rgb(getComputedStyle(sel).backgroundColor)) : 99,
+            minRow: Math.min(...rows.map((o) => o.getBoundingClientRect().height)),
+            inside: box.left >= 0 && box.right <= innerWidth && box.top >= 0 && box.bottom <= innerHeight,
+          }
+        })
+        expect(r.alpha, `${key} panel is opaque`).toBe(1)
+        expect(r.ink, `${key} panel ink on its face`).toBeGreaterThanOrEqual(4.5)
+        expect(r.selected, `${key} panel selected row`).toBeGreaterThanOrEqual(4.5)
+        expect(r.minRow, `${key} panel rows`).toBeGreaterThanOrEqual(43.5)
+        expect(r.inside, `${key} panel stays in the window`).toBe(true)
+        await page.keyboard.press('Escape')
+        await expect(panel).toHaveCount(0)
+      }
+      // a node open: the Next key jumps to what is next and opens it
+      await page.locator('.ww-tree-bar').getByRole('button', { name: /^Next/ }).click()
+      await expect(page.locator('.ww-insp').first()).toBeVisible({ timeout: 10_000 })
+      await page.waitForTimeout(400)
+      await measure(`tree+node ${size.w}px`)
+      expect(problems, problems.join(String.fromCharCode(10))).toEqual([])
+    })
+  }
 })

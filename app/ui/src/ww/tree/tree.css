@@ -606,8 +606,42 @@
    content and the frame, which already scrolls, carries the page. ww/frame/frame.css owns the rule: when it gives the
    centre its content height at 390, this block is redundant and can go. */
 .s2 .ww-frame[data-density='narrow']:has(.ww-tree-page) {
-  grid-template-rows: auto auto auto auto;
+  grid-template-rows: max-content max-content max-content max-content;
 }
 .s2 .ww-frame[data-density='narrow']:has(.ww-tree-page) .ww-centre {
   overflow: visible;
+}
+/* the page host is absolutely placed inside the centre; in flow it gives the centre its height */
+.s2 .ww-frame[data-density='narrow']:has(.ww-tree-page) .ww-centre > .page {
+  position: static;
+  inset: auto;
+  overflow: visible;
+}
+
+/* principle 14: at least 8 px between neighbouring targets; principle 13: the primary action at least 48 px tall */
+.s2 .ww-tree-zoom {
+  gap: var(--space-2);
+}
+.ww-tree-rows {
+  gap: var(--space-2);
+}
+.ww-tree-cta .ww-btn.primary {
+  min-block-size: 48px;
+}
+@media (forced-colors: active) {
+  .ww-tree-panel,
+  .s2 .ww-insp {
+    border-color: CanvasText;
+  }
+  .s2 .ww-tree-stage {
+    border: 1px solid CanvasText;
+  }
+}
+
+/* a link in the inspector (a resource, a source) is 44 px high on the element itself; it was 16 px */
+.s2 .ww-insp a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--hit);
+  overflow-wrap: anywhere;
 }

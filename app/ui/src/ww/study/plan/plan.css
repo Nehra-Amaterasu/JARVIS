@@ -15,8 +15,14 @@
    content and the frame, which already scrolls, carries the page. ww/frame/frame.css owns the rule: when it gives the
    centre its content height at 390, this block is redundant and can go. */
 .s2 .ww-frame[data-density='narrow']:has(.ww-plan) {
-  grid-template-rows: auto auto auto auto;
+  grid-template-rows: max-content max-content max-content max-content;
 }
 .s2 .ww-frame[data-density='narrow']:has(.ww-plan) .ww-centre {
+  overflow: visible;
+}
+/* the page host is absolutely placed inside the centre; in flow it gives the centre its height */
+.s2 .ww-frame[data-density='narrow']:has(.ww-plan) .ww-centre > .page {
+  position: static;
+  inset: auto;
   overflow: visible;
 }

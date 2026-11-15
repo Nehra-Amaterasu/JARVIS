@@ -18,6 +18,7 @@ import { Planned } from '../Planned'
 import { inShell } from '../tree/inShell'
 import { fmtMin } from './format'
 import './library/library.css'
+import { Waiting } from './library/Waiting'
 
 /** Resources shown before the fold under the new shell. */
 const SHOWN = 2
@@ -34,7 +35,7 @@ function Concept() {
   }
   return (
     <Card data-card="study-concept" title="Knowledge of the day" kicker={l && l !== 'failed' && l.progress ? `${l.progress.seen} of ${l.progress.total} read` : undefined}>
-      {l === null && <p className="ww-papers-line" role="status">Reading today's concept…</p>}
+      {l === null && <Waiting what="Reading today's concept…" />}
       {l === 'failed' && <EmptyState title="Today's concept could not be read." body="The app did not answer." />}
       {l && l !== 'failed' && l.status === 'ok' && (
         <div className="ww-concept">
@@ -98,7 +99,7 @@ function NodeStudy() {
           {(open.length ? open : bank.order).map((n) => <option key={n} value={n}>{bank.nodes[n]?.name ?? n}</option>)}
         </Field>
       </div>
-      {a === null && <p className="ww-papers-line" role="status">Reading the node…</p>}
+      {a === null && <Waiting what="Reading the node…" />}
       {a === 'failed' && <EmptyState title="This node could not be read." body="The app did not answer." />}
       {a && a !== 'failed' && a.node && (
         <>
@@ -157,7 +158,7 @@ function Findings({ nodeId }: { nodeId: string | undefined }) {
   const rows = (findings ?? []).filter((f) => !nodeId || f.node_id === nodeId)
   return (
     <Card data-card="study-findings" title="Findings" kicker="newest papers on the active node">
-      {findings === null && <p className="ww-papers-line" role="status">Reading findings…</p>}
+      {findings === null && <Waiting what="Reading findings…" />}
       {findings !== null && rows.length === 0 && <p className="ww-papers-line">No findings for this node yet. Start it on the Tree and its newest papers show up here once a day.</p>}
       {rows.map((f) => (
         <div key={f.node_id} className="ww-finding">

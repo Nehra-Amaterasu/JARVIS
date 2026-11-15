@@ -30,9 +30,15 @@ export function Panel({ open, onClose, anchor, label, className, children }: { o
     const a = anchor.current?.getBoundingClientRect()
     if (!a) return
     const w = Math.min(box.current?.offsetWidth || PANEL_W, window.innerWidth - 32)
-    setPos({ insetBlockStart: a.bottom + 8, insetInlineStart: Math.max(16, Math.min(a.left, window.innerWidth - w - 16)) })
+    const left = Math.max(16, Math.min(a.left, window.innerWidth - w - 16))
+    const below = window.innerHeight - a.bottom - 24
+    // below the key when there is room (at least 20 rem), else above it; either way it ends inside the window and scrolls inside itself
+    setPos(below >= 320 || a.top < below
+      ? { insetBlockStart: a.bottom + 8, insetInlineStart: left, maxBlockSize: Math.max(160, below) }
+      : { insetBlockEnd: window.innerHeight - a.top + 8, insetInlineStart: left, maxBlockSize: Math.max(160, a.top - 24) })
   }, [open, anchor])
-  useEscStack(open, () => { onClose(); anchor.current?.focus({ preventScroll: true }) })
+  // the anchor is the key's wrapper: focus goes back to the key inside it
+  useEscStack(open, () => { onClose(); (anchor.current?.querySelector<HTMLElement>('button') ?? anchor.current)?.focus({ preventScroll: true }) })
   useEffect(() => {
     if (!open) return
     const down = (e: PointerEvent) => {

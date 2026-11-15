@@ -11,6 +11,7 @@ import { switchWorkspace } from '../frame/navigate'
 import { fmtMin } from './format'
 import { useStudy } from './studyStore'
 import './plan/plan.css'
+import { Waiting } from './library/Waiting'
 
 const SLOT_WORD: Record<string, string> = { library: 'Library', evening: 'Evening', weekend: 'Weekend', extra: 'Extra', quest: 'Quest' }
 
@@ -51,7 +52,7 @@ export function Plan() {
   }, [today])
   const slots = exams?.days.find((d) => d.date === exams.date)?.slots ?? []
 
-  if (!today || !plan) return <p className="ww-papers-line" role="status">Planning the day…</p>
+  if (!today || !plan) return <Waiting what="Planning the day…" />
   const e = today.exam
   return (
     <div className="ww-plan" data-view="plan">

@@ -1,0 +1,135 @@
+/* ==========================================================================
+   Console, the four views beside Health: Events, Connections, Hardware, Crew (A.J05). Same box, same tokens, same rules as
+   console.css (which it extends): clay tokens by name, no hex, no rgba literal, 44 px targets, a visible focus ring.
+   ========================================================================== */
+
+/* ==================================================================== Events */
+.jx-events { grid-template-columns: minmax(0, 1fr) 330px; }
+.jx-filter { flex: none; display: flex; align-items: center; gap: 8px; padding: 0 6px 0 14px; border: 1px solid var(--edge-ui); border-radius: 14px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); min-height: 48px; }
+.jx-filter:focus-within { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.jx-filter-in { flex: 1; min-width: 0; min-height: 44px; border: 0; background: transparent; color: var(--ink-1); font: 14px/1 var(--font-mono, ui-monospace, monospace); outline: none; }
+.jx .jx-filter-in:focus-visible { outline: none; }
+.jx-filter-in::placeholder { color: var(--ink-2); font-style: italic; }
+.jx-density { flex: none; display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; column-gap: 10px; align-items: center; min-height: 26px; font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.jx-density-trace { font-size: 18px; letter-spacing: 0.06em; white-space: nowrap; overflow: hidden; color: var(--ink-1); }
+.jx-filter-say { flex: none; margin: 0; display: flex; align-items: center; gap: 6px; min-height: 18px; font: 12px/1.35 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.jx-filter-say[data-problem='true'] { color: var(--ink-1); }
+.jx-filter-say svg { color: var(--state-fault); }
+.jx-filter-say code { font: inherit; color: var(--ink-1); }
+.jx-events-list { flex: 1 1 0; min-height: 0; list-style: none; margin: 0; padding: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); }
+.jx-ev { display: grid; grid-template-columns: 56px 14px minmax(0, 1fr) auto auto; column-gap: 10px; align-items: center; min-height: 26px; color: var(--ink-1); border-bottom: 1px dashed var(--edge-hair, var(--edge-ui)); }
+.jx-ev:last-child { border-bottom: 0; }
+.jx-ev-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jx-ev time { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.jx-ev-sim { font-style: normal; font-weight: 600; letter-spacing: 0.08em; color: var(--state-simulated, var(--ink-2)); }
+.jx-ev[data-state='fault'] .jx-out-lamp { color: var(--state-fault); }
+.jx-pager { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.jx-sources { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.jx-source { inline-size: 100%; display: grid; grid-template-columns: 64px minmax(0, 1fr); column-gap: 8px; align-items: center; min-height: 44px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--r-control, 10px); background: transparent; color: var(--ink-1); cursor: pointer; text-align: left; font: 12px/1 var(--font-mono, ui-monospace, monospace); }
+.jx-source:hover { background: var(--surface-sunk); }
+.jx-source[aria-pressed='true'] { background: var(--surface-sunk); box-shadow: var(--elev-pressed, none); border-color: var(--edge-ui); }
+.jx-source-bar { display: inline-flex; align-items: center; gap: 10px; font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
+.jx-hint p { margin: 0; line-height: 1.5; }
+.jx-events .jx-right { grid-template-rows: auto auto; }
+
+/* ==================================================================== Connections */
+.jx-conn { grid-template-columns: 400px minmax(0, 1fr); }
+.jx-detected { min-height: 0; overflow: hidden; }
+.jx-counts { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.jx-counts b { color: var(--ink-1); font-variant-numeric: tabular-nums; }
+.jx-int-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; min-height: 0; overflow: auto; }
+.jx-int { inline-size: 100%; display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; column-gap: 10px; align-items: center; min-height: 44px; padding: 0 12px; border: 1px solid transparent; border-radius: var(--r-control, 10px); background: transparent; color: var(--ink-1); cursor: pointer; text-align: left; font: 13px/1.2 var(--font-ui, system-ui, sans-serif); }
+.jx-int:hover { background: var(--surface-sunk); }
+.jx-int[aria-pressed='true'] { background: var(--surface-sunk); box-shadow: var(--elev-pressed, none); border-color: var(--edge-ui); }
+.jx-int-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jx-int-word { font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+.jx-int[data-status='connected'] svg { color: var(--state-measured); }
+.jx-folder { min-height: 0; min-width: 0; overflow: hidden; }
+.jx-folder-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 2px; }
+.jx-conn .jx-folder-body[data-tab='brain'], .jx-conn .jx-folder-body[data-tab='detail'] { overflow: hidden; }
+.jx-detail-line { margin: 0; font: 13px/1.5 var(--font-mono, ui-monospace, monospace); overflow-wrap: anywhere; }
+.jx-next { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.jx-next code { padding: 10px 12px; border-radius: 10px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); font: 13px/1.3 var(--font-mono, ui-monospace, monospace); overflow-wrap: anywhere; }
+.jx-brain { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.jx-pending { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 12px; border-radius: 12px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); font: 13px/1.4 var(--font-ui, system-ui, sans-serif); }
+.jx-models { display: grid; gap: 6px; min-height: 0; }
+.jx-model { display: grid; grid-template-columns: 22px minmax(0, 1fr) 96px; column-gap: 12px; align-items: center; min-height: 56px; padding: 8px 12px; border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: 14px; background: var(--surface-raised); box-shadow: var(--elev-raised, none); color: var(--ink-1); cursor: pointer; text-align: left; }
+.jx-model:hover { border-color: var(--ink-2) var(--ink-2) var(--ridge-lo, var(--ink-2)); }
+.jx-model[data-chosen='true'] { background: var(--surface-sunk); box-shadow: var(--elev-pressed, none); }
+.jx-model[aria-disabled='true'] { color: var(--ink-3); cursor: default; box-shadow: var(--elev-flush, none); }
+.jx-radio { inline-size: 18px; block-size: 18px; border-radius: 50%; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); position: relative; }
+.jx-model[aria-checked='true'] .jx-radio::after { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: var(--ink-1); }
+.jx-model-body { display: grid; gap: 3px; min-width: 0; }
+.jx-model-name { font: 600 13px/1.2 var(--font-mono, ui-monospace, monospace); overflow-wrap: anywhere; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.jx-badge { font-style: normal; font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); padding: 3px 6px; border-radius: 6px; background: var(--surface-sunk); }
+.jx-model-meta { font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.jx-model-why { display: flex; gap: 6px; align-items: center; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
+.jx-model-why svg { color: var(--state-fault); flex: none; }
+.jx-model-size { text-align: right; white-space: nowrap; }
+.jx-brain-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.jx-classic { min-width: 0; }
+.jx-classic .card, .jx-classic .cx-card { box-shadow: none; }
+/* the classic cards' pills and heads do not wrap on their own; at 390 px a long board address pushed the page 200 px wide */
+.jx-classic .pill { white-space: normal; overflow-wrap: anywhere; max-inline-size: 100%; }
+.jx-classic .card-head { flex-wrap: wrap; row-gap: 6px; }
+
+/* ==================================================================== Hardware */
+.jx-hw { grid-template-columns: 440px 360px minmax(0, 1fr); }
+.jx-hw > .jx-card { min-height: 0; overflow: hidden; align-self: start; max-block-size: 100%; }
+.jx-board .jx-row { grid-template-columns: 44px minmax(0, 1fr) auto; }
+.jx-rack .jx-dim { margin: 0; }
+.jx-fw, .jx-wiring { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.jx-gate { margin: 0; display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); font: 13px/1.4 var(--font-ui, system-ui, sans-serif); }
+.jx-gate svg { flex: none; margin-top: 3px; }
+.jx-hw .jx-folder-body { overflow: auto; }
+
+/* ==================================================================== Crew */
+.jx-crew { grid-template-columns: minmax(0, 1fr) 470px; grid-template-rows: auto minmax(0, 1fr); row-gap: 12px; }
+.jx-crew > .jx-card { min-height: 0; overflow: hidden; }
+.jx-route-card { grid-column: 1 / -1; }
+.jx-agents { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.jx-agent { display: grid; grid-template-columns: 16px minmax(120px, 190px) minmax(0, 1fr) 86px auto; column-gap: 12px; align-items: center; min-height: 48px; border-bottom: 1px dashed var(--edge-hair, var(--edge-ui)); font: 13px/1.3 var(--font-ui, system-ui, sans-serif); }
+.jx-agent:last-child { border-bottom: 0; }
+.jx-agent-name { display: grid; gap: 2px; min-width: 0; }
+.jx-agent-name b { font: 600 13px/1.2 var(--font-mono, ui-monospace, monospace); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jx-agent-say { min-width: 0; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font: 12px/1.35 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
+.jx-agent-tick { white-space: nowrap; text-align: right; }
+.jx-feed-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font: 12px/1.35 var(--font-mono, ui-monospace, monospace); }
+.jx-feed-row { display: grid; grid-template-columns: 62px 52px minmax(0, 1fr); column-gap: 8px; align-items: baseline; }
+.jx-feed-row time { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.jx-feed-text { min-width: 0; overflow-wrap: anywhere; }
+.jx-feed-row svg { display: none; }
+
+/* the route: plates on a dashed path (C04-105 family, in text and clay) */
+.jx-route { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: minmax(96px, 1fr); gap: 14px 18px; flex: 1; min-height: 0; }
+.jx-route-card { display: flex; flex-direction: column; }
+.jx-route-track { display: flex; align-items: center; gap: 12px; font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.jx-plate-li { position: relative; min-width: 0; }
+.jx-plate-li::after { content: ''; position: absolute; inset-block-start: 22px; inset-inline-start: 100%; inline-size: 18px; border-block-start: 2px dashed var(--ink-3); }
+.jx-plate-li:nth-child(7n)::after, .jx-plate-li:last-child::after { display: none; }
+.jx-plate { inline-size: 100%; block-size: 100%; min-height: 96px; display: grid; align-content: start; gap: 4px; padding: 8px 10px; text-align: left; border: 1px dashed var(--ink-3); border-radius: 12px; background: transparent; color: var(--ink-1); cursor: pointer; }
+.jx-plate:hover { background: var(--surface-sunk); }
+.jx-plate[data-state='passed'] { border-style: solid; border-color: var(--edge-ui); background: var(--surface-raised); box-shadow: var(--elev-raised, none); }
+.jx-plate[data-state='waiting'] { border-style: solid; border-color: var(--edge-ui); border-inline-end-style: dashed; }
+.jx-plate-top { display: flex; align-items: center; gap: 6px; color: var(--ink-2); }
+.jx-plate-word { font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.06em; }
+.jx-plate-name { font: 650 13px/1.2 var(--font-ui, system-ui, sans-serif); }
+.jx-plate-line { font: 12px/1.35 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ==================================================================== phone: one column for the other four views too */
+@media (max-width: 899px) {
+  .jx-events, .jx-conn, .jx-hw, .jx-crew { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+  .jx-hw > .jx-card, .jx-crew > .jx-card { overflow: visible; }
+  .jx-events-list { min-height: 260px; }
+  .jx-model { grid-template-columns: 22px minmax(0, 1fr); }
+  .jx-model-size { display: none; }
+  .jx-agent { grid-template-columns: 16px minmax(0, 1fr) auto; }
+  .jx-agent-say, .jx-agent-tick { grid-column: 2 / -1; text-align: left; }
+  .jx-route { grid-template-columns: minmax(0, 1fr); }
+  .jx-plate-li::after { display: none; }
+  .jx-folder-body, .jx-hw .jx-folder-body { overflow: visible; }
+}
+@media (forced-colors: active) {
+  .jx-plate, .jx-model, .jx-int[aria-pressed='true'] { border: 1px solid CanvasText; }
+  .jx-plate[data-state='planned'] { border-style: dashed; }
+}

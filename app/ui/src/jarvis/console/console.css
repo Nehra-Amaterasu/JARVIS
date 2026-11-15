@@ -1,0 +1,230 @@
+/* ==========================================================================
+   Console, the five views of shell v2 (A.J05, spec 20.9.5). Loaded only by the lazy Console view chunks; every rule is
+   under .jx (or a part class that only the Console draws), so the classic pages and the other sections get none of it.
+
+   The box is Core's: the page area under the view row is 1302 x 668; with an 8 px gutter the view is 1286 x 652. Health is
+   a terminal frame (1fr, about 800) beside a 470 column of instruments. The material is the clay tokens BY NAME
+   (--surface-*, --elev-*, --ridge-*, --edge-*, --ink-*, --state-*), so the craft pass that retunes the recipe reaches this
+   section without an edit here. Charcoal wells carry data-scene='immersive' (the TermWell and the Capture Line do); the
+   keys around them are raised clay with a lit top lip and a shaded bottom lip. The one accent fill per screen is the
+   fix key (Health), the selected folder (Connections) or none (Events, Hardware, Crew). No hex, no rgba literal; the only
+   colours are tokens and system colours in the forced-colours branch.
+   ========================================================================== */
+.jx {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 470px;
+  column-gap: 16px;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--ink-1);
+  font-family: var(--font-ui, system-ui, sans-serif);
+}
+.jx *, .jx *::before, .jx *::after { box-sizing: border-box; }
+.jx > * { min-width: 0; }
+.jx-classic, .jx-classic * { max-inline-size: 100%; }
+.jx-classic pre, .jx-classic code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.jx-left, .jx-right { min-width: 0; min-height: 0; display: grid; row-gap: 12px; }
+.jx-left { grid-template-rows: minmax(0, 1fr); }
+.jx-right { grid-template-rows: none; grid-auto-rows: auto; align-content: start; }
+.jx-tag { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.04em; color: var(--ink-2); }
+.jx-dim { color: var(--ink-2); font: 12px/1.3 var(--font-mono, ui-monospace, monospace); }
+.jx-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.jx :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* ------------------------------------------------------------------ the terminal frame */
+.jx-well { min-height: 0; min-width: 0; display: flex; }
+.jx-well > .g-well { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; border-radius: 18px; box-shadow: var(--elev-recessed, none); padding: 14px 16px 12px 28px; }
+.jx-well .g-well-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+.jx-well .g-prompt { display: none; }
+.jx-stamp { flex: none; font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; color: var(--state-simulated, var(--ink-2)); }
+
+.jx-head { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 28px; }
+.jx-head-seal { display: inline-grid; place-items: center; color: var(--ink-2); flex: none; }
+.jx-head-title { margin: 0; flex: 1; min-width: 0; font: 650 13px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jx-head-right { display: inline-flex; align-items: center; gap: 12px; flex: none; }
+
+/* the ruler: a row of ticks with a block that sweeps along it (decorative, aria-hidden). One media query at the foot stills it. */
+.jx-ruler { position: relative; display: inline-block; font: 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-3); white-space: pre; inline-size: calc(var(--cols, 30) * 1ch + 1ch); block-size: 12px; overflow: hidden; }
+.jx-ruler-body { letter-spacing: 0; }
+.jx-ruler-head { position: absolute; inset-block-start: 0; inset-inline-start: 0; color: var(--ink-1); animation: jx-sweep 5.6s steps(var(--cols, 30)) infinite alternate; }
+@keyframes jx-sweep { from { transform: translateX(0); } to { transform: translateX(calc(var(--cols, 30) * 1ch)); } }
+
+/* ------------------------------------------------------------------ rows */
+.jx-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.jx-row {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 10px;
+  row-gap: 0;
+  align-items: baseline;
+  min-height: 32px;
+  padding: 6px 4px;
+  border-bottom: 1px dashed var(--edge-hair, var(--edge-ui));
+  font: 13px/1.35 var(--font-mono, ui-monospace, monospace);
+}
+.jx-row:last-child { border-bottom: 0; }
+.jx-row > .jx-tag { flex: none; inline-size: 48px; }
+.jx-row-text { flex: 1 1 240px; min-width: 0; overflow-wrap: anywhere; color: var(--ink-1); }
+.jx-row-why { flex: 0 1 auto; min-width: 0; color: var(--ink-2); font-size: 12px; overflow-wrap: anywhere; }
+.jx-row-lamp { flex: none; display: inline-flex; justify-content: flex-end; margin-inline-start: auto; }
+.jx-row[data-state='fault'] .jx-row-why { color: var(--ink-1); }
+
+/* ------------------------------------------------------------------ tabs and panes */
+/* tabs: a recessed channel of solid sunk clay, the selected tab raised and in full ink (kit FolderTabs is not used: its channel gradient fails the readable-text check on a charcoal well) */
+.jx-tabs { flex: none; display: inline-flex; flex-wrap: wrap; align-self: flex-start; gap: 4px; padding: 3px; max-inline-size: 100%; border-radius: calc(var(--r-control, 10px) + 4px); background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); }
+.jx-tab { min-height: 44px; min-width: 44px; padding: 0 16px; border: 1px solid transparent; border-radius: var(--r-control, 10px); background: transparent; color: var(--ink-2); font: 600 13px/1 var(--font-ui, system-ui, sans-serif); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.jx-tab:hover { color: var(--ink-1); }
+.jx-tab[aria-selected='true'] { background: var(--surface-raised); color: var(--ink-1); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); box-shadow: var(--elev-raised, none); }
+.jx-tab-count { font: 600 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.jx-pane:has(> .jx-empty) { justify-content: flex-start; }
+.jx-pane { flex: 1 1 0; min-height: 56px; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; font: 12px/1.35 var(--font-mono, ui-monospace, monospace); }
+.jx-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; justify-content: flex-end; min-height: 0; overflow: hidden; }
+.jx-logline { display: grid; grid-template-columns: 64px minmax(0, 1fr); column-gap: 10px; min-height: 18px; color: var(--ink-1); }
+.jx-logline time { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.jx-logline span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jx-empty { margin: 0; display: flex; align-items: center; gap: 8px; color: var(--ink-2); font: 12px/1.4 var(--font-mono, ui-monospace, monospace); min-height: 32px; }
+.jx-pane .jx-empty { justify-content: flex-start; }
+.jx-table { inline-size: 100%; border-collapse: collapse; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; }
+.jx-table th { text-align: left; font-weight: 600; color: var(--ink-2); padding: 2px 8px 4px 0; letter-spacing: 0.04em; }
+.jx-table td { padding: 3px 8px 3px 0; color: var(--ink-1); white-space: nowrap; }
+
+/* ------------------------------------------------------------------ the command deck */
+.jx-deck { flex: none; display: grid; gap: 6px; min-width: 0; }
+.jx-outs { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font: 12px/1.35 var(--font-mono, ui-monospace, monospace); }
+.jx-out { display: flex; align-items: baseline; gap: 8px; min-height: 18px; color: var(--ink-1); }
+.jx-out-hint { color: var(--ink-2); }
+.jx-ps { color: var(--ink-2); font-weight: 600; }
+.jx-out-text { min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.jx-out[data-state='fault'] .jx-out-text { color: var(--ink-1); }
+.jx-out[data-kind='ask'] .jx-out-text { font-weight: 600; }
+.jx-out-lamp { flex: none; align-self: center; color: var(--ink-2); }
+.jx-ask { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.jx-ask-hint { color: var(--ink-2); font: 12px/1 var(--font-mono, ui-monospace, monospace); }
+
+/* ------------------------------------------------------------------ keys: raised clay, lit top lip, shaded bottom lip */
+.jx-key {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--edge-ui);
+  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
+  border-radius: var(--r-control, 10px);
+  background: var(--surface-raised);
+  box-shadow: var(--elev-raised, none);
+  color: var(--ink-1);
+  font: 600 13px/1 var(--font-ui, system-ui, sans-serif);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform var(--dur-state, 120ms) var(--ease-standard, ease);
+}
+.jx-key:hover { transform: translateY(-1px); border-color: var(--ink-2) var(--ink-2) var(--ridge-lo, var(--ink-2)); }
+.jx-key:active { transform: translateY(1px); box-shadow: var(--elev-pressed, none); }
+.jx-key[aria-disabled='true'] { color: var(--ink-3); box-shadow: var(--elev-flush, none); cursor: default; transform: none; }
+.jx-key[aria-busy='true'] { cursor: progress; }
+.jx-key[data-accent='true'] { background: var(--accent-fill); color: var(--accent-on); }
+.jx-key[data-accent='true']:hover { background: var(--accent-fill-hover, var(--accent-fill)); }
+.jx-key[data-quiet='true'] { border-color: transparent; background: transparent; box-shadow: none; color: var(--ink-2); }
+.jx-key[data-quiet='true']:hover { background: var(--surface-sunk); color: var(--ink-1); transform: none; }
+.jx-key[aria-pressed='true'] { background: var(--surface-sunk); box-shadow: var(--elev-pressed, none); }
+.jx-key-icon { display: inline-flex; }
+.jx-guard { display: inline-flex; }
+.jx-guard[data-armed='true'] .jx-key { border-color: var(--ink-1); }
+.jx-ask .jx-key[data-accent='true'] { background: var(--surface-raised); color: var(--ink-1); }
+
+/* ------------------------------------------------------------------ cards on the right */
+.jx-card {
+  min-width: 0;
+  padding: 8px 14px 10px;
+  border: 1px solid var(--edge-ui);
+  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
+  border-radius: 18px;
+  background: var(--surface-raised);
+  box-shadow: var(--elev-raised, none);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.jx-gpu-body { display: grid; grid-template-columns: 160px minmax(0, 1fr); column-gap: 14px; align-items: center; }
+.jx-dial { position: relative; inline-size: 160px; aspect-ratio: 1; }
+.jx-dial > svg { display: block; inline-size: 100%; block-size: 100%; }
+.jx-dial-ticks { fill: none; stroke: var(--ink-3); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.jx-dial-track { fill: none; stroke: var(--surface-sunk); stroke-width: 12; stroke-linecap: round; }
+.jx-dial-track[data-hollow='true'] { stroke: var(--ink-3); stroke-width: 2; stroke-dasharray: 3 6; }
+.jx-dial-used { fill: none; stroke: var(--ink-2); stroke-width: 12; stroke-linecap: round; }
+.jx-dial-llm { fill: none; stroke: var(--ink-1); stroke-width: 12; stroke-linecap: round; }
+.jx-dial-disc { fill: var(--surface-raised); }
+.jx-dial-rim { fill: none; stroke: var(--edge-ui); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.jx-dial-read { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 2px; text-align: center; }
+.jx-dial-num { font: 650 30px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; }
+.jx-dial-unit { font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); max-inline-size: 110px; }
+.jx-callouts { margin: 0; display: grid; gap: 10px; min-width: 0; }
+.jx-callout { position: relative; padding-inline-start: 18px; min-width: 0; }
+.jx-callout::before { content: ''; position: absolute; inset-inline-start: 0; inset-block-start: 9px; inline-size: 12px; border-block-start: 1px dashed var(--ink-3); }
+.jx-callout dt { font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+.jx-callout dd { margin: 4px 0 0; font: 13px/1.3 var(--font-mono, ui-monospace, monospace); overflow-wrap: anywhere; }
+.jx-keys { display: flex; gap: 6px; flex-wrap: nowrap; }
+.jx-keys .jx-key { padding: 0 10px; }
+.jx-note { margin: 0; min-height: 14px; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.jx-note[data-state='fault'] { color: var(--ink-1); }
+
+/* jobs */
+.jx-jobs { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.jx-job { display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 8px; row-gap: 2px; align-items: baseline; font: 12px/1.35 var(--font-mono, ui-monospace, monospace); }
+.jx-job-label { min-width: 0; overflow-wrap: anywhere; color: var(--ink-1); }
+.jx-job .g-bar, .jx-job-fault { grid-column: 2; }
+.jx-job-fault { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-1); }
+.jx-job-fault svg { color: var(--state-fault); flex: none; }
+.jx-job .g-bar { font-size: 12px; flex-wrap: wrap; row-gap: 2px; }
+.jx-job[data-hollow='true'] .g-bar-track { color: var(--ink-3); }
+
+/* ridges */
+.jx-ridge-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.jx-ridge { display: grid; grid-template-columns: 84px minmax(0, 1fr) 56px; column-gap: 10px; align-items: center; min-height: 26px; font: 12px/1 var(--font-mono, ui-monospace, monospace); }
+.jx-ridge-label { color: var(--ink-2); }
+.jx-ridge-trace { font-size: 16px; line-height: 1; letter-spacing: 0.06em; white-space: nowrap; overflow: hidden; color: var(--ink-1); }
+.jx-ridge[data-empty='true'] .jx-ridge-trace { color: var(--ink-3); }
+.jx-ridge-med { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-1); }
+
+/* ------------------------------------------------------------------ phone: one column, the view scrolls inside itself */
+@media (max-width: 899px) {
+  .jx { grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto; overflow-x: hidden; overflow-y: auto; row-gap: 12px; align-content: start; }
+  .jx-left, .jx-right { grid-template-rows: none; }
+  .jx-right { grid-template-rows: none; }
+  .jx-well > .g-well { padding: 12px 10px 10px 18px; }
+  .jx-pane { min-height: 120px; justify-content: flex-start; }
+  .jx-gpu-body { grid-template-columns: minmax(0, 1fr); justify-items: center; row-gap: 10px; }
+  .jx-callouts { inline-size: 100%; }
+  .jx-ruler { display: none; }
+  .jx-keys { flex-wrap: wrap; }
+  .jx-ridge { grid-template-columns: 70px minmax(0, 1fr) 48px; }
+}
+
+/* ------------------------------------------------------------------ motion and forced colours: the ruler's block rests */
+@media (prefers-reduced-motion: reduce) {
+  .jx-ruler-head { animation: none; }
+  .jx-key { transition: none; }
+}
+@media (forced-colors: active) {
+  .jx-key, .jx-card { border: 1px solid CanvasText; forced-color-adjust: auto; }
+  .jx-key[data-accent='true'] { forced-color-adjust: none; background: Highlight; color: HighlightText; }
+  .jx-dial-used, .jx-dial-llm { stroke: CanvasText; }
+  .jx-dial-track { stroke: GrayText; }
+}
+.jx-outs[data-empty='true'] { display: none; }
+
+.jx-lampline { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.jx-lampline-why { color: var(--ink-2); font: 12px/1.35 var(--font-mono, ui-monospace, monospace); overflow-wrap: anywhere; }
+
+/* an answer on the command line takes the room of the log and the tabs: the terminal shows what it was asked, Esc on an empty line clears it */
+.jx-well:has(.jx-outs:not([data-empty='true'])) .jx-tabs, .jx-well:has(.jx-outs:not([data-empty='true'])) .jx-pane { display: none; }
+.jx-well .jx-deck { margin-block-start: auto; }

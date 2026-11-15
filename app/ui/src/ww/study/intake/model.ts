@@ -6,8 +6,8 @@ const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const DAY_MS = 86_400_000
 
-/** Rows per page of the ledger: six rows, three headers and the foot fit the 664 px canvas with no scroll. */
-export const PER_PAGE = 6
+/** Rows per page of the ledger: seven 44 px rows, three 28 px headers, the 44 px foot and the card's padding are 492 px of the 664 px canvas, so nothing scrolls. */
+export const PER_PAGE = 7
 /** A NEW row left alone this long folds into one line. Never deleted. */
 export const OLDER_DAYS = 14
 

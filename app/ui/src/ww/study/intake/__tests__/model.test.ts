@@ -36,7 +36,7 @@ describe('the groups and the page', () => {
     expect(groupOf({ ...byId('r1'), date: '2026-11-21' }, NOW)).toBe('week')
     expect(groupOf({ ...byId('r1'), date: '2026-11-22' }, NOW)).toBe('later')
   })
-  it('forty new rows: the first screen has at most six rows under at most three headers, and the pages add up', () => {
+  it('forty new rows: the first screen has at most seven rows under at most three headers, and the pages add up', () => {
     const rows = manyRows(40)
     const first = pageOf(rows, 0, NOW)
     expect(first.pages).toBe(Math.ceil(40 / PER_PAGE))

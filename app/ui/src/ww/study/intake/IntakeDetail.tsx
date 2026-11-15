@@ -3,7 +3,8 @@
 // says why while it cannot); a file row is taken to Papers or Notes instead of accepted. Nothing here changes a count: an
 // accepted deadline is listed. Remove deletes the row, and only a file the app owns (the engine decides and says which).
 import { useState } from 'react'
-import { Button, PrimaryButton, Segmented } from '../../../shared/kit'
+import { Trash2 } from 'lucide-react'
+import { Button, IconButton, PrimaryButton, Segmented } from '../../../shared/kit'
 import { Lamp, readingOf, type LampReading } from '../../../shared/lamp'
 import { AttachmentLadder } from './AttachmentLadder'
 import { COPY } from './copy'
@@ -46,22 +47,24 @@ export function IntakeDetail({ row, subjects, now, head, onAccept, onDecline, on
     <aside className="ik-detail" aria-label="The chosen item" data-component="intake-detail" data-row={row.id}>
       <header className="ik-detail-head">
         <h2>{row.title}</h2>
-        <Button
+        <IconButton
           size="sm"
-          onClick={() => { if (sure || !row.file?.owned) { onRemove(row); setSure(false) } else setSure(true) }}
+          label={sure ? 'Press again to remove this item' : 'Remove this item'}
           title={COPY.removeNote}
+          onClick={() => { if (sure || !row.file?.owned) { onRemove(row); setSure(false) } else setSure(true) }}
         >
-          {sure ? 'Press again to remove' : 'Remove'}
-        </Button>
+          <Trash2 size={18} aria-hidden="true" />
+        </IconButton>
       </header>
       <p className="ik-prov-line"><ProvenanceChip source={row.source} /><span>{provenanceLine(row, now)}</span></p>
       <dl className="ik-facts">
         {!isFile && (
           <div>
             <dt>{row.kind === 'event' ? 'Starts' : 'Due'}</dt>
-            <dd>{row.ambiguous && !row.date ? (draft.date ? readingWords(draft.date, now) : 'not chosen') : dueWords(row.date, row.time, now)}{row.repeats ? ', repeats, not expanded' : ''}</dd>
+            <dd>{row.ambiguous && !row.date ? (draft.date ? readingWords(draft.date, now) : 'not chosen') : dueWords(row.date, row.time, now)}</dd>
           </div>
         )}
+        {row.repeats && <div><dt>Repeats</dt><dd>not expanded</dd></div>}
         {isFile && row.file && <div><dt>File</dt><dd>{sizeWords(row.file.size)}{row.file.owned ? ', a copy the app holds' : ', in your folder'}</dd></div>}
         {!isNew && <div><dt>State</dt><dd>{STATE_WORD[row.state]}</dd></div>}
       </dl>
@@ -103,7 +106,7 @@ export function IntakeDetail({ row, subjects, now, head, onAccept, onDecline, on
         )}
         {!isNew && <Button size="lg" onClick={() => onBack(row)}>Back to new<kbd className="ik-key" aria-hidden="true">U</kbd></Button>}
       </div>
-      {sure && <p id="ik-remove-note" className="ik-detail-note" role="status">{COPY.removeNote}</p>}
+      {sure && <p id="ik-remove-note" className="ik-detail-note" role="status">Press Remove again to confirm. {COPY.removeNote}</p>}
       <p className="ik-detail-lamp"><Lamp reading={readingOf(head)} /></p>
     </aside>
   )

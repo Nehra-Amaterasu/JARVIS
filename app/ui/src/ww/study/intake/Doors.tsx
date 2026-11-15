@@ -8,7 +8,7 @@ export type DoorId = 'folder' | 'paste' | 'ics' | 'archive'
 
 const DOORS: { id: DoorId; name: string; sub: string; key: string }[] = [
   { id: 'folder', name: 'Folder', sub: 'Files you saved into a watched folder', key: 'F' },
-  { id: 'paste', name: 'Paste', sub: 'Lines such as “Maths Assignment 3 - due 18 Nov”', key: 'P' },
+  { id: 'paste', name: 'Paste', sub: 'A list of deadlines, one per line', key: 'P' },
   { id: 'ics', name: 'Calendar file', sub: 'An .ics you exported yourself', key: 'C' },
   { id: 'archive', name: 'Archive', sub: 'A Classroom export .zip you made', key: 'Z' },
 ]
@@ -27,7 +27,7 @@ export function Doors({ readings, onOpen, classroom }: DoorsProps) {
           <button type="button" className="ik-door" data-door={d.id} aria-keyshortcuts={d.key} onClick={() => onOpen(d.id)}>
             <span className="ik-door-top"><span className="ik-door-name">{d.name}</span><kbd className="ik-key" aria-hidden="true">{d.key}</kbd></span>
             <span className="ik-door-sub">{d.sub}</span>
-            <span className="ik-door-lamp"><Lamp reading={readings[d.id]} /><span className="ik-door-why">{readings[d.id].reason}</span></span>
+            <span className="ik-door-lamp"><Lamp reading={readings[d.id]} />{readings[d.id].reason && <span className="ik-door-why">{readings[d.id].reason}</span>}</span>
           </button>
         </li>
       ))}

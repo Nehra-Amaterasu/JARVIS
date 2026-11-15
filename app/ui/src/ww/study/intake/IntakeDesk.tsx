@@ -58,6 +58,7 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, now: nowPr
   const [sheet, setSheet] = useState<Sheet | null>(open ?? null)
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const seq = useRef(0)
+  const jumped = useRef(false)
 
   const load = useCallback(async () => {
     const [l, s] = await Promise.all([desk.list(), desk.subjects()])
@@ -82,6 +83,13 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, now: nowPr
   const visible = useMemo(() => (showOlder ? byFilter : byFilter.filter((r) => !olderRows.includes(r))), [byFilter, olderRows, showOlder])
   const order = useMemo(() => walkOrder(visible), [visible])
   const selRow = order.find((r) => r.id === sel) ?? order[page * PER_PAGE] ?? order[0] ?? null
+  /** A desk opened on a chosen item shows the page that holds it, once. */
+  useEffect(() => {
+    if (jumped.current || !initialSel || order.length === 0) return
+    jumped.current = true
+    const i = order.findIndex((r) => r.id === initialSel)
+    if (i >= 0) setPage(Math.floor(i / PER_PAGE))
+  }, [order, initialSel])
   const newCount = rows.filter((r) => r.state === 'new').length
   const batch = useMemo(() => (filter === 'new' ? visible.filter(batchEligible) : []), [filter, visible])
 
@@ -137,9 +145,9 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, now: nowPr
 
   const readings: Record<DoorId, LampReading> = {
     folder,
-    paste: reading(head.state, live ? 'reads lines you paste' : head.reason),
-    ics: reading(head.state, live ? 'reads an .ics file' : head.reason),
-    archive: reading(head.state, live ? 'lists before it queues' : head.reason),
+    paste: reading(head.state, live ? '' : head.reason),
+    ics: reading(head.state, live ? '' : head.reason),
+    archive: reading(head.state, live ? '' : head.reason),
   }
 
   const onKey = (e: KeyboardEvent) => {
@@ -188,7 +196,7 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, now: nowPr
             subjects={subjects}
             now={now}
             page={page}
-            onPage={setPage}
+            onPage={(p) => { setPage(p); setSel(null) }}
             selId={selRow?.id ?? null}
             onSelect={setSel}
             emptyTitle={emptyTitle}

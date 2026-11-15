@@ -1,7 +1,8 @@
 // CourseMapper and CourseMapRow (package C03, spec 21.4.2 S3): one row per class name read from his lists, each mapped to one
 // subject by him. A suggestion (name overlap at 0.6 or more) is a chip he presses; it is never applied by itself. His choice is
-// kept and never overwritten by a later reading. The per-class "pull announcements" switch is drawn PLANNED (it needs the
-// Classroom link); there is no auto-accept switch, because nothing here is accepted without his press.
+// kept and never overwritten by a later reading. "Pull announcements" is one switch drawn PLANNED (it needs the Classroom link;
+// the per-class form arrives with the Connect Ladder, C08); there is no auto-accept switch, because nothing here is accepted
+// without his press.
 import { useEffect, useState } from 'react'
 import { Button, Chip, Switch } from '../../../shared/kit'
 import { Lamp, readingOf, showsNumber, type LampState } from '../../../shared/lamp'
@@ -36,7 +37,6 @@ export function CourseMapRow({ course, subjects, onMap }: CourseMapRowProps) {
       {!course.subject && sug && (
         <Chip tone="neutral" onClick={() => onMap(sug.id)}>{`Suggested: ${sug.label}`}</Chip>
       )}
-      <Switch className="ik-course-sw" checked={false} onChange={() => undefined} label="Pull announcements" planned onPlanned={() => undefined} />
     </li>
   )
 }
@@ -77,6 +77,12 @@ export function CourseMapper({ desk, onMapped, onClose }: CourseMapperProps) {
         <ul className="ik-courses" aria-label="Classes and their subjects">
           {courses.map((c) => <CourseMapRow key={c.id} course={c} subjects={subjects} onMap={(s) => void map(c, s)} />)}
         </ul>
+      )}
+      {courses && courses.length > 0 && (
+        <div className="ik-planned-row">
+          <Switch checked={false} onChange={() => undefined} label="Pull announcements" planned onPlanned={() => undefined} />
+          <span className="ik-sheet-note">Needs the Classroom link, which is PLANNED. There is no switch that accepts items for you.</span>
+        </div>
       )}
       {note && <p className="ik-sheet-note" role="status">{note}</p>}
       <div className="ik-sheet-act"><Button onClick={onClose}>Close</Button></div>

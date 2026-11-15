@@ -1,11 +1,11 @@
 // Every sentence of the intake desk that is not data, in one file so the forbidden-word test can read all of it in one pass.
 export const COPY = {
   title: 'Intake',
-  footer: 'Every item waits for your press. An accepted deadline is listed; it never changes a count by itself.',
+  footer: 'Every item waits for your press. An accepted deadline never changes a count by itself.',
   emptyTitle: 'Nothing brought in yet',
   emptyNote: 'Drop a folder, paste a list or import a calendar file above. Each item waits here until you accept or decline it.',
   noMatch: 'Nothing in this filter.',
-  fixture: 'Invented items for the gallery. SIMULATED, not read from a list or a file.',
+  fixture: 'Invented items, SIMULATED.',
   classroomPlate: 'Classroom',
   classroomReason: 'Not linked. You sign in first; the four doors work without it.',
   noFetchShort: 'The app never downloads a file for you.',

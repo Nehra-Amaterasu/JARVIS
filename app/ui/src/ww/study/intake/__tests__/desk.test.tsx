@@ -67,8 +67,8 @@ describe('with the fixture desk (invented rows, SIMULATED)', () => {
     await start({ desk: makeFixtureDesk() })
     expect(q('.ik-count-n').textContent).toBe('10 new')
     expect(q('[data-component="intake-count"]').textContent).toContain('SIMULATED')
-    expect(qa('.ik-ghead').map((h) => h.textContent)).toEqual(['This week4', 'Later2'])
-    expect(qa('.ik-row')).toHaveLength(6)
+    expect(qa('.ik-ghead').map((h) => h.textContent)).toEqual(['This week4', 'Later2', 'No date3'])
+    expect(qa('.ik-row')).toHaveLength(7)
     expect(qa('.ik-row .ik-prov').every((p) => /Source: (Pasted|Calendar file|Folder|Archive)/.test(p.getAttribute('aria-label') ?? ''))).toBe(true)
     expect(q('.ik-foot-line').textContent).toContain('SIMULATED')
   })
@@ -154,14 +154,14 @@ describe('with the fixture desk (invented rows, SIMULATED)', () => {
     expect(qa('.ik-row').filter((r) => r.tabIndex === 0)).toHaveLength(1)
     expect(qa('.ik-row').find((r) => r.tabIndex === 0)!.getAttribute('data-row')).toBe('r2')
   })
-  it('forty new rows: six rows and at most three headers on the first screen, a pager, and Shift+A accepts only the rows that have a subject and a clear date', async () => {
+  it('forty new rows: seven rows and at most three headers on the first screen, a pager, and Shift+A accepts only the rows that have a subject and a clear date', async () => {
     const rows = manyRows(40)
     const desk = makeFixtureDesk({ rows })
     const decide = vi.spyOn(desk, 'decide')
     await start({ desk })
-    expect(qa('.ik-row')).toHaveLength(6)
+    expect(qa('.ik-row')).toHaveLength(7)
     expect(qa('.ik-ghead').length).toBeLessThanOrEqual(3)
-    expect(q('.ik-pager').textContent).toContain('1 of 7')
+    expect(q('.ik-pager').textContent).toContain('1 of 6')
     const want = rows.filter((r) => r.subject !== '' && r.date).length
     key(q('[data-component="intake-desk"]'), 'A', { shiftKey: true })
     await flush()
@@ -216,7 +216,8 @@ describe('with the fixture desk (invented rows, SIMULATED)', () => {
     const long = qa('.ik-course-name').find((e) => (e.getAttribute('title') ?? '').startsWith('Workshop'))!
     expect(long.getAttribute('aria-label')).toContain('the longer name that the mapper truncates')
     expect(long.textContent!.length).toBeLessThanOrEqual(36)
-    expect(qa('.ik-course [role="switch"]').every((s) => s.getAttribute('data-state') === 'planned')).toBe(true)
+    expect(qa('[data-component="course-mapper"] [role="switch"]').length).toBe(1)
+    expect(qa('[data-component="course-mapper"] [role="switch"]').every((s) => s.getAttribute('data-state') === 'planned')).toBe(true)
     expect(map).not.toHaveBeenCalled()
     click(button(/Suggested: Signals/))
     await flush()

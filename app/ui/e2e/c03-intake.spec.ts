@@ -1,6 +1,6 @@
 // Package C03 in a real Chromium: the Manual Intake desk of the gallery entry "C03" (invented items, SIMULATED).
 // Built in memory by Vite from a virtual entry (nothing is written near dist, no port is used). Proves:
-//   geometry   the desk at the shell canvas size (1230 x 664) has no document scroll, no inner scrollbar, no target under 44 px, six rows
+//   geometry   the desk at the shell canvas size (1230 x 664) has no document scroll, no inner scrollbar, no target under 44 px, seven rows
 //              and at most three headers on the first page; the detail never runs past the box; at 382 px (358 px of content) and at
 //              390 px it is one column with no sideways scroll
 //   keyboard   the four doors are four tab stops and the Classroom plate is none; the list is one tab stop; arrows walk it; `a` accepts
@@ -81,7 +81,7 @@ async function state(page: Page, i: number, theme: 'light' | 'dark' = 'light', w
   const doc = `<!doctype html><html lang="en" data-theme="clay-${theme}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>C03</title><style>${FONTS}</style><style>${css}</style></head><body><div id="root"></div><script>${safe}</script></body></html>`
   await page.route(`${URL_}**`, (route) => route.fulfill({ contentType: 'text/html', body: doc }))
   await page.goto(`${URL_}?theme=${theme}&state=${i}${w ? `&w=${w}` : ''}`)
-  await page.locator('.ik-desk').first().waitFor()
+  await page.locator('.ik-desk, .c03-parts').first().waitFor()
   await page.evaluate(() => document.fonts.ready)
   await page.waitForTimeout(450)
 }
@@ -100,7 +100,7 @@ test.describe('C03 geometry', () => {
   test.use({ viewport: { width: 1366, height: 768 } })
 
   for (const theme of ['light', 'dark'] as const) {
-    test(`the desk at the canvas size has no scroll, six rows, at most three headers and no target under 44 px (${theme})`, async ({ page }) => {
+    test(`the desk at the canvas size has no scroll, seven rows, at most three headers and no target under 44 px (${theme})`, async ({ page }) => {
       await state(page, 0, theme)
       expect(await page.evaluate(() => document.documentElement.scrollHeight - innerHeight), 'the document scrolls').toBeLessThanOrEqual(0)
       const box = await page.locator('.c03-box').first().boundingBox()
@@ -116,6 +116,7 @@ test.describe('C03 geometry', () => {
           innerY: inner.scrollHeight - inner.clientHeight, innerX: inner.scrollWidth - inner.clientWidth,
           ledgerY: ledger.scrollHeight - ledger.clientHeight, detailY: detail.scrollHeight - detail.clientHeight,
           lastRowCut: Math.round(last.bottom - ledger.getBoundingClientRect().bottom),
+          primaryH: Math.round(document.querySelector<HTMLElement>('.ik-keys [data-primary]')?.getBoundingClientRect().height ?? 0),
           rows: document.querySelectorAll('.ik-row').length, heads: document.querySelectorAll('.ik-ghead').length,
           doorStops: [...document.querySelectorAll<HTMLElement>('.ik-door')].filter((d) => d.tabIndex === 0).length,
         }
@@ -125,7 +126,8 @@ test.describe('C03 geometry', () => {
       expect(m.ledgerY, 'the ledger scrolls inside').toBeLessThanOrEqual(1)
       expect(m.detailY, 'the chosen item runs past its card').toBeLessThanOrEqual(1)
       expect(m.lastRowCut, 'the last row is cut off').toBeLessThanOrEqual(1)
-      expect(m.rows).toBe(6)
+      expect(m.rows).toBe(7)
+      expect(m.primaryH, 'principle 13: the primary key is 48 px or taller').toBeGreaterThanOrEqual(48)
       expect(m.heads).toBeLessThanOrEqual(3)
       expect(m.doorStops, 'four doors are four tab stops; the Classroom plate is none').toBe(4)
       expect(await smallTargets(page, TARGETS), 'targets under 44 px').toEqual([])
@@ -184,8 +186,10 @@ test.describe('C03 geometry', () => {
     await state(page, 0)
     const m = await page.evaluate(`(() => {
       const lum = (c) => { const [r, g, b] = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4) }); return 0.2126 * r + 0.7152 * g + 0.0722 * b };
-      const rgb = (s) => (s.match(/[\\d.]+/g) || []).map(Number);
-      const surface = (e) => { for (let n = e; n; n = n.parentElement) { const c = rgb(getComputedStyle(n).backgroundColor); if (c.length === 3 || (c.length > 3 && c[3] === 1)) return c.slice(0, 3); } return [255, 255, 255]; };
+      const ctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+      const rgba = (s) => { ctx.clearRect(0, 0, 1, 1); ctx.fillStyle = '#000'; ctx.fillStyle = s; ctx.fillRect(0, 0, 1, 1); const d = ctx.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2], d[3] / 255]; };
+      const rgb = (s) => rgba(s).slice(0, 3);
+      const surface = (e) => { const chain = []; for (let n = e; n; n = n.parentElement) { const c = rgba(getComputedStyle(n).backgroundColor); if (c[3] > 0) chain.push(c); if (c[3] === 1) break; } let out = [255, 255, 255]; for (const c of chain.reverse()) out = [0, 1, 2].map((k) => c[k] * c[3] + out[k] * (1 - c[3])); return out; };
       const desk = document.querySelector('.ik-desk');
       const texts = [...desk.querySelectorAll('*')].filter((e) => [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()));
       const small = texts.filter((e) => parseFloat(getComputedStyle(e).fontSize) < 10.99).map((e) => e.className + ' ' + e.textContent.slice(0, 20));
@@ -239,7 +243,7 @@ test.describe('C03 keyboard', () => {
 
   test('the focus ring is 2 px on the focused row, door and button', async ({ page }) => {
     await state(page, 0)
-    for (const sel of ['.ik-door[data-door="paste"]', '.ik-row[tabindex="0"]', '.ik-detail .k-btn']) {
+    for (const sel of ['.ik-door[data-door="paste"]', '.ik-row[tabindex="0"]', '.ik-detail .ww-btn']) {
       await page.locator(sel).first().focus()
       await page.keyboard.press('Shift+Tab')
       await page.keyboard.press('Tab')

@@ -37,12 +37,12 @@ button.ik-door:focus-visible, .ik-row:focus-visible, .ik-pg:focus-visible, .ik-o
 .ik-door-top { display: flex; align-items: center; justify-content: space-between; min-inline-size: 0; }
 .ik-door-name { font: 600 14px/1.2 var(--font-ui, system-ui, sans-serif); }
 .ik-door-top .ik-key { margin-inline-start: 0; }
-.ik-door-sub { font: 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; line-clamp: 1; }
+.ik-door-sub { font: 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ik-door-lamp { display: flex; align-items: center; gap: 0.5rem; min-inline-size: 0; }
 .ik-door-why { font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-inline-size: 0; }
 /* Classroom is a plate, not a door: sunk, not focusable, PLANNED with its reason */
 .ik-plate { background: var(--surface-sunk); box-shadow: var(--elev-recessed); cursor: default; }
-.ik-plate .ik-door-sub { -webkit-line-clamp: 2; line-clamp: 2; }
+.ik-plate .ik-door-sub { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 
 /* ---------------------------------------------------------------- the ledger */
 .ik-main { display: grid; grid-template-columns: minmax(0, 1fr) clamp(300px, 29%, 354px); gap: 1rem; min-block-size: 0; }
@@ -56,14 +56,15 @@ button.ik-door:focus-visible, .ik-row:focus-visible, .ik-pg:focus-visible, .ik-o
   border-radius: 0.75rem; cursor: pointer; border-block-end: 1px solid var(--edge-hair);
 }
 .ik-row:hover { background: var(--surface-ground); }
-.ik-row[aria-current='true'] { background: var(--selected-fill); }
+.ik-row[aria-current='true'] { background: var(--surface-sunk); box-shadow: var(--elev-imprint, none); }
 .ik-row:focus-visible { outline-offset: -2px; }
 .ik-kind { color: var(--ink-2); flex: none; }
 .ik-row-main { display: grid; min-inline-size: 0; }
 .ik-row-title { font: 600 14px/1.2 var(--font-ui, system-ui, sans-serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ik-row-sub { font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ik-row-state { font: 12px/1 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
-.ik-prov { display: inline-flex; }
+.ik-prov { display: inline-flex; flex: none; white-space: nowrap; }
+.ik-prov .ww-chip { white-space: nowrap; }
 .ik-foot { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; min-block-size: 44px; padding-inline: 0.25rem; }
 .ik-older { all: unset; box-sizing: border-box; min-block-size: 44px; display: inline-flex; align-items: center; padding-inline: 0.5rem; border-radius: 0.5rem; cursor: pointer; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
 .ik-older:hover { color: var(--ink-1); }
@@ -90,7 +91,7 @@ button.ik-door:focus-visible, .ik-row:focus-visible, .ik-pg:focus-visible, .ik-o
 .ik-facts { margin: 0; display: grid; gap: 0.25rem; }
 .ik-facts > div { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
 .ik-facts dt { font: 12px/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
-.ik-facts dd { margin: 0; font: 500 14px/1.3 var(--font-mono, ui-monospace, monospace); text-align: end; }
+.ik-facts dd { margin: 0; font: 500 13px/1.3 var(--font-mono, ui-monospace, monospace); text-align: end; }
 .ik-subject { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.5rem; }
 .ik-subject-label { font: 12px/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
 .ik-select {
@@ -101,9 +102,10 @@ button.ik-door:focus-visible, .ik-row:focus-visible, .ik-pg:focus-visible, .ik-o
 .ik-select:disabled { color: var(--ink-2); }
 /* the popup of a native select is drawn by the system: the options still set their own opaque surface and ink */
 .ik-select option { background: var(--surface-raised); color: var(--ink-1); }
-.ik-keys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
-.ik-keys .k-btn { inline-size: 100%; }
-.ik-keys .k-btn:only-child { grid-column: 1 / -1; }
+.ik-keys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; align-items: start; }
+.ik-keys > * { min-inline-size: 0; }
+.ik-keys .ww-btn { inline-size: 100%; }
+.ik-keys > :only-child, .ik-keys > :first-child:nth-last-child(3) { grid-column: 1 / -1; }
 .ik-detail-note { margin: 0; font: 12px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
 .ik-detail-lamp { margin: 0; display: flex; align-items: center; }
 
@@ -139,10 +141,11 @@ button.ik-door:focus-visible, .ik-row:focus-visible, .ik-pg:focus-visible, .ik-o
 .ik-entries li[data-refused='true'] .ik-entry-name { color: var(--ink-2); font-weight: 500; }
 .ik-courses { list-style: none; margin: 0; padding: 0; }
 .ik-course { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.375rem 0.75rem; padding: 0.5rem 0; border-block-end: 1px solid var(--edge-hair); }
+.ik-course-pick { grid-column: 1; }
+.ik-course:has(.ik-course-pick):not(:has(.ww-chip)) .ik-course-pick { grid-column: 1 / -1; }
+.ik-planned-row { display: grid; gap: 0.5rem; justify-items: start; }
 .ik-course-name { font: 600 14px/1.2 var(--font-ui, system-ui, sans-serif); min-inline-size: 0; }
 .ik-course-from { font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); text-align: end; }
-.ik-course-pick { grid-column: 1 / -1; display: block; }
-.ik-empty-line.ik-sheet-empty { font-size: 14px; }
 
 /* ---------------------------------------------------------------- the classic Library face */
 .ik-classic { display: grid; gap: 0.5rem; align-content: start; }
@@ -157,10 +160,10 @@ button.ik-door:focus-visible, .ik-row:focus-visible, .ik-pg:focus-visible, .ik-o
   .ik-foot-line { white-space: normal; line-height: 1.4; block-size: auto; }
 }
 @container (max-width: 759px) {
-  .ik-doors { grid-template-columns: minmax(0, 1fr); }
-  .ik-door { block-size: auto; min-block-size: 64px; }
-  .ik-door-sub, .ik-plate .ik-door-sub { display: block; -webkit-line-clamp: unset; line-clamp: unset; }
-  .ik-door-why { white-space: normal; }
+  .ik-doors { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ik-doors > li:last-child { grid-column: 1 / -1; }
+  .ik-door { block-size: auto; min-block-size: 68px; }
+  .ik-plate .ik-door-sub { display: block; white-space: normal; -webkit-line-clamp: unset; line-clamp: unset; }
   .ik-main { grid-template-columns: minmax(0, 1fr); }
   .ik-row { grid-template-columns: 20px minmax(0, 1fr) auto; }
   .ik-row-state { display: none; }
@@ -174,8 +177,8 @@ button.ik-door:focus-visible, .ik-row:focus-visible, .ik-pg:focus-visible, .ik-o
 }
 @media (forced-colors: active) {
   .ik-door, .ik-ledger, .ik-detail, .ik-pg, .ik-sheet, .ik-empty, .ik-well, .ik-paste, .ik-select { border: 1px solid CanvasText; box-shadow: none; }
-  .ik-plate { border-style: dashed; }
-  .ik-row[aria-current='true'] { background: Highlight; color: HighlightText; }
+  .ik-plate { border: 1px dashed var(--line-ui); }
+  .ik-row[aria-current='true'] { border: 2px solid Highlight; }
   .ik-row:focus-visible, button.ik-door:focus-visible, .ik-pg:focus-visible, .ik-select:focus-visible { outline-color: Highlight; }
 }
 

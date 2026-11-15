@@ -2,6 +2,34 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-15: J03, the Senses section under shell v2
+
+**Question.** Spec 20.9.3 and A.J03: rebuild Senses (Presence, Signal, Teach) so it is one family with Core and Today (a centrepiece instrument, a terminal strip, clay keys, lamps with words, cybersigil marks, moving ASCII) without losing a feature of `pages/Aankhen.tsx`, and keep the physics honest: one Wi-Fi link sees that a body moved, not how it is bent.
+
+**What was built (all under `app/ui/src/jarvis/senses/`, nothing in `pages/` or `components/` edited).**
+- `store.ts`: the data logic of the classic page moved into one ref-counted store (the `/ws/aankhen` socket, frames to 24 terrain rows at 240 ms, a 30 s motion history at 5 Hz, status, room, readiness, zones, the model status, the actions `start`, `askHeat`, pause). One connection serves the three views and closes 3 s after the last one. 11 vitest cases on a fake socket and clock.
+- `model.ts`: the pure parts (terrain rows and ridges, the arc model, the tape, the link vitals, the floor-plan fit, the four teach rings, the narration template, the copy lint). 29 cases.
+- Presence: `SignalTerrain` (the one 720 x 360 canvas, ridge lines in four alpha buckets, cyan front row measured, amber simulated, hollow mound with "NO SIGNAL: shape is a placeholder", redraw only on a fresh row and at most 4 per second under reduced motion), `LinkCube` (three vitals, each a number with its lamp), the 17 x 3 `ChannelMatrix` (a ring cut in quarters, one quarter per step of amplitude), `ProbabilityArc` with a spindle of three crossed lenses (a band and the word PREDICTING; a digit only after the server says the held-out day passed), `MotionTape` (7 days, 288 columns each, filled for motion seen, hatched for paused by you, blank is not a finding), the isometric `FloorPlan` (default Map form, "rings are zones, not positions"), the prediction strip (right, wrong, fan) and a Twin settings drawer. The existing WebGL twin is `TwinStage.tsx`, loaded by a dynamic import on the 3D key and disposed when it is released, so the terrain canvas unmounts first and the view never holds two canvases.
+- Signal: SVG only (51 amplitude bars, the motion score on a log scale with its threshold, the motion-band meter, sensors, a text waterfall that moves one row per frame, events, a fixed narration template).
+- Teach: four sigil rings cut into real parts (room 1, quiet baselines 2, drill days 7, held-out 1), what is left with the keys for it, the classic Measure my room and First light sheets hosted in a drawer, the mini drill, phone recording and train tabs rebuilt on `lib/teachTrain.ts`, and the learned model's advisory rows.
+
+**Numbers.** 70 vitest cases in the folder (4 files); 25 Playwright checks (desk 1366 x 768: 8 states with no inner scroll, no part outside the 1302 x 668 canvas, every target 44 px or more, text 11 px or more, at most one canvas and one accent key; phone 390 px: one column, no sideways scroll; keyboard path; the built app under the sandbox: the three views replace the hosted classic page, 3D swaps canvas and twin). Layout budget at 1366: left column 48 + 392 + 120 + 44 plus 3 gaps of 10 = 634 of 652; right 292 + 300 + the sentence plus 2 gaps of 12 = 652.
+
+**Honest states.** Fixtures are stamped SIMULATED (amber) and come only from the simulation source; a socket that is closed or a hub that is silent for 5 s is "no source" (FAULT or WAITING, never the last data); the arc has no digit before the held-out check; the tape records only the minutes this window was open and says so; the learned rows have no digit before the model answers. A copy lint (`__tests__/copy.test.ts`) fails on present, absent, occupied or "empty room" in any string of the folder, on an art id naming an eye, face, body, pose or figure, on a second canvas, on a static import of the twin or three.js, and on any colour literal in the stylesheet.
+
+**Decisions and findings worth keeping.**
+- The hub offers nine simulation scenarios in the sandbox (drift, quiet, evening, fan, hallway, pair, sleep, still, walk), so the scenario chips of the classic page became one select; a row of chips ran off the 760 px column.
+- The real room has furniture up to 2 m tall, so the floor plan fits every drawn point (floor, furniture tops, zone rings, the two ends), not the floor alone.
+- The drill gate is 7 days in `aankhen/readiness.py`, the spec draws five rings; the ring count follows the server's own "(n of 7)" label.
+- Pause is a window-level pause (frames are not read, the tape records "paused by you"); the board keeps sending. A real stop of the hub stays `POST /api/aankhen/stop`, not offered here.
+- The classic Eyes view (spectrogram, ripples, rhythm bands, a body reading) is not rebuilt: the spec drops the spectrogram and ripples, and the body-reading sentence breaks "one link, no pose".
+
+**Parity (docs/design/parity-ledger.md rows S01 to S05).** S01 Presence (twin behind 3D, presence core, zones, motion tape), S02 Signal, S03 Teach (mini drill, phone recording, train, rights and corrections in the Presence strip, fan), S04 Teach (readiness, Measure my room, First light), S05 Presence strip and the Teach learned panel. C09 `/api/aankhen/start` is the Start ESP32 key and the scenario select.
+
+**Principles applied** (docs/design/ux-principles-checklist.md): 3 staging (the terrain is the one focal element), 4 pose to pose (live, simulated, hollow, paused, frozen, fault each stand alone), 6 and 9 (240 ms needle on the motion tokens, feedback inside 100 ms), 8 (one supporting motion: the spindle turns with real motion energy, still at idle), 11 (one light, tokens only), 12 (one centrepiece per view), 13 and 14 (44 px keys, 8 px between), 15 (one accent key per view; nine scenarios behind a select; layers behind a drawer), 16 (at most four rings, seven days, three vitals), 17 (a state within 200 ms, honest job progress), 19 (Esc closes the drawer and releases a frozen frame, Enter freezes, arrows move, P, M and 3 are single keys), 20 (Pause on the main row, the twin settings further away).
+
+**What it changed.** New: `app/ui/src/jarvis/senses/**`, `shell/views/senses-{presence,signal,teach}.view.ts`, `gallery/entries/J03.tsx`, `e2e/j03-senses.spec.ts`. The classic page, its tests and the flag-off interface are unchanged.
+
 ## 2026-11-15: RW1, the relay pin map as one fold in Room
 
 **Question.** Spec D-V3-35 and ledger R06: the owner keeps the relay wiring (GPIO pins may change one day), drops only the Arduino Uno guide, and wants it to take little space. Can a pin map be read or saved today?

@@ -368,3 +368,280 @@
 .ww-tree-career {
   min-width: 0;
 }
+
+/* ==========================================================================
+   CP2 (15 Nov): the Tree hosted by the new shell. Everything is scoped under .s2 (or is a class only the shell
+   branch renders), so the classic page keeps its pill, its chip row and its dark ground.
+   Measured at 1366x768 before: "next" at 9 px; the branch chips a sideways scroller 1,608 px long; the tree
+   switcher two rows tall; and the SVG drew black hexagons on the light ground (the classic tree.css reads the dark
+   --bg-2 and --ink, which the shell does not define), so every label was black on black with an orange halo.
+   The legacy names are pointed at the clay roles once, on the tree, and the classic rules then draw in clay.
+   ========================================================================== */
+.s2 .ww-tree {
+  --ink: var(--ink-1);
+  --ink-4: var(--edge-ui);
+  --bg-2: var(--surface-raised);
+  --live: var(--state-measured);
+  --sim: var(--state-simulated);
+  --live-2: var(--surface-raised);
+  --sim-2: var(--surface-raised);
+  gap: var(--space-3);
+}
+.s2 .ww-tree[data-shell-bars='true'] {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.s2 .ww-tree-page {
+  gap: var(--space-3);
+}
+.s2 .ww-tree-bar {
+  gap: var(--space-2) var(--space-3);
+  padding-block-end: 0;
+  border-bottom: 0;
+}
+.s2 .ww-tree-find .ww-input {
+  inline-size: 160px;
+}
+/* the one warm action rides the stage's corner, opposite the legend, so the toolbar stays one row */
+.ww-tree-cta {
+  position: absolute;
+  inset-block-end: var(--space-3);
+  inset-inline-end: var(--space-3);
+  z-index: 1;
+}
+/* the two keys: a label word, the value, a chevron */
+.ww-tree-keywrap {
+  display: inline-flex;
+}
+.ww-tree-key {
+  gap: var(--space-2);
+}
+.ww-tree-key-k {
+  color: var(--ink-2);
+  font: 600 12px/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ww-tree-key-v {
+  color: var(--ink-1);
+  font-weight: 600;
+  white-space: nowrap;
+}
+/* the popover: an opaque list of 44 px rows, selected = the inverted ink (never colour alone: a tick as well) */
+.ww-tree-pop {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  inline-size: 320px;
+  max-inline-size: calc(100vw - 32px);
+}
+.ww-tree-pop-wide {
+  inline-size: 360px;
+}
+.ww-tree-rows {
+  display: grid;
+  gap: var(--space-1);
+}
+.ww-tree-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  inline-size: 100%;
+  min-block-size: var(--hit, 44px);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: transparent;
+  color: var(--ink-1);
+  font: inherit;
+  text-align: start;
+}
+.ww-tree-opt:hover {
+  background: var(--surface-raised-hi, var(--surface-raised));
+}
+.ww-tree-opt[aria-checked='true'] {
+  background: var(--selected-fill, var(--ink-1));
+  color: var(--selected-ink, var(--surface-raised));
+}
+.ww-tree-opt[aria-disabled='true'] {
+  color: var(--ink-2);
+  cursor: default;
+}
+.ww-tree-opt:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.ww-tree-opt-main {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  display: grid;
+}
+.ww-tree-opt-label {
+  overflow-wrap: anywhere;
+}
+.ww-tree-opt-why {
+  color: var(--ink-2);
+  font-size: var(--text-label);
+  line-height: 1.35;
+}
+.ww-tree-opt-count {
+  flex: none;
+  font: 12px/1 var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
+}
+@media (forced-colors: active) {
+  .ww-tree-opt[aria-checked='true'] {
+    outline: 2px solid Highlight;
+  }
+}
+
+/* the stage is a recessed well; the hexagons are raised pebbles in it */
+.s2 .ww-tree-stage {
+  border: 0;
+  border-radius: var(--r-card);
+  background: var(--surface-sunk);
+  box-shadow: var(--elev-recessed, none);
+}
+.s2 .ww-tree-stage .tn-label {
+  stroke: var(--surface-sunk);
+  fill: var(--ink-1);
+}
+.s2 .ww-tree-stage .tree-node.locked .tn-label {
+  fill: var(--ink-2);
+}
+.s2 .ww-tree-stage .tree-branch {
+  fill: var(--ink-2);
+}
+.s2 .ww-tree-stage .ring-next text {
+  font-size: var(--text-label);
+}
+.s2 .ww-tree-legend {
+  border: 0;
+  background: var(--surface-raised);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none);
+  color: var(--ink-1);
+}
+.s2 .ww-tree-results {
+  border: 0;
+  border-radius: var(--r-card);
+  background: var(--surface-raised);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-float, var(--elev-raised, none));
+}
+/* the inspector is one raised clay card with an opaque face */
+.s2 .ww-insp {
+  background: var(--surface-raised);
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-card);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-float, var(--elev-raised, none));
+}
+.s2 .ww-insp-head {
+  border-bottom: 0;
+}
+.s2 .ww-mastery {
+  border-top: 0;
+}
+
+/* ---- 390 px: one column. The stage is a fixed-height well, the inspector opens below it, the frame scrolls ---- */
+.s2 .ww-frame[data-density='narrow'] .ww-tree-page,
+.s2 .ww-frame[data-density='narrow'] .ww-tree,
+.s2 .ww-frame[data-density='narrow'] .ww-tree-body {
+  display: flex;
+  flex-direction: column;
+  block-size: auto;
+  gap: var(--space-3);
+}
+.s2 .ww-frame[data-density='narrow'] .ww-tree-stage {
+  flex: none;
+  block-size: min(64vh, 460px);
+}
+.s2 .ww-frame[data-density='narrow'] .ww-tree-slot[data-float='true'] {
+  position: static;
+  inline-size: auto;
+  max-inline-size: none;
+}
+.s2 .ww-frame[data-density='narrow'] .ww-insp,
+.s2 .ww-frame[data-density='narrow'] .ww-insp-body {
+  block-size: auto;
+  overflow: visible;
+}
+.s2 .ww-frame[data-density='narrow'] .ww-tree-find {
+  flex: 1 1 100%;
+}
+.s2 .ww-frame[data-density='narrow'] .ww-tree-find .ww-input {
+  inline-size: 100%;
+}
+
+/* the page's own popover under the shell (ShellBars.tsx Panel): an opaque raised face that reads the shell's tokens */
+.ww-tree-panel {
+  position: fixed;
+  z-index: var(--z-sheet);
+  max-inline-size: calc(100vw - var(--space-6));
+  max-block-size: calc(100vh - 7rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface-raised);
+  color: var(--ink-1);
+  border: 1px solid transparent;
+  border-color: var(--rim-shade, var(--edge-ui));
+  border-radius: var(--r-card);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-float, var(--elev-raised, none));
+}
+.ww-tree-panel .ww-tree-menu {
+  padding: var(--space-3);
+}
+.ww-tree-pop-wide {
+  inline-size: 560px;
+}
+.ww-tree-pop-wide .ww-tree-rows {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 640px) {
+  .ww-tree-pop-wide .ww-tree-rows {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* at 390 px the frame's centre row is minmax(0, 1fr) between the Today column and the Proof rail and clips what does
+   not fit (it was 0 px high, so this page was not on screen). While this page is on screen the rows size to their
+   content and the frame, which already scrolls, carries the page. ww/frame/frame.css owns the rule: when it gives the
+   centre its content height at 390, this block is redundant and can go. */
+.s2 .ww-frame[data-density='narrow']:has(.ww-tree-page) {
+  grid-template-rows: max-content max-content max-content max-content;
+}
+.s2 .ww-frame[data-density='narrow']:has(.ww-tree-page) .ww-centre {
+  overflow: visible;
+}
+/* the page host is absolutely placed inside the centre; in flow it gives the centre its height */
+.s2 .ww-frame[data-density='narrow']:has(.ww-tree-page) .ww-centre > .page {
+  position: static;
+  inset: auto;
+  overflow: visible;
+}
+
+/* principle 14: at least 8 px between neighbouring targets; principle 13: the primary action at least 48 px tall */
+.s2 .ww-tree-zoom {
+  gap: var(--space-2);
+}
+.ww-tree-rows {
+  gap: var(--space-2);
+}
+.ww-tree-cta .ww-btn.primary {
+  min-block-size: 48px;
+}
+@media (forced-colors: active) {
+  .ww-tree-panel,
+  .s2 .ww-insp {
+    border-color: CanvasText;
+  }
+  .s2 .ww-tree-stage {
+    border: 1px solid CanvasText;
+  }
+}
+
+/* a link in the inspector (a resource, a source) is 44 px high on the element itself; it was 16 px */
+.s2 .ww-insp a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--hit);
+  overflow-wrap: anywhere;
+}

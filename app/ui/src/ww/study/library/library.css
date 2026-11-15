@@ -1,0 +1,104 @@
+/* ==========================================================================
+   CP2 (15 Nov): Study > Library hosted by the new shell. Scoped under .s2, so the classic frame is unchanged.
+   Measured at 1366x768 before: the three cards stacked and the page scrolled 306 px inside the canvas, and each
+   resource was three lines tall with its two buttons below. Now two columns (the day's concept and the findings on
+   the left, the node being studied on the right), a resource is one row (name and facts, then the two buttons),
+   and the third resource onward sits behind a fold. At 390 px it is one column again.
+   ========================================================================== */
+.s2 .ww-library {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  grid-template-areas:
+    'concept node'
+    'find node';
+  align-items: start;
+  gap: var(--gap-card);
+}
+.s2 .ww-library > [data-card='study-concept'] {
+  grid-area: concept;
+}
+.s2 .ww-library > [data-card='study-node'] {
+  grid-area: node;
+}
+.s2 .ww-library > [data-card='study-findings'],
+.s2 .ww-library > [data-findings-hidden] {
+  grid-area: find;
+}
+.s2 .ww-library .ww-resource {
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--space-3);
+  align-items: center;
+  border-block-end: 0;
+}
+.s2 .ww-library .ww-resource > .ww-log-acts {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  flex-wrap: nowrap;
+}
+.s2 .ww-library .ww-resource-title,
+.s2 .ww-library .ww-resource-meta {
+  grid-column: 1;
+  overflow-wrap: anywhere;
+}
+.s2 .ww-library .ww-resources {
+  gap: var(--space-1);
+}
+/* the log form is one row: what, minutes, the key */
+.s2 .ww-library .ww-studylog {
+  grid-template-columns: minmax(0, 1fr) 9.5rem auto;
+  margin-block-start: var(--space-2);
+}
+.s2 .ww-library .ww-concept-body {
+  max-inline-size: none;
+}
+.s2 .ww-frame[data-density='narrow'] .ww-library {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: none;
+}
+.s2 .ww-frame[data-density='narrow'] .ww-library > [data-card],
+.s2 .ww-frame[data-density='narrow'] .ww-library > [data-findings-hidden] {
+  grid-area: auto;
+}
+.s2 .ww-frame[data-density='narrow'] .ww-library .ww-resource {
+  grid-template-columns: minmax(0, 1fr);
+}
+.s2 .ww-frame[data-density='narrow'] .ww-library .ww-resource > .ww-log-acts {
+  grid-column: 1;
+  grid-row: auto;
+  flex-wrap: wrap;
+}
+.s2 .ww-frame[data-density='narrow'] .ww-library .ww-studylog {
+  grid-template-columns: minmax(0, 1fr);
+}
+/* a finding's title is the link: 44 px high on the element itself, two lines allowed */
+.s2 .ww-findings a {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--hit);
+  overflow-wrap: anywhere;
+}
+
+/* at 390 px the frame's centre row is minmax(0, 1fr) between the Today column and the Proof rail and clips what does
+   not fit (it was 0 px high, so this page was not on screen). While this page is on screen the rows size to their
+   content and the frame, which already scrolls, carries the page. ww/frame/frame.css owns the rule: when it gives the
+   centre its content height at 390, this block is redundant and can go. */
+.s2 .ww-frame[data-density='narrow']:has(.ww-library) {
+  grid-template-rows: max-content max-content max-content max-content;
+}
+.s2 .ww-frame[data-density='narrow']:has(.ww-library) .ww-centre {
+  overflow: visible;
+}
+/* the page host is absolutely placed inside the centre; in flow it gives the centre its height */
+.s2 .ww-frame[data-density='narrow']:has(.ww-library) .ww-centre > .page {
+  position: static;
+  inset: auto;
+  overflow: visible;
+}
+.ww-waiting {
+  display: grid;
+  gap: var(--space-2);
+}
+.ww-waiting-line {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}

@@ -375,3 +375,135 @@
 .cr-plan > .ww-card {
   min-block-size: 0;
 }
+
+/* ==========================================================================
+   CP2 (15 Nov): Career hosted by the new shell. Scoped under .s2, so the classic frame is unchanged.
+   Measured at 1366x768 before this block: certificate links 254 x 17 px (a 17 px target), five certificate
+   sub-lines and the Ladder kicker cut with an ellipsis, and at 390 px the whole page collapsed to 0 px high
+   (the body is flex 1 1 0 inside a frame that is not a fixed height there), so nothing showed below the Today column.
+   ========================================================================== */
+/* a name or a note is given room by design: it wraps to a second line, it is not cut */
+.s2 .ww-career .ww-kicker {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+/* certificates: the name is the link and is 44 px high on the element itself; the note takes up to two lines */
+.s2 .cr-view[data-view='certs'] {
+  --cr-row: 88px;
+}
+.s2 .cr-cert-name {
+  overflow: visible;
+  white-space: normal;
+  line-height: 1.25;
+}
+.s2 .cr-cert-name a {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--hit, 44px);
+}
+.s2 .cr-cert .cr-sub {
+  /* wraps in full: a two-line clamp drew a trailing ellipsis over the hours ("about 1...") */
+  display: block;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+.s2 .cr-cert .cr-link {
+  inline-size: 9rem;
+}
+/* "free" twice (the price word and the lamp beside it) reads as clutter: the lamp keeps the word */
+.s2 .cr-cost[data-free='true'] {
+  display: none;
+}
+
+/* ---- 390 px: one column, natural heights. The frame scrolls; a list shows its page of rows at their own height ---- */
+.s2 .ww-frame[data-density='narrow'] .ww-career,
+.s2 .ww-frame[data-density='narrow'] .cr-body,
+.s2 .ww-frame[data-density='narrow'] .cr-view,
+.s2 .ww-frame[data-density='narrow'] .ww-career .ww-card,
+.s2 .ww-frame[data-density='narrow'] .ww-career .ww-card-face,
+.s2 .ww-frame[data-density='narrow'] .ww-career .ww-card-body,
+.s2 .ww-frame[data-density='narrow'] .cr-list,
+.s2 .ww-frame[data-density='narrow'] .cr-funding,
+.s2 .ww-frame[data-density='narrow'] .cr-pane,
+.s2 .ww-frame[data-density='narrow'] .cr-pane > .ww-card {
+  flex: none;
+  block-size: auto;
+  min-block-size: 0;
+  overflow: visible;
+}
+.s2 .ww-frame[data-density='narrow'] .cr-fill,
+.s2 .ww-frame[data-density='narrow'] [data-view='pipeline'] [data-card] {
+  flex: none;
+}
+.s2 .ww-frame[data-density='narrow'] .cr-item {
+  block-size: auto;
+  overflow: visible;
+  padding-block: var(--space-2);
+}
+.s2 .ww-frame[data-density='narrow'] .cr-bar {
+  flex-wrap: wrap;
+}
+.s2 .ww-frame[data-density='narrow'] .cr-plan,
+.s2 .ww-frame[data-density='narrow'] .cr-abroad {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: none;
+}
+.s2 .ww-frame[data-density='narrow'] .cr-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.s2 .ww-frame[data-density='narrow'] .cr-cert,
+.s2 .ww-frame[data-density='narrow'] .cr-trial-head,
+.s2 .ww-frame[data-density='narrow'] .cr-trial-foot {
+  flex-wrap: wrap;
+}
+.s2 .ww-frame[data-density='narrow'] .cr-cert-main {
+  flex: 1 1 100%;
+}
+.s2 .ww-frame[data-density='narrow'] .cr-uni,
+.s2 .ww-frame[data-density='narrow'] .cr-chest {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.s2 .ww-frame[data-density='narrow'] .cr-stages {
+  flex-wrap: wrap;
+}
+.s2 .ww-frame[data-density='narrow'] .cr-clip {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+.s2 .ww-frame[data-density='narrow'] .cr-datein,
+.s2 .ww-frame[data-density='narrow'] .cr-select,
+.s2 .ww-frame[data-density='narrow'] .cr-link,
+.s2 .ww-frame[data-density='narrow'] .cr-cert .cr-link {
+  inline-size: 100%;
+}
+/* a card head that holds a switch and a key (Ladder) wraps at 390 px instead of pushing the page 81 px wider */
+.s2 .ww-frame[data-density='narrow'] .ww-career .ww-card-head,
+.s2 .ww-frame[data-density='narrow'] .ww-career .ww-card-headtext {
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.s2 .ww-frame[data-density='narrow'] .ww-career .ww-card-action {
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+}
+
+/* at 390 px the frame's centre row is minmax(0, 1fr) between the Today column and the Proof rail and clips what does
+   not fit (it was 0 px high, so this page was not on screen). While this page is on screen the rows size to their
+   content and the frame, which already scrolls, carries the page. ww/frame/frame.css owns the rule: when it gives the
+   centre its content height at 390, this block is redundant and can go. */
+.s2 .ww-frame[data-density='narrow']:has(.ww-career) {
+  grid-template-rows: max-content max-content max-content max-content;
+}
+.s2 .ww-frame[data-density='narrow']:has(.ww-career) .ww-centre {
+  overflow: visible;
+}
+/* the page host is absolutely placed inside the centre; in flow it gives the centre its height */
+.s2 .ww-frame[data-density='narrow']:has(.ww-career) .ww-centre > .page {
+  position: static;
+  inset: auto;
+  overflow: visible;
+}

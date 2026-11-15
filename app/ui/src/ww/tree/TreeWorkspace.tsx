@@ -17,6 +17,8 @@ import { useWorkspaceValue } from '../frame/workspaceMemory'
 import { Banner, EmptyState, Segmented, Skeleton } from '../kit'
 import { LifeInspector, SkillInspector } from './Inspector'
 import { TreeCanvas } from './TreeCanvas'
+import { TreePicker } from './ShellBars'
+import { inShell } from './inShell'
 import './tree.css'
 import '../../germoney/pages/tree.css'
 
@@ -68,14 +70,26 @@ export function WwTreePage() {
   const pick = (id: string) => { setActiveRaw(id); writePref(PREF_TREE, id) }
   const docked = width >= DOCK_WIDTH
 
-  const switcher = (
+  const [shell] = useState(inShell)   // under the new shell the eight trees sit behind one key; the classic page keeps its pill
+  const skillCount = `${Object.values(skillStatus).filter((s) => s === 'mastered').length}/${bank.order.length}`
+  const switcher = shell ? (
+    <TreePicker
+      value={shown ?? SKILLS}
+      onChange={pick}
+      options={[
+        { id: SKILLS, label: 'Skills', count: skillCount },
+        ...trees.map((t) => ({ id: t.id, label: t.name, count: `${t.progress.mastered}/${t.progress.total}` })),
+        { id: WHOLE, label: 'Whole me', disabledReason: WHOLE_REASON },
+      ]}
+    />
+  ) : (
     <Segmented<string>
       label="Which tree"
       variant="compact"
       value={shown ?? SKILLS}
       onChange={pick}
       options={[
-        { id: SKILLS, label: `Skills ${Object.values(skillStatus).filter((s) => s === 'mastered').length}/${bank.order.length}` },
+        { id: SKILLS, label: `Skills ${skillCount}` },
         ...trees.map((t) => ({ id: t.id, label: `${t.name} ${t.progress.mastered}/${t.progress.total}` })),
         { id: WHOLE, label: 'Whole me', disabledReason: WHOLE_REASON },
       ]}

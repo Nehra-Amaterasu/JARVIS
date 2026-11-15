@@ -41,6 +41,10 @@ interface Surface {
   scrim?: By
   /** Drawn in the page, not over it (a list specimen, a select): opacity and ink are checked, the scrim and the viewport are not. */
   inline?: boolean
+  /** Ink only, on a region of the page that is not itself a surface (a rail): no opacity, scrim or viewport checks. */
+  ink?: boolean
+  /** Reachable at desktop width only (a phone has no such control on the page). */
+  desktop?: boolean
 }
 const by = (b: By | undefined, w: number) => (typeof b === 'function' ? b(w) : b)
 
@@ -139,20 +143,23 @@ const SURFACES: Surface[] = [
     open: (p) => press(p, 'Plan the day'),
     panel: '.td-plan[data-state="open"]', scrim: '.ww-scrim[data-state="open"]',
   },
+  { id: 'shell rail', products: ['jarvis', 'ww'], open: async () => {}, panel: '.s2-rail', inline: true, ink: true },
+  { id: 'proof rail', products: ['ww'], open: async () => {}, panel: '.ps', inline: true, ink: true },
+  { id: 'page canvas', products: ['jarvis', 'ww'], open: async () => {}, panel: '.s2-page', inline: true, ink: true },
   {
-    id: 'add application drawer', products: ['ww'],
+    id: 'add application drawer', products: ['ww'], desktop: true,
     open: async (p) => { await p.keyboard.press('Control+5'); await press(p, /Add application/) },
     panel: '.ww-sheet[data-state="open"]', scrim: '.ww-scrim[data-state="open"]',
   },
   {
-    id: 'tree view settings popover', products: ['ww'],
+    id: 'tree view settings popover', products: ['ww'], desktop: true,
     open: async (p) => { await p.keyboard.press('Control+4'); await press(p, 'View settings') },
     panel: '.ww-popover[data-state="open"]',
   },
 ]
 
 /** The in-page audit: returns one line per defect. Plain JS, serialised into the page. */
-function audit(a: { panel: string; scrim?: string; inline?: boolean }): string[] {
+function audit(a: { panel: string; scrim?: string; inline?: boolean; ink?: boolean }): string[] {
   const out: string[] = []
   const panels = Array.from(document.querySelectorAll<HTMLElement>(a.panel)).filter((e) => e.getClientRects().length > 0)
   const panel = panels[0]
@@ -206,8 +213,8 @@ function audit(a: { panel: string; scrim?: string; inline?: boolean }): string[]
 
   // 1: opaque, not faded
   const own = parse(getComputedStyle(panel).backgroundColor)
-  if (own[3] < 0.999) out.push(`panel background is not opaque: alpha ${own[3].toFixed(2)} on ${name(panel)}`)
-  if (opacityOf(panel) < 0.999) out.push(`panel is faded: opacity ${opacityOf(panel).toFixed(2)} on ${name(panel)}`)
+  if (!a.ink && own[3] < 0.999) out.push(`panel background is not opaque: alpha ${own[3].toFixed(2)} on ${name(panel)}`)
+  if (!a.ink && opacityOf(panel) < 0.999) out.push(`panel is faded: opacity ${opacityOf(panel).toFixed(2)} on ${name(panel)}`)
 
   // 2: ink
   const seen = new Set<Element>()
@@ -221,7 +228,7 @@ function audit(a: { panel: string; scrim?: string; inline?: boolean }): string[]
     if (el.tagName === 'OPTION' || el.tagName === 'SCRIPT' || el.tagName === 'STYLE') continue
     checks.push({ el, text: t, fg: parse(getComputedStyle(el).color) })
   }
-  for (const f of Array.from(panel.querySelectorAll<HTMLElement>('input, textarea, select'))) {
+  for (const f of [...(panel.matches('input, textarea, select') ? [panel] : []), ...Array.from(panel.querySelectorAll<HTMLElement>('input, textarea, select'))]) {
     if (f instanceof HTMLInputElement && /^(range|checkbox|radio|hidden|button|submit)$/.test(f.type)) continue
     const s = getComputedStyle(f)
     if (f instanceof HTMLSelectElement) checks.push({ el: f, text: `select value "${f.selectedOptions[0]?.textContent ?? ''}"`, fg: parse(s.color) })
@@ -230,7 +237,7 @@ function audit(a: { panel: string; scrim?: string; inline?: boolean }): string[]
     if (ph) checks.push({ el: f, text: `placeholder "${ph}"`, fg: parse(getComputedStyle(f, '::placeholder').color) })
   }
   // the options of a native select are drawn by the browser from the option's own colours
-  for (const o of Array.from(panel.querySelectorAll<HTMLOptionElement>('select option'))) {
+  for (const o of Array.from(panel.querySelectorAll<HTMLOptionElement>('option')).concat(panel instanceof HTMLSelectElement ? Array.from(panel.options) : [])) {
     const s = getComputedStyle(o)
     const bg = parse(s.backgroundColor)
     const fg = parse(s.color)
@@ -296,7 +303,7 @@ for (const mode of MODES) {
     for (const product of ['jarvis', 'ww'] as const) {
       test.describe(`${product} side, ${mode}, ${vp.name}`, () => {
         test.use({ viewport: { width: vp.width, height: vp.height } })
-        for (const s of SURFACES.filter((x) => x.products.includes(product))) {
+        for (const s of SURFACES.filter((x) => x.products.includes(product) && !(x.desktop && vp.width < 900))) {
           test(s.id, async ({ page, baseURL }) => {
             await boot(page, baseURL, mode)
             await toProduct(page, product)
@@ -311,7 +318,7 @@ for (const mode of MODES) {
               mkdirSync(SHOTS, { recursive: true })
               await page.screenshot({ path: resolve(SHOTS, `${s.id.replace(/\W+/g, '-')}-${product}-${mode.replace(' ', '-')}-${vp.name}.png`) })
             }
-            const findings = await page.evaluate(audit, { panel, scrim: by(s.scrim, vp.width), inline: s.inline })
+            const findings = await page.evaluate(audit, { panel, scrim: by(s.scrim, vp.width), inline: s.inline, ink: s.ink })
             expect(findings, `${s.id} in the ${product} side, ${mode}, at ${vp.name}`).toEqual([])
           })
         }
@@ -319,3 +326,92 @@ for (const mode of MODES) {
     }
   }
 }
+
+// ---- the same hand on both sides: hover, press and focus move the dark parts as they move the light ones ----
+// The owner: "both sides must be made of the same clay, with press in and out, shadow, glare and hover moving together". For each
+// control the specimen is read at rest, under the pointer, pressed and keyboard-focused in the JARVIS side (clay-dark) and in the
+// Well Wisher side (clay-light), and what MOVES is compared: a lift (translate up or the glare coming on), a sink on press (the
+// part drops or its shadow changes) with the glare off, a change of face, and a 2 px focus ring. A feature one side has and the
+// other lacks fails, which is how a dark Key that did not lift or a dark Chip that did not sink would show.
+const FEEL: { id: string; entry: string; pick: string; sub?: string; glare?: string }[] = [
+  { id: 'Button', entry: 'kit/Button', pick: 'button.ww-btn:not([aria-disabled="true"]):not(.primary)' },
+  { id: 'Key', entry: 'kit/Key', pick: 'button.k-key:not([aria-disabled="true"])' },
+  { id: 'Switch', entry: 'kit/Switch', pick: 'button.k-switch:not([aria-disabled="true"])', sub: '.k-switch-thumb' },
+  { id: 'Rocker', entry: 'kit/Rocker', pick: '.k-rocker-half:not([data-active="true"])' },
+  { id: 'Chip', entry: 'kit/Chip', pick: 'button.ww-chip:not([aria-disabled="true"])' },
+  { id: 'Segmented', entry: 'kit/Segmented', pick: '.ww-seg-opt[aria-checked="false"], .ww-seg-opt:not([aria-checked="true"])' },
+]
+interface Sample { ty: number; sc: number; shadow: string; bg: string; glare: number; ring: number }
+async function sample(page: Page, pick: string, sub?: string): Promise<Sample> {
+  return page.evaluate(({ pick, sub }) => {
+    const host = document.querySelector<HTMLElement>(`.gl-pane ${pick.split(',').join(', .gl-pane ')}`)!
+    const el = sub ? host.querySelector<HTMLElement>(sub)! : host
+    const cs = getComputedStyle(el)
+    const m = new DOMMatrix(cs.transform === 'none' ? undefined : cs.transform)
+    const before = getComputedStyle(el, '::before')
+    const hostCs = getComputedStyle(host)
+    return {
+      ty: m.m42, sc: m.a, shadow: cs.boxShadow, bg: cs.backgroundColor,
+      glare: before.content !== 'none' && before.content !== 'normal' ? Number(before.opacity) : 0,
+      ring: hostCs.outlineStyle === 'none' ? 0 : parseFloat(hostCs.outlineWidth),
+    }
+  }, { pick, sub })
+}
+async function feel(page: Page, f: (typeof FEEL)[number]) {
+  const host = page.locator(`.gl-pane ${f.pick.split(',').join(', .gl-pane ')}`).first()
+  await host.scrollIntoViewIfNeeded()
+  await page.mouse.move(2, 2)
+  await page.waitForTimeout(300)
+  const rest = await sample(page, f.pick, f.sub)
+  await host.hover()
+  await page.waitForTimeout(350)
+  const hov = await sample(page, f.pick, f.sub)
+  await page.mouse.down()
+  await page.waitForTimeout(300)
+  const prs = await sample(page, f.pick, f.sub)
+  await page.mouse.move(2, 2)
+  await page.mouse.up()
+  await page.waitForTimeout(200)
+  await page.keyboard.press('Shift')
+  await host.focus()
+  await page.waitForTimeout(250)
+  const foc = await sample(page, f.pick, f.sub)
+  const differ = (a: string, b: string) => a !== b
+  return {
+    lifts: hov.ty < rest.ty - 0.4 || hov.glare > rest.glare + 0.2 || differ(hov.shadow, rest.shadow),
+    glareOnHover: hov.glare > rest.glare + 0.2,
+    facesMoves: differ(hov.bg, rest.bg),
+    sinksOnPress: prs.ty > hov.ty + 0.4 || prs.sc < hov.sc - 0.005 || differ(prs.shadow, hov.shadow),
+    glareOffOnPress: prs.glare < hov.glare - 0.2 || hov.glare === 0,
+    ring2px: foc.ring >= 2,
+    raw: { rest, hov, prs, foc },
+  }
+}
+test.describe('hover, press and focus move both sides alike', () => {
+  test.use({ viewport: { width: 1366, height: 768 } })
+  test('every control moves the same way in the dark JARVIS side and the light Well Wisher side', async ({ page, baseURL }) => {
+    test.setTimeout(240_000)
+    const res: Record<string, Record<Product, Awaited<ReturnType<typeof feel>>>> = {}
+    for (const product of ['jarvis', 'ww'] as const) {
+      await boot(page, baseURL, 'clean')
+      await toProduct(page, product)
+      for (const f of FEEL) {
+        await gallery(page, f.entry)
+        res[f.id] ??= {} as Record<Product, Awaited<ReturnType<typeof feel>>>
+        res[f.id][product] = await feel(page, f)
+      }
+    }
+    const bad: string[] = []
+    for (const f of FEEL) {
+      const d = res[f.id].jarvis
+      const l = res[f.id].ww
+      for (const k of ['lifts', 'glareOnHover', 'facesMoves', 'sinksOnPress', 'glareOffOnPress', 'ring2px'] as const) {
+        if (l[k] && !d[k]) bad.push(`${f.id}: ${k} on the light side but not on the dark side (${JSON.stringify({ light: l.raw, dark: d.raw })})`)
+      }
+      if (!d.lifts && !d.facesMoves) bad.push(`${f.id}: the dark part does not answer the pointer (${JSON.stringify(d.raw)})`)
+      if (!d.sinksOnPress) bad.push(`${f.id}: the dark part does not sink when pressed (${JSON.stringify(d.raw)})`)
+      if (!d.ring2px) bad.push(`${f.id}: the dark part shows no 2 px focus ring (${JSON.stringify(d.raw)})`)
+    }
+    expect(bad).toEqual([])
+  })
+})

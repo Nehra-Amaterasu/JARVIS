@@ -9,7 +9,7 @@
   position: relative; box-sizing: border-box; inline-size: 100%; block-size: 100%; min-block-size: 0; container-type: inline-size;
   color: var(--ink-1); font-family: var(--font-ui, system-ui, sans-serif);
 }
-.gx-desk-in { box-sizing: border-box; inline-size: 100%; block-size: 100%; min-block-size: 0; display: grid; grid-template-rows: 56px minmax(0, 1fr) 24px; gap: 0.5rem; }
+.gx-desk-in { box-sizing: border-box; inline-size: 100%; block-size: 100%; min-block-size: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 56px minmax(0, 1fr) 24px; gap: 0.5rem; }
 .gx-top { display: flex; align-items: center; gap: 0.75rem; min-inline-size: 0; }
 .gx-title { margin: 0; font: 600 20px/1.2 var(--font-ui, system-ui, sans-serif); }
 .gx-top-lamp { margin-inline-end: auto; }
@@ -20,7 +20,7 @@
 
 .gx-main { display: grid; gap: 1rem; min-block-size: 0; }
 .gx-main-bp { grid-template-columns: minmax(0, 1fr) 340px; }
-.gx-main-slots { grid-template-rows: minmax(0, 1fr) auto; gap: 0.5rem; }
+.gx-main-slots { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 0.5rem; }
 .gx-main-print { grid-template-columns: minmax(0, 1fr) 360px; }
 .gx-left, .gx-right { min-inline-size: 0; min-block-size: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 .gx-right-act { margin-block-start: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; }
@@ -197,7 +197,10 @@
   .gx-inv { margin-inline-start: 0; flex-basis: 100%; }
   .gx-bt-head { display: none; }
   .gx-row { block-size: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 0.5rem; padding: 0.5rem; }
-  .gx-row .gx-name, .gx-row .d3r { grid-column: 1 / -1; }
+  .gx-row .gx-name { grid-column: 1 / -1; }
+  .gx-bt-cap { flex-wrap: wrap; gap: 0.25rem 0.5rem; }
+  .gx-bt-sum { margin-inline-start: 0; flex-basis: 100%; }
+  .gx-marks::after { content: ' marks'; font: 12px/1 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
   .gx-row .gx-step { inline-size: 100%; }
   .gx-marks { grid-column: 1 / -1; justify-content: flex-start; }
   .gx-strip { flex-wrap: wrap; }

@@ -1,0 +1,240 @@
+/* The practice-paper maker (package X03): the blueprint step, the slots step and the print step. Tokens only (--surface-*, --ink-*,
+   --elev-*, --r-*, --focus-ring, --selected-fill, the five state tokens, --dur-*, --ease-*, --stagger); no shadow or colour is written
+   here where a token exists. The look and the structure are the Paper Desk's: raised cards, sunk wells, soft lifted controls, one
+   warm fill on the main action, and nothing outlined by a hairline except a dashed outline, which only ever means "not filled" or
+   "not yet your decision" and is always --line-ui. One canvas at 1230 x 664 with no scroll; one column under 760 px. Motion: slots
+   rise once when a draw arrives (reduced motion: present); nothing runs at idle. Forced colours draw every part in CanvasText. */
+.gx-desk {
+  --line-ui: var(--edge-ui);
+  position: relative; box-sizing: border-box; inline-size: 100%; block-size: 100%; min-block-size: 0; container-type: inline-size;
+  color: var(--ink-1); font-family: var(--font-ui, system-ui, sans-serif);
+}
+.gx-desk-in { box-sizing: border-box; inline-size: 100%; block-size: 100%; min-block-size: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 56px minmax(0, 1fr) 24px; gap: 0.5rem; }
+.gx-top { display: flex; align-items: center; gap: 0.75rem; min-inline-size: 0; }
+.gx-title { margin: 0; font: 600 20px/1.2 var(--font-ui, system-ui, sans-serif); }
+.gx-top-lamp { margin-inline-end: auto; }
+.gx-foot { font: 12px/24px var(--font-mono, ui-monospace, monospace); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gx-desk .gx-top .ww-seg-opt, .gx-desk .gx-right .ww-seg-opt { white-space: nowrap; }
+:root[data-theme^='clay'] .gx-desk .ww-seg-opt { padding-inline: 0.75rem; }
+.gx-desk { --k-on-fill: var(--surface-ground); --k-on-ink: var(--ink-1); }
+
+.gx-main { display: grid; gap: 1rem; min-block-size: 0; }
+.gx-main-bp { grid-template-columns: minmax(0, 1fr) 340px; }
+.gx-main-slots { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 0.5rem; }
+.gx-main-print { grid-template-columns: minmax(0, 1fr) 360px; }
+.gx-left, .gx-right { min-inline-size: 0; min-block-size: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.gx-right-act { margin-block-start: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; }
+.gx-right-act .k-btn[data-primary] { flex: 1 1 auto; }
+
+/* ---------------------------------------------------------------- the totals band */
+.gx-facts {
+  display: flex; flex-wrap: nowrap; align-items: flex-end; gap: 0.5rem 1rem; min-block-size: 64px; box-sizing: border-box; padding: 0.5rem 0.875rem;
+  background: var(--surface-raised); border-radius: var(--r-card); box-shadow: var(--elev-low);
+}
+.gx-fact { display: grid; gap: 0.1875rem; align-content: end; }
+.gx-fact-l { font: 600 11px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+.gx-fact-v { font: 600 20px/1.2 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; }
+.gx-fact-s { display: inline-flex; align-items: center; }
+.gx-hint { margin: 0; padding: 0 0.5rem; font: 12px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.gx-facts .d3r { min-inline-size: 10.5rem; max-inline-size: 13rem; }
+.gx-desk .d3r-trigger { overflow: hidden; }
+.gx-desk .d3r-trigger > * { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gx-fact-mpm { min-inline-size: 7rem; }
+.gx-inv { margin-inline-start: auto; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.5rem; font: 600 13px/1.2 var(--font-ui, system-ui, sans-serif); align-self: center; }
+
+/* ---------------------------------------------------------------- the stepper (a spinbutton with a minus and a plus) */
+.gx-step { display: inline-grid; grid-template-columns: 44px minmax(44px, 1fr) 44px; align-items: center; block-size: 44px; min-inline-size: 8.25rem; border-radius: var(--r-ctl, 0.875rem); background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
+.gx-step-btn {
+  all: unset; box-sizing: border-box; inline-size: 44px; block-size: 44px; display: grid; place-items: center; cursor: pointer; border-radius: var(--r-ctl, 0.875rem);
+  font: 600 20px/1 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); transition: background-color var(--dur-state);
+}
+.gx-step-btn:hover:not(:disabled) { background: var(--surface-raised); box-shadow: var(--elev-low); }
+.gx-step-btn:active:not(:disabled) { box-shadow: var(--elev-pressed); }
+.gx-step-btn:disabled { color: var(--ink-3); cursor: default; }
+.gx-step-val { display: grid; place-items: center; block-size: 44px; border-radius: 0.5rem; font: 600 14px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
+.gx-step-val:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.gx-step[data-disabled='true'] .gx-step-val { color: var(--ink-2); }
+
+/* ---------------------------------------------------------------- the blueprint table */
+.gx-bt {
+  --gx-row: 56px;
+  box-sizing: border-box; flex: 0 1 auto; min-block-size: 0; display: flex; flex-direction: column; gap: 0.25rem; padding: 0.625rem 0.75rem 0.75rem;
+  background: var(--surface-raised); border-radius: var(--r-card); box-shadow: var(--elev-raised);
+}
+.gx-bt[data-dense='true'] { --gx-row: 48px; padding-block-start: 0.25rem; }
+.gx-bt[data-dense='true'] .gx-bt-cap { min-block-size: 40px; }
+.gx-bt[data-dense='true'] .gx-strip { min-block-size: 52px; margin-block-start: 0; }
+.gx-bt-cap { display: flex; align-items: center; gap: 0.75rem; min-block-size: 44px; }
+.gx-bt-title { font: 600 14px/1 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.gx-bt-sum { margin-inline-start: auto; font: 500 13px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; color: var(--ink-1); }
+.gx-chip-rule { font: 600 11px/1 var(--font-mono, ui-monospace, monospace); padding: 0.25rem 0.5rem; border-radius: 0.5rem; background: var(--surface-sunk); color: var(--ink-1); box-shadow: var(--elev-imprint, none); }
+.gx-bt-head, .gx-row { display: grid; grid-template-columns: minmax(7rem, 1fr) 8.25rem 8.25rem 8.25rem 8.5rem 3.5rem; column-gap: 0.5rem; align-items: center; padding-inline: 0.5rem; }
+.gx-bt-head { font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); min-block-size: 1.25rem; }
+.gx-bt-r { text-align: end; }
+.gx-bt-rows { list-style: none; margin: 0; padding: 0; display: grid; align-content: start; }
+.gx-row { block-size: var(--gx-row); border-radius: 0.75rem; transition: background-color var(--dur-state); }
+.gx-row:hover { background: var(--surface-ground); }
+.gx-row[data-selected='true'] { background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
+.gx-marks { display: inline-flex; align-items: center; justify-content: flex-end; gap: 0.375rem; font: 600 15px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; }
+.gx-name {
+  box-sizing: border-box; inline-size: 100%; min-inline-size: 0; block-size: 44px; padding: 0 0.75rem; border: 0; border-radius: var(--r-ctl, 0.875rem);
+  background: var(--surface-sunk); box-shadow: var(--elev-recessed); color: var(--ink-1); font: 600 14px/1 var(--font-ui, system-ui, sans-serif);
+}
+.gx-name:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+/* the rack is a soft raised control, not an outlined box (the shared rack draws a hairline; here it is lifted instead) */
+.gx-desk .d3r-trigger { border: 0; background: var(--surface-raised); box-shadow: var(--elev-low); border-radius: var(--r-ctl, 0.875rem); }
+/* the rack names itself for a screen reader, and the column head names it for the eye */
+.gx-row .d3r { min-inline-size: 0; inline-size: 100%; }
+.gx-row .d3r-label { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.gx-strip { display: flex; align-items: center; gap: 0.5rem 0.75rem; min-block-size: 56px; margin-block-start: 0.25rem; box-sizing: border-box; padding: 0.25rem 0.5rem; background: var(--surface-sunk); border-radius: var(--r-well); box-shadow: var(--elev-recessed); }
+.gx-strip-h { font: 600 13px/1.2 var(--font-ui, system-ui, sans-serif); min-inline-size: 5.5rem; }
+.gx-strip-types { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.gx-strip-act { margin-inline-start: auto; display: inline-flex; gap: 0.25rem; }
+.gx-issues { list-style: none; margin: 0; padding: 0 0.5rem; display: grid; gap: 0.125rem; font: 12.5px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); }
+.gx-issues li { display: flex; align-items: center; gap: 0.5rem; }
+.gx-issues li > span { flex: 1 1 auto; text-align: start; }
+
+/* ---------------------------------------------------------------- the A4 skeleton */
+.gx-skel { margin: 0; box-sizing: border-box; flex: 1 1 auto; min-block-size: 0; display: flex; flex-direction: column; align-items: center; gap: 0.125rem; padding: 0.375rem 0.5rem 0.25rem; background: var(--surface-raised); border-radius: var(--r-card); box-shadow: var(--elev-low); }
+.gx-skel svg { display: block; flex: 1 1 0; min-block-size: 0; inline-size: 100%; max-block-size: 472px; }
+.gx-skel figcaption { font: 11.5px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); text-align: center; }
+.gx-skel-page { fill: var(--surface-sunk); }
+.gx-skel-bar { fill: var(--ink-3); opacity: 0.55; }
+.gx-skel-head { fill: var(--ink-2); opacity: 0.6; }
+.gx-skel-slot { fill: var(--surface-raised); }
+
+/* ---------------------------------------------------------------- the slot strip */
+.gx-ss { min-block-size: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 0.5rem; }
+.gx-ss-status { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; min-block-size: 44px; font: 500 14px/1.2 var(--font-ui, system-ui, sans-serif); }
+.gx-ss-hollow { color: var(--ink-1); font-weight: 600; }
+.gx-ss-reseed { margin-inline-start: auto; }
+.gx-key {
+  display: inline-grid; place-items: center; min-inline-size: 20px; block-size: 20px; padding: 0 0.3125rem; margin-inline-start: 0.375rem; border-radius: 0.375rem;
+  font: 500 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); background: var(--surface-sunk); box-shadow: var(--elev-imprint, none);
+}
+.gx-ss-body { min-block-size: 0; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 1rem; }
+.gx-ss-rail { display: flex; flex-direction: column; gap: 0.375rem; min-block-size: 0; }
+.gx-ss-tab {
+  all: unset; box-sizing: border-box; inline-size: 100%; min-block-size: 56px; display: grid; align-content: center; gap: 0.1875rem; padding: 0 0.875rem; cursor: pointer;
+  background: var(--surface-raised); border-radius: var(--r-ctl, 0.875rem); box-shadow: var(--elev-low); transition: transform var(--dur-state);
+}
+.gx-ss-tab:hover { transform: translateY(-1px); }
+.gx-ss-tab[aria-selected='true'] { background: var(--surface-ground); box-shadow: var(--elev-pressed); transform: none; }
+.gx-ss-tab:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.gx-ss-tab-name { font: 600 14px/1.2 var(--font-ui, system-ui, sans-serif); }
+.gx-ss-tab-meta { font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.gx-ss-panel { min-inline-size: 0; min-block-size: 0; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.625rem 0.75rem; background: var(--surface-sunk); border-radius: var(--r-well); box-shadow: var(--elev-recessed); }
+.gx-ss-inst { margin: 0; font: 600 13px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.gx-slots { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; align-content: start; }
+.gx-slot {
+  box-sizing: border-box; min-block-size: 52px; display: grid; grid-template-columns: 1.5rem auto minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; column-gap: 0.5rem; row-gap: 0.125rem;
+  padding: 0.375rem 0.625rem; background: var(--surface-raised); border-radius: 0.75rem; box-shadow: var(--elev-low);
+  animation: gx-rise var(--dur-enter) var(--ease-enter) both; animation-delay: calc(var(--i, 0) * var(--stagger));
+}
+@keyframes gx-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.gx-slot[data-hollow='true'] { background: none; box-shadow: none; border: 1.5px dashed var(--line-ui); }
+.gx-slot[data-src='model'] { border: 1.5px dashed var(--line-ui); }
+.gx-slot-n { font: 600 13px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); text-align: end; }
+.gx-slot-main { display: flex; align-items: baseline; gap: 0.5rem; min-inline-size: 0; overflow: hidden; }
+.gx-slot-main b { font: 600 14px/1.2 var(--font-ui, system-ui, sans-serif); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gx-slot-meta { font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); white-space: nowrap; }
+.gx-slot-why { grid-column: 2 / -1; font: 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gx-slot-swap { grid-row: 1 / span 2; grid-column: 4; }
+.gx-src { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.5rem; border-radius: 0.5rem; background: var(--surface-sunk); box-shadow: var(--elev-imprint, none); font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.04em; color: var(--ink-1); }
+.gx-src[data-src='model'], .gx-src[data-src='hollow'] { background: none; box-shadow: none; border: 1px dashed var(--line-ui); }
+.gx-src-glyph { color: var(--ink-2); }
+.gx-pager { margin-block-start: auto; display: flex; align-items: center; justify-content: center; gap: 0.75rem; font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+
+/* ---------------------------------------------------------------- the action bar of the slots step */
+.gx-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.5rem 0.75rem; box-sizing: border-box; padding: 0.5rem 0.875rem; background: var(--surface-raised); border-radius: var(--r-card); box-shadow: var(--elev-low); }
+.gx-bar .k-field { inline-size: 9rem; }
+.gx-ss-note { margin: 0; margin-block-start: auto; font: 12px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.gx-bar-end { margin-inline-start: auto; display: flex; gap: 0.5rem; align-items: center; }
+.gx-notice { margin: 0; display: flex; align-items: flex-start; gap: 0.5rem; font: 12px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); }
+
+/* ---------------------------------------------------------------- the print step */
+.gx-prev-card { box-sizing: border-box; min-block-size: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; gap: 0.375rem; padding: 0.75rem; background: var(--surface-sunk); border-radius: var(--r-well); box-shadow: var(--elev-recessed); }
+.gx-prev { position: relative; inline-size: 100%; max-inline-size: 556px; block-size: 100%; min-block-size: 0; overflow: hidden; border-radius: 0.5rem; box-shadow: var(--elev-float); }
+.gx-prev::after { content: ''; position: absolute; inset-inline: 0; inset-block-end: 0; block-size: 3rem; pointer-events: none; background: linear-gradient(to top, var(--surface-sunk), transparent); }
+.gx-page { box-sizing: border-box; inline-size: 210mm; padding: 18mm; transform: scale(var(--gx-scale, 0.7)); transform-origin: top left; color-scheme: light; background: Canvas; color: CanvasText; }
+.gx-prev-cap { margin: 0; font: 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); text-align: center; }
+.gx-frame { position: absolute; inline-size: 0; block-size: 0; border: 0; opacity: 0; pointer-events: none; }
+.gx-print-side { padding: 0.75rem; box-sizing: border-box; background: var(--surface-raised); border-radius: var(--r-card); box-shadow: var(--elev-low); }
+.gx-pfacts { margin: 0; display: grid; gap: 0.375rem; }
+.gx-pfacts > div { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.gx-pfacts dt { font: 12px/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.gx-pfacts dd { margin: 0; font: 500 16px/1.2 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; }
+.gx-pfacts .gx-pfacts-lamp { justify-content: flex-start; }
+.gx-pnote { margin: 0; font: 12.5px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.gx-night { display: flex; align-items: center; gap: 0.5rem; }
+
+/* ---------------------------------------------------------------- an empty step */
+.gx-empty {
+  grid-column: 1 / -1; align-self: center; justify-self: center; box-sizing: border-box; max-inline-size: 46ch; display: grid; gap: 0.5rem; justify-items: center; text-align: center; padding: 1.5rem 2rem;
+  background: var(--surface-sunk); border-radius: var(--r-well); box-shadow: var(--elev-recessed);
+}
+.gx-empty h3 { margin: 0; font: 600 17px/1.3 var(--font-ui, system-ui, sans-serif); }
+.gx-empty p { margin: 0; font: 13px/1.45 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.gx-empty .gx-why { font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
+.gx-empty-act { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; margin-block-start: 0.25rem; }
+
+/* ---------------------------------------------------------------- narrower than the shell canvas (1230 px): the page takes its natural height */
+@container (max-width: 1179px) {
+  .gx-desk-in { block-size: auto; grid-template-rows: auto auto auto; }
+  .gx-main-bp { grid-template-columns: minmax(0, 1fr) 300px; }
+  .gx-main-print { grid-template-columns: minmax(0, 1fr) 320px; }
+  .gx-top { flex-wrap: wrap; }
+  .gx-facts { flex-wrap: wrap; }
+  .gx-bt-head, .gx-row { grid-template-columns: minmax(6rem, 1fr) 8.25rem 8.25rem 8.25rem 8.5rem 3rem; }
+  .gx-ss-body { grid-template-columns: 180px minmax(0, 1fr); }
+  .gx-prev { block-size: 40rem; }
+  .gx-foot { white-space: normal; line-height: 1.4; block-size: auto; }
+}
+@container (max-width: 759px) {
+  .gx-main-bp, .gx-main-print { grid-template-columns: minmax(0, 1fr); }
+  .gx-facts { gap: 0.5rem; }
+  .gx-facts { flex-wrap: wrap; }
+  .gx-inv { margin-inline-start: 0; flex-basis: 100%; }
+  .gx-bt-head { display: none; }
+  .gx-row { block-size: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 0.5rem; padding: 0.5rem; }
+  .gx-row .gx-name { grid-column: 1 / -1; }
+  .gx-bt-cap { flex-wrap: wrap; gap: 0.25rem 0.5rem; }
+  .gx-bt-sum { margin-inline-start: 0; flex-basis: 100%; }
+  .gx-marks::after { content: ' marks'; font: 12px/1 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+  .gx-row .gx-step { inline-size: 100%; }
+  .gx-marks { grid-column: 1 / -1; justify-content: flex-start; }
+  .gx-strip { flex-wrap: wrap; }
+  .gx-strip-act { margin-inline-start: 0; }
+  .gx-ss-body { grid-template-columns: minmax(0, 1fr); }
+  .gx-ss-rail { flex-direction: row; flex-wrap: wrap; }
+  .gx-ss-tab { inline-size: calc(50% - 0.1875rem); }
+  .gx-slots { grid-template-columns: minmax(0, 1fr); }
+  .gx-slot-why { white-space: normal; }
+  .gx-prev { block-size: 32rem; }
+  .gx-bar-end { margin-inline-start: 0; flex-basis: 100%; justify-content: flex-end; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gx-slot { animation: none; }
+  .gx-ss-tab, .gx-step-btn, .gx-row { transition: none; }
+  .gx-ss-tab:hover { transform: none; }
+}
+@media (forced-colors: active) {
+  .gx-bt, .gx-facts, .gx-skel, .gx-ss-tab, .gx-ss-panel, .gx-slot, .gx-bar, .gx-prev, .gx-print-side, .gx-empty, .gx-strip, .gx-step, .gx-name { border: 1px solid CanvasText; box-shadow: none; }
+  .gx-slot[data-hollow='true'], .gx-slot[data-src='model'] { border: 1.5px dashed var(--line-ui); }
+  .gx-skel-page, .gx-skel-slot, .gx-skel-bar, .gx-skel-head { fill: CanvasText; opacity: 1; }
+  .gx-skel-page { fill: Canvas; stroke: CanvasText; }
+  .gx-row[data-selected='true'], .gx-ss-tab[aria-selected='true'] { background: Highlight; color: HighlightText; }
+  .gx-name:focus-visible, .gx-step-val:focus-visible, .gx-ss-tab:focus-visible { outline-color: Highlight; }
+  .gx-prev::after { display: none; }
+}
+
+/* ---------------------------------------------------------------- gallery boxes (the shell canvas size) */
+.x03-box { position: relative; box-sizing: border-box; inline-size: 1230px; max-inline-size: 100%; min-block-size: 664px; display: grid; }
+.x03-box > .gx-desk { block-size: 664px; }
+.x03-parts { display: grid; gap: 1rem; }
+.x03-part { box-sizing: border-box; max-inline-size: 100%; container-type: inline-size; }
+.x03-sheet { box-sizing: border-box; inline-size: 210mm; max-inline-size: 100%; padding: 18mm; color-scheme: light; background: Canvas; color: CanvasText; box-shadow: var(--elev-float); }
+@media (max-width: 899px) {
+  .x03-box > .gx-desk { block-size: auto; }
+}

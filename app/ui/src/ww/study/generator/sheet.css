@@ -1,0 +1,42 @@
+/* The printed paper (package X03): black on white, nothing else. These rules draw the sheet in the desk's preview AND inside the print
+   frame (PrintFrame injects this file's text next to one @page rule), so what the student sees is what the printer gets. No tokens are
+   read: a sheet is the same in every theme, which is why the colours are the system pair Canvas and CanvasText under a light
+   colour scheme (white paper, black ink), never a hex. Sizes are mm and pt, the units of a page. The dashed gap uses --line-ui,
+   declared here as CanvasText because the frame has no token layer. */
+.gx-sheet, .gx-sheet * { box-sizing: border-box; }
+.gx-sheet {
+  --line-ui: CanvasText;
+  color-scheme: light; background: Canvas; color: CanvasText; inline-size: 100%; border-collapse: collapse; table-layout: fixed;
+  font: 11pt/1.45 Georgia, 'Times New Roman', serif;
+}
+.gx-sheet td, .gx-sheet th { padding: 0; vertical-align: top; text-align: start; }
+.gx-sheet[data-later='true'] { break-before: page; }
+
+.gx-head { position: relative; padding-block-end: 4mm; margin-block-end: 5mm; border-block-end: 1pt solid CanvasText; }
+.gx-head h1 { margin: 0; font: 700 17pt/1.2 Georgia, 'Times New Roman', serif; padding-inline-end: 30mm; }
+.gx-sub { margin: 1mm 0 0; font: italic 10pt/1.3 Georgia, 'Times New Roman', serif; }
+.gx-meta { margin: 2mm 0 0; display: flex; gap: 6mm; font: 10pt/1.3 system-ui, 'Segoe UI', sans-serif; }
+.gx-stamp { position: absolute; inset-block-start: 0; inset-inline-end: 0; padding: 0.6mm 2mm; border: 1pt solid CanvasText; font: 700 9pt/1.2 system-ui, 'Segoe UI', sans-serif; letter-spacing: 0.08em; }
+.gx-sheetfoot { margin: 5mm 0 0; padding-block-start: 2mm; border-block-start: 0.5pt solid CanvasText; font: 9pt/1.3 system-ui, 'Segoe UI', sans-serif; }
+
+.gx-psec { margin-block-end: 6mm; break-inside: auto; }
+.gx-psec h2 { margin: 0 0 2.5mm; display: flex; flex-wrap: wrap; align-items: baseline; gap: 1mm 4mm; font: 700 12.5pt/1.3 system-ui, 'Segoe UI', sans-serif; break-after: avoid; }
+.gx-psec h2 span { font: 400 10pt/1.3 system-ui, 'Segoe UI', sans-serif; }
+.gx-qs { list-style: none; margin: 0; padding: 0; display: grid; gap: 3.5mm; }
+.gx-q { display: grid; grid-template-columns: 8mm minmax(0, 1fr) auto; column-gap: 2mm; break-inside: avoid; }
+.gx-qn { font: 700 11pt/1.45 system-ui, 'Segoe UI', sans-serif; }
+.gx-qm { font: 10pt/1.45 system-ui, 'Segoe UI', sans-serif; white-space: nowrap; }
+.gx-qb { min-inline-size: 0; }
+.gx-text { margin: 0; }
+.gx-crop { display: block; max-inline-size: 100%; block-size: auto; border: 0.5pt solid CanvasText; }
+.gx-gap { margin: 0; padding: 2mm 3mm; border: 1pt dashed var(--line-ui); font: italic 10pt/1.4 system-ui, 'Segoe UI', sans-serif; }
+
+.gx-grid { inline-size: 100%; border-collapse: collapse; table-layout: auto; font: 10pt/1.35 system-ui, 'Segoe UI', sans-serif; }
+.gx-grid th, .gx-grid td { padding: 1.5mm 2mm; border: 0.5pt solid CanvasText; }
+.gx-grid th { font-weight: 700; }
+.gx-grid tr { break-inside: avoid; }
+.gx-box { min-inline-size: 28mm; block-size: 8mm; }
+
+@media (forced-colors: active) {
+  .gx-sheet, .gx-head, .gx-sheetfoot, .gx-crop, .gx-gap { forced-color-adjust: none; }
+}

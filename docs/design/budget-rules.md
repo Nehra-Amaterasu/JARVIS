@@ -33,6 +33,16 @@ Decided by the owner between 14 and 15 Nov 2026. Both chats (the UI lane and the
 - One viewing checkout serves the new interface on its own port, so showing work never needs a second build of anything.
 - Screenshots for a jury come from the harness with its geometry report; jurors read a bounded sample.
 
+## 4b. Build first, verify after (owner, 15 Nov 2026, evening)
+
+The owner: "the build is more important right now. First we build and polish it, then we verify it." Until every section is rebuilt (the gaps file, part B):
+
+- **No reviewer per package.** A builder runs the type check and its own tests and reports; the integrator merges on that. Reviewers were half of every wave's agents, so a window now carries about twice the building.
+- **One full check per window**, not per merge batch, plus the type check and the unit suite at each merge. A cross-package break found by the full check is fixed by one agent.
+- **No jury and no bench-rule policing during the build.** One jury and one verification wave come after the polish pass; what a reviewer would have caught is expected to be found there and is written into the gaps file as it turns up.
+- **Art limits relaxed.** Decorative and idle motion is allowed, animated ASCII above all; the one-canvas, no-WebGL and no-idle-animation limits no longer block a build. A reduced-motion still stays, because it costs one media query.
+- **What does not relax** (these are the project's standing rules, not verification): no personal details in tracked files and the privacy scan before every push; nothing simulated shown as measured; no camera; never touch the running app's port or its served folder; commits in first person with no attribution.
+
 ## 5. What is measured
 
 Each wave's log line carries: agents, agent tokens, minutes, hits against the estimate. Records so far: 15 agents 4.1 million tokens; 10 agents 2.3 million; 12 agents 3.1 million in 116 minutes; a fix agent about 0.25 million; a juror about 0.26 million.

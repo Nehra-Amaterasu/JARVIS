@@ -3,14 +3,14 @@
    fallback (`var(--surface-raised, Canvas)`), a full-opacity ink, and the scrim stays behind it. The rows, the keys and the
    folds use the same clay as the page: raised keys that rise on hover and sink on press, wells for the empty folds. */
 
-.ww-sheet.dd-sheet {
+:root[data-theme^='clay'] .ww-sheet.dd-sheet {
   --sheet-w: 560px;
   background: var(--surface-raised, Canvas); background-color: var(--surface-raised, Canvas); color: var(--ink-1, CanvasText); opacity: 1;
 }
-.ww-sheet.dd-sheet .ww-sheet-head { background: var(--surface-raised, Canvas); color: var(--ink-1, CanvasText); }
-.ww-sheet.dd-sheet .ww-sheet-title { color: var(--ink-1, CanvasText); }
-.ww-sheet.dd-sheet .ww-sheet-body { background: var(--surface-raised, Canvas); color: var(--ink-1, CanvasText); }
-.ww-sheet.dd-sheet[data-place='bottom'] { max-block-size: 88vh; }
+:root[data-theme^='clay'] .ww-sheet.dd-sheet .ww-sheet-head { background: var(--surface-raised, Canvas); color: var(--ink-1, CanvasText); }
+:root[data-theme^='clay'] .ww-sheet.dd-sheet .ww-sheet-title { color: var(--ink-1, CanvasText); }
+:root[data-theme^='clay'] .ww-sheet.dd-sheet .ww-sheet-body { background: var(--surface-raised, Canvas); color: var(--ink-1, CanvasText); }
+:root[data-theme^='clay'] .ww-sheet.dd-sheet[data-place='bottom'] { max-block-size: 88vh; }
 
 .dd { --line-ui: var(--edge-ui); display: flex; flex-direction: column; gap: var(--space-3); color: var(--ink-1, CanvasText); font: var(--type-body); }
 .dd *, .dd *::before, .dd *::after { box-sizing: border-box; }

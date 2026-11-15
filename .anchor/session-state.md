@@ -1,38 +1,28 @@
 # Session state (auto-saved — last known reality)
 
-_Updated: 2026-11-10 23:05:52_  ·  branch: `main`
+_Updated: 2026-11-15 18:21:11_  ·  branch: `main`
 
 ## Uncommitted changes
 ```
  M .anchor/session-state.md
- M app/ui/src/components/WallBox.tsx
- M app/ui/src/pages/Limbs.tsx
- M app/ui/src/styles/board.css
- M docs/research/ui-design.md
-?? docs/README.md
-?? docs/research/wallbox-power.md
 ```
 
 Diff stat:
 ```
- .anchor/session-state.md          | 28 ++++++++--------------------
- app/ui/src/components/WallBox.tsx | 14 ++++++++++----
- app/ui/src/pages/Limbs.tsx        | 17 ++++++++++-------
- app/ui/src/styles/board.css       |  3 ++-
- docs/research/ui-design.md        | 34 ++++++++++++++++++++++++++++++++++
- 5 files changed, 64 insertions(+), 32 deletions(-)
+ .anchor/session-state.md | 31 +------------------------------
+ 1 file changed, 1 insertion(+), 30 deletions(-)
 ```
 
 ## Recent commits
 ```
-d2ea2e3 docs(research): every Well Wisher workspace now fits 1366x768 with no page scroll (Setup was 3303 px over), numericals 0 mismatches over 200 seeds per template, and one real defect found at integration; WebView2 and real-data runs still open
-ff1e480 feat(ww): the new Well Wisher layout is the default in the app, with an Old layout button back (and a New layout button in the old view) that keeps the #t= token; a Proof read in an unexpected shape now shows one line instead of blanking the frame at 1920 px; Study baselines retaken for the Roadmap button and the real Proof panel; 1223 UI tests, 248 browser tests
-3b8d97a merge: chunk 12, Setup and overlays: forms replace the JSON editors, one view per section so all 18 views fit 1366x768 (the old Setup overflowed by 3303 px), the Phone sheet with the existing pairing QR inside Well Wisher, the date sheet one card per paper, and the harvester switch behind its sources and licences
-0ad3017 fix(ww): the Proof column shows chunk 9's ten cards instead of chunk 4's stub, the advice file is tracked like other app data, and sharpen and numericals leave the Roadmap now that they are built (24 of 28 unbuilt); 1154 UI tests
-398dda0 fix(ww): the Date sheet counts a removed paper once; removing the first of three papers said 3 changes because rows were compared by position, now by content (overlays test adds the 3-paper cases, 26 pass)
-f81a0e4 merge: chunk 11, Career: five views opening on Pipeline, paging instead of scrolling to every row, Mark earned, War chest and Rewards split, each view on one laptop screen
-5c96b56 merge: chunk 10, Tree and Focus on the kit: per-tree view memory, the glide motion whose rAF loop stops at rest, and sharpen and de-master (de-master refuses while anything above is mastered and names it); existing tree suites unmodified
-7763bda merge: chunk 9, the Proof panel (ten cards, rail at 1366, pinned from 1500) and Record overlay, plus Status v2: a 4-week line per counter that never pads missing weeks, and 14 advice lines each with its source
+4777f26 test(cp2): the small-text probe skips text made only of zero-width characters, because the maths renderer's 1 px strut inside a formula was reported as unreadable text on the library page; real text under 11 px is still caught
+4eee51c merge: integration fixes after six UW8 packages (Day drawer width, the surfaces check reaching the Tree's panel)
+95c0f3c fix(integration): I brought the Day drawer back to its 560 px width (the kit's overlay rule at higher specificity had set it to 440) and let the surfaces check find the Tree's own panel under the shell, with every assertion kept; tsc clean, vitest 2871 of 2871, 258 Playwright checks passed on 11 specs
+1570496 fix(integration): the route check also knows routes listed in a routes file's own docstring table (the first real adapter calls two that predate the plan file), the planned-plate test moved from the month view, which now exists, to the week view, and the Focus views joined the list of lazy mounts
+914660f merge: Y02, Focus as four calm clay screens (Start, Session, Rest, Drill) on the classic engine moved into a hook: the 14 classic tests pass unchanged with 58 new ones, no red on a miss, a hint lowers nothing, no idle animation frame; reviewed at 7.3 of 10, merge after fixes
+1495bc1 merge: CP2, the Well Wisher Tree, Career, Study plan and library brought to the new standard under the shell: 14 findings at 1366x768 down to 0 on 8 pages at both sizes, the 1,608 px chip scroller became two keys, certificate links 17 to 44 px; the classic interface is unchanged with no snapshot updated; reviewed at 6.8 of 10, merge after fixes (the 390 px frame still puts these pages below the Today column)
+ee47b6d merge: VIS1, the three colour faults fixed at their causes: a Well Wisher drawer is dark ink on an opaque light face and a JARVIS one light ink on matte black whatever it is mounted under, select options carry their own surface and ink, and the kit places its own drawer, sheet, popover and scrim; a new spec opens 14 overlays in both products at two sizes (86 of 86) and fails at 1.03:1 when the fix is removed; reviewed at 7.5 of 10, merge
+02e8f78 wip(checkpoint): saved by the integrator when the usage window reached 95 percent (3 files)
 ```
 
 ## Resume

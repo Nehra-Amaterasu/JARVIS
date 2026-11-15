@@ -93,6 +93,8 @@ function DrillBody({ set, port, initial, elapsedMin, onGo }: { set: DrillSet; po
   const [s, dispatch] = useReducer(reduce, undefined, () => initial ?? initialState(set.questions, set.title.toLowerCase()))
   const [back, setBack] = useState<Record<string, string | undefined>>({})
   const [parkOpen, setParkOpen] = useState(false)
+  // the answer field takes the focus on a fresh question (the start, Next, a skip) so typing begins at once, but not when the student steps with j, k or a dot: those keys must stay keys
+  const [auto, setAuto] = useState(true)
   const root = useRef<HTMLElement>(null)
   const parkKey = useRef<HTMLButtonElement>(null)
   const mins = useElapsedMin(!s.paused && !s.ended, elapsedMin)
@@ -112,7 +114,8 @@ function DrillBody({ set, port, initial, elapsedMin, onGo }: { set: DrillSet; po
     }
   }
   const file = (text: string) => { void port.park(text).then((x) => dispatch({ t: 'park', text, stored: x.stored })) }
-  const stepOrEnd = () => (s.i >= s.qs.length - 1 ? apply({ t: 'end' }) : apply({ t: 'step', d: 1 }))
+  const stepOrEnd = () => { setAuto(true); if (s.i >= s.qs.length - 1) apply({ t: 'end' }); else apply({ t: 'step', d: 1 }) }
+  const stepTo = (a: Act) => { setAuto(false); apply(a) }
 
   // keys: not while a field or a button holds the focus, so typing an answer and pressing Space on a control stay ordinary
   useEffect(() => {
@@ -129,10 +132,10 @@ function DrillBody({ set, port, initial, elapsedMin, onGo }: { set: DrillSet; po
         return
       }
       const k = e.key.toLowerCase()
-      if (k === 'j') apply({ t: 'step', d: 1 })
-      else if (k === 'k') apply({ t: 'step', d: -1 })
+      if (k === 'j') stepTo({ t: 'step', d: 1 })
+      else if (k === 'k') stepTo({ t: 'step', d: -1 })
       else if (k === 'h') apply({ t: 'hint' })
-      else if (k === 's') apply({ t: 'skip' })
+      else if (k === 's') { setAuto(true); apply({ t: 'skip' }) }
       else if (k === 'p') apply({ t: 'pause', on: !s.paused })
       else if (k === 'e') apply({ t: 'end' })
       else if (k === 'x') { e.preventDefault(); setParkOpen(true) }
@@ -192,7 +195,7 @@ function DrillBody({ set, port, initial, elapsedMin, onGo }: { set: DrillSet; po
             <>
               <div className="dr-body">
                 <p className="dr-stem" id="dr-stem">{q.stem}</p>
-                <Answer q={q} s={s} apply={apply} onEnter={() => (r ? stepOrEnd() : apply({ t: 'check' }))} />
+                <Answer q={q} s={s} apply={apply} auto={auto} onEnter={() => (r ? stepOrEnd() : apply({ t: 'check' }))} />
                 <Feedback q={q} s={s} r={r} nextOn={back[q.id]} />
               </div>
               <div className="dr-actions">
@@ -209,7 +212,7 @@ function DrillBody({ set, port, initial, elapsedMin, onGo }: { set: DrillSet; po
                     onClick={() => apply({ t: 'check' })}>{q.kind === 'recall' ? 'Show the answer' : q.kind === 'written' ? 'Done marking' : 'Check'}</PrimaryButton>
                 )}
                 {!r && <Button size="lg" onClick={() => apply({ t: 'hint' })} disabledReason={rungs >= MAX_RUNGS(q) ? 'The worked answer is already open.' : undefined}>Hint (h)</Button>}
-                {!r && <Button size="lg" onClick={() => apply({ t: 'skip' })}>Skip (s)</Button>}
+                {!r && <Button size="lg" onClick={() => { setAuto(true); apply({ t: 'skip' }) }}>Skip (s)</Button>}
               </div>
               <p className="dr-fine" aria-live="off">
                 {rungs ? `${rungText}. A hint is logged and lowers nothing; the worked answer moves this one to the shelf.` : 'Enter checks. Esc leaves the field; then j and k step, h opens a hint, x parks a thought.'}
@@ -218,7 +221,7 @@ function DrillBody({ set, port, initial, elapsedMin, onGo }: { set: DrillSet; po
           )}
         </article>
         <aside className="dr-rail" aria-label="This set">
-          <DrillDots qs={s.qs} res={s.res} current={s.i} onJump={(i) => apply({ t: 'jump', i })} />
+          <DrillDots qs={s.qs} res={s.res} current={s.i} onJump={(i) => stepTo({ t: 'jump', i })} />
           <p className="dr-topics" aria-label="Topics touched">
             {topics.length ? topics.map((t) => <Chip key={t}>{t}</Chip>) : <span className="dr-none">No topic touched yet</span>}
           </p>
@@ -243,12 +246,12 @@ function DrillBody({ set, port, initial, elapsedMin, onGo }: { set: DrillSet; po
 }
 
 /** The answer entry of one question: a numeric field with its unit chip, a recall prompt, or the rubric points to tick. */
-function Answer({ q, s, apply, onEnter }: { q: DrillQuestion; s: DrillState; apply: (a: Act) => void; onEnter: () => void }) {
+function Answer({ q, s, apply, auto, onEnter }: { q: DrillQuestion; s: DrillState; apply: (a: Act) => void; auto: boolean; onEnter: () => void }) {
   const res = s.res[q.id]
   if (q.kind === 'numeric') {
     return (
       <div className="dr-answer">
-        <Field key={q.id} label="Your answer" kind="text" inputMode="decimal" unit={q.unit} autoComplete="off" autoFocus disabled={!!res}
+        <Field key={q.id} label="Your answer" kind="text" inputMode="decimal" unit={q.unit} autoComplete="off" autoFocus={auto && !res} disabled={!!res}
           value={s.answers[q.id] ?? ''} hint="Any usual form is read: 1,5 or 1.5 or 1.5e0."
           onChange={(e) => apply({ t: 'input', v: e.target.value })}
           onKeyDown={(e) => {
@@ -274,7 +277,7 @@ function Answer({ q, s, apply, onEnter }: { q: DrillQuestion; s: DrillState; app
   }
   return (
     <div className="dr-answer">
-      <p className="dr-fine">{s.revealed[q.id] || res ? 'Say whether you had it. This one is marked by you.' : 'Say it in your head first, then show the answer.'}</p>
+      <p className="dr-fine">{res ? 'Marked by you.' : s.revealed[q.id] ? 'Say whether you had it. This one is marked by you.' : 'Say it in your head first, then show the answer.'}</p>
     </div>
   )
 }

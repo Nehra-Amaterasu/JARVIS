@@ -72,7 +72,7 @@ export function CruciblePanel(p: CruciblePanelProps) {
         <div className="cr-read">
           <TickRing />
           <p className="cr-readout" data-testid="readout">{p.elapsedMin} min <span className="cr-dot" aria-hidden="true">·</span> {p.trackLabel}</p>
-          <p className="cr-sub">of {p.plannedMin} min{p.paused ? ', held' : ''}{p.cue ? ` · ${p.cue}` : ''}{p.wager ? ' · wager on' : ''}</p>
+          <p className="cr-ofline">of {p.plannedMin} min{p.paused ? ', held' : ''}{p.cue ? ` · ${p.cue}` : ''}{p.wager ? ' · wager on' : ''}</p>
         </div>
         {p.strikeLine && <Banner tone="sim">{p.strikeLine}</Banner>}
         <div className="cr-controls" role="group" aria-label="Session controls">
@@ -121,7 +121,7 @@ export function Crucible({ onEnd, port }: CrucibleProps) {
         <div className="cr-field"><DotTimer plannedMin={0} elapsedMin={0} resting state="live" caption="Minutes held" /></div>
         <div className="cr-main">
           <p className="cr-readout" data-testid="readout">No session running</p>
-          <p className="cr-sub">Nothing counts down. Start a block when you are ready.</p>
+          <p className="cr-ofline">Nothing counts down. Start a block when you are ready.</p>
           <div className="cr-controls"><Button size="lg" onClick={() => goFocus('start')}>Go to Start</Button></div>
           <p className="fv-strip" aria-live="off">{'> no block'}</p>
         </div>

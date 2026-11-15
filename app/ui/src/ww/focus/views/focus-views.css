@@ -35,6 +35,10 @@
 .fs-sub { margin: 0; font: var(--type-small); color: var(--ink-2); }
 .fs-label { margin: 0; font: var(--type-label); text-transform: uppercase; letter-spacing: var(--type-label-tracking, 0.04em); color: var(--ink-2); }
 .fs-row { display: grid; gap: var(--space-2); }
+/* a rotation can hold five long track names: the group wraps onto a second row instead of breaking a name over two lines */
+.fv .ww-seg-wrap { max-inline-size: 100%; }
+:root .fv .ww-seg[data-variant='choice'] { flex-wrap: wrap; max-inline-size: 100%; row-gap: var(--space-1); border-radius: var(--r-card); }
+:root .fv .ww-seg[data-variant='choice'] .ww-seg-opt { white-space: nowrap; }
 .fs-cue { max-inline-size: 28rem; }
 .fs-opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
 .fs-opt {
@@ -64,18 +68,19 @@
 .fv-moon::before, .fv-moon::after { content: ''; position: absolute; inset: 0; border-radius: 50%; }
 .fv-moon::before {
   background: radial-gradient(circle, var(--ink-1) 2px, transparent 2.4px) 0 0 / 10px 10px;
-  -webkit-mask-image: radial-gradient(circle at 34% 30%, #000 0%, rgba(0, 0, 0, 0.5) 24%, transparent 46%);
-  mask-image: radial-gradient(circle at 34% 30%, #000 0%, rgba(0, 0, 0, 0.5) 24%, transparent 46%);
+  -webkit-mask-image: radial-gradient(circle at 34% 30%, black 0%, black 14%, transparent 46%);
+  mask-image: radial-gradient(circle at 34% 30%, black 0%, black 14%, transparent 46%);
 }
 .fv-moon::after {
   background: radial-gradient(circle, var(--ink-1) 1.1px, transparent 1.5px) 5px 5px / 10px 10px;
   opacity: 0.75;
-  -webkit-mask-image: radial-gradient(circle at 34% 30%, transparent 0%, #000 34%, transparent 84%);
-  mask-image: radial-gradient(circle at 34% 30%, transparent 0%, #000 34%, transparent 84%);
+  -webkit-mask-image: radial-gradient(circle at 34% 30%, transparent 0%, black 34%, transparent 84%);
+  mask-image: radial-gradient(circle at 34% 30%, transparent 0%, black 34%, transparent 84%);
 }
 
 /* the hill of Rest: three flat layers in the ink at low opacity, still */
-.fv-hill { inline-size: 100%; block-size: 100%; max-block-size: 360px; }
+.fr-right { align-items: end; }
+.fv-hill { inline-size: 100%; block-size: 360px; max-block-size: 100%; display: block; }
 .fv-hill path, .fv-hill circle { fill: var(--ink-1); }
 .fv-hill-sun { opacity: 0.16; }
 .fv-hill-far { opacity: 0.08; }
@@ -83,7 +88,7 @@
 .fv-hill-near { opacity: 0.22; }
 
 .fr-line { margin: 0; font: var(--type-read, var(--type-body)); max-inline-size: var(--type-read-measure, 38rem); }
-.fr-dots { padding: var(--space-3) var(--space-4); background: var(--surface-sunk); border-radius: var(--r-well); box-shadow: var(--elev-recessed); inline-size: fit-content; max-inline-size: 100%; overflow: hidden; }
+.fr-dots { flex: none; padding: var(--space-3) var(--space-4); background: var(--surface-sunk); border-radius: var(--r-well); box-shadow: var(--elev-recessed); inline-size: fit-content; max-inline-size: 100%; overflow: hidden; }
 .fr-break { margin: 0; padding: var(--space-3) var(--space-4); background: var(--surface-raised); border-radius: var(--r-card); box-shadow: var(--elev-low); }
 .fr-actions { margin-block-start: auto; display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
 
@@ -94,13 +99,14 @@
   min-inline-size: 0; min-block-size: 0; display: grid; place-items: center; padding: var(--space-4); overflow: hidden;
   background: var(--surface-sunk); border-radius: var(--r-card); box-shadow: var(--elev-recessed);
 }
+.cr-field .art-svg { zoom: 1.35; }
 .cr-field:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .cr-main { min-inline-size: 0; min-block-size: 0; display: flex; flex-direction: column; gap: var(--space-4); }
 .cr-read { position: relative; display: grid; align-content: center; justify-items: start; gap: var(--space-2); min-block-size: 240px; flex: 1 1 auto; overflow: hidden; }
 .fv-ticks { position: absolute; inset-inline-end: -4%; inset-block-start: 50%; transform: translateY(-50%); opacity: 0.07; pointer-events: none; max-block-size: 100%; }
 .fv-ticks line { stroke: var(--ink-1); stroke-width: 1; }
 .cr-readout { position: relative; margin: 0; font: 500 clamp(2rem, 4.4vw, 3.5rem)/1.1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); letter-spacing: -0.01em; }
-.cr-sub { position: relative; margin: 0; font: var(--type-body); color: var(--ink-2); }
+.cr-ofline { position: relative; margin: 0; font: var(--type-body); color: var(--ink-2); }
 .cr-controls { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
 .cr-parked { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-1); font: var(--type-small); color: var(--ink-2); }
 .cr-parked li, .dr-park-list li { display: flex; gap: var(--space-2); align-items: baseline; flex-wrap: wrap; }
@@ -146,7 +152,8 @@
 
 .dr-rail { min-inline-size: 0; min-block-size: 0; display: flex; flex-direction: column; gap: var(--space-2); align-items: stretch; overflow: hidden; }
 .dr-rail > .k-btn-wrap, .dr-rail > button { align-self: flex-start; }
-.dr-rail .k-rail-btn { display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: 12px; inline-size: 100%; text-align: start; }
+.dr-rail .k-rail-row[data-actionable='true'] { display: block; }
+.dr-rail .k-rail-btn { display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: var(--space-3); inline-size: 100%; text-align: start; padding-inline: 0; }
 .dr-rail-state { margin: 0; display: flex; align-items: center; gap: var(--space-2); font: var(--type-small); color: var(--ink-2); }
 .dr-topics { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); }
 .dr-none { font: var(--type-small); color: var(--ink-2); }
@@ -172,7 +179,7 @@
 .dd-dot { box-sizing: border-box; inline-size: 14px; block-size: 14px; border-radius: 50%; transition: opacity var(--dur-state) var(--ease-standard), background-color var(--dur-state) var(--ease-standard); }
 .dd-btn[data-dot='filled'] .dd-dot { background: var(--ink-1); }
 .dd-btn[data-dot='open'] .dd-dot { box-shadow: inset 0 0 0 2px var(--ink-3); opacity: 0.9; }
-.dd-btn[data-dot='skipped'] .dd-dot { border: 2px dashed var(--ink-3); }
+.dd-btn[data-dot='skipped'] .dd-dot { border: 2px dashed var(--line-ui); }
 .dd-btn[data-current='true'] .dd-dot { outline: 2px solid var(--ink-1); outline-offset: 3px; }
 .dd-note { margin: 0; font: var(--type-small); color: var(--ink-2); }
 
@@ -212,7 +219,8 @@ html[data-motion='calm'] .dd-dot { transition: none; }
   .dd-btn[data-dot='filled'] .dd-dot { background: CanvasText; }
   .dd-btn[data-dot='open'] .dd-dot { box-shadow: none; border: 2px solid CanvasText; }
   .dd-btn[data-dot='skipped'] .dd-dot { border-color: CanvasText; }
-  .dd-btn:focus-visible, .pk-in:focus-visible, .cr-field:focus-visible { outline-color: Highlight; }
+  .dd-btn:focus-visible, .pk-in:focus-visible, .cr-field .art-svg { zoom: 1.35; }
+.cr-field:focus-visible { outline-color: Highlight; }
 }
 
 /* ------------------------------------------------------------------------------------------------ the gallery box: the real canvas, drawn smaller to fit the pane */

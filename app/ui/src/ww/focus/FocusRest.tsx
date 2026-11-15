@@ -41,7 +41,7 @@ export function FocusRestPanel({ last, onStart, onToday, simulated }: FocusRestP
           <>
             <p className="fr-line" role="status">{last.line}</p>
             <div className="fr-dots">
-              <DotTimer plannedMin={last.length} elapsedMin={held} ended={last.kind === 'ended'} state={simulated ? 'simulated' : 'live'} caption="Minutes held" />
+              <DotTimer plannedMin={last.length} elapsedMin={held} ended={last.kind === 'ended'} compact state={simulated ? 'simulated' : 'live'} caption="Minutes held" />
             </div>
             <p className="fs-sub">
               {last.counted > 0 ? `${last.counted} min logged.` : `Under ${MIN_COUNTED_MIN} minutes, so nothing was logged.`}

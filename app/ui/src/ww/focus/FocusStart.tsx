@@ -98,7 +98,7 @@ export function FocusStartPanel(p: FocusStartPanelProps) {
               <p className="fs-pick-title"><span className="fv-tag">RULE</span> {p.pick.title}</p>
               <p className="fs-sub">{p.pick.reason}</p>
               <p className="fs-terms" aria-label="The three terms of the rule">
-                {p.pick.terms.map((t) => <span key={t.name}>{t.name} {t.value.toFixed(2)}</span>)}
+                {p.pick.terms.map((t) => <span key={t.name}>{t.name} {Number.isInteger(t.value) ? t.value : t.value.toFixed(2)}</span>)}
               </p>
             </div>
             <div className="fs-pick-act">

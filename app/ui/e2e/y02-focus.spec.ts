@@ -12,6 +12,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, test, type Page } from '@playwright/test'
 import { build } from 'vite'
+import { test as shellTest } from './fixtures'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const SHOTS = process.env.Y02_SHOTS ? resolve(process.env.Y02_SHOTS) : ''
@@ -227,5 +228,51 @@ test.describe('Y02 keyboard and idle', () => {
     await expect(page.locator('.pk-in')).toBeFocused()
     await page.keyboard.press('Escape')
     await expect(page.locator('.pk-in')).toHaveCount(0)
+  })
+})
+
+// ---------------------------------------------------------------------------------------------------------------- the real shell
+// The four views as the app shows them: shell v2 on the built app (dist-e2e) against the sandbox, the Focus section, the legacy bank behind
+// the Drill. Skips when dist-e2e is not built (as shell-fixes.spec.ts does).
+shellTest.describe('Y02 in the real shell (flag on)', () => {
+  shellTest.use({ viewport: { width: 1366, height: 768 } })
+  shellTest('Focus shows Start, Session, Rest and Drill as calm screens that fit one canvas, and the Drill runs on the legacy cards', async ({ page, baseURL }) => {
+    const res = await fetch(baseURL!).catch(() => null)
+    shellTest.skip(!res || !res.ok, 'dist-e2e is not built, so the preview server is not running; run `npm run bundle:check` first')
+    await page.goto('/#t=ww-e2e&shell=v2')
+    await expect(page.locator('[data-shell="v2"]')).toBeVisible({ timeout: 15_000 })
+    const root = page.locator('[data-shell="v2"]')
+    if ((await root.getAttribute('data-product')) !== 'ww') await page.keyboard.press('Alt+0')
+    await expect(root).toHaveAttribute('data-product', 'ww')
+    await page.keyboard.press('Control+2')
+    await expect(page.locator('.s2-page')).toHaveAttribute('data-section', 'focus')
+    const fits = () => page.evaluate(() => {
+      const fv = document.querySelector<HTMLElement>('.s2-page .fv')!
+      return { docY: document.documentElement.scrollHeight - innerHeight, fvY: fv.scrollHeight - fv.clientHeight, w: Math.round(fv.getBoundingClientRect().width), h: Math.round(fv.getBoundingClientRect().height) }
+    })
+    const shotShell = async (name: string) => { if (SHOTS) { mkdirSync(SHOTS, { recursive: true }); await page.screenshot({ path: resolve(SHOTS, name) }) } }
+    // five long track names of the real rotation: the group wraps, no name breaks over two lines, every option stays one 44 px row
+    await page.locator('#s2-view-start').click()
+    await expect(page.locator('.s2-page .fs').first()).toBeVisible({ timeout: 15_000 })
+    const opts = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.fs [role="radiogroup"][aria-label="Track"] [role="radio"]')].map((o) => ({ t: o.textContent, h: Math.round(o.getBoundingClientRect().height), w: Math.round(o.getBoundingClientRect().width) })))
+    expect(opts.length).toBeGreaterThanOrEqual(2)
+    for (const o of opts) expect(o.h, `${o.t} wraps over two lines`).toBeLessThanOrEqual(56)
+    for (const [view, sel, name] of [['start', '.fs', 'shell-start'], ['session', '.cr', 'shell-session'], ['rest', '.fr', 'shell-rest'], ['drill', '.dr', 'shell-drill']] as const) {
+      await page.locator(`#s2-view-${view}`).click()
+      await expect(page.locator(`.s2-page ${sel}`).first()).toBeVisible({ timeout: 15_000 })
+      await page.waitForTimeout(400)
+      const g = await fits()
+      expect(g.docY, `${view}: the document scrolls`).toBeLessThanOrEqual(0)
+      expect(g.fvY, `${view}: the canvas scrolls inside`).toBeLessThanOrEqual(1)
+      await shotShell(`${name}-1366.png`)
+    }
+    // the Drill on the legacy cards: a card is a recall question, the key is shown on Enter and the student marks it
+    await expect(page.locator('.dr-kick').first()).toHaveText(/Question 1 of \d+/)
+    await release(page) // the view tab that was clicked holds the focus; a button keeps its own Enter
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('button', { name: 'I had it' })).toBeVisible()
+    await page.getByRole('button', { name: 'I had it' }).click()
+    await expect(page.locator('.dr-result[data-result="matched"]')).toBeVisible()
+    await shotShell('shell-drill-checked-1366.png')
   })
 })

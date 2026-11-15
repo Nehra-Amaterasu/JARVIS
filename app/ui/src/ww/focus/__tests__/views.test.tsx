@@ -101,7 +101,7 @@ describe('Session', () => {
     await flush()
     expect(q('[data-testid="readout"]').textContent).toMatch(/^32 min\s*\S\s*Digital logic$/)
     expect(document.querySelectorAll('[data-dot="filled"]')).toHaveLength(32)
-    expect(q('.cr-sub').textContent).toContain('of 50 min')
+    expect(q('.cr-ofline').textContent).toContain('of 50 min')
     expect(q('.fv-strip').textContent).toBe('> block 50 min | parked 0 | guards off')
     expect(document.querySelector('[role="timer"]')).toBeNull()
   })
@@ -115,7 +115,7 @@ describe('Session', () => {
     await flush()
     const held = await stored()
     expect(held?.pausedAt).toBeGreaterThan(0)
-    expect(q('.cr-sub').textContent).toContain('held')
+    expect(q('.cr-ofline').textContent).toContain('held')
     expect(q('.fv-strip').textContent).toContain('held')
     // ten minutes pass while held: nothing moves
     const t0 = held!.pausedAt!
@@ -152,7 +152,7 @@ describe('Session', () => {
     await flush()
     expect(ended).toBe(1)
     expect(posts.filter((p) => p.url.includes('/api/mission/log'))).toHaveLength(1)
-    expect(posts[0].body).toMatchObject({ minutes: 50, track: 'digital' })
+    expect(posts.find((p) => p.url.includes('/api/mission/log'))?.body).toMatchObject({ minutes: 50, track: 'digital' })
     expect(await stored()).toBeNull()
     const last = useFocusViews.getState().last
     expect(last).toMatchObject({ kind: 'done', counted: 50, length: 50 })

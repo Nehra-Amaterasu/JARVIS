@@ -2,6 +2,36 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-15: Y02, Focus: start, session, rest and the Drill
+
+**Question.** Build the four Focus views of shell v2 (`focus.start`, `focus.session`, `focus.rest`, `focus.drill`, spec A.Y02, 20.7.7 and 20.7.8) as calm clay screens that fit 1366 x 768 with no scroll, without rewriting the Crucible or the Drill that already work, and with the owner's rules: light text on matte black for JARVIS, dark text on light for Well Wisher (Focus is Well Wisher: the light clay), opaque surfaces, one warm accent per screen, no red for a miss, no streak, no number without its lamp word.
+
+**What existed.** `ww/focus/` held the classic Crucible (284 lines: session state, the 1 s clock, guards, wager, log writer), the classic Drill (Leitner flashcards from the game store) and `session.ts` (pure rules), with 14 tests. The classic frame still shows them with the flag off.
+
+**What was built (only inside the owned paths).**
+- `useCrucibleEngine.ts`: the Crucible's state, effects, `start` and `finish` MOVED out of `Crucible.tsx` unchanged (the classic page now renders from the hook). Additive only: `pause` and `resume` (resume moves the start forward by the held time, `pausedAt` is an optional field of the stored session), a `tick: 'minute'` clock (one timeout armed to the session's next minute or the end, none while paused), an optional cue and track kind, and an `onFinished` hand-over. The 14 classic tests pass unchanged.
+- `model.ts`: the Drill's rules as one pure reducer. A hint reveal is logged and lowers nothing; the worked answer (the last rung) moves the question to the shelf and never counts as a match; a miss is `missed`, never a verdict word; the strip text changes only on a real event (check, hint, park, skip, step, end, again), not on typing; the set ends on `n attempted, m matched, k on the shelf`; liberal number reading (`1,5`, `-3`, `2.2e-3`, `3.2 x 10^-3`, `1/4`).
+- `ports.ts`, `adapters/`: `FocusPort` with a null port (nothing queued, WAITING) and the legacy-bank adapter (the game store's cards and Leitner schedule behind the port; one rule-made hint: the first two characters and the length of the key). The engine lane's question store registers the same way with one `*.register.ts` file.
+- `tracks.ts` + `tracks/crucible.track.tsx`: the glob host, the Crucible first.
+- Views: `FocusStart` (track, length, cue, two kit Switches both off, Pick for me with its three printed terms and RULE, one primary), `Crucible` (the shared DotTimer, a mono readout, Pause, Park, End by hold, a 24 px terminal strip), `FocusRest` (neutral words, the filled dots stay, minutes that counted, one break offer after 50 minutes, a still hill), `Drill` (question panel, `DrillDots` of 44 px buttons around 14 px dots, topics, telemetry, Park shelf, hint ladder, "Not yet. Worked answer below", counts-only end), `ParkField` (44 px, P or x opens, Enter files and returns focus, Esc closes).
+- Registration: four `shell/views/focus-*.view.ts` (lazy, behind the product test) and `gallery/entries/Y02.tsx` (14 states, invented questions, SIMULATED).
+
+**Measured (real Chromium, `e2e/y02-focus.spec.ts`, 26 tests).**
+- 14 states at the 1302 x 664 canvas: no document scroll, no inner scroll (scrollHeight minus clientHeight at most 1), nothing outside the box, every focusable part at least 44 x 44, text at least 11 px, at most one accent fill. 8 states at 390 px: no sideways scroll, targets 44 px.
+- Keyboard through a set: type, Enter, Esc, h h, miss, k j, x, Enter, e; the strip stays put while typing; no element of the Drill computes a red (r above 150, g and b under 90) apart from the one saffron main-action fill; counts `2 attempted, 1 matched, 1 on the shelf`; 2 filled dots stay after the early end.
+- `requestAnimationFrame` counted by an init script: 0 calls in 1.6 s of idle in the Drill; the vitest idle test advances 10 minutes of fake time with 0 calls.
+- In the real shell (built `dist-e2e` against the sandbox, flag on): all four views fit the canvas, the real rotation's five long track names stay on one 44 px row each (the group wraps), and the Drill runs on the legacy cards (`Deutsch A1`, 10 questions, key shown on Enter, "I had it").
+- vitest: 58 new tests in `ww/focus/__tests__` (model 29, drill 13, views 12, adapters 4) beside the 14 classic ones.
+
+**Decisions and what went wrong on the way.**
+- The first Start used the kit's selected Segmented fill, which is the warm accent: three orange fills with the Start key. Selected pieces are now a raised ground pill with ink (the Y01 pattern) and an ON switch is the slate ink, so the one warm fill stays on the main action.
+- Autofocus on the numeric field swallowed j and k (typed into the field). The field now takes the focus only on a fresh question (start, Next, skip); stepping with j, k or a dot leaves it, and Esc leaves the field.
+- A numeric field cannot also take `h`: in a field a letter is a letter, so Esc leaves it first (the fine print says so).
+- Not done: a custom "Other" length (the classic lengths 25, 50, 75, 90 are kept), the dashed outline on generated variants (no engine yet), the 5-minute break countdown (a break has no timer on purpose), the art tracks C03-04, C03-14, C04-05 and C04-38 (private catalogue, so drawn in code: a halftone ring, a 60-tick ring, a three-layer hill).
+- Opened 11 images against the limit of 10 (the eleventh was the real-shell Start screen); the last layout change (wrapping tracks) was checked by measurement, not by eye.
+
+**Changed:** the four Focus ids now resolve to registered views under shell v2; the legacy id `drill` (ALIASES) reaches `focus.drill`; the classic interface is unchanged (flag off).
+
 ## 2026-11-15: RJ1, matte black lift, one switch family, 44 px on the element
 
 **Question.** The jury (UW7a) read the dark ground as flat (design 5.5: "black keys on near-black panels with barely any separation; depth comes from hairline outlines, not clay"), the kit Switch as "still a plain pill" beside C02-46, and measured a 64 x 32 switch, Segmented options of 36 to 40 and a 36 px Chip below 44 px. What is the smallest change that fixes all three without touching the light, high-contrast, forced-colours or classic themes?

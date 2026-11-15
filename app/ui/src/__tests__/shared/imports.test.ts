@@ -10,6 +10,18 @@ import { describe, expect, it } from 'vitest'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 
+// The files outside the Well Wisher tree that may name a Well Wisher module: each is a wave contract's mounting file
+// (a shell view or a gallery entry) and loads its module by dynamic import() behind the VITE_PRODUCT test, which the
+// second S2 test checks for every path here. One list, so a new section adds one line (it was two lists until 15 Nov).
+const LAZY_WW_MOUNTS = [
+  'shell/views/day-today.view.ts',
+  'shell/views/day-month.view.ts',
+  'shell/views/study-papers.view.ts',
+  'gallery/entries/L01.tsx',
+  'gallery/entries/L04.tsx',
+  'gallery/entries/Y01.tsx',
+]
+
 const SRC = resolve(__dirname, '..', '..')
 const walk = (d: string): string[] => readdirSync(d).flatMap((n) => {
   const p = join(d, n)
@@ -63,14 +75,7 @@ describe('the product seams in the import graph', () => {
     // gated by VITE_PRODUCT so the jarvis build removes them (scripts/bundle-budget.mjs proves it). The shell views and
     // gallery entries below are the wave contract's mounting files for Today (L04) and the Paper Desk (Y01): each loads its
     // Well Wisher module through a dynamic import() behind the same VITE_PRODUCT test, written in place so Vite folds it.
-    const allowed = new Set([
-      'App.tsx',
-      'pageLoaders.ts',
-      'shell/views/day-today.view.ts',
-      'shell/views/study-papers.view.ts',
-      'gallery/entries/L04.tsx',
-      'gallery/entries/Y01.tsx',
-    ])
+    const allowed = new Set(['App.tsx', 'pageLoaders.ts', ...LAZY_WW_MOUNTS])
     const seen = new Set<string>()
     for (const f of files.filter((f) => !under(rel(f), [...WW_TREES, ...JARVIS_TREES, 'shared'])))
       if (importsOf(f).some((i) => under(i, WW_TREES))) seen.add(rel(f))
@@ -78,7 +83,7 @@ describe('the product seams in the import graph', () => {
   })
 
   it('S2: the shell views and gallery entries load their Well Wisher module lazily, behind the product test', () => {
-    for (const f of ['shell/views/day-today.view.ts', 'shell/views/study-papers.view.ts', 'gallery/entries/L04.tsx', 'gallery/entries/Y01.tsx']) {
+    for (const f of LAZY_WW_MOUNTS) {
       const text = readFileSync(join(SRC, f), 'utf8')
       expect(text, f).toMatch(/import\.meta\.env\.VITE_PRODUCT !== 'jarvis'/)
       expect(text, f).not.toMatch(/^\s*import\s[^'"]*?from\s*['"][^'"]*\/ww\//m)

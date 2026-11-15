@@ -25,7 +25,7 @@ function Counters() {
       {shown.length === 0 ? (
         <p className="td-quiet">{drawn ? 'No counters set up.' : 'Waiting for the counters.'}</p>
       ) : (
-        <ul className="td-keys" aria-label="Counters, press to add one">
+        <ul className="td-keys" aria-label="Counters, press to add one" style={{ ['--k' as string]: shown.length + (more > 0 ? 1 : 0) }}>
           {shown.map((c) => (
             <li key={c.id}>
               <button type="button" className="td-key" disabled={!drawn}

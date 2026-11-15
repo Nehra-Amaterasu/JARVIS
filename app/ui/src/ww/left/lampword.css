@@ -1,0 +1,7 @@
+/* The lamp and its word (LampWord.tsx). Mono caps 11 px, never smaller; the glyph takes the state's token. */
+.lw { display: inline-flex; align-items: center; gap: var(--space-1); flex: none; font: 600 11px/16px var(--font-mono); letter-spacing: .06em; color: var(--ink-2); white-space: nowrap; }
+.lw[data-lamp='live'] .lamp-glyph { color: var(--state-measured); }
+.lw[data-lamp='waiting'] .lamp-glyph { color: var(--state-waiting); }
+.lw[data-lamp='simulated'] .lamp-glyph { color: var(--state-simulated); }
+.lw[data-lamp='planned'] .lamp-glyph { color: var(--state-planned); }
+.lw[data-lamp='fault'] .lamp-glyph { color: var(--state-fault); }

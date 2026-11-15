@@ -5,7 +5,8 @@
 //
 // DaySpine is the same data as a vertical spine for the phone (358 px): the arc would be 150 px tall there and unreadable.
 import { useId, type ReactNode } from 'react'
-import { LampGlyph, type LampState } from '../../../shared/lamp'
+import type { LampState } from '../../../shared/lamp'
+import { LampWord } from './Plate'
 import { arcGeometry, arcPath, arcPoint, arcFrac, arcText, hourTicks, minOfDate, onArc, toMin, hhmm, ARC_START_MIN, ARC_SPAN_MIN, type DayBlock } from './model'
 
 export interface DayArcProps {
@@ -22,9 +23,11 @@ export interface DayArcProps {
   dashed?: boolean
   /** Drawn at the centre, above the datum (the Odometer hero). */
   children?: ReactNode
+  /** The phone's half dial: the caption row (legend and the one lamp) sits under the dial instead of over its top corners. */
+  compact?: boolean
 }
 
-export function DayArc({ blocks, planned, done, now, state, width = 560, height = 300, dashed, children }: DayArcProps) {
+export function DayArc({ blocks, planned, done, now, state, width = 560, height = 300, dashed, children, compact }: DayArcProps) {
   const g = arcGeometry(width, height)
   const tid = useId()
   const nowMin = minOfDate(now)
@@ -36,10 +39,11 @@ export function DayArc({ blocks, planned, done, now, state, width = 560, height 
     { key: 'done', r: g.r.done, list: done },
   ]
   const n1 = arcPoint(g.cx, g.cy, g.r.done - g.track, nf)
-  const n2 = arcPoint(g.cx, g.cy, g.tickR + 8, nf)
+  // the notch's ray runs out past the hour labels, so the leader that starts on it (TodayView) has no label in front of it
+  const n2 = arcPoint(g.cx, g.cy, g.labelR + 16, nf)
   const words = arcText({ classes: blocks, planned, done })
   return (
-    <figure className="td-arc" data-lamp={state} data-component="day-arc" style={{ width, height }}>
+    <figure className="td-arc" data-lamp={state} data-component="day-arc" data-compact={compact ? 'true' : undefined} style={compact ? { width } : { width, height }}>
       <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-labelledby={tid} focusable="false">
         <title id={tid}>{`Today from 06:00 to 24:00, now ${hhmm(nowMin)}. ${words.length ? words.join('. ') : 'No blocks yet.'}`}</title>
         {/* the recessed grooves: one per track, the full half ring */}
@@ -51,11 +55,9 @@ export function DayArc({ blocks, planned, done, now, state, width = 560, height 
         {hourTicks().map((h) => {
           const f = arcFrac(h.min)
           const p = arcPoint(g.cx, g.cy, g.tickR, f)
-          const l = arcPoint(g.cx, g.cy, g.labelR, f)
           return (
             <g key={h.min} className="td-tick" data-major={h.label ? 'true' : undefined} data-past={h.min <= nowMin ? 'true' : undefined}>
               <circle cx={p.x} cy={p.y} r={h.label ? 2.6 : 1.8} />
-              {h.label && <text x={l.x} y={l.y} textAnchor="middle" dominantBaseline="middle">{h.label}</text>}
             </g>
           )
         })}
@@ -73,13 +75,22 @@ export function DayArc({ blocks, planned, done, now, state, width = 560, height 
             <circle cx={n2.x} cy={n2.y} r={4} />
           </g>
         )}
+        {/* the hour labels last, each with a halo, so a label stays legible where the notch's ray crosses it */}
+        {hourTicks().filter((h) => h.label).map((h) => {
+          const l = arcPoint(g.cx, g.cy, g.labelR, arcFrac(h.min))
+          return <text key={h.min} className="td-hour" x={l.x} y={l.y} textAnchor="middle" dominantBaseline="middle">{h.label}</text>
+        })}
       </svg>
-      {children && <div className="td-arc-centre" style={{ left: g.cx, bottom: height - g.cy + 10, width: (g.r.done - g.track - 8) * 2, maxHeight: g.r.done - g.track - 10 }}>{children}</div>}
+      {children && <div className="td-arc-centre" style={{ left: g.cx, bottom: height - g.cy + 10, maxWidth: (g.r.done - g.track - 8) * 2, maxHeight: g.r.done - g.track - 10 }}>{children}</div>}
       <figcaption className="td-arc-legend">
-        <span><i data-kind="class" />class</span>
-        <span><i data-kind="planned" />planned</span>
-        <span><i data-kind="done" />done</span>
-        <span className="td-arc-lamp"><LampGlyph state={state} size={12} />{state === 'live' ? 'today' : state}</span>
+        <span className="td-arc-keys">
+          <span><i data-kind="class" />class</span>
+          <span><i data-kind="planned" />planned</span>
+          <span><i data-kind="done" />done</span>
+        </span>
+        {/* the ONE lamp of the dial and of the minutes figure under or inside it: its word is the state's own, and on fixture
+            rows it is the stamp (a figure never carries a second SIMULATED) */}
+        <LampWord state={state} size={12} className="td-arc-lamp" />
       </figcaption>
     </figure>
   )

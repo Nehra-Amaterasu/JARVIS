@@ -11,10 +11,12 @@
  * Sans for labels, mono only for numbers. Nothing scrolls inside it: what does not fit is counted ("+2 later") and one key
  * opens it. Same store, same model (model.ts) and the same taps as the classic cards, so the two never disagree.
  */
-import { createContext, memo, useContext, useLayoutEffect, useRef, useState } from 'react'
-import { CalendarDays, ChevronRight, Undo2 } from 'lucide-react'
+import { createContext, memo, useContext, useId, useLayoutEffect, useRef, useState } from 'react'
+import { CalendarDays, ChevronDown, ChevronRight, Undo2 } from 'lucide-react'
 import { Button, IconButton, PrimaryButton } from '../kit'
 import { LampGlyph, type LampState } from '../../shared/lamp'
+import { LampWord } from './LampWord'
+import { useRailForm } from './railForm'
 import { openOverlay } from '../frame/overlayRegistry'
 import { useDay, useHorizon, useSeason } from './hooks'
 import { useLogMinutes } from './L2'
@@ -69,8 +71,8 @@ function useRailSeason() {
 function Label({ text, state, why }: { text: string; state: LampState; why?: string }) {
   return (
     <h3 className="lr-label">
-      <LampGlyph state={state} size={10} />
       <span>{text}</span>
+      <LampWord state={state} />
       {why && <span className="lr-why">{why}</span>}
     </h3>
   )
@@ -92,7 +94,8 @@ export function NotchScale({ papers }: { papers: RawPaper[] }) {
   )
 }
 
-const Sitting = memo(function Sitting() {
+/** The next sitting as the rail and its folded row both read it: the model, the dated list, the state of the read and the figure. */
+function useSitting() {
   const season = useRailSeason()
   const papers = useRail((s) => s.papers)
   const phase = useRail((s) => s.phase.exams)
@@ -104,6 +107,11 @@ const Sitting = memo(function Sitting() {
   const days = m.variant === 'countdown' ? first?.days_left ?? null : horizon?.deadline?.days_left ?? null
   const lamp = useLamp(state)
   const shown = (lamp === 'live' || lamp === 'simulated') && days !== null
+  return { m, list, first, lamp, days, shown }
+}
+
+const Sitting = memo(function Sitting() {
+  const { m, list, first, lamp, days, shown } = useSitting()
   return (
     <section className="lr-sec" data-part="sitting" aria-label={m.title}>
       <Label text={m.variant === 'countdown' ? 'Next sitting' : 'Next application'} state={lamp} why={m.tentative ? 'dates tentative' : undefined} />
@@ -255,12 +263,44 @@ const PhonePart = memo(function PhonePart() {
   )
 })
 
+/** The rail's folded form (the phone, RailFormProvider value 'row'): the date, the next sitting and the classes marked, each with its
+ *  lamp and word, and one key that opens the whole rail under it. Nothing is cut: the rest is one tap away. */
+function RowKey({ open, onToggle, today, controls }: { open: boolean; onToggle: () => void; today: Date; controls: string }) {
+  const sit = useSitting()
+  const classes = useRail((s) => s.classes)
+  const phase = useRail((s) => s.phase.attendance)
+  const cm = buildL3({ classes })
+  const tapped = cm.rows.filter((r) => r.status !== null).length
+  const cl = useLamp(lampOf(phase, classes !== null))
+  const Chev = open ? ChevronDown : ChevronRight
+  return (
+    <button type="button" className="lr-rowkey" aria-expanded={open} aria-controls={controls} onClick={onToggle}>
+      <span className="lr-rowkey-day">
+        <span>{today.toLocaleDateString('en-GB', { weekday: 'long' })}</span>
+        <span className="lr-num">{today.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
+        <Chev size={16} aria-hidden="true" />
+      </span>
+      <span className="lr-rowkey-line">
+        <span>Next sitting</span>
+        <span className="lr-num lr-rowkey-n" data-hollow={sit.shown ? undefined : 'true'}>{sit.shown ? `${sit.days} ${sit.days === 1 ? 'day' : 'days'}` : '– –'}</span>
+        <LampWord state={sit.lamp} />
+      </span>
+      <span className="lr-rowkey-line">
+        <span>Classes marked</span>
+        <span className="lr-num lr-rowkey-n" data-hollow={cm.rows.length ? undefined : 'true'}>{cm.rows.length ? `${tapped} of ${cm.rows.length}` : '– –'}</span>
+        <LampWord state={cl} />
+      </span>
+    </button>
+  )
+}
+
 /**
  * How many class rows and counter keys fit the rail's height (the no-scroll rule): a class row is 72 px, a key row 64 px.
  * Measured once per resize; before the first measurement it is the 664 px canvas's figure.
  */
 export function railBudget(h: number, omit: RailPart[]): { classRows: number; tiles: number } {
-  const fixed = 52 + 168 + 56 + (omit.includes('now') ? 0 : 178) + (omit.includes('counters') ? 0 : 98)
+  // 32 px more than before the lamp words: the sitting's and the classes' labels now wrap to a second line (the word, then the why)
+  const fixed = 52 + 168 + 56 + 32 + (omit.includes('now') ? 0 : 178) + (omit.includes('counters') ? 0 : 98)
   const free = Math.max(0, h - fixed)
   const classRows = Math.max(1, Math.min(6, Math.floor(free / 72)))
   return { classRows, tiles: h >= 820 ? 6 : 3 }
@@ -281,6 +321,31 @@ export function LeftRail({ omit = [], go, simulated = false, fixture, today: day
   }, [])
   const b = railBudget(h, omit)
   const today = day ?? new Date()
+  const form = useRailForm()
+  const [open, setOpen] = useState(false)
+  const bodyId = useId()
+  if (form === 'row') {
+    return (
+      <FixCtx.Provider value={fixture ?? null}>
+      <SimCtx.Provider value={simulated || !!fixture}>
+      <nav className="lr lr-row" aria-label="Today rail" data-left="rail" data-form="row" data-simulated={simulated || fixture ? 'true' : undefined}>
+        <RowKey open={open} onToggle={() => setOpen((v) => !v)} today={today} controls={bodyId} />
+        <div id={bodyId} className="lr-row-body" hidden={!open}>
+          {open && (
+            <>
+              <Sitting />
+              {!omit.includes('now') && <NowPart go={go} />}
+              <ClassesPart rows={6} go={go} />
+              {!omit.includes('counters') && <CountersPart tiles={6} go={go} />}
+              <div className="lr-foot"><PhonePart /></div>
+            </>
+          )}
+        </div>
+      </nav>
+      </SimCtx.Provider>
+      </FixCtx.Provider>
+    )
+  }
   return (
     <FixCtx.Provider value={fixture ?? null}>
     <SimCtx.Provider value={simulated || !!fixture}>

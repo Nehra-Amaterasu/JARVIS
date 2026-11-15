@@ -2,7 +2,10 @@
 // references: the corners say "this is a measured region" without drawing a box around it). A quiet sans label, the lamp
 // beside it, then the plate's own forms. No hairline outline: the edge is the clay's shadow.
 import type { ReactNode } from 'react'
-import { LampGlyph, type LampState } from '../../../shared/lamp'
+import type { LampState } from '../../../shared/lamp'
+import { LampWord } from '../../left/LampWord'
+
+export { LampWord }
 
 export interface TodayPlateProps {
   id: string
@@ -17,11 +20,11 @@ export interface TodayPlateProps {
 
 export function TodayPlate({ id, label, state, reason, children, corner }: TodayPlateProps) {
   return (
-    <section className="td-plate" data-callout={id} data-lamp={state} aria-label={`${label}, ${state === 'live' ? reason : `${state}: ${reason}`}`}>
+    <section className="td-plate" data-callout={id} data-lamp={state} data-corner={corner ? 'true' : undefined} aria-label={`${label}, ${state === 'live' ? reason : `${state}: ${reason}`}`}>
       <span className="td-corners" aria-hidden="true"><i /><i /><i /><i /></span>
       <header className="td-plate-head">
-        <LampGlyph state={state} size={10} />
         <h3 className="td-plate-label">{label}</h3>
+        <LampWord state={state} />
         <span className="td-plate-why">{reason}</span>
         {corner && <span className="td-plate-corner">{corner}</span>}
       </header>

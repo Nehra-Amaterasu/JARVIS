@@ -21,6 +21,8 @@
   font: var(--type-body);
 }
 .lr-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+/* the rail with every part (the frame's, not Today's) is 664 px of five sections: the gap tightens so the lamp words' second lines fit */
+.lr:has([data-part='now']):has([data-part='counters']) { gap: var(--space-2); padding-block: var(--space-3) var(--space-2); }
 
 /* corner ticks: four 10 px L marks in the corners (the HUD idea), drawn by two gradients each, no border */
 .lr-corners, .lr-corners i { position: absolute; pointer-events: none; }
@@ -37,8 +39,8 @@
 .lr-head .lr-num { font: 500 12px/16px var(--font-mono); letter-spacing: .04em; }
 
 .lr-sec { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
-.lr-label { margin: 0; display: flex; align-items: center; gap: var(--space-1); font: 600 12px/16px var(--font-ui); letter-spacing: .02em; color: var(--ink-2); }
-.lr-why { margin-left: auto; font: 400 11px/16px var(--font-mono); color: var(--ink-2); white-space: nowrap; }
+.lr-label { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-2); font: 600 12px/16px var(--font-ui); letter-spacing: .02em; color: var(--ink-2); }
+.lr-why { flex: 1 1 100%; font: 400 11px/16px var(--font-mono); color: var(--ink-2); }
 .lr-label-row { display: flex; align-items: center; justify-content: space-between; min-height: 44px; margin: calc(-1 * var(--space-2)) 0 calc(-1 * var(--space-1)); }
 .lr-text { margin: 0; font: var(--type-small); color: var(--ink-1); overflow-wrap: anywhere; }
 .lr-strong { font-weight: 600; }
@@ -113,3 +115,18 @@ html[data-motion='calm'] .lr-key { transition: none; }
   .lr-corners { display: none; }
   .lr-scale-dot[data-first] { fill: CanvasText; }
 }
+
+/* the folded form (the phone): one key of three short lines, the whole rail beneath it when opened */
+.lr.lr-row { padding: var(--space-1) var(--space-3); gap: var(--space-2); overflow: visible; }
+.lr-rowkey {
+  all: unset; box-sizing: border-box; width: 100%; min-height: 44px; display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-1) 0; cursor: pointer; color: var(--ink-1); border-radius: var(--r-ctl);
+}
+.lr-rowkey:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.lr-rowkey-day { display: flex; align-items: center; gap: var(--space-2); font: var(--type-small); color: var(--ink-2); }
+.lr-rowkey-day svg { margin-left: auto; }
+.lr-rowkey-day .lr-num { font: 500 12px/16px var(--font-mono); }
+.lr-rowkey-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-2); font: 600 12px/18px var(--font-ui); color: var(--ink-2); }
+.lr-rowkey-n { font: 500 14px/18px var(--font-mono); color: var(--ink-1); }
+.lr-rowkey-n[data-hollow] { color: var(--ink-3); letter-spacing: .1em; }
+.lr-row-body { display: flex; flex-direction: column; gap: var(--space-3); padding-top: var(--space-2); }
+.lr-row-body[hidden] { display: none; }

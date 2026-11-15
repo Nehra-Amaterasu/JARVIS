@@ -1,14 +1,18 @@
 // ReviewDesk (package Y01, spec 20.7.2 and 21.3.2 S2): turn a paper into reviewed questions without anything entering the bank
 // unseen. Left, the page with the reader's boxes (the selected box has four 44 px corner handles; Shift+arrow moves an edge
 // 4 px). Right, the run's real trace, the crop with its text layer, the fields each with its RULE, MODEL or HAND chip, and the
-// actions: Accept (Enter), Edit (E), Merge with previous (M), Split (S), Reject (Backspace, undo for 10 s), Next uncertain (N).
+// actions: Accept (Enter), Edit (E) and Reject (Backspace, undo for 10 s) stand on the row; Merge with previous (M), Split (S),
+// Next uncertain (N) and the two view switches (T, R) are behind one "More" key (the keys themselves work either way, 14 Nov jury).
+// The run's trace is one line that opens (it was a 130 px terminal and the loudest thing on the desk).
 // The one warm fill is "Accept all certain and review the rest": it takes only a RULE tag at margin 0.5 or more with its marks
 // found. J and K step, T puts the text beside the crop, R opens the rubric strip, Esc closes. The state is a pure reducer
 // (reviewModel.ts); the desk is optimistic (it answers at once) and tells the port after.
-import { useEffect, useMemo, useReducer, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useReducer, useRef, useState, type KeyboardEvent, type PointerEvent as RPointerEvent, type ReactNode } from 'react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Button, PrimaryButton, Switch } from '../../../shared/kit'
 import { Lamp, readingOf, type LampState } from '../../../shared/lamp'
-import { ExtractionTrace } from '../papers/ExtractionTrace'
+import { ExtractionTrace, eventClock } from '../papers/ExtractionTrace'
+import { LampWord } from '../../left/LampWord'
 import { COPY, FOOTER } from '../papers/copy'
 import { countText } from '../papers/stats'
 import type { Decision, QuestionRow, TagSource, Topic, TraceEvent, QType } from '../ports'
@@ -61,6 +65,31 @@ const TYPES: { id: QType; label: string }[] = [
 const isEntry = (t: EventTarget | null) => t instanceof HTMLElement && !!t.closest('input, textarea, select, [contenteditable="true"]')
 const isButton = (t: EventTarget | null) => t instanceof HTMLElement && !!t.closest('button, a, [role="switch"]')
 
+/** The run's trace as ONE line: the newest event with its lamp and word, how many there are, and a key that opens the whole log. Real
+ *  events only (nothing is invented to fill the line); with none it says there is no run. */
+function TraceLine({ events }: { events: readonly TraceEvent[] }) {
+  const [open, setOpen] = useState(false)
+  const id = useId()
+  const last = events[events.length - 1]
+  const Chev = open ? ChevronDown : ChevronRight
+  return (
+    <div className="rv-trace" data-open={open ? 'true' : undefined}>
+      <button type="button" className="rv-trace-line" aria-expanded={open} aria-controls={id} onClick={() => setOpen((v) => !v)}>
+        {last ? (
+          <>
+            <LampWord state={last.state} />
+            <span className="rv-trace-clock">{eventClock(last.at)}</span>
+            <span className="rv-trace-text">{last.text}</span>
+          </>
+        ) : <span className="rv-trace-text">No run yet: the trace lists what the reader did, and nothing else</span>}
+        <span className="rv-trace-n">{events.length} {events.length === 1 ? 'event' : 'events'}</span>
+        <Chev size={16} aria-hidden="true" />
+      </button>
+      <div id={id} hidden={!open}>{open && <ExtractionTrace events={events} max={6} />}</div>
+    </div>
+  )
+}
+
 function Field({ name, chip, children }: { name: string; chip: TagSource; children: ReactNode }) {
   return (
     <div className="rv-field" data-field={name}>
@@ -85,6 +114,8 @@ export function ReviewDesk({
   const [draft, setDraft] = useState<{ stem: string; marks: string; topicId: string; type: QType } | null>(null)
   const [boxes, setBoxes] = useState<Record<string, Box>>({})
   const [say, setSay] = useState('')
+  const [more, setMore] = useState(false)
+  const moreId = useId()
   const root = useRef<HTMLDivElement>(null)
   const drag = useRef<{ id: string; corner: Corner; x: number; y: number; box: Box; scale: { x: number; y: number } } | null>(null)
   const sheet = useRef<HTMLDivElement>(null)
@@ -146,6 +177,7 @@ export function ReviewDesk({
       return
     }
     if (e.key === 'Escape') {
+      if (more) { e.stopPropagation(); setMore(false); return }
       if (editing) { e.stopPropagation(); setEditing(false); return }
       if (modal) { e.stopPropagation(); onClose?.() }
       return
@@ -281,14 +313,10 @@ export function ReviewDesk({
               )
             })}
           </div>
-          <div className="rv-toggles">
-            <Switch checked={side} onChange={setSide} label="Text beside crop (T)" />
-            <Switch checked={rubric} onChange={setRubric} label="Rubric strip (R)" />
-          </div>
         </section>
 
         <section className="rv-work" aria-label="The question under review">
-          <ExtractionTrace events={events} max={3} />
+          <TraceLine events={events} />
           {cur ? (
             <>
               <CropCard
@@ -343,26 +371,33 @@ export function ReviewDesk({
             <div className="rv-none"><p>{COPY.nothingToReview}</p></div>
           )}
 
-          <div className="rv-actions" role="group" aria-label="Decide on this question">
-            {editing ? (
-              <>
-                <Button size="sm" tone="quiet" onClick={save} aria-keyshortcuts="Control+Enter">Save</Button>
-                <Button size="sm" onClick={() => setEditing(false)} aria-keyshortcuts="Escape">Cancel</Button>
-              </>
-            ) : (
-              <>
-                <Button size="sm" onClick={accept} disabled={!cur || cur.status === 'accepted'} aria-keyshortcuts="Enter">Accept</Button>
-                <Button size="sm" onClick={() => setEditing(true)} disabled={!cur} aria-keyshortcuts="E">Edit</Button>
-                <Button size="sm" onClick={merge} disabled={!cur} aria-keyshortcuts="M">Merge</Button>
-                <Button size="sm" onClick={split} disabled={!cur} aria-keyshortcuts="S">Split</Button>
-                <Button size="sm" onClick={reject} disabled={!cur || cur.status === 'rejected'} aria-keyshortcuts="Backspace">Reject</Button>
-                <Button size="sm" onClick={next} disabled={pend < 2} aria-keyshortcuts="N">Next uncertain</Button>
-                <span className="rv-step" role="group" aria-label="Step between questions">
-                  <button type="button" className="pp-pg" aria-label="Previous question" aria-keyshortcuts="K" onClick={() => dispatch({ type: 'step', by: -1 })}>‹</button>
-                  <button type="button" className="pp-pg" aria-label="Next question" aria-keyshortcuts="J" onClick={() => dispatch({ type: 'step', by: 1 })}>›</button>
-                </span>
-              </>
-            )}
+          <div className="rv-actionbar">
+            <div className="rv-actions" role="group" aria-label="Decide on this question">
+              {editing ? (
+                <>
+                  <Button size="sm" tone="quiet" onClick={save} aria-keyshortcuts="Control+Enter">Save</Button>
+                  <Button size="sm" onClick={() => setEditing(false)} aria-keyshortcuts="Escape">Cancel</Button>
+                </>
+              ) : (
+                <>
+                  <Button size="sm" onClick={accept} disabled={!cur || cur.status === 'accepted'} aria-keyshortcuts="Enter">Accept</Button>
+                  <Button size="sm" onClick={() => setEditing(true)} disabled={!cur} aria-keyshortcuts="E">Edit</Button>
+                  <Button size="sm" onClick={reject} disabled={!cur || cur.status === 'rejected'} aria-keyshortcuts="Backspace">Reject</Button>
+                  <Button size="sm" tone="quiet" aria-expanded={more} aria-controls={moreId} onClick={() => setMore((v) => !v)}>More</Button>
+                  <span className="rv-step" role="group" aria-label="Step between questions">
+                    <button type="button" className="pp-pg" aria-label="Previous question" aria-keyshortcuts="K" onClick={() => dispatch({ type: 'step', by: -1 })}>‹</button>
+                    <button type="button" className="pp-pg" aria-label="Next question" aria-keyshortcuts="J" onClick={() => dispatch({ type: 'step', by: 1 })}>›</button>
+                  </span>
+                </>
+              )}
+            </div>
+            <div id={moreId} className="rv-more" role="group" aria-label="More on this question" hidden={!more || editing}>
+              <Button size="sm" onClick={merge} disabled={!cur} aria-keyshortcuts="M">Merge with previous</Button>
+              <Button size="sm" onClick={split} disabled={!cur} aria-keyshortcuts="S">Split</Button>
+              <Button size="sm" onClick={next} disabled={pend < 2} aria-keyshortcuts="N">Next uncertain</Button>
+              <Switch checked={side} onChange={setSide} label="Text beside crop (T)" />
+              <Switch checked={rubric} onChange={setRubric} label="Rubric strip (R)" />
+            </div>
           </div>
           <p className="rv-keys" aria-hidden="true">Enter accept · E edit · M merge · S split · Backspace reject · N next uncertain · U undo · J K step · T text · R rubric</p>
         </section>

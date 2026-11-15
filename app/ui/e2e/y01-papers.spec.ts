@@ -152,6 +152,50 @@ test.describe('Y01 geometry', () => {
     expect(m.h).toBe(620)
     await shot(page, '.y01-review', 'review-1100.png')
   })
+
+  test('RT1: the Review Desk shows Accept, Edit and Reject and one More key; the trace is one line; the footer is clear of the chevrons', async ({ page }) => {
+    await state(page, 6)
+    const m = await page.evaluate(() => {
+      const d = document.querySelector<HTMLElement>('.rv-desk')!
+      const r = d.getBoundingClientRect()
+      const foot = d.querySelector<HTMLElement>('.rv-foot')!.getBoundingClientRect()
+      const line = d.querySelector<HTMLElement>('.rv-trace-line')!.getBoundingClientRect()
+      const bar = d.querySelector<HTMLElement>('.rv-actions')!
+      const parts = [...bar.querySelectorAll<HTMLElement>('button')].map((b) => ({ t: (b.getAttribute('aria-label') ?? b.textContent ?? '').trim(), r: b.getBoundingClientRect() }))
+      return {
+        row: [...bar.querySelectorAll<HTMLElement>(':scope > button')].map((b) => (b.textContent ?? '').trim()),
+        traceOut: Math.round(line.right - d.querySelector<HTMLElement>('.rv-work')!.getBoundingClientRect().right), traceH: Math.round(line.height), traceTerminal: d.querySelectorAll('.pp-trace').length, deskH: Math.round(r.height),
+        overlapFoot: parts.filter((x) => x.r.bottom > foot.top + 1 && x.r.top < foot.bottom).map((x) => x.t),
+        small: parts.filter((x) => /question$/.test(x.t) && (x.r.width < 43.5 || x.r.height < 43.5)).map((x) => `${x.t} ${Math.round(x.r.width)}x${Math.round(x.r.height)}`),
+        toggles: d.querySelectorAll('.rv-page [role="switch"]').length,
+      }
+    })
+    expect(m.row).toEqual(['Accept', 'Edit', 'Reject', 'More'])
+    expect(m.traceH, 'the trace line is one 44 px line, not a terminal').toBeLessThanOrEqual(48)
+    expect(m.traceOut, 'the trace line runs past its column').toBeLessThanOrEqual(1)
+    expect(m.traceTerminal).toBe(0)
+    expect(m.overlapFoot, 'actions or chevrons over the footer').toEqual([])
+    expect(m.small, 'targets under 44 px').toEqual([])
+    expect(m.toggles).toBe(0)
+    await page.locator('.rv-actions button[aria-expanded]').click()
+    const more = await page.evaluate(() => {
+      const d = document.querySelector<HTMLElement>('.rv-desk')!.getBoundingClientRect()
+      const p = document.querySelector<HTMLElement>('.rv-more')!
+      const b = p.getBoundingClientRect()
+      return { shown: b.height > 0, inside: b.top >= d.top && b.bottom <= d.bottom && b.left >= d.left && b.right <= d.right, buttons: [...p.querySelectorAll('button:not([role="switch"])')].map((x) => (x.textContent ?? '').trim()), switches: p.querySelectorAll('[role="switch"]').length }
+    })
+    expect(more.shown).toBe(true)
+    expect(more.inside).toBe(true)
+    expect(more.buttons).toEqual(['Merge with previous', 'Split', 'Next uncertain'])
+    expect(more.switches).toBe(2)
+    await page.keyboard.press('Escape')
+    await expect(page.locator('.rv-more')).toBeHidden()
+    await expect(page.locator('.rv-desk')).toBeVisible()
+    await page.locator('.rv-trace-line').click()
+    await expect(page.locator('.rv-desk .pp-trace')).toHaveCount(1)
+    await shot(page, '.y01-review', 'review-1100-trace-open.png')
+  })
+
 })
 
 test.describe('Y01 keyboard path', () => {

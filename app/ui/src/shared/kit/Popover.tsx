@@ -27,15 +27,34 @@ export function Popover({ open, onClose, anchor, placement = 'bottom', label, cl
   const [closing, setClosing] = useState(false)
   const [pos, setPos] = useState<CSSProperties>({})
   const box = useRef<HTMLDivElement>(null)
+  const fixes = useRef(0)
 
   useLayoutEffect(() => {
     if (open) {
+      fixes.current = 0
       setMounted(true)
       setClosing(false)
       const a = anchor.current?.getBoundingClientRect()
       if (a) setPos(placement === 'bottom' ? { insetBlockStart: a.bottom + 8, insetInlineStart: a.left } : { insetBlockEnd: window.innerHeight - a.top + 8, insetInlineStart: a.left })
     } else if (mounted) setClosing(true)
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+  // VIS1: placed from the anchor, then kept inside the viewport once its own size is known (the tree settings popover hung 52 px off the
+  // right edge at 1366 px because its anchor sits at the right of the tool row). Horizontal and vertical offsets are read without
+  // the entrance's translate, and the position only moves when it overflows, so this settles in one pass.
+  useLayoutEffect(() => {
+    const b = box.current
+    if (!mounted || closing || !b || (b.offsetWidth === 0 && b.offsetHeight === 0)) return // not laid out (a test DOM): nothing to measure
+    if (fixes.current >= 3) return // a layout that cannot be satisfied must not loop
+    const m = 8
+    const vw = document.documentElement.clientWidth
+    const vh = window.innerHeight
+    const left = Math.max(m, Math.min(b.offsetLeft, vw - m - b.offsetWidth))
+    const top = Math.max(m, Math.min(b.offsetTop, vh - m - b.offsetHeight))
+    if (Math.abs(left - b.offsetLeft) > 0.5 || Math.abs(top - b.offsetTop) > 0.5) {
+      fixes.current += 1
+      setPos({ insetInlineStart: left, insetBlockStart: top })
+    }
+  }, [mounted, closing, pos])
   useEffect(() => {
     if (!closing) return
     const t = setTimeout(() => {

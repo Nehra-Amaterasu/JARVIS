@@ -514,9 +514,18 @@
    .ww (Saffron Ash, dark); under the shell every one of its tier-2 tokens is pointed at the clay role of the
    same job, so the frame paints with the shell's surfaces, inks, edges and lamp colours in either clay theme.
    Names both layers share are taken back from the shell with `inherit`; the rest are var() aliases, so no
-   colour value is copied (hex stays in primitive-color.css). Specificity 0,2,0 beats the theme files' 0,1,0. */
+   colour value is copied (hex stays in primitive-color.css). Specificity 0,2,0 beats the theme files' 0,1,0.
+   VIS1 (15 Nov): the drawers, popovers and sheets of the kit are portalled to <body>, OUTSIDE .s2, so `.s2 .ww-portal` never
+   matched them and the Saffron Ash tokens the design layer puts on every .ww-portal (ink #f5f6f8, a dark base) won: once the
+   Well Wisher design sheet was in the document (any lazy page, or a visit to the classic interface) a Well Wisher drawer was
+   near-white ink on the light clay face, 1.03:1, measured by e2e/surfaces.spec.ts. The root attribute is the one thing every
+   portal can see, so the same mapping now also hangs on `:root[data-theme^='clay-'] .ww-portal` (0,3,0). And a drawer's BODY can
+   carry a `.ww` wrapper of its own (the Plan the day drawer does): inside a body-level portal that wrapper is not under .s2
+   either and put Ash back (1.08:1 on the segmented options), so `.ww` is mapped the same way wherever it is mounted. */
 .s2 .ww,
-.s2 .ww-portal {
+.s2 .ww-portal,
+:root[data-theme^='clay-'] .ww,
+:root[data-theme^='clay-'] .ww-portal {
   color-scheme: inherit;
   --ink-1: inherit;
   --ink-2: inherit;
@@ -557,6 +566,11 @@
 :root[data-theme='clay-light'] .s2 .ww-portal { --ink-rgb: 23, 23, 23; }
 :root[data-theme='clay-dark'] .s2 .ww,
 :root[data-theme='clay-dark'] .s2 .ww-portal { --ink-rgb: 232, 234, 233; }
+/* the same channels for the portals and wrappers that are not under .s2 (VIS1, the mapping above) */
+:root[data-theme='clay-light'] .ww,
+:root[data-theme='clay-light'] .ww-portal { --ink-rgb: 23, 23, 23; }
+:root[data-theme='clay-dark'] .ww,
+:root[data-theme='clay-dark'] .ww-portal { --ink-rgb: 232, 234, 233; }
 /* the workspace layer re-derives surfaces and the ring per room (themes/workspace.css, 0,1,0 to 0,2,0); under the
    shell the rooms keep their layout and tempo but take the shell's flat surfaces and its one accent and ring */
 .s2 .ww-centre,

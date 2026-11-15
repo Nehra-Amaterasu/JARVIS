@@ -430,7 +430,7 @@ a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
 
 /* ---- 16 Palette: a floating card, an engraved search well, rows that fill when active ---- */
 .k-palette {
-  width: 560px; max-width: 100%; max-height: 440px; display: grid; grid-template-rows: auto 1fr; gap: 8px; padding: 12px; box-sizing: border-box;
+  color: var(--ink-1); width: 560px; max-width: 100%; max-height: 440px; display: grid; grid-template-rows: auto 1fr; gap: 8px; padding: 12px; box-sizing: border-box;
   background: var(--surface-raised); border: 1px solid transparent;
   border-color: var(--rim-shade, var(--edge-ui));
   border-radius: var(--r-card, 22px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-float, none);
@@ -468,7 +468,7 @@ a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
 .k-portal { position: fixed; inset: 0; z-index: var(--z-overlay, 50); display: grid; place-items: center; }
 .k-scrim { position: absolute; inset: 0; background: var(--scrim); }
 .k-dialog {
-  position: relative; width: min(440px, calc(100vw - 32px)); box-sizing: border-box; overflow: hidden;
+  color: var(--ink-1); position: relative; width: min(440px, calc(100vw - 32px)); box-sizing: border-box; overflow: hidden;
   background: var(--surface-raised); border: 1px solid transparent;
   border-color: var(--rim-shade, var(--edge-ui));
   border-radius: var(--r-card, 22px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-float, none);
@@ -610,7 +610,11 @@ a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
 }
 :root[data-theme^='clay'] .ww-seg .ww-seg-opt { --ctl-h: var(--hit, 44px); min-height: var(--hit, 44px); }
 :root[data-theme^='clay'] .ww-seg-opt { padding-inline: 16px; border: 1px solid transparent; border-radius: var(--r-pill, 999px); font-family: var(--font-sans, system-ui, sans-serif); font-weight: 500; color: var(--ink-2); transition: transform var(--dur-press, 90ms) ease-out; }
-:root[data-theme^='clay'] .ww-seg-opt:is(:active, [data-demo='pressed']) { transform: translateY(1px) scale(.98); }
+/* VIS1: an unselected option answers the pointer like every other raised part (it had no hover at all, on either side): the lit
+   face comes up out of the channel by 1 px, and the press, written after it with the same weight, drops it back and in */
+:root[data-theme^='clay'] .ww-seg-opt:is(:hover, [data-demo='hover']):not([aria-checked='true'], [aria-disabled='true']) { color: var(--ink-1); background-color: var(--surface-raised-hi, var(--surface-raised)); box-shadow: var(--elev-flush, none); transform: translateY(-1px); }
+:root[data-theme^='clay'] .ww-seg-opt:is(:active, [data-demo='pressed']):not([aria-checked='true'], [aria-disabled='true']) { transform: translateY(1px) scale(.98); box-shadow: var(--elev-pressed, none); }
+:root[data-theme^='clay'] .ww-seg-opt[aria-checked='true']:is(:active, [data-demo='pressed']) { transform: translateY(1px) scale(.98); }
 :root[data-theme^='clay'] .ww-seg-opt[aria-checked='true'] {
   font-weight: 600; background: var(--k-on-fill, var(--selected-fill)); color: var(--k-on-ink, var(--selected-ink)); box-shadow: var(--lip-on-fill, inset 0 0 0 transparent), var(--elev-low, none);
   border-color: var(--rim-shade, transparent);
@@ -680,14 +684,36 @@ a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
 :root[data-theme^='clay'] .ww-md-detail > :first-child { margin-top: 0; }
 
 /* Drawer (sheet), Popover and the legacy Toast: floating cards of the same material */
-:root[data-theme^='clay'] .ww-sheet { background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui)); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-float, none); }
+/* VIS1 (15 Nov), one rule for every overlay: it brings its OWN opaque surface, its OWN ink and its OWN place, so it reads the same
+   whatever it is mounted under and whichever lazy stylesheet is (or is not) in the document. Before this, the place (position, z-index,
+   the scrim's colour) lived only in ww/kit/overlay.css, which the JARVIS side never loads: a drawer opened there was an unpositioned
+   block after the page with a scrim that painted nothing (measured by e2e/surfaces.spec.ts, y 768 of 768). And the ink came from the
+   .ww-portal ancestor, which carries the Saffron Ash roles (shell.css maps them back to the clay ones). The scrim is z 40 and every
+   panel z 50, so a scrim is always below its panel. Tokens carry fallbacks because --z-* is declared only under .ww and .ww-portal. */
+:root[data-theme^='clay'] .ww-scrim { position: fixed; inset: 0; z-index: var(--z-scrim, 40); background: var(--scrim); }
+:root[data-theme^='clay'] .ww-scrim[data-state='closed'] { visibility: hidden; }
+:root[data-theme^='clay'] .ww-sheet {
+  --sheet-w: 440px; position: fixed; z-index: var(--z-sheet, 50); display: flex; flex-direction: column; outline: none;
+  color: var(--ink-1); color-scheme: inherit;
+  background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui)); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-float, none);
+}
+:root[data-theme^='clay'] .ww-sheet[data-place='right'] { inset-block: 0; inset-inline-end: 0; inline-size: min(var(--sheet-w), 100%); }
+:root[data-theme^='clay'] .ww-sheet[data-place='left'] { inset-block: 0; inset-inline-start: 0; inline-size: min(var(--sheet-w), 100%); }
+:root[data-theme^='clay'] .ww-sheet[data-place='bottom'] { inset-inline: 0; inset-block-end: 0; max-block-size: 85vh; }
+:root[data-theme^='clay'] .ww-sheet[data-state='closed'] { visibility: hidden; }
+:root[data-theme^='clay'] .ww-sheet-body { flex: 1; overflow: auto; overscroll-behavior: contain; }
 :root[data-theme^='clay'] .ww-sheet[data-place='right'] { border-radius: var(--r-card, 22px) 0 0 var(--r-card, 22px); }
 :root[data-theme^='clay'] .ww-sheet[data-place='left'] { border-radius: 0 var(--r-card, 22px) var(--r-card, 22px) 0; }
 :root[data-theme^='clay'] .ww-sheet[data-place='bottom'] { border-radius: var(--r-card, 22px) var(--r-card, 22px) 0 0; }
-:root[data-theme^='clay'] .ww-sheet-head { padding: 16px 16px 8px 24px; border-block-end: 0; background: transparent; }
-:root[data-theme^='clay'] .ww-sheet-title { font: 600 17px/1.3 var(--font-sans, system-ui, sans-serif); letter-spacing: -.01em; }
+:root[data-theme^='clay'] .ww-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 16px 8px 24px; border-block-end: 0; background: transparent; }
+:root[data-theme^='clay'] .ww-sheet-title { margin: 0; font: 600 17px/1.3 var(--font-sans, system-ui, sans-serif); letter-spacing: -.01em; }
 :root[data-theme^='clay'] .ww-sheet-body { padding: 8px 24px 24px; }
-:root[data-theme^='clay'] .ww-popover { padding: 16px; background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui)); border-radius: 18px; box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-float, none); }
+:root[data-theme^='clay'] .ww-popover { position: fixed; z-index: var(--z-sheet, 50); min-inline-size: 176px; max-inline-size: calc(100% - 16px); color: var(--ink-1); color-scheme: inherit; padding: 16px; background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui)); border-radius: 18px; box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-float, none); }
+/* VIS1: the list of a native <select> is drawn by the browser from the option's own colours. An option with no background of its own
+   (every field, the Proof causes, classic pages) took the system white while its ink stayed the theme's light ink: unreadable on the
+   dark side. An option carries its own surface and its own ink, and the control says which scheme the list is drawn in. */
+:root[data-theme^='clay'] select { color-scheme: inherit; }
+:root[data-theme^='clay'] :is(select, datalist) :is(option, optgroup) { background-color: var(--surface-raised); color: var(--ink-1); }
 :root[data-theme^='clay'] .ww-toast { min-height: var(--hit, 44px); padding: 8px 16px; background: var(--surface-raised); border: 1px solid transparent; border-color: var(--rim-shade, var(--edge-ui)); border-radius: var(--r-pill, 999px); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-high, none); font-family: var(--font-sans, system-ui, sans-serif); }
 :root[data-theme^='clay'] .ww-toast[data-tone='fault'] { box-shadow: var(--glow-fault, none), var(--lip, inset 0 0 0 transparent), var(--elev-high, none); }
 
@@ -701,7 +727,7 @@ a.k-plate.k-chamfer:focus-visible { outline-offset: -5px; }
   .k-rocker-half:active, .k-tab:active, .k-key:active, .k-btn:active, .k-console-follow:active, .k-toast-undo:active, .k-dialog-x:active { transform: none; }
   /* the static form of the material: the sheen and the settle still change state, but in one frame */
   .k-lit, .k-lit .k-panel-in::after, :root[data-theme^='clay'] .ww-btn, :root[data-theme^='clay'] .ww-btn::before, :root[data-theme^='clay'] .ww-seg-opt, :root[data-theme^='clay'] button.ww-chip { transition: none; }
-  :root[data-theme^='clay'] .ww-btn:hover, :root[data-theme^='clay'] .ww-btn:active, :root[data-theme^='clay'] button.ww-chip:hover, :root[data-theme^='clay'] button.ww-chip:active, :root[data-theme^='clay'] .ww-seg-opt:active { transform: none; }
+  :root[data-theme^='clay'] .ww-btn:hover, :root[data-theme^='clay'] .ww-btn:active, :root[data-theme^='clay'] button.ww-chip:hover, :root[data-theme^='clay'] button.ww-chip:active, :root[data-theme^='clay'] .ww-seg-opt:is(:hover, :active):not([aria-checked='true'], [aria-disabled='true']), :root[data-theme^='clay'] .ww-seg-opt[aria-checked='true']:active { transform: none; }
 }
 
 /* ==========================================================================

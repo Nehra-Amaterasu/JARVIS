@@ -258,16 +258,19 @@ test.describe('C03 phone', () => {
   test.use({ viewport: { width: 390, height: 844 } })
 
   for (const [w, label] of [[382, '358 px of content'], [390, '390 px']] as const) {
-    test(`one column, no sideways scroll, every target 44 px (${label})`, async ({ page }) => {
+    test(`one column of content, doors in two, no sideways scroll, every target 44 px (${label})`, async ({ page }) => {
       await state(page, 0, 'light', w)
       const m = await page.evaluate(() => {
         const doors = [...document.querySelectorAll<HTMLElement>('.ik-door')].map((d) => Math.round(d.getBoundingClientRect().left))
+        const list = document.querySelector<HTMLElement>('.ik-doors')!.getBoundingClientRect()
+        const plate = document.querySelector<HTMLElement>('.ik-plate')!.getBoundingClientRect()
         const main = document.querySelector<HTMLElement>('.ik-main')!
         const cols = getComputedStyle(main).gridTemplateColumns.split(' ').length
-        return { x: document.documentElement.scrollWidth - innerWidth, doorLefts: new Set(doors).size, cols }
+        return { x: document.documentElement.scrollWidth - innerWidth, doorLefts: new Set(doors).size, cols, plateFull: Math.abs(plate.width - list.width) < 2 }
       })
       expect(m.x, 'the page scrolls sideways').toBeLessThanOrEqual(0)
-      expect(m.doorLefts, 'the doors are one column').toBe(1)
+      expect(m.doorLefts, 'the doors are two columns at most').toBeLessThanOrEqual(2)
+      expect(m.plateFull, 'the Classroom plate runs across both columns').toBe(true)
       expect(m.cols).toBe(1)
       expect(await smallTargets(page, TARGETS), 'targets under 44 px').toEqual([])
       await shotPage(page, `desk-${w}.png`)

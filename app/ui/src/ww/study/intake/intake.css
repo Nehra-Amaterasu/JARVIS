@@ -105,6 +105,8 @@ button.ik-door:focus-visible, .ik-row:focus-visible, .ik-pg:focus-visible, .ik-o
 .ik-keys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; align-items: start; }
 .ik-keys > * { min-inline-size: 0; }
 .ik-keys .ww-btn { inline-size: 100%; }
+/* principle 13: the primary action is 48 px or taller; the kit's primary and large sizes are 44, so this out-ranks them on specificity */
+:root[data-theme^='clay'] .ik-desk .ik-keys .ww-btn[data-size] { min-block-size: 48px; }
 .ik-keys > :only-child, .ik-keys > :first-child:nth-last-child(3) { grid-column: 1 / -1; }
 .ik-detail-note { margin: 0; font: 12px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
 .ik-detail-lamp { margin: 0; display: flex; align-items: center; }

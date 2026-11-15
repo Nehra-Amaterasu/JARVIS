@@ -1449,21 +1449,23 @@ Method: `contrast.py` (a scratch script; WP-B03 commits it as the oracle for `to
 | edge-ui | `#6E7270` | 3.0 | 4.04 | 4.39 | 3.54 |
 | focus-ring | `#171717` | 3.0 | 14.83 | 16.12 | 13.01 |
 
-**clay-dark** (ground `#0D0D0F`, raised `#18191C`, sunk `#060607`; a second raised face `#1F2124`)
+**clay-dark** (ground `#0D0D0F`, raised `#282A2E`, sunk `#060607`; a second raised face `#303236`)
 
 *Amended 14 Nov 2026 by D-V3-30 (package KB1): the dark ground moved from charcoal `#171717` (raised `#222426`, sunk `#101112`) to a matte piano black, and every cell below was recomputed and is asserted in `app/ui/src/__tests__/tokens.test.ts`. The ladder steps measure 1.04:1 (sunk to ground), 1.10:1 (ground to raised) and 1.20:1 (ground to the second raised face); matte means a broad, dim, cool-grey highlight at 6 percent and a deep shade, never a white rim. Elsewhere in this document, where a clay-dark pair still quotes the charcoal ground, the values of this table and of the token test govern: disabled ink is 3.77 (was 3.48), the decorative hairline 1.62 (was 1.50), the accent state 4.99 and 4.52 (was 4.61 and 4.01), and the dark section marks on ground and raised are day 8.54 and 7.73, study 9.44 and 8.54, tree 9.79 and 8.86, focus 16.07 and 14.55, proof 9.71 and 8.79. The light table, the immersive scene grounds and every "fill and inverted pair" row (where `#171717` is the text on orange or on bone) are unchanged. Not yet checked on the owner's own panel.*
 
+*Amended again on 15 Nov 2026 (package RJ1), because two jurors and a reviewer found the first ladder flat: the raised face rose about 7 points of lightness (`#18191C` to `#282A2E`, the second face `#1F2124` to `#303236`); the ground and the sunk face did not move. The steps now measure 1.04:1 (sunk to ground), 1.35:1 (ground to raised) and 1.51:1 (ground to the second face). `accent-ink` became `#F77A4D` so that it still clears 4.5:1 on the lifted face. The accent state is 4.99 on the ground, 3.70 on raised and 3.30 on hover; the dark section marks on ground and raised are day 8.54 and 6.33, study 9.44 and 6.99, tree 9.79 and 7.25, focus 16.07 and 11.90, proof 9.71 and 7.19; lamp text on the hover face is fault 4.60, planned and waiting 4.75, measured 8.36, simulated 7.21. The raised column below carries the new values.*
+
 | Token | Hex | Need | ground | raised | sunk |
 |---|---|---|---|---|---|
-| ink-1 | `#E8EAE9` | 4.5 | 16.07 | 14.55 | 16.76 |
-| ink-2 | `#B4B8BA` | 4.5 | 9.71 | 8.79 | 10.13 |
-| ink-3 | `#9A9EA0` | 4.5 | 7.19 | 6.51 | 7.50 |
-| state-measured | `#5CE1FF` | 4.5 | 12.64 | 11.44 | 13.18 |
-| state-simulated | `#FFB347` | 4.5 | 10.90 | 9.87 | 11.37 |
-| state-fault | `#FF6B5E` | 4.5 | 6.95 | 6.29 | 7.25 |
-| accent-ink | `#F25623` | 4.5 | 5.67 | 5.13 | 5.91 |
-| edge-ui | `#7C8082` | 3.0 | 4.87 | 4.41 | 5.08 |
-| focus-ring | `#E8EAE9` | 3.0 | 16.07 | 14.55 | 16.76 |
+| ink-1 | `#E8EAE9` | 4.5 | 16.07 | 11.90 | 16.76 |
+| ink-2 | `#B4B8BA` | 4.5 | 9.71 | 7.19 | 10.13 |
+| ink-3 | `#9A9EA0` | 4.5 | 7.19 | 5.32 | 7.50 |
+| state-measured | `#5CE1FF` | 4.5 | 12.64 | 9.36 | 13.18 |
+| state-simulated | `#FFB347` | 4.5 | 10.90 | 8.07 | 11.37 |
+| state-fault | `#FF6B5E` | 4.5 | 6.95 | 5.15 | 7.25 |
+| accent-ink | `#F77A4D` | 4.5 | 7.25 | 5.37 | 7.57 |
+| edge-ui | `#7C8082` | 3.0 | 4.87 | 3.61 | 5.08 |
+| focus-ring | `#E8EAE9` | 3.0 | 16.07 | 11.90 | 16.76 |
 
 **immersive scene (default charcoal set)** (ground `#0F1011`, raised `#1A1C1E`, sunk `#08090A`)
 

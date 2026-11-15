@@ -2,6 +2,20 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-15: RW1, the relay pin map as one fold in Room
+
+**Question.** Spec D-V3-35 and ledger R06: the owner keeps the relay wiring (GPIO pins may change one day), drops only the Arduino Uno guide, and wants it to take little space. Can a pin map be read or saved today?
+
+**Findings (read-only, routes).** `app/jarvis_app/routes_limbs.py` lists modes, `POST /api/limbs/{device}/test` and presence; `server.py` has `GET /api/limbs` and the switch routes. The pins are readable: `devices.json` channel per device in `GET /api/limbs`, the board's own pins in `relay_board.pins`, and `esp32.pin_mismatch` where the board and the settings differ. No route SAVES a pin map. So the edit control is drawn PLANNED with its reason, and a `PinsAdapter` (null today) is the one seam where a route plugs in.
+
+**What was built.** `jarvis/room/pins/` (pure model, `PinMap` kit fold for Room, `ClassicPins` for the classic page, fixtures with invented pins); the e2e page is `e2e/rw1-harness.tsx`. One row per relay: name, GPIO, state lamp with its word (live, waiting, simulated, fault), a test key (two presses, because it switches mains; Escape or leaving the key cools it, no timer). Apply is a hardware setting: the field changes locally, Apply arms, the sentence "Press again to confirm. This is a hardware setting." shows, and the adapter is called only on the second press. Pins outside 0 to 48, the flash lines 26 to 32 and repeated pins are refused in words. `RelayWiring.tsx` keeps its export and props and renders the same rows through `ClassicPins` with classic classes only, so no clay rule reaches the classic chunk (the first version imported the kit there and the import-graph tests caught it); the Arduino guide, checklist and Uno table are removed.
+
+**Numbers.** Row 44 px; collapsed fold is one 44 px key; open with six relays at 1366 stays at or under 360 px (measured in e2e/rw1-pins.spec.ts). Nine vitest cases for the model, planned form, two-press confirm and test key.
+
+**Route the engine lane would need (not built).** `PUT /api/limbs/pins` body `{pins: {device_id: gpio_int}}`; validates the same rules as the UI (0 to 48, not 26 to 32, no duplicates, only esp32 devices); writes `devices.json` channels atomically, then pushes the new map to the board over its existing link and answers `{ok, applied: {id: gpio}, board_says: {id: gpio}, restart_needed: bool}`; 409 with the reason when the board is not linked. Until it lands the app passes `adapter={null}`.
+
+**What it changed.** R06 has a home (Room, one fold; classic Limbs page unchanged in place). Mounting the fold in the Room view needs a shell view file owned by another package: `<PinMap v={limbsView} onTested={reload} />`, imported from `jarvis/room/pins/PinMap`.
+
 ## 2026-11-15: RJ1, matte black lift, one switch family, 44 px on the element
 
 **Question.** The jury (UW7a) read the dark ground as flat (design 5.5: "black keys on near-black panels with barely any separation; depth comes from hairline outlines, not clay"), the kit Switch as "still a plain pill" beside C02-46, and measured a 64 x 32 switch, Segmented options of 36 to 40 and a 36 px Chip below 44 px. What is the smallest change that fixes all three without touching the light, high-contrast, forced-colours or classic themes?

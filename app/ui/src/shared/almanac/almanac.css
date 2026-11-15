@@ -1,0 +1,152 @@
+/* The Almanac (package L01, spec 20.6.1): one calm clay instrument. Cells are raised tiles that rise one step on hover, sink on
+   press and stay sunk while their day is open; a day outside the month and a rest day are pressed tiles. Clay tokens by name only
+   (the raised and pressed steps, the lip, the focus ring); marks are drawn in the two ink weights, never a hue per kind. A cell
+   carries no hairline: the 1 px edges exist only in the forced-colours branch, where shadows are not drawn. */
+
+.alm { position: relative; display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; color: var(--ink-1); font: var(--type-body); }
+.alm *, .alm *::before, .alm *::after { box-sizing: border-box; }
+
+/* ---- the month grid: a weekday header and six rows of seven; the row and cell wrappers carry roles only ---- */
+.alm-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: 28px repeat(6, minmax(0, 1fr)); gap: var(--space-2); }
+.alm-wk, .alm-row, .alm-gc { display: contents; }
+.alm-wd { align-self: end; padding: 0 var(--space-3) var(--space-1); font: 600 11px/16px var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+
+/* ---- a cell: the raised object recipe of the kit (the next step is pre-painted and cross-faded, so hover never animates a shadow) ---- */
+.alm-cell {
+  position: relative; isolation: isolate; display: flex; flex-direction: column; justify-content: space-between; align-items: stretch;
+  min-width: 0; min-height: 44px; padding: var(--space-2) var(--space-3); border: 0; border-radius: var(--r-key); text-align: left;
+  background: var(--surface-raised); color: var(--ink-1); font: inherit; cursor: pointer;
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low);
+  transition: transform var(--dur-state, 120ms) ease-out;
+}
+.alm-cell::before {
+  content: ''; position: absolute; inset: -1px; z-index: -1; border-radius: inherit; pointer-events: none;
+  box-shadow: var(--elev-raised); opacity: 0; transition: opacity var(--dur-state, 120ms) ease-out;
+}
+.alm-cell:hover { transform: translateY(-1px); background-color: var(--surface-raised-hi, var(--surface-raised)); }
+.alm-cell:hover::before { opacity: 1; }
+.alm-cell:active, .alm-cell[data-selected='true'] { transform: translateY(1px) scale(.985); box-shadow: var(--elev-pressed); transition-duration: var(--dur-press, 90ms); }
+.alm-cell:active::before, .alm-cell[data-selected='true']::before { opacity: 0; transition: none; }
+/* a pressed tile: the days of the neighbouring months and a rest day (the dash on an inset tile) */
+.alm-cell[data-inmonth='false'], .alm-cell[data-rest='true'] { background: var(--surface-sunk); box-shadow: var(--elev-imprint); }
+.alm-cell[data-inmonth='false'] { color: var(--ink-2); }
+.alm-cell[data-inmonth='false']:hover, .alm-cell[data-rest='true']:hover { transform: none; background-color: var(--surface-sunk); }
+.alm-cell[data-inmonth='false']:hover::before, .alm-cell[data-rest='true']:hover::before { opacity: 0; }
+.alm-cell[data-selected='true'] { background-color: var(--surface-sunk); }
+
+/* the numeral: 13 px mono; today wears a ring of 12 stipple dots (still) */
+.alm-num { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; margin: -4px 0 0 -6px; }
+.alm-d { font: 500 13px/16px var(--font-mono); font-variant-numeric: tabular-nums; }
+.alm-cell[data-inmonth='false'] .alm-d { font-weight: 400; }
+.alm-cell[data-today='true'] .alm-d { font-weight: 700; }
+.alm-ring { position: absolute; inset: -1px; fill: var(--ink-1); pointer-events: none; }
+.alm-rest { position: absolute; top: var(--space-2); right: var(--space-3); font: 500 11px/16px var(--font-ui); color: var(--ink-2); }
+
+.alm-base { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); min-width: 0; }
+.alm-marks { display: flex; align-items: center; gap: var(--space-1); min-height: 14px; }
+.alm-mark { display: block; flex: none; }
+.alm-mark .alm-f { fill: var(--ink-1); stroke: var(--ink-1); stroke-width: 1; }
+.alm-mark .alm-l { fill: none; stroke: var(--ink-2); stroke-width: 1.6; }
+.alm-mark .alm-dashed { stroke-dasharray: 2.2 1.8; }
+.alm-more { width: 4px; height: 4px; margin-left: 2px; border-radius: 50%; background: var(--ink-2); }
+.alm-strip { display: inline-flex; align-items: center; gap: 3px; height: 6px; }
+.alm-strip i { width: 4px; height: 4px; border-radius: 50%; background: var(--ink-2); }
+.alm-strip b { font: 600 11px/6px var(--font-mono); color: var(--ink-2); }
+.alm-skel { display: inline-flex; align-items: center; gap: 4px; height: 14px; }
+.alm-skel i { width: 4px; height: 4px; border-radius: 50%; background: var(--ink-3); opacity: .55; }
+
+/* the 12 px strip under the grid: the weekday rhythm, still */
+.alm-rhythm { flex: none; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-2); height: 12px; margin-top: var(--space-3); }
+.alm-rhythm span { display: flex; align-items: center; justify-content: center; }
+.alm-rhythm span::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--ink-3); }
+.alm-rhythm span[data-at='true']::before { width: 2px; height: 12px; border-radius: 1px; background: var(--ink-1); }
+
+/* the tooltip: its own opaque surface and ink, placed by the pointer */
+.alm-tip {
+  position: absolute; left: 0; top: 0; z-index: 6; width: max-content; max-width: 220px; min-height: 40px; padding: var(--space-2) var(--space-3);
+  border-radius: var(--r-ctl, 12px); background: var(--surface-raised, Canvas); color: var(--ink-1, CanvasText); font: 500 12px/16px var(--font-ui);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-float); pointer-events: none;
+}
+.alm-tip[hidden] { display: none; }
+
+/* ---- the week and day forms are built elsewhere: a plain plate ---- */
+.alm-notbuilt { display: flex; align-items: center; gap: var(--space-3); align-self: flex-start; padding: var(--space-3) var(--space-4); border-radius: var(--r-well); background: var(--surface-sunk); box-shadow: var(--elev-recessed); color: var(--ink-2); font: var(--type-small); }
+
+/* ---- the year form: weeks across, weekdays down; four stipple densities ---- */
+.alm-year { --cell-h: 34px; display: flex; flex-direction: column; gap: var(--space-3); min-height: 0; }
+.alm-ymonths { display: grid; grid-template-columns: repeat(var(--weeks, 53), minmax(0, 1fr)); gap: 2px; padding: 0 var(--space-3); font: 500 11px/16px var(--font-ui); color: var(--ink-2); }
+.alm-ymonths span { white-space: nowrap; overflow: visible; }
+.alm-ygrid { display: flex; flex-direction: column; gap: 2px; padding: var(--space-3); border-radius: var(--r-well); background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
+.alm-yrow { display: grid; grid-template-columns: repeat(var(--weeks, 53), minmax(0, 1fr)); gap: 2px; }
+.alm-yc { height: var(--cell-h); border-radius: 4px; background-color: var(--surface-ground); cursor: pointer; }
+.alm-yc[data-in='false'] { visibility: hidden; }
+.alm-yc[data-level='1'] { background-image: radial-gradient(circle, var(--ink-2) 0.9px, transparent 1.3px); background-size: 9px 9px; }
+.alm-yc[data-level='2'] { background-image: radial-gradient(circle, var(--ink-2) 1px, transparent 1.4px); background-size: 6px 6px; }
+.alm-yc[data-level='3'] { background-image: radial-gradient(circle, var(--ink-1) 1.1px, transparent 1.5px); background-size: 4px 4px; }
+.alm-yc[data-level='4'] { background-image: none; background-color: var(--ink-2); }
+.alm-yc[data-today='true'] { box-shadow: 0 0 0 2px var(--ink-1); }
+.alm-ygrid:focus-visible .alm-yc[data-active='true'] { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.alm-ylegend { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); padding: 0 var(--space-3); font: 500 12px/16px var(--font-ui); color: var(--ink-2); }
+.alm-ylegend span { display: inline-flex; align-items: center; gap: var(--space-2); }
+.alm-ylegend .alm-yc { width: 22px; height: 16px; flex: none; cursor: default; }
+.alm-ykeys { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-3); }
+.alm-ykey {
+  position: relative; isolation: isolate; width: 100%; min-height: 64px; padding: var(--space-2) var(--space-3); display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-1);
+  border: 0; border-radius: var(--r-key); background: var(--surface-raised); color: var(--ink-1); font: 600 13px/16px var(--font-ui); text-align: left; cursor: pointer;
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-low); transition: transform var(--dur-state, 120ms) ease-out;
+}
+.alm-ykey::before { content: ''; position: absolute; inset: -1px; z-index: -1; border-radius: inherit; pointer-events: none; box-shadow: var(--elev-raised); opacity: 0; transition: opacity var(--dur-state, 120ms) ease-out; }
+.alm-ykey:hover { transform: translateY(-1px); background-color: var(--surface-raised-hi, var(--surface-raised)); }
+.alm-ykey:hover::before { opacity: 1; }
+.alm-ykey:active { transform: translateY(1px) scale(.985); box-shadow: var(--elev-pressed); transition-duration: var(--dur-press, 90ms); }
+.alm-ykey:active::before { opacity: 0; transition: none; }
+.alm-yheat { display: flex; gap: 2px; height: 6px; width: 100%; }
+.alm-yheat i { flex-basis: 0; min-width: 0; border-radius: 2px; background: var(--ink-3); }
+.alm-yheat i[data-level='1'] { opacity: .35; } .alm-yheat i[data-level='2'] { opacity: .55; } .alm-yheat i[data-level='3'] { opacity: .8; } .alm-yheat i[data-level='4'] { background: var(--ink-1); }
+.alm-yheat[data-empty='true'] { background: var(--surface-sunk); border-radius: 3px; box-shadow: var(--elev-imprint); }
+
+/* ---- the Marks legend (the body of the Marks popover) ---- */
+.alm-legend { display: flex; flex-direction: column; gap: var(--space-2); }
+.alm-legend-key { margin: 0; display: flex; gap: var(--space-4); font: 500 12px/16px var(--font-ui); color: var(--ink-2); }
+.alm-legend-key span { display: inline-flex; align-items: center; gap: var(--space-2); }
+.alm-legend-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.alm-legend-list li { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; column-gap: var(--space-3); min-height: 44px; }
+.alm-legend-glyphs { display: inline-flex; align-items: center; gap: var(--space-1); }
+.alm-legend-glyphs i { display: block; width: 14px; height: 14px; }
+.alm-legend-src { font: 400 11px/14px var(--font-mono); color: var(--ink-2); text-align: right; }
+.alm-legend .alm-mark .alm-f { fill: var(--ink-1); stroke: var(--ink-1); }
+
+/* ---- the phone: 7 x 6 cells of about 46 x 52, the strongest mark only ---- */
+.alm[data-form='phone'] .alm-grid { gap: var(--space-1); grid-template-rows: 24px repeat(6, minmax(52px, 1fr)); }
+.alm[data-form='phone'] .alm-wd { padding: 0 0 var(--space-1); text-align: center; letter-spacing: .02em; }
+.alm[data-form='phone'] .alm-cell { align-items: center; justify-content: center; gap: var(--space-1); padding: var(--space-1); border-radius: 12px; }
+.alm[data-form='phone'] .alm-num { margin: 0; }
+.alm[data-form='phone'] .alm-base { align-items: center; }
+.alm[data-form='phone'] .alm-rhythm { display: none; }
+.alm[data-form='phone'] .alm-ymonths, .alm[data-form='phone'] .alm-ygrid, .alm[data-form='phone'] .alm-ylegend { display: none; }
+.alm[data-form='phone'] .alm-ykeys { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .alm-cell, .alm-cell::before, .alm-ykey, .alm-ykey::before { transition: none; }
+  .alm-cell:hover, .alm-cell:active, .alm-ykey:hover, .alm-ykey:active { transform: none; }
+}
+html[data-motion='calm'] .alm-cell, html[data-motion='calm'] .alm-cell::before, html[data-motion='calm'] .alm-ykey, html[data-motion='calm'] .alm-ykey::before { transition: none; }
+
+/* forced colours draw no shadows: each tile gets one real edge, a pressed tile a dashed one, and every mark is CanvasText */
+@media (forced-colors: active) {
+  .alm-cell, .alm-ykey, .alm-tip { border: 1px solid CanvasText; }
+  .alm-cell[data-inmonth='false'], .alm-cell[data-rest='true'] { border-style: dashed; }
+  .alm-cell[data-selected='true'] { border-width: 3px; }
+  .alm-mark .alm-f { fill: CanvasText; stroke: CanvasText; }
+  .alm-mark .alm-l { stroke: CanvasText; }
+  .alm-ring, .alm-more, .alm-strip i, .alm-skel i { fill: CanvasText; background: CanvasText; forced-color-adjust: none; }
+  .alm-yc { border: 1px solid GrayText; }
+  .alm-ylegend .alm-yc { border-color: CanvasText; }
+  .alm-yc[data-level='1'], .alm-yc[data-level='2'], .alm-yc[data-level='3'], .alm-yc[data-level='4'] { background-image: none; background-color: Canvas; border-color: CanvasText; }
+  .alm-yc[data-level='2'] { border-style: dashed; } .alm-yc[data-level='3'] { border-width: 2px; } .alm-yc[data-level='4'] { background-color: CanvasText; }
+  .alm-yc[data-today='true'] { outline: 2px solid CanvasText; box-shadow: none; }
+  .alm-ygrid:focus-visible .alm-yc[data-active='true'] { outline: 3px solid Highlight; }
+  .alm-ygrid, .alm-notbuilt { border: 1px solid CanvasText; }
+  .alm-yheat i { background: CanvasText; }
+  .alm-rhythm span::before { background: CanvasText; }
+}

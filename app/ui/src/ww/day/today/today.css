@@ -21,13 +21,6 @@
   position: absolute; left: 0; top: 0; padding: var(--space-3); overflow: hidden;
   border-radius: var(--r-well); background: var(--surface-sunk); box-shadow: var(--elev-recessed);
 }
-/* the lamp and its word, always side by side (Plate.tsx LampWord) */
-.td-lampword { display: inline-flex; align-items: center; gap: var(--space-1); flex: none; font: 600 11px/16px var(--font-mono); letter-spacing: .06em; color: var(--ink-2); white-space: nowrap; }
-.td-lampword[data-lamp='live'] .lamp-glyph { color: var(--state-measured); }
-.td-lampword[data-lamp='waiting'] .lamp-glyph { color: var(--state-waiting); }
-.td-lampword[data-lamp='simulated'] .lamp-glyph { color: var(--state-simulated); }
-.td-lampword[data-lamp='planned'] .lamp-glyph { color: var(--state-planned); }
-.td-lampword[data-lamp='fault'] .lamp-glyph { color: var(--state-fault); }
 .td-spec-desk { display: flex; flex-direction: column; height: 100%; }
 .td-strip { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); }
 .td-strip-head { margin: 0; align-self: stretch; display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-2); padding: 0 var(--space-2); font: 600 12px/16px var(--font-ui); color: var(--ink-2); }
@@ -62,21 +55,30 @@
 .td-now circle { fill: var(--surface-raised); stroke: var(--ink-1); stroke-width: 2; }
 .td-arc-centre { position: absolute; transform: translateX(-50%); display: flex; justify-content: center; width: max-content; }
 .td-arc-legend {
-  position: absolute; left: 4px; top: 0; display: flex; gap: var(--space-3); flex-wrap: wrap; max-width: 46%;
+  position: absolute; left: 4px; right: 0; top: 0; z-index: 1; display: flex; flex-direction: column-reverse; align-items: flex-start; gap: var(--space-1); pointer-events: none;
   font: 500 11px/16px var(--font-ui); color: var(--ink-2);
 }
+.td-arc-keys { display: flex; flex-wrap: wrap; gap: 0 var(--space-2); max-width: 46%; }
 .td-arc-legend span { display: inline-flex; align-items: center; gap: var(--space-1); }
 .td-arc-legend i { width: 14px; height: 6px; border-radius: var(--space-1); display: inline-block; }
 .td-arc-legend i[data-kind='class'] { background: var(--ink-3); }
 .td-arc-legend i[data-kind='planned'] { background: var(--surface-raised); box-shadow: inset 0 0 0 2px var(--ink-2); }
 .td-arc-legend i[data-kind='done'] { background: var(--ink-1); }
-/* the dial's ONE lamp: a raised pill at the top right of the dial (the stamp of fixture rows) */
-.td-arc-lamp { position: absolute; right: 0; top: 0; padding: var(--space-1) var(--space-2); border-radius: var(--r-pill); color: var(--ink-1); background: var(--surface-raised); box-shadow: var(--elev-raised); }
+/* the dial's ONE lamp: a raised pill at the top left of the dial, above its legend (the stamp of fixture rows; the notch's leader runs along the top right) */
+.td-arc-lamp { padding: var(--space-1) var(--space-2); border-radius: var(--r-pill); color: var(--ink-1); background: var(--surface-raised); box-shadow: var(--elev-raised); }
 .td-arc[data-compact] { height: auto; }
-.td-arc[data-compact] .td-arc-legend { position: static; max-width: none; justify-content: space-between; align-items: center; padding-top: var(--space-1); }
-.td-arc[data-compact] .td-arc-lamp { position: static; }
+.td-arc[data-compact] .td-arc-legend { position: static; left: auto; flex-direction: row; justify-content: space-between; align-items: center; padding-top: var(--space-1); }
+.td-arc[data-compact] .td-arc-keys { max-width: none; flex-wrap: nowrap; gap: 0 var(--space-2); }
+.td-arc[data-compact] .td-arc-legend { gap: var(--space-1); }
+.td-arc[data-compact] .td-arc-legend i { width: 10px; }
+/* on the narrow dial the lamp is plain (no pill): legend and lamp then fit one line at 244 px */
+.td-arc[data-compact] .td-arc-lamp { padding: 0; background: none; box-shadow: none; }
 /* the minutes figure's own SIMULATED stamp is not drawn: the dial's lamp is the one */
 .td-arc-centre .d1-stamp, .td-hero-phone .d1-stamp { display: none; }
+/* inside the open half ring the figure is stacked (the wells, then the unit), 100 px wide: the row form was 190 px and lay on the inner track */
+.td-arc-centre .d1-odo[data-size='compact'] { flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-2) var(--space-3); box-sizing: border-box; width: 132px; }
+.td-arc-centre .d1-foot { max-width: 100%; text-align: center; }
+.td-arc-centre .d1-unit { white-space: normal; overflow-wrap: anywhere; }
 
 /* the spine (phone) */
 .td-spine { margin: 0; }
@@ -93,7 +95,7 @@
 .td-margin { position: absolute; top: 0; margin: 0; padding: 0; list-style: none; z-index: 2; }
 .td-margin > li { position: absolute; left: 0; right: 0; }
 .td-plate {
-  position: relative; height: 100%; display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3) var(--space-3);
+  position: relative; height: 100%; display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--space-3) var(--space-3);
   border-radius: var(--r-card); background: var(--surface-raised); box-shadow: var(--elev-raised);
 }
 .td-phone-cards .td-plate, .td-phone-now .td-plate { height: auto; }
@@ -110,8 +112,9 @@
 .td-corners i:nth-child(4) { right: 0; bottom: 0; transform: scale(-1); }
 .td-plate-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-2); min-height: 20px; }
 .td-plate-label { margin: 0; font: 600 13px/16px var(--font-ui); color: var(--ink-1); }
-.td-plate-why { font: 400 11px/14px var(--font-ui); color: var(--ink-2); min-width: 0; overflow-wrap: anywhere; flex: 1 1 100%; }
-.td-plate-corner { position: absolute; top: var(--space-2); right: var(--space-2); margin: 0; }
+.td-plate-why { font: 400 11px/14px var(--font-ui); color: var(--ink-2); min-width: 0; overflow-wrap: anywhere; flex: 1 1 auto; }
+.td-plate-corner { margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-2)) calc(-1 * var(--space-3)) auto; order: 2; }
+.td-plate[data-corner] .td-plate-why { flex-basis: 100%; order: 3; }
 .td-plate-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: var(--space-2); justify-content: center; padding-top: var(--space-1); }
 .td-quiet { margin: 0; font: var(--type-small); color: var(--ink-2); }
 
@@ -140,7 +143,7 @@
 .td-key-n[data-hollow] { color: var(--ink-3); }
 .td-key-name { font: 500 11px/14px var(--font-ui); color: var(--ink-2); max-width: 100%; overflow-wrap: anywhere; text-align: center; }
 
-.td-rems { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); font: var(--type-small); }
+.td-rems { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); font: var(--type-small); }
 .td-rems li { display: flex; align-items: center; gap: var(--space-2); }
 .td-rems .td-mono { font: 400 12px/16px var(--font-mono); color: var(--ink-2); }
 .td-rems[data-hollow] .td-mono { color: var(--ink-3); }
@@ -151,8 +154,8 @@
 .td-capture { flex: 1; min-width: 0; }
 
 /* ---- phone: one column, the page box scrolls (the document never does) ---- */
-.td[data-form='phone'] { display: flex; flex-direction: column; gap: var(--space-3); overflow-y: auto; overflow-x: hidden; padding: var(--space-4); }
-.td[data-form='phone'] .td-spec { position: relative; padding: var(--space-3); flex: none; }
+.td[data-form='phone'] { display: flex; flex-direction: column; gap: var(--space-2); overflow-y: auto; overflow-x: hidden; padding: var(--space-3); }
+.td[data-form='phone'] .td-spec { position: relative; padding: var(--space-2); flex: none; }
 .td-spec-phone { display: flex; flex-direction: column; gap: var(--space-2); align-items: center; }
 .td-spec-phone .td-strip { width: 100%; flex: none; }
 .td-hero-phone { display: flex; justify-content: center; max-width: 100%; }
@@ -160,7 +163,7 @@
 /* the agenda: each block its own row, the time above its name, so a name never wraps per syllable */
 .td-agenda { width: 100%; display: flex; flex-direction: column; gap: var(--space-1); }
 .td-spine-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
-.td-spine-list li { display: flex; flex-direction: column; gap: 0; padding: var(--space-1) var(--space-2); }
+.td-spine-list li { display: flex; flex-direction: column; gap: 0; padding: 0 var(--space-2); }
 .td-spine-list .td-mono { font: 500 12px/16px var(--font-mono); color: var(--ink-2); }
 .td-spine-list .td-mono small { margin-left: var(--space-2); font: 400 11px/16px var(--font-ui); letter-spacing: 0; }
 .td-spine-what { color: var(--ink-1); font: var(--type-small); overflow-wrap: break-word; word-break: normal; }
@@ -172,7 +175,12 @@
 }
 .td-more:active { box-shadow: var(--elev-pressed); }
 .td-more:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.td-phone-cards { display: flex; flex-direction: column; gap: var(--space-3); }
+.td-phone-cards { display: flex; flex-direction: column; gap: var(--space-2); }
+.td[data-form='phone'] .td-key { min-height: 44px; }
+.td[data-form='phone'] .td-num { font: 500 30px/34px var(--font-mono); }
+/* the Capture Line's example line is one line on the phone (it was three and took 50 px a screen); a line clamp, not a sideways clip,
+   so the rest of the sentence is cut at a word and never runs off the box */
+.td[data-form='phone'] .cl-say { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
 .td[data-form='phone'] .td-keys { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .td[data-form='phone'] .td-foot { height: auto; flex-wrap: wrap; gap: var(--space-3); }
 .td[data-form='phone'] .td-capture { flex-basis: 100%; }

@@ -65,13 +65,32 @@ describe('the drawing', () => {
     expect(words(container.querySelector('title')?.textContent ?? '')).toEqual([])
   })
 
-  it('the rail pins: one per statistic, dashed without a count, one 44 px open key named with every caption', () => {
+  it('the rail: one small ring of all five measures, three figures each with its lamp and its word, hollow ones say why, no total', () => {
     const { container } = render(<ProofPins stats={stats} open={false} onOpen={() => {}} />)
-    expect(container.querySelectorAll('.ps-pins li')).toHaveLength(5)
-    expect(container.querySelectorAll('.ps-pins li[data-dashed]')).toHaveLength(3)
+    expect(container.querySelectorAll('.ps-ring .pr-bar')).toHaveLength(5)
+    expect(container.querySelectorAll('.ps-ring .pr-bar[data-dashed]')).toHaveLength(3)
+    const figs = [...container.querySelectorAll('.ps-figs li')]
+    expect(figs).toHaveLength(3)
+    // a lamp WORD beside every figure (the lamp rule), and the word is the state's own
+    expect(figs.map((f) => f.querySelector('.lw-w')?.textContent)).toEqual(['LIVE', 'LIVE', 'PLANNED'])
+    expect(figs.every((f) => f.querySelector('.lamp-glyph') !== null)).toBe(true)
+    // the figure without a count is dashed, prints no number and says why
+    const hollow = figs.filter((f) => f.hasAttribute('data-dashed'))
+    expect(hollow).toHaveLength(1)
+    expect(hollow[0].querySelector('.ps-why')?.textContent).toBe('not built yet')
+    expect(hollow[0].querySelector('.ps-n')?.textContent).not.toMatch(/\d/)
+    expect(figs[0].querySelector('.ps-n')?.textContent).toBe('13 of 21')
     const key = container.querySelector('button') as HTMLButtonElement
     expect(key.getAttribute('aria-label')).toContain('13 of 21')
+    expect(key.getAttribute('aria-label')).toContain('planned')
+    expect(container.querySelector('.ps-foot')?.textContent).toMatch(/no total/)
     expect(words(container.textContent ?? '')).toEqual([])
+  })
+
+  it('fixture rows carry SIMULATED beside every figure, never LIVE', () => {
+    const sim = stats.map((s) => (s.state === 'live' ? { ...s, state: 'simulated' as const } : s))
+    const { container } = render(<ProofPins stats={sim} open={false} onOpen={() => {}} />)
+    expect([...container.querySelectorAll('.ps-figs li .lw-w')].map((w) => w.textContent)).toEqual(['SIMULATED', 'SIMULATED', 'PLANNED'])
   })
 
   it('the forbidden-word check itself catches the words it is for', () => {

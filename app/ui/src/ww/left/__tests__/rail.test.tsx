@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { FIX_NOW, fixtureRail } from '../../day/today/fixtures'
 import { LeftRail, railBudget } from '../Rail'
 import { useLeft } from '../store'
-import { cleanup, render } from '../../day/today/__tests__/dom'
+import { cleanup, click, render } from '../../day/today/__tests__/dom'
+import { RailFormProvider } from '../railForm'
 
 afterEach(cleanup)
 
@@ -27,8 +28,40 @@ describe('the left rail', () => {
     const { container } = render(<LeftRail go={() => {}} fixture={fixtureRail('day')} today={FIX_NOW} />)
     expect(container.querySelector('[data-part="now"]')).not.toBeNull()
     expect(container.querySelectorAll('.lr-ctr').length).toBeLessThanOrEqual(3)
-    expect(railBudget(664, ['now', 'counters']).classRows).toBe(5)
+    expect(railBudget(664, ['now', 'counters']).classRows).toBe(4)
     expect(railBudget(664, []).classRows).toBe(1)
     expect(railBudget(900, []).tiles).toBe(6)
+  })
+})
+
+describe('the lamp words and the folded row (RT1)', () => {
+  it('every label of the rail carries its lamp and the state word, never a bare glyph', () => {
+    const { container } = render(<LeftRail go={() => {}} fixture={fixtureRail('day')} today={FIX_NOW} omit={['now', 'counters']} />)
+    const labels = [...container.querySelectorAll('.lr-label')]
+    expect(labels.length).toBeGreaterThanOrEqual(2)
+    for (const l of labels) expect(l.querySelector('.lw-w')?.textContent).toBe('SIMULATED')
+    // the numeral of the next sitting sits under a label that says SIMULATED
+    expect(container.querySelector('[data-part="sitting"] .lr-label .lw-w')?.textContent).toBe('SIMULATED')
+  })
+
+  it('a waiting read draws no numeral and the label says WAITING', () => {
+    const { container } = render(<LeftRail go={() => {}} fixture={fixtureRail('waiting')} today={FIX_NOW} omit={['now', 'counters']} />)
+    expect(container.querySelector('.lr-big')?.getAttribute('data-hollow')).toBe('true')
+    expect(container.querySelector('[data-part="sitting"] .lr-label .lw-w')?.textContent).toBe('WAITING')
+  })
+
+  it('in the row form it is one short key (date, next sitting and classes marked, each with lamp and word) and the rail opens under it', () => {
+    const { container } = render(<RailFormProvider value="row"><LeftRail go={() => {}} fixture={fixtureRail('day')} today={FIX_NOW} omit={['now', 'counters']} /></RailFormProvider>)
+    const key = container.querySelector('.lr-rowkey') as HTMLButtonElement
+    expect(key.getAttribute('aria-expanded')).toBe('false')
+    expect(key.textContent).toContain('12 days')
+    expect(key.textContent).toContain('2 of 3')
+    expect([...key.querySelectorAll('.lw-w')].map((w) => w.textContent)).toEqual(['SIMULATED', 'SIMULATED'])
+    expect(container.querySelector('.lr-trio')).toBeNull()
+    click(key)
+    expect(key.getAttribute('aria-expanded')).toBe('true')
+    expect(container.querySelectorAll('.lr-trio')).toHaveLength(3)
+    click(key)
+    expect(container.querySelector('.lr-trio')).toBeNull()
   })
 })

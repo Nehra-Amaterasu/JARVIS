@@ -83,9 +83,11 @@ export function DayArc({ blocks, planned, done, now, state, width = 560, height 
       </svg>
       {children && <div className="td-arc-centre" style={{ left: g.cx, bottom: height - g.cy + 10, maxWidth: (g.r.done - g.track - 8) * 2, maxHeight: g.r.done - g.track - 10 }}>{children}</div>}
       <figcaption className="td-arc-legend">
-        <span><i data-kind="class" />class</span>
-        <span><i data-kind="planned" />planned</span>
-        <span><i data-kind="done" />done</span>
+        <span className="td-arc-keys">
+          <span><i data-kind="class" />class</span>
+          <span><i data-kind="planned" />planned</span>
+          <span><i data-kind="done" />done</span>
+        </span>
         {/* the ONE lamp of the dial and of the minutes figure under or inside it: its word is the state's own, and on fixture
             rows it is the stamp (a figure never carries a second SIMULATED) */}
         <LampWord state={state} size={12} className="td-arc-lamp" />

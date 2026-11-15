@@ -33,9 +33,14 @@ const GAP = 16
 const FOOT = 108
 const PLATE_GAP = 14
 const SPEC_INSET = 12
-/** How tall each plate is, as a share of the margin: Now holds the one accent key (48 px) and its sentence, Reminders two hollow
- *  rows. Equal 116 px plates left Now's text touching its header (jury, 14 Nov). Unknown ids weigh 1. */
-const WEIGHT: Record<string, number> = { now: 1.4, ahead: 1, counters: 1.2, reminders: 0.9 }
+/** The phone form is tighter: 12 px of page padding and 8 px inside the well (the 16 and 12 of the desk cost a 284 px page 16 px of width
+ *  and made the dial's caption wrap). */
+const PHONE_PAD = 12
+const PHONE_INSET = 8
+/** How tall each plate is, as a share of the margin, each weight its content's need at 1366 x 768 (Now: sentence and the 48 px accent
+ *  key; Ahead: one numeral; Counters: one row of keys; Reminders: two hollow rows). Equal 116 px plates left Now's text touching its
+ *  header and Reminders' rows overflowing (jury, 14 Nov). Unknown ids weigh 1. */
+const WEIGHT: Record<string, number> = { now: 1.5, ahead: 1, counters: 1.06, reminders: 1.08 }
 
 export interface TodayGeom {
   phone: boolean
@@ -50,7 +55,7 @@ export function todayGeometry(w: number, h: number, n: number, rails: { left: bo
   const phone = w < PHONE_BELOW
   // the phone form has no rails beside it and no clamp: the box is exactly what is left of the width after the page's padding
   // (the 320 px floor of the desk made a 286 px phone well draw 320 px of dial and strip, cut at both edges)
-  const mw = phone ? Math.max(0, w - 2 * PAD) : Math.max(320, w - 2 * PAD - (rails.left ? RAIL_L + GAP : 0) - (rails.right ? RAIL_R + GAP : 0))
+  const mw = phone ? Math.max(0, w - 2 * PHONE_PAD) : Math.max(320, w - 2 * PAD - (rails.left ? RAIL_L + GAP : 0) - (rails.right ? RAIL_R + GAP : 0))
   const mh = Math.max(420, h - 2 * PAD)
   const body = mh - FOOT - GAP
   const sw = Math.max(380, Math.min(640, Math.round(mw * 0.57)))
@@ -152,7 +157,7 @@ export function TodayView({ ctx, left, right, size, onCapture, children }: Today
       {modes.length > 1 && (
         <Segmented<string> label="Today modes" variant="compact" value={mode.id} onChange={setModeId} options={modes.map((m) => ({ id: m.id, label: m.label }))} />
       )}
-      <Button size="md" onClick={ctx.actions.openPlan} data-open="plan">Plan the day</Button>
+      <Button size={g.phone ? 'sm' : 'md'} onClick={ctx.actions.openPlan} data-open="plan">Plan the day</Button>
     </footer>
   )
 
@@ -167,7 +172,7 @@ export function TodayView({ ctx, left, right, size, onCapture, children }: Today
         <div ref={ref} className="td" data-form="phone" data-simulated={ctx.raw.simulated ? 'true' : undefined} data-first-run={ctx.model.firstRun ? 'true' : undefined}>
           {now && <div className="td-phone-now"><now.Callout /></div>}
           <section className="td-spec" aria-label="Today, the day arc">
-            <SpecimenBoxProvider value={{ w: g.main.w - 2 * SPEC_INSET, h: 0, phone: true }}>{Specimen && <Specimen />}</SpecimenBoxProvider>
+            <SpecimenBoxProvider value={{ w: g.main.w - 2 * PHONE_INSET, h: 0, phone: true }}>{Specimen && <Specimen />}</SpecimenBoxProvider>
           </section>
           <div className="td-phone-cards">{rest.map((c) => <c.Callout key={c.id} />)}</div>
           {reminders && <Fold title="Reminders"><div className="td-phone-cards"><reminders.Callout /></div></Fold>}
@@ -192,7 +197,9 @@ export function TodayView({ ctx, left, right, size, onCapture, children }: Today
               {callouts.map((c, i) => {
                 const p = g.plates[i]
                 const from = anchors[i]
-                const to = { x: g.margin.x, y: p.y + Math.round(p.h / 2) }
+                // the leader ends on the plate's edge at the height nearest its start (clear of the corner radius), so it runs level
+                // for most of its length and its one 45 degree bend is short: a long diagonal cut across the dial's labels
+                const to = { x: g.margin.x, y: Math.max(p.y + 18, Math.min(p.y + p.h - 18, from.y)) }
                 return (
                   <g key={c.id} className="td-leader" data-hot={hot === i ? 'true' : undefined}>
                     <path d={leaderPath(from, to)} />

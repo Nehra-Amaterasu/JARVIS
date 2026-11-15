@@ -2,6 +2,34 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-15: RT1, Today, the Proof rail and the Review Desk after the jury
+
+**Question.** The UW7a jury found five things on Day / Today, the Proof rail and the Review Desk (spec blocks A.L04 and A.Y01, decision D-V3-31). Which of them can be closed in one package, and with what measurement?
+
+**What was measured (gallery states of L04 and Y01, harness `e2e/jury.spec.ts`, plus kept specs `l04-today.spec.ts` and `y01-papers.spec.ts`, all with sandbox ports 8813 and 5213).**
+
+| Finding | Before | After |
+|---|---|---|
+| Figures without a lamp WORD (Today) | "12 days", the strip's zeros, the Proof figure and Reminders carried a glyph or nothing | every plate head, the dial, the week strip, the left rail labels and every Proof figure print the lamp and the state's own word (`LampWord`, one drawing, words from `LAMP_SPECS`) |
+| SIMULATED on the dial | 4 times (page stamp, dial lamp, odometer stamp, odometer lamp) | 1 (the dial's lamp pill, top left; the odometer's own stamp and lamp are off) |
+| Odometer on the arc's inner tracks | figure 190 px wide, 278 px with its lamp, over a 139 px inner radius | stacked, 132 px wide at every state; worst corner 4 px or more inside the inner track in all three states (spec) |
+| Leaders over text | Now crossed the "15" label, Counters and Reminders crossed text | none: Now leaves the notch's ray outside the hour labels, Counters leaves the figure's right edge 24 px over the datum, every leader ends at the nearest height of its plate (short bend); measured on 3 states |
+| Now plate body touching its header | 116 px equal plates | plate heights by need (1.5 : 1 : 1.06 : 1.08, 150/100/106/108 px); gap head to body at least 6 px in all 3 states |
+| Today at 390 px | 2,612 px screenshot, dial a clipped sliver, names broken per syllable, strip cut at both edges, rails overlapping | page box 1,374 to 1,390 px at the narrowest gallery width (284 px wide), 1,262 first run, 1,307 waiting; half dial full width, agenda one name per line with its time above, strip fitted (no 320 px floor), rails folded into two short rows, Reminders and the rest of the day behind one key each |
+| Proof rail | 64 px, five bare pins and dashes | 96 px instrument: open key, 64 px ring of the five measures, three figures (slot, count, window, lamp and word), hollow ones say why ("not built yet"), footer "Evidence of the plan, no total"; no score wording |
+| Review Desk | 5 actions plus Next uncertain plus 2 switches on show; trace terminal about 130 px; footer overlapped by the chevrons | Accept, Edit, Reject and More on the row; Merge, Split, Next uncertain and the two switches in the More panel (floats, moves nothing); every key M S N T R unchanged; trace is one 44 px line (newest real event with lamp and word, count, key) that opens the log; footer clear |
+
+**Decisions.**
+- The Odometer is the kit's, unchanged: Today turns its lamp off (`lamp={false}`) and hides its stamp with CSS inside Today's two places, so the dial's single lamp speaks for both.
+- The notch's ray now runs out to 16 px past the hour labels; the labels are drawn last with a 4 px surface halo, so a label stays legible where the ray crosses it.
+- The phone's left rail is one key of three short lines (date, next sitting, classes marked, each with lamp and word) that opens the whole rail; `RailFormProvider` carries the form, so `LeftRail` stays a plain node for its hosts.
+- The Proof rail is 96 px (was 64 on Today and 80 in the frame); the frame's `--col-r` follows. The classic rail modes are untouched.
+- The left rail's `railBudget` gained 32 px for the lamp words' second line (class rows at 664 px: 5 to 4); with every part shown the rail's gap tightens through `:has()`.
+
+**Not changed.** The kit (Switch, Lamp, Odometer), the shell, the classic interface (flag off) and every signature on main.
+
+**Checks.** tsc clean; the whole vitest; `l04-today.spec.ts` 17 and `y01-papers.spec.ts` 9 green; the jury harness on L04 and Y01 ran with 0 entries in error, 0 text under 11 px, 0 targets under 44 px at 390 (was 10 and 20).
+
 ## 2026-11-15: jury after UW7a (6.9 design, 7.3 usability; pass line 8.0)
 
 **Question.** After the craft pass, the rework round and UW7a, where does the new interface stand against the 8.0 line, on whole screenshots from the harness?

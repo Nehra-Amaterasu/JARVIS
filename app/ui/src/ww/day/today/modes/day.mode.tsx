@@ -68,8 +68,8 @@ export function DatumStrip({ week, median, state, width, barH = 64 }: { week: { 
 }
 
 const KIND_WORD = { class: 'class', planned: 'planned', done: 'done' } as const
-/** Rows the phone's agenda shows before its one key: the block under way (or next) and the two after it. */
-export const AGENDA_ROWS = 3
+/** Rows the phone's agenda shows before its one key: the block under way (or next) and the one after it. */
+export const AGENDA_ROWS = 2
 
 /** The agenda on the phone: the day's blocks in words, by start time, each name on its own line with its time above it (the
  *  dial's twin; nothing is cut, the rest of the day is behind one key that says how many). */
@@ -125,7 +125,7 @@ function DaySpecimen() {
         <DayArc blocks={model.classes} planned={model.planned} done={model.done} now={raw.now} state={model.state} width={dial.w} height={dial.h} dashed={model.noClasses} compact />
         <div className="td-hero-phone">{hero}</div>
         <Agenda />
-        <DatumStrip week={model.week} median={model.median} state={model.weekState} width={Math.min(box.w, 520)} barH={44} />
+        <DatumStrip week={model.week} median={model.median} state={model.weekState} width={Math.min(box.w, 520)} barH={32} />
         {drawer}
       </div>
     )
@@ -147,7 +147,7 @@ export const heroRight = (w: number, h: number): { x: number; y: number } => {
   const g = arcGeometry(w, h)
   return { x: g.cx + HERO_HALF, y: g.cy - 24 }
 }
-/** Half the width of the minutes figure's wells on the desk dial, px (measured on the compact Odometer: see the geometry test). */
-export const HERO_HALF = 84
+/** Half the width of the minutes figure on the desk dial, px: the CSS fixes it at 132 px whatever it says (digits, or the reason it is hollow). */
+export const HERO_HALF = 66
 
 export const mode: ModeRegistration = { id: 'day', label: 'Day', Specimen: DaySpecimen }

@@ -2,18 +2,10 @@
 // references: the corners say "this is a measured region" without drawing a box around it). A quiet sans label, the lamp
 // beside it, then the plate's own forms. No hairline outline: the edge is the clay's shadow.
 import type { ReactNode } from 'react'
-import { LAMP_SPECS, LampGlyph, type LampState } from '../../../shared/lamp'
+import type { LampState } from '../../../shared/lamp'
+import { LampWord } from '../../left/LampWord'
 
-/** The lamp and its word, always together (the lamp rule: no number without both). The word is the state's own LAMP_SPECS label,
- *  so this file holds no second spelling of it. */
-export function LampWord({ state, size = 10, className }: { state: LampState; size?: number; className?: string }) {
-  return (
-    <span className={className ? `td-lampword ${className}` : 'td-lampword'} data-lamp={state}>
-      <LampGlyph state={state} size={size} />
-      <span className="td-lampword-w">{LAMP_SPECS[state].label}</span>
-    </span>
-  )
-}
+export { LampWord }
 
 export interface TodayPlateProps {
   id: string
@@ -28,7 +20,7 @@ export interface TodayPlateProps {
 
 export function TodayPlate({ id, label, state, reason, children, corner }: TodayPlateProps) {
   return (
-    <section className="td-plate" data-callout={id} data-lamp={state} aria-label={`${label}, ${state === 'live' ? reason : `${state}: ${reason}`}`}>
+    <section className="td-plate" data-callout={id} data-lamp={state} data-corner={corner ? 'true' : undefined} aria-label={`${label}, ${state === 'live' ? reason : `${state}: ${reason}`}`}>
       <span className="td-corners" aria-hidden="true"><i /><i /><i /><i /></span>
       <header className="td-plate-head">
         <h3 className="td-plate-label">{label}</h3>

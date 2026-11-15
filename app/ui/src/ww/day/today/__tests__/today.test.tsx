@@ -9,6 +9,9 @@ import {
 import { CALLOUTS, MODES, collectCallouts, collectModes } from '../registry'
 import { useMinute } from '../Today'
 import { PHONE_BELOW, TodayView, anchorsFor, todayGeometry } from '../TodayView'
+import { LeftRail } from '../../../left/Rail'
+import { ProofPins } from '../../../proof/ProofStrip'
+import { fixtureRail } from '../fixtures'
 import type { TodayActions, TodayCtx } from '../context'
 import { buttons, cleanup, click, keyDown, render, renderHook } from './dom'
 
@@ -194,5 +197,99 @@ describe('the composed page', () => {
     const first = ph.querySelector('.td[data-form="phone"] .td-plate')
     expect(first?.getAttribute('data-callout')).toBe('now')
     expect(ph.querySelector('.td-spine-list')).not.toBeNull()
+  })
+})
+
+describe('RT1: lamp words, the phone form and the leaders', () => {
+  const LAMP_WORD = { live: 'LIVE', waiting: 'WAITING', simulated: 'SIMULATED', planned: 'PLANNED', fault: 'FAULT' } as const
+  const desk = (kind: 'day' | 'first' | 'waiting') => render(<TodayView ctx={ctxOf(kind)} size={{ w: 1302, h: 664 }} />).container
+
+  it('every plate prints its lamp WORD beside its label, the state own word', () => {
+    for (const kind of ['day', 'first', 'waiting'] as const) {
+      const c = desk(kind)
+      c.querySelectorAll('.td-plate').forEach((p) => {
+        const st = p.getAttribute('data-lamp') as keyof typeof LAMP_WORD
+        expect(p.querySelector('.td-plate-head .lw-w')?.textContent, `${kind}: ${p.getAttribute('data-callout')}`).toBe(LAMP_WORD[st])
+      })
+      cleanup()
+    }
+  })
+
+  it('no figure stands without a lamp word: every numeral of a plate, the minutes figure and the week strip sit under one', () => {
+    for (const kind of ['day', 'first', 'waiting'] as const) {
+      const c = desk(kind)
+      c.querySelectorAll('.td-num, .td-key-n').forEach((n) => {
+        const plate = n.closest('.td-plate')
+        expect(plate, `${kind}: a numeral outside a plate`).not.toBeNull()
+        expect(plate?.querySelector('.lw-w')?.textContent).toMatch(/^[A-Z]+$/)
+      })
+      expect(c.querySelector('.td-strip-head .lw-w')?.textContent, `${kind}: the week strip`).toMatch(/^[A-Z]+$/)
+      expect(c.querySelector('.td-arc-legend .lw-w')?.textContent, `${kind}: the dial`).toMatch(/^[A-Z]+$/)
+      cleanup()
+    }
+  })
+
+  it('the dial has ONE lamp and the minutes figure has none of its own (SIMULATED is printed once for the dial and its figure)', () => {
+    const c = desk('day')
+    expect(c.querySelectorAll('.td-spec-desk .td-arc .lw')).toHaveLength(1)
+    expect(c.querySelector('.td-arc-legend .lw-w')?.textContent).toBe('SIMULATED')
+    expect(c.querySelector('.d1-lamp')).toBeNull()
+    // no loose page stamp either: the lamp on the dial is the stamp
+    expect(c.querySelector('.td-stamp')).toBeNull()
+  })
+
+  it('a waiting page draws the figure hollow and its lamp says WAITING with the reason', () => {
+    const c = desk('waiting')
+    expect(c.querySelector('.td-arc-legend .lw-w')?.textContent).toBe('WAITING')
+    expect(c.querySelector('.d1-odo')?.getAttribute('data-form')).toBe('hollow')
+    expect(c.querySelector('.td-strip-why')?.textContent).toBe('block log not read yet')
+  })
+
+  it('at 358 px the page box is what is left after 12 px of padding, no 320 px floor; the plates keep their weights on the desk', () => {
+    const g = todayGeometry(286, 700, 4, { left: true, right: true })
+    expect(g.phone).toBe(true)
+    expect(g.main.w).toBe(286 - 24)
+    const d = todayGeometry(1302, 664, 4, { left: true, right: true }, ['now', 'ahead', 'counters', 'reminders'])
+    const hs = d.plates.map((p) => p.h)
+    expect(hs[0]).toBeGreaterThan(hs[1]) // Now holds the accent key and needs the air
+    expect(hs[0]).toBeGreaterThan(hs[3]) // and Reminders, two hollow rows, is the lighter of the rest
+    expect(hs.every((h) => h >= 100)).toBe(true) // none below its content's need
+    expect(d.plates[3].y + d.plates[3].h).toBeLessThanOrEqual(d.spec.h)
+    d.plates.forEach((p, i) => { if (i) expect(p.y - (d.plates[i - 1].y + d.plates[i - 1].h)).toBeGreaterThanOrEqual(14) })
+  })
+
+  it('the leaders start on the open side of their figure and are inside the specimen box', () => {
+    const d = todayGeometry(1302, 664, 4, { left: true, right: true }, ['now', 'ahead', 'counters', 'reminders'])
+    const a = anchorsFor(['now', 'ahead', 'counters', 'reminders'], d, FIX_NOW)
+    // Now leaves the notch's ray beyond the hour labels (the topmost anchor); Ahead and Counters lower; Reminders lowest
+    expect(a[0].y).toBeLessThan(a[1].y)
+    expect(a[1].y).toBeLessThan(a[2].y)
+    expect(a[2].y).toBeLessThan(a[3].y)
+    for (const p of a) { expect(p.x).toBeGreaterThan(0); expect(p.x).toBeLessThanOrEqual(d.spec.w) }
+  })
+
+  it('the phone form: Now first, the dial full width with its lamp, the figure, an agenda of two rows and one key for the rest, Reminders behind one key', () => {
+    const { container: c } = render(<TodayView ctx={ctxOf('day')} size={{ w: 358, h: 700 }} left={<LeftRail omit={['now', 'counters']} go={noop} fixture={fixtureRail('day')} today={FIX_NOW} />} right={<ProofPins stats={[]} open={false} onOpen={noop} />} />)
+    expect(c.querySelector('.td[data-form="phone"] .td-plate')?.getAttribute('data-callout')).toBe('now')
+    expect(c.querySelector('.td-arc[data-compact]')).not.toBeNull()
+    expect(c.querySelector('.td-spec-phone .d1-odo')).not.toBeNull()
+    // each agenda row: the time above, the name on its own line
+    const rows = [...c.querySelectorAll('.td-spine-list li')]
+    expect(rows).toHaveLength(2)
+    rows.forEach((r) => {
+      expect([...r.children].map((k) => k.className)).toEqual(['td-mono', 'td-spine-what'])
+      expect(r.querySelector('.td-mono')?.textContent).toMatch(/^\d\d:\d\d/)
+    })
+    const more = c.querySelector('.td-more') as HTMLButtonElement
+    expect(more.textContent).toBe('All 7 blocks of the day')
+    click(more)
+    expect(c.querySelectorAll('.td-spine-list li')).toHaveLength(7)
+    expect(more.getAttribute('aria-expanded')).toBe('true')
+    // Reminders is behind a fold, the Ahead and Counters plates stand
+    expect([...c.querySelectorAll('.td > .td-phone-cards > .td-plate')].map((p) => p.getAttribute('data-callout'))).toEqual(['ahead', 'counters'])
+    expect(c.querySelector('.ww-fold [data-callout="reminders"]')).not.toBeNull()
+    // the rails are two short rows, and the left one is folded
+    expect(c.querySelectorAll('.td-phone-rail')).toHaveLength(2)
+    expect(c.querySelector('.td-phone-rail .lr-rowkey')).not.toBeNull()
   })
 })

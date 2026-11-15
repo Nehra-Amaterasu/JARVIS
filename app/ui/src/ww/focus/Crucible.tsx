@@ -9,23 +9,13 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { api, post } from '../../lib/api'
-import { useStore } from '../../lib/store'
-import { usePlan } from '../../germoney/game/plan'
-import { useGame } from '../../germoney/game/store'
-import AsyncStorage from '../../germoney/platform'
-import { usePlayerStore } from '../../germoney/stores/player-store'
 import { useFrame } from '../frame/frameStore'
 import { Banner, Card, Chip, EmptyState, HoldButton, PrimaryButton, Segmented, Skeleton } from '../kit'
-import {
-  BEAT_MS, DEFAULT_LENGTH, LENGTHS, ROOM_EMPTY_S, STORAGE_KEY, STRIKE_S, WIN, WAGER,
-  elapsedS, endedLine, fmt, remainingS, resumeVerdict, todaysTrack, tracksFromRotation, wagerShortfall,
-  type Active, type Length,
-} from './session'
+import { LENGTHS, STRIKE_S, WIN, WAGER, fmt, type Length } from './session'
+import { useCrucibleEngine } from './useCrucibleEngine'
 
-interface Foreground { supported: boolean; title?: string; exe?: string; distraction?: string | null }
+// The state, the effects, start and finish moved to useCrucibleEngine.ts (Y02) unchanged; this file keeps the page.
 const N = 120   // ticks on the dial
-const PURGATORY_S = 3 * 3600
 
 function Dial({ progress }: { progress: number }) {
   const R = 150
@@ -43,36 +33,14 @@ function Dial({ progress }: { progress: number }) {
 }
 
 export function WwCrucible() {
-  const rotation = usePlan((s) => s.state?.rotation)
-  const planReady = usePlan((s) => !!s.state)
-  const log = usePlan((s) => s.log)
-  const xp = usePlayerStore((s) => s.player.xp)
-  const purgatory = usePlayerStore((s) => s.player.isPurgatoryActive)
-  const updateXP = usePlayerStore((s) => s.updateXP)
-  const resolvePurgatory = usePlayerStore((s) => s.resolvePurgatory)
-  const pending = useGame((s) => s.pendingFocus)
-  const toast = useStore((s) => s.toast)
-  const setFocusMode = useFrame((s) => s.setFocus)
   const focusMode = useFrame((s) => s.focus)
-
-  const tracks = tracksFromRotation(rotation)
-  const [active, setActive] = useState<Active | null | undefined>(undefined)
-  const [result, setResult] = useState<string | null>(null)
-  const [len, setLen] = useState<Length>(DEFAULT_LENGTH)
-  const [track, setTrack] = useState<string | null>(null)
-  const [wager, setWager] = useState(false)
-  const [guards, setGuards] = useState(false)
-  const [now, setNow] = useState(() => Date.now())
-  const [fg, setFg] = useState<Foreground | null>(null)
-  const [strike, setStrike] = useState<number | null>(null)
-  const [eyes, setEyes] = useState<{ live: boolean; state: string | null }>({ live: false, state: null })
+  const {
+    planReady, tracks, trackId, active, result, len, wager, guards, fg, purgatory,
+    left, progress, strikeLeft, startBlock, eyesLine,
+    setLen, setTrack, setWager, setGuards, start, finish,
+  } = useCrucibleEngine()
   const [rail, setRail] = useState<Element | null>(null)
   const root = useRef<HTMLDivElement>(null)
-  const ending = useRef(false)
-  const strikeRef = useRef<number | null>(null)
-  const emptyRef = useRef<number | null>(null)
-
-  const trackId = track ?? todaysTrack(rotation, new Date())
 
   // ---- the frame: find the left column (for the timer rail) and mark the frame while a session runs
   useEffect(() => {
@@ -84,136 +52,7 @@ export function WwCrucible() {
     return () => frame.removeAttribute('data-focus')
   }, [focusMode, active])
 
-  // ---- resume a session that was running when the page was left
-  useEffect(() => {
-    void AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
-      if (!raw) return setActive(null)
-      let a: Active
-      try { a = JSON.parse(raw) as Active } catch { void AsyncStorage.removeItem(STORAGE_KEY); return setActive(null) }
-      const v = resumeVerdict(a, Date.now())
-      if (v === 'running') { setActive(a); setFocusMode(true); return }
-      setActive(null)
-      void AsyncStorage.removeItem(STORAGE_KEY)
-      void finish(a, v === 'done' ? 'done' : 'ended', 'the window was closed for over a minute.')
-    })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ---- eyes: said once, from the snapshot, never guessed
-  useEffect(() => {
-    let live = true
-    api<{ source: string | null; presence: { state: string } | null }>('/api/aankhen/snapshot')
-      .then((s) => { if (live) setEyes({ live: s.source === 'hardware' && !!s.presence, state: s.presence?.state ?? null }) })
-      .catch(() => {})
-    return () => { live = false }
-  }, [])
-
-  const restoreRoom = () => {
-    if (useGame.getState().g.settings.focusScene) void post('/api/limbs/light', { action: 'set', value: 100 }).catch(() => {})
-  }
-
-  /** One way out of every session: the held minutes are logged once, the wager is paid only on a full one. */
-  async function finish(a: Active, kind: 'done' | 'ended', reason = 'you stopped it.') {
-    if (ending.current) return
-    ending.current = true
-    void AsyncStorage.removeItem(STORAGE_KEY)
-    setActive(null)
-    setFocusMode(false)
-    restoreRoom()
-    const held = kind === 'done' ? a.durationS / 60 : elapsedS(a, Date.now()) / 60
-    const e = kind === 'done' ? { counted: Math.round(held), text: '' } : endedLine(held, reason)
-    let line = e.text
-    if (e.counted > 0) {
-      const r = await log({ minutes: e.counted, track: a.track, note: `Crucible: ${a.trackLabel}` })
-      if (kind === 'done') line = r?.ok === false ? `Session complete: ${e.counted} min on ${a.trackLabel}. The log did not save: ${r.say}` : `Session complete: ${e.counted} min on ${a.trackLabel} logged.`
-    } else if (kind === 'done') line = 'Session complete.'
-    if (kind === 'done' && a.durationS === PURGATORY_S) {
-      resolvePurgatory(3)
-      line += ' Purgatory cleared.'
-    } else if (kind === 'done' && a.wager) {
-      const win = WIN[a.length as Length] ?? 0
-      updateXP(win)
-      line += ` +${win} XP.`
-    }
-    setResult(line)
-    toast(line, 'info')
-    ending.current = false
-  }
-
-  function start(minutes: Length = len, tr: string | null = trackId) {
-    if (!tr) return
-    const trk = tracks.find((t) => t.id === tr)
-    const p = purgatory
-    const useWager = wager && !p
-    if (useWager) {
-      const short = wagerShortfall(xp, minutes)
-      if (short) { toast(short, 'info'); return }
-      updateXP(-WAGER[minutes])
-    }
-    const t = Date.now()
-    const a: Active = { startedAt: t, durationS: p ? PURGATORY_S : minutes * 60, lastBeat: t, track: tr, trackLabel: trk?.label ?? tr, wager: useWager, guards, length: minutes }
-    ending.current = false
-    strikeRef.current = null
-    emptyRef.current = null
-    setResult(null)
-    setNow(t)
-    setActive(a)
-    setFocusMode(true)
-    void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(a))
-    if (useGame.getState().g.settings.focusScene) void post('/api/limbs/scene/focus').catch(() => {})
-  }
-
-  // a Crucible asked for by voice ("start a 50 minute focus"): it opens with today's track, since the voice names a game track, not a rotation one
-  useEffect(() => {
-    if (!pending || active !== null || !trackId) return
-    const m = [...LENGTHS].reverse().find((x) => x <= pending.minutes) ?? LENGTHS[0]
-    setLen(m)
-    useGame.getState().clearFocus()
-    start(m, trackId)
-  }, [pending, active]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ---- one clock while a session runs; it ends the session when the time is up
-  useEffect(() => {
-    if (!active) return
-    const id = window.setInterval(() => setNow(Date.now()), 1000)
-    return () => window.clearInterval(id)
-  }, [active])
-  useEffect(() => {
-    if (active && remainingS(active, now) <= 0) void finish(active, 'done')
-  }) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ---- guards (opt-in): the heartbeat, the foreground, the room
-  useEffect(() => {
-    if (!active || !active.guards) return
-    const beat = window.setInterval(() => void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ ...active, lastBeat: Date.now() })), BEAT_MS)
-    const watch = window.setInterval(async () => {
-      try {
-        const f = await api<Foreground>('/api/germoney/focus')
-        setFg(f)
-        if (f.distraction) {
-          strikeRef.current = strikeRef.current ?? Date.now()
-          setStrike(strikeRef.current)
-          if (Date.now() - strikeRef.current >= STRIKE_S * 1000) void finish(active, 'ended', `${f.distraction} was in front for ${STRIKE_S} seconds.`)
-        } else { strikeRef.current = null; setStrike(null) }
-      } catch { /* best effort */ }
-      try {
-        const snap = await api<{ source: string | null; presence: { state: string } | null }>('/api/aankhen/snapshot')
-        const live = snap.source === 'hardware' && !!snap.presence
-        emptyRef.current = live && snap.presence?.state === 'empty' ? (emptyRef.current ?? Date.now()) : null
-        setEyes({ live, state: snap.presence?.state ?? null })
-        if (emptyRef.current && Date.now() - emptyRef.current >= ROOM_EMPTY_S * 1000) void finish(active, 'ended', 'the room was empty for 5 minutes.')
-      } catch { /* eyes optional */ }
-    }, 3000)
-    return () => { window.clearInterval(beat); window.clearInterval(watch) }
-  }, [active]) // eslint-disable-line react-hooks/exhaustive-deps
-
   if (active === undefined || !planReady) return <div ref={root} className="ww-focus-fill"><Skeleton /></div>
-
-  const total = active?.durationS ?? (purgatory ? PURGATORY_S : len * 60)
-  const left = active ? remainingS(active, now) : total
-  const progress = active ? 1 - left / total : 0
-  const strikeLeft = strike ? Math.max(0, STRIKE_S - (now - strike) / 1000) : null
-  const startBlock = !trackId ? 'No rotation yet: add one in Setup > Rotation.' : wager && !purgatory ? wagerShortfall(xp, len) ?? undefined : undefined
-  const eyesLine = eyes.live ? `eyes: live, room ${eyes.state}` : 'eyes: not live (no hardware)'
 
   return (
     <div ref={root} className="ww-crucible" data-running={active ? 'true' : 'false'}>

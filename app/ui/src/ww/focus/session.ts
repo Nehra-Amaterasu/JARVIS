@@ -36,6 +36,10 @@ export interface Active {
   wager: boolean
   guards: boolean
   length: number
+  /** Added by Y02, all optional so every stored record of the old page still reads: the moment a pause began, a one-line cue, and the track kind ('crucible' is the first). */
+  pausedAt?: number
+  cue?: string
+  kind?: string
 }
 
 export interface TrackOption { id: string; label: string }
@@ -74,8 +78,9 @@ export const fmt = (s: number) => {
  *   ended    the guards were on and the window was closed for over a minute: the held minutes count, the wager does not
  */
 export function resumeVerdict(a: Active, now: number): 'running' | 'done' | 'ended' {
-  if (a.guards && now - a.lastBeat > STALE_BEAT_MS) return 'ended'
-  return remainingS(a, now) <= 0 ? 'done' : 'running'
+  // a held session wrote no heartbeat on purpose, so a gap proves nothing and the clock stands at the moment it was held
+  if (a.guards && !a.pausedAt && now - a.lastBeat > STALE_BEAT_MS) return 'ended'
+  return remainingS(a, a.pausedAt ?? now) <= 0 ? 'done' : 'running'
 }
 
 /** How a session that stopped early is worded: the minutes that count, in neutral words. */

@@ -111,7 +111,8 @@ function tinyPdf(lines: string[]): Buffer {
 }
 
 // ------------------------------------------------------------------------------------------------ the page
-declare global { interface Window { AD08: { port: import('../src/ww/study/ports').StudyPort; abortPyq: () => void } } }
+// the port as the page sees it; typed loosely on purpose so this file pulls no .tsx module into the e2e type check
+declare global { interface Window { AD08: { port: Record<string, (...a: any[]) => Promise<any>>; abortPyq: () => void } } }
 
 async function openDesk(page: Page) {
   const { js, css } = await buildPage()
@@ -153,7 +154,7 @@ test.describe('AD08 the exam adapter against the real routes', () => {
     const got = await page.evaluate(async () => {
       const p = window.AD08.port
       const [papers, questions, patterns, next] = await Promise.all([p.papers(), p.questions(), p.patterns(), p.practiseNext()])
-      return { papers: [papers.state, papers.data?.length], questions: [questions.state, questions.data?.length, questions.data?.every((q) => q.status === 'accepted')], patterns: [patterns.state, patterns.data?.papers, patterns.data?.topics.length], next: [next.state] }
+      return { papers: [papers.state, papers.data?.length], questions: [questions.state, questions.data?.length, questions.data?.every((q: { status: string }) => q.status === 'accepted')], patterns: [patterns.state, patterns.data?.papers, patterns.data?.topics.length], next: [next.state] }
     })
     expect(got.papers).toEqual(['live', 3])
     expect(got.questions).toEqual(['live', 21, true])
@@ -178,7 +179,7 @@ test.describe('AD08 the exam adapter against the real routes', () => {
     expect(after.accepted, 'a drop never adds to the bank').toBe(before)
     expect(after.pending.state).toBe('live')
     expect(after.pending.data!.length).toBeGreaterThan(0)
-    expect(after.pending.data!.every((q) => q.status === 'pending')).toBe(true)
+    expect(after.pending.data!.every((q: { status: string }) => q.status === 'pending')).toBe(true)
     // the notice carries the engine's real outcome, not the null adapter's
     await expect(page.locator('.pp-notice')).not.toContainText('not connected')
   })
@@ -196,7 +197,7 @@ test.describe('AD08 the exam adapter against the real routes', () => {
       const second = await p.decide({ kind: 'accept', qid: b })
       const undone = await p.decide({ kind: 'undo', qid: b })
       const rows = await p.questions()
-      return { refused, edited, accepted, second, undone, rows: rows.data?.map((q) => [q.id, q.status, q.marks]) }
+      return { refused, edited, accepted, second, undone, rows: rows.data?.map((q: { id: string; status: string; marks: number }) => [q.id, q.status, q.marks]) }
     }, [noMarks, withMarks])
     expect(out.refused.state).toBe('fault')
     expect(out.refused.reason).toContain('HTTP 400')

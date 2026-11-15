@@ -53,7 +53,8 @@
 :root[data-theme='clay-dark'] {
   color-scheme: dark;
 
-  /* KB1 (D-V3-30): matte piano black, ground #0D0D0F, raised #18191C, sunk #060607 (was #171717, #222426, #101112) */
+  /* KB1 (D-V3-30): matte piano black, ground #0D0D0F, sunk #060607 (was #171717, #101112). RJ1 (15 Nov): raised #282A2E,
+     hover #303236 (were #18191C, #1F2124 after KB1, #222426 before it): the jury read the black as flat */
   --surface-ground: var(--p-matte-900);
   --surface-raised: var(--p-matte-800);
   --surface-sunk: var(--p-matte-950);
@@ -71,10 +72,10 @@
   --accent-fill: var(--p-orange-500);
   --accent-on: var(--p-char-800);
   --accent-fill-hover: var(--p-orange-450);
-  --accent-ink: var(--p-orange-500);  /* 5.13 on raised, the thinnest dark text pair (4.55 on the old charcoal) */
-  --accent-state: var(--p-orange-600); /* 4.99 on the ground, 4.52 on raised (4.61 and 4.01 on the old charcoal) */
+  --accent-ink: var(--p-orange-400);  /* RJ1: one step lighter than the fill, 5.37 on the lifted raised face (the fill's 4.19 fails 4.5) */
+  --accent-state: var(--p-orange-600); /* 4.99 on the ground, 3.69 on the lifted raised face (RJ1; 4.52 before the lift) */
   --surface-raised-hi: var(--p-matte-750);
-  --thumb: var(--p-char-550);          /* a lit pebble one step above the raised face */
+  --thumb: var(--p-char-200);          /* RJ1: a lit pebble, the ink-2 grey: 8.8:1 on the well (the old #4A4E52 was dull grey) */
 
   --state-measured: var(--p-cyan-300);
   --state-simulated: var(--p-amber-300);

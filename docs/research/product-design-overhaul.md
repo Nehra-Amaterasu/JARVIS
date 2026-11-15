@@ -42,6 +42,35 @@ One file for the JARVIS + Well Wisher product-design overhaul (the design source
 
 **What it changed.** New files only: `shared/almanac/**`, `ww/day/{ports.ts,adapters,month,drawer}`, `shell/views/day-month.view.ts`, `gallery/entries/L01.tsx`, `e2e/l01-month.spec.ts` and this section. With the flag off the classic Life page is untouched (nothing in `shell/views` is read).
 
+## 2026-11-15: AD08, the exam adapter of the Study port over routes R-01 to R-27
+
+**Question.** The Paper Desk, the Review Desk and the later generator screens read the Study port, and until now every member answered the null adapter's WAITING. What does the exam slice (27 merged routes under `/api/mission/pyq`) need to become the port's ten members without inventing anything, and does the desk leave WAITING for a real state against the real routes?
+
+**What was built** (all under `app/ui/src/ww/study/adapters/`, none of the frozen files edited): `http.ts` (the three kinds of request and the failure classes), `pyqMap.ts` (pure mappers), `pyqIngest.ts` (drop, folder and paste, and the bounded poll of R-13), `pyq.ts` (the factory, `createPyqPort(deps)`), `pyq.register.ts` (rank 10, picked up by the existing `adapters/*.register.ts` glob). Members supplied: papers, questions, ingest, decide, crop, blueprints, generate, patterns, practiseNext, check. The other six stay the null adapter's (readiness, tonight, queue, harvest, intake, classroom).
+
+**Rules the adapter keeps, each with its proof.**
+- The engine's state passes through: a route that answers WAITING stays WAITING with its own sentence; data travels only with LIVE and SIMULATED; an answer with no valid state is FAULT, never LIVE (`reply`; a mutation that let data through for WAITING failed 8 of 54 tests).
+- Failure classes: 400, 409, 413 and any other refusal are FAULT with "HTTP <status>" and the engine's own sentence; 5xx is FAULT "The engine failed"; no answer is FAULT "The app did not answer"; only the bare `Not Found` or `Method Not Allowed` (what FastAPI or the static mount says where nothing is mounted) or an HTML answer means the engine is absent, which is WAITING "engine routes not found", remembered for 15 s so a screen does not hammer a missing prefix. A 404 with a sentence ("No such subject.") is a FAULT, not absence.
+- Silence: with the product gate off (`import.meta.env.VITE_PRODUCT !== 'jarvis'`, written in place) or no token in the window, each member returns exactly what the null adapter returns and no request is made (tested for all ten members; the existing `ports.test.ts` still passes because vitest has no token).
+- The token is `TOKEN` of `lib/api.ts` (read from the window's fragment); `api()` carries every JSON call. `http.ts` adds only what `api()` cannot do: raw bytes up (R-15 is `application/octet-stream`) and a crop down as a data URI (an `<img src>` cannot send the token header).
+- Nothing enters the bank unreviewed: only `decide({kind:'accept'})` sends `status: accepted`. A test drives ingest (drop and paste), crop, patterns, generate and check and asserts no PATCH was sent and no body contains "accepted"; `tags/suggest` (R-18, which can write tags) is never called.
+- Long jobs: ingest uploads, then polls R-13 with a wait of 250 ms growing by 1.6 to a 2 s ceiling, to a 10 minute deadline; an aborted signal (the caller's own, or `abortPyq()` from the register file for a view's unmount) ends the loop and the member answers WAITING "Stopped"; the e2e shows no status call after the hook fires.
+
+**Mapping decisions the port forced** (the port is frozen, so each is listed for the integrator).
+- `year`: the engine allows a paper with no year; `PaperRow.year` is a number, so an unknown year is 0.
+- `QType` has four glyphs and the engine seven: `descriptive` reads as `derivation`, `slide` and `unknown` as `short`.
+- `TagSource` has no "none": an untagged question is `RULE` with margin 0 and an empty `topicId`. A hand tag is `HAND`, a model proposal `MODEL`.
+- `topicId` is the generator's key (`unit|topic`), the same string as `patterns().topics[].id`.
+- `bbox`: the port's `[x, y, w, h]` against the engine's `[x0, y0, x1, y1]` in PDF points (converted both ways).
+- The port has no subject argument. The adapter takes the subject most papers carry, else the plan's only subject (`/api/mission/academics`), and `setPyqSubject()` overrides both. Without one, patterns and practise-next are WAITING "Say which subject the papers are for first."
+- `blueprints()` lists one blueprint per exam of the date sheet (`/api/mission/exams`) that has a balanced one (Blueprint id = exam id); an exam whose blueprint does not balance is named in the reason; with none balanced the engine's own WAITING or FAULT is kept.
+- `wordsPerPage` stays empty: R-13 reports pages, not words, and the adapter does not invent a count.
+- Not in the port, so not reachable: merge and split (PLANNED, no route), R-18 tag suggestion, R-20 save and R-21 infer a blueprint, R-23 list, R-25 print, R-27 marks.
+
+**Numbers.** 54 vitest cases for the adapter (all green; one mutation caught by 8). e2e against the real sandbox routes on a scratch data directory, 6 of 6 green (1.6 min, of which 23.7 s is the real PDF read): an empty engine gives the desk WAITING with the engine's "No papers on file yet."; after 3 invented papers and 21 accepted, tagged questions the desk is `data-state="live"` with 3 papers; a dropped one-page PDF adds a paper whose questions all arrive `pending` and the accepted count is unchanged; accept without marks comes back FAULT "HTTP 400 ... Give its marks first.", an edit then an accept moves it to accepted; the routes answering `Not Found` give "engine routes not found"; the unmount hook stops the poll.
+
+**What it changed.** The Paper Desk now has a real adapter behind it: with the app token in the window and the routes mounted it shows the engine's states and words, with them absent it is unchanged. Not changed: ports.ts, the null adapter, any screen, any Python.
+
 ## 2026-11-15: RJ1, matte black lift, one switch family, 44 px on the element
 
 **Question.** The jury (UW7a) read the dark ground as flat (design 5.5: "black keys on near-black panels with barely any separation; depth comes from hairline outlines, not clay"), the kit Switch as "still a plain pill" beside C02-46, and measured a 64 x 32 switch, Segmented options of 36 to 40 and a 36 px Chip below 44 px. What is the smallest change that fixes all three without touching the light, high-contrast, forced-colours or classic themes?

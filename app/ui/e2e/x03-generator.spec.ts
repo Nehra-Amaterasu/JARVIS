@@ -115,6 +115,7 @@ test.describe('X03 geometry', () => {
       for (const [i, name] of steps) {
         await state(page, i, theme)
         const m = await fit(page)
+        await shot(page, '.x03-box', `${name}-${theme}.png`)
         expect(m.boxW).toBe(1230)
         expect(m.boxH).toBe(664)
         expect(m.docY, `${name}: the document scrolls`).toBeLessThanOrEqual(0)
@@ -122,7 +123,6 @@ test.describe('X03 geometry', () => {
         expect(m.innerX).toBeLessThanOrEqual(1)
         expect(m.outside, `${name}: parts outside the canvas`).toEqual([])
         for (const c of m.cols) expect(Number(c.split(' ').pop()), `${name}: ${c}`).toBeLessThanOrEqual(1)
-        await shot(page, '.x03-box', `${name}-${theme}.png`)
       }
     })
   }

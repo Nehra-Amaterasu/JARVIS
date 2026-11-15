@@ -44,7 +44,7 @@
 }
 /* the log form is one row: what, minutes, the key */
 .s2 .ww-library .ww-studylog {
-  grid-template-columns: minmax(0, 1fr) 7rem auto;
+  grid-template-columns: minmax(0, 1fr) 9.5rem auto;
   margin-block-start: var(--space-2);
 }
 .s2 .ww-library .ww-concept-body {

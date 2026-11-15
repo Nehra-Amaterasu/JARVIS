@@ -97,6 +97,7 @@ const PROBE = `(() => {
       const cs = getComputedStyle(el); const fs = parseFloat(cs.fontSize)
       if (fs < 10.95) out.small.push(nm(el) + ' ' + fs + 'px')
       if ((cs.overflowX === 'hidden' || cs.overflowX === 'clip') && el.scrollWidth > el.clientWidth + 1 && cs.textOverflow === 'ellipsis') out.ellipsis.push(nm(el))
+      if (cs.webkitLineClamp !== 'none' && el.scrollHeight > el.clientHeight + 1) out.ellipsis.push(nm(el) + ' (line clamp)')
       const b = el.closest('button, [role="tab"], [role="radio"]')
       if (b && cs.whiteSpace !== 'pre-line') {
         const lh = parseFloat(cs.lineHeight) || fs * 1.3

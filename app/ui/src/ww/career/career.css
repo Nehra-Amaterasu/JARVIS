@@ -403,11 +403,10 @@
   min-block-size: var(--hit, 44px);
 }
 .s2 .cr-cert .cr-sub {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  /* wraps in full: a two-line clamp drew a trailing ellipsis over the hours ("about 1...") */
+  display: block;
   white-space: normal;
-  overflow: hidden;
+  overflow: visible;
   text-overflow: clip;
 }
 .s2 .cr-cert .cr-link {

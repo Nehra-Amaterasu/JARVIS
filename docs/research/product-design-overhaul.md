@@ -2,6 +2,64 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-19 (night): the baseline jury of every section (design 6.1, usability 6.3) and the plan to lift each above 8.0
+
+Written by the planning agent of the jury workflow (43 agents: 22 design jurors on the stronger model, 11 usability jurors, 9 verifiers, 1 planner; 7.16 million agent tokens, 53 minutes); checked by the integrator for private details before it was added here. The verified fixes and the package list are kept in the private notes.
+
+### Question
+The owner's bar is a design score above 8.0 for every section and at least 8.1 for the whole interface. The last scoring puts the whole at 6.1 for design and 6.3 for usability. The question: which faults hold the sections down, which of them are shared, and in what order should they be fixed?
+
+### Method
+- Three jurors scored each unit from pictures of every view (1366x768 and 390x844) taken against a sandbox.
+- Each proposed fix was checked against the pictures and the source. Claims that did not hold were dropped (for example "content shows through the bottom bar", which the source disproves, and several size claims the source contradicts).
+- The whole score is weighted by the number of views per unit.
+- The last whole-interface jury (15 Nov) used a different method and gave 6.9 and 7.3, so the two are not directly comparable.
+- Work already under way (kit controls, four clipped-text fixes, five rebuilds) was left out and named as a dependency.
+
+### Numbers
+Design, lowest juror, usability per unit:
+
+| Unit | Design | Lowest juror | Usability |
+|---|---|---|---|
+| Shell | 7.0 | 6.9 | 6.9 |
+| Core Talk | 6.5 | 6.4 | 6.8 |
+| Room | 6.6 | 6.4 | 6.9 |
+| Senses | 6.3 | 6.3 | 6.9 |
+| Memory | 6.6 | 6.5 | 6.6 |
+| Console | 5.2 | 4.9 | 6.0 |
+| Day (Today, Month) | 6.8 | 6.7 | 7.0 |
+| Focus | 6.4 | 6.4 | 6.9 |
+| Study | 6.2 | 6.0 | 6.6 |
+| Old views, group A (being rebuilt) | 5.1 | 4.8 | 5.4 |
+| Old views, group B (being rebuilt) | 5.7 | 5.4 | 5.6 |
+
+No built section is at 8.0. The closest is the shell at 7.0. The furthest is Console at 5.2, because four of its five phone views overlap text and score between 2.5 and 3.2.
+
+### Findings
+1. The same faults recur in almost every unit. Fix them once, in the kit or the shell, and every section gains.
+2. A 1 px outline is drawn on cards, keys, chips, wells and tabs in every unit. The owner ruled this out. Part of it comes from the kit (segmented control, input, chip). Most of it is in each section's own stylesheet.
+3. The header lamps show a glyph and no state word. At phone width the names disappear entirely. This breaks the rule that every number carries a lamp and a word, and it touched every view.
+4. Text that carries a state or a reason is cut by an ellipsis or a fixed row height in Room, Study, Memory, Core and Console. Each such cut caps a view at 7.0.
+5. The warm accent is spent on selection. The ON switch, the selected segment and the fan rocker fill with it, so several views show two to six warm fills instead of one.
+6. The canvas has no inset rule. Edges disagree by 4 to 18 px. Study runs to the window edge and clips its footer. The phone gutter is 8 to 10 px instead of 16.
+7. Phone pages are mostly the desktop squeezed. Console is the extreme case, with text over text.
+8. Several views have no focal element and show their empty state as a line of text: Signal, Connections, Events, Session, Rest, Month, Papers.
+9. When a Back pill shows, it takes the place of the location in the title bar.
+
+### What it changes
+Twelve elevation packages, in three layers.
+- Layer 1, no dependence on each other: KIT2 (shared material and controls) and SHELL2 (frame, lamps, inset, phone header). Both wait only for KIT1.
+- Layer 2, after Layer 1 and, where named, after the packages already being built (GATE1, L03, Y03, S01): EL-CORE, EL-ROOM, EL-SENSES, EL-MEMORY, EL-CONSOLE, EL-TODAY, EL-MONTH, EL-FOCUS, EL-PAPERS, EL-GENERATOR, EL-INTAKE. Each owns its own folder, so they can run side by side.
+- The fixes also help the five rebuilds, because the new kit and shell are what those rebuilds will sit on.
+
+### Expected result and a caution
+My estimate, from the jury notes and not measured: the verified fixes lift most sections to between 7.2 and 7.8, the shell to about 7.8 to 8.0, and Console to about 7.0. That would put the whole near 7.5. It does not reach 8.1 on its own.
+
+The fixes the jury could verify mostly remove caps and defects. The step from about 7.5 to above 8.0 is craft: a form in every empty state, tuned type and spacing, and ASCII that moves with real state. This plan does not invent that work. After Layer 1 and Layer 2 land, a second jury round should be run, and the remaining gap planned from its notes. Console is the section least likely to pass in one round.
+
+### Limits
+Sandbox data hides some states: every reading is WAITING, so lamp variety could not be judged, and some empty heights (Signal spectrum, Events density) must be rechecked with simulated data. Estimates of gain are judgments, not scores.
+
 ## 2026-11-19 (later): a sweep of every shell view, as the bug hunt of the six unreviewed packages
 
 **Question.** X03, C03 and J02 to J05 were merged without a reviewer. Their own specs drive gallery specimens. Does anything break, overlap or go unreadable when each view is opened in the real shell, at 1366x768 and 390x844?

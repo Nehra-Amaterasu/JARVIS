@@ -10,7 +10,10 @@
   /* the checked piece of a Segmented is a raised ground-coloured pill with ink, so the one warm fill stays on the main action */
   --k-on-fill: var(--surface-ground); --k-on-ink: var(--ink-1); --line-ui: var(--edge-ui);
 }
-.ik-desk-in { box-sizing: border-box; inline-size: 100%; block-size: 100%; min-block-size: 0; display: grid; grid-template-rows: 52px 80px minmax(0, 1fr) 24px; gap: 0.5rem; }
+.ik-desk-in { box-sizing: border-box; inline-size: 100%; block-size: 100%; min-block-size: 0; display: grid; grid-template-rows: 52px auto minmax(0, 1fr) 24px; gap: 0.5rem;
+  /* the desk sits in line with the sub-navigation above it (20 px in) and keeps 8 px under the footnote; the inset is on this box, not on the
+     container, so the container breakpoints below still read the full canvas width. 19 Nov sweep: it was flush to the canvas edges. */
+  padding-inline: 1.25rem; padding-block-end: 0.5rem; }
 
 .ik-key {
   display: inline-grid; place-items: center; min-inline-size: 20px; block-size: 20px; padding: 0 0.3125rem; margin-inline-start: 0.5rem; border-radius: 0.375rem;
@@ -28,7 +31,7 @@
 .ik-doors { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.5rem; min-block-size: 0; }
 .ik-doors > li { min-inline-size: 0; display: grid; }
 .ik-door {
-  all: unset; box-sizing: border-box; inline-size: 100%; block-size: 80px; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; row-gap: 2px; padding: 0.5rem 0.75rem;
+  all: unset; box-sizing: border-box; inline-size: 100%; block-size: auto; min-block-size: 100px; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; row-gap: 2px; padding: 0.5rem 0.75rem;
   border-radius: var(--r-ctl, 0.875rem); background: var(--surface-raised); box-shadow: var(--elev-low); color: var(--ink-1); cursor: pointer; transition: transform var(--dur-state);
 }
 button.ik-door:hover { transform: translateY(-1px); }
@@ -37,12 +40,12 @@ button.ik-door:focus-visible, .ik-row:focus-visible, .ik-pg:focus-visible, .ik-o
 .ik-door-top { display: flex; align-items: center; justify-content: space-between; min-inline-size: 0; }
 .ik-door-name { font: 600 14px/1.2 var(--font-ui, system-ui, sans-serif); }
 .ik-door-top .ik-key { margin-inline-start: 0; }
-.ik-door-sub { font: 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ik-door-lamp { display: flex; align-items: center; gap: 0.5rem; min-inline-size: 0; }
-.ik-door-why { font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-inline-size: 0; }
+.ik-door-sub { font: 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); overflow-wrap: break-word; }
+/* the lamp keeps its word on one line and the reason sits under it, free to take two lines: a WAITING reason is the state, so it is never cut (19 Nov sweep) */
+.ik-door-lamp { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 0.5rem; min-inline-size: 0; }
+.ik-door-why { font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); flex: 1 1 100%; min-inline-size: 0; overflow-wrap: anywhere; }
 /* Classroom is a plate, not a door: sunk, not focusable, PLANNED with its reason */
 .ik-plate { background: var(--surface-sunk); box-shadow: var(--elev-recessed); cursor: default; }
-.ik-plate .ik-door-sub { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 
 /* ---------------------------------------------------------------- the ledger */
 .ik-main { display: grid; grid-template-columns: minmax(0, 1fr) clamp(300px, 29%, 354px); gap: 1rem; min-block-size: 0; }
@@ -163,10 +166,10 @@ button.ik-door:focus-visible, .ik-row:focus-visible, .ik-pg:focus-visible, .ik-o
   .ik-foot-line { white-space: normal; line-height: 1.4; block-size: auto; }
 }
 @container (max-width: 759px) {
+  .ik-desk-in { padding-inline: 1rem; }
   .ik-doors { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ik-doors > li:last-child { grid-column: 1 / -1; }
   .ik-door { block-size: auto; min-block-size: 68px; }
-  .ik-plate .ik-door-sub { display: block; white-space: normal; -webkit-line-clamp: unset; line-clamp: unset; }
   .ik-main { grid-template-columns: minmax(0, 1fr); }
   .ik-row { grid-template-columns: 20px minmax(0, 1fr) auto; }
   .ik-row-state { display: none; }

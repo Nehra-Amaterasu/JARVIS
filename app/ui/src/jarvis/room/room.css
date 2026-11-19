@@ -147,19 +147,21 @@
 
 /* ------------------------------------------------------------------ the board plate */
 .jr-board {
-  position: relative; display: grid; grid-template-rows: 44px auto auto auto 1fr; row-gap: 6px; padding: 8px 14px 14px; min-width: 0; min-height: 0;
+  position: relative; display: grid; grid-template-rows: 44px auto auto auto 1fr; row-gap: 4px; padding: 8px 14px 10px; min-width: 0; min-height: 0;
   background: var(--surface-faceplate, var(--surface-ground)); border: 1px solid var(--edge-ui);
   border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: 20px; box-shadow: var(--elev-raised, none);
 }
 .jr-board-list { margin: 0; display: grid; gap: 2px; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); }
-.jr-board-list > div { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 24px; }
+.jr-board-list > div { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 20px; }
 .jr-board-list dt { color: var(--ink-2); letter-spacing: 0.06em; }
 .jr-board-list dd { margin: 0; color: var(--ink-1); display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.jr-lcd { margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); color: var(--ink-1); font: 600 14px/1.35 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.12em; white-space: pre; overflow: hidden; }
+.jr-lcd { margin: 0; padding: 6px 12px; border-radius: 8px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); color: var(--ink-1); font: 600 13px/1.3 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.12em; white-space: pre; overflow: hidden;
+  /* 2 lines of 1.3em plus the 6 px padding above and below: the grid used to squeeze this box to one line and cut the channel marks (19 Nov sweep, 1366 x 768) */
+  min-block-size: calc(2.6em + 12px); }
 .jr-board-problems { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font: 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); }
 .jr-board-problems li { display: flex; gap: 6px; align-items: flex-start; }
 .jr-alloff { position: relative; align-self: end; }
-.jr-alloff .jr-alloff-key.k-key { width: 100%; height: 56px; flex-direction: row; gap: 10px; border-radius: 14px; box-shadow: var(--elev-recessed, none); }
+.jr-alloff .jr-alloff-key.k-key { width: 100%; height: 48px; flex-direction: row; gap: 10px; border-radius: 14px; box-shadow: var(--elev-recessed, none); }
 .jr-alloff-word { font: 650 14px/1 var(--font-ui, system-ui, sans-serif); }
 .jr-alloff-count { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
 .jr-alloff-key[data-empty='true'] .jr-alloff-count { color: var(--ink-3); }
@@ -230,16 +232,18 @@
 .jr-rules { grid-template-columns: 640px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .jr-gates { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 10px; min-height: 0; }
 .jr-side { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto auto; gap: 12px; min-height: 0; min-width: 0; }
-.jr-gate { display: grid; grid-template-rows: 36px minmax(0, 1fr) auto; row-gap: 6px; padding: 8px 14px 10px; min-width: 0; min-height: 0; overflow: hidden;
+.jr-gate { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; row-gap: 4px; padding: 6px 14px 8px; min-width: 0; min-height: 0; overflow: hidden;
   background: var(--surface-ground); border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: 18px; box-shadow: var(--elev-raised, none); }
 .jr-gate[data-hollow='true'] { border-style: dashed; box-shadow: none; }
-.jr-gate-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+/* the lamp and its reason take a line of their own under the title and the switch: beside them they had about 100 px and wrapped to five lines or were cut (19 Nov sweep) */
+.jr-gate-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; min-width: 0; min-height: 36px; }
 .jr-gate-title { margin: 0; font: 650 13px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
-.jr-gate-lamp { display: inline-flex; align-items: center; gap: 6px; font: 11.5px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); min-width: 0; flex: 1 1 0; overflow: hidden; }
+.jr-gate-lamp { display: inline-flex; align-items: flex-start; gap: 6px; font: 11.5px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); min-width: 0; flex: 1 0 100%; order: 3; }
 .jr-gate-lamp b { color: var(--ink-1); font-weight: 650; }
-.jr-gate-reason { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.jr-gate-lead { margin-left: auto; flex: none; }
-.jr-gate-art { display: grid; grid-template-columns: minmax(0, 1fr) 50px 190px; align-items: stretch; min-height: calc(var(--rows, 1) * 28px); min-width: 0; }
+.jr-gate-reason { white-space: normal; overflow-wrap: anywhere; min-width: 0; flex: 1 1 0; line-height: 1.2; }
+.jr-gate-lamp > svg, .jr-gate-lamp > b { flex: none; }
+.jr-gate-lead { margin-left: auto; flex: none; margin-block: -4px; }
+.jr-gate-art { display: grid; grid-template-columns: minmax(0, 1fr) 50px 190px; align-items: stretch; min-height: calc(var(--rows, 1) * 26px); min-width: 0; }
 .jr-gate-in { margin: 0; padding: 0; list-style: none; display: grid; grid-auto-rows: 1fr; min-width: 0; }
 .jr-gate-in li { display: flex; align-items: center; gap: 8px; min-width: 0; font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
 .jr-gate-label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; letter-spacing: 0.03em; }
@@ -272,7 +276,7 @@
 .jr-modes-panel { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 8px; padding: 10px 14px 12px; min-height: 0; min-width: 0; overflow: hidden;
   background: var(--surface-ground); border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: 18px; box-shadow: var(--elev-raised, none); }
 .jr-panel-head { display: flex; align-items: center; gap: 10px; min-height: 44px; }
-.jr-panel-head .jr-note { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jr-panel-head .jr-note { flex: 1; min-width: 0; white-space: normal; line-height: 1.2; }
 .jr-mode-list { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; align-content: start; }
 .jr-mode-list[data-many='true'] { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 14px; }
 .jr-mode-row { display: grid; grid-template-columns: minmax(0, 1fr) auto 44px 44px; align-items: center; column-gap: 8px; min-height: 52px; }

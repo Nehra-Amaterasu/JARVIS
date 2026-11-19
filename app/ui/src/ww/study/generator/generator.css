@@ -9,7 +9,9 @@
   position: relative; box-sizing: border-box; inline-size: 100%; block-size: 100%; min-block-size: 0; container-type: inline-size;
   color: var(--ink-1); font-family: var(--font-ui, system-ui, sans-serif);
 }
-.gx-desk-in { box-sizing: border-box; inline-size: 100%; block-size: 100%; min-block-size: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 56px minmax(0, 1fr) 24px; gap: 0.5rem; }
+.gx-desk-in { box-sizing: border-box; inline-size: 100%; block-size: 100%; min-block-size: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 56px minmax(0, 1fr) 24px; gap: 0.5rem;
+  /* in line with the sub-navigation above (20 px in), 8 px under the footnote; on this box so the container breakpoints still read the full width */
+  padding-inline: 1.25rem; padding-block-end: 0.5rem; }
 .gx-top { display: flex; align-items: center; gap: 0.75rem; min-inline-size: 0; }
 .gx-title { margin: 0; font: 600 20px/1.2 var(--font-ui, system-ui, sans-serif); }
 .gx-top-lamp { margin-inline-end: auto; }
@@ -191,6 +193,7 @@
   .gx-foot { white-space: normal; line-height: 1.4; block-size: auto; }
 }
 @container (max-width: 759px) {
+  .gx-desk-in { padding-inline: 1rem; }
   .gx-main-bp, .gx-main-print { grid-template-columns: minmax(0, 1fr); }
   .gx-facts { gap: 0.5rem; }
   .gx-facts { flex-wrap: wrap; }
@@ -210,6 +213,11 @@
   .gx-ss-tab { inline-size: calc(50% - 0.1875rem); }
   .gx-slots { grid-template-columns: minmax(0, 1fr); }
   .gx-slot-why { white-space: normal; }
+  /* the 16 px inset leaves 358 px on a phone: the slot's name and meta wrap instead of running past the edge, and the action row may wrap */
+  .gx-slot-main { flex-wrap: wrap; overflow: visible; row-gap: 0; }
+  .gx-slot-main b { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+  .gx-slot-meta { white-space: normal; }
+  .gx-bar-end { flex-wrap: wrap; }
   .gx-prev { block-size: 32rem; }
   .gx-bar-end { margin-inline-start: 0; flex-basis: 100%; justify-content: flex-end; }
 }

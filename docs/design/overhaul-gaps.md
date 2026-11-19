@@ -13,22 +13,22 @@ How to use: a builder, reviewer or juror who finds a shortfall adds a row. The p
 
 ## B. Sections still showing the old interface (to rebuild before the polish pass)
 
-| Section | State on 15 Nov | Package |
+| Section | State on 19 Nov | Package |
 |---|---|---|
 | JARVIS Core | rebuilt | done (J01, RC1, RP1) |
-| JARVIS Room | classic page hosted in the new shell; the relay pin map is new | J02 |
-| JARVIS Senses | classic page hosted | J03 |
-| JARVIS Memory | classic page hosted | J04 |
-| JARVIS Console | classic page hosted | J05 |
-| JARVIS classic pages, interim tidy | builder cut off, checkpointed | CP1 |
+| JARVIS Room | rebuilt (merged 16 Nov without a reviewer; bug hunt owed) | done (J02, RW1) |
+| JARVIS Senses | rebuilt (merged 16 Nov without a reviewer; bug hunt owed) | done (J03) |
+| JARVIS Memory | rebuilt (merged 16 Nov without a reviewer; bug hunt owed) | done (J04) |
+| JARVIS Console | rebuilt (merged 16 Nov without a reviewer; bug hunt owed) | done (J05) |
+| JARVIS classic pages, interim tidy | dropped: J02 to J05 replaced those pages | CP1 (dropped) |
 | Well Wisher Day: Today, Month | rebuilt | done (L04, RT1, L01) |
-| Well Wisher Day: Week, Body, Close | classic page hosted | L03 |
+| Well Wisher Day: Week, Body, Close | **still classic**: next build batch | L03 |
 | Well Wisher Focus | rebuilt | done (Y02) |
 | Well Wisher Study: Paper Desk, Review Desk | rebuilt | done (Y01) |
-| Well Wisher Study: generator and print | built, review owed | X03 |
-| Well Wisher Study: intake desk | builder cut off, checkpointed | C03 |
-| Well Wisher Study: plan and practice, library | classic pages tidied under the shell | Y03 |
-| Well Wisher Tree, Career | classic pages tidied under the shell | T01, T02 |
+| Well Wisher Study: generator and print | built and merged 15 Nov without a reviewer; bug hunt and one real-paper trial owed | done (X03) |
+| Well Wisher Study: intake desk | built and merged 16 Nov without a reviewer: first face of `study.library`, the classic Library is its second face; waits for the intake adapter | done (C03) |
+| Well Wisher Study: plan, library face, dMAT | **still classic** (tidied under the shell): next build batch; Y03 also takes `study.dmat` | Y03 |
+| Well Wisher Tree, Career | **still classic** (tidied under the shell): next build batch | T01, T02 |
 
 ## C. Gaps for the polish pass
 
@@ -55,6 +55,41 @@ How to use: a builder, reviewer or juror who finds a shortfall adds a row. The p
 | 19 | Native select | Its popup is checked by computed colours only, never seen | VIS1 review |
 | 20 | Evidence | Whole-product jury rerun owed after part B | integrator |
 
+### C.2 What the builders of the six unreviewed packages said they left short (their own lists, 16 Nov)
+
+Copied on 19 Nov from each builder's report, shortened. "Route" means the screen waits for the engine lane and draws PLANNED or WAITING until then. None of these was checked by a reviewer. The generator's builder (X03) ran in an earlier workflow; its list is not in this journal.
+
+| # | Where | Gap | Kind |
+|---|---|---|---|
+| 21 | Study, intake desk (C03) | No adapter yet: the desk shows WAITING in the real app and was only ever driven against a fixture. Needs the adapter over routes R-36 to R-42 and the archive listing | route |
+| 22 | Study, intake desk (C03) | Undo needs a decide with state "new", which the route does not list; there is no parse-without-store route, so Paste and Calendar file create rows at once instead of previewing | route |
+| 23 | Study, intake desk (C03) | Not built from the spec: "Accept and plan", "Plan a block", a per-course accept key, a source filter, the Open in Classroom and Open in Drive keys. The auto-accept switch was dropped on purpose (nothing is accepted without his press) | build |
+| 24 | Study, intake desk (C03) | The Folder door is a status and instructions sheet; it does not pick a folder | build |
+| 25 | Study, intake desk (C03) | Never driven inside the live shell, only as a gallery specimen. The selected-row surface it shares with the Paper Desk list wants one look | look |
+| 26 | Room (J02) | Both phone views and the Switches view after the sigil marks were measured, not looked at | look |
+| 27 | Room (J02) | The classic ceiling drawing (coves and lights lit from the report) is not redrawn | parity |
+| 28 | Room (J02) | Heavy-load flags live in browser storage only; a second device does not share them. The setting is not in the settings index | route |
+| 29 | Room (J02) | Saving a relay pin stays PLANNED (the adapter is null); per-channel schedules do not exist in any route, so the day ring draws only quiet hours and the auto-off night | route |
+| 30 | Room (J02) | No energy figure is drawn anywhere; the Away card is hosted in a drawer with its classic look | decision, look |
+| 31 | Room (J02) | The kit's Button, Chip, Field and Fold are sized for JARVIS by a small sheet inside the Room stylesheet; that belongs in a shared sheet. The key's "asked" sweep uses a literal 6 s, not a motion token | kit |
+| 32 | Senses (J03) | Pause is window-level only (the engine keeps sensing); the motion tape holds only minutes this window was open; the arc cannot say which day the held-out check passed | route |
+| 33 | Senses (J03) | The drill ring follows the server's gate of 7 days, not the spec's five rings | spec |
+| 34 | Senses (J03) | The Measure my room and First light drawers are classic components under override styles and were never looked at; the drill, phone recording and train tabs render but their actions were not exercised | look, test |
+| 35 | Senses (J03) | Two pieces of art have no manifest id (the waiting-for-source emblem, the vortex for WAITING); no idle-frame check was written; the bundle budget was not run by the builder | art, test |
+| 36 | Senses (J03) | The phone shows all three views reflowed into one column where the spec says a status list only | spec |
+| 37 | Memory (J04) | Drawn PLANNED because no route exists: delete one item, Wrong on one node, Fix and Delete for a person, a snapshot, delete raw signal and its retention, delete a namespace, span and format and single-chat export, a read route for outside assistants | route |
+| 38 | Memory (J04) | A Fix is stored as a correction, not an edit of the archive line. Live Fix, capture and the review export were checked by stubbed tests only; the sandbox store is empty | route, test |
+| 39 | Memory (J04) | Several PLANNED rows are literal text and are missing from the planned registry, so they do not open the "What is coming" card | build |
+| 40 | Memory (J04) | The hold-to-confirm cursor, voice capture with its source tag, the reminder chip and bell are not built; the reminders strip shows one row, not two | build |
+| 41 | Memory (J04) | Taste shows only when nothing is selected; on the phone the picture is replaced by a text list; the light theme was not looked at | look |
+| 42 | Console (J05) | No route for a memory export, a hearing test, chat retrieval for outside agents or a caller for the always-on feed: each answers PLANNED | route |
+| 43 | Console (J05) | Not drawn: the typed board address form and the hot-plug line of the classic boards card | parity |
+| 44 | Console (J05) | Six classic cards (link, firmware, modules, exports, phone, remarks) keep their classic look and their own scrolling inside the folders | look |
+| 45 | Console (J05) | The capture line shows on the phone (the spec says desktop only) and its unknown-verb text lacks the terminal prefix; the phone lamp list and last-events strip are not built | spec |
+| 46 | Console (J05) | Core's sigil ring, pipeline ribbon and organ strip are not reused; the kit Rocker paints one warm half per rocker, so Hardware shows more than one accent fill; a decorative header tile measures 2.24:1 | kit, look |
+| 47 | Console (J05) | Health leaves little slack at 665 px with four job rows; the light theme was checked on Health only; reduced motion was read from the stylesheet, not run | look, test |
+| 48 | Parity ledger | Rows S01 to S05 still read "legacy host"; they are built by J03 | docs |
+
 ## D. Asked for and not yet in the product (audit of 15 Nov 2026)
 
 Source: a read of the compacted chats and the owner's direction notes against the plan files and the merged code on 15 Nov. These rows are to be fixed later, not now: the build of part B comes first, then the polish of part C, then these. "Needs a package" means no wave in 15.6.1 or the reserve list (21.9) names it.
@@ -66,7 +101,7 @@ Source: a read of the compacted chats and the owner's direction notes against th
 | D3 | JARVIS Core / Console | An outside agent can ask JARVIS what was said about a topic (read-only, token-guarded) | NO HOME (parity O2) | engine route plus J04 and J05 |
 | D4 | JARVIS Core | Rate a whole chat, not only single replies | NO HOME (parity O3) | engine verdict record plus J01 follow-up |
 | D5 | JARVIS Core | The pronunciation table and the media plate and library inside Core | PARTLY: reachable only in classic pages | J01 reopened or a new sound package (needs a package) |
-| D6 | JARVIS Room | Relay pins editable in a compact form with a confirm step | BUILT (RW1); the Room section itself is still classic | J02 (UW9) |
+| D6 | JARVIS Room | Relay pins editable in a compact form with a confirm step | BUILT (RW1, J02); saving a pin waits for a route (C.2 row 29) | engine route |
 | D7 | JARVIS Senses | Aankhen section with the shared components and its charts | classic page hosted | J03 (UW11) |
 | D8 | JARVIS Memory | New interactive Yaadash components; weekly review and corrections | classic page hosted; review is reserve | J04 (UW10), JH07 (reserve) |
 | D9 | JARVIS Console | Terminal-style console, crew roster, connections and hardware | classic page hosted | J05 (UW10) |

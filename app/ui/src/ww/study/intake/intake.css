@@ -42,7 +42,7 @@ button.ik-door:focus-visible, .ik-row:focus-visible, .ik-pg:focus-visible, .ik-o
 .ik-door-top .ik-key { margin-inline-start: 0; }
 .ik-door-sub { font: 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); overflow-wrap: break-word; }
 /* the lamp keeps its word on one line and the reason sits under it, free to take two lines: a WAITING reason is the state, so it is never cut (19 Nov sweep) */
-.ik-door-lamp { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 0.5rem; min-inline-size: 0; }
+.ik-door-lamp { display: flex; flex-wrap: wrap; align-items: center; gap: 0.125rem 0.5rem; min-inline-size: 0; }
 .ik-door-why { font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); flex: 1 1 100%; min-inline-size: 0; overflow-wrap: anywhere; }
 /* Classroom is a plate, not a door: sunk, not focusable, PLANNED with its reason */
 .ik-plate { background: var(--surface-sunk); box-shadow: var(--elev-recessed); cursor: default; }

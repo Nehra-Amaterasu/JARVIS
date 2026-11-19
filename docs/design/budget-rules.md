@@ -43,6 +43,16 @@ The owner: "the build is more important right now. First we build and polish it,
 - **Art limits relaxed.** Decorative and idle motion is allowed, animated ASCII above all; the one-canvas, no-WebGL and no-idle-animation limits no longer block a build. A reduced-motion still stays, because it costs one media query.
 - **What does not relax** (these are the project's standing rules, not verification): no personal details in tracked files and the privacy scan before every push; nothing simulated shown as measured; no camera; never touch the running app's port or its served folder; commits in first person with no attribution.
 
+## 4c. Verification is back, and the bar is a score (owner, 19 Nov 2026, late evening)
+
+The owner: "use the verifications I denied on 14 Nov too; we cannot afford mistakes at this point since we need to move fast, hence we need to be refined. The task you count as completed should have a design score of more than 8. Bring the whole UI score to at least 8.1." This replaces 4b from this moment:
+
+- **A package is done only when a jury scores its design above 8.0.** Built, tested and merged is "built", not "done". The state file and the gaps file say which of the two a package is.
+- **Every package gets a reviewer** (a different agent from its builder) before it is merged, and a jury of two after the reviewer's findings are fixed. Below the bar, the jurors' findings go back to a builder and the package is judged again, up to three rounds; after that it is reported as "built, below the bar" with its score, never rounded up.
+- **The whole application's score must reach 8.1** (design and usability, the jury rubric of 13 Nov). The last whole-application jury, before the six unreviewed merges, gave 6.9 and 7.3. A baseline jury is taken first so every later score has something to be compared with.
+- **Any verification method may be used**: reviewers, juries, adversarial checks of findings, the view sweep, the full check. The caps of sections 1 and 3 on agents per wave no longer bind; what binds is the machine (memory commit and at most four Playwright runs at once) and the standing rules at the end of 4b, which never relax.
+- The weekly usage meter stood at 92 percent when this was decided. Work is therefore laid out so that an agent cut off mid-run loses nothing: builders leave their work in their worktree, the integrator checkpoints it, and a workflow can be resumed.
+
 ## 5. What is measured
 
 Each wave's log line carries: agents, agent tokens, minutes, hits against the estimate. Records so far: 15 agents 4.1 million tokens; 10 agents 2.3 million; 12 agents 3.1 million in 116 minutes; a fix agent about 0.25 million; a juror about 0.26 million.

@@ -8,7 +8,7 @@ import type { LatencyView } from '../../../lib/settings'
 import type { PlannedEntry } from '../../../shared/planned/types'
 import {
   VERBS, VERB_NAMES, applyFilter, boardJobSpec, completeVerb, densityBuckets, eventLamp, flashGate, gpuModel, hearingRow, healthRows,
-  integrationCounts, integrationReading, jobBoard, parseFilter, replySeries, routePlates, sourceCounts, stewardRow, tagsOf, timingRow, verbDef, wakeRow,
+  integrationCounts, integrationReading, jobBoard, parseFilter, plateLine, plateSpoken, replySeries, routePlates, sourceCounts, stewardRow, tagsOf, timingRow, verbDef, wakeRow,
 } from '../model'
 import { BOARD_USB, BOARD_WIFI, EVENTS, FIXED_NOW, LAT_FAULT, LAT_OFF, LAT_ON, VITALS_NONE, VITALS_ON } from '../fixtures'
 
@@ -196,6 +196,29 @@ describe('the route plates', () => {
     const p = routePlates([e('a', { built: true }), e('b', { state: 'unverified' }), e('c')])
     expect(p.map((x) => x.state)).toEqual(['passed', 'waiting', 'planned'])
     expect(p.map((x) => x.id)).toEqual(['a', 'b', 'c'])
+  })
+  it('a plate prints a complete short phrase: the first sentence when short, else the state phrase, never a cut sentence', () => {
+    expect(plateLine('Deleting everything under one heading in one step is not built. Delete items one at a time for now.', 'planned')).toBe('Not built yet.')
+    expect(plateLine('Starting a track by name is not built.', 'planned')).toBe('Starting a track by name is not built.')
+    expect(plateLine('The local library panel is built and not verified yet. It stays out until a check passes.', 'waiting')).toBe('Built, not verified yet.')
+    expect(plateLine('A short note without a stop', 'passed')).toBe('A short note without a stop')
+    expect(plateLine('x'.repeat(80), 'passed')).toBe('Built, with a note.')
+    // the limit is inclusive: 48 characters print, 49 do not
+    expect(plateLine('a'.repeat(47) + '.', 'planned')).toBe('a'.repeat(47) + '.')
+    expect(plateLine('a'.repeat(48) + '.', 'planned')).toBe('Not built yet.')
+    // nothing to print, or only a fragment before the first stop: the state phrase, never an empty or four-letter line
+    expect(plateLine('', 'planned')).toBe('Not built yet.')
+    expect(plateLine('   ', 'waiting')).toBe('Built, not verified yet.')
+    expect(plateLine('e.g. a second link is not built.', 'planned')).toBe('Not built yet.')
+    // a stop inside a number is not the end of a sentence
+    expect(plateLine('Version 1.5 is built.', 'passed')).toBe('Version 1.5 is built.')
+    expect(plateLine('  Padded line is built.  ', 'passed')).toBe('Padded line is built.')
+  })
+  it('the accessible name always contains the printed phrase, and the whole line', () => {
+    const long = 'Deleting everything under one heading in one step is not built. Delete items one at a time for now.'
+    expect(plateSpoken(long, 'planned')).toBe('Not built yet. ' + long)
+    expect(plateSpoken('Starting a track by name is not built.', 'planned')).toBe('Starting a track by name is not built.')
+    for (const [line, state] of [[long, 'planned'], ['Short line here.', 'passed'], ['', 'waiting']] as const) expect(plateSpoken(line, state)).toContain(plateLine(line, state))
   })
   it('caps the route and keeps nothing it was not given', () => {
     expect(routePlates(Array.from({ length: 20 }, (_, i) => e(`p${i}`)), 14)).toHaveLength(14)

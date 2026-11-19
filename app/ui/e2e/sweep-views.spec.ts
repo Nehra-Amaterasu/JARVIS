@@ -23,7 +23,10 @@ import { PROBE, type Probe } from './probe'
 
 const OUT = process.env.SWEEP_SHOTS ? resolve(process.env.SWEEP_SHOTS) : ''
 const ONLY = (process.env.SWEEP_SECTIONS ?? '').split(',').map((s) => s.trim()).filter(Boolean)
-const SIZES = [{ w: 1366, h: 768 }, { w: 390, h: 844 }]
+// SWEEP_SIZES=1120x720,1366x768 overrides the two default sizes (1120x720 is the smallest the desktop window can be made)
+const SIZES = process.env.SWEEP_SIZES
+  ? process.env.SWEEP_SIZES.split(',').map((t) => { const [w, h] = t.trim().split('x').map(Number); return { w, h } }).filter((z) => z.w > 0 && z.h > 0)
+  : [{ w: 1366, h: 768 }, { w: 390, h: 844 }]
 
 // The section table of shell/ids.ts, in rail order per product (Ctrl+1..5 follows this order inside a product).
 const TABLE: Array<{ product: 'jarvis' | 'ww'; id: string; views: string[] }> = [

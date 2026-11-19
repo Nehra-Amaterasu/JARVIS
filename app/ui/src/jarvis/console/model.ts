@@ -318,6 +318,29 @@ export function routePlates(registry: readonly PlannedEntry[], max = 14): RouteP
   }))
 }
 
+/** What a plate prints under its name: the entry's first sentence when it is short enough for two lines on a plate
+ *  (48 characters, measured at 1366 px where seven plates share a row), else one complete phrase that says the same state as the
+ *  state word. A plate is a button; the whole line is in its accessible name and in the card it opens, so nothing is cut here. */
+export const PLATE_LINE_MAX = 48
+/** A first "sentence" shorter than this is a fragment, not a line to print: "e.g. a second link" ends at the stop of "e.g.". */
+export const PLATE_LINE_MIN = 8
+/** One phrase per state, typed by the state so a new state cannot fall through to "Not built yet." unnoticed. A passed plate's
+ *  line is its caveat (types.ts), so when that caveat does not fit the phrase says a note exists instead of dropping it. */
+const PLATE_PHRASE: Record<PlateState, string> = { passed: 'Built, with a note.', waiting: 'Built, not verified yet.', planned: 'Not built yet.' }
+export function plateLine(line: string, state: PlateState): string {
+  const text = line.trim()
+  const first = (text.match(/^.+?[.!?](?=\s|$)/)?.[0] ?? text).trim()
+  if (first.length >= PLATE_LINE_MIN && first.length <= PLATE_LINE_MAX) return first
+  return PLATE_PHRASE[state]
+}
+/** What the plate's accessible name says after the state word: the whole line, led by the printed phrase when that phrase is
+ *  not the line's own words, so the name always contains what is visible (speech input matches on visible text). */
+export function plateSpoken(line: string, state: PlateState): string {
+  const shown = plateLine(line, state)
+  const text = line.trim()
+  return text.includes(shown) ? text : `${shown} ${text}`.trim()
+}
+
 export const PLATE_WORD: Record<PlateState, string> = { passed: 'BUILT', waiting: 'BUILT, NOT VERIFIED', planned: 'PLANNED' }
 
 /* ------------------------------------------------------------------ the integrations list */

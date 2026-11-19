@@ -7,7 +7,7 @@ import { AsciiBar, Sigil } from '../../shared/grammar'
 import { Lamp, LampGlyph, LAMP_SPECS, showsNumber, type LampReading } from '../../shared/lamp'
 import { PlannedGlyph } from '../../shared/lamp/PlannedGlyph'
 import type { PlannedEntry } from '../../shared/planned/types'
-import { PLATE_WORD, gb, routePlates, validFraction, type ConsoleRowData, type GpuModel, type JobSpec } from './model'
+import { PLATE_WORD, gb, plateLine, plateSpoken, routePlates, validFraction, type ConsoleRowData, type GpuModel, type JobSpec } from './model'
 
 /* ------------------------------------------------------------------ one terminal row */
 /** `[HEA] can he hear "Hey Jarvis": yes   LIVE listening for the wake word`: the bracket tag, the line, the lamp and its reason. */
@@ -106,14 +106,14 @@ export function RoutePlates({ registry, onOpen, max = 14 }: RoutePlatesProps) {
         <li key={p.id} className="jx-plate-li" data-state={p.state}>
           <button
             type="button" className="jx-plate" data-plate={p.id} data-state={p.state} tabIndex={i === 0 ? 0 : -1}
-            aria-label={`${p.label}: ${PLATE_WORD[p.state]}. ${p.line} Needs: ${p.needs}`} onClick={() => onOpen?.(p.id)}
+            aria-label={`${p.label}: ${PLATE_WORD[p.state]}. ${plateSpoken(p.line, p.state)} Needs: ${p.needs}`} onClick={() => onOpen?.(p.id)}
           >
             <span className="jx-plate-top">
               {p.state === 'planned' ? <PlannedGlyph width={12} height={12} /> : <LampGlyph state={p.state === 'passed' ? 'live' : 'waiting'} size={12} />}
               <span className="jx-plate-word">{PLATE_WORD[p.state]}</span>
             </span>
             <b className="jx-plate-name">{p.label}</b>
-            <span className="jx-plate-line">{p.line}</span>
+            <span className="jx-plate-line">{plateLine(p.line, p.state)}</span>
           </button>
         </li>
       ))}

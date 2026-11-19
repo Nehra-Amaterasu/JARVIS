@@ -2,6 +2,23 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-19 (later): a sweep of every shell view, as the bug hunt of the six unreviewed packages
+
+**Question.** X03, C03 and J02 to J05 were merged without a reviewer. Their own specs drive gallery specimens. Does anything break, overlap or go unreadable when each view is opened in the real shell, at 1366x768 and 390x844?
+
+**Method.** A new spec, `app/ui/e2e/sweep-views.spec.ts` (skipped unless `SWEEP_SHOTS` names a folder), walks all 36 views by keyboard under the flag against the sandbox, records page errors, console errors and failed `/api/` requests, runs the geometry probe that `cp2` already used (moved to `e2e/probe.ts` so there is one copy), and saves a picture per view and size. It reports; it fails only on a page error or an unreachable view. I then looked at eleven of the 72 pictures myself. The pictures stay outside the repository: the sandbox reads the real memory store, so Memory views show private data.
+
+**Numbers.** 72 view-and-size pairs in 5.3 minutes. Page errors 0, console errors 0, failed requests 0. Nothing measured wrong in 60 of 72. The 12 with findings: `core.sound` (both sizes), `room.rules`, `console.hardware` (both), `console.crew`, `study.library` (both), and at 390 px `memory.beliefs`, `memory.people`, `console.events`, `console.connections`.
+
+**Found.**
+- No dead or throwing view. The six packages hold up as software.
+- Four places where text cannot be read (a hard gate, fixed now and not in the polish pass): the channel marks on Room's board card, the lamp reasons on Room's rules, the 14 route plates of Console's Crew view, and the door reasons of the intake desk.
+- `core.sound` is still a hosted classic page and was missing from the list of sections left to rebuild: inner scroll of 339 px on the laptop canvas, 748 px of sideways scroll at 390 px, rows of 36 px, text of 9.5 px.
+- The largest gap is not a bug. JARVIS draws the same job three ways (soft pills in Room; square keys with a hairline in Senses, Memory and Console) and outlines every card with a hairline, while the Well Wisher pages in the same window are soft clay with no outline. This is what "not refined yet" looks like on screen, and it is a kit matter (one control sheet for the dark ground), not a per-screen one: it supports plan 08's order, kit first.
+- What the sweep cannot see: whether a press does the right thing, anything that needs the board, the voice core or a running sensor, and taste.
+
+**What it changed.** Rows 49 to 57 of `docs/design/overhaul-gaps.md` (part C.3) and a new row in part B for Core Sound. The sweep stays in the repository as the seed of the per-merge look check of plan 08.
+
 ## 2026-11-19: three Playwright failures after six unreviewed merges; the window host; why the desktop app showed old work
 
 **Question.** A new UI lane chat took over on 19 Nov. Main was at `cc75c45` with Playwright at 733 passed, 3 failed (`e2e/cp2-ww-pages.spec.ts` at 1366x768 and 390x844, and `e2e/d04-capture.spec.ts`, phone). What broke, and is it the product or the specs?

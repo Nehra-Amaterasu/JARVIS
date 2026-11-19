@@ -15,7 +15,8 @@ How to use: a builder, reviewer or juror who finds a shortfall adds a row. The p
 
 | Section | State on 19 Nov | Package |
 |---|---|---|
-| JARVIS Core | rebuilt | done (J01, RC1, RP1) |
+| JARVIS Core: Talk | rebuilt | done (J01, RC1, RP1) |
+| JARVIS Core: Sound | **still classic** (found by the sweep of 19 Nov: the hosted page scrolls 339 px inside the laptop canvas and 748 px sideways at 390 px, with 36 px rows and 9.5 px text). No package was ever listed for it (part D, row D5) | needs a package (S01, proposed) |
 | JARVIS Room | rebuilt (merged 16 Nov without a reviewer; bug hunt owed) | done (J02, RW1) |
 | JARVIS Senses | rebuilt (merged 16 Nov without a reviewer; bug hunt owed) | done (J03) |
 | JARVIS Memory | rebuilt (merged 16 Nov without a reviewer; bug hunt owed) | done (J04) |
@@ -89,6 +90,22 @@ Copied on 19 Nov from each builder's report, shortened. "Route" means the screen
 | 46 | Console (J05) | Core's sigil ring, pipeline ribbon and organ strip are not reused; the kit Rocker paints one warm half per rocker, so Hardware shows more than one accent fill; a decorative header tile measures 2.24:1 | kit, look |
 | 47 | Console (J05) | Health leaves little slack at 665 px with four job rows; the light theme was checked on Health only; reduced motion was read from the stylesheet, not run | look, test |
 | 48 | Parity ledger | Rows S01 to S05 still read "legacy host"; they are built by J03 | docs |
+
+### C.3 What the view sweep of 19 Nov found (every view of the shell, 1366x768 and 390x844, against the sandbox)
+
+`e2e/sweep-views.spec.ts` walked all 36 views at both sizes: 72 pictures, **no page error, no console error and no failed request anywhere**; 60 of 72 with nothing measured wrong. Then eleven pictures were looked at by the integrator. "Gate" marks unreadable or clipped text, which the rule at the top of this file says is fixed at once, not in the polish pass.
+
+| # | Where | Gap | Kind |
+|---|---|---|---|
+| 49 | Room, Switches (board card) | The row of channel marks under REPORTING is cut off at the top by the dark strip it sits in | gate |
+| 50 | Room, Rules | The reason beside each WAITING or LIVE lamp is cut with an ellipsis after about ten characters, so the state cannot be read; the Heavy loads note is cut the same way | gate |
+| 51 | Console, Crew (route plates) | All 14 plates clamp their text and slice the last line through the middle of the letters | gate |
+| 52 | Study, intake desk | Each door's WAITING reason is cut with an ellipsis at both sizes; the heading and the footnote sit against the canvas edge, out of line with the cards; the footnote touches the bottom edge. The Practice view's heading has the same edge fault and its step switch runs into the right edge | gate, look |
+| 53 | Console, Hardware | Classic controls inside the folders: targets of 28 to 34 px, 10.5 px text, a button label on three lines (the measured side of row 44) | look |
+| 54 | JARVIS, every rebuilt section | Three button shapes for one job: soft pills in Room; square keys with a hairline in Senses, Memory and Console. Every card carries a hairline outline. Beside the Well Wisher pages in the same window, JARVIS reads as outlined boxes, not as the same soft clay | kit |
+| 55 | Senses, Presence | Three warm fills on one screen (start, on, off) and a native select; the rule is one accent per screen | kit, look |
+| 56 | Phone width | Text cut with an ellipsis in Memory (Beliefs, People), Console (Events, Connections); the header lamps still have no words (row 15) | look |
+| 57 | Senses, Signal | No control at all on the view; the wells are large and empty while WAITING | look |
 
 ## D. Asked for and not yet in the product (audit of 15 Nov 2026)
 

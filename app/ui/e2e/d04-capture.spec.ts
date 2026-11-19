@@ -160,6 +160,10 @@ test.describe('phone, at 390 x 844', () => {
       await open(page, theme, 'data/CaptureLine')
       const over = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
       expect(over).toBeLessThanOrEqual(0)
+      // a chip seats over 140 ms with a 3 px rise (cl-seat). Measured during that rise, a fractional offset makes the
+      // box read a hair under its 44 px (two of ten chips, once the gallery grew to 107 entries and the timing moved),
+      // so the rest pose is what gets measured; the 44 px floor is unchanged
+      await page.waitForFunction(() => [...document.querySelectorAll('.cl-chip')].every((el) => el.getAnimations().every((a) => a.playState === 'finished')))
       const small = await page.evaluate(() => {
         const bad: string[] = []
         document.querySelectorAll('.cl-enter, .cl-chip-btn, .cl-input').forEach((el) => {

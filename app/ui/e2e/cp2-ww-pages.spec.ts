@@ -56,6 +56,12 @@ async function visit(page: Page, sec: string, view: string) {
   for (let k = 0; k < 6; k++) { await blurText(page); await page.keyboard.press('[') }
   for (let k = 0; k < VIEWS[sec].indexOf(view); k++) { await blurText(page); await page.keyboard.press(']') }
   await expect(page.locator('.s2-page')).toHaveAttribute('data-view', view)
+  // C03 (16 Nov) made the Manual Intake desk the first face of study.library and kept the classic Library as its second
+  // face, one press away. This spec measures the classic page, so it goes to that face; the desk has its own spec.
+  if (sec === 'study' && view === 'library') {
+    await page.getByRole('radiogroup', { name: 'Library face' }).getByRole('radio', { name: 'Library' }).click()
+    await expect(page.locator('.ik-classic[data-face="library"]')).toBeVisible()
+  }
   // the views are lazy and read the app: wait for the page's own content, not the shell around it
   await page.locator(READY[`${sec}.${view}`]).first().waitFor({ state: 'attached', timeout: 20_000 })
   await page.waitForTimeout(500)

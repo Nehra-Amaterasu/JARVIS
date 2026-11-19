@@ -2,6 +2,21 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-19: three Playwright failures after six unreviewed merges; the window host; why the desktop app showed old work
+
+**Question.** A new UI lane chat took over on 19 Nov. Main was at `cc75c45` with Playwright at 733 passed, 3 failed (`e2e/cp2-ww-pages.spec.ts` at 1366x768 and 390x844, and `e2e/d04-capture.spec.ts`, phone). What broke, and is it the product or the specs?
+
+**Found (each reproduced, then rerun twice after the fix: 26 of 26 across both files).**
+- **CP2, both sizes: the spec was looking for a page that had moved.** Package C03 made the Manual Intake desk the first face of `study.library` and kept the classic Library as its second face, one press away (`ww/study/intake/IntakeDeskView.tsx`). The spec waited 20 s for the classic page's cards and timed out. Nothing is lost in the product: the classic page is still reachable. Fix: the spec presses the "Library" face before it measures. The classic page then passes every measurement at both sizes (text 11 px or more, targets 44 px, no sideways scroll, no wrapped labels).
+- **Capture line, phone: a measurement taken mid-animation.** Each chip seats over 140 ms with a 3 px rise (`cl-seat` in `shared/capture/capture.css`). The spec measured straight after the specimen mounted. Under a fractional vertical offset the box of two chips out of ten read a hair under 44 px (they round to 67x44 and 60x44). At rest every chip is exactly 44 px high (`min-block-size: var(--hit, 44px)`, measured with a probe: 44, offsetHeight 44). It started failing when the gallery grew from 101 to 107 entries and the timing moved. Fix: the spec waits until no chip has a running animation; the 44 px floor is unchanged.
+- No shared stylesheet changed in the 23 commits (`git diff --stat 2daec75 cc75c45 -- src/shared src/styles`: only six new gallery entries), which ruled out a token or kit regression before looking further.
+
+**Also found while reading the code (leads for later work, not yet tested).**
+- The desktop window is pywebview 6.2.1 on Edge WebView2 (`app/jarvis_app/desktop.py`: `webview.create_window(..., frameless=True, background_color="#050506")`, `gui="edgechromium"`). So a see-through, frosted window is decided there: a transparent webview background plus a Windows 11 backdrop (Mica or Acrylic through the window manager) is the route to test. CSS `backdrop-filter` blurs only what is inside the page.
+- The desktop application serves `app/ui/dist`, and that folder was last built on 14 Nov (`dist/index.html`, 14 Nov 15:14). Every package merged after that (Today, Paper Desk, Focus, Month, Room, Senses, Memory, Console, the generator, the intake desk) was visible only in the side sandbox. That is the cause of "I cannot see the changes in the app".
+
+**What it changed.** Two spec files (no product code). The three failures were stale or racing specs, not defects in the six packages; the bug hunt of those packages is still owed.
+
 ## 2026-11-15: J02, Room rebuilt under the new shell
 
 **Question.** Spec A.J02 and 20.9.2: replace the hosted classic Limbs page in `room.switches` and `room.rules` with a wall box that operates the room and does not lie about the board, moving the built logic (never rewriting it) and giving every classic action a home.

@@ -2,6 +2,37 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-20: GATE1, four clipped-text faults found by the view sweep (gaps rows 49 to 52)
+
+**Question.** Can the text the sweep found cut off (board channel marks, rule reasons, route plates, intake door reasons) be made fully readable at 1366x768 and 390x844 without an inner scroll, a sideways scroll, a target under 44 px or text under 11 px?
+
+**Method.** `SWEEP_SECTIONS=room,console,study` of `e2e/sweep-views.spec.ts` before and after, plus a look at the four pictures (room switches, room rules, console crew, study library) in a folder under the temp directory. The sweep does not see a box squeezed by its grid (row 49) or a reason that wraps past its header (it reported "nothing found" for both), so those two were judged on the pictures.
+
+**Findings and fixes.**
+- 49 Board card: the grid gave `.jr-lcd` (overflow hidden) less than its two text lines, so only the second line showed. The card needed about 332 px for 299 px. Fix: the LCD box has a floor of 2.6em + 12 px; the saving came from list rows 24 to 20 px, row gap 6 to 4, bottom padding 14 to 10, LCD font 14 to 13 px, All off key 56 to 48 px (still over 44).
+- 50 Rule reasons: beside the title and the switch the lamp had about 100 px; wrapping there gave up to five lines that spilled out of the header. Fix: the lamp and its reason take their own line under the title and switch (the phone layout already did this), no ellipsis. Cost 20 px per gate, paid back by art rows 28 to 26 px, gate padding 8/10 to 6/8, row gap 6 to 4. The Heavy loads header note wraps to two lines instead of an ellipsis.
+- 51 Crew plates: 14 plates in 7 columns have room for two lines; the registry lines are one to three sentences. Fix: `plateLine()` in `jarvis/console/model.ts` prints the first sentence if it is at most 48 characters, else one complete phrase that restates the state word ("Not built yet.", "Built, not verified yet.", "Built."). The whole line stays in the plate's accessible name and in the card the press opens. No clamp.
+- 52 Intake desk and Practice desk: the reason moves under the lamp word and may take two lines (door cards 80 to a minimum of 100 px, auto when narrow), the subtitle wraps, the Classroom plate no longer clamps. The desks gain a 20 px side inset (16 px under 760 px) and 8 px under the footnote, put on the inner grid so the container breakpoints still read the full canvas width. The heading row stays 52 px (the segmented control is about 51 px tall; at 48 px c03's box check failed by 2 px) and seven ledger rows still fit 664 px (they need about 452 px, about 456 remain). On a phone the Practice desk's 16 px inset left 358 px, so the slot name and meta now wrap and the action row may wrap (x03's sideways check failed without that).
+
+**Numbers (sweep lists, 1366 / 390).**
+| view | before ellipsis+wraps | after |
+|---|---|---|
+| room.switches | 0 / 0 (cut not detected by the probe; visible in the picture) | 0 / 0, marks visible |
+| room.rules | 4 / 0 | 0 / 0 |
+| console.crew | 14 wraps + 14 clamps / 0 | 0 / 0 |
+| study.library | 5 / 0 (at 390 also the sub) | 0 / 0 |
+| study.practice | 0 / 0 (edge fault is geometry, not a probe item) | 0 / 0, inset |
+
+Nothing new in `innerY`, `sideways`, `targets` or `small`. Still listed and not part of these rows: console.connections `.jx-int-name` ellipsis at 1366, console.events `.jx-ev-text` ellipsis at 390, console.hardware small pill and six targets under 44 px at 1366.
+
+**What it changed.** `jarvis/room/room.css`, `jarvis/console/{views.css,model.ts,parts.tsx}`, `ww/study/intake/intake.css`, `ww/study/generator/generator.css`, and one model test for `plateLine`.
+
+**Limits.** A board with two long fault lines (four lines) would still overflow the board card; the probe cannot see a box squeezed by its grid, so a probe for "text box shorter than its content" would close that gap.
+
+**Review and merge (20 Nov, integrator).** An independent reviewer from the ECC plugin read the change without running it: fix-then-merge, no blocker. Fixed before the merge: the plate phrase never prints an empty line or a fragment (a first sentence under 8 characters, such as the stop after an abbreviation, falls back to the state phrase); the three states are a typed table so a new state cannot fall through to "Not built yet."; a built plate whose note does not fit says "Built, with a note." instead of dropping the note; the plate's accessible name always contains the printed phrase; tests at the 48 and 49 character boundary, empty input, an abbreviation and a decimal. Unit tests 227 of 227.
+
+**A first pass at 1120x720.** The reviewer's two larger worries were about window widths nobody had measured. The desktop window cannot be made smaller than 1120x720, so the sweep gained `SWEEP_SIZES` and was run there. At 1366x768 the four faults are clean. At 1120x720: Room rules cuts three mode descriptions; Console crew wraps eight plates to three or four lines and clamps three staff lines; Console hardware has a panel that scrolls inside itself by 402 px with four targets under 44 px; Console connections cuts one name; the classic Study plan scrolls inside itself by 86 px. None of these is new with this package. They are handed to the Room and Console lift packages, which now sweep at that size too.
+
 ## 2026-11-19 (night): the baseline jury of every section (design 6.1, usability 6.3) and the plan to lift each above 8.0
 
 Written by the planning agent of the jury workflow (43 agents: 22 design jurors on the stronger model, 11 usability jurors, 9 verifiers, 1 planner; 7.16 million agent tokens, 53 minutes); checked by the integrator for private details before it was added here. The verified fixes and the package list are kept in the private notes.

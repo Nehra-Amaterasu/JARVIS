@@ -107,6 +107,14 @@ Copied on 19 Nov from each builder's report, shortened. "Route" means the screen
 | 56 | Phone width | Text cut with an ellipsis in Memory (Beliefs, People), Console (Events, Connections); the header lamps still have no words (row 15) | look |
 | 57 | Senses, Signal | No control at all on the view; the wells are large and empty while WAITING | look |
 
+### C.4 Found at integration on 20 Nov, after nine merges
+
+| # | Where | Gap | Kind |
+|---|---|---|---|
+| 58 | Well Wisher, the shell row | The Season switch and the Roadmap key have no home. They lived on the legacy frame, which carried them into the shell's view row; since every Well Wisher view has its own registration the frame is never mounted. `e2e/shell-fixes.spec.ts` test (a) is marked to be fixed until they have one. The new shell of design language v3 is to give them a place | parity |
+| 59 | Day, Body | The water gauge's arc jumps instead of filling, and three shadow changes (Day, Career) are instant: the motion rules allow no transition on an arc length or a shadow. A token-driven way to move them is owed | motion |
+| 60 | Every rebuilt section | No package of 19 and 20 Nov is done: jury scores are 6.6 to 7.2 where judged (Week, Body, Close 6.6; Study plan and dMAT 6.6; Core Sound 7.2; Senses 6.8), and Tree, Career, Focus and Room have no jury score. They are judged again under design language v3 | score |
+
 ## D. Asked for and not yet in the product (audit of 15 Nov 2026)
 
 Source: a read of the compacted chats and the owner's direction notes against the plan files and the merged code on 15 Nov. These rows are to be fixed later, not now: the build of part B comes first, then the polish of part C, then these. "Needs a package" means no wave in 15.6.1 or the reserve list (21.9) names it.

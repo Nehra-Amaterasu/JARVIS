@@ -21,7 +21,8 @@ import webbrowser
 
 import uvicorn
 
-from .paths import APP
+from . import backdrop
+from .paths import APP, DATA
 from .security import Guard
 
 
@@ -38,11 +39,30 @@ def free_port(preferred: int = 8777, avoid: tuple = ()) -> int:
     raise RuntimeError("no free port")
 
 
+def window_options(glass: bool) -> dict:
+    """create_window's arguments after the title and the page. Glass off is the window of
+    before, argument for argument; glass on only adds transparent=True (backdrop.py)."""
+    return {"width": 1440, "height": 900, "min_size": (1120, 720),
+            "frameless": True, "easy_drag": False, "background_color": "#050506",
+            "text_select": False, **backdrop.window_extras(glass)}
+
+
 class WindowApi:
     """Exposed to the page as window.pywebview.api — the custom title bar's buttons."""
 
-    def __init__(self):
+    def __init__(self, glass: "backdrop.Glass | None" = None):
         self._maximized = False
+        self._glass = glass or backdrop.Glass(False)
+
+    def set_glass(self, on: bool, dark: bool = True) -> dict:
+        """The Frosted switch in More: store `window.glass`, apply it now where the window
+        allows it. Returns glass_state()."""
+        return self._glass.set(bool(on), bool(dark))
+
+    def glass_state(self) -> dict:
+        """{on, setting, kind, restart_needed, reason}: the page paints translucent only
+        while `on` is true, otherwise the opaque ground."""
+        return self._glass.state()
 
     def _win(self):
         import webview
@@ -117,9 +137,10 @@ def main(argv=None) -> int:
     # whole server was built (imports ~5 s, ~200 routes ~1-6 s, the lifespan), 13-19 s
     # on a busy laptop. Now it opens at once on a splash, the server is built on the GUI's
     # worker thread, and the window moves to the real page the moment it answers.
-    window = webview.create_window(
-        "JARVIS", html=SPLASH, js_api=WindowApi(), width=1440, height=900, min_size=(1120, 720),
-        frameless=True, easy_drag=False, background_color="#050506", text_select=False)
+    glass = backdrop.Glass(backdrop.read_glass_setting(DATA / "settings.json"), DATA / "settings.json")
+    opts = window_options(glass.requested)
+    window = webview.create_window("JARVIS", html=SPLASH, js_api=WindowApi(glass), **opts)
+    window.events.shown += lambda: glass.attach_window(window)
     started: dict = {}
 
     def boot() -> None:

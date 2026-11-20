@@ -1,0 +1,142 @@
+/* Career under the new shell (T02): five views on one runway. Clay tokens by name only; the one idea taken from the technical drawings
+   is the ASCII ruler at the head of each page and of each plate. No hairline outlines on a labelled control: the edge of a plate is
+   the clay's shadow. The only 1 px marks are the axis ticks, the dashed notch of an unconfirmed date and the bridge's span lines. */
+
+.t2 {
+  --line-ui: var(--edge-ui);
+  position: absolute; inset: 0; box-sizing: border-box; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: var(--space-3);
+  padding: var(--space-4); overflow: hidden; background: var(--surface-ground); color: var(--ink-1); font: var(--type-body);
+}
+.t2 *, .t2 *::before, .t2 *::after { box-sizing: border-box; }
+.t2 h1, .t2 h2, .t2 p, .t2 ul, .t2 ol { margin: 0; padding: 0; }
+/* a note never ends on one orphaned word or letter (gaps list, part C row 18) */
+.t2 p, .t2-sub, .t2-note, .t2-source { text-wrap: pretty; }
+.t2 ul, .t2 ol { list-style: none; }
+
+/* ---- the head ---- */
+.t2-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4); min-height: 60px; }
+.t2-title { min-width: 0; flex: 1; }
+.t2-ruler { height: 14px; overflow: hidden; white-space: nowrap; font: 500 11px/14px var(--font-mono); color: var(--ink-2); letter-spacing: .04em; }
+.t2-title h1 { font: 600 28px/32px var(--font-ui); letter-spacing: -.01em; color: var(--ink-1); }
+.t2-sub { font: 12px/16px var(--font-ui); color: var(--ink-2); overflow-wrap: anywhere; }
+.t2-keys { display: flex; align-items: center; gap: var(--space-3); flex: none; flex-wrap: wrap; justify-content: flex-end; }
+.t2-body { position: relative; min-width: 0; min-height: 0; }
+.t2-quiet { font: var(--type-small); color: var(--ink-2); overflow-wrap: anywhere; }
+.t2-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ---- a plate ---- */
+.t2-plate {
+  position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4) var(--space-4);
+  border-radius: var(--r-card); background: var(--surface-raised); box-shadow: var(--elev-raised);
+}
+.t2-plate[data-hollow] { background: transparent; box-shadow: var(--elev-recessed); }
+.t2-plate-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-2); min-height: 24px; }
+.t2-plate-label { font: 600 12px/16px var(--font-mono); letter-spacing: .06em; color: var(--ink-1); }
+.t2-plate-why { flex: 1 1 auto; min-width: 0; font: 400 11px/14px var(--font-ui); color: var(--ink-2); overflow-wrap: anywhere; }
+.t2-plate-corner { margin-left: auto; display: inline-flex; align-items: center; }
+.t2-plate-body { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+
+/* ---- the stamped cell: the kit Readout made small enough for a table ---- */
+.t2-stamped { display: block; min-width: 0; }
+.t2-cell.k-readout { min-height: 44px; padding: 6px 10px; gap: 0; border-radius: var(--r-ctl); align-content: center; }
+.t2-cell[data-state='waiting'] { box-shadow: none; background: transparent; border-color: transparent; }
+.t2-cell[data-state='waiting'] .k-readout-value { color: var(--ink-3); }
+.t2-cell .k-readout-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.t2-cell .k-readout-lamp { position: absolute; top: 8px; right: 8px; }
+.t2-cell .k-readout-value { font: 500 14px/18px var(--font-mono); padding-right: 18px; overflow-wrap: anywhere; }
+.t2-cell .k-readout-why { font: 400 11px/14px var(--font-ui); color: var(--ink-2); overflow-wrap: anywhere; }
+.t2-stamped { position: relative; }
+.t2-stamped[data-stamped] .t2-cell.k-readout { padding-bottom: 19px; }
+.t2-cell .k-stamp { display: none; }
+/* the stamp is part of the cell: the state word and the day it was checked, inside the 44 px well */
+.t2-stamp { position: absolute; left: 10px; right: 8px; bottom: 5px; font: 600 11px/12px var(--font-ui); letter-spacing: .01em; color: var(--ink-2); white-space: nowrap; }
+
+/* ---- shared small forms ---- */
+.t2-form { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); }
+.t2-drawer .t2-form { padding: var(--space-4); }
+.t2-pager { display: inline-flex; align-items: center; gap: var(--space-2); font: 500 12px/16px var(--font-mono); color: var(--ink-2); }
+
+/* ---- Runway ---- */
+.t2-runway { position: absolute; inset: 0; display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-template-rows: auto minmax(0, 1fr); gap: var(--space-4); }
+.t2-boardplate { grid-column: 1 / -1; }
+.t2-tableplate { grid-column: 1; grid-row: 2; }
+.t2-upnext { grid-column: 2; grid-row: 2; align-self: start; }
+.t2-board { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: var(--space-5); align-items: end; }
+.t2-axis { position: relative; display: grid; grid-template-rows: 16px 60px 2px 16px auto; padding: 0 var(--space-3); min-width: 0; }
+.t2-axis-months { position: relative; font: 600 11px/16px var(--font-mono); color: var(--ink-2); }
+.t2-axis-months span { position: absolute; transform: translateX(-4px); }
+.t2-axis-zone { position: relative; }
+.t2-notch {
+  position: absolute; bottom: 0; width: 44px; height: 100%; margin-left: -22px; padding: 0; border: 0; background: transparent; cursor: pointer;
+  display: flex; align-items: flex-end; justify-content: center; border-radius: var(--r-ctl); color: var(--ink-1);
+}
+.t2-notch i { display: block; width: 8px; border-radius: 4px 4px 0 0; background: var(--ink-1); transition: transform var(--dur-state) var(--ease-standard), background var(--dur-state) var(--ease-standard); transform-origin: bottom; }
+.t2-notch[data-confirmed='false'] i { background: transparent; border: 2px dashed var(--ink-2); border-bottom: 0; width: 10px; }
+.t2-notch[data-hot] i, .t2-notch:hover i { transform: scaleX(1.5); }
+.t2-notch:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 0; }
+.t2-axis-line { position: relative; background: var(--ink-3); border-radius: 1px; }
+.t2-axis-line i { position: absolute; top: -3px; width: 1px; height: 8px; background: var(--ink-3); }
+.t2-axis-line i[data-major] { top: -5px; height: 12px; background: var(--ink-2); width: 2px; }
+.t2-axis-days { position: relative; font: 500 11px/16px var(--font-mono); color: var(--ink-2); }
+.t2-axis-days span { position: absolute; transform: translateX(-4px); white-space: nowrap; }
+.t2-board-read { margin-top: var(--space-1); font: 500 12px/16px var(--font-mono); color: var(--ink-1); overflow-wrap: anywhere; }
+.t2-towers { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); align-items: end; }
+.t2-towers li { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.t2-tower { display: flex; align-items: flex-end; height: 64px; }
+.t2-tower i { display: block; width: 22px; border-radius: 6px 6px 0 0; background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
+.t2-towers li[data-lit='true'] .t2-tower i { background: var(--ink-1); box-shadow: none; }
+.t2-towers b { font: 600 14px/16px var(--font-mono); color: var(--ink-1); }
+.t2-towers small { font: 500 11px/14px var(--font-ui); color: var(--ink-2); text-align: center; white-space: nowrap; }
+.t2-board-list { display: flex; flex-direction: column; gap: var(--space-1); }
+.t2-board-li { width: 100%; min-height: 44px; display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); padding: 0 var(--space-3); border: 0; border-radius: var(--r-ctl); background: var(--surface-raised); box-shadow: var(--elev-raised); color: var(--ink-1); font: 12px/16px var(--font-ui); text-align: left; cursor: pointer; }
+.t2-board-li:active { box-shadow: var(--elev-pressed); }
+.t2-board-li b { font: 600 13px/16px var(--font-mono); }
+.t2-board-li small { font: 500 11px/14px var(--font-ui); color: var(--ink-2); }
+
+.t2-stagehead { display: grid; grid-template-columns: 64px minmax(0, 1fr) 316px 168px; gap: var(--space-2); padding: 0 var(--space-2); font: 600 11px/14px var(--font-ui); color: var(--ink-2); text-align: center; }
+.t2-stagehead div { grid-column: 3; display: grid; grid-template-columns: repeat(5, 60px); gap: 4px; }
+.t2-rows { display: flex; flex-direction: column; gap: var(--space-1); }
+.t2-row { display: grid; grid-template-columns: 64px minmax(0, 1fr) 316px 168px; align-items: center; gap: var(--space-2); min-height: 52px; padding: 0 var(--space-2); border-radius: var(--r-ctl); transition: background var(--dur-feedback) var(--ease-standard); }
+.t2-row[data-hot] { background: var(--surface-sunk); }
+.t2-when { font: 600 13px/16px var(--font-mono); color: var(--ink-1); }
+.t2-when[data-closed] { color: var(--ink-2); }
+.t2-rowname { min-height: 44px; min-width: 0; padding: 2px var(--space-2); border: 0; border-radius: var(--r-ctl); background: transparent; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; text-align: left; color: var(--ink-1); cursor: pointer; font: 12px/16px var(--font-ui); }
+.t2-rowname b { font: 600 13px/16px var(--font-ui); overflow-wrap: anywhere; }
+.t2-rowname span { color: var(--ink-2); overflow-wrap: anywhere; }
+.t2-rowname:focus-visible, .t2-stage:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.t2-stages { display: grid; grid-template-columns: repeat(5, 60px); gap: 4px; }
+.t2-stage { width: 60px; min-height: 44px; border: 0; border-radius: var(--r-ctl); background: var(--surface-raised); box-shadow: var(--elev-raised); color: var(--ink-2); font: 600 14px/1 var(--font-mono); cursor: pointer; transition: transform var(--dur-feedback) var(--ease-standard); }
+.t2-stage[data-state='current'] { background: var(--surface-sunk); box-shadow: var(--elev-pressed); color: var(--ink-1); }
+.t2-stage[data-state='done'] { color: var(--ink-1); }
+.t2-stage:active { box-shadow: var(--elev-pressed); transform: translateY(1px); }
+.t2-closing { min-width: 0; }
+.t2-upline { display: flex; flex-direction: column; gap: 2px; font: 12px/16px var(--font-ui); color: var(--ink-2); }
+.t2-upline b { font: 600 15px/20px var(--font-ui); color: var(--ink-1); overflow-wrap: anywhere; }
+.t2-camp { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3); border-radius: var(--r-card); background: var(--surface-raised); box-shadow: var(--elev-raised); font: 12px/16px var(--font-ui); color: var(--ink-2); }
+.t2-camp b { font: 600 14px/20px var(--font-ui); color: var(--ink-1); }
+.t2-camp-keys { display: flex; gap: var(--space-2); }
+
+@media (prefers-reduced-motion: reduce) { .t2-stage, .t2-notch i, .t2-row { transition: none; } .t2-stage:active { transform: none; } .t2-notch[data-hot] i, .t2-notch:hover i { transform: none; } }
+html[data-motion='calm'] .t2-stage, html[data-motion='calm'] .t2-notch i { transition: none; }
+
+/* ---- phone: one column, the page box scrolls (the document never does) ---- */
+.t2[data-form='phone'] { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3); overflow-y: auto; overflow-x: hidden; }
+.t2[data-form='phone'] .t2-head { flex-direction: column; align-items: stretch; flex: none; }
+.t2[data-form='phone'] .t2-keys { justify-content: flex-start; }
+.t2[data-form='phone'] .t2-body { flex: none; }
+.t2[data-form='phone'] .t2-runway { position: static; display: flex; flex-direction: column; gap: var(--space-3); }
+.t2[data-form='phone'] .t2-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'when closing' 'name name' 'stages stages'; row-gap: var(--space-1); padding: var(--space-2); }
+.t2[data-form='phone'] .t2-when { grid-area: when; }
+.t2[data-form='phone'] .t2-rowname { grid-area: name; }
+.t2[data-form='phone'] .t2-stages { grid-area: stages; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.t2[data-form='phone'] .t2-stage { width: 100%; }
+.t2[data-form='phone'] .t2-closing { grid-area: closing; }
+.t2[data-form='phone'] .t2-stagehead { display: none; }
+.t2[data-form='phone'] .t2-board { grid-template-columns: minmax(0, 1fr); }
+.t2[data-form='phone'] .t2-plate { padding: var(--space-3); }
+
+@media (forced-colors: active) {
+  .t2-plate, .t2-stage, .t2-board-li { border: 1px solid CanvasText; }
+  .t2-notch i { background: CanvasText; }
+  .t2-notch[data-confirmed='false'] i { background: Canvas; border-color: CanvasText; }
+}

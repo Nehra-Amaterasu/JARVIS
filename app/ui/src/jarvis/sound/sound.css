@@ -1,0 +1,359 @@
+/* ==========================================================================
+   Core, Sound of shell v2 (A.S01, spec 20.9.1 `core.sound`). Every rule is under .sd (the view root) or .sd-drawer (the
+   native dialog), so the classic page and the other views get none of it.
+
+   The box is the JARVIS content box J: the page area under the view row is 1302 x 668, an 8 px gutter leaves 1286 x 652.
+     left  970  the Now plate, one lifted slab: head 44 (the one key to pronunciation and the library sits in it), then one
+                body row centred in it: the dial column (384) and the words column (490) stretch to ONE height, so the
+                transport row and the source row end on one baseline, and every right edge of the words column is that
+                column's edge (the chips fill the row; the folder key is optically aligned)
+     right 300  Recent plays, Sound's own ledger, the whole column height: its top and bottom are the plate's
+   Below 900 px the view is one column that scrolls inside itself (the phone), as Core Talk does: the state first, then the
+   dial at 260 px and the transport (the primary keys in the thumb zone), the song field, the sources, the receipt, the
+   ledger; 104 px of end padding clears the dock.
+
+   Type scale, four steps (jury round 2 counted seven): 28 title, 15 body and keys and the readout (tabular mono), 13 helper
+   sentences and chips (sans), 12 labels and the log (mono caps). Mono is for labels, readouts and the log only.
+
+   Material: soft clay by name, never a colour literal. A labelled control has NO hairline: it is lifted by --elev-raised,
+   pressed by --elev-pressed, and a field is a well (--elev-recessed). A card is its elevation and nothing drawn round it.
+   The only dashed outline on the view is the PLANNED plate, which that pattern owns. The one warm fill is the play key.
+   ========================================================================== */
+.sd {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--ink-1);
+  font-family: var(--font-ui, system-ui, sans-serif);
+}
+.sd *, .sd *::before, .sd *::after, .sd-drawer *, .sd-drawer *::before, .sd-drawer *::after { box-sizing: border-box; }
+.sd :focus-visible, .sd-drawer :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.sd-tag { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; color: var(--ink-2); white-space: nowrap; }
+.sd-cap { margin: 0; font: 600 12px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+.sd-note { margin: 0; font: 13px/1.45 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); overflow-wrap: anywhere; }
+.sd-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.sd .lamp, .sd-drawer .lamp { flex: none; display: inline-flex; align-items: center; gap: 6px; font: 600 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--lamp-ink, var(--ink-1)); }
+.sd .lamp-glyph, .sd-drawer .lamp-glyph { flex: none; width: 12px; height: 12px; }
+
+/* ------------------------------------------------------------------ the soft key (no outline) */
+.sd-key {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--r-pill, 999px);
+  background: var(--surface-raised);
+  color: var(--ink-1);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none);
+  font: 600 15px/1.2 var(--font-ui, system-ui, sans-serif);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform var(--dur-state, 120ms) ease-out;
+}
+.sd-key:hover { transform: translateY(-1px); background: var(--surface-raised-hi, var(--surface-raised)); }
+.sd-key:active { transform: translateY(1px) scale(0.98); box-shadow: var(--elev-pressed, none); transition-duration: var(--dur-press, 90ms); }
+.sd-key[aria-disabled='true'] { color: var(--ink-3); box-shadow: var(--elev-flush, none); cursor: default; transform: none; }
+.sd-key[aria-busy='true'] { cursor: progress; }
+.sd-key svg { flex: none; }
+.sd-key[data-quiet='true'] { background: transparent; box-shadow: none; color: var(--ink-2); }
+.sd-key[data-quiet='true']:hover { background: var(--surface-sunk); color: var(--ink-1); transform: none; }
+.sd-key[data-danger='true'] { color: var(--state-fault); }
+.sd-go[data-ready='true'] svg { color: var(--accent-fill); }
+.sd-key-col { flex-direction: column; gap: 4px; min-height: 64px; padding: 0 8px; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; font-family: var(--font-mono, ui-monospace, monospace); }
+
+/* a well: the field, drawn in, never boxed */
+.sd-field { display: grid; gap: 6px; min-width: 0; }
+.sd-field > label { font: 600 12px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+.sd-well {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--r-pill, 999px);
+  background: var(--surface-sunk);
+  box-shadow: var(--elev-recessed, none);
+  color: var(--ink-1);
+  font: 15px/1.2 var(--font-ui, system-ui, sans-serif);
+}
+.sd-well::placeholder { color: var(--ink-2); opacity: 1; }
+.sd-well[aria-invalid='true'] { box-shadow: var(--elev-recessed, none), inset 0 0 0 2px var(--state-fault); }
+.sd-row { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.sd-row > .sd-well, .sd-row > .sd-field { flex: 1; min-width: 0; }
+
+/* ------------------------------------------------------------------ the Now plate */
+.sd-now {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 44px minmax(0, 1fr);
+  row-gap: 8px;
+  padding: 24px 32px 32px;
+  border-radius: 24px;
+  background: var(--surface-faceplate, var(--surface-raised));
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none);
+}
+/* the corner ticks of the cybersigil grammar: four short L marks 12 px in from the corners, drawn, never a box */
+.sd-now::before, .sd-recent::before {
+  --t: var(--ink-3);
+  content: '';
+  position: absolute;
+  inset: 12px;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--t), var(--t)), linear-gradient(var(--t), var(--t)),
+    linear-gradient(var(--t), var(--t)), linear-gradient(var(--t), var(--t)),
+    linear-gradient(var(--t), var(--t)), linear-gradient(var(--t), var(--t)),
+    linear-gradient(var(--t), var(--t)), linear-gradient(var(--t), var(--t));
+  background-size: 14px 1px, 1px 14px, 14px 1px, 1px 14px, 14px 1px, 1px 14px, 14px 1px, 1px 14px;
+  background-position: 0 0, 0 0, 100% 0, 100% 0, 0 100%, 0 100%, 100% 100%, 100% 100%;
+  background-repeat: no-repeat;
+  opacity: 0.7;
+}
+.sd-now:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+.sd-now-head { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.sd-now-head > .sd-row { gap: 16px; }
+.sd-now-head h2 { margin: 0; font: 600 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; color: var(--ink-2); text-transform: uppercase; }
+.sd-now-head .sd-tag { margin-right: 10px; }
+.sd-stamp { font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.06em; color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
+
+.sd-body { align-self: center; display: grid; grid-template-columns: 384px minmax(0, 1fr); column-gap: 32px; min-width: 0; }
+.sd-left { display: grid; align-content: space-between; justify-items: center; gap: 24px; min-width: 0; }
+.sd-stage { position: relative; width: 384px; height: 384px; display: grid; place-items: center; }
+.sd-stage .sd-ring { position: absolute; inset: 0; }
+/* the gauge's readout sits in the gauge's open foot: the value line, then its own lamp */
+.sd-vol { position: absolute; left: 50%; top: calc(50% + 76px); transform: translateX(-50%); display: grid; justify-items: center; gap: 6px; white-space: nowrap; }
+.sd-vol-read { font: 600 15px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; letter-spacing: 0.06em; color: var(--ink-1); }
+.sd-play {
+  position: relative;
+  z-index: 1;
+  width: 128px;
+  height: 128px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent-fill);
+  color: var(--accent-on);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none);
+  font: 650 12px/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: transform var(--dur-state, 120ms) ease-out;
+}
+.sd-play:hover { background: var(--accent-fill-hover, var(--accent-fill)); transform: translateY(-1px); }
+.sd-play:active { transform: translateY(1px) scale(0.98); box-shadow: var(--elev-pressed, none); transition-duration: var(--dur-press, 90ms); }
+.sd-play[aria-disabled='true'] { background: var(--surface-raised); color: var(--ink-3); box-shadow: var(--elev-flush, none); cursor: default; transform: none; }
+.sd-play[aria-busy='true'] { cursor: progress; }
+.sd-transport { display: grid; grid-template-columns: 76px 76px 8px 76px 76px; gap: 8px; justify-content: center; }
+.sd-transport .sd-key-col { min-width: 64px; }
+/* two clusters: track (prev, next) and volume (down, up), split by an 8 px spacer column so the eye chunks them */
+.sd-transport > [data-pair='vol']:nth-child(3) { grid-column: 4; }
+.sd-transport > [data-pair='vol']:nth-child(4) { grid-column: 5; }
+
+.sd-right { display: grid; align-content: space-between; gap: 16px; min-width: 0; }
+.sd-title-block { display: grid; gap: 8px; min-width: 0; }
+.sd-status { margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font: 600 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+.sd-status-dot { color: var(--ink-3); }
+.sd-word { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; color: var(--ink-2); }
+.sd-title { margin: 0; font: 650 28px/1.15 var(--font-ui, system-ui, sans-serif); letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.sd-sub { margin: 0; font: 15px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); overflow-wrap: anywhere; }
+.sd-receipt { display: grid; gap: 8px; min-width: 0; padding: 16px; border-radius: 16px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); }
+.sd-receipt-line { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.sd-receipt-line .lamp { padding-top: 3px; }
+.sd-receipt-text { margin: 0; font: 15px/1.4 var(--font-ui, system-ui, sans-serif); overflow-wrap: anywhere; min-width: 0; }
+.sd-receipt-why { margin: 0; font: 13px/1.35 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.sd-sources { display: grid; gap: 8px; min-width: 0; }
+.sd-src-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+/* the quiet folder key: its text ends on the column edge (optical alignment), its 44 px box overhangs into the padding */
+.sd-src-head .sd-key[data-quiet='true'] { margin-right: -12px; padding: 0 12px; font-size: 13px; }
+.sd-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.sd-chip {
+  position: relative;
+  flex: 1 1 auto;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r-pill, 999px);
+  background: var(--surface-raised);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none);
+  color: var(--ink-1);
+  font: 600 13px/1 var(--font-ui, system-ui, sans-serif);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform var(--dur-state, 120ms) ease-out;
+}
+.sd-chip { display: inline-flex; align-items: center; gap: 8px; }
+.sd-chip:hover { transform: translateY(-1px); }
+.sd-chip[role='radio'] { color: var(--ink-2); }
+/* the chosen source is PRESSED IN (the well's recess, not a shade), with its dot and full ink */
+.sd-chip[aria-checked='true']::before { content: ''; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--ink-1); }
+.sd-chip[aria-checked='true'] { background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); color: var(--ink-1); font-weight: 700; transform: none; }
+.sd-planned { display: flex; align-items: center; gap: 8px; }
+.sd-hint { margin: 0; font: 13px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+
+/* ------------------------------------------------------------------ the rail */
+.sd-rail { display: grid; grid-template-rows: minmax(0, 1fr); min-width: 0; min-height: 0; }
+.sd-recent {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 32px 24px 24px;
+  border-radius: 24px;
+  background: var(--surface-raised);
+  box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none);
+}
+/* the empty ledger: one recessed well, centred in the column, holding a formed mark, the sentence and the next step */
+.sd-log-empty { grid-row: 2 / 4; align-self: center; display: grid; justify-items: center; gap: 8px; padding: 24px 16px; border-radius: 16px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); text-align: center; }
+.sd-empty-mark { fill: none; stroke: var(--ink-1); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; opacity: 0.4; }
+.sd-log-empty-line { margin: 0; font: 600 13px/1.35 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); }
+.sd-log-empty-hint { margin: 0; font: 600 12px/1.3 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+/* the drawer's list of the rest: each a lifted row with its own key */
+.sd-tools { display: grid; gap: 12px; min-width: 0; }
+.sd-drawer .sd-tool { padding: 16px 16px 16px 20px; border-radius: 16px; background: var(--surface-raised); box-shadow: var(--lip, inset 0 0 0 transparent), var(--elev-raised, none); }
+.sd-plays { margin: 0; padding: 0; list-style: none; display: grid; align-content: start; gap: 8px; }
+.sd-play-row { display: grid; grid-template-columns: 12px 48px 60px minmax(0, 1fr); align-items: center; gap: 10px; min-height: 40px; padding: 6px 12px; border-radius: 12px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); font: 12px/1.3 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; color: var(--ink-1); }
+.sd-play-row[data-empty] { display: flex; color: var(--ink-3); }
+.sd-play-row time { color: var(--ink-2); }
+.sd-play-src { color: var(--ink-2); letter-spacing: 0.06em; text-transform: uppercase; }
+.sd-play-q { font: 600 13px/1.3 var(--font-ui, system-ui, sans-serif); overflow-wrap: anywhere; min-width: 0; }
+.sd-tool { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; min-width: 0; }
+.sd-tool-text { display: grid; gap: 6px; min-width: 0; }
+.sd-tool h3 { margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font: 650 14px/1.2 var(--font-ui, system-ui, sans-serif); }
+.sd-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+.sd-card-head h3 { margin: 0; display: flex; align-items: baseline; gap: 10px; font: 650 14px/1 var(--font-ui, system-ui, sans-serif); }
+.sd-card-body { display: grid; align-content: start; gap: 10px; min-width: 0; }
+.sd-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sd-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.sd-stat { display: grid; gap: 4px; }
+.sd-stat b { font: 650 32px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.sd-stat span { font: 600 12px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+.sd-job { display: grid; gap: 6px; }
+.sd-job-line { display: flex; justify-content: space-between; gap: 12px; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
+.sd-job-line span:first-child { overflow-wrap: anywhere; min-width: 0; }
+.sd-bar { position: relative; height: 8px; border-radius: 4px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); overflow: hidden; }
+.sd-bar i { position: absolute; inset: 0 auto 0 0; background: var(--ink-1); border-radius: 4px; }
+.sd-ledger { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.sd-ledger li { display: flex; align-items: baseline; gap: 10px; min-width: 0; font: 13px/1.3 var(--font-mono, ui-monospace, monospace); }
+.sd-ledger li b { font-weight: 650; flex: none; }
+.sd-ledger li span { color: var(--ink-2); overflow-wrap: anywhere; min-width: 0; }
+
+/* ------------------------------------------------------------------ the drawer (native dialog, opaque) */
+.sd-drawer {
+  position: fixed;
+  inset: 56px 8px 8px auto;
+  width: min(560px, calc(100vw - 16px));
+  height: auto;
+  max-height: calc(100vh - 64px);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-1);
+  overflow: visible;
+  font-family: var(--font-ui, system-ui, sans-serif);
+}
+.sd-drawer::backdrop { background: var(--scrim, transparent); }
+.sd-drawer-in {
+  height: 100%;
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-ground);
+  color: var(--ink-1);
+  border-radius: 20px;
+  box-shadow: var(--elev-float, none);
+  overflow: hidden;
+}
+.sd-drawer-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px 12px 24px; }
+.sd-drawer-head h2 { flex: 1; min-width: 0; margin: 0; font: 650 14px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; text-transform: uppercase; }
+.sd-drawer-body { flex: 1; min-height: 0; overflow: auto; padding: 8px 24px 24px; display: flex; flex-direction: column; gap: 16px; }
+.sd-drawer-body > * { flex: none; }
+.sd-docs { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; max-height: 232px; overflow: auto; }
+.sd-doc { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px 8px 8px 16px; border-radius: 14px; background: var(--surface-raised); box-shadow: var(--elev-flush, none); }
+.sd-doc-kind { font: 650 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; color: var(--ink-2); }
+.sd-doc-name { font: 600 14px/1.3 var(--font-ui, system-ui, sans-serif); overflow-wrap: anywhere; }
+.sd-doc-sub { font: 12px/1.35 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); overflow-wrap: anywhere; }
+.sd-answer { display: grid; gap: 10px; padding: 14px 16px; border-radius: 16px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); }
+.sd-answer-text { margin: 0; font: 14px/1.55 var(--font-ui, system-ui, sans-serif); overflow-wrap: anywhere; }
+.sd-cite { min-width: 44px; min-height: 44px; margin: 0 2px; padding: 0 8px; border: 0; border-radius: var(--r-pill, 999px); background: var(--surface-raised); box-shadow: var(--elev-raised, none); color: var(--ink-1); font: 650 12px/1 var(--font-mono, ui-monospace, monospace); cursor: pointer; vertical-align: middle; }
+.sd-cite[aria-pressed='true'] { box-shadow: var(--elev-pressed, none); }
+.sd-passage { margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--surface-raised); box-shadow: var(--elev-flush, none); font: 13px/1.5 var(--font-mono, ui-monospace, monospace); overflow-wrap: anywhere; max-height: 200px; overflow: auto; }
+.sd-passage b { display: block; margin-bottom: 6px; font: 650 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.sd-eg { display: flex; flex-wrap: wrap; gap: 8px; }
+.sd-words { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; max-height: 280px; overflow: auto; }
+.sd-word-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 6px 6px 6px 16px; border-radius: 14px; background: var(--surface-raised); box-shadow: var(--elev-flush, none); }
+.sd-word-row b { font: 650 14px/1.3 var(--font-ui, system-ui, sans-serif); overflow-wrap: anywhere; }
+.sd-word-row span { display: block; font: 12px/1.35 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); overflow-wrap: anywhere; }
+.sd-empty { margin: 0; padding: 16px; border-radius: 14px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); font: 13px/1.5 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+
+/* ------------------------------------------------------------------ the ring (a state, never a meter) */
+.sd-ring svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.sd-ring { color: var(--ink-3); }
+.sd-ring-arc { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; opacity: 0.9; }
+.sd-ring-cardinal { fill: none; stroke: var(--ink-2); stroke-width: 2; stroke-linecap: round; }
+.sd-ring-scale { fill: none; stroke: currentColor; stroke-width: 1; opacity: 0.55; }
+/* the band is ornament that carries a state: 38 % ink at rest so the disc and the gauge read first, 85 % when lit */
+.sd-ring-band path { fill: none; stroke: var(--ink-2); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; opacity: 0.38; transition: stroke var(--dur-state, 160ms) ease-out, opacity var(--dur-state, 160ms) ease-out; }
+.sd-ring-band path[data-lit='true'] { stroke: var(--ink-1); opacity: 0.85; }
+.sd-ring[data-state='waiting'] .sd-ring-arc { stroke-dasharray: 3 6; }
+/* the volume gauge: a hollow dashed track while no level is read back (WAITING), the solid fill only for a real level */
+.sd-gauge-track { fill: none; stroke: var(--ink-2); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 2 5; transition: stroke var(--dur-state, 160ms) ease-out; }
+.sd-ring[data-gauge='live'] .sd-gauge-track { stroke: var(--ink-3); stroke-dasharray: none; }
+.sd-gauge-steps { fill: none; stroke: var(--ink-2); stroke-width: 1.5; stroke-linecap: round; transition: stroke var(--dur-state, 160ms) ease-out; }
+.sd-gauge-fill { fill: none; stroke: var(--ink-1); stroke-width: 3; stroke-linecap: round; }
+/* a step was sent: the track lights for one beat (it says nothing about the level, which is not known) */
+.sd-ring[data-nudge] .sd-gauge-track, .sd-ring[data-nudge] .sd-gauge-steps { stroke: var(--ink-1); }
+
+/* ------------------------------------------------------------------ the phone, below 900 px: one column inside itself */
+@media (max-width: 899px) {
+  .sd { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-auto-rows: max-content; align-content: start; overflow-x: hidden; overflow-y: auto; gap: 16px; padding: 8px 16px 104px; }
+  .sd-now { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-auto-rows: max-content; min-height: auto; padding: 16px; row-gap: 16px; border-radius: 20px; }
+  .sd-now-head { flex-wrap: wrap; }
+  .sd-body, .sd-left, .sd-right { display: contents; }
+  .sd-title-block { order: 1; }
+  .sd-stage { order: 2; width: min(260px, 100%); height: auto; aspect-ratio: 1; margin: 0 auto; }
+  .sd-transport { order: 3; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 8px minmax(0, 1fr) minmax(0, 1fr); gap: 8px; justify-content: stretch; }
+  .sd-song { order: 4; }
+  .sd-sources { order: 5; }
+  .sd-receipt { order: 6; }
+  .sd-play { width: 88px; height: 88px; gap: 4px; }
+  .sd-play-icon { width: 28px; height: 28px; }
+  .sd-vol { top: calc(50% + 52px); gap: 4px; }
+  .sd-tools-key { padding: 0; width: 44px; }
+  .sd-tools-word { display: none; }
+  .sd-recent { padding: 24px 16px 16px; border-radius: 20px; }
+  .sd-log-empty { grid-row: auto; }
+  .sd-title { font-size: 24px; }
+  .sd-rail { grid-template-rows: none; grid-auto-rows: max-content; min-height: auto; }
+  .sd-chip { padding: 0 14px; }
+  .sd-drawer { inset: 8px; width: auto; max-height: calc(100vh - 16px); }
+  .sd-drawer-in { max-height: calc(100vh - 16px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sd-key, .sd-play, .sd-chip, .sd-ring-band path, .sd-gauge-track, .sd-gauge-steps { transition: none; }
+  .sd-key:hover, .sd-play:hover, .sd-chip:hover { transform: none; }
+}
+:root[data-motion='reduced'] .sd-key, :root[data-motion='reduced'] .sd-play, :root[data-motion='reduced'] .sd-chip, :root[data-motion='reduced'] .sd-ring-band path,
+:root[data-motion='reduced'] .sd-gauge-track, :root[data-motion='reduced'] .sd-gauge-steps { transition: none; }

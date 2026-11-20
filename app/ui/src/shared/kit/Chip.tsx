@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from 'react'
+import { useId, useRef, type ReactNode } from 'react'
 import { cx } from './util'
 
 export type ChipTone = 'neutral' | 'live' | 'sim' | 'fault' | 'behind'
@@ -21,6 +21,8 @@ export interface ChipProps {
   onCycle?: (next: CycleState) => void
   /** A neighbour closer than 44 px: 44 px high for real. */
   grouped?: boolean
+  /** Disabled WITH a reason, as a Button: the chip stays focusable (aria-disabled), a press does nothing, and the reason is printed beside it. */
+  disabledReason?: string
   children: ReactNode
   className?: string
 }
@@ -29,11 +31,15 @@ export interface ChipProps {
  * Replaces `chip`, `pill`, `life-chip` and `track-tag`. Without a handler it is a 24 px label; with
  * one it is a control, 36 px visible and 44 px real. The cycle states carry a glyph and a word, so
  * a state is never only a colour or a border weight. The tap motion (5.7.3 #4) is the CSS pop on
- * [data-cycle='pop'] plus the 160 ms colour cross-fade.
+ * [data-cycle='pop'] plus the 160 ms colour cross-fade. Poses: rest, hover, pressed, focus, selected (aria-pressed or a cycle
+ * state), disabled with a reason. A chip never waits, so it has no loading pose.
  */
-export function Chip({ tone = 'neutral', selected, count, onClick, cycle, onCycle, grouped, children, className }: ChipProps) {
+export function Chip({ tone = 'neutral', selected, count, onClick, cycle, onCycle, grouped, disabledReason, children, className }: ChipProps) {
   const ref = useRef<HTMLButtonElement>(null)
-  const interactive = !!(onClick || (cycle && onCycle))
+  const reasonId = useId()
+  const blocked = !!disabledReason
+  // a chip that is blocked is a control that says no, even before a handler is wired: it must not look enabled
+  const interactive = blocked || !!(onClick || (cycle && onCycle))
   const body = (
     <>
       {tone !== 'neutral' && <span className="ww-chip-dot" aria-hidden="true" />}
@@ -61,7 +67,7 @@ export function Chip({ tone = 'neutral', selected, count, onClick, cycle, onCycl
     void el.offsetWidth // restart the one-shot animation when tapped twice quickly
     el.setAttribute('data-cycle', 'pop')
   }
-  return (
+  const chip = (
     <button
       ref={ref}
       type="button"
@@ -70,8 +76,11 @@ export function Chip({ tone = 'neutral', selected, count, onClick, cycle, onCycl
       data-grouped={grouped ? 'true' : undefined}
       data-cycle-state={cycle}
       aria-pressed={cycle ? undefined : !!selected}
+      aria-disabled={blocked || undefined}
+      aria-describedby={blocked ? reasonId : undefined}
       onAnimationEnd={(e) => e.currentTarget.removeAttribute('data-cycle')}
       onClick={() => {
+        if (blocked) return
         if (cycle && onCycle) {
           pop()
           onCycle(NEXT[cycle])
@@ -80,5 +89,16 @@ export function Chip({ tone = 'neutral', selected, count, onClick, cycle, onCycl
     >
       {body}
     </button>
+  )
+  // one stable wrapper for every control chip: a chip that becomes blocked keeps its button (and its focus) and only gains the reason beside it
+  return (
+    <span className="ww-btn-wrap">
+      {chip}
+      {blocked && (
+        <span id={reasonId} className="ww-reason">
+          {disabledReason}
+        </span>
+      )}
+    </span>
   )
 }

@@ -10,9 +10,10 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import { DotTimer } from '../../shared/art'
-import { Banner, Button, Skeleton } from '../../shared/kit'
+import { Banner, Button, Lamp, Skeleton } from '../../shared/kit'
+import { FocusHead, WhyLine } from './FocusHead'
 import { HoldButton } from '../../shared/kit/Interactive'
-import { TickRing } from './art'
+import { RestingDial, TickRing } from './art'
 import { goFocus } from './nav'
 import { ParkField } from './ParkField'
 import { activeFocusPort, type FocusPort } from './ports'
@@ -69,10 +70,12 @@ export function CruciblePanel(p: CruciblePanelProps) {
         <DotTimer plannedMin={p.plannedMin} elapsedMin={p.elapsedMin} paused={p.paused} state="live" caption="Minutes held" />
       </div>
       <div className="cr-main">
+        <FocusHead title={p.paused ? 'Session held' : 'Session running'} />
         <div className="cr-read">
           <TickRing />
-          <p className="cr-readout" data-testid="readout">{p.elapsedMin} min <span className="cr-dot" aria-hidden="true">·</span> {p.trackLabel}</p>
+          <p className="cr-readout" data-testid="readout"><span className="fv-num">{p.elapsedMin}</span> min <span className="cr-dot" aria-hidden="true">·</span> {p.trackLabel}</p>
           <p className="cr-ofline">of {p.plannedMin} min{p.paused ? ', held' : ''}{p.cue ? ` · ${p.cue}` : ''}{p.wager ? ' · wager on' : ''}</p>
+          <WhyLine><Lamp state="live" reason="this block's clock, one tick a minute" /><span aria-hidden="true">This block's clock.</span></WhyLine>
         </div>
         {p.strikeLine && <Banner tone="sim">{p.strikeLine}</Banner>}
         <div className="cr-controls" role="group" aria-label="Session controls">
@@ -87,6 +90,24 @@ export function CruciblePanel(p: CruciblePanelProps) {
           </ul>
         )}
         <p className="fv-strip" aria-live="off">{stripFor({ plannedMin: p.plannedMin, paused: p.paused, guards: p.guards, parked: p.parked.length })}</p>
+      </div>
+    </section>
+  )
+}
+
+/** No block running: the resting dial and its WAITING lamp on the left, the title, one sentence, Go to Start and the capture line on the right. */
+export function CrucibleIdlePanel({ onStart }: { onStart: () => void }) {
+  return (
+    <section className="fv cr cr-idle" aria-label="Crucible session">
+      <div className="cr-field cr-field-idle">
+        <RestingDial />
+        <WhyLine className="cr-field-why"><Lamp state="waiting" reason="no block started" /><span aria-hidden="true">No block started.</span></WhyLine>
+      </div>
+      <div className="cr-main cr-main-idle">
+        <FocusHead title="No session running" testId="readout" />
+        <p className="cr-ofline">Nothing counts down. Start a block when you are ready.</p>
+        <div className="cr-controls"><Button size="lg" onClick={onStart}>Go to Start</Button></div>
+        <p className="fv-strip" aria-live="off">{'> no block'}</p>
       </div>
     </section>
   )
@@ -117,15 +138,7 @@ export function Crucible({ onEnd, port }: CrucibleProps) {
   if (a === undefined) return <div className="fv fv-wait"><Skeleton /></div>
   if (a === null) {
     return (
-      <section className="fv cr cr-idle" aria-label="Crucible session">
-        <div className="cr-field"><DotTimer plannedMin={0} elapsedMin={0} resting state="live" caption="Minutes held" /></div>
-        <div className="cr-main">
-          <p className="cr-readout" data-testid="readout">No session running</p>
-          <p className="cr-ofline">Nothing counts down. Start a block when you are ready.</p>
-          <div className="cr-controls"><Button size="lg" onClick={() => goFocus('start')}>Go to Start</Button></div>
-          <p className="fv-strip" aria-live="off">{'> no block'}</p>
-        </div>
-      </section>
+      <CrucibleIdlePanel onStart={() => goFocus('start')} />
     )
   }
   const elapsed = Math.floor(elapsedS(a, eng.now) / 60)

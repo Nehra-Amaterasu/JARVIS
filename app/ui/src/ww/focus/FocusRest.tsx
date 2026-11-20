@@ -2,11 +2,12 @@
  * Focus > Rest (A.Y02, 20.7.8): where a block ends. It says what the block was in neutral words (a session "ended", never
  * "failed"), shows the dots that were filled (an early end keeps them), says how many minutes counted (under 10 counts nothing,
  * and it says so), and offers a break once, as a plain button after a long block. A break has no countdown: nothing here wakes
- * on its own. The hill is still.
+ * on its own. The hill is still; its sun stands as high as the block held. With no block the lamp says WAITING and why.
  */
 import { useState } from 'react'
 import { DotTimer } from '../../shared/art'
-import { Button, PrimaryButton } from '../../shared/kit'
+import { Button, Lamp, PrimaryButton } from '../../shared/kit'
+import { FocusHead, WhyLine } from './FocusHead'
 import { Hill } from './art'
 import { goFocus, goToday } from './nav'
 import { MIN_COUNTED_MIN } from './session'
@@ -33,25 +34,26 @@ export function FocusRestPanel({ last, onStart, onToday, simulated }: FocusRestP
   return (
     <section className="fv fr" aria-label="Rest" data-kind={last?.kind ?? 'none'}>
       <div className="fr-left">
-        <header className="fs-head">
-          <p className="fv-kick">Focus</p>
-          <h2 className="fs-title">{!last ? 'Rest' : last.kind === 'done' ? 'Block complete' : 'Block ended'}</h2>
-        </header>
+        <FocusHead title={!last ? 'Rest' : last.kind === 'done' ? 'Block complete' : 'Block ended'} />
         {last ? (
           <>
             <p className="fr-line" role="status">{last.line}</p>
             <div className="fr-dots">
               <DotTimer plannedMin={last.length} elapsedMin={held} ended={last.kind === 'ended'} compact state={simulated ? 'simulated' : 'live'} caption="Minutes held" />
             </div>
-            <p className="fs-sub">
-              {last.counted > 0 ? `${last.counted} min logged.` : `Under ${MIN_COUNTED_MIN} minutes, so nothing was logged.`}
+            <WhyLine>
+              <Lamp state={simulated ? 'simulated' : 'live'} reason={simulated ? 'a block drawn for the gallery' : "this window's log of the block"} />
+              <span>{last.counted > 0 ? `${last.counted} min logged.` : `Under ${MIN_COUNTED_MIN} minutes, so nothing was logged.`}
               {last.parked > 0 ? ` ${last.parked} thought${last.parked === 1 ? '' : 's'} parked.` : ''}
-              {last.kind === 'ended' ? ` Last seen ${clock(last.at)}.` : ''}
-            </p>
+              {last.kind === 'ended' ? ` Last seen ${clock(last.at)}.` : ''}</span>
+            </WhyLine>
             {rest && <p className="fr-break" role="status">Break. Nothing counts down. Come back when you are ready.</p>}
           </>
         ) : (
-          <p className="fr-line" role="status">No block has ended in this window. Nothing is counting down.</p>
+          <>
+            <p className="fr-line" role="status">No block has ended in this window. Nothing is counting down.</p>
+            <WhyLine><Lamp state="waiting" reason="no block has ended" /><span aria-hidden="true">No block has ended.</span></WhyLine>
+          </>
         )}
         <div className="fr-actions">
           <PrimaryButton claimId="focus-rest-start" rank="workspace" size="lg" onClick={onStart}>Start another block</PrimaryButton>
@@ -60,7 +62,7 @@ export function FocusRestPanel({ last, onStart, onToday, simulated }: FocusRestP
         </div>
         {simulated && <p className="fs-foot">SIMULATED block, drawn for the gallery.</p>}
       </div>
-      <div className="fr-right"><Hill /></div>
+      <div className="fr-right"><Hill heldMin={last ? last.heldMin : null} /></div>
     </section>
   )
 }

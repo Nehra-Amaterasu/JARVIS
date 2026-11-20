@@ -102,3 +102,48 @@
   align-items: center;
   gap: var(--space-2);
 }
+
+/* ==========================================================================
+   Y03 (20 Nov): the Library face restyled on the plan board's pattern (ww/study/plan/y3.css): three raised plates on the ground, rows as
+   wells, no hairline round anything labelled. The concept and the findings share the left column, the node being studied has the right.
+   The face sits under the intake desk's own wrapper, which only sizes itself to its content, so the face asks for the canvas height here.
+   ========================================================================== */
+.ik-classic[data-face='library'] { block-size: 100%; min-block-size: 0; grid-template-rows: auto minmax(0, 1fr); }
+.s2 .ww-library.lb {
+  --line-ui: var(--edge-ui); --k-on-fill: var(--surface-ground); --k-on-ink: var(--ink-1);
+  box-sizing: border-box; display: grid; block-size: 100%; min-block-size: 0; padding: var(--space-2); gap: var(--space-4);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); grid-template-rows: minmax(0, 1.05fr) minmax(0, 1fr);
+  grid-template-areas: 'concept node' 'find node'; align-items: stretch; color: var(--ink-1);
+}
+.lb .y3-card { gap: var(--space-2); }
+.lb .ww-concept { display: flex; flex-direction: column; gap: var(--space-2); min-block-size: 0; }
+.lb .ww-concept-title { margin: 0; font: 600 16px/22px var(--font-ui, system-ui, sans-serif); color: var(--ink-1); overflow-wrap: anywhere; }
+.lb .ww-concept-body { font: 14px/20px var(--font-ui, system-ui, sans-serif); color: var(--ink-1); overflow-wrap: anywhere; }
+.lb .ww-recall { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--space-3); border-radius: var(--r-well); background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
+.lb .ww-papers-line { margin: 0; font: 13px/18px var(--font-ui, system-ui, sans-serif); color: var(--ink-2); overflow-wrap: anywhere; }
+.lb .ww-log-acts { display: flex; gap: var(--space-2); flex-wrap: nowrap; }
+.lb .ww-nodepick { flex: none; }
+.lb .ww-resources { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.lb .ww-resource {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-3); align-items: center; min-block-size: 56px; padding: var(--space-1) var(--space-3);
+  border: 0; border-radius: var(--r-well); background: var(--surface-sunk); box-shadow: var(--elev-recessed);
+}
+.lb .ww-resource[data-primary-resource='true'] { background: var(--surface-ground); box-shadow: var(--elev-low); }
+.lb .ww-resource-title { font: 500 14px/18px var(--font-ui, system-ui, sans-serif); color: var(--ink-1); overflow-wrap: anywhere; }
+.lb .ww-resource-meta { font: 12px/16px var(--font-ui, system-ui, sans-serif); color: var(--ink-2); overflow-wrap: anywhere; }
+.lb .ww-studylog { display: grid; align-items: end; gap: var(--space-3); margin-block-start: auto; grid-template-columns: minmax(0, 1fr) 9rem auto; }
+.lb .ww-findings { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.lb .ww-findings li { padding: 0 var(--space-3); border-radius: var(--r-well); background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
+.lb .ww-findings a { color: var(--ink-1); text-decoration: none; font: 500 14px/18px var(--font-ui, system-ui, sans-serif); padding-block: var(--space-2); }
+.lb .ww-findings a:hover { text-decoration: underline; }
+.lb > [data-findings-hidden] { grid-area: find; align-self: start; margin: 0; padding: var(--space-4); border-radius: var(--r-card); background: var(--surface-raised); box-shadow: var(--elev-raised); }
+.lb .y3-lamp { font: 600 11px/14px var(--font-mono, ui-monospace, monospace); }
+
+@media (max-width: 900px) {
+  .ik-classic[data-face='library'] { block-size: auto; grid-template-rows: none; }
+  .s2 .ww-library.lb { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: none; block-size: auto; }
+  .s2 .ww-library.lb > * { grid-area: auto; }
+  .lb .ww-resource { grid-template-columns: minmax(0, 1fr); }
+  .lb .ww-resource > .ww-log-acts { grid-column: 1; grid-row: auto; flex-wrap: wrap; }
+  .lb .ww-studylog { grid-template-columns: minmax(0, 1fr); }
+}

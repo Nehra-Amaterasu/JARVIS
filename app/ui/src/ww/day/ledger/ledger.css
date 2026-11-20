@@ -1,0 +1,66 @@
+/* The Ledger drawer (L03): raised keys, recessed wells for hollow forms, no outline on a labelled control. Its sheet surface is .dy-sheet (base.css). */
+
+.lg { --line-ui: var(--edge-ui); display: flex; flex-direction: column; gap: var(--space-4); color: var(--ink-1, CanvasText); font: var(--type-body); padding-bottom: var(--space-4); }
+.lg *, .lg *::before, .lg *::after { box-sizing: border-box; }
+.lg-lead { margin: 0; font: 600 13px/18px var(--font-ui); color: var(--ink-1, CanvasText); }
+
+.lg-sec { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border-radius: var(--r-card); background: var(--surface-ground); }
+.lg-sec-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-2); }
+.lg-sec-head h3 { margin: 0; font: 600 14px/20px var(--font-ui); color: var(--ink-1, CanvasText); }
+.lg-why { font: 400 11px/14px var(--font-ui); color: var(--ink-2, CanvasText); overflow-wrap: anywhere; flex: 1 1 100%; }
+.lg-sec[data-lamp='waiting'], .lg-sec[data-lamp='planned'] { background: transparent; box-shadow: var(--elev-recessed); }
+
+.lg-total { margin: 0; display: flex; align-items: baseline; gap: var(--space-2); }
+.lg-total-n { font: 500 28px/32px var(--font-mono); letter-spacing: -.02em; }
+.lg-total-n[data-hollow] { color: var(--ink-3); letter-spacing: .1em; }
+.lg-total-word { font: 400 12px/16px var(--font-ui); color: var(--ink-2, CanvasText); }
+.lg-strip { display: block; width: 100%; max-width: 100%; height: auto; max-height: 64px; }
+.lg-strip-slot { fill: var(--surface-sunk); }
+.lg-strip-dot { fill: var(--ink-1); }
+.lg-legend { margin: 0; font: 400 11px/14px var(--font-ui); color: var(--ink-2, CanvasText); }
+.lg-shares { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.lg-shares li { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: var(--space-2); align-items: center; font: 400 12px/16px var(--font-ui); }
+.lg-share-name { overflow-wrap: anywhere; }
+.lg-share-bar { height: 8px; border-radius: var(--r-pill); background: var(--surface-sunk); box-shadow: var(--elev-recessed); overflow: hidden; display: block; }
+.lg-share-bar i { display: block; height: 100%; background: var(--ink-2); border-radius: var(--r-pill); }
+.lg-share-n { font: 500 12px/16px var(--font-mono); }
+
+.lg-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-2); align-items: end; }
+.lg-chips { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.lg-form > .ww-btn { grid-column: 1 / -1; }
+.lg-said { margin: 0; min-height: 16px; font: 500 12px/16px var(--font-ui); color: var(--ink-1, CanvasText); overflow-wrap: anywhere; }
+
+.lg-habits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.lg-habit { display: flex; flex-direction: column; gap: var(--space-2); }
+.lg-habit-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.lg-habit-name { flex: 1 1 120px; min-width: 0; font: 600 13px/18px var(--font-ui); overflow-wrap: anywhere; }
+.lg-habit-n { font: 500 20px/24px var(--font-mono); min-width: 24px; text-align: right; }
+.lg-spark { width: 70px; height: 24px; }
+.lg-spark polyline { fill: none; stroke: var(--ink-2); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.lg-ribbon { margin: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.lg-ribbon-svg { display: block; width: 100%; max-width: 448px; height: auto; }
+.lg-ribbon figcaption { font: 400 11px/14px var(--font-ui); color: var(--ink-2, CanvasText); }
+.lg-cell-none { fill: var(--surface-sunk); }
+.lg-tile-on { fill: var(--ink-1); }
+.lg-tile-off { fill: var(--surface-sunk); }
+.lg-limit { max-width: 220px; }
+
+.lg-swap, .lg-help-add { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-2); align-items: end; }
+.lg-swap > .ww-btn { grid-column: 1 / -1; justify-self: start; }
+.lg-help-add { grid-template-columns: minmax(0, 1fr) auto; }
+.lg-help-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.lg-help-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 44px; font: 500 13px/18px var(--font-mono); overflow-wrap: anywhere; }
+
+.lg[data-form='phone'] .lg-form, .lg[data-form='phone'] .lg-swap { grid-template-columns: minmax(0, 1fr); }
+
+@media (forced-colors: active) {
+  .lg-sec, .lg-share-bar { border: 1px solid CanvasText; }
+  .lg-strip-dot, .lg-tile-on, .lg-share-bar i { fill: CanvasText; background: CanvasText; }
+  .lg-spark polyline { stroke: CanvasText; }
+}
+
+/* A chosen chip is raised with an ink mark, not a warm fill: the one warm fill of this canvas belongs to the primary key. */
+:root[data-theme^='clay'] .lg-chips .ww-chip[aria-pressed='true'] { background: var(--surface-raised); color: var(--ink-1); box-shadow: var(--elev-raised); }
+:root[data-theme^='clay'] .lg-chips .ww-chip[aria-pressed='true']::before { content: ''; display: inline-block; vertical-align: middle; width: 8px; height: 8px; margin-right: var(--space-2); border-radius: 50%; background: var(--ink-1); }
+.lg-habit-n[data-hollow] { color: var(--ink-3); letter-spacing: .1em; }
+.lg-spark[data-hollow] line { stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 3 4; stroke-linecap: round; }

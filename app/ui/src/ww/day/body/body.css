@@ -1,0 +1,85 @@
+/* Body (L03): the gym plate on the left, Water, Reminders and Class reminders on the right. Frame and plates from base.css and today.css. */
+
+.by-main { grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr); }
+.by[data-form='phone'] .by-main { display: flex; flex-direction: column; }
+.by-right { min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.by-right > .dy-cell { flex: 1 1 auto; }
+.by[data-form='phone'] .by-right { flex: none; }
+.by[data-form='phone'] .by-right > .dy-cell { flex: none; }
+.by-left > .td-plate { justify-content: flex-start; }
+
+/* ---- gym ---- */
+.by-gym { display: flex; flex-direction: column; gap: var(--space-3); min-height: 0; flex: 1; }
+.by-count { margin: 0; display: flex; align-items: baseline; gap: var(--space-2); }
+.by-count-n { font: 500 34px/38px var(--font-mono); letter-spacing: -.02em; color: var(--ink-1); }
+.by-count-n[data-hollow] { color: var(--ink-3); letter-spacing: .1em; }
+.by-count-word { font: 400 14px/20px var(--font-ui); color: var(--ink-2); }
+.by-week { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-2); }
+.by-day { min-height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); border-radius: var(--r-key); background: var(--surface-ground); box-shadow: var(--elev-recessed); }
+.by-day[data-today] { background: var(--surface-raised); box-shadow: var(--elev-raised); }
+.by-day-name { font: 600 12px/16px var(--font-ui); color: var(--ink-2); }
+.by-day-dots { display: inline-flex; align-items: center; gap: 3px; min-height: 10px; }
+.by-day-dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-1); display: block; }
+.by-day-dots b { width: 9px; height: 3px; border-radius: 2px; background: var(--ink-3); display: block; }
+.by-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.by-log li { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; gap: var(--space-2); align-items: baseline; min-height: 32px; padding: var(--space-1) var(--space-2); border-radius: var(--r-key); background: var(--surface-ground); font: var(--type-small); }
+.by-log-date { font: 500 12px/16px var(--font-mono); color: var(--ink-2); }
+.by-log-what { overflow-wrap: anywhere; color: var(--ink-1); text-transform: capitalize; }
+.by-log-sets { font: 500 12px/16px var(--font-mono); color: var(--ink-2); }
+.by-next { margin: 0; display: flex; flex-wrap: wrap; gap: 0 var(--space-2); font: var(--type-small); color: var(--ink-1); }
+.by-next-label { font: 600 12px/16px var(--font-ui); color: var(--ink-2); }
+.by-next[data-hollow] > span:last-child { color: var(--ink-2); }
+.by-rail { display: flex; flex-direction: column; gap: var(--space-2); }
+.by-rail-label { font: 600 12px/16px var(--font-ui); color: var(--ink-2); }
+.by-rail-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-2); }
+.by-rail-row i { display: block; height: 28px; border-radius: 14px; background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
+.by-rail-row i[data-on] { background: var(--ink-1); box-shadow: none; }
+.by-rail-row i[data-today] { outline: 2px solid var(--ink-2); outline-offset: 1px; }
+.by-rail[data-hollow] .by-rail-row i { background: transparent; }
+.by-gym-keys { margin-top: auto; display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; }
+
+/* ---- water ---- */
+.by-water { display: flex; flex-direction: column; gap: var(--space-2); }
+.by-right .dy-note:empty { margin-top: calc(-1 * var(--space-2)); }
+.by-water-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.by-gauge { flex: none; display: block; }
+.by-gauge-track { fill: none; stroke: var(--surface-sunk); stroke-width: 9; stroke-linecap: round; filter: drop-shadow(0 0 0 transparent); }
+.by-gauge[data-hollow] .by-gauge-track { stroke: var(--ink-3); stroke-width: 2.5; stroke-dasharray: 3 5; }
+.by-gauge-fill { fill: none; stroke: var(--ink-1); stroke-width: 9; stroke-linecap: round; transition: stroke-dasharray var(--dur-state) var(--ease-standard); }
+.by-gauge-n { font: 500 18px/1 var(--font-mono); fill: var(--ink-1); }
+.by-gauge[data-hollow] .by-gauge-n { fill: var(--ink-3); letter-spacing: .1em; }
+.by-drops { min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(44px, 1fr)); gap: var(--space-2); }
+.by-drop { width: 100%; min-width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.by-drop svg path { fill: none; stroke: var(--ink-2); stroke-width: 1.6; stroke-linejoin: round; }
+.by-drop[data-on='true'] { background: var(--surface-raised); }
+.by-drop[data-on='true'] svg path { fill: var(--ink-1); stroke: var(--ink-1); }
+.by-drop[data-beyond] { opacity: .8; }
+.by-drop[data-waiting] { background: transparent; box-shadow: var(--elev-recessed); cursor: default; }
+.by-drop[data-waiting] svg path { stroke: var(--ink-3); stroke-dasharray: 2 3; }
+.by-goal { display: inline-flex; align-items: center; gap: var(--space-1); }
+.by-goal-n { font: 500 12px/16px var(--font-mono); color: var(--ink-1); min-width: 52px; text-align: center; }
+
+/* ---- class reminders ---- */
+.by-class { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.by-before { display: inline-flex; gap: var(--space-2); }
+:root[data-theme^='clay'] .by-before .ww-chip { min-height: 44px; }
+/* the PLANNED key is a recessed pill, not a ringed one: no border, the sunk face says it is not pressable yet (ink-2 on the sunk face keeps 4.5:1) */
+:root[data-theme^='clay'] .by-class .ww-btn[aria-disabled='true'] { border-color: transparent; background: var(--surface-sunk); box-shadow: var(--elev-recessed); color: var(--ink-2); }
+
+/* phone: drops wrap, the keys stack */
+.by[data-form='phone'] .by-drops { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.by[data-form='phone'] .by-water-top { justify-content: center; }
+.by[data-form='phone'] .by-gym-keys { margin-top: var(--space-2); }
+
+@media (prefers-reduced-motion: reduce) { .by-gauge-fill { transition: none; } }
+html[data-motion='calm'] .by-gauge-fill { transition: none; }
+
+@media (forced-colors: active) {
+  .by-day, .by-log li { border: 1px solid CanvasText; }
+  .by-gauge-fill, .by-gauge-track { stroke: CanvasText; }
+  .by-drop[data-on='true'] svg path { fill: CanvasText; stroke: CanvasText; }
+}
+
+/* A chosen chip is raised with an ink mark, not a warm fill: the one warm fill of this canvas belongs to the primary key. */
+:root[data-theme^='clay'] .by-before .ww-chip[aria-pressed='true'] { background: var(--surface-raised); color: var(--ink-1); box-shadow: var(--elev-raised); }
+:root[data-theme^='clay'] .by-before .ww-chip[aria-pressed='true']::before { content: ''; display: inline-block; vertical-align: middle; width: 8px; height: 8px; margin-right: var(--space-2); border-radius: 50%; background: var(--ink-1); }

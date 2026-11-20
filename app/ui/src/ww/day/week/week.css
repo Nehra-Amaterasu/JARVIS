@@ -1,0 +1,109 @@
+/* Week (L03): seven day columns beside the timetable rack and the margin ledger. The frame (.dy) and the plates come from base.css and
+   today.css; this file holds only what the week itself draws. */
+
+.wk-main { grid-template-columns: minmax(0, 1fr) 372px; align-items: start; align-content: start; }
+.wk-left { min-width: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.wk-frame { min-width: 0; display: flex; gap: var(--space-2); }
+.wk-foot { display: flex; align-items: center; gap: var(--space-4); min-width: 0; }
+.wk[data-form='phone'] .wk-foot { order: -1; flex-direction: column; align-items: stretch; gap: var(--space-2); }
+.wk[data-form='phone'] .wk-foot .dy-primary { width: 100%; }
+/* the empty week's hour ruler: ASCII ticks down the left edge, from the day heads' baseline to the foot of the well */
+.wk-ruler { flex: none; width: 36px; display: flex; flex-direction: column; justify-content: space-between; padding: 56px 0 var(--space-3); font: 500 11px/14px var(--font-mono); color: var(--ink-2); text-align: right; white-space: pre; }
+.wk[data-form='phone'] .wk-main { display: flex; flex-direction: column; }
+.wk-line { flex: 1; min-width: 0; margin: 0; min-height: 16px; font: 400 12px/18px var(--font-ui); color: var(--ink-2); overflow-wrap: anywhere; }
+.wk-line[data-moving] { color: var(--ink-1); font-weight: 600; }
+
+/* ---- the week ---- */
+.wk-week { flex: 1; min-height: 0; min-width: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-2); padding: var(--space-2); border-radius: var(--r-well); background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
+.wk[data-form='phone'] .wk-week { display: flex; flex-direction: column; padding: var(--space-2); }
+.wk-day { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-1); border-radius: var(--r-card); }
+.wk-day[data-today] { background: var(--surface-ground); }
+.wk-day[data-landing] { background: var(--surface-ground); }
+.wk-day-head { display: flex; align-items: baseline; gap: var(--space-1); min-height: 24px; padding: 0 var(--space-1); }
+.wk-day-name { font: 600 12px/16px var(--font-ui); color: var(--ink-2); }
+.wk-day-num { font: 500 16px/20px var(--font-mono); color: var(--ink-1); }
+.wk-day-head { position: relative; padding-bottom: var(--space-1); }
+/* today wears the accent underline the tabs wear, not a glyph: a 2 px state mark under its date */
+.wk-notch { position: absolute; left: var(--space-1); right: var(--space-1); bottom: 0; height: 2px; border-radius: 1px; background: var(--accent-state); }
+.wk-blocks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); min-height: 0; flex: 1; }
+.wk-blocks > li { min-width: 0; }
+
+/* a block: a planned one is a hollow form (recessed), a done one a solid raised tile; the kind's own mark and the word say which */
+.wk-block { width: 100%; min-height: 52px; display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2); text-align: left; font: var(--type-small); }
+.wk-block[data-status='planned'], .wk-block[data-status='carried'] { background: transparent; box-shadow: var(--elev-recessed); }
+.wk-block[data-status='done'] { background: var(--surface-raised); box-shadow: var(--elev-raised); }
+/* a block is read, focused and moved with the keyboard; it is not pressed, so it neither shows a hand nor sinks */
+.wk-block { cursor: default; }
+.wk-block:active { transform: none; }
+.wk-block[data-status='done']:active { box-shadow: var(--elev-raised); }
+.wk-block[data-status='planned']:active, .wk-block[data-status='carried']:active { box-shadow: var(--elev-recessed); }
+.wk-block[data-moving] { background: var(--surface-raised); box-shadow: var(--elev-raised); outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.wk-block > svg { flex: none; margin-top: 3px; }
+.wk-block-text { min-width: 0; display: flex; flex-direction: column; gap: 0; }
+.wk-block-line { display: flex; flex-wrap: wrap; gap: 0 var(--space-1); align-items: baseline; }
+.wk-block-time { font: 500 12px/16px var(--font-mono); color: var(--ink-2); }
+.wk-block-what { font: 500 12px/16px var(--font-ui); color: var(--ink-1); overflow-wrap: break-word; word-break: normal; min-width: 0; }
+.wk-block[data-status='done'] .wk-block-what { font-weight: 600; }
+.wk-block-meta { font: 400 11px/14px var(--font-ui); color: var(--ink-2); }
+.wk-landing { min-height: 44px; display: flex; align-items: center; justify-content: center; border-radius: var(--r-key); box-shadow: var(--elev-recessed); font: 600 12px/16px var(--font-ui); color: var(--ink-1); }
+.wk-more, .wk-none { font: 400 12px/16px var(--font-ui); color: var(--ink-2); padding: 0 var(--space-1); }
+/* an empty day is one hollow block, a dashed 8 px form with its words: it teaches what a block will look like (planned = hollow) */
+.wk-none { display: flex; }
+.wk-slot { flex: 1; min-height: 200px; display: flex; align-items: center; justify-content: center; text-align: center; padding: var(--space-2); border-radius: 8px; border: 1.5px dashed var(--ink-3); color: var(--ink-2); }
+.wk[data-form='phone'] .wk-slot { min-height: 48px; }
+.wk-day-foot { flex: none; padding: 0 var(--space-1); font: 500 11px/14px var(--font-mono); color: var(--ink-2); }
+
+/* phone: each day is a section of full-width blocks */
+.wk[data-form='phone'] .wk-day { padding: var(--space-1) var(--space-2); }
+.wk[data-form='phone'] .wk-day-head { min-height: 28px; }
+.wk[data-form='phone'] .wk-block { min-height: 48px; }
+
+/* ---- the side: the rack and the ledger ---- */
+.wk-side { min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.wk-side > .dy-cell { flex: none; }
+.wk[data-form='phone'] .wk-side { flex: none; }
+.wk[data-form='phone'] .wk-side > .dy-cell { flex: none; }
+
+.wk-rack { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.wk-class { min-height: 44px; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: 'time name' 'meta meta'; column-gap: var(--space-2); align-items: baseline; padding: var(--space-1) var(--space-2); border-radius: var(--r-key); background: var(--surface-ground); }
+.wk-class-time { grid-area: time; font: 500 12px/16px var(--font-mono); color: var(--ink-2); }
+.wk-class-name { grid-area: name; font: 600 12px/16px var(--font-ui); color: var(--ink-1); overflow-wrap: anywhere; }
+.wk-class-meta { grid-area: meta; font: 400 11px/14px var(--font-ui); color: var(--ink-2); }
+.wk-class[data-status='present'] { background: var(--surface-raised); box-shadow: var(--elev-raised); }
+.wk-class[data-hollow] { display: flex; align-items: center; gap: var(--space-2); background: transparent; }
+.wk-dash { flex: 1; height: 0; border-top: 2px dashed var(--line-ui); }
+/* a free slot: a hollow blanking plate, recessed, with its minutes in words */
+.wk-free { width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: 0 var(--space-2); border: 0; border-radius: var(--r-key); background: transparent; color: var(--ink-1); text-align: left; box-shadow: var(--elev-recessed); cursor: pointer; transition: box-shadow var(--dur-feedback) var(--ease-standard); }
+.wk-free:enabled:hover { background: var(--surface-raised); box-shadow: var(--elev-raised); }
+.wk-free:enabled:active { box-shadow: var(--elev-pressed); }
+.wk-free:disabled { cursor: default; }
+.wk-free:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.wk-rack > li { min-width: 0; }
+.wk-free-label { font: 600 12px/16px var(--font-ui); color: var(--ink-1); }
+
+/* ---- the margin ledger ---- */
+.wk-margins { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.wk-margin { width: 100%; min-height: 44px; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'name text' 'dots text'; column-gap: var(--space-2); align-items: center; padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--r-key); background: var(--surface-ground); color: var(--ink-1); text-align: left; cursor: default; }
+.wk-margin:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; background: var(--surface-raised); box-shadow: var(--elev-raised); }
+.wk-margin:hover { background: var(--surface-raised); }
+.wk-margin[data-hollow] { background: transparent; box-shadow: var(--elev-recessed); }
+.wk-margin-name { grid-area: name; font: 600 12px/16px var(--font-ui); overflow-wrap: anywhere; }
+.wk-dots { grid-area: dots; display: block; max-width: 100%; height: 16px; }
+.wk-margin-text { grid-area: text; font: 500 12px/16px var(--font-mono); color: var(--ink-1); text-align: right; max-width: 130px; overflow-wrap: anywhere; }
+.wk-margin[data-hollow] .wk-margin-text { color: var(--ink-3); }
+.wk-dot-on { fill: var(--ink-1); }
+.wk-dot-off { fill: none; stroke: var(--ink-3); stroke-width: 1.2; }
+.wk-tick { fill: var(--ink-1); }
+.wk-tick-half { fill: var(--ink-1); }
+.wk-formula { margin: 0; min-height: 32px; font: 400 12px/16px var(--font-mono); color: var(--ink-2); overflow-wrap: anywhere; }
+
+/* ---- the drawer: every row of both lists ---- */
+.wk-drawer-body { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4); }
+.wk-drawer-body .td-plate { height: auto; }
+.wk-margins-all { display: flex; flex-direction: column; gap: var(--space-2); }
+
+@media (forced-colors: active) {
+  .wk-block, .wk-class, .wk-margin, .wk-free, .wk-landing, .wk-slot { border: 1px solid CanvasText; }
+  .wk-dot-on, .wk-tick, .wk-tick-half { fill: CanvasText; }
+  .wk-dot-off { stroke: CanvasText; }
+}

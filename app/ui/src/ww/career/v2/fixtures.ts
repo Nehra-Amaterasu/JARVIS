@@ -17,7 +17,7 @@ const app = (id: string, org: string, programme: string, status: Application['st
 
 export const FIXTURE_APPS: Application[] = [
   app('northgate-intern', 'Northgate Labs', 'Summer internship', 'preparing', 9),
-  app('harbour-grad', 'Harbour Systems', 'Graduate programme', 'idea', 23),
+  app('quayside-grad', 'Quayside Systems', 'Graduate programme', 'idea', 23),
   app('lumen-research', 'Lumen Research Group', 'Research placement', 'applied', 41),
   app('ashford-design', 'Ashford Design Works', 'Junior engineer', 'interview', 64),
   app('vale-intern', 'Vale Instruments', 'Embedded internship', 'idea', 88),
@@ -96,7 +96,7 @@ export const FIXTURE_COST_CELLS: Record<string, Cell> = {
   'cost:cert': { value: '1000', on: '2026-11-16' },
 }
 
-export const FIXTURE_UNIS: UniCol[] = ['Northgate University', 'Harbour Institute of Technology', 'Ashford Polytechnic', 'Vale University of Applied Sciences'].map((name, i) => ({
+export const FIXTURE_UNIS: UniCol[] = ['Northgate University', 'Quayside Institute of Technology', 'Ashford Polytechnic', 'Vale University of Applied Sciences'].map((name, i) => ({
   key: slug(name), name,
   uni: { name, program: 'MSc Embedded Systems', language: 'English', gpa: '', ects: '', prerequisites: 'an entrance test', portal: 'its portal', portalUrl: `https://example.org/${i}`, intake: 'winter' },
 }))

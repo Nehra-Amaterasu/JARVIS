@@ -44,10 +44,10 @@ describe('the flight board', () => {
   const apps = FIXTURE_APPS
   it('puts a notch at each closing date within 120 days, soonest first, dashed until the date is confirmed', () => {
     const n = flightNotches(apps, FIXTURE_TODAY, FIXTURE_CELLS)
-    expect(n.map((x) => x.id)).toEqual(['northgate-intern', 'harbour-grad', 'lumen-research', 'ashford-design', 'vale-intern', 'orchard-offer'])
+    expect(n.map((x) => x.id)).toEqual(['northgate-intern', 'quayside-grad', 'lumen-research', 'ashford-design', 'vale-intern', 'orchard-offer'])
     expect(n.every((x) => x.x >= 0 && x.x <= 1)).toBe(true)
     expect(n.find((x) => x.id === 'northgate-intern')!.confirmed).toBe(true)
-    expect(n.find((x) => x.id === 'harbour-grad')!.confirmed).toBe(false)
+    expect(n.find((x) => x.id === 'quayside-grad')!.confirmed).toBe(false)
     // a date far out, a ruled-out row and a row with no date have no notch
     expect(n.some((x) => x.id === 'quay-late' || x.id === 'fen-out')).toBe(false)
     expect(HORIZON).toBe(120)

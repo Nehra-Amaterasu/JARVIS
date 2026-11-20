@@ -136,7 +136,7 @@ export function SignalTerrain({ frames, source, paused = false, cursor = null, o
         ref={ref} width={STAGE_W} height={STAGE_H} className="js-terrain-canvas" aria-hidden="true"
         onPointerMove={(e) => onCursor?.(at(e))} onPointerLeave={() => onCursor?.(null)} onClick={() => onFreeze?.()}
       />
-      {hollow && <p className="js-terrain-legend">NO SIGNAL: shape is a placeholder</p>}
+      {hollow && <p className="js-terrain-legend"><span>NO SIGNAL: shape is a placeholder</span></p>}
       {!hollow && source === 'simulated' && <span className="js-stamp js-stamp-sim" data-stamp="simulated">SIMULATED</span>}
       {(paused || frozen) && <span className="js-stamp js-stamp-paused" data-stamp="paused">{frozen ? 'PAUSED: Esc resumes' : 'PAUSED BY YOU'}</span>}
     </div>

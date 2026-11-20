@@ -3,6 +3,8 @@
 // at the width of the page on a phone. Every reading is from the simulation source, so every lamp says SIMULATED.
 import { useMemo, useSyncExternalStore } from 'react'
 import { fixtureState, fixtureStore, type FixtureKind } from './fixtures'
+import { SENSES_SENTENCE } from './model'
+import { SensesFrame } from './parts'
 import { PresenceView } from './PresenceView'
 import { SignalView } from './SignalView'
 import { TeachView } from './TeachView'
@@ -29,9 +31,11 @@ export function J03State({ state: id }: { state: J03StateId }) {
   const props = { state, store, fixture: true }
   return (
     <div className="js-gallery-box" data-j03={id}>
-      {spec.view === 'presence' && <PresenceView {...props} />}
-      {spec.view === 'signal' && <SignalView {...props} />}
-      {spec.view === 'teach' && <TeachView {...props} />}
+      <SensesFrame text={SENSES_SENTENCE}>
+        {spec.view === 'presence' && <PresenceView {...props} />}
+        {spec.view === 'signal' && <SignalView {...props} />}
+        {spec.view === 'teach' && <TeachView {...props} />}
+      </SensesFrame>
     </div>
   )
 }

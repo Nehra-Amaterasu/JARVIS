@@ -84,10 +84,10 @@ export function fixtureReadiness(stage: 'partial' | 'ready'): Readiness {
     ready, zones_trusted: ready, zone_floor: ready ? 0.7 : null, layout_measured: ready, drill_days: ready ? 7 : 3,
     items: [
       item('layout', ready, 'Room measured with a tape', 'Open Measure my room and enter the walls, furniture, board and router.'),
-      item('baseline_fan_off', true, 'Quiet baseline, fan off', 'Leave the room quiet, fan off, and run the calibration.'),
-      item('baseline_fan_on', ready, 'Quiet baseline, fan on', 'Leave the room quiet, fan on, and run the calibration.'),
-      item('drill_days', ready, `Drill days (${ready ? 7 : 3} of 7)`, 'Do the 26-minute drill once a day.'),
-      item('zone_gate', ready, 'Zone model passed the day-7 test', 'After day 7, run the evaluation.'),
+      item('baseline_fan_off', true, 'Quiet baseline, fan off', 'Leave the room quiet, fan off: python -m aankhen calibrate --seconds 120'),
+      item('baseline_fan_on', ready, 'Quiet baseline, fan on', 'Leave the room quiet, fan on: python -m aankhen calibrate --seconds 120 --fan'),
+      item('drill_days', ready, `Drill days (${ready ? 7 : 3} of 7)`, 'Do the 26-minute drill once a day: python -m aankhen drill'),
+      item('zone_gate', ready, 'Zone model passed the day-7 test', 'After day 7: python -m aankhen evaluate'),
     ],
     missing: ready ? [] : ['Room measured with a tape', 'Quiet baseline, fan on', 'Drill days (3 of 7)', 'Zone model passed the day-7 test'],
   }

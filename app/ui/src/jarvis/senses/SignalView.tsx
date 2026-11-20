@@ -1,18 +1,25 @@
 // Senses, Signal (spec 20.9.3): what the Wi-Fi channel itself says, as an SVG-only spectrum (51 amplitude bars) and the
-// motion score on a log scale. The old spectrogram and ripples are dropped on purpose, so the view holds no canvas. A
-// reading is a number only with a lamp that says LIVE or SIMULATED; with no frame it is "--" and the reason.
-// The narration is a fixed template (model.narration) checked by the copy lint: it states a score and a threshold and
-// never a guess about a person.
+// motion score as a dial on a log scale with the trace of the last 30 s under it. The old spectrogram and ripples are
+// dropped on purpose, so the view holds no canvas. A reading is a number only with a lamp that says LIVE or SIMULATED; with
+// no frame it is "--" and the reason. The narration is a fixed template (model.narration) checked by the copy lint: it
+// states a score and a threshold and never a guess about a person.
+//
+//   left 720                                  right 550
+//   spectrum   51 bars, short                 motion band   the band meter against its threshold
+//   dial       the one focal form + trace     text waterfall
+//   narration  one plate, 44 px               ledger        sensors, then events, in one card
+//                                             Go to Presence, 44 px (both columns end on the same line)
+// The honesty sentence is the Senses frame's fixed slot under the view, not part of this file.
 import { useState } from 'react'
 import { Lamp, showsNumber, type LampReading } from '../../shared/lamp'
-import { AsciiTrace, AsciiWaterfall, MotionTrace, Spectrum } from './forms'
-import { Panel, SensesSentence, effectiveSource, useNarrow, type SensesViewProps } from './parts'
-import { SENSES_SENTENCE, bandView, cursorText, narration, sensorLamp, sourceReading, vitalText } from './model'
+import { AsciiTrace, AsciiWaterfall, MotionDial, MotionTrace, Spectrum } from './forms'
+import { KeyBtn, Panel, effectiveSource, useNarrow, type SensesViewProps } from './parts'
+import { bandView, cursorText, narration, sensorLamp, sourceReading, vitalText } from './model'
 import './senses.css'
 
 const reading = (state: LampReading['state'], reason: string): LampReading => ({ state, since: null, reason })
 
-export function SignalView({ state }: SensesViewProps) {
+export function SignalView({ state, onGo }: SensesViewProps) {
   const narrow = useNarrow()
   const [cursor, setCursor] = useState<number | null>(null)
   const source = effectiveSource(state)
@@ -29,6 +36,8 @@ export function SignalView({ state }: SensesViewProps) {
   const events = (f?.events ?? []).slice(-5).reverse()
   const m = f?.metrics
   const num = (v: number | null | undefined, d: number, unit: string) => (nums && v != null && Number.isFinite(v) ? `${v.toFixed(d)}${unit}` : '--')
+  // the ledger is the hub's report of this source: with no source it is WAITING, whatever the last frame left behind
+  const ledgerState: LampReading['state'] = source !== 'none' && (sensors.length || events.length) ? (sim ? 'simulated' : 'live') : 'waiting'
 
   return (
     <div className="js js-signal" data-narrow={narrow ? 'true' : undefined} data-source={source}>
@@ -42,9 +51,15 @@ export function SignalView({ state }: SensesViewProps) {
           aside={<span className="js-state-word" data-state={md?.state ?? 'none'}>{nums ? (md?.state ?? '--') : '--'}</span>}
         >
           <div className="js-big-row">
-            <b className="js-big js-big-num" data-testid="motion-score">{num(md?.score, 1, 'x')}</b>
-            <span className="js-mono-dim">threshold {num(md?.threshold, 2, 'x')}</span>
-            <AsciiTrace hist={state.hist} source={source} width={40} />
+            <MotionDial
+              score={md?.score ?? null} threshold={md?.threshold ?? null} source={source}
+              hub={<><b className="js-big js-big-num" data-testid="motion-score">{num(md?.score, 1, 'x')}</b><span className="js-mono-dim">score</span></>}
+            />
+            <div className="js-dial-side">
+              <span className="js-mono-dim js-thr">threshold {num(md?.threshold, 2, 'x')}</span>
+              <AsciiTrace hist={state.hist} source={source} width={narrow ? 22 : 40} />
+              <span className="js-mono-dim">log scale, 0.5x to 20x</span>
+            </div>
           </div>
           <MotionTrace hist={state.hist} source={source} />
         </Panel>
@@ -52,22 +67,6 @@ export function SignalView({ state }: SensesViewProps) {
       </section>
 
       <section className="js-right js-right-wide" aria-label="Link and sensors">
-        <Panel tag="SEN" title="Sensors" reading={reading(sensors.length ? (sim ? 'simulated' : 'live') : 'waiting', sensors.length ? 'reported by the hub' : 'the hub has not reported')}>
-          {sensors.length === 0 && <p className="js-note">Nothing reported yet. Start a source in Presence.</p>}
-          <ul className="js-rows">
-            {sensors.map(([k, v]) => (
-              <li key={k}>
-                <Lamp reading={reading(sensorLamp(v.state), v.detail || v.state)} subject={k} />
-                <span className="js-row-name">{k}</span>
-                <small className="js-mono-dim">{v.detail}</small>
-              </li>
-            ))}
-          </ul>
-          {link?.frames_ok !== undefined && (
-            <p className="js-readline">{nums ? `${Math.round(link.frames_ok).toLocaleString()} frames, ${link.crc_errors ?? 0} rejected by CRC, ${vitalText((link.loss_ratio ?? 0) * 100, 1, '%')} lost` : '--'}</p>
-          )}
-        </Panel>
-
         <Panel tag="MOT" title="Motion band" reading={mlamp}>
           <div className="js-band" data-source={source}>
             <div className="js-band-head"><span>0.4 to 4 Hz, walking speed</span><b>{nums && band ? band.text : '--'}</b></div>
@@ -76,30 +75,53 @@ export function SignalView({ state }: SensesViewProps) {
               {band && <b style={{ left: `${band.gatePct}%` }} aria-hidden="true" />}
             </div>
             <p className="js-readline">
-              baseline {md?.baseline ?? '--'}, breathing {nums && md?.breathing_bpm ? `${md.breathing_bpm.toFixed(1)} per min` : '--'}{' '}
+              baseline {nums ? (md?.baseline ?? '--') : '--'}, breathing {nums && md?.breathing_bpm ? `${md.breathing_bpm.toFixed(1)} per min` : '--'}{' '}
               <span className="js-exp">Experimental</span>
             </p>
           </div>
         </Panel>
 
-        {m && (
-          <Panel tag="SIM" title="Simulation check" reading={reading('simulated', 'generated truth, not measured')}>
-            <p className="js-readline">{m.mean_error_m != null ? `${(m.mean_error_m * 100).toFixed(0)} cm tracking error now` : 'no pairs yet'}; {m.truth_n} true, {m.tracked_n} tracked</p>
-          </Panel>
-        )}
-
         <Panel tag="CSI" title="Text waterfall" reading={src} aside={<span className="js-mono-dim">newest at the bottom</span>} className="js-p-water">
-          <AsciiWaterfall frames={state.frames} source={source} />
+          <AsciiWaterfall frames={state.frames} source={source} rows={6} />
         </Panel>
 
-        <Panel tag="SEN" title="Events" reading={reading(events.length ? (sim ? 'simulated' : 'live') : 'waiting', events.length ? 'from the engine' : 'none yet')} className="js-p-events">
-          {events.length === 0 ? <p className="js-note">No events yet.</p> : (
-            <ol className="js-log">
-              {events.map((e) => <li key={e.id}><span className="js-tag">[SEN]</span> {e.text}</li>)}
-            </ol>
-          )}
+        <Panel
+          tag="SEN" title="Sensors and events" className="js-p-ledger"
+          reading={reading(ledgerState, ledgerState === 'waiting' ? (source === 'none' ? 'no source is running' : 'the hub has not reported') : 'reported by the hub, from the engine')}
+        >
+          <div className="js-ledger">
+            <p className="js-eyebrow">Sensors</p>
+            {sensors.length === 0 ? <p className="js-ledger-empty">Nothing reported yet. Start a source in Presence.</p> : (
+              <ul className="js-rows">
+                {sensors.map(([k, v]) => (
+                  <li key={k}>
+                    <Lamp reading={reading(sensorLamp(v.state), v.detail || v.state)} subject={k} />
+                    <span className="js-row-name">{k}</span>
+                    <small className="js-mono-dim">{v.detail}</small>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {link?.frames_ok !== undefined && (
+              <p className="js-readline">{nums ? `${Math.round(link.frames_ok).toLocaleString()} frames, ${link.crc_errors ?? 0} rejected by CRC, ${vitalText((link.loss_ratio ?? 0) * 100, 1, '%')} lost` : '--'}</p>
+            )}
+            {m && (
+              <>
+                <p className="js-eyebrow">Simulation check <span className="js-chip-sim">SIMULATED</span></p>
+                <p className="js-readline">{m.mean_error_m != null ? `${(m.mean_error_m * 100).toFixed(0)} cm tracking error now` : 'no pairs yet'}; {m.truth_n} true, {m.tracked_n} tracked. Generated truth, not measured.</p>
+              </>
+            )}
+            <p className="js-eyebrow">Events</p>
+            {events.length === 0 ? <p className="js-ledger-empty">No events yet.</p> : (
+              <ol className="js-log">
+                {events.map((e) => <li key={e.id}><span className="js-tag">[SEN]</span> {e.text}</li>)}
+              </ol>
+            )}
+          </div>
         </Panel>
-        <SensesSentence text={SENSES_SENTENCE} />
+        <div className="js-go">
+          <KeyBtn primary={source === 'none'} onClick={() => onGo?.('presence')} disabledReason={onGo ? undefined : 'Not wired in a specimen'}>Go to Presence</KeyBtn>
+        </div>
       </section>
     </div>
   )

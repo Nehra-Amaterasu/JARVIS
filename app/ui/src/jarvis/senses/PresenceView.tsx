@@ -1,10 +1,11 @@
-// Senses, Presence (spec 20.9.3, A.J03). One canvas, no document scroll at 1366 x 768: the JARVIS content box is 1286 x 652.
+// Senses, Presence (spec 20.9.3, A.J03). One canvas, no document scroll at 1366 x 768: the JARVIS content box is 1286 x 624
+// (the 652 the shell leaves, less the Senses frame's 28 px sentence slot).
 //
-//   left 760                                              right 510
+//   left 720                                              right 550
 //   controls 48   source, scenarios, pause, 3D, settings  presence core 292   the gauge, its words, the evidence
-//   terrain 392   the 720 x 360 canvas, or the 3D twin    motion tape 300      seven days, or the isometric floor plan
-//   link row 120  LinkCube vitals, the 51-dot matrix      sentence             what a link can and cannot see
-//   prediction 44 Predicting: place, right, wrong, fan
+//   terrain 372   the 680 x 340 canvas, or the 3D twin    motion tape 300      seven days, or the isometric floor plan
+//   link row 112  LinkCube vitals, the 51-dot matrix
+//   prediction 56 Predicting: the place it names, then two pairs: Right and No, I'm at; the fan note and its rocker
 //
 // The terrain is the only canvas; pressing 3D unmounts it and mounts the twin in the same box, so the view never holds two.
 // Keys (focus inside the view, not in a field): P pauses reading in this window, M swaps the tape and the floor plan,
@@ -22,9 +23,9 @@ import { AsciiTrace, ChannelMatrix, LinkCube, ProbabilityArc } from './forms'
 import { FloorPlan } from './FloorPlan'
 import { MotionTape } from './MotionTape'
 import { SignalTerrain } from './SignalTerrain'
-import { Choice, KeyBtn, Panel, SensesSentence, effectiveSource, useNarrow, type SensesViewProps } from './parts'
+import { Choice, KeyBtn, Panel, SensesSelect, effectiveSource, useNarrow, type SensesViewProps } from './parts'
 import {
-  SENSES_SENTENCE, bandOf, cursorText, linkVitals, scenarioWord, sourceReading, teachRings,
+  bandOf, cursorText, linkVitals, scenarioWord, sourceReading, teachRings,
   type Frame, type Source,
 } from './model'
 import type { SensesState, SensesStore } from './store'
@@ -46,17 +47,17 @@ function Controls({ state, store, source, toast, stage, setStage, onSettings, fi
   const mode = hub?.running ? hub.mode : null
   return (
     <div className="js-controls" role="group" aria-label="Source and view">
-      <KeyBtn primary={!hub?.running} pressed={mode === 'hardware' ? true : undefined} onClick={() => void run({ mode: 'hardware' })} title="Read frames from the ESP32 board">
+      <KeyBtn primary={!hub?.running} className="js-start" pressed={mode === 'hardware' ? true : undefined} onClick={() => void run({ mode: 'hardware' })} title="Read frames from the ESP32 board">
         {mode === 'hardware' ? 'ESP32' : 'Start ESP32'}
       </KeyBtn>
-      <select
-        className="js-select js-scen" aria-label="Simulated scenario" value={mode === 'simulation' ? (hub?.scenario ?? '') : ''} data-on={mode === 'simulation' ? 'true' : undefined}
-        title="Run a simulation: generated frames, stamped SIMULATED" onChange={(e) => { if (e.target.value) void run({ mode: 'simulation', scenario: e.target.value }) }}
-      >
-        <option value="">Simulate...</option>
-        {scen.map((id) => <option key={id} value={id}>{scenarioWord(id)}</option>)}
-      </select>
-      <Rocker on={!state.paused} onChange={(on) => store.setPaused(!on)} label="Sensing in this window" />
+      <SensesSelect
+        className="js-scen" label="Simulated scenario" placeholder="Simulate..." value={mode === 'simulation' ? (hub?.scenario ?? '') : ''} lit={mode === 'simulation'}
+        options={scen.map((id) => ({ id, label: scenarioWord(id) }))} onChange={(id) => { if (id) void run({ mode: 'simulation', scenario: id }) }}
+      />
+      <span className="js-ctl-pair">
+        <span className="js-ctl-label" aria-hidden="true">Sensing</span>
+        <Rocker on={!state.paused} onChange={(on) => store.setPaused(!on)} label="Sensing" />
+      </span>
       <KeyBtn pressed={stage === 'twin'} onClick={() => setStage(stage === 'twin' ? 'terrain' : 'twin')} disabledReason={fixture ? 'The 3D twin is not drawn in a specimen' : undefined} aria-keyshortcuts="3" title="Swap the terrain for the 3D twin">
         3D
       </KeyBtn>
@@ -93,18 +94,25 @@ function PredictionStrip({ state, source, toast }: { state: SensesState; source:
   }
   const reading: LampReading = source === 'none' ? { state: 'waiting', since: null, reason: 'no frames' } : { state: source === 'live' ? 'live' : 'simulated', since: null, reason: status === 'answering' ? 'model answers' : 'a prediction, not an answer' }
   return (
-    <div className="js-pred" role="group" aria-label="Live prediction">
-      <Lamp reading={reading} showLabel={false} subject="Prediction" />
-      <span className="js-pred-text" data-answering={status === 'answering' ? 'true' : undefined}>
-        {predictionWording(status, source === 'none' ? null : shown?.name ?? (b ? "can't tell" : null))}
-      </span>
-      <KeyBtn onClick={() => shown && void send(shown.id, true)} disabledReason={!live ? 'Needs frames from the board' : !shown || busy ? 'Nothing to confirm yet' : undefined} aria-label="Right" title={`Right: label the last 10 s as this place`}>Right</KeyBtn>
-      <select className="js-select" aria-label="No, I'm at..." disabled={!live || busy || !state.zones.length} value="" onChange={(e) => { const z = e.target.value; if (z) void send(z, false) }}>
-        <option value="">No, I'm at...</option>
-        {state.zones.map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
-      </select>
-      <span className="js-pred-fan" title="What the engine reports; the switch drives the fan through the relay board">{fan.text}</span>
-      <Rocker on={fan.on === true} onChange={(on) => void flip(on)} label="Fan" />
+    <div className="js-pred" role="group" aria-label="Predicting">
+      <div className="js-pred-state">
+        <Lamp reading={reading} showLabel={false} subject="Prediction" />
+        <span className="js-pred-text" data-answering={status === 'answering' ? 'true' : undefined}>
+          {predictionWording(status, source === 'none' ? null : shown?.name ?? (b ? "can't tell" : null))}
+        </span>
+      </div>
+      <div className="js-pair js-tray" role="group" aria-label="Corrections">
+        <KeyBtn onClick={() => shown && void send(shown.id, true)} disabledReason={!live ? 'Needs frames from the board' : !shown || busy ? 'Nothing to confirm yet' : undefined} aria-label="Right" title="Right: label the last 10 s as this place">Right</KeyBtn>
+        <SensesSelect
+          label="No, I'm at..." placeholder="No, I'm at..." value="" up disabledReason={!live ? 'Needs frames from the board' : busy ? 'Saving...' : !state.zones.length ? 'No zone map yet' : undefined}
+          options={state.zones.map((z) => ({ id: z.id, label: z.name }))} onChange={(z) => { if (z) void send(z, false) }}
+        />
+      </div>
+      <div className="js-pair js-tray js-pred-fanbox" role="group" aria-label="Fan control">
+        <span className="js-pred-fan" title="What the engine reports; the switch drives the fan through the relay board">{fan.text.replace(/^Fan:\s*/i, '')}</span>
+        <span className="js-ctl-label" aria-hidden="true">Fan</span>
+        <Rocker on={fan.on === true} onChange={(on) => void flip(on)} label="Fan" />
+      </div>
     </div>
   )
 }
@@ -208,7 +216,7 @@ export function PresenceView({ state, store, toast, onGo, fixture }: SensesViewP
   const onRootKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return
     const t = e.target as HTMLElement
-    if (!root.current?.contains(t) || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable) return
+    if (!root.current?.contains(t) || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.closest('[role="listbox"], [role="combobox"]') || t.isContentEditable) return
     const k = e.key.toLowerCase()
     if (!PRESENCE_KEYS.has(k)) return
     e.preventDefault()
@@ -270,7 +278,6 @@ export function PresenceView({ state, store, toast, onGo, fixture }: SensesViewP
               </div>
             )}
         </Panel>
-        <SensesSentence text={SENSES_SENTENCE} />
       </section>
 
       <CoreDrawer open={settings} onClose={() => setSettings(false)} title="Twin settings" tag="SEN">

@@ -323,7 +323,7 @@ export function zoneRing(poly: number[][]): { x: number; y: number; r: number } 
 
 /* ------------------------------------------------------------------ the teach rings */
 
-export interface TeachRing { id: 'room' | 'quiet' | 'drill' | 'heldout'; name: string; fill: number; of: number; done: boolean; word: string }
+export interface TeachRing { id: 'room' | 'quiet' | 'drill' | 'heldout'; name: string; fill: number; of: number; done: boolean; word: string; /** The one-line caption under the ring (the long `word` stays in the ring's label). */ short: string }
 
 /** The four steps as rings with a real fraction each. Held-out is separate and only the server's gate fills it. */
 export function teachRings(r: Readiness | null): TeachRing[] {
@@ -333,11 +333,25 @@ export function teachRings(r: Readiness | null): TeachRing[] {
   const days = r ? Math.min(gate, Math.max(0, r.drill_days)) : 0
   const heldOut = has('zone_gate')
   return [
-    { id: 'room', name: 'Room measured', fill: has('layout') ? 1 : 0, of: 1, done: has('layout'), word: has('layout') ? 'measured with a tape' : 'not measured' },
-    { id: 'quiet', name: 'Quiet baselines', fill: quiet, of: 2, done: quiet === 2, word: `${quiet} of 2 recorded` },
-    { id: 'drill', name: 'Drill days', fill: days, of: gate, done: days >= gate, word: `${days} of ${gate} days` },
-    { id: 'heldout', name: 'Held-out check', fill: heldOut ? 1 : 0, of: 1, done: heldOut, word: heldOut ? 'passed' : 'not passed yet' },
+    { id: 'room', name: 'Room measured', fill: has('layout') ? 1 : 0, of: 1, done: has('layout'), word: has('layout') ? 'measured with a tape' : 'not measured', short: has('layout') ? 'measured' : 'not measured' },
+    { id: 'quiet', name: 'Quiet baselines', fill: quiet, of: 2, done: quiet === 2, word: `${quiet} of 2 recorded`, short: `${quiet} of 2` },
+    { id: 'drill', name: 'Drill days', fill: days, of: gate, done: days >= gate, word: `${days} of ${gate} days`, short: `${days} of ${gate} days` },
+    { id: 'heldout', name: 'Held-out check', fill: heldOut ? 1 : 0, of: 1, done: heldOut, word: heldOut ? 'passed' : 'not passed yet', short: heldOut ? 'passed' : 'not passed' },
   ]
+}
+
+/**
+ * The readiness check's `how` string is one line of engine text: a sentence, then often a colon and the command that does
+ * it. The Teach list shows the sentence and keeps the command behind a copy key, so a step reads as a plain request.
+ * No command in the string means no key: the whole string is the sentence.
+ */
+export function splitHow(how: string): { sentence: string; command: string | null } {
+  // the colon is the contract (aankhen/readiness.py writes "sentence: python -m aankhen ..."); a tool's name in plain prose
+  // ("Use python 3.11 or newer") is not a command, and a command with no sentence before it is left whole
+  const m = /^(.*?):\s*((?:python|py|npx|npm)\s.+)$/s.exec(how.trim())
+  const sentence = m?.[1].trim().replace(/[.:]+$/, '')
+  if (!m || !sentence) return { sentence: how.trim(), command: null }
+  return { sentence: `${sentence}.`, command: m[2].trim() }
 }
 
 /* ------------------------------------------------------------------ narration and the copy lint */

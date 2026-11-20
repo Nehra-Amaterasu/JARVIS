@@ -183,7 +183,7 @@ test.describe('Senses at the desk (1366 x 768, the 1302 x 668 canvas)', () => {
     await expect(page.locator('.js-stamp-paused')).toHaveCount(0)
     await page.keyboard.press('p')
     await expect(page.locator('.js-stamp-paused')).toHaveText('PAUSED BY YOU')
-    await expect(root.locator('[aria-label="Sensing in this window"] [role="radio"][aria-checked="true"]')).toContainText('OFF')
+    await expect(root.locator('[aria-label="Sensing"] [role="radio"][aria-checked="true"]')).toContainText('OFF')
     await page.keyboard.press('p')
     await expect(page.locator('.js-stamp-paused')).toHaveCount(0)
     await expect(page.locator('.js-plan')).toHaveCount(1)
@@ -265,4 +265,223 @@ test.describe('Senses on the phone (390 x 844)', () => {
       await shot(page, '.js-gallery-box', `${String(i).padStart(2, '0')}-${NAMES[i]}-390.png`)
     })
   }
+})
+
+/* ================================================================ part 3: the lifted section (EL-SENSES) in the built app
+   Folded in from the separate el-senses spec: geometry at 1366 x 768 and 390 x 844, the keyboard paths of the select and the
+   key, the rocker's lit half against its unlit half (3:1 for a state), and the portalled select list on the Teach desk with
+   a long session list (inside the viewport, opaque, its last option reachable). The sandbox shows WAITING, which is what is
+   measured. Screenshots go to EL_SENSES_SHOTS (outside the repository) when it is set. */
+const EL_SHOTS = process.env.EL_SENSES_SHOTS ? resolve(process.env.EL_SENSES_SHOTS) : ''
+async function elShot(page: Page, name: string) {
+  if (!EL_SHOTS) return
+  mkdirSync(EL_SHOTS, { recursive: true })
+  await page.locator('.s2-page').first().screenshot({ path: resolve(EL_SHOTS, name) })
+}
+
+const measureLifted = (page: Page) => page.evaluate(() => {
+  const js = document.querySelector<HTMLElement>('.s2-page .js')!
+  const visible = (e: HTMLElement) => e.getClientRects().length > 0 && getComputedStyle(e).visibility !== 'hidden' && !e.closest('[aria-hidden="true"]') && !e.closest('dialog')
+  const small = [...js.querySelectorAll<HTMLElement>('button, input, [role="combobox"], [tabindex="0"]')].filter(visible)
+    .map((e) => ({ e, r: e.getBoundingClientRect() })).filter(({ r }) => r.width < 43.5 || r.height < 43.5)
+    .map(({ e, r }) => `${e.getAttribute('aria-label') ?? e.textContent?.trim().slice(0, 24)} ${Math.round(r.width)}x${Math.round(r.height)}`)
+  const tiny = [...js.querySelectorAll<HTMLElement>('*')].filter((e) => [...e.childNodes].some((n) => n.nodeType === 3 && (n.textContent ?? '').trim()) && parseFloat(getComputedStyle(e).fontSize) < 10.95)
+    .map((e) => `${e.tagName.toLowerCase()}.${String(e.className).slice(0, 24)}`)
+  const ellipsis = [...js.querySelectorAll<HTMLElement>('*')].filter((e) => getComputedStyle(e).textOverflow === 'ellipsis').map((e) => String(e.className).slice(0, 28))
+  const outlined = [...js.querySelectorAll<HTMLElement>('.js-panel, .js-key, .js-choice, .js-tile, .js-chip, .js-select, .js-well, .js-link, .js-chan')]
+    .filter((e) => visible(e) && ['Top', 'Right', 'Bottom', 'Left'].some((s) => parseFloat(getComputedStyle(e).getPropertyValue(`border-${s.toLowerCase()}-width`)) > 0))
+    .map((e) => String(e.className).slice(0, 28))
+  const slots = [...document.querySelectorAll<HTMLElement>('.s2-page [data-testid="senses-sentence"]')]
+  const slot = slots[0]?.getBoundingClientRect()
+  const jsBox = js.getBoundingClientRect()
+  return {
+    docY: document.documentElement.scrollHeight - innerHeight, docX: document.documentElement.scrollWidth - innerWidth,
+    jsY: js.scrollHeight - js.clientHeight, jsX: js.scrollWidth - js.clientWidth,
+    small, tiny, ellipsis, outlined, nativeSelects: js.querySelectorAll('select').length,
+    sentences: slots.length, sentenceHeight: slot ? Math.round(slot.height) : 0, sentenceBelowView: slot ? slot.top >= jsBox.bottom - 1 : false,
+    primaries: js.querySelectorAll('.js-primary:not([aria-disabled="true"])').length,
+  }
+})
+
+test.describe('Senses, lifted (1366 x 768)', () => {
+  test.use({ viewport: { width: 1366, height: 768 } })
+  for (const view of ['presence', 'signal', 'teach'] as const) {
+    test(`${view}: no scroll, nothing cut, targets 44 px, text 11 px, nothing outlined, the sentence in its one slot`, async ({ page, baseURL }) => {
+      await openSenses(page, baseURL, view)
+      const m = await measureLifted(page)
+      expect(m.docY, 'document scroll').toBeLessThanOrEqual(0)
+      expect(m.docX).toBeLessThanOrEqual(0)
+      expect(m.jsY, 'the view scrolls inside').toBeLessThanOrEqual(1)
+      expect(m.jsX).toBeLessThanOrEqual(1)
+      expect(m.small, 'targets under 44 px').toEqual([])
+      expect(m.tiny, 'text under 11 px').toEqual([])
+      expect(m.ellipsis, 'text cut with an ellipsis').toEqual([])
+      expect(m.outlined, 'a surface drawn by a border').toEqual([])
+      expect(m.nativeSelects).toBe(0)
+      expect(m.sentences, 'the honesty sentence appears once').toBe(1)
+      expect(m.sentenceBelowView, 'it sits in the fixed slot under the view').toBe(true)
+      expect(m.sentenceHeight, 'on one line').toBeLessThanOrEqual(28)
+      expect(m.primaries, 'one warm fill at most').toBeLessThanOrEqual(1)
+      await elShot(page, `${view}-1366.png`)
+    })
+  }
+
+  test('Presence keyboard: the scenario select opens from the keyboard, its list is opaque and inside the viewport, Escape returns the focus', async ({ page, baseURL }) => {
+    await openSenses(page, baseURL, 'presence')
+    const trigger = page.getByRole('combobox', { name: 'Simulated scenario' })
+    await trigger.focus()
+    await page.keyboard.press('ArrowDown')
+    const list = page.getByRole('listbox', { name: 'Simulated scenario' })
+    await expect(list).toBeVisible()
+    const bg = await list.evaluate((e) => getComputedStyle(e).backgroundColor)
+    const alpha = /rgba\(.*,\s*([\d.]+)\)/.exec(bg)?.[1]
+    expect(alpha === undefined || Number(alpha) === 1, `the list background must be opaque, got ${bg}`).toBe(true)
+    const box = await list.boundingBox()
+    expect(box!.x).toBeGreaterThanOrEqual(0)
+    expect(box!.y).toBeGreaterThanOrEqual(0)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(1366)
+    expect(box!.y + box!.height).toBeLessThanOrEqual(768)
+    await expect(list.getByRole('option').first()).toBeFocused()
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('Escape')
+    await expect(list).toHaveCount(0)
+    await expect(trigger).toBeFocused()
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  test('Presence: the rockers say their words, the unlit and lit halves differ by 3:1, and the strip is a labelled Predicting group', async ({ page, baseURL }) => {
+    await openSenses(page, baseURL, 'presence')
+    await expect(page.locator('.js-ctl-label', { hasText: 'Sensing' })).toBeVisible()
+    await expect(page.locator('.js-ctl-label', { hasText: 'Fan' })).toBeVisible()
+    const group = page.getByRole('group', { name: 'Predicting' })
+    await expect(group.getByRole('group', { name: 'Corrections' })).toBeVisible()
+    await expect(group.getByRole('group', { name: 'Corrections' }).getByRole('button', { name: 'Right' })).toBeVisible()
+    await expect(group.getByRole('group', { name: 'Fan control' })).toBeVisible()
+    // a state is told by more than its letters: the lit half is at least 3:1 against the unlit one, and its word 4.5:1 on it
+    const ratios = await page.evaluate(() => {
+      const lum = (rgb: string) => {
+        const m = /rgba?\(([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)/.exec(rgb)!
+        const c = [m[1], m[2], m[3]].map((v) => { const x = Number(v) / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 })
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+      }
+      const ratio = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05) }
+      const face = (e: Element) => { let n: Element | null = e; while (n) { const b = getComputedStyle(n).backgroundColor; if (!/rgba?\(.*,\s*0\)$/.test(b) && b !== 'transparent') return b; n = n.parentElement } return 'rgb(0,0,0)' }
+      return ['Sensing', 'Fan'].map((name) => {
+        const halves = [...document.querySelectorAll<HTMLElement>(`.js [aria-label="${name}"] [role="radio"]`)]
+        const on = halves.find((h) => h.getAttribute('aria-checked') === 'true')
+        const off = halves.find((h) => h.getAttribute('aria-checked') !== 'true')
+        if (!on || !off) return { name, halves: halves.length, between: 0, word: 0 }
+        return { name, halves: halves.length, between: ratio(face(on), face(off)), word: ratio(getComputedStyle(on).color, face(on)) }
+      })
+    })
+    for (const r of ratios) {
+      expect(r.halves, `${r.name} rocker has two halves`).toBe(2)
+      expect(r.between, `${r.name}: lit half against the unlit half`).toBeGreaterThanOrEqual(3)
+      expect(r.word, `${r.name}: the word on the lit half`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  test('Signal keyboard: Go to Presence is a 44 px key and Enter takes the view to Presence', async ({ page, baseURL }) => {
+    await openSenses(page, baseURL, 'signal')
+    const key = page.getByRole('button', { name: 'Go to Presence' })
+    const box = await key.boundingBox()
+    expect(box!.height).toBeGreaterThanOrEqual(43.5)
+    await key.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.locator('.s2-page[data-view="presence"] .js-presence')).toBeVisible({ timeout: 10_000 })
+  })
+
+  test('Signal: the dial, the one ledger card, WAITING lamps with no source, both columns end on one line', async ({ page, baseURL }) => {
+    await openSenses(page, baseURL, 'signal')
+    await expect(page.locator('.js-dial')).toHaveCount(1)
+    await expect(page.locator('.js-p-ledger')).toHaveCount(1)
+    await expect(page.locator('.js-p-events')).toHaveCount(0)
+    const ends = await page.evaluate(() => {
+      const left = document.querySelector<HTMLElement>('.js-narration')!.getBoundingClientRect().bottom
+      const right = document.querySelector<HTMLElement>('.js-go')!.getBoundingClientRect().bottom
+      return { left: Math.round(left), right: Math.round(right) }
+    })
+    expect(Math.abs(ends.left - ends.right), 'both columns end on the same line').toBeLessThanOrEqual(1)
+    const bars = await page.locator('.js-spectrum .js-bar').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height))
+    expect(bars).toHaveLength(51)
+    expect(Math.min(...bars), 'the waiting pose is a visible envelope, not a row of slivers').toBeGreaterThan(20)
+  })
+
+  test('Teach: the four steps count n of 4, the copy chip (when a step has a command) is a focusable 44 px key', async ({ page, baseURL }) => {
+    await openSenses(page, baseURL, 'teach')
+    await expect(page.getByTestId('steps-count')).toHaveText(/^(\d of 4|-- of 4)$/)
+    const chips = page.locator('.js-todo .js-copy')
+    if (await chips.count()) {
+      await chips.first().focus()
+      await expect(chips.first()).toBeFocused()
+      const box = await chips.first().boundingBox()
+      expect(box!.height).toBeGreaterThanOrEqual(43.5)
+    }
+    await expect(page.getByTestId('mini-reason')).toBeVisible()
+  })
+
+  test('Teach: the session list of the Phone tab, with eight invented sessions, opens whole inside the viewport and its last option is reachable', async ({ page, baseURL }) => {
+    const idle = { name: 'narrate', state: 'idle', stage: '', fraction: 0, error: null, started: null, finished: null }
+    await page.route('**/api/aankhen/narrate/sessions', (route) => route.fulfill({
+      json: {
+        sessions: Array.from({ length: 8 }, (_, i) => ({ day: `2026-01-0${i + 1}`, session: `s${i + 1}`, folder: `2026-01-0${i + 1}_s${i + 1}`, labelled: i % 2 === 0, has_raw: true })),
+        audio: [], job: idle,
+      },
+    }))
+    await openSenses(page, baseURL, 'teach')
+    await page.getByRole('radio', { name: 'Phone', exact: true }).click()
+    const trigger = page.getByRole('combobox', { name: 'Narration session' })
+    await expect(trigger).toBeVisible()
+    await trigger.click()
+    const list = page.getByRole('listbox', { name: 'Narration session' })
+    await expect(list).toBeVisible()
+    await expect(list.getByRole('option')).toHaveCount(9)
+    const inside = await list.evaluate((e) => { const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, vh: innerHeight, vw: innerWidth } })
+    expect(inside.top).toBeGreaterThanOrEqual(0)
+    expect(inside.bottom).toBeLessThanOrEqual(inside.vh)
+    expect(inside.left).toBeGreaterThanOrEqual(0)
+    expect(inside.right).toBeLessThanOrEqual(inside.vw)
+    await page.keyboard.press('End')
+    const last = list.getByRole('option').last()
+    await expect(last).toBeFocused()
+    // the last option is the thing under the pointer at its own centre: no card clips it, nothing covers it
+    const hit = await last.evaluate((e) => {
+      const r = e.getBoundingClientRect()
+      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      return !!top && (top === e || e.contains(top)) && r.bottom <= innerHeight && r.top >= 0
+    })
+    expect(hit, 'the last session is hit-testable').toBe(true)
+    await page.keyboard.press('Enter')
+    await expect(list).toHaveCount(0)
+    await expect(trigger).toBeFocused()
+    await elShot(page, 'teach-phone-1366.png')
+  })
+})
+
+test.describe('Senses, lifted (390 x 844)', () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+  for (const view of ['presence', 'signal', 'teach'] as const) {
+    test(`${view} at 390 px: no sideways scroll, targets 44 px, text 11 px`, async ({ page, baseURL }) => {
+      await openSenses(page, baseURL, view)
+      const m = await measureLifted(page)
+      expect(m.docX, 'the page scrolls sideways').toBeLessThanOrEqual(0)
+      expect(m.jsX, 'the view scrolls sideways').toBeLessThanOrEqual(1)
+      expect(m.small, 'targets under 44 px').toEqual([])
+      expect(m.tiny, 'text under 11 px').toEqual([])
+      expect(m.ellipsis).toEqual([])
+      await elShot(page, `${view}-390.png`)
+    })
+  }
+  test('Signal at 390 px: the score and its threshold each read on one line', async ({ page, baseURL }) => {
+    await openSenses(page, baseURL, 'signal')
+    const lines = await page.evaluate(() => {
+      const oneLine = (sel: string) => {
+        const e = document.querySelector<HTMLElement>(sel)!
+        const lh = parseFloat(getComputedStyle(e).lineHeight) || parseFloat(getComputedStyle(e).fontSize) * 1.3
+        return e.getBoundingClientRect().height <= lh * 1.5
+      }
+      return { score: oneLine('[data-testid="motion-score"]'), thr: oneLine('.js-thr') }
+    })
+    expect(lines).toEqual({ score: true, thr: true })
+  })
 })

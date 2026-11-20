@@ -1,0 +1,93 @@
+/* The frame the three L03 views share (Week, Body, Close), copied from Today's pattern: one canvas that fills the shell's view box,
+   raised clay plates on the ground, recessed wells for hollow forms, 1 px lines only as ticks and rules, never as an outline round a
+   labelled control. Tokens by name only (elevation, space, type, motion); no literal duration or easing. */
+
+.dy {
+  --line-ui: var(--edge-ui);
+  position: absolute; inset: 0; box-sizing: border-box;
+  display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4);
+  background: var(--surface-ground); color: var(--ink-1); font: var(--type-body);
+  overflow: hidden;
+}
+.dy *, .dy *::before, .dy *::after { box-sizing: border-box; }
+.dy[data-form='phone'] { padding: var(--space-3); gap: var(--space-2); overflow-x: hidden; overflow-y: auto; }
+
+/* ---- head ---- */
+.dy-head { flex: none; display: flex; align-items: center; gap: var(--space-3); min-height: 48px; }
+.dy-title { margin: 0; font: 600 24px/28px var(--font-ui); letter-spacing: -.01em; color: var(--ink-1); }
+.dy-title small { font: 400 13px/16px var(--font-ui); color: var(--ink-2); letter-spacing: 0; margin-left: var(--space-2); }
+.dy-sub { margin: 0; display: flex; align-items: center; gap: var(--space-2); font: 400 12px/16px var(--font-ui); color: var(--ink-2); min-width: 0; }
+.dy-sub .dy-why { min-width: 0; overflow-wrap: anywhere; }
+.dy-head-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.dy-keys { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); flex: none; }
+.dy[data-form='phone'] .dy-head { flex-wrap: wrap; }
+.dy[data-form='phone'] .dy-keys { margin-left: 0; flex-wrap: wrap; }
+.dy[data-form='phone'] .dy-title { font-size: 22px; line-height: 28px; }
+
+/* ---- the body of a view: a grid the view sets columns on ---- */
+.dy-main { flex: 1; min-height: 0; display: grid; gap: var(--space-4); }
+.dy[data-form='phone'] .dy-main { display: flex; flex-direction: column; flex: none; gap: var(--space-3); }
+
+/* the Today plate (TodayPlate of ww/day/today) fills its cell; on the phone it is as tall as its content */
+.dy-cell { min-height: 0; min-width: 0; display: flex; flex-direction: column; }
+.dy-cell > .td-plate { flex: 1; min-height: 0; height: auto; }
+.dy[data-form='phone'] .dy-cell > .td-plate { flex: none; }
+.dy .td-plate-body { justify-content: flex-start; }
+.dy-note { margin: 0; font: 400 12px/16px var(--font-ui); color: var(--ink-2); overflow-wrap: anywhere; }
+.dy-note[data-strong] { color: var(--ink-1); font-weight: 600; }
+.dy-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.dy-hollow { color: var(--ink-3); letter-spacing: .1em; }
+.dy-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* a recessed well holds a hollow form (waiting, planned, nothing yet): sunk into the ground, no dashed outline */
+.dy-well { border-radius: var(--r-well); background: var(--surface-sunk); box-shadow: var(--elev-recessed); padding: var(--space-3); }
+.dy-empty { margin: 0; padding: var(--space-3); border-radius: var(--r-well); box-shadow: var(--elev-recessed); font: 400 12px/16px var(--font-ui); color: var(--ink-2); overflow-wrap: anywhere; }
+
+/* the one accent key of a view */
+.dy .dy-primary { min-height: 48px; }
+
+/* a plain raised key that is not a kit Button (the block, the drop, the day cell) */
+.dy-raised {
+  border: 0; border-radius: var(--r-key); background: var(--surface-raised); box-shadow: var(--elev-raised); color: var(--ink-1); cursor: pointer;
+  transition: transform var(--dur-feedback) var(--ease-standard), box-shadow var(--dur-feedback) var(--ease-standard);
+}
+.dy-raised:active { box-shadow: var(--elev-pressed); transform: translateY(1px); }
+.dy-raised:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+
+/* ---- Well Wisher speaks in ASCII, not in corner ticks (the cybersigil mark belongs to JARVIS): a plate opens with a "-- " lead before its
+   title and closes its head with a dashed rule. Type scale of the three views: page title 24, plate title 16, body 14, caption 12. ---- */
+.dy .td-corners { display: none; }
+.dy .td-plate-label { font: 600 16px/20px var(--font-ui); letter-spacing: -.005em; }
+.dy .td-plate-label::before { content: '-- '; font: 500 12px/16px var(--font-mono); color: var(--ink-3); letter-spacing: .04em; white-space: pre; }
+.dy .td-plate-head { row-gap: var(--space-1); }
+.dy .td-plate-head::after { content: ''; order: 9; flex: 1 1 100%; height: 0; border-top: 1.5px dashed var(--ink-3); opacity: .4; margin-top: var(--space-1); }
+.dy .td-plate-why { font: 400 12px/16px var(--font-ui); }
+.dy .td-plate-body { padding-top: var(--space-2); }
+.dy kbd { display: inline-block; min-width: 20px; padding: 0 var(--space-1); border-radius: var(--r-key); background: var(--surface-raised); box-shadow: var(--elev-raised); font: 500 12px/18px var(--font-mono); color: var(--ink-1); text-align: center; }
+
+/* ---- the drawers of the three views: the sheet sets its OWN opaque surface and ink, as the day drawer does (the kit sheet's face is a token,
+   and a token that is missing or semi-transparent in some scope left a side panel unreadable) ---- */
+:root[data-theme^='clay'] .ww-sheet.dy-sheet {
+  --sheet-w: 560px;
+  background: var(--surface-raised, Canvas); background-color: var(--surface-raised, Canvas); color: var(--ink-1, CanvasText); opacity: 1;
+}
+:root[data-theme^='clay'] .ww-sheet.dy-sheet .ww-sheet-head,
+:root[data-theme^='clay'] .ww-sheet.dy-sheet .ww-sheet-body { background: var(--surface-raised, Canvas); color: var(--ink-1, CanvasText); }
+:root[data-theme^='clay'] .ww-sheet.dy-sheet .ww-sheet-title { color: var(--ink-1, CanvasText); }
+:root[data-theme^='clay'] .ww-sheet.dy-sheet[data-place='bottom'] { max-block-size: 88vh; }
+
+/* ---- the gallery's box: the real canvas on the desk, the phone canvas on a phone ---- */
+.dy-gallery-box { position: relative; flex: none; width: 1302px; min-width: 1302px; max-width: none; height: 664px; zoom: .72; }
+.dy-gallery-box[data-form='phone'] { width: 390px; min-width: 0; max-width: 100%; height: 844px; zoom: 1; }
+@media (max-width: 899px) {
+  .dy-gallery-box { width: calc(100vw - 72px); min-width: 0; max-width: 100%; height: 664px; zoom: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) { .dy-raised { transition: none; } .dy-raised:active { transform: none; } }
+html[data-motion='calm'] .dy-raised { transition: none; }
+html[data-motion='calm'] .dy-raised:active { transform: none; }
+
+@media (forced-colors: active) {
+  .dy-raised, .dy-empty, .dy-well { border: 1px solid CanvasText; }
+}

@@ -1,0 +1,48 @@
+/* Close (L03): two plates, the footer with the opt-in capture and the one accent key, and the plan drawer. Frame and plates from base.css and today.css. */
+
+.cl-main { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto; align-content: start; flex: none; }
+.cx[data-form='phone'] .cl-main { display: flex; flex-direction: column; }
+
+.cl-back { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); padding: var(--space-3) var(--space-4); border-radius: var(--r-card); background: var(--surface-raised); box-shadow: var(--elev-raised); }
+.cl-back-line { margin: 0; font: 600 18px/24px var(--font-ui); color: var(--ink-1); }
+.cl-back-days { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.cl-back-days li { display: inline-flex; gap: var(--space-2); align-items: baseline; padding: var(--space-1) var(--space-3); border-radius: var(--r-key); box-shadow: var(--elev-recessed); font: var(--type-small); color: var(--ink-1); }
+
+.cl-rows { margin: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.cl-rows > div { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: 56px; padding: var(--space-1) var(--space-2); border-radius: var(--r-key); background: var(--surface-ground); }
+.cl-rows dt { font: 500 14px/20px var(--font-ui); color: var(--ink-2); }
+.cl-rows dd { margin: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; min-width: 0; }
+.cl-rows .td-num { font: 500 18px/22px var(--font-mono); }
+.cl-none, .cl-why { font: 400 12px/16px var(--font-ui); color: var(--ink-2); overflow-wrap: anywhere; }
+
+.cl-first { margin: 0; display: flex; flex-direction: column; gap: 2px; font: 600 14px/20px var(--font-ui); color: var(--ink-1); overflow-wrap: anywhere; }
+.cl-first-label { font: 400 11px/14px var(--font-ui); color: var(--ink-2); }
+.cl-plan { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.cl-plan li { display: flex; align-items: center; gap: var(--space-2); min-height: 32px; padding: 0 var(--space-2); border-radius: var(--r-key); box-shadow: var(--elev-recessed); font: var(--type-small); color: var(--ink-1); }
+.cl-plan .dy-mono { color: var(--ink-2); font-size: 12px; }
+
+/* the hollow plan form of tomorrow: three dashed lines (time, then a rule), the same pattern as the reminders; the one accent key sits under them */
+.cl-slots { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.cl-slot { min-height: 44px; display: flex; align-items: center; gap: var(--space-3); padding: 0 var(--space-3); border-radius: var(--r-key); box-shadow: var(--elev-recessed); font: 500 12px/16px var(--font-mono); }
+.cl-slot .td-dash { flex: 1; }
+.cx .cl-plan-key { align-self: flex-start; margin-top: var(--space-2); }
+.cx[data-form='phone'] .cl-plan-key { align-self: stretch; }
+
+/* footer: the capture (opt-in) and the one accent key, the same shape as Today's */
+.cl-foot { flex: none; display: flex; align-items: center; gap: var(--space-4); min-height: 76px; }
+.cl-capture { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.cl-note { flex: none; min-height: 16px; margin: 0; }
+.cx[data-form='phone'] .cl-foot { flex-wrap: wrap; gap: var(--space-3); }
+.cx[data-form='phone'] .cl-capture { flex-basis: 100%; }
+.cx[data-form='phone'] .cl-capture .cl-say { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
+
+/* the plan drawer: three lines of when, I will, for */
+.cl-drawer { display: flex; flex-direction: column; gap: var(--space-3); padding-bottom: var(--space-4); color: var(--ink-1, CanvasText); }
+.cl-row { margin: 0; padding: var(--space-3); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) 96px; gap: var(--space-2); align-items: end; border: 0; border-radius: var(--r-card); background: var(--surface-ground); }
+.cl-row legend { padding: 0; font: 600 12px/16px var(--font-ui); color: var(--ink-2); float: left; width: 100%; margin-bottom: var(--space-1); }
+.cl-row legend + * { clear: left; }
+.cx[data-form='phone'] .cl-row, .cl-sheet[data-place='bottom'] .cl-row { grid-template-columns: minmax(0, 1fr); }
+
+@media (forced-colors: active) {
+  .cl-back, .cl-back-days li, .cl-plan li, .cl-rows > div { border: 1px solid CanvasText; }
+}

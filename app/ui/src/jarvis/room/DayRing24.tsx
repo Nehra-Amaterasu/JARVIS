@@ -101,7 +101,7 @@ export function DayRing24({ rules, now, onPreview, size = 280 }: DayRing24Props)
         </g>
         <g className="jr-ring-hours" aria-hidden="true">
           {[0, 6, 12, 18].map((h) => {
-            const p = pt(h * 60, R_TRACK + 25)
+            const p = pt(h * 60, R_TRACK + 23)
             return <text key={h} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="central">{String(h).padStart(2, '0')}</text>
           })}
         </g>
@@ -119,30 +119,29 @@ export function DayRing24({ rules, now, onPreview, size = 280 }: DayRing24Props)
         <g role="slider" tabIndex={0} className="jr-ring-handle" aria-label="Preview time, in 15 minute steps. Preview only: nothing is sent."
           aria-valuemin={0} aria-valuemax={DAY_MIN - STEP_MIN} aria-valuenow={at} aria-valuetext={prev === null ? `now, ${hhmm(nowM)}` : `preview ${hhmm(prev)}`}
           onKeyDown={onKey} onBlur={() => prev !== null && emit(null)}>
-          <circle cx={handle.x} cy={handle.y} r="26" className="jr-ring-hit" />
+          <circle cx={handle.x} cy={handle.y} r="32" className="jr-ring-hit" />
           <circle cx={handle.x} cy={handle.y} r="8" className="jr-ring-cap" data-previewing={prev === null ? undefined : 'true'} />
         </g>
         <g className="jr-ring-centre" aria-hidden="true">
           {prev === null ? (
             <>
-              <text x={C} y={C - 12} textAnchor="middle" className="jr-ring-big">{hhmm(nowM)}</text>
-              <text x={C} y={C + 12} textAnchor="middle" className="jr-ring-cap-word">NOW</text>
-              <text x={C} y={C + 30} textAnchor="middle" className="jr-ring-sub">{rules.length ? `${rules.length} rule window${rules.length === 1 ? '' : 's'}` : 'no schedule'}</text>
+              <text x={C} y={C - 10} textAnchor="middle" className="jr-ring-big">{hhmm(nowM)}</text>
+              <text x={C} y={C + 16} textAnchor="middle" className="jr-ring-cap-word">NOW</text>
+              <text x={C} y={C + 38} textAnchor="middle" className="jr-ring-sub">{rules.length ? `${rules.length} rule window${rules.length === 1 ? '' : 's'}` : 'no schedule'}</text>
             </>
           ) : (
             <>
-              <text x={C} y={C - 30} textAnchor="middle" className="jr-ring-big" data-preview="true">{hhmm(prev)}</text>
-              <text x={C} y={C - 8} textAnchor="middle" className="jr-ring-cap-word" data-preview="true">PREVIEW</text>
-              {lines.slice(0, 3).map((l, i) => <text key={i} x={C} y={C + 12 + i * 15} textAnchor="middle" className="jr-ring-sub">{l.length > 26 ? `${l.slice(0, 25)}.` : l}</text>)}
+              <text x={C} y={C - 4} textAnchor="middle" className="jr-ring-big" data-preview="true">{hhmm(prev)}</text>
+              <text x={C} y={C + 22} textAnchor="middle" className="jr-ring-cap-word" data-preview="true">PREVIEW</text>
             </>
           )}
         </g>
       </svg>
       <figcaption className="jr-ring-cap-line" role="status" aria-live="polite">
         {prev === null ? (
-          <span className="jr-ring-quiet">{rules.length ? 'Windows the app reports. Channel schedules: PLANNED.' : 'No window reported. Channel schedules: PLANNED.'}</span>
+          <span className="jr-ring-quiet"><PlannedGlyph width={14} height={14} /> Channel schedules: PLANNED</span>
         ) : (
-          <span className="jr-ring-prev"><PlannedGlyph width={14} height={14} /> PREVIEW {hhmm(prev)}, not the board: {lines.join('; ')}</span>
+          <span className="jr-ring-prev"><PlannedGlyph width={14} height={14} /><span title={lines.join('; ')}>PREVIEW {hhmm(prev)}, not the board: {lines.join('; ')}</span></span>
         )}
       </figcaption>
     </figure>

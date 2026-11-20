@@ -53,6 +53,7 @@ export function ModesPanel({ modes, devices, lastMode, ids, reload, save = defau
         <span className="jr-note">On and off sets. Say "Jarvis, mode name".</span>
         <Button size="sm" grouped onClick={() => setEditing('new')}><Plus size={14} aria-hidden="true" /> New mode</Button>
       </header>
+      {!editing && ids && modes.length > 0 && <p className="jr-note jr-legend"># on, . off, ? no report, - free</p>}
       {editing ? (
         <ModeEditor key={editing === 'new' ? 'new' : editing.id} mode={editing === 'new' ? null : editing} modes={modes} devices={devices} save={save}
           close={() => setEditing(null)} saved={(n) => { setEditing(null); toast(`Saved ${n}`, 'live'); reload() }} />

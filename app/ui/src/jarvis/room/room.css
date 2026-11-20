@@ -2,10 +2,12 @@
    Room, Switches and Rules of shell v2 (A.J02, spec 20.9.2). Loaded only by the lazy Room view chunks; every rule is under
    .jr (the view root) or .jr-drawer-body (the two drawers), so the classic page and the other views get none of it.
 
-   The box (spec 20.9, content box J): the page area under the view row is 1302 x 668; with an 8 px gutter the view is
-   1286 x 652. Switches: top row 300 (faceplate 900, board plate 370), a 12 px gap, bottom row 336 (day ring 400, then the
-   modes strip, the log and "what to say" 870 wide): 300 + 12 + 336 = 648 of 652. Rules: three gates 640 wide, modes and the
-   pin map in the remaining 630.
+   The box (spec 20.9, content box J): the page area under the view row is 1302 x 668; with an 8 px gutter (16 px below, the
+   column gap) the view is 1286 x 644. Switches (EL-ROOM, 20 Nov): the wall box is the hero and takes the rest of the height
+   (faceplate with the dial, the numbered modes and the eight keys, then the 320 px board plate); the bottom row is 272 (day
+   ring 264, then the three-line terminal and "what to say"). Rules: three gates 640 wide, modes and the pin map in the
+   remaining 630. No surface draws a 1 px outline: --elev-raised and an inset top highlight carry the edge; only hollow and
+   PLANNED states keep a dashed one.
 
    Material: clay tokens BY NAME, no colour literal. The faceplate is the charcoal slab of the Core stage (data-scene
    immersive) with raised keys, a lit top lip and a shaded bottom lip. The one warm colour on the screen is the kit's own ON
@@ -23,10 +25,10 @@
   position: absolute;
   inset: 0;
   box-sizing: border-box;
-  padding: 8px;
+  padding: 8px 8px 16px;
   display: grid;
-  grid-template-columns: 900px minmax(0, 1fr);
-  grid-template-rows: 300px 336px;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-rows: minmax(0, 1fr) 272px;
   gap: 12px 16px;
   min-height: 0;
   overflow: hidden;
@@ -63,27 +65,36 @@
 .jr-dropup { position: relative; }
 .jr-dropup .ww-fold[data-open='true'] .ww-fold-body {
   position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); z-index: 6; max-height: 360px; overflow: hidden;
-  padding: 12px 14px; border: 1px solid var(--edge-ui); border-radius: 14px; background: var(--surface-raised); color: var(--ink-1); box-shadow: var(--elev-float, var(--elev-raised, none));
+  padding: 12px 14px; border: 0; border-radius: 14px; background: var(--surface-raised); color: var(--ink-1); box-shadow: inset 0 1px 0 var(--lit-hi, transparent), var(--elev-float, var(--elev-raised, none));
 }
 
 /* ------------------------------------------------------------------ the faceplate */
 .jr-plate-slot { position: relative; min-width: 0; min-height: 0; }
 .jr-face-plate {
   position: relative; height: 100%; display: grid; grid-template-rows: 44px minmax(0, 1fr); row-gap: 6px; padding: 8px 14px 14px;
-  background: var(--surface-faceplate, var(--surface-ground)); border: 1px solid var(--edge-ui);
-  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: 20px; box-shadow: var(--elev-raised, none); overflow: hidden;
+  background: var(--surface-faceplate, var(--surface-ground)); border: 0;
+  border-radius: 20px; box-shadow: inset 0 1px 0 var(--lit-hi, transparent), var(--elev-raised, none); overflow: hidden;
 }
 .jr-art { position: absolute; inset: 0; opacity: 0.22; mix-blend-mode: screen; pointer-events: none; }
 .jr-art .art-slot, .jr-art .art-slot__box { height: 100%; }
 .jr-art .art-slot__box { border: 0; border-radius: 0; background: transparent; }
 .jr-art:has(.art-slot[data-state='absent']), .jr-art:has(.art-slot[data-state='loading']) { display: none; }
 .jr-plate-head { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
-.jr-plate-body { position: relative; display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 16px; min-height: 0; }
+.jr-plate-head .jr-armed { flex: 1 1 0; min-width: 0; justify-content: center; text-align: left; }
+.jr-plate-body { position: relative; display: grid; grid-template-columns: 196px minmax(0, 1fr); gap: 16px; min-height: 0; }
+.jr-plate-right { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; min-width: 0; min-height: 0; }
 .jr-keys { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 10px; min-height: 0; }
+/* the numbered modes: 44 px keys beside the dial, the number is the key that applies it */
+.jr-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.jr-chips .ww-chip { min-height: 44px; padding-inline: 12px; }
+.jr-chips .ww-chip > span { display: inline-flex; align-items: center; gap: 8px; }
+.jr-modeno { display: inline-grid; place-items: center; min-width: 20px; height: 20px; border-radius: 6px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); font: 650 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); font-style: normal; }
+.jr-chips .ww-chip[aria-pressed='true'] .jr-modeno { background: transparent; box-shadow: none; color: inherit; }
+.jr-modebar { display: none; }
 
 /* the mode dial: detents on a 270 degree arc, one accent notch */
 .jr-dial { display: grid; grid-template-rows: auto auto; justify-items: center; align-content: center; gap: 4px; min-width: 0; }
-.jr-dial-body { width: 168px; height: 168px; border-radius: 50%; cursor: default; }
+.jr-dial-body { width: 176px; height: 176px; border-radius: 50%; cursor: default; }
 .jr-dial-body svg { width: 100%; height: 100%; display: block; overflow: visible; }
 .jr-dial-face { fill: var(--surface-raised); }
 .jr-dial-lip { fill: none; stroke: var(--ridge-hi, var(--edge-ui)); stroke-width: 1.5; stroke-dasharray: 120 270; }
@@ -94,7 +105,7 @@
 .jr-dial-notch { stroke: var(--ink-1); stroke-width: 4; stroke-linecap: round; transition: transform var(--dur-state, 120ms) var(--ease-standard, ease); }
 .jr-dial-body:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
 .jr-dial-read { display: grid; justify-items: center; gap: 2px; text-align: center; min-height: 36px; }
-.jr-dial-name { font: 650 14px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-1); max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jr-dial-name { font: 650 14px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-1); max-width: 190px; overflow-wrap: anywhere; text-align: center; }
 .jr-dial-hint { font: 11px/1.25 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); max-width: 190px; }
 .jr-dial[data-armed='true'] .jr-dial-hint { color: var(--ink-1); font-weight: 600; }
 
@@ -106,7 +117,7 @@
 .jr-face { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; width: 100%; height: 100%; min-width: 0; text-align: left; }
 .jr-top { display: flex; align-items: baseline; gap: 6px; min-width: 0; padding-right: 14px; }
 .jr-no { font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.06em; color: var(--ink-2); font-style: normal; }
-.jr-name { font: 650 13px/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.jr-name { font: 650 13px/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); overflow-wrap: anywhere; min-width: 0; }
 .jr-mid { display: flex; align-items: center; justify-content: space-between; min-height: 0; }
 .jr-ico { display: inline-flex; color: var(--ink-1); }
 .jr-ico[data-kind='fan'] svg { transform-origin: 50% 50%; }
@@ -117,8 +128,9 @@
 .jr-cap[data-toggled='true'] .jr-name, .jr-cap[data-toggled='true'] .jr-ico, .jr-cap[data-toggled='true'] .jr-word, .jr-cap[data-toggled='true'] .jr-no { color: inherit; }
 /* a covered key is not "disabled": the cover says why, so the kit's dimming is taken off */
 .jr-cell[data-heavy] .jr-cap[aria-disabled='true'] { opacity: 1; filter: none; color: inherit; }
-.jr-cell[data-absent='true'] .jr-cap.k-key { border-style: dashed; background: transparent; box-shadow: none; }
-.jr-cell[data-absent='true'] .jr-name, .jr-cell[data-absent='true'] .jr-word { color: var(--ink-3); }
+.jr-cell[data-absent='true'] .jr-cap.k-key { border-color: transparent; background: color-mix(in srgb, var(--surface-sunk) 40%, transparent); box-shadow: var(--elev-recessed, none); }
+.jr-cell[data-absent='true'] .jr-no { color: var(--ink-2); }
+.jr-cell[data-absent='true'] .jr-name, .jr-cell[data-absent='true'] .jr-word { color: var(--ink-2); font-weight: 500; }
 .jr-cell[data-preview] .jr-cap.k-key { outline: 2px dashed var(--ink-1); outline-offset: -5px; }
 /* the three phases of the lamp: asked sweeps once over 6 s, then the board answers or the word says so */
 .jr-cell[data-state='asked'] .jr-led::after {
@@ -147,42 +159,47 @@
 
 /* ------------------------------------------------------------------ the board plate */
 .jr-board {
-  position: relative; display: grid; grid-template-rows: 44px auto auto auto 1fr; row-gap: 4px; padding: 8px 14px 10px; min-width: 0; min-height: 0;
-  background: var(--surface-faceplate, var(--surface-ground)); border: 1px solid var(--edge-ui);
-  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: 20px; box-shadow: var(--elev-raised, none);
+  position: relative; display: flex; flex-direction: column; gap: 8px; padding: 8px 14px 12px; min-width: 0; min-height: 0;
+  background: var(--surface-faceplate, var(--surface-ground)); border: 0;
+  border-radius: 20px; box-shadow: inset 0 1px 0 var(--lit-hi, transparent), var(--elev-raised, none);
 }
-.jr-board-list { margin: 0; display: grid; gap: 2px; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); }
+.jr-board > * { flex: none; }
+.jr-board-list { margin: 4px 0 0; display: grid; gap: 2px; font: 12px/1.3 var(--font-mono, ui-monospace, monospace); }
 .jr-board-list > div { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 20px; }
 .jr-board-list dt { color: var(--ink-2); letter-spacing: 0.06em; }
-.jr-board-list dd { margin: 0; color: var(--ink-1); display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.jr-lcd { margin: 0; padding: 6px 12px; border-radius: 8px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); color: var(--ink-1); font: 600 13px/1.3 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.12em; white-space: pre; overflow: hidden;
-  /* 2 lines of 1.3em plus the 6 px padding above and below: the grid used to squeeze this box to one line and cut the channel marks (19 Nov sweep, 1366 x 768) */
-  min-block-size: calc(2.6em + 12px); }
-.jr-board-problems { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font: 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); }
+.jr-board-list dd { margin: 0; color: var(--ink-1); display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.jr-lcd { margin: 4px 0 0; padding: 8px 12px; border-radius: 8px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); color: var(--ink-1); font: 600 13px/1.3 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.12em; white-space: pre; overflow: hidden;
+  /* two lines of 1.3em plus the 8 px padding above and below, never squeezed by a grid row: the '? ? ?' strip was cut (19 Nov sweep) */
+  min-block-size: 36px; }
+.jr-board-problems { margin: 4px 0 0; padding: 0; list-style: none; display: grid; gap: 4px; font: 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); }
 .jr-board-problems li { display: flex; gap: 6px; align-items: flex-start; }
-.jr-alloff { position: relative; align-self: end; }
-.jr-alloff .jr-alloff-key.k-key { width: 100%; height: 48px; flex-direction: row; gap: 10px; border-radius: 14px; box-shadow: var(--elev-recessed, none); }
+.jr-alloff { position: relative; margin-top: auto; }
+.jr-alloff .jr-alloff-key.k-key { width: 100%; height: 52px; flex-direction: row; gap: 10px; border-radius: 14px; box-shadow: var(--elev-recessed, none); }
 .jr-alloff-word { font: 650 14px/1 var(--font-ui, system-ui, sans-serif); }
 .jr-alloff-count { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
 .jr-alloff-key[data-empty='true'] .jr-alloff-count { color: var(--ink-3); }
-.jr-pop { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); z-index: 6; display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--edge-ui); border-radius: 14px;
-  background: var(--surface-raised); color: var(--ink-1); box-shadow: var(--elev-float, var(--elev-raised, none)); }
+.jr-pop { position: absolute; left: 0; right: 0; bottom: calc(100% + 8px); z-index: 6; display: grid; gap: 8px; padding: 12px 14px; border: 0; border-radius: 14px;
+  background: var(--surface-raised); color: var(--ink-1); box-shadow: inset 0 1px 0 var(--lit-hi, transparent), var(--elev-float, var(--elev-raised, none)); }
 .jr-pop-head { margin: 0; font: 650 13px/1.3 var(--font-ui, system-ui, sans-serif); }
 .jr-pop-list { margin: 0; padding: 0 0 0 18px; font: 13px/1.5 var(--font-ui, system-ui, sans-serif); max-height: 96px; overflow: hidden; }
 .jr-pop-go.k-key { width: 100%; height: 48px; flex-direction: row; gap: 8px; }
 
 /* ------------------------------------------------------------------ the bottom row */
-.jr-bottom { grid-column: 1 / -1; display: grid; grid-template-columns: 400px minmax(0, 1fr); gap: 16px; min-height: 0; }
-.jr-day { display: grid; grid-template-rows: 28px minmax(0, 1fr); justify-items: center; padding: 8px 12px 10px; min-height: 0; min-width: 0;
-  background: var(--surface-ground); border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: 20px; box-shadow: var(--elev-raised, none); }
+.jr-bottom { grid-column: 1 / -1; display: grid; grid-template-columns: 264px minmax(0, 1fr); gap: 16px; min-height: 0; }
+.jr-day { display: grid; grid-template-rows: 20px minmax(0, 1fr); justify-items: center; padding: 8px 8px 12px; min-height: 0; min-width: 0;
+  background: var(--surface-ground); border: 0; border-radius: 20px; box-shadow: inset 0 1px 0 var(--lit-hi, transparent), var(--elev-raised, none); }
 .jr-day-head { justify-self: start; align-self: center; }
-.jr-lower { display: grid; grid-template-rows: auto minmax(0, 1fr) 44px; gap: 10px; min-width: 0; min-height: 0; }
-.jr-modes { display: grid; gap: 6px; }
-.jr-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.jr-lower { display: grid; grid-template-rows: minmax(0, 1fr) 44px; gap: 12px; min-width: 0; min-height: 0; }
+.jr-term { position: relative; min-height: 0; min-width: 0; border-radius: 14px; }
+.jr-term-well { height: 100%; min-height: 0; }
+.jr-term .g-well { height: 100%; }
+/* the whole terminal is one real button, so the target is as large as the well and the focus ring wraps it */
+.jr-term-toggle { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; padding: 0; border: 0; border-radius: 14px; background: transparent; cursor: pointer; }
+.jr-term-toggle:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
 .jr-armed { margin: 0; display: flex; align-items: center; gap: 6px; font: 600 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); }
 .jr-strip { color: var(--ink-1); white-space: pre; }
 .jr-strip-legend { color: var(--ink-2); }
-.jr-lower .g-well { height: 100%; min-height: 0; border-radius: 14px; box-shadow: var(--elev-recessed, none); padding: 10px 14px; overflow: hidden; }
+.jr-lower .g-well { min-height: 0; border-radius: 14px; box-shadow: var(--elev-recessed, none); padding: 10px 14px; overflow: hidden; }
 .jr-log-line { font: 12px/1.45 var(--font-mono, ui-monospace, monospace); }
 .jr-log-tag { color: var(--ink-1); font-weight: 650; }
 .jr-log-lamp { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-2); }
@@ -201,12 +218,12 @@
 :root[data-motion='calm'] .jr-ruler-caret { animation: none; transform: translateX(17ch); }
 
 /* ------------------------------------------------------------------ the day ring */
-.jr-ring { margin: 0; display: grid; justify-items: center; align-content: start; gap: 0; min-width: 0; }
-.jr-ring svg { display: block; touch-action: none; }
+.jr-ring { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr); justify-items: center; align-content: start; gap: 0; min-width: 0; }
+.jr-ring > svg { display: block; touch-action: none; }
 .jr-ring-ticks line { stroke: var(--ink-3); stroke-width: 1; }
 .jr-ring-ticks line[data-hour] { stroke: var(--ink-2); stroke-width: 1.4; }
 .jr-ring-ticks line[data-six] { stroke: var(--ink-1); stroke-width: 2; }
-.jr-ring-hours text { font: 600 12px var(--font-mono, ui-monospace, monospace); fill: var(--ink-2); }
+.jr-ring-hours text { font: 600 15px var(--font-mono, ui-monospace, monospace); fill: var(--ink-2); }
 .jr-ring-track { stroke: var(--edge-hair); stroke-width: 1; }
 .jr-ring-lane-track { stroke: var(--edge-hair); stroke-width: 6; }
 .jr-ring-lane path { stroke: var(--ink-2); stroke-width: 8; stroke-linecap: round; }
@@ -219,31 +236,35 @@
 .jr-ring-cap[data-previewing='true'] { stroke-dasharray: 3 3; fill: var(--surface-sunk); }
 .jr-ring-handle:focus-visible { outline: none; }
 .jr-ring-handle:focus-visible .jr-ring-cap { stroke: var(--focus-ring); stroke-width: 4; }
-.jr-ring-big { font: 650 30px var(--font-mono, ui-monospace, monospace); fill: var(--ink-1); letter-spacing: 0.02em; }
+.jr-ring-big { font: 650 36px var(--font-mono, ui-monospace, monospace); fill: var(--ink-1); letter-spacing: 0.02em; }
 .jr-ring-big[data-preview='true'] { fill: var(--ink-1); }
-.jr-ring-cap-word { font: 700 12px var(--font-mono, ui-monospace, monospace); letter-spacing: 0.16em; fill: var(--ink-2); }
+.jr-ring-cap-word { font: 700 16px var(--font-mono, ui-monospace, monospace); letter-spacing: 0.14em; fill: var(--ink-2); }
 .jr-ring-cap-word[data-preview='true'] { fill: var(--ink-1); }
-.jr-ring-sub { font: 12px var(--font-mono, ui-monospace, monospace); fill: var(--ink-2); }
-.jr-ring-cap-line { margin: 2px 0 0; min-height: 28px; max-width: 360px; text-align: center; font: 11.5px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.jr-ring-sub { font: 16px var(--font-mono, ui-monospace, monospace); fill: var(--ink-2); }
+.jr-ring-cap-line { margin: 8px 0 0; min-height: 32px; max-width: 100%; text-align: center; font: 11.5px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.jr-ring-quiet { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .jr-ring-prev { display: inline-flex; align-items: flex-start; gap: 6px; text-align: left; color: var(--ink-1); }
+/* the preview list wraps and stops at two lines (the 32 px caption row holds two at 1.3), so a long list never pushes the ring */
+.jr-ring-prev > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .jr-ring-prev svg { flex: none; margin-top: 1px; }
 
 /* ------------------------------------------------------------------ rules */
 .jr-rules { grid-template-columns: 640px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
-.jr-gates { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 10px; min-height: 0; }
-.jr-side { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto auto; gap: 12px; min-height: 0; min-width: 0; }
-.jr-gate { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; row-gap: 4px; padding: 6px 14px 8px; min-width: 0; min-height: 0; overflow: hidden;
-  background: var(--surface-ground); border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: 18px; box-shadow: var(--elev-raised, none); }
-.jr-gate[data-hollow='true'] { border-style: dashed; box-shadow: none; }
+.jr-gates { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(3, minmax(min-content, 1fr)); gap: 8px; min-height: 0; }
+/* Modes size to their content, so Heavy loads takes the height that was freed */
+.jr-side { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px; min-height: 0; min-width: 0; }
+.jr-gate { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; row-gap: 4px; padding: 6px 14px 8px; min-width: 0; min-height: 0;
+  background: var(--surface-ground); border: 0; border-radius: 18px; box-shadow: inset 0 1px 0 var(--lit-hi, transparent), var(--elev-raised, none); }
+.jr-gate[data-hollow='true'] { border: 1px dashed var(--edge-ui); box-shadow: none; }
 /* the lamp and its reason take a line of their own under the title and the switch: beside them they had about 100 px and wrapped to five lines or were cut (19 Nov sweep) */
-.jr-gate-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; min-width: 0; min-height: 36px; }
-.jr-gate-title { margin: 0; font: 650 13px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
-.jr-gate-lamp { display: inline-flex; align-items: flex-start; gap: 6px; font: 11.5px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); min-width: 0; flex: 1 0 100%; order: 3; }
+.jr-gate-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; min-width: 0; }
+.jr-gate-title { margin: 0; font: 650 13px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; overflow-wrap: anywhere; flex: 0 1 auto; min-width: 0; }
+.jr-gate-lamp { display: inline-flex; align-items: flex-start; gap: 6px; font: 11.5px/1.25 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); min-width: 0; flex: 1 0 100%; order: 3; margin-top: -2px; }
 .jr-gate-lamp b { color: var(--ink-1); font-weight: 650; }
 .jr-gate-reason { white-space: normal; overflow-wrap: anywhere; min-width: 0; flex: 1 1 0; line-height: 1.2; }
 .jr-gate-lamp > svg, .jr-gate-lamp > b { flex: none; }
 .jr-gate-lead { margin-left: auto; flex: none; margin-block: -4px; }
-.jr-gate-art { display: grid; grid-template-columns: minmax(0, 1fr) 50px 190px; align-items: stretch; min-height: calc(var(--rows, 1) * 26px); min-width: 0; }
+.jr-gate-art { display: grid; grid-template-columns: minmax(0, 1fr) 50px 190px; align-items: stretch; min-height: calc(var(--rows, 1) * 24px); min-width: 0; }
 .jr-gate-in { margin: 0; padding: 0; list-style: none; display: grid; grid-auto-rows: 1fr; min-width: 0; }
 .jr-gate-in li { display: flex; align-items: center; gap: 8px; min-width: 0; font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
 .jr-gate-label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; letter-spacing: 0.03em; }
@@ -262,7 +283,7 @@
 .jr-gate-out .jr-gate-wire { flex: 0 0 16px; min-width: 16px; }
 .jr-gate-out-text { font: 12px/1.3 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); min-width: 0; }
 .jr-gate-foot { display: flex; align-items: center; gap: 12px; min-height: 44px; min-width: 0; }
-.jr-gate-last { font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); min-width: 0; flex: 1 1 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jr-gate-last { font: 12px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); min-width: 0; flex: 1 1 0; overflow-wrap: anywhere; }
 .jr-gate-last b { color: var(--ink-1); letter-spacing: 0.06em; margin-right: 6px; }
 .jr-gate-foot-ctl { flex: none; display: inline-flex; align-items: center; }
 .jr-foot-keys { display: inline-flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
@@ -273,8 +294,9 @@
 .jr-gate .ww-btn { min-height: 44px; padding: 0 12px; }
 
 /* modes and the hardware setting */
-.jr-modes-panel { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 8px; padding: 10px 14px 12px; min-height: 0; min-width: 0; overflow: hidden;
-  background: var(--surface-ground); border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: 18px; box-shadow: var(--elev-raised, none); }
+.jr-modes-panel { display: grid; grid-template-rows: auto auto auto; gap: 6px; padding: 10px 14px 12px; min-height: 0; min-width: 0; align-content: start;
+  background: var(--surface-ground); border: 0; border-radius: 18px; box-shadow: inset 0 1px 0 var(--lit-hi, transparent), var(--elev-raised, none); }
+.jr-legend { font: 600 12px/1.3 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.04em; color: var(--ink-2); }
 .jr-panel-head { display: flex; align-items: center; gap: 10px; min-height: 44px; }
 .jr-panel-head .jr-note { flex: 1; min-width: 0; white-space: normal; line-height: 1.2; }
 .jr-mode-list { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; align-content: start; }
@@ -284,18 +306,18 @@
 .jr-mode-strip { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.12em; color: var(--ink-1); white-space: pre; }
 .jr-mode-list[data-many='true'] .jr-mode-strip { display: none; }
 .jr-mode-name { display: grid; gap: 2px; min-width: 0; }
-.jr-mode-name b { font: 650 13px/1.2 var(--font-ui, system-ui, sans-serif); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.jr-mode-detail { font: 11.5px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jr-mode-name b { font: 650 13px/1.2 var(--font-ui, system-ui, sans-serif); overflow-wrap: anywhere; }
+.jr-mode-detail { font: 11.5px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); overflow-wrap: anywhere; }
 .jr-mode-row[data-last='true'] .jr-mode-name b::after { content: ' ·'; color: var(--ink-2); }
 .jr-editor { display: grid; gap: 8px; align-content: start; min-height: 0; }
 .jr-editor-head { display: flex; align-items: center; justify-content: space-between; }
 .jr-editor-devices { display: flex; flex-wrap: wrap; gap: 8px; }
-.jr-hw { display: grid; gap: 6px; padding: 10px 14px 12px; background: var(--surface-ground); border: 1px solid var(--edge-ui); border-radius: 18px; box-shadow: var(--elev-raised, none); }
+.jr-hw { display: grid; gap: 6px; padding: 10px 14px 12px; background: var(--surface-ground); border: 0; border-radius: 18px; box-shadow: inset 0 1px 0 var(--lit-hi, transparent), var(--elev-raised, none); }
 .jr-hw .jr-tag { margin-bottom: 2px; }
 
 /* the heavy-load flags: the same switches the keys' Trim holds, listed where the rules are */
-.jr-heavy { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; padding: 10px 14px 12px; background: var(--surface-ground); border: 1px solid var(--edge-ui);
-  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); border-radius: 18px; box-shadow: var(--elev-raised, none); }
+.jr-heavy { display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: min-content; align-content: start; gap: 8px; min-width: 0; padding: 10px 14px 12px; background: var(--surface-ground); border: 0;
+  border-radius: 18px; box-shadow: inset 0 1px 0 var(--lit-hi, transparent), var(--elev-raised, none); }
 .jr-heavy-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 16px; }
 .jr-heavy-grid .k-switch-wrap { min-height: 44px; }
 :root[data-theme^='clay'] .jr .ww-chip[aria-pressed='true'] { background: var(--selected-fill); color: var(--selected-ink); }
@@ -309,39 +331,84 @@
 .jr-nudge-text { font: 13px/1.4 var(--font-ui, system-ui, sans-serif); }
 .jr-heavy-list { display: grid; gap: 4px; }
 
-/* ------------------------------------------------------------------ one column below 900 px */
+/* ------------------------------------------------------------------ the smallest desktop window (1120 x 720)
+   The wall box stays the hero: the dial shrinks, the mode keys tighten to one row, and when the canvas is short the key icons go
+   (the lamp word and the engraving carry the state) so no key overlaps or cuts its text. */
+@media (min-width: 900px) and (max-width: 1279px) {
+  .jr-plate-body { grid-template-columns: 148px minmax(0, 1fr); gap: 12px; }
+  .jr-dial-body { width: 136px; height: 136px; }
+  .jr-dial-name { font-size: 13px; }
+  .jr-chips { gap: 6px; }
+  .jr-chips .ww-chip { padding-inline: 8px; }
+  .jr-chips .ww-chip > span { gap: 6px; }
+  .jr-keys { gap: 8px; }
+  .jr-cell .jr-cap.k-key { padding: 6px 8px; }
+}
+@media (min-width: 900px) and (max-height: 760px) {
+  .jr-ico { display: none; }
+  .jr-mid { min-height: 0; }
+  .jr-gate { padding: 2px 14px 4px; row-gap: 2px; }
+  .jr-gates { gap: 4px; }
+  .jr-gate-art { min-height: calc(var(--rows, 1) * 18px); }
+  .jr-gate-in li { min-height: 18px; }
+  .jr-gate-head { row-gap: 0; }
+}
+
+/* ------------------------------------------------------------------ one column below 900 px
+   Recomposed for the phone, not squeezed from the desktop: the scroll area ends 16 px above the nav (the shell's canvas stops at
+   the nav, so the 16 px is the whole gap), the modes and All off ride in one sticky bar, absent keys are 64 px rows so all eight
+   fit, and a rule's inputs, AND block and outcome stack in one vertical line. */
 @media (max-width: 899px) {
   .jr { display: flex; flex-direction: column; gap: 12px; overflow-x: hidden; overflow-y: auto; padding: 8px 16px 0; }
   .jr-plate-slot { order: 1; flex: none; }
   .jr-face-plate { height: auto; grid-template-rows: 44px auto; }
   .jr-plate-body { grid-template-columns: minmax(0, 1fr); }
-  .jr-dial { display: none; }
-  .jr-keys { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: 116px; }
+  .jr-dial, .jr-modes-wide, .jr-plate-head .jr-armed { display: none; }
+  .jr-plate-right { grid-template-rows: auto; }
+  .jr-keys { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: auto; }
+  .jr-cell { min-height: 116px; }
+  .jr-cell[data-absent='true'] { min-height: 64px; }
+  .jr-cell[data-absent='true'] .jr-face { grid-template-rows: auto auto; align-content: space-between; }
+  .jr-cell[data-absent='true'] .jr-mid { display: none; }
   .jr-board { display: contents; }
   .jr-board > * { order: 3; }
   .jr-board > .jr-plate-head { background: transparent; }
   .jr-bottom { order: 4; display: flex; flex-direction: column; gap: 12px; flex: none; }
-  .jr-day { padding: 8px 8px 10px; }
-  .jr-lower { grid-template-rows: auto 150px 44px; }
-  .jr-alloff { order: 9; position: sticky; bottom: 0; z-index: 5; padding: 8px 0 10px; background: var(--surface-ground); align-self: stretch; }
+  .jr-day { padding: 8px 8px 12px; }
+  .jr-ring { width: 264px !important; }
+  .jr-ring > svg { width: 264px; height: 264px; }
+  .jr-lower { grid-template-rows: 150px 44px; }
+  .jr-alloff { order: 9; position: sticky; bottom: 0; z-index: 5; display: grid; gap: 8px; padding: 8px 0 16px; background: var(--surface-ground); align-self: stretch; margin-top: 0; }
+  .jr-alloff .jr-alloff-key.k-key { height: 56px; }
+  .jr-modebar { display: grid; gap: 6px; }
+  .jr-modebar .jr-chips { flex-wrap: nowrap; }
+  .jr-modebar .ww-chip { flex: 1 1 0; min-width: 0; padding-inline: 6px; }
+  .jr-modebar .ww-chip > span { flex-wrap: wrap; justify-content: center; gap: 2px 6px; line-height: 1.1; text-align: center; overflow-wrap: anywhere; }
   .jr-stamp { position: static; order: 2; }
   .jr-strip-legend { display: none; }
-  .jr-rules { grid-template-columns: minmax(0, 1fr); }
+  .jr-rules { grid-template-columns: minmax(0, 1fr); padding-bottom: 16px; }
   .jr-gates { grid-template-rows: none; grid-auto-rows: auto; }
   .jr-gates, .jr-side { flex: none; }
-  .jr-gate { overflow: visible; grid-template-rows: auto auto auto; }
+  .jr-gate { grid-template-rows: auto auto auto; }
   .jr-gate-head { flex-wrap: wrap; }
   .jr-gate-lamp { flex-basis: 100%; order: 3; }
-  .jr-gate-art { grid-template-columns: minmax(0, 1fr) 44px; row-gap: 6px; }
+  .jr-gate-lead { order: 2; margin-left: auto; }
+  .jr-gate-lead .k-switch-label { font-size: 11px; white-space: nowrap; } /* the switch keeps its visible name beside it, never a bare toggle */
+  .jr-gate-title { flex: 1 1 0; min-width: 0; }
+  .jr-gate-head .jr-tag { flex: none; }
+  .jr-gate-art { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; row-gap: 6px; }
+  .jr-gate-in { grid-column: 1; grid-row: 1; }
   .jr-gate-label { white-space: normal; }
-  .jr-gate-sym, .jr-gate-and { grid-column: 2; grid-row: 1; }
-  .jr-gate-out { grid-column: 1 / -1; grid-row: 2; }
+  .jr-gate-sym, .jr-gate-and { grid-column: 1; grid-row: 2; }
+  .jr-gate-sym { width: 88px; height: 44px; justify-self: start; }
+  .jr-gate-and { justify-self: start; width: 66px; text-align: center; }
+  .jr-gate-out { grid-column: 1; grid-row: 3; }
   .jr-panel-head .jr-note { display: none; }
   .jr-heavy-grid { grid-template-columns: minmax(0, 1fr); }
-  .jr-modes-panel { grid-template-rows: auto auto; }
+  .jr-modes-panel { grid-template-rows: auto auto auto; }
   .jr-quiet { flex-wrap: wrap; }
   .jr-gate-foot { flex-wrap: wrap; }
-  .jr-gate-last { flex-basis: 100%; white-space: normal; }
+  .jr-gate-last { flex-basis: 100%; }
   .jr-side { grid-template-rows: none; }
   .jr-mode-list { grid-template-columns: minmax(0, 1fr); }
   .jr-dropup .ww-fold[data-open='true'] .ww-fold-body { position: static; max-height: none; }

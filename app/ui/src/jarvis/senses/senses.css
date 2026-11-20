@@ -1,25 +1,35 @@
 /* ==========================================================================
-   Senses, the three views of shell v2 (A.J03, spec 20.9.3). Loaded only by the lazy Senses chunk, every rule under .js (or
-   the Senses drawers it opens through core's dialog), so the classic page and the other views get none of it.
+   Senses, the three views of shell v2 (A.J03, spec 20.9.3; lifted by EL-SENSES). Loaded only by the lazy Senses chunk, every
+   rule under .js (or the Senses drawers it opens through core's dialog), so the classic page and the other views get none of it.
 
-   The box (spec 20.9, content box J): the page area under the view row is 1302 x 668; with an 8 px gutter the view is
-   1286 x 652. Presence, left column 760: controls 48, the terrain well 392 (the 720 x 360 canvas, 26 for its terminal
-   strip, 6 above), the link row 120, the prediction strip 44, rows 10 apart (634 of 652). Right column 510: the presence
-   core 292, the tape or floor plan 300, the sentence, rows 12 apart (652). Signal: left 720, right 550. Teach: left 520,
-   right 750.
+   The box (spec 20.9, content box J): the page area under the view row is 1302 x 668. The Senses frame keeps the bottom 28 px
+   for the honesty sentence, so the view is 1302 x 640, and with a 12 px gutter (the lift of a card is 11 px of shadow: a
+   smaller gutter would cut it) its content is 1278 x 616. Presence, left column 712: controls 48, the terrain well (the
+   672 x 336 stage, 26 for its terminal strip, 6 above, stretches to the rest), the link row 112, the prediction strip 56,
+   rows 10 apart. Right column 550: the presence core 292 and the tape or floor plan stretching to the same bottom, 12 apart.
+   Signal: left 712, right 550. Teach: left 520, right 742.
 
-   Material: every surface is a clay token BY NAME (--surface-*, --elev-*, --ridge-*, --edge-*), so the craft pass that
-   retunes the recipe reaches this section without an edit here. The terrain well is a charcoal slab (data-scene='immersive')
-   like the voice stage of Core. The one accent fill per screen is the source key (Presence) or the main key of the desk
-   (Teach); a failure is the FAULT triangle and word, never red. Colours are tokens and system colours only.
+   Material: nothing here is outlined. A card, a key and a chip are lifted by an elevation token (--elev-low, hover
+   --elev-raised); a well, a tray and a tile are pressed in by --elev-recessed. Every surface is a clay token BY NAME
+   (--surface-*, --elev-*), so the craft pass that retunes the recipe reaches this section without an edit here. The terrain
+   well is a charcoal slab (data-scene='immersive') like the voice stage of Core. The one accent fill per screen is the source
+   key (Presence), Go to Presence (Signal) or the main key of the desk (Teach); a lit ON or selected state is neutral (raised,
+   ink), never the accent; a failure is the FAULT triangle and word, never red. Colours are tokens and system colours only.
    ========================================================================== */
 .js {
+  --js-lift: var(--elev-low, var(--elev-raised, none));
+  --js-lift-hi: var(--elev-raised, none);
+  /* a lit ON half of the rocker is neutral here, so the source key stays the only warm fill (the kit's own neutral lit state
+     replaces this). The fill is ink-3 (the kit's ON fill: light grey in the dark scene, dark clay in the light one, 5 to 7:1
+     against the unlit half) and the word on it is the ground colour, the opposite end of the scale. Raised-hi was 1.1:1. */
+  --k-on-fill: var(--ink-3);
+  --k-on-ink: var(--surface-ground);
   position: absolute;
   inset: 0;
   box-sizing: border-box;
-  padding: 8px;
+  padding: 12px;
   display: grid;
-  grid-template-columns: 760px minmax(0, 1fr);
+  grid-template-columns: 712px minmax(0, 1fr);
   column-gap: 16px;
   min-height: 0;
   overflow: hidden;
@@ -27,90 +37,111 @@
   font-family: var(--font-ui, system-ui, sans-serif);
 }
 .js *, .js *::before, .js *::after { box-sizing: border-box; }
-.js-signal { grid-template-columns: 720px minmax(0, 1fr); }
+.js-signal { grid-template-columns: 712px minmax(0, 1fr); }
 .js-teach { grid-template-columns: 520px minmax(0, 1fr); }
 .js-left, .js-right { min-width: 0; min-height: 0; display: grid; row-gap: 10px; align-content: start; }
-.js-presence .js-left { grid-template-rows: 48px 392px 120px 44px; }
-.js-presence .js-right { grid-template-rows: 292px 300px auto; row-gap: 12px; }
-.js-signal .js-left { grid-template-rows: auto auto auto; row-gap: 12px; }
+.js-presence .js-left { grid-template-rows: 48px minmax(0, 1fr) 112px 56px; }
+.js-presence .js-right { grid-template-rows: 292px minmax(0, 1fr); row-gap: 12px; }
+.js-signal .js-left { grid-template-rows: auto minmax(0, 1fr) 44px; row-gap: 12px; }
 .js-signal .js-right { display: flex; flex-direction: column; gap: 12px; }
-.js-signal .js-p-events { flex: 1 1 auto; }
-.js-signal .js-sentence { margin-top: auto; }
-.js-teach .js-left { grid-template-rows: auto auto auto; row-gap: 12px; }
-.js-teach .js-right { grid-template-rows: minmax(0, 1fr) auto; row-gap: 12px; }
+.js-signal .js-p-ledger { flex: 1 1 0; min-height: 0; }
+.js-teach .js-left { grid-template-rows: auto minmax(0, 1fr); row-gap: 12px; }
+.js-teach .js-right { grid-template-rows: auto minmax(0, 1fr); row-gap: 12px; }
 .js-tag { font: 600 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.04em; color: var(--ink-2); }
 .js-mono-dim { font: 11px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
 .js-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .js-note { margin: 0; font: 12px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
-.js-eyebrow { margin: 4px 0 0; font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+.js-eyebrow { margin: 4px 0 0; display: flex; align-items: center; gap: 8px; font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
 .js-readline { margin: 0; font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); overflow-wrap: anywhere; }
-.js-sentence { margin: 0; font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); letter-spacing: 0.01em; align-self: end; }
 .js :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .js-fault { margin: 0; display: flex; align-items: center; gap: 8px; font: 12px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); }
-.js-chip-sim { font: 650 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; color: var(--state-simulated); border: 1.5px solid var(--state-simulated); border-radius: 6px; padding: 4px 7px; }
-.js-chip-sim[data-quiet='true'] { color: var(--ink-2); border: 1px dashed var(--edge-ui); font-weight: 600; }
+/* tags: pressed-in plates with the state in ink and a word, no outline (the word, not the edge, carries the state) */
+.js-chip-sim { font: 650 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; color: var(--state-simulated); background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); border-radius: 6px; padding: 5px 8px; }
+.js-chip-sim[data-quiet='true'] { color: var(--ink-2); font-weight: 600; }
 
-/* ------------------------------------------------------------------ keys: raised clay, lit top lip, shaded bottom lip */
+/* ------------------------------------------------------------------ the Senses frame: the view, then one fixed sentence slot */
+.js-frame { position: absolute; inset: 0; display: grid; grid-template-rows: minmax(0, 1fr) 28px; }
+.js-frame-body { position: relative; min-height: 0; }
+.js-sentence { margin: 0; padding: 0 16px; align-self: center; white-space: nowrap; font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); letter-spacing: 0.01em; }
+
+/* ------------------------------------------------------------------ keys: raised clay, no outline */
 .js-key {
   position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  min-height: 44px; min-width: 44px; padding: 0 16px;
-  border: 1px solid var(--edge-ui);
-  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
+  min-height: 44px; min-width: 44px; padding: 0 16px; border: 0;
   border-radius: var(--r-control, 10px);
-  background: var(--surface-raised); box-shadow: var(--elev-raised, none); color: var(--ink-1);
+  background: var(--surface-raised); box-shadow: var(--js-lift); color: var(--ink-1);
   font: 600 13px/1 var(--font-ui, system-ui, sans-serif); letter-spacing: 0.01em; white-space: nowrap; cursor: pointer;
-  transition: transform var(--dur-state, 120ms) var(--ease-standard, ease);
+  transition: transform var(--dur-state, 120ms) var(--ease-standard, ease), box-shadow var(--dur-state, 120ms) var(--ease-standard, ease);
 }
-.js-key:hover { transform: translateY(-1px); border-color: var(--ink-2) var(--ink-2) var(--ridge-lo, var(--ink-2)); }
+.js-key:hover { transform: translateY(-1px); box-shadow: var(--js-lift-hi); }
 .js-key:active { transform: translateY(1px); box-shadow: var(--elev-pressed, none); }
-.js-key[aria-pressed='true'] { background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); }
-.js-key[aria-disabled='true'] { color: var(--ink-3); box-shadow: var(--elev-flush, none); cursor: default; transform: none; }
+.js-key[aria-pressed='true'] { background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); transform: none; }
+/* a key that cannot act reads as flat clay with its reason: ink-2, not the faint ink */
+.js-key[aria-disabled='true'] { color: var(--ink-2); box-shadow: var(--elev-flush, none); cursor: default; transform: none; }
 .js-key-icon { padding: 0; width: 44px; }
-.js-primary { background: var(--accent-fill); color: var(--accent-on); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); font-weight: 650; }
+.js-primary { background: var(--accent-fill); color: var(--accent-on); font-weight: 650; }
 .js-primary:hover { background: var(--accent-fill-hover, var(--accent-fill)); }
-.js-primary[aria-disabled='true'] { background: var(--surface-raised); color: var(--ink-3); }
+.js-primary[aria-disabled='true'] { background: var(--surface-raised); color: var(--ink-2); }
+.js-start { border-radius: var(--r-pill, 999px); padding: 0 22px; }
 .js-key-sm { font-size: 12px; padding: 0 12px; }
 .js-choice {
-  display: inline-flex; padding: 3px; gap: 2px; max-width: 100%;
-  border: 1px solid var(--edge-ui); border-radius: calc(var(--r-control, 10px) + 3px);
+  display: inline-flex; padding: 4px; gap: 4px; max-width: 100%;
+  border: 0; border-radius: var(--r-pill, 999px);
   background: var(--surface-sunk); box-shadow: var(--elev-recessed, none);
 }
 .js-choice button {
-  min-height: 44px; min-width: 44px; padding: 0 12px; border: 1px solid transparent; border-radius: var(--r-control, 10px);
+  min-height: 44px; min-width: 44px; padding: 0 14px; border: 0; border-radius: var(--r-pill, 999px);
   background: transparent; color: var(--ink-2); font: 600 13px/1 var(--font-ui, system-ui, sans-serif); cursor: pointer; white-space: nowrap;
 }
-.js-choice button[aria-checked='true'] {
-  background: var(--surface-raised); color: var(--ink-1);
-  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); box-shadow: var(--elev-raised, none);
-}
-.js-choice-sm button { padding: 0 10px; }
+.js-choice button:hover:not([aria-checked='true']) { color: var(--ink-1); }
+.js-choice button[aria-checked='true'] { background: var(--surface-raised); color: var(--ink-1); box-shadow: var(--js-lift); }
+.js-choice-sm button { padding: 0 12px; }
+/* the select: a closed well that opens an opaque, lifted list */
+.js-sel { position: relative; display: inline-flex; min-width: 0; }
 .js-select, .js-input {
-  min-height: 44px; padding: 0 12px; border: 1px solid var(--edge-ui); border-radius: var(--r-control, 10px);
+  min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--r-control, 10px);
   background: var(--surface-sunk); color: var(--ink-1); box-shadow: var(--elev-recessed, none); font: 13px/1 var(--font-ui, system-ui, sans-serif);
 }
-.js-select[disabled] { color: var(--ink-3); }
+button.js-select { display: inline-flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 150px; cursor: pointer; text-align: left; white-space: nowrap; }
+button.js-select svg { flex: none; color: var(--ink-2); }
+.js-sel[data-open='true'] > .js-select svg { transform: rotate(180deg); }
+.js-select[data-on='true'] { background: var(--surface-raised); box-shadow: var(--js-lift); }
+.js-select[aria-disabled='true'] { color: var(--ink-2); cursor: default; }
+.js-select-list {
+  /* drawn on the page body (a portal), at the coordinates the component measures from its trigger, so no card can clip it */
+  position: fixed; z-index: 1000; left: 0; top: 0; width: max-content; max-width: 320px; max-height: 300px; overflow-y: auto; overscroll-behavior: contain;
+  box-sizing: border-box; margin: 0; padding: 6px; list-style: none; border-radius: 16px; background: var(--surface-raised-hi, var(--surface-raised)); color: var(--ink-1);
+  box-shadow: var(--elev-float, var(--js-lift-hi)); font-family: var(--font-ui, system-ui, sans-serif);
+}
+.js-select-list:not([data-ready]) { visibility: hidden; }
+.js-select-list *, .js-select-list *::before, .js-select-list *::after { box-sizing: border-box; }
+.js-select-list li { display: flex; align-items: center; min-height: 44px; padding: 8px 14px; border-radius: 10px; font: 13px/1.25 var(--font-ui, system-ui, sans-serif); cursor: pointer; }
+.js-select-list li:hover, .js-select-list li:focus { background: var(--surface-sunk); outline: none; box-shadow: var(--elev-recessed, none); }
+.js-select-list li[aria-selected='true'] { font-weight: 650; }
+.js-select-list li:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.js-ctl-label { font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
+.js-ctl-pair { display: inline-flex; align-items: center; gap: 8px; }
+.js-field { display: grid; gap: 4px; }
+.js-field-label { font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
 
-/* ------------------------------------------------------------------ the clay panel */
+/* ------------------------------------------------------------------ the clay panel: lifted by elevation, not drawn */
 .js-panel {
   position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 8px 12px 12px; overflow: hidden;
-  border: 1px solid var(--edge-ui);
-  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
-  border-radius: 16px; background: var(--surface-raised); box-shadow: var(--elev-raised, none);
+  border: 0; border-radius: 16px; background: var(--surface-raised); box-shadow: var(--js-lift);
 }
 .js-panel-head { display: flex; align-items: center; gap: 12px; min-height: 28px; }
 .js-panel-head h2 { margin: 0; font: 650 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; text-transform: uppercase; }
 .js-panel-aside { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
 .js-panel-head .lamp { margin-left: 2px; }
+.js-count { font: 650 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; color: var(--ink-1); background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); border-radius: 6px; padding: 5px 8px; }
 
 /* ------------------------------------------------------------------ Presence: controls and the terrain well */
 .js-controls { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .js-controls .js-choice { flex: 0 1 auto; }
-.js-controls .k-rocker { margin-left: auto; }
+.js-controls .js-ctl-pair { margin-left: auto; margin-right: 6px; }
 .js-well {
   position: relative; display: flex; flex-direction: column; padding: 6px 20px 0; min-width: 0; overflow: hidden;
-  background: var(--surface-ground); border: 1px solid var(--edge-ui);
-  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
-  border-radius: 20px; box-shadow: var(--elev-raised, none);
+  background: var(--surface-ground); border: 0; border-radius: 20px; box-shadow: var(--js-lift);
 }
 .js-stage {
   position: relative; width: 100%; aspect-ratio: 2 / 1; border-radius: 14px; overflow: hidden;
@@ -123,9 +154,11 @@
 }
 .js-terrain { position: absolute; inset: 0; outline-offset: -2px; }
 .js-terrain-canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
-.js-terrain-legend {
-  position: absolute; left: 0; right: 0; bottom: 36px; margin: 0; text-align: center;
-  font: 650 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; color: var(--ink-2);
+/* the placeholder legend sits on its own pressed-in plate under the mesh, so the lines never run through the words */
+.js-terrain-legend { position: absolute; left: 0; right: 0; bottom: 30px; margin: 0; display: flex; justify-content: center; pointer-events: none; }
+.js-terrain-legend span {
+  padding: 6px 14px; border-radius: 999px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none);
+  font: 650 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; color: var(--ink-1);
 }
 .js-hud { position: absolute; top: 8px; font: 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.12em; color: var(--ink-2); pointer-events: none; }
 .js-hud[data-c='tl'] { left: 12px; }
@@ -143,13 +176,14 @@
 .js-ruler i { font-style: normal; color: var(--ink-1); }
 .js-presence[data-source='live'] .js-ruler i, .js-presence[data-source='simulated'] .js-ruler i { animation: js-sweep 5.4s steps(48, end) infinite; display: inline-block; }
 @keyframes js-sweep { from { transform: translateX(-190px); } to { transform: translateX(190px); } }
-.js-foot { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 10px; height: 26px; min-width: 0; }
+.js-foot { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, max-content); align-items: center; gap: 10px; height: 26px; min-width: 0; }
 .js-foot-tag { font: 650 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; color: var(--ink-2); }
-.js-ascii { font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); white-space: pre; overflow: hidden; }
+.js-ascii { font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); white-space: pre; overflow: hidden; max-width: 100%; }
 .js-ascii[data-source='none'] { color: var(--ink-3); }
 .js-ascii[data-source='simulated'] { color: var(--state-simulated); }
 .js-ascii[data-source='live'] { color: var(--state-measured); }
-.js-foot-read { text-align: right; font: 11px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* the reading carries a state or a reason: it wraps, it is never cut */
+.js-foot-read { text-align: right; font: 11px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); overflow-wrap: anywhere; }
 .js-twin { position: absolute; inset: 0; }
 .js-twin-host { position: absolute; inset: 0; }
 .js-twin-host canvas { display: block; }
@@ -157,16 +191,15 @@
 .js-est { position: absolute; left: 12px; right: 12px; bottom: 10px; margin: 0; padding: 6px 10px; border-radius: 8px; background: var(--surface-ground); color: var(--ink-1); font: 12px/1.3 var(--font-ui, system-ui, sans-serif); }
 
 /* ------------------------------------------------------------------ Presence: the link row and the prediction strip */
-.js-linkrow { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 12px; min-height: 0; }
+.js-linkrow { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 12px; min-height: 0; }
 .js-link, .js-chan {
-  min-width: 0; min-height: 0; padding: 8px 12px; border: 1px solid var(--edge-ui);
-  border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
-  border-radius: 16px; background: var(--surface-raised); box-shadow: var(--elev-raised, none); overflow: hidden;
+  min-width: 0; min-height: 0; padding: 8px 12px; border: 0;
+  border-radius: 16px; background: var(--surface-raised); box-shadow: var(--js-lift); overflow: hidden;
 }
 .js-link { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 2px; }
 .js-link-head { display: flex; align-items: center; gap: 8px; font: 650 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-1); }
-.js-link-body { display: grid; grid-template-columns: 84px minmax(0, 1fr); align-items: center; gap: 10px; min-height: 0; }
-.js-cube { width: 84px; height: 84px; }
+.js-link-body { display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; gap: 10px; min-height: 0; }
+.js-cube { width: 76px; height: 76px; }
 .js-cube-face { fill: var(--surface-sunk); stroke: var(--ink-2); stroke-width: 1.2; stroke-linejoin: round; }
 .js-cube-face[data-face='top'] { fill: var(--surface-raised); }
 .js-link[data-source='live'] .js-cube-face[data-face='top'] { stroke: var(--state-measured); }
@@ -178,7 +211,7 @@
 .js-vitals { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; min-width: 0; }
 .js-vitals li { display: grid; grid-template-columns: minmax(0, 1fr) auto 14px; column-gap: 8px; align-items: center; min-height: 24px; }
 
-.js-vital-name { font: 11px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.js-vital-name { font: 11px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); white-space: nowrap; }
 .js-vital-val { font: 650 14px/1.2 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; }
 .js-vitals .lamp { justify-self: end; }
 .js-chan { display: grid; grid-template-rows: auto minmax(0, 1fr); justify-items: center; align-items: center; gap: 4px; }
@@ -191,10 +224,16 @@
 .js-matrix[data-source='simulated'] .js-dot-q { fill: var(--state-simulated); }
 .js-dot[data-cursor='true'] .js-dot-ring { stroke: var(--ink-1); stroke-width: 2; }
 .js-scale text, .js-scale-text { font: 11px var(--font-mono, ui-monospace, monospace); fill: var(--ink-2); }
-.js-pred { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.js-pred-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 13px/1 var(--font-mono, ui-monospace, monospace); }
-.js-pred-fan { flex: 0 0 auto; font: 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.js-pred .js-select { width: 140px; }
+/* the strip: the prediction, then two pairs. Right and No, I'm at are the corrections (live drill taps); the fan note and its rocker are the other */
+.js-pred { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; column-gap: 16px; min-width: 0; }
+.js-pred-state { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.js-pred-text { min-width: 0; font: 600 13px/1.25 var(--font-mono, ui-monospace, monospace); overflow-wrap: anywhere; }
+.js-pair { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.js-tray { padding: 6px; border-radius: 20px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); }
+.js-tray .js-select { background: var(--surface-raised); box-shadow: var(--js-lift); min-width: 140px; }
+.js-tray .js-select[aria-disabled='true'] { box-shadow: var(--elev-flush, none); }
+.js-pred-fan { max-width: 116px; font: 11px/1.25 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); overflow-wrap: anywhere; }
+.js-pred-fanbox { gap: 10px; }
 
 /* ------------------------------------------------------------------ Presence: the core, the tape, the plan */
 .js-core-body { position: relative; display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 12px; min-height: 0; align-items: start; }
@@ -209,7 +248,7 @@
 .js-arc-ticks line { stroke: var(--ink-3); stroke-width: 1; }
 .js-arc-word { font: 650 11px var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; fill: var(--ink-2); }
 .js-arc-word[data-active='true'] { fill: var(--ink-1); }
-.js-needle { transition: transform 240ms var(--ease-standard, ease); }
+.js-needle { transition: transform var(--dur-state, 120ms) var(--ease-standard, ease); }
 .js-needle-line { stroke: var(--ink-1); stroke-width: 2; stroke-linecap: round; }
 .js-lens, .js-lens-ring { fill: none; stroke: var(--ink-2); stroke-width: 1.2; }
 .js-lens-ring { stroke: var(--ink-3); stroke-dasharray: 2 5; }
@@ -220,7 +259,8 @@
 .js-arc-words { display: grid; gap: 4px; min-width: 0; }
 .js-big { font: 650 22px/1.1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.04em; overflow-wrap: anywhere; }
 .js-big[data-word='none'] { color: var(--ink-2); }
-.js-big-num { font-size: 30px; font-variant-numeric: tabular-nums; }
+/* a number is never broken across lines: it keeps its width (the 390 px dash was stacked by the anywhere-wrap above) */
+.js-big-num { font-size: 30px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow-wrap: normal; min-width: 3ch; text-align: center; }
 .js-prov { font: 12px/1.35 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
 .js-evidence { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .js-evidence li { display: grid; gap: 3px; font: 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
@@ -261,27 +301,48 @@
 
 /* ------------------------------------------------------------------ Signal */
 .js-p-spec svg, .js-p-trace svg { display: block; }
-.js-bar { fill: var(--ink-1); }
-.js-spectrum[data-source='live'] .js-bar { fill: var(--state-measured); }
-.js-spectrum[data-source='simulated'] .js-bar { fill: var(--state-simulated); }
-.js-bar[data-hollow='true'] { fill: none; stroke: var(--ink-3); stroke-dasharray: 3 3; }
-.js-bar[data-cursor='true'] { fill: var(--ink-1); }
+.js-spec-wrap, .js-trace-wrap { position: relative; }
+.js-spectrum { height: 112px; display: grid; grid-template-columns: repeat(51, minmax(0, 1fr)); column-gap: 3px; align-items: end; border-bottom: 1px solid var(--ink-3); }
+.js-bar { display: block; border-radius: 2px; background: var(--ink-1); }
+.js-spectrum[data-source='live'] .js-bar { background: var(--state-measured); }
+.js-spectrum[data-source='simulated'] .js-bar { background: var(--state-simulated); }
+.js-bar[data-hollow='true'] { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+.js-bar[data-cursor='true'] { background: var(--ink-1); }
 .js-axis { stroke: var(--ink-3); stroke-width: 1; }
-.js-big-row { display: flex; align-items: baseline; gap: 14px; min-width: 0; }
-.js-big-row .js-ascii { margin-left: auto; font-size: 12px; }
+.js-axis-lab { position: relative; height: 11px; margin-top: 6px; font: 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.js-axis-lab span { position: absolute; top: 0; transform: translateX(-50%); }
+/* the words inside a hollow form: a small pressed-in plate, so the dashes never run through them */
+.js-hollow-label {
+  position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); padding: 6px 12px; border-radius: 999px; white-space: nowrap; pointer-events: none;
+  background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); font: 650 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2);
+}
+.js-big-row { display: flex; align-items: center; gap: 20px; min-width: 0; }
+.js-dial { position: relative; flex: none; width: 240px; height: 164px; }
+.js-dial svg { display: block; }
+.js-dial-ticks line { stroke: var(--ink-3); stroke-width: 1.2; stroke-linecap: round; }
+.js-dial-track { fill: none; stroke: var(--ink-3); stroke-width: 6; stroke-linecap: round; opacity: 0.55; }
+.js-dial[data-hollow='true'] .js-dial-track { stroke-dasharray: 2 8; stroke-width: 4; opacity: 1; }
+.js-dial-value { fill: none; stroke: var(--ink-1); stroke-width: 10; stroke-linecap: round; }
+.js-dial-thr { stroke: var(--ink-1); stroke-width: 3; stroke-linecap: round; }
+.js-dial-end { font: 11px var(--font-mono, ui-monospace, monospace); fill: var(--ink-2); }
+.js-dial-hub { position: absolute; left: 120px; top: 100px; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 2px; }
+.js-dial-side { display: grid; gap: 10px; align-content: center; min-width: 0; }
+.js-thr { white-space: nowrap; font-size: 12px; }
 .js-state-word { font: 650 12px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-1); }
-.js-trace-ring line { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 2 4; }
-.js-trace-ring text { font: 11px var(--font-mono, ui-monospace, monospace); fill: var(--ink-2); }
+.js-trace { height: 104px; }
+.js-trace-ringline { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 2 4; vector-effect: non-scaling-stroke; }
+.js-trace-mark { position: absolute; left: 4px; transform: translateY(-110%); font: 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); pointer-events: none; }
 .js-trace-line { fill: none; stroke: var(--ink-1); stroke-width: 1.8; stroke-linejoin: round; }
-.js-trace[data-source='live'] .js-trace-line, .js-trace[data-source='live'] .js-trace-dot { stroke: var(--state-measured); fill: var(--state-measured); }
-.js-trace[data-source='simulated'] .js-trace-line, .js-trace[data-source='simulated'] .js-trace-dot { stroke: var(--state-simulated); fill: var(--state-simulated); }
+.js-trace[data-source='live'] .js-trace-line { stroke: var(--state-measured); }
+.js-trace[data-source='simulated'] .js-trace-line { stroke: var(--state-simulated); }
 .js-trace-line { fill: none !important; }
 .js-trace-area { fill: var(--ink-1); opacity: 0.1; }
 .js-trace[data-source='live'] .js-trace-area { fill: var(--state-measured); }
 .js-trace[data-source='simulated'] .js-trace-area { fill: var(--state-simulated); }
 .js-trace-thr { stroke: var(--ink-1); stroke-width: 1.2; stroke-dasharray: 5 4; }
 .js-trace-hollow { fill: none; stroke: var(--ink-3); stroke-width: 1.2; stroke-dasharray: 4 5; }
-.js-narration { margin: 0; font: 12px/1.45 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
+/* the narration is a pressed-in plate of the same 44 px as the key on the other column, so both end on one line */
+.js-narration { margin: 0; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 16px; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); font: 12px/1.35 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
 .js-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .js-rows li { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; row-gap: 2px; align-items: center; }
 .js-rows li small { grid-column: 2; }
@@ -294,16 +355,19 @@
 .js-signal[data-source='live'] .js-meter i { background: var(--state-measured); }
 .js-signal[data-source='simulated'] .js-meter i { background: var(--state-simulated); }
 .js-meter b { position: absolute; top: -3px; width: 2px; height: 16px; background: var(--ink-1); }
-.js-exp { font: 650 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.06em; color: var(--ink-2); border: 1px dashed var(--edge-ui); border-radius: 5px; padding: 2px 5px; }
+.js-exp { font: 650 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.06em; color: var(--ink-2); background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); border-radius: 5px; padding: 3px 6px; }
 .js-p-events { min-height: 0; }
 .js-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); overflow: hidden; }
+/* the ledger: sensors, the simulation check, events, in one card; an empty section is a ruled row that says why */
+.js-ledger { display: grid; gap: 8px; align-content: start; min-height: 0; }
+.js-ledger-empty { margin: 0; min-height: 44px; display: flex; align-items: center; padding: 0 4px; font: 12px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); background: linear-gradient(var(--surface-sunk), var(--surface-sunk)) bottom / 100% 2px no-repeat; }
+.js-go { flex: 0 0 44px; display: flex; justify-content: flex-end; }
 
 .js-waterfall { margin: 0; font: 12px/1.25 var(--font-mono, ui-monospace, monospace); letter-spacing: 2px; color: var(--ink-1); white-space: pre; overflow: hidden; }
 .js-waterfall[data-source='live'] { color: var(--state-measured); }
 .js-waterfall[data-source='simulated'] { color: var(--state-simulated); }
 .js-waterfall[data-source='none'] { color: var(--ink-3); }
-.js-scen { width: 150px; flex: 0 0 auto; }
-.js-scen[data-on='true'] { box-shadow: var(--elev-raised, none); background: var(--surface-raised); }
+.js-scen { flex: 0 0 auto; }
 
 /* ------------------------------------------------------------------ Teach */
 .js-rings { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
@@ -316,31 +380,37 @@
 .js-ring-sigil { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-2); pointer-events: none; }
 .js-ring[data-done='true'] .js-ring-sigil { color: var(--ink-1); }
 .js-ring figcaption { display: grid; gap: 2px; justify-items: center; min-width: 0; }
-.js-ring-name { font: 650 12px/1.2 var(--font-ui, system-ui, sans-serif); }
-.js-ring-word { font: 11px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
-.js-action-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: auto; min-width: 0; }
+/* one line each: the name, a short count, the lamp with its word */
+.js-ring-name { font: 650 12px/1.2 var(--font-ui, system-ui, sans-serif); white-space: nowrap; }
+.js-ring-word { font: 11px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); white-space: nowrap; }
+.js-ring figcaption .lamp { white-space: nowrap; }
+.js-rings-note { padding-top: 4px; }
+.js-action-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
 .js-action-row > .js-note { flex: 1; min-width: 0; }
-.js-keys { justify-content: flex-start; margin-top: 4px; }
-.js-pair { display: inline-flex; gap: 8px; }
-.js-tabbody { display: grid; gap: 10px; align-content: start; min-height: 0; flex: 1; }
+.js-keys { justify-content: flex-start; margin-top: auto; }
+.js-pair-keys, .js-pair.js-keys { display: inline-flex; gap: 8px; }
+.js-tabbody { display: grid; gap: 10px; align-content: start; min-height: 0; }
 .js-p-desk .js-panel-head { min-height: 44px; flex-wrap: wrap; }
-.js-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+/* four columns, fixed: the last tile of a group spans the cells the row would leave empty (set inline, from the count) */
+.js-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .js-tile {
-  display: grid; align-content: space-between; gap: 4px; min-height: 64px; padding: 8px 12px; text-align: left; cursor: pointer;
-  border: 1px solid var(--edge-ui); border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui));
-  border-radius: var(--r-control, 10px); background: var(--surface-raised); box-shadow: var(--elev-raised, none); color: var(--ink-1);
+  display: grid; align-content: space-between; gap: 4px; min-height: 56px; padding: 8px 14px; text-align: left; cursor: pointer;
+  border: 0; border-radius: var(--r-control, 10px); background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); color: var(--ink-1);
   font: 600 13px/1.2 var(--font-ui, system-ui, sans-serif);
 }
-.js-tile[data-small='true'] { min-height: 44px; }
+.js-tile[data-small='true'] { min-height: 48px; }
 .js-tile small { font: 11px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
-.js-tile[aria-pressed='true'] { background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); }
-.js-tile[aria-disabled='true'] { color: var(--ink-3); box-shadow: var(--elev-flush, none); cursor: default; }
+.js-tile:hover { color: var(--ink-1); box-shadow: var(--elev-recessed, none), 0 0 0 2px var(--surface-raised-hi, var(--surface-raised)) inset; }
+/* the tile under your foot is lifted out of its well: raised and lit in ink, never the accent */
+.js-tile[aria-pressed='true'] { background: var(--surface-raised-hi, var(--surface-raised)); box-shadow: var(--js-lift); }
+.js-tile[aria-disabled='true'] { color: var(--ink-2); cursor: default; }
 .js-form { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; }
 .js-form label { display: grid; gap: 4px; font: 600 11px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
 .js-grow { flex: 1 1 220px; }
-.js-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.js-chip { min-height: 44px; padding: 0 12px; border: 1px solid var(--edge-ui); border-radius: 999px; background: var(--surface-raised); color: var(--ink-1); font: 12px/1 var(--font-ui, system-ui, sans-serif); cursor: pointer; }
-.js-chip[aria-pressed='true'] { background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); }
+.js-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.js-chip { min-height: 44px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--surface-raised); box-shadow: var(--js-lift); color: var(--ink-1); font: 12px/1 var(--font-ui, system-ui, sans-serif); cursor: pointer; }
+.js-chip:hover { box-shadow: var(--js-lift-hi); }
+.js-chip:active, .js-chip[aria-pressed='true'] { background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); }
 .js-progress { display: grid; gap: 4px; }
 .js-progress-head { display: flex; justify-content: space-between; font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
 .js-report { display: grid; gap: 6px; font: 13px/1.4 var(--font-ui, system-ui, sans-serif); }
@@ -351,21 +421,29 @@
 .js-bars li[data-top='true'] { color: var(--ink-1); }
 .js-bars em { font-style: normal; text-align: right; }
 .js-status-line { margin: 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.js-status-word { font: 650 13px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; border: 1px dashed var(--edge-ui); border-radius: 6px; padding: 5px 8px; }
-.js-status-word[data-answering='true'] { border-style: solid; border-color: var(--ink-1); }
+.js-status-word { font: 650 13px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; background: var(--surface-sunk); box-shadow: var(--elev-recessed, none); border-radius: 6px; padding: 6px 9px; color: var(--ink-2); }
+.js-status-word[data-answering='true'] { background: var(--surface-raised); box-shadow: var(--js-lift); color: var(--ink-1); }
 .js-learned-top { margin: 0; display: flex; justify-content: space-between; gap: 12px; align-items: baseline; font-size: 15px; }
-.js-todo li { grid-template-columns: auto minmax(0, 1fr); }
-.js-todo small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* what is left: a plain sentence per step (never clamped), the command behind a 44 px copy chip */
+.js-todo { gap: 10px; }
+.js-todo li { grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 12px; min-height: 44px; }
+.js-todo-text { display: grid; gap: 3px; min-width: 0; }
+.js-rows .js-todo-text small, .js-todo small { grid-column: auto; font: 12px/1.35 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); overflow-wrap: anywhere; }
+.js-copy { white-space: nowrap; }
 /* the classic sheets (measure my room, First light) hosted in a Senses drawer: the page's absolute, glassy dialog becomes a plain block */
 .js-classic .teach-sheet, .jc-drawer .js-classic .teach-sheet {
   position: static; inset: auto; max-width: none; width: 100%; margin: 0; padding: 0; border-radius: 0;
   background: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; animation: none; color: var(--ink-1);
 }
 .js-classic .ts-head .btn { display: none; }
-.js-classic input, .js-classic select { color: var(--ink-1); background: var(--surface-sunk); border: 1px solid var(--edge-ui); border-radius: var(--r-control, 10px); min-height: 44px; padding: 0 10px; }
+.js-classic input, .js-classic select { color: var(--ink-1); background: var(--surface-sunk); border: 0; box-shadow: var(--elev-recessed, none); border-radius: var(--r-control, 10px); min-height: 44px; padding: 0 10px; }
 .js-classic .btn { min-height: 44px; }
 
 /* ------------------------------------------------------------------ the phone: one column that scrolls inside itself */
+@media (max-width: 899px) {
+  .js-frame { grid-template-rows: minmax(0, 1fr) auto; }
+  .js-sentence { white-space: normal; padding: 6px 16px 8px; }
+}
 .js[data-narrow='true'] { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; overflow-x: hidden; }
 .js[data-narrow='true'] .js-left, .js[data-narrow='true'] .js-right { display: contents; }
 .js[data-narrow='true'] > * { min-width: 0; }
@@ -376,26 +454,38 @@
 .js-presence[data-narrow='true'] .js-side { order: 4; }
 .js-presence[data-narrow='true'] .js-linkrow { order: 5; }
 .js-presence[data-narrow='true'] .js-pred { order: 6; }
-.js-presence[data-narrow='true'] .js-sentence { order: 7; }
 .js[data-narrow='true'] .js-panel, .js[data-narrow='true'] .js-well, .js[data-narrow='true'] .js-linkrow { flex: 0 0 auto; }
 .js[data-narrow='true'] .js-link-head { flex-wrap: wrap; }
 .js[data-narrow='true'] .js-controls { flex-wrap: wrap; }
-.js[data-narrow='true'] .js-controls .k-rocker { margin-left: 0; }
+.js[data-narrow='true'] .js-controls .js-ctl-pair { margin-left: 0; margin-right: 0; }
 .js[data-narrow='true'] .js-well { padding: 6px 8px 0; }
 .js[data-narrow='true'] .js-linkrow { grid-template-columns: minmax(0, 1fr); }
 .js[data-narrow='true'] .js-chan { justify-items: start; overflow-x: auto; }
-.js[data-narrow='true'] .js-pred { flex-wrap: wrap; }
-.js[data-narrow='true'] .js-pred-text { flex: 1 1 100%; white-space: normal; }
-.js[data-narrow='true'] .js-pred .js-select { flex: 1 1 140px; }
+.js[data-narrow='true'] .js-pred { grid-template-columns: minmax(0, 1fr); row-gap: 10px; }
+.js[data-narrow='true'] .js-pair { flex-wrap: wrap; }
 .js[data-narrow='true'] .js-core-body { grid-template-columns: minmax(0, 1fr); }
 .js[data-narrow='true'] .js-arc { margin: 0 auto; }
 .js[data-narrow='true'] .js-rings { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 14px; }
+.js[data-narrow='true'] .js-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.js[data-narrow='true'] .js-tile { grid-column: auto !important; }
 .js[data-narrow='true'] .js-bars li { grid-template-columns: 110px minmax(0, 1fr) 40px; }
 .js[data-narrow='true'] .js-panel-head { flex-wrap: wrap; }
 .js[data-narrow='true'] .js-panel-aside { margin-left: 0; max-width: 100%; }
 .js[data-narrow='true'] .js-choice { max-width: 100%; overflow-x: auto; }
 .js[data-narrow='true'] .js-hud[data-c='tr'] { display: none; }
 .js[data-narrow='true'] .js-ruler { display: none; }
+.js[data-narrow='true'] .js-foot { grid-template-columns: auto minmax(0, 1fr); height: auto; row-gap: 4px; padding-bottom: 6px; }
+.js[data-narrow='true'] .js-foot-read { grid-column: 1 / -1; text-align: left; }
+/* Signal on the phone is recomposed, not squeezed: the dial centres over its words, the trace keeps its height, the key sits last */
+.js-signal[data-narrow='true'] .js-big-row { flex-direction: column; align-items: center; gap: 8px; }
+.js-signal[data-narrow='true'] .js-dial-side { justify-items: center; text-align: center; }
+.js-signal[data-narrow='true'] .js-narration { min-height: 44px; height: auto; padding: 10px 16px; }
+.js-signal[data-narrow='true'] .js-go { justify-content: stretch; }
+.js-signal[data-narrow='true'] .js-go .js-key { width: 100%; }
+.js-signal[data-narrow='true'] .js-spectrum { height: 96px; column-gap: 2px; }
+.js-signal[data-narrow='true'] .js-waterfall { max-width: 100%; letter-spacing: 0; font-size: 11px; }
+.js-teach[data-narrow='true'] .js-todo li { grid-template-columns: auto minmax(0, 1fr); }
+.js-teach[data-narrow='true'] .js-todo .js-copy { grid-column: 2; justify-self: start; }
 
 /* ------------------------------------------------------------------ the gallery box */
 .js-gallery-box { position: relative; width: 1302px; height: 668px; zoom: 0.72; overflow: hidden; background: var(--surface-ground); border-radius: 12px; }
@@ -403,10 +493,11 @@
 
 /* ------------------------------------------------------------------ reduced motion, calm and forced colours */
 @media (prefers-reduced-motion: reduce) {
-  .js *, .js-gallery-box * { transition: none !important; animation: none !important; }
+  .js *, .js-gallery-box *, .js-select-list, .js-select-list * { transition: none !important; animation: none !important; }
 }
-:root[data-motion='calm'] .js * { transition: none !important; animation: none !important; }
+:root[data-motion='calm'] .js *, :root[data-motion='calm'] .js-select-list * { transition: none !important; animation: none !important; }
 @media (forced-colors: active) {
-  .js-key, .js-choice, .js-panel, .js-tile, .js-chip, .js-well, .js-link, .js-chan { border: 1px solid CanvasText; forced-color-adjust: auto; }
+  .js-key, .js-choice, .js-panel, .js-tile, .js-chip, .js-well, .js-link, .js-chan, .js-select, .js-select-list, .js-tray, .js-narration, .js-count, .js-hollow-label,
+  .js-terrain-legend span, .js-chip-sim, .js-exp, .js-status-word, .js-ledger-empty { border: 1px solid CanvasText; forced-color-adjust: auto; }
   .js-art { display: none; }
 }

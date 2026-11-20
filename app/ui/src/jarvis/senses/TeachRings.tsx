@@ -36,7 +36,7 @@ export function TeachRingForm({ ring, known, simulated }: { ring: TeachRing; kno
       </div>
       <figcaption>
         <b className="js-ring-name">{ring.name}</b>
-        <span className="js-ring-word">{known ? ring.word : 'not read yet'}</span>
+        <span className="js-ring-word">{known ? ring.short : 'not read'}</span>
         <Lamp reading={reading} subject={ring.name} />
       </figcaption>
     </figure>

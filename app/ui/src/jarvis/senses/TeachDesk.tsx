@@ -14,7 +14,7 @@ import {
   type AudioFile, type JobView, type MiniView, type NarrateSession, type NarrateSummary,
 } from '../../lib/teachTrain'
 import { learnedView } from '../../lib/roomMeasure'
-import { Choice, KeyBtn, Panel } from './parts'
+import { Choice, KeyBtn, Panel, SensesSelect, effectiveSource } from './parts'
 import type { SensesState, SensesStore } from './store'
 
 type Toast = (m: string, tone?: 'live' | 'sim' | 'fault' | 'info') => void
@@ -48,10 +48,12 @@ function MiniDrill({ state, toast }: { state: SensesState; toast?: Toast }) {
   const { places, transit } = placeButtons(state.zones)
   const open = v?.open?.zone
   const live = state.latest?.source === 'hardware' && state.online
-  const tile = (z: { id: string; name: string }, small: boolean) => (
+  // a fixed 4-column grid: the last tile takes the cells the row would leave empty, so no row ends in a hole
+  const grid = (zs: { id: string; name: string }[], small: boolean) => zs.map((z, i) => tile(z, small, i === zs.length - 1 && zs.length % 4 ? 5 - (zs.length % 4) : 1))
+  const tile = (z: { id: string; name: string }, small: boolean, span = 1) => (
     <button
       key={z.id} type="button" className="js-tile" data-small={small ? 'true' : undefined} aria-pressed={open === z.id}
-      aria-disabled={!recording || undefined} onClick={() => { if (recording) void run(() => tapMini(z.id)) }}
+      aria-disabled={!recording || undefined} style={span > 1 ? { gridColumn: `span ${span}` } : undefined} onClick={() => { if (recording) void run(() => tapMini(z.id)) }}
     >
       <span>{z.name}</span>
       <small>{open === z.id ? `now ${Math.round(v?.open?.seconds ?? 0)} s` : `${Math.round(v?.seconds?.[z.id] ?? 0)} s`}</small>
@@ -63,10 +65,10 @@ function MiniDrill({ state, toast }: { state: SensesState; toast?: Toast }) {
         {recording ? 'Tap where you are each time you move. Each tap ends the last stretch and starts the next; Pause leaves the time unlabelled.' : 'Sit at the laptop and press Start: the board records, and you tap the place you are at as you move. The laptop keeps the time, so no chirp is needed.'}
       </p>
       {!state.zones.length && <p className="js-note">No zone map yet: the place buttons come from the room's zones.</p>}
-      <div className="js-tiles">{places.map((z) => tile(z, false))}</div>
-      {transit.length > 0 && <><p className="js-eyebrow">on the way</p><div className="js-tiles">{transit.map((z) => tile(z, true))}</div></>}
+      <div className="js-tiles">{grid(places, false)}</div>
+      {transit.length > 0 && <><p className="js-eyebrow">on the way</p><div className="js-tiles">{grid(transit, true)}</div></>}
       <div className="js-action-row">
-        <span className="js-note">{recording ? `${v?.spans.length ?? 0} stretches saved${v?.dropped.length ? `, ${v.dropped.length} dropped (${v.dropped[v.dropped.length - 1].why})` : ''}` : live ? 'The board is live.' : 'Start the ESP32 in Presence first: a mini drill records the real board.'}</span>
+        <span className="js-note" data-testid="mini-reason">{recording ? `${v?.spans.length ?? 0} stretches saved${v?.dropped.length ? `, ${v.dropped.length} dropped (${v.dropped[v.dropped.length - 1].why})` : ''}` : live ? 'The board is live.' : 'Start the ESP32 in Presence first: a mini drill records the real board.'}</span>
         {recording ? (
           <span className="js-pair">
             <KeyBtn onClick={() => void run(() => tapMini(null))}>Pause</KeyBtn>
@@ -103,12 +105,12 @@ function PhoneRecording({ toast }: { toast?: Toast }) {
     <div className="js-tabbody">
       <p className="js-note">A longer drill recorded on the phone: copy its audio file to the laptop, pick it here, and the narration becomes labels (the chirps line the phone up with the laptop, then Whisper hears the places).</p>
       <div className="js-form">
-        <label>Session
-          <select className="js-select" value={session} onChange={(e) => setSession(e.target.value)} aria-label="Narration session">
-            <option value="latest">the latest</option>
-            {sessions.map((s) => <option key={s.folder} value={s.folder}>{s.day} {s.session}{s.labelled ? ', labelled' : ''}</option>)}
-          </select>
-        </label>
+        <div className="js-field"><span className="js-field-label" aria-hidden="true">Session</span>
+          <SensesSelect
+            label="Narration session" placeholder="the latest" value={session} onChange={setSession} className="js-sel-wide"
+            options={[{ id: 'latest', label: 'the latest' }, ...sessions.map((x) => ({ id: x.folder, label: `${x.day} ${x.session}${x.labelled ? ', labelled' : ''}` }))]}
+          />
+        </div>
         <label className="js-grow">Audio file
           <input className="js-input" value={path} onChange={(e) => setPath(e.target.value)} placeholder="C:\...\recording.m4a" aria-label="Audio file path" spellCheck={false} />
         </label>
@@ -179,8 +181,15 @@ function TrainTab({ state, store, toast }: { state: SensesState; store: SensesSt
 export function TeachDesk({ state, store, toast, fixture }: { state: SensesState; store: SensesStore; toast?: Toast; fixture?: boolean }) {
   const [tab, setTab] = useState<Tab>('mini')
   const training = state.train?.job.state === 'running'
-  const on = fixture ? 'simulated' : 'live'
-  const lamp: LampReading = training ? { state: on, since: null, reason: 'a training job is running' } : { state: state.train ? on : 'waiting', since: null, reason: state.train ? 'model status from the server' : 'model status not read yet' }
+  const src = effectiveSource(state)
+  // the lamp follows the source: LIVE only for the board, SIMULATED for the simulation or a specimen, WAITING when nothing runs.
+  // A running training job is the server's own work on stored labels, so it keeps its own reading (LIVE, SIMULATED in a specimen).
+  const fromSource: LampReading['state'] = fixture || src === 'simulated' ? 'simulated' : src === 'live' ? 'live' : 'waiting'
+  const lamp: LampReading = training
+    ? { state: fixture ? 'simulated' : 'live', since: null, reason: 'a training job is running' }
+    : fromSource !== 'waiting' && state.train
+      ? { state: fromSource, since: null, reason: 'model status from the server' }
+      : { state: 'waiting', since: null, reason: src === 'none' ? 'no source is running' : state.train ? 'no source is running' : 'model status not read yet' }
   return (
     <Panel
       tag="SEN" title="Teach desk" reading={lamp} className="js-p-desk"

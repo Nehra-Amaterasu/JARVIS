@@ -2,7 +2,7 @@
 // emblem, the Spectrum bars and the MotionTrace of the Signal view, and the moving ASCII trace under the terrain.
 // None of them draws a person: the arc is a gauge, the spindle is three crossed lenses with no centre mark, the cube is
 // the ESP32 node. A form with no source is hollow (dashed or hairline) and says why in words next to it.
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { LAMP_SPECS, Lamp, showsNumber, type LampReading } from '../../shared/lamp'
 import { sparkline } from '../../shared/grammar'
 import { ARC_SPAN, BAND_WORD, COLS, arcModel, arcPath, arcPoint, channelLevels, terrainRows, vitalText, type Band, type Frame, type LinkVitals, type Source } from './model'
@@ -146,31 +146,35 @@ export function ProbabilityArc({ band, p, trusted, source, orbitS = null, drillD
 
 /* ------------------------------------------------------------------ Spectrum (Signal view) */
 
-/** 51 bars, one per subcarrier, from the latest frame. SVG only. Hollow outlines with no frame. */
+/** 51 bars, one per subcarrier, from the latest frame. Drawn as a CSS grid of real boxes, not a stretched SVG, so a bar keeps
+ *  its corner radius and a true pixel width at any card width; the three axis numbers (1, 26, 51) are text under the bar
+ *  centres they name. With no frame the bars are a hollow envelope at a resting height (about 40 percent, a gentle swell
+ *  so it reads as a designed pose, not a missing chart) and the words "no frames" sit on a plate inside it. */
 export function Spectrum({ amps, source, cursor, onCursor }: { amps: readonly number[]; source: Source; cursor: number | null; onCursor: (c: number | null) => void }) {
   const hollow = source === 'none' || amps.length === 0
   const peak = Math.max(1e-9, ...amps.filter(Number.isFinite))
-  const W = 720
-  const H = 200
-  const bw = W / COLS
+  const at = (i: number) => `${(((i + 0.5) / COLS) * 100).toFixed(2)}%`
   return (
-    <svg className="js-spectrum" viewBox={`0 0 ${W} ${H + 22}`} width="100%" role="img" data-source={hollow ? 'none' : source}
-      aria-label={hollow ? 'Spectrum: no frame, 51 hollow bars' : 'Spectrum: amplitude of each of the 51 subcarriers'} onPointerLeave={() => onCursor(null)}>
-      {Array.from({ length: COLS }, (_, i) => {
-        const v = hollow ? 0.12 : Math.max(0.02, (amps[i] ?? 0) / peak)
-        const h = Math.max(3, v * (H - 8))
-        return (
-          <rect
-            key={i} x={i * bw + 1.5} y={H - h} width={bw - 3} height={h} rx={2} className="js-bar" data-hollow={hollow ? 'true' : undefined}
-            data-cursor={cursor === i ? 'true' : undefined} onPointerMove={() => onCursor(i)}
-          />
-        )
-      })}
-      <line x1="0" x2={W} y1={H + 0.5} y2={H + 0.5} className="js-axis" />
-      <g className="js-scale" aria-hidden="true">
-        {[1, 13, 26, 39, 51].map((n) => <text key={n} x={(n - 0.5) * bw} y={H + 16} textAnchor={n === 1 ? 'start' : n === 51 ? 'end' : 'middle'}>{n}</text>)}
-      </g>
-    </svg>
+    <div className="js-spec-wrap">
+      <div
+        className="js-spectrum" role="img" data-source={hollow ? 'none' : source}
+        aria-label={hollow ? 'Spectrum: no frame, 51 hollow bars' : 'Spectrum: amplitude of each of the 51 subcarriers'} onPointerLeave={() => onCursor(null)}
+      >
+        {Array.from({ length: COLS }, (_, i) => {
+          const v = hollow ? 0.3 + 0.16 * Math.sin((i / (COLS - 1)) * Math.PI) : Math.max(0.02, (amps[i] ?? 0) / peak)
+          return (
+            <i
+              key={i} className="js-bar" style={{ height: `${Math.max(3, v * 100).toFixed(1)}%` }} data-hollow={hollow ? 'true' : undefined}
+              data-cursor={cursor === i ? 'true' : undefined} onPointerMove={() => onCursor(i)}
+            />
+          )
+        })}
+      </div>
+      {hollow && <span className="js-hollow-label" aria-hidden="true">no frames</span>}
+      <div className="js-axis-lab" aria-hidden="true">
+        <span style={{ left: at(0) }}>1</span><span style={{ left: at(25) }}>26</span><span style={{ left: at(50) }}>51</span>
+      </div>
+    </div>
   )
 }
 
@@ -194,24 +198,78 @@ export function traceGeometry(hist: readonly HistPoint[], w = 720, h = 170): Tra
   return { path, area, thr: thr ? y(thr) : null, rings, last: pts[pts.length - 1] }
 }
 
+const TRACE_H = 104
+
 export function MotionTrace({ hist, source }: { hist: readonly HistPoint[]; source: Source }) {
-  const g = useMemo(() => traceGeometry(hist), [hist])
+  const g = useMemo(() => traceGeometry(hist, 720, TRACE_H), [hist])
   const empty = !hist.length || source === 'none'
   return (
-    <svg className="js-trace" viewBox="0 0 720 170" width="100%" role="img" data-source={empty ? 'none' : source}
-      aria-label={empty ? 'Motion score over 30 seconds: no frames yet' : 'Motion score over 30 seconds on a log scale, with its threshold'}>
-      {g.rings.map((r) => (
-        <g key={r.label} className="js-trace-ring"><line x1="0" x2="720" y1={r.y} y2={r.y} /><text x="4" y={r.y - 4}>{r.label}</text></g>
-      ))}
-      {empty ? <path className="js-trace-hollow" d="M0 120C90 120 120 80 200 80S300 120 400 110 520 70 600 90 690 110 720 100" /> : (
-        <>
-          <path d={g.area} className="js-trace-area" />
-          <path d={g.path} className="js-trace-line" />
-          {g.thr != null && <line x1="0" x2="720" y1={g.thr} y2={g.thr} className="js-trace-thr" />}
-          {g.last && <circle cx={g.last[0]} cy={g.last[1]} r={3.5} className="js-trace-dot" />}
-        </>
-      )}
-    </svg>
+    <div className="js-trace-wrap">
+      <svg className="js-trace" viewBox={`0 0 720 ${TRACE_H}`} preserveAspectRatio="none" width="100%" role="img" data-source={empty ? 'none' : source}
+        aria-label={empty ? 'Motion score over 30 seconds: no frames yet' : 'Motion score over 30 seconds on a log scale, with its threshold'}>
+        {g.rings.map((r) => <line key={r.label} className="js-trace-ringline" x1="0" x2="720" y1={r.y} y2={r.y} />)}
+        {empty ? <path className="js-trace-hollow" vectorEffect="non-scaling-stroke" d="M0 74C90 74 120 46 200 46S300 74 400 68 520 40 600 54 690 68 720 62" /> : (
+          <>
+            <path d={g.area} className="js-trace-area" />
+            <path d={g.path} className="js-trace-line" vectorEffect="non-scaling-stroke" />
+            {g.thr != null && <line x1="0" x2="720" y1={g.thr} y2={g.thr} className="js-trace-thr" vectorEffect="non-scaling-stroke" />}
+          </>
+        )}
+      </svg>
+      {/* the 1x, 10x, 100x marks are text, not svg text: the svg stretches with the card, the marks keep their size */}
+      {g.rings.map((r) => <span key={r.label} className="js-trace-mark" style={{ top: `${(r.y / TRACE_H) * 100}%` }} aria-hidden="true">{r.label}</span>)}
+      {empty && <span className="js-hollow-label" aria-hidden="true">no frames</span>}
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ MotionDial (Signal view) */
+
+/** The dial's scale: 0.5x to 20x on a log scale, the same decades as the trace under it. */
+export const DIAL_LO = 0.5
+export const DIAL_HI = 20
+export const dialFrac = (v: number): number => Math.max(0, Math.min(1, (Math.log10(Math.max(v, DIAL_LO)) - Math.log10(DIAL_LO)) / (Math.log10(DIAL_HI) - Math.log10(DIAL_LO))))
+
+const DW = 240
+const DH = 164
+const DCX = 120
+const DCY = 100
+const DR = 82
+
+/**
+ * The motion score as a gauge in the Well Wisher dial family, drawn in JARVIS ink: a 240 degree track on a log scale, the
+ * value arc in the source's ink, the threshold as a tick across the track, and the score at the hub (a dash with no
+ * frame, and the track hollow). The hub number is real text (the caller's markup), so it keeps its test id and its size at
+ * any width; the source lamp and its word sit in the card header.
+ */
+export function MotionDial({ score, threshold, source, hub }: { score: number | null; threshold: number | null; source: Source; hub: ReactNode }) {
+  const on = source !== 'none' && score != null && Number.isFinite(score)
+  const f = on ? dialFrac(score as number) : 0
+  const tf = on && threshold != null && Number.isFinite(threshold) ? dialFrac(threshold) : null
+  const [vx, vy] = arcPoint(DCX, DCY, DR, f * ARC_SPAN)
+  const [t0x, t0y] = tf == null ? [0, 0] : arcPoint(DCX, DCY, DR - 11, tf * ARC_SPAN)
+  const [t1x, t1y] = tf == null ? [0, 0] : arcPoint(DCX, DCY, DR + 11, tf * ARC_SPAN)
+  const [s0x, s0y] = arcPoint(DCX, DCY, DR, 0)
+  const [s1x, s1y] = arcPoint(DCX, DCY, DR, ARC_SPAN)
+  return (
+    <div className="js-dial" data-source={source} data-hollow={on ? undefined : 'true'}>
+      <svg viewBox={`0 0 ${DW} ${DH}`} width={DW} height={DH} role="img" aria-label={on ? `Motion score dial, ${(score as number).toFixed(1)}x on a log scale from 0.5x to 20x${tf != null ? `, threshold ${(threshold as number).toFixed(2)}x` : ''}` : 'Motion score dial: no frames, so no reading'}>
+        <g className="js-dial-ticks" aria-hidden="true">
+          {Array.from({ length: 25 }, (_, i) => {
+            const [x0, y0] = arcPoint(DCX, DCY, DR + 12, (i * ARC_SPAN) / 24)
+            const [x1, y1] = arcPoint(DCX, DCY, DR + (i % 6 === 0 ? 18 : 15), (i * ARC_SPAN) / 24)
+            return <line key={i} x1={x0} y1={y0} x2={x1} y2={y1} />
+          })}
+        </g>
+        <path d={arcPath(DCX, DCY, DR, 0, ARC_SPAN)} className="js-dial-track" />
+        {on && f > 0.004 && <path d={arcPath(DCX, DCY, DR, 0, f * ARC_SPAN)} className="js-dial-value" style={{ stroke: inkFor(source) }} />}
+        {on && <circle cx={vx} cy={vy} r={6} className="js-dial-knob" style={{ fill: inkFor(source) }} />}
+        {tf != null && <line x1={t0x} y1={t0y} x2={t1x} y2={t1y} className="js-dial-thr" />}
+        <text x={s0x} y={s0y + 18} textAnchor="middle" className="js-dial-end" aria-hidden="true">0.5x</text>
+        <text x={s1x} y={s1y + 18} textAnchor="middle" className="js-dial-end" aria-hidden="true">20x</text>
+      </svg>
+      <div className="js-dial-hub">{hub}</div>
+    </div>
   )
 }
 

@@ -1,0 +1,293 @@
+// TreeStage (T01, spec 20.8.2, scale 2): one tree on the canvas, with level of detail and the keyboard model.
+//
+//   level of detail   below zoom 0.55 only the branch hubs draw; from 0.55 the nodes in view draw (one stroked path each, no label);
+//                     from 1.15 labels and pips draw. Only the nodes inside the padded view are in the DOM, so a 300-node tree
+//                     stays under 400 drawn elements at every zoom (measured in the count test).
+//   keyboard          the stage is one composite: one tab stop (roving tabindex); arrows move to the nearest node in that direction,
+//                     Shift+arrows pan 80 px, Enter opens the node (a hub zooms to its branch), Page Up and Page Down step through branches,
+//                     + and - zoom, 0 fits, Tab leaves, Esc is the page's. No loop of its own: pan and zoom are viewport.ts,
+//                     which costs 0 animation frames at idle.
+//   drawing           only the stage reads the ledger through `derived`; a node's state is never decided here.
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MutableRefObject, type PointerEvent } from 'react'
+import { showsNumber, type LampState } from '../../shared/lamp'
+import { HUB_H, HUB_W, drawPlan, labelLines, layoutTree, neighbour, type Dir } from './layout'
+import { STATES, STATE_WORD, branchGrowth, type Derived } from './ledger'
+import type { NodeDef, TreeDef } from './model'
+import { NodeGlyph, SkillNode } from './SkillNode'
+import { TraceEdges, edgeSets } from './TraceEdge'
+import { useViewport } from './viewport'
+
+export interface StageApi {
+  fit(): void
+  zoomIn(): void
+  zoomOut(): void
+  pan(dx: number, dy: number): void
+  toBranch(b: number): void
+  goTo(id: string): void
+}
+
+export interface TreeStageProps {
+  tree: TreeDef
+  derived: ReadonlyMap<string, Derived>
+  ledgerState: LampState
+  /** The node whose drawer is open, if any. */
+  openId: string | null
+  onOpen: (id: string) => void
+  /** A drawer covers the right of the stage (the view keeps a node clear of it). */
+  occluded: boolean
+  apiRef: MutableRefObject<StageApi | null>
+  /** The node to centre on first (the one the rules pick next, or the first seed). */
+  startId?: string | null
+  /** The element that shows the zoom percentage (the page's bar); the viewport writes it with no re-render. */
+  zoomEl?: HTMLElement | null
+  /** Size and view before anything is measured (the count test and the gallery draw a known view). */
+  initialSize?: { w: number; h: number }
+  initialView?: { x: number; y: number; k: number }
+}
+
+const DIRS: Record<string, Dir> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }
+const PAN_STEP = 80
+
+/** The ids from the seed of a node's branch up to it. */
+export function chainOf(tree: TreeDef, id: string | null): string[] {
+  const out: string[] = []
+  for (let n: NodeDef | undefined = id ? tree.byId.get(id) : undefined; n; n = n.prereq ? tree.byId.get(n.prereq) : undefined) out.unshift(n.id)
+  return out
+}
+
+interface Hover { id: string; x: number; y: number }
+
+export function TreeStage({ tree, derived, ledgerState, openId, onOpen, occluded, apiRef, startId = null, zoomEl = null, initialSize = { w: 846, h: 464 }, initialView }: TreeStageProps) {
+  const layout = useMemo(() => layoutTree(tree), [tree])
+  const counted = showsNumber(ledgerState)
+  const occ = useRef(false)
+  occ.current = occluded
+  const sens = useRef(1)
+  const [view, setView] = useState(initialView ?? { x: 0, y: 0, k: 1 })
+  const [size, setSize] = useState(initialSize)
+  const [focusId, setFocusId] = useState<string | null>(startId ?? tree.nodes[0]?.id ?? null)
+  const [activeB, setActiveB] = useState<number | null>(null)
+  const [hover, setHover] = useState<Hover | null>(null)
+  const want = useRef(false)
+  const vp = useViewport({
+    bounds: layout.bounds, occluded: occ, sens,
+    onRest: () => {
+      setView({ ...vp.view.current })
+      const s = vp.stage.current
+      if (s && s.clientWidth > 0) setSize((z) => (z.w === s.clientWidth && z.h === s.clientHeight ? z : { w: s.clientWidth, h: s.clientHeight }))
+    },
+  })
+  const { centerOn, fit } = vp
+
+  /** Put a branch's row in view at zoom k: the whole row when it fits, else its left end (hub and seed first), in the upper part of the
+   *  stage so the rows below it show. */
+  const frameBranch = useCallback((b: number, k: number, instant = false, atX?: number) => {
+    const box = layout.branchBox(b)
+    const st = vp.stage.current
+    const w = (st?.clientWidth || size.w) - (occ.current ? 404 : 0)
+    const h = st?.clientHeight || size.h
+    const vw = w / k
+    // a row wider than the stage: on a narrow stage (a phone) centre on the node asked for so it and its label are whole, else show the hub end
+    const narrow = atX !== undefined && w < 520
+    const cx = box.w <= vw ? box.x + box.w / 2 : narrow ? Math.min(box.x + box.w - vw / 2, Math.max(box.x + vw / 2, atX)) : box.x + vw / 2 - 8
+    // the row sits above the middle so the rows below show; a row's label hangs 24 to 50 units under it, so the row is placed on a whole
+    // pitch from the bottom edge and a label is never the thing the edge cuts (labels that would be cut are not drawn, see `fits`)
+    centerOn(cx, box.y + box.h / 2 + (h * 0.2) / k, k, instant)
+  }, [layout, centerOn, size, vp.stage])
+
+  // the first view: the row of the node the rules pick (or the first seed) at a readable zoom
+  const placed = useRef(false)
+  useEffect(() => {
+    if (!vp.ready || placed.current) return
+    placed.current = true
+    const p = layout.byId.get(startId ?? '') ?? layout.nodes[0]
+    if (p) frameBranch(p.b, 1.2, true, p.x)
+    else fit(true)
+  }, [vp.ready, layout, startId, frameBranch, fit])
+
+  // the drawer opened or moved to another node: bring it clear of the drawer
+  useEffect(() => {
+    const p = openId ? layout.byId.get(openId) : null
+    if (p) frameBranch(p.b, Math.max(vp.view.current.k, 1.15))
+  }, [openId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const plan = useMemo(() => drawPlan(layout, view, size, [focusId, openId]), [layout, view, size, focusId, openId])
+  const ids = useMemo(() => new Set(plan.nodes), [plan])
+  const hubSet = useMemo(() => new Set(plan.hubs), [plan])
+  const chain = useMemo(() => chainOf(tree, openId ?? focusId), [tree, openId, focusId])
+  const sets = useMemo(() => edgeSets(tree, layout, derived, ids, hubSet, chain), [tree, layout, derived, ids, hubSet, chain])
+  const groups = useMemo(() => branchGrowth(tree, derived), [tree, derived])
+
+  const points = useMemo(() => [...layout.nodes.map((p) => ({ id: p.id, x: p.x, y: p.y })), ...layout.hubs.map((h) => ({ id: h.id, x: h.x + HUB_W / 2, y: h.y }))], [layout])
+  const at = useMemo(() => new Map(points.map((p) => [p.id, p])), [points])
+
+  /** Focus the drawn element of an id; false when it is not in the DOM yet (the effect below then does it after the render). */
+  const focusEl = useCallback((id: string): boolean => {
+    const el = [...(vp.svg.current?.querySelectorAll<SVGElement>('[data-id]') ?? [])].find((e) => e.getAttribute('data-id') === id)
+    el?.focus({ preventScroll: true })
+    return !!el
+  }, [vp.svg])
+  const focusTo = useCallback((id: string, centre = true) => {
+    const p = at.get(id)
+    if (!p) return
+    want.current = true
+    setFocusId(id)
+    queueMicrotask(() => { if (focusEl(id)) want.current = false })
+    if (!centre) return
+    // pan only when the point leaves the comfortable area; the zoom stays unless it is too far out to read
+    const v = vp.view.current
+    const sx = p.x * v.k + v.x
+    const sy = p.y * v.k + v.y
+    const w = size.w - (occ.current ? 404 : 0)
+    if (sx < 72 || sy < 56 || sx > w - 72 || sy > size.h - 56 || v.k < 0.7) centerOn(p.x, p.y, Math.max(v.k, 0.8))
+  }, [at, centerOn, size, vp.view, focusEl])
+
+  // a change of level of detail swaps a node's element (one path <-> a group), which drops focus on the floor: put it back on the
+  // same node, but only when the stage had focus and nothing else took it
+  const held = useRef(false)
+  useEffect(() => {
+    if (!focusId) return
+    if (want.current) { if (focusEl(focusId)) want.current = false; return }
+    if (held.current && !vp.svg.current?.contains(document.activeElement)) focusEl(focusId)
+  }, [focusId, plan, focusEl, vp.svg])
+
+  const toBranch = useCallback((b: number) => {
+    const box = layout.branchBox(b)
+    setActiveB(b)
+    // never so far out that only hubs draw
+    frameBranch(b, Math.min(1.6, Math.max(0.6, Math.min((size.w - (occ.current ? 404 : 0) - 48) / box.w, (size.h - 48) / box.h))))
+    const first = tree.branches[b]?.nodes[0]
+    if (first) { want.current = true; setFocusId(first.id) }
+  }, [layout, frameBranch, tree, size])
+  const pan = useCallback((dx: number, dy: number) => {
+    const v = vp.view.current
+    const c = vp.centreOf(v)
+    centerOn(c.x + dx / v.k, c.y + dy / v.k, v.k)
+  }, [vp, centerOn])
+
+  useEffect(() => {
+    apiRef.current = {
+      fit: () => { setActiveB(null); fit() }, zoomIn: vp.zoomIn, zoomOut: vp.zoomOut, pan, toBranch,
+      goTo: (id) => focusTo(id),
+    }
+  })
+  useEffect(() => { vp.zoomText.current = zoomEl as HTMLSpanElement | null }, [zoomEl, vp.zoomText])
+
+  const branchOf = (id: string): number => (id ? (tree.byId.get(id)?.b ?? tree.branches.findIndex((b) => b.id === id)) : 0)
+  const onKeyDown = (e: KeyboardEvent<SVGSVGElement>) => {
+    const el = (e.target as Element).closest('[data-id]')
+    const id = el?.getAttribute('data-id') ?? focusId
+    if (!id) return
+    const dir = DIRS[e.key]
+    if (dir) {
+      e.preventDefault()
+      e.stopPropagation()
+      if (e.shiftKey) { pan(dir === 'left' ? -PAN_STEP : dir === 'right' ? PAN_STEP : 0, dir === 'up' ? -PAN_STEP : dir === 'down' ? PAN_STEP : 0); return }
+      const from = at.get(id)
+      const to = from ? neighbour(points, from, id, dir) : null
+      if (to) focusTo(to)
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      if (tree.byId.has(id)) onOpen(id)
+      else toBranch(branchOf(id))
+    } else if (e.key === 'PageUp' || e.key === 'PageDown') {
+      // not [ and ]: the shell owns those for "previous view / next view" (shell/keymap.ts) and takes them in the capture phase
+      e.preventDefault()
+      const n = tree.branches.length
+      toBranch((branchOf(id) + (e.key === 'PageDown' ? 1 : n - 1)) % n)
+    } else if (e.key === '+' || e.key === '=') { e.preventDefault(); vp.zoomIn() }
+    else if (e.key === '-') { e.preventDefault(); vp.zoomOut() }
+    else if (e.key === '0' || e.key === 'f') { e.preventDefault(); setActiveB(null); fit() }
+  }
+
+  const show = (id: string, e: PointerEvent | null, el?: Element | null) => {
+    const stage = vp.stage.current?.getBoundingClientRect()
+    const r = el?.getBoundingClientRect()
+    if (!stage) return
+    setHover({ id, x: (e ? e.clientX : (r?.left ?? 0) + (r?.width ?? 0) / 2) - stage.left, y: (e ? e.clientY : (r?.top ?? 0)) - stage.top })
+  }
+  const hoverNode = hover ? tree.byId.get(hover.id) ?? null : null
+  const hoverD = hoverNode ? derived.get(hoverNode.id) : undefined
+  const needs = hoverNode?.prereq ? tree.byId.get(hoverNode.prereq)?.name : null
+
+  const earnedBranches = groups.filter((g) => g.done).length
+  const compact = plan.band !== 'full'
+  /** A label or hub name is drawn only when the whole of it lies inside the stage: a state or a name cut by the edge reads wrong
+   *  (the 20 Nov sweep found "Estimation and regression" cut at the bottom). Panning shows it again once it fits. */
+  const EDGE = 4
+  const labelFits = (p: { x: number; y: number }, name: string, tier: 1 | 2 | 3): boolean => {
+    const lines = labelLines(name)
+    const k = view.k
+    const hw = (Math.max(...lines.map((l) => l.length)) * 6.6) / 2 + 4
+    const r = tier === 3 ? 40 : tier === 2 ? 32 : 26
+    const sx = p.x * k + view.x
+    const top = (p.y + r) * k + view.y
+    const bottom = (p.y + r + 24 + 13 * (lines.length - 1) + 6) * k + view.y
+    return sx - hw * k >= EDGE && sx + hw * k <= size.w - EDGE && top >= EDGE && bottom <= size.h - EDGE
+  }
+  const hubFits = (h: { x: number; y: number }): boolean => {
+    const k = view.k
+    const sx = h.x * k + view.x
+    const sy = h.y * k + view.y
+    return sx >= EDGE && sx + HUB_W * k <= size.w - EDGE && sy - (HUB_H / 2) * k >= EDGE && sy + (HUB_H / 2) * k <= size.h - EDGE
+  }
+  return (
+    <div className="ww-tree-stage tg-stage" ref={vp.stage} data-moving="false" data-band={plan.band}>
+      <svg ref={vp.svg} className="tg-svg" {...vp.handlers} role="group" data-band={plan.band}
+        aria-label="Tree. Arrow keys move between nodes, Enter opens one, Page Up and Page Down step through branches, plus and minus zoom, zero fits, Shift with arrows pans."
+        onKeyDown={onKeyDown}
+        onPointerOver={(e) => { const el = (e.target as Element).closest('[data-id]'); const id = el?.getAttribute('data-id'); if (id && tree.byId.has(id)) show(id, e); else setHover(null) }}
+        onPointerLeave={() => setHover(null)}
+        onFocus={(e) => { held.current = true; const el = (e.target as Element).closest('[data-id]'); const id = el?.getAttribute('data-id'); if (id) { setFocusId(id); if (tree.byId.has(id)) show(id, null, el); else setHover(null) } }}
+        onBlur={(e) => { setHover(null); if (e.relatedTarget) held.current = false }}>
+        <g ref={vp.g}>
+          <TraceEdges sets={sets} />
+          <g className="tree-hubs">
+            {plan.hubs.map((b) => {
+              const br = tree.branches[b]
+              const h = layout.hubById.get(br.id)!
+              const gb = groups[b]
+              const lines = labelLines(br.name, 16)
+              return (
+                <g key={br.id} className="tree-hub" role="button" tabIndex={focusId === br.id ? 0 : -1} data-id={br.id} data-dim={activeB !== null && activeB !== b ? 'true' : undefined} data-reserved={br.reserved ? 'true' : undefined}
+                  transform={`translate(${h.x},${h.y})`} aria-label={`${br.name} branch, ${counted ? `${gb.earned} of ${gb.total} nodes evidenced` : `${gb.total} nodes, evidence not counted`}. Enter zooms to it.`}
+                  onClick={() => { focusTo(br.id, false); toBranch(b) }}>
+                  <rect className="hub-face" x={0} y={-HUB_H / 2} width={HUB_W} height={HUB_H} rx={16} />
+                  {hubFits(h) && <text className="hub-name" x={14} y={lines.length > 1 ? -4 : 4}>{lines.map((l, i) => <tspan key={i} x={14} dy={i ? 14 : 0}>{l}</tspan>)}</text>}
+                  <text className="hub-n" x={HUB_W - 14} y={4} textAnchor="end" data-hollow={counted ? undefined : 'true'}>{counted ? `${gb.earned}/${gb.total}` : `${gb.total} nodes`}</text>
+                </g>
+              )
+            })}
+          </g>
+          <g className="tree-nodes">
+            {plan.nodes.map((id) => {
+              const n = tree.byId.get(id)!
+              const p = layout.byId.get(id)!
+              const d = derived.get(id)
+              return (
+                <SkillNode key={id} id={id} tier={n.tier} state={d?.state ?? 'locked'} pips={d?.pips ?? 0} label={n.name} x={p.x} y={p.y} compact={compact} hideLabel={!compact && !labelFits(p, n.name, n.tier)}
+                  selected={openId === id} dim={activeB !== null && activeB !== n.b} tabIndex={focusId === id ? 0 : -1}
+                  onClick={() => { focusTo(id, false); onOpen(id) }} />
+              )
+            })}
+          </g>
+        </g>
+      </svg>
+      {hoverNode && hover && (
+        <div className="tg-callout" aria-hidden="true" style={{ left: Math.min(hover.x + 14, size.w - 236), top: Math.max(8, hover.y - 96) }} data-state={hoverD?.state ?? 'locked'}>
+          <b>{hoverNode.name}</b>
+          <span>{['', 'Seed', 'Skill', 'Capstone'][hoverNode.tier]} of {hoverNode.branch}</span>
+          <span>{STATE_WORD[hoverD?.state ?? 'locked']}{counted ? `, ${hoverD?.pips ?? 0} record${hoverD?.pips === 1 ? '' : 's'}` : ', evidence not counted'}</span>
+          {needs && <span>Needs: {needs}</span>}
+        </div>
+      )}
+      <ul className="tg-legend" aria-label="Legend: six states, each told apart by shape and glyph">
+        {STATES.map((s) => (
+          <li key={s}><svg viewBox="-20 -20 40 40" width="28" height="28" aria-hidden="true"><NodeGlyph tier={2} state={s} /></svg><span>{STATE_WORD[s]}</span></li>
+        ))}
+      </ul>
+      <p className="tg-count" aria-live="off">{counted ? `${earnedBranches} of ${groups.length} branches complete` : `Branches complete: – – of ${groups.length}`}</p>
+    </div>
+  )
+}
+

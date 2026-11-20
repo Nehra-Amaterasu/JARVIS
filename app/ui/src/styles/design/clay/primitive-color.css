@@ -110,6 +110,11 @@
   --p-shadow-white-12: rgb(255 255 255 / 0.12);
   --p-shadow-white-35: rgb(255 255 255 / 0.35);
   --p-shadow-black-70: rgb(0 0 0 / 0.7);
+  /* the ridge rims of the Focus hill (the ink of each theme at 14 and 18 percent): ink #171717 in the light theme, bone #E8EAE9 in the dark and in the scenes */
+  --p-shadow-ink-14: rgb(23 23 23 / 0.14);
+  --p-shadow-ink-18: rgb(23 23 23 / 0.18);
+  --p-shadow-bone-14: rgb(232 234 233 / 0.14);
+  --p-shadow-bone-18: rgb(232 234 233 / 0.18);
 
   /* round two of the craft pass (14 Nov): the accent as a STATE fill (an ON track, a selected segment, a lit rocker key,
      the slider's run, the knob's arc), the C02-46 orange one step deeper than the action fill #F25623 so it is a 3:1

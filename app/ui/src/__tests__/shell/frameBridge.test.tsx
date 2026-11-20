@@ -9,6 +9,8 @@ import { act, createElement } from 'react'
 import { mount } from '../ww/_stubs'
 import { resetShellForTests, useShell } from '../../shell/store'
 import { resetPortsForTests } from '../../shell/ports'
+import { setViewsForTests } from '../../shell/views'
+import { SECTIONS } from '../../shell/ids'
 
 type Fn = (ws: string, view: string | null) => void
 
@@ -84,7 +86,12 @@ const key = (k: string, init: KeyboardEventInit = {}) =>
   act(() => void window.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init })))
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 0)) })
 
+// The bridge exists for views the frame hosts. Every Well Wisher view has a registration of its own now, so the frame is no
+// longer driven by any key; the registrations are hidden here so hosts.ts hosts them in the frame, as when this was written.
+const WW_VIEW_IDS = SECTIONS.filter((s) => s.product === 'ww').flatMap((s) => s.views.map((v) => `${s.id}.${v}`))
+
 beforeEach(async () => {
+  setViewsForTests(null, WW_VIEW_IDS)
   localStorage.clear()
   localStorage.setItem('shell.product', 'ww')
   fake.reset()
@@ -96,6 +103,7 @@ beforeEach(async () => {
 afterEach(() => {
   m?.unmount()
   m = null
+  setViewsForTests(null)
 })
 
 describe('the frame bridge never moves the place without a key', () => {
@@ -123,8 +131,7 @@ describe('the frame bridge never moves the place without a key', () => {
   })
 
   it('a jump made inside the frame, with no shell request in flight, still moves the rail', async () => {
-    // study.papers is a registered shell view since Y01 (the Paper Desk), so the frame is not driven by it; the first
-    // frame-hosted Study view is study.plan, two keys on (study.practice is the Drill set-up door, in the Focus workspace)
+    // study.practice is the Drill set-up door, in the Focus workspace; study.plan is two keys on
     key('3', { ctrlKey: true })
     key(']')
     key(']')

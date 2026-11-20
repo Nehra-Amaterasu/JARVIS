@@ -125,6 +125,9 @@
   --elev-high: -8px -8px 18px var(--lit-hi), 8px 8px 18px var(--p-shade-cool-18);
   --elev-float: -12px -12px 26px var(--lit-hi), 12px 12px 26px var(--p-shade-cool-22);
   --elev-raised-drop: drop-shadow(6px 6px 7px var(--p-shade-cool-16));
+  /* a ridge casts a soft rim UP onto the one behind it (the Focus hill): the ink of the theme, 14 and 18 percent */
+  --elev-ridge-mid: drop-shadow(0 -5px 6px var(--p-shadow-ink-14));
+  --elev-ridge-near: drop-shadow(0 -6px 7px var(--p-shadow-ink-18));
   --elev-recessed: inset 4px 4px 10px var(--p-shade-cool-20), inset -4px -4px 10px var(--lit-hi);
   --elev-well-deep: inset 5px 5px 12px var(--p-shade-cool-24), inset -5px -5px 12px var(--lit-hi);
   --elev-pressed: inset 3px 3px 8px var(--p-shade-cool-22), inset -3px -3px 8px var(--lit-hi);
@@ -162,6 +165,8 @@
   --elev-high: -8px -8px 18px var(--lit-hi), 8px 8px 18px var(--p-shadow-black-70);
   --elev-float: -12px -12px 26px var(--lit-hi), 12px 12px 26px var(--p-shadow-black-75);
   --elev-raised-drop: drop-shadow(6px 6px 7px var(--p-shadow-black-65));
+  --elev-ridge-mid: drop-shadow(0 -5px 6px var(--p-shadow-bone-14));
+  --elev-ridge-near: drop-shadow(0 -6px 7px var(--p-shadow-bone-18));
   --elev-recessed: inset 4px 4px 10px var(--p-shadow-black-60), inset -4px -4px 10px var(--lit-hi);
   --elev-well-deep: inset 5px 5px 12px var(--p-shadow-black-70), inset -5px -5px 12px var(--p-shadow-white-07);
   --elev-pressed: inset 3px 3px 8px var(--p-shadow-black-70), inset -3px -3px 8px var(--lit-hi);

@@ -67,13 +67,16 @@ export function collectViews(modules: Record<string, unknown>): CollectedViews {
 export const VIEWS: CollectedViews = collectViews(import.meta.glob('./*.view.ts', { eager: true }))
 
 let extra: Map<string, ViewRegistration> | null = null
+let hidden: Set<string> | null = null
 
 /** The registration for a view id, or undefined (the canvas then falls back to hosts.ts). */
 export function registeredView(id: string): ViewRegistration | undefined {
-  return extra?.get(id) ?? VIEWS.byId.get(id)
+  return extra?.get(id) ?? (hidden?.has(id) ? undefined : VIEWS.byId.get(id))
 }
 
-/** Tests only: register views as if their files existed (null clears). */
-export function setViewsForTests(regs: ViewRegistration[] | null): void {
+/** Tests only: register views as if their files existed (null clears). `hide` lists real registrations to ignore, so the
+ *  hosts.ts fallback (a legacy page, the frame, the "not built" plate) can still be exercised once every view has its own file. */
+export function setViewsForTests(regs: ViewRegistration[] | null, hide: readonly string[] = []): void {
   extra = regs ? new Map(regs.map((r) => [r.id, r])) : null
+  hidden = hide.length > 0 ? new Set(hide) : null
 }

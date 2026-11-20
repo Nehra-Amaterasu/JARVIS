@@ -61,7 +61,7 @@
 }
 :root .fv .ww-seg[data-variant='choice'] .ww-seg-opt {
   inline-size: 100%; min-inline-size: 0; justify-content: center; text-align: center; white-space: normal; overflow-wrap: anywhere; padding-inline: var(--space-3); line-height: 1.25; border: 0;
-  background: var(--surface-raised); box-shadow: var(--elev-low); border-radius: var(--r-pill, 999px);
+  background: var(--surface-raised); box-shadow: var(--elev-low); border-radius: var(--r-pill);
 }
 :root .fv .ww-seg[data-variant='choice'] .ww-seg-opt[aria-checked='true'] { background: var(--surface-sunk); box-shadow: var(--elev-pressed, var(--elev-recessed)); color: var(--ink-1); font-weight: 650; }
 /* Length is one row of four equal pills */
@@ -98,9 +98,9 @@
 /* the Length dial: a raised disc with a ring of dots, one per 5 minutes of the chosen length (lit = filled, larger); the length is the hero numeral at its heart */
 .fv-dial { position: relative; flex: none; inline-size: min(300px, 100%); aspect-ratio: 1; border-radius: 50%; background: var(--surface-ground); box-shadow: var(--elev-raised); display: grid; place-items: center; }
 .fv-dial > svg { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; overflow: visible; }
-.fv-dial-dot { fill: var(--ink-3); opacity: 0.55; transform-box: fill-box; transform-origin: center; transform: scale(1);
-  transition: fill var(--dur-state) var(--ease-standard) calc(var(--i, 0) * 12ms), opacity var(--dur-state) var(--ease-standard) calc(var(--i, 0) * 12ms), transform var(--dur-state) var(--ease-standard) calc(var(--i, 0) * 12ms); }
-.fv-dial-dot[data-lit='true'] { fill: var(--ink-1); opacity: 1; transform: scale(1.5); }
+.fv-dial-dot { fill: currentColor; color: var(--ink-3); opacity: 0.55; transform-box: fill-box; transform-origin: center; transform: scale(1);
+  transition: color var(--dur-state) var(--ease-standard) calc(var(--i, 0) * var(--stagger) * 0.3), opacity var(--dur-state) var(--ease-standard) calc(var(--i, 0) * var(--stagger) * 0.3), transform var(--dur-state) var(--ease-standard) calc(var(--i, 0) * var(--stagger) * 0.3); }
+.fv-dial-dot[data-lit='true'] { color: var(--ink-1); opacity: 1; transform: scale(1.5); }
 .fv-dial-core { position: relative; display: grid; justify-items: center; gap: var(--space-1); }
 .fv-dial-n { font: var(--type-title); font-variant-numeric: tabular-nums; color: var(--ink-1); }
 .fv-dial[data-size='mini'] { inline-size: 96px; }
@@ -117,8 +117,8 @@
 /* the ridges step apart by surface (ground, raised, raised-hi) and each casts a soft rim upward onto the one behind it (a 14 percent tint of the ink,
    a glare in the dark theme and a shade in the light one), because the drop shadow of the elevation token falls down and right and never shows on a ridge */
 .fv-hill-far { fill: var(--surface-ground); filter: var(--elev-raised-drop, none); }
-.fv-hill-mid { fill: var(--surface-raised); filter: drop-shadow(0 -5px 6px color-mix(in srgb, var(--ink-1) 14%, transparent)); }
-.fv-hill-near { fill: var(--surface-raised-hi, var(--surface-raised)); filter: drop-shadow(0 -6px 7px color-mix(in srgb, var(--ink-1) 18%, transparent)); }
+.fv-hill-mid { fill: var(--surface-raised); filter: var(--elev-ridge-mid, none); }
+.fv-hill-near { fill: var(--surface-raised-hi, var(--surface-raised)); filter: var(--elev-ridge-near, none); }
 
 .fr-line { margin: 0; font: var(--type-read, var(--type-body)); max-inline-size: var(--type-read-measure, 38rem); }
 .fr-dots { flex: none; padding: var(--space-3) var(--space-4); background: var(--surface-sunk); border-radius: var(--r-well); box-shadow: var(--elev-recessed); inline-size: fit-content; max-inline-size: 100%; overflow: hidden; }

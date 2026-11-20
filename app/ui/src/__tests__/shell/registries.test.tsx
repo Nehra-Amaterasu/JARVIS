@@ -70,9 +70,10 @@ describe('shell/views/*.view.ts', () => {
 
     it('an id with no registration and no host shows the PLANNED plate', () => {
       m = mount(createElement(ShellV2, { pages: {}, wwRoot: null, verbs: [], serverUp: true }))
-      // day.week has no registration yet (day.month got one on 15 Nov, which is why this test moved off it)
-      act(() => useShell.getState().go({ product: 'ww', section: 'day', view: 'week' }))
-      const plate = m.container.querySelector('[data-notbuilt="day.week"]')
+      // every view has a registration since 20 Nov, so the case is built by hiding day.close's (hosts.ts says none for it)
+      setViewsForTests(null, ['day.close'])
+      act(() => useShell.getState().go({ product: 'ww', section: 'day', view: 'close' }))
+      const plate = m.container.querySelector('[data-notbuilt="day.close"]')
       expect(plate).not.toBeNull()
       expect(plate!.querySelector('[data-lamp="planned"], .lamp')).not.toBeNull()
     })

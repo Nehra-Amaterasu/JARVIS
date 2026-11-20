@@ -31,8 +31,9 @@ const READY: Record<string, string> = {
   'study.plan': '.ww-plan [data-card="study-plan"]',
   'study.library': '.ww-library [data-card="study-findings"], .ww-library [data-findings-hidden]',
   'tree.tree': '.ww-tree-stage .tree-node',
-  'career.pipeline': '.cr-body .ww-card', 'career.certs': '.cr-body .ww-card', 'career.abroad': '.cr-body .ww-card',
-  'career.money': '.cr-body .ww-card', 'career.ladder': '.cr-body .ww-card',
+  // T02 (20 Nov): Career is five registered views on one runway; each draws a root that names its view
+  'career.pipeline': '.t2[data-view]', 'career.certs': '.t2[data-view]', 'career.abroad': '.t2[data-view]',
+  'career.money': '.t2[data-view]', 'career.ladder': '.t2[data-view]',
 }
 
 const blurText = (page: Page) => page.evaluate(() => {
@@ -109,6 +110,9 @@ test.describe('CP2: Well Wisher classic pages under the new shell', () => {
         if (m.docOverflow > 1) problems.push(`${at} document overflow ${m.docOverflow}px`)
       }
       // the two lists: opaque, readable (ink against the face of the panel), 44 px rows, inside the window
+      // T01 (20 Nov): the Tree opens on the Grove; a seed opens a tree, which is where the Branches key lives
+      await page.locator('.ww-tree-stage .tree-node').first().click()
+      await expect(page.locator('.ww-tree-key', { hasText: 'Branches' }).first()).toBeVisible()
       for (const key of ['Tree', 'Branches']) {
         await page.locator('.ww-tree-key', { hasText: key }).first().click()
         const panel = page.locator('.ww-tree-panel')

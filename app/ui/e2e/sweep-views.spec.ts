@@ -22,6 +22,7 @@ import { expect, test } from './fixtures'
 import { PROBE, type Probe } from './probe'
 
 const OUT = process.env.SWEEP_SHOTS ? resolve(process.env.SWEEP_SHOTS) : ''
+const LOOK = (process.env.SWEEP_LOOK ?? '').trim()
 const ONLY = (process.env.SWEEP_SECTIONS ?? '').split(',').map((s) => s.trim()).filter(Boolean)
 // SWEEP_SIZES=1120x720,1366x768 overrides the two default sizes (1120x720 is the smallest the desktop window can be made)
 const SIZES = process.env.SWEEP_SIZES
@@ -111,7 +112,8 @@ for (const size of SIZES) {
     page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 300)) })
     page.on('response', (r) => { if (r.status() >= 400 && r.url().includes('/api/')) failed.push(`${r.status()} ${new URL(r.url()).pathname}`) })
 
-    await page.goto('/#t=ww-e2e&shell=v2')
+    // SWEEP_LOOK=v3 walks the same views under the frosted look (docs/design/design-language-v3.md); the picture names gain the look
+    await page.goto(`/#t=ww-e2e&shell=v2${LOOK ? `&look=${LOOK}` : ''}`)
     await expect(page.locator('[data-shell="v2"]')).toBeVisible({ timeout: 15_000 })
 
     const thrown: string[] = []

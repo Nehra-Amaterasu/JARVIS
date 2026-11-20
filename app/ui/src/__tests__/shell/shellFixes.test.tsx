@@ -191,6 +191,7 @@ describe('(2) one view switch', () => {
     // Tree has one view: no switch, so nothing is hidden, but the frame's tools still get their row
     expect(q('.s2-viewlist')).toBeNull()
     expect(q('.s2-page')!.dataset.shellOwned ?? '').not.toMatch(/\bviews\b/)
-    expect(q('#s2-frame-tools')).not.toBeNull()
+    // T01 (20 Nov): Tree is a registered view with one view of its own, so the legacy frame's tools row is not drawn
+    expect(q('#s2-frame-tools')).toBeNull()
   })
 })

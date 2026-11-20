@@ -276,3 +276,203 @@ shellTest.describe('Y02 in the real shell (flag on)', () => {
     await shotShell('shell-drill-checked-1366.png')
   })
 })
+
+// ---------------------------------------------------------------------------------------------------------------- EL-FOCUS in the real shell
+// The four Focus views of the real shell (fragment `#t=ww-e2e&shell=v2`, the built app in dist-e2e against the sandbox) at 1366x768, 1024x768 and
+// 390x844. Proves the geometry (one canvas with no inner or document scroll at 1366, no sideways scroll at 390, every target 44 px or more, text
+// 11 px or more, no text cut with an ellipsis: the terminal strips are state lines and wrap), the honest poses (Session idle and Rest say WAITING
+// with their reason, Start's dial says PLANNED) and the keyboard path. Skips when dist-e2e is not built. Screenshots go to EL_FOCUS_SHOTS when set.
+const EL_SHOTS = process.env.EL_FOCUS_SHOTS ? resolve(process.env.EL_FOCUS_SHOTS) : ''
+
+const elOpen = async (page: Page, baseURL: string | undefined) => {
+  const res = await fetch(baseURL!).catch(() => null)
+  shellTest.skip(!res || !res.ok, 'dist-e2e is not built, so the preview server is not running')
+  await page.goto('/#t=ww-e2e&shell=v2')
+  const root = page.locator('[data-shell="v2"]')
+  await expect(root).toBeVisible({ timeout: 15_000 })
+  if ((await root.getAttribute('data-product')) !== 'ww') await page.keyboard.press('Alt+0')
+  await expect(root).toHaveAttribute('data-product', 'ww')
+  await page.keyboard.press('Control+2')
+  await expect(page.locator('.s2-page')).toHaveAttribute('data-section', 'focus')
+}
+
+const elView = async (page: Page, id: 'start' | 'session' | 'rest' | 'drill', sel: string) => {
+  await page.locator(`#s2-view-${id}`).click()
+  await expect(page.locator(`.s2-page ${sel}`).first()).toBeVisible({ timeout: 15_000 })
+  await page.waitForTimeout(400)
+}
+
+const elMeasure = (page: Page) => page.evaluate(() => {
+  const fv = document.querySelector<HTMLElement>('.s2-page .fv')!
+  const live = [...fv.querySelectorAll<HTMLElement>('*')].filter((e) => !e.closest('[aria-hidden="true"]') && e.getClientRects().length > 0)
+  const focusable = live.filter((e) => e.matches('button, input, [tabindex="0"], a[href], [role="switch"], [role="radio"]') && getComputedStyle(e).visibility !== 'hidden')
+  const small = focusable.map((e) => ({ e, r: e.getBoundingClientRect() })).filter(({ r }) => r.width < 43.5 || r.height < 43.5)
+    .map(({ e, r }) => `${e.getAttribute('aria-label') ?? e.textContent?.trim().slice(0, 24)} ${Math.round(r.width)}x${Math.round(r.height)}`)
+  const tiny = live.filter((e) => [...e.childNodes].some((n) => n.nodeType === 3 && (n.textContent ?? '').trim()) && parseFloat(getComputedStyle(e).fontSize) < 10.95)
+    .map((e) => `${String(e.className).slice(0, 30)} ${getComputedStyle(e).fontSize}`)
+  // an element that clips its own text with an ellipsis: none is exempt, the terminal strips are state lines and wrap
+  const cut = live.filter((e) => getComputedStyle(e).textOverflow === 'ellipsis' && e.scrollWidth > e.clientWidth + 1)
+    .map((e) => String(e.className).slice(0, 30))
+  return {
+    docY: document.documentElement.scrollHeight - innerHeight,
+    docX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    fvY: fv.scrollHeight - fv.clientHeight,
+    fvX: fv.scrollWidth - fv.clientWidth,
+    small, tiny, cut,
+    primaries: fv.querySelectorAll('[data-primary]').length,
+  }
+})
+
+const elShot = async (page: Page, name: string) => { if (EL_SHOTS) { mkdirSync(EL_SHOTS, { recursive: true }); await page.screenshot({ path: resolve(EL_SHOTS, name) }) } }
+
+const EL_VIEWS = [['start', '.fs'], ['session', '.cr'], ['rest', '.fr'], ['drill', '.dr']] as const
+
+shellTest.describe('EL-FOCUS at 1366x768', () => {
+  shellTest.use({ viewport: { width: 1366, height: 768 } })
+
+  shellTest('every view is one canvas: no scroll, 44 px targets, 11 px text, nothing cut, one accent fill', async ({ page, baseURL }) => {
+    await elOpen(page, baseURL)
+    for (const [id, sel] of EL_VIEWS) {
+      await elView(page, id, sel)
+      const m = await elMeasure(page)
+      expect(m.docY, `${id}: the document scrolls`).toBeLessThanOrEqual(0)
+      expect(m.fvY, `${id}: the canvas scrolls inside`).toBeLessThanOrEqual(1)
+      expect(m.fvX, `${id}: the canvas scrolls sideways`).toBeLessThanOrEqual(1)
+      expect(m.small, `${id}: targets under 44 px`).toEqual([])
+      expect(m.tiny, `${id}: text under 11 px`).toEqual([])
+      expect(m.cut, `${id}: text cut with an ellipsis`).toEqual([])
+      expect(m.primaries, `${id}: accent fills`).toBeLessThanOrEqual(1)
+      await elShot(page, `el-${id}-1366.png`)
+    }
+  })
+
+  shellTest('Start: Track is a grid of three equal pills, the dial answers the length, the primary stands under it', async ({ page, baseURL }) => {
+    await elOpen(page, baseURL)
+    await elView(page, 'start', '.fs')
+    const opts = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.fs [role="radiogroup"][aria-label="Track"] [role="radio"]')].map((o) => { const r = o.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height), x: Math.round(r.left) } }))
+    expect(opts.length).toBeGreaterThanOrEqual(2)
+    expect(new Set(opts.map((o) => o.w)).size, 'equal-width pills').toBe(1)
+    expect(Math.max(...opts.map((o) => o.h))).toBeLessThanOrEqual(56)
+    await expect(page.locator('.fs-right')).toContainText('PLANNED')
+    const dial = await page.locator('.fs-right .fv-dial').boundingBox()
+    const go = await page.locator('.fs-go [data-primary]').boundingBox()
+    expect(go!.y, 'Start session sits under the dial').toBeGreaterThan(dial!.y + dial!.height - 1)
+    // the length by arrow keys: the numeral and the lit dots follow
+    const before = await page.locator('[data-testid="length-numeral"]').textContent()
+    await page.locator('.fs [role="radiogroup"][aria-label="Length in minutes"] [role="radio"][aria-checked="true"]').focus()
+    await page.keyboard.press('ArrowRight')
+    await expect(page.locator('[data-testid="length-numeral"]')).not.toHaveText(before ?? '')
+  })
+
+  shellTest('Session idle and Rest say WAITING with their reason; Go to Start and Start session are reached by the keyboard', async ({ page, baseURL }) => {
+    await elOpen(page, baseURL)
+    await elView(page, 'session', '.cr')
+    const idle = page.locator('.cr-idle')
+    if (await idle.count()) {
+      await expect(idle.locator('.cr-field-idle')).toContainText('WAITING')
+      await expect(idle.locator('.cr-field-idle')).toContainText('No block started')
+      await expect(idle.locator('[data-testid="readout"]')).toHaveText('No session running')
+      const a = await idle.locator('.cr-field').boundingBox()
+      const h = await idle.locator('.fv-head').boundingBox()
+      expect(Math.abs(a!.y - h!.y), 'both columns on one top edge').toBeLessThanOrEqual(2)
+      await idle.getByRole('button', { name: 'Go to Start' }).focus()
+      await page.keyboard.press('Enter')
+      await expect(page.locator('.s2-page .fs').first()).toBeVisible()
+    }
+    await elView(page, 'rest', '.fr')
+    const rest = page.locator('.fr')
+    if ((await rest.getAttribute('data-kind')) === 'none') {
+      await expect(rest).toContainText('WAITING')
+      await expect(rest).toContainText('No block has ended')
+      const line = await rest.locator('.fr-line').boundingBox()
+      const act = await rest.locator('.fr-actions').boundingBox()
+      expect(act!.y - (line!.y + line!.height), 'the buttons follow the sentence, not the foot').toBeLessThan(160)
+    }
+    await elView(page, 'start', '.fs')
+    let hit = false
+    for (let i = 0; i < 60 && !hit; i++) {
+      await page.keyboard.press('Tab')
+      hit = await page.evaluate(() => document.activeElement?.matches('[data-primary]') ?? false)
+    }
+    expect(hit, 'Start session is reachable by Tab').toBe(true)
+  })
+
+  shellTest('Drill: one header, the stepper with a word per step, Enter shows the answer and j steps', async ({ page, baseURL }) => {
+    await elOpen(page, baseURL)
+    await elView(page, 'drill', '.dr')
+    if ((await page.locator('.dr-empty').count()) === 0) {
+      await expect(page.locator('.dr > .fv-head .fv-title')).toHaveText('Drill')
+      const words = await page.locator('.dd-word').allTextContents()
+      expect(words.length).toBeGreaterThan(0)
+      for (const w of words) expect(['here', 'open', 'answered', 'skipped']).toContain(w)
+      const q = await page.locator('.dr-q').boundingBox()
+      const r = await page.locator('.dr-rail').boundingBox()
+      expect(Math.abs(q!.y - r!.y), 'the rail and the card share a top edge').toBeLessThanOrEqual(1)
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+      await page.keyboard.press('j')
+      await expect(page.locator('.dr-kick').first()).toHaveText(/Question 2 of \d+/)
+    }
+  })
+})
+
+shellTest.describe('EL-FOCUS at 1024x768 (the compact band)', () => {
+  shellTest.use({ viewport: { width: 1024, height: 768 } })
+
+  shellTest('Start keeps its Length dial and PLANNED lamp, Rest keeps its hill, both inside one canvas', async ({ page, baseURL }) => {
+    await elOpen(page, baseURL)
+    await elView(page, 'start', '.fs')
+    await expect(page.locator('.fs-len .fv-dial[data-size="mini"]')).toBeVisible()
+    await expect(page.locator('.fs-len-lamp')).toContainText('PLANNED')
+    expect(await page.locator('.fs .k-lamp[data-state="planned"]').count(), 'one PLANNED lamp for the length').toBe(1)
+    let m = await elMeasure(page)
+    expect(m.fvY, 'start: the canvas scrolls inside').toBeLessThanOrEqual(1)
+    expect(m.small, 'start: targets under 44 px').toEqual([])
+    await elShot(page, 'el-start-1024.png')
+    await elView(page, 'rest', '.fr')
+    await expect(page.locator('.fr .fv-hill')).toBeVisible()
+    m = await elMeasure(page)
+    expect(m.fvY, 'rest: the canvas scrolls inside').toBeLessThanOrEqual(1)
+    expect(m.docX, 'rest: the page scrolls sideways').toBeLessThanOrEqual(0)
+    await elShot(page, 'el-rest-1024.png')
+  })
+})
+
+shellTest.describe('EL-FOCUS at 390x844', () => {
+  shellTest.use({ viewport: { width: 390, height: 844 } })
+
+  shellTest('every view fits the phone: no sideways scroll, 44 px targets, the primary in reach', async ({ page, baseURL }) => {
+    await elOpen(page, baseURL)
+    for (const [id, sel] of EL_VIEWS) {
+      await elView(page, id, sel)
+      const m = await elMeasure(page)
+      expect(m.docX, `${id}: the page scrolls sideways`).toBeLessThanOrEqual(0)
+      expect(m.fvX, `${id}: the canvas scrolls sideways`).toBeLessThanOrEqual(1)
+      expect(m.small, `${id}: targets under 44 px`).toEqual([])
+      expect(m.tiny, `${id}: text under 11 px`).toEqual([])
+      await elShot(page, `el-${id}-390.png`)
+    }
+    // Start: the primary is sticky at the foot, 56 px tall, inside the 16 px gutters, with the small dial beside Length
+    await elView(page, 'start', '.fs')
+    const go = await page.locator('.fs-go [data-primary]').boundingBox()
+    expect(go!.height).toBeGreaterThanOrEqual(55.5)
+    const navTop = (await page.locator('.s2-rail').first().boundingBox())!.y
+    expect(go!.y + go!.height, 'Start session stays above the bottom bar without scrolling').toBeLessThanOrEqual(navTop + 1)
+    const strip = await page.locator('.fs-go').boundingBox()
+    expect(strip!.x, 'the strip spans the page edge to edge').toBeLessThanOrEqual(1)
+    await expect(page.locator('.fs-len .fv-dial[data-size="mini"]')).toBeVisible()
+    // Drill: Show the answer, Hint and Skip on one row of 44 px
+    await elView(page, 'drill', '.dr')
+    if ((await page.locator('.dr-empty').count()) === 0) {
+      const row = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.dr-actions button')].map((b) => { const r = b.getBoundingClientRect(); return { y: Math.round(r.top), h: Math.round(r.height) } }))
+      expect(row.length).toBeGreaterThanOrEqual(2)
+      expect(new Set(row.map((b) => b.y)).size, 'one row').toBe(1)
+      for (const b of row) expect(b.h).toBeGreaterThanOrEqual(44)
+      await expect(page.locator('.dr-q .dd[data-variant="strip"]')).toBeVisible()
+      const strip = await page.locator('.dr-q .dd-list').evaluate((e) => ({ sw: e.scrollWidth, cw: e.clientWidth, n: e.children.length, h: Math.round(e.getBoundingClientRect().height) }))
+      expect(strip.sw, 'the step strip does not scroll sideways').toBeLessThanOrEqual(strip.cw + 1)
+      expect(strip.n, 'every step is in the strip, none windowed out').toBeGreaterThanOrEqual(2)
+      await expect(page.locator('.dr-q .dd-count')).toContainText(/\d+ of \d+ answered/)
+      await expect(page.locator('.dr-kbd-line')).toBeHidden()
+    }
+  })
+})

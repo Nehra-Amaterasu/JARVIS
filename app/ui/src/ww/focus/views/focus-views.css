@@ -1,8 +1,17 @@
-/* The Focus views of shell v2 (package Y02): Start, the Crucible session, Rest and the Drill. Tokens only (--surface-*, --ink-*,
-   --elev-*, --r-*, --space-*, --type-*, --edge-*, --focus-ring, --dur-state, --ease-standard); no colour or shadow is written
-   here where a token exists. Nothing outlines a labelled control: parts are lifted (raised) or sunk (well). A miss is drawn in the
-   same ink as everything else: this file names no fault, red or warning token, and a test reads it to prove that. The only motion
-   is the 160 ms fill of a progress dot; the reduced-motion and forced-colours branches remove it. No animation loops. */
+/* The Focus views of shell v2 (packages Y02 and EL-FOCUS): Start, the Crucible session, Rest and the Drill. Tokens only (--surface-*,
+   --ink-*, --elev-*, --r-*, --space-*, --type-*, --edge-*, --focus-ring, --dur-state, --ease-standard); no colour or shadow is written
+   here where a token exists. Nothing outlines a labelled control or a card: parts are lifted (raised) or sunk (well), and the only 1 px
+   marks are the dial ticks and the stepper's joining line. A miss is drawn in the same ink as everything else: this file names no
+   fault, red or warning token, and a test reads it to prove that.
+
+   One type scale for the four views, read from the clay type tokens:
+     eyebrow  --type-label (upper case)        title  --type-title        body  --type-body / --type-small
+     hero numeral  --type-display-compact (the length on Start, the minutes in the session, the answered count in the Drill)
+   One header block on all four (FocusHead: eyebrow + title) and one 8 px rhythm (--space-*).
+
+   The only motion is tied to a real event: the 160 ms fill of a progress dot, and the ripple along the Length dial when the length is
+   changed (a transition on the lit dots, so nothing runs on its own). The reduced-motion and forced-colours branches remove both.
+   No animation loops. */
 @import '../../../styles/design/primitive.css';
 
 .fv {
@@ -13,33 +22,55 @@
   background: var(--surface-ground); color: var(--ink-1); font: var(--type-body); font-family: var(--font-ui, system-ui, sans-serif);
 }
 .fv-wait { place-items: center; }
-/* one warm accent fill per screen: a selected piece (Segmented, Chip) is a raised ground pill with ink, an ON switch is the slate ink; the warm fill stays on the main action */
+/* one warm accent fill per screen: a selected piece (Segmented, Chip) is pressed in, an ON switch is the slate ink; the warm fill stays on the main action */
 .fv .ww-seg, .fv .ww-chip, .fv .ww-seg-wrap { --k-on-fill: var(--surface-raised-hi, var(--surface-raised)); --k-on-ink: var(--ink-1); }
 .fv .k-switch-wrap { --k-on-fill: var(--ink-2); --k-on-ink: var(--surface-ground); }
-.fv-kick, .dr-kick { margin: 0; font: var(--type-label); letter-spacing: var(--type-label-tracking, 0.04em); text-transform: uppercase; color: var(--ink-2); }
+
+/* ---- the shared type scale and header block ---- */
+.fv-head { display: grid; gap: var(--space-1); align-content: start; }
+.fv-kick, .dr-kick, .fs-label { margin: 0; font: var(--type-label); letter-spacing: var(--type-label-tracking, 0.04em); text-transform: uppercase; color: var(--ink-2); }
+.fv-title { margin: 0; font: var(--type-title); color: var(--ink-1); }
+.fv-num { font: var(--type-display-compact); font-variant-numeric: tabular-nums; color: var(--ink-1); letter-spacing: 0; }
+.fv-num-unit { font: var(--type-small); color: var(--ink-2); }
+/* a lamp and its reason in words that wrap: a state's reason is never cut with an ellipsis */
+.fv-why { margin: 0; display: flex; align-items: flex-start; flex-wrap: wrap; gap: var(--space-1) var(--space-3); font: var(--type-small); color: var(--ink-2); overflow-wrap: anywhere; }
 .fv-tag {
   display: inline-block; padding: 0.125rem 0.375rem; border-radius: var(--r-ctl); background: var(--surface-sunk); box-shadow: var(--elev-imprint, none);
-  font: 600 11px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.06em; color: var(--ink-1);
+  font: var(--type-meta); font-weight: 600; letter-spacing: 0.06em; color: var(--ink-1);
 }
 .fv-strip, .dr-strip {
-  margin: 0; min-block-size: 24px; display: flex; align-items: center; padding-inline: var(--space-3);
-  font: 12px/24px var(--font-mono, ui-monospace, monospace); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* a state line: it wraps, it is never cut with an ellipsis (a long set title or a guard line keeps every word) */
+  margin: 0; min-block-size: 24px; block-size: auto; display: flex; align-items: center; padding: var(--space-1) var(--space-3);
+  font: var(--type-meta); color: var(--ink-2); white-space: normal; overflow-wrap: anywhere;
   background: var(--surface-sunk); box-shadow: var(--elev-recessed); border-radius: var(--r-well);
 }
 
 /* ------------------------------------------------------------------------------------------------ Start and Rest */
-.fs, .fr { grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); align-items: stretch; }
+.fs { grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); grid-template-rows: minmax(0, 1fr) auto; align-items: stretch; column-gap: var(--space-5); row-gap: var(--space-4); }
+.fr { grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); align-items: stretch; }
 .fs-left, .fr-left { min-inline-size: 0; min-block-size: 0; display: flex; flex-direction: column; gap: var(--space-3); }
-.fs-head { display: grid; gap: var(--space-1); }
-.fs-title { margin: 0; font: var(--type-title); color: var(--ink-1); }
+.fs-left { grid-row: 1 / span 2; }
 .fs-sub { margin: 0; font: var(--type-small); color: var(--ink-2); }
-.fs-label { margin: 0; font: var(--type-label); text-transform: uppercase; letter-spacing: var(--type-label-tracking, 0.04em); color: var(--ink-2); }
 .fs-row { display: grid; gap: var(--space-2); }
-/* a rotation can hold five long track names: the group wraps onto a second row instead of breaking a name over two lines */
+.fs-label { display: flex; align-items: center; gap: var(--space-3); }
+/* Track: a grid of equal-width pills, 3 across on the laptop and 2 on the phone; the kit group is made transparent so each pill is lifted by itself (pressed in when chosen) */
 .fv .ww-seg-wrap { max-inline-size: 100%; }
-:root .fv .ww-seg[data-variant='choice'] { flex-wrap: wrap; max-inline-size: 100%; row-gap: var(--space-1); border-radius: var(--r-card); }
-:root .fv .ww-seg[data-variant='choice'] .ww-seg-opt { white-space: nowrap; }
-.fs-cue { max-inline-size: 28rem; }
+:root .fv .ww-seg[data-variant='choice'] {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); max-inline-size: 100%; padding: 0;
+  border: 0; border-radius: 0; background: transparent; box-shadow: none;
+}
+:root .fv .ww-seg[data-variant='choice'] .ww-seg-opt {
+  inline-size: 100%; min-inline-size: 0; justify-content: center; text-align: center; white-space: normal; overflow-wrap: anywhere; padding-inline: var(--space-3); line-height: 1.25; border: 0;
+  background: var(--surface-raised); box-shadow: var(--elev-low); border-radius: var(--r-pill, 999px);
+}
+:root .fv .ww-seg[data-variant='choice'] .ww-seg-opt[aria-checked='true'] { background: var(--surface-sunk); box-shadow: var(--elev-pressed, var(--elev-recessed)); color: var(--ink-1); font-weight: 650; }
+/* Length is one row of four equal pills */
+:root .fv .fs-len .ww-seg[data-variant='choice'] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* the Cue label wears the same eyebrow style as the other labels; the field is as wide as the form */
+.fs-cue .ww-field-label { font: var(--type-label); letter-spacing: var(--type-label-tracking, 0.04em); text-transform: uppercase; color: var(--ink-2); }
+.fs-cue { max-inline-size: none; }
+.fs-len-lamp { display: inline-flex; font-family: var(--font-ui, system-ui, sans-serif); text-transform: none; letter-spacing: 0; }
+.fs-len-mini { display: block; }
 .fs-opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
 .fs-opt {
   display: grid; gap: var(--space-1); align-content: start; padding: var(--space-3) var(--space-4);
@@ -53,44 +84,47 @@
 }
 .fs-pick-body { display: grid; gap: var(--space-1); min-inline-size: 0; }
 .fs-pick-title { margin: 0; font-weight: 650; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
-.fs-terms { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.fs-terms { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); font: var(--type-meta); color: var(--ink-2); }
 .fs-pick-act { display: flex; gap: var(--space-2); flex-wrap: wrap; justify-content: flex-end; }
-.fs-go { margin-block-start: auto; display: grid; gap: var(--space-2); justify-items: start; }
-.fs-foot { margin: 0; font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+/* the primary stands under the dial, on the right of the laptop canvas */
+.fs-go { grid-column: 2; grid-row: 2; display: grid; gap: var(--space-2); justify-items: center; }
+.fs-foot { margin: 0; font: var(--type-meta); color: var(--ink-2); text-align: center; overflow-wrap: anywhere; }
 .fs-right, .fr-right {
   min-inline-size: 0; min-block-size: 0; display: grid; place-items: center; background: var(--surface-sunk); border-radius: var(--r-card);
   box-shadow: var(--elev-recessed); overflow: hidden;
 }
+.fs-right { grid-column: 2; grid-row: 1; align-content: center; justify-items: center; gap: var(--space-4); padding: var(--space-5); }
 
-/* the halftone moon: a raised disc, two dot screens (large in the lit core, small and staggered around it) under circular masks, lit from the
-   top left; one element and two pseudo-elements, no children, no animation */
-.fv-moon { position: relative; inline-size: min(360px, 78%); aspect-ratio: 1; border-radius: 50%; background: var(--surface-ground); box-shadow: var(--elev-raised); overflow: hidden; }
-.fv-moon::before, .fv-moon::after { content: ''; position: absolute; inset: 0; border-radius: 50%; }
-.fv-moon::before {
-  background: radial-gradient(circle, var(--ink-1) 2px, transparent 2.4px) 0 0 / 10px 10px;
-  -webkit-mask-image: radial-gradient(circle at 34% 30%, black 0%, black 14%, transparent 46%);
-  mask-image: radial-gradient(circle at 34% 30%, black 0%, black 14%, transparent 46%);
-}
-.fv-moon::after {
-  background: radial-gradient(circle, var(--ink-1) 1.1px, transparent 1.5px) 5px 5px / 10px 10px;
-  opacity: 0.75;
-  -webkit-mask-image: radial-gradient(circle at 34% 30%, transparent 0%, black 34%, transparent 84%);
-  mask-image: radial-gradient(circle at 34% 30%, transparent 0%, black 34%, transparent 84%);
-}
+/* the Length dial: a raised disc with a ring of dots, one per 5 minutes of the chosen length (lit = filled, larger); the length is the hero numeral at its heart */
+.fv-dial { position: relative; flex: none; inline-size: min(300px, 100%); aspect-ratio: 1; border-radius: 50%; background: var(--surface-ground); box-shadow: var(--elev-raised); display: grid; place-items: center; }
+.fv-dial > svg { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; overflow: visible; }
+.fv-dial-dot { fill: var(--ink-3); opacity: 0.55; transform-box: fill-box; transform-origin: center; transform: scale(1);
+  transition: fill var(--dur-state) var(--ease-standard) calc(var(--i, 0) * 12ms), opacity var(--dur-state) var(--ease-standard) calc(var(--i, 0) * 12ms), transform var(--dur-state) var(--ease-standard) calc(var(--i, 0) * 12ms); }
+.fv-dial-dot[data-lit='true'] { fill: var(--ink-1); opacity: 1; transform: scale(1.5); }
+.fv-dial-core { position: relative; display: grid; justify-items: center; gap: var(--space-1); }
+.fv-dial-n { font: var(--type-title); font-variant-numeric: tabular-nums; color: var(--ink-1); }
+.fv-dial[data-size='mini'] { inline-size: 96px; }
+.fv-dial-rest .fv-dial-tick { stroke: var(--ink-3); stroke-width: 1.2; stroke-linecap: round; }
+.fv-dial-rest .fv-dial-tick[data-major='true'] { stroke: var(--ink-2); stroke-width: 1.6; }
+.fv-dial-next { fill: none; stroke: var(--ink-1); stroke-width: 2; }
+.fv-dial-dimple { inline-size: 24%; aspect-ratio: 1; border-radius: 50%; background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
+.fs-dial-why { justify-content: center; }
 
-/* the hill of Rest: three flat layers in the ink at low opacity, still */
+/* the hill of Rest: three raised layers lifted by the elevation filter, a sun that stands as high as the last block held; still */
 .fr-right { align-items: end; }
-.fv-hill { inline-size: 100%; block-size: 360px; max-block-size: 100%; display: block; }
-.fv-hill path, .fv-hill circle { fill: var(--ink-1); }
-.fv-hill-sun { opacity: 0.16; }
-.fv-hill-far { opacity: 0.08; }
-.fv-hill-mid { opacity: 0.14; }
-.fv-hill-near { opacity: 0.22; }
+.fv-hill { inline-size: 100%; block-size: 360px; max-block-size: 100%; display: block; overflow: visible; }
+.fv-hill-sun { fill: var(--surface-raised-hi, var(--surface-raised)); filter: var(--elev-raised-drop, none); }
+/* the ridges step apart by surface (ground, raised, raised-hi) and each casts a soft rim upward onto the one behind it (a 14 percent tint of the ink,
+   a glare in the dark theme and a shade in the light one), because the drop shadow of the elevation token falls down and right and never shows on a ridge */
+.fv-hill-far { fill: var(--surface-ground); filter: var(--elev-raised-drop, none); }
+.fv-hill-mid { fill: var(--surface-raised); filter: drop-shadow(0 -5px 6px color-mix(in srgb, var(--ink-1) 14%, transparent)); }
+.fv-hill-near { fill: var(--surface-raised-hi, var(--surface-raised)); filter: drop-shadow(0 -6px 7px color-mix(in srgb, var(--ink-1) 18%, transparent)); }
 
 .fr-line { margin: 0; font: var(--type-read, var(--type-body)); max-inline-size: var(--type-read-measure, 38rem); }
 .fr-dots { flex: none; padding: var(--space-3) var(--space-4); background: var(--surface-sunk); border-radius: var(--r-well); box-shadow: var(--elev-recessed); inline-size: fit-content; max-inline-size: 100%; overflow: hidden; }
 .fr-break { margin: 0; padding: var(--space-3) var(--space-4); background: var(--surface-raised); border-radius: var(--r-card); box-shadow: var(--elev-low); }
-.fr-actions { margin-block-start: auto; display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+/* the buttons sit 24 px under the last sentence, not at the foot of the canvas */
+.fr-actions { margin-block-start: var(--space-5); display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
 
 /* ------------------------------------------------------------------------------------------------ the Crucible session */
 .cr { grid-template-columns: 360px minmax(0, 1fr); align-items: stretch; }
@@ -101,16 +135,25 @@
 }
 .cr-field .art-svg { zoom: 1.35; }
 .cr-field:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+/* the resting pose: the dial at full size, centred, with its lamp and the reason under it */
+.cr-field-idle { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-5); }
+.cr-field-idle .fv-dial { inline-size: min(280px, 100%); }
+.cr-field-why { justify-content: center; }
 .cr-main { min-inline-size: 0; min-block-size: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+/* idle: the sentence, Go to Start and the capture line stand 24 px apart from the top edge of the field */
+.cr-main-idle { gap: 0; justify-content: flex-start; }
+.cr-main-idle .cr-ofline { margin-block-start: var(--space-3); }
+.cr-main-idle .cr-controls { margin-block-start: var(--space-5); }
+.cr-main-idle .fv-strip { margin-block-start: var(--space-5); }
 .cr-read { position: relative; display: grid; align-content: center; justify-items: start; gap: var(--space-2); min-block-size: 240px; flex: 1 1 auto; overflow: hidden; }
 .fv-ticks { position: absolute; inset-inline-end: -4%; inset-block-start: 50%; transform: translateY(-50%); opacity: 0.07; pointer-events: none; max-block-size: 100%; }
 .fv-ticks line { stroke: var(--ink-1); stroke-width: 1; }
-.cr-readout { position: relative; margin: 0; font: 500 clamp(2rem, 4.4vw, 3.5rem)/1.1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); letter-spacing: -0.01em; }
+.cr-readout { position: relative; margin: 0; display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-2); font: var(--type-read); color: var(--ink-1); }
 .cr-ofline { position: relative; margin: 0; font: var(--type-body); color: var(--ink-2); }
 .cr-controls { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
 .cr-parked { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-1); font: var(--type-small); color: var(--ink-2); }
 .cr-parked li, .dr-park-list li { display: flex; gap: var(--space-2); align-items: baseline; flex-wrap: wrap; }
-.dr-park-where { font: 11px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.dr-park-where { font: var(--type-meta); color: var(--ink-2); }
 
 /* ------------------------------------------------------------------------------------------------ Park field */
 .pk { display: grid; gap: var(--space-1); }
@@ -120,107 +163,166 @@
 }
 .pk-in::placeholder { color: var(--ink-2); opacity: 1; }
 .pk-in:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.pk-hint { font: 11px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.pk-hint { font: var(--type-meta); color: var(--ink-2); }
 
 /* ------------------------------------------------------------------------------------------------ the Drill */
-.dr { grid-template-rows: minmax(0, 1fr) 24px; gap: var(--space-3); }
-.dr-main { min-block-size: 0; display: grid; grid-template-columns: minmax(0, 1fr) clamp(300px, 36%, 454px); gap: var(--space-5); }
+.dr { grid-template-rows: auto minmax(0, 1fr) auto; gap: var(--space-3); }
+.dr-main { min-block-size: 0; display: grid; grid-template-columns: minmax(0, 1fr) clamp(300px, 36%, 454px); grid-template-rows: auto minmax(0, 1fr); column-gap: var(--space-5); row-gap: var(--space-3); }
 .dr-q {
+  grid-column: 1; grid-row: 1 / span 2;
   min-inline-size: 0; min-block-size: 0; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-5) var(--space-6);
   background: var(--surface-raised); border-radius: var(--r-card); box-shadow: var(--elev-raised); overflow: hidden;
 }
 .dr-head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
 .dr-lamp { margin-inline-start: auto; }
-.dr-body { flex: 1 1 auto; min-block-size: 0; display: flex; flex-direction: column; justify-content: center; gap: var(--space-4); }
-.dr-stem { margin: 0; font: 600 clamp(1.25rem, 2vw, 1.625rem)/1.3 var(--font-ui, system-ui, sans-serif); max-inline-size: var(--type-read-measure, 40rem); }
+/* the question stands in the top third of the card, not at its middle */
+.dr-body { flex: 1 1 auto; min-block-size: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: var(--space-4); padding-block-start: var(--space-7); }
+/* the question is the one heading of the card: the heading token, no clamp */
+.dr-stem { margin: 0; font: var(--type-heading); max-inline-size: var(--type-read-measure, 40rem); }
 .dr-answer { display: grid; gap: var(--space-2); max-inline-size: 30rem; }
 .dr-rubric { display: grid; gap: var(--space-2); justify-items: start; }
 .dr-fine { margin: 0; font: var(--type-small); color: var(--ink-2); }
 .dr-fb { display: grid; gap: var(--space-2); min-block-size: 0; }
 .dr-hint, .dr-key, .dr-step, .dr-again, .dr-result { margin: 0; font: var(--type-body); }
 .dr-hint, .dr-key { display: flex; gap: var(--space-3); align-items: baseline; }
-.dr-hint-n { flex: none; font: 600 11px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); min-inline-size: 3.2em; }
+.dr-hint-n { flex: none; font: var(--type-meta); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); min-inline-size: 3.2em; }
 .dr-result { font-weight: 650; }
 .dr-worked { display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-4); background: var(--surface-sunk); border-radius: var(--r-well); box-shadow: var(--elev-recessed); }
-.dr-step { padding-inline-start: calc(3.2em + var(--space-3)); font: 13px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
+.dr-step { padding-inline-start: calc(3.2em + var(--space-3)); font: var(--type-log); color: var(--ink-1); }
 .dr-again { color: var(--ink-2); font: var(--type-small); }
-.dr-actions { margin-block-start: auto; display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
-.dr-counts { margin: 0; font: 500 clamp(1.75rem, 3.4vw, 2.5rem)/1.2 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); }
+.dr-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+.dr-foot { display: grid; gap: var(--space-2); }
+.dr-counts { margin: 0; font: var(--type-heading); color: var(--ink-1); overflow-wrap: anywhere; }
 .dr-sub { margin: 0; font: var(--type-body); color: var(--ink-2); }
 .dr-end { justify-content: center; align-items: flex-start; }
 .dr-end .dr-actions { margin-block-start: var(--space-3); }
 
-.dr-rail { min-inline-size: 0; min-block-size: 0; display: flex; flex-direction: column; gap: var(--space-2); align-items: stretch; overflow: hidden; }
-.dr-rail > .k-btn-wrap, .dr-rail > button { align-self: flex-start; }
-.dr-rail .k-rail-row[data-actionable='true'] { display: block; }
-.dr-rail .k-rail-btn { display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: var(--space-3); inline-size: 100%; text-align: start; padding-inline: 0; }
+/* the rail: a raised container whose top edge is the card's, holding the stepper and the reading of the set; the tools stand under it */
+.dr-rail {
+  grid-column: 2; grid-row: 1; align-self: start;
+  min-inline-size: 0; min-block-size: 0; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4);
+  background: var(--surface-raised); border-radius: var(--r-card); box-shadow: var(--elev-raised);
+}
+.dr-meta { display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-4); background: var(--surface-sunk); border-radius: var(--r-well); box-shadow: var(--elev-recessed); }
+.dr-meta-row { margin: 0; display: flex; justify-content: space-between; gap: var(--space-3); font: var(--type-small); color: var(--ink-2); }
+.dr-meta-row b { font: var(--type-log); font-weight: 500; color: var(--ink-1); }
 .dr-rail-state { margin: 0; display: flex; align-items: center; gap: var(--space-2); font: var(--type-small); color: var(--ink-2); }
-.dr-topics { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); }
-.dr-none { font: var(--type-small); color: var(--ink-2); }
-.dr-park { display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); background: var(--surface-sunk); border-radius: var(--r-well); box-shadow: var(--elev-recessed); justify-items: start; }
-.dr-park-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-1); font: var(--type-small); }
-.dr-park .pk { inline-size: 100%; }
-
-.dr-empty { place-items: center; }
-.dr-empty-in { display: grid; justify-items: center; gap: var(--space-3); text-align: center; }
-.dr-ascii { margin: 0; font: 14px/1.3 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.dr-tools { grid-column: 2; grid-row: 2; align-self: start; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.dr-empty { place-items: center; grid-template-rows: auto minmax(0, 1fr) auto; }
+.dr-empty > .fv-head { place-self: start; }
+.dr-empty-in { display: grid; justify-items: center; gap: var(--space-3); text-align: center; align-self: center; }
+.dr-ascii { margin: 0; font: var(--type-log); color: var(--ink-2); }
 .dr-empty-title { margin: 0; font: var(--type-title); }
 .dr-empty-why { margin: 0; display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; justify-content: center; }
 .dr-empty-reason { font: var(--type-small); color: var(--ink-2); }
 .dr-empty .dr-strip { align-self: end; justify-self: stretch; }
 
-/* the progress dots: 14 px dots inside 44 px buttons; a filled dot means answered, never right */
-.dd { display: grid; gap: var(--space-1); }
-.dd-count { margin: 0; font: var(--type-small); color: var(--ink-2); }
-.dd-n { font: 600 1.25rem/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
-.dd-list { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; }
-.dd-btn { all: unset; box-sizing: border-box; inline-size: 44px; block-size: 44px; display: grid; place-items: center; cursor: pointer; border-radius: var(--r-ctl); }
+/* the progress steps: a dot means answered, never right. Each step is one 44 px row (dot, name, state word) joined to the next by a line;
+   ten steps stand in two columns of five. The dot is 14 px and the whole row is the button. */
+.dd { display: grid; gap: var(--space-2); }
+.dd-count { margin: 0; display: flex; align-items: center; gap: var(--space-2); font: var(--type-body); color: var(--ink-2); }
+.dd-n { font: var(--type-title); font-variant-numeric: tabular-nums; color: var(--ink-1); }
+.dd-list { margin: 0; padding: 0; list-style: none; display: grid; grid-auto-flow: column; grid-template-rows: repeat(var(--dd-rows, 5), 44px); column-gap: var(--space-3); }
+.dd-list li { position: relative; min-inline-size: 0; }
+.dd-list li:not([data-end])::after { content: ''; position: absolute; inset-inline-start: calc(var(--space-2) + 6px); inset-block-start: 29px; block-size: 30px; inline-size: 2px; border-radius: 1px; background: var(--ink-3); opacity: 0.5; }
+.dd-btn { all: unset; box-sizing: border-box; inline-size: 100%; block-size: 44px; display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); padding-inline: var(--space-2); cursor: pointer; border-radius: var(--r-ctl); font: var(--type-small); color: var(--ink-2); }
 .dd-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-.dd-dot { box-sizing: border-box; inline-size: 14px; block-size: 14px; border-radius: 50%; transition: opacity var(--dur-state) var(--ease-standard), background-color var(--dur-state) var(--ease-standard); }
+.dd-btn[data-current='true'] { color: var(--ink-1); font-weight: 650; }
+.dd-word { font: var(--type-meta); letter-spacing: 0.04em; color: var(--ink-2); }
+.dd-btn[data-current='true'] .dd-word { color: var(--ink-1); }
+.dd-dot { box-sizing: border-box; inline-size: 14px; block-size: 14px; border-radius: 50%; position: relative; z-index: 1; transition: opacity var(--dur-state) var(--ease-standard), background-color var(--dur-state) var(--ease-standard); }
 .dd-btn[data-dot='filled'] .dd-dot { background: var(--ink-1); }
 .dd-btn[data-dot='open'] .dd-dot { box-shadow: inset 0 0 0 2px var(--ink-3); opacity: 0.9; }
 .dd-btn[data-dot='skipped'] .dd-dot { border: 2px dashed var(--line-ui); }
 .dd-btn[data-current='true'] .dd-dot { outline: 2px solid var(--ink-1); outline-offset: 3px; }
 .dd-note { margin: 0; font: var(--type-small); color: var(--ink-2); }
+/* the phone: the same steps as a wrapping grid of 44 px dots under the card header, every step reachable by touch and none hidden; the
+   answered count stands above it in words ("2 of 10 answered") */
+.dd[data-variant='strip'] { display: grid; gap: var(--space-1); min-inline-size: 0; }
+.dd[data-variant='strip'] .dd-count { font: var(--type-small); }
+.dd[data-variant='strip'] .dd-list { display: grid; grid-auto-flow: row; grid-template-rows: none; grid-template-columns: repeat(auto-fill, 44px); column-gap: 0; min-inline-size: 0; }
+.dd[data-variant='strip'] .dd-list li { inline-size: 44px; block-size: 44px; }
+.dd[data-variant='strip'] .dd-list li::after { content: none; }
+.dd[data-variant='strip'] .dd-btn { grid-template-columns: 1fr; justify-items: center; padding-inline: 0; }
+.dd[data-variant='strip'] .dd-name, .dd[data-variant='strip'] .dd-word { display: none; }
 
 @media (hover: hover) { .dd-btn:hover .dd-dot { opacity: 0.75; } }
 
 /* ------------------------------------------------------------------------------------------------ the phone: one column, the box scrolls inside itself */
 @media (max-width: 899px) {
-  .fv { position: relative; inset: auto; inline-size: 100%; min-block-size: 0; overflow: auto; padding: var(--space-4) var(--space-4); gap: var(--space-4); }
-  .fs, .fr, .cr, .cr-idle { grid-template-columns: minmax(0, 1fr); }
-  .fs-right { display: none; }
-  .fr-right { min-block-size: 200px; }
+  /* the page (.page) is the scroller on the phone; the view must not be a scroller of its own, or the sticky Start strip would have nothing to stick to */
+  .fv { position: relative; inset: auto; inline-size: 100%; min-block-size: 0; overflow: visible; padding: var(--space-4) var(--space-4); gap: var(--space-4); }
+  .fs { display: flex; flex-direction: column; }
+  .fr, .cr, .cr-idle { grid-template-columns: minmax(0, 1fr); }
+  .fs-left { grid-row: auto; }
   .fs-opts { grid-template-columns: minmax(0, 1fr); }
   .fs-pick { grid-template-columns: minmax(0, 1fr); }
   .fs-pick-act { justify-content: flex-start; }
+  /* Track in two columns; Length on one row of four pills with its own small dial beside it (the dial is the picture of the length) */
+  :root .fv .fs-track .ww-seg[data-variant='choice'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fs-len { grid-template-columns: minmax(0, 1fr) 96px; column-gap: var(--space-3); align-items: start; }
+  .fs-len > .fs-label { grid-column: 1 / -1; justify-content: space-between; }
+  .fs-len .ww-seg-wrap { grid-column: 1; }
+  :root .fv .fs-len .ww-seg[data-variant='choice'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fs-len-mini { grid-column: 2; grid-row: 2; }
+  /* the primary stays in reach: an opaque raised strip at the foot of the scrolling page, 16 px gutters, a 56 px button */
+  .fs-go {
+    position: sticky; inset-block-end: 0; z-index: 2; grid-column: auto; grid-row: auto; justify-items: stretch;
+    margin-inline: calc(-1 * var(--space-4)); margin-block-end: calc(-1 * var(--space-4)); padding: var(--space-3) var(--space-4);
+    background: var(--surface-raised); box-shadow: var(--elev-high);
+  }
+  :root[data-theme] .fv .fs-go [data-primary] { min-block-size: 56px; block-size: 56px; inline-size: 100%; }
+  .fs-foot { text-align: start; }
+  .fr-right { min-block-size: 200px; }
   .cr-field { min-block-size: 0; padding: var(--space-3); }
   .cr-read { min-block-size: 0; }
-  .dr { grid-template-rows: auto auto; }
-  .dr-main { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+  .cr-field-idle .fv-dial { inline-size: min(220px, 100%); }
+  .dr { grid-template-rows: auto auto auto; }
+  .dr-main { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; row-gap: var(--space-4); }
+  .dr-q, .dr-rail, .dr-tools { grid-column: 1; grid-row: auto; }
   .dr-q { padding: var(--space-4); overflow: visible; }
+  .dr-body { padding-block-start: var(--space-3); }
+  /* Show the answer, Hint and Skip share one 44 px row */
+  .dr-q:not(.dr-end) .dr-actions { flex-wrap: nowrap; gap: var(--space-2); }
+  .dr-q:not(.dr-end) .dr-actions > * { flex: 1 1 0; min-inline-size: 0; }
+  .dr-q:not(.dr-end) .dr-actions > :first-child { flex: 2.2 1 0; }
+  .dr-q:not(.dr-end) .dr-actions button { min-block-size: 44px; padding-inline: var(--space-2); inline-size: 100%; white-space: nowrap; }
   .dr-rail { overflow: visible; }
-  .dr-empty { grid-template-rows: auto auto; }
+  .dr-empty { grid-template-rows: auto auto auto; }
 }
+/* 900 to 1099: Start is one column, and the Length dial is not lost: the small dial sits beside the Length pills with its PLANNED lamp in the
+   label (FocusStart draws exactly one of the two dials); Rest keeps its hill beside the text */
 @media (max-width: 1099px) and (min-width: 900px) {
-  .fs-right { display: none; }
-  .fs, .fr { grid-template-columns: minmax(0, 1fr); }
-  .fr-right { display: none; }
+  .fs { grid-template-columns: minmax(0, 1fr); }
+  .fs-go { grid-column: 1; grid-row: auto; justify-items: start; }
+  .fs-left { grid-row: auto; }
+  .fs-len { grid-template-columns: minmax(0, 1fr) 96px; column-gap: var(--space-3); align-items: start; }
+  .fs-len > .fs-label { grid-column: 1 / -1; }
+  .fs-len-lamp { display: inline-flex; }
+  .fs-len .ww-seg-wrap { grid-column: 1; }
+  .fs-len-mini { display: block; grid-column: 2; grid-row: 2; }
+}
+/* the keyboard hints are for a keyboard: gone on a narrow screen and on a touch screen */
+@media (max-width: 599px), (pointer: coarse) {
+  .dr-kbd, .dr-kbd-line { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dd-dot { transition: none; }
+  .dd-dot, .fv-dial-dot { transition: none; }
 }
-html[data-motion='calm'] .dd-dot { transition: none; }
+html[data-motion='calm'] .dd-dot, html[data-motion='calm'] .fv-dial-dot { transition: none; }
 
 @media (forced-colors: active) {
-  .fv-moon::before, .fv-moon::after, .fv-ticks, .fv-hill { display: none; }
-  .fv-moon, .fs-opt, .fs-pick, .dr-q, .dr-worked, .dr-park, .fs-right, .fr-right, .cr-field, .fv-strip, .dr-strip, .pk-in, .fr-dots { border: 1px solid CanvasText; }
+  .fv-ticks, .fv-hill { display: none; }
+  .fv-dial-dot { fill: CanvasText; }
+  .fv-dial-dot[data-lit='false'] { fill: none; stroke: CanvasText; }
+  .fv-dial-rest .fv-dial-tick, .fv-dial-next { stroke: CanvasText; }
+  .fv-dial, .fs-opt, .fs-pick, .dr-q, .dr-rail, .dr-worked, .dr-park, .fs-right, .fr-right, .cr-field, .fv-strip, .dr-strip, .pk-in, .fr-dots { border: 1px solid CanvasText; }
   .dd-btn[data-dot='filled'] .dd-dot { background: CanvasText; }
   .dd-btn[data-dot='open'] .dd-dot { box-shadow: none; border: 2px solid CanvasText; }
   .dd-btn[data-dot='skipped'] .dd-dot { border-color: CanvasText; }
-  .dd-btn:focus-visible, .pk-in:focus-visible, .cr-field .art-svg { zoom: 1.35; }
-.cr-field:focus-visible { outline-color: Highlight; }
+  .dd-btn:focus-visible, .pk-in:focus-visible { outline-color: Highlight; }
+  .cr-field:focus-visible { outline-color: Highlight; }
 }
 
 /* ------------------------------------------------------------------------------------------------ the gallery box: the real canvas, drawn smaller to fit the pane */

@@ -11,7 +11,9 @@
  * No requestAnimationFrame is used anywhere: the one clock is a timeout per minute, and it stops while paused or ended.
  */
 import { useEffect, useReducer, useRef, useState } from 'react'
-import { Button, Chip, Field, Lamp, PrimaryButton, Skeleton, TelemetryRail, type RailRow } from '../../shared/kit'
+import { Button, Chip, Field, Lamp, PrimaryButton, Skeleton } from '../../shared/kit'
+import { FocusHead } from './FocusHead'
+import { useNarrow } from './useNarrow'
 import { DrillDots } from './DrillDots'
 import { ParkField } from './ParkField'
 import { counts, countsLine, current, initialState, MAX_RUNGS, reduce, weekdayOf, type Act, type DrillState } from './model'
@@ -78,6 +80,7 @@ function go(onGo: DrillProps['onGo'], to: FocusView | 'papers') {
 function DrillEmpty({ set, onGo }: { set: DrillSet; onGo: DrillProps['onGo'] }) {
   return (
     <section className="fv dr dr-empty" aria-label="Drill">
+      <FocusHead title="Drill" />
       <div className="dr-empty-in">
         <pre className="dr-ascii" aria-hidden="true">{'+----------------------+\n|                      |\n|    Nothing queued    |\n|                      |\n+----------------------+'}</pre>
         <p className="dr-empty-title" role="status">{set.title}</p>
@@ -97,7 +100,9 @@ function DrillBody({ set, port, initial, elapsedMin, onGo }: { set: DrillSet; po
   const [auto, setAuto] = useState(true)
   const root = useRef<HTMLElement>(null)
   const parkKey = useRef<HTMLButtonElement>(null)
+  const wasParkOpen = useRef(false)
   const mins = useElapsedMin(!s.paused && !s.ended, elapsedMin)
+  const narrow = useNarrow()
   const q = current(s)
   const r = q ? s.res[q.id] : undefined
   const c = counts(s)
@@ -144,17 +149,18 @@ function DrillBody({ set, port, initial, elapsedMin, onGo }: { set: DrillSet; po
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const topics = [...new Set(s.qs.filter((x) => s.res[x.id]).map((x) => x.topic))]
+  // the field closes (Enter or Esc) in the same tick that the Park button mounts again, so the focus goes back to the button here, after the render
+  useEffect(() => {
+    if (wasParkOpen.current && !parkOpen) parkKey.current?.focus()
+    wasParkOpen.current = parkOpen
+  }, [parkOpen])
+
   const rungs = q ? s.rungs[q.id] ?? 0 : 0
-  const rail: RailRow[] = [
-    { id: 'elapsed', label: 'Elapsed', value: `${mins} min`, state: 'live' },
-    { id: 'hints', label: 'Hints logged', value: s.hintLog.length, state: 'live' },
-    { id: 'pause', label: s.paused ? 'Held. Resume (p)' : 'Pause (p)', value: s.paused ? 'held' : 'running', state: 'live', onPress: () => apply({ t: 'pause', on: !s.paused }) },
-  ]
 
   if (s.ended) {
     return (
       <section className="fv dr" aria-label="Drill" data-phase="end" ref={root}>
+        <FocusHead title="Drill" />
         <div className="dr-main">
           <article className="dr-q dr-end" aria-label="Set finished">
             <p className="dr-kick">Set finished{s.early ? ', ended early' : ''}</p>
@@ -172,7 +178,7 @@ function DrillBody({ set, port, initial, elapsedMin, onGo }: { set: DrillSet; po
             <p className="dr-fine">Done has no penalty. Nothing here is a grade.</p>
           </article>
           <aside className="dr-rail" aria-label="This set">
-            <DrillDots qs={s.qs} res={s.res} current={-1} onJump={() => {}} early={s.early} />
+            <DrillDots qs={s.qs} res={s.res} current={-1} onJump={() => {}} early={s.early} variant={narrow ? 'strip' : 'rail'} />
           </aside>
         </div>
         <p className="dr-strip" aria-live="off">{s.strip}</p>
@@ -184,6 +190,7 @@ function DrillBody({ set, port, initial, elapsedMin, onGo }: { set: DrillSet; po
   const rungText = q ? (rungs >= MAX_RUNGS(q) ? 'worked answer open' : `hint ${rungs} of ${MAX_RUNGS(q) - 1} open`) : ''
   return (
     <section className="fv dr" aria-label="Drill" data-phase={r ? 'checked' : 'ask'} ref={root}>
+      <FocusHead title="Drill" />
       <div className="dr-main">
         <article className="dr-q" aria-label={`Question ${s.i + 1} of ${s.qs.length}`}>
           <header className="dr-head">
@@ -191,6 +198,7 @@ function DrillBody({ set, port, initial, elapsedMin, onGo }: { set: DrillSet; po
             <Chip>{q?.topic ?? ''}</Chip>
             <span className="dr-lamp"><Lamp state={set.state} reason={set.reason} /></span>
           </header>
+          {narrow && <DrillDots qs={s.qs} res={s.res} current={s.i} onJump={(i) => stepTo({ t: 'jump', i })} variant="strip" />}
           {q && (
             <>
               <div className="dr-body">
@@ -200,45 +208,47 @@ function DrillBody({ set, port, initial, elapsedMin, onGo }: { set: DrillSet; po
               </div>
               <div className="dr-actions">
                 {r ? (
-                  <PrimaryButton claimId="drill-next" rank="workspace" size="lg" onClick={stepOrEnd}>{last ? 'Finish set' : 'Next question'}</PrimaryButton>
+                  <PrimaryButton claimId="drill-next" rank="workspace" size="md" onClick={stepOrEnd}>{last ? 'Finish set' : 'Next question'}</PrimaryButton>
                 ) : q.kind === 'recall' && s.revealed[q.id] ? (
                   <>
-                    <PrimaryButton claimId="drill-had" rank="workspace" size="lg" onClick={() => apply({ t: 'mark', ok: true })}>I had it</PrimaryButton>
-                    <Button size="lg" onClick={() => apply({ t: 'mark', ok: false })}>Not yet</Button>
+                    <PrimaryButton claimId="drill-had" rank="workspace" size="md" onClick={() => apply({ t: 'mark', ok: true })}>I had it</PrimaryButton>
+                    <Button size="md" onClick={() => apply({ t: 'mark', ok: false })}>Not yet</Button>
                   </>
                 ) : (
-                  <PrimaryButton claimId="drill-check" rank="workspace" size="lg"
+                  <PrimaryButton claimId="drill-check" rank="workspace" size="md"
                     disabledReason={q.kind === 'numeric' && !(s.answers[q.id] ?? '').trim() ? 'Type an answer first.' : undefined}
                     onClick={() => apply({ t: 'check' })}>{q.kind === 'recall' ? 'Show the answer' : q.kind === 'written' ? 'Done marking' : 'Check'}</PrimaryButton>
                 )}
-                {!r && <Button size="lg" onClick={() => apply({ t: 'hint' })} disabledReason={rungs >= MAX_RUNGS(q) ? 'The worked answer is already open.' : undefined}>Hint (h)</Button>}
-                {!r && <Button size="lg" onClick={() => { setAuto(true); apply({ t: 'skip' }) }}>Skip (s)</Button>}
+                {!r && <Button size="md" onClick={() => apply({ t: 'hint' })} disabledReason={rungs >= MAX_RUNGS(q) ? 'The worked answer is already open.' : undefined}>Hint<span className="dr-kbd"> (h)</span></Button>}
+                {!r && <Button size="md" onClick={() => { setAuto(true); apply({ t: 'skip' }) }}>Skip<span className="dr-kbd"> (s)</span></Button>}
               </div>
-              <p className="dr-fine" aria-live="off">
-                {rungs ? `${rungText}. A hint is logged and lowers nothing; the worked answer moves this one to the shelf.` : 'Enter checks. Esc leaves the field; then j and k step, h opens a hint, x parks a thought.'}
-              </p>
+              <div className="dr-foot">
+                {parkOpen && <ParkField open={parkOpen} onClose={() => setParkOpen(false)} onFile={file} returnTo={() => parkKey.current} />}
+                {s.parked.length > 0 && (
+                  <ul className="dr-park-list" aria-label="Parked thoughts">
+                    {s.parked.slice(-2).map((x, i) => <li key={`${i}-${x.text}`} data-kept={x.stored ? 'true' : 'false'}>{x.text}<span className="dr-park-where">{x.stored ? 'in Parking' : 'this page only'}</span></li>)}
+                  </ul>
+                )}
+                <p className={rungs ? 'dr-fine' : 'dr-fine dr-kbd-line'} aria-live="off">
+                  {rungs ? `${rungText}. A hint is logged and lowers nothing; the worked answer moves this one to the shelf.` : 'Enter checks. Esc leaves the field; then j and k step, h opens a hint, x parks a thought.'}
+                </p>
+              </div>
             </>
           )}
         </article>
         <aside className="dr-rail" aria-label="This set">
-          <DrillDots qs={s.qs} res={s.res} current={s.i} onJump={(i) => stepTo({ t: 'jump', i })} />
-          <p className="dr-topics" aria-label="Topics touched">
-            {topics.length ? topics.map((t) => <Chip key={t}>{t}</Chip>) : <span className="dr-none">No topic touched yet</span>}
-          </p>
-          <TelemetryRail label="This set" rows={rail} />
-          <p className="dr-rail-state"><Lamp state="live" reason="this window's clock and this set's log" /></p>
-          <div className="dr-park">
-            <p className="dr-kick">Park shelf</p>
-            {s.parked.length ? (
-              <ul className="dr-park-list" aria-label="Parked thoughts">
-                {s.parked.slice(-3).map((x, i) => <li key={`${i}-${x.text}`} data-kept={x.stored ? 'true' : 'false'}>{x.text}<span className="dr-park-where">{x.stored ? 'in Parking' : 'this page only'}</span></li>)}
-              </ul>
-            ) : null}
-            <ParkField open={parkOpen} onClose={() => setParkOpen(false)} onFile={file} returnTo={() => parkKey.current} />
-            {!parkOpen && <Button ref={parkKey} size="md" onClick={() => setParkOpen(true)}>Park a thought (x)</Button>}
+          {!narrow && <DrillDots qs={s.qs} res={s.res} current={s.i} onJump={(i) => stepTo({ t: 'jump', i })} />}
+          <div className="dr-meta">
+            <p className="dr-meta-row"><span>Elapsed</span><b>{mins} min</b></p>
+            <p className="dr-meta-row"><span>Hints logged</span><b>{s.hintLog.length}</b></p>
+            <p className="dr-rail-state"><Lamp state="live" reason="this window's clock and this set's log" /></p>
           </div>
-          <Button size="md" onClick={() => apply({ t: 'end' })}>End set (e)</Button>
         </aside>
+        <div className="dr-tools" role="group" aria-label="Set controls">
+          {q && !parkOpen && <Button ref={parkKey} size="md" onClick={() => setParkOpen(true)}>Park a thought<span className="dr-kbd"> (x)</span></Button>}
+          <Button size="md" onClick={() => apply({ t: 'pause', on: !s.paused })}>{s.paused ? 'Resume' : 'Pause'}<span className="dr-kbd"> (p)</span></Button>
+          <Button size="md" onClick={() => apply({ t: 'end' })}>End set<span className="dr-kbd"> (e)</span></Button>
+        </div>
       </div>
       <p className="dr-strip" aria-live="off">{s.strip}</p>
     </section>

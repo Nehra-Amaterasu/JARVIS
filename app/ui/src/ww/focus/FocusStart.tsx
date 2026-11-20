@@ -1,7 +1,7 @@
 /**
  * Focus > Start (A.Y02, 20.7.8): choose a track and a length, optionally a cue, then Start. Left 640: the track Segmented, the
  * presets, the cue, the two opt-in switches (the wager and the guards, both off), the Pick for me strip and the one primary.
- * Right 574: a halftone moon ring, still. The wager and the guards are the classic page's rules (session.ts), unchanged: a
+ * Right: the Length dial, a still ring of one dot per 5 minutes of the chosen length (a pure function of it) with the length as the hero numeral, a PLANNED lamp and the one primary under it. The wager and the guards are the classic page's rules (session.ts), unchanged: a
  * toggle here is the kit Switch, and a wager that the XP cannot cover is said before Start, not after.
  *
  * Pick for me shows the top item of the Next three with the three terms of its rule printed (RULE); it is dismissible and it
@@ -10,12 +10,14 @@
 import { useEffect, useState } from 'react'
 import { Banner, Button, Field, Lamp, PrimaryButton, Segmented, Skeleton, Switch } from '../../shared/kit'
 import { usePlan } from '../../germoney/game/plan'
-import { MoonRing } from './art'
+import { LengthDial } from './art'
+import { FocusHead } from './FocusHead'
 import { goFocus } from './nav'
 import { activeFocusPort, type FocusPort, type PickItem } from './ports'
 import { LENGTHS, STRIKE_S, WAGER, WIN, type Length } from './session'
 import { useFocusViews } from './store'
 import { useCrucibleEngine } from './useCrucibleEngine'
+import { useNarrow } from './useNarrow'
 import './adapters'
 import './views/focus-views.css'
 
@@ -47,13 +49,12 @@ export interface FocusStartPanelProps {
 }
 
 export function FocusStartPanel(p: FocusStartPanelProps) {
+  // under 1100 px the big dial gives way to the small one beside Length; exactly one dial and one PLANNED lamp are in the tree
+  const compact = useNarrow(1099)
   return (
     <section className="fv fs" aria-label="Start a focus block">
       <div className="fs-left">
-        <header className="fs-head">
-          <p className="fv-kick">Focus</p>
-          <h2 className="fs-title">Start a block</h2>
-        </header>
+        <FocusHead title="Start a block" />
         {p.running && (
           <Banner tone="info" action={<Button size="md" onClick={p.onOpenSession}>Open the session</Button>}>
             A block is running on {p.running.trackLabel}. Starting another needs this one to end first.
@@ -68,14 +69,15 @@ export function FocusStartPanel(p: FocusStartPanelProps) {
           </div>
         ) : (
           <>
-            <div className="fs-row">
+            <div className="fs-row fs-track">
               <p className="fs-label" id="fs-track">Track</p>
               <Segmented<string> label="Track" variant="choice" value={p.trackId ?? ''} onChange={p.onTrack} options={p.tracks.map((t) => ({ id: t.id, label: t.label }))} />
             </div>
-            <div className="fs-row">
-              <p className="fs-label">Length</p>
+            <div className="fs-row fs-len">
+              <p className="fs-label fs-len-label">Length{compact && <span className="fs-len-lamp"><Lamp state="planned" reason="chosen, not started" /></span>}</p>
               <Segmented<string> label="Length in minutes" variant="choice" value={String(p.len)} onChange={(v) => p.onLen(Number(v) as Length)}
                 options={LENGTHS.map((m) => ({ id: String(m), label: `${m} min` }))} />
+              {compact && <div className="fs-len-mini" aria-hidden="true"><LengthDial len={p.len} size="mini"><span className="fv-dial-n">{p.len}</span></LengthDial></div>}
             </div>
             <div className="fs-row fs-cue">
               <Field label="Cue (optional)" value={p.cue} maxLength={80} placeholder="One line to read when you sit down" autoComplete="off" onChange={(e) => p.onCue(e.target.value)} />
@@ -107,12 +109,20 @@ export function FocusStartPanel(p: FocusStartPanelProps) {
             </div>
           </div>
         )}
-        <div className="fs-go">
-          <PrimaryButton claimId="focus-start" rank="workspace" size="lg" disabledReason={p.blocked ?? (p.running ? 'A block is already running.' : undefined)} onClick={p.onStart}>Start session</PrimaryButton>
-          <p className="fs-foot">{p.eyesLine} · minutes go through the one log writer{p.stamp ? ' · SIMULATED' : ''}</p>
-        </div>
       </div>
-      <div className="fs-right"><MoonRing /></div>
+      {!compact && (
+        <div className="fs-right">
+          <LengthDial len={p.len}>
+            <span className="fv-num" data-testid="length-numeral">{p.len}</span>
+            <span className="fv-num-unit">min</span>
+          </LengthDial>
+          <p className="fv-why fs-dial-why"><Lamp state="planned" reason="chosen, not started" /><span aria-hidden="true">A block of {p.len} min, not started.</span></p>
+        </div>
+      )}
+      <div className="fs-go">
+        <PrimaryButton claimId="focus-start" rank="workspace" size="lg" disabledReason={p.blocked ?? (p.running ? 'A block is already running.' : undefined)} onClick={p.onStart}>Start session</PrimaryButton>
+        <p className="fs-foot">{p.eyesLine} · minutes go through the one log writer{p.stamp ? ' · SIMULATED' : ''}</p>
+      </div>
     </section>
   )
 }

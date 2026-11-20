@@ -176,7 +176,7 @@ describe('Rest', () => {
   it('says "ended" in neutral words, keeps the filled dots, says what counted, and offers a break once after a long block', async () => {
     useFocusViews.setState({ last: { at: Date.now(), kind: 'ended', line: 'Session ended: you stopped it. 52 min counted.', heldMin: 52.3, counted: 52, length: 90, trackLabel: 'Digital logic', parked: 2 } })
     render(<FocusRest />)
-    expect(q('.fs-title').textContent).toBe('Block ended')
+    expect(q('.fv-title').textContent).toBe('Block ended')
     expect(document.querySelectorAll('[data-dot="filled"]')).toHaveLength(52)
     expect(document.body.textContent).toContain('52 min logged.')
     expect(document.body.textContent).toContain('2 thoughts parked.')
@@ -196,5 +196,19 @@ describe('Rest', () => {
     useFocusViews.setState({ last: null })
     render(<FocusRest />)
     expect(document.body.textContent).toContain('Nothing is counting down')
+  })
+})
+
+describe('EL-FOCUS: the idle Session', () => {
+  it('draws the resting dial with a WAITING lamp and the reason, one title, no duplicate caption', async () => {
+    render(<Crucible port={nullFocusPort} />)
+    await flush()
+    expect(q('[data-testid="readout"]').textContent).toBe('No session running')
+    expect(document.querySelectorAll('.cr-field-idle [data-art="resting-dial"]')).toHaveLength(1)
+    expect(q('.cr-field-idle').textContent).toContain('WAITING')
+    expect(q('.cr-field-idle').textContent).toContain('No block started')
+    expect(document.body.textContent).not.toContain('Minutes held')
+    expect(document.body.textContent).not.toMatch(/LIVE/)
+    expect((document.body.textContent ?? '').match(/No session running/g)).toHaveLength(1)
   })
 })

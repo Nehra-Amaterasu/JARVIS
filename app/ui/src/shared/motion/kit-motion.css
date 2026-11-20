@@ -1,0 +1,65 @@
+/* ==========================================================================
+   Timing roles of the shared kit (principle 9 of docs/design/ux-principles-checklist.md), declared on :root so a kit control
+   keeps its feel on ANY page. Before this the kit read --dur-state and --dur-press with a literal fallback, because the
+   Well Wisher motion roles exist only under .ww and html[data-ww]; --dur-press was not declared anywhere, so every press
+   ran on its 90 ms fallback. This file is a token file: literals are allowed here and nowhere in component CSS.
+
+     --dur-hover    80 ms   a face lifting under the pointer ("hover about 80 ms")
+     --dur-press   100 ms   a face sinking ("press 80 to 120 ms"); matches --dur-feedback
+     --dur-state   160 ms   a small state change (the same number the .ww scope gives it, so nothing changes there)
+     --dur-thumb   180 ms   a thumb travelling to a seat: with --ease-thumb it overshoots once (about 4 percent of the
+                            travel) and is at rest at 180 ms, inside the 240 ms of principle 5
+     --dur-follow   40 ms   a label attached to a moving part lands this long after it ("30 to 60 ms later", principle 5)
+     --dur-instant   0 s    "the new value arrives at the end of something else": a transition-delay trick, never a fade
+
+   --ease-step is the one-step easing of the landing hand-off above: a hold, not a curve.
+
+   Easing: --ease-standard is the Material curve of primitive.css (moving: in and out); --ease-thumb is its soft back
+   curve (peak 1.3), so the overshoot is bounded by the curve itself and cannot repeat.
+
+   Reduced motion (the OS flag, unless data-motion='full', and data-motion='calm'): the three travel and press timings
+   collapse to 0 s, so a thumb jumps and a press is one frame. The state is still shown, by fill, word and shadow.
+   ========================================================================== */
+:root {
+  --dur-hover: 80ms;
+  --dur-press: 100ms;
+  --dur-state: 160ms;
+  --dur-thumb: 180ms;
+  --dur-follow: 40ms;
+  --dur-instant: 0s;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-thumb: cubic-bezier(0.34, 1.3, 0.64, 1);
+  --ease-step: steps(1, end);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) {
+    --dur-hover: 0s;
+    --dur-press: 0s;
+    --dur-thumb: 0s;
+    --dur-follow: 0s;
+  }
+}
+:root[data-motion='calm'] {
+  --dur-hover: 0s;
+  --dur-press: 0s;
+  --dur-thumb: 0s;
+  --dur-follow: 0s;
+}
+
+/* the option a Segmented thumb is travelling to keeps the bare channel look until the thumb has landed (clay.css, the thumb block);
+   steps(1, end) holds the `from` values for the whole --dur-thumb and then lets the option's own fill and shade stand */
+@keyframes k-seg-land {
+  from {
+    background-color: transparent;
+    box-shadow: none;
+    border-color: transparent;
+  }
+}
+
+/* the word of a switch, arriving a beat after its thumb (clay.css .k-switch-word[data-flip]); kept here because the kit stylesheet
+   carries no @keyframes by rule (src/__tests__/kit/kit-css.test.ts) */
+@keyframes k-word-in {
+  from {
+    opacity: 0;
+  }
+}

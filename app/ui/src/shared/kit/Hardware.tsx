@@ -2,7 +2,7 @@
 // Every control follows the 7.1 state grammar: default, hover and pressed are CSS; disabled-with-a-reason,
 // loading, error and planned are data attributes set here, so a test (and forced colours) can read them.
 // A planned control is aria-disabled, never `disabled`, and a press calls onPlanned (it opens "What is coming").
-import { useId, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
+import { useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import { LampGlyph, type LampState } from './Lamp'
 import { cx } from './util'
 
@@ -46,15 +46,30 @@ export interface SwitchProps extends StateForms {
   label: string
   /** Board-backed switches: the cyan "confirmed" lamp shows only after the board has reported. */
   confirmed?: boolean
+  /** Waiting for the board to answer: the thumb carries a still ring, the switch takes no press (aria-busy). */
+  loading?: boolean
   className?: string
 }
 
-/** Component 2, the Capsule Switch: a 56 x 32 track, role=switch, Space toggles, Enter does not (switch convention). */
-export function Switch({ checked, onChange, label, confirmed, className, ...forms }: SwitchProps) {
+/**
+ * Component 2, the Capsule Switch: a 76 x 44 track, role=switch, Space toggles, Enter does not (switch convention).
+ * Two seats are cut into the track (the detent): the thumb rests in one and the other stays visible as an empty socket, so
+ * the place it will land is drawn before it moves. The thumb travels on --ease-thumb (one overshoot, at rest in
+ * --dur-thumb) and its word lands --dur-follow later (principle 5). Poses: rest, hover, pressed, focus, on, disabled, loading.
+ */
+export function Switch({ checked, onChange, label, confirmed, loading, className, ...forms }: SwitchProps) {
   const errId = useId()
+  // the word arrives a beat after the thumb, but only when the value CHANGES: a switch drawn at rest plays nothing
+  // (derived during render, from the previous value, so the very render that shows the new word already carries data-flip)
+  const [seen, setSeen] = useState(checked)
+  const [flipped, setFlipped] = useState(false)
+  if (seen !== checked) {
+    setSeen(checked)
+    setFlipped(true)
+  }
   const act = () => {
     if (forms.planned) return forms.onPlanned?.()
-    if (forms.disabledReason) return
+    if (forms.disabledReason || loading) return
     onChange(!checked)
   }
   const onKeyDown = (e: KeyboardEvent) => {
@@ -71,18 +86,24 @@ export function Switch({ checked, onChange, label, confirmed, className, ...form
         aria-checked={checked}
         className="k-switch"
         data-on={checked ? 'true' : 'false'}
+        data-loading={loading ? 'true' : undefined}
+        aria-busy={loading || undefined}
         {...stateAttrs(forms, errId)}
         onClick={act}
         onKeyDown={onKeyDown}
         onKeyUp={(e) => e.key === ' ' && e.preventDefault()}
       >
-        <span className="k-switch-word" aria-hidden="true">
+        <span key={checked ? 'on' : 'off'} className="k-switch-word" data-flip={flipped ? 'true' : undefined} aria-hidden="true">
           {checked ? 'ON' : 'OFF'}
         </span>
         <span className="k-switch-thumb" aria-hidden="true" />
         <span className="k-vh">{label}</span>
       </button>
       <span className="k-switch-label">{label}</span>
+      {/* always present, so a screen reader hears the text arrive: why a press does nothing while the board has not answered */}
+      <span className="k-vh" role="status">
+        {loading ? 'waiting for the board' : ''}
+      </span>
       {confirmed && (
         <span className="k-confirmed" title="confirmed by board">
           <LampGlyph state="live" size={12} /> <span className="k-vh">confirmed by board</span>

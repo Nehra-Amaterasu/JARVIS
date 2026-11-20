@@ -1,5 +1,6 @@
 // The shared kit (S7). Moved here from ww/kit without a behaviour change; the clay families A and B are new
 // (docs/design/jarvis-product-overhaul.md 7.2, 7.3). ww/kit re-exports the moved files so ww imports resolve.
+import '../motion/kit-motion.css'
 import './clay.css'
 
 export { Button, IconButton } from './Button'

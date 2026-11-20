@@ -1,15 +1,15 @@
 // Room, Switches (A.J02, spec 20.9.2): operate the room and trust the board. One canvas, no document scroll at 1366 x 768:
 // the JARVIS content box is 1286 x 652 and the rows are fixed (room.css names the numbers).
 //
-//   top 300      faceplate 900 (plate, dial, eight keys)         board plate 370 (link, LCD, All off)
-//   bottom 336   day ring 400                                    modes strip, "what just happened", what to say
+//   top (rest)   faceplate, the hero (dial, numbered modes, eight keys)   board plate 320 (link, LCD, All off)
+//   bottom 272   day ring 264                                             "what just happened" (3 lines, all on focus), what to say
 //
 // Every lamp on the keys follows the board's report; a press only asks. The scrubber on the ring previews and sends nothing.
-// Below 900 px it is one column that scrolls inside itself, two keys per row, All off sticky at the bottom.
+// Below 900 px it is one column that scrolls inside itself, two keys per row, the modes and All off in one sticky bar.
 import { useEffect, useMemo, useState } from 'react'
 import type { LimbsView } from '../../lib/limbs'
 import { voiceLines } from '../../lib/wallbox'
-import { Chip, Fold, LampGlyph } from '../../shared/kit'
+import { Fold, LampGlyph } from '../../shared/kit'
 import { BoardPlate, Faceplate, useSceneGuard } from './Faceplate'
 import { DayRing24 } from './DayRing24'
 import { RoomLog } from './RoomLog'
@@ -54,30 +54,20 @@ export function RoomSwitchesView({ view, loading, asked, confirmedAt, now, log, 
         {simulated && <p className="jr-stamp"><LampGlyph state="simulated" size={12} /> SIMULATED: fixture room, no board</p>}
         {empty && <p className="jr-stamp"><LampGlyph state="waiting" size={12} /> WAITING: the app did not answer. Connect the board in Console.</p>}
       </div>
-      <BoardPlate view={view} slots={slots} onAllOff={() => void actions.allOff()} />
+      <BoardPlate view={view} slots={slots} onAllOff={() => void actions.allOff()} modes={modes} lastMode={view?.last_mode ?? null} onScene={guard.request} armedText={guard.armed?.text ?? null} />
       <div className="jr-bottom">
-      <section className="jr-day" aria-label="Day ring">
-        <header className="jr-day-head"><span className="jr-tag">[ROM] DAY RING</span></header>
-        <DayRing24 rules={rules} now={clock} size={264} />
-      </section>
-      <div className="jr-lower">
-        <section className="jr-modes" aria-label="Modes">
-          <span className="jr-tag">[ROM] MODES</span>
-          <div className="jr-chips" role="group" aria-label="Apply a mode">
-            {modes.length === 0 && <span className="jr-note">No modes reported yet.</span>}
-            {modes.map((m) => (
-              <Chip key={m.id} grouped selected={view?.last_mode === m.id} onClick={() => guard.request(m.id)}>{m.name}</Chip>
-            ))}
-          </div>
-          {guard.armed && <p className="jr-armed" role="status"><LampGlyph state="waiting" size={12} /> {guard.armed.text}. Press the mode again within 5 s.</p>}
+        <section className="jr-day" aria-label="Day ring">
+          <header className="jr-day-head"><span className="jr-tag">[ROM] DAY RING</span></header>
+          <DayRing24 rules={rules} now={clock} size={204} />
         </section>
-        <RoomLog lines={log} slots={slots} />
-        <div className="jr-dropup">
-          <Fold title={`What to say (${voice.length})`}>
-            <table className="jr-voice"><tbody>{voice.map((l) => <tr key={l.say}><td>{l.say}</td><td>{l.does}</td></tr>)}</tbody></table>
-          </Fold>
+        <div className="jr-lower">
+          <RoomLog lines={log} slots={slots} />
+          <div className="jr-dropup">
+            <Fold title={`What to say (${voice.length})`}>
+              <table className="jr-voice"><tbody>{voice.map((l) => <tr key={l.say}><td>{l.say}</td><td>{l.does}</td></tr>)}</tbody></table>
+            </Fold>
+          </div>
         </div>
-      </div>
       </div>
     </div>
   )

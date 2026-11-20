@@ -23,7 +23,7 @@ afterEach(() => { m?.unmount(); m = null; vi.useRealTimers(); try { localStorage
 const el = (sel: string) => document.querySelector(sel) as HTMLElement
 const all = (sel: string) => [...document.querySelectorAll(sel)] as HTMLElement[]
 const click = (n: Element) => act(() => { (n as HTMLElement).click() })
-const key = (n: Element, k: string) => act(() => { n.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })) })
+const key = (n: Element, k: string, repeat = false) => act(() => { n.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, repeat })) })
 const tick = (ms: number) => act(() => { vi.advanceTimersByTime(ms) })
 const flush = () => act(async () => { await Promise.resolve(); await Promise.resolve() })
 
@@ -182,7 +182,7 @@ describe('Switches', () => {
   it('a mode chip that would turn ON a flagged channel asks twice; one that does not applies at once', () => {
     const a = actions()
     m = mount(view({ heavy: { light3: true } }, a))
-    const chip = (name: string) => all('.jr-chips button').find((b) => b.textContent === name)!
+    const chip = (name: string) => all('.jr-plate-right .jr-chips button').find((b) => b.textContent?.endsWith(name))!
     click(chip('Sleep'))
     expect(a.scene).toHaveBeenCalledTimes(1)
     click(chip('Relaxation'))
@@ -216,6 +216,24 @@ describe('Switches', () => {
 describe('the log and the strip', () => {
   it('prints only what happened, with the lamp word of what the board said', () => {
     m = mount(<RoomLog lines={[{ id: 2, at: NOW, text: 'asked, no report: Corner light ON', state: 'fault' }, { id: 1, at: NOW - 1000, text: 'asked: Corner light ON', state: 'waiting' }]} slots={keySlots(fixtureRoom('live'), {}, NOW)} />)
+    // at rest the terminal shows three lines (channel numbers, strip, the latest event); pressing it, or focusing it, shows the log
+    expect(all('.jr-log-line').map((l) => l.getAttribute('data-state'))).toEqual(['fault'])
+    const toggle = el('.jr-term-toggle')
+    expect(el('.jr-term').getAttribute('data-open')).toBe('false')
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    // focus alone never opens it; a click opens it, a second click closes it, Escape closes it
+    act(() => { toggle.focus() })
+    expect(el('.jr-term').getAttribute('data-open')).toBe('false')
+    click(toggle)
+    expect(el('.jr-term').getAttribute('data-open')).toBe('true')
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    click(toggle)
+    expect(el('.jr-term').getAttribute('data-open')).toBe('false')
+    click(toggle)
+    key(toggle, 'Escape')
+    expect(el('.jr-term').getAttribute('data-open')).toBe('false')
+    click(toggle)
+    expect(el('.jr-term').getAttribute('data-open')).toBe('true')
     expect(all('.jr-log-line').map((l) => l.getAttribute('data-state'))).toEqual(['fault', 'waiting'])
     expect(el('.jr-log-line').textContent).toContain('FAULT')
     expect(el('.jr-log-line').textContent).toContain('[ROM]')
@@ -223,6 +241,64 @@ describe('the log and the strip', () => {
   it('the channel strip shows the board report: on, off, no report, free', () => {
     expect(channelStrip(keySlots(fixtureRoom('live'), {}, NOW))).toBe('# . # . . ? - -')
     expect(channelStrip(keySlots(fixtureRoom('offline'), {}, NOW))).toBe('? ? ? ? ? ? - -')
+  })
+})
+
+describe('the numbered modes and the free slots', () => {
+  const actions = () => ({ press: vi.fn(async () => undefined), scene: vi.fn(async () => undefined), allOff: vi.fn(async () => undefined) })
+  const view = (over: Partial<Parameters<typeof RoomSwitchesView>[0]> = {}, a = actions()) => (
+    <RoomSwitchesView view={fixtureRoom('live')} asked={{}} now={NOW} log={[]} heavy={{}} setHeavy={() => undefined} actions={a} rules={[]} {...over} />
+  )
+  it('a number key applies the mode of that number while focus is in the wall box, and a flagged mode still asks twice', () => {
+    const a = actions()
+    m = mount(view({ heavy: { light3: true } }, a))
+    const plate = el('.jr-face-plate')
+    key(plate, '2')
+    expect(a.scene).toHaveBeenCalledTimes(0) // Relaxation turns ON a flagged channel: the first press only asks
+    key(plate, '2')
+    expect(a.scene).toHaveBeenCalledTimes(1) // the second act inside 5 s applies it
+    key(plate, '3')
+    expect(a.scene).toHaveBeenCalledTimes(2) // Sleep touches no flagged channel: one press
+    key(plate, '9')
+    expect(a.scene).toHaveBeenCalledTimes(2) // there is no ninth mode
+  })
+  it('a held number key never completes the two-act cover: auto-repeat sends nothing, a fresh press does', () => {
+    const a = actions()
+    m = mount(view({ heavy: { light3: true } }, a))
+    const plate = el('.jr-face-plate')
+    key(plate, '2') // arms the flagged mode
+    key(plate, '2', true) // the held key's repeats are not a second act
+    key(plate, '2', true)
+    expect(a.scene).toHaveBeenCalledTimes(0)
+    key(plate, '2') // a separate press is
+    expect(a.scene).toHaveBeenCalledTimes(1)
+  })
+  it('a number key typed into a field or a non-dial slider applies no mode', () => {
+    const a = actions()
+    m = mount(view({}, a))
+    const slider = document.createElement('div')
+    slider.setAttribute('role', 'slider')
+    el('.jr-face-plate').appendChild(slider)
+    const input = document.createElement('input')
+    el('.jr-face-plate').appendChild(input)
+    key(slider, '3')
+    key(input, '3')
+    expect(a.scene).toHaveBeenCalledTimes(0)
+    key(el('.jr-dial-body'), '3') // the dial takes arrows, not digits, so its digits stay the mode keys
+    expect(a.scene).toHaveBeenCalledTimes(1)
+  })
+  it('every mode key is 44 px tall by the kit and shows its number', () => {
+    m = mount(view({}, actions()))
+    const first = all('.jr-plate-right .jr-chips button')[0]
+    expect(first.textContent).toMatch(/^1/)
+    expect(all('.jr-plate-right .jr-chips .jr-modeno').length).toBeGreaterThan(0)
+  })
+  it('a free slot says "Free slot" and "unavailable", never a raw channel id', () => {
+    m = mount(view({}, actions()))
+    const names = all('.jr-cell[data-absent="true"] .jr-name').map((n) => n.textContent)
+    expect(names.length).toBeGreaterThan(0)
+    expect(names.every((n) => n === 'Free slot')).toBe(true)
+    expect(all('.jr-cell[data-absent="true"] .jr-word').every((n) => n.textContent === 'unavailable')).toBe(true)
   })
 })
 

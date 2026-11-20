@@ -2,6 +2,482 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-20: a new design language (v3), nine packages merged, and what a round of jury fixes is worth
+
+**Question.** The baseline jury put the interface at 6.1 for design and 6.3 for usability. Can jury fix lists lift sections above 8.0, and if not, what can?
+
+**What the fix lists did (measured).** Each package below was built, reviewed by two reviewers (one from the ECC plugin) and fixed; some were then judged by three jurors. Week, Body and Close: 6.3, then 6.6 after one refinement (usability 7.3). Study plan and dMAT: 6.6 (7.3). Core Sound: 7.2 (7.2). The Senses lift: 6.8 (6.8). So one round of verified fixes is worth about 0.3 to 0.5 of a point and lands a section between 6.6 and 7.2. Tree, Career and the Focus and Room lifts were cut off by the usage limit before their juries. The owner's reading the same morning: small fixes do not change the feel, and at 8 the feel must change drastically.
+
+**What changed the feel (measured).** Three design directors each built a self-contained mockup of three screens (Core Talk, Day Today, Console Health) from a different angle, over a bright busy wallpaper so the frost could be judged: an instrument panel (7.1 design across three jurors), raised glass sheets (7.0) and a left-spine deck (7.3, and the best for usability at 7.6). A synthesis of the three reached design 7.5 and usability 7.4 after three jury rounds (7.3, 7.4, 7.5), with the light Day screen at 7.8 and the dense Console at 7.0. That is 1.4 points above the current interface in one pass, and still below the bar. The jurors' reasons it is not at 8: the dark glass barely shows what is behind it, the order of operations was marked by three dots that read as pagination, two wells are large and empty, and the status pill disagreed with the spine's count.
+
+**The window.** A transparent Edge WebView2 page over a Windows 11 system backdrop renders at about 133 frames a second, and the backdrop changes with the type asked for (acrylic or mica). Not yet shown: colour from behind the window coming through; the test window was unfocused over a dark editor, where Windows paints a flat tint. The window package is finishing that measurement.
+
+**What it changed.** `docs/design/design-language-v3.md` is the specification: frosted grounds that keep the soft clay controls, one left spine that names the four sub-projects with their state, one top plate with the location and one lamp pill, and every view as three trays in the order the owner acts. It is built as a switchable look beside the current one. The per-section fix-list packages that had not started were dropped. Nine built packages were merged so that no view is left on the old interface; none of them counts as done.
+
+**Process notes.** (1) After nine merges the whole unit suite had 19 failures that no builder had seen, all in repo-wide style lints and shell tests: a builder's own-folder test run does not cover them, so builders are now told to read those lints before writing a stylesheet. (2) Six source-walking tests fail as 5 second timeouts when three builders share the laptop and pass in under a second alone; the runner's limit is now 30 seconds. (3) A workflow's agent results survive a stopped session in its journal: two workflows reported as stopped had in fact finished every agent.
+
+### KIT1: the builder's and fixer's own record
+
+### 2026-11-19: KIT1, the kit interaction pass (Segmented thumb, pose audit, Switch, shared sizes)
+
+**Question.** Can one pass over the shared kit give every screen a travelling Segmented thumb, a static form of every pose of every interactive piece, a clearer Switch, and sizes that do not depend on a Well Wisher stylesheet, without breaking the 30+ views that use the kit?
+
+**What I found (before the change).**
+- Segmented: the checked option jumped; hover existed only for unchecked options and had no static form for focus.
+- `--dur-press` was declared nowhere, so every press ran on its 90 ms fallback; `--dur-state` and the easings exist only under `.ww` and `html[data-ww]`, so a JARVIS page ran every kit transition on a literal fallback.
+- The kit's Button, Chip, Field and Fold got their layout from `ww/kit/*.css`; `jarvis/room/room.css` carried a `.jr-kit` copy of those rules (gap row 31).
+- Switch (gap row 11): the detent was two 2 px ticks under the thumb.
+- Chip had no disabled pose; Switch and Key had no loading pose that showed anything; Field, Fold and Chip had no `[data-demo]` form for hover, pressed or focus.
+- `src/__tests__/kit/kit-css.test.ts` and `kit-g01.test.tsx` pin details of the kit sheet (no `@keyframes` in clay.css, no `transition` naming `box-shadow`, `.k-switch::before` holding the notch gradients, `.ww-seg { gap: 8px`, the Switch thumb transition text). The design had to fit them.
+
+**What I built.**
+- `shared/motion/kit-motion.css` (token file, imported by `shared/kit/index.ts`): `--dur-hover` 80 ms, `--dur-press` 100 ms, `--dur-state` 160 ms, `--dur-thumb` 180 ms, `--dur-follow` 40 ms, `--ease-standard`, `--ease-thumb` (the soft back curve, peak 1.3), `--ease-step`. The travel timings go to 0 s under `prefers-reduced-motion` (unless `data-motion='full'`) and under `data-motion='calm'`. The two `@keyframes` live here because clay.css may carry none.
+- Segmented: one `.ww-seg-thumb` under the checked option, positioned by `translate` (width follows where option widths differ), drawn only while it moves; at rest the checked option's own fill is the state, so contrast probes, forced colours and still frames are unchanged. A one-step animation (`k-seg-land`) holds the bare channel on the target option until the thumb lands. Drag: desktop pointer only (`hover: hover` and `pointer: fine`), three or more options, only the thumb is grabbed, 4 px slop, snap to the nearest option on release, a disabled target says why and the thumb returns. Props and `radiogroup`/`radio`/`aria-checked` markup unchanged.
+- Switch: two seats (ring plus notch) under the two rest positions, the thumb settles on `--ease-thumb`, presses to 94 percent, the word lands `--dur-follow` after the thumb (only when the value changes), a `loading` prop shows a still ring.
+- Chip: `disabledReason`. Key: a still ring for `aria-busy`. `[data-demo='focus']` on every interactive piece; `[data-demo]` hover and press on Chip, Field and Fold.
+- Structure and sizes of Button, Chip, Field, Fold, Segmented now in clay.css under any clay theme (so `data-theme='clay-dark'` as well); `.jr-kit` in room.css can go.
+- Literal durations and easings in clay.css replaced by tokens; the reduced-motion block is mirrored for `data-motion='calm'`.
+- Pose gallery `kit/Poses`: 11 pieces by 7 poses, in the page theme and on the dark scene.
+
+**Numbers (Chromium, 1366 x 768, measured by `e2e/kit-poses.spec.ts`).**
+- Thumb at rest after a key press: 152 to 168 ms; after a click: 148 to 155 ms; after a drag release: 71 to 80 ms (it is already near the seat). Limit 240 ms.
+- First movement after the key: 21 to 36 ms (limit 100 ms).
+- Overshoot: 1.9 to 2.3 px of a 76 to 120 px travel, one crossing at most.
+- Switch thumb: 129 to 134 ms to rest, 0.88 px overshoot, 32.0 px travel.
+- Interactive targets in the gallery: 164 measured, smallest side 44.0 px (layout size; a pressed pose is painted at 98 percent).
+- Reduced motion and `data-motion='calm'`: the thumb is never drawn travelling and is at rest within 60 ms.
+
+**What it changed.** Every Segmented in the product now travels; every kit transition has a defined duration on any page; JARVIS pages no longer need a private copy of the kit's sizes.
+
+**Open.** See the report: the dark scene has no `--surface-raised-hi`; the Rocker still paints one accent half per rocker (gap row 46); Knob and TickSlider were not audited; the three pinned details in `kit-css.test.ts` and `kit-g01.test.tsx` shaped the Switch (its thumb transition keeps `var(--dur-state, 160ms)` as the test requires).
+
+### 2026-11-20: KIT1 fixer pass (review points applied)
+
+Segmented: the pointer is now captured from the press (the release always arrives), a move with the primary button up, a lost capture, a blur out of the group, Escape, a changed value or option list, and an unmeasurable channel all end a drag without choosing; the drop target is clamped to the current options; a committed drag to another option takes focus there (the focus and the roving tab stop agree, no ring is drawn for a pointer-set focus); a value outside the options checks nothing and draws no thumb; arrows swap in a right-to-left page; the font-ready callback is cancelled on cleanup and an unchanged re-measure keeps the same object. Chip: a chip with a disabledReason is always a blocked control (aria-disabled, aria-describedby to the printed reason), and every control chip keeps one wrapper so becoming blocked keeps the same button and its focus. Switch: the word's data-flip is derived during render, a loading switch keeps aria-busy and gains an always-present status line ("waiting for the board") so Space is never silent (aria-disabled was tried and dropped: the shared disabled recess look took the loading ring's edge, 1.00:1 in the bench). New unit tests: chip.test.tsx, hardware.test.tsx, nine drag cases in segmented.test.tsx.
+
+Accepted exception: `.k-switch-thumb` keeps `translate var(--dur-state, 160ms)`. The pin lives in `src/__tests__/kit/kit-css.test.ts` (outside this package's paths), and --dur-state is not collapsed by reduced motion; the thumb is stopped by the `transition: none` blocks for the OS flag and data-motion='calm' instead. To move it onto --dur-thumb, change the pin and the CSS together.
+
+Outside this package: delete the `.jr-kit` copies of the field and button sizes in `app/ui/src/jarvis/room/room.css` (lines 47-54), then re-run the Room e2e and the 1366x768 sweep.
+
+### L03: the builder's and fixer's own record
+
+### 2026-11-20: Jury round 1
+
+Scores: design 6.3, 6.3 and 7.0; usability 6.6, 6.7 and 7.0 (week 6.2, body 6.6, close 6.0 on design). What I changed:
+- **Close.** The hairline frame and the ruler down its left edge were not mine: the root class `cl` collided with the capture line's `.cl` (shared/capture), which draws a 1 px frame and a `::before` ruler. The root is now `cx`, so the frame is gone and the view is borderless like Week and Body. Tomorrow now draws three hollow slot lines (`--:--` and a dashed rule) with the one accent key "Plan tomorrow" under them; the cards are sized to their content and their bottoms line up; the "Other things logged" row is one right-aligned value with its reason under it.
+- **Body.** The water goal stepper left the card corner and sits inside the card padding beside the gauge; the reason is inline after the lamp like every other card, and the body line says what will appear instead of repeating the reason. The drops are a grid (one row of eight on the desk, two rows of four on the phone). The Gym card gains a four-week rail of 28 recessed cells (a quiet cell is a day with no session) so the dead band is gone; the three right cards are equal height; the disabled class-reminder key is a recessed pill with no ring; the 5, 10, 15 min chips are 44 px tall.
+- **Week.** The empty week draws its form: an ASCII hour ruler (08 to 22, a tick every 2 h) while no block exists, one hollow dashed block per empty day, today marked by the 2 px accent underline under its date instead of the triangle, the well sized to its content, the right cards sized to their content, and one visible orange "Plan a block" key (opens the capture line) with the move key shown as a key chip.
+- **Plates (all three).** The cybersigil corner ticks are hidden under `.dy`; a plate opens with a `-- ` lead and closes its head with a dashed rule. Type scale 24 / 16 / 14 / 12.
+- Not done here (outside my paths): sub-tab rail clipped at 390, a "Back to" chip that names the wrong place, a real `role=radiogroup` for the chips, the same ASCII mark inside the shared card. Day rows as buttons that open that day need a Day-by-date route that does not exist.
+
+### 2026-11-20: L03 review fixes
+
+**Question.** An independent review found blockers in the first build (an absence said under a LIVE lamp before a source answered, a broken read that never showed FAULT, writes that could throw unseen, keys captured during a move, a Habits count drawn from a read that never answered). What changed, and what was declined?
+
+**Changed.**
+- Honesty of absence: Close and Body take `null` for a source that has not answered (`minutes`, `classes`) and say WAITING (or FAULT) with the reason; "none logged yet", "no class today" and "No class is left" are said only after that source answered. The Close head lamp follows the worse of the two stores it reads. A test mounts both pages unread and expects WAITING and none of those phrases.
+- Week: a read that broke keeps its state and reason (FAULT, with a Try again key). `useRead` keeps the previous answer while the same scope re-reads, so a placed move no longer flashes the week to WAITING; the ref is updated in an effect. The header reason names a day log that is still waiting when other columns are live. The focus after a move waits for the re-read to land.
+- Writes: one helper `attempt` (week/hooks.ts) turns a throwing write into "The save did not finish. Nothing was saved." on the status line at all five sites (move, water drop, spend, habit log, plan).
+- Move keys: handled only when the target is the block being moved (or the page itself); a blur away from the block cancels the move; events from the portalled drawer are ignored.
+- Ledger Habits: the count, the line and the ribbon are hollow unless the events read answered; the section takes the worse of the two states; Log one carries a disabled reason. The limit field keeps on Enter or blur, resyncs by key, and names a bad value in words. Legend reworded to "Dot height by amount" (the drawing varies height only).
+- One warm fill per canvas: a chosen chip is raised with an ink mark (Body's 5/10/15 and the Ledger's categories); the primary key keeps the only warm fill.
+- Semantics: blocks and margin rows are focusable groups, not buttons that do nothing; the notch is hidden and the day section has `aria-current="date"`; the formula is no longer a live region and clears on mouse leave. The class-reminder toggle (dead, because a disabled-reason button swallows the press) is now a plain disabled-reason key with no `aria-pressed`. `l` and `p` do nothing while another drawer is open. The note renders once (drawer while open, page otherwise). Body's Gym shows FAULT if the Forge store's hydrate rejects.
+- Free slots are keys: a press opens a drawer with the shared Capture Line, prefilled with the slot's start time; committing says the line was understood and that nothing was saved (the intent store is not connected).
+
+**Declined, with reasons.**
+- Margins on `LedgerTable` with `DotMatrixMeter`: LedgerTable is a sortable, 32 px-row grid with a sticky header and a 10-dot meter column, and DotMatrixMeter is a multi-row dot matrix inside a captioned figure. Neither fits a three-row plate of 20-dot meters with a tick at the student's line at 1366 x 768 without cutting the plate or losing the tick. The hand-made DotRow stays; record in the gaps list for the kit owner (a one-row, 20-dot meter with a marked line).
+- `BlankingPlate` for free slots: it is the PLANNED "what is coming" plate (always planned, no lift, opens a registry overlay). A free slot is not a planned feature and must lift when pressed, so a recessed key is used.
+- A 6-dot attendance micro-row on a class plate: the attendance answer holds per-subject totals, not a per-class history, so any such row would be invented.
+- hooks.ts copy of Month's `useRead`, `useToday`, `useForm` and the package-local WaterGauge and HabitRibbon: still duplicated because L01 owns that file; merge after L01 lands (export once, delete this copy).
+
+**Measured.** tsc -b clean; vitest on week, body, close, ledger: 5 files, 65 tests pass (was 48; 17 new); the package Playwright spec: 23 pass; the Day sweep at 1366 x 768 and 390 x 844: 10 of 10 views with nothing found. The left-edge ruler and top rule on Close are the shell's own scroll ruler (present on every view, drawn by the shell frame), not Close's; nothing to change in the owned paths.
+
+### 2026-11-19: L03, Day week, body, ledger and close under the new shell
+
+**Question.** Can the Day section's four unbuilt views (week, body, the Ledger drawer, close) stand on the Today column's pattern, at one canvas (no scroll at 1366 x 768, no sideways scroll at 390 and 358 px), with no figure drawn beside a lamp that does not allow it, and with copy that holds under the 20.6.7 grep?
+
+**What was built** (all under `app/ui/src/ww/day/{week,body,ledger,close}`, three view files, one gallery entry, one Playwright spec):
+- Week: seven day columns; planned block hollow (recessed form, kind ring), done block solid (raised tile, kind disc), the word beside each; `m` then Left/Right then Enter moves a planned block through the Day port, Esc leaves it. Timetable rack (class plates and dashed-free "blanking" plates for gaps of 20 minutes or more) and the attendance margin ledger (20-dot meter, tick or half disc at the student's line, margin text, the formula of the focused row printed under the list).
+- Body: gym log from the Forge store with a seven-day strip (no rest-day penalty; a day with no session is a quiet cell), Water (120 px half-arc gauge and eight 44 px drops, goal 1 to 8 kept on the device), "Reminders you set. Not medical advice.", class reminders (PLANNED, off).
+- Ledger drawer (key `l`): spending log (month total with the word "logged", dot strip with three amount bands, category shares, add form), habit counters with a rolling seven-day line and the ribbon (cells subdivide 1, 2 x 2, 4 x 4 as more is logged; an empty day is an inset), an editable limit, one if-then swap, a Help list the student writes (nothing pre-filled).
+- Close: today in one look, tomorrow, "Plan tomorrow" (three When / I will / For rows in a drawer, key `p`), opt-in capture on the shared Capture Line (grammar `ww`), "Pick up here." on the first opening after two or more days and the last three logged days.
+
+**Decisions and why.**
+1. Margin is `floor((attended - r x held) / r)` with a 1e-9 guard. Checked by a 60-row table: for every margin m >= 0, attended / (held + m) >= r and attended / (held + m + 1) < r. The "needs n classes" side is `ceil((r x held - attended) / (1 - r))`, checked the same way. The earlier hand-worked examples in the test were wrong by one (11 of 12 at 75 percent is margin 2, not 3), which the table caught.
+2. The ledger is LIVE only when a class was entered today (`LIVE_DAYS = 0`, spec 20.5.3); later it is WAITING "last entered N days ago" and draws hollow dots and "– –". This is the literal reading of the spec and the rule "no number without a LIVE or SIMULATED lamp"; it means the ledger is hollow on most days. One constant widens it if the owner prefers "entered within the week".
+3. Water, spending and habits have no engine route (engine plan group G is "later"): `ledger/stores.ts` holds the interface and a null object that answers WAITING with the reason. A drop pressed on the null store says nothing was saved. Fixture stores (in memory, SIMULATED) serve the gallery and the tests.
+4. The Day port's `logs` member carries no text, so a plan row (cue, step, minutes) cannot travel through it: Plan tomorrow saves into its own `PlanStore` (`close/plan.ts`, null object). The port is frozen, so this is a contract request, not a quiet edit (see the report).
+5. Today's plate and corner-tick pattern are reused through `ww/day/today/Plate` (TodayPlate, Num, LampWord) and `today.css`; the page frame, the sheet surface and the gallery box are one `base.css` for the three views.
+6. The copy rule is enforced twice: a grep over the source of the four folders and the three view files (streak, failed, missed, clean, relapse, disorder, treat, diagnos, bunk, reset, take, dose, mg, behind and a few more), and the same list over the rendered text of every page and drawer on invented rows and on the null stores. Writing the rule over comments as well as strings meant rewording eleven comments.
+
+**Numbers.** Vitest `src/ww/day` and `src/__tests__/shared`: 184 tests, 183 pass; the one failure is the shared imports test (S2), which waits for the integrator to list the three view files and the gallery entry. L03's own folders: 4 files, 48 tests (copy grep over 22 source files plus the rendered text of every page and drawer). `tsc -b` clean. Playwright `e2e/l03-day.spec.ts`: 23 of 23 (4.3 min), covering the real shell at 1366 x 768 (inner scroll 0 to 1 px, document scroll 0, no part outside the canvas, every control 44 px, no text under 11 px), at 390 and 358 px (no sideways scroll), the keyboard path, the fixture pages and both clay themes (4.5:1). View sweep `SWEEP_SECTIONS=day`: day.week, day.body, day.close show nothing in ellipsis, wraps, targets, small, sideways or innerY at 1366; at 390 the phone page box scrolls inside its own box (222, 456 and 12 px for week, body and close), the document never does, as Today's does.
+
+**What it changed.** Adds `day.week`, `day.body` and `day.close` registrations (lazy, behind the product gate), the gallery entry L03 with thirteen states, and the null stores for water, spend and habits. `shell/hosts.ts` is unchanged: a registration wins over a host entry.
+
+**Sources.** Spec 20.5.3, 20.6.2 to 20.6.5, 20.6.7 of `docs/design/jarvis-product-overhaul.md`; `docs/design/ux-principles-checklist.md`; the exemplar `ww/day/today/` and the pattern of `ww/day/month/`.
+
+### Y03: the builder's and fixer's own record
+
+### 2026-11-20: Y03 review fixes
+
+**Question.** What did the independent review of Y03 find, and what changed?
+
+**Changes.**
+- Honesty: the landscape caption said choosing a unit "sets the practice scope". Nothing sets a scope: a choice only marks the unit. The caption now says "Choose one to mark it below." The weak-unit gauge opens Drill and does not carry the unit over; its accessible name now says so ("Opens Drill; the unit is not carried over").
+- Legibility: the wheel's month letters were 11 units in a 280 unit box shown about 190 px wide, so they were painted at about 7 px. They are 18 units now (about 12 px painted); the "no papers" text in the wheel is 18 units too. The package spec now measures the painted size of every SVG text in the plan view (font size times the screen transform), which the old check did not.
+- Orbit: with cards due and no bands it no longer also says "No cards yet" (it says the bands arrive with the card engine), and Review today and Not today are drawn only when a real handler is passed.
+- Exam calendar: while the papers are still being read it says "Reading the papers on file" with the WAITING lamp, and "No papers on file yet" only when the list is empty.
+- Landscape: the labels of flat (unmeasured) slabs sit inside their own slab, so they no longer cross the rim of the neighbour.
+- Tests: `plan/__tests__/live.test.tsx` covers useRetention (waiting, live, waiting answer, rejected, unmounted before the answer) and the Library lamp states (WAITING, FAULT, LIVE); `plan.test.tsx` covers the copy fixes and its forbidden-word scan now also walks Library, Dmat, Plan, `library/**` and both view files, and adds "streak".
+
+**Numbers.** `npx tsc -b` clean; vitest over `src/ww/study` and `src/__tests__/ww`: 1185 of 1185 passed (40 files); `e2e/y03-study.spec.ts`: 29 passed; the study sweep reports nothing for study.plan and study.dmat at 1366 and 390. The only findings in study.library belong to the Intake face, which is another package's.
+
+### 2026-11-20: Y03, Study plan and dMAT rebuilt under the new shell, Library face restyled
+
+**Question.** Can `study.plan` and `study.dmat` be rebuilt on one canvas (1230 x 664 at 1366 x 768, one column at 390) in the owner's soft clay language, keeping every feature of the classic pages, without a scroll, a hairline round a labelled control, a state-less number or a prediction? And can the classic Library (the second face of the intake desk) be brought to the same pattern?
+
+**Decisions and why.**
+- Three columns of raised plates for the plan (today and exam study / landscape and weak units / exam calendar and review orbit). A plate is lifted by `--elev-raised`; rows are wells (`--elev-recessed`); the only warm fill is "Start in Focus" (and "Start set" in dMAT). Selected pieces use `--k-on-fill: var(--surface-ground)` so the kit's Segmented does not add more warm fills.
+- No inner scroll: a long list is paged (3 contracts, 1 exam block, 3 gauges, 2 resources, 1 finding a page) with an Earlier / Later pager instead of a Fold that grows in place. The classic frame (flag off) keeps its Fold.
+- The block rail shows the block kind and time only (the printed label of a block can be long); the chosen block's full label is the line above its rows. Only the next action carries its hint; other rows say what, how long and which node, so three rows always fit their plate.
+- The DateWheel of the spec is written as `ExamWheel` in `ww/study/plan/`: the shared art `DateWheel` draws a list beside the ring and cannot choose a paper; the spec needs spokes that name a paper and choose it. Spokes are one roving tab stop; a tentative date is dashed; the centre carries no countdown (a date, not a count of days, so no pressure).
+- Weak units and the landscape take their units from the exam store's topics (the student's own learned / solid marks): footprint = share of topics, one tree per learned or solid topic, height flat and rim dashed ("not measured") until the paper engine reports marks and answers per unit (lamp WAITING with the reason). Nothing is drawn as measured.
+- Retention orbit: four bands, no digits for the estimate, DEFAULT chip while the parameters are the defaults. The only count is "Cards due today" (LIVE from `readiness().cardsDue`; `--` and WAITING without an engine). The retention slider appears only when the state may carry a number and shows whole percents.
+- dMAT: the logic moved to `dmat/useDmat.ts` and the task drawing to `dmat/DmatItem.tsx`; the classic `Dmat.tsx` now calls the same hook (its markup and its 13 old tests are unchanged). The board draws the three kinds as one radio group of tiles, the last set (and the score) as a 270 degree dial, the running set as the task beside one dot per task and a clock well.
+- Library face: the page's `Card` becomes a `Panel` that is the soft plate under the shell (`inShell()`) and the kit Card in the classic frame; resources and findings are wells; the log form is one row.
+
+**Numbers.**
+- Geometry at 1366 x 768 and 390 x 844: the view sweep reports nothing for study.plan and study.dmat at either size (small text, targets under 44 px, wraps, ellipsis, sideways, inner scroll). The Library face (not shown by the sweep, which opens the Intake face) is measured by the package spec: also nothing.
+- Package Playwright spec `e2e/y03-study.spec.ts`: 29 passed (6 real-shell geometry checks, 2 keyboard paths, 16 specimen checks at 1366 in light and dark including "no plate holds more than it can show", 5 at 390).
+- Vitest for the package folders: 37 new tests in `ww/study/plan/__tests__` and `ww/study/dmat/__tests__`, the old study and dMAT suites and the CSS lint and motion suites green (379 of 379 across the package folders, the old study and dMAT suites and the two lint suites). `npx tsc -b` clean.
+- Lint rules met on the way: no literal duration (token durations only), transitions limited to transform and background-color, no px literal for font-size, radius, padding, margin or gap.
+
+**What it changed.** Two new shell views (`study.plan`, `study.dmat`), a gallery entry (`Y03`, 14 states, all on invented data stamped SIMULATED), a restyled Library face, and a shared `Plate` / `Pager` pair other Study faces can use. Two seams need the integrator: the lazy-mount allow-list of `src/__tests__/shared/imports.test.ts` (three new paths) and `src/__tests__/shell/frameBridge.test.tsx`, whose two tests used `study.plan` as the first frame-hosted Study view (every Study view is now a registered shell view; the same test on the Career views passes 3 of 3 in a scratch copy).
+
+**Not done / open.** Marks and answers per unit, the FSRS band per topic and the 14-day hour ruler have no route yet (the spec's ruler is replaced by the exam rail "minutes logged of planned"); the Weak units and Landscape plates are WAITING until the engine lane merges them. The wheel's spokes name a paper by the student's own label; no institution or date sheet is written anywhere in a tracked file.
+
+**Sources.** `docs/design/jarvis-product-overhaul.md` 20.7.3 to 20.7.5 and block A.Y03; `docs/design/ux-principles-checklist.md`; the exemplar `ww/day/today` and `ww/study/papers`.
+
+### S01: the builder's and fixer's own record
+
+### 2026-11-20: S01, Core Sound rebuilt under the new shell
+
+**Question.** `core.sound` was still a hosted classic page (the whole of `pages/Core.tsx`): on the laptop canvas it scrolled 339 px inside itself, at 390 px it scrolled 748 px sideways, rows were 36 px and text 9.5 px. Can the Media card, the study library and the pronunciation table live on one 1366 x 768 canvas, in the soft clay grammar of Room and the cybersigil grammar of Core, without scrolling and without ever drawing something the app did not report?
+
+**Decisions and why.**
+- One focal slab, the Now plate (846 x 636): sigil ring 320 px with the play key inside it, the one warm fill of the view. Prev, Next and both volume keys sit under the ring (68 px keys). Title, status word, receipt, play-by-name well and the five sources fill the right half. One centrepiece, one accent, as principle 3 asks.
+- The ring is a STATE ring, never a meter. The app reports no output level and no position for the media player (the output level port is not built, spec 20.9.1 and S0 section 4). So 48 formed marks are all lit while Windows reports Playing, a quarter while Paused, none at rest or while WAITING. No level bar and no progress arc is drawn anywhere. The spec's `DotMatrixMeter` of 640 x 64 is therefore not built: it would need the port.
+- The receipt is the server's own sentence, word for word, in its provenance as a lamp (confirmed = LIVE, opened or pressed but not confirmed = WAITING, failed = FAULT). The title and the word PLAYING come from Windows (or the window's own player), never from this view.
+- A route that does not answer is WAITING with the reason, the stale value is dropped, and the keys are aria-disabled and send nothing. The classic cards used `usePoll`, which keeps the last good value and hides the failure; `useRoute` (useSound.ts) records the failure and its words.
+- The library and the spoken words each sit behind one key and open in one native `<dialog>` drawer (opaque, Esc closes, focus returns to the key). The rail cards show only what the routes reported (documents, pages, passages, scanned pages that could not be read; a running job's real done/total fraction) and say "no count shown" with the reason when the route is silent.
+- Spotify play by name stays PLANNED: the registry plate `jarvis.spotify-play` (shared/planned PlannedPlate), no control. Spotify as a SOURCE (C08) stays one of the five radio choices with its caveat line, as in the classic card.
+- Keys: soft clay, no hairline (border 0; lifted by `--elev-raised`, pressed by `--elev-pressed`, fields are wells by `--elev-recessed`). Cards are lifted by elevation, not drawn. The only dashed outline is the PLANNED plate, which that pattern owns. Hover lifts 1 px, press sinks 1 px and scales to 98 percent, both from the motion tokens, with a reduced-motion form that changes state without transform.
+- Keyboard: Space on the plate plays or pauses, Left and Right step, the source group is a radiogroup with arrows, Esc closes the drawer. All presses pass one busy guard, so a double press sends one request.
+
+**Numbers.** Canvas box 1286 x 652: left 846 + gap 16 + right 424; rail 224 + 224 + 140 + 2 x 16 = 620 of 636. Every target at least 44 x 44 (transport keys 68 x 64, chips 44 high), smallest text 11 px. Sweep (`SWEEP_SECTIONS=core`, sandbox, real routes): core.sound at 1366 and at 390 lists nothing under ellipsis, wraps, targets, small, sideways or inner scroll. Own spec `e2e/s01-sound.spec.ts` 8 of 8; vitest `src/jarvis/sound` 24 of 24; the shell, shared and gallery suites 453 of 453; `npx tsc -b` clean.
+
+**Found while building.** A first draft on the phone collapsed the plate's grid rows (auto tracks inside a fixed overflow container) and clipped the transport and the title off the plate without any sideways or target fault; the probe did not see it. The spec now checks that every descendant of a plate or card lies inside its box, on both sizes.
+
+**What it changed.** New: `app/ui/src/jarvis/sound/**`, `shell/views/core-sound.view.ts`, `gallery/entries/S01.tsx`, `e2e/s01-sound.spec.ts`. The classic page stays for the flag-off frame. Gaps list: part B row "JARVIS Core: Sound" and D5 (media plate, library, pronunciation table) can be closed once the jury passes it; rows 54 and 55 are met for this view (one soft key shape, no card outline, one warm fill).
+
+### 2026-11-20: review fixes (fixer pass)
+- Blocker: useMedia now returns `state: route.ok ? data : null`, so a poll that fails after one good answer is NO REPORT with a waiting lamp, not the old "playing". Proved by a hook test (answer, then reject) and by an e2e case that fails the route after the first answer; keys send nothing in both.
+- `play` returns the receipt's `ok`, so a failed or errored play keeps the typed query.
+- The source pick is released only when the server's answer agrees with it (and on a failed save), so an in-flight poll cannot snap the chip back.
+- Contrast measured with the token values: ink-3 on the dark sunk well 7.5, on dark raised 5.32, light sunk 4.78, light raised 5.92, all above 4.5. The placeholder moved to ink-2 anyway for legibility; disabled keys keep ink-3 (exempt, and 5.32 or better).
+- RESEARCH-S01.md at the worktree root is for the integrator to fold into docs/research/product-design-overhaul.md and drop; it is not committed on its own.
+
+### Jury round 1
+
+Scores: design 7.3, 6.9, 7.6 (mean 7.3); usability 7.2, 7.1, 7.3. Lowest view: core.sound at 390 (design 6.7 to 7.4).
+Changed: the Spotify PLANNED card is gone (its state sits on the Spotify chip as the shared planned lamp, plus a helper line
+when chosen); the right rail is now Sound's own ledger (Recent plays, five slots, receipt lamps, this window only) and one
+small card with two keys for the study library and spoken words; the song Play key is raised clay and no longer reads as
+disabled when the field is empty; Vol keys read "Vol -" and "Vol +"; the inner ring arc is the volume track, drawn empty with a
+WAITING lamp because the app cannot read the level back (no level is invented); the ring is denser (72 marks, 0.7 scale) with
+cardinal ticks; the plate has corner ticks and its columns end on one baseline; chips carry a dot as well as the pressed fill;
+micro labels are 12 px. Phone: state first, then the song field, the ring at 220 px, transport, receipt, sources; 16 px
+gutter and 104 px end padding clear the dock. Not done here (kit/shell): labels under the four top-bar lamps, the breadcrumb
+pill size, and Talk's outlined boxes. Track progress on the outer ring was not built: the app reports no position.
+
+### Jury round 2
+
+Scores: design 7.2, 6.9, 7.6 (mean 7.2); usability 7.1, 6.8, 7.4. Lowest view: core.sound at 390 (6.7 to 7.0); the skeptic
+capped 1366 at 7.0 for three right edges in the words column. Changed: (1) one right edge: the chips fill the row, the receipt
+well and the song row run to the column edge, the quiet Music folder key is optically aligned (its text ends on the edge), and
+the spec now measures the three edges. (2) The dial is a volume gauge: a 270 degree track (225 to 495 degrees, open at the
+foot) with a 12-step scale, drawn hollow and dashed under its own WAITING lamp because the app cannot read the level back;
+the readout under the disc is "VOL --" in 15 px tabular mono; a VOL press lights the track for 600 ms (a step was sent, not a
+level); the dotted quarter arc is gone and the band of marks is at 38 % ink so the disc and the gauge read first. (3) One
+status per thing: the plate head has no lamp; one row above the title reads PLAYER, its lamp, then the word (IDLE, PLAYING).
+(4) The rail is Recent plays only, the whole column; empty is one recessed well with a formed mark, "No plays from this window
+yet" and "Type a song to start", with no placeholder rows. (5) Pronunciation (renamed from Spoken words) and the study library
+are behind one key in the plate head ("Pronunciation and library", icon only on the phone) that opens the drawer on a list of
+the two, each opening its body with Back. (6) The field key is "Find and play"; the disc plays or pauses what Windows holds.
+(7) Spotify's chip says PLANNED in words beside its lamp; the chosen chip is pressed into a well, unchosen chips are ink-2.
+(8) Four type sizes: 28 title, 15 body, keys and readout, 13 helpers and chips (sans), 12 labels and log (mono caps); mono is
+no longer used for sentences. (9) Transport is two clusters (Prev, Next | Vol -, Vol +). Phone: state, then the dial at
+260 px and the transport in the thumb zone, then the field, sources, receipt and ledger. Kit and shell fixes (top bar
+gutter at 390, one summary lamp capsule, the Back crumb as an icon, Talk's outlined boxes, one column template across Talk
+and Sound) are outside this package and listed for the integrator.
+
+### T01: the builder's and fixer's own record
+
+### 2026-11-20: T01, the Tree rebuilt under the new shell (the Grove, one tree, the node drawer)
+
+For the integrator to fold into `docs/research/product-design-overhaul.md` (this file is not a record by itself).
+
+#### Question
+
+Can the Tree be rebuilt as three scales on one canvas (spec 20.8.1 to 20.8.5) with ten trees and 113 branches, an evidence ledger that
+only ever comes through a port, six node states told apart by shape, and a 300-node tree that stays under 400 drawn DOM nodes,
+without rewriting the classic Tree and without any animation frame at idle?
+
+#### Decisions and why
+
+- **Ten trees as authored files, loaded by glob, counted by machine.** `ww/tree/trees/NN-name.tree.ts` (ten files, 113 branches, 5
+  reserved capstone branches, every branch at least 3 nodes). `__tests__/tree.count.test.ts` asserts the numbers. The slot is called
+  `trees/`, not `data/`: `.gitignore` line 90 (`data/`) ignores every folder of that name, so four tree files written into
+  `ww/tree/data/` earlier were invisible to git and would have been lost at the integrator's commit. They were moved into `trees/`.
+- **Evidence only through `ports.ts`.** One `TreePort` (read, add, remove, writable). The null adapter returns no records, state
+  WAITING and a reason; every write is refused with that reason. `adapters/*.adapter.ts` is the slot for the engine lane's route.
+  With the null adapter every node is OPEN (a seed) or LOCKED, the Grove seeds are dashed, the centre readout is hollow, and the ledger
+  prints WAITING with its reason. No number is drawn unless the reading's lamp state shows numbers (LIVE or SIMULATED).
+- **The unlock rule is a pure function** (`ledger.ts`, spec 20.8.4): EVIDENCED needs summed weight at least the node's need (seed 1,
+  skill 2, capstone 3) and at least one hard record (drill, session, certificate). A self-mark has weight 0 and can only draw CLAIMED;
+  a claim does not unlock the next step. STALE when the newest hard record is older than the tree's refresh window; stale still counts
+  as earned. A deleted record is simply not read, so growth falls. Growth and the spine's filled rungs (`filledSteps`) are stepped per
+  node, never a percentage.
+- **Level of detail and windowing.** Hub band below zoom 0.55, node band to 1.15 (one stroked path per node, no label), full band above
+  (label, pips, core). Only nodes inside the padded view are in the DOM (plus the focused and the open node, so the keyboard never loses
+  its place). Traces are one `d` string per kind (met, unmet, need, bus), so edges cost 4 elements, not hundreds.
+- **Reuse, not rewrite.** The pan and zoom loop is `viewport.ts` unchanged (0 animation frames at idle, one tween per move). The two
+  lists are the classic `TreePicker` and `BranchMenu` of `ShellBars.tsx`, which keeps the hooks `cp2-ww-pages.spec.ts` measures
+  (`.ww-tree-stage .tree-node`, `.ww-tree-key`, `.ww-tree-panel`, `.ww-tree-opt`, the Next key, `.ww-insp`).
+- **Keys.** Arrows move to the nearest node or hub in that direction (geometric), Shift+arrow pans 80 px, Enter opens a node (a hub
+  zooms to its branch), plus, minus and 0 zoom and fit, Esc closes the drawer and then goes up a scale, E and S in the drawer. Spec
+  20.8.2 names `[` and `]` for the previous and next branch, but `shell/keymap.ts` binds both to "previous view / next view" and takes
+  them in the capture phase, so the stage never sees them: the Tree uses Page Up and Page Down. `/` (search) is not built; the
+  Branches list is the finder.
+- **Honest drawer.** With no store the three writing keys stay on the page, disabled with a short reason, and the full reason is printed
+  once under Evidence. Used by says PLANNED. Do next is one key whose label follows the tree (drill, session, project, certificate).
+- **No hairline.** Seeds, plates, keys and the drawer are raised clay; the stage, the ledger and the spine are wells. The only 1 px
+  lines are traces, ticks and the bus.
+- **Well Wisher speaks ASCII.** The seed marks are `[AC]`, the headings are `+--[ NEXT UP ]--`, the ledger is a terminal with a prompt.
+  No picture is imported; the spine is drawn from the ledger, not from a reference picture.
+
+#### Numbers
+
+Drawn DOM nodes inside the tree svg, measured in `__tests__/stage.test.tsx` (300 nodes = 20 branches x 15; stage 846 x 464):
+
+| view | nodes drawn | DOM nodes |
+|---|---|---|
+| hub band (fit, k 0.25) | 1 | 107 |
+| node band k 0.6 | 145 | 150 |
+| node band k 0.56 (worst of the band) | 157 | 162 |
+| full band k 1.15 | 57 | 289 |
+| full band k 1.15, every node EVIDENCED with 3 pips (worst case) | 57 | 348 |
+| full band k 1.3 / 2.4 | 43 / 21 | 219 / 109 |
+| a real tree (Academic core, 42 nodes) at its first view | - | 110 |
+
+Idle: 0 `requestAnimationFrame` calls over 700 ms of nothing (Playwright, `e2e/t01-tree.spec.ts`). Tests: 313 vitest tests pass in
+`src/ww/tree` and the CSS lint; the shell imports test fails only on its allow-list until the two new mount files are added.
+
+#### What it changed
+
+- New: `model.ts`, `layout.ts`, `ledger.ts`, `ports.ts`, `adapters/`, `trees/` (ten files), `SkillNode`, `TraceEdge`, `BranchSpine`,
+  `EvidenceLedger`, `GroveRing`, `NodeDrawer`, `TreeStage`, `TreeView`, `grove.css`, `fixtures.ts`, `gallery.tsx`, the view
+  registration `shell/views/tree.view.ts`, the gallery entry `T01.tsx` and `e2e/t01-tree.spec.ts`.
+- Unchanged: the classic Tree (`TreeWorkspace`, `TreeCanvas`, `Inspector`, `viewport.ts`) still serves the classic frame with the
+  flag off.
+- Not built: the hover leader from a seed to the centre, the outgoing edge drawing its branch glyph once when a node becomes
+  EVIDENCED, the minutes counter on IN PROGRESS, the Study button on the Next up plate (no Study route cites a Tree node yet), a
+  Career-gap rule for Next up (no gap rows exist), `/` search, and the reference pictures (read, never imported).
+
+### 2026-11-20: fixer pass after review (T01)
+
+Question: which review findings were real, and what closes them without redesigning anything. Changes: the stage hides a label or hub name whose
+box crosses the stage edge (already in `TreeStage.labelFits`), and the spec now asserts zero cut labels at the first view on both sizes (it
+tolerated 2 and 4 before); the view controls moved out of the stage into their own grid column (a row under the stage on a phone, the stage at
+least 260 px tall), and the spec checks that no node lies under them, drawer open or shut. The drawer types only artefact, timed practice and
+witness notes; drills, sessions and certificates arrive through the port, weights are the port's, and Do next on a hard kind says where the
+record comes from instead of opening a form. The kind picker is aria-pressed toggles, and the empty-evidence line names the ledger's own lamp
+word. New ledger tests pin that a self-mark adds no weight and no pip beside a hard record. Drawn-DOM counts are now logged at three stage
+sizes (846 x 464, 1302 x 664, 1840 x 960): the "under 400" bound is a statement about the 846 px stage only. Still not built (T01 follow-up
+list): Study button on Next up, `/` search, minutes counter, seed hover leader, the branch-glyph draw-in, the Career-gap rule for Next up. A
+writable-port path is covered in jsdom (`treeview.test.tsx`), not in Playwright, because the sandbox runs the null adapter.
+
+### T02: the builder's and fixer's own record
+
+### 2026-11-20: Career under shell v2 (T02), five views on one runway
+
+**Question.** Can the classic Career page (five tabs, ten outlined cards, three of them paged lists) become five views under the new
+shell where every date and fee is a Readout with a lamp, nothing is promised, and each view is one canvas at 1366 x 768 with no inner
+scroll and no sideways scroll at 390 px?
+
+**What was built** (all under `app/ui/src/ww/career/v2/`, registered by `shell/views/career-{pipeline,certs,abroad,money,ladder}.view.ts`,
+lazy behind the VITE_PRODUCT test; the classic files are untouched and still serve the flag-off frame):
+
+| View | Form | Where the classic features went |
+|---|---|---|
+| career.pipeline (Runway) | flight board (120 days, tick every 7, a notch per closing date, as tall as its stage), five-stage table (5 rows a page), Up next | Do next step (head key, same `doNextStep`), Add application, stage select and link (row drawer), Campaigns (drawer) |
+| career.ladder (Ladder, Path) | five rungs, goal list by level, read-only long goals; Path: role constellation + gap list | Review, Parking and Rewards (drawers), Edit goals, level switch |
+| career.abroad | spec sheets (up to 6 columns, pin, compare two), route diagram, rack of 8 requirements | Trials (drawer "Exams and documents"), university portal (the "open the page and stamp today" key) |
+| career.certs | shelf of 136 px plates, 6 a row, 18 a page, hollow dashed plate for one not held | earned line, open list with link and Mark earned (drawer), fit word |
+| career.money | funding bridge, ledger (euros and rupees apart), assumptions plate | Log money, add cost, remove cost, rate, Funding paths (drawer) |
+
+**Decisions and why.**
+- *A cell is LIVE only with a value and a day* (`cellRead` in `store.ts`, one place). The bank's own `verified` flag does not count: it
+  has no stamp, so a closing date shows WAITING "unconfirmed" and a dashed notch until the student confirms it from the page. The one
+  verified figure (10,332 euros a year, read 13 Nov 2026, the portal URL quoted in the footnote) is the only LIVE cell nobody typed.
+- *The list's text is never shown as a cell.* The old university list and the bank's prices are quoted as "the list says ..., unconfirmed"
+  inside the confirm form, so nothing in a table is an unstamped figure. The confirm form is the only way to a LIVE cell: the student
+  types the value and the day; nothing is fetched or filled in.
+- *Euro fees are converted only with a confirmed fee and a typed, dated rate* (`costRows`); with none, the bridge says UNKNOWN, not zero,
+  and counts what it left out ("3 fees are unconfirmed and not in the total").
+- *Brightness of a star is the share of its tags on EVIDENCED nodes* (mastered, or any attached certificate, project or achievement);
+  a tag with no node can never be evidenced; with the plan not answered the star says WAITING and prints no percentage.
+- *One accent per view.* The kit Segmented and a toggled kit Key both draw the accent when chosen, which put three orange fills on the
+  Ladder and two on the rack. A small `Choice` radio group (pressed in, never the accent) replaces Segmented here, and the rack sets the
+  Key's on-fill to the sunk surface.
+- *Waiting cells are flat, LIVE cells are wells,* so in a table of 32 honest "unconfirmed" cells the stamped ones are the figure.
+- *A tile is not a label:* a certificate plate whose name takes three lines is a `role="button"` block, not a `<button>`, so the shared
+  probe's "label wraps to three lines" rule does not apply to it.
+- *Simulated pages say so everywhere.* A `Sim` context turns every LIVE lamp, cell and stamp of a page drawn from fixtures into
+  SIMULATED (the gallery); a test fails if a fixture page draws LIVE.
+- *Orphans:* `text-wrap: pretty` on every note and a spec check that no paragraph of two lines or more ends on a last line under 40 px
+  (gaps list part C row 18).
+
+**Numbers (measured).**
+- Playwright `e2e/t02-career.spec.ts`: 25 of 25 green in 3.0 min. Real shell, 5 views x 2 sizes: 0 small text, 0 targets under 44 px,
+  0 sideways, 0 ellipsis, 0 wrapped labels, 0 inner scroll at 1366 x 768, 0 document overflow, 0 orphans; 18 invented gallery states:
+  same checks plus "no LIVE lamp on a simulated page".
+- vitest `src/ww/career`: 33 of 33 (rules, cell-lamp rule on all five drawn views live and simulated, wording over every file, the
+  registrations). `npx tsc -b` clean.
+- Spec height budget at 1366 x 768 (the canvas under the shell is 1302 x 664): Abroad spec sheet needed 111 px more than it had until
+  the stamp became part of the 44 px well (value line and stamp line inside one box) and the footnote lost its link and one sentence.
+
+**What it changed / what is left.**
+- New: five views, a gallery entry T02 (18 states), a spec, 33 tests. Nothing outside the owned paths changed.
+- Not built, said in the interface where it shows: Study and Life blocks from a requirement and "Plan this gap as a Life block" are
+  PLANNED (the Day port has no write route for them); the route map is a diagram, not a map (no street data).
+- Dropped on purpose: the classic Money "next due, save X a month" line and the cert budget numbers (both were derived from unconfirmed
+  figures; they return when the figures have stamps).
+- The classic cp2 spec waits for `.cr-body .ww-card`, which the new views do not draw; its career rows need `.t2[data-view]`.
+
+### 2026-11-20: fixer pass on the review of T02
+
+**Question.** Does each reviewed fault hold, and is the package correct, honest and accessible enough to merge?
+**Changed (no redesign).**
+- A stamp now vouches only for the figure that was checked: `cellReadFor` (store.ts) compares the stamped value with the figure the list shows now. A changed closing date is WAITING "date changed since you checked it", the cell prints the stamped value, and Up next confirms and compares the concrete date, not the day count.
+- Abroad grid: the roving tab stop is clamped at render (one gridcell keeps tabindex 0 after Compare); the plate lamp follows the university cells shown; Proof of finances is labelled as one national figure; the rack shows no lamp word on a key that is simply not done; the default four columns say "none chosen yet"; phone cards no longer use gridcell roles; trial dates go through the same confirm form (value plus the day checked), no countdown.
+- Ladder: "Plan this gap" is an inert key with a PLANNED lamp and a reason, the P key is gone; the match list is the Tree itself (plan state plus bank names), campaigns and applications only as a fallback (`treeNodes`).
+- Bank figures (hours, credibility, weeks) sit under "the list says" with a WAITING lamp; Money labels a shortfall on partial fees "gap so far, on confirmed fees only"; the waiting readout lost its engraved top arc; the rate fields stack; route labels have a ground halo.
+- Tests: stale date, grid tab stop after Compare, PLANNED key, tree nodes without campaigns, forbidden words, phone roles.
+
+### EL-FOCUS: the builder's and fixer's own record
+
+### 2026-11-20: EL-FOCUS, lifting Focus (Start, Session, Rest, Drill) above the bar
+
+**Question.** The jury of 19 Nov scored Focus below 8.0 for design. Which changes lift the four views, inside the Focus folder only, without
+inventing data and without touching the shared kit or the shell?
+
+**What the jury saw (read from the 19 Nov pictures and the source).** Session idle: a tiny row of five rings with the caption twice and a LIVE
+lamp on a clock that did not exist; a 56 px mono readout off the type scale. Rest: the buttons pushed to the foot by `margin-block-start:auto`, no
+lamp when nothing had ended, a hill in ink at 8 to 22 percent opacity. Start: the track Segmented as an outlined, wrapping group, a 28 rem cap on
+the cue, a decorative halftone moon, the primary at the foot of the form. Drill: the progress list in an unframed column that also clipped the Park
+shelf and End set below the fold (the rail had `overflow:hidden`), the count `0` on its own font, no header block.
+
+**Decisions and why.**
+- One header block (`FocusHead`: eyebrow, title) and one scale on all four views: eyebrow `--type-label`, title `--type-title`, body `--type-body`,
+  hero numeral `--type-display-compact` (`.fv-num`, also `.dd-n`, the Drill count). The idle title is the shared title token, not a 56 px readout.
+- Session idle draws its own `RestingDial` (60 ticks, none filled, one hollow mark where the first minute lands) at 280 px, centred in the field,
+  because `DotTimer` is shared and its resting pose is five small rings. Lamp is WAITING with the printed reason "no block started"; the old caption
+  and the "Minutes held" LIVE lamp are gone. The right column starts on the field's top edge: title, sentence, Go to Start 24 px under it, the
+  capture line 24 px under that. No "minutes held" ledger and no looping cursor were added (nothing to measure, nothing invented).
+- Rest: `.fr-actions` follows the sentence at 24 px; WAITING with "no block has ended" when `last` is null; the hill is three raised layers lifted by
+  `--elev-raised-drop` and the surface tokens (it was ink at low opacity), and the sun height is a pure function of `heldMin`
+  (`sunY`: 225 with nothing held, 85 at 90 minutes or more). No rest timer.
+- Start: Track and Length are grids of equal-width pills (3 across at 1366, 2 at 390; Length 4 across at 1366, 2 by 2 at 390 beside a small dial).
+  Each pill is lifted by `--elev-low`; the chosen one is pressed in. The kit group's own hairline is overridden in this section's stylesheet
+  (`outside_paths` lists the kit change that should make this unnecessary). The 28 rem cap is gone and the Cue label wears the eyebrow style.
+- The decorative moon is replaced by a `LengthDial`: one dot per 5 minutes of the chosen length (18 positions for 90 minutes), the length as the
+  hero numeral in its heart, a PLANNED lamp and word under it, and Start session under that (the button moved out of the form column into its own
+  grid cell). The dots have a 160 ms transition with a 12 ms stagger per dot, so a ripple runs only when the length changes; reduced motion, calm
+  motion and forced colours remove it. The dial is a pure function (`litDots`), tested.
+- Phone: `.fs-go` is a sticky, opaque raised strip with 16 px gutters and a 56 px button. The phone view no longer scrolls inside itself
+  (`overflow:visible`): `.page` is the scroller, and a sticky element inside an `overflow:auto` box that never overflows has nothing to stick to.
+- Drill 1366: the header block sits above both columns; the card and the rail share a top edge; the question stands in the upper third
+  (`padding-block-start: --space-7`, was centred). The progress list is a raised rail container holding a stepper: 44 px rows (dot, name, state
+  word: here, open, answered, skipped) joined by a 2 px line, in two columns of five. A dot means answered, never right. The Park shelf moved into
+  the card's foot (a list of the last two, and the field opens there), Pause, Park and End are a row under the rail, and the elapsed and hint
+  readings sit in a recessed well with their LIVE lamp. `TelemetryRail` is no longer used here.
+- Drill 390: Show the answer, Hint and Skip are one row at 44 px (the primary takes 2.2 parts of 5.2); the steps are a horizontal strip under the card
+  header; keyboard hints (`(h)`, `(s)`, the Enter line) are hidden under 600 px and on coarse pointers. A hint-state line stays visible: it is
+  state, not a key hint.
+
+**Numbers (1366x768 and 390x844, real shell, sandbox).** `e2e/el-focus.spec.ts` 5 of 5; `e2e/y02-focus.spec.ts` 26 of 26 after one fix
+(the end-state count at 56 px overflowed 22 px at 390; it is now the heading token). vitest for `src/ww/focus`: 67 of 67 before the last
+additions (see the summary for the final count). `tsc -b` clean.
+
+**Checked and found partly wrong.** Fix 1 and 2 name `DotTimer.tsx` and `art.tsx`; `DotTimer` is in `shared/art` (not owned), so the resting pose
+is drawn in `ww/focus/art.tsx` instead. Fix 6 asks a connecting line and a state word "per step" for the rail on the desktop only; the phone strip
+keeps the line and drops the words (the dot carries the state, the aria-label says it in words).
+
+**What it changed.** `ww/focus/art.tsx`, `FocusHead.tsx`, `useNarrow.ts`, `CrucibleSession.tsx`, `FocusStart.tsx`, `FocusRest.tsx`, `DrillScreen.tsx`,
+`DrillDots.tsx`, `views/focus-views.css`, `gallery-el.tsx`, `__tests__/elevate.test.tsx` and additions to `__tests__/views.test.tsx`;
+`gallery/entries/ELFOCUS.tsx`; `e2e/el-focus.spec.ts`.
+
+### 2026-11-20: review fixes (fixer pass)
+
+Review found 17 points; most were already applied by an earlier, cut-off fixer pass, and this pass checked each against the code. The phone Drill
+steps are now a wrapping grid of 44 px dots (all steps, also when the set ended; "N of M answered" in words). Start draws exactly one dial and one
+PLANNED lamp (the big dial at 1100 px and up, the small one beside Length below it, so 900 to 1099 px keeps it). The Park button gets the focus
+back after Enter or Esc through an effect. `sunY`, `useNarrow` (addListener fallback), the strips (wrap, no ellipsis, no spec exemption), the
+type scale (tokens only), the Rest "min logged" lamp, and the single read of each reason are covered by `__tests__/elevate.test.tsx`. Correction to
+the list above: the builder's `e2e/el-focus.spec.ts`, `gallery-el.tsx` and `gallery/entries/ELFOCUS.tsx` no longer exist; their cases live in
+`e2e/y02-focus.spec.ts`, so no allow-list edit in `imports.test.ts` is needed. Fold this file into `docs/research/` as a dated section.
+
+### EL-ROOM: the builder's and fixer's own record
+
+### 2026-11-20: EL-ROOM, lifting Room above 8.0 after the 19 Nov jury
+
+**Question.** The jury of three scored Room below the bar (design above 8.0, usability at least 8.0). Ten fixes were checked by a verifier
+against pictures and source. What does each one need in code, and does it hold at 1366x768, 1120x720 (the smallest desktop window) and 390x844?
+
+**Decisions and why.**
+
+| Fix | Built as | Why |
+|---|---|---|
+| 1 Rules heads | title and toggle on the head row; lamp, state word and reason on their own wrapping line; the 36 px head row and the three equal rows are gone (`minmax(min-content, 1fr)`); no nowrap or ellipsis on gate title, lamp, reason, last-fired, mode name or mode detail | a reason cut at "watches 10 m..." is a state hidden |
+| 2 Board card | board plate is a flex column (no grid rows to squeeze the LCD); LCD `min-height 36px`, 8 px padding; 8 px gaps before the FAULT list; one FAULT inline and "and N more in Console, Hardware" | the grid gave the LCD one line and cut the `? ? ?` strip |
+| 3 No hairlines | `border: 0` on face plate, board, day, gate, modes panel, heavy, hw, `.jr-pop`, drop-up sheet; edge is `inset 0 1px 0 var(--lit-hi)` plus `--elev-raised`; hollow gates keep a dashed edge | owner direction: lifted by elevation, never drawn by 1 px |
+| 4 Hero | the wall box takes the rest of the height; the modes are numbered 44 px keys beside the dial (keys 1 to 9 apply the mode while focus is in the box, a flagged mode still asks twice); day ring column 400 to 264 px; terminal shows 3 lines and opens on focus or Enter | one focal element per view |
+| 5 Tiles | eight same-size tiles (measured equal in the spec); absent ones recessed, dashed lamp glyph, the word "unavailable", caption "Free slot"; at 390 absent rows are 64 px | raw ids `light2`, `free` were read as faults |
+| 6 Rules side | `grid-template-rows: auto minmax(0,1fr) auto`: Modes sized to content, Heavy loads takes the rest; bottom padding 16 = column gap | |
+| 7 Phone Switches | one sticky bar: one-row mode strip (4 keys) over a 56 px All off, 16 px of ground under it | |
+| 8 Phone Rules | toggle label hidden at 390 (the key keeps its accessible name) so the toggle stays on the title row; inputs, AND block, outcome stack in one vertical line (`.jr-gate-art` recomposed in the 899 px block only) | |
+| 9 Day ring | caption one line "Channel schedules: PLANNED" with the PLANNED glyph; 8 px above, 12 px below | |
+| 10 Modes legend | one legend line `# on, . off, ? no report, - free` in the Modes panel head | |
+
+**Numbers.**
+- Faceplate area is the largest surface at 1366x768 (asserted). Bottom row 272 px; the ring is 204 px (264 on the phone), its SVG text is 15 viewBox units (11.0 px drawn); the scrubber hit area went from 38 to 46 px.
+- At 1120x720 the box is 1040x604: the dial shrinks to 136 px, mode keys tighten to one row, key icons go below 760 px height (the lamp word and engraving carry the state), the three gates compress by 24 px of padding and rows. Before: 4 keys with overlapping text and a third gate cut off; the geometry probe of the sweep did not see either, so the spec checks "engraving inside its cap, icon above the lamp row, every part inside the box" itself.
+- Sweep (`SWEEP_SIZES=1120x720,1366x768,390x844`, section room): nothing listed at any size.
+
+**Not done, and why.**
+- Ctrl+K for the full terminal: it is the shell's command palette (`shell/keymap.ts`). The terminal opens on focus and on Enter or a press.
+- "Bottom padding = nav height + 16 on the scroll area" at 390: the shell's canvas ends above the nav (grid row), so the nav never overlays the area; the whole gap is 16 px, built into the sticky bar.
+
+**What it changed.** `jarvis/room/*` (Faceplate, RoomLog, DayRing24, ModesPanel, RoomSwitches, room.css, tests), `e2e/el-room.spec.ts`, `gallery/entries/EL-ROOM.tsx`.
+
+### 2026-11-20: fixer pass on review findings
+- Number-key mode shortcut now ignores auto-repeat (a held key can no longer be both acts of the two-act cover), skips role textbox, spinbutton, combobox, non-dial sliders and the Trim popup, and resets the dial preview once a mode is applied.
+- Terminal is one real button (aria-expanded, aria-controls): click, Enter or Space toggles, Escape closes, focus alone opens nothing; the channel-strip legend is in its title and aria-label.
+- Ring caption preview list wraps and stops at two lines (full text in the title); ring centre words are 16 SVG px so they stay above 11 px at size 204.
+- Phone gate switches keep their visible label.
+- Owned-path breach removed: src/gallery/entries/EL-ROOM.tsx deleted. For the integrator: this note belongs under docs/research/room.md (newest section on top); e2e/el-room.spec.ts is a new spec file and needs explicit acceptance or folding into j02-room.spec.ts.
+
 ## 2026-11-20: GATE1, four clipped-text faults found by the view sweep (gaps rows 49 to 52)
 
 **Question.** Can the text the sweep found cut off (board channel marks, rule reasons, route plates, intake door reasons) be made fully readable at 1366x768 and 390x844 without an inner scroll, a sideways scroll, a target under 44 px or text under 11 px?

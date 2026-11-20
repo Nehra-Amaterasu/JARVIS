@@ -1,0 +1,95 @@
+/* Y03: the dMAT board. Two raised plates on the ground (the task or the choice, and the side plate), the plan view's tokens and rhythm.
+   Options are keys that press in when chosen; the Latin square is a field of wells; nothing is outlined by a hairline. */
+.s2 .ww-dmat.dm, .ww-dmat.dm {
+  box-sizing: border-box; inline-size: 100%; block-size: 100%; min-block-size: 0; padding: var(--space-2);
+  display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); gap: var(--space-4); align-items: stretch;
+  color: var(--ink-1); --line-ui: var(--edge-ui);
+  /* a chosen piece is a pressed ground-coloured pill with ink: the one warm fill of the view is its primary action */
+  --k-on-fill: var(--surface-ground); --k-on-ink: var(--ink-1);
+}
+.dm .y3-card { gap: var(--space-3); padding: var(--space-4) var(--space-5); }
+.dm .y3-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.dm-kinds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); flex: 1 1 auto; min-block-size: 0; }
+.dm-kind {
+  all: unset; box-sizing: border-box; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: var(--space-1); padding: var(--space-4); min-block-size: 140px; cursor: pointer;
+  border-radius: var(--r-card); background: var(--surface-raised); box-shadow: var(--elev-low); color: var(--ink-1);
+  transition: transform var(--dur-state) var(--ease-standard, ease);
+}
+.dm-kind:hover { transform: translateY(-1px); }
+.dm-kind[aria-checked='true'] { background: var(--surface-ground); box-shadow: var(--elev-pressed); }
+.dm-kind:active { transform: translateY(1px); }
+.dm-kind:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+.dm-kind-name { font: 600 15px/20px var(--font-ui, system-ui, sans-serif); }
+.dm-kind-note { min-block-size: 36px; font: 13px/18px var(--font-ui, system-ui, sans-serif); color: var(--ink-2); overflow-wrap: anywhere; }
+.dm-glyph { fill: none; stroke: var(--ink-2); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; inline-size: 128px; block-size: 80px; margin: auto; align-self: center; }
+.dm-kind[aria-checked='true'] .dm-glyph { stroke: var(--ink-1); }
+.dm-glyph .dm-q { stroke-dasharray: 3 3; }
+.dm-config { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-3) var(--space-4); }
+.dm .y3-foot { margin-block-start: auto; }
+
+/* running set */
+.dm-clock-well { margin: 0; display: flex; flex-direction: column; gap: 0; padding: var(--space-3) var(--space-4); border-radius: var(--r-well); background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
+.dm-clock-label { font: 12px/16px var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.dm-clock { font: 500 32px/38px var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; color: var(--ink-1); }
+.dm-setup-foot { align-items: flex-end; gap: var(--space-5); }
+/* the classic page's own rules (study.css) are not loaded under the shell, so the task drawing is laid out here */
+.dm .ww-dmat-item { display: grid; }
+.dm .ww-dmat-seq, .dm .ww-dmat-opts { display: flex; flex-wrap: wrap; align-items: center; }
+.dm .ww-dmat-eqs { list-style: none; margin: 0; display: grid; gap: var(--space-1); font-family: var(--font-mono, ui-monospace, monospace); }
+.dm .ww-dmat-opt { display: inline-flex; align-items: center; gap: var(--space-3); font: 500 15px/20px var(--font-ui, system-ui, sans-serif); }
+.dm .ww-dmat-letter { display: grid; place-items: center; inline-size: 28px; block-size: 28px; border-radius: 50%; background: var(--surface-sunk); box-shadow: var(--elev-imprint); font: 600 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); }
+.dm .ww-dmat-grid td { text-align: center; font-family: var(--font-mono, ui-monospace, monospace); }
+.dm-count { flex: none; }
+.dm-run .ww-dmat-item { gap: var(--space-4); flex: 1 1 auto; align-content: start; }
+.dm-run .ww-dmat-prompt { font: 500 17px/24px var(--font-ui, system-ui, sans-serif); overflow-wrap: anywhere; }
+.dm-run .ww-dmat-seq { gap: var(--space-3); }
+.dm-run .ww-dmat-opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--space-3); max-inline-size: 640px; }
+.dm-run .ww-dmat-fig { inline-size: 88px; padding: var(--space-2); border-radius: var(--r-well); background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
+.dm-run .ww-dmat-q { display: grid; place-items: center; inline-size: 88px; block-size: 88px; border-radius: var(--r-well); background: var(--surface-ground); box-shadow: var(--elev-low); font: 600 26px/1 var(--font-mono, ui-monospace, monospace); }
+.dm-run .ww-dmat-eqs { padding: var(--space-3) var(--space-4); border-radius: var(--r-well); background: var(--surface-sunk); box-shadow: var(--elev-recessed); font-size: var(--text-read, 1rem); justify-self: start; }
+.dm-run .ww-dmat-grid { border-collapse: separate; border-spacing: var(--space-2); }
+.dm-run .ww-dmat-grid td { border: 0; border-radius: var(--r-well); background: var(--surface-sunk); box-shadow: var(--elev-recessed); inline-size: 48px; block-size: 48px; font-size: var(--text-read, 1rem); }
+.dm-run .ww-dmat-grid td[data-ask='true'] { background: var(--surface-ground); box-shadow: var(--elev-low); }
+.dm-run .ww-dmat-opt {
+  border: 0; border-radius: var(--r-pill); min-block-size: 48px; padding: var(--space-2) var(--space-4); background: var(--surface-raised); box-shadow: var(--elev-low); color: var(--ink-1); cursor: pointer;
+  transition: transform var(--dur-state) var(--ease-standard, ease);
+}
+.dm-run .ww-dmat-opt:hover { transform: translateY(-1px); }
+.dm-run .ww-dmat-opt[aria-checked='true'] { background: var(--surface-ground); box-shadow: var(--elev-pressed); color: var(--ink-1); font-weight: 600; }
+.dm-run .ww-dmat-opt:active { box-shadow: var(--elev-pressed); transform: translateY(1px); }
+.dm-run .ww-dmat-opt:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.dm-nav { align-items: center; }
+.dm-nav [data-primary='true'], .dm-nav .ww-btn.primary { margin-inline-start: auto; }
+
+/* side plate */
+.dm-side { align-content: start; }
+.dm-dots { list-style: none; margin: 0; padding: var(--space-3); display: flex; flex-wrap: wrap; gap: var(--space-2); border-radius: var(--r-well); background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
+.dm-dot { position: relative; inline-size: 14px; block-size: 14px; border-radius: 50%; background: var(--surface-ground); box-shadow: var(--elev-groove); transition: background-color var(--dur-state) var(--ease-standard, ease); }
+.dm-dot[data-on='true'] { background: var(--ink-1); box-shadow: none; }
+.dm-dot[data-here='true'] { outline: 2px solid var(--ink-1); outline-offset: 3px; }
+.dm-last, .dm-result { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); text-align: center; }
+.dm-dial { position: relative; inline-size: 160px; block-size: 160px; display: grid; place-items: center; }
+.dm-dial svg { position: absolute; inset: 0; }
+.dm-dial-groove { fill: none; stroke: var(--surface-sunk); stroke-width: 9; stroke-linecap: round; }
+.dm-dial-fill { fill: none; stroke: var(--ink-1); stroke-width: 9; stroke-linecap: round; }
+.dm-dial-num { font: 500 30px/34px var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; color: var(--ink-1); text-align: center; padding-block-start: var(--space-2); }
+.dm-dial-num small { font: 12px/16px var(--font-ui, system-ui, sans-serif); color: var(--ink-2); }
+.dm-score { margin: 0; font: 600 15px/20px var(--font-ui, system-ui, sans-serif); overflow-wrap: anywhere; }
+.dm-rules { margin-block-start: auto; }
+
+@media (max-width: 900px) {
+  .s2 .ww-dmat.dm, .ww-dmat.dm { grid-template-columns: minmax(0, 1fr); block-size: auto; }
+  .dm-kinds { grid-template-columns: minmax(0, 1fr); }
+  .dm-kind { min-block-size: 0; }
+  .dm .y3-card { padding: var(--space-3) var(--space-4); }
+  .dm-run .ww-dmat-opts { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dm-run .ww-dmat-opt, .dm-dot { transition: none; }
+  .dm-run .ww-dmat-opt:hover { transform: none; }
+}
+@media (forced-colors: active) {
+  .dm .y3-card, .dm-dots, .dm-kind { border: 1px solid CanvasText; }
+  .dm-dot { border: 1px solid CanvasText; }
+  .dm-dot[data-on='true'] { background: CanvasText; }
+}

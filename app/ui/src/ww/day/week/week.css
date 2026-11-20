@@ -8,7 +8,7 @@
 .wk[data-form='phone'] .wk-foot { order: -1; flex-direction: column; align-items: stretch; gap: var(--space-2); }
 .wk[data-form='phone'] .wk-foot .dy-primary { width: 100%; }
 /* the empty week's hour ruler: ASCII ticks down the left edge, from the day heads' baseline to the foot of the well */
-.wk-ruler { flex: none; width: 36px; display: flex; flex-direction: column; justify-content: space-between; padding: 56px 0 var(--space-3); font: 500 11px/14px var(--font-mono); color: var(--ink-2); text-align: right; white-space: pre; }
+.wk-ruler { flex: none; width: 36px; display: flex; flex-direction: column; justify-content: space-between; padding: 3.5rem 0 var(--space-3); font: 500 11px/14px var(--font-mono); color: var(--ink-2); text-align: right; white-space: pre; }
 .wk[data-form='phone'] .wk-main { display: flex; flex-direction: column; }
 .wk-line { flex: 1; min-width: 0; margin: 0; min-height: 16px; font: 400 12px/18px var(--font-ui); color: var(--ink-2); overflow-wrap: anywhere; }
 .wk-line[data-moving] { color: var(--ink-1); font-weight: 600; }
@@ -38,7 +38,7 @@
 .wk-block[data-status='done']:active { box-shadow: var(--elev-raised); }
 .wk-block[data-status='planned']:active, .wk-block[data-status='carried']:active { box-shadow: var(--elev-recessed); }
 .wk-block[data-moving] { background: var(--surface-raised); box-shadow: var(--elev-raised); outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.wk-block > svg { flex: none; margin-top: 3px; }
+.wk-block > svg { flex: none; margin-top: 0.1875rem; }
 .wk-block-text { min-width: 0; display: flex; flex-direction: column; gap: 0; }
 .wk-block-line { display: flex; flex-wrap: wrap; gap: 0 var(--space-1); align-items: baseline; }
 .wk-block-time { font: 500 12px/16px var(--font-mono); color: var(--ink-2); }
@@ -49,7 +49,7 @@
 .wk-more, .wk-none { font: 400 12px/16px var(--font-ui); color: var(--ink-2); padding: 0 var(--space-1); }
 /* an empty day is one hollow block, a dashed 8 px form with its words: it teaches what a block will look like (planned = hollow) */
 .wk-none { display: flex; }
-.wk-slot { flex: 1; min-height: 200px; display: flex; align-items: center; justify-content: center; text-align: center; padding: var(--space-2); border-radius: 8px; border: 1.5px dashed var(--ink-3); color: var(--ink-2); }
+.wk-slot { flex: 1; min-height: 200px; display: flex; align-items: center; justify-content: center; text-align: center; padding: var(--space-2); border-radius: 0.5rem; border: 1.5px dashed var(--line-ui); color: var(--ink-2); }
 .wk[data-form='phone'] .wk-slot { min-height: 48px; }
 .wk-day-foot { flex: none; padding: 0 var(--space-1); font: 500 11px/14px var(--font-mono); color: var(--ink-2); }
 
@@ -73,7 +73,7 @@
 .wk-class[data-hollow] { display: flex; align-items: center; gap: var(--space-2); background: transparent; }
 .wk-dash { flex: 1; height: 0; border-top: 2px dashed var(--line-ui); }
 /* a free slot: a hollow blanking plate, recessed, with its minutes in words */
-.wk-free { width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: 0 var(--space-2); border: 0; border-radius: var(--r-key); background: transparent; color: var(--ink-1); text-align: left; box-shadow: var(--elev-recessed); cursor: pointer; transition: box-shadow var(--dur-feedback) var(--ease-standard); }
+.wk-free { width: 100%; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: 0 var(--space-2); border: 0; border-radius: var(--r-key); background: transparent; color: var(--ink-1); text-align: left; box-shadow: var(--elev-recessed); cursor: pointer; }
 .wk-free:enabled:hover { background: var(--surface-raised); box-shadow: var(--elev-raised); }
 .wk-free:enabled:active { box-shadow: var(--elev-pressed); }
 .wk-free:disabled { cursor: default; }

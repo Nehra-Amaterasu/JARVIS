@@ -6,7 +6,7 @@ import { mount } from '../ww/_stubs'
 import ShellV2 from '../../shell/ShellV2'
 import { resetShellForTests, useShell } from '../../shell/store'
 import { resetPortsForTests } from '../../shell/ports'
-import { registeredView } from '../../shell/views'
+import { registeredView, setViewsForTests } from '../../shell/views'
 
 const stub = (id: string) => () => createElement('div', { 'data-stub': id }, `stub ${id}`)
 const PAGES = Object.fromEntries(['core', 'limbs', 'aankhen', 'yaadash', 'connect', 'system'].map((t) => [t, stub(t)]))
@@ -25,6 +25,7 @@ beforeEach(() => {
 afterEach(() => {
   m?.unmount()
   m = null
+  setViewsForTests(null)
 })
 
 const render = () => {
@@ -72,6 +73,8 @@ describe('Shell v2', () => {
   })
 
   it('a view with nothing built shows a "not built" plate, not content', () => {
+    // every view has a registration now, so the case is the fallback: day.close registration hidden, hosts.ts says none
+    setViewsForTests(null, ['day.close'])
     render()
     act(() => useShell.getState().go({ product: 'ww', section: 'day', view: 'close' }))
     expect(q('[data-notbuilt="day.close"]')).not.toBeNull()
@@ -79,6 +82,8 @@ describe('Shell v2', () => {
   })
 
   it('a view that shares a legacy page says so in one line', () => {
+    // core.sound has its own file now; with that hidden, hosts.ts hosts the Core page and the canvas says so
+    setViewsForTests(null, ['core.sound'])
     render()
     act(() => useShell.getState().go({ product: 'jarvis', section: 'core', view: 'sound' }))
     expect(q('.s2-interim')?.textContent).toMatch(/today.s page for Core/)

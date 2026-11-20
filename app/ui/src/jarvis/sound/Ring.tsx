@@ -11,6 +11,7 @@
 // instantly (sound.css). Plain SVG, built once.
 import { memo, useMemo } from 'react'
 import { fnv1a32 } from '../../shared/grammar'
+import type { LampReading } from '../../shared/lamp'
 import { RING, litMarks, ringWord, type RingState } from './model'
 import './sound.css'
 
@@ -75,14 +76,18 @@ export interface RingProps {
   seed?: string
   /** A volume read back from the system, 0..1. Nothing reports one today, so the fill is never drawn. */
   level?: number | null
+  /** The lamp of that read-back. A level is a reading, so it never draws without one: the fill appears only under a LIVE or
+   *  SIMULATED reading, and absent, WAITING, STALE or FAULT leave the gauge as its hollow dashed track. */
+  reading?: LampReading | null
   /** The last volume step sent, lit for one beat. */
   nudge?: 'up' | 'down' | null
 }
 
-function RingImpl({ state, seed = 'jarvis.sound.ring', level = null, nudge = null }: RingProps) {
+function RingImpl({ state, seed = 'jarvis.sound.ring', level = null, reading = null, nudge = null }: RingProps) {
   const marks = useMemo(() => Array.from({ length: RING.TICKS }, (_, k) => fnv1a32(`${seed}:${k}`) % MARKS.length), [seed])
   const lit = litMarks(state)
-  const fill = level == null ? null : Math.max(0, Math.min(1, level))
+  const stated = reading?.state === 'live' || reading?.state === 'simulated'
+  const fill = level == null || !stated ? null : Math.max(0, Math.min(1, level))
   return (
     <div
       className="sd-ring"

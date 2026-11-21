@@ -4,6 +4,7 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
 import { arcPath, fraction, polar } from './Forms'
 import { cx } from '../util'
+import type { LampState } from '../../lamp/types'
 import '../glass.css'
 
 // ---------------------------------------------------------------------------------------------- Sigil
@@ -22,6 +23,12 @@ export interface SigilProps {
   level?: number | null
   /** The level is generated (a preview): the arc takes the simulated colour. The caller still prints the SIMULATED chip. */
   simulated?: boolean
+  /**
+   * The state of that level (the lamp contract: no number without a state). The arc is drawn only when the level is LIVE or
+   * SIMULATED; a level passed with no state, or under any other state, draws the empty track. `simulated` alone still means
+   * SIMULATED, for callers written before this prop.
+   */
+  state?: LampState
   label?: string
   className?: string
 }
@@ -30,9 +37,11 @@ const RAYS = Array.from({ length: 8 }, (_, i) => i * 45)
 const CORNERS = ['M8 24V8H24', 'M176 8H192V24', 'M192 176V192H176', 'M24 192H8V176'] as const
 const MIC = { from: 45, to: 135, r: 70 } as const
 
-export function Sigil({ size = 240, awake = false, breathe, level, simulated, label = 'Voice ring', className }: SigilProps) {
+export function Sigil({ size = 240, awake = false, breathe, level, simulated: simulatedProp, state, label = 'Voice ring', className }: SigilProps) {
+  const known = state ?? (simulatedProp ? 'simulated' : undefined)
+  const simulated = known === 'simulated'
   const gid = useId()
-  const frac = fraction(level, 1)
+  const frac = known === 'live' || known === 'simulated' ? fraction(level, 1) : null
   const [ready, setReady] = useState(false)
   useEffect(() => {
     const id = window.requestAnimationFrame(() => setReady(true))

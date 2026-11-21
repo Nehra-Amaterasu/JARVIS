@@ -1,0 +1,64 @@
+/* Core, Sound under the v3 look: PLAY / SOURCE / RECENT on <Zones>. Every rule sits under :root[data-look='v3'], so the current
+   look never matches one. The plate and the ledger lose their own slab (the tray is the slab) and the 384 px stage becomes a
+   square that scales with the tray; the pieces themselves are the same ones as before. */
+:root[data-look='v3'] .sd3 {
+  position: absolute;
+  inset: 0;
+  display: block;
+  padding: 0;
+  overflow: hidden;
+}
+:root[data-look='v3'] .sd3 .s3-zones { height: 100%; }
+:root[data-look='v3'] .sd3 .s3-body { overflow: hidden; }
+
+:root[data-look='v3'] .sd3 .sd-now,
+:root[data-look='v3'] .sd3 .sd-recent {
+  flex: 1 1 0;
+  min-height: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+:root[data-look='v3'] .sd3 .sd-now::before,
+:root[data-look='v3'] .sd3 .sd-recent::before { display: none; }
+:root[data-look='v3'] .sd3 .sd-body { align-self: stretch; display: flex; flex-direction: column; gap: 0.75rem; flex: 1 1 0; min-height: 0; min-width: 0; }
+:root[data-look='v3'] .sd3 .sd-left { gap: 0.625rem; align-content: start; justify-items: center; }
+:root[data-look='v3'] .sd3 .sd-right { gap: 0.75rem; align-content: start; }
+
+/* the stage scales with its tray: 384 px at its full size, a square of at most 15 rem here (the gauge and the play key keep
+   their proportions through the same rem box) */
+:root[data-look='v3'] .sd3 .sd-stage { width: min(100%, 15rem); height: auto; aspect-ratio: 1; }
+:root[data-look='v3'] .sd3 .sd-vol { top: calc(50% + 2.9rem); }
+:root[data-look='v3'] .sd3 .sd-vol-read { font-size: 0.8125rem; }
+:root[data-look='v3'] .sd3 .sd-play { width: 5rem; height: 5rem; gap: 0.25rem; font-size: 0.6875rem; }
+:root[data-look='v3'] .sd3 .sd-play-icon { width: 1.5rem; height: 1.5rem; }
+:root[data-look='v3'] .sd3 .sd-transport { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.375rem; inline-size: 100%; }
+:root[data-look='v3'] .sd3 .sd-transport > [data-pair='vol']:nth-child(3),
+:root[data-look='v3'] .sd3 .sd-transport > [data-pair='vol']:nth-child(4) { grid-column: auto; }
+:root[data-look='v3'] .sd3 .sd-transport .sd-key-col { min-width: 0; min-height: 3.25rem; padding: 0 0.25rem; }
+:root[data-look='v3'] .sd3 .sd-title { font-size: 1.25rem; }
+:root[data-look='v3'] .sd3 .sd-sub { font-size: 0.875rem; }
+:root[data-look='v3'] .sd3 .sd-title-block { gap: 0.375rem; }
+
+/* tray 2: the last action and where play goes */
+:root[data-look='v3'] .sd3 .sd-receipt { padding: 0.75rem; }
+:root[data-look='v3'] .sd3 .sd-src-head { flex-wrap: wrap; }
+:root[data-look='v3'] .sd3 .sd-chips { gap: 0.375rem; }
+
+/* tray 3: the ledger of plays, a real list that may scroll inside its tray */
+:root[data-look='v3'] .sd3 .sd-plays { overflow: auto; min-height: 0; }
+:root[data-look='v3'] .sd3 .sd-play-row { grid-template-columns: 0.75rem 2.75rem minmax(0, 1fr); row-gap: 0.125rem; }
+:root[data-look='v3'] .sd3 .sd-play-src { grid-column: 2 / -1; }
+:root[data-look='v3'] .sd3 .sd-play-q { grid-column: 2 / -1; }
+:root[data-look='v3'] .sd3 .sd-log-empty { grid-row: auto; padding: 1rem 0.75rem; }
+:root[data-look='v3'] .sd3 .sd-card-head { flex-wrap: wrap; }
+
+@media (max-width: 700px) {
+  :root[data-look='v3'] .sd3 .s3-body { overflow: visible; }
+  :root[data-look='v3'] .sd3 .sd-stage { width: min(100%, 17rem); }
+  :root[data-look='v3'] .sd3 .sd-plays { overflow: visible; }
+}

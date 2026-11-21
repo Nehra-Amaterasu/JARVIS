@@ -14,13 +14,16 @@ import { useStore } from '../../lib/store'
 import { Esp32LinkCard } from '../../components/Esp32LinkCard'
 import { FirmwareCard } from '../../components/FirmwareCard'
 import { Rack, RackRow, type RackState } from '../../shared/data/specimen'
-import { Lamp, LampGlyph } from '../../shared/lamp'
+import { Chip } from '../../shared/kit/v3'
+import { Lamp, LampGlyph, type LampReading } from '../../shared/lamp'
+import { Zones, lookV3Enabled } from '../../shell/v3'
 import { PinMap } from '../room/pins/PinMap'
 import { boardJobSpec, boardRows, flashGate, portRows, waiting } from './model'
 import { ConsoleKey, ConsoleRow, ConsoleTabs, JobRow, PartHead, LampLine } from './parts'
 import { useHardwareLive } from './useConsole'
 import './console.css'
 import './views.css'
+import './console-v3.css'
 
 export type HwTab = 'link' | 'firmware' | 'wiring'
 
@@ -60,68 +63,98 @@ export function HardwareView({ board, ports, limbs, now = Date.now(), onCompile,
   const tabs = [{ id: 'link', label: 'Wi-Fi link' }, { id: 'firmware', label: 'Firmware' }, { id: 'wiring', label: 'Pins' }]
   const running = board?.job?.state === 'running'
 
+  const boardBody = (
+    <>
+      <PartHead tag="BRD" title="Board" stamp={simulated} seed="jarvis.console.board" right={<Lamp reading={link} showLabel size={12} subject="Board link" />} />
+      <ul className="jx-rows" aria-label="Board report">{rows.map((r) => <ConsoleRow key={r.tag} row={r} />)}</ul>
+      <PartHead tag="USB" title="Ports" seed="jarvis.console.ports" right={onScan ? <ConsoleKey label="Scan" busy={scanning} onPress={onScan} /> : undefined} />
+      {ports === null ? (
+        <p className="jx-empty"><LampLine reading={waiting('the port scan has not answered')} subject="USB ports" /></p>
+      ) : usb.length === 0 ? (
+        <p className="jx-empty"><span className="jx-tag">[USB]</span> no USB serial device found</p>
+      ) : (
+        <ul className="jx-rows" aria-label="USB ports">{usb.map((r, i) => <ConsoleRow key={`${r.text}-${i}`} row={r} />)}</ul>
+      )}
+    </>
+  )
+  const rackBody = (
+    <>
+      <PartHead tag="RLY" title="Relays" seed="jarvis.console.relays" />
+      {limbs === null ? (
+        <p className="jx-empty"><LampLine reading={waiting('the relay list has not answered')} subject="Relays" /></p>
+      ) : devices.length === 0 ? (
+        <p className="jx-empty"><span className="jx-tag">[RLY]</span> no relay is configured</p>
+      ) : (
+        <Rack title="RELAY BOARD" note={`${devices.length} unit${devices.length === 1 ? '' : 's'}`}>
+          {devices.map((d) => (
+            <RackRow
+              key={d.id} device={d.name} serial={`CH${d.channel}`} state={relayState(d)} reportedAt={d.confirmed ? seen : null}
+              on={d.state.on} onToggle={() => onRelay?.(d.id, !d.state.on)} now={now}
+              lastSeen={d.link === 'virtual' ? undefined : d.confirmed ? 'board confirmed' : d.hardware_on === null ? 'not on the board' : 'waiting'}
+            />
+          ))}
+        </Rack>
+      )}
+      {!!limbs?.problems?.length && <p className="jx-empty" role="status"><LampGlyph state="fault" size={12} /> {limbs.problems.join(' · ')}</p>}
+      <p className="jx-dim">The rocker sends the command; the lamp lights only when the board says it switched. MAINS 230 V: the same switch as Room.</p>
+    </>
+  )
+  const folderBody = (
+    <>
+      <ConsoleTabs tabs={tabs} value={tab} onChange={(id) => setTab(id as HwTab)} label="Board settings" />
+      <div className="jx-folder-body" role="tabpanel" aria-label={`${tab} panel`} data-tab={tab}>
+        {tab === 'link' && (panels.link ?? <p className="jx-empty"><span className="jx-tag">[SYS]</span> the Wi-Fi link card draws here in the app</p>)}
+        {tab === 'firmware' && (
+          <div className="jx-fw">
+            {gate.allowed ? (
+              panels.firmware ?? <p className="jx-empty"><span className="jx-tag">[SYS]</span> the firmware card draws here in the app</p>
+            ) : (
+              <>
+                <p className="jx-gate" role="status" data-flash="closed"><LampGlyph state="waiting" size={14} /> <span><b>Flash is closed.</b> {gate.reason}.</span></p>
+                <ul className="jx-rows" aria-label="Firmware">{rows.slice(1, 2).map((r) => <ConsoleRow key={r.tag} row={r} />)}</ul>
+                {board?.build && <p className="jx-dim">last build {board.build.version ?? 'unversioned'}, {sizeLine(board.build)}</p>}
+                {job && <ul className="jx-jobs" aria-label="Board job"><JobRow {...job} /></ul>}
+                <div className="jx-keys">
+                  <ConsoleKey
+                    label="Compile" icon={<Hammer size={16} />} onPress={() => onCompile?.()} busy={running}
+                    disabledReason={board && !board.tools.arduino_cli ? 'arduino-cli was not found' : undefined}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        )}
+        {tab === 'wiring' && <div className="jx-wiring"><PinMap v={limbs} onTested={onReload} defaultOpen /></div>}
+      </div>
+    </>
+  )
+
+  if (lookV3Enabled()) {
+    const relaysReading: LampReading = limbs === null ? { state: 'waiting', since: null, reason: 'the relay list has not answered' } : { state: simulated ? 'simulated' : 'live', since: null, reason: 'the list the app holds' }
+    return (
+      <div className="jx jx3 jx-hw" data-view="hardware" data-simulated={simulated ? 'true' : undefined}>
+        <Zones
+          ratio={[1.3, 1.1, 1.3]}
+          first={{ job: 'REPORT', chip: <Chip state={link.state} reason={link.reason} />, children: <div className="jx3-card">{boardBody}</div> }}
+          second={{ job: 'SWITCH', chip: <Chip state={relaysReading.state} reason={relaysReading.reason} />, peek: { name: 'Relays', lamp: relaysReading.state, note: relaysReading.reason }, children: <div className="jx3-card">{rackBody}</div> }}
+          third={{ job: 'SETTINGS', peek: { name: 'Settings', lamp: 'live', note: tabs.find((t) => t.id === tab)?.label }, children: <div className="jx3-folder">{folderBody}</div> }}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="jx jx-hw" data-view="hardware" data-simulated={simulated ? 'true' : undefined}>
       <section className="jx-card jx-board" aria-label="Board">
-        <PartHead tag="BRD" title="Board" stamp={simulated} seed="jarvis.console.board" right={<Lamp reading={link} showLabel size={12} subject="Board link" />} />
-        <ul className="jx-rows" aria-label="Board report">{rows.map((r) => <ConsoleRow key={r.tag} row={r} />)}</ul>
-        <PartHead tag="USB" title="Ports" seed="jarvis.console.ports" right={onScan ? <ConsoleKey label="Scan" busy={scanning} onPress={onScan} /> : undefined} />
-        {ports === null ? (
-          <p className="jx-empty"><LampLine reading={waiting('the port scan has not answered')} subject="USB ports" /></p>
-        ) : usb.length === 0 ? (
-          <p className="jx-empty"><span className="jx-tag">[USB]</span> no USB serial device found</p>
-        ) : (
-          <ul className="jx-rows" aria-label="USB ports">{usb.map((r, i) => <ConsoleRow key={`${r.text}-${i}`} row={r} />)}</ul>
-        )}
+        {boardBody}
       </section>
 
       <section className="jx-card jx-rack" aria-label="Relays">
-        <PartHead tag="RLY" title="Relays" seed="jarvis.console.relays" />
-        {limbs === null ? (
-          <p className="jx-empty"><LampLine reading={waiting('the relay list has not answered')} subject="Relays" /></p>
-        ) : devices.length === 0 ? (
-          <p className="jx-empty"><span className="jx-tag">[RLY]</span> no relay is configured</p>
-        ) : (
-          <Rack title="RELAY BOARD" note={`${devices.length} unit${devices.length === 1 ? '' : 's'}`}>
-            {devices.map((d) => (
-              <RackRow
-                key={d.id} device={d.name} serial={`CH${d.channel}`} state={relayState(d)} reportedAt={d.confirmed ? seen : null}
-                on={d.state.on} onToggle={() => onRelay?.(d.id, !d.state.on)} now={now}
-                lastSeen={d.link === 'virtual' ? undefined : d.confirmed ? 'board confirmed' : d.hardware_on === null ? 'not on the board' : 'waiting'}
-              />
-            ))}
-          </Rack>
-        )}
-        {!!limbs?.problems?.length && <p className="jx-empty" role="status"><LampGlyph state="fault" size={12} /> {limbs.problems.join(' · ')}</p>}
-        <p className="jx-dim">The rocker sends the command; the lamp lights only when the board says it switched. MAINS 230 V: the same switch as Room.</p>
+        {rackBody}
       </section>
 
       <section className="jx-card jx-folder" aria-label="Board settings">
-        <ConsoleTabs tabs={tabs} value={tab} onChange={(id) => setTab(id as HwTab)} label="Board settings" />
-        <div className="jx-folder-body" role="tabpanel" aria-label={`${tab} panel`} data-tab={tab}>
-          {tab === 'link' && (panels.link ?? <p className="jx-empty"><span className="jx-tag">[SYS]</span> the Wi-Fi link card draws here in the app</p>)}
-          {tab === 'firmware' && (
-            <div className="jx-fw">
-              {gate.allowed ? (
-                panels.firmware ?? <p className="jx-empty"><span className="jx-tag">[SYS]</span> the firmware card draws here in the app</p>
-              ) : (
-                <>
-                  <p className="jx-gate" role="status" data-flash="closed"><LampGlyph state="waiting" size={14} /> <span><b>Flash is closed.</b> {gate.reason}.</span></p>
-                  <ul className="jx-rows" aria-label="Firmware">{rows.slice(1, 2).map((r) => <ConsoleRow key={r.tag} row={r} />)}</ul>
-                  {board?.build && <p className="jx-dim">last build {board.build.version ?? 'unversioned'}, {sizeLine(board.build)}</p>}
-                  {job && <ul className="jx-jobs" aria-label="Board job"><JobRow {...job} /></ul>}
-                  <div className="jx-keys">
-                    <ConsoleKey
-                      label="Compile" icon={<Hammer size={16} />} onPress={() => onCompile?.()} busy={running}
-                      disabledReason={board && !board.tools.arduino_cli ? 'arduino-cli was not found' : undefined}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-          {tab === 'wiring' && <div className="jx-wiring"><PinMap v={limbs} onTested={onReload} defaultOpen /></div>}
-        </div>
+        {folderBody}
       </section>
     </div>
   )

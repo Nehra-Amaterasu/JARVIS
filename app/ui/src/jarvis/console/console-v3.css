@@ -1,0 +1,124 @@
+/* Console under the v3 look: every view is three trays on <Zones>. Every rule sits under :root[data-look='v3'], so the current
+   look never matches one. The pieces (rows, keys, tabs, cards' insides) are the Console's own; this file lets them live in a
+   tray instead of a fixed 1286 x 652 grid. The command line is the dock's, so no tray draws an input of its own for it. */
+:root[data-look='v3'] .jx3 {
+  position: absolute;
+  inset: 0;
+  display: block;
+  padding: 0;
+  overflow: hidden;
+}
+:root[data-look='v3'] .jx3 .s3-zones { height: 100%; }
+:root[data-look='v3'] .jx3 .s3-body { overflow: hidden; }
+:root[data-look='v3'] .jx3 .jx-head-title { white-space: normal; }
+
+/* the insides of the old cards and well: flow in the tray, grow to fill it */
+:root[data-look='v3'] .jx3 .jx3-card,
+:root[data-look='v3'] .jx3 .jx3-folder,
+:root[data-look='v3'] .jx3 .jx3-detected,
+:root[data-look='v3'] .jx3 .jx3-notes,
+:root[data-look='v3'] .jx3 .jx3-sources,
+:root[data-look='v3'] .jx3 .jx3-log { flex: 1 1 0; min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: 0.625rem; }
+:root[data-look='v3'] .jx3 .jx3-card,
+:root[data-look='v3'] .jx3 .jx3-folder,
+:root[data-look='v3'] .jx3 .jx3-detected,
+:root[data-look='v3'] .jx3 .jx3-sources { overflow: auto; }
+:root[data-look='v3'] .jx3 .jx3-notes { overflow: hidden; }
+:root[data-look='v3'] .jx3 .jx3-folder .jx-folder-body { overflow: visible; flex: none; }
+:root[data-look='v3'] .jx3 .jx3-folder .jx-tabs { align-self: stretch; }
+:root[data-look='v3'] .jx3 .jx-hw .jx-folder-body,
+:root[data-look='v3'] .jx3.jx-hw .jx-folder-body { overflow: visible; }
+
+/* ---- Health, tray 1: the rows, faults first, each one a key that selects it */
+:root[data-look='v3'] .jx3 .jx3-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.375rem; align-content: start; flex: 1 1 0; min-height: 0; overflow: auto; }
+:root[data-look='v3'] .jx3 .jx3-row {
+  inline-size: 100%;
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
+  column-gap: 0.625rem;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid transparent;
+  border-radius: 0.875rem;
+  background: var(--surface-sunk);
+  color: var(--ink-1);
+  text-align: left;
+  cursor: pointer;
+  font: 0.8125rem/1.3 var(--font-mono, ui-monospace, monospace);
+}
+:root[data-look='v3'] .jx3 .jx3-row:hover { border-color: var(--edge-ui); }
+:root[data-look='v3'] .jx3 .jx3-row[aria-pressed='true'] { border-color: var(--ridge-hi, var(--edge-ui)) var(--edge-ui) var(--ridge-lo, var(--edge-ui)); background: var(--surface-raised); box-shadow: var(--elev-raised, none); }
+:root[data-look='v3'] .jx3 .jx3-row-body { display: grid; gap: 0.125rem; min-width: 0; }
+:root[data-look='v3'] .jx3 .jx3-row-text { overflow-wrap: anywhere; }
+:root[data-look='v3'] .jx3 .jx3-row-why { color: var(--ink-2); font-size: 0.75rem; overflow-wrap: anywhere; }
+:root[data-look='v3'] .jx3 .jx3-row[data-state='fault'] .jx3-row-why { color: var(--ink-1); }
+:root[data-look='v3'] .jx3 .jx3-row-lamp { display: inline-flex; justify-content: flex-end; }
+
+/* ---- Health, tray 2: the detail of the selected row and the start keys */
+:root[data-look='v3'] .jx3 .jx3-detail { flex: 1 1 0; min-height: 0; overflow: auto; display: grid; align-content: start; gap: 0.625rem; }
+:root[data-look='v3'] .jx3 .jx3-detail-head { margin: 0; font: 600 0.9375rem/1.3 var(--font-ui, system-ui, sans-serif); overflow-wrap: anywhere; }
+:root[data-look='v3'] .jx3 .jx3-detail-why { margin: 0; color: var(--ink-2); font: 0.8125rem/1.4 var(--font-mono, ui-monospace, monospace); overflow-wrap: anywhere; }
+:root[data-look='v3'] .jx3 .jx3-gpu { display: grid; justify-items: center; }
+:root[data-look='v3'] .jx3 .jx3-gpu .jx-dial { inline-size: 9rem; }
+:root[data-look='v3'] .jx3 .jx3-keys { flex: none; display: flex; flex-wrap: wrap; gap: 0.375rem; }
+:root[data-look='v3'] .jx3 .jx3-keys .jx-key { padding: 0 0.625rem; }
+
+/* ---- Health, tray 3: the answers of the command line, the tabs, the pane */
+:root[data-look='v3'] .jx3 .jx3-answers { flex: none; display: grid; gap: 0.375rem; max-height: 9rem; overflow: auto; }
+:root[data-look='v3'] .jx3 .jx3-tabs { flex: none; align-self: stretch; }
+:root[data-look='v3'] .jx3 .jx3-tabs .jx-tab { flex: 1 1 auto; justify-content: center; padding: 0 0.5rem; }
+:root[data-look='v3'] .jx3 .jx3-pane { flex: 1 1 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 0.5rem; font: 0.75rem/1.35 var(--font-mono, ui-monospace, monospace); }
+:root[data-look='v3'] .jx3 .jx-logline { grid-template-columns: 4rem minmax(0, 1fr); }
+:root[data-look='v3'] .jx3 .jx-logline span { white-space: normal; overflow-wrap: anywhere; }
+:root[data-look='v3'] .jx3 .jx3-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+:root[data-look='v3'] .jx3 .jx3-item { display: grid; gap: 0.125rem; padding-bottom: 0.5rem; border-bottom: 1px dashed var(--edge-hair, var(--edge-ui)); }
+:root[data-look='v3'] .jx3 .jx3-item:last-child { border-bottom: 0; }
+:root[data-look='v3'] .jx3 .jx3-item-head { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; color: var(--ink-1); }
+:root[data-look='v3'] .jx3 .jx3-item-head time { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+:root[data-look='v3'] .jx3 .jx-job { grid-template-columns: 2.5rem minmax(0, 1fr); }
+
+/* ---- Events */
+:root[data-look='v3'] .jx3 .jx3-log .jx-events-list { flex: 1 1 0; min-height: 0; }
+:root[data-look='v3'] .jx3 .jx-ev { grid-template-columns: 3.5rem 0.875rem minmax(0, 1fr) auto; row-gap: 0; }
+:root[data-look='v3'] .jx3 .jx-ev time { grid-column: 3 / -1; }
+:root[data-look='v3'] .jx3 .jx-ev-text { white-space: normal; overflow-wrap: anywhere; }
+:root[data-look='v3'] .jx3 .jx-density { grid-template-columns: 4.5rem minmax(0, 1fr) auto; }
+:root[data-look='v3'] .jx3 .jx3-sources .jx-source { grid-template-columns: 4rem minmax(0, 1fr); }
+:root[data-look='v3'] .jx3 .jx3-notes .jx-dim { line-height: 1.5; }
+
+/* ---- Connections */
+:root[data-look='v3'] .jx3 .jx3-detected .jx-int-list { overflow: visible; }
+:root[data-look='v3'] .jx3 .jx-int-name { white-space: normal; overflow-wrap: anywhere; }
+:root[data-look='v3'] .jx3 .jx-model { grid-template-columns: 1.375rem minmax(0, 1fr); }
+:root[data-look='v3'] .jx3 .jx-model-size { display: none; }
+:root[data-look='v3'] .jx3 .jx-counts { display: grid; gap: 0.5rem; font-size: 0.8125rem; }
+
+/* ---- Hardware, Crew */
+:root[data-look='v3'] .jx3 .jx-board .jx-row { grid-template-columns: 2.75rem minmax(0, 1fr) auto; }
+:root[data-look='v3'] .jx3 .jx-agent { grid-template-columns: 1rem minmax(0, 1fr) auto; row-gap: 0.25rem; padding: 0.375rem 0; }
+:root[data-look='v3'] .jx3 .jx-agent-say,
+:root[data-look='v3'] .jx3 .jx-agent-tick { grid-column: 2 / -1; text-align: left; }
+:root[data-look='v3'] .jx3 .jx3-route .jx-route { grid-template-columns: minmax(0, 1fr); grid-auto-rows: auto; gap: 0.5rem; }
+:root[data-look='v3'] .jx3 .jx3-route .jx-plate { min-height: 0; }
+:root[data-look='v3'] .jx3 .jx3-route .jx-plate-li::after { display: none; }
+:root[data-look='v3'] .jx3 .jx3-route .jx-route-track { flex-wrap: wrap; }
+
+/* ---- the phone: the first tray scrolls inside the canvas, the others are sheets */
+@media (max-width: 700px) {
+  :root[data-look='v3'] .jx3 .s3-body { overflow: visible; }
+  :root[data-look='v3'] .jx3 .jx3-card,
+  :root[data-look='v3'] .jx3 .jx3-folder,
+  :root[data-look='v3'] .jx3 .jx3-detected,
+  :root[data-look='v3'] .jx3 .jx3-sources,
+  :root[data-look='v3'] .jx3 .jx3-rows,
+  :root[data-look='v3'] .jx3 .jx3-detail,
+  :root[data-look='v3'] .jx3 .jx3-pane { overflow: visible; flex: none; }
+  :root[data-look='v3'] .jx3 .jx3-log .jx-events-list { min-height: 16rem; }
+}
+
+/* the route is a long list: it scrolls inside its tray and never sideways */
+:root[data-look='v3'] .jx3 .jx3-route { overflow-x: hidden; }
+:root[data-look='v3'] .jx3 .jx3-route .g-bar { flex-wrap: wrap; row-gap: 0.25rem; max-inline-size: 100%; }
+:root[data-look='v3'] .jx3 .jx3-route .g-bar-track { max-inline-size: 100%; overflow: hidden; }
+:root[data-look='v3'] .jx3 .jx3-rows .jx3-row { padding-block: 0.25rem; }

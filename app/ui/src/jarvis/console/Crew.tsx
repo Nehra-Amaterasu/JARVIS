@@ -9,15 +9,18 @@ import type { Agent, CrewLoad, FeedItem } from '../../lib/crew'
 import { sinceTick } from '../../lib/crew'
 import { clock } from '../../lib/format'
 import { AsciiBar } from '../../shared/grammar'
+import { Chip } from '../../shared/kit/v3'
 import { Lamp, LampGlyph, type LampReading } from '../../shared/lamp'
 import type { PlannedEntry } from '../../shared/planned/types'
 import { useShell } from '../../shell/store'
+import { Zones, lookV3Enabled } from '../../shell/v3'
 import { JARVIS_PLANNED } from '../planned'
 import { ConsoleKey, PartHead, RoutePlates, LampLine } from './parts'
 import { useCrewLive } from './useConsole'
 import { fault, live, routePlates, waiting } from './model'
 import './console.css'
 import './views.css'
+import './console-v3.css'
 
 const MAX_AGENTS = 8
 
@@ -50,56 +53,85 @@ export function CrewView({ load, feed, now, registry = JARVIS_PLANNED, onRun, on
     : load.status === 'ok'
       ? (agents.length ? live(`${agents.length} on the staff`) : waiting('the staff has no one on it'))
       : load.status === 'absent' ? waiting('the staff is not running yet') : fault(`the staff cannot be reached: ${load.message}`)
+  const rosterBody = (
+    <>
+      <PartHead tag="STF" title="Staff" stamp={simulated} seed="jarvis.console.staff" right={<Lamp reading={status} showLabel size={12} subject="Staff" />} />
+      {agents.length === 0 ? (
+        <p className="jx-empty"><span className="jx-tag">[STF]</span> {status.reason}</p>
+      ) : (
+        <ul className="jx-agents" aria-label="Staff roster">
+          {agents.slice(0, MAX_AGENTS).map((a) => {
+            const r = agentReading(a, now)
+            return (
+              <li key={a.id} className="jx-agent" data-state={r.state} data-agent={a.id}>
+                <Lamp reading={r} showLabel={false} subject={a.name} />
+                <span className="jx-agent-name"><b>{a.name}</b><span className="jx-dim">{a.role}</span></span>
+                <span className="jx-agent-say">{a.summary || r.reason}</span>
+                <span className="jx-agent-tick jx-dim">{sinceTick(a.health, now).text}</span>
+                <ConsoleKey label="Run" icon={<Play size={14} />} onPress={() => onRun?.(a.id)} disabledReason={onRun ? undefined : 'no route'} />
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      {agents.length > MAX_AGENTS && <p className="jx-dim">{agents.length - MAX_AGENTS} more on the staff</p>}
+    </>
+  )
+  const feedBody = (
+    <>
+      <PartHead tag="STF" title="Said" seed="jarvis.console.said" />
+      {feed.length === 0 ? (
+        <p className="jx-empty"><LampLine reading={waiting('nothing said yet')} subject="Staff feed" /></p>
+      ) : (
+        <ol className="jx-feed-list" aria-label="Staff narration, newest first">
+          {feed.map((f) => (
+            <li key={f.key} className="jx-feed-row">
+              <time>{clock(f.ts)}</time>
+              <span className="jx-tag">[{(f.agent || 'staff').toUpperCase().slice(0, 5)}]</span>
+              {f.sim && <LampGlyph state="simulated" size={12} />}
+              <span className="jx-feed-text">{f.text}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </>
+  )
+  const routeBody = (
+    <>
+      <PartHead tag="PLN" title="Route" seed="jarvis.console.route" right={<span className="jx-dim">press a plate: what it is, what it needs</span>} />
+      <div className="jx-route-track">
+        <span>built</span>
+        <AsciiBar value={built} max={Math.max(1, plates.length)} width={28} head="car" state="live" label="Planned items built" reading={<span className="jx-dim">{built} of {plates.length} on the route</span>} />
+      </div>
+      <RoutePlates registry={registry} onOpen={onOpenPlate} />
+    </>
+  )
+
+  if (lookV3Enabled()) {
+    return (
+      <div className="jx jx3 jx-crew" data-view="crew" data-simulated={simulated ? 'true' : undefined}>
+        <Zones
+          ratio={[1.5, 1.15, 1.1]}
+          first={{ job: 'STAFF', chip: <Chip state={status.state} reason={status.reason} />, children: <div className="jx3-card">{rosterBody}</div> }}
+          second={{ job: 'SAID', chip: <Chip state={feed.length ? (simulated ? 'simulated' : 'live') : 'waiting'} reason={feed.length ? 'what the staff reported' : 'nothing said yet'} />, peek: { name: 'Said', lamp: feed.length ? 'live' : 'waiting', note: feed.length ? undefined : 'nothing said yet' }, children: <div className="jx3-card">{feedBody}</div> }}
+          third={{ job: 'ROUTE', chip: <Chip>{`${built} of ${plates.length} built`}</Chip>, peek: { name: 'Route', lamp: 'planned', note: `${built} of ${plates.length} built` }, children: <div className="jx3-card jx3-route">{routeBody}</div> }}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="jx jx-crew" data-view="crew" data-simulated={simulated ? 'true' : undefined}>
       <section className="jx-card jx-roster" aria-label="Staff">
-        <PartHead tag="STF" title="Staff" stamp={simulated} seed="jarvis.console.staff" right={<Lamp reading={status} showLabel size={12} subject="Staff" />} />
-        {agents.length === 0 ? (
-          <p className="jx-empty"><span className="jx-tag">[STF]</span> {status.reason}</p>
-        ) : (
-          <ul className="jx-agents" aria-label="Staff roster">
-            {agents.slice(0, MAX_AGENTS).map((a) => {
-              const r = agentReading(a, now)
-              return (
-                <li key={a.id} className="jx-agent" data-state={r.state} data-agent={a.id}>
-                  <Lamp reading={r} showLabel={false} subject={a.name} />
-                  <span className="jx-agent-name"><b>{a.name}</b><span className="jx-dim">{a.role}</span></span>
-                  <span className="jx-agent-say">{a.summary || r.reason}</span>
-                  <span className="jx-agent-tick jx-dim">{sinceTick(a.health, now).text}</span>
-                  <ConsoleKey label="Run" icon={<Play size={14} />} onPress={() => onRun?.(a.id)} disabledReason={onRun ? undefined : 'no route'} />
-                </li>
-              )
-            })}
-          </ul>
-        )}
-        {agents.length > MAX_AGENTS && <p className="jx-dim">{agents.length - MAX_AGENTS} more on the staff</p>}
+        {rosterBody}
       </section>
 
       <section className="jx-card jx-feed" aria-label="What the staff said">
-        <PartHead tag="STF" title="Said" seed="jarvis.console.said" />
-        {feed.length === 0 ? (
-          <p className="jx-empty"><LampLine reading={waiting('nothing said yet')} subject="Staff feed" /></p>
-        ) : (
-          <ol className="jx-feed-list" aria-label="Staff narration, newest first">
-            {feed.map((f) => (
-              <li key={f.key} className="jx-feed-row">
-                <time>{clock(f.ts)}</time>
-                <span className="jx-tag">[{(f.agent || 'staff').toUpperCase().slice(0, 5)}]</span>
-                {f.sim && <LampGlyph state="simulated" size={12} />}
-                <span className="jx-feed-text">{f.text}</span>
-              </li>
-            ))}
-          </ol>
-        )}
+        {feedBody}
       </section>
 
       <section className="jx-card jx-route-card" aria-label="Route">
-        <PartHead tag="PLN" title="Route" seed="jarvis.console.route" right={<span className="jx-dim">press a plate: what it is, what it needs</span>} />
-        <div className="jx-route-track">
-          <span>built</span>
-          <AsciiBar value={built} max={Math.max(1, plates.length)} width={28} head="car" state="live" label="Planned items built" reading={<span className="jx-dim">{built} of {plates.length} on the route</span>} />
-        </div>
-        <RoutePlates registry={registry} onOpen={onOpenPlate} />
+        {routeBody}
       </section>
     </div>
   )

@@ -1,6 +1,8 @@
 // First, before anything that imports lib/api.ts: that module wipes the URL fragment on load, and the shell flag
 // reads `shell=v2` from it (shell/flag.ts).
 import { shellV2Enabled } from './shell/flag'
+// the same for the look switch: `look=v3` is read from the fragment before lib/api.ts wipes it (shell/look.ts)
+import './shell/look'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { CommandPalette } from './components/CommandPalette'
 import { Dock, TitleBar, Ticker, Toasts, useHotkeys } from './components/Shell'

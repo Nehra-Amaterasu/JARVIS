@@ -47,6 +47,9 @@ DEFAULTS: dict = {
     "proactive": {},
     # The microphone to keep listening on (core/mic.py): {"name": "<part of its name>"}.
     "mic": {},
+    # The desktop window (app/jarvis_app/backdrop.py): {"glass": bool, "glass_dark": bool}. Listed here so that a save of
+    # any other section keeps it: a key missing from DEFAULTS was dropped on write, and the glass turned itself off.
+    "window": {},
 }
 
 

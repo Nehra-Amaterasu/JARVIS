@@ -16,7 +16,7 @@ import { useStore } from '../lib/store'
 import { loadJarvisRegistry, loadWwShell, type WwShellBridge } from '../pageLoaders'
 import { Annunciators, JARVIS_ANNUNCIATORS, WW_ANNUNCIATORS } from '../shared/lamp'
 import { setShellV2 } from './flag'
-import { lookV3Enabled } from './look'
+import { lookV3Enabled, setLookV3 } from './look'
 import { Lamp } from '../shared/lamp/Lamp'
 import type { LampReading } from '../shared/lamp/types'
 import { WhatIsComing } from '../shared/overlays/WhatIsComing'
@@ -286,6 +286,8 @@ function TitleBar({ product, items, now }: { product: ProductId; items: typeof J
         <Annunciators items={items} readings={readings} />
       </div>
       {faults.length > 0 && <FaultChip product={product} names={faults.map((f) => f.label)} />}
+      {/* the owner's way into design language v3 from inside the desktop app (21 Nov 2026): the fragment cannot be typed there */}
+      <button type="button" className="s2-classic" onClick={() => setLookV3(true)} title="Switch to the frosted look">New look</button>
       <button type="button" className="s2-classic" onClick={() => setShellV2(false)} title="Go back to the current interface">Classic UI</button>
       <time className="s2-clock" dateTime={new Date(now).toISOString()}>{clock(now / 1000).slice(0, 5)}</time>
       {inApp && (

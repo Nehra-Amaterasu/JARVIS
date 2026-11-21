@@ -19,8 +19,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import type { CoreInfo, Turn } from '../../lib/api'
 import { ArtSlot } from '../../art/ArtSlot'
 import { Lamp, showsNumber, type LampReading, type LampState } from '../../shared/lamp'
+import { Chip } from '../../shared/kit/v3'
 import { getPort, subscribePorts } from '../../shell/ports'
 import { useShell } from '../../shell/store'
+import { Zones, lookV3Enabled, useViewChrome, type ViewChromeSpec } from '../../shell/v3'
 import { VoiceHill, type CoreView, type VoiceSignal } from '../voice'
 import { Anatomy } from './Anatomy'
 import { CoreDrawer } from './CoreDrawer'
@@ -36,6 +38,7 @@ import { Transcript, TurnRow } from './Transcript'
 import { FIT_TURNS, FIT_TURNS_PHONE, fitTurns, type Organ, type OrganId, type RibbonStage, type StageId, type StageMedian } from './model'
 import { useCoreLive, type CoreActions } from './useCoreLive'
 import './core.css'
+import './core-v3.css'
 
 /** The phone layout begins below this width (the shell's own one-column break, D6). */
 export const PHONE_MAX = 899
@@ -74,8 +77,11 @@ export interface CoreTalkViewProps {
 /** LIVE becomes SIMULATED for a fixture; nothing else changes. */
 const simState = (s: LampState, sim: boolean): LampState => (sim && s === 'live' ? 'simulated' : s)
 
-function useNarrow(): boolean {
-  const q = `(max-width: ${PHONE_MAX}px)`
+/** The v3 shell's own phone break (shell-v3.css: 700 px); the current look keeps PHONE_MAX. */
+const PHONE_MAX_V3 = 700
+
+function useNarrow(max: number = PHONE_MAX): boolean {
+  const q = `(max-width: ${max}px)`
   const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(q)?.matches)
   useEffect(() => {
     const mq = window.matchMedia?.(q)
@@ -103,7 +109,7 @@ const uptimeText = (s: number | null | undefined): string | null => {
 }
 
 /* ------------------------------------------------------------------ controls */
-function Controls({ core, busy, onWake, onSleep, mode, setMode, onAnatomy, simulated }: {
+function Controls({ core, busy, onWake, onSleep, mode, setMode, onAnatomy, simulated, v3 = false }: {
   core: CoreInfo | null
   busy: boolean
   onWake: () => void
@@ -112,6 +118,8 @@ function Controls({ core, busy, onWake, onSleep, mode, setMode, onAnatomy, simul
   setMode: (m: 'voice' | 'text') => void
   onAnatomy: () => void
   simulated: boolean
+  /** v3: Anatomy is a rare action and lives under More; the organ chips in the third tray also open it. */
+  v3?: boolean
 }) {
   const running = !!core?.running
   const booting = core?.state === 'booting'
@@ -162,10 +170,10 @@ function Controls({ core, busy, onWake, onSleep, mode, setMode, onAnatomy, simul
           {hint}
         </span>
       </div>
-      <button type="button" className="jc-key jc-anat-key" onClick={onAnatomy} aria-keyshortcuts="Alt+I">
+      {!v3 && <button type="button" className="jc-key jc-anat-key" onClick={onAnatomy} aria-keyshortcuts="Alt+I">
         <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="2" fill="currentColor" /><path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3M3.4 3.4l2.1 2.1M10.5 10.5l2.1 2.1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
         Anatomy
-      </button>
+      </button>}
     </div>
   )
 }
@@ -251,7 +259,8 @@ function Composer({ running, onSay }: { running: boolean; onSay: (t: string) => 
 export function CoreTalkView(p: CoreTalkViewProps) {
   const { core, coreView, turns, organs, stages, last, medians, signal, now, actions, simulated = false, notifyPresent = true, onHandoff, motion = 'auto', review, recorded, speech } = p
   const running = !!core?.running
-  const narrow = useNarrow()
+  const v3 = lookV3Enabled()
+  const narrow = useNarrow(v3 ? PHONE_MAX_V3 : PHONE_MAX)
   const [mode, setMode] = useState<'voice' | 'text'>('voice')
   const [busy, setBusy] = useState(false)
   const [anat, setAnat] = useState<{ open: boolean; focus: OrganId | null }>({ open: false, focus: null })
@@ -330,6 +339,95 @@ export function CoreTalkView(p: CoreTalkViewProps) {
   const count: LampReading = turns.length
     ? { state: simState('live', simulated), since: null, reason: 'turns of this run, from the core' }
     : { state: 'waiting', since: null, reason: running ? 'no turn yet' : 'asleep' }
+
+  // v3: the capture line goes to the dock (mode Type) and the rare keys to More. The spec is rebuilt only when what More
+  // lists changes; the handlers read the latest props through a ref, so a new `actions` object never re-registers the dock.
+  const live = useRef({ running, say: actions.say, openAnat })
+  live.current = { running, say: actions.say, openAnat }
+  const hasEarlier = fit.earlier.length > 0
+  const chrome = useMemo<ViewChromeSpec>(() => ({
+    dock: {
+      modes: [{ id: 'type', label: 'Type', prefix: 'you>', example: 'Wake JARVIS, then type', action: 'Send' }],
+      onSubmit: async (_mode, text) => {
+        const t = text.trim()
+        if (!t || !live.current.running) return false
+        await live.current.say(t) // a failure throws: the dock keeps the text
+      },
+    },
+    more: [
+      { id: 'anatomy', label: 'Anatomy', onSelect: () => live.current.openAnat() },
+      ...(speech ? [{ id: 'voice', label: 'Voice and spoken words', onSelect: () => setVoiceOpen(true) }] : []),
+      ...(hasEarlier ? [{ id: 'earlier', label: 'Earlier turns', onSelect: () => setEarlier(true) }] : []),
+    ],
+  }), [speech, hasEarlier])
+  useViewChrome(v3 ? chrome : null)
+
+  if (v3) {
+    const wakeState: LampState = core?.last_error && !running ? 'fault' : running ? simState(core?.state === 'booting' ? 'waiting' : 'live', simulated) : 'waiting'
+    const pathState: LampState = organsShown.some((o) => o.reading.state === 'fault') ? 'fault' : ribbon.some((r) => r.state === 'live' || r.state === 'simulated') ? simState('live', simulated) : 'waiting'
+    return (
+      <div className="jc jc3" ref={root} data-core={running ? 'awake' : 'asleep'} data-narrow={narrow ? 'true' : undefined} data-simulated={simulated ? 'true' : undefined} onKeyDown={onRootKey}>
+        <Zones
+          ratio="core"
+          first={{
+            job: 'WAKE', chip: <Chip state={wakeState} reason={core?.status_line || undefined} />, flare: running ? 1 : 0,
+            children: (
+              <>
+                <Controls core={core} busy={busy} onWake={wake} onSleep={sleep} mode={mode} setMode={setMode} onAnatomy={() => openAnat()} simulated={simulated} v3 />
+                <Stage signal={signal} coreView={coreView} running={running} simulated={simulated} motion={motion} onVoice={speech ? () => setVoiceOpen(true) : undefined} />
+              </>
+            ),
+          }}
+          second={{
+            job: 'CONVERSATION', chip: <Chip state={count.state} reason={count.reason} />,
+            peek: { name: 'Conversation', lamp: count.state, note: showsNumber(count.state) ? `${turns.length} turns` : count.reason },
+            children: (
+              <>
+                <div className="jc3-convo-head">
+                  <span className="jc-count">
+                    {showsNumber(count.state) ? <span>{fit.shown.length} of {turns.length} turns</span> : <span className="jc-dim">{count.reason}</span>}
+                  </span>
+                  {review && <ShareReviewKey review={review} />}
+                  <button type="button" className="jc-key jc-key-sm" onClick={() => { if (fit.earlier.length) setEarlier(true) }} aria-disabled={!fit.earlier.length || undefined}>
+                    Earlier{fit.earlier.length > 0 && showsNumber(count.state) ? ` ${fit.earlier.length}` : ''}
+                  </button>
+                </div>
+                <Transcript
+                  turns={fit.shown} all={turns} running={running} simulated={simulated} notifyPresent={notifyPresent} onFlag={actions.flag} onHandoff={onHandoff}
+                  recorded={recorded} footer={review ? <ReviewStatus review={review} /> : undefined}
+                  header={fit.earlier.length > 0 ? <div className="g-line jc-earlier-rule" aria-hidden="true">── earlier turns are under Earlier ──</div> : undefined}
+                />
+              </>
+            ),
+          }}
+          third={{
+            job: 'VOICE PATH', chip: <Chip state={pathState} />,
+            peek: { name: 'Voice path', lamp: pathState, note: pathState === 'waiting' ? (running ? 'nothing timed yet' : 'core off') : undefined },
+            children: (
+              <>
+                <PipelineRibbon stages={ribbon} orientation="column" />
+                <OrganStrip organs={organsShown} onOpen={(id) => openAnat(id)} />
+              </>
+            ),
+          }}
+        />
+        <CoreDrawer open={anat.open} onClose={() => setAnat({ open: false, focus: null })} title="Anatomy" tag="SYS">
+          <Anatomy organs={organsShown} last={last} medians={medians} focus={anat.focus} now={now} simulated={simulated} />
+          <p className="jc-anat-note"><span className="jc-tag">[SYS]</span> Stage art <code>{CORE_ART_ID}</code>: drawn only on the private art track and only on an empty stage; it steps aside for a measured frame.</p>
+        </CoreDrawer>
+        {speech && (
+          <CoreDrawer open={voiceOpen} onClose={() => setVoiceOpen(false)} title="Voice" tag="JRV">
+            <SpeechPanel port={speech} simulated={simulated} />
+          </CoreDrawer>
+        )}
+        <CoreDrawer open={earlier} onClose={() => setEarlier(false)} title="Earlier turns" tag="JRV">
+          <ol className="jc-turns jc-earlier">
+            {fit.earlier.map((t) => <TurnRow key={t.id} turn={t} simulated={simulated} notifyPresent={notifyPresent} onHandoff={onHandoff} />)}
+          </ol>
+        </CoreDrawer>
+      </div>
+    )
+  }
 
   return (
     <div className="jc" ref={root} data-core={running ? 'awake' : 'asleep'} data-narrow={narrow ? 'true' : undefined} data-simulated={simulated ? 'true' : undefined} onKeyDown={onRootKey}>

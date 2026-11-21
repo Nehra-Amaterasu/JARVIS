@@ -35,9 +35,12 @@ export interface NowPlateProps {
   onFolder: () => void
   /** Opens the drawer of the rest (pronunciation and the study library); the key is drawn only when it is given. */
   onTools?: () => void
+  /** v3 draws the plate in two trays: `play` is the stage, the transport and the title; `where` is the last action and the sources. Default: the whole plate. */
+  part?: 'all' | 'play' | 'where'
 }
 
-export function NowPlate({ state, route, receipt, busy, source, simulated = false, now, control, play, choose, onFolder, onTools }: NowPlateProps) {
+export function NowPlate({ state, route, receipt, busy, source, simulated = false, now, control, play, choose, onFolder, onTools, part = 'all' }: NowPlateProps) {
+  const all = part === 'all'
   const view = nowView(state, route, simulated, now)
   const shown = receiptView(receipt, simulated)
   const answered = !!state
@@ -85,14 +88,15 @@ export function NowPlate({ state, route, receipt, busy, source, simulated = fals
   return (
     <section
       className="sd-now"
-      tabIndex={0}
+      data-part={all ? undefined : part}
+      tabIndex={part === 'where' ? undefined : 0}
       role="group"
-      aria-label="Now playing"
+      aria-label={part === 'where' ? 'Where play goes' : 'Now playing'}
       aria-keyshortcuts="Space ArrowLeft ArrowRight"
       data-ring={view.ring}
       onKeyDown={onKey}
     >
-      <header className="sd-now-head">
+      {all && <header className="sd-now-head">
         <h2><span className="sd-tag">[SND]</span>Sound</h2>
         <span className="sd-row">
           {simulated && <span className="sd-stamp">SIMULATED fixture</span>}
@@ -102,10 +106,10 @@ export function NowPlate({ state, route, receipt, busy, source, simulated = fals
             </button>
           )}
         </span>
-      </header>
+      </header>}
 
       <div className="sd-body">
-      <div className="sd-left">
+      {part !== 'where' && <div className="sd-left">
         <div className="sd-stage">
           <Ring state={view.ring} nudge={nudge} />
           <div className="sd-vol" data-vol="">
@@ -140,10 +144,10 @@ export function NowPlate({ state, route, receipt, busy, source, simulated = fals
             <Volume2 size={20} aria-hidden="true" /><span aria-hidden="true">Vol +</span>
           </button>
         </div>
-      </div>
+      </div>}
 
       <div className="sd-right">
-        <div className="sd-title-block" aria-live="polite">
+        {part !== 'where' && <div className="sd-title-block" aria-live="polite">
           <p className="sd-status" data-status="">
             <span className="sd-status-name">Player</span>
             <Lamp reading={view.reading} subject="Player" now={now} />
@@ -152,9 +156,10 @@ export function NowPlate({ state, route, receipt, busy, source, simulated = fals
           </p>
           <h3 className="sd-title">{view.title}</h3>
           <p className="sd-sub">{answered && view.ring === 'rest' && !shown ? restLine(state) : view.sub}</p>
-        </div>
+          {part === 'play' && why && <p className="sd-hint">The keys are off until the player answers.</p>}
+        </div>}
 
-        <div className="sd-receipt" role="status">
+        {part !== 'play' && <div className="sd-receipt" role="status">
           <p className="sd-cap">Last action</p>
           {shown ? (
             <>
@@ -167,9 +172,9 @@ export function NowPlate({ state, route, receipt, busy, source, simulated = fals
           ) : (
             <p className="sd-receipt-text">Nothing asked yet.</p>
           )}
-        </div>
+        </div>}
 
-        <form className="sd-field sd-song" onSubmit={submit}>
+        {all && <form className="sd-field sd-song" onSubmit={submit}>
           <label htmlFor={qid}>Play a song</label>
           <div className="sd-row">
             <input
@@ -187,9 +192,9 @@ export function NowPlate({ state, route, receipt, busy, source, simulated = fals
             </button>
           </div>
           {why && <p className="sd-hint">The keys are off until the player answers.</p>}
-        </form>
+        </form>}
 
-        <div className="sd-sources">
+        {part !== 'play' && <div className="sd-sources">
           <div className="sd-src-head">
             <p className="sd-cap" id={`${qid}-src`}>Where play goes</p>
             <button type="button" className="sd-key" data-quiet="true" onClick={onFolder}>
@@ -223,7 +228,7 @@ export function NowPlate({ state, route, receipt, busy, source, simulated = fals
           ) : (
             <p className="sd-hint">{SOURCES.find((s) => s.id === source)?.hint}</p>
           )}
-        </div>
+        </div>}
       </div>
       </div>
     </section>

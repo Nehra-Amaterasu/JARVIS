@@ -10,12 +10,15 @@ import type { BrainView } from '../../lib/settings'
 import { ModulesSection, ExportsSection } from '../../components/ConnectControls'
 import { PhoneCard } from '../../components/PhoneCard'
 import { RemarksCard } from '../../components/RemarksCard'
+import { Chip } from '../../shared/kit/v3'
 import { Lamp, LampGlyph, type LampReading } from '../../shared/lamp'
+import { Zones, lookV3Enabled } from '../../shell/v3'
 import { STATUS_WORD, integrationCounts, integrationReading, type Integration } from './model'
 import { ConsoleKey, ConsoleTabs, GuardKey, PartHead, LampLine } from './parts'
 import { useConnectionsLive } from './useConsole'
 import './console.css'
 import './views.css'
+import './console-v3.css'
 
 export type ConnTab = 'brain' | 'detail' | 'modules' | 'exports' | 'phone' | 'remarks'
 
@@ -50,58 +53,89 @@ export function ConnectionsView({ items, loading, brain, onChoose, onRestart, pa
     ? { state: 'waiting', since: null, reason: loading ? 'scanning ports, models and exports' : 'the scan has not answered' }
     : { state: simulated ? 'simulated' : 'live', since: null, reason: 'found live by the local server' }
 
+  const countsBody = (
+    <p className="jx-counts" aria-label="Counts by status">
+      {(['connected', 'installed', 'available', 'missing', 'planned'] as const).map((s) => <span key={s}><b>{counts[s]}</b> {STATUS_WORD[s]}</span>)}
+    </p>
+  )
+  const listBody = (
+    <>
+      {items === null ? (
+        <p className="jx-empty"><LampLine reading={listReading} subject="Detected list" /></p>
+      ) : (
+        <ul className="jx-int-list" aria-label="Detected, press one for its detail">
+          {detected.map((i) => {
+            const r = integrationReading(i)
+            return (
+              <li key={i.id}>
+                <button type="button" className="jx-int" data-integration={i.id} data-status={i.status} aria-pressed={sel === i.id} onClick={() => pick(i.id)}>
+                  <LampGlyph state={r.state} size={14} />
+                  <span className="jx-int-name">{i.name}</span>
+                  <span className="jx-int-word">{STATUS_WORD[i.status]}</span>
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </>
+  )
+  const folderBody = (
+    <>
+      <ConsoleTabs tabs={tabs} value={tab} onChange={(id) => setTab(id as ConnTab)} label="Connection settings" />
+      <div className="jx-folder-body" role="tabpanel" aria-label={`${tab} panel`} data-tab={tab}>
+        {tab === 'brain' && <BrainPanel brain={brain} onChoose={onChoose} onRestart={onRestart} simulated={simulated} />}
+        {tab === 'detail' && (
+          current ? (
+            <article className="jx-detail" aria-label={current.name}>
+              <PartHead tag="SYS" title={current.name} seed={`jarvis.console.int.${current.id}`} right={<Lamp reading={integrationReading(current)} showLabel size={12} subject={current.name} />} />
+              <p className="jx-detail-line"><span className="jx-dim">{current.group} · </span>{current.detail || 'no detail reported'}</p>
+              {current.next && (
+                <div className="jx-next">
+                  <code>{current.next}</code>
+                  {isCmd(current.next) && (
+                    <ConsoleKey
+                      label={copied === current.id ? 'Copied' : 'Copy command'} icon={copied === current.id ? <Check size={14} /> : <Copy size={14} />}
+                      onPress={() => { void navigator.clipboard?.writeText(current.next!); setCopied(current.id) }}
+                    />
+                  )}
+                </div>
+              )}
+            </article>
+          ) : <p className="jx-empty"><span className="jx-tag">[SYS]</span> press an integration on the left to see what it reports</p>
+        )}
+        {tab !== 'brain' && tab !== 'detail' && (panels[tab] ?? <p className="jx-empty"><span className="jx-tag">[SYS]</span> the {tab} card draws here in the app</p>)}
+      </div>
+    </>
+  )
+
+  if (lookV3Enabled()) {
+    return (
+      <div className="jx jx3 jx-conn" data-view="connections" data-simulated={simulated ? 'true' : undefined}>
+        <Zones
+          ratio="console"
+          first={{ job: 'CONNECT', chip: <Chip state={listReading.state} reason={listReading.reason} />, children: <div className="jx3-folder">{folderBody}</div> }}
+          second={{
+            job: 'DETECTED', chip: <Chip state={listReading.state} reason={listReading.reason} />,
+            peek: { name: 'Detected', lamp: listReading.state, note: items === null ? 'scanning' : undefined },
+            children: <div className="jx3-detected">{listBody}</div>,
+          }}
+          third={{ job: 'STATUS', peek: { name: 'Status', lamp: listReading.state }, children: <div className="jx3-notes">{countsBody}</div> }}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="jx jx-conn" data-view="connections" data-simulated={simulated ? 'true' : undefined}>
       <section className="jx-card jx-detected" aria-label="Detected integrations">
         <PartHead tag="SYS" title="Detected" stamp={simulated} seed="jarvis.console.detected" right={<Lamp reading={listReading} showLabel={false} size={12} subject="Detected list" />} />
-        <p className="jx-counts" aria-label="Counts by status">
-          {(['connected', 'installed', 'available', 'missing', 'planned'] as const).map((s) => <span key={s}><b>{counts[s]}</b> {STATUS_WORD[s]}</span>)}
-        </p>
-        {items === null ? (
-          <p className="jx-empty"><LampLine reading={listReading} subject="Detected list" /></p>
-        ) : (
-          <ul className="jx-int-list" aria-label="Detected, press one for its detail">
-            {detected.map((i) => {
-              const r = integrationReading(i)
-              return (
-                <li key={i.id}>
-                  <button type="button" className="jx-int" data-integration={i.id} data-status={i.status} aria-pressed={sel === i.id} onClick={() => pick(i.id)}>
-                    <LampGlyph state={r.state} size={14} />
-                    <span className="jx-int-name">{i.name}</span>
-                    <span className="jx-int-word">{STATUS_WORD[i.status]}</span>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        )}
+        {countsBody}
+        {listBody}
       </section>
 
       <section className="jx-card jx-folder" aria-label="Connection settings">
-        <ConsoleTabs tabs={tabs} value={tab} onChange={(id) => setTab(id as ConnTab)} label="Connection settings" />
-        <div className="jx-folder-body" role="tabpanel" aria-label={`${tab} panel`} data-tab={tab}>
-          {tab === 'brain' && <BrainPanel brain={brain} onChoose={onChoose} onRestart={onRestart} simulated={simulated} />}
-          {tab === 'detail' && (
-            current ? (
-              <article className="jx-detail" aria-label={current.name}>
-                <PartHead tag="SYS" title={current.name} seed={`jarvis.console.int.${current.id}`} right={<Lamp reading={integrationReading(current)} showLabel size={12} subject={current.name} />} />
-                <p className="jx-detail-line"><span className="jx-dim">{current.group} · </span>{current.detail || 'no detail reported'}</p>
-                {current.next && (
-                  <div className="jx-next">
-                    <code>{current.next}</code>
-                    {isCmd(current.next) && (
-                      <ConsoleKey
-                        label={copied === current.id ? 'Copied' : 'Copy command'} icon={copied === current.id ? <Check size={14} /> : <Copy size={14} />}
-                        onPress={() => { void navigator.clipboard?.writeText(current.next!); setCopied(current.id) }}
-                      />
-                    )}
-                  </div>
-                )}
-              </article>
-            ) : <p className="jx-empty"><span className="jx-tag">[SYS]</span> press an integration on the left to see what it reports</p>
-          )}
-          {tab !== 'brain' && tab !== 'detail' && (panels[tab] ?? <p className="jx-empty"><span className="jx-tag">[SYS]</span> the {tab} card draws here in the app</p>)}
-        </div>
+        {folderBody}
       </section>
     </div>
   )

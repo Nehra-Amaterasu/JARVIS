@@ -4,9 +4,11 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode,
 import { Button, Field, Readout } from '../../../shared/kit'
 import { LampWord } from '../../left/LampWord'
 import type { LampState } from '../../../shared/lamp'
+import { Zones, lookV3Enabled, type ZoneRatio } from '../../../shell/v3'
 import { cellRead, stampText, type Cell, type CellRead } from './store'
 import './t2.css'
 import './t2-views.css'
+import './t2-v3.css'
 
 export const PHONE_BELOW = 760
 
@@ -68,9 +70,37 @@ export interface FrameProps {
   rootRef?: RefObject<HTMLDivElement | null>
   view: string
   simulated?: boolean
+  /** Under the v3 look: the view's three trays (job words in caps, the content of each). Without it, or with the look off, `children` is drawn as today. */
+  v3?: { ratio?: ZoneRatio; trays: readonly [V3Tray, V3Tray, V3Tray] }
 }
+export interface V3Tray { job: string; node: ReactNode; peek?: { name?: string; lamp?: 'live' | 'waiting' | 'simulated' | 'planned' | 'fault'; note?: string } }
 
-export function Frame({ ruler, title, sub, keys, form, state, children, extra, rootRef, view, simulated }: FrameProps) {
+export function Frame({ ruler, title, sub, keys, form, state, children, extra, rootRef, view, simulated, v3 }: FrameProps) {
+  if (v3 && lookV3Enabled()) {
+    const [a, b, c] = v3.trays
+    const st = simulated && state === 'live' ? 'simulated' : state
+    return (
+      <Sim.Provider value={!!simulated}>
+        <div className="t2 t2-v3" ref={rootRef} data-form={form} data-view={view} data-state={st} data-simulated={simulated ? 'true' : undefined}>
+          <Zones
+            ratio={v3.ratio}
+            first={{ job: a.job, peek: a.peek, children: (
+              <>
+                <div className="t2-v3-head">
+                  <p className="t2-sub">{sub}</p>
+                  {keys && <div className="t2-keys">{keys}</div>}
+                </div>
+                {a.node}
+              </>
+            ) }}
+            second={{ job: b.job, peek: b.peek, children: b.node }}
+            third={{ job: c.job, peek: c.peek, children: c.node }}
+          />
+          {extra}
+        </div>
+      </Sim.Provider>
+    )
+  }
   return (
     <Sim.Provider value={!!simulated}>
     <div className="t2" ref={rootRef} data-form={form} data-view={view} data-state={simulated && state === 'live' ? 'simulated' : state} data-simulated={simulated ? 'true' : undefined}>

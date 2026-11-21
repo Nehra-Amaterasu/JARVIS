@@ -5,6 +5,7 @@
 import { useRef, useState, type KeyboardEvent } from 'react'
 import { showsNumber, type LampState } from '../../shared/lamp'
 import { LampWord } from '../left/LampWord'
+import { lookV3Enabled } from '../../shell/v3'
 import type { TreeSummary } from './model'
 
 export interface GroveRingProps {
@@ -51,6 +52,7 @@ export function GroveRing({ trees, onOpen, state = 'waiting', reason = 'No evide
     } else return
     e.preventDefault()
   }
+  const v3 = lookV3Enabled()
   const focused = trees.find((t) => t.id === pointed) ?? null
   const callout = focused
     ? `${focused.name}: ${focused.branches} branches, ${focused.nodes} nodes written. ${counted && focused.evidenced !== null ? `${focused.evidenced} evidenced${focused.last ? `, last record ${focused.last}` : ', no record yet'}.` : 'Evidence not counted yet.'}`
@@ -87,6 +89,7 @@ export function GroveRing({ trees, onOpen, state = 'waiting', reason = 'No evide
               </svg>
               <span className="gr-mark" aria-hidden="true">[{monogram(t.name)}]</span>
               <span className="gr-name">{t.name}</span>
+              {v3 && <span className="gr-meta">{counted && t.evidenced !== null ? `${t.evidenced} of ${t.nodes} evidenced` : `${t.nodes} nodes written`}</span>}
             </button>
           )
         })}

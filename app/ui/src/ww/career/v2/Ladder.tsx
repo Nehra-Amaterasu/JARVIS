@@ -3,7 +3,7 @@
 // two drawers. Path: a constellation of the roles the student wrote or imported, each star as bright as the share of its skills that
 // stand on EVIDENCED Tree nodes, and a gap list ranked by how many roles each missing node unlocks. The spec's one sentence about what
 // these matches are (MATCH_NOTE in model.ts) sits with both faces.
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Trash2 } from 'lucide-react'
 import { usePlan, type Ladder as LadderData, type Goal } from '../../../germoney/game/plan'
 import { useGame } from '../../../germoney/game/store'
@@ -16,6 +16,7 @@ import { LampWord } from '../../left/LampWord'
 import { MATCH_NOTE, gapList, treeNodes, matchJd, nodePoints, readRoles, starPoints, type Gap, type RoleRead } from './model'
 import { slug, useCareerLocal, type RoleProfile } from './store'
 import { Choice, Frame, Plate, useWidth, PHONE_BELOW } from './ui'
+import { lookV3Enabled } from '../../../shell/v3'
 
 type Face = 'ladder' | 'path'
 type Rung = 'year' | 'quarter' | 'month' | 'week'
@@ -47,7 +48,8 @@ type ReactNodeLike = import('react').ReactNode
 
 const RUNGS: { id: Rung; label: string }[] = [{ id: 'year', label: 'Year' }, { id: 'quarter', label: 'Quarter' }, { id: 'month', label: 'Month' }, { id: 'week', label: 'Week' }]
 
-function LadderFace({ ladder, goals, onGoals }: { ladder: LadderData | null; goals: Goal[] | null; onGoals: () => void }) {
+/** The two plates of the Ladder face. A hook, not a component, so the v3 trays can take one plate each while the state (year, level) stays in one place. */
+function useLadderPlates({ ladder, goals, onGoals }: { ladder: LadderData | null; goals: Goal[] | null; onGoals: () => void }): [ReactNode, ReactNode] {
   const [rung0, setRung] = useState<Rung | null>(null)
   const [year, setYear] = useState<number | null>(null)
   const first = ladder?.year ?? new Date().getFullYear()
@@ -66,9 +68,8 @@ function LadderFace({ ladder, goals, onGoals }: { ladder: LadderData | null; goa
   const ends = ladder ? (rung === 'quarter' ? `${ladder.quarter.label}, to ${ladder.quarter.ends}` : rung === 'month' ? ladder.month.label : rung === 'week' ? `to ${ladder.week.ends}` : `${sel} milestones`) : ''
   const longGoals = (goals ?? []).filter((g) => g.kind === 'long_term')
   const state = ladder ? 'live' : 'waiting'
-  return (
-    <div className="t2-ladder">
-      <Plate id="rungs" label="THE LADDER" state={state} reason={ladder ? `your own plan: ${ladder.vision.title}` : 'the plan has not answered'} className="t2-rungsplate">
+  return [
+      <Plate key="rungs" id="rungs" label="THE LADDER" state={state} reason={ladder ? `your own plan: ${ladder.vision.title}` : 'the plan has not answered'} className="t2-rungsplate">
         {!ladder ? <p className="t2-quiet">WAITING: the plan has not answered, so no rung is drawn.</p> : (
           <ol className="t2-rungs" aria-label="Yearly rungs, lowest first">
             {years.map((y, i) => {
@@ -87,8 +88,8 @@ function LadderFace({ ladder, goals, onGoals }: { ladder: LadderData | null; goa
           </ol>
         )}
         <p className="t2-note">{MATCH_NOTE}</p>
-      </Plate>
-      <Plate id="goals" label="GOALS" state={state} reason={ends || 'waiting'} className="t2-goalsplate" corner={<Choice<Rung> label="Ladder level" value={rung} onChange={setRung} options={RUNGS} />}>
+      </Plate>,
+      <Plate key="goals" id="goals" label="GOALS" state={state} reason={ends || 'waiting'} className="t2-goalsplate" corner={<Choice<Rung> label="Ladder level" value={rung} onChange={setRung} options={RUNGS} />}>
         {!ladder ? <p className="t2-quiet">WAITING: nothing derived yet.</p> : rows.length === 0 ? <p className="t2-quiet">Nothing derived at this level yet.</p> : (
           <ul className="t2-goals" aria-label={`Goals, ${ends}`}>
             {rows.slice(0, 6).map((g) => <li key={g.id}><b>{g.title}</b>{g.serves && <small>serves {g.serves}</small>}</li>)}
@@ -105,18 +106,17 @@ function LadderFace({ ladder, goals, onGoals }: { ladder: LadderData | null; goa
             <Button size="md" onClick={onGoals}>Edit goals</Button>
           </div>
         )}
-      </Plate>
-    </div>
-  )
+      </Plate>,
+  ]
 }
 
 function Hex() {
   return <svg className="t2-hex" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><polygon points="7,1 12.5,4 12.5,10 7,13 1.5,10 1.5,4" /></svg>
 }
 
-function PathFace({ p, reads, gaps, pick, setPick, live, nodeName }: {
+function usePathPlates({ p, reads, gaps, pick, setPick, live, nodeName }: {
   p: LadderProps; reads: RoleRead[]; gaps: Gap[]; pick: string | null; setPick: (id: string | null) => void; live: boolean; nodeName: (id: string) => string
-}) {
+}): [ReactNode, ReactNode] {
   const stars = starPoints(reads.length, 100, 100)
   const nodeIds = [...new Set(reads.flatMap((r) => r.needs.map((n) => n.node).filter((n): n is string => !!n)))]
   const nodes = nodePoints(nodeIds, 100, 100)
@@ -131,9 +131,8 @@ function PathFace({ p, reads, gaps, pick, setPick, live, nodeName }: {
     starRefs.current[(i + d + reads.length) % reads.length]?.focus()
   }
   const gap = gaps.find((g) => g.key === gapAt) ?? gaps[0] ?? null
-  return (
-    <div className="t2-path">
-      <Plate id="constellation" label="ROLE CONSTELLATION" state={reads.length === 0 ? 'waiting' : live ? 'live' : 'waiting'} reason={reads.length === 0 ? 'no role yet: import one job description' : live ? 'brightness is the share of skills evidenced' : 'the plan has not answered, so no share is shown'} className="t2-skyplate">
+  return [
+      <Plate key="constellation" id="constellation" label="ROLE CONSTELLATION" state={reads.length === 0 ? 'waiting' : live ? 'live' : 'waiting'} reason={reads.length === 0 ? 'no role yet: import one job description' : live ? 'brightness is the share of skills evidenced' : 'the plan has not answered, so no share is shown'} className="t2-skyplate">
         {reads.length === 0 ? (
           <div className="t2-sky-empty">
             <p className="t2-quiet">No role profile yet. Write one, or paste one job description: it is read on this computer and matched to your Tree nodes by keyword, in a table you can edit.</p>
@@ -166,8 +165,8 @@ function PathFace({ p, reads, gaps, pick, setPick, live, nodeName }: {
           </div>
         )}
         <p className="t2-note">{MATCH_NOTE}</p>
-      </Plate>
-      <Plate id="gaps" label="GAP LIST" state={reads.length === 0 ? 'waiting' : live ? 'live' : 'waiting'} reason="ranked by roles unlocked" className="t2-gapplate">
+      </Plate>,
+      <Plate key="gaps" id="gaps" label="GAP LIST" state={reads.length === 0 ? 'waiting' : live ? 'live' : 'waiting'} reason="ranked by roles unlocked" className="t2-gapplate">
         {chosen && (
           <div className="t2-needs" aria-label={`Skills of ${chosen.title}`}>
             <p className="t2-quiet"><b>{chosen.title}</b> needs:</p>
@@ -193,9 +192,8 @@ function PathFace({ p, reads, gaps, pick, setPick, live, nodeName }: {
             <LampWord state="planned" />
           </span>
         )}
-      </Plate>
-    </div>
-  )
+      </Plate>,
+  ]
 }
 
 export function LadderView(p: LadderProps) {
@@ -210,35 +208,48 @@ export function LadderView(p: LadderProps) {
   const reads = useMemo(() => readRoles(p.roles, p.tagNode, p.evidenced ?? new Set()), [p.roles, p.tagNode, p.evidenced])
   const gaps = useMemo(() => (live ? gapList(reads, nodeName) : []), [reads, live]) // eslint-disable-line react-hooks/exhaustive-deps
   const openImport = (g: Gap) => { if (g.key === '' ) setDrawer('import'); else p.onOpenGap(g) }
+  const v3 = lookV3Enabled()
+  const [la, lb] = useLadderPlates({ ladder: p.ladder, goals: p.goals, onGoals: p.onGoals })
+  const [pa, pb] = usePathPlates({ p: { ...p, onOpenGap: openImport }, reads, gaps, pick, setPick, live, nodeName })
+  const trays = face === 'ladder'
+    ? ([
+        { job: 'RUNGS', node: la, peek: { name: 'Goals', lamp: p.ladder ? ('live' as const) : ('waiting' as const), note: p.ladder ? undefined : 'plan not read' } },
+        { job: 'GOALS', node: lb, peek: { name: 'Goals' } },
+        { job: 'REVIEW', node: <>{p.review}{p.parking}{p.rewards}</>, peek: { name: 'Review', lamp: p.reviewDue ? ('waiting' as const) : undefined, note: p.reviewDue ? 'review is due' : undefined } },
+      ] as const)
+    : ([
+        { job: 'ROLES', node: pa, peek: { name: 'Gaps', lamp: live ? ('live' as const) : ('waiting' as const), note: live ? undefined : 'plan not read' } },
+        { job: 'GAPS', node: pb, peek: { name: 'Gaps' } },
+        { job: 'ADD A ROLE', node: <ImportBody nodes={p.nodes} roles={p.roles} onAdd={p.onAddRole} onRemove={p.onRemoveRole} onDone={() => undefined} />, peek: { name: 'Add a role' } },
+      ] as const)
   return (
     <Frame
       simulated={p.simulated} view="ladder" ruler="LADDER" title={face === 'ladder' ? 'Ladder' : 'Path'} form={phone ? 'phone' : 'desk'} rootRef={rootRef} state={face === 'ladder' ? (p.ladder ? 'live' : 'waiting') : live ? 'live' : 'waiting'}
       sub={face === 'ladder' ? 'The long goals as rungs and what each level asks of the next month. Your own plan, read from the plan store.' : 'Roles you wrote or imported, matched to your Tree nodes by keyword. A star is as bright as the share of its skills with evidence.'}
+      v3={{ ratio: [1.6, 1.15, 1], trays }}
       keys={
         <>
           <Choice<Face> label="Ladder or Path" value={face} onChange={setFace} options={[{ id: 'ladder', label: 'Ladder' }, { id: 'path', label: 'Path' }]} />
-          <Button size="lg" onClick={() => setDrawer('parking')}>Parking and rewards</Button>
-          {face === 'ladder'
+          {!v3 && <Button size="lg" onClick={() => setDrawer('parking')}>Parking and rewards</Button>}
+          {!v3 && (face === 'ladder'
             ? <PrimaryButton claimId="career-ladder" rank="workspace" size="lg" onClick={() => setDrawer('review')}>{p.reviewDue ? 'Review is due' : 'Monthly review'}</PrimaryButton>
-            : <PrimaryButton claimId="career-ladder" rank="workspace" size="lg" onClick={() => setDrawer('import')}>Add a role</PrimaryButton>}
+            : <PrimaryButton claimId="career-ladder" rank="workspace" size="lg" onClick={() => setDrawer('import')}>Add a role</PrimaryButton>)}
         </>
       }
       extra={
         <>
-          <Drawer open={drawer === 'review'} onClose={() => setDrawer(null)} title="Monthly review" className="t2-drawer">{p.review}</Drawer>
-          <Drawer open={drawer === 'parking'} onClose={() => setDrawer(null)} title="Parking and rewards" className="t2-drawer">{p.parking}{p.rewards}</Drawer>
-          <ImportDrawer open={drawer === 'import'} onClose={() => setDrawer(null)} nodes={p.nodes} roles={p.roles} onAdd={p.onAddRole} onRemove={p.onRemoveRole} />
+          {!v3 && <Drawer open={drawer === 'review'} onClose={() => setDrawer(null)} title="Monthly review" className="t2-drawer">{p.review}</Drawer>}
+          {!v3 && <Drawer open={drawer === 'parking'} onClose={() => setDrawer(null)} title="Parking and rewards" className="t2-drawer">{p.parking}{p.rewards}</Drawer>}
+          {!v3 && <ImportDrawer open={drawer === 'import'} onClose={() => setDrawer(null)} nodes={p.nodes} roles={p.roles} onAdd={p.onAddRole} onRemove={p.onRemoveRole} />}
         </>
       }
     >
-      {face === 'ladder'
-        ? <LadderFace ladder={p.ladder} goals={p.goals} onGoals={p.onGoals} />
-        : <PathFace p={{ ...p, onOpenGap: openImport }} reads={reads} gaps={gaps} pick={pick} setPick={setPick} live={live} nodeName={nodeName} />}
+      {face === 'ladder' ? <div className="t2-ladder">{la}{lb}</div> : <div className="t2-path">{pa}{pb}</div>}
     </Frame>
   )
 }
 
-function ImportDrawer({ open, onClose, nodes, roles, onAdd, onRemove }: { open: boolean; onClose: () => void; nodes: NodeName[]; roles: RoleProfile[]; onAdd: LadderProps['onAddRole']; onRemove: (id: string) => void }) {
+function ImportBody({ onDone: onClose, nodes, roles, onAdd, onRemove }: { onDone: () => void; nodes: NodeName[]; roles: RoleProfile[]; onAdd: LadderProps['onAddRole']; onRemove: (id: string) => void }) {
   const [title, setTitle] = useState('')
   const [text, setText] = useState('')
   const [rows, setRows] = useState<{ tag: string; node: string }[]>([])
@@ -253,7 +264,6 @@ function ImportDrawer({ open, onClose, nodes, roles, onAdd, onRemove }: { open: 
     onClose()
   }
   return (
-    <Drawer open={open} onClose={onClose} title="Add a role" className="t2-drawer">
       <div className="t2-form">
         <p className="t2-quiet">{MATCH_NOTE}</p>
         <Field label="Role title" value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -273,6 +283,13 @@ function ImportDrawer({ open, onClose, nodes, roles, onAdd, onRemove }: { open: 
           </ul>
         )}
       </div>
+  )
+}
+
+function ImportDrawer({ open, onClose, ...rest }: { open: boolean; onClose: () => void; nodes: NodeName[]; roles: RoleProfile[]; onAdd: LadderProps['onAddRole']; onRemove: (id: string) => void }) {
+  return (
+    <Drawer open={open} onClose={onClose} title="Add a role" className="t2-drawer">
+      <ImportBody onDone={onClose} {...rest} />
     </Drawer>
   )
 }

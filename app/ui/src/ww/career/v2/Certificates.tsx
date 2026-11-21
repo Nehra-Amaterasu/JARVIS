@@ -12,6 +12,7 @@ import { inr, paginate } from '../model'
 import { LampWord } from '../../left/LampWord'
 import { cellRead, stampText, useCareerLocal, type Cell } from './store'
 import { ConfirmForm, Frame, Plate, Stamped, useWidth, PHONE_BELOW } from './ui'
+import { lookV3Enabled } from '../../../shell/v3'
 
 const PER_PAGE = 18
 const PER_PAGE_PHONE = 8
@@ -70,34 +71,48 @@ export function CertificatesView({ certs, today, cells, local, onConfirm, onClea
       <IconButton label="Next certificates" size="md" aria-disabled={p.page >= p.pages - 1} onClick={() => p.page < p.pages - 1 && setPage(p.page + 1)}><ChevronRight size={18} aria-hidden="true" /></IconButton>
     </nav>
   ) : null
+  const v3 = lookV3Enabled()
+  const shelf = (
+    <Plate id="shelf" label="SHELF" state={loaded ? 'live' : 'waiting'} reason={loaded ? 'held plates first, then planned' : 'bank not read yet'} className="t2-shelfplate" corner={pager}>
+      {!loaded ? <p className="t2-quiet">WAITING: the certificate bank has not answered.</p> : ordered.length === 0 ? <p className="t2-quiet">No certificate in the bank.</p> : (
+        <ul className="t2-shelf" aria-label="Certificates">
+          {p.rows.map((c) => <CertPlate key={c.id} c={c} selected={open === c.id} onOpen={() => setOpen(c.id)} onNext={() => next(c)} />)}
+        </ul>
+      )}
+    </Plate>
+  )
+  const bodyProps = { today, cells, local, onConfirm, onClear, onEarn, onLocal }
+  const pick = <p className="t2-quiet">Open a certificate from the shelf to see its fee and the steps.</p>
   return (
     <Frame
       simulated={simulated} view="certs" ruler="CERTIFICATES" title="Certificates" form={phone ? 'phone' : 'desk'} rootRef={rootRef} state={loaded ? 'live' : 'waiting'}
       sub={loaded ? <>{held} held, {ordered.length - held} planned. A price is the bank's until you confirm it on the page.</> : 'Reading the certificate bank. Nothing is shown until it answers.'}
-      extra={<CertDrawer c={opened} onClose={() => setOpen(null)} today={today} cells={cells} local={local} onConfirm={onConfirm} onClear={onClear} onEarn={onEarn} onLocal={onLocal} />}
+      v3={{ ratio: [1.7, 1.15, 1], trays: [
+        { job: 'SHELF', node: shelf, peek: { name: 'One certificate', lamp: opened ? 'waiting' : 'planned', note: opened ? 'fee unconfirmed until you check it' : 'none opened' } },
+        { job: 'ONE', node: opened ? <><h3 className="t2-v3-name">{opened.name}</h3><CertBody c={opened} part="one" {...bodyProps} /></> : pick, peek: { name: 'One certificate' } },
+        { job: 'STEPS', node: opened ? <CertBody c={opened} part="steps" {...bodyProps} /> : pick, peek: { name: 'Steps' } },
+      ] }}
+      extra={v3 ? null : <CertDrawer c={opened} onClose={() => setOpen(null)} {...bodyProps} />}
     >
-      <Plate id="shelf" label="SHELF" state={loaded ? 'live' : 'waiting'} reason={loaded ? 'held plates first, then planned' : 'bank not read yet'} className="t2-shelfplate" corner={pager}>
-        {!loaded ? <p className="t2-quiet">WAITING: the certificate bank has not answered.</p> : ordered.length === 0 ? <p className="t2-quiet">No certificate in the bank.</p> : (
-          <ul className="t2-shelf" aria-label="Certificates">
-            {p.rows.map((c) => <CertPlate key={c.id} c={c} selected={open === c.id} onOpen={() => setOpen(c.id)} onNext={() => next(c)} />)}
-          </ul>
-        )}
-      </Plate>
+      {shelf}
     </Frame>
   )
 }
 
-function CertDrawer({ c, onClose, today, cells, local, onConfirm, onClear, onEarn, onLocal }: Omit<CertificatesProps, 'certs' | 'width' | 'initialOpen' | 'simulated'> & { c: CertRow | null; onClose: () => void }) {
+type CertBodyProps = Omit<CertificatesProps, 'certs' | 'width' | 'initialOpen' | 'simulated'> & { c: CertRow }
+
+/** The detail of one certificate. `part` splits it for the v3 trays: the fee and its stamp (ONE), the scan, expiry and earning (STEPS). */
+function CertBody({ c, today, cells, local, onConfirm, onClear, onEarn, onLocal, part = 'all' }: CertBodyProps & { part?: 'all' | 'one' | 'steps' }) {
   const [url, setUrl] = useState('')
-  const l = c ? local[c.id] ?? { scan: '', expiry: '' } : { scan: '', expiry: '' }
-  const read = c ? cellRead(cells, certKey(c.id)) : { state: 'waiting' as const, value: '', on: null }
+  const l = local[c.id] ?? { scan: '', expiry: '' }
+  const read = cellRead(cells, certKey(c.id))
   // the bank's own figures (credibility, hours) are not measured: they are drawn under "the list says" with a WAITING lamp
-  const meta = c ? [c.linkedin_worthy ? 'LinkedIn-worthy' : '', c.free_option ? `free option: ${c.free_option}` : ''].filter(Boolean).join('. ') : ''
-  const listSays = c ? [c.credibility ? `credibility ${c.credibility}` : '', c.time_hours ? `about ${c.time_hours} h` : ''].filter(Boolean).join(', ') : ''
+  const meta = [c.linkedin_worthy ? 'LinkedIn-worthy' : '', c.free_option ? `free option: ${c.free_option}` : ''].filter(Boolean).join('. ')
+  const listSays = [c.credibility ? `credibility ${c.credibility}` : '', c.time_hours ? `about ${c.time_hours} h` : ''].filter(Boolean).join(', ')
   return (
-    <Drawer open={!!c} onClose={onClose} title={c ? c.name : 'Certificate'} className="t2-drawer">
-      {c && (
-        <div className="t2-form" data-cert-detail={c.id}>
+    <div className="t2-form" data-cert-detail={c.id}>
+      {part !== 'steps' && (
+        <>
           <p className="t2-quiet">{c.issuer}{meta ? `. ${meta}` : ''}. Fit: {c.budget_fit}.</p>
           {listSays && <p className="t2-quiet"><LampWord state="waiting" /> The list says: {listSays}. Unconfirmed.</p>}
           {c.url && <p className="t2-quiet"><a href={c.url} target="_blank" rel="noreferrer">Its own page</a></p>}
@@ -107,6 +122,10 @@ function CertDrawer({ c, onClose, today, cells, local, onConfirm, onClear, onEar
             hint="In rupees, as the certificate's page says."
             onSave={(v, on) => onConfirm(c.id, v, on)} onClear={() => onClear(c.id)}
           />
+        </>
+      )}
+      {part !== 'one' && (
+        <>
           <Field label="Scan path (a file on this computer)" value={l.scan} onChange={(e) => onLocal(c.id, e.target.value, l.expiry)} />
           <Field label="Expiry" kind="date" value={l.expiry} onChange={(e) => onLocal(c.id, l.scan, e.target.value)} hint="Leave empty if it does not expire." />
           <p className="t2-quiet">Counts toward {c.node_ids.length} skill node{c.node_ids.length === 1 ? '' : 's'}. Marking it earned adds an evidence record on the Tree.</p>
@@ -118,8 +137,16 @@ function CertDrawer({ c, onClose, today, cells, local, onConfirm, onClear, onEar
               <Button size="lg" disabledReason={url.trim() ? undefined : 'needs the link'} onClick={() => { onEarn(c.id, url.trim()); setUrl('') }}>Mark earned</Button>
             </>
           )}
-        </div>
+        </>
       )}
+    </div>
+  )
+}
+
+function CertDrawer({ c, onClose, ...rest }: Omit<CertBodyProps, 'c'> & { c: CertRow | null; onClose: () => void }) {
+  return (
+    <Drawer open={!!c} onClose={onClose} title={c ? c.name : 'Certificate'} className="t2-drawer">
+      {c && <CertBody c={c} {...rest} />}
     </Drawer>
   )
 }

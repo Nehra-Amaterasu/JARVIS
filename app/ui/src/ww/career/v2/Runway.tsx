@@ -18,6 +18,7 @@ import { flightNotches, flightTicks, stageCounts, stepNotch, appCellKey, HORIZON
 import { STALE_WHY, cellReadFor, stampText, useCareerLocal, type Cell } from './store'
 import { LampWord } from '../../left/LampWord'
 import { Frame, Plate, Stamped, useKeys, useWidth, PHONE_BELOW } from './ui'
+import { lookV3Enabled } from '../../../shell/v3'
 
 const PAGE = 5
 
@@ -202,14 +203,50 @@ export function RunwayView({ data, actions, campaigns, width, initialDrawer = nu
   const topKey = top ? (top.kind === 'application' ? appCellKey(top.ref) : `${top.kind}:${top.ref}`) : ''
   const topRead = top ? cellReadFor(cells, topKey, dueDate(today, top)) : null
   const state = !loaded ? 'waiting' : 'live'
+  const v3 = lookV3Enabled()
 
+  const boardPlate = (
+    <Plate id="board" label="FLIGHT BOARD" state={state} reason={loaded ? `next ${HORIZON} days` : 'applications not read yet'} className="t2-boardplate">
+      <FlightBoard notches={notches} ticks={ticks} counts={counts} hot={hot} setHot={setHot} selected={open} onOpen={openRow} phone={phone} loaded={loaded} />
+    </Plate>
+  )
+  const tablePlate = (
+    <Plate id="table" label="APPLICATIONS" state={state} reason={loaded ? 'five a page, soonest first' : 'not read yet'} className="t2-tableplate" corner={pager}>
+      {!loaded ? <p className="t2-quiet">WAITING: the applications store has not answered.</p> : rows.length === 0 ? (
+        <div className="t2-empty"><AsciiEmptyState variant="tree" message="No applications yet." /><Button size="lg" onClick={() => setAdding(true)}>Add an application (N)</Button></div>
+      ) : (
+        <>
+          <div className="t2-stagehead" aria-hidden="true"><div>{STEPPER.map((s) => <span key={s}>{STAGE_WORD[s]}</span>)}</div></div>
+          <ul className="t2-rows" aria-label="Applications">
+            {p.rows.map((a) => <Row key={a.id} a={a} cells={cells} hot={hot} setHot={setHot} selected={open} onOpen={openRow} setStatus={actions.setStatus} />)}
+          </ul>
+        </>
+      )}
+    </Plate>
+  )
+  const upPlate = (
+    <Plate id="upnext" label="UP NEXT" state={top ? (topRead?.state === 'live' ? 'live' : 'waiting') : loaded ? 'live' : 'waiting'} reason={top ? 'soonest dated thing' : 'nothing dated ahead'} className="t2-upnext">
+      {top ? (
+        <>
+          <p className="t2-upline"><b>{top.what}</b><span>{top.sub}</span></p>
+          <Stamped label={`Date of ${top.what}`} read={topRead ?? { state: 'waiting', value: '', on: null }} fmt={(v) => stampText(v)} why={topRead?.stale ? STALE_WHY : 'unconfirmed'} />
+          {topRead?.state !== 'live' && <Button size="md" onClick={() => actions.confirmDue(top)}>I checked this date today</Button>}
+        </>
+      ) : <p className="t2-quiet">No dated deadline ahead. Add an application with its closing date.</p>}
+    </Plate>
+  )
   return (
     <Frame
       simulated={simulated} view="pipeline" ruler="RUNWAY" title="Runway" form={phone ? 'phone' : 'desk'} rootRef={rootRef} state={state}
+      v3={{ ratio: [1.7, 1.2, 0.9], trays: [
+        { job: 'APPLICATIONS', node: tablePlate, peek: { name: 'Next', lamp: top ? 'waiting' : 'live', note: top ? 'a date to confirm' : 'nothing dated' } },
+        { job: 'NEXT', node: <>{upPlate}{boardPlate}</>, peek: { name: 'Next', lamp: state, note: loaded ? undefined : 'not read yet' } },
+        { job: 'CAMPAIGNS', node: <div className="t2-v3-camps">{campaigns}</div>, peek: { name: 'Campaigns' } },
+      ] }}
       sub={loaded ? <>{rows.length} application{rows.length === 1 ? '' : 's'}{approx ? `. ${approx} closing date${approx === 1 ? ' is' : 's are'} unconfirmed (dashed)` : ''}</> : 'Reading the applications store. Nothing is shown until it answers.'}
       keys={
         <>
-          <Button size="lg" onClick={() => setCamp(true)}>Campaigns</Button>
+          {!v3 && <Button size="lg" onClick={() => setCamp(true)}>Campaigns</Button>}
           <Button size="lg" onClick={() => setAdding(true)}><Plus size={16} aria-hidden="true" /> Add application</Button>
           <PrimaryButton claimId="career-next" rank="workspace" when={!!top} size="lg" onClick={actions.next} disabledReason={top ? undefined : 'No dated deadline'}>Do next step</PrimaryButton>
         </>
@@ -217,36 +254,15 @@ export function RunwayView({ data, actions, campaigns, width, initialDrawer = nu
       extra={
         <>
           <AddDrawer open={adding} onClose={() => setAdding(false)} onAdd={actions.add} />
-          <Drawer open={camp} onClose={() => setCamp(false)} title="Campaigns" className="t2-drawer">{campaigns}</Drawer>
+          {!v3 && <Drawer open={camp} onClose={() => setCamp(false)} title="Campaigns" className="t2-drawer">{campaigns}</Drawer>}
           <RowDrawer a={opened} onClose={() => setOpen(null)} cells={cells} actions={actions} />
         </>
       }
     >
       <div className="t2-runway">
-        <Plate id="board" label="FLIGHT BOARD" state={state} reason={loaded ? `next ${HORIZON} days` : 'applications not read yet'} className="t2-boardplate">
-          <FlightBoard notches={notches} ticks={ticks} counts={counts} hot={hot} setHot={setHot} selected={open} onOpen={openRow} phone={phone} loaded={loaded} />
-        </Plate>
-        <Plate id="table" label="APPLICATIONS" state={state} reason={loaded ? 'five a page, soonest first' : 'not read yet'} className="t2-tableplate" corner={pager}>
-          {!loaded ? <p className="t2-quiet">WAITING: the applications store has not answered.</p> : rows.length === 0 ? (
-            <div className="t2-empty"><AsciiEmptyState variant="tree" message="No applications yet." /><Button size="lg" onClick={() => setAdding(true)}>Add an application (N)</Button></div>
-          ) : (
-            <>
-              <div className="t2-stagehead" aria-hidden="true"><div>{STEPPER.map((s) => <span key={s}>{STAGE_WORD[s]}</span>)}</div></div>
-              <ul className="t2-rows" aria-label="Applications">
-                {p.rows.map((a) => <Row key={a.id} a={a} cells={cells} hot={hot} setHot={setHot} selected={open} onOpen={openRow} setStatus={actions.setStatus} />)}
-              </ul>
-            </>
-          )}
-        </Plate>
-        <Plate id="upnext" label="UP NEXT" state={top ? (topRead?.state === 'live' ? 'live' : 'waiting') : loaded ? 'live' : 'waiting'} reason={top ? 'soonest dated thing' : 'nothing dated ahead'} className="t2-upnext">
-          {top ? (
-            <>
-              <p className="t2-upline"><b>{top.what}</b><span>{top.sub}</span></p>
-              <Stamped label={`Date of ${top.what}`} read={topRead ?? { state: 'waiting', value: '', on: null }} fmt={(v) => stampText(v)} why={topRead?.stale ? STALE_WHY : 'unconfirmed'} />
-              {topRead?.state !== 'live' && <Button size="md" onClick={() => actions.confirmDue(top)}>I checked this date today</Button>}
-            </>
-          ) : <p className="t2-quiet">No dated deadline ahead. Add an application with its closing date.</p>}
-        </Plate>
+        {boardPlate}
+        {tablePlate}
+        {upPlate}
       </div>
     </Frame>
   )

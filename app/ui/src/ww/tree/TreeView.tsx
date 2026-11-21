@@ -7,6 +7,7 @@
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronLeft, Crosshair, Maximize2, Minus, Plus } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, IconButton } from '../../shared/kit'
+import { Zones, lookV3Enabled } from '../../shell/v3'
 import { showsNumber } from '../../shared/lamp'
 import { LampWord } from '../left/LampWord'
 import { isReducedMotion } from '../useReducedMotion'
@@ -21,6 +22,7 @@ import { TREES, findNode, type TreeDef } from './model'
 import { TREE_PORT, useLedger, type TreePort } from './ports'
 import './tree.css'
 import './grove.css'
+import './tree-v3.css'
 
 export interface TreeViewProps {
   port?: TreePort
@@ -100,20 +102,97 @@ export function TreeView({ port = TREE_PORT, now: fixedNow, trees: given, form: 
   ]
   const groups = tree && derived ? branchGrowth(tree, derived) : []
   const g = tree && derived ? growth(tree, derived) : { evidenced: 0, total: 0 }
+  const v3 = lookV3Enabled()
   const startId = tree ? (next && next.tree.id === tree.id ? next.node.id : tree.nodes[0]?.id ?? null) : null
+
+  const nextPlate = (
+    <section className="tg-next" data-callout="next" aria-label="Next up">
+      <header className="tg-next-head"><span className="tg-ascii" aria-hidden="true">+--[</span><h3>NEXT UP</h3><span className="tg-ascii" aria-hidden="true">]--</span></header>
+      {next ? (
+        <>
+          <p className="tg-next-name">{next.node.name}</p>
+          <p className="tg-next-where">{next.tree.name} / {next.node.branch}</p>
+          <p className="tg-next-state"><b>{STATE_WORD.open}</b> It has been open the longest. Nothing is due and nothing counts down.</p>
+          <Button size="lg" tone="primary" onClick={openNext}>Open {next.tree.name}</Button>
+        </>
+      ) : <p className="tg-next-where">Nothing is open right now.</p>}
+    </section>
+  )
+  const controls = (
+    <div className="tg-controls" role="group" aria-label="View">
+      <IconButton label="Zoom in (plus)" size="sm" grouped onClick={() => api.current?.zoomIn()}><Plus size={16} aria-hidden="true" /></IconButton>
+      <span className="tg-zoom" ref={setZoomEl} aria-live="off">100%</span>
+      <IconButton label="Zoom out (minus)" size="sm" grouped onClick={() => api.current?.zoomOut()}><Minus size={16} aria-hidden="true" /></IconButton>
+      <IconButton label="Fit the whole tree (0)" size="sm" grouped onClick={() => api.current?.fit()}><Maximize2 size={16} aria-hidden="true" /></IconButton>
+      <IconButton label="Pan up (Shift and up arrow)" size="sm" grouped onClick={() => api.current?.pan(0, -80)}><ArrowUp size={16} aria-hidden="true" /></IconButton>
+      <IconButton label="Pan down (Shift and down arrow)" size="sm" grouped onClick={() => api.current?.pan(0, 80)}><ArrowDown size={16} aria-hidden="true" /></IconButton>
+      <IconButton label="Pan left (Shift and left arrow)" size="sm" grouped onClick={() => api.current?.pan(-80, 0)}><ArrowLeft size={16} aria-hidden="true" /></IconButton>
+      <IconButton label="Pan right (Shift and right arrow)" size="sm" grouped onClick={() => api.current?.pan(80, 0)}><ArrowRight size={16} aria-hidden="true" /></IconButton>
+    </div>
+  )
+  const stage = tree && derived && tree.nodes.length > 0 ? (
+    <div className="tg-stagewrap">
+      <TreeStage key={tree.id} tree={tree} derived={derived} ledgerState={reading.state} openId={openId} onOpen={setOpenId} occluded={false} apiRef={api} startId={startId} zoomEl={zoomEl} />
+      {controls}
+    </div>
+  ) : null
+  const bar = (
+    <header className="tg-bar ww-tree-bar" role="toolbar" aria-label="Tree view">
+      {tree && <Button size="sm" grouped onClick={grove}><ChevronLeft size={16} aria-hidden="true" />Grove</Button>}
+      <TreePicker value={tree?.id ?? 'grove'} options={treeOptions} onChange={(id) => (id === 'grove' ? grove() : openTree(id))} />
+      {tree && <BranchMenu options={groups.map((b) => ({ id: b.id, label: b.name, count: counted ? `${b.earned}/${b.total}` : `${b.total}` }))}
+        stats={counted ? `${g.evidenced} of ${g.total} nodes evidenced.` : `${g.total} nodes written. Evidence is not counted yet.`}
+        onPick={(id) => api.current?.toBranch(tree.branches.findIndex((b) => b.id === id))} />}
+      <Button size="sm" grouped onClick={openNext} disabledReason={next ? undefined : 'Nothing is open.'} title="Jump to the open node that has waited longest"><Crosshair size={16} aria-hidden="true" />Next</Button>
+      {!v3 && <h2 className="tg-title"><span className="tg-ascii" aria-hidden="true">+--[ </span>{tree ? tree.name : 'GROVE'}<span className="tg-ascii" aria-hidden="true"> ]--</span></h2>}
+      {!v3 && <span className="tg-bar-lamp"><LampWord state={reading.state} /><span className="tg-bar-why">{reading.reason}</span></span>}
+    </header>
+  )
+  const drawerEl = tree && node && derived ? (
+    <NodeDrawer tree={tree} node={node} derived={derived} reading={reading} writable={port.writable} onAdd={ledger.add} onRemove={ledger.remove} onClose={closeNode} onJump={(id) => { setOpenId(id); api.current?.goTo(id) }} />
+  ) : null
+
+  if (v3) {
+    // The v3 look: three trays. The Grove is GROVE / NEXT UP / EVIDENCE; an open tree is CANVAS / NODE / GROWTH, with the widest
+    // share to the canvas. Every tray still reads the one ledger state, so the lamp and its reason are on screen at every scale.
+    const lamp = <LampWord state={reading.state} />
+    const ledgerEl = <EvidenceLedger state={reading.state} reason={reading.reason} lines={lines} />
+    const growing = !!tree && tree.nodes.length > 0
+    return (
+      <div className="tg tg-v3" data-form={phone ? 'phone' : 'desk'} data-scale={tree ? (node ? 3 : 2) : 1} data-lamp={reading.state} onKeyDown={onKeyDown}>
+        <Zones
+          ratio={growing ? [2.35, 1.05, 0.8] : [1.9, 1, 0.95]}
+          first={{
+            job: tree ? 'CANVAS' : 'GROVE', chip: lamp, peek: { name: tree ? 'Node' : 'Next up', lamp: reading.state === 'live' ? 'live' : 'waiting', note: counted ? undefined : 'nothing counted yet' },
+            children: (
+              <>
+                {bar}
+                {!tree ? (
+                  <div className="ww-tree-stage tg-grove-stage">
+                    <GroveRing trees={summaries} onOpen={(id) => openTree(id, null)} state={reading.state} reason={reading.reason} draw={draw} />
+                  </div>
+                ) : growing ? stage : <div className="tg-planned"><p>Not built yet. Branches listed, nodes not written.</p></div>}
+              </>
+            ),
+          }}
+          second={{
+            job: tree ? 'NODE' : 'NEXT UP', peek: { name: tree ? 'Node' : 'Next up' },
+            children: !tree ? nextPlate : drawerEl ?? (
+              <p className="tg-v3-hint">{growing ? 'Pick a node on the canvas to see what it is, its evidence, what it needs and the one next step.' : 'No node to open yet.'}</p>
+            ),
+          }}
+          third={{
+            job: tree ? 'GROWTH' : 'EVIDENCE', peek: { name: 'Evidence', lamp: reading.state === 'live' ? 'live' : 'waiting', note: reading.state === 'live' ? undefined : 'nothing recorded' },
+            children: tree && growing ? <><BranchSpine growth={g} state={reading.state} reason={reading.reason} name={tree.name} />{ledgerEl}</> : ledgerEl,
+          }}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="tg" data-form={phone ? 'phone' : 'desk'} data-scale={tree ? (node ? 3 : 2) : 1} data-drawer={node ? 'open' : undefined} data-lamp={reading.state} onKeyDown={onKeyDown}>
-      <header className="tg-bar ww-tree-bar" role="toolbar" aria-label="Tree view">
-        {tree && <Button size="sm" grouped onClick={grove}><ChevronLeft size={16} aria-hidden="true" />Grove</Button>}
-        <TreePicker value={tree?.id ?? 'grove'} options={treeOptions} onChange={(id) => (id === 'grove' ? grove() : openTree(id))} />
-        {tree && <BranchMenu options={groups.map((b) => ({ id: b.id, label: b.name, count: counted ? `${b.earned}/${b.total}` : `${b.total}` }))}
-          stats={counted ? `${g.evidenced} of ${g.total} nodes evidenced.` : `${g.total} nodes written. Evidence is not counted yet.`}
-          onPick={(id) => api.current?.toBranch(tree.branches.findIndex((b) => b.id === id))} />}
-        <Button size="sm" grouped onClick={openNext} disabledReason={next ? undefined : 'Nothing is open.'} title="Jump to the open node that has waited longest"><Crosshair size={16} aria-hidden="true" />Next</Button>
-        <h2 className="tg-title"><span className="tg-ascii" aria-hidden="true">+--[ </span>{tree ? tree.name : 'GROVE'}<span className="tg-ascii" aria-hidden="true"> ]--</span></h2>
-        <span className="tg-bar-lamp"><LampWord state={reading.state} /><span className="tg-bar-why">{reading.reason}</span></span>
-      </header>
+      {bar}
 
       {!tree ? (
         <div className="tg-grove">
@@ -121,17 +200,7 @@ export function TreeView({ port = TREE_PORT, now: fixedNow, trees: given, form: 
             <GroveRing trees={summaries} onOpen={(id) => openTree(id, null)} state={reading.state} reason={reading.reason} draw={draw} />
           </div>
           <aside className="tg-side" aria-label="Next up and the ledger">
-            <section className="tg-next" data-callout="next" aria-label="Next up">
-              <header className="tg-next-head"><span className="tg-ascii" aria-hidden="true">+--[</span><h3>NEXT UP</h3><span className="tg-ascii" aria-hidden="true">]--</span></header>
-              {next ? (
-                <>
-                  <p className="tg-next-name">{next.node.name}</p>
-                  <p className="tg-next-where">{next.tree.name} / {next.node.branch}</p>
-                  <p className="tg-next-state"><b>{STATE_WORD.open}</b> It has been open the longest. Nothing is due and nothing counts down.</p>
-                  <Button size="lg" tone="primary" onClick={openNext}>Open {next.tree.name}</Button>
-                </>
-              ) : <p className="tg-next-where">Nothing is open right now.</p>}
-            </section>
+            {nextPlate}
             <EvidenceLedger state={reading.state} reason={reading.reason} lines={lines} />
           </aside>
         </div>
@@ -141,19 +210,7 @@ export function TreeView({ port = TREE_PORT, now: fixedNow, trees: given, form: 
         <>
           <div className="tg-body">
             <BranchSpine growth={g} state={reading.state} reason={reading.reason} name={tree.name} />
-            <div className="tg-stagewrap">
-              <TreeStage key={tree.id} tree={tree} derived={derived!} ledgerState={reading.state} openId={openId} onOpen={setOpenId} occluded={false} apiRef={api} startId={startId} zoomEl={zoomEl} />
-              <div className="tg-controls" role="group" aria-label="View">
-                <IconButton label="Zoom in (plus)" size="sm" grouped onClick={() => api.current?.zoomIn()}><Plus size={16} aria-hidden="true" /></IconButton>
-                <span className="tg-zoom" ref={setZoomEl} aria-live="off">100%</span>
-                <IconButton label="Zoom out (minus)" size="sm" grouped onClick={() => api.current?.zoomOut()}><Minus size={16} aria-hidden="true" /></IconButton>
-                <IconButton label="Fit the whole tree (0)" size="sm" grouped onClick={() => api.current?.fit()}><Maximize2 size={16} aria-hidden="true" /></IconButton>
-                <IconButton label="Pan up (Shift and up arrow)" size="sm" grouped onClick={() => api.current?.pan(0, -80)}><ArrowUp size={16} aria-hidden="true" /></IconButton>
-                <IconButton label="Pan down (Shift and down arrow)" size="sm" grouped onClick={() => api.current?.pan(0, 80)}><ArrowDown size={16} aria-hidden="true" /></IconButton>
-                <IconButton label="Pan left (Shift and left arrow)" size="sm" grouped onClick={() => api.current?.pan(-80, 0)}><ArrowLeft size={16} aria-hidden="true" /></IconButton>
-                <IconButton label="Pan right (Shift and right arrow)" size="sm" grouped onClick={() => api.current?.pan(80, 0)}><ArrowRight size={16} aria-hidden="true" /></IconButton>
-              </div>
-            </div>
+            {stage}
           </div>
           <EvidenceLedger className="tg-foot" state={reading.state} reason={reading.reason} lines={lines} />
         </>

@@ -1,0 +1,49 @@
+/* The Tree under the v3 look (layout round, 21 Nov). Every rule is under :root[data-look='v3'] .tg-v3, so with the look off none of it
+   matches. The trays own the material; a plate, a well or a drawer inside one is flat or recessed, never a second raised card.
+   The canvas tray holds the stage and pans and zooms inside itself as it does today; the other trays scroll only when they hold a list. */
+
+:root[data-look='v3'] .tg.tg-v3 {
+  position: absolute; inset: 0; display: block; padding: 0; overflow: hidden; background: transparent;
+}
+:root[data-look='v3'] .tg-v3 .s3-zones { height: 100%; }
+:root[data-look='v3'] .tg-v3 .s3-body { overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; }
+:root[data-look='v3'] .tg-v3 .tg-bar { flex: none; min-height: 0; gap: var(--space-2); }
+:root[data-look='v3'] .tg-v3 .tg-stagewrap { flex: 1 1 auto; min-height: 16rem; }
+:root[data-look='v3'] .tg-v3 .tg-stagewrap > .tg-stage { min-height: 14rem; }
+:root[data-look='v3'] .tg-v3 .tg-planned { flex: 1 1 auto; min-height: 8rem; }
+:root[data-look='v3'] .tg-v3 .tg-v3-hint { margin: 0; font: var(--type-small); color: var(--ink-2); overflow-wrap: anywhere; }
+
+/* the Grove: the ring would need 920 px, so under the look it is the compact form of the seeds, a grid of discs with their names */
+:root[data-look='v3'] .tg-v3 .tg-grove-stage { flex: 1 1 auto; min-height: 0; overflow-y: auto; contain: none; background: transparent; box-shadow: none; scrollbar-width: thin; }
+:root[data-look='v3'] .tg-v3 .gr { position: static; display: flex; flex-direction: column; gap: var(--space-3); }
+:root[data-look='v3'] .tg-v3 .gr-centre { position: static; translate: none; width: 100%; height: auto; border-radius: var(--r-well); padding: var(--space-2) var(--space-3); gap: 0; }
+:root[data-look='v3'] .tg-v3 .gr-total { font-size: 2.25rem; line-height: 2.5rem; }
+:root[data-look='v3'] .tg-v3 .gr-callout { min-height: 0; }
+:root[data-look='v3'] .tg-v3 .gr-seeds { position: static; display: grid; grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); gap: var(--space-2); }
+:root[data-look='v3'] .tg-v3 .gr-seed {
+  position: relative; left: auto; top: auto; translate: none; width: 100%; height: auto; min-height: 3.75rem; border-radius: var(--r-card);
+  justify-content: flex-start; gap: var(--space-2); padding: var(--space-2) var(--space-3); text-align: left;
+  display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: 'mark name' 'mark meta'; align-items: center; column-gap: var(--space-2);
+}
+:root[data-look='v3'] .tg-v3 .gr-seed[data-dashed] { box-shadow: var(--elev-recessed); }
+:root[data-look='v3'] .tg-v3 .gr-arc { display: none; }
+:root[data-look='v3'] .tg-v3 .gr-mark { grid-area: mark; }
+:root[data-look='v3'] .tg-v3 .gr-name { grid-area: name; position: static; translate: none; width: auto; min-width: 0; text-align: left; }
+:root[data-look='v3'] .tg-v3 .gr-meta { grid-area: meta; font: 500 0.6875rem/0.875rem var(--font-mono); color: var(--ink-2); text-align: left; overflow-wrap: anywhere; }
+
+/* the Next up plate is flat in its tray */
+:root[data-look='v3'] .tg-v3 .tg-next { padding: 0; border-radius: 0; background: transparent; box-shadow: none; }
+
+/* the node drawer is the second tray's own content, not a sheet from the right */
+:root[data-look='v3'] .tg-v3 .nd.ww-insp { height: auto; overflow: visible; padding: 0; border-radius: 0; background: transparent; box-shadow: none; }
+
+/* the growth spine sits in the third tray over the ledger */
+:root[data-look='v3'] .tg-v3 .tg-spine { flex: none; height: 16rem; flex-direction: row; justify-content: flex-start; gap: var(--space-3); padding: var(--space-2) var(--space-3); }
+:root[data-look='v3'] .tg-v3 .tg-spine svg { flex: none; height: 100%; width: 3.5rem; }
+:root[data-look='v3'] .tg-v3 .sp-cap { text-align: left; align-self: center; }
+:root[data-look='v3'] .tg-v3 .tg-ledger { flex: none; }
+
+@media (max-width: 43.75rem) {
+  :root[data-look='v3'] .tg-v3 .s3-body { overflow-y: visible; }
+  :root[data-look='v3'] .tg-v3 .tg-stagewrap { min-height: 22rem; }
+}

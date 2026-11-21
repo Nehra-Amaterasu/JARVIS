@@ -13,6 +13,7 @@ import { LampWord } from '../../left/LampWord'
 import { RACK_BLOCKED_BY, RACK_ITEMS, SPEC_ROWS, compareColumns, eur, orderColumns, rackState, specKey, type RackId, type SpecRowId } from './model'
 import { MAX_COLS, VERIFIED_FACT, cellRead, slug, stampText, useCareerLocal, type Cell, type CellRead } from './store'
 import { ConfirmForm, Frame, Plate, Stamped, useKeys, useSim, useWidth, PHONE_BELOW } from './ui'
+import { lookV3Enabled, useViewChrome, type ViewChromeSpec } from '../../../shell/v3'
 
 export interface UniCol { key: string; name: string; uni: University }
 export const allUnis = (): UniCol[] => TARGET_UNIVERSITIES.map((u) => ({ key: slug(u.name), name: u.name, uni: u }))
@@ -140,6 +141,9 @@ export function AbroadView(p: AbroadProps) {
     )
   }
 
+  const v3 = lookV3Enabled()
+  const chrome = useMemo<ViewChromeSpec | null>(() => (v3 ? { more: [{ id: 'shortlist', label: 'Shortlist', onSelect: () => setDrawer('shortlist') }] } : null), [v3])
+  useViewChrome(chrome)
   const anyDone = !!rackCol && RACK_ITEMS.some((it) => p.done[`${rackCol.key}:${it.id}`])
 
   const rack = (
@@ -176,16 +180,61 @@ export function AbroadView(p: AbroadProps) {
 
   const keys = (
     <>
-      <Button size="lg" onClick={() => setDrawer('trials')}>Exams and documents</Button>
-      <Button size="lg" onClick={() => setDrawer('shortlist')}>Shortlist</Button>
+      {!v3 && <Button size="lg" onClick={() => setDrawer('trials')}>Exams and documents</Button>}
+      {!v3 && <Button size="lg" onClick={() => setDrawer('shortlist')}>Shortlist</Button>}
       <Button size="lg" aria-pressed={compare} onClick={() => setCompare((v) => !v)}>{compare ? 'Show all' : 'Compare two'} (C)</Button>
     </>
+  )
+
+  const specPlate = (
+    <Plate id="spec" label="SPEC SHEETS" state={lampWhole} reason={compare ? 'two columns, compare' : noneChosen ? 'first four from the list, none chosen yet' : 'the pinned column first'} className="t2-specplate" corner={<Button size="md" onClick={() => window.open(VERIFIED_FACT.source, '_blank', 'noopener')}>Open the source</Button>}>
+      {cols.length === 0 ? <p className="t2-quiet">No university shortlisted. Open Shortlist to choose up to {MAX_COLS}.</p> : phone ? (
+        <div className="t2-cards">
+          {cols.map((c, ci) => (
+            <section key={c.key} className="t2-ucard" aria-label={c.name}>
+              <h3>{c.name}</h3>
+              <dl>
+                {SPEC_ROWS.map((row, r) => <div key={row.id}><dt>{row.label}{row.id === 'finance' ? ' (national figure, all columns)' : ''}</dt><dd>{renderCell(c, row, r, ci, false)}</dd></div>)}
+              </dl>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <div className="t2-grid" role="grid" aria-label="Spec sheets" aria-rowcount={SPEC_ROWS.length + 1} style={{ ['--cols' as string]: cols.length }}>
+          <div role="row" className="t2-grow t2-ghead">
+            <span role="columnheader" className="t2-rowhead" />
+            {cols.map((c) => (
+              <span key={c.key} role="columnheader" className="t2-colhead">
+                <button type="button" aria-pressed={p.pinned === c.key} aria-label={`${c.name}: ${p.pinned === c.key ? 'pinned, press to unpin' : 'pin this column'}`} onClick={() => p.onPin(p.pinned === c.key ? null : c.key)} data-pinned={p.pinned === c.key ? 'true' : undefined}>{c.name}</button>
+              </span>
+            ))}
+          </div>
+          {SPEC_ROWS.map((row, r) => (
+            <div role="row" key={row.id} className="t2-grow" data-hot={hotRow === row.id ? 'true' : undefined} aria-rowindex={r + 2}>
+              <span role="rowheader" className="t2-rowhead">{row.label}{row.id === 'finance' && <small> national figure, all columns</small>}</span>
+              {cols.map((c, ci) => renderCell(c, row, r, ci, true))}
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="t2-source">Proof of finances: {eur(VERIFIED_FACT.amountEur)} a year, opened and read on {stampText(VERIFIED_FACT.checkedOn)}: {VERIFIED_FACT.source}. The page gave no language level and no semester fee.</p>
+    </Plate>
+  )
+  const routePlate = (
+  <Plate id="route" label="ROUTE MAP" state="live" reason={noneChosen ? 'a diagram of the first four from the list, none chosen: no street data, no live position' : 'a diagram of your shortlist: no street data, no live position'} className="t2-routeplate">
+    <Route cols={cols} pinned={p.pinned} onPin={p.onPin} />
+  </Plate>
   )
 
   return (
     <Frame
       simulated={p.simulated} view="abroad" ruler="ABROAD" title="Abroad" form={phone ? 'phone' : 'desk'} rootRef={rootRef} state={lampWhole}
       sub={<>{cols.length} universit{cols.length === 1 ? 'y' : 'ies'} side by side{noneChosen ? ' (the first four from the list, none chosen yet)' : ''}. A university's cell is LIVE only after you confirm it from its own page. Proof of finances is one national figure, the same in every column.</>}
+      v3={{ ratio: [2.1, 1.05, 1.05], trays: [
+        { job: 'COMPARE', node: specPlate, peek: { name: 'Checklist', lamp: anyDone ? 'live' : 'waiting', note: anyDone ? undefined : 'no key marked done' } },
+        { job: 'CHECKLIST', node: rack, peek: { name: 'Checklist' } },
+        { job: 'DATES', node: <><TrialsBody today={p.today} cells={p.cells} trialState={p.trialState} onStage={p.onStage} onDate={p.onTrialDate} onConfirm={p.onConfirm} onClear={p.onClear} />{routePlate}</>, peek: { name: 'Dates', lamp: 'waiting', note: 'confirm each from its page' } },
+      ] }}
       keys={keys}
       extra={
         <>
@@ -217,47 +266,14 @@ export function AbroadView(p: AbroadProps) {
               </div>
             </div>
           </Drawer>
-          <TrialsDrawer open={drawer === 'trials'} onClose={() => setDrawer(null)} today={p.today} cells={p.cells} trialState={p.trialState} onStage={p.onStage} onDate={p.onTrialDate} onConfirm={p.onConfirm} onClear={p.onClear} />
+          {!v3 && <TrialsDrawer open={drawer === 'trials'} onClose={() => setDrawer(null)} today={p.today} cells={p.cells} trialState={p.trialState} onStage={p.onStage} onDate={p.onTrialDate} onConfirm={p.onConfirm} onClear={p.onClear} />}
         </>
       }
     >
       <div className="t2-abroad">
-        <Plate id="spec" label="SPEC SHEETS" state={lampWhole} reason={compare ? 'two columns, compare' : noneChosen ? 'first four from the list, none chosen yet' : 'the pinned column first'} className="t2-specplate" corner={<Button size="md" onClick={() => window.open(VERIFIED_FACT.source, '_blank', 'noopener')}>Open the source</Button>}>
-          {cols.length === 0 ? <p className="t2-quiet">No university shortlisted. Open Shortlist to choose up to {MAX_COLS}.</p> : phone ? (
-            <div className="t2-cards">
-              {cols.map((c, ci) => (
-                <section key={c.key} className="t2-ucard" aria-label={c.name}>
-                  <h3>{c.name}</h3>
-                  <dl>
-                    {SPEC_ROWS.map((row, r) => <div key={row.id}><dt>{row.label}{row.id === 'finance' ? ' (national figure, all columns)' : ''}</dt><dd>{renderCell(c, row, r, ci, false)}</dd></div>)}
-                  </dl>
-                </section>
-              ))}
-            </div>
-          ) : (
-            <div className="t2-grid" role="grid" aria-label="Spec sheets" aria-rowcount={SPEC_ROWS.length + 1} style={{ ['--cols' as string]: cols.length }}>
-              <div role="row" className="t2-grow t2-ghead">
-                <span role="columnheader" className="t2-rowhead" />
-                {cols.map((c) => (
-                  <span key={c.key} role="columnheader" className="t2-colhead">
-                    <button type="button" aria-pressed={p.pinned === c.key} aria-label={`${c.name}: ${p.pinned === c.key ? 'pinned, press to unpin' : 'pin this column'}`} onClick={() => p.onPin(p.pinned === c.key ? null : c.key)} data-pinned={p.pinned === c.key ? 'true' : undefined}>{c.name}</button>
-                  </span>
-                ))}
-              </div>
-              {SPEC_ROWS.map((row, r) => (
-                <div role="row" key={row.id} className="t2-grow" data-hot={hotRow === row.id ? 'true' : undefined} aria-rowindex={r + 2}>
-                  <span role="rowheader" className="t2-rowhead">{row.label}{row.id === 'finance' && <small> national figure, all columns</small>}</span>
-                  {cols.map((c, ci) => renderCell(c, row, r, ci, true))}
-                </div>
-              ))}
-            </div>
-          )}
-          <p className="t2-source">Proof of finances: {eur(VERIFIED_FACT.amountEur)} a year, opened and read on {stampText(VERIFIED_FACT.checkedOn)}: {VERIFIED_FACT.source}. The page gave no language level and no semester fee.</p>
-        </Plate>
+        {specPlate}
         <div className="t2-right">
-          <Plate id="route" label="ROUTE MAP" state="live" reason={noneChosen ? 'a diagram of the first four from the list, none chosen: no street data, no live position' : 'a diagram of your shortlist: no street data, no live position'} className="t2-routeplate">
-            <Route cols={cols} pinned={p.pinned} onPin={p.onPin} />
-          </Plate>
+          {routePlate}
           {rack}
         </div>
       </div>
@@ -265,9 +281,8 @@ export function AbroadView(p: AbroadProps) {
   )
 }
 
-function TrialsDrawer({ open, onClose, today, cells, trialState, onStage, onDate, onConfirm, onClear }: { open: boolean; onClose: () => void; today: string; cells: Record<string, Cell>; trialState: AbroadProps['trialState']; onStage: AbroadProps['onStage']; onDate: AbroadProps['onTrialDate']; onConfirm: AbroadProps['onConfirm']; onClear: AbroadProps['onClear'] }) {
+function TrialsBody({ today, cells, trialState, onStage, onDate, onConfirm, onClear }: { today: string; cells: Record<string, Cell>; trialState: AbroadProps['trialState']; onStage: AbroadProps['onStage']; onDate: AbroadProps['onTrialDate']; onConfirm: AbroadProps['onConfirm']; onClear: AbroadProps['onClear'] }) {
   return (
-    <Drawer open={open} onClose={onClose} title="Exams and documents" className="t2-drawer">
       <div className="t2-form">
         <p className="t2-quiet">Fees and dates change: confirm each from the official page. The list's price is quoted as unconfirmed; confirm a fee on Money.</p>
         {TRIALS.map((t) => {
@@ -291,6 +306,13 @@ function TrialsDrawer({ open, onClose, today, cells, trialState, onStage, onDate
           )
         })}
       </div>
+  )
+}
+
+function TrialsDrawer({ open, onClose, ...rest }: { open: boolean; onClose: () => void } & Parameters<typeof TrialsBody>[0]) {
+  return (
+    <Drawer open={open} onClose={onClose} title="Exams and documents" className="t2-drawer">
+      <TrialsBody {...rest} />
     </Drawer>
   )
 }

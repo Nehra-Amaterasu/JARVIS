@@ -12,6 +12,7 @@
 // The sources are the four export cards of the classic Connect page, moved: request, import from Downloads, drop or pick
 // a file, a path, and what was read from each.
 import { useRef, useState } from 'react'
+import { Zones } from '../../shell/v3'
 import { Lamp, PlannedGlyph, showsNumber, type LampReading, type LampState } from '../../shared/lamp'
 import { AsciiBar } from '../../shared/grammar'
 import { PlannedControl } from '../../shared/planned/PlannedControl'
@@ -22,6 +23,7 @@ import { useLoad } from './hooks'
 import { fmtN, holdingsOf } from './model'
 import type { RecallPort } from './port'
 import './memory.css'
+import './memory-v3.css'
 
 const TONE: Record<ReturnType<typeof exportState>['tone'], LampState> = { live: 'live', sim: 'waiting', planned: 'waiting', fault: 'fault', '': 'waiting' }
 
@@ -106,9 +108,11 @@ export interface KeepViewProps {
   /** A fixture: the review is stamped and writes nothing. */
   simulated?: boolean
   now?: number
+  /** The v3 look: EXPORT / DELETE / RECORDS on three trays. */
+  v3?: boolean
 }
 
-export function KeepView({ recall, sources, review: reviewPort, simulated = false, now: nowS }: KeepViewProps) {
+export function KeepView({ recall, sources, review: reviewPort, simulated = false, now: nowS, v3 = false }: KeepViewProps) {
   const stats = useLoad(recall.stats)
   const src = useLoad(sources.list, null)
   const review = useShareReview(reviewPort, simulated)
@@ -121,67 +125,111 @@ export function KeepView({ recall, sources, review: reviewPort, simulated = fals
   const waiting = review.state.phase === 'waiting'
   const exportLamp: LampReading = { state: waiting ? 'waiting' : 'live', since: null, reason: waiting ? 'writing' : 'ready' }
 
+  const plate01 = (
+    <Plate serial="K-01" name="Export" lamp={simulated ? { state: 'simulated', since: null, reason: 'fixture' } : exportLamp}>
+      <p className="jm-dim jm-plate-line">The last {REVIEW_DAYS} days of chats, flagged turns first, as a file you can hand to Claude. Nothing is sent anywhere.</p>
+      <div className="jm-row">
+        <button type="button" className="jm-key jm-key-primary" onClick={() => void review.run()} aria-busy={waiting || undefined} aria-disabled={waiting || review.nothingYet || undefined} data-testid="share-review">Share a review</button>
+        {review.state.phase === 'done' && !simulated && <button type="button" className="jm-key" onClick={() => void review.openFolder()}>Open folder</button>}
+      </div>
+      {review.nothingYet && <p className="jm-note" role="status">Nothing to share yet: no turns in the last {REVIEW_DAYS} days.</p>}
+      {line && <p className="jm-review" role="status" data-testid="review-line" data-phase={review.state.phase}><Lamp reading={{ state: line.lamp, since: null, reason: line.text }} showLabel={false} subject="Review" /> {line.text}</p>}
+      <PlannedRow label="Span, format, one chat" why="the route takes days only" />
+      <PlannedRow label="Assistants read chats" why="a read route is not built" />
+    </Plate>
+  )
+  const plate02 = (
+    <Plate serial="K-02" name="Snapshot" lamp={plannedLamp('not built')} planned>
+      <p className="jm-dim jm-plate-line">A dated copy of everything JARVIS holds, kept in your own folder.</p>
+      <PlannedRow label="Take a snapshot" why="no route copies the store" />
+      <PlannedRow label="Backup count" why="nothing counts them yet" />
+    </Plate>
+  )
+  const plate03 = (
+    <Plate serial="K-03" name="Raw signal" lamp={plannedLamp('not built')} planned>
+      <p className="jm-dim jm-plate-line">Delete the raw sensing recordings now, and see how long they are kept.</p>
+      <PlannedRow label="Delete raw signal now" why="no route deletes them" />
+      <PlannedRow label="Retention" why="the setting is not exposed" />
+    </Plate>
+  )
+  const plate04 = (
+    <Plate serial="K-04" name="A heading" lamp={plannedLamp('not built')} planned>
+      <PlannedControl registry={jarvisRegistry} id="jarvis.memory-delete-all" />
+    </Plate>
+  )
+  const holdings = (
+    <section className="jm-well jm-hold-well" aria-label="Holdings" data-scene="immersive">
+      <header className="jm-well-head"><span className="jm-tag">[MEM]</span><h2>Holdings</h2><Lamp reading={reading} subject="Holdings" /></header>
+      <dl className="jm-hold" data-testid="holdings">
+        {rows.map((r) => (
+          <div key={r.id} className="jm-hold-row" data-id={r.id}>
+            <dt>{r.label}</dt>
+            <dd><b className={showsNumber(reading.state) ? 'jm-num' : 'jm-num jm-none'}>{showsNumber(reading.state) ? fmtN(r.n) : 'no reading'}</b><small>{showsNumber(reading.state) ? r.note : reading.reason}</small></dd>
+          </div>
+        ))}
+      </dl>
+      {stats.v.data?.beliefs && (() => {
+        const b = stats.v.data.beliefs
+        const total = Object.values(b).reduce((a, n) => a + n, 0)
+        return (
+          <div className="jm-bar" data-testid="belief-bar">
+            <AsciiBar value={b.confirmed ?? 0} max={total} width={22} label="Beliefs you confirmed" state={reading.state}
+              reading={<span className="jm-dim">{b.confirmed ?? 0} of {total} beliefs confirmed by you</span>} />
+          </div>
+        )
+      })()}
+      <p className="jm-foot jm-dim">These are the store's own counts. Recall draws the same numbers.</p>
+    </section>
+  )
+  const sourcesEl = (
+    <section className="jm-sources" aria-label="Sources you can bring in" data-scene="immersive">
+      <header className="jm-well-head"><span className="jm-tag">[SRC]</span><h2>Bring in an export</h2>
+        <Lamp reading={src.v.state === 'ready' ? { state: simulated ? 'simulated' : 'live', since: null, reason: simulated ? 'fixture' : 'looked in Downloads and the imports folder' } : src.v.state === 'fault' ? { state: 'fault', since: null, reason: src.v.error } : { state: 'waiting', since: null, reason: 'looking in Downloads' }} subject="Sources" />
+      </header>
+      {src.v.state === 'fault' && <p className="jm-note" role="alert">The sources did not load ({src.v.error}).</p>}
+      <div className="jm-src-grid">
+        {src.v.data?.map((s) => <SourceCard key={s.id} s={s} port={sources} now={now} reload={src.reload} />)}
+      </div>
+    </section>
+  )
+
+  if (v3) {
+    const simState = simulated ? 'simulated' : 'live'
+    return (
+      <div className="jm jm3" data-view="keep" data-simulated={simulated ? 'true' : undefined}>
+        <Zones
+          first={{
+            job: 'EXPORT',
+            peek: { name: 'Export', lamp: simulated ? 'simulated' : waiting ? 'waiting' : 'live', note: waiting ? 'writing' : 'ready' },
+            children: <div className="jm3-scroll jm3-plates" role="group" aria-label="The vault">{plate01}{sourcesEl}</div>,
+          }}
+          second={{
+            job: 'DELETE',
+            peek: { name: 'Delete and snapshot', lamp: 'planned', note: 'not built' },
+            children: <div className="jm3-scroll jm3-plates">{plate02}{plate03}{plate04}</div>,
+          }}
+          third={{
+            job: 'RECORDS',
+            peek: { name: 'Records', lamp: stats.v.state === 'fault' ? 'fault' : stats.v.state === 'ready' ? simState : 'waiting', note: stats.v.state === 'ready' ? undefined : 'counting' },
+            children: <div className="jm3-scroll">{holdings}</div>,
+          }}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="jm jm-keep" data-view="keep" data-simulated={simulated ? 'true' : undefined}>
       <div className="jm-plates" role="group" aria-label="The vault">
-        <Plate serial="K-01" name="Export" lamp={simulated ? { state: 'simulated', since: null, reason: 'fixture' } : exportLamp}>
-          <p className="jm-dim jm-plate-line">The last {REVIEW_DAYS} days of chats, flagged turns first, as a file you can hand to Claude. Nothing is sent anywhere.</p>
-          <div className="jm-row">
-            <button type="button" className="jm-key jm-key-primary" onClick={() => void review.run()} aria-busy={waiting || undefined} aria-disabled={waiting || review.nothingYet || undefined} data-testid="share-review">Share a review</button>
-            {review.state.phase === 'done' && !simulated && <button type="button" className="jm-key" onClick={() => void review.openFolder()}>Open folder</button>}
-          </div>
-          {review.nothingYet && <p className="jm-note" role="status">Nothing to share yet: no turns in the last {REVIEW_DAYS} days.</p>}
-          {line && <p className="jm-review" role="status" data-testid="review-line" data-phase={review.state.phase}><Lamp reading={{ state: line.lamp, since: null, reason: line.text }} showLabel={false} subject="Review" /> {line.text}</p>}
-          <PlannedRow label="Span, format, one chat" why="the route takes days only" />
-          <PlannedRow label="Assistants read chats" why="a read route is not built" />
-        </Plate>
-        <Plate serial="K-02" name="Snapshot" lamp={plannedLamp('not built')} planned>
-          <p className="jm-dim jm-plate-line">A dated copy of everything JARVIS holds, kept in your own folder.</p>
-          <PlannedRow label="Take a snapshot" why="no route copies the store" />
-          <PlannedRow label="Backup count" why="nothing counts them yet" />
-        </Plate>
-        <Plate serial="K-03" name="Raw signal" lamp={plannedLamp('not built')} planned>
-          <p className="jm-dim jm-plate-line">Delete the raw sensing recordings now, and see how long they are kept.</p>
-          <PlannedRow label="Delete raw signal now" why="no route deletes them" />
-          <PlannedRow label="Retention" why="the setting is not exposed" />
-        </Plate>
-        <Plate serial="K-04" name="A heading" lamp={plannedLamp('not built')} planned>
-          <PlannedControl registry={jarvisRegistry} id="jarvis.memory-delete-all" />
-        </Plate>
+        {plate01}
+        {plate02}
+        {plate03}
+        {plate04}
       </div>
 
       <div className="jm-keep-low">
-        <section className="jm-well jm-hold-well" aria-label="Holdings" data-scene="immersive">
-          <header className="jm-well-head"><span className="jm-tag">[MEM]</span><h2>Holdings</h2><Lamp reading={reading} subject="Holdings" /></header>
-          <dl className="jm-hold" data-testid="holdings">
-            {rows.map((r) => (
-              <div key={r.id} className="jm-hold-row" data-id={r.id}>
-                <dt>{r.label}</dt>
-                <dd><b className={showsNumber(reading.state) ? 'jm-num' : 'jm-num jm-none'}>{showsNumber(reading.state) ? fmtN(r.n) : 'no reading'}</b><small>{showsNumber(reading.state) ? r.note : reading.reason}</small></dd>
-              </div>
-            ))}
-          </dl>
-          {stats.v.data?.beliefs && (() => {
-            const b = stats.v.data.beliefs
-            const total = Object.values(b).reduce((a, n) => a + n, 0)
-            return (
-              <div className="jm-bar" data-testid="belief-bar">
-                <AsciiBar value={b.confirmed ?? 0} max={total} width={22} label="Beliefs you confirmed" state={reading.state}
-                  reading={<span className="jm-dim">{b.confirmed ?? 0} of {total} beliefs confirmed by you</span>} />
-              </div>
-            )
-          })()}
-          <p className="jm-foot jm-dim">These are the store's own counts. Recall draws the same numbers.</p>
-        </section>
-        <section className="jm-sources" aria-label="Sources you can bring in" data-scene="immersive">
-          <header className="jm-well-head"><span className="jm-tag">[SRC]</span><h2>Bring in an export</h2>
-            <Lamp reading={src.v.state === 'ready' ? { state: simulated ? 'simulated' : 'live', since: null, reason: simulated ? 'fixture' : 'looked in Downloads and the imports folder' } : src.v.state === 'fault' ? { state: 'fault', since: null, reason: src.v.error } : { state: 'waiting', since: null, reason: 'looking in Downloads' }} subject="Sources" />
-          </header>
-          {src.v.state === 'fault' && <p className="jm-note" role="alert">The sources did not load ({src.v.error}).</p>}
-          <div className="jm-src-grid">
-            {src.v.data?.map((s) => <SourceCard key={s.id} s={s} port={sources} now={now} reload={src.reload} />)}
-          </div>
-        </section>
+        {holdings}
+        {sourcesEl}
       </div>
     </div>
   )

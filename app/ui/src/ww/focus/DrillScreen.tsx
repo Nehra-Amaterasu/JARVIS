@@ -12,6 +12,7 @@
  */
 import { useEffect, useReducer, useRef, useState } from 'react'
 import { Button, Chip, Field, Lamp, PrimaryButton, Skeleton } from '../../shared/kit'
+import { lookV3Enabled, Zones } from '../../shell/v3'
 import { FocusHead } from './FocusHead'
 import { useNarrow } from './useNarrow'
 import { DrillDots } from './DrillDots'
@@ -21,6 +22,7 @@ import { activeFocusPort, type DrillQuestion, type DrillSet, type FocusPort } fr
 import { goFocus, goPapers, type FocusView } from './nav'
 import './adapters'
 import './views/focus-views.css'
+import './views/focus-v3.css'
 
 /** One timeout per whole minute while running; stops while paused, ended or hidden by a fixed value (the gallery draws a still). */
 export function useElapsedMin(running: boolean, fixed?: number): number {
@@ -78,6 +80,26 @@ function go(onGo: DrillProps['onGo'], to: FocusView | 'papers') {
 
 /** Nothing queued: an ASCII frame, the reason in words, and one button to the desk. Never an invented question. */
 function DrillEmpty({ set, onGo }: { set: DrillSet; onGo: DrillProps['onGo'] }) {
+  if (lookV3Enabled()) {
+    return (
+      <Zones
+        ratio="default"
+        first={{
+          job: 'QUESTION',
+          children: (
+            <section className="fv fv3 dr3" aria-label="Drill">
+              <pre className="dr-ascii" aria-hidden="true">{'+----------------------+\n|                      |\n|    Nothing queued    |\n|                      |\n+----------------------+'}</pre>
+              <p className="dr-empty-title" role="status">{set.title}</p>
+              <p className="dr-empty-why"><Lamp state={set.state} reason={set.reason} /><span className="dr-empty-reason">{set.reason}</span></p>
+              <div className="dr-empty-act"><Button size="lg" onClick={() => go(onGo, 'papers')}>Open the paper desk</Button></div>
+            </section>
+          ),
+        }}
+        second={{ job: 'PROGRESS', peek: { name: 'Progress', lamp: 'waiting', note: 'nothing queued' }, children: <div className="fv fv3 dr3"><p className="dr-sub">No set is open, so there are no steps to show.</p></div> }}
+        third={{ job: 'SET', peek: { name: 'Set', lamp: set.state, note: 'nothing queued' }, children: <div className="fv fv3 dr3"><p className="dr-strip" aria-live="off">{'> nothing queued'}</p></div> }}
+      />
+    )
+  }
   return (
     <section className="fv dr dr-empty" aria-label="Drill">
       <FocusHead title="Drill" />
@@ -157,6 +179,42 @@ function DrillBody({ set, port, initial, elapsedMin, onGo }: { set: DrillSet; po
 
   const rungs = q ? s.rungs[q.id] ?? 0 : 0
 
+  const v3 = lookV3Enabled()
+  if (s.ended && v3) {
+    return (
+      <Zones
+        ratio="default"
+        first={{
+          job: 'QUESTION',
+          children: (
+            <section className="fv fv3 dr3" aria-label="Drill" data-phase="end" ref={root}>
+              <article className="dr-q dr-end dr-q3" aria-label="Set finished">
+                <p className="dr-kick">Set finished{s.early ? ', ended early' : ''}</p>
+                <p className="dr-counts" role="status">{countsLine(c)}</p>
+                <p className="dr-sub">
+                  {s.hintLog.length ? `${s.hintLog.length} hint${s.hintLog.length === 1 ? '' : 's'} opened and logged. They changed no count. ` : ''}
+                  {c.skipped ? `${c.skipped} skipped. ` : ''}
+                  {s.parked.length ? `${s.parked.length} thought${s.parked.length === 1 ? '' : 's'} parked.` : ''}
+                </p>
+                <div className="dr-actions">
+                  <PrimaryButton claimId="drill-again" rank="workspace" size="lg" when={c.shelf > 0} disabledReason={c.shelf ? undefined : 'Nothing is on the shelf.'}
+                    onClick={() => apply({ t: 'again' })}>{`Go again on the shelf (${c.shelf})`}</PrimaryButton>
+                  <Button size="lg" onClick={() => go(onGo, 'start')}>Done</Button>
+                </div>
+                <p className="dr-fine">Done has no penalty. Nothing here is a grade.</p>
+              </article>
+            </section>
+          ),
+        }}
+        second={{
+          job: 'PROGRESS',
+          peek: { name: 'Progress', lamp: 'live', note: countsLine(c) },
+          children: <aside className="fv fv3 dr3 dr-rail dr-rail3" aria-label="This set"><DrillDots qs={s.qs} res={s.res} current={-1} onJump={() => {}} early={s.early} variant="strip" /></aside>,
+        }}
+        third={{ job: 'SET', peek: { name: 'Set', lamp: set.state, note: 'finished' }, children: <div className="fv fv3 dr3"><p className="dr-strip" aria-live="off">{s.strip}</p></div> }}
+      />
+    )
+  }
   if (s.ended) {
     return (
       <section className="fv dr" aria-label="Drill" data-phase="end" ref={root}>
@@ -188,17 +246,14 @@ function DrillBody({ set, port, initial, elapsedMin, onGo }: { set: DrillSet; po
 
   const last = s.i >= s.qs.length - 1
   const rungText = q ? (rungs >= MAX_RUNGS(q) ? 'worked answer open' : `hint ${rungs} of ${MAX_RUNGS(q) - 1} open`) : ''
-  return (
-    <section className="fv dr" aria-label="Drill" data-phase={r ? 'checked' : 'ask'} ref={root}>
-      <FocusHead title="Drill" />
-      <div className="dr-main">
-        <article className="dr-q" aria-label={`Question ${s.i + 1} of ${s.qs.length}`}>
+  const qCard = (
+        <article className={v3 ? 'dr-q dr-q3' : 'dr-q'} aria-label={`Question ${s.i + 1} of ${s.qs.length}`}>
           <header className="dr-head">
             <p className="dr-kick">Question {s.i + 1} of {s.qs.length}</p>
             <Chip>{q?.topic ?? ''}</Chip>
             <span className="dr-lamp"><Lamp state={set.state} reason={set.reason} /></span>
           </header>
-          {narrow && <DrillDots qs={s.qs} res={s.res} current={s.i} onJump={(i) => stepTo({ t: 'jump', i })} variant="strip" />}
+          {narrow && !v3 && <DrillDots qs={s.qs} res={s.res} current={s.i} onJump={(i) => stepTo({ t: 'jump', i })} variant="strip" />}
           {q && (
             <>
               <div className="dr-body">
@@ -236,19 +291,63 @@ function DrillBody({ set, port, initial, elapsedMin, onGo }: { set: DrillSet; po
             </>
           )}
         </article>
-        <aside className="dr-rail" aria-label="This set">
-          {!narrow && <DrillDots qs={s.qs} res={s.res} current={s.i} onJump={(i) => stepTo({ t: 'jump', i })} />}
+  )
+  const rail = (
+        <aside className={v3 ? 'dr-rail dr-rail3' : 'dr-rail'} aria-label="This set">
+          {(v3 || !narrow) && <DrillDots qs={s.qs} res={s.res} current={s.i} onJump={(i) => stepTo({ t: 'jump', i })} variant={v3 ? 'strip' : undefined} />}
           <div className="dr-meta">
             <p className="dr-meta-row"><span>Elapsed</span><b>{mins} min</b></p>
             <p className="dr-meta-row"><span>Hints logged</span><b>{s.hintLog.length}</b></p>
             <p className="dr-rail-state"><Lamp state="live" reason="this window's clock and this set's log" /></p>
           </div>
         </aside>
+  )
+  const tools = (
         <div className="dr-tools" role="group" aria-label="Set controls">
           {q && !parkOpen && <Button ref={parkKey} size="md" onClick={() => setParkOpen(true)}>Park a thought<span className="dr-kbd"> (x)</span></Button>}
           <Button size="md" onClick={() => apply({ t: 'pause', on: !s.paused })}>{s.paused ? 'Resume' : 'Pause'}<span className="dr-kbd"> (p)</span></Button>
           <Button size="md" onClick={() => apply({ t: 'end' })}>End set<span className="dr-kbd"> (e)</span></Button>
         </div>
+  )
+  if (v3) {
+    return (
+      <Zones
+        ratio="default"
+        first={{
+          job: 'QUESTION',
+          children: (
+            <section className="fv fv3 dr3" aria-label="Drill" data-phase={r ? 'checked' : 'ask'} ref={root}>
+              {qCard}
+              {tools}
+            </section>
+          ),
+        }}
+        second={{
+          job: 'PROGRESS',
+          peek: { name: 'Progress', lamp: 'live', note: `question ${s.i + 1} of ${s.qs.length}` },
+          children: <div className="fv fv3 dr3">{rail}</div>,
+        }}
+        third={{
+          job: 'SET',
+          peek: { name: 'Set', lamp: set.state, note: set.title },
+          children: (
+            <div className="fv fv3 dr3">
+              <p className="dr-sub">{set.title}</p>
+              <p className="fv-why"><Lamp state={set.state} reason={set.reason} /><span>{set.reason || 'where the questions came from'}</span></p>
+              <p className="dr-strip" aria-live="off">{s.strip}</p>
+            </div>
+          ),
+        }}
+      />
+    )
+  }
+  return (
+    <section className="fv dr" aria-label="Drill" data-phase={r ? 'checked' : 'ask'} ref={root}>
+      <FocusHead title="Drill" />
+      <div className="dr-main">
+        {qCard}
+        {rail}
+        {tools}
       </div>
       <p className="dr-strip" aria-live="off">{s.strip}</p>
     </section>

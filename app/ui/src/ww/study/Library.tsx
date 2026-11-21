@@ -15,9 +15,11 @@ import { useFrame } from '../frame/frameStore'
 import { resolveSeason, type ServerSeason } from '../frame/season'
 import { MathText } from '../math/MathText'
 import { Planned } from '../Planned'
+import { lookV3Enabled, Zones } from '../../shell/v3'
 import { inShell } from '../tree/inShell'
 import { fmtMin } from './format'
 import './library/library.css'
+import './library/library-v3.css'
 import { Waiting } from './library/Waiting'
 import { paged } from './plan/model'
 import { Pager, Plate, type Reading } from './plan/Plate'
@@ -176,11 +178,25 @@ function Findings({ nodeId }: { nodeId: string | undefined }) {
   )
 }
 
-export function Library() {
+export function Library({ lead }: { lead?: ReactNode } = {}) {
   const server = usePlan((s) => (s.today as { season?: ServerSeason } | null)?.season ?? null)
   const mode = useFrame((s) => s.seasonMode)
   const hidden = resolveSeason(server, mode).findings_hidden
   const node = useStudyNode((s) => s.id) ?? undefined
+  if (lookV3Enabled()) {
+    return (
+      <Zones
+        ratio="default"
+        first={{ job: 'STUDY', children: <div className="ww-library lb lb3-col" data-view="library">{lead}<NodeStudy /></div> }}
+        second={{ job: 'CONCEPT', peek: { name: 'Concept', lamp: 'live', note: 'knowledge of the day' }, children: <div className="ww-library lb lb3-col"><Concept /></div> }}
+        third={{
+          job: 'FINDINGS',
+          peek: { name: 'Findings', lamp: 'live', note: hidden ? 'hidden in exam season' : 'newest papers on the node' },
+          children: <div className="ww-library lb lb3-col">{hidden ? <p className="ww-papers-line" data-findings-hidden="">Findings are hidden in exam season.</p> : <Findings nodeId={node} />}</div>,
+        }}
+      />
+    )
+  }
   return (
     <div className="ww-library lb" data-view="library">
       <Concept />

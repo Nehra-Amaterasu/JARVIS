@@ -1,0 +1,42 @@
+/* The practice-paper maker under the v3 look (layout pass, 21 Nov). The three steps of the desk (Blueprint, Slots, Print) keep their own
+   switch at the head of the first tray, because the blueprint table and the slot strip each need a wide tray; the first tray shows the
+   step in hand, the second the paper (the A4 skeleton, or the print preview), the third the paper in numbers and the footnote. The
+   blueprint table is two lines a row in the narrow tray, each cell carrying its own label. Every rule is under :root[data-look='v3'].
+   Tokens or rem only. */
+:root[data-look='v3'] .gx-desk.gx-v3 { container-type: normal; inline-size: 100%; block-size: 100%; min-block-size: 0; }
+:root[data-look='v3'] .gx3-col { flex: 1 1 auto; min-block-size: 0; min-inline-size: 0; display: flex; flex-direction: column; gap: 0.5rem; overflow-x: hidden; overflow-y: auto; }
+:root[data-look='v3'] .gx3-col > * { min-inline-size: 0; max-inline-size: 100%; flex: none; }
+:root[data-look='v3'] .gx-v3 .gx-facts { flex-wrap: wrap; box-shadow: var(--elev-recessed); background: var(--surface-sunk); }
+:root[data-look='v3'] .gx-v3 .gx-inv { margin-inline-start: 0; white-space: normal; }
+:root[data-look='v3'] .gx-v3 .gx-bt { box-shadow: var(--elev-recessed); background: var(--surface-sunk); }
+:root[data-look='v3'] .gx-v3 .gx-bt-cap { flex-wrap: wrap; }
+:root[data-look='v3'] .gx-v3 .gx-bt-sum { margin-inline-start: 0; }
+:root[data-look='v3'] .gx-v3 .gx-right-act { margin-block-start: auto; }
+/* the primary of a step stays at the foot of the tray while the rows above it scroll */
+:root[data-look='v3'] .gx3-act { position: sticky; inset-block-end: 0; z-index: 2; flex: none; padding-block: 0.25rem; background-color: var(--pop, var(--s3-trayn)); }
+:root[data-look='v3'] .gx3-foot { margin: 0; flex: none; white-space: normal; line-height: 1.4; overflow: visible; text-overflow: clip; }
+:root[data-look='v3'] .gx3-foot span { white-space: normal; }
+:root[data-look='v3'] .gx3-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.5rem; }
+:root[data-look='v3'] .gx3-prev { min-block-size: 0; }
+:root[data-look='v3'] .gx-v3 .gx-prev-card { box-shadow: var(--elev-recessed); background: var(--surface-sunk); }
+
+/* the table: line one is the name and the choice rule, line two the three counts and the marks */
+:root[data-look='v3'] .gx-v3 .gx-bt-head { display: none; }
+:root[data-look='v3'] .gx-v3 .gx-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-areas: 'name name chc chc' 'set att mrk tot';
+  block-size: auto; row-gap: 0.25rem; column-gap: 0.25rem; padding: 0.375rem 0.5rem; align-items: end;
+}
+:root[data-look='v3'] .gx-v3 .gx-row > :nth-child(1) { grid-area: name; }
+:root[data-look='v3'] .gx-v3 .gx-row > :nth-child(2) { grid-area: set; }
+:root[data-look='v3'] .gx-v3 .gx-row > :nth-child(3) { grid-area: att; }
+:root[data-look='v3'] .gx-v3 .gx-row > :nth-child(4) { grid-area: mrk; }
+:root[data-look='v3'] .gx-v3 .gx-row > :nth-child(5) { grid-area: chc; }
+:root[data-look='v3'] .gx-v3 .gx-row > :nth-child(6) { grid-area: tot; }
+:root[data-look='v3'] .gx-v3 .gx-cell { display: grid; gap: 0.125rem; min-inline-size: 0; }
+:root[data-look='v3'] .gx-v3 .gx-cell::before { content: attr(data-cell); font: 600 0.6875rem/1 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+:root[data-look='v3'] .gx-v3 .gx-step { min-inline-size: 0; inline-size: 100%; grid-template-columns: 44px minmax(2rem, 1fr) 44px; }
+:root[data-look='v3'] .gx-v3 .gx-cell .gx-marks { justify-content: flex-start; block-size: 44px; }
+:root[data-look='v3'] .gx-v3 .gx-strip { flex-wrap: wrap; }
+:root[data-look='v3'] .gx-v3 .gx-strip-act { margin-inline-start: 0; }
+:root[data-look='v3'] .gx-v3 .gx-ss-body { grid-template-columns: minmax(0, 12rem) minmax(0, 1fr); gap: 0.5rem; }
+:root[data-look='v3'] .gx-v3 .gx-slots { grid-template-columns: minmax(0, 1fr); }

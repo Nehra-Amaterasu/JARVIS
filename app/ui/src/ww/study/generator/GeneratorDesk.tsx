@@ -11,6 +11,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { Button, Field, Lamp, PrimaryButton, Segmented, type LampState } from '../../../shared/kit'
 import { DetentRack } from '../../../shared/data/tables'
 import { showsNumber } from '../../../shared/lamp'
+import { lookV3Enabled, Zones } from '../../../shell/v3'
 import { STUDY_PORT } from '../ports'
 import { BlueprintTable, Stepper } from './BlueprintTable'
 import { COPY, FOOTER } from './copy'
@@ -24,6 +25,7 @@ import {
   type GenBlueprint, type GenSection, type GeneratorPort, type PaperView,
 } from './model'
 import './generator.css'
+import './generator-v3.css'
 
 export type Step = 'blueprint' | 'slots' | 'print'
 
@@ -48,6 +50,7 @@ const KIND_OPTIONS = [
 const PAGE_PX = Math.round(((297 - 36) / 25.4) * 96)
 
 export function GeneratorDesk({ port = STUDY_PORT, extras = NO_EXTRAS, initial, frame = true }: GeneratorDeskProps) {
+  const v3 = lookV3Enabled()
   const [loaded, setLoaded] = useState(false)
   const [src, setSrc] = useState<{ state: LampState; reason: string }>({ state: 'waiting', reason: 'a blueprint is inferred from a paper on file' })
   const [list, setList] = useState<GenBlueprint[]>([])
@@ -168,7 +171,7 @@ export function GeneratorDesk({ port = STUDY_PORT, extras = NO_EXTRAS, initial, 
   }, [loaded])
 
   const onKey = (e: KeyboardEvent) => {
-    if (e.ctrlKey || e.metaKey || e.altKey || step !== 'blueprint' || !bp) return
+    if (e.ctrlKey || e.metaKey || e.altKey || (!v3 && step !== 'blueprint') || !bp) return
     if ((e.target as HTMLElement).closest('input, textarea, [role="listbox"], [role="spinbutton"]')) return
     if (e.key === '+' && bp.sections.length < MAX_SECTIONS) { e.preventDefault(); setSections([...bp.sections, newSection(bp.sections)]); setRow(bp.sections.length) }
   }
@@ -179,17 +182,17 @@ export function GeneratorDesk({ port = STUDY_PORT, extras = NO_EXTRAS, initial, 
   const [scale, setScale] = useState(0.7)
   const prev = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
-    if (step !== 'print') return
+    if (step !== 'print' && !v3) return
     const h = (sheet.current?.firstElementChild as HTMLElement | null)?.offsetHeight ?? 0
     setPages(Math.max(1, Math.ceil(h / PAGE_PX)))
-  }, [step, paper, kind])
+  }, [step, paper, kind, v3])
   useLayoutEffect(() => {
     const el = prev.current
     if (!el || typeof ResizeObserver === 'undefined') return
     const ro = new ResizeObserver(() => setScale(Math.min(0.7, Math.max(0.3, (el.clientWidth || 556) / 794))))
     ro.observe(el)
     return () => ro.disconnect()
-  }, [step])
+  }, [step, v3, !!paper]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const print = () => {
     const ok = printer.current?.print()
@@ -204,6 +207,194 @@ export function GeneratorDesk({ port = STUDY_PORT, extras = NO_EXTRAS, initial, 
     : seedBad ? COPY.seedBad : undefined
 
   const hasBp = !!bp
+
+  if (v3) {
+    const noticeLine = notice && <p className="gx-notice" role="status" data-state={notice.state}><Lamp state={notice.state} bare /><span>{notice.text}</span></p>
+    const printSide = (
+      <>
+        <Segmented<PrintKind> variant="choice" label="What to print" value={kind} onChange={setKind} options={KIND_OPTIONS} />
+        {noticeLine}
+        <span className="gx-right-act gx3-act">
+          <Button onClick={() => setStep('slots')}>Back to the slots</Button>
+          <PrimaryButton claimId="gen-print" rank="workspace" size="lg" onClick={print}>{COPY.printCta}</PrimaryButton>
+        </span>
+      </>
+    )
+    return (
+      <div className="gx-desk gx-v3" data-component="generator-desk" data-step={step} data-state={src.state} onKeyDown={onKey}>
+        <Zones
+          ratio={[2.5, 1.3, 0.8]}
+          first={{
+            job: step === 'blueprint' ? 'BLUEPRINT' : step === 'slots' ? 'SLOTS' : 'PRINT',
+            chip: <Lamp state={paper ? paperSrc.state : src.state} reason={paper ? paperSrc.reason : src.reason} />,
+            children: (
+              <div className="gx3-col">
+                <Segmented<Step>
+                  variant="choice"
+                  label="Steps of the practice paper"
+                  value={step}
+                  onChange={setStep}
+                  options={[
+                    { id: 'blueprint', label: '1 Blueprint' },
+                    { id: 'slots', label: '2 Slots', disabledReason: paperNeed ?? stepNeed },
+                    { id: 'print', label: '3 Print', disabledReason: paperNeed },
+                  ]}
+                />
+                {step === 'blueprint' && !hasBp && (
+                  <section className="gx-empty" aria-label="No blueprint">
+                    <Lamp state={src.state} reason={src.reason} />
+                    <h3>{loaded ? COPY.noBlueprint : 'Reading blueprints'}</h3>
+                    <p>{loaded ? COPY.noBlueprintNote : 'Asking the paper engine.'}</p>
+                    {loaded && <p className="gx-why">Waiting: {src.reason}</p>}
+                    <span className="gx-empty-act">
+                      <Button disabledReason={extras.infer ? undefined : COPY.inferWaiting} loading={busy === 'infer'} onClick={() => void infer()}>{COPY.infer}</Button>
+                      <Button onClick={startByHand}>{COPY.start}</Button>
+                    </span>
+                  </section>
+                )}
+                {step === 'blueprint' && hasBp && (
+                  <>
+                    <div className="gx-facts" role="group" aria-label="The paper's totals">
+                      {list.length > 1 && (
+                        <DetentRack label="Blueprint" options={list.map((b) => ({ value: b.id, label: b.label }))} value={list.some((b) => b.id === bp.id) ? bp.id : ''} onChange={pick} />
+                      )}
+                      <div className="gx-fact" role="group" aria-label="Total marks">
+                        <span className="gx-fact-l">Total marks</span>
+                        <Stepper value={totalOf(bp)} min={1} max={500} label="Total marks" onChange={(n) => edit({ ...bp, total: n })} />
+                      </div>
+                      <div className="gx-fact" role="group" aria-label="Exam minutes">
+                        <span className="gx-fact-l">Minutes</span>
+                        <Stepper value={bp.durationMin ?? 0} min={0} max={600} step={5} label="Exam minutes" format={(n) => (n === 0 ? 'not set' : String(n))} onChange={(n) => edit({ ...bp, durationMin: n === 0 ? null : n })} />
+                      </div>
+                      <div className="gx-fact gx-fact-mpm" role="group" aria-label={COPY.minutesPerMark}>
+                        <span className="gx-fact-l">{COPY.minutesPerMark}</span>
+                        <span className="gx-fact-v">{minutesText(mpm)}</span>
+                        <span className="gx-fact-s"><Lamp state={mpm === null ? 'waiting' : src.state === 'simulated' ? 'simulated' : 'live'} reason={mpm === null ? COPY.noDuration : 'minutes divided by marks of this blueprint'} /></span>
+                      </div>
+                      <div className="gx-inv" role="status" aria-live="polite">
+                        <Lamp state={invariant} reason={issues[0]?.text ?? COPY.balanced(totalOf(bp))} />
+                        <span>{issues.length ? 'does not balance' : COPY.balanced(totalOf(bp))}</span>
+                      </div>
+                    </div>
+                    <BlueprintTable
+                      sections={bp.sections}
+                      total={bp.total}
+                      duration={bp.durationMin}
+                      issues={issues}
+                      selected={row}
+                      onSelect={setRow}
+                      onChange={setSections}
+                      state={src.state}
+                      reason={src.reason}
+                      inferred={inferred}
+                      actions={<Button size="sm" disabledReason={extras.infer ? undefined : COPY.inferWaiting} loading={busy === 'infer'} onClick={() => void infer()}>{COPY.infer}</Button>}
+                    />
+                    {bp.sections.length <= 5 && <p className="gx-hint">{COPY.rowHint}</p>}
+                    {issues.length > 0 && (
+                      <ul className="gx-issues" aria-label="Issues to settle before drawing">
+                        {issues.slice(0, 3).map((x, i) => (
+                          <li key={i}>
+                            <Lamp state="fault" bare reason={x.text} /> <span>{x.text}</span>
+                            {x.code === 'total' && <Button size="sm" onClick={() => edit({ ...bp, total: null })}>Use the sections’ sum</Button>}
+                          </li>
+                        ))}
+                        {issues.length > 3 && <li>{issues.length - 3} more issues.</li>}
+                      </ul>
+                    )}
+                    <span className="gx-right-act gx3-act">
+                      <PrimaryButton claimId="gen-confirm" rank="workspace" size="lg" loading={busy === 'draw' || busy === 'save'} disabledReason={confirmReason} onClick={() => void confirm()}>{COPY.save}</PrimaryButton>
+                    </span>
+                  </>
+                )}
+                {step === 'slots' && (
+                  <>
+                    {paper?.sections ? (
+                      <SlotStrip
+                        sections={paper.sections}
+                        state={paperSrc.state}
+                        reason={paperSrc.reason}
+                        onReseed={() => void reseed()}
+                        onSwap={extras.swap ? (sl, n) => void extras.swap!(paper, sl, n).then((r) => { if (showsNumber(r.state) && r.data) setPaper(r.data) }) : undefined}
+                      />
+                    ) : (
+                      <section className="gx-empty"><Lamp state={paperSrc.state} reason={paperSrc.reason} /><h3>{COPY.noPaper}</h3><p>{COPY.noPaperNote}</p></section>
+                    )}
+                    <div className="gx-bar gx3-bar">
+                      <Field
+                        label={COPY.seedLabel}
+                        value={seedText}
+                        inputMode="numeric"
+                        error={seedBad ? COPY.seedBad : undefined}
+                        hint={COPY.seedShort}
+                        onChange={(e) => setSeedText(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') void drawAgain() }}
+                      />
+                      <Button loading={busy === 'draw'} onClick={() => void drawAgain()}>Draw with this seed</Button>
+                    </div>
+                    {noticeLine}
+                    <span className="gx-right-act gx3-act">
+                      <Button onClick={() => setStep('blueprint')}>Back to the blueprint</Button>
+                      <PrimaryButton claimId="gen-to-print" rank="workspace" size="lg" onClick={() => setStep('print')}>Print this paper</PrimaryButton>
+                    </span>
+                  </>
+                )}
+                {step === 'print' && (paper?.sections ? printSide : (
+                  <section className="gx-empty"><Lamp state={paperSrc.state} reason={paperSrc.reason} /><h3>{COPY.noPaper}</h3><p>{COPY.noPaperNote}</p></section>
+                ))}
+              </div>
+            ),
+          }}
+          second={{
+            job: 'PAPER',
+            peek: { name: 'Paper', lamp: paper ? paperSrc.state : 'waiting', note: paper ? `${stats.filled} of ${stats.slots} slots filled` : 'no paper drawn yet' },
+            children: (
+              <div className="gx3-col">
+                {step === 'print' && paper?.sections ? (
+                  <section className="gx-prev-card gx3-prev" aria-label="Preview of the printed page">
+                    <div className="gx-prev" ref={prev} style={{ ['--gx-scale' as string]: scale }}>
+                      <div className="gx-page" ref={sheet}>
+                        <PrintSheet paper={paper} kind={kind} stamp={paperSrc.state === 'simulated' ? 'SIMULATED' : undefined} />
+                      </div>
+                    </div>
+                    <p className="gx-prev-cap">{kind === 'all' ? 'The three sheets in order' : 'Page 1'} of {pages} on A4, with 18 mm margins. What you see is what prints.</p>
+                  </section>
+                ) : (
+                  bp ? <PaperSkeleton blueprint={bp} /> : <section className="gx-empty"><Lamp state={src.state} reason={src.reason} /><h3>{COPY.noBlueprint}</h3></section>
+                )}
+                {step === 'print' && paper?.sections && frame && <PrintFrame ref={printer} paper={paper} kind={kind} stamp={paperSrc.state === 'simulated' ? 'SIMULATED' : undefined} />}
+              </div>
+            ),
+          }}
+          third={{
+            job: 'NOTES',
+            peek: { name: 'Notes', lamp: paper ? paperSrc.state : 'waiting', note: paper ? 'the paper in numbers' : 'no paper drawn yet' },
+            children: (
+              <div className="gx3-col">
+                {paper?.sections ? (
+                  <>
+                    <dl className="gx-pfacts">
+                      <div><dt>Sections</dt><dd>{stats.sections}</dd></div>
+                      <div><dt>Slots filled</dt><dd>{stats.filled} of {stats.slots}</dd></div>
+                      <div><dt>Marks</dt><dd>{stats.marks}</dd></div>
+                      <div><dt>Seed</dt><dd>{paper.seed}</dd></div>
+                      <div className="gx-pfacts-lamp"><Lamp state={paperSrc.state} reason={paperSrc.reason} /></div>
+                    </dl>
+                    {stats.hollow > 0 && <p className="gx-pnote">{COPY.hollowTitle(stats.hollow)}: they print as gaps with the reason. {COPY.hollowNote}</p>}
+                    {stats.asCrop > 0 && <p className="gx-pnote">{COPY.cropNote(stats.asCrop)}</p>}
+                    <p className="gx-pnote gx-night"><Lamp state="planned" reason={COPY.nightPlanned} /> Night sheet</p>
+                    <p className="gx-pnote">{COPY.printNote}</p>
+                  </>
+                ) : (
+                  <p className="gx-pnote"><Lamp state={paperSrc.state} reason={paperSrc.reason} /> {COPY.noPaperNote}</p>
+                )}
+                <p className="gx-foot gx3-foot"><span>{FOOTER}</span></p>
+              </div>
+            ),
+          }}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="gx-desk" data-component="generator-desk" data-step={step} data-state={src.state} onKeyDown={onKey}>

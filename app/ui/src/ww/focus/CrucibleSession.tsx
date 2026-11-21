@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { DotTimer } from '../../shared/art'
 import { Banner, Button, Lamp, Skeleton } from '../../shared/kit'
+import { lookV3Enabled, Zones } from '../../shell/v3'
 import { FocusHead, WhyLine } from './FocusHead'
 import { HoldButton } from '../../shared/kit/Interactive'
 import { RestingDial, TickRing } from './art'
@@ -22,6 +23,7 @@ import { useFocusViews } from './store'
 import { useCrucibleEngine } from './useCrucibleEngine'
 import './adapters'
 import './views/focus-views.css'
+import './views/focus-v3.css'
 
 export interface CruciblePanelProps {
   plannedMin: number
@@ -48,6 +50,7 @@ export const stripFor = (p: Pick<CruciblePanelProps, 'plannedMin' | 'paused' | '
   `> block ${p.plannedMin} min | ${p.paused ? 'held | ' : ''}parked ${p.parked} | guards ${p.guards ? 'on' : 'off'}`
 
 export function CruciblePanel(p: CruciblePanelProps) {
+  const v3 = lookV3Enabled()
   const [parkOpen, setParkOpen] = useState(!!p.parkOpen)
   const timer = useRef<HTMLDivElement>(null)
   const parkKey = useRef<HTMLButtonElement>(null)
@@ -64,6 +67,60 @@ export function CruciblePanel(p: CruciblePanelProps) {
     return () => window.removeEventListener('keydown', onKey)
   })
 
+  if (v3) {
+    const held = p.paused
+    return (
+      <Zones
+        ratio="default"
+        first={{
+          job: 'TIMER',
+          flare: p.elapsedMin > 0 ? 1 : 0,
+          children: (
+            <section className="fv fv3 cr3" aria-label="Crucible session" data-paused={held ? 'true' : 'false'}>
+              <div className="cr-field cr3-field" ref={timer} tabIndex={-1}>
+                <DotTimer plannedMin={p.plannedMin} elapsedMin={p.elapsedMin} paused={p.paused} state="live" caption="Minutes held" />
+              </div>
+              <p className="cr-readout" data-testid="readout"><span className="fv-num">{p.elapsedMin}</span> min <span className="cr-dot" aria-hidden="true">·</span> {p.trackLabel}</p>
+              <div className="cr-controls" role="group" aria-label="Session controls">
+                {p.paused ? <Button size="md" onClick={p.onResume}>Resume (Space)</Button> : <Button size="md" onClick={p.onPause}>Pause (Space)</Button>}
+                <Button ref={parkKey} size="md" onClick={() => setParkOpen(true)}>Park a thought (P)</Button>
+                <HoldButton label="End session" size="md" onConfirm={p.onEnd} /><span className="fs-sub cr-hold-hint">Hold to end. The filled dots stay.</span>
+              </div>
+              <ParkField open={parkOpen} onClose={() => setParkOpen(false)} onFile={p.onFile} returnTo={() => timer.current} />
+            </section>
+          ),
+        }}
+        second={{
+          job: 'BLOCK',
+          peek: { name: 'Block', lamp: 'live', note: held ? 'held' : 'running' },
+          children: (
+            <div className="fv fv3 cr3">
+              <p className="fv-title">{held ? 'Session held' : 'Session running'}</p>
+              <p className="cr-ofline">of {p.plannedMin} min{held ? ', held' : ''}{p.cue ? ` · ${p.cue}` : ''}{p.wager ? ' · wager on' : ''}</p>
+              <WhyLine><Lamp state="live" reason="this block's clock, one tick a minute" /><span aria-hidden="true">This block's clock.</span></WhyLine>
+              {p.strikeLine && <Banner tone="sim">{p.strikeLine}</Banner>}
+              <p className="fv-strip" aria-live="off">{stripFor({ plannedMin: p.plannedMin, paused: p.paused, guards: p.guards, parked: p.parked.length })}</p>
+            </div>
+          ),
+        }}
+        third={{
+          job: 'PARKED',
+          peek: { name: 'Parked', lamp: 'live', note: p.parked.length ? `${p.parked.length} filed in this block` : 'nothing parked yet' },
+          children: (
+            <div className="fv fv3 cr3">
+              {p.parked.length > 0 ? (
+                <ul className="cr-parked" aria-label="Parked in this block">
+                  {p.parked.slice(-4).map((x, i) => <li key={`${i}-${x.text}`}>{x.text}<span className="dr-park-where">{x.stored ? 'in Parking' : 'this page only'}</span></li>)}
+                </ul>
+              ) : (
+                <p className="fr-line">Nothing parked in this block. A stray thought goes here when you press P.</p>
+              )}
+            </div>
+          ),
+        }}
+      />
+    )
+  }
   return (
     <section className="fv cr" aria-label="Crucible session" data-paused={p.paused ? 'true' : 'false'}>
       <div className="cr-field" ref={timer} tabIndex={-1}>
@@ -81,7 +138,7 @@ export function CruciblePanel(p: CruciblePanelProps) {
         <div className="cr-controls" role="group" aria-label="Session controls">
           {p.paused ? <Button size="lg" onClick={p.onResume}>Resume (Space)</Button> : <Button size="lg" onClick={p.onPause}>Pause (Space)</Button>}
           <Button ref={parkKey} size="lg" onClick={() => setParkOpen(true)}>Park a thought (P)</Button>
-          <HoldButton label="End session" size="md" reason="Hold to end. The filled dots stay." onConfirm={p.onEnd} />
+          <HoldButton label="End session" size="md" onConfirm={p.onEnd} /><span className="fs-sub cr-hold-hint">Hold to end. The filled dots stay.</span>
         </div>
         <ParkField open={parkOpen} onClose={() => setParkOpen(false)} onFile={p.onFile} returnTo={() => timer.current} />
         {p.parked.length > 0 && (
@@ -97,6 +154,41 @@ export function CruciblePanel(p: CruciblePanelProps) {
 
 /** No block running: the resting dial and its WAITING lamp on the left, the title, one sentence, Go to Start and the capture line on the right. */
 export function CrucibleIdlePanel({ onStart }: { onStart: () => void }) {
+  if (lookV3Enabled()) {
+    return (
+      <Zones
+        ratio="default"
+        first={{
+          job: 'TIMER',
+          children: (
+            <section className="fv fv3 cr3" aria-label="Crucible session">
+              <div className="cr-field cr-field-idle cr3-field">
+                <RestingDial />
+                <WhyLine className="cr-field-why"><Lamp state="waiting" reason="no block started" /><span aria-hidden="true">No block started.</span></WhyLine>
+              </div>
+              <p className="fv-title" data-testid="readout">No session running</p>
+              <div className="cr-controls"><Button size="lg" onClick={onStart}>Go to Start</Button></div>
+            </section>
+          ),
+        }}
+        second={{
+          job: 'BLOCK',
+          peek: { name: 'Block', lamp: 'waiting', note: 'no block started' },
+          children: (
+            <div className="fv fv3 cr3">
+              <p className="cr-ofline">Nothing counts down. Start a block when you are ready.</p>
+              <p className="fv-strip" aria-live="off">{'> no block'}</p>
+            </div>
+          ),
+        }}
+        third={{
+          job: 'PARKED',
+          peek: { name: 'Parked', lamp: 'waiting', note: 'no block started' },
+          children: <div className="fv fv3 cr3"><p className="fr-line">Thoughts parked during a block are filed here and in Parking.</p></div>,
+        }}
+      />
+    )
+  }
   return (
     <section className="fv cr cr-idle" aria-label="Crucible session">
       <div className="cr-field cr-field-idle">

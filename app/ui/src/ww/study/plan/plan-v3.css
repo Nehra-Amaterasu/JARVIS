@@ -1,0 +1,27 @@
+/* The plan board under the v3 look (layout pass, 21 Nov): the three columns of plates are the three trays (TODAY, SYLLABUS, EXAMS). A
+   tray is a column; the plates inside keep their own look. Every rule is under :root[data-look='v3']. Tokens or rem only. */
+:root[data-look='v3'] .y3-v3col { flex: 1 1 auto; min-block-size: 0; min-inline-size: 0; gap: 0.5rem; overflow-x: hidden; overflow-y: auto; --k-on-fill: var(--surface-ground); --k-on-ink: var(--ink-1); }
+:root[data-look='v3'] .y3-v3col .y3-card { max-inline-size: 100%; }
+:root[data-look='v3'] .y3-v3col .y3-head { flex-wrap: wrap; }
+:root[data-look='v3'] .y3-v3col .y3-title { flex: 1 1 auto; min-inline-size: 0; }
+:root[data-look='v3'] .y3-v3col .y3-kicker { flex: 1 1 100%; }
+:root[data-look='v3'] .y3-v3col .y3-card { box-shadow: var(--elev-recessed); background: var(--surface-sunk); }
+:root[data-look='v3'] .y3-v3col .y3-row { background: var(--surface-raised); box-shadow: var(--elev-low); }
+:root[data-look='v3'] .y3-foot3 { margin: 0; flex: none; line-height: 1.4; white-space: normal; }
+:root[data-look='v3'] .y3-v3col .y3-wheel-row { flex-wrap: wrap; justify-content: center; }
+:root[data-look='v3'] .y3-v3col .y3-wheel { inline-size: min(14.5rem, 100%); }
+:root[data-look='v3'] .y3-v3col .y3-paper { flex-basis: 100%; }
+:root[data-look='v3'] .y3-v3col .y3-orbit { flex-wrap: wrap; }
+:root[data-look='v3'] .y3-v3col .y3-orbit-svg { inline-size: min(11rem, 100%); margin-inline: auto; }
+:root[data-look='v3'] .y3-v3col .y3-orbit-side { flex-basis: 100%; }
+:root[data-look='v3'] .y3-v3col .y3-gauge-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.25rem; }
+:root[data-look='v3'] .y3-v3col .y3-sg { min-inline-size: 0; }
+:root[data-look='v3'] .y3-v3col .y3-today, :root[data-look='v3'] .y3-v3col .y3-exam, :root[data-look='v3'] .y3-v3col .y3-landplate,
+:root[data-look='v3'] .y3-v3col .y3-gauges, :root[data-look='v3'] .y3-v3col .y3-wheelplate, :root[data-look='v3'] .y3-v3col .y3-orbitplate { flex: 0 0 auto; }
+:root[data-look='v3'] .y3-v3col .y3-land-svg { flex: none; }
+:root[data-look='v3'] .y3-v3col .y3-sheet { position: absolute; }
+/* the plates are compacted so a tray holds two of them: the landscape, the wheel and the orbit are drawn smaller, never cut */
+:root[data-look='v3'] .y3-v3col .y3-land-svg { block-size: 8rem; }
+:root[data-look='v3'] .y3-v3col .y3-wheel { inline-size: min(10rem, 100%); }
+:root[data-look='v3'] .y3-v3col .y3-orbit-svg { inline-size: min(8rem, 100%); }
+:root[data-look='v3'] .y3-v3col .y3-sg-svg, :root[data-look='v3'] .y3-v3col .y3-sg-ghost { inline-size: 4.5rem; block-size: 4.5rem; }

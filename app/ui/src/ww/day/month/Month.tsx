@@ -21,6 +21,9 @@ import { DAY_PORT, type DayPort, type IntentRow, type LogOp, type PortReply } fr
 import { FACES } from './faces'
 import { liveDays } from './live'
 import './month.css'
+import '../v3/day-v3.css'
+import { lookV3Enabled } from '../../../shell/look'
+import { Zones } from '../../../shell/v3'
 
 /** A read through the port, tagged with the key it was made for, so a slow answer for another month is never drawn. */
 function useRead<T>(key: string, read: () => Promise<PortReply<T>>): PortReply<T> | null {
@@ -126,7 +129,10 @@ const KIND_SET = new Set<Kind>(KINDS)
 
 export function MonthPage({ port = DAY_PORT, today: fixedToday, live = false, form: forcedForm, initialMode = 'month', initialMonth, initialDrawer = null, initialMarks = false }: MonthPageProps) {
   const root = useRef<HTMLDivElement>(null)
-  const form = useForm(root, forcedForm)
+  // under the v3 look the Almanac sits in one tray, so its form follows that tray's width
+  const v3 = lookV3Enabled()
+  const body = useRef<HTMLDivElement>(null)
+  const form = useForm(v3 ? body : root, forcedForm)
   const today = useToday(fixedToday)
   const [mode, setMode] = useState<AlmanacMode>(initialMode)
   const [month, setMonth] = useState(initialMonth ?? monthOf(today))
@@ -199,112 +205,163 @@ export function MonthPage({ port = DAY_PORT, today: fixedToday, live = false, fo
   const statusReply = monthReply
   const emptyMonth = !!statusReply && showsNumber(statusReply.state) && reading.counted === false && days.every((d) => d.marks.length === 0)
 
+  const head = (
+  <header className="mo-head">
+    <div className="mo-title">
+      <h1 className="mo-month">{mode === 'year' ? <span className="mo-year">{year}</span> : <>{monthLabel(month).split(' ')[0]} <span className="mo-year">{year}</span></>}</h1>
+      <p className="mo-sub" role="status">
+        {statusReply ? <Lamp state={statusReply.state} reason={statusReply.reason} /> : <span className="mo-reading">Reading the month</span>}
+        {statusReply && (
+          <span className="mo-why" aria-hidden="true">
+            {emptyMonth ? 'Nothing logged this month yet. Tap a day to add one.' : statusReply.reason}
+          </span>
+        )}
+      </p>
+    </div>
+    <div className="mo-keys">
+      <span className="mo-step">
+        <IconButton label={mode === 'year' ? 'Previous year' : 'Previous month'} grouped onClick={() => step(-1)}><ChevronLeft size={18} aria-hidden="true" /></IconButton>
+        <IconButton label={mode === 'year' ? 'Next year' : 'Next month'} grouped onClick={() => step(1)}><ChevronRight size={18} aria-hidden="true" /></IconButton>
+      </span>
+      <Segmented<AlmanacMode>
+        label="Calendar form" variant="choice" value={mode} onChange={onMode}
+        options={[{ id: 'week', label: 'Week' }, { id: 'month', label: 'Month' }, { id: 'year', label: 'Year' }]}
+      />
+      <Button grouped onClick={goToday} data-key="today">Today</Button>
+      <span className="mo-google">
+        <span className="mo-google-name">Google</span>
+        {gcalReply ? <Lamp state={gcalReply.state} reason={gcalReply.reason} /> : <Lamp state="waiting" reason="not read yet" />}
+      </span>
+      <Button ref={marksKey} grouped aria-haspopup="dialog" aria-expanded={marksOpen} onClick={() => setMarksOpen((o) => !o)} data-key="marks">Marks</Button>
+    </div>
+  </header>
+  )
+  const almanac = (
+  <div className="mo-main" ref={slide}>
+    <Almanac
+      mode={mode} days={days} exams={exams} month={month} today={today} state={pageState} selected={drawer} kindsOn={kindsOn} form={form}
+      onPick={(d) => { setMenu(null); setDrawer(d) }}
+      onMonth={step}
+      onMode={onMode}
+      onToday={goToday}
+      onAdd={(d) => void runMenu('addIntent', d)}
+      onMenu={(d, el) => { menuAnchor.current = pinned(() => el, 248, 'start'); setMenuPlace(el.getBoundingClientRect().top > window.innerHeight / 2 ? 'top' : 'bottom'); setMenu(d) }}
+      onJump={(m) => { setMonth(m); setMode('month') }}
+    />
+  </div>
+  )
+  const reading_ = (
+    <>
+    <header className="mo-side-head">
+      <h2>{mode === 'year' ? 'Year reading' : 'Month reading'}</h2>
+      <Lamp state={pageState} />
+    </header>
+    {reading.counted ? (
+      <ul className="mo-kinds" aria-label="Marks by kind">
+        {reading.perKind.map((r) => (
+          <li key={r.kind} data-kind={r.kind}>
+            <DayMark kind={r.kind} done decorative />
+            <span className="mo-kind-word">{SHAPES[r.kind].word}</span>
+            <span className="mo-run" aria-hidden="true">
+              {Array.from({ length: Math.min(10, r.done + r.planned) }, (_, i) => <i key={i} data-done={i < r.done ? 'true' : 'false'} />)}
+              {r.done + r.planned > 10 && <b>+</b>}
+            </span>
+            <span className="mo-kind-n">{r.done + r.planned}</span>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p className="mo-hollow">{statusReply && !showsNumber(statusReply.state) ? `No counts: ${statusReply.reason}.` : 'No counts to show yet.'}</p>
+    )}
+    <dl className="mo-pvd">
+      <div><dt>Planned</dt><dd data-hollow={reading.counted ? undefined : 'true'}>{reading.counted ? reading.planned : NO_VALUE}</dd></div>
+      <div><dt>Done</dt><dd data-hollow={reading.counted ? undefined : 'true'}>{reading.counted ? reading.done : NO_VALUE}</dd></div>
+    </dl>
+    </>
+  )
+  const intents_ = (
+    <>
+    <section className="mo-intents" aria-label="Next intents">
+      <h3>Next intents due</h3>
+      {intentsReply && showsNumber(intentsReply.state) && nextIntents.length > 0 ? (
+        <ol>
+          {nextIntents.map((r) => (
+            <li key={r.id}>
+              <button type="button" className="mo-intent" onClick={() => setDrawer(r.due)}>
+                <DayMark kind="intent" done={false} decorative />
+                <span className="mo-intent-rule">{r.rule}</span>
+                <span className="mo-intent-due">{shortDate(r.due)}</span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="mo-hollow">{intentsReply ? (showsNumber(intentsReply.state) ? 'No intent is due soon.' : `${intentsReply.reason}.`) : 'Reading the intents.'}</p>
+      )}
+    </section>
+    </>
+  )
+  const faces_ = (
+    <>
+    {FACES.map((f) => (
+      <section key={f.id} className="mo-face" aria-label={f.title}><h3>{f.title}</h3><f.Body month={month} days={days} state={pageState} /></section>
+    ))}
+    {note && <p className="mo-note" role="status">{note}</p>}
+    </>
+  )
+  const overlays = (
+    <>
+    <Popover open={marksOpen} onClose={() => setMarksOpen(false)} anchor={marksAnchor} label="Marks" className="mo-pop">
+      <MarksLegend on={kindsOn} onToggle={(k, next) => setKindsOn((s) => { const n = new Set(s); if (next) n.add(k); else n.delete(k); return n })} />
+    </Popover>
+    <Popover open={menu !== null} onClose={() => setMenu(null)} anchor={menuAnchor} placement={menuPlace} label="Add to this day" className="mo-pop mo-menu">
+      <div className="mo-menu-items">
+        <Button grouped onClick={() => menu && void runMenu('addIntent', menu)}>Add intent</Button>
+        <Button grouped onClick={() => menu && void runMenu('logDone', menu)}>Log something done</Button>
+        <Button grouped onClick={() => menu && void runMenu('movePlanned', menu)}>Move planned here</Button>
+      </div>
+    </Popover>
+    {lastDrawer.current && <DayDrawer date={lastDrawer.current} open={drawer !== null} onClose={() => setDrawer(null)} port={port} form={phone ? 'phone' : 'desk'} onChanged={refresh} />}
+    </>
+  )
+
+  // under the v3 look: the same pieces in three trays (MONTH, AHEAD, READING); the Almanac takes its form from its own tray
+  if (v3) {
+    const label = mode === 'year' ? 'Year reading' : 'Month reading'
+    return (
+      <div ref={root} className="mo" data-v3="" data-form={form} data-state={pageState} data-simulated={days.some((d) => d.state === 'simulated') ? 'true' : undefined}>
+        <Zones
+          ratio={[2.2, 1, 0.9]}
+          first={{
+            job: 'MONTH', className: 'tv3-flush',
+            children: <div className="tv3 tv3-month" ref={body}>{head}{almanac}</div>,
+          }}
+          second={{
+            job: 'AHEAD', peek: { name: 'Ahead', lamp: intentsReply ? intentsReply.state : 'waiting', note: nextIntents.length === 0 ? 'nothing due soon' : undefined },
+            children: <div className="tv3"><div className="mo-side" aria-label="Ahead">{intents_}{faces_}{note && <p className="mo-note" role="status">{note}</p>}</div></div>,
+          }}
+          third={{
+            job: 'READING', peek: { name: 'Reading', lamp: pageState },
+            children: <div className="tv3"><aside className="mo-side" aria-label={label}>{reading_}</aside></div>,
+          }}
+        />
+        {overlays}
+      </div>
+    )
+  }
+
   return (
     <div ref={root} className="mo" data-form={form} data-state={pageState} data-simulated={days.some((d) => d.state === 'simulated') ? 'true' : undefined}>
-      <header className="mo-head">
-        <div className="mo-title">
-          <h1 className="mo-month">{mode === 'year' ? <span className="mo-year">{year}</span> : <>{monthLabel(month).split(' ')[0]} <span className="mo-year">{year}</span></>}</h1>
-          <p className="mo-sub" role="status">
-            {statusReply ? <Lamp state={statusReply.state} reason={statusReply.reason} /> : <span className="mo-reading">Reading the month</span>}
-            {statusReply && (
-              <span className="mo-why" aria-hidden="true">
-                {emptyMonth ? 'Nothing logged this month yet. Tap a day to add one.' : statusReply.reason}
-              </span>
-            )}
-          </p>
-        </div>
-        <div className="mo-keys">
-          <span className="mo-step">
-            <IconButton label={mode === 'year' ? 'Previous year' : 'Previous month'} grouped onClick={() => step(-1)}><ChevronLeft size={18} aria-hidden="true" /></IconButton>
-            <IconButton label={mode === 'year' ? 'Next year' : 'Next month'} grouped onClick={() => step(1)}><ChevronRight size={18} aria-hidden="true" /></IconButton>
-          </span>
-          <Segmented<AlmanacMode>
-            label="Calendar form" variant="choice" value={mode} onChange={onMode}
-            options={[{ id: 'week', label: 'Week' }, { id: 'month', label: 'Month' }, { id: 'year', label: 'Year' }]}
-          />
-          <Button grouped onClick={goToday} data-key="today">Today</Button>
-          <span className="mo-google">
-            <span className="mo-google-name">Google</span>
-            {gcalReply ? <Lamp state={gcalReply.state} reason={gcalReply.reason} /> : <Lamp state="waiting" reason="not read yet" />}
-          </span>
-          <Button ref={marksKey} grouped aria-haspopup="dialog" aria-expanded={marksOpen} onClick={() => setMarksOpen((o) => !o)} data-key="marks">Marks</Button>
-        </div>
-      </header>
-
-      <div className="mo-main" ref={slide}>
-        <Almanac
-          mode={mode} days={days} exams={exams} month={month} today={today} state={pageState} selected={drawer} kindsOn={kindsOn} form={form}
-          onPick={(d) => { setMenu(null); setDrawer(d) }}
-          onMonth={step}
-          onMode={onMode}
-          onToday={goToday}
-          onAdd={(d) => void runMenu('addIntent', d)}
-          onMenu={(d, el) => { menuAnchor.current = pinned(() => el, 248, 'start'); setMenuPlace(el.getBoundingClientRect().top > window.innerHeight / 2 ? 'top' : 'bottom'); setMenu(d) }}
-          onJump={(m) => { setMonth(m); setMode('month') }}
-        />
-      </div>
-
+      {head}
+      {almanac}
       <aside className="mo-side" aria-label={mode === 'year' ? 'Year reading' : 'Month reading'}>
-        <header className="mo-side-head">
-          <h2>{mode === 'year' ? 'Year reading' : 'Month reading'}</h2>
-          <Lamp state={pageState} />
-        </header>
-        {reading.counted ? (
-          <ul className="mo-kinds" aria-label="Marks by kind">
-            {reading.perKind.map((r) => (
-              <li key={r.kind} data-kind={r.kind}>
-                <DayMark kind={r.kind} done decorative />
-                <span className="mo-kind-word">{SHAPES[r.kind].word}</span>
-                <span className="mo-run" aria-hidden="true">
-                  {Array.from({ length: Math.min(10, r.done + r.planned) }, (_, i) => <i key={i} data-done={i < r.done ? 'true' : 'false'} />)}
-                  {r.done + r.planned > 10 && <b>+</b>}
-                </span>
-                <span className="mo-kind-n">{r.done + r.planned}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mo-hollow">{statusReply && !showsNumber(statusReply.state) ? `No counts: ${statusReply.reason}.` : 'No counts to show yet.'}</p>
-        )}
-        <dl className="mo-pvd">
-          <div><dt>Planned</dt><dd data-hollow={reading.counted ? undefined : 'true'}>{reading.counted ? reading.planned : NO_VALUE}</dd></div>
-          <div><dt>Done</dt><dd data-hollow={reading.counted ? undefined : 'true'}>{reading.counted ? reading.done : NO_VALUE}</dd></div>
-        </dl>
-        <section className="mo-intents" aria-label="Next intents">
-          <h3>Next intents due</h3>
-          {intentsReply && showsNumber(intentsReply.state) && nextIntents.length > 0 ? (
-            <ol>
-              {nextIntents.map((r) => (
-                <li key={r.id}>
-                  <button type="button" className="mo-intent" onClick={() => setDrawer(r.due)}>
-                    <DayMark kind="intent" done={false} decorative />
-                    <span className="mo-intent-rule">{r.rule}</span>
-                    <span className="mo-intent-due">{shortDate(r.due)}</span>
-                  </button>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="mo-hollow">{intentsReply ? (showsNumber(intentsReply.state) ? 'No intent is due soon.' : `${intentsReply.reason}.`) : 'Reading the intents.'}</p>
-          )}
-        </section>
-        {FACES.map((f) => (
-          <section key={f.id} className="mo-face" aria-label={f.title}><h3>{f.title}</h3><f.Body month={month} days={days} state={pageState} /></section>
-        ))}
+        {reading_}
+        {intents_}
+        {faces_}
         {note && <p className="mo-note" role="status">{note}</p>}
       </aside>
 
-      <Popover open={marksOpen} onClose={() => setMarksOpen(false)} anchor={marksAnchor} label="Marks" className="mo-pop">
-        <MarksLegend on={kindsOn} onToggle={(k, next) => setKindsOn((s) => { const n = new Set(s); if (next) n.add(k); else n.delete(k); return n })} />
-      </Popover>
-      <Popover open={menu !== null} onClose={() => setMenu(null)} anchor={menuAnchor} placement={menuPlace} label="Add to this day" className="mo-pop mo-menu">
-        <div className="mo-menu-items">
-          <Button grouped onClick={() => menu && void runMenu('addIntent', menu)}>Add intent</Button>
-          <Button grouped onClick={() => menu && void runMenu('logDone', menu)}>Log something done</Button>
-          <Button grouped onClick={() => menu && void runMenu('movePlanned', menu)}>Move planned here</Button>
-        </div>
-      </Popover>
-      {lastDrawer.current && <DayDrawer date={lastDrawer.current} open={drawer !== null} onClose={() => setDrawer(null)} port={port} form={phone ? 'phone' : 'desk'} onChanged={refresh} />}
+      {overlays}
     </div>
   )
 }

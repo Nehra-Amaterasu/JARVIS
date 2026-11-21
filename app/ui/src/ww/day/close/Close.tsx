@@ -25,6 +25,11 @@ import '../../../styles/design/primitive.css'
 import '../today/today.css'
 import '../week/base.css'
 import './close.css'
+import '../v3/day-v3.css'
+import { lookV3Enabled } from '../../../shell/look'
+import { useViewChrome, Zones, type ViewChromeSpec } from '../../../shell/v3'
+import { useStore } from '../../../lib/store'
+import { CAPTURE_MODE, takeLine } from '../v3/capture'
 
 const SEEN_KEY = 'ww.day.lastSeen'
 const LINES_KEY = 'ww.day.captures'
@@ -63,7 +68,10 @@ export interface ClosePageProps {
 
 export function ClosePage({ port = DAY_PORT, plan = PLAN_STORE, today: fixedToday, form: forcedForm, minutes = {}, minutesUnread = { state: 'waiting', reason: 'reading your plan' }, classes = [], classesUnread = { state: 'waiting', reason: 'reading the timetable' }, tomorrowFirst = null, lastSeen = null, simulated = false, initialPlan = false, initialCapture = false }: ClosePageProps) {
   const root = useRef<HTMLDivElement>(null)
-  const form = useForm(root, forcedForm)
+  // under the v3 look the plan sits in one tray, so the form follows that tray's width
+  const v3 = lookV3Enabled()
+  const body = useRef<HTMLDivElement>(null)
+  const form = useForm(v3 ? body : root, forcedForm)
   const today = useToday(fixedToday)
   const tomorrow = tomorrowOf(today)
   const [planOpen, setPlanOpen] = useState(initialPlan)
@@ -110,6 +118,24 @@ export function ClosePage({ port = DAY_PORT, plan = PLAN_STORE, today: fixedToda
     localSet(LINES_KEY, JSON.stringify(next))
   }
 
+  // the v3 dock: the capture line is the Capture mode (kept as a line on this device, as before); the opt-in switch is a row of More
+  const onLine = useRef(onCapture)
+  onLine.current = onCapture
+  const capOn = useRef(capture)
+  capOn.current = capture
+  const chrome = useMemo<ViewChromeSpec | null>(() => (v3 ? {
+    dock: {
+      modes: [CAPTURE_MODE],
+      onSubmit: (_mode, text) => {
+        const say = (m: string) => useStore.getState().toast(m, 'info')
+        if (!capOn.current) { say('Daily capture is off. Turn it on in More.'); return false }
+        return takeLine(text, (p) => onLine.current(p), say)
+      },
+    },
+    more: [{ id: 'capture', label: `Daily capture: ${capture ? 'on' : 'off'}, change`, onSelect: () => setCapture((c) => !c) }],
+  } : null), [v3, capture])
+  useViewChrome(chrome)
+
   // `p` opens the plan for tomorrow (never while typing, never with a modifier)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -126,6 +152,8 @@ export function ClosePage({ port = DAY_PORT, plan = PLAN_STORE, today: fixedToda
 
   const phone = form === 'phone'
   const set = (i: number, k: 'cue' | 'step' | 'minutes', v: string) => setDrafts((d) => d.map((x, j) => (j === i ? { ...x, [k]: v } : x)))
+
+  const planKey = <Button tone="primary" size="lg" className="dy-primary cl-plan-key" onClick={() => setPlanOpen(true)} data-open="plan-tomorrow" aria-keyshortcuts="p">Plan tomorrow</Button>
 
   const todayPlate = (
     <TodayPlate id="today" label="Today in one look" state={headState} reason={unread ? unread.reason : simulated ? 'invented rows, not your records' : 'your own logs'}>
@@ -153,9 +181,79 @@ export function ClosePage({ port = DAY_PORT, plan = PLAN_STORE, today: fixedToda
           <p className="dy-note">{nextR && showsNumber(nextR.state) ? 'Nothing is planned for tomorrow yet. Three lines are enough.' : "Write tomorrow's plan now; it stays a hollow form until it is saved."}</p>
         </>
       )}
-      <Button tone="primary" size="lg" className="dy-primary cl-plan-key" onClick={() => setPlanOpen(true)} data-open="plan-tomorrow" aria-keyshortcuts="p">Plan tomorrow</Button>
+      {!v3 && planKey}
     </TodayPlate>
   )
+
+  const head = (
+  <header className="dy-head">
+    <div className="dy-head-text">
+      <h1 className="dy-title">Close the day <small>{shortDate(today)}</small></h1>
+      <p className="dy-sub" role="status"><LampWord state={headState} /><span className="dy-why">{headReason}</span></p>
+    </div>
+  </header>
+  )
+  const backSection = (
+    <section className="cl-back" aria-label="Pick up here" data-return="">
+      <p className="cl-back-line">Pick up here.</p>
+      {recent.length > 0 && (
+        <ul className="cl-back-days" aria-label="The last days with a log">
+          {recent.map((d) => <li key={d.date}><span>{shortDate(d.date)}</span><span className="dy-mono">{d.minutes} min</span></li>)}
+        </ul>
+      )}
+    </section>
+  )
+  const drawer = (
+  <Drawer open={planOpen} onClose={() => setPlanOpen(false)} title={`Plan ${shortDate(tomorrow)}`} place={phone ? 'bottom' : 'right'} className="dy-sheet cl-sheet">
+    <div className="cl-drawer">
+      <p className="dy-note">Up to three lines: when something happens, what you will do and for how long. They are your intentions, not a result.</p>
+      {drafts.map((d, i) => (
+        <fieldset key={i} className="cl-row">
+          <legend>Line {i + 1}</legend>
+          <Field label="When" value={d.cue} maxLength={60} onChange={(e) => set(i, 'cue', e.target.value)} />
+          <Field label="I will" value={d.step} maxLength={80} onChange={(e) => set(i, 'step', e.target.value)} />
+          <Field label="For" unit="min" inputMode="numeric" value={d.minutes} maxLength={3} onChange={(e) => set(i, 'minutes', e.target.value)} />
+        </fieldset>
+      ))}
+      <Button tone="primary" size="lg" onClick={() => void savePlan()} data-act="save-plan">Save the plan</Button>
+      <p className="dy-note" role="status">{planOpen ? note ?? '' : ''}</p>
+    </div>
+  </Drawer>
+  )
+
+  // under the v3 look: three trays (CLOSE, TOMORROW, LOGGED); the capture line is the dock's Capture mode and the on/off key is a row of More
+  if (v3) {
+    return (
+      <div ref={root} className="dy cx" data-v3="" data-form={form} data-simulated={simulated ? 'true' : undefined}>
+        <Zones
+          ratio={[1.85, 1.05, 0.95]}
+          first={{
+            job: 'CLOSE', className: 'tv3-flush',
+            children: <div className="tv3 tv3-close" ref={body}>{head}{todayPlate}{planKey}</div>,
+          }}
+          second={{
+            job: 'TOMORROW', peek: { name: 'Tomorrow', lamp: nextR ? nextR.state : 'waiting', note: nextR ? nextR.reason : 'reading' },
+            children: <div className="tv3">{tomorrowPlate}</div>,
+          }}
+          third={{
+            job: 'LOGGED', peek: { name: 'Logged', lamp: headState, note: lines.length === 0 ? 'no lines kept' : undefined },
+            children: (
+              <div className="tv3 tv3-logged">
+                {back && backSection}
+                <section className="cl-back" aria-label="Lines kept on this device">
+                  <p className="cl-back-line">{lines.length > 0 ? 'Lines kept on this device' : capture ? 'No line kept yet.' : 'Daily capture is off.'}</p>
+                  {lines.length > 0 && <ul className="cl-back-days" aria-label="Captured lines">{lines.map((l, i) => <li key={`${i}-${l}`}><span>{l}</span></li>)}</ul>}
+                </section>
+                <p className="dy-note">Kept on this device only. A line is not added to the water, spending or gym logs until their stores are connected.</p>
+                <p className="dy-note cl-note" role="status">{planOpen ? '' : note ?? ''}</p>
+              </div>
+            ),
+          }}
+        />
+        {drawer}
+      </div>
+    )
+  }
 
   return (
     <div ref={root} className="dy cx" data-form={form} data-simulated={simulated ? 'true' : undefined}>

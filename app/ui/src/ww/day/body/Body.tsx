@@ -25,6 +25,9 @@ import '../../../styles/design/primitive.css'
 import '../today/today.css'
 import '../week/base.css'
 import './body.css'
+import '../v3/day-v3.css'
+import { lookV3Enabled } from '../../../shell/look'
+import { useViewChrome, Zones, type ViewChromeSpec } from '../../../shell/v3'
 
 // the session builder is the existing Forge page: it needs room (muscles, exercises, sets), so it opens in a drawer and loads only then
 const Forge = lazy(() => import('../../../germoney/pages/Forge').then((m) => ({ default: m.ForgePage })))
@@ -56,7 +59,10 @@ const KINDS_OK = (s: LampState) => showsNumber(s)
 
 export function BodyPage({ port = DAY_PORT, stores = LEDGER_STORES, today: fixedToday, now, form: forcedForm, sessions = null, sessionsFault = null, simulated = false, classes = [], initialLedger = false, initialLog = false }: BodyPageProps) {
   const root = useRef<HTMLDivElement>(null)
-  const form = useForm(root, forcedForm)
+  // under the v3 look the gym plate sits in one tray, so the form follows that tray's width
+  const v3 = lookV3Enabled()
+  const body = useRef<HTMLDivElement>(null)
+  const form = useForm(v3 ? body : root, forcedForm)
   const today = useToday(fixedToday)
   const [ledger, setLedger] = useState(initialLedger)
   const [log, setLog] = useState(initialLog)
@@ -81,6 +87,10 @@ export function BodyPage({ port = DAY_PORT, stores = LEDGER_STORES, today: fixed
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  // the Ledger is used less than weekly: under the v3 look it is a row of More (the `l` key still opens it)
+  const chrome = useMemo<ViewChromeSpec | null>(() => (v3 ? { more: [{ id: 'ledger', label: 'Ledger', onSelect: () => setLedger(true) }] } : null), [v3])
+  useViewChrome(chrome)
 
   const gymState: LampState = sessionsFault && sessions === null ? 'fault' : sessions === null ? 'waiting' : simulated ? 'simulated' : 'live'
   const gymReason = sessionsFault && sessions === null ? sessionsFault : sessions === null ? 'reading your sessions' : simulated ? 'invented rows, not your records' : 'sessions you logged'
@@ -147,10 +157,12 @@ export function BodyPage({ port = DAY_PORT, stores = LEDGER_STORES, today: fixed
           <span className="by-next-label">Next session</span>
           <span>{nextIntent ? nextIntent.rule : intents ? (KINDS_OK(intents.state) ? 'nothing is set for today' : intents.reason) : 'reading the intents'}</span>
         </p>
-        <div className="by-gym-keys">
-          <Button tone="primary" size="lg" onClick={() => setLog(true)} data-act="log-session">Log a session</Button>
-          <Button grouped onClick={() => setLedger(true)} data-open="ledger" aria-keyshortcuts="l">Ledger</Button>
-        </div>
+        {!v3 && (
+          <div className="by-gym-keys">
+            <Button tone="primary" size="lg" onClick={() => setLog(true)} data-act="log-session">Log a session</Button>
+            <Button grouped onClick={() => setLedger(true)} data-open="ledger" aria-keyshortcuts="l">Ledger</Button>
+          </div>
+        )}
       </div>
     </TodayPlate>
   )
@@ -210,14 +222,55 @@ export function BodyPage({ port = DAY_PORT, stores = LEDGER_STORES, today: fixed
     </TodayPlate>
   )
 
+  const head = (
+  <header className="dy-head">
+    <div className="dy-head-text">
+      <h1 className="dy-title">Body <small>{shortDate(today)}</small></h1>
+      <p className="dy-sub" role="status"><LampWord state={gymState} /><span className="dy-why">gym sessions you logged; the rest is waiting on its stores</span></p>
+    </div>
+  </header>
+  )
+  const drawers = (
+    <>
+    <Drawer open={log} onClose={() => setLog(false)} title="Gym session" className="dy-sheet by-sheet">
+      <Suspense fallback={<p role="status" className="dy-note">Opening the session builder.</p>}>{log && <Forge />}</Suspense>
+    </Drawer>
+    <LedgerDrawer open={ledger} onClose={() => setLedger(false)} stores={stores} today={today} form={form} />
+    </>
+  )
+
+  // under the v3 look: the same plates in three trays (LOG, WATER, REMINDERS)
+  if (v3) {
+    return (
+      <div ref={root} className="dy by" data-v3="" data-form={form} data-simulated={simulated ? 'true' : undefined}>
+        <Zones
+          ratio={[1.85, 1.05, 1]}
+          first={{
+            job: 'LOG', className: 'tv3-flush',
+            children: (
+              <div className="tv3 tv3-log" ref={body}>
+                <Button tone="primary" size="lg" className="dy-primary" onClick={() => setLog(true)} data-act="log-session" aria-keyshortcuts="l">Log a session</Button>
+                <div className="dy-cell by-left">{gym}</div>
+              </div>
+            ),
+          }}
+          second={{
+            job: 'WATER', peek: { name: 'Water', lamp: wState, note: KINDS_OK(wState) ? undefined : 'not read yet' },
+            children: <div className="tv3"><div className="dy-cell by-water-cell">{waterPlate}</div></div>,
+          }}
+          third={{
+            job: 'REMINDERS', peek: { name: 'Reminders', lamp: reminders ? reminders.state : 'waiting', note: reminders && KINDS_OK(reminders.state) ? undefined : 'not read yet' },
+            children: <div className="tv3"><div className="dy-cell">{remPlate}</div><div className="dy-cell">{classPlate}</div></div>,
+          }}
+        />
+        {drawers}
+      </div>
+    )
+  }
+
   return (
     <div ref={root} className="dy by" data-form={form} data-simulated={simulated ? 'true' : undefined}>
-      <header className="dy-head">
-        <div className="dy-head-text">
-          <h1 className="dy-title">Body <small>{shortDate(today)}</small></h1>
-          <p className="dy-sub" role="status"><LampWord state={gymState} /><span className="dy-why">gym sessions you logged; the rest is waiting on its stores</span></p>
-        </div>
-      </header>
+      {head}
       <div className="dy-main by-main">
         <div className="dy-cell by-left">{gym}</div>
         <div className="by-right">
@@ -226,10 +279,7 @@ export function BodyPage({ port = DAY_PORT, stores = LEDGER_STORES, today: fixed
           <div className="dy-cell">{classPlate}</div>
         </div>
       </div>
-      <Drawer open={log} onClose={() => setLog(false)} title="Gym session" className="dy-sheet by-sheet">
-        <Suspense fallback={<p role="status" className="dy-note">Opening the session builder.</p>}>{log && <Forge />}</Suspense>
-      </Drawer>
-      <LedgerDrawer open={ledger} onClose={() => setLedger(false)} stores={stores} today={today} form={form} />
+      {drawers}
     </div>
   )
 }

@@ -1,0 +1,114 @@
+/* The Day views under the v3 look (Today, Week, Month, Body, Close): three trays from the shell's <Zones>. Every rule sits under
+   :root[data-look='v3'], so the current look never matches one. The pieces inside the trays are the views' own (plates, keys, wells);
+   this file only turns their frames off, lets them fill a tray and fits them at 1366, 1120 and 390 px. Tokens by name only. */
+
+/* ---- the page frames give up their own canvas: the shell's trays are the canvas now ---- */
+:root[data-look='v3'] .dy[data-v3],
+:root[data-look='v3'] .mo[data-v3] {
+  position: relative; inset: auto; display: block; height: 100%; min-height: 0; padding: 0; gap: 0;
+  background: transparent; overflow: visible; grid-template-columns: none; grid-template-rows: none;
+}
+:root[data-look='v3'] .tv3 { display: flex; flex-direction: column; gap: var(--space-3); min-height: 0; min-width: 0; flex: 1; color: var(--ink); }
+:root[data-look='v3'] .tv3 > * { min-width: 0; }
+/* the first tray of Week, Month, Body and Close holds a page of its own form: a little less padding so seven keys fit at 390 px */
+@media (max-width: 700px) {
+  :root[data-look='v3'] .s3-tray.tv3-flush { padding-left: 0.625rem; padding-right: 0.625rem; }
+}
+/* the plates and wells keep their clay; in a tray they are as tall as their content */
+:root[data-look='v3'] .tv3 .td-plate { height: auto; }
+:root[data-look='v3'] .tv3 .dy-cell { flex: none; }
+:root[data-look='v3'] .tv3 .dy-cell > .td-plate { flex: none; }
+:root[data-look='v3'] .tv3 .td-corners { display: none; }
+:root[data-look='v3'] .tv3 .dy-head { min-height: 0; flex-wrap: wrap; row-gap: var(--space-2); }
+:root[data-look='v3'] .tv3 .dy-title { font-size: 1.375rem; line-height: 1.75rem; }
+:root[data-look='v3'] .tv3 .dy-keys { margin-left: 0; flex-wrap: wrap; }
+:root[data-look='v3'] .tv3-third .td-quiet,
+:root[data-look='v3'] .tv3-third .dy-note { font-size: 0.75rem; }
+
+/* ---- Today ---- */
+:root[data-look='v3'] .tv3-hero { flex: none; display: flex; flex-direction: column; gap: var(--space-2); }
+:root[data-look='v3'] .tv3-line { margin: 0; font-family: var(--font-ui); font-size: 1.625rem; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); overflow-wrap: anywhere; }
+:root[data-look='v3'] .tv3-why { margin: 0; font-size: 0.8125rem; line-height: 1.25rem; color: var(--ink2); overflow-wrap: anywhere; }
+:root[data-look='v3'] .tv3-start { width: 100%; min-height: 3rem; margin-top: var(--space-1); }
+:root[data-look='v3'] .tv3-dial { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+:root[data-look='v3'] .tv3-dial .td-arc { margin: 0 auto; }
+:root[data-look='v3'] .tv3-second { gap: var(--space-3); }
+:root[data-look='v3'] .tv3-block { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+:root[data-look='v3'] .tv3-bhead { display: flex; align-items: center; gap: var(--space-2); }
+:root[data-look='v3'] .tv3-bhead h3 { margin: 0; font-size: 0.8125rem; line-height: 1rem; font-weight: 600; color: var(--ink); }
+:root[data-look='v3'] .tv3-classes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); font-size: 0.8125rem; }
+:root[data-look='v3'] .tv3-classes li { display: flex; gap: var(--space-2); align-items: baseline; min-width: 0; }
+:root[data-look='v3'] .tv3-cname { min-width: 0; overflow-wrap: anywhere; }
+:root[data-look='v3'] .tv3-second .td-keys { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+:root[data-look='v3'] .tv3-second .td-plate { padding: var(--space-2); }
+:root[data-look='v3'] .tv3-third .td-phone-rail { flex: none; }
+:root[data-look='v3'] .tv3-week { flex: none; min-width: 0; }
+:root[data-look='v3'] .tv3-week .td-strip { align-items: stretch; }
+:root[data-look='v3'] .tv3-week .td-strip-head { padding: 0; }
+
+/* ---- Week: PLAN holds the week (seven columns, or one day at a time when the tray is narrow), the rack and the margins stand in their own trays ---- */
+:root[data-look='v3'] .tv3-plan { gap: var(--space-2); }
+:root[data-look='v3'] .tv3-plan .wk-left { flex: 1; min-height: 0; gap: var(--space-2); }
+:root[data-look='v3'] .tv3-plan .wk-frame { flex: 1; min-height: 0; }
+:root[data-look='v3'] .tv3-plan .wk-week { overflow-y: auto; scrollbar-width: thin; }
+:root[data-look='v3'] .tv3-plan .wk-foot { flex: none; flex-wrap: wrap; gap: var(--space-2); }
+:root[data-look='v3'] .tv3-plan .dy-primary { min-height: 3rem; }
+/* the seven day chips of the narrow form: 44 px each, a raised key, today's ink mark under its date */
+:root[data-look='v3'] .wk-strip { display: grid; grid-template-columns: repeat(7, minmax(44px, 1fr)); gap: 0.125rem; }
+:root[data-look='v3'] .wk-chip {
+  min-width: 44px; min-height: 44px; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+  border: 0; border-radius: var(--r-key); background: var(--surface-raised); box-shadow: var(--elev-raised); color: var(--ink-1); cursor: pointer;
+  font: var(--type-small);
+}
+:root[data-look='v3'] .wk-chip[aria-pressed='true'] { background: var(--surface-sunk); box-shadow: var(--elev-pressed); }
+:root[data-look='v3'] .wk-chip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+:root[data-look='v3'] .wk-chip-name { font-size: 0.6875rem; line-height: 0.875rem; color: var(--ink-2); }
+:root[data-look='v3'] .wk-chip-num { font-size: 0.8125rem; line-height: 1rem; }
+:root[data-look='v3'] .wk-chip-dot { width: 0.25rem; height: 0.25rem; border-radius: 50%; background: transparent; }
+:root[data-look='v3'] .wk-chip-dot[data-on='true'] { background: var(--ink-1); }
+:root[data-look='v3'] .wk-chip[data-today='true'] .wk-chip-num { text-decoration: underline; }
+:root[data-look='v3'] .wk[data-v3] .wk-slot { min-height: 3rem; }
+/* the move keys are 44 px targets */
+:root[data-look='v3'] .wk[data-v3] .wk-movekeys button { min-height: 44px; }
+:root[data-look='v3'] .wk[data-v3] .wk-day[data-date] .wk-block { min-height: 44px; }
+
+/* ---- Month ---- */
+:root[data-look='v3'] .tv3-month { gap: var(--space-2); }
+:root[data-look='v3'] .tv3-month .mo-head { flex-wrap: wrap; gap: var(--space-2); min-height: 0; }
+:root[data-look='v3'] .tv3-month .mo-month { font-size: 1.375rem; line-height: 1.75rem; }
+:root[data-look='v3'] .tv3-month .mo-keys { flex-wrap: wrap; gap: var(--space-2); }
+:root[data-look='v3'] .tv3-month .mo-main { flex: 1; min-height: 0; }
+:root[data-look='v3'] .mo[data-v3] .mo-side { background: transparent; box-shadow: none; padding: 0; overflow: visible; flex: none; }
+
+/* ---- Body and Close ---- */
+:root[data-look='v3'] .tv3-log .by-left { flex: 1; min-height: 0; }
+:root[data-look='v3'] .tv3-close .dy-primary { width: 100%; }
+:root[data-look='v3'] .tv3-logged .cl-back { margin: 0; }
+
+/* ---- Month: the head takes two rows (title and step keys, then the form switch, Today, Google and Marks) so the six-week grid fits ---- */
+:root[data-look='v3'] .tv3-month .mo-title { flex: 1 1 10rem; }
+:root[data-look='v3'] .tv3-month .mo-keys { display: contents; }
+:root[data-look='v3'] .tv3-month .mo-head { display: flex; align-items: center; justify-content: space-between; row-gap: var(--space-1); }
+:root[data-look='v3'] .tv3-month .mo-keys > * { order: 3; }
+:root[data-look='v3'] .tv3-month .mo-keys > .mo-google { order: 1; padding: 0 var(--space-2); gap: var(--space-1); }
+:root[data-look='v3'] .tv3-month .mo-keys > .mo-step { order: 2; }
+:root[data-look='v3'] .tv3-month .mo-head > .mo-title { order: 0; }
+
+/* ---- Body: the gym plate is as dense as the tray allows ---- */
+:root[data-look='v3'] .tv3-log { gap: var(--space-2); }
+:root[data-look='v3'] .tv3-log .by-gym { gap: var(--space-2); }
+:root[data-look='v3'] .tv3-log .by-day { min-height: 3rem; }
+:root[data-look='v3'] .tv3-log .by-rail-row i { height: 1.25rem; border-radius: 0.625rem; }
+:root[data-look='v3'] .tv3-log .by-week { gap: var(--space-1); }
+:root[data-look='v3'] .tv3-log .by-rail-row { gap: var(--space-1); }
+:root[data-look='v3'] .tv3-log .td-plate { flex: 1; min-height: 0; }
+
+/* ---- the laptop's smallest window (1120 x 720): a little less repeated text, nothing cut ---- */
+@media (max-height: 760px) and (min-width: 701px) {
+  :root[data-look='v3'] .tv3-third .ps-ring,
+  :root[data-look='v3'] .tv3-third .ps-foot,
+  :root[data-look='v3'] .tv3-third .ps-why,
+  :root[data-look='v3'] .tv3-second .td-plate-why { display: none; }
+  :root[data-look='v3'] .tv3-line { font-size: 1.375rem; }
+  :root[data-look='v3'] .tv3-first .tv3-why { display: none; }
+}

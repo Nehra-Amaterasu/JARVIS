@@ -11,6 +11,7 @@ import type { Parsed } from '../../../shared/capture'
 import { usePlan } from '../../../germoney/game/plan'
 import { useStore } from '../../../lib/store'
 import { useShell } from '../../../shell/store'
+import { lookV3Enabled } from '../../../shell/look'
 import { OverlayHost } from '../../frame/OverlayHost'
 import { useLeft } from '../../left/store'
 import { LeftRail } from '../../left/Rail'
@@ -26,6 +27,8 @@ import { buildToday, msToNextMinute, ymd, type TodayRaw } from './model'
 import { TodayView } from './TodayView'
 
 /** The frame's overlays (date sheet, phone, log minutes) register themselves on import; loaded with the page, not before. */
+/** The v3 look's own layout of the page (three trays); a lazy chunk, so with the look off nothing of it is downloaded. */
+const TodayV3 = lazy(() => import('./TodayV3'))
 const Overlays = lazy(() => import('../../overlays/setupOverlays').then(() => ({ default: OverlayHost })))
 
 /** A Date that changes once a minute, on the minute: one timeout re-armed after each step, never an interval or a frame loop. */
@@ -111,6 +114,16 @@ export default function Today() {
     toast(`Understood "${p.verb}", but Today cannot save it yet. Nothing was stored.`, 'info')
   }, [])
 
+  if (lookV3Enabled()) {
+    return (
+      <Suspense fallback={null}>
+        <TodayV3 ctx={ctx} onCapture={onCapture}>
+          <PlanDrawer open={plan} onClose={() => setPlan(false)} />
+          <Overlays />
+        </TodayV3>
+      </Suspense>
+    )
+  }
   return (
     <TodayView ctx={ctx} onCapture={onCapture}
       left={<LeftRail omit={['now', 'counters']} go={go} />}

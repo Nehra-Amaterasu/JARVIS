@@ -31,6 +31,9 @@ import '../../../styles/design/primitive.css'
 import '../today/today.css'
 import './base.css'
 import './week.css'
+import '../v3/day-v3.css'
+import { lookV3Enabled } from '../../../shell/look'
+import { Zones } from '../../../shell/v3'
 
 const MAX_BLOCKS = 6
 /** The hours of the week's ruler, 08 to 20: a tick every hour, a label every two. Twelve rows of about 40 px fill the 1366 x 768 canvas
@@ -92,7 +95,10 @@ export interface WeekPageProps {
 
 export function WeekPage({ port = DAY_PORT, today: fixedToday, form: forcedForm, minutes = {}, attendance, simulated = false, initialMove = null, initialAll = false }: WeekPageProps) {
   const root = useRef<HTMLDivElement>(null)
-  const form = useForm(root, forcedForm)
+  // under the v3 look the week is one tray, so the form (seven columns or one day at a time) follows that tray's width, not the page's
+  const v3 = lookV3Enabled()
+  const body = useRef<HTMLDivElement>(null)
+  const form = useForm(v3 ? body : root, forcedForm)
   const today = useToday(fixedToday)
   const [start, setStart] = useState(() => weekStart(today))
   const [version, setVersion] = useState(0)
@@ -287,76 +293,112 @@ export function WeekPage({ port = DAY_PORT, today: fixedToday, form: forcedForm,
 
   const planKey = <Button tone="primary" size="lg" className="dy-primary" onClick={() => setPlanning(true)} data-act="plan-block">Plan a block</Button>
 
+  const head = (
+  <header className="dy-head">
+    <div className="dy-head-text">
+      <h1 className="dy-title">Week <small>{weekLabel(start)}</small></h1>
+      <p className="dy-sub" role="status"><LampWord state={lamp.state} /><span className="dy-why">{lamp.reason}</span></p>
+    </div>
+    <div className="dy-keys">
+      <IconButton label="Previous week" grouped onClick={() => stepWeek(-1)}><ChevronLeft size={18} aria-hidden="true" /></IconButton>
+      <IconButton label="Next week" grouped onClick={() => stepWeek(1)}><ChevronRight size={18} aria-hidden="true" /></IconButton>
+      {readFault && <Button grouped onClick={refresh} data-act="retry-week">Try again</Button>}
+      <Button grouped onClick={() => { setMoving(null); setSel(null); setStart(weekStart(today)) }} data-key="this-week">This week</Button>
+      {!phone && planKey}
+    </div>
+  </header>
+  )
+  const left = (
+  <div className="wk-left">
+    {phone && planKey}
+    {strip}
+    <div className="wk-frame" data-empty={noBlocks ? 'true' : undefined}>
+      {noBlocks && !phone && (
+        <div className="wk-ruler dy-mono" aria-hidden="true">
+          {RULER_HOURS.map((h, i) => <span key={h}><b>{i % 2 === 0 ? h : ''}</b><i /></span>)}
+        </div>
+      )}
+      <div className="wk-week" aria-label="The week">
+        {days}
+        {noBlocks && !phone && (
+          <>
+            <div className="wk-lines" aria-hidden="true">{RULER_HOURS.map((h, i) => <i key={h} data-major={i % 2 === 0 ? 'true' : undefined} />)}</div>
+            <p className="wk-empty">{emptyLine}</p>
+          </>
+        )}
+      </div>
+    </div>
+    <div className="wk-foot">
+      <p className="wk-line" role="status" aria-live="polite" data-moving={moving ? 'true' : undefined}>
+        {status ?? <>A planned block is hollow, a done one solid. Press <kbd>m</kbd> on a planned block to move it.</>}
+      </p>
+      {moveKeys}
+    </div>
+  </div>
+  )
+  const rackCell = (<div className="dy-cell"><Rack classes={classes} state={rack.state} reason={rack.reason} onAll={() => setAll(true)} onFree={setFree} /></div>)
+  const margCell = (<div className="dy-cell"><Margins rows={rows} required={required} state={margins.state} reason={margins.reason} onAll={() => setAll(true)} /></div>)
+  const drawers = (
+    <>
+    <Drawer open={planning} onClose={() => setPlanning(false)} title="Plan a block" place={phone ? 'bottom' : 'right'} className="dy-sheet wk-sheet">
+      {planning && (
+        <div className="wk-drawer-body">
+          <p className="dy-note">Write what you would like to plan and when; the line is read and nothing more.</p>
+          <CaptureLine grammar="ww" label="Capture, for example: remind me today 4 pm revise" globalKey={false} initialText="remind me today "
+            onCommit={() => { setPlanning(false); setNote('That line was understood. Nothing was saved: the intent store is not connected yet.') }} />
+        </div>
+      )}
+    </Drawer>
+
+    <Drawer open={!!free} onClose={() => setFree(null)} title="Free time" place={phone ? 'bottom' : 'right'} className="dy-sheet wk-sheet">
+      {free && (
+        <div className="wk-drawer-body">
+          <p className="dy-note">{free.from} to {free.to}, free for {fmtMinutes(free.minutes)}. Write what you would like to do in it; the line is read and nothing more.</p>
+          <CaptureLine grammar="ww" label="Capture, for example: remind me today 4 pm revise" globalKey={false} initialText={`remind me today ${free.from} `}
+            onCommit={() => { setFree(null); setNote('That line was understood. Nothing was saved: the intent store is not connected yet.') }} />
+        </div>
+      )}
+    </Drawer>
+
+    <AllDrawer open={all} onClose={() => setAll(false)} classes={classes} rows={rows} required={required} state={margins.state} reason={margins.reason} rackState={rack.state} rackReason={rack.reason} />
+    </>
+  )
+
+  // under the v3 look: the same pieces in three trays (PLAN, TIMETABLE, MARGINS); the page keeps its key handlers on the root
+  if (v3) {
+    return (
+    <div ref={root} className="dy wk" data-v3="" data-form={form} data-state={lamp.state} data-simulated={lamp.state === 'simulated' || simulated ? 'true' : undefined} onKeyDown={onKeyDown} onBlur={onBlur} onFocus={onFocus}>
+        <Zones
+          ratio={[2.2, 1, 1]}
+          first={{
+            job: 'PLAN', className: 'tv3-flush',
+            children: <div className="tv3 tv3-plan" ref={body}>{head}{left}</div>,
+          }}
+          second={{
+            job: 'TIMETABLE', peek: { name: 'Timetable', lamp: rack.state, note: rack.reason },
+            children: <div className="tv3">{rackCell}</div>,
+          }}
+          third={{
+            job: 'MARGINS', peek: { name: 'Margins', lamp: margins.state, note: margins.reason },
+            children: <div className="tv3">{margCell}</div>,
+          }}
+        />
+        {drawers}
+      </div>
+    )
+  }
+
   return (
     <div ref={root} className="dy wk" data-form={form} data-state={lamp.state} data-simulated={lamp.state === 'simulated' || simulated ? 'true' : undefined} onKeyDown={onKeyDown} onBlur={onBlur} onFocus={onFocus}>
-      <header className="dy-head">
-        <div className="dy-head-text">
-          <h1 className="dy-title">Week <small>{weekLabel(start)}</small></h1>
-          <p className="dy-sub" role="status"><LampWord state={lamp.state} /><span className="dy-why">{lamp.reason}</span></p>
-        </div>
-        <div className="dy-keys">
-          <IconButton label="Previous week" grouped onClick={() => stepWeek(-1)}><ChevronLeft size={18} aria-hidden="true" /></IconButton>
-          <IconButton label="Next week" grouped onClick={() => stepWeek(1)}><ChevronRight size={18} aria-hidden="true" /></IconButton>
-          {readFault && <Button grouped onClick={refresh} data-act="retry-week">Try again</Button>}
-          <Button grouped onClick={() => { setMoving(null); setSel(null); setStart(weekStart(today)) }} data-key="this-week">This week</Button>
-          {!phone && planKey}
-        </div>
-      </header>
-
+      {head}
       <div className="dy-main wk-main">
-        <div className="wk-left">
-          {phone && planKey}
-          {strip}
-          <div className="wk-frame" data-empty={noBlocks ? 'true' : undefined}>
-            {noBlocks && !phone && (
-              <div className="wk-ruler dy-mono" aria-hidden="true">
-                {RULER_HOURS.map((h, i) => <span key={h}><b>{i % 2 === 0 ? h : ''}</b><i /></span>)}
-              </div>
-            )}
-            <div className="wk-week" aria-label="The week">
-              {days}
-              {noBlocks && !phone && (
-                <>
-                  <div className="wk-lines" aria-hidden="true">{RULER_HOURS.map((h, i) => <i key={h} data-major={i % 2 === 0 ? 'true' : undefined} />)}</div>
-                  <p className="wk-empty">{emptyLine}</p>
-                </>
-              )}
-            </div>
-          </div>
-          <div className="wk-foot">
-            <p className="wk-line" role="status" aria-live="polite" data-moving={moving ? 'true' : undefined}>
-              {status ?? <>A planned block is hollow, a done one solid. Press <kbd>m</kbd> on a planned block to move it.</>}
-            </p>
-            {moveKeys}
-          </div>
-        </div>
+        {left}
         <div className="wk-side">
-          <div className="dy-cell"><Rack classes={classes} state={rack.state} reason={rack.reason} onAll={() => setAll(true)} onFree={setFree} /></div>
-          <div className="dy-cell"><Margins rows={rows} required={required} state={margins.state} reason={margins.reason} onAll={() => setAll(true)} /></div>
+          {rackCell}
+          {margCell}
         </div>
       </div>
-
-      <Drawer open={planning} onClose={() => setPlanning(false)} title="Plan a block" place={phone ? 'bottom' : 'right'} className="dy-sheet wk-sheet">
-        {planning && (
-          <div className="wk-drawer-body">
-            <p className="dy-note">Write what you would like to plan and when; the line is read and nothing more.</p>
-            <CaptureLine grammar="ww" label="Capture, for example: remind me today 4 pm revise" globalKey={false} initialText="remind me today "
-              onCommit={() => { setPlanning(false); setNote('That line was understood. Nothing was saved: the intent store is not connected yet.') }} />
-          </div>
-        )}
-      </Drawer>
-
-      <Drawer open={!!free} onClose={() => setFree(null)} title="Free time" place={phone ? 'bottom' : 'right'} className="dy-sheet wk-sheet">
-        {free && (
-          <div className="wk-drawer-body">
-            <p className="dy-note">{free.from} to {free.to}, free for {fmtMinutes(free.minutes)}. Write what you would like to do in it; the line is read and nothing more.</p>
-            <CaptureLine grammar="ww" label="Capture, for example: remind me today 4 pm revise" globalKey={false} initialText={`remind me today ${free.from} `}
-              onCommit={() => { setFree(null); setNote('That line was understood. Nothing was saved: the intent store is not connected yet.') }} />
-          </div>
-        )}
-      </Drawer>
-
-      <AllDrawer open={all} onClose={() => setAll(false)} classes={classes} rows={rows} required={required} state={margins.state} reason={margins.reason} rackState={rack.state} rackReason={rack.reason} />
+      {drawers}
     </div>
   )
 }

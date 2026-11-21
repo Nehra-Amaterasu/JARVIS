@@ -12,10 +12,12 @@
 // The honesty sentence is the Senses frame's fixed slot under the view, not part of this file.
 import { useState } from 'react'
 import { Lamp, showsNumber, type LampReading } from '../../shared/lamp'
+import { Zones, lookV3Enabled } from '../../shell/v3'
 import { AsciiTrace, AsciiWaterfall, MotionDial, MotionTrace, Spectrum } from './forms'
 import { KeyBtn, Panel, effectiveSource, useNarrow, type SensesViewProps } from './parts'
 import { bandView, cursorText, narration, sensorLamp, sourceReading, vitalText } from './model'
 import './senses.css'
+import './senses-v3.css'
 
 const reading = (state: LampReading['state'], reason: string): LampReading => ({ state, since: null, reason })
 
@@ -39,13 +41,13 @@ export function SignalView({ state, onGo }: SensesViewProps) {
   // the ledger is the hub's report of this source: with no source it is WAITING, whatever the last frame left behind
   const ledgerState: LampReading['state'] = source !== 'none' && (sensors.length || events.length) ? (sim ? 'simulated' : 'live') : 'waiting'
 
-  return (
-    <div className="js js-signal" data-narrow={narrow ? 'true' : undefined} data-source={source}>
-      <section className="js-left js-left-wide" aria-label="Spectrum and motion score">
+  const specEl = (
         <Panel tag="CSI" title="Spectrum" reading={src} aside={<span className="js-mono-dim">51 subcarriers</span>} className="js-p-spec">
           <Spectrum amps={amps} source={source} cursor={cursor} onCursor={setCursor} />
           <p className="js-readline" aria-live="polite">{cursor != null ? cursorText(state.frames, cursor) : nums ? `${num(f?.csi?.rate_hz, 0, ' Hz')} frame rate, ${f?.csi?.rssi != null ? `${f.csi.rssi} dBm` : '-- dBm'}, ${num(f ? f.csi.fill_ratio * 100 : null, 1, ' %')} gaps filled` : src.reason}</p>
         </Panel>
+  )
+  const scoreEl = (
         <Panel
           tag="MOT" title="Motion score" reading={mlamp} className="js-p-trace"
           aside={<span className="js-state-word" data-state={md?.state ?? 'none'}>{nums ? (md?.state ?? '--') : '--'}</span>}
@@ -63,10 +65,9 @@ export function SignalView({ state, onGo }: SensesViewProps) {
           </div>
           <MotionTrace hist={state.hist} source={source} />
         </Panel>
-        <p className="js-narration" aria-live="polite"><span className="js-tag">[SEN]</span> {narration(f, source)}</p>
-      </section>
-
-      <section className="js-right js-right-wide" aria-label="Link and sensors">
+  )
+  const narrEl = <p className="js-narration" aria-live="polite"><span className="js-tag">[SEN]</span> {narration(f, source)}</p>
+  const bandEl = (
         <Panel tag="MOT" title="Motion band" reading={mlamp}>
           <div className="js-band" data-source={source}>
             <div className="js-band-head"><span>0.4 to 4 Hz, walking speed</span><b>{nums && band ? band.text : '--'}</b></div>
@@ -80,11 +81,13 @@ export function SignalView({ state, onGo }: SensesViewProps) {
             </p>
           </div>
         </Panel>
-
+  )
+  const waterEl = (
         <Panel tag="CSI" title="Text waterfall" reading={src} aside={<span className="js-mono-dim">newest at the bottom</span>} className="js-p-water">
           <AsciiWaterfall frames={state.frames} source={source} rows={6} />
         </Panel>
-
+  )
+  const ledgerEl = (
         <Panel
           tag="SEN" title="Sensors and events" className="js-p-ledger"
           reading={reading(ledgerState, ledgerState === 'waiting' ? (source === 'none' ? 'no source is running' : 'the hub has not reported') : 'reported by the hub, from the engine')}
@@ -119,9 +122,41 @@ export function SignalView({ state, onGo }: SensesViewProps) {
             )}
           </div>
         </Panel>
+  )
+  const goEl = (
         <div className="js-go">
           <KeyBtn primary={source === 'none'} onClick={() => onGo?.('presence')} disabledReason={onGo ? undefined : 'Not wired in a specimen'}>Go to Presence</KeyBtn>
         </div>
+  )
+
+  if (lookV3Enabled()) {
+    // Under the v3 look: the channel as it arrives (spectrum, its text waterfall, the plain sentence), what it says about motion
+    // (score, band), then the hub's own ledger of sensors and events. Go to Presence ends the ledger.
+    const plane = src.state === 'fault' ? 'fault' : src.state === 'live' ? 'live' : src.state === 'simulated' ? 'simulated' : 'waiting'
+    const lplane = ledgerState === 'live' ? 'live' : ledgerState === 'simulated' ? 'simulated' : 'waiting'
+    return (
+      <div className="js js-signal js-v3" data-narrow={narrow ? 'true' : undefined} data-source={source}>
+        <Zones ratio={[1.7, 1.05, 1.05]}
+          first={{ job: 'SPECTRUM', chip: sim ? <span className="js-chip-sim">SIMULATED</span> : undefined, children: <div className="js3-col">{specEl}{bandEl}{narrEl}</div> }}
+          second={{ job: 'MOTION', peek: { name: 'Motion score', lamp: plane, note: mlamp.reason }, children: <div className="js3-col js3-scroll">{scoreEl}</div> }}
+          third={{ job: 'LEDGER', peek: { name: 'Sensors and events', lamp: lplane, note: lplane === 'waiting' ? 'the hub has not reported' : 'reported by the hub' }, children: <div className="js3-col">{waterEl}{ledgerEl}{goEl}</div> }} />
+      </div>
+    )
+  }
+
+  return (
+    <div className="js js-signal" data-narrow={narrow ? 'true' : undefined} data-source={source}>
+      <section className="js-left js-left-wide" aria-label="Spectrum and motion score">
+        {specEl}
+        {scoreEl}
+        {narrEl}
+      </section>
+
+      <section className="js-right js-right-wide" aria-label="Link and sensors">
+        {bandEl}
+        {waterEl}
+        {ledgerEl}
+        {goEl}
       </section>
     </div>
   )

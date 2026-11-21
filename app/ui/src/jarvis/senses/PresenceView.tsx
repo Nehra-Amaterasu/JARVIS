@@ -17,6 +17,7 @@ import { readBelief, shownZones, topZone, TELL_P, type BeliefZone } from '../../
 import { Rocker, Switch } from '../../shared/kit/Hardware'
 import { Lamp, showsNumber, type LampReading } from '../../shared/lamp'
 import { CoreDrawer } from '../core/CoreDrawer'
+import { Zones, lookV3Enabled } from '../../shell/v3'
 import { DEFAULT_LAYERS, LAYERS } from '../../twin/layers'
 import type { BeliefSummary, Framing, Layer } from '../../twin/SpatialTwin'
 import { AsciiTrace, ChannelMatrix, LinkCube, ProbabilityArc } from './forms'
@@ -30,6 +31,7 @@ import {
 } from './model'
 import type { SensesState, SensesStore } from './store'
 import './senses.css'
+import './senses-v3.css'
 
 const TwinStage = lazy(() => import('./TwinStage'))
 
@@ -226,10 +228,8 @@ export function PresenceView({ state, store, toast, onGo, fixture }: SensesViewP
   }
   const switchHeat = (h: 'live' | 'learned') => { setHeat(h); store.askHeat(h) }
 
-  return (
-    <div className="js js-presence" ref={root} data-narrow={narrow ? 'true' : undefined} data-stage={stage} data-source={source} onKeyDown={onRootKey}>
-      <section className="js-left" aria-label="Signal">
-        <Controls state={state} store={store} source={source} toast={toast} stage={stage} setStage={setStage} onSettings={() => setSettings(true)} fixture={fixture} />
+  const controlsEl = <Controls state={state} store={store} source={source} toast={toast} stage={stage} setStage={setStage} onSettings={() => setSettings(true)} fixture={fixture} />
+  const wellEl = (
         <div className="js-well" data-scene="immersive">
           <div className="js-stage">
             {stage === 'terrain' ? (
@@ -252,6 +252,8 @@ export function PresenceView({ state, store, toast, onGo, fixture }: SensesViewP
             <span className="js-foot-read" aria-live="polite">{cursor != null && stage === 'terrain' ? cursorText(frames, cursor) : reading.reason}</span>
           </div>
         </div>
+  )
+  const linkEl = (
         <div className="js-linkrow">
           <LinkCube source={source} vitals={vitals} reading={reading} />
           <div className="js-chan">
@@ -259,11 +261,10 @@ export function PresenceView({ state, store, toast, onGo, fixture }: SensesViewP
             <ChannelMatrix amps={amps} source={source} cursor={cursor} />
           </div>
         </div>
-        <PredictionStrip state={state} source={source} toast={toast} />
-      </section>
-
-      <section className="js-right" aria-label="Presence">
-        <PresenceCore state={state} source={source} onGo={onGo} />
+  )
+  const predEl = <PredictionStrip state={state} source={source} toast={toast} />
+  const coreEl = <PresenceCore state={state} source={source} onGo={onGo} />
+  const sideEl = (
         <Panel
           tag="SEN" title={side === 'tape' ? 'Motion tape' : 'Floor plan'} className="js-side"
           reading={{ state: source === 'live' ? 'live' : source === 'simulated' ? 'simulated' : 'waiting', since: null, reason: side === 'tape' ? 'seen by this window only' : 'the layout in room.json' }}
@@ -278,8 +279,8 @@ export function PresenceView({ state, store, toast, onGo, fixture }: SensesViewP
               </div>
             )}
         </Panel>
-      </section>
-
+  )
+  const drawerEl = (
       <CoreDrawer open={settings} onClose={() => setSettings(false)} title="Twin settings" tag="SEN">
         <div className="js-settings">
           <p className="js-note">These apply to the 3D twin. Press 3D to see it; the terrain stays the default.</p>
@@ -296,6 +297,39 @@ export function PresenceView({ state, store, toast, onGo, fixture }: SensesViewP
           </ul>
         </div>
       </CoreDrawer>
+  )
+
+  if (lookV3Enabled()) {
+    // Under the v3 look the same pieces sit in three trays: start the source and watch the signal (the act and its object, with
+    // the one-tap corrections under it), the reading the model makes of it, then the room it is read against (plan or tape, the
+    // link and its 51 subcarriers). Nothing is added: a simulated source is still stamped SIMULATED wherever it is drawn.
+    const plane = source === 'live' ? 'live' : source === 'simulated' ? 'simulated' : 'waiting'
+    return (
+      <div className="js js-presence js-v3" ref={root} data-narrow={narrow ? 'true' : undefined} data-stage={stage} data-source={source} onKeyDown={onRootKey}>
+        <Zones ratio={[1.85, 1, 1.05]}
+          first={{ job: 'SENSE', chip: source === 'simulated' ? <span className="js-chip-sim">SIMULATED</span> : undefined, children: <div className="js3-col js3-sense">{controlsEl}{wellEl}{predEl}</div> }}
+          second={{ job: 'READING', peek: { name: 'Presence reading', lamp: reading.state === 'fault' ? 'fault' : plane, note: reading.reason }, children: <div className="js3-col">{coreEl}</div> }}
+          third={{ job: 'ROOM', peek: { name: side === 'tape' ? 'Motion tape' : 'Floor plan, link', lamp: plane, note: side === 'tape' ? 'seen by this window only' : 'the layout in room.json' }, children: <div className="js3-col js3-scroll">{sideEl}{linkEl}</div> }} />
+        {drawerEl}
+      </div>
+    )
+  }
+
+  return (
+    <div className="js js-presence" ref={root} data-narrow={narrow ? 'true' : undefined} data-stage={stage} data-source={source} onKeyDown={onRootKey}>
+      <section className="js-left" aria-label="Signal">
+        {controlsEl}
+        {wellEl}
+        {linkEl}
+        {predEl}
+      </section>
+
+      <section className="js-right" aria-label="Presence">
+        {coreEl}
+        {sideEl}
+      </section>
+
+      {drawerEl}
     </div>
   )
 }

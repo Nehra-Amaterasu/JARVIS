@@ -15,12 +15,14 @@ import type { LimbsView, PresenceOnView } from '../../lib/limbs'
 import { Button, Field, LampGlyph, Switch } from '../../shared/kit'
 import { keySlots, slotIds, type HeavyFlags } from './model'
 import { GateCard } from './GateCard'
+import { Zones, lookV3Enabled } from '../../shell/v3'
 import { ModesPanel } from './ModesPanel'
 import { AwayDrawer, EnergyDrawer } from './RoomDrawers'
 import { PinMap } from './pins/PinMap'
 import { autoOffGate, awayGate, presenceGate } from './gates'
 import { useRoomLive, useRoomRules, type RulesLive } from './useRoomLive'
 import './room.css'
+import './room-v3.css'
 
 export interface RoomRulesViewProps {
   view: LimbsView | null
@@ -47,51 +49,85 @@ export function RoomRulesView({ view, reload, presence, energy, away, incidents,
   const nudge = energy?.waste.nudges.find(canKeep)
   const phase = away ? phaseView(away) : null
 
-  return (
-    <div className="jr jr-kit jr-rules" data-scene="immersive" data-view="rules" data-simulated={simulated ? 'true' : undefined}>
-      <div className="jr-gates">
-        <GateCard gate={pg}
-          lead={s ? <Switch label="Presence rule" checked={s.enabled} onChange={(enabled) => void act.presence({ enabled })} /> : undefined}
-          foot={s ? (
-            <span className="jr-quiet">
-              <span className="jr-note" aria-hidden="true">Quiet</span>
-              <Field label="Quiet hours start" kind="time" value={s.quiet_start} onChange={(e) => void act.presence({ quiet_start: e.target.value })} />
-              <span className="jr-note" aria-hidden="true">to</span>
-              <Field label="Quiet hours end" kind="time" value={s.quiet_end} onChange={(e) => void act.presence({ quiet_end: e.target.value })} />
-            </span>
-          ) : undefined} />
-        <GateCard gate={eg}
-          lead={energy ? <Switch label="Auto-off" checked={energy.auto_off} onChange={(enabled) => void act.autoOff(enabled)} /> : undefined}
-          foot={(
-            <span className="jr-foot-keys">
-              {nudge && <Button size="sm" grouped onClick={() => void act.keepNudge(nudge.id)}>Keep it on</Button>}
-              <Button size="sm" grouped onClick={() => setDrawer('energy')}>Loads and nudges</Button>
-            </span>
-          )} />
-        <GateCard gate={ag}
-          lead={away ? <Switch label="Arm by itself" checked={away.config.auto_arm} onChange={(on) => void act.autoArm(on)} /> : undefined}
-          foot={(
-            <span className="jr-foot-keys">
-              {away && (away.armed
-                ? <Button size="sm" grouped tone="danger" onClick={() => void act.disarm()}>Disarm</Button>
-                : <Button size="sm" grouped onClick={() => void act.arm()}>Arm now</Button>)}
-              <Button size="sm" grouped onClick={() => setDrawer('away')}>Phones and incidents</Button>
-              {phase && <span className="jr-note"><LampGlyph state={ag.state} size={11} /> {phase.label}</span>}
-            </span>
-          )} />
-      </div>
-      <div className="jr-side">
+  const gatesEl = (
+    <>
+      <GateCard gate={pg}
+        lead={s ? <Switch label="Presence rule" checked={s.enabled} onChange={(enabled) => void act.presence({ enabled })} /> : undefined}
+        foot={s ? (
+          <span className="jr-quiet">
+            <span className="jr-note" aria-hidden="true">Quiet</span>
+            <Field label="Quiet hours start" kind="time" value={s.quiet_start} onChange={(e) => void act.presence({ quiet_start: e.target.value })} />
+            <span className="jr-note" aria-hidden="true">to</span>
+            <Field label="Quiet hours end" kind="time" value={s.quiet_end} onChange={(e) => void act.presence({ quiet_end: e.target.value })} />
+          </span>
+        ) : undefined} />
+      <GateCard gate={eg}
+        lead={energy ? <Switch label="Auto-off" checked={energy.auto_off} onChange={(enabled) => void act.autoOff(enabled)} /> : undefined}
+        foot={(
+          <span className="jr-foot-keys">
+            {nudge && <Button size="sm" grouped onClick={() => void act.keepNudge(nudge.id)}>Keep it on</Button>}
+            <Button size="sm" grouped onClick={() => setDrawer('energy')}>Loads and nudges</Button>
+          </span>
+        )} />
+      <GateCard gate={ag}
+        lead={away ? <Switch label="Arm by itself" checked={away.config.auto_arm} onChange={(on) => void act.autoArm(on)} /> : undefined}
+        foot={(
+          <span className="jr-foot-keys">
+            {away && (away.armed
+              ? <Button size="sm" grouped tone="danger" onClick={() => void act.disarm()}>Disarm</Button>
+              : <Button size="sm" grouped onClick={() => void act.arm()}>Arm now</Button>)}
+            <Button size="sm" grouped onClick={() => setDrawer('away')}>Phones and incidents</Button>
+            {phase && <span className="jr-note"><LampGlyph state={ag.state} size={11} /> {phase.label}</span>}
+          </span>
+        )} />
+    </>
+  )
+  const modesEl = (
+    <>
         {view
           ? <ModesPanel modes={view.modes} devices={view.devices} lastMode={view.last_mode} ids={slotIds(view)} reload={reload} />
           : <section className="jr-modes-panel" aria-label="Modes"><span className="jr-tag">[ROM] MODES</span><p className="jr-note"><LampGlyph state="waiting" size={12} /> WAITING: the app did not answer.</p></section>}
-        <HeavyPanel view={view} heavy={heavy} setHeavy={setHeavy} />
-        <div className="jr-hw jr-dropup" data-up="true">
-          <span className="jr-tag">[ROM] HARDWARE SETTING</span>
-          <PinMap v={view} onTested={reload} adapter={null} />
-        </div>
+    </>
+  )
+  const heavyEl = (
+    <HeavyPanel view={view} heavy={heavy} setHeavy={setHeavy} />
+  )
+  const hwEl = (
+      <div className="jr-hw jr-dropup" data-up="true">
+        <span className="jr-tag">[ROM] HARDWARE SETTING</span>
+        <PinMap v={view} onTested={reload} adapter={null} />
       </div>
+  )
+  const drawersEl = (
+    <>
       <AwayDrawer open={drawer === 'away'} onClose={() => setDrawer(null)} />
       <EnergyDrawer open={drawer === 'energy'} onClose={() => setDrawer(null)} energy={energy} markCircuit={act.markCircuit} keepNudge={act.keepNudge} />
+    </>
+  )
+
+  if (lookV3Enabled()) {
+    // Under the v3 look the same pieces sit in three trays: the standing rules (the act: switch one, set its hours), the modes
+    // they apply, then the heavy-load flags and the hardware setting (reference, a setting that needs a second press).
+    return (
+      <div className="jr jr-kit jr-rules jr-v3" data-scene="immersive" data-view="rules" data-simulated={simulated ? 'true' : undefined}>
+        <Zones ratio={[1.75, 1.05, 1.1]}
+          first={{ job: 'RULES', peek: { name: 'Rules', lamp: pg.state, note: pg.state === 'live' ? 'three standing rules' : 'the app has not reported a rule' }, children: <div className="jr-gates">{gatesEl}</div> }}
+          second={{ job: 'MODES', peek: { name: 'Modes', lamp: view ? 'live' : 'waiting', note: view ? `${view.modes.length} modes` : 'the app did not answer' }, children: <div className="jr-side">{modesEl}</div> }}
+          third={{ job: 'LOADS', peek: { name: 'Loads and pins', lamp: view ? 'live' : 'waiting', note: view ? 'heavy flags, pin map' : 'the app did not answer' }, children: <div className="jr-side">{heavyEl}{hwEl}</div> }} />
+        {drawersEl}
+      </div>
+    )
+  }
+
+  return (
+    <div className="jr jr-kit jr-rules" data-scene="immersive" data-view="rules" data-simulated={simulated ? 'true' : undefined}>
+      <div className="jr-gates">{gatesEl}</div>
+      <div className="jr-side">
+        {modesEl}
+        {heavyEl}
+        {hwEl}
+      </div>
+      {drawersEl}
     </div>
   )
 }

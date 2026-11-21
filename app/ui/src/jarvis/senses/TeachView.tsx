@@ -15,11 +15,13 @@ import { readinessLine } from '../../lib/roomMeasure'
 import { FirstLightSheet } from '../../components/FirstLight'
 import { MeasureSheet } from '../../components/MeasureRoom'
 import { CoreDrawer } from '../core/CoreDrawer'
+import { Zones, lookV3Enabled } from '../../shell/v3'
 import { KeyBtn, Panel, effectiveSource, useNarrow, type SensesViewProps } from './parts'
 import { LearnedPanel, TeachDesk } from './TeachDesk'
 import { TeachRingForm } from './TeachRings'
 import { splitHow, teachRings } from './model'
 import './senses.css'
+import './senses-v3.css'
 
 export function TeachView({ state, store, toast, fixture }: SensesViewProps) {
   const narrow = useNarrow()
@@ -38,15 +40,15 @@ export function TeachView({ state, store, toast, fixture }: SensesViewProps) {
   const copy = useCallback(async (cmd: string) => {
     try { await navigator.clipboard.writeText(cmd); toast?.('Command copied', 'info') } catch { toast?.(`The browser did not allow copying. The command is: ${cmd}`, 'fault') }
   }, [toast])
-  return (
-    <div className="js js-teach" data-narrow={narrow ? 'true' : undefined} data-source={source}>
-      <section className="js-left js-left-teach" aria-label="Steps">
+  const ringsEl = (
         <Panel tag="SEN" title="Four steps" reading={reading} className="js-p-rings" aside={<span className="js-count" data-testid="steps-count">{known ? `${lit} of 4` : '-- of 4'}</span>}>
           <div className="js-rings">
             {rings.map((r) => <TeachRingForm key={r.id} ring={r} known={known} simulated={!!fixture} />)}
           </div>
           <p className="js-note js-rings-note">{known ? `${readinessLine(state.readiness).replace(/\.$/, '')}.${lit === 4 ? '' : ' Until the last ring is lit it says predicting.'}` : 'Waiting for the readiness check.'}</p>
         </Panel>
+  )
+  const leftEl = (
         <Panel tag="SEN" title="What is left" reading={{ state: known ? (todo.length ? 'waiting' : fixture ? 'simulated' : 'live') : 'waiting', since: null, reason: known ? (todo.length ? `${todo.length} to do` : 'nothing left') : 'not read yet' }} className="js-p-next">
           {todo.length === 0 && known && <p className="js-note">Nothing left: every step is done.</p>}
           {!known && <p className="js-note">The list appears when the readiness check answers.</p>}
@@ -67,13 +69,11 @@ export function TeachView({ state, store, toast, fixture }: SensesViewProps) {
             <KeyBtn onClick={() => setSheet('light')} disabledReason={fixture ? 'Not drawn in a specimen' : undefined}>First light</KeyBtn>
           </div>
         </Panel>
-      </section>
-
-      <section className="js-right js-right-teach" aria-label="Teach">
-        <TeachDesk state={state} store={store} toast={toast} fixture={fixture} />
-        <LearnedPanel state={state} fixture={fixture} />
-      </section>
-
+  )
+  const deskEl = <TeachDesk state={state} store={store} toast={toast} fixture={fixture} />
+  const learnedEl = <LearnedPanel state={state} fixture={fixture} />
+  const drawersEl = (
+    <>
       <CoreDrawer open={sheet === 'measure'} onClose={close} title="Measure my room" tag="SEN">
         <div className="js-classic"><MeasureSheet onClose={close} onSaved={() => { void store.loadReadiness(); toast?.('Room saved as measured', 'live') }} /></div>
       </CoreDrawer>
@@ -82,6 +82,37 @@ export function TeachView({ state, store, toast, fixture }: SensesViewProps) {
           <FirstLightSheet frame={state.latest} live={live} onClose={close} toast={(m, t) => toast?.(m, t)} />
         </div>
       </CoreDrawer>
+    </>
+  )
+
+  if (lookV3Enabled()) {
+    // Under the v3 look: teach the room (the desk), the four steps as they stand and what is left to do, then the checks the
+    // model has passed (the learned rows). It still says predicting until all four rings are lit.
+    const plane = reading.state === 'live' ? 'live' : reading.state === 'simulated' ? 'simulated' : 'waiting'
+    return (
+      <div className="js js-teach js-v3" data-narrow={narrow ? 'true' : undefined} data-source={source}>
+        <Zones ratio={[1.75, 1.05, 1.05]}
+          first={{ job: 'TEACH', children: <div className="js3-col js3-scroll">{deskEl}</div> }}
+          second={{ job: 'PROGRESS', peek: { name: 'Four steps', lamp: plane, note: reading.reason }, children: <div className="js3-col js3-scroll">{ringsEl}{leftEl}</div> }}
+          third={{ job: 'CHECKS', peek: { name: 'What the model learned', lamp: plane, note: known ? 'predicting until all four steps are done' : 'readiness not read yet' }, children: <div className="js3-col js3-scroll">{learnedEl}</div> }} />
+        {drawersEl}
+      </div>
+    )
+  }
+
+  return (
+    <div className="js js-teach" data-narrow={narrow ? 'true' : undefined} data-source={source}>
+      <section className="js-left js-left-teach" aria-label="Steps">
+        {ringsEl}
+        {leftEl}
+      </section>
+
+      <section className="js-right js-right-teach" aria-label="Teach">
+        {deskEl}
+        {learnedEl}
+      </section>
+
+      {drawersEl}
     </div>
   )
 }

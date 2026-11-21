@@ -1,0 +1,89 @@
+/* ==========================================================================
+   Room under the v3 look (layout pass, 21 Nov 2026). Every rule sits under :root[data-look='v3'], so the current look never
+   matches one. The two views stand on <Zones> (shell/v3): the existing pieces are regrouped into three trays and keep their
+   own classes; only the boxes around them change. Sizes are rem (the 16 px root), colours are the existing tokens.
+
+   Switches   1 SWITCH  the wall box: dial, numbered modes, eight keys      2 DAY  the day ring     3 BOARD  link, LCD, All off, terminal
+   Rules      1 RULES   the three standing rules as gates                   2 MODES  the modes      3 LOADS  heavy flags, pin map
+   The first tray never scrolls on Switches (the keys are the act); the rules tray may scroll inside itself on a short window,
+   because three gates are a real list.
+   ========================================================================== */
+:root[data-look='v3'] .jr.jr-v3 {
+  position: absolute; inset: 0; display: block; padding: 0; overflow: hidden;
+}
+:root[data-look='v3'] .jr-v3 .s3-zones { height: 100%; }
+:root[data-look='v3'] .jr-v3 .s3-body { min-width: 0; }
+
+/* ------------------------------------------------------------------ Switches, tray 1: the wall box */
+:root[data-look='v3'] .jr-v3 .jr-plate-slot { flex: 1 1 0; min-height: 0; }
+:root[data-look='v3'] .jr-v3 .jr-face-plate { padding: 0.5rem 0.75rem 0.75rem; border-radius: 1.25rem; }
+@media (min-width: 900px) {
+  :root[data-look='v3'] .jr-v3 .jr-plate-body { grid-template-columns: 9.5rem minmax(0, 1fr); gap: 0.75rem; }
+  :root[data-look='v3'] .jr-v3 .jr-dial-body { width: 9rem; height: 9rem; }
+  :root[data-look='v3'] .jr-v3 .jr-dial-name, :root[data-look='v3'] .jr-v3 .jr-dial-hint { max-width: 9.5rem; }
+  :root[data-look='v3'] .jr-v3 .jr-keys { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(4, minmax(0, 1fr)); gap: 0.5rem; }
+  /* eight keys in two columns leave about 4.5 rem each: the engraving, the number and the lamp word carry the state, the icon goes */
+  :root[data-look='v3'] .jr-v3 .jr-ico { display: none; }
+  :root[data-look='v3'] .jr-v3 .jr-mid { min-height: 0; }
+  :root[data-look='v3'] .jr-v3 .jr-chips { gap: 0.375rem; }
+  :root[data-look='v3'] .jr-v3 .jr-chips .ww-chip { padding-inline: 0.5rem; }
+  :root[data-look='v3'] .jr-v3 .jr-cell .jr-cap.k-key { padding: 0.375rem 0.5rem; }
+  :root[data-look='v3'] .jr-v3 .jr-stamp { left: 0.75rem; top: auto; bottom: 0.25rem; }
+}
+
+/* tray 2: the day ring scales with the tray (the viewBox is fixed) */
+:root[data-look='v3'] .jr-v3 .jr-day { flex: 1 1 0; min-height: 0; padding: 0.5rem; border-radius: 1.25rem; }
+:root[data-look='v3'] .jr-v3 .jr-ring { width: 100%; }
+:root[data-look='v3'] .jr-v3 .jr-ring > svg { width: 100%; max-width: 15rem; height: auto; aspect-ratio: 1; }
+
+/* tray 3: the board plate, the terminal, what to say */
+:root[data-look='v3'] .jr-v3 .jr-board { flex: none; gap: 0.375rem; padding-block: 0.375rem 0.625rem; border-radius: 1.25rem; }
+:root[data-look='v3'] .jr-v3 .jr-board-list > div { grid-template-columns: 4.5rem minmax(0, 1fr); }
+:root[data-look='v3'] .jr-v3 .jr-term { flex: 1 1 0; min-height: 4.5rem; }
+:root[data-look='v3'] .jr-v3 .jr-term .g-well { min-height: 0; border-radius: 0.875rem; box-shadow: var(--elev-recessed, none); padding: 0.5rem 0.75rem; overflow: hidden; }
+:root[data-look='v3'] .jr-v3 .jr-dropup { flex: none; }
+:root[data-look='v3'] .jr-v3 .jr-alloff { margin-top: 0; }
+
+/* ------------------------------------------------------------------ Rules */
+:root[data-look='v3'] .jr-v3 .jr-gates { flex: 1 1 0; min-height: 0; overflow-y: auto; grid-template-rows: none; grid-auto-rows: min-content; gap: 0.5rem; }
+:root[data-look='v3'] .jr-v3 .jr-gate-art { grid-template-columns: minmax(0, 1fr) 2.5rem minmax(4.5rem, 8rem); }
+:root[data-look='v3'] .jr-v3 .jr-gate-foot { flex-wrap: wrap; gap: 0.5rem 0.75rem; }
+:root[data-look='v3'] .jr-v3 .jr-gate-head, :root[data-look='v3'] .jr-v3 .jr-panel-head { flex-wrap: wrap; }
+:root[data-look='v3'] .jr-v3 .jr-foot-keys { flex-wrap: wrap; }
+:root[data-look='v3'] .jr-v3 .jr-quiet { flex-wrap: wrap; }
+:root[data-look='v3'] .jr-v3 .jr-panel-head .jr-note { flex: 1 1 100%; order: 3; }
+:root[data-look='v3'] .jr-v3 .jr-gate-last { flex-basis: 100%; }
+:root[data-look='v3'] .jr-v3 .jr-side { flex: 1 1 0; min-height: 0; overflow-y: auto; grid-template-rows: none; grid-auto-rows: min-content; gap: 0.75rem; }
+:root[data-look='v3'] .jr-v3 .jr-heavy-grid { grid-template-columns: minmax(0, 1fr); }
+:root[data-look='v3'] .jr-v3 .jr-panel-head .jr-note { white-space: normal; }
+:root[data-look='v3'] .jr-v3 .jr-mode-list[data-many='true'] { grid-template-columns: minmax(0, 1fr); }
+/* a mode row in a 17 rem tray: the name over its channel strip, the two keys beside them */
+:root[data-look='v3'] .jr-v3 .jr-mode-row, :root[data-look='v3'] .jr-v3 .jr-mode-list[data-many='true'] .jr-mode-row { grid-template-columns: minmax(0, 1fr) 2.75rem 2.75rem; grid-template-rows: auto auto; row-gap: 0.125rem; min-height: 3.25rem; }
+:root[data-look='v3'] .jr-v3 .jr-mode-name { grid-column: 1; grid-row: 1; }
+:root[data-look='v3'] .jr-v3 .jr-mode-strip, :root[data-look='v3'] .jr-v3 .jr-mode-list[data-many='true'] .jr-mode-strip { display: block; grid-column: 1; grid-row: 2; overflow: hidden; }
+:root[data-look='v3'] .jr-v3 .jr-mode-row > button { grid-row: 1 / span 2; align-self: center; }
+:root[data-look='v3'] .jr-v3 .jr-mode-row > button:nth-last-child(2) { grid-column: 2; }
+:root[data-look='v3'] .jr-v3 .jr-mode-row > button:last-child { grid-column: 3; }
+
+/* ------------------------------------------------------------------ the smallest desktop window */
+@media (min-width: 900px) and (max-width: 1279px) {
+  :root[data-look='v3'] .jr-v3 .jr-plate-body { grid-template-columns: 7.5rem minmax(0, 1fr); gap: 0.5rem; }
+  :root[data-look='v3'] .jr-v3 .jr-dial-body { width: 7rem; height: 7rem; }
+  :root[data-look='v3'] .jr-v3 .jr-dial-name, :root[data-look='v3'] .jr-v3 .jr-dial-hint { max-width: 7.5rem; }
+}
+
+/* ------------------------------------------------------------------ the phone: the first tray scrolls inside the canvas, the other two are sheets */
+@media (max-width: 899px) {
+  :root[data-look='v3'] .jr.jr-v3 { display: block; padding: 0; overflow: hidden; gap: 0; }
+  :root[data-look='v3'] .jr-v3 .jr-plate-slot { flex: none; order: 0; }
+  :root[data-look='v3'] .jr-v3 .jr-face-plate { height: auto; }
+  /* the modes stay with the keys: the sticky bar of the current look is not drawn */
+  :root[data-look='v3'] .jr-v3 .jr-modes-wide { display: flex; }
+  :root[data-look='v3'] .jr-v3 .jr-modebar { display: none; }
+  :root[data-look='v3'] .jr-v3 .jr-board { display: flex; }
+  :root[data-look='v3'] .jr-v3 .jr-board > * { order: 0; }
+  :root[data-look='v3'] .jr-v3 .jr-alloff { position: static; order: 0; display: block; padding: 0; background: transparent; }
+  :root[data-look='v3'] .jr-v3 .jr-stamp { position: static; display: inline-flex; margin: 0.375rem 0 0; }
+  :root[data-look='v3'] .jr-v3 .jr-term { flex: none; height: 9.5rem; }
+  :root[data-look='v3'] .jr-v3 .jr-gates, :root[data-look='v3'] .jr-v3 .jr-side { flex: none; overflow: visible; }
+}

@@ -13,9 +13,11 @@ import { Fold, LampGlyph } from '../../shared/kit'
 import { BoardPlate, Faceplate, useSceneGuard } from './Faceplate'
 import { DayRing24 } from './DayRing24'
 import { RoomLog } from './RoomLog'
+import { Zones, lookV3Enabled } from '../../shell/v3'
 import { rulesFrom, type Asked, type HeavyFlags, type LogLine, type Rule, keySlots } from './model'
 import { useRoomLive, useRuleWindows, type RoomActions } from './useRoomLive'
 import './room.css'
+import './room-v3.css'
 
 export interface RoomSwitchesViewProps {
   view: LimbsView | null
@@ -45,6 +47,55 @@ export function RoomSwitchesView({ view, loading, asked, confirmedAt, now, log, 
   }, [])
   const voice = useMemo(() => (view ? voiceLines(view.devices, view.modes) : []), [view])
   const empty = !view && !loading
+
+  if (lookV3Enabled()) {
+    // Under the v3 look the same pieces sit in three trays: the wall box and its keys (the act), the day ring (what the rules
+    // do with the day), then the board and the terminal (the proof the board answered). Nothing here sends anything new.
+    const link = !view ? { lamp: 'waiting' as const, note: 'no report from the board yet' }
+      : !view.usb ? { lamp: 'simulated' as const, note: 'virtual room, no board' }
+        : { lamp: view.esp32 && !view.esp32.connected ? 'waiting' as const : 'live' as const, note: view.esp32 && !view.esp32.connected ? 'board offline' : 'board reporting' }
+    return (
+      <div className="jr jr-kit jr-v3" data-scene="immersive" data-view="switches" data-simulated={simulated ? 'true' : undefined}>
+        <Zones ratio={[2.2, 0.95, 1.2]}
+          first={{
+            job: 'SWITCH',
+            children: (
+              <div className="jr-plate-slot">
+                <Faceplate slots={slots} heavy={heavy} setHeavy={setHeavy} modes={modes} lastMode={view?.last_mode ?? null}
+                  onPress={(id, on) => void actions.press(id, on)} onScene={guard.request} armedText={guard.armed?.text ?? null} coverMs={coverMs} defaultStop={defaultStop} />
+                {simulated && <p className="jr-stamp"><LampGlyph state="simulated" size={12} /> SIMULATED: fixture room, no board</p>}
+                {empty && <p className="jr-stamp"><LampGlyph state="waiting" size={12} /> WAITING: the app did not answer. Connect the board in Console.</p>}
+              </div>
+            ),
+          }}
+          second={{
+            job: 'DAY',
+            peek: { name: 'Day ring', lamp: rules.length ? 'live' : 'waiting', note: rules.length ? 'the standing rules, drawn' : 'no rule read yet' },
+            children: (
+              <section className="jr-day" aria-label="Day ring">
+                <header className="jr-day-head"><span className="jr-tag">[ROM] DAY RING</span></header>
+                <DayRing24 rules={rules} now={clock} size={204} />
+              </section>
+            ),
+          }}
+          third={{
+            job: 'BOARD',
+            peek: { name: 'Board', lamp: link.lamp, note: link.note },
+            children: (
+              <>
+                <BoardPlate view={view} slots={slots} onAllOff={() => void actions.allOff()} modes={modes} lastMode={view?.last_mode ?? null} onScene={guard.request} armedText={guard.armed?.text ?? null} />
+                <RoomLog lines={log} slots={slots} />
+                <div className="jr-dropup">
+                  <Fold title={`What to say (${voice.length})`}>
+                    <table className="jr-voice"><tbody>{voice.map((l) => <tr key={l.say}><td>{l.say}</td><td>{l.does}</td></tr>)}</tbody></table>
+                  </Fold>
+                </div>
+              </>
+            ),
+          }} />
+      </div>
+    )
+  }
 
   return (
     <div className="jr jr-kit" data-scene="immersive" data-view="switches" data-simulated={simulated ? 'true' : undefined}>

@@ -21,6 +21,9 @@ export function asciiRuler(widthPx: number, charPx: number): string {
  * width so it ends on a full bar.
  */
 export function Ruler() {
+  // one pattern id per ruler: a view may turn the ruler on for two trays, and a duplicate id would resolve to the first one
+  // (which can sit inside a hidden svg on the light ground and paint nothing)
+  const pid = `s3-ruler-mark-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   const host = useRef<HTMLDivElement>(null)
   const probe = useRef<HTMLSpanElement>(null)
   const [text, setText] = useState('|')
@@ -43,11 +46,11 @@ export function Ruler() {
     <div className="s3-ruler" ref={host} aria-hidden="true">
       <svg className="s3-ruler-marks" width="100%" height="10" focusable="false">
         <defs>
-          <pattern id="s3-ruler-mark" width="12" height="10" patternUnits="userSpaceOnUse">
+          <pattern id={pid} width="12" height="10" patternUnits="userSpaceOnUse">
             <path d="M3 9 6 3l3 6" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
           </pattern>
         </defs>
-        <rect width="100%" height="10" fill="url(#s3-ruler-mark)" />
+        <rect width="100%" height="10" fill={`url(#${pid})`} />
       </svg>
       <span className="s3-ruler-ascii">{text}</span>
       <span className="s3-ruler-probe" ref={probe}>0123456789</span>
@@ -73,11 +76,20 @@ export function Tray({ step, job, chip, ruler, flare, label, className, children
   useEffect(() => {
     if (sheet) done.current?.focus()
   }, [sheet])
+  // the glare plays only when the number RISES while the tray is on screen: a tray that mounts with flare > 0 (every place
+  // change remounts Zones) stays quiet
+  const seen = useRef(flare ?? 0)
+  const [fired, setFired] = useState(0)
+  useEffect(() => {
+    const f = flare ?? 0
+    if (f > seen.current && f > 0) setFired(f)
+    seen.current = f
+  }, [flare])
   const rule = ruler ?? step === 1
   const sheetProps: { role?: string; 'aria-modal'?: boolean } = sheet ? { role: 'dialog', 'aria-modal': true } : {}
   return (
     <section className={`s3-tray${className ? ` ${className}` : ''}`} data-step={step} data-sheet={sheet ? 'open' : undefined}
-      aria-labelledby={`${id}-h`} aria-label={label} {...sheetProps}>
+      aria-labelledby={label ? undefined : `${id}-h`} aria-label={label} {...sheetProps}>
       <header className="s3-thead">
         <h2 className="s3-step" id={`${id}-h`}>
           <span className="s3-num" aria-hidden="true">{step}</span>
@@ -87,7 +99,7 @@ export function Tray({ step, job, chip, ruler, flare, label, className, children
       </header>
       {rule && <Ruler />}
       <div className="s3-body">{children as ReactNode}</div>
-      {step === 1 && !!flare && <span className="s3-flare" key={flare} data-flare={flare} aria-hidden="true" />}
+      {step === 1 && fired > 0 && <span className="s3-flare" key={fired} data-flare={fired} aria-hidden="true" />}
       {step !== 1 && (
         <button type="button" className="s3-done" ref={done} onClick={onDone}>Done</button>
       )}

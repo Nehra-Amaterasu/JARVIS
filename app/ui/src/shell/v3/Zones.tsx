@@ -48,6 +48,23 @@ export function Zones({ first, second, third, ratio, className }: ZonesProps) {
             e.preventDefault()
             e.stopPropagation()
             set(null)
+            return
+          }
+          // an open sheet is modal: Tab and Shift+Tab wrap inside it instead of walking into the spine, plate and dock behind the scrim
+          if (e.key === 'Tab' && open) {
+            const tray = e.currentTarget.querySelector<HTMLElement>(`.s3-tray[data-step='${open}']`)
+            const keys = tray ? [...tray.querySelectorAll<HTMLElement>('button:not([disabled]), input, [href], [tabindex]:not([tabindex="-1"])')] : []
+            if (!keys.length) return
+            const first = keys[0]
+            const last = keys[keys.length - 1]
+            const at = document.activeElement
+            if (e.shiftKey && (at === first || !tray?.contains(at))) {
+              e.preventDefault()
+              last.focus()
+            } else if (!e.shiftKey && (at === last || !tray?.contains(at))) {
+              e.preventDefault()
+              first.focus()
+            }
           }
         }}>
         <Tray step={1} {...first} />

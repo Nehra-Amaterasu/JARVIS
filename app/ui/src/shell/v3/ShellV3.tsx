@@ -206,15 +206,39 @@ function Frame({ pages, wwRoot, verbs, serverUp, frame }: ShellV3Props) {
 
   // the phone's project sheet closes when the place changes and on Escape
   useEffect(() => setDeck(false), [place.section, place.view])
+  // the sheet is modal: focus moves to its first key on open, Tab wraps inside it, and closing returns focus to the Projects tab
+  const deckWas = useRef(false)
   useEffect(() => {
-    if (!deck) return
-    const esc = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      e.preventDefault()
-      setDeck(false)
+    if (!deck) {
+      if (deckWas.current) document.querySelector<HTMLElement>('.s3-tabbar .s3-tab')?.focus()
+      deckWas.current = false
+      return
     }
-    window.addEventListener('keydown', esc)
-    return () => window.removeEventListener('keydown', esc)
+    deckWas.current = true
+    const spine = document.getElementById('s3-spine')
+    const keys = () => [...(spine?.querySelectorAll<HTMLElement>('button:not([disabled])') ?? [])]
+    keys()[0]?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setDeck(false)
+        return
+      }
+      if (e.key !== 'Tab') return
+      const ks = keys()
+      if (!ks.length) return
+      const at = document.activeElement as HTMLElement | null
+      const inside = !!at && !!spine?.contains(at)
+      if (e.shiftKey && (!inside || at === ks[0])) {
+        e.preventDefault()
+        ks[ks.length - 1].focus()
+      } else if (!e.shiftKey && (!inside || at === ks[ks.length - 1])) {
+        e.preventDefault()
+        ks[0].focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [deck])
 
   const rows = useMemo(() => collectLamps(readings), [readings])
@@ -231,7 +255,6 @@ function Frame({ pages, wwRoot, verbs, serverUp, frame }: ShellV3Props) {
     [chrome?.more],
   )
   const windowKeys = typeof window !== 'undefined' && !!window.pywebview
-  const placeKey = `${place.section}.${place.view}`
   return (
     <div className="s2 s3" data-shell="v2" data-product={product} data-ground={ground} data-glass={glass ? 'on' : 'off'} data-deck={deck ? 'open' : 'closed'}>
       <div className="s3-ground" aria-hidden="true"
@@ -245,7 +268,7 @@ function Frame({ pages, wwRoot, verbs, serverUp, frame }: ShellV3Props) {
         <div className="s3-stage">
           <Canvas place={place} pages={pages} wwRoot={wwRoot} ww={ww} registries={registries} />
         </div>
-        <Dock key={placeKey} spec={chrome?.dock ?? null} onAsk={() => useShell.getState().openOverlay('palette')} />
+        <Dock spec={chrome?.dock ?? null} onAsk={() => useShell.getState().openOverlay('palette')} />
       </div>
       <TabBar place={place} deckOpen={deck} onDeck={setDeck} onGoSection={goSection} />
       <div className="s3-deckscrim" aria-hidden="true" onClick={() => setDeck(false)} />

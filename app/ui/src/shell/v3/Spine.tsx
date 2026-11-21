@@ -23,6 +23,9 @@ export interface TileModel {
   single: boolean
   current: boolean
   state: LampState
+  /** The state word alone ("WAITING"): the tile's line, one line at 208 px. */
+  word: string
+  /** Word and reason ("WAITING · no sensor"): the tile's title and accessible name. */
   stateText: string
   sections: { id: string; label: string; current: boolean; hint?: string }[]
 }
@@ -39,6 +42,7 @@ export function spineModel(place: Place, rows: readonly LampRow[], projects: rea
       single,
       current: project.id === open && single,
       state: st.state,
+      word: st.word,
       stateText: st.text,
       sections: project.sections.map((id) => {
         const hintId = slotBindingOf(project.product, id)
@@ -88,7 +92,7 @@ export function Spine({ place, rows, now, onGoSection, onChoose }: SpineProps) {
               <span className="s3-disc" aria-hidden="true"><ProjectMark id={t.project.id} /></span>
               <span className="s3-hn">
                 <b>{t.project.name}</b>
-                <small data-state={t.state}><StateGlyph state={t.state} size={11} />{t.stateText}</small>
+                <small data-state={t.state} title={t.stateText}><StateGlyph state={t.state} size={11} />{t.word}</small>
               </span>
             </>
           )

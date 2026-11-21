@@ -11,7 +11,7 @@ import { LAMP_SPECS } from '../../shared/lamp/types'
 import { PillRing, StateGlyph } from './Glyphs'
 import { pillParts, pillText, type LampRow } from './lamps'
 import { subProjectById } from './subprojects'
-import { Popover } from './Popover'
+import { Popover, usePopoverChoose } from './Popover'
 
 export interface LampPillProps {
   rows: readonly LampRow[]
@@ -29,7 +29,7 @@ export function LampPill({ rows, open, onOpenChange, onGoSection }: LampPillProp
   return (
     <Popover open={open} onClose={() => onOpenChange(false)} triggerRef={btn} label="System state, worst first" className="s3-lampwrap"
       trigger={
-        <button ref={btn} type="button" className="s3-key s3-pillbtn" aria-haspopup="true" aria-expanded={open}
+        <button ref={btn} type="button" className="s3-key s3-pillbtn" aria-haspopup="dialog" aria-expanded={open}
           aria-label={`System state: ${text}`} data-worst={worst?.state} onClick={() => onOpenChange(!open)}>
           <PillRing states={rows.map((r) => r.reading.state)} />
           <span className="s3-pilltext">
@@ -45,23 +45,26 @@ export function LampPill({ rows, open, onOpenChange, onGoSection }: LampPillProp
         </button>
       }>
       <p className="s3-cap">STATE, WORST FIRST</p>
-      <ul className="s3-lamplist">
-        {rows.map((r) => (
-          <li key={r.def.id}>
-            <button type="button" className="s3-lamprow" data-lamp={r.def.id} data-state={r.reading.state}
-              onClick={() => {
-                onOpenChange(false)
-                onGoSection(r.def.home)
-              }}>
-              <span className="s3-lampshape" data-state={r.reading.state}><StateGlyph state={r.reading.state} size={16} /></span>
-              <span className="s3-lamptext">
-                <b>{r.def.label} <span className="s3-lampword">{LAMP_SPECS[r.reading.state].label}</span></b>
-                <small>{subProjectById(r.def.project).name} {'·'} {r.reason}</small>
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      <LampList rows={rows} onGoSection={onGoSection} />
     </Popover>
+  )
+}
+
+function LampList({ rows, onGoSection }: { rows: readonly LampRow[]; onGoSection: (section: string) => void }) {
+  const choose = usePopoverChoose()
+  return (
+    <ul className="s3-lamplist">
+      {rows.map((r) => (
+        <li key={r.def.id}>
+          <button type="button" className="s3-lamprow" data-lamp={r.def.id} data-state={r.reading.state} onClick={() => choose(() => onGoSection(r.def.home))}>
+            <span className="s3-lampshape" data-state={r.reading.state}><StateGlyph state={r.reading.state} size={16} /></span>
+            <span className="s3-lamptext">
+              <b>{r.def.label} <span className="s3-lampword">{LAMP_SPECS[r.reading.state].label}</span></b>
+              <small>{subProjectById(r.def.project).name} {'·'} {r.reason}</small>
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
   )
 }

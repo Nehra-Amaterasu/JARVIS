@@ -6,7 +6,7 @@
 import { useRef } from 'react'
 import { VIEW_LABEL } from '../ids'
 import { Chevron } from './Glyphs'
-import { Popover } from './Popover'
+import { Popover, usePopoverChoose } from './Popover'
 
 export interface ViewChipProps {
   sectionLabel: string
@@ -23,26 +23,29 @@ export function ViewChip({ sectionLabel, views, view, open, onOpenChange, onSele
   return (
     <Popover open={open} onClose={() => onOpenChange(false)} triggerRef={btn} label={`${sectionLabel} views`} align="left" className="s3-viewchip"
       trigger={
-        <button ref={btn} type="button" className="s3-key s3-chipbtn" aria-haspopup="true" aria-expanded={open} onClick={() => onOpenChange(!open)}>
+        <button ref={btn} type="button" className="s3-key s3-chipbtn" aria-haspopup="dialog" aria-expanded={open} onClick={() => onOpenChange(!open)}>
           <span className="s3-chipname">{VIEW_LABEL[view] ?? view}</span>
           <small className="s3-chipcount">{i + 1} OF {views.length} VIEWS</small>
           <Chevron />
         </button>
       }>
       <p className="s3-cap">{sectionLabel.toUpperCase()} VIEWS</p>
-      <ul className="s3-vlist">
-        {views.map((v) => (
-          <li key={v}>
-            <button type="button" className="s3-popitem" data-view={v} aria-current={v === view ? 'page' : undefined}
-              onClick={() => {
-                onOpenChange(false)
-                onSelect(v)
-              }}>
-              {VIEW_LABEL[v] ?? v}
-            </button>
-          </li>
-        ))}
-      </ul>
+      <ViewList views={views} view={view} onSelect={onSelect} />
     </Popover>
+  )
+}
+
+function ViewList({ views, view, onSelect }: { views: readonly string[]; view: string; onSelect: (view: string) => void }) {
+  const choose = usePopoverChoose()
+  return (
+    <ul className="s3-vlist">
+      {views.map((v) => (
+        <li key={v}>
+          <button type="button" className="s3-popitem" data-view={v} aria-current={v === view ? 'page' : undefined} onClick={() => choose(() => onSelect(v))}>
+            {VIEW_LABEL[v] ?? v}
+          </button>
+        </li>
+      ))}
+    </ul>
   )
 }

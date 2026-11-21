@@ -27,8 +27,12 @@ export interface DockMode {
 export interface DockSpec {
   /** The view's own modes, usually one. The Ask mode is always added by the dock, last. */
   modes: readonly DockMode[]
-  /** Called on Enter or the submit key in one of the view's own modes. Ask is the shell's (it opens the palette). */
-  onSubmit?: (mode: string, text: string) => void
+  /**
+   * Called on Enter or the submit key in one of the view's own modes. Ask is the shell's (it opens the palette).
+   * Return `false` (or a promise that resolves to `false`, or throw) when the line was not taken: the dock then keeps the
+   * person's text so they can retry. Returning nothing, or `true`, clears the input.
+   */
+  onSubmit?: (mode: string, text: string) => boolean | void | Promise<boolean | void>
 }
 
 export interface MoreAction {

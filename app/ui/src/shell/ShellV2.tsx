@@ -66,13 +66,15 @@ function usePorts() {
 
 // the v3 look (docs/design/design-language-v3.md 8.3): a lazy chunk, so with the look off none of it is downloaded
 const ShellV3 = lazy(() => import('./v3/ShellV3'))
+// while that chunk loads the window shows the product's own dark ground, not an empty transparent window (its CSS is in the chunk)
+const V3_BOOT = <div className="s3-boot" aria-hidden="true" style={{ position: 'fixed', inset: 0, background: 'var(--bg)' }} />
 
 /**
  * The one branch for the v3 look. shell/look.ts is read once per load, so the same frame renders for the life of the page
  * and the hooks of ShellV2Frame never change order. The current frame is unchanged below: it is this function's old body.
  */
 export default function ShellV2(props: ShellV2Props) {
-  if (lookV3Enabled()) return <Suspense fallback={null}><ShellV3 {...props} frame={{ Canvas, useShellKeys, ShortcutsSheet }} /></Suspense>
+  if (lookV3Enabled()) return <Suspense fallback={V3_BOOT}><ShellV3 {...props} frame={{ Canvas, useShellKeys, ShortcutsSheet }} /></Suspense>
   return <ShellV2Frame {...props} />
 }
 

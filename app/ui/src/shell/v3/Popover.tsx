@@ -3,7 +3,7 @@
  * trigger and its panel so that Escape closes the panel from anywhere inside it and puts focus back on the trigger (3.5), a
  * press outside closes it, and tabbing out of it closes it.
  */
-import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode, type RefObject } from 'react'
 
 export interface PopoverProps {
   open: boolean
@@ -19,8 +19,31 @@ export interface PopoverProps {
   children: ReactNode
 }
 
+const ChooseCtx = createContext<((action?: () => void) => void) | null>(null)
+
+/**
+ * What a row of a popover calls when it is chosen: close the panel, put focus back on the trigger, THEN act. The row unmounts
+ * with the panel, so without this focus falls to <body>, and an overlay the action opens would record <body> as its opener
+ * and return focus to nothing on Escape.
+ */
+export function usePopoverChoose(): (action?: () => void) => void {
+  const c = useContext(ChooseCtx)
+  return c ?? ((a) => a?.())
+}
+
 export function Popover({ open, onClose, triggerRef, trigger, label, align = 'right', className, panelClassName, children }: PopoverProps) {
   const wrap = useRef<HTMLDivElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
+  const choose = useCallback((action?: () => void) => {
+    onClose()
+    triggerRef.current?.focus()
+    action?.()
+  }, [onClose, triggerRef])
+  const chooseValue = useMemo(() => choose, [choose])
+  // focus moves into the panel on open, to its first key (a keyboard user does not have to tab in); Escape and a choice bring it back
+  useEffect(() => {
+    if (open) panel.current?.querySelector<HTMLElement>('button, [href], input, [tabindex]:not([tabindex="-1"])')?.focus()
+  }, [open])
   useEffect(() => {
     if (!open) return
     const down = (e: PointerEvent) => {
@@ -44,8 +67,8 @@ export function Popover({ open, onClose, triggerRef, trigger, label, align = 'ri
       }}>
       {trigger}
       {open && (
-        <div className={`s3-pop${panelClassName ? ` ${panelClassName}` : ''}`} data-align={align} role="group" aria-label={label}>
-          {children}
+        <div ref={panel} className={`s3-pop${panelClassName ? ` ${panelClassName}` : ''}`} data-align={align} role="dialog" aria-label={label}>
+          <ChooseCtx.Provider value={chooseValue}>{children}</ChooseCtx.Provider>
         </div>
       )}
     </div>

@@ -95,7 +95,11 @@ describe('the spine', () => {
     expect(qa('.s3-grp').map((g) => g.dataset.p)).toEqual(['jarvis', 'aankhen', 'yadaash', 'wellwisher'])
     expect(qa('.s3-grp').filter((g) => g.dataset.open === 'true').map((g) => g.dataset.p)).toEqual(['jarvis'])
     expect(qa('.s3-item').map((b) => b.dataset.section)).toEqual(['core', 'room', 'console'])
-    for (const g of qa('.s3-grp')) expect(g.querySelector('small')!.textContent).toMatch(/^(LIVE|WAITING|SIMULATED|PLANNED|FAULT) · \S/)
+    for (const g of qa('.s3-grp')) {
+      // the tile line is the state word alone (one line at 208 px, review of S1); the reason is its title
+      expect(g.querySelector('small')!.textContent).toMatch(/^(LIVE|WAITING|SIMULATED|PLANNED|FAULT)$/)
+      expect(g.querySelector('small')!.getAttribute('title')).toMatch(/^(LIVE|WAITING|SIMULATED|PLANNED|FAULT) · \S/)
+    }
   })
 
   it('a section key goes to the section, a closed tile to its first section, and the tile opens', async () => {
@@ -220,8 +224,9 @@ describe('the lamp pill', () => {
   it('the spine tile and the pill agree: JARVIS shows the fault the pill counts', async () => {
     await render()
     act(() => useStore.getState().reportCapability('steward', { state: 'fault', reason: 'Ollama is not answering' }))
-    expect(q('.s3-grp[data-p="jarvis"] small')!.textContent).toBe('FAULT · steward')
-    expect(q('.s3-grp[data-p="aankhen"] small')!.textContent).toBe('WAITING · no sensor')
+    expect(q('.s3-grp[data-p="jarvis"] small')!.textContent).toBe('FAULT')
+    expect(q('.s3-grp[data-p="jarvis"] small')!.getAttribute('title')).toBe('FAULT · steward')
+    expect(q('.s3-grp[data-p="aankhen"] small')!.getAttribute('title')).toBe('WAITING · no sensor')
   })
 
   it('opens an opaque list headed STATE, WORST FIRST with a shape, a word and a reason per lamp, and Esc closes it and returns focus', async () => {

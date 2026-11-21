@@ -9,7 +9,7 @@ import type { MoreAction } from './contract'
 import { WinGlyph } from './Glyphs'
 import { LampPill } from './LampPill'
 import type { LampRow } from './lamps'
-import { Popover } from './Popover'
+import { Popover, usePopoverChoose } from './Popover'
 import { subProjectOfSection } from './subprojects'
 import { ViewChip } from './ViewChip'
 
@@ -73,7 +73,7 @@ export function TopPlate({ place, rows, more, glass, onGlass, onGoSection, onSet
       <LampPill rows={rows} open={menu === 'pill'} onOpenChange={lampOpen} onGoSection={onGoSection} />
       <Popover open={menu === 'more'} onClose={close} triggerRef={moreBtn} label="More" className="s3-morewrap"
         trigger={
-          <button ref={moreBtn} type="button" className="s3-key s3-iconkey" aria-haspopup="true" aria-expanded={menu === 'more'}
+          <button ref={moreBtn} type="button" className="s3-key s3-iconkey" aria-haspopup="dialog" aria-expanded={menu === 'more'}
             aria-label={`More: ${more.length} rarely needed ${more.length === 1 ? 'action' : 'actions'}`} data-tip={`${more.length} more ${more.length === 1 ? 'action' : 'actions'}`}
             onClick={() => setMenu(menu === 'more' ? null : 'more')}>
             {WinGlyph.dots}
@@ -90,11 +90,7 @@ export function TopPlate({ place, rows, more, glass, onGlass, onGoSection, onSet
           <p><kbd>Alt</kbd> <kbd>{'↑'}</kbd> <kbd>{'↓'}</kbd> sections</p>
           <p><kbd>Alt</kbd> <kbd>{'←'}</kbd> <kbd>{'→'}</kbd> views</p>
         </div>
-        <button type="button" className="s3-popitem" onClick={() => { close(); onShortcuts() }}>All shortcuts</button>
-        <p className="s3-cap">RARELY NEEDED {'·'} {more.length}</p>
-        {more.map((a) => (
-          <button key={a.id} type="button" className="s3-popitem" data-more={a.id} onClick={() => { close(); a.onSelect() }}>{a.label}</button>
-        ))}
+        <MoreRows more={more} onShortcuts={onShortcuts} />
       </Popover>
       {windowKeys && (
         <div className="s3-wc" role="group" aria-label="Window">
@@ -104,5 +100,18 @@ export function TopPlate({ place, rows, more, glass, onGlass, onGoSection, onSet
         </div>
       )}
     </header>
+  )
+}
+
+function MoreRows({ more, onShortcuts }: { more: readonly MoreAction[]; onShortcuts: () => void }) {
+  const choose = usePopoverChoose()
+  return (
+    <>
+      <button type="button" className="s3-popitem" onClick={() => choose(onShortcuts)}>All shortcuts</button>
+      <p className="s3-cap">RARELY NEEDED {'·'} {more.length}</p>
+      {more.map((a) => (
+        <button key={a.id} type="button" className="s3-popitem" data-more={a.id} onClick={() => choose(a.onSelect)}>{a.label}</button>
+      ))}
+    </>
   )
 }

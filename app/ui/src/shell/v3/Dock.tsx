@@ -12,8 +12,8 @@ export const ASK_MODE: DockMode = { id: 'ask', label: 'Ask', prefix: 'ask>', exa
 
 export interface DockProps {
   spec: DockSpec | null
-  /** Ask was submitted: open the palette. */
-  onAsk: () => void
+  /** Ask was submitted: open the palette. The typed text is passed along; the dock keeps it in the input either way. */
+  onAsk: (text: string) => void
 }
 
 export function Dock({ spec, onAsk }: DockProps) {
@@ -25,15 +25,23 @@ export function Dock({ spec, onAsk }: DockProps) {
   const mode = modes.find((m) => m.id === picked) ?? modes[0]
   const ask = mode.id === ASK_MODE.id
   const submit = () => {
+    const t = text.trim()
     if (ask) {
-      setText('')
-      onAsk()
+      // the palette cannot take a starting query yet (README, "Open edit"), so the text stays in the input: nothing typed is lost
+      onAsk(t)
       return
     }
-    const t = text.trim()
     if (!t) return
-    spec?.onSubmit?.(mode.id, t)
-    setText('')
+    // the input clears only when the view says it took the line; a view that returns false or throws keeps the person's text
+    const clear = () => setText((cur) => (cur.trim() === t ? '' : cur))
+    try {
+      const r = spec?.onSubmit?.(mode.id, t)
+      if (r && typeof (r as Promise<unknown>).then === 'function') {
+        void (r as Promise<boolean | void>).then((ok) => { if (ok !== false) clear() }, () => undefined)
+      } else if (r !== false) clear()
+    } catch {
+      /* the view failed: keep the text so the person can retry */
+    }
   }
   return (
     <form className="s3-dock" aria-label="Capture and ask" data-mode={mode.id} onSubmit={(e) => { e.preventDefault(); submit() }}>

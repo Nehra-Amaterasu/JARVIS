@@ -1,0 +1,936 @@
+/* ==========================================================================
+   Design language v3, the kit pieces (shared/kit/v3). Section 2.5 of docs/design/design-language-v3.md, in CSS.
+
+   This file reads tokens and writes none: no colour literal, no px for font-size, radius, padding, margin or gap, no literal
+   duration or easing, every transition names its properties (src/__tests__/v3/kit-v3.test.tsx lints the file for each).
+   The values are in styles/design/v3/glass.css. The pieces draw only inside [data-look='v3']; outside it the tokens are not
+   defined, so a piece drawn by mistake shows its fallbacks and the current look is untouched.
+
+   ONE LIGHT. Every highlight is up and left, every shade is down and right; the tray glare is one 135deg band.
+   NO OUTLINE on a labelled control, a tray or a plate: shadow and light lift it. --hair is transparent, and becomes a 1 px
+   edge in high contrast and in forced colours (the tokens file turns it on).
+   ========================================================================== */
+@import '../../styles/design/v3/glass.css';
+
+.v3-ground,
+.v3-plate,
+.v3-plate *,
+.v3-group,
+.v3-group *,
+.v3-key,
+.v3-key *,
+.v3-chip,
+.v3-chip *,
+.v3-ledger,
+.v3-ledger *,
+.v3-counter,
+.v3-counter *,
+.v3-dial,
+.v3-dial *,
+.v3-gauge,
+.v3-gauge *,
+.v3-locked,
+.v3-locked *,
+.v3-step,
+.v3-step * {
+  box-sizing: border-box;
+}
+
+.v3-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- the ground: a sibling element behind the content, never its parent, and the only layer that blurs (spec 2.1) ---- */
+.v3-ground {
+  position: absolute;
+  inset: -64px;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--c-ground);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+}
+
+/* ---- Plate: a raised tray with the graded material (first: most lifted, second: one step flatter, third: glassiest) ---- */
+.v3-plate {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+  min-width: 0;
+  min-height: 0;
+  padding: var(--sp-16) var(--sp-20) var(--sp-20);
+  overflow: hidden;
+  border: 1px solid var(--hair);
+  border-radius: var(--rad-tray);
+  color: var(--ink);
+  font: 400 var(--t-14) / 1.4 var(--f-ui);
+  background: linear-gradient(135deg, var(--glare), transparent 38%), var(--c-tray);
+  box-shadow: var(--sh-tray), var(--edge);
+}
+.v3-plate[data-tier='first'] {
+  border-radius: var(--rad-now);
+  background: linear-gradient(135deg, var(--glare), transparent 38%), linear-gradient(135deg, var(--trayn-wash), transparent 55%), var(--c-trayn);
+  box-shadow: var(--sh-now), var(--edge);
+}
+.v3-plate[data-tier='third'] {
+  background: linear-gradient(135deg, var(--glare-l), transparent 38%), var(--c-trayl);
+  box-shadow: var(--sh-later), var(--edge);
+  font-size: var(--t-12);
+}
+.v3-plate > * {
+  position: relative;
+  z-index: 1;
+}
+.v3-plate-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-6) var(--sp-10);
+  min-height: 28px;
+}
+.v3-plate-head .v3-chip {
+  margin-left: auto;
+}
+
+/* the step label: a numeral in a pressed 20 px well and the job of the tray (jury round 3: three dots read as pagination) */
+.v3-step {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-width: 0;
+  font: 700 var(--t-12) / 1.2 var(--f-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink2);
+}
+.v3-plate[data-tier='first'] .v3-step {
+  color: var(--ink);
+}
+.v3-step-tick {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-top: 1.5px solid var(--ink3);
+  border-left: 1.5px solid var(--ink3);
+}
+.v3-step-n {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font: 700 var(--t-11) / 1 var(--f-mono);
+  letter-spacing: 0;
+  color: var(--ink);
+  background: var(--c-group);
+  box-shadow: var(--sh-press);
+}
+.v3-step[data-mark='bracket'] .v3-step-n {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  font-size: var(--t-12);
+}
+
+/* the station ruler, first tray only: formed marks on the dark ground, an ASCII rule on the light one */
+.v3-ruler {
+  flex: none;
+  pointer-events: none;
+}
+.v3-ruler[data-kind='sigil'] {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 9px;
+  margin-top: calc(var(--sp-4) * -1);
+  opacity: 0.75;
+}
+.v3-ruler[data-kind='sigil'] i {
+  display: block;
+  width: 1.5px;
+  height: 5px;
+  background: var(--ink2);
+}
+.v3-ruler[data-kind='sigil'] i:nth-child(6n + 1) {
+  height: 9px;
+  background: var(--ink);
+}
+.v3-ruler[data-kind='ascii'] {
+  height: 10px;
+  margin-top: calc(var(--sp-4) * -1);
+  overflow: hidden;
+  white-space: pre;
+  font: 500 var(--t-11) / 1 var(--f-mono);
+  color: var(--ink3);
+}
+
+/* one flare of the tray's light on a real event, and one glint across the hero when the place changes (section 5) */
+.v3-plate[data-rise] {
+  animation: v3-rise var(--d-rise) var(--ease) both;
+  animation-delay: calc(var(--rise-i, 0) * var(--d-rise-step));
+}
+.v3-flare,
+.v3-glint {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.v3-flare {
+  background: linear-gradient(135deg, var(--sheen), transparent 60%);
+  opacity: 0;
+  animation: v3-flare var(--d-flare) var(--ease) 1 both;
+}
+.v3-glint {
+  overflow: hidden;
+}
+.v3-glint::before {
+  content: '';
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  left: -50%;
+  width: 34%;
+  transform: skewX(-14deg);
+  background: linear-gradient(100deg, transparent, var(--sheen), transparent);
+  opacity: 0;
+  animation: v3-glint var(--d-glint) var(--ease) var(--d-rise) 1 both;
+}
+@keyframes v3-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes v3-flare {
+  0% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes v3-glint {
+  0% {
+    left: -50%;
+    opacity: 1;
+  }
+  100% {
+    left: 130%;
+    opacity: 1;
+  }
+}
+
+/* ---- Group: related things in one recessed well, with a quiet caption (or flat on the tray, spec 2.5) ---- */
+.v3-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  min-width: 0;
+  color: var(--ink);
+}
+.v3-group[data-variant='well'] {
+  padding: var(--sp-14) var(--sp-16);
+  border: 1px solid var(--hair);
+  border-radius: var(--rad-plate);
+  background: var(--c-well);
+  box-shadow: var(--sh-press);
+}
+.v3-group-cap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-10);
+  margin: 0;
+  font: 700 var(--t-12) / 1.3 var(--f-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink2);
+}
+.v3-group-cap .v3-chip {
+  margin-left: auto;
+}
+
+/* ---- Chip: a lamp shape and its word, never colour alone; a state word is never cut ---- */
+.v3-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  flex: none;
+  font: 700 var(--t-11) / 1.2 var(--f-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink);
+}
+.v3-chip[data-kind='tag'] {
+  padding: var(--sp-4) var(--sp-8);
+  border: 1px solid var(--hair);
+  border-radius: var(--rad-chip);
+  background: var(--c-lock);
+  box-shadow: var(--sh-press);
+  color: var(--ink2);
+}
+.v3-chip-tag {
+  color: var(--ink2);
+}
+.v3-counter-name .v3-chip {
+  align-self: flex-start;
+}
+.v3-chip .k-lamp-glyph {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+.v3-chip .k-lamp-glyph[data-state='live'] {
+  color: var(--live);
+  animation: v3-ping var(--d-ping) var(--ease) 1;
+}
+.v3-chip .k-lamp-glyph[data-state='waiting'] {
+  color: var(--ink2);
+}
+.v3-chip .k-lamp-glyph[data-state='simulated'] {
+  color: var(--sim);
+}
+.v3-chip .k-lamp-glyph[data-state='planned'] {
+  color: var(--ink3);
+}
+.v3-chip .k-lamp-glyph[data-state='fault'] {
+  color: var(--fault); /* only the triangle takes the fault colour; its word stays in ink */
+}
+@keyframes v3-ping {
+  0% {
+    box-shadow: 0 0 0 0 var(--live-ping);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+
+/* ---- Key: a soft clay key. rest, hover, pressed, focus, neutral lit (ON and selected), and the ONE accent ---- */
+.v3-key {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-10);
+  min-width: var(--hit);
+  min-height: var(--hit);
+  padding-inline: var(--sp-16);
+  border: 1px solid var(--hair);
+  border-radius: var(--rad-key);
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  color: var(--ink);
+  font: 600 var(--t-14) / 1.2 var(--f-ui);
+  text-align: center;
+  cursor: pointer;
+  flex-wrap: wrap; /* a long label keeps its line and its key caps drop under it, instead of both squeezing */
+  row-gap: var(--sp-6);
+  padding-block: var(--sp-8);
+  background: linear-gradient(145deg, var(--raised-hi), var(--raised));
+  box-shadow: var(--sh-raise);
+  transition: transform var(--d-key) var(--ease), box-shadow var(--d-key) var(--ease);
+}
+.v3-key:hover,
+.v3-key[data-demo='hover'] {
+  transform: translateY(-1px);
+  box-shadow: var(--sh-raise-hover);
+}
+.v3-key:active,
+.v3-key[data-demo='pressed'] {
+  transform: none;
+  box-shadow: var(--sh-press);
+  background: var(--raised);
+}
+.v3-key:focus-visible,
+.v3-key[data-demo='focus'] {
+  box-shadow: var(--ring-focus);
+}
+.v3-key[data-size='big'] {
+  min-height: 60px;
+  padding-inline: var(--sp-24);
+  border-radius: var(--rad-key-big);
+  font-size: var(--t-17);
+}
+.v3-key[data-size='icon'] {
+  padding: 0;
+  width: var(--hit);
+}
+.v3-key[data-lit='true'] {
+  background: linear-gradient(145deg, var(--lit-a), var(--lit-b));
+  font-weight: 650;
+}
+.v3-key[data-lit='true']::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: 0 0 6px var(--ink3);
+}
+.v3-key[data-lit='true']:active,
+.v3-key[data-lit='true'][data-demo='pressed'] {
+  background: linear-gradient(145deg, var(--lit-b), var(--lit-a));
+}
+.v3-key[data-accent='true'] {
+  color: var(--on-accent);
+  font-weight: 700;
+  background: linear-gradient(145deg, var(--accent-a), var(--accent-b));
+  box-shadow: var(--sh-accent);
+}
+.v3-key[data-accent='true']:hover,
+.v3-key[data-accent='true'][data-demo='hover'] {
+  box-shadow: var(--sh-accent-hover);
+}
+.v3-key[data-accent='true']:active,
+.v3-key[data-accent='true'][data-demo='pressed'] {
+  box-shadow: var(--sh-accent-press);
+  background: var(--accent-b);
+}
+.v3-key[data-accent='true']:focus-visible,
+.v3-key[data-accent='true'][data-demo='focus'] {
+  box-shadow: var(--ring-focus);
+}
+.v3-key[data-busy='true'] {
+  cursor: progress;
+}
+
+/* a key cap: a pressed-in well, not a chip. Inside the accent key it is the dark orange well of spec 2.4 (label 5.9 to 1) */
+.v3-cap {
+  display: inline-block;
+  padding: var(--sp-5) var(--sp-9);
+  border: 0;
+  border-radius: var(--rad-cap-s);
+  color: var(--ink2);
+  font: 700 var(--t-11) / 1 var(--f-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--c-lock);
+  box-shadow: var(--sh-press);
+}
+.v3-key[data-accent='true'] .v3-cap {
+  color: var(--cap-ink);
+  background: var(--cap-fill);
+  box-shadow: var(--cap-sh);
+}
+
+/* ---- LockedKey: an action that cannot run. Sunk shallow, no raise and no press, a lock, its reason as text beside it ---- */
+.v3-locked {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-6);
+  max-width: 100%;
+}
+/* :root and the aria-disabled attribute raise this above the clay kit's generic [aria-disabled] rules (0,3,0), which would
+   otherwise repaint a locked key flat and bring back a hairline */
+:root .v3-key[data-kind='locked'][aria-disabled='true'],
+:root .v3-key[data-kind='locked'][aria-disabled='true']:hover,
+:root .v3-key[data-kind='locked'][aria-disabled='true']:active,
+:root .v3-key[data-kind='locked'][aria-disabled='true'][data-demo] {
+  transform: none;
+  cursor: not-allowed;
+  color: var(--locked);
+  font-weight: 600;
+  background: var(--c-lock);
+  box-shadow: var(--sh-locked);
+}
+:root .v3-key[data-kind='locked'][aria-disabled='true']:focus-visible {
+  box-shadow: var(--sh-locked), var(--ring-focus);
+}
+.v3-key[data-kind='locked'] svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+.v3-locked-why {
+  max-width: 28ch;
+  margin: 0;
+  font: 400 var(--t-11) / 1.35 var(--f-ui);
+  overflow-wrap: anywhere;
+  color: var(--ink2);
+}
+
+/* ---- Ledger: rows of label, value, lamp and reason. They wrap and grow; nothing is clipped, nothing ends in an ellipsis ---- */
+.v3-ledger {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+.v3-ledger-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--sp-4) var(--sp-12);
+  min-height: 52px;
+  padding: var(--sp-6) var(--sp-8);
+  border: 1px solid var(--hair);
+  border-radius: var(--rad-key);
+  color: var(--ink);
+}
+.v3-ledger-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 2px solid transparent;
+  background: none;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+}
+.v3-ledger-label {
+  font: 650 var(--t-14) / 1.3 var(--f-ui);
+  overflow-wrap: anywhere;
+}
+.v3-ledger-reason {
+  font: 400 var(--t-13) / 1.35 var(--f-ui);
+  color: var(--ink2);
+  overflow-wrap: anywhere;
+}
+.v3-ledger-value {
+  font: 700 var(--t-14) / 1 var(--f-mono);
+  white-space: nowrap;
+  color: var(--ink);
+}
+/* a narrow ledger (a third tray, a phone): the label and its reason take the whole first line, and the value and the lamp
+   share the second, so no word is ever broken into a column of letters */
+@container (max-width: 27rem) {
+  .v3-ledger-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .v3-ledger-main {
+    grid-column: 1 / -1;
+  }
+}
+.v3-ledger-act {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-8);
+  padding-top: var(--sp-4);
+}
+.v3-ledger-row[data-selectable='true'] {
+  cursor: pointer;
+  padding: var(--sp-6) var(--sp-12);
+  background: linear-gradient(145deg, var(--raised-hi), var(--raised));
+  box-shadow: var(--sh-raise);
+  transition: transform var(--d-key) var(--ease), box-shadow var(--d-key) var(--ease);
+}
+.v3-ledger-row[data-selectable='true']:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--sh-raise-hover);
+}
+.v3-ledger-row[data-selected='true'] {
+  background: linear-gradient(145deg, var(--lit-a), var(--lit-b));
+}
+.v3-ledger-row[data-selectable='true']:has(.v3-ledger-main:focus-visible) {
+  box-shadow: var(--ring-focus);
+}
+.v3-ledger-main[data-button='true'] {
+  min-height: var(--hit);
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* ---- Counter: a pressed dial with the count, the name with its state line, and a raised +1 key (52 by 44) ---- */
+.v3-counter {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-12);
+  min-height: 56px;
+  padding: var(--sp-6) var(--sp-8);
+  color: var(--ink);
+}
+.v3-counter-dial {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+  border-radius: 50%;
+  font: 700 var(--t-14) / 1 var(--f-mono);
+  background: var(--c-well);
+  box-shadow: var(--sh-press);
+}
+.v3-counter-name {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.v3-counter-name b {
+  font: 650 var(--t-14) / 1.25 var(--f-ui);
+  overflow-wrap: anywhere;
+}
+.v3-counter-name small {
+  font: 400 var(--t-11) / 1.3 var(--f-ui);
+  color: var(--ink2);
+}
+.v3-counter .v3-key {
+  width: 52px;
+  padding: 0;
+}
+.v3-counter .v3-key[data-tapped='true'] {
+  transform: none;
+  box-shadow: var(--sh-press);
+}
+.v3-roll {
+  display: inline-block;
+  animation: v3-roll var(--d-roll) var(--ease) both;
+}
+@keyframes v3-roll {
+  from {
+    transform: translateY(-70%);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* ---- Dial and Gauge: drawn data forms. A reading is drawn only when something real or openly generated produced it;
+        every other state is the designed WAITING pose: a dotted ghost track, a dash, the reason. ---- */
+.v3-dial,
+.v3-gauge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-8);
+  margin: 0;
+  max-width: 100%;
+  text-align: center;
+  color: var(--ink);
+}
+.v3-dial-face {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--v3-size, 96px);
+  height: var(--v3-size, 96px);
+}
+.v3-dial-face > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.v3-track {
+  fill: none;
+  stroke: var(--track);
+  stroke-linecap: round;
+}
+.v3-arc {
+  fill: none;
+  stroke: var(--ink);
+  stroke-linecap: round;
+  transition: stroke-dasharray var(--d-sweep) var(--ease);
+}
+.v3-dial[data-lamp='simulated'] .v3-arc,
+.v3-gauge[data-lamp='simulated'] .v3-arc {
+  stroke: var(--sim);
+}
+.v3-dial[data-lamp='live'] .v3-arc,
+.v3-gauge[data-lamp='live'] .v3-arc {
+  stroke: var(--live);
+}
+.v3-dial[data-pose='waiting'] .v3-track,
+.v3-gauge[data-pose='waiting'] .v3-track {
+  stroke: var(--ink3);
+  stroke-dasharray: 0.4 3.2;
+  opacity: 0.8;
+}
+.v3-dial-num,
+.v3-gauge-num {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font: 700 var(--v3-fs, var(--t-21)) / 1 var(--f-mono);
+  color: var(--ink);
+}
+.v3-dial-num small,
+.v3-gauge-num small {
+  margin-top: var(--sp-4);
+  font: 500 var(--t-11) / 1.1 var(--f-mono);
+  color: var(--ink2);
+}
+.v3-dial-name {
+  font: 700 var(--t-12) / 1.2 var(--f-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink2);
+}
+.v3-dial-why {
+  max-width: 24ch;
+  margin: 0;
+  font: 400 var(--t-12) / 1.35 var(--f-ui);
+  overflow-wrap: anywhere;
+  color: var(--ink2);
+}
+.v3-gauge-face {
+  position: relative;
+  width: 160px;
+  height: 132px;
+}
+.v3-gauge-face > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.v3-gauge-face .v3-gauge-num {
+  position: absolute;
+  left: 50%;
+  top: 94px;
+  translate: -50% 0;
+}
+.v3-dial-cap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-6);
+}
+.v3-hub {
+  fill: var(--ink);
+  stroke: none;
+}
+.v3-needle-g {
+  transition: transform var(--d-sweep) var(--ease);
+}
+.v3-needle {
+  stroke: var(--ink);
+  stroke-linecap: round;
+  fill: none;
+}
+.v3-spec stop:first-child {
+  stop-color: var(--spec);
+}
+.v3-spec stop:last-child {
+  stop-color: transparent;
+}
+
+/* ---- Sigil: the ring of the voice stage. It breathes while asleep, turns when awake, and carries its mic level as an arc ---- */
+.v3-sigil {
+  display: block;
+  flex: none;
+  width: var(--v3-size, 240px);
+  height: var(--v3-size, 240px);
+  color: var(--ink);
+}
+.v3-sigil .v3-mark-ring {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+}
+.v3-sigil .v3-ticks {
+  fill: none;
+  stroke: var(--ink2);
+}
+.v3-sigil .v3-spin,
+.v3-sigil .v3-spin2 {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.v3-sigil[data-breathe='true'] .v3-spin {
+  animation: v3-breathe var(--d-breathe) var(--ease) infinite;
+}
+.v3-sigil[data-awake='true'] .v3-spin {
+  animation: v3-turn var(--d-spin) var(--ease-linear) infinite;
+}
+.v3-sigil[data-awake='true'] .v3-spin2 {
+  animation: v3-turn var(--d-spin2) var(--ease-linear) infinite reverse;
+}
+@keyframes v3-breathe {
+  0%,
+  100% {
+    opacity: 0.62;
+    transform: scale(0.985);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.01);
+  }
+}
+@keyframes v3-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.v3-mic-track {
+  fill: none;
+  stroke: var(--track);
+  stroke-linecap: butt;
+}
+.v3-mic-val {
+  fill: none;
+  stroke: var(--ink);
+  stroke-linecap: butt;
+  transition: stroke-dasharray var(--d-sweep) var(--ease);
+}
+.v3-sigil[data-level='simulated'] .v3-mic-val {
+  stroke: var(--sim);
+}
+
+/* ---- Mark: the formed marks of the four projects (1.6 px house line); Well Wisher's is ASCII ---- */
+.v3-mark {
+  flex: none;
+  width: var(--v3-size, 22px);
+  height: var(--v3-size, 22px);
+  color: currentColor;
+}
+.v3-mark path,
+.v3-mark circle,
+.v3-mark rect,
+.v3-mark ellipse {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.v3-mark-ascii {
+  display: inline-block;
+  font: 700 var(--t-13) / 1 var(--f-mono);
+  letter-spacing: -0.02em;
+  white-space: pre;
+}
+.v3-mark-disc {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--ink);
+  background: var(--c-lock);
+  box-shadow: var(--sh-press);
+}
+.v3-mark-disc[data-lit='true'] {
+  background: linear-gradient(145deg, var(--lit-a), var(--lit-b));
+  box-shadow: var(--sh-raise);
+}
+
+/* ---- reduced motion: every animation off and every transition off, the stills of section 5 stay (the labels, the arcs
+        at their reading, the ring at full strength). data-motion='full' keeps travel for a review. ---- */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) .v3-plate[data-rise],
+  :root:not([data-motion='full']) .v3-flare,
+  :root:not([data-motion='full']) .v3-glint::before,
+  :root:not([data-motion='full']) .v3-chip .k-lamp-glyph,
+  :root:not([data-motion='full']) .v3-roll,
+  :root:not([data-motion='full']) .v3-sigil .v3-spin,
+  :root:not([data-motion='full']) .v3-sigil .v3-spin2 {
+    animation: none;
+  }
+  :root:not([data-motion='full']) .v3-flare,
+  :root:not([data-motion='full']) .v3-glint {
+    display: none;
+  }
+  :root:not([data-motion='full']) .v3-key,
+  :root:not([data-motion='full']) .v3-ledger-row,
+  :root:not([data-motion='full']) .v3-arc,
+  :root:not([data-motion='full']) .v3-needle-g,
+  :root:not([data-motion='full']) .v3-mic-val {
+    transition: none;
+  }
+}
+:root[data-motion='calm'] .v3-plate[data-rise],
+:root[data-motion='calm'] .v3-flare,
+:root[data-motion='calm'] .v3-glint::before,
+:root[data-motion='calm'] .v3-chip .k-lamp-glyph,
+:root[data-motion='calm'] .v3-roll,
+:root[data-motion='calm'] .v3-sigil .v3-spin,
+:root[data-motion='calm'] .v3-sigil .v3-spin2 {
+  animation: none;
+}
+:root[data-motion='calm'] .v3-flare,
+:root[data-motion='calm'] .v3-glint {
+  display: none;
+}
+:root[data-motion='calm'] .v3-key,
+:root[data-motion='calm'] .v3-ledger-row,
+:root[data-motion='calm'] .v3-arc,
+:root[data-motion='calm'] .v3-needle-g,
+:root[data-motion='calm'] .v3-mic-val {
+  transition: none;
+}
+
+/* ---- forced colours: system colours; the key keeps an edge and the focus ring is the system highlight ---- */
+@media (forced-colors: active) {
+  .v3-key,
+  .v3-ledger-row,
+  .v3-plate,
+  .v3-group[data-variant='well'],
+  .v3-chip[data-kind='tag'] {
+    border-color: ButtonText;
+    forced-color-adjust: auto;
+  }
+  .v3-key[data-lit='true'] {
+    border-color: Highlight;
+  }
+  .v3-key[data-kind='locked'] {
+    border-style: dashed;
+    border-color: GrayText;
+    color: GrayText;
+  }
+  .v3-key:focus-visible,
+  .v3-key[data-demo='focus'] {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
+  .v3-chip .k-lamp-glyph {
+    forced-color-adjust: none;
+    color: CanvasText;
+  }
+  .v3-arc,
+  .v3-mic-val,
+  .v3-needle {
+    stroke: CanvasText;
+  }
+  .v3-track,
+  .v3-mic-track {
+    stroke: GrayText;
+  }
+  .v3-ground {
+    display: none;
+  }
+}

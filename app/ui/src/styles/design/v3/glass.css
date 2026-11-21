@@ -1,0 +1,394 @@
+/* ==========================================================================
+   Design language v3, the material: every custom property of sections 2.2 to 2.5 of docs/design/design-language-v3.md.
+
+   INERT BY CONSTRUCTION. Every selector below carries [data-look='v3'] (the second form of the selector lets a gallery
+   specimen or a test opt one subtree in), so with the attribute absent no rule matches and the current look does not move
+   a pixel (src/__tests__/v3/tokens-v3.test.ts proves it on the file). This is a token file: colour, px and duration
+   literals are allowed here and nowhere in the kit stylesheet that reads it (shared/kit/glass.css).
+
+   WHERE THIS FILE LIVES. The brief put it in the clay token folder with one import line in its index.css. That breaks three
+   tests that cannot be edited (tokens.test.ts: the import order, the file count of the clay lint, and the clay lint itself,
+   which forbids gradients and colour literals in every file of that folder). So it sits one folder beside, in
+   styles/design/v3/, and shared/kit/glass.css imports it; the shell can import it from there too. Moving it later is one
+   line and the three test edits listed in RESEARCH-T1.md.
+
+   THE GROUND. Dark is the default ground (JARVIS, Aankhen, Yadaash). Light (Well Wisher) applies when the page theme is
+   clay-light, or when the element says data-ground='light'. data-ground='dark' forces dark inside a light theme.
+
+   GLASS OFF. [data-glass='off'] sets the six alphas to 1 and the blur to none. The hues stay the same, and the first tray
+   keeps a 3 percent lighter top left wash so the focal tray still lifts (spec 2.6). Nothing else changes.
+
+   ALPHAS. --ga and --sa are the HOST values (.76 and .74), not the mockup's .70 and .66 (spec 2.7): the real window cannot
+   apply the mockup's brightness(.8) to the desktop, so over a pure white wallpaper the tint carries the contrast alone.
+   The floors are recomputed from these numbers by the test, over white behind dark and black behind light.
+
+   ROUND 3 OF THE JURY, what changed here: the dark glass is cooler and more saturated (a blue-leaning tint, saturate
+   1.45) so a bright wallpaper survives as hue and not as olive mud; the locked key has its own pressed-in shadow
+   (--sh-locked); the step label has a numeral well (the three dots read as pagination).
+   ========================================================================== */
+
+/* ---- 1. both grounds: the shared tokens, and the DARK ground as the default ------------------------------------------ */
+:root[data-look='v3'],
+[data-look='v3'] {
+  color-scheme: dark;
+
+  /* the glass layers: tint colour, effective alpha (--ga ...), and the alpha of the glass ON state (--ga-on ...) */
+  --ground-rgb: 14, 15, 19;
+  --spine-rgb: 9, 10, 13;
+  --tray-rgb: 35, 38, 45;
+  --trayn-rgb: 49, 53, 63;
+  --trayl-rgb: 28, 31, 38;
+  --well-rgb: 7, 8, 11;
+  --ga-on: 0.76;
+  --sa-on: 0.74;
+  --ta-on: 0.5;
+  --tna-on: 0.74;
+  --tla-on: 0.34;
+  --wa-on: 0.93;
+  --ga: var(--ga-on);
+  --sa: var(--sa-on);
+  --ta: var(--ta-on);
+  --tna: var(--tna-on);
+  --tla: var(--tla-on);
+  --wa: var(--wa-on);
+  --glass-filter: blur(40px) saturate(1.9) brightness(0.92); /* the stand-in for the system backdrop; the host column of spec 2.7 holds without it */
+  --trayn-wash: transparent;
+
+  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 1px 0 0 rgba(255, 255, 255, 0.035);
+  --pop: #1d1f24;
+  --raised: #282b30;
+  --raised-hi: #343840;
+  --lit-a: #4a4f59;
+  --lit-b: #383c44;
+  --hi: rgba(255, 255, 255, 0.075);
+  --lo: rgba(0, 0, 0, 0.58);
+  --lot: var(--lo);
+  --glare: rgba(255, 255, 255, 0.1);
+  --glare-l: rgba(255, 255, 255, 0.045);
+  --sheen: rgba(255, 255, 255, 0.1);
+  --sheen-spine: rgba(255, 255, 255, 0.05); /* the spine's own band: at .10 ink2 on it falls to 4.0 to 1 over white, at .05 it holds 4.6 */
+  --spec: rgba(255, 255, 255, 0.4);
+
+  --ink: #f3f4f6;
+  --ink2: #c6c9cf;
+  --ink3: #a9adb5;
+  --live: #46d6c8;
+  --live-ping: rgba(70, 214, 200, 0.5);
+  --fault: #e5484d;
+  --sim: #b9a6ff;
+  --locked: #abafb7; /* spec 2.2 says #9A9EA6, which falls to 3.8 to 1 under the tray glare at its corner; this holds 4.6 */
+  --track: rgba(255, 255, 255, 0.1);
+  --focus: #ffffff;
+  --gap: #0d0e11;
+  --hair: transparent; /* no outline on a labelled control; high contrast and forced colours turn it back on */
+
+  /* shared by both grounds (spec 2.4) */
+  --accent: #f2591a;
+  --accent-a: #ff6e2e;
+  --accent-b: #ec5314;
+  --on-accent: #190b04;
+  --accent-glow: 0 8px 26px rgba(242, 89, 26, 0.35);
+  --accent-glow-hover: 0 10px 32px rgba(242, 89, 26, 0.45);
+  --cap-fill: #a23a0d; /* a key cap inside the accent key: a pressed-in well, not a chip (label 5.9 to 1) */
+  --cap-ink: #ffede3;
+  --cap-sh: inset 1px 1px 2px rgba(120, 30, 0, 0.5), inset -1px -1px 2px rgba(255, 180, 140, 0.3);
+
+  --sh-raise: -4px -4px 10px var(--hi), 6px 6px 14px var(--lo);
+  --sh-raise-hover: -5px -5px 13px var(--hi), 8px 8px 19px var(--lo);
+  --sh-press: inset 3px 3px 8px var(--lo), inset -3px -3px 8px var(--hi);
+  --sh-locked: inset 2px 2px 5px var(--lo), inset -1px -1px 3px var(--hi); /* a blocked key sunk shallow: not a press, and no raise */
+  --sh-tray: -6px -6px 18px var(--hi), 10px 10px 28px var(--lot, var(--lo));
+  --sh-now: -9px -9px 26px var(--hi), 16px 16px 42px var(--lo);
+  --sh-later: -3px -3px 10px var(--hi), 6px 6px 16px var(--lo);
+  --sh-accent: var(--sh-raise), var(--accent-glow);
+  --sh-accent-hover: var(--sh-raise-hover), var(--accent-glow-hover);
+  --sh-accent-press: inset 3px 3px 9px rgba(120, 30, 0, 0.55), inset -2px -2px 6px rgba(255, 180, 140, 0.35);
+  --ring-focus: 0 0 0 3px var(--gap), 0 0 0 5px var(--focus); /* a 3 px gap, then a 2 px ring; it replaces the key shadow */
+
+  /* radii */
+  --rad-now: 30px;
+  --rad-tray: 22px;
+  --rad-plate: 16px;
+  --rad-key: 14px;
+  --rad-key-big: 18px;
+  --rad-slot: 16px;
+  --rad-cap: 13px;
+  --rad-chip: 12px;
+  --rad-cap-s: 8px; /* a key cap */
+
+  /* type: nothing under 11 px (spec 2.7) */
+  --t-11: 11px;
+  --t-12: 12px;
+  --t-13: 13px;
+  --t-14: 14px;
+  --t-15: 15px;
+  --t-17: 17px;
+  --t-21: 21px;
+  --t-32: 32px;
+  --f-ui: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --f-mono: var(--font-mono, Consolas, 'Cascadia Mono', 'Courier New', monospace);
+
+  /* space: 8 px grid, 6 px inside a group, 16 px between groups */
+  --sp-2: 2px;
+  --sp-5: 5px;
+  --sp-9: 9px;
+  --sp-14: 14px;
+  --sp-4: 4px;
+  --sp-6: 6px;
+  --sp-8: 8px;
+  --sp-10: 10px;
+  --sp-12: 12px;
+  --sp-16: 16px;
+  --sp-20: 20px;
+  --sp-24: 24px;
+  --hit: 44px;
+
+  /* motion (spec 2.4, section 5): one easing, and every duration a token, so reduced motion is one block below */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-linear: linear;
+  --d-key: 140ms;
+  --d-roll: 160ms;
+  --d-rise: 500ms;
+  --d-rise-step: 70ms;
+  --d-flare: 1.3s;
+  --d-glint: 1.2s;
+  --d-sweep: 700ms;
+  --d-breathe: 7s;
+  --d-spin: 24s;
+  --d-spin2: 14s;
+  --d-ping: 1.4s;
+}
+
+/* ---- 2. the LIGHT ground (Well Wisher) -------------------------------------------------------------------------------- */
+:root[data-look='v3'][data-theme='clay-light']:not([data-ground='dark']),
+[data-look='v3'][data-ground='light'] {
+  color-scheme: light;
+
+  --ground-rgb: 228, 232, 235;
+  --spine-rgb: 238, 241, 243;
+  --tray-rgb: 242, 245, 247;
+  --trayn-rgb: 252, 253, 254;
+  --trayl-rgb: 236, 240, 243;
+  --well-rgb: 214, 219, 223;
+  --ga-on: 0.76;
+  --sa-on: 0.78;
+  --ta-on: 0.72;
+  --tna-on: 0.88;
+  --tla-on: 0.58;
+  --wa-on: 0.94;
+  --glass-filter: blur(40px) saturate(1.15) brightness(1.35);
+
+  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 1px 0 0 rgba(255, 255, 255, 0.5);
+  --pop: #f5f7f8;
+  --raised: #edf0f2;
+  --raised-hi: #f9fafb;
+  --lit-a: #ffffff;
+  --lit-b: #f1f3f5;
+  --hi: rgba(255, 255, 255, 0.95);
+  --lo: rgba(98, 110, 122, 0.4);
+  --lot: rgba(98, 110, 122, 0.5); /* the lower shadow of a tray only: keeps tray edges from melting into a pale wallpaper */
+  --glare: rgba(255, 255, 255, 0.65);
+  --glare-l: rgba(255, 255, 255, 0.29);
+  --sheen: rgba(255, 255, 255, 0.55);
+  --sheen-spine: rgba(255, 255, 255, 0.55);
+  --spec: rgba(255, 255, 255, 0.95);
+
+  --ink: #15181c;
+  --ink2: #2c3238;
+  --ink3: #363c44;
+  --live: #0a7a72;
+  --live-ping: rgba(10, 122, 114, 0.4);
+  --fault: #b3261e;
+  --sim: #5b3fc4;
+  --locked: #575d65;
+  --track: rgba(21, 24, 28, 0.1);
+  --focus: #15181c;
+  --gap: #eef1f3;
+}
+
+/* ---- 3. GLASS OFF and no backdrop-filter: the same hues, fully opaque (spec 2.6) --------------------------------------- */
+[data-look='v3'][data-glass='off'],
+[data-glass='off'] [data-look='v3'],
+[data-look='v3'] [data-glass='off'] {
+  --ga: 1;
+  --sa: 1;
+  --ta: 1;
+  --tna: 1;
+  --tla: 1;
+  --wa: 1;
+  --glass-filter: none;
+  --trayn-wash: rgba(255, 255, 255, 0.035);
+}
+[data-look='v3'][data-ground='light'][data-glass='off'],
+:root[data-look='v3'][data-theme='clay-light'][data-glass='off']:not([data-ground='dark']),
+[data-glass='off'] [data-look='v3'][data-ground='light'] {
+  /* the light-ground block above is more specific than the off block, so its blur has to be switched off here again */
+  --glass-filter: none;
+  --trayn-wash: #ffffff;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root[data-look='v3'],
+  [data-look='v3'] {
+    --ga: 1;
+    --sa: 1;
+    --ta: 1;
+    --tna: 1;
+    --tla: 1;
+    --wa: 1;
+    --glass-filter: none;
+  }
+}
+
+/* ---- 4. composed fills: one name per layer, so the kit never writes a colour or an alpha of its own ------------------ */
+/* declared on every element that can set an alpha, so the alpha it reads is always its own */
+:root[data-look='v3'],
+[data-look='v3'],
+[data-look='v3'] [data-glass] {
+  --c-ground: rgba(var(--ground-rgb), var(--ga));
+  --c-spine: rgba(var(--spine-rgb), var(--sa));
+  --c-tray: rgba(var(--tray-rgb), var(--ta));
+  --c-trayn: rgba(var(--trayn-rgb), var(--tna));
+  --c-trayl: rgba(var(--trayl-rgb), var(--tla));
+  --c-well: rgba(var(--well-rgb), var(--wa));
+  --c-well-solid: rgb(var(--well-rgb));
+  --c-slot: rgba(var(--well-rgb), 0.28); /* a segment slot */
+  --c-lock: rgba(var(--well-rgb), 0.3); /* a locked key */
+  --c-group: rgba(var(--well-rgb), 0.38); /* the open tile of the spine, a recessed group */
+}
+
+/* ---- 5. the existing roles, so existing components pick the look up (spec 8.2) ----------------------------------------- */
+/* not under high contrast and not in forced colours: there the existing rules and edges win (contrast.css, forced.css) */
+@media not (forced-colors: active) {
+  :root[data-look='v3']:not([data-contrast='high']),
+  [data-look='v3']:not([data-contrast='high']),
+  :root[data-look='v3']:not([data-contrast='high']) [data-scene] {
+    --surface-ground: rgb(var(--ground-rgb)); /* solid: existing components paint on it, and the glass is the shell's ground element */
+    --surface-raised: var(--raised);
+    --surface-raised-hi: var(--raised-hi);
+    --surface-sunk: var(--c-well);
+    --ink-1: var(--ink);
+    --ink-2: var(--ink2);
+    --ink-3: var(--ink3);
+    --state-measured: var(--live);
+    --state-fault: var(--fault);
+    --state-simulated: var(--sim);
+    --state-waiting: var(--ink2);
+    --state-planned: var(--ink3);
+    --accent-fill: var(--accent);
+    --accent-on: var(--on-accent);
+    --selected-fill: var(--lit-a); /* the neutral lit state, never the accent (the gradient itself is drawn by the kit) */
+    --selected-ink: var(--ink);
+    --focus-ring: var(--focus);
+
+    --elev-raised: var(--sh-raise);
+    --elev-high: var(--sh-raise-hover);
+    --elev-low: var(--sh-later);
+    --elev-float: var(--sh-now);
+    --elev-pressed: var(--sh-press);
+    --elev-recessed: var(--sh-press);
+    --elev-well-deep: var(--sh-press);
+    --lip: var(--edge);
+    --lit-hi: var(--hi);
+    --rim-lit: var(--sheen);
+    /* the hairline of a labelled control and the engraved edge of a well are removed: shadow and light do that work */
+    --rim-shade: transparent;
+    --engrave-dark: transparent;
+    --engrave-lit: transparent;
+    --engrave-side: transparent;
+  }
+}
+
+/* ---- 6. high contrast, and forced colours: opaque, and the hairline comes back ---------------------------------------
+   They must beat the light ground block (specificity 0,4,0), so the selectors repeat their own pseudo-class and attribute
+   to reach 0,5,0: ugly, and the only way to win without !important. */
+:root:root:root[data-look='v3'][data-contrast='high'],
+[data-look='v3'][data-look='v3'][data-look='v3'][data-contrast='high'],
+[data-contrast='high'] [data-look='v3'][data-look='v3'][data-look='v3'] {
+  --ga: 1;
+  --sa: 1;
+  --ta: 1;
+  --tna: 1;
+  --tla: 1;
+  --wa: 1;
+  --glass-filter: none;
+  --trayn-wash: transparent;
+  --glare: transparent;
+  --glare-l: transparent;
+  --sheen: transparent;
+  --sheen-spine: transparent;
+  --spec: transparent;
+  --ink3: var(--ink2);
+  --hair: var(--ink2);
+}
+@media (forced-colors: active) {
+  :root:root:root:root[data-look='v3'],
+  [data-look='v3'][data-look='v3'][data-look='v3'][data-look='v3'][data-look='v3'] {
+    --ga: 1;
+    --sa: 1;
+    --ta: 1;
+    --tna: 1;
+    --tla: 1;
+    --wa: 1;
+    --glass-filter: none;
+    --trayn-wash: transparent;
+    --glare: transparent;
+    --glare-l: transparent;
+    --sheen: transparent;
+    --sheen-spine: transparent;
+    --spec: transparent;
+    --hair: CanvasText;
+    --ink: CanvasText;
+    --ink2: CanvasText;
+    --ink3: CanvasText;
+    --locked: GrayText;
+    --live: CanvasText;
+    --fault: CanvasText;
+    --sim: CanvasText;
+    --track: GrayText;
+    --focus: Highlight;
+    --gap: Canvas;
+    --pop: Canvas;
+    --raised: ButtonFace;
+    --raised-hi: ButtonFace;
+    --lit-a: Highlight;
+    --lit-b: Highlight;
+    --accent: Highlight;
+    --accent-a: Highlight;
+    --accent-b: Highlight;
+    --on-accent: HighlightText;
+    --cap-fill: Canvas;
+    --cap-ink: CanvasText;
+  }
+}
+
+/* ---- 7. reduced motion: one block, every motion token to 0 (the stills of section 5 are drawn by the kit) ------------- */
+@media (prefers-reduced-motion: reduce) {
+  :root[data-look='v3']:not([data-motion='full']),
+  [data-look='v3']:not([data-motion='full']) {
+    --d-key: 0s;
+    --d-roll: 0s;
+    --d-rise: 0s;
+    --d-rise-step: 0s;
+    --d-flare: 0s;
+    --d-glint: 0s;
+    --d-sweep: 0s;
+    --d-breathe: 0s;
+    --d-spin: 0s;
+    --d-spin2: 0s;
+    --d-ping: 0s;
+  }
+}
+:root[data-look='v3'][data-motion='calm'],
+[data-look='v3'][data-motion='calm'] {
+  --d-key: 0s;
+  --d-roll: 0s;
+  --d-rise: 0s;
+  --d-rise-step: 0s;
+  --d-flare: 0s;
+  --d-glint: 0s;
+  --d-sweep: 0s;
+  --d-breathe: 0s;
+  --d-spin: 0s;
+  --d-spin2: 0s;
+  --d-ping: 0s;
+}

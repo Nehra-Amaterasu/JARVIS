@@ -402,7 +402,8 @@ button.s3-head:active { transform: none; box-shadow: var(--sh-press); }
 .s3-num { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background-color: var(--s3-well-50); box-shadow: var(--sh-press); font: 700 0.6875rem/1 var(--s3-mono); color: var(--ink); letter-spacing: 0; }
 /* the numeral is carried in its own language: a corner tick on the dark ground, an ASCII bracket on the light one */
 .s3[data-ground='dark'] .s3-step::before { content: ''; width: 6px; height: 6px; border-top: 2px solid var(--ink3); border-left: 2px solid var(--ink3); margin-right: 0.125rem; }
-.s3[data-ground='light'] .s3-num { width: auto; height: auto; background-color: transparent; box-shadow: none; }
+/* inline-flex here: the base rule is a one-column grid, which stacked the two brackets and the numeral on three lines */
+.s3[data-ground='light'] .s3-num { display: inline-flex; width: auto; height: auto; background-color: transparent; box-shadow: none; }
 .s3[data-ground='light'] .s3-num::before { content: '['; }
 .s3[data-ground='light'] .s3-num::after { content: ']'; }
 .s3-headchip { margin-left: auto; display: inline-flex; align-items: center; font: 700 0.6875rem var(--s3-mono); letter-spacing: 0.08em; }

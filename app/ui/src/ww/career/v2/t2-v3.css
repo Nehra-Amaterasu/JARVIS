@@ -1,0 +1,75 @@
+/* Career under the v3 look (layout round, 21 Nov): the five views sit in three trays of the shell's Zones. Every rule is under
+   :root[data-look='v3'], so with the look off none of it matches. The tray owns the material (tint, radius, shadow), so a plate
+   inside it is flat: its label, lamp word and reason stay, its own raised card does not. A tray scrolls inside itself, because
+   what it holds here is a real list (rows, a shelf, a ledger) or a form; the document never scrolls. */
+
+:root[data-look='v3'] .t2.t2-v3 {
+  position: absolute; inset: 0; display: block; padding: 0; overflow: hidden; background: transparent;
+}
+:root[data-look='v3'] .t2-v3 .s3-zones { height: 100%; }
+:root[data-look='v3'] .t2-v3 .s3-body { overflow-x: hidden; overflow-y: auto; gap: var(--space-3); container-type: inline-size; scrollbar-width: thin; }
+:root[data-look='v3'] .t2-v3 .t2-v3-head { display: flex; flex-direction: column; gap: var(--space-2); flex: none; }
+:root[data-look='v3'] .t2-v3 .t2-keys { justify-content: flex-start; gap: var(--space-2); }
+:root[data-look='v3'] .t2-v3 .t2-sub { font: var(--type-small); }
+:root[data-look='v3'] .t2-v3 .t2-v3-name { margin: 0; font: 600 1rem/1.25rem var(--font-ui); color: var(--ink-1); overflow-wrap: anywhere; }
+
+/* a plate inside a tray is flat */
+:root[data-look='v3'] .t2-v3 .t2-plate { flex: 0 0 auto; padding: 0; border-radius: 0; background: transparent; box-shadow: none; }
+:root[data-look='v3'] .t2-v3 .t2-plate[data-hollow] { background: transparent; box-shadow: none; }
+:root[data-look='v3'] .t2-v3 .t2-plate-head { flex: none; }
+:root[data-look='v3'] .t2-v3 .t2-form { padding: 0; }
+:root[data-look='v3'] .t2-v3 .t2-v3-camps { display: flex; flex-direction: column; gap: var(--space-3); }
+
+/* Runway: the table and the board are one column wide, so a row is two lines (what and when, then the five stages) */
+:root[data-look='v3'] .t2-v3 .t2-stagehead { display: none; }
+:root[data-look='v3'] .t2-v3 .t2-row {
+  grid-template-columns: 3.5rem minmax(0, 1fr) auto; grid-template-areas: 'when name closing' 'stages stages stages';
+  row-gap: var(--space-1); padding: var(--space-2); min-height: 0;
+}
+:root[data-look='v3'] .t2-v3 .t2-when { grid-area: when; }
+:root[data-look='v3'] .t2-v3 .t2-rowname { grid-area: name; }
+:root[data-look='v3'] .t2-v3 .t2-closing { grid-area: closing; width: 9.5rem; }
+:root[data-look='v3'] .t2-v3 .t2-stages { grid-area: stages; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+:root[data-look='v3'] .t2-v3 .t2-stage { width: 100%; }
+:root[data-look='v3'] .t2-v3 .t2-board { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+:root[data-look='v3'] .t2-v3 .t2-towers .t2-tower { height: 3rem; }
+:root[data-look='v3'] .t2-v3 .t2-upnext { align-self: stretch; }
+
+/* Certificates: the shelf fills as many tiles as the tray holds */
+:root[data-look='v3'] .t2-v3 .t2-shelfplate { position: static; }
+:root[data-look='v3'] .t2-v3 .t2-shelf { grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); grid-auto-rows: 8.5rem; gap: var(--space-2); }
+
+/* Money: the bridge and the legend stack, the ledger row is two lines, the rate form is one column */
+:root[data-look='v3'] .t2-v3 .t2-legend { grid-template-columns: minmax(0, 1fr); }
+:root[data-look='v3'] .t2-v3 .t2-ledgerhead { display: none; }
+:root[data-look='v3'] .t2-v3 .t2-lrow {
+  grid-template-columns: 4rem minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: 'when name keys' 'eur eur inr'; row-gap: var(--space-1); padding: var(--space-2); min-height: 0;
+}
+:root[data-look='v3'] .t2-v3 .t2-lrow > :nth-child(1) { grid-area: when; }
+:root[data-look='v3'] .t2-v3 .t2-lrow > :nth-child(2) { grid-area: name; }
+:root[data-look='v3'] .t2-v3 .t2-lrow > :nth-child(3) { grid-area: eur; }
+:root[data-look='v3'] .t2-v3 .t2-lrow > :nth-child(4) { grid-area: inr; }
+:root[data-look='v3'] .t2-v3 .t2-lrow > :nth-child(5) { grid-area: keys; }
+:root[data-look='v3'] .t2-v3 .t2-na { padding-left: 0; }
+:root[data-look='v3'] .t2-v3 .t2-rate-fields { grid-template-columns: minmax(0, 1fr); }
+
+/* Abroad: the spec sheet gives the row head less, the rack is one column, the route map has a height of its own */
+:root[data-look='v3'] .t2-v3 .t2-grow { grid-template-columns: 5.5rem repeat(var(--cols, 4), minmax(0, 1fr)); }
+:root[data-look='v3'] .t2-v3 .t2-rack { grid-template-columns: minmax(0, 1fr); }
+:root[data-look='v3'] .t2-v3 .t2-routeplate .t2-route { min-height: 11rem; margin-top: var(--space-2); }
+
+/* Ladder and Path: a shallower staircase, a sky of its own height */
+:root[data-look='v3'] .t2-v3 .t2-rungs { flex: none; gap: var(--space-1); }
+:root[data-look='v3'] .t2-v3 .t2-rungs li { padding-left: calc(var(--step, 0) * 1rem); max-height: none; flex: none; }
+:root[data-look='v3'] .t2-v3 .t2-rung { min-height: 3.5rem; height: auto; }
+:root[data-look='v3'] .t2-v3 .t2-sky { flex: none; min-height: 20rem; }
+:root[data-look='v3'] .t2-v3 .t2-skyplate .t2-plate-body { min-height: 0; }
+
+@media (max-width: 43.75rem) {
+  :root[data-look='v3'] .t2-v3 .s3-body { overflow-y: visible; }
+}
+
+/* an empty table says it in one line: the key above already adds an application, and the drawing would take half the tray */
+:root[data-look='v3'] .t2-v3 .t2-empty > :not(.t2-quiet) { display: none; }
+:root[data-look='v3'] .t2-v3 .t2-empty::after { content: 'No applications yet.'; font: var(--type-small); color: var(--ink-2); }
+:root[data-look='v3'] .t2-v3 .t2-axis { padding-right: 2.5rem; }

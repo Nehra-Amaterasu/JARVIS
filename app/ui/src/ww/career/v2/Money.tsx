@@ -15,6 +15,7 @@ import { bridge, costItems, costKey, costRows, eur, rateRead, rupees, totals, ty
 import { stampText, useCareerLocal, type Cell, type CellRead, type FundingKind, type FundingSource } from './store'
 import { LampWord } from '../../left/LampWord'
 import { ConfirmForm, Frame, Plate, Stamped, useSim, useWidth, PHONE_BELOW } from './ui'
+import { lookV3Enabled, useViewChrome, type ViewChromeSpec } from '../../../shell/v3'
 
 const PAGE = 5
 const KIND_WORD: Record<FundingKind, string> = { family: 'A family contribution you state', scholarship: 'A scholarship you found', work: 'Part-time work you plan', loan: 'A loan you state' }
@@ -112,14 +113,56 @@ export function MoneyView(p: MoneyProps) {
     </nav>
   ) : null
   const bridgeState = tot.counted === 0 ? 'waiting' : 'live'
+  const v3 = lookV3Enabled()
+  // the two keys used less than weekly sit behind More (rule 4.7); the accent key, Add a source, stays in the first tray
+  const chrome = useMemo<ViewChromeSpec | null>(() => (v3 ? { more: [
+    { id: 'paths', label: 'Paths to research', onSelect: () => setDrawer('paths') },
+    { id: 'log', label: 'Log money', onSelect: () => setDrawer('log') },
+  ] } : null), [v3])
+  useViewChrome(chrome)
+  const bridgePlate = (
+    <Plate id="bridge" label="FUNDING BRIDGE" state={tot.counted === 0 ? 'waiting' : 'live'} reason={tot.counted === 0 ? 'no confirmed fee yet' : `${tot.counted} confirmed fee${tot.counted === 1 ? '' : 's'} to bridge to`} className="t2-bridgeplate">
+      <Bridge spans={spans} cost={tot.counted > 0 ? tot.inr : null} savedWaiting={p.saved.on === null} unconfirmed={tot.unconfirmed} needsRate={tot.needsRate} onRemove={p.onRemoveFunding} />
+    </Plate>
+  )
+  const assumePlate = (
+    <Plate id="assume" label="ASSUMPTIONS" state={rate.live ? 'live' : 'waiting'} reason={rate.live ? 'your typed rate' : 'type the rate'} className="t2-assumeplate">
+      <RateForm key={`${p.rate.on}-${p.rate.value}`} today={p.today} rate={p.rate} onSave={p.onRate} />
+    </Plate>
+  )
+  const ledgerPlate = (
+    <Plate id="ledger" label="LEDGER" state={tot.counted === 0 ? 'waiting' : 'live'} reason="euros and rupees apart" className="t2-ledgerplate" corner={pager}>
+      <div className="t2-ledgerhead" aria-hidden="true"><span>Due</span><span>Item</span><span>Euros</span><span>Rupees</span><span /></div>
+      <ul className="t2-ledger" aria-label="Costs">
+        {pg.rows.map((r) => (
+          <li key={r.id} className="t2-lrow" data-cost={r.id}>
+            <span className="t2-when">{r.due}</span>
+            <b className="t2-lname">{r.label}</b>
+            {r.cur === 'EUR' ? <Stamped label={`${r.label}, euros`} read={r.read} fmt={(v) => eur(Number(v))} className="t2-lcell" /> : <span className="t2-na" aria-label={`${r.label}: no euro figure`}>no euro figure</span>}
+            <Stamped label={`${r.label}, rupees`} read={inrRead(r, rate)} fmt={(v) => (r.cur === 'INR' ? rupees(Number(v)) : v)} why={r.cur === 'EUR' ? (r.amount === null ? 'unconfirmed' : 'needs the typed rate') : 'unconfirmed'} className="t2-lcell" />
+            <span className="t2-lkeys">
+              <Button size="md" aria-label={`Confirm the fee of ${r.label}`} onClick={() => setDrawer(`cost:${r.id}`)}>Confirm</Button>
+              {r.custom && <IconButton label={`Remove ${r.label}`} size="md" onClick={() => p.onRemoveCost(r.id)}><Trash2 size={16} aria-hidden="true" /></IconButton>}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Plate>
+  )
+
   return (
     <Frame
       simulated={p.simulated} view="money" ruler="MONEY" title="Money" form={phone ? 'phone' : 'desk'} rootRef={rootRef} state={bridgeState}
       sub={<>Rupees and euros apart. A fee counts once you confirm it. {rate.live ? `Rate ${rate.value}, checked ${stampText(rate.on!)}.` : 'No rate typed yet.'}</>}
+      v3={{ ratio: [1.2, 1.5, 0.85], trays: [
+        { job: 'BRIDGE', node: bridgePlate, peek: { name: 'Costs', lamp: bridgeState, note: tot.counted === 0 ? 'no confirmed fee yet' : undefined } },
+        { job: 'COSTS', node: ledgerPlate, peek: { name: 'Costs' } },
+        { job: 'RATE', node: assumePlate, peek: { name: 'Rate', lamp: rate.live ? 'live' : 'waiting', note: rate.live ? undefined : 'type the rate' } },
+      ] }}
       keys={
         <>
-          <Button size="lg" onClick={() => setDrawer('paths')}>Paths to research</Button>
-          <Button size="lg" onClick={() => setDrawer('log')}>Log money</Button>
+          {!v3 && <Button size="lg" onClick={() => setDrawer('paths')}>Paths to research</Button>}
+          {!v3 && <Button size="lg" onClick={() => setDrawer('log')}>Log money</Button>}
           <PrimaryButton claimId="career-money-source" rank="workspace" size="lg" onClick={() => setDrawer('source')}>Add a source</PrimaryButton>
         </>
       }
@@ -147,29 +190,9 @@ export function MoneyView(p: MoneyProps) {
       }
     >
       <div className="t2-money">
-        <Plate id="bridge" label="FUNDING BRIDGE" state={tot.counted === 0 ? 'waiting' : 'live'} reason={tot.counted === 0 ? 'no confirmed fee yet' : `${tot.counted} confirmed fee${tot.counted === 1 ? '' : 's'} to bridge to`} className="t2-bridgeplate">
-          <Bridge spans={spans} cost={tot.counted > 0 ? tot.inr : null} savedWaiting={p.saved.on === null} unconfirmed={tot.unconfirmed} needsRate={tot.needsRate} onRemove={p.onRemoveFunding} />
-        </Plate>
-        <Plate id="ledger" label="LEDGER" state={tot.counted === 0 ? 'waiting' : 'live'} reason="euros and rupees apart" className="t2-ledgerplate" corner={pager}>
-          <div className="t2-ledgerhead" aria-hidden="true"><span>Due</span><span>Item</span><span>Euros</span><span>Rupees</span><span /></div>
-          <ul className="t2-ledger" aria-label="Costs">
-            {pg.rows.map((r) => (
-              <li key={r.id} className="t2-lrow" data-cost={r.id}>
-                <span className="t2-when">{r.due}</span>
-                <b className="t2-lname">{r.label}</b>
-                {r.cur === 'EUR' ? <Stamped label={`${r.label}, euros`} read={r.read} fmt={(v) => eur(Number(v))} className="t2-lcell" /> : <span className="t2-na" aria-label={`${r.label}: no euro figure`}>no euro figure</span>}
-                <Stamped label={`${r.label}, rupees`} read={inrRead(r, rate)} fmt={(v) => (r.cur === 'INR' ? rupees(Number(v)) : v)} why={r.cur === 'EUR' ? (r.amount === null ? 'unconfirmed' : 'needs the typed rate') : 'unconfirmed'} className="t2-lcell" />
-                <span className="t2-lkeys">
-                  <Button size="md" aria-label={`Confirm the fee of ${r.label}`} onClick={() => setDrawer(`cost:${r.id}`)}>Confirm</Button>
-                  {r.custom && <IconButton label={`Remove ${r.label}`} size="md" onClick={() => p.onRemoveCost(r.id)}><Trash2 size={16} aria-hidden="true" /></IconButton>}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Plate>
-        <Plate id="assume" label="ASSUMPTIONS" state={rate.live ? 'live' : 'waiting'} reason={rate.live ? 'your typed rate' : 'type the rate'} className="t2-assumeplate">
-          <RateForm key={`${p.rate.on}-${p.rate.value}`} today={p.today} rate={p.rate} onSave={p.onRate} />
-        </Plate>
+        {bridgePlate}
+        {ledgerPlate}
+        {assumePlate}
       </div>
     </Frame>
   )

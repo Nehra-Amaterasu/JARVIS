@@ -1,0 +1,13 @@
+/* The dMAT board under the v3 look (layout pass, 21 Nov): PRACTICE (the choice, or the running set), PROGRESS (the last set, or the dots of
+   this one) and RULES. Every rule is under :root[data-look='v3']. Tokens or rem only. */
+:root[data-look='v3'] .dm3-col { flex: 1 1 auto; min-block-size: 0; min-inline-size: 0; display: flex; flex-direction: column; gap: 0.5rem; padding: 0; overflow-y: auto; grid-template-columns: minmax(0, 1fr); }
+:root[data-look='v3'] .dm3-col .y3-card { box-shadow: none; background: transparent; padding: 0; flex: none; }
+/* the buttons of a step stay at the foot of the tray while the task above them scrolls */
+:root[data-look='v3'] .dm3-col .y3-foot { position: sticky; inset-block-end: 0; z-index: 2; background-color: var(--pop, var(--s3-trayn)); padding-block: 0.25rem; }
+:root[data-look='v3'] .dm3-col .dm-run .ww-dmat-opts { grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
+:root[data-look='v3'] .dm3-col .dm-kinds { grid-template-columns: minmax(0, 1fr); flex: none; gap: 0.5rem; }
+:root[data-look='v3'] .dm3-col .dm-kind { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: 'g n' 'g t'; column-gap: 0.75rem; row-gap: 0; align-items: center; min-block-size: 0; padding: 0.5rem 0.75rem; }
+:root[data-look='v3'] .dm3-col .dm-glyph { grid-area: g; inline-size: 4rem; block-size: 2.5rem; margin: 0; }
+:root[data-look='v3'] .dm3-col .dm-kind-name { grid-area: n; }
+:root[data-look='v3'] .dm3-col .dm-kind-note { grid-area: t; min-block-size: 0; }
+:root[data-look='v3'] .dm3-col .dm-rules { display: none; }

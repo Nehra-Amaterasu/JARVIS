@@ -9,6 +9,7 @@
  */
 import { useEffect, useState } from 'react'
 import { Banner, Button, Field, Lamp, PrimaryButton, Segmented, Skeleton, Switch } from '../../shared/kit'
+import { lookV3Enabled, Zones } from '../../shell/v3'
 import { usePlan } from '../../germoney/game/plan'
 import { LengthDial } from './art'
 import { FocusHead } from './FocusHead'
@@ -20,6 +21,7 @@ import { useCrucibleEngine } from './useCrucibleEngine'
 import { useNarrow } from './useNarrow'
 import './adapters'
 import './views/focus-views.css'
+import './views/focus-v3.css'
 
 export interface FocusStartPanelProps {
   tracks: { id: string; label: string }[]
@@ -49,6 +51,10 @@ export interface FocusStartPanelProps {
 }
 
 export function FocusStartPanel(p: FocusStartPanelProps) {
+  return lookV3Enabled() ? <FocusStartPanelV3 {...p} /> : <FocusStartPanelClassic {...p} />
+}
+
+function FocusStartPanelClassic(p: FocusStartPanelProps) {
   // under 1100 px the big dial gives way to the small one beside Length; exactly one dial and one PLANNED lamp are in the tree
   const compact = useNarrow(1099)
   return (
@@ -124,6 +130,107 @@ export function FocusStartPanel(p: FocusStartPanelProps) {
         <p className="fs-foot">{p.eyesLine} · minutes go through the one log writer{p.stamp ? ' · SIMULATED' : ''}</p>
       </div>
     </section>
+  )
+}
+
+/**
+ * Start under the v3 look: three trays in the order the person acts. SET holds the block's track and cue with the one primary;
+ * LENGTH holds the length choice and the dial it draws; RULES holds the two opt-in switches and Pick for me. Same props, same
+ * words and same lamps as the classic form: only the grouping changed.
+ */
+function FocusStartPanelV3(p: FocusStartPanelProps) {
+  const blockedWhy = p.blocked ?? (p.running ? 'A block is already running.' : undefined)
+  return (
+    <Zones
+      ratio="default"
+      first={{
+        job: 'SET',
+        flare: p.running ? 1 : 0,
+        children: (
+          <div className="fv fv3 fs3" aria-label="Start a focus block" role="region">
+            {p.running && (
+              <Banner tone="info" action={<Button size="md" onClick={p.onOpenSession}>Open the session</Button>}>
+                A block is running on {p.running.trackLabel}. Starting another needs this one to end first.
+              </Banner>
+            )}
+            {p.purgatory && <Banner tone="sim">Purgatory is on: one session of 3 hours clears it. No wager.</Banner>}
+            {p.tracks.length === 0 ? (
+              <div className="fs-empty" role="status">
+                <p className="fs-empty-title">No tracks yet</p>
+                <p className="fs-sub">Tracks are built from your weekly rotation.</p>
+                <p className="fs-sub"><Lamp state="waiting" reason="the rotation is empty; add it in Setup > Rotation" /></p>
+              </div>
+            ) : (
+              <>
+                <div className="fs-row fs-track">
+                  <p className="fs-label" id="fs-track">Track</p>
+                  <Segmented<string> label="Track" variant="choice" value={p.trackId ?? ''} onChange={p.onTrack} options={p.tracks.map((t) => ({ id: t.id, label: t.label }))} />
+                </div>
+                <div className="fs-row fs-cue">
+                  <Field label="Cue (optional)" value={p.cue} maxLength={80} placeholder="One line to read when you sit down" autoComplete="off" onChange={(e) => p.onCue(e.target.value)} />
+                </div>
+              </>
+            )}
+            <div className="fs-go fs3-go">
+              <PrimaryButton claimId="focus-start" rank="workspace" size="lg" disabledReason={blockedWhy} onClick={p.onStart}>Start session</PrimaryButton>
+              <p className="fs-foot">{p.eyesLine} · minutes go through the one log writer{p.stamp ? ' · SIMULATED' : ''}</p>
+            </div>
+          </div>
+        ),
+      }}
+      second={{
+        job: 'LENGTH',
+        peek: { name: 'Length', lamp: 'planned', note: `${p.len} min, not started` },
+        children: (
+          <div className="fv fv3 fs3">
+            {p.tracks.length > 0 && (
+              <div className="fs-row fs-len">
+                <Segmented<string> label="Length in minutes" variant="choice" value={String(p.len)} onChange={(v) => p.onLen(Number(v) as Length)}
+                  options={LENGTHS.map((m) => ({ id: String(m), label: `${m} min` }))} />
+              </div>
+            )}
+            <div className="fs3-dial">
+              <LengthDial len={p.len}>
+                <span className="fv-num" data-testid="length-numeral">{p.len}</span>
+                <span className="fv-num-unit">min</span>
+              </LengthDial>
+            </div>
+            <p className="fv-why fs-dial-why"><Lamp state="planned" reason="chosen, not started" /><span aria-hidden="true">A block of {p.len} min, not started.</span></p>
+          </div>
+        ),
+      }}
+      third={{
+        job: 'RULES',
+        peek: { name: 'Rules', lamp: 'waiting', note: p.pick && !p.running ? 'a pick is waiting' : 'wager and guards off' },
+        children: (
+          <div className="fv fv3 fs3">
+            <div className="fs-opt">
+              <Switch label="Wager" checked={p.wager} onChange={p.onWager} />
+              <p className="fs-sub">{p.wager ? `${WAGER[p.len]} XP now, ${WIN[p.len]} back if you hold it to the end.` : 'Off. The wager rises with the length.'}</p>
+            </div>
+            <div className="fs-opt">
+              <Switch label="Guards" checked={p.guards} onChange={p.onGuards} />
+              <p className="fs-sub">{p.guards ? `Ends after ${STRIKE_S} s of a distraction in front, or a closed window.` : 'Off. Nothing watches the foreground.'}</p>
+            </div>
+            {p.pick && !p.running && (
+              <div className="fs-pick" role="group" aria-label="Pick for me">
+                <div className="fs-pick-body">
+                  <p className="fs-pick-title"><span className="fv-tag">RULE</span> {p.pick.title}</p>
+                  <p className="fs-sub">{p.pick.reason}</p>
+                  <p className="fs-terms" aria-label="The three terms of the rule">
+                    {p.pick.terms.map((t) => <span key={t.name}>{t.name} {Number.isInteger(t.value) ? t.value : t.value.toFixed(2)}</span>)}
+                  </p>
+                </div>
+                <div className="fs-pick-act">
+                  {p.onPractise && <Button size="md" onClick={p.onPractise}>Practise this</Button>}
+                  {p.onDismissPick && <Button size="md" onClick={p.onDismissPick}>Dismiss</Button>}
+                </div>
+              </div>
+            )}
+          </div>
+        ),
+      }}
+    />
   )
 }
 

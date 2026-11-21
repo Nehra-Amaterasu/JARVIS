@@ -7,12 +7,14 @@
 import { useState } from 'react'
 import { DotTimer } from '../../shared/art'
 import { Button, Lamp, PrimaryButton } from '../../shared/kit'
+import { lookV3Enabled, Zones } from '../../shell/v3'
 import { FocusHead, WhyLine } from './FocusHead'
 import { Hill } from './art'
 import { goFocus, goToday } from './nav'
 import { MIN_COUNTED_MIN } from './session'
 import { useFocusViews, type LastBlock } from './store'
 import './views/focus-views.css'
+import './views/focus-v3.css'
 
 /** A block this long or longer is followed by one offer of a break. */
 export const LONG_BLOCK_MIN = 50
@@ -31,6 +33,72 @@ export function FocusRestPanel({ last, onStart, onToday, simulated }: FocusRestP
   const [rest, setRest] = useState(false)
   const held = last ? Math.floor(last.heldMin) : 0
   const offer = !!last && last.heldMin >= LONG_BLOCK_MIN && !rest
+  if (lookV3Enabled()) {
+    const lampState = simulated ? 'simulated' : 'live'
+    return (
+      <Zones
+        ratio="default"
+        first={{
+          job: 'REST',
+          flare: last ? 1 : 0,
+          children: (
+            <section className="fv fv3 fr3" aria-label="Rest" data-kind={last?.kind ?? 'none'}>
+              <h2 className="fv-title">{!last ? 'Rest' : last.kind === 'done' ? 'Block complete' : 'Block ended'}</h2>
+              {last ? (
+                <>
+                  <p className="fr-line" role="status">{last.line}</p>
+                  <div className="fr-dots">
+                    <DotTimer plannedMin={last.length} elapsedMin={held} ended={last.kind === 'ended'} compact state={lampState} caption="Minutes held" />
+                  </div>
+                </>
+              ) : (
+                <p className="fr-line" role="status">No block has ended in this window. Nothing is counting down.</p>
+              )}
+              <div className="fr-actions">
+                <PrimaryButton claimId="focus-rest-start" rank="workspace" size="lg" onClick={onStart}>Start another block</PrimaryButton>
+                {offer && <Button size="lg" onClick={() => setRest(true)}>Take a break</Button>}
+                <Button size="lg" onClick={onToday}>Back to Today</Button>
+              </div>
+            </section>
+          ),
+        }}
+        second={{
+          job: 'HELD',
+          peek: { name: 'Held', lamp: last ? lampState : 'waiting', note: last ? `${held} min held` : 'no block has ended' },
+          children: (
+            <div className="fv fv3 fr3">
+              <div className="fr-right fr3-hill"><Hill heldMin={last ? last.heldMin : null} /></div>
+              <WhyLine>
+                {last
+                  ? <><Lamp state={lampState} reason={simulated ? 'a block drawn for the gallery' : "this window's log of the block"} /><span>{held} min held.</span></>
+                  : <><Lamp state="waiting" reason="no block has ended" /><span aria-hidden="true">No block has ended.</span></>}
+              </WhyLine>
+            </div>
+          ),
+        }}
+        third={{
+          job: 'LOG',
+          peek: { name: 'Log', lamp: last ? lampState : 'waiting', note: last ? (last.counted > 0 ? `${last.counted} min logged` : `under ${MIN_COUNTED_MIN} min, nothing logged`) : 'no block has ended' },
+          children: (
+            <div className="fv fv3 fr3">
+              {last ? (
+                <WhyLine>
+                  <Lamp state={lampState} reason={simulated ? 'a block drawn for the gallery' : "this window's log of the block"} />
+                  <span>{last.counted > 0 ? `${last.counted} min logged.` : `Under ${MIN_COUNTED_MIN} minutes, so nothing was logged.`}
+                  {last.parked > 0 ? ` ${last.parked} thought${last.parked === 1 ? '' : 's'} parked.` : ''}
+                  {last.kind === 'ended' ? ` Last seen ${clock(last.at)}.` : ''}</span>
+                </WhyLine>
+              ) : (
+                <WhyLine><Lamp state="waiting" reason="no block has ended" /><span>Nothing to log yet.</span></WhyLine>
+              )}
+              {rest && <p className="fr-break" role="status">Break. Nothing counts down. Come back when you are ready.</p>}
+              {simulated && <p className="fs-foot">SIMULATED block, drawn for the gallery.</p>}
+            </div>
+          ),
+        }}
+      />
+    )
+  }
   return (
     <section className="fv fr" aria-label="Rest" data-kind={last?.kind ?? 'none'}>
       <div className="fr-left">

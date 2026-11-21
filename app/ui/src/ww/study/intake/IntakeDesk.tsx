@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, 
 import { Button, Drawer, Segmented, ToastStack } from '../../../shared/kit'
 import type { ToastItem } from '../../../shared/kit/Toast'
 import { Lamp, readingOf, showsNumber, type LampReading, type LampState } from '../../../shared/lamp'
+import { lookV3Enabled, useViewChrome, Zones, type ViewChromeSpec } from '../../../shell/v3'
 import { STUDY_PORT, type StudyPort } from '../ports'
 import { COPY } from './copy'
 import { Doors, type DoorId } from './Doors'
@@ -22,6 +23,7 @@ import { PasteBody } from './PasteParser'
 import { intakeDesk, type IntakeDeskPort } from './port'
 import type { DeskHead, IntakeRow, SubjectOption } from './types'
 import './intake.css'
+import './intake-v3.css'
 
 type Filter = 'new' | 'accepted' | 'declined'
 type Sheet = DoorId | 'courses'
@@ -76,6 +78,10 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, now: nowPr
     })
     return () => { live = false }
   }, [study])
+
+  // v3: Courses is used rarely (rule 4.7), so it rides in More; the M key still opens it
+  const chrome = useMemo<ViewChromeSpec>(() => ({ more: [{ id: 'courses', label: 'Courses and subjects', onSelect: () => setSheet('courses') }] }), [])
+  useViewChrome(lookV3Enabled() ? chrome : null)
 
   const live = showsNumber(head.state)
   const byFilter = useMemo(() => rows.filter((r) => (filter === 'new' ? r.state === 'new' : filter === 'accepted' ? r.state === 'accepted' || r.state === 'taken' : r.state === 'declined')), [rows, filter])
@@ -167,6 +173,117 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, now: nowPr
   const emptyTitle = !live ? `Waiting: ${head.reason}` : rows.length === 0 ? COPY.emptyTitle : COPY.noMatch
   const emptyNote = rows.length === 0 ? COPY.emptyNote : filter === 'new' ? 'Nothing is waiting for you.' : 'Nothing here yet.'
 
+  const sheets = (
+    <>
+      <Drawer open={sheet === 'folder'} onClose={close} title="Folder" className="ik-sheet">
+        <div className="ik-sheet-body" data-component="folder-door">
+          <p className="ik-result-head"><Lamp reading={folder} /><span>{folder.reason}</span></p>
+          <p className="ik-sheet-note">Save the files you download from Classroom into the folder the app watches. Each new file appears here as a Folder item; Take sends it to Papers or Notes on your press.</p>
+          <p className="ik-sheet-note">{COPY.noFetch}</p>
+          <div className="ik-sheet-act"><Button onClick={close}>Close</Button></div>
+        </div>
+      </Drawer>
+      <Drawer open={sheet === 'paste'} onClose={close} title="Paste a list" className="ik-sheet">
+        <PasteBody desk={desk} now={now} onRows={merge} onClose={close} initialText={open === 'paste' && demo ? PASTE_SAMPLE : ''} autoRead={open === 'paste' && demo} />
+      </Drawer>
+      <Drawer open={sheet === 'ics'} onClose={close} title="Import a calendar file" className="ik-sheet">
+        <IcsBody desk={desk} now={now} onRows={merge} onDecline={(ids) => { ids.forEach((id) => void desk.decide(id, { state: 'declined' }).then((r) => { if (r.data) replace(r.data) })) }} onClose={close} initialText={open === 'ics' && demo ? ICS_SAMPLE : undefined} />
+      </Drawer>
+      <Drawer open={sheet === 'archive'} onClose={close} title="Archive" className="ik-sheet">
+        <ArchiveBody
+          desk={desk}
+          onClose={close}
+          onQueued={(n) => say(`${n} file${n === 1 ? '' : 's'} queued as PENDING. Nothing is read until you review it.`)}
+          initial={open === 'archive' && demo ? { listing: ARCHIVE, state: 'simulated', reason: 'a fixture listing, not a real export' } : undefined}
+        />
+      </Drawer>
+      <Drawer open={sheet === 'courses'} onClose={close} title="Courses and subjects" className="ik-sheet">
+        <CourseMapper desk={desk} onMapped={() => void load()} onClose={close} />
+      </Drawer>
+      <ToastStack toasts={toasts} onDismiss={(id) => setToasts((t) => t.filter((x) => x.id !== id))} />
+    </>
+  )
+
+  if (lookV3Enabled()) {
+    return (
+      <div className="ik-desk ik-v3" data-component="intake-desk" data-state={head.state} onKeyDown={onKey}>
+        <Zones
+          ratio="default"
+          first={{
+            job: 'LEDGER',
+            flare: newCount > 0 ? 1 : 0,
+            chip: <span className="ik-count" data-component="intake-count"><span className="ik-count-n">{live ? `${newCount} new` : '--'}</span><Lamp reading={reading(head.state, head.reason)} /></span>,
+            children: (
+              <div className="ik3-col">
+                <div className="ik3-bar">
+                  <Segmented<Filter>
+                    variant="choice"
+                    label="Show"
+                    value={filter}
+                    onChange={(f) => { setFilter(f); setPage(0); setSel(null) }}
+                    options={[{ id: 'new', label: 'New' }, { id: 'accepted', label: 'Accepted' }, { id: 'declined', label: 'Declined' }]}
+                  />
+                  {extra}
+                </div>
+                {batch.length > 1 && (
+                  <Button onClick={() => void acceptBatch()} aria-keyshortcuts="Shift+A">{`Accept ${batch.length} with a subject`}<kbd className="ik-key" aria-hidden="true">{'⇧'}A</kbd></Button>
+                )}
+                <div className="ik3-ledger">
+                  <IntakeLedger
+                    rows={visible}
+                    subjects={subjects}
+                    now={now}
+                    page={page}
+                    onPage={(pg) => { setPage(pg); setSel(null) }}
+                    selId={selRow?.id ?? null}
+                    onSelect={setSel}
+                    emptyTitle={emptyTitle}
+                    emptyNote={emptyNote}
+                    older={olderRows.length}
+                    showOlder={showOlder}
+                    onToggleOlder={() => setShowOlder((v) => !v)}
+                    live={live && rows.length === 0}
+                  />
+                </div>
+                <p className="ik-foot-line ik3-foot"><span>{head.state === 'simulated' ? `${COPY.footer} ${COPY.fixture}` : COPY.footer}</span></p>
+              </div>
+            ),
+          }}
+          second={{
+            job: 'DETAIL',
+            peek: { name: 'Detail', lamp: head.state, note: selRow ? selRow.title : 'no item chosen' },
+            children: (
+              <div className="ik3-col">
+                <IntakeDetail
+                  key={selRow?.id ?? 'none'}
+                  row={selRow}
+                  subjects={subjects}
+                  now={now}
+                  head={reading(head.state, head.reason)}
+                  onAccept={(r, dr) => void decide(r, 'accepted', dr)}
+                  onDecline={(r) => void decide(r, 'declined')}
+                  onTake={(r, to) => void take(r, to)}
+                  onBack={(r) => void back([r.id])}
+                  onRemove={(r) => void remove(r)}
+                />
+              </div>
+            ),
+          }}
+          third={{
+            job: 'DOORS',
+            peek: { name: 'Doors', lamp: head.state, note: 'ways to bring items in' },
+            children: (
+              <div className="ik3-col ik3-doors">
+                <Doors readings={readings} classroom={classroom} onOpen={(id) => setSheet(id)} />
+              </div>
+            ),
+          }}
+        />
+        {sheets}
+      </div>
+    )
+  }
+
   return (
     <div className="ik-desk" data-component="intake-desk" data-state={head.state} onKeyDown={onKey}>
       <div className="ik-desk-in">
@@ -223,32 +340,7 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, now: nowPr
         <footer className="ik-foot-line"><span>{head.state === 'simulated' ? `${COPY.footer} ${COPY.fixture}` : COPY.footer}</span></footer>
       </div>
 
-      <Drawer open={sheet === 'folder'} onClose={close} title="Folder" className="ik-sheet">
-        <div className="ik-sheet-body" data-component="folder-door">
-          <p className="ik-result-head"><Lamp reading={folder} /><span>{folder.reason}</span></p>
-          <p className="ik-sheet-note">Save the files you download from Classroom into the folder the app watches. Each new file appears here as a Folder item; Take sends it to Papers or Notes on your press.</p>
-          <p className="ik-sheet-note">{COPY.noFetch}</p>
-          <div className="ik-sheet-act"><Button onClick={close}>Close</Button></div>
-        </div>
-      </Drawer>
-      <Drawer open={sheet === 'paste'} onClose={close} title="Paste a list" className="ik-sheet">
-        <PasteBody desk={desk} now={now} onRows={merge} onClose={close} initialText={open === 'paste' && demo ? PASTE_SAMPLE : ''} autoRead={open === 'paste' && demo} />
-      </Drawer>
-      <Drawer open={sheet === 'ics'} onClose={close} title="Import a calendar file" className="ik-sheet">
-        <IcsBody desk={desk} now={now} onRows={merge} onDecline={(ids) => { ids.forEach((id) => void desk.decide(id, { state: 'declined' }).then((r) => { if (r.data) replace(r.data) })) }} onClose={close} initialText={open === 'ics' && demo ? ICS_SAMPLE : undefined} />
-      </Drawer>
-      <Drawer open={sheet === 'archive'} onClose={close} title="Archive" className="ik-sheet">
-        <ArchiveBody
-          desk={desk}
-          onClose={close}
-          onQueued={(n) => say(`${n} file${n === 1 ? '' : 's'} queued as PENDING. Nothing is read until you review it.`)}
-          initial={open === 'archive' && demo ? { listing: ARCHIVE, state: 'simulated', reason: 'a fixture listing, not a real export' } : undefined}
-        />
-      </Drawer>
-      <Drawer open={sheet === 'courses'} onClose={close} title="Courses and subjects" className="ik-sheet">
-        <CourseMapper desk={desk} onMapped={() => void load()} onClose={close} />
-      </Drawer>
-      <ToastStack toasts={toasts} onDismiss={(id) => setToasts((t) => t.filter((x) => x.id !== id))} />
+      {sheets}
     </div>
   )
 }

@@ -1,0 +1,10 @@
+/* The classic Library, the second face of the intake desk, under the v3 look (layout pass, 21 Nov): STUDY, CONCEPT and FINDINGS are
+   the three trays. Every rule is under :root[data-look='v3']. Tokens or rem only. */
+:root[data-look='v3'] .lb3-col { flex: 1 1 auto; min-block-size: 0; min-inline-size: 0; display: flex; flex-direction: column; gap: 0.5rem; overflow-y: auto; grid-template-columns: minmax(0, 1fr); grid-template-areas: none; }
+:root[data-look='v3'] .lb3-col > * { grid-area: auto; flex: none; }
+:root[data-look='v3'] .lb3-col .y3-card { box-shadow: var(--elev-recessed); background: var(--surface-sunk); }
+/* a plate head in a narrow tray wraps its kicker under the title instead of squeezing it to one letter a line */
+:root[data-look='v3'] .lb3-col .y3-head { flex-wrap: wrap; }
+:root[data-look='v3'] .lb3-col .y3-title { flex: 1 1 auto; min-inline-size: 0; }
+:root[data-look='v3'] .lb3-col .y3-kicker { flex: 1 1 100%; }
+:root[data-look='v3'] .lb3-col .y3-card { max-inline-size: 100%; }

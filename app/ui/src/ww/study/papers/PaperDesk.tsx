@@ -6,6 +6,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { Chip, Button, PrimaryButton, Segmented } from '../../../shared/kit'
 import { Lamp, readingOf, showsNumber, type LampState } from '../../../shared/lamp'
+import { lookV3Enabled, Zones } from '../../../shell/v3'
 import { STUDY_PORT, type IngestRoute, type PaperRow, type QueuedFile, type QuestionRow, type RouteId, type StudyPort, type Topic, type TraceEvent } from '../ports'
 import { ReviewDesk } from '../review/ReviewDesk'
 import { COPY, FOOTER } from './copy'
@@ -16,6 +17,7 @@ import { PAPER_ACCEPT } from './PaperDrop'
 import { PaperStrata } from './PaperStrata'
 import { cellsOf, coverageOf } from './strataModel'
 import './papers.css'
+import './papers-v3.css'
 import '../review/review.css'
 
 // the classic exam-date page is a face of this desk, loaded only when asked for (it moves, it is not rewritten)
@@ -87,6 +89,18 @@ export function PaperDesk({ port = STUDY_PORT, data, now, classic = true, trayOp
   const [page, setPage] = useState(0)
   const input = useRef<HTMLInputElement>(null)
   const lastFocus = useRef<HTMLElement | null>(null)
+  // v3: the matrix gets as many topic rows as its tray can hold (44 px a row under about 205 px of chrome); 5 on the phone, where the tray grows
+  const strataBox = useRef<HTMLDivElement>(null)
+  const [strataRows, setStrataRows] = useState(4)
+  useEffect(() => {
+    const el = strataBox.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const fit = () => setStrataRows(window.innerWidth <= 700 ? 5 : Math.max(2, Math.min(9, Math.floor((el.clientHeight - 205) / 44))))
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [face])
 
   useEffect(() => {
     if (data) { setLoaded(data); return }
@@ -141,6 +155,166 @@ export function PaperDesk({ port = STUDY_PORT, data, now, classic = true, trayOp
   const reviewPaper = chosen ?? sorted.find((p) => waitingOf(p) > 0) ?? null
   const reviewQs = reviewPaper ? d.questions.filter((q) => q.paperId === reviewPaper.id) : []
   const waitingTotal = d.questions.filter((q) => q.status === 'pending').length
+
+  const overlays = (
+    <>
+      {pasting && <PasteSheet onClose={() => setPasting(false)} onRead={(t) => void onPaste(t)} />}
+      {reviewing && (
+        <div className="pp-scrim">
+          <ReviewDesk
+            modal
+            questions={reviewQs.length ? reviewQs : d.questions}
+            topics={d.topics}
+            events={d.events}
+            state={d.state}
+            reason={d.reason}
+            paperLabel={reviewPaper?.label}
+            startId={reviewing.startId}
+            onDecide={(dec) => void port.decide(dec)}
+            onClose={closeReview}
+          />
+        </div>
+      )}
+    </>
+  )
+
+  if (lookV3Enabled()) {
+    const faceSwitch = classic ? (
+      <Segmented<Face>
+        variant="choice"
+        label="Desk face"
+        value={face}
+        onChange={setFace}
+        options={[{ id: 'desk', label: 'Papers on file' }, { id: 'classic', label: 'Exam dates' }]}
+      />
+    ) : null
+    return (
+      <div className="pp-desk pp-v3" data-component="paper-desk" data-state={d.state} data-face={face} onKeyDown={onKey}>
+        <Zones
+          ratio="default"
+          first={{
+            job: 'COVERAGE',
+            flare: waitingTotal > 0 ? 1 : 0,
+            children: (
+              <div className="pp3-col">
+                {face === 'classic' ? (
+                  <div className="pp-classic pp3-classic">
+                    {faceSwitch}
+                    <Suspense fallback={<p className="pp-notice">Opening the exam dates</p>}><Classic /></Suspense>
+                  </div>
+                ) : (
+                  <>
+                    <div className="pp3-strata" ref={strataBox}>
+                      <PaperStrata
+                        rowsPerPage={strataRows}
+                        cells={cells}
+                        years={years}
+                        topics={d.topics}
+                        coverage={coverage}
+                        state={d.state}
+                        reason={d.reason}
+                        selectedYear={chosen?.year ?? null}
+                        onOpen={(qid) => { const q = d.questions.find((x) => x.id === qid); if (q) { setSel(q.paperId); openReview(qid) } }}
+                      />
+                    </div>
+                    <div className="pp-detail-act">
+                      <PrimaryButton
+                        claimId="paper-desk-review"
+                        rank="workspace"
+                        when={waitingTotal > 0}
+                        size="lg"
+                        onClick={() => openReview()}
+                        disabledReason={waitingTotal === 0 ? COPY.nothingToReview : undefined}
+                      >
+                        {waitingTotal > 0 ? COPY.reviewCta(reviewPaper ? waitingOf(reviewPaper) || waitingTotal : waitingTotal) : 'Review desk'}
+                      </PrimaryButton>
+                    </div>
+                  </>
+                )}
+                <p className="pp-foot pp3-foot"><span>{FOOTER}</span></p>
+              </div>
+            ),
+          }}
+          second={{
+            job: 'PAPERS',
+            peek: { name: 'Papers', lamp: d.state, note: sorted.length ? `${sorted.length} on file` : 'nothing on file yet' },
+            children: (
+              <div className="pp3-col">
+                <nav className="pp-list pp3-list" aria-label="Papers on file">
+                  {sorted.length === 0 ? (
+                    <p className="pp-list-empty">{live ? 'No papers on file.' : `Waiting: ${d.reason}`}</p>
+                  ) : (
+                    <ul>
+                      {shown.map((p) => {
+                        const w = waitingOf(p)
+                        return (
+                          <li key={p.id}>
+                            <button type="button" className="pp-paper" aria-current={sel === p.id ? 'true' : undefined} onClick={() => setSel(sel === p.id ? null : p.id)}>
+                              <span className="pp-paper-name">{p.label}</span>
+                              <span className="pp-paper-meta">{live ? `${p.questions} questions, ${w ? `${w} waiting` : 'reviewed'}` : 'not reported'}</span>
+                              {live && <Chip tone={w ? 'sim' : 'neutral'}>{w ? 'to review' : 'reviewed'}</Chip>}
+                            </button>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                  {pages > 1 && (
+                    <div className="pp-listpager" role="group" aria-label={`Papers, page ${page + 1} of ${pages}`}>
+                      <button type="button" className="pp-pg" aria-label="Earlier page" disabled={page === 0} onClick={() => setPage(page - 1)}>‹</button>
+                      <span>{page + 1} of {pages}</span>
+                      <button type="button" className="pp-pg" aria-label="Later page" disabled={page >= pages - 1} onClick={() => setPage(page + 1)}>›</button>
+                    </div>
+                  )}
+                </nav>
+                <ImportTray
+                  routes={d.routes}
+                  queued={d.queued}
+                  onFiles={(f) => void onFiles(f)}
+                  accept={PAPER_ACCEPT}
+                  onRoute={(id) => void onRoute(id)}
+                  onOpenTrace={() => undefined}
+                  inputRef={input}
+                  defaultOpen={trayOpen}
+                />
+              </div>
+            ),
+          }}
+          third={{
+            job: 'DETAIL',
+            peek: { name: 'Detail', lamp: d.state, note: chosen ? chosen.label : 'no paper chosen' },
+            children: (
+              <div className="pp3-col pp3-detail">
+                {face === 'desk' && faceSwitch}
+                <CoverageLedger coverage={coverage} state={d.state} reason={d.reason} now={now} />
+                {chosen ? (
+                  <div className="pp-detail">
+                    <h2>{chosen.label}</h2>
+                    <dl className="pp-facts">
+                      <div><dt>Questions read</dt><dd>{live ? chosen.questions : '--'}</dd></div>
+                      <div><dt>Reviewed</dt><dd>{live ? `${chosen.questions - waitingOf(chosen)} of ${chosen.questions}` : '--'}</dd></div>
+                      <div><dt>Pages</dt><dd>{live ? chosen.pages : '--'}</dd></div>
+                    </dl>
+                    <Lamp reading={readingOf({ state: d.state, reason: d.reason })} />
+                  </div>
+                ) : (
+                  <div className="pp-detail pp-detail-none"><p>{sorted.length ? COPY.noPaper : 'Nothing on file yet.'}</p></div>
+                )}
+                {notice && (
+                  <p className="pp-notice" role="status" data-state={notice.state}>
+                    <Lamp reading={readingOf({ state: notice.state, reason: notice.text })} />
+                    <span>{notice.text}</span>
+                  </p>
+                )}
+                {d.events.length > 0 && <ExtractionTrace events={d.events} max={3} />}
+              </div>
+            ),
+          }}
+        />
+        {overlays}
+      </div>
+    )
+  }
 
   return (
     <div className="pp-desk" data-component="paper-desk" data-state={d.state} data-face={face} onKeyDown={onKey}>
@@ -257,23 +431,7 @@ export function PaperDesk({ port = STUDY_PORT, data, now, classic = true, trayOp
       <footer className="pp-foot"><span>{FOOTER}</span></footer>
       </div>
 
-      {pasting && <PasteSheet onClose={() => setPasting(false)} onRead={(t) => void onPaste(t)} />}
-      {reviewing && (
-        <div className="pp-scrim">
-          <ReviewDesk
-            modal
-            questions={reviewQs.length ? reviewQs : d.questions}
-            topics={d.topics}
-            events={d.events}
-            state={d.state}
-            reason={d.reason}
-            paperLabel={reviewPaper?.label}
-            startId={reviewing.startId}
-            onDecide={(dec) => void port.decide(dec)}
-            onClose={closeReview}
-          />
-        </div>
-      )}
+      {overlays}
     </div>
   )
 }

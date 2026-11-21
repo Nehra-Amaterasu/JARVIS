@@ -1,0 +1,14 @@
+/* The Manual Intake desk under the v3 look (layout pass, 21 Nov): LEDGER (what was brought in), DETAIL (the chosen item) and DOORS (the
+   ways in). Every rule is under :root[data-look='v3']. Tokens or rem only. */
+:root[data-look='v3'] .ik-desk.ik-v3 { container-type: normal; inline-size: 100%; block-size: 100%; min-block-size: 0; }
+:root[data-look='v3'] .ik3-col { flex: 1 1 auto; min-block-size: 0; min-inline-size: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+:root[data-look='v3'] .ik3-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+:root[data-look='v3'] .ik3-ledger { flex: 1 1 auto; min-block-size: 0; display: flex; flex-direction: column; }
+:root[data-look='v3'] .ik3-ledger .ik-ledger { flex: 1 1 auto; box-shadow: var(--elev-recessed); background: var(--surface-sunk); }
+:root[data-look='v3'] .ik3-foot { margin: 0; flex: none; white-space: normal; line-height: 1.4; overflow: visible; text-overflow: clip; }
+:root[data-look='v3'] .ik3-foot span { white-space: normal; }
+:root[data-look='v3'] .ik-v3 .ik-detail { box-shadow: var(--elev-recessed); background: var(--surface-sunk); overflow-y: auto; }
+:root[data-look='v3'] .ik3-doors { overflow-y: auto; }
+:root[data-look='v3'] .ik3-doors > * { flex: none; }
+:root[data-look='v3'] .ik-v3 .ik-doors { grid-template-columns: minmax(0, 1fr); }
+:root[data-look='v3'] .ik-v3 .ik-door { min-block-size: 0; }

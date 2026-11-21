@@ -21,7 +21,7 @@ export function ParkField({ open, onFile, onClose, returnTo, label = 'Park a tho
   const [text, setText] = useState('')
   const input = useRef<HTMLInputElement>(null)
   useEffect(() => {
-    if (open) input.current?.focus()
+    if (open) input.current?.focus({ preventScroll: true })
     else setText('')
   }, [open])
   if (!open) return null

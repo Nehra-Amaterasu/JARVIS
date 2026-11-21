@@ -10,6 +10,7 @@ import { useId, type KeyboardEvent, type ReactNode } from 'react'
 import { ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 import { Button, Chip, IconButton, Lamp, type LampState } from '../../../shared/kit'
 import { DetentRack, type Opt } from '../../../shared/data/tables'
+import { lookV3Enabled } from '../../../shell/v3'
 import { CHOICES, CHOICE_LABEL, MAX_MARKS, MAX_SECTIONS, MAX_SET, QTYPES, QTYPE_SHORT, moveSection, newSection, settle, clampMarks, clampSet, type Choice, type GenSection, type Issue } from './model'
 import { COPY } from './copy'
 
@@ -83,8 +84,12 @@ export interface BlueprintTableProps {
 
 const CHOICE_OPTS: Opt[] = CHOICES.map((c) => ({ value: c, label: CHOICE_LABEL[c] }))
 
+/** Under the v3 look a cell carries its own visible label (the column head is hidden: the table is two lines a row in a narrow tray). */
+const cell = (v3: boolean, label: string, node: ReactNode) => (v3 ? <span className="gx-cell" data-cell={label}>{node}</span> : node)
+
 export function BlueprintTable({ sections, total, duration, onChange, issues = [], selected = 0, onSelect, state = 'waiting', reason, inferred, readOnly, actions }: BlueprintTableProps) {
   const uid = useId()
+  const v3 = lookV3Enabled()
   const sum = sections.reduce((n, s) => n + s.attempt * s.marks, 0)
   const at = Math.min(Math.max(selected, 0), Math.max(0, sections.length - 1))
   const cur = sections[at]
@@ -138,20 +143,20 @@ export function BlueprintTable({ sections, total, duration, onChange, issues = [
               maxLength={24}
               onChange={(e) => patch(i, { name: e.target.value })}
             />
-            <Stepper value={s.set} min={1} max={MAX_SET} label={`Questions set, ${s.name}`} disabled={readOnly} onChange={(n) => patch(i, { set: clampSet(n) })} />
-            <Stepper value={s.attempt} min={1} max={s.set} label={`Questions to attempt, ${s.name}`} disabled={readOnly || s.choice !== 'any'} onChange={(n) => patch(i, { attempt: n })} />
-            <Stepper value={s.marks} min={1} max={MAX_MARKS} label={`Marks each, ${s.name}`} disabled={readOnly} onChange={(n) => patch(i, { marks: clampMarks(n) })} />
-            <DetentRack
+            {cell(v3, 'Set', <Stepper value={s.set} min={1} max={MAX_SET} label={`Questions set, ${s.name}`} disabled={readOnly} onChange={(n) => patch(i, { set: clampSet(n) })} />)}
+            {cell(v3, 'Attempt', <Stepper value={s.attempt} min={1} max={s.set} label={`Questions to attempt, ${s.name}`} disabled={readOnly || s.choice !== 'any'} onChange={(n) => patch(i, { attempt: n })} />)}
+            {cell(v3, 'Marks each', <Stepper value={s.marks} min={1} max={MAX_MARKS} label={`Marks each, ${s.name}`} disabled={readOnly} onChange={(n) => patch(i, { marks: clampMarks(n) })} />)}
+            {cell(v3, 'Choice', <DetentRack
               label={`Choice rule, ${s.name}`}
               options={CHOICE_OPTS}
               value={s.choice}
               disabled={readOnly}
               onChange={(v) => patch(i, { choice: v as Choice })}
-            />
-            <span className="gx-bt-r gx-marks">
+            />)}
+            {cell(v3, 'Marks', <span className="gx-bt-r gx-marks">
               {faulty(s) && <Lamp state="fault" bare reason="breaks a rule" />}
               {s.attempt * s.marks}
-            </span>
+            </span>)}
           </li>
         ))}
       </ul>

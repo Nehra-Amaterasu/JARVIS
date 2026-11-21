@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Button, PrimaryButton } from '../../../shared/kit'
 import type { LampState } from '../../../shared/lamp'
+import { lookV3Enabled, Zones } from '../../../shell/v3'
 import type { Reading } from './Plate'
 import type { Today, PlanContract } from '../../../germoney/game/plan'
 import type { ExamsAnswer } from '../../../germoney/pages/Exams'
@@ -19,6 +20,7 @@ import { SyllabusLandscape } from './SyllabusLandscape'
 import { FOOTER, chosenPaper, isMeasured, paged, unitLabel, weakestUnit, type OrbitTopic, type UnitReading } from './model'
 import './plan.css'
 import './y3.css'
+import './plan-v3.css'
 
 const SLOT_WORD: Record<string, string> = { library: 'Library', evening: 'Evening', weekend: 'Weekend', extra: 'Extra', quest: 'Quest' }
 const KIND_WORD: Record<string, string> = { library: 'Library', evening: 'Evening', weekend: 'Weekend', protected: 'Rest' }
@@ -108,9 +110,8 @@ export function PlanBoard(p: PlanBoardProps) {
   const planLamp = p.planLamp ?? { state: 'live' as LampState, reason: 'the plan engine answered' }
   const doRebuild = () => { setBusy(true); void p.onRebuild().finally(() => { setBusy(false); setAsk(false) }) }
 
-  return (
-    <div className="ww-plan y3 y3-plan" data-view="plan">
-      <div className="y3-col">
+  const colToday = (
+    <>
         <Plate id="study-plan" title="Today's plan" kicker={e?.phase ? e.phase.name : e?.subject ? `Exam mode: ${e.subject.name}` : undefined} lamp={planLamp} className="y3-today">
           {sheet && (
             <div className="y3-sheet" ref={sheetRef} tabIndex={-1} role="dialog" aria-label={sheet === 'why' ? 'Why this order' : 'Swap the next block'} onKeyDown={(k) => { if (k.key === 'Escape') { k.stopPropagation(); close() } }}>
@@ -208,9 +209,11 @@ export function PlanBoard(p: PlanBoardProps) {
           </ul>
           <Pager page={exView.page} pages={exView.pages} onPage={setExPage} label="Exam study" />
         </Plate>
-      </div>
+    </>
+  )
 
-      <div className="y3-col">
+  const colSyllabus = (
+    <>
         <Plate title="Syllabus landscape" kicker={paper ? paper.title : undefined} lamp={p.unitsReading} className="y3-landplate">
           <SyllabusLandscape units={p.units} selectedId={unit} onSelect={setUnit} caption="Height = your marks, footprint = the unit's share of the paper. It follows your records, not the clock." />
           {p.unitsReading.state !== 'live' && p.unitsReading.state !== 'simulated' && p.units.length > 0 && <p className="y3-line y3-why">Not measured: {p.unitsReading.reason}.</p>}
@@ -235,9 +238,11 @@ export function PlanBoard(p: PlanBoardProps) {
             </>
           )}
         </Plate>
-      </div>
+    </>
+  )
 
-      <div className="y3-col">
+  const colExams = (
+    <>
         <Plate title="Exam calendar" kicker={paper ? fmtDate(paper.date) : undefined} lamp={exams ? planLamp : { state: 'waiting', reason: 'reading the papers on file' }} className="y3-wheelplate">
           <div className="y3-wheel-row">
             <ExamWheel papers={wheel} today={p.clock} selectedId={paper?.id ?? null} onSelect={(id) => { p.onPaper(id); setUnit(null) }} />
@@ -260,7 +265,43 @@ export function PlanBoard(p: PlanBoardProps) {
         <Plate title="Review orbit" lamp={p.retention} className="y3-orbitplate">
           <RetentionOrbit topics={p.retention.topics} dueIds={p.retention.dueIds} dueCount={p.retention.dueCount} state={p.retention.state} reason={p.retention.reason} />
         </Plate>
-      </div>
+    </>
+  )
+
+  if (lookV3Enabled()) {
+    const stateOf = (r: Reading): LampState => r.state
+    return (
+      <Zones
+        ratio="default"
+        first={{
+          job: 'TODAY',
+          flare: model.next ? 1 : 0,
+          children: (
+            <div className="ww-plan y3 y3-col y3-v3col" data-view="plan">
+              {colToday}
+              <p className="y3-foot-line y3-foot3">{FOOTER}</p>
+            </div>
+          ),
+        }}
+        second={{
+          job: 'SYLLABUS',
+          peek: { name: 'Syllabus', lamp: stateOf(p.unitsReading), note: p.units.length ? `${p.units.length} units` : 'no units yet' },
+          children: <div className="y3 y3-col y3-v3col">{colSyllabus}</div>,
+        }}
+        third={{
+          job: 'EXAMS',
+          peek: { name: 'Exams', lamp: exams ? stateOf(planLamp) : 'waiting', note: paper ? paper.title : 'no papers on file' },
+          children: <div className="y3 y3-col y3-v3col">{colExams}</div>,
+        }}
+      />
+    )
+  }
+
+  return (
+    <div className="ww-plan y3 y3-plan" data-view="plan">
+      <div className="y3-col">{colToday}</div>
+      <div className="y3-col">{colSyllabus}</div>
+      <div className="y3-col">{colExams}</div>
       <p className="y3-foot-line">{FOOTER}</p>
     </div>
   )

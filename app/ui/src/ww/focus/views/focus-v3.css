@@ -1,0 +1,56 @@
+/* The Focus views under the v3 look (layout pass, 21 Nov): Start, the Crucible session, Rest and the Drill sit in the three trays of
+   <Zones>. Every rule is under :root[data-look='v3'], so the current look never matches one. The pieces inside (Segmented, Field,
+   Switch, DotTimer, the dial, the dots) are the ones the current look draws; only the frame around them changes: a view body is a
+   plain column inside a tray, not an absolutely placed canvas, and a part that was a raised card on the canvas is a flat group in
+   the tray (the tray is the material). Tokens only, no literal colour, duration or px size for type, radius, padding, margin or gap. */
+
+:root[data-look='v3'] .fv.fv3 {
+  position: static; inset: auto; box-sizing: border-box; inline-size: 100%; min-inline-size: 0; min-block-size: 0; flex: 1 1 auto;
+  display: flex; flex-direction: column; gap: var(--space-3); padding: 0; overflow: visible; background: transparent; color: inherit;
+}
+:root[data-look='v3'] .fv.fv3 > * { min-inline-size: 0; }
+:root[data-look='v3'] .fv3 .fv-title { margin: 0; font: var(--type-title); }
+:root[data-look='v3'] .fv3 .fv-strip, :root[data-look='v3'] .fv3 .dr-strip { align-self: stretch; }
+
+/* ---- Start ---- */
+:root[data-look='v3'] .fs3 .fs-row { gap: var(--space-2); }
+:root[data-look='v3'] .fs3 .fs-opt { background: var(--surface-sunk); box-shadow: var(--elev-recessed); border-radius: var(--r-well); }
+:root[data-look='v3'] .fs3 .fs-pick { grid-template-columns: minmax(0, 1fr); background: var(--surface-sunk); box-shadow: var(--elev-recessed); border-radius: var(--r-well); }
+:root[data-look='v3'] .fs3 .fs-pick-act { justify-content: flex-start; }
+:root[data-look='v3'] .fs3-go { margin-block-start: auto; justify-items: stretch; }
+:root[data-look='v3'] .fs3-go .k-btn, :root[data-look='v3'] .fs3-go .ww-btn { inline-size: 100%; }
+:root[data-look='v3'] .fs3-go .fs-foot { text-align: start; }
+:root[data-look='v3'] .fs3-dial { flex: 1 1 auto; min-block-size: 0; display: grid; place-items: center; }
+:root[data-look='v3'] .fs3-dial .fv-dial { inline-size: min(100%, 16rem, 34vh); }
+:root[data-look='v3'] .fs3 .fs-dial-why { justify-content: flex-start; }
+:root[data-look='v3'] .fs3 .fs-len .ww-seg[data-variant='choice'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+:root[data-look='v3'] .fs3 .fs-track .ww-seg[data-variant='choice'] { grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
+
+/* ---- the session ---- */
+:root[data-look='v3'] .cr3-field { flex: 1 1 auto; min-block-size: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--surface-sunk); box-shadow: var(--elev-recessed); border-radius: var(--r-well); padding: var(--space-3); overflow: hidden; }
+/* the dot column is 30 dots tall at its own pitch (about 365 px): it is scaled to the tray, keeping its proportions */
+:root[data-look='v3'] .cr3-field .art { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); min-block-size: 0; max-block-size: 100%; margin: 0; }
+:root[data-look='v3'] .cr3-field .art-svg { zoom: 1; inline-size: auto; block-size: min(11rem, 26vh); max-inline-size: 100%; }
+:root[data-look='v3'] .cr3 .cr-hold-hint { flex: 1 1 100%; }
+:root[data-look='v3'] .cr3 .cr-readout { font: var(--type-title); }
+:root[data-look='v3'] .cr3 .cr-controls .k-btn[data-size='lg'], :root[data-look='v3'] .cr3 .cr-controls .ww-btn[data-size='lg'] { min-inline-size: 0; }
+:root[data-look='v3'] .cr3 .cr-field-idle .fv-dial { inline-size: min(100%, 14rem, 30vh); }
+
+/* ---- Rest ---- */
+:root[data-look='v3'] .fr3 .fr-dots { inline-size: 100%; }
+:root[data-look='v3'] .fr3 .fr-actions { margin-block-start: auto; }
+:root[data-look='v3'] .fr3-hill { flex: 1 1 auto; min-block-size: 0; border-radius: var(--r-well); }
+:root[data-look='v3'] .fr3 .fv-hill { block-size: 100%; max-block-size: 16rem; }
+:root[data-look='v3'] .fr3 .fr-break { background: var(--surface-sunk); box-shadow: var(--elev-recessed); border-radius: var(--r-well); }
+
+/* ---- the Drill ---- */
+:root[data-look='v3'] .dr3 .dr-q3 {
+  grid-column: auto; grid-row: auto; flex: 1 1 auto; min-block-size: 0; padding: 0; overflow: visible; background: transparent; box-shadow: none; border-radius: 0; gap: var(--space-3);
+}
+:root[data-look='v3'] .dr3 .dr-body { padding-block-start: var(--space-2); gap: var(--space-3); }
+:root[data-look='v3'] .dr3 .dr-stem { font: var(--type-title); }
+:root[data-look='v3'] .dr3 .dr-rail3 { grid-column: auto; grid-row: auto; padding: 0; background: transparent; box-shadow: none; border-radius: 0; align-self: stretch; }
+:root[data-look='v3'] .dr3 .dr-tools { grid-column: auto; grid-row: auto; }
+:root[data-look='v3'] .dr3 .dr-empty-why { justify-content: flex-start; }
+:root[data-look='v3'] .dr3 .dr-ascii { white-space: pre; overflow-x: auto; }
+:root[data-look='v3'] .dr3 .dr-end { justify-content: flex-start; }

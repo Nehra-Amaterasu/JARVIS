@@ -11,7 +11,8 @@ export interface ChipProps {
   state?: LampState
   /** Why: kept as text for assistive technology; the row prints the reason as its second line. */
   reason?: string
-  /** A plain tag (VOICE STAGE, MIC · NO LEVEL). Without a state this is the whole chip. */
+  /** A plain tag (VOICE STAGE, MIC · NO LEVEL). Without a state this is the whole chip; with a state the state word is always
+   *  printed and the children follow it as a second tag, so a lamp never loses its word. */
   children?: ReactNode
   className?: string
 }
@@ -19,9 +20,10 @@ export interface ChipProps {
 /** 11 px mono capitals, never cut, in its own column at the right of its row. The word of a fault stays in ink. */
 export function Chip({ state, reason, children, className }: ChipProps) {
   return (
-    <span className={cx('v3-chip', className)} data-state={state} data-kind={state ? 'state' : 'tag'}>
+    <span className={cx('v3-chip', className)} data-lamp={state} data-kind={state ? 'state' : 'tag'}>
       {state && <LampGlyph state={state} size={14} />}
-      <span className="v3-chip-word">{children ?? (state ? LAMP_WORD[state] : null)}</span>
+      <span className="v3-chip-word">{state ? LAMP_WORD[state] : children}</span>
+      {state && children && <span className="v3-chip-tag">{children}</span>}
       {state && reason && <span className="v3-sr">{`: ${reason}`}</span>}
     </span>
   )
@@ -67,7 +69,7 @@ export function Ledger({ rows, label, selectedId, onSelect, className }: LedgerP
           <li
             key={r.id}
             className="v3-ledger-row"
-            data-state={r.state}
+            data-lamp={r.state}
             data-selectable={selectable ? 'true' : undefined}
             data-selected={selectable && selectedId === r.id ? 'true' : undefined}
           >

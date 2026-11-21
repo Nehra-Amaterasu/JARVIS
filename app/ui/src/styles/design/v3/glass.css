@@ -6,7 +6,7 @@
    a pixel (src/__tests__/v3/tokens-v3.test.ts proves it on the file). This is a token file: colour, px and duration
    literals are allowed here and nowhere in the kit stylesheet that reads it (shared/kit/glass.css).
 
-   WHERE THIS FILE LIVES. The brief put it in styles/design/clay/ with one import line in clay/index.css. That breaks three
+   WHERE THIS FILE LIVES. The brief put it in the clay token folder with one import line in its index.css. That breaks three
    tests that cannot be edited (tokens.test.ts: the import order, the file count of the clay lint, and the clay lint itself,
    which forbids gradients and colour literals in every file of that folder). So it sits one folder beside, in
    styles/design/v3/, and shared/kit/glass.css imports it; the shell can import it from there too. Moving it later is one
@@ -51,7 +51,7 @@
   --tna: var(--tna-on);
   --tla: var(--tla-on);
   --wa: var(--wa-on);
-  --glass-filter: blur(40px) saturate(1.45) brightness(0.7);
+  --glass-filter: blur(40px) saturate(1.9) brightness(0.92); /* the stand-in for the system backdrop; the host column of spec 2.7 holds without it */
   --trayn-wash: transparent;
 
   --edge: inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 1px 0 0 rgba(255, 255, 255, 0.035);
@@ -222,6 +222,8 @@
 [data-look='v3'][data-ground='light'][data-glass='off'],
 :root[data-look='v3'][data-theme='clay-light'][data-glass='off']:not([data-ground='dark']),
 [data-glass='off'] [data-look='v3'][data-ground='light'] {
+  /* the light-ground block above is more specific than the off block, so its blur has to be switched off here again */
+  --glass-filter: none;
   --trayn-wash: #ffffff;
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -242,16 +244,16 @@
 :root[data-look='v3'],
 [data-look='v3'],
 [data-look='v3'] [data-glass] {
-  --c-ground: rgb(var(--ground-rgb) / var(--ga));
-  --c-spine: rgb(var(--spine-rgb) / var(--sa));
-  --c-tray: rgb(var(--tray-rgb) / var(--ta));
-  --c-trayn: rgb(var(--trayn-rgb) / var(--tna));
-  --c-trayl: rgb(var(--trayl-rgb) / var(--tla));
-  --c-well: rgb(var(--well-rgb) / var(--wa));
+  --c-ground: rgba(var(--ground-rgb), var(--ga));
+  --c-spine: rgba(var(--spine-rgb), var(--sa));
+  --c-tray: rgba(var(--tray-rgb), var(--ta));
+  --c-trayn: rgba(var(--trayn-rgb), var(--tna));
+  --c-trayl: rgba(var(--trayl-rgb), var(--tla));
+  --c-well: rgba(var(--well-rgb), var(--wa));
   --c-well-solid: rgb(var(--well-rgb));
-  --c-slot: rgb(var(--well-rgb) / 0.28); /* a segment slot */
-  --c-lock: rgb(var(--well-rgb) / 0.3); /* a locked key */
-  --c-group: rgb(var(--well-rgb) / 0.38); /* the open tile of the spine, a recessed group */
+  --c-slot: rgba(var(--well-rgb), 0.28); /* a segment slot */
+  --c-lock: rgba(var(--well-rgb), 0.3); /* a locked key */
+  --c-group: rgba(var(--well-rgb), 0.38); /* the open tile of the spine, a recessed group */
 }
 
 /* ---- 5. the existing roles, so existing components pick the look up (spec 8.2) ----------------------------------------- */

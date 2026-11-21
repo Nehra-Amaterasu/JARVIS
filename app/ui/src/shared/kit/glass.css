@@ -93,8 +93,9 @@
 }
 .v3-plate-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--sp-10);
+  gap: var(--sp-6) var(--sp-10);
   min-height: 28px;
 }
 .v3-plate-head .v3-chip {
@@ -292,6 +293,12 @@
   box-shadow: var(--sh-press);
   color: var(--ink2);
 }
+.v3-chip-tag {
+  color: var(--ink2);
+}
+.v3-counter-name .v3-chip {
+  align-self: flex-start;
+}
 .v3-chip .k-lamp-glyph {
   width: 14px;
   height: 14px;
@@ -332,7 +339,7 @@
   gap: var(--sp-10);
   min-width: var(--hit);
   min-height: var(--hit);
-  padding: 0 var(--sp-16);
+  padding-inline: var(--sp-16);
   border: 1px solid var(--hair);
   border-radius: var(--rad-key);
   outline: 2px solid transparent;
@@ -341,6 +348,9 @@
   font: 600 var(--t-14) / 1.2 var(--f-ui);
   text-align: center;
   cursor: pointer;
+  flex-wrap: wrap; /* a long label keeps its line and its key caps drop under it, instead of both squeezing */
+  row-gap: var(--sp-6);
+  padding-block: var(--sp-8);
   background: linear-gradient(145deg, var(--raised-hi), var(--raised));
   box-shadow: var(--sh-raise);
   transition: transform var(--d-key) var(--ease), box-shadow var(--d-key) var(--ease);
@@ -362,7 +372,7 @@
 }
 .v3-key[data-size='big'] {
   min-height: 60px;
-  padding: 0 var(--sp-24);
+  padding-inline: var(--sp-24);
   border-radius: var(--rad-key-big);
   font-size: var(--t-17);
 }
@@ -437,10 +447,12 @@
   gap: var(--sp-6);
   max-width: 100%;
 }
-.v3-key[data-kind='locked'],
-.v3-key[data-kind='locked']:hover,
-.v3-key[data-kind='locked']:active,
-.v3-key[data-kind='locked'][data-demo] {
+/* :root and the aria-disabled attribute raise this above the clay kit's generic [aria-disabled] rules (0,3,0), which would
+   otherwise repaint a locked key flat and bring back a hairline */
+:root .v3-key[data-kind='locked'][aria-disabled='true'],
+:root .v3-key[data-kind='locked'][aria-disabled='true']:hover,
+:root .v3-key[data-kind='locked'][aria-disabled='true']:active,
+:root .v3-key[data-kind='locked'][aria-disabled='true'][data-demo] {
   transform: none;
   cursor: not-allowed;
   color: var(--locked);
@@ -448,7 +460,7 @@
   background: var(--c-lock);
   box-shadow: var(--sh-locked);
 }
-.v3-key[data-kind='locked']:focus-visible {
+:root .v3-key[data-kind='locked'][aria-disabled='true']:focus-visible {
   box-shadow: var(--sh-locked), var(--ring-focus);
 }
 .v3-key[data-kind='locked'] svg {
@@ -466,6 +478,7 @@
 
 /* ---- Ledger: rows of label, value, lamp and reason. They wrap and grow; nothing is clipped, nothing ends in an ellipsis ---- */
 .v3-ledger {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: var(--sp-6);
@@ -512,6 +525,16 @@
   font: 700 var(--t-14) / 1 var(--f-mono);
   white-space: nowrap;
   color: var(--ink);
+}
+/* a narrow ledger (a third tray, a phone): the label and its reason take the whole first line, and the value and the lamp
+   share the second, so no word is ever broken into a column of letters */
+@container (max-width: 27rem) {
+  .v3-ledger-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .v3-ledger-main {
+    grid-column: 1 / -1;
+  }
 }
 .v3-ledger-act {
   grid-column: 1 / -1;
@@ -639,12 +662,12 @@
   stroke-linecap: round;
   transition: stroke-dasharray var(--d-sweep) var(--ease);
 }
-.v3-dial[data-state='simulated'] .v3-arc,
-.v3-gauge[data-state='simulated'] .v3-arc {
+.v3-dial[data-lamp='simulated'] .v3-arc,
+.v3-gauge[data-lamp='simulated'] .v3-arc {
   stroke: var(--sim);
 }
-.v3-dial[data-state='live'] .v3-arc,
-.v3-gauge[data-state='live'] .v3-arc {
+.v3-dial[data-lamp='live'] .v3-arc,
+.v3-gauge[data-lamp='live'] .v3-arc {
   stroke: var(--live);
 }
 .v3-dial[data-pose='waiting'] .v3-track,
@@ -696,7 +719,7 @@
 .v3-gauge-face .v3-gauge-num {
   position: absolute;
   left: 50%;
-  top: 88px;
+  top: 94px;
   translate: -50% 0;
 }
 .v3-dial-cap {
@@ -708,6 +731,9 @@
 .v3-hub {
   fill: var(--ink);
   stroke: none;
+}
+.v3-needle-g {
+  transition: transform var(--d-sweep) var(--ease);
 }
 .v3-needle {
   stroke: var(--ink);
@@ -842,6 +868,7 @@
   :root:not([data-motion='full']) .v3-key,
   :root:not([data-motion='full']) .v3-ledger-row,
   :root:not([data-motion='full']) .v3-arc,
+  :root:not([data-motion='full']) .v3-needle-g,
   :root:not([data-motion='full']) .v3-mic-val {
     transition: none;
   }
@@ -862,6 +889,7 @@
 :root[data-motion='calm'] .v3-key,
 :root[data-motion='calm'] .v3-ledger-row,
 :root[data-motion='calm'] .v3-arc,
+:root[data-motion='calm'] .v3-needle-g,
 :root[data-motion='calm'] .v3-mic-val {
   transition: none;
 }

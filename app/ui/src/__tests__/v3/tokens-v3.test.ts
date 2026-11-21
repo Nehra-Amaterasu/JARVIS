@@ -104,6 +104,41 @@ describe('glass off', () => {
     // the alphas, the filter, the composed fills that read an alpha, and the first-tray wash of spec 2.6: nothing else
     expect(changed.filter((k) => !ALPHAS.includes(k as never) && !/^--(glass-filter|trayn-wash|c-)/.test(k))).toEqual([])
   })
+  it('the real root form on the light theme: the cascade (specificity, then file order) gives opaque alphas AND no blur', () => {
+    // the light-ground block `:root[data-look][data-theme='clay-light']` is more specific than the plain off block, so the off
+    // switch for the light ground has to restate the filter; a first cut left a 40 px blur running under an opaque ground
+    const attrs: Record<string, string> = { 'data-look': 'v3', 'data-theme': 'clay-light', 'data-glass': 'off' }
+    const rules = parse(tokensCss()).filter((r) => r.at.length === 0)
+    const won: Record<string, { spec: number; order: number; v: string }> = {}
+    rules.forEach((r, order) => {
+      for (const sel of r.selectors) {
+        if (/[\s>+~]/.test(sel)) continue
+        const parts = sel.match(/:not\(\[[^\]]+\]\)|\[[^\]]+\]|:root/g) ?? []
+        if (parts.join('') !== sel) continue
+        let ok = true
+        let spec = 0
+        for (const p of parts) {
+          spec += 1
+          if (p === ':root') continue
+          const neg = p.startsWith(':not(')
+          const m = /\[(data-[\w-]+)='([^']*)'\]/.exec(p)
+          if (!m) {
+            ok = false
+            break
+          }
+          const has = attrs[m[1]] === m[2]
+          if (neg ? has : !has) ok = false
+        }
+        if (!ok) continue
+        for (const [k, v] of Object.entries(r.decls)) {
+          const w = won[k]
+          if (!w || spec > w.spec || (spec === w.spec && order > w.order)) won[k] = { spec, order, v }
+        }
+      }
+    })
+    expect(won['--glass-filter']?.v).toBe('none')
+    for (const a of ALPHAS) expect(won[a]?.v, a).toBe('1')
+  })
   it('the opaque layers are the table of 2.6, in hue', () => {
     const off = tokens('dark', 'off')
     const hex = (v: string) => triple(v).map((c) => c.toString(16).padStart(2, '0')).join('')
@@ -264,6 +299,16 @@ describe('a nested ground redeclares everything it can differ in', () => {
   it('the light ground blocks do not set an effective alpha directly (the glass-off block must be able to win)', () => {
     const light = parse(tokensCss()).find((r) => r.selectors.includes("[data-look='v3'][data-ground='light']"))!
     for (const a of ALPHAS) expect(light.decls[a]).toBeUndefined()
+  })
+})
+
+describe('the composed fills are colours a browser accepts', () => {
+  // --ground-rgb holds "14, 15, 19": rgb(14, 15, 19 / .76) mixes commas and a slash and is INVALID, so every tray, well and
+  // ground painted nothing and the first screenshot showed bare wallpaper. The legacy rgba(r, g, b, a) form takes the comma list.
+  it('no composed fill uses the slash form on a comma triple', () => {
+    const css = tokensCss()
+    expect(css).not.toMatch(/rgba?\(var\(--[\w-]+-rgb\)\s*\//)
+    for (const m of css.matchAll(/--c-[\w-]+:\s*([^;]+);/g)) expect(m[1], m[0]).toMatch(/^rgba?\(var\(--[\w-]+-rgb\)(, [^)]+)?\)$|^rgba\(var\(--[\w-]+-rgb\), var\(--\w+\)\)$/)
   })
 })
 

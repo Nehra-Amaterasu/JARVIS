@@ -6,14 +6,15 @@
 // says it is generated. The pose gallery paints hover, pressed and focus still with [data-demo]; the same pieces answer the
 // real pointer, so hover one and compare it with its still.
 import { useState, type CSSProperties, type ReactNode } from 'react'
-import { Chip, Counter, Dial, Gauge, Ground, Group, Key, Ledger, LockedKey, Mark, Plate, PressKey, Sigil, StepLabel, Wall } from '../../shared/kit/v3'
+import { Chip, Counter, Dial, Gauge, Ground, Group, Key, Ledger, LockedKey, Mark, Plate, PressKey, Sigil, StepLabel } from '../../shared/kit/v3'
+import { Wall } from '../../shared/kit/v3/Wall'
 import type { MarkKind } from '../../shared/kit/v3'
 import type { GalleryEntryX } from '../types'
 
 type Ground_ = 'dark' | 'light'
 type Glass = 'on' | 'off'
 
-const SCENE: CSSProperties = { position: 'relative', isolation: 'isolate', overflow: 'hidden', borderRadius: 18, minWidth: 0, width: '100%' }
+const SCENE: CSSProperties = { position: 'relative', isolation: 'isolate', overflow: 'hidden', borderRadius: 18, minWidth: 0, width: 'min(74rem, calc(100vw - 7rem))' }
 const BODY: CSSProperties = { position: 'relative', zIndex: 1, display: 'grid', gap: 16, padding: 16, color: 'var(--ink)', fontFamily: 'var(--f-ui)' }
 const GRID: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 15rem), 1fr))', gap: 16, alignItems: 'start' }
 const ROW: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-start' }
@@ -35,9 +36,9 @@ function Counters() {
   const [water, setWater] = useState(3)
   return (
     <>
-      <Counter name="Chai" count={chai} onTap={() => setChai((n) => n + 1)} />
-      <Counter name="Water" count={water} onTap={() => setWater((n) => n + 1)} />
-      <Counter name="Walk" count={null} onTap={() => undefined} />
+      <Counter name="Chai" state="simulated" count={chai} onTap={() => setChai((n) => n + 1)} />
+      <Counter name="Water" state="simulated" count={water} onTap={() => setWater((n) => n + 1)} />
+      <Counter name="Walk" state="waiting" count={null} onTap={() => undefined} />
     </>
   )
 }
@@ -52,7 +53,7 @@ function Scene({ ground, glass }: { ground: Ground_; glass: Glass }) {
       <div style={BODY}>
         <div style={GRID}>
           <Plate tier="first" step={1} job="WAKE" stepMark={mark} chip={<Chip state="waiting" />} ruler={light ? 'ascii' : 'sigil'} rise={0}>
-            <Key accent size="big" caps={['CTRL', 'SHIFT', 'SPACE']}>
+            <Key accent size="big" caps={['CTRL', 'SPACE']}>
               Wake JARVIS
             </Key>
             <Group label="Voice stage" chip={<Chip>MIC · NO LEVEL</Chip>}>

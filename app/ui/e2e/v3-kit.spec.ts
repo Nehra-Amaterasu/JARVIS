@@ -67,6 +67,20 @@ async function openScene(page: Page, scene: (typeof SCENES)[number]) {
   await page.getByRole('radiogroup', { name: 'State' }).getByRole('radio', { name: scene.label }).click()
   const el = page.locator(`[data-v3-scene="${scene.id}"]`)
   await el.waitFor()
+  await page.mouse.move(0, 0)
+  // the gallery pane scrolls inside a fixed-height window, and an element picture only paints what is on screen. So the
+  // scene is lifted out of the gallery into the bare body and the window is grown to its height: the picture and the
+  // contrast read are then of the whole thing, not of a clipped part
+  await el.evaluate((n) => {
+    document.body.appendChild(n)
+    const root = document.getElementById('root')
+    if (root) root.style.display = 'none'
+    document.documentElement.style.cssText += ';height:auto;overflow:visible'
+    document.body.style.cssText += ';margin:0;height:auto;overflow:visible;padding:0.5rem'
+  })
+  const vp = page.viewportSize()!
+  const h = await el.evaluate((n) => n.getBoundingClientRect().height)
+  await page.setViewportSize({ width: vp.width, height: Math.min(8000, Math.ceil(h) + 40) })
   await page.waitForTimeout(1800) // the rise (500 ms and its stagger), the glint (1.2 s after 500 ms is let run) and the arc sweep settle
   return el
 }
@@ -112,7 +126,13 @@ async function inspect(el: ReturnType<Page['locator']>) {
       const r = b.getBoundingClientRect()
       if (r.width < 44 - 0.5 || r.height < 44 - 0.5) targets.push(`${b.textContent?.trim() || b.getAttribute('aria-label')} ${Math.round(r.width)}x${Math.round(r.height)}`)
     }
-    const overflow = root.scrollWidth - root.clientWidth
+    // the ground reaches 64 px past the window on purpose (spec 2.1): everything else must stay inside the scene
+    const rb = root.getBoundingClientRect()
+    let overflow = 0
+    for (const e of root.querySelectorAll<HTMLElement>('*')) {
+      if (e.closest('.v3-ground, [data-wall]')) continue
+      overflow = Math.max(overflow, e.getBoundingClientRect().right - rb.right)
+    }
     return { small, cut, texts, targets, overflow, w: root.getBoundingClientRect().width, h: root.getBoundingClientRect().height }
   })
 }
@@ -183,6 +203,12 @@ for (const vp of [DESKTOP, PHONE]) {
         })
         if (scene.glass === 'off') expect(alphas).toEqual(['1', '1', '1', '1', '1', '1'])
         else expect(alphas.every((a) => a !== '1')).toBe(true)
+        // a fill composed of tokens must be a real colour in the browser: an invalid one silently paints nothing
+        const fills = await el.evaluate((n) => {
+          const bg = (sel: string) => getComputedStyle(n.querySelector(sel)!).backgroundColor
+          return { ground: bg('.v3-ground'), first: bg('.v3-plate[data-tier="first"]'), well: bg('.v3-group') }
+        })
+        for (const [k, v] of Object.entries(fills)) expect(v, `${k} fill`).not.toBe('rgba(0, 0, 0, 0)')
         const filt = await el.evaluate((n) => getComputedStyle(n.querySelector('.v3-ground')!).backdropFilter)
         if (scene.glass === 'off') expect(filt).toBe('none')
         else expect(filt).toContain('blur')

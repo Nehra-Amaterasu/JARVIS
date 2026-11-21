@@ -46,7 +46,7 @@ export function Sigil({ size = 240, awake = false, breathe, level, simulated, la
       viewBox="0 0 200 200"
       style={{ ['--v3-size' as string]: `${size}px` }}
       role="img"
-      aria-label={label}
+      aria-label={`${label}, ${frac === null ? 'no mic level' : `mic level ${Math.round(frac * 100)} percent, ${simulated ? 'SIMULATED' : 'LIVE'}`}`}
       data-awake={awake ? 'true' : 'false'}
       data-breathe={(breathe ?? !awake) ? 'true' : 'false'}
       data-level={frac === null ? 'none' : simulated ? 'simulated' : 'live'}

@@ -69,6 +69,30 @@ describe('Key', () => {
     click(q('button'))
     expect(on).not.toHaveBeenCalled()
     expect(q('button').getAttribute('aria-busy')).toBe('true')
+    expect(q('button').getAttribute('aria-disabled')).toBe('true')
+  })
+  it('a busy submit key does not submit its form (the native default action is stopped)', () => {
+    const submit = vi.fn((e: Event) => e.preventDefault())
+    m = mount(
+      <form onSubmit={submit as never}>
+        <Key busy type="submit">Save</Key>
+      </form>,
+    )
+    click(q('button'))
+    expect(submit).not.toHaveBeenCalled()
+    m.render(
+      <form onSubmit={submit as never}>
+        <Key type="submit">Save</Key>
+      </form>,
+    )
+    click(q('button'))
+    expect(submit).toHaveBeenCalledTimes(1)
+  })
+  it('lit wins over accent at runtime (the types forbid both; a loose caller still never draws a lit accent)', () => {
+    const props = { accent: true, lit: true } as Record<string, unknown>
+    m = mount(<Key {...props}>Both</Key>)
+    expect(q('button').getAttribute('data-accent')).toBeNull()
+    expect(q('button').getAttribute('data-lit')).toBe('true')
   })
 })
 
@@ -88,7 +112,7 @@ describe('LockedKey', () => {
   })
   it('is drawn without a raise or a press shadow, and carries no accent and no lit state', () => {
     const css = kitCss()
-    const rule = parse(css).find((r) => r.selectors.includes(".v3-key[data-kind='locked']"))!
+    const rule = parse(css).find((r) => r.selectors.includes(":root .v3-key[data-kind='locked'][aria-disabled='true']"))!
     expect(rule.decls['box-shadow']).toBe('var(--sh-locked)')
     expect(rule.decls['transform']).toBe('none')
     const t = tokens('dark', 'on')
@@ -106,6 +130,11 @@ describe('Chip', () => {
     expect(q('.v3-chip-word').textContent).toBe(LAMP_WORD[s])
     expect(q('.k-lamp-glyph').getAttribute('data-state')).toBe(s)
     expect(q('.k-lamp-glyph').getAttribute('data-shape')).toBeTruthy()
+  })
+  it('a state with children keeps its state word and prints the children as a second tag', () => {
+    m = mount(<Chip state="live">MIC</Chip>)
+    expect(q('.v3-chip-word').textContent).toBe('LIVE')
+    expect(q('.v3-chip-tag').textContent).toBe('MIC')
   })
   it('a tag with no state is only its text', () => {
     m = mount(<Chip>MIC · NO LEVEL</Chip>)
@@ -175,6 +204,23 @@ describe('Dial and Gauge: a reading is drawn only when something produced it', (
     expect(q('.v3-gauge-num').textContent).toContain('of 6.0 GB')
     expect(q('svg').getAttribute('aria-label')).toContain('SIMULATED')
   })
+  it('a LIVE form with no number says why: "no reading yet", never an unexplained lamp', () => {
+    m = mount(
+      <>
+        <Dial name="a" state="live" max={10} />
+        <Gauge name="b" state="live" max={10} />
+      </>,
+    )
+    expect(all('.v3-dial-why').map((w) => w.textContent)).toEqual(['no reading yet', 'no reading yet'])
+  })
+  it('the needle is turned by a CSS rotation of one group (a transition can sweep it with the arc), not by x2 and y2', () => {
+    m = mount(<Gauge name="GPU memory" state="simulated" value={3} max={6} />)
+    const g = q('.v3-needle-g')
+    expect(g.getAttribute('style')).toMatch(/rotate\(/)
+    const line = q('.v3-needle')
+    expect([line.getAttribute('x2'), line.getAttribute('y2')]).toEqual(['132', '76'])
+    expect(readFileSync(KIT_PATH, 'utf8')).toMatch(/\.v3-needle-g\s*\{[^}]*transition: transform var\(--d-sweep\)/)
+  })
   it('a missing, non-finite or unscaled value is not drawn even when LIVE', () => {
     m = mount(
       <>
@@ -236,7 +282,7 @@ describe('Sigil and Mark', () => {
 describe('Plate, Group, StepLabel', () => {
   it('a plate with a step and a job is a labelled region headed "1 WAKE", read as "Step 1 of 3: WAKE"', () => {
     m = mount(
-      <Plate tier="first" step={1} job="WAKE" chip={<Chip state="waiting" />} ruler="sigil">
+      <Plate tier="first" step={1} steps={3} job="WAKE" chip={<Chip state="waiting" />} ruler="sigil">
         body
       </Plate>,
     )
@@ -247,6 +293,12 @@ describe('Plate, Group, StepLabel', () => {
     expect(head.textContent).toBe('Step 1 of 3: 1WAKE')
     expect(q('.v3-step-n').getAttribute('aria-hidden')).toBe('true')
     expect(all('.v3-ruler i')).toHaveLength(24)
+  })
+  it('a plate that does not know its step count leaves the count out ("Step 2:"), and a two-tray view says "of 2"', () => {
+    m = mount(<Plate step={2} job="CONVERSATION">x</Plate>)
+    expect(q('.v3-step').textContent).toBe('Step 2: 2CONVERSATION')
+    m.render(<Plate step={2} steps={2} job="CONVERSATION">x</Plate>)
+    expect(q('.v3-step').textContent).toBe('Step 2 of 2: 2CONVERSATION')
   })
   it('the three dots are gone: the head has no dots, the words NOW, NEXT and LATER are not printed', () => {
     m = mount(
@@ -296,19 +348,46 @@ describe('Plate, Group, StepLabel', () => {
 })
 
 describe('Counter', () => {
-  it('a real zero is "0" and "no taps yet"; a waiting source is a dash; a tap calls back and the digit rolls', () => {
+  it('a real zero is "0" and "no taps yet"; a waiting source is a dash; a tap calls back', () => {
     const on = vi.fn()
-    m = mount(<Counter name="Chai" count={0} onTap={on} />)
+    m = mount(<Counter name="Chai" state="simulated" count={0} onTap={on} />)
     expect(q('.v3-counter-dial').textContent).toBe('0')
     expect(q('small').textContent).toBe('no taps yet')
     click(q('button'))
     expect(on).toHaveBeenCalledTimes(1)
     expect(q('button').getAttribute('aria-label')).toBe('+1 Chai')
-    m.render(<Counter name="Chai" count={3} onTap={on} />)
+    m.render(<Counter name="Chai" state="simulated" count={3} onTap={on} />)
     expect(q('small').textContent).toBe('3 so far today')
-    expect(q('.v3-roll').textContent).toBe('3')
-    m.render(<Counter name="Chai" count={null} onTap={on} />)
+    m.render(<Counter name="Chai" state="waiting" count={null} onTap={on} />)
     expect(q('.v3-counter-dial').textContent).toBe('–')
+  })
+  it('a number never stands without its lamp and word: the chip is in the row', () => {
+    m = mount(<Counter name="Chai" state="simulated" count={2} onTap={() => undefined} />)
+    expect(q('.v3-counter .v3-chip-word').textContent).toBe('SIMULATED')
+    expect(q('.v3-counter .k-lamp-glyph').getAttribute('data-state')).toBe('simulated')
+  })
+  it.each(['waiting', 'planned', 'fault'] as const)('%s: a count handed in is not shown (a dash), in the dial and in the status line', (s) => {
+    m = mount(<Counter name="Chai" state={s} count={7} onTap={() => undefined} />)
+    expect(q('.v3-counter-dial').textContent).toBe('–')
+    expect(m.container.textContent).not.toMatch(/\b7\b/)
+    expect(q('[role="status"]').textContent).toBe(`Chai: no reading, ${LAMP_WORD[s]}`)
+  })
+  it('the count is in a polite status line that survives a custom line, so a screen reader hears it', () => {
+    m = mount(<Counter name="Chai" state="live" count={4} line="since breakfast" onTap={() => undefined} />)
+    expect(q('small').textContent).toBe('since breakfast')
+    const st = q('[role="status"]')
+    expect(st.getAttribute('aria-live')).toBe('polite')
+    expect(st.textContent).toBe('Chai: 4, LIVE')
+  })
+  it('the digit rolls only after a local tap: not on first paint, not on a sync', () => {
+    const on = vi.fn()
+    m = mount(<Counter name="Chai" state="live" count={1} onTap={on} />)
+    expect(all('.v3-roll')).toHaveLength(0)
+    m.render(<Counter name="Chai" state="live" count={5} onTap={on} />)
+    expect(all('.v3-roll')).toHaveLength(0)
+    click(q('button'))
+    m.render(<Counter name="Chai" state="live" count={6} onTap={on} />)
+    expect(q('.v3-roll').textContent).toBe('6')
   })
 })
 

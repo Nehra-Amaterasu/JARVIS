@@ -11,4 +11,4 @@ export { Dial, Gauge, arcPath, polar, fraction } from './Forms'
 export type { DialProps, FormProps } from './Forms'
 export { Sigil, Mark } from './Marks'
 export type { SigilProps, MarkProps, MarkKind } from './Marks'
-export { Wall } from './Wall'
+// Wall (the demo backdrop, colour literals) is a gallery fixture: import it from './Wall' directly, never through this barrel.

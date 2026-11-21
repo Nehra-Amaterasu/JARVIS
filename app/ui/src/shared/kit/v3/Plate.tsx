@@ -30,18 +30,18 @@ export interface StepLabelProps {
   n: number
   /** The job of the tray in capitals: WAKE, CONVERSATION, VOICE PATH. */
   job: string
-  /** How many steps the view has; only spoken. */
+  /** How many steps the view has; only spoken. Unknown means it is not spoken ("Step 1:"), never a guessed count. */
   of?: number
   mark?: StepMark
   id?: string
 }
 
 /** "1 WAKE": the numeral in a pressed 20 px well (or [1]) and the job of the tray. Replaces the three dots. */
-export function StepLabel({ n, job, of = 3, mark = 'sigil', id }: StepLabelProps) {
+export function StepLabel({ n, job, of, mark = 'sigil', id }: StepLabelProps) {
   return (
     <span className="v3-step" data-mark={mark} id={id}>
       {mark === 'sigil' && <span className="v3-step-tick" aria-hidden="true" />}
-      <span className="v3-sr">{`Step ${n} of ${of}: `}</span>
+      <span className="v3-sr">{of ? `Step ${n} of ${of}: ` : `Step ${n}: `}</span>
       <span className="v3-step-n" aria-hidden="true">
         {mark === 'bracket' ? `[${n}]` : n}
       </span>
@@ -74,22 +74,32 @@ export function Ruler({ kind }: RulerProps) {
   useEffect(() => {
     const el = ref.current
     if (kind !== 'ascii' || !el) return
-    // the width of one mono character at the ruler's own font: measured on a probe, never assumed
-    const probe = document.createElement('span')
-    probe.textContent = '0'.repeat(20)
-    probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font:inherit'
-    el.appendChild(probe)
-    const cw = probe.getBoundingClientRect().width / 20
-    el.removeChild(probe)
+    // the width of one mono character at the ruler's own font, measured on a probe each time (a webfont that loads late or a
+    // changed font size would otherwise leave the rule too long or short of its end bar)
+    const charWidth = () => {
+      const probe = document.createElement('span')
+      probe.textContent = '0'.repeat(20)
+      probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font:inherit'
+      el.appendChild(probe)
+      const w = probe.getBoundingClientRect().width / 20
+      el.removeChild(probe)
+      return w
+    }
+    let alive = true
     const fit = () => {
+      if (!alive) return
+      const cw = charWidth()
       const w = el.clientWidth
       setText(cw > 0 && w > 0 ? asciiRule(Math.floor(w / cw)) : '')
     }
     fit()
-    if (typeof ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(fit)
-    ro.observe(el)
-    return () => ro.disconnect()
+    void document.fonts?.ready?.then(fit)
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(fit)
+    ro?.observe(el)
+    return () => {
+      alive = false
+      ro?.disconnect()
+    }
   }, [kind])
   if (kind === 'sigil') {
     return (
@@ -115,6 +125,8 @@ export interface PlateProps extends Omit<HTMLAttributes<HTMLElement>, 'title'> {
   step?: number
   job?: string
   stepMark?: StepMark
+  /** How many trays the view has; spoken as "Step 1 of N". Omit when unknown: the count is then left out, not guessed. */
+  steps?: number
   /** One state chip at the right of the head. */
   chip?: ReactNode
   /** The station ruler: first tray only (spec 4.1 rule 3). */
@@ -130,7 +142,7 @@ export interface PlateProps extends Omit<HTMLAttributes<HTMLElement>, 'title'> {
 }
 
 /** A raised tray with the graded material: tint, glare, inner top edge and its own shadow. No blur (spec 2.1). */
-export function Plate({ tier = 'second', step, job, stepMark = 'sigil', chip, ruler = false, rise, flare, glint, as: Tag = 'section', className, style, children, ...rest }: PlateProps) {
+export function Plate({ tier = 'second', step, job, stepMark = 'sigil', steps, chip, ruler = false, rise, flare, glint, as: Tag = 'section', className, style, children, ...rest }: PlateProps) {
   const head = useId()
   const named = step !== undefined && job !== undefined
   const css = rise === undefined ? style : ({ ...style, ['--rise-i' as string]: rise } as typeof style)
@@ -147,7 +159,7 @@ export function Plate({ tier = 'second', step, job, stepMark = 'sigil', chip, ru
       {glint !== undefined && <Glint on={glint} />}
       {named && (
         <header className="v3-plate-head">
-          <StepLabel n={step} job={job} mark={stepMark} id={head} />
+          <StepLabel n={step} job={job} of={steps} mark={stepMark} id={head} />
           {chip}
         </header>
       )}

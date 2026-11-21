@@ -42,6 +42,14 @@ function useReady(): boolean {
 
 const fmt = (n: number, digits: number) => n.toFixed(digits)
 
+/** The reason printed when the caller gave none: a lamp that shows a value is never left unexplained when no value came. */
+function defaultWhy(state: LampState, drawn: boolean): string | undefined {
+  if (state === 'waiting') return 'no report'
+  if (!drawn && showsValue(state)) return 'no reading yet'
+  if (state === 'simulated') return 'generated sample'
+  return undefined
+}
+
 export interface FormProps {
   /** What it measures, in capitals: GPU MEMORY, COUNT. */
   name: string
@@ -74,10 +82,10 @@ export function Dial({ name, state, value, max, unit, digits = 0, reason, glint,
   const c = size / 2
   const dot = polar(c, c, r, 225)
   const gid = useId()
-  const why = reason ?? (state === 'waiting' ? 'no report' : state === 'simulated' ? 'generated sample' : undefined)
+  const why = reason ?? defaultWhy(state, drawn)
   const label = drawn ? `${name}: ${fmt(value as number, digits)} of ${fmt(max, digits)}${unit ? ` ${unit}` : ''}, ${LAMP_WORD[state]}` : `${name}: no reading, ${LAMP_WORD[state]}${why ? `, ${why}` : ''}`
   return (
-    <figure className={cx('v3-dial', className)} data-state={state} data-pose={drawn ? 'drawn' : 'waiting'}>
+    <figure className={cx('v3-dial', className)} data-lamp={state} data-pose={drawn ? 'drawn' : 'waiting'}>
       <div className="v3-dial-face" style={{ ['--v3-size' as string]: `${size}px`, ['--v3-fs' as string]: `${Math.max(14, Math.round(size * 0.26))}px` }}>
         <svg viewBox={`0 0 ${size} ${size}`} role="img" aria-label={label}>
           <defs>
@@ -125,14 +133,16 @@ export function Gauge({ name, state, value, max, unit, digits = 1, reason, glint
   const frac = showsValue(state) ? fraction(value, max) : null
   const drawn = frac !== null
   const gid = useId()
-  const why = reason ?? (state === 'waiting' ? 'no report' : state === 'simulated' ? 'generated sample' : undefined)
+  const why = reason ?? defaultWhy(state, drawn)
   const path = arcPath(G.cx, G.cy, G.r, G.from, G.to)
+  // the needle is drawn once, pointing right, and turned by a CSS transform: x2/y2 cannot be transitioned, a rotation can, so the
+  // needle sweeps with the arc (same duration token) instead of jumping to the reading
   const ang = G.from + (ready && drawn ? (frac as number) : 0) * (G.to - G.from)
-  const tip = polar(G.cx, G.cy, G.r - 8, ang)
-  const spec = polar(G.cx, G.cy, G.r - 8, ang - 4)
+  const tip = { x: G.cx + G.r - 8, y: G.cy }
+  const spec = polar(G.cx, G.cy, G.r - 8, -4)
   const label = drawn ? `${name}: ${fmt(value as number, digits)} of ${fmt(max, digits)}${unit ? ` ${unit}` : ''}, ${LAMP_WORD[state]}` : `${name}: no reading, ${LAMP_WORD[state]}${why ? `, ${why}` : ''}`
   return (
-    <figure className={cx('v3-gauge', className)} data-state={state} data-pose={drawn ? 'drawn' : 'waiting'}>
+    <figure className={cx('v3-gauge', className)} data-lamp={state} data-pose={drawn ? 'drawn' : 'waiting'}>
       <div className="v3-gauge-face">
         <svg viewBox="0 0 160 132" role="img" aria-label={label}>
           <defs>
@@ -145,9 +155,11 @@ export function Gauge({ name, state, value, max, unit, digits = 1, reason, glint
           {drawn && <path className="v3-arc" d={path} strokeWidth={8} pathLength={100} strokeDasharray={`${ready ? Math.round((frac as number) * 1000) / 10 : 0} 100`} />}
           {drawn && (
             <>
-              <line className="v3-needle" x1={G.cx} y1={G.cy} x2={tip.x} y2={tip.y} strokeWidth={3} />
+              <g className="v3-needle-g" style={{ transform: `rotate(${ang}deg)`, transformOrigin: `${G.cx}px ${G.cy}px` }}>
+                <line className="v3-needle" x1={G.cx} y1={G.cy} x2={tip.x} y2={tip.y} strokeWidth={3} />
+                <circle cx={spec.x} cy={spec.y} r={3} fill={`url(#${gid})`} />
+              </g>
               <circle className="v3-hub" cx={G.cx} cy={G.cy} r={5} />
-              <circle cx={spec.x} cy={spec.y} r={3} fill={`url(#${gid})`} />
             </>
           )}
         </svg>

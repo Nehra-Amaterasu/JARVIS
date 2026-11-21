@@ -9,11 +9,11 @@ function Marked({ text, terms }: { text: string; terms: string[] }) {
   return <>{highlightParts(text, terms).map((p, i) => (p.hit ? <mark key={i}>{p.t}</mark> : <span key={i}>{p.t}</span>))}</>
 }
 
-export function Results({ res, searching, error, suggest = [], onSuggest }: { res: SearchRes | null; searching: boolean; error: string | null; suggest?: readonly string[]; onSuggest?: (q: string) => void }) {
+export function Results({ res, searching, error, suggest = [], onSuggest, where = 'above' }: { where?: string; res: SearchRes | null; searching: boolean; error: string | null; suggest?: readonly string[]; onSuggest?: (q: string) => void }) {
   const terms = useMemo(() => (res ? queryTerms(res.query) : []), [res])
   if (error) return <div className="jm-empty" role="alert"><span className="jm-hollow-word">FAULT</span><span className="jm-hollow-line">Recall did not answer: {error}</span></div>
   if (searching) return <div className="jm-empty" role="status"><span className="jm-hollow-word">RECALLING</span><span className="jm-hollow-line">Reading the store.</span></div>
-  if (!res) return <div className="jm-empty" data-testid="results-empty"><span className="jm-hollow-word">NO RECALL YET</span><span className="jm-hollow-line">Ask above. Results show here with the words that matched.</span>{onSuggest && <span className="jm-suggest" aria-label="Try">{suggest.map((x) => <button key={x} type="button" className="jm-chip" onClick={() => onSuggest(x)}>{x}</button>)}</span>}</div>
+  if (!res) return <div className="jm-empty" data-testid="results-empty"><span className="jm-hollow-word">NO RECALL YET</span><span className="jm-hollow-line">Ask {where}. Results show here with the words that matched.</span>{onSuggest && <span className="jm-suggest" aria-label="Try">{suggest.map((x) => <button key={x} type="button" className="jm-chip" onClick={() => onSuggest(x)}>{x}</button>)}</span>}</div>
   return (
     <div className="jm-results" data-testid="results">
       <p className="jm-results-head jm-mono">

@@ -6,6 +6,7 @@
 // Fix and Delete for a person need routes the store does not have; they are drawn PLANNED and send nothing. A person with no
 // last-mentioned date in the store gets a dashed empty bar that says so, never a guess.
 import { useMemo, useState } from 'react'
+import { Zones } from '../../shell/v3'
 import { AsciiPortrait, Sigil, cleanInitials } from '../../shared/grammar'
 import { Lamp, PlannedGlyph, type LampReading } from '../../shared/lamp'
 import { useLoad } from './hooks'
@@ -13,6 +14,7 @@ import { fmtN, monthLabel, parseTime, ymOf } from './model'
 import type { PeoplePort } from './port'
 import type { Person } from './types'
 import './memory.css'
+import './memory-v3.css'
 
 export const RING_MAX = 24
 export const MONTHS_SPAN = 36
@@ -46,9 +48,9 @@ function LastBar({ p, now }: { p: Person; now: number }) {
   )
 }
 
-export interface PeopleViewProps { port: PeoplePort; now?: number }
+export interface PeopleViewProps { port: PeoplePort; now?: number; /** The v3 look: FIND / PERSON / BASIS on three trays. */ v3?: boolean }
 
-export function PeopleView({ port, now: nowMs }: PeopleViewProps) {
+export function PeopleView({ port, now: nowMs, v3 = false }: PeopleViewProps) {
   const { v } = useLoad(() => port.people(60), null)
   const [clock] = useState(() => Date.now())
   const now = nowMs ?? clock
@@ -60,6 +62,71 @@ export function PeopleView({ port, now: nowMs }: PeopleViewProps) {
   const lamp: LampReading = v.state === 'fault' ? { state: 'fault', since: null, reason: v.error }
     : v.state === 'loading' ? { state: 'waiting', since: null, reason: 'reading people' } : { state: port.simulated ? 'simulated' : 'live', since: null, reason: port.simulated ? 'fixture, invented names' : 'from the store' }
   const R = 232
+
+  const card = (
+    <>
+      {cur ? (
+        <>
+          <AsciiPortrait initials={initialsOf(cur.name)} />
+          <h3 className="jm-p-name">{cur.name}</h3>
+          <p className="jm-dim jm-mono">{fmtN(cur.n_msgs)} messages · {(cur.span_days / 365).toFixed(1)} years{cur.calls ? ` · ${cur.calls} calls` : ''}</p>
+          <LastBar p={cur} now={now} />
+          <span className="jm-seed"><Sigil seed={cur.name} size={24} label={`Seed glyph of ${cur.name}`} /></span>
+          <div className="jm-row">
+            <button type="button" className="jm-key jm-key-planned" aria-disabled="true" onClick={() => setNote('Fixing a person needs a route the store does not have. Nothing was sent.')}><PlannedGlyph size={14} /> Fix<span className="jm-key-word">PLANNED</span></button>
+            <button type="button" className="jm-key jm-key-planned" aria-disabled="true" onClick={() => setNote('Deleting a person needs a route the store does not have. Nothing was sent.')}><PlannedGlyph size={14} /> Delete<span className="jm-key-word">PLANNED</span></button>
+          </div>
+          {note && <p className="jm-note" role="status">{note}</p>}
+        </>
+      ) : <p className="jm-muted jm-ring-hint">{people.length ? 'Pick a bead or a name.' : ''}</p>}
+    </>
+  )
+
+  if (v3) {
+    const simState = port.simulated ? 'simulated' : 'live'
+    return (
+      <div className="jm jm3 jm-people" data-view="people" data-simulated={port.simulated ? 'true' : undefined}>
+        <Zones
+          first={{
+            job: 'FIND',
+            peek: { name: 'Find', lamp: v.state === 'fault' ? 'fault' : v.state === 'ready' ? simState : 'waiting', note: v.state === 'ready' ? `${people.length} listed` : 'reading people' },
+            children: (
+              <div className="jm3-scroll" aria-label="People as a list">
+                <div className="jm3-bar"><Lamp reading={lamp} subject="People" /><span className="jm-dim">alphabetical, never ranked</span></div>
+                {v.state === 'fault' && <p className="jm-note" role="alert">People did not load ({v.error}).</p>}
+                {v.state === 'ready' && people.length === 0 && <p className="jm-muted">No people are stored yet. They appear when a message archive is imported.</p>}
+                <ul className="jm-plist" data-testid="people-list">
+                  {people.map((p) => (
+                    <li key={p.name}>
+                      <button type="button" className="jm-list-row" aria-current={sel === p.name || undefined} onClick={() => setSel(p.name)}>
+                        <span className="jm-tag">{initialsOf(p.name)}</span><span className="jm-list-t">{p.name}</span><LastBar p={p} now={now} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ),
+          }}
+          second={{
+            job: 'PERSON',
+            peek: { name: 'Person', lamp: cur ? simState : 'waiting', note: cur ? undefined : 'nobody picked' },
+            children: <div className="jm3-card" data-testid="person-card" aria-live="polite">{card}</div>,
+          }}
+          third={{
+            job: 'BASIS',
+            peek: { name: 'Basis', lamp: v.state === 'fault' ? 'fault' : v.state === 'ready' ? simState : 'waiting', note: v.state === 'ready' ? `${people.length} people` : 'reading people' },
+            children: (
+              <div className="jm3-scroll" aria-label="Where this list comes from">
+                <p className="jm-mono jm-dim">{people.length ? `${people.length} people` : 'no reading'}</p>
+                <p className="jm-lead">People come from message archives you imported. The list is alphabetical and never ranked: a person is not a score.</p>
+                <p className="jm-lead">The ring picture of the classic look is not drawn here; the list is the same people in the same order.</p>
+              </div>
+            ),
+          }}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="jm jm-two jm-people" data-view="people" data-simulated={port.simulated ? 'true' : undefined}>
@@ -78,20 +145,7 @@ export function PeopleView({ port, now: nowMs }: PeopleViewProps) {
             )
           })}
           <div className="jm-ring-core" data-testid="person-card" aria-live="polite">
-            {cur ? (
-              <>
-                <AsciiPortrait initials={initialsOf(cur.name)} />
-                <h3 className="jm-p-name">{cur.name}</h3>
-                <p className="jm-dim jm-mono">{fmtN(cur.n_msgs)} messages · {(cur.span_days / 365).toFixed(1)} years{cur.calls ? ` · ${cur.calls} calls` : ''}</p>
-                <LastBar p={cur} now={now} />
-                <span className="jm-seed"><Sigil seed={cur.name} size={24} label={`Seed glyph of ${cur.name}`} /></span>
-                <div className="jm-row">
-                  <button type="button" className="jm-key jm-key-planned" aria-disabled="true" onClick={() => setNote('Fixing a person needs a route the store does not have. Nothing was sent.')}><PlannedGlyph size={14} /> Fix<span className="jm-key-word">PLANNED</span></button>
-                  <button type="button" className="jm-key jm-key-planned" aria-disabled="true" onClick={() => setNote('Deleting a person needs a route the store does not have. Nothing was sent.')}><PlannedGlyph size={14} /> Delete<span className="jm-key-word">PLANNED</span></button>
-                </div>
-                {note && <p className="jm-note" role="status">{note}</p>}
-              </>
-            ) : <p className="jm-muted jm-ring-hint">{people.length ? 'Pick a bead or a name.' : ''}</p>}
+            {card}
           </div>
         </div>
         {people.length > RING_MAX && <p className="jm-dim jm-ring-more">{people.length - RING_MAX} more in the list.</p>}

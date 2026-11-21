@@ -221,6 +221,8 @@ export interface DetailProps {
   /** A fact was typed on the capture line; resolves when it is stored. */
   onRemember: (text: string) => Promise<void>
   onEcho: (state: EchoLine['state'], text: string) => void
+  /** The v3 look splits the pane over two trays: `found` is the selected item, `holds` is what the store holds and the reminders. */
+  part?: 'found' | 'holds'
 }
 
 export function Detail(p: DetailProps) {
@@ -230,6 +232,22 @@ export function Detail(p: DetailProps) {
     if (parsed.grammar !== 'jarvis') return
     if (parsed.verb === 'help') { p.onEcho('waiting', 'remember <text> stores one fact. Search is the field above.'); return }
     if (parsed.verb === 'remember') { void p.onRemember(parsed.args).then(() => setRound((r) => r + 1)) }
+  }
+  if (p.part === 'found') {
+    return p.selected ? (
+      <div className="jm3-part" aria-label="Selected item" data-testid="detail-found">
+        <NodeBody key={p.selected.id} port={p.port} node={p.selected} total={total} fixes={p.fixes} onEcho={p.onEcho}
+          onWritten={p.onWritten} onRemoved={p.onRemoved} onSelect={p.onSelect} ask={p.ask} />
+      </div>
+    ) : null
+  }
+  if (p.part === 'holds') {
+    return (
+      <div className="jm3-part" aria-label="What is held">
+        <Idle stats={p.stats} galaxy={p.galaxy} taste={p.taste} simulated={p.port.simulated} />
+        <ReminderStrip {...p.reminders} />
+      </div>
+    )
   }
   return (
     <aside className="jm-detail" aria-label="Detail">

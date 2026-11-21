@@ -1,0 +1,209 @@
+/* ==========================================================================
+   The v3 shell's TOKEN layer: a token file in the sense of the repo's style lint (colour, duration and easing values live
+   here and nowhere else in this folder). It holds the NAMES of design-language-v3.md section 2 with the section's values, so the
+   shell draws correctly before the tokens package (styles/design/clay/glass.css) lands and after it.
+
+   Why :root:where([data-look='v3']): specificity (0,1,0). That beats the legacy :root rules of styles/tokens.css (same
+   specificity, this file loads later) and LOSES to the tokens package's :root[data-look='v3'] (0,2,0), so when glass.css
+   lands its values win without an edit here. Every value below is the spec's, except the dark ground, which carries the
+   round-3 jury's cooler, more saturated glass (blur 40, saturate 1.5, brightness .5 over a blue-leaning tint, an inner
+   top-left glare of .07). The tokens package should adopt those three numbers; see README.md.
+
+   Contrast (spec 2.7), dark ground, worst backdrop white: the brightness term lowers it to 128, ground = 16 x .72 + 128 x .28 =
+   47 and the spine 11 x .66 + 128 x .34 = 51, so ink2 (#C6C9CF) reads 8.1 to 1 or better. The desktop host cannot apply the
+   brightness term, so there (data-host) the alphas rise to .78 and .76: ground 16 x .78 + 255 x .22 = 69, spine 11 x .76 +
+   255 x .24 = 70, ink2 5.7 to 1.
+   ========================================================================== */
+:root:where([data-look='v3']) {
+  --ink: #f3f4f6;
+  --ink2: #c6c9cf;
+  --ink3: #a9adb5;
+  --ground-rgb: 16, 17, 20;
+  --ga: 0.72;
+  --spine-rgb: 11, 12, 15;
+  --sa: 0.66;
+  --tray-rgb: 36, 38, 43;
+  --ta: 0.5;
+  --trayn-rgb: 50, 53, 60;
+  --tna: 0.74;
+  --trayl-rgb: 30, 32, 36;
+  --tla: 0.34;
+  --well-rgb: 8, 8, 10;
+  --wa: 0.94;
+  --glass-filter: blur(40px) saturate(1.5) brightness(0.5);
+  --edge: inset 1px 1px 0 rgba(255, 255, 255, 0.07);
+  --pop: #1d1f23;
+  --raised: #282a2e;
+  --raised-hi: #33363b;
+  --lit-a: #4a4e57;
+  --lit-b: #383b42;
+  --hi: rgba(255, 255, 255, 0.075);
+  --lo: rgba(0, 0, 0, 0.58);
+  --lot: rgba(0, 0, 0, 0.58);
+  --glare: rgba(255, 255, 255, 0.1);
+  --sheen: rgba(255, 255, 255, 0.1);
+  --live: #46d6c8;
+  --live-ping: rgba(70, 214, 200, 0.5);
+  --fault: #e5484d;
+  --sim: #b9a6ff;
+  --locked: #9a9ea6;
+  --track: rgba(255, 255, 255, 0.1);
+  --focus: #ffffff;
+  --gap: #0d0d0f;
+  --accent: #f2591a;
+  --accent-hi: #ff6e2e;
+  --accent-lo: #ec5314;
+  --on-accent: #190b04;
+  --s3-off-lift: rgba(255, 255, 255, 0.035);
+  --s3-scrim: rgba(0, 0, 0, 0.35);
+  --s3-glow: rgba(242, 89, 26, 0.35);
+  --s3-glow-hover: rgba(242, 89, 26, 0.45);
+  --s3-accent-press: inset 3px 3px 9px rgba(120, 30, 0, 0.55), inset -2px -2px 6px rgba(255, 180, 140, 0.35);
+  --s3-flare: rgba(255, 255, 255, 0.34);
+}
+
+/* the light ground (Well Wisher) follows the clay theme the shell already sets on <html> */
+:root:where([data-look='v3'][data-theme='clay-light']) {
+  --ink: #15181c;
+  --ink2: #2c3238;
+  --ink3: #363c44;
+  --ground-rgb: 228, 232, 235;
+  --ga: 0.76;
+  --spine-rgb: 238, 241, 243;
+  --sa: 0.78;
+  --tray-rgb: 242, 245, 247;
+  --ta: 0.72;
+  --trayn-rgb: 252, 253, 254;
+  --tna: 0.88;
+  --trayl-rgb: 236, 240, 243;
+  --tla: 0.58;
+  --well-rgb: 214, 219, 223;
+  --wa: 0.94;
+  --glass-filter: blur(40px) saturate(1.15) brightness(1.35);
+  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 1px 0 0 rgba(255, 255, 255, 0.5);
+  --pop: #f5f7f8;
+  --raised: #edf0f2;
+  --raised-hi: #f9fafb;
+  --lit-a: #ffffff;
+  --lit-b: #f1f3f5;
+  --hi: rgba(255, 255, 255, 0.95);
+  --lo: rgba(98, 110, 122, 0.4);
+  --lot: rgba(98, 110, 122, 0.5);
+  --glare: rgba(255, 255, 255, 0.65);
+  --sheen: rgba(255, 255, 255, 0.55);
+  --live: #0a7a72;
+  --live-ping: rgba(10, 122, 114, 0.4);
+  --fault: #b3261e;
+  --sim: #5b3fc4;
+  --locked: #575d65;
+  --track: rgba(21, 24, 28, 0.1);
+  --focus: #15181c;
+  --gap: #eef1f3;
+  --s3-off-lift: #ffffff;
+  --s3-scrim: rgba(21, 24, 28, 0.35);
+}
+
+/* the desktop host cannot apply the brightness term of the glass filter: the stricter alphas of spec 2.7 (dark ground only) */
+:root:where([data-look='v3'][data-host]:not([data-theme='clay-light'])) {
+  --ga: 0.78;
+  --sa: 0.76;
+}
+
+/* glass off: the same hues, fully opaque (spec 2.6) */
+:root:where([data-look='v3'][data-glass='off']) {
+  --ga: 1;
+  --sa: 1;
+  --ta: 1;
+  --tna: 1;
+  --tla: 1;
+  --wa: 1;
+  --glass-filter: none;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root:where([data-look='v3']) {
+    --ga: 1;
+    --sa: 1;
+    --ta: 1;
+    --tna: 1;
+    --tla: 1;
+    --wa: 1;
+    --glass-filter: none;
+  }
+}
+
+/* shared by both grounds: the soft-key shadows and radii of spec 2.4 */
+:root:where([data-look='v3']) {
+  --sh-raise: -4px -4px 10px var(--hi), 6px 6px 14px var(--lo);
+  --sh-raise-hover: -5px -5px 13px var(--hi), 8px 8px 19px var(--lo);
+  --sh-press: inset 3px 3px 8px var(--lo), inset -3px -3px 8px var(--hi);
+  --sh-tray: -6px -6px 18px var(--hi), 10px 10px 28px var(--lot, var(--lo));
+  --sh-now: -9px -9px 26px var(--hi), 16px 16px 42px var(--lo);
+  --sh-later: -3px -3px 10px var(--hi), 6px 6px 16px var(--lo);
+  --s3-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --s3-d-key: 140ms;
+  --s3-d-digit: 160ms;
+  --s3-d-state: 200ms;
+  --s3-d-pop: 150ms;
+  --s3-d-sheet: 300ms;
+  --s3-d-tint: 450ms;
+  --s3-d-rise: 500ms;
+  --s3-delay-2: 70ms;
+  --s3-delay-3: 140ms;
+  --s3-d-glint: 1200ms;
+  --s3-delay-glint: 450ms;
+  --s3-d-flare: 1300ms;
+  --s3-d-ping: 1400ms;
+  /* the accent key: only warm fill; its key caps are pressed-in wells with a 5.9 to 1 label (spec 2.4) */
+  --s3-kcap-bg: #a23a0d;
+  --s3-kcap-ink: #ffede3;
+  --s3-kcap-sh: inset 1px 1px 2px rgba(120, 30, 0, 0.5), inset -1px -1px 2px rgba(255, 180, 140, 0.3);
+}
+
+/* the tinted layers are declared ON the shell element, so a high-contrast or forced-colours override of an alpha (below) reaches them */
+.s3 {
+  /* the tinted layers: a colour and its alpha, never a blur (spec 2.1) */
+  --s3-ground: rgba(var(--ground-rgb), var(--ga));
+  --s3-rim: rgba(var(--ground-rgb), 0.16);
+  --s3-spine: rgba(var(--spine-rgb), var(--sa));
+  --s3-tray: rgba(var(--tray-rgb), var(--ta));
+  --s3-trayn: rgba(var(--trayn-rgb), var(--tna));
+  --s3-trayl: rgba(var(--trayl-rgb), var(--tla));
+  --s3-well: rgba(var(--well-rgb), var(--wa));
+  --s3-well-50: rgba(var(--well-rgb), 0.5);
+  --s3-well-38: rgba(var(--well-rgb), 0.38);
+  --s3-well-30: rgba(var(--well-rgb), 0.3);
+  --s3-well-28: rgba(var(--well-rgb), 0.28);
+}
+
+/* glass off again, on the element: it holds whatever the root's alphas are (the tokens package may set them at higher specificity) */
+.s3[data-glass='off'] {
+  --ga: 1;
+  --sa: 1;
+  --ta: 1;
+  --tna: 1;
+  --tla: 1;
+  --wa: 1;
+  --glass-filter: none;
+}
+
+/* high contrast and forced colours win: opaque, as spec 8.2 says. On the element, so it beats whatever the root carries. */
+:root[data-contrast='high'] .s3 {
+  --ga: 1;
+  --sa: 1;
+  --ta: 1;
+  --tna: 1;
+  --tla: 1;
+  --wa: 1;
+  --glass-filter: none;
+}
+@media (forced-colors: active) {
+  .s3 {
+    --ga: 1;
+    --sa: 1;
+    --ta: 1;
+    --tna: 1;
+    --tla: 1;
+    --wa: 1;
+    --glass-filter: none;
+  }
+}

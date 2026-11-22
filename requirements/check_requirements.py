@@ -78,6 +78,10 @@ IMPORTED_NOT_REQUIRED = {
     "nvidia": "core/jarvis.py adds nvidia-cublas/cudnn wheel folders to PATH when they "
               "exist. They are not installed: torch's CUDA build supplies cuBLAS (see "
               "INDIRECT['torch']) and CTranslate2 ships its own cuDNN.",
+    "Microsoft": "app/jarvis_app/backdrop.py reads Microsoft.Win32.SystemEvents to follow a theme "
+                 "change. It is a .NET namespace, not a pip package: pythonnet, which pywebview "
+                 "installs and loads on Windows, makes it importable. Without it the window glass "
+                 "only loses its theme watcher (the import sits in a try block and is logged).",
 }
 
 # Listed in requirements.gpu.txt although no JARVIS file imports them.

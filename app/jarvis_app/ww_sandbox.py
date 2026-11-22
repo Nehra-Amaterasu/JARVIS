@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[2]
 REAL_DATA = ROOT / "data" / "app"
 REAL_INPUTS = ROOT / "data" / "notes" / "well-wisher" / "engine-inputs.json"
 SKIP = {"firmware", "media", "transcripts", "watchdog.lock", "instance.json", "jarvis.log", "health.log",
-        "core_crashes.log", "watchdog.log"}
+        "core_crashes.log", "watchdog.log", "gcr"}   # gcr: originals can be gigabytes, and the copy must not carry his files
 
 
 def make_copy(dest: Path, fresh: bool) -> Path:
@@ -55,6 +55,7 @@ def main(argv=None) -> int:
     os.environ["JARVIS_PHONE"] = "0"             # never bind the real phone port
     os.environ["JARVIS_AUTOSTART_CORE"] = "0"
     os.environ["JARVIS_UNO"] = "off"
+    os.environ["JARVIS_GOOGLE"] = "off"          # a copy for audits must not sign in to Google or pull his files
     os.environ["JARVIS_TOKEN"] = a.token
     print(f"sandbox data: {copy}", flush=True)
     from . import desktop

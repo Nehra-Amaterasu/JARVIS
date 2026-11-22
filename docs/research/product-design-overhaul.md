@@ -2,6 +2,24 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-22: the Classroom shelf and the reader in Study
+
+**Question.** Can the read-only Classroom link (routes G-01 to G-13 under `/api/mission/gcr`, built on the engine side at the same time) get its screen in Study, against the fixed route contract, without touching anything outside `app/ui`?
+
+**Answer.** Yes, the screen is built and tested against a fake engine; it has not met the real engine yet.
+
+**What was built (all under `app/ui/src/ww/study`).**
+- `adapters/gcr.ts`, `gcrTypes.ts`, `gcr.register.ts`: the `classroom()` member of the Study port from G-01 (rank 10, supplies only that member), and a typed client `gcrClient` for G-02 to G-13. The engine's state and sentence pass through; a 400 or 409 keeps the engine's own sentence; a 404 "Not Found" on the prefix is WAITING "engine routes not found" (from the app, so no key is drawn for it); with the product gate off or no token no request is made (PLANNED status, WAITING for the rest). Every call takes the caller's AbortSignal and `abortAll()` cancels all. The original (G-11) is fetched with the token header and shown from a blob URL that is revoked on close, on another file and on unmount. `ClassroomStatus` in `ports.ts` gained optional fields only.
+- `classroom/`: `useClassroomLink` (G-01 plus the two 2 s polls, one while a sign-in is open and one while a sync runs, both cleared on unmount), `LinkPanel` (state word, the engine's reason, the keys that fit the state), `ClassroomPlate`, `ClassroomShelf`, `ShelfPanes`, `Reader`, and `markdown.tsx` (a small renderer for the front matter, `#` to `###`, `>` quotes and paragraphs; elements are built from text, so a `<script>` in a note stays text).
+- The Intake desk's Classroom plate (`intake/Doors.tsx`, `IntakeDesk.tsx`) is real: PLANNED and WAITING keep their words and no key; WAITING from the engine and FAULT draw Connect (disabled with "Approve in the browser window that opened." while connecting); LIVE draws Sync now, the last sync time, the counts, the job's text, the faults of the last sync (first 5, then "and N more"), Open the shelf and Disconnect.
+- The shelf is a third face of Study > Library beside Intake and Library (`intake/IntakeDeskView.tsx`). Under the v3 look its three trays are COURSES (the link, Sync now, the courses with subject select and include switch), FILES (search, kind filter, the files of the chosen course) and READER (the chosen file's keys: Read note, Open original, Open in its own program, Mark as paper or notes, Send to paper desk, then the note or the original). Under the current look the same parts sit in one row that folds to one column below 900 px of desk width.
+
+**Numbers.** `npx tsc -b` clean. `npx vitest run src/ww/study src/__tests__/ww src/__tests__/shared src/__tests__/tokens.test.ts`: 46 files, 1615 tests passed (53 of them new: 20 for the adapter, 33 for the screens and the renderer). The repo-wide CSS, motion, lamp and import lints stayed green with the two new stylesheets.
+
+**What it changed.** The Classroom plate no longer says PLANNED when the engine answers. The null adapter's `classroom` answer is unchanged and still what a window with no token shows.
+
+**Not done.** No browser check at 1366x768, 1120x720 and 390x844 (the layout is written to fold, but no screenshot was taken). No run against the real engine routes. The shelf has no per-course sync from the course row (only "Sync this course" for the chosen course). Sync progress is read from G-05 only while the job runs; G-01 is read again when it ends.
+
 ## 2026-11-21: design language v3 built (window glass, tokens and kit, shell), then every view fitted in one fast pass
 
 **Question.** Can the v3 look of `docs/design/design-language-v3.md` be built beside the current look, inert until switched on, and can all 36 views be fitted into it in one day with no jury (the owner's exam week: complete, not polished)?

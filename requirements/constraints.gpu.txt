@@ -12,6 +12,7 @@ anyio==4.14.2
 attrs==26.1.0
 av==18.0.0
 backports.functools-lru-cache==2.0.0
+backports.tarfile==1.2.0
 bottle==0.13.4
 certifi==2026.6.17
 cffi==2.1.0
@@ -20,6 +21,7 @@ click==8.4.2
 clr_loader==0.3.1
 colorama==0.4.6
 contourpy==1.3.3
+cryptography==49.0.0
 ctranslate2==4.8.1
 cycler==0.12.1
 deprecation==2.1.0
@@ -34,18 +36,25 @@ flatbuffers==25.12.19
 fonttools==4.67.0
 frozenlist==1.8.0
 fsspec==2026.4.0
+google-auth==2.63.1
+google-auth-oauthlib==1.5.0
 h11==0.16.0
 hf-xet==1.5.2
 httpcore==1.0.9
 httpx==0.28.1
 huggingface_hub==1.24.0
 idna==3.18
+importlib_metadata==9.0.0
 indic_transliteration==2.3.82
 iniconfig==2.3.1
+jaraco.classes==3.4.0
+jaraco.context==6.1.2
+jaraco.functools==4.6.0
 Jinja2==3.1.6
 joblib==1.5.3
 jsonpatch==1.33
 jsonpointer==3.1.1
+keyring==25.7.0
 kiwisolver==1.5.1
 kokoro-onnx==0.6.1
 lance-namespace==0.9.0
@@ -60,6 +69,7 @@ markdown-it-py==4.2.0
 MarkupSafe==3.0.3
 matplotlib==3.11.2
 mdurl==0.1.2
+more-itertools==11.1.0
 mpmath==1.3.0
 multidict==6.7.1
 mutagen==1.48.1
@@ -67,6 +77,7 @@ narwhals==2.24.0
 networkx==3.6.1
 numpy==2.4.4
 nvidia-ml-py==13.615.71
+oauthlib==3.3.1
 ollama==0.6.2
 onnxruntime==1.27.0
 openwakeword==0.6.0
@@ -82,6 +93,8 @@ protobuf==6.33.6
 proxy_tools==0.1.0
 psutil==7.2.2
 pyarrow==25.0.0
+pyasn1==0.6.5
+pyasn1_modules==0.4.2
 pycparser==3.0
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -96,11 +109,13 @@ python-docx==1.2.0
 python-pptx==1.0.2
 pythonnet==3.2.1
 pywebview==6.2.1
+pywin32-ctypes==0.2.3
 PyYAML==6.0.3
 rank-bm25==0.2.2
 RapidFuzz==3.14.6
 regex==2026.7.19
 requests==2.34.2
+requests-oauthlib==2.0.0
 requests-toolbelt==1.0.0
 rich==15.0.0
 roman==5.2
@@ -135,4 +150,5 @@ websockets==16.1.1
 xlsxwriter==3.2.9
 xxhash==3.8.1
 yarl==1.24.5
+zipp==4.1.0
 zstandard==0.25.0

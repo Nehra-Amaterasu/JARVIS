@@ -36,6 +36,8 @@ ROUTE_FILES = sorted(APP_DIR.glob("*.py"))          # server.py defines routes t
 DOC_FILES = (APP_DIR / "routes_mission.py", APP_DIR / "routes_ww_resources.py", APP_DIR / "routes_ww_knowledge.py", APP_DIR / "routes_phone_ww.py", APP_DIR / "routes_phone.py")
 # The question engine (wave EW7) keeps its route table in each routes_ww_pyq*.py docstring; the glob takes a new file in without an edit here.
 DOC_FILES += tuple(sorted(APP_DIR.glob("routes_ww_pyq*.py")))
+# The Google link (G-01 to G-13) keeps its route table in the docstring of routes_ww_gcr.py.
+DOC_FILES += (APP_DIR / "routes_ww_gcr.py",)
 
 _DECOR = re.compile(r"@app\.(get|post|put|delete|patch)\(\s*\"([^\"]+)\"")
 _DOCROW = re.compile(r"^\s{2,}(GET|POST|PUT|DELETE|PATCH)\s+((?:/api/|/phone)\S*)", re.M)

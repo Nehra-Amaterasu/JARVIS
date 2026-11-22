@@ -1,7 +1,7 @@
-// IntakeDesk (package C03, spec 21.4.2 S4 and S6): the Manual Intake desk. Four doors (Folder, Paste, Calendar file, Archive) and a
-// PLANNED Classroom plate on top; under them the ledger of what was brought in, each item with where it came from, and on the
+// IntakeDesk (package C03, spec 21.4.2 S4 and S6): the Manual Intake desk. Four doors (Folder, Paste, Calendar file, Archive) and the
+// Classroom plate (PLANNED or WAITING with its reason until the link answers, then its keys) on top; under them the ledger of what was brought in, each item with where it came from, and on the
 // right the chosen item with Accept and Decline. Nothing is accepted without his press and no accepted deadline changes a count
-// by itself. It reads through two ports: `StudyPort.intake()` and `.classroom()` (frozen, status only) and the wider
+// by itself. It reads through `StudyPort.intake()`, the Classroom client for the plate, and the wider
 // `IntakeDeskPort` of this folder. With the null adapters every answer is WAITING with a reason, so a fresh install draws an
 // honest hollow desk; the gallery and the tests hand it the fixture desk (invented rows, SIMULATED).
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
@@ -10,6 +10,9 @@ import type { ToastItem } from '../../../shared/kit/Toast'
 import { Lamp, readingOf, showsNumber, type LampReading, type LampState } from '../../../shared/lamp'
 import { lookV3Enabled, useViewChrome, Zones, type ViewChromeSpec } from '../../../shell/v3'
 import { STUDY_PORT, type StudyPort } from '../ports'
+import type { GcrClient } from '../adapters/gcr'
+import { gcrClient } from '../adapters/gcr.register'
+import { ClassroomPlate } from '../classroom/ClassroomPlate'
 import { COPY } from './copy'
 import { Doors, type DoorId } from './Doors'
 import { ArchiveBody } from './ExportImportDrop'
@@ -31,6 +34,10 @@ type Sheet = DoorId | 'courses'
 export interface IntakeDeskProps {
   desk?: IntakeDeskPort
   study?: StudyPort
+  /** The Classroom client the plate reads (the tests hand a fake). */
+  gcr?: GcrClient
+  /** Opens the Classroom shelf; the plate offers it once the link is live. */
+  onShelf?: () => void
   /** Fixed clock (gallery and tests). */
   now?: number
   /** A sheet that starts open. */
@@ -46,13 +53,12 @@ export interface IntakeDeskProps {
 const WAITING: DeskHead = { state: 'waiting', reason: 'reading your list' }
 const reading = (state: LampState, reason: string): LampReading => readingOf({ state, reason })
 
-export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, now: nowProp, open, demo, initialFilter = 'new', initialSel, extra }: IntakeDeskProps) {
+export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, gcr = gcrClient, onShelf, now: nowProp, open, demo, initialFilter = 'new', initialSel, extra }: IntakeDeskProps) {
   const now = useMemo(() => nowProp ?? Date.now(), [nowProp])
   const [head, setHead] = useState<DeskHead>(WAITING)
   const [rows, setRows] = useState<IntakeRow[]>([])
   const [subjects, setSubjects] = useState<SubjectOption[]>([])
   const [folder, setFolder] = useState<LampReading>(reading('waiting', 'choose a folder to watch'))
-  const [classroom, setClassroom] = useState<LampReading>(reading('planned', 'not linked'))
   const [filter, setFilter] = useState<Filter>(initialFilter)
   const [page, setPage] = useState(0)
   const [sel, setSel] = useState<string | null>(initialSel ?? null)
@@ -71,10 +77,9 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, now: nowPr
   useEffect(() => { void load() }, [load])
   useEffect(() => {
     let live = true
-    void Promise.all([study.intake(), study.classroom()]).then(([f, c]) => {
+    void study.intake().then((f) => {
       if (!live) return
       setFolder(reading(f.state, f.state === 'live' || f.state === 'simulated' ? `${f.data?.files ?? 0} files seen` : f.reason))
-      setClassroom(reading('planned', c.reason))
     })
     return () => { live = false }
   }, [study])
@@ -170,6 +175,7 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, now: nowPr
   }
 
   const close = () => setSheet(null)
+  const plate = <ClassroomPlate client={gcr} onShelf={onShelf} />
   const emptyTitle = !live ? `Waiting: ${head.reason}` : rows.length === 0 ? COPY.emptyTitle : COPY.noMatch
   const emptyNote = rows.length === 0 ? COPY.emptyNote : filter === 'new' ? 'Nothing is waiting for you.' : 'Nothing here yet.'
 
@@ -274,7 +280,7 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, now: nowPr
             peek: { name: 'Doors', lamp: head.state, note: 'ways to bring items in' },
             children: (
               <div className="ik3-col ik3-doors">
-                <Doors readings={readings} classroom={classroom} onOpen={(id) => setSheet(id)} />
+                <Doors readings={readings} plate={plate} onOpen={(id) => setSheet(id)} />
               </div>
             ),
           }}
@@ -305,7 +311,7 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, now: nowPr
           {extra}
         </header>
 
-        <Doors readings={readings} classroom={classroom} onOpen={(id) => setSheet(id)} />
+        <Doors readings={readings} plate={plate} onOpen={(id) => setSheet(id)} />
 
         <div className="ik-main">
           <IntakeLedger

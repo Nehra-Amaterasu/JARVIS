@@ -218,6 +218,12 @@ export interface IntakeStatus {
 export interface ClassroomStatus {
   connected: boolean
   courses: number
+  /** Added with the Classroom link (all optional, so nothing that read the two fields above changes). */
+  connecting?: boolean
+  syncedAt?: string
+  scopes?: { name: string; label: string; granted: boolean }[]
+  counts?: { courses: number; files: number; notes: number; papers: number; faults: number } | null
+  job?: { status: 'idle' | 'running' | 'done' | 'failed'; started: string | null; finished: string | null; text: string; fault_lines: string[] } | null
 }
 
 export interface QuestionFilter {

@@ -2,6 +2,73 @@
 
 The running research file of the engine lane (the Python side of Well Wisher). Newest section on top. The plan it serves is `docs/design/well-wisher-engine-plan.md`; the screens are the UI lane's (`docs/research/product-design-overhaul.md`).
 
+## 2026-11-22 (evening): the Google link after an independent review
+
+**Question.** An independent review of the Google link (`app/jarvis_app/ww_gcr/`, `routes_ww_gcr.py`) found ways to lose his hand edits, to end a whole run on one bad file, to show counts that were not true, and to trust names and ids from Google. Can each be closed with a test that fails on the old code, without changing the route contract the UI codes against?
+
+**Fixed, each with the failure it prevents** (numbers are the review's):
+- A1 One re-entrant lock per store folder for the whole process, and `GcrStore.update(fn)`. Before, the routes built a store per request, so its lock protected nothing.
+- A2 The sync writes one course record, one file record or the run's faults onto a freshly read manifest, never a whole copy loaded at the start. A kind or subject set by hand and a `paper_id` written during a run were silently reverted. PATCH is no longer 409 during a sync; one file is on its way to the paper desk at most once (a set, checked and marked under one lock), and a sync is 409 only while a hand-off is in flight.
+- A3 A damaged manifest is moved to `manifest.json.bad-<UTC time>`, and `ManifestError` carries a sentence; every route answers `fault` with it. Before, any read error returned a blank manifest, and the next save wrote it over the real one. Only the sync may rebuild from blank; a hand edit in that state is a fault, not a one-line manifest.
+- A4 Unique temporary file per write, flushed and fsynced, then `os.replace` up to 10 times 50 ms apart on PermissionError (the note writer and the download too). Before, two writers shared `manifest.json.tmp`, and a reader's open handle on Windows ended the whole sync. A download that still cannot take its name is a fault of that one file ("open in another program").
+- B5 A dropped connection or a refused disk is a fault of that file; an unexpected error is a fault of that course; an account that fails does not stop the next one, and the job is `failed` only when every account failed.
+- B6 Each file record is saved as soon as it is fetched: a run that dies keeps what it fetched.
+- B7 A `fetched` event after a successful fetch; the job counts only those, and a failed run reports the real partial counts. A run that failed after starting 4 fetches and finishing 2 showed 4; it shows 2. `files` counts unique ids.
+- B8 A stop leaves every loop (the attachment loop kept calling Google), the job ends `stopped` with "Stopped before it finished.", and `synced_at` is left as it was.
+- B9 A 401 forgets the account's cached token, gets a new one and retries once. Before, a rejected token was reused for up to 3000 s. `GoogleApi(token=..., transport=...)` still works; `on_unauthorized` is the new seam.
+- B10 After `invalid_grant`, the status is `fault` with the revoked/7-day sentence until a connect or a refresh succeeds. Before, it said `live` from the credential store alone.
+- B11 The files route counts any live account as connected, not only the main one.
+- C12 A name gives an extension only from a closed list of 26 document, picture and archive types; anything else is `bin`. "Notes v1.5 final" gave `5final`, and `lecture.exe` would have been saved as `.exe`.
+- C13 Every download gets the Mark of the Web (`:Zone.Identifier`, ZoneId=3), so Word and PowerPoint open it in Protected View. Ignored where there are no streams; skipped off Windows.
+- C14 One Drive file attached in two courses or posts stays with the first; the other places go to `also_in`. Before, it was downloaded into both folders and its record flipped between them on every run.
+- C15 A failed re-fetch keeps the good copy, its note and its `modified`; state stays `live`, `stale: true`, and the reason says the newer version could not be fetched. Before, path and note were wiped.
+- C16 `exportSizeLimitExceeded` reads "Too large for Google to export as PDF (over 10 MB): open it in Google Drive." A lasting refusal (403, 404, 413) is not asked again until the file's `modified` changes.
+- C17 Shortcuts are followed one hop; a Form, Site, Map, Jamboard or any other non-exportable Google type is a link of the course, not a download.
+- C18 Folder listings are `orderBy: name` (the cap keeps the same files every run), and a fault line says when the 200-file cap or the two-level depth cut a folder short.
+- C19 Drive ids are checked against `_SAFE_ID` at every entry (attachment, shortcut target, folder, child); course ids against the same alphabet. An id that fails is skipped with a fault line and never reaches a path or a URL.
+- C20 Titles, course and post names, and section headings in a note are one line: a newline can no longer end the front matter or add a heading.
+- D21 The hand-off waits at most 10 minutes for the paper desk and honours the stop event. The thread starts inside the try, so the mark is always released. Before, a desk job stuck in `running` made every later sync 409 until the app restarted.
+- D22 A file that already has a `paper_id` answers "Already at the paper desk." with that id, and nothing is sent again.
+- E23 An offline disconnect still forgets the token here and says so ("Forgotten on this PC. Google could not be told..."); the account's index entry goes even when deleting the secret fails.
+- E24 `{"courses": []}` is a 400 with a sentence. Before, it was read as "all courses".
+- E25 The docstrings now say the status carries the short names he chose, never an address.
+
+**Measured.** `test_gcr_core.py`, `test_gcr_routes.py` and `test_ww_gate.py`: 85 passed (as before). The new `test_gcr_integrity.py`: 38 passed; the same 38 run against the committed code: 35 failed and 3 errored (fixtures that need the new in-memory failure record), so every one pins a real fault. All four files: 123 passed in 37 s. One manifest update with 1000 files (481 KB, read, write and fsync) takes 43 ms, so one save per fetched file costs less than the download it follows, and an unchanged file is not saved at all.
+
+**Tests changed on purpose.** In `test_gcr_core`, the file whose owner forbids downloads is no longer fetched again on the second run (C16), and the fake now answers `shortcutDetails` and `webViewLink`. In `test_gcr_routes`, a PATCH during a sync is 200 or 404, not 409 (A2), and the file item has two new fields, `stale` and `also_in`. No field was removed or renamed; the job status `stopped` is new, and G-05 shows it as state `waiting`.
+
+**Chosen not to fix, and why.**
+- Course ids are checked with the Drive alphabet but a length of 1 to 120, not `_SAFE_ID`'s 6 to 120. The real ids are 12 to 13 digits, the fixture's are 4, and the danger is the characters, not the length.
+- Only lasting refusals skip the retry. A 429, a 5xx, a dropped connection or a busy disk is asked again on the next run, because waiting is what cures those.
+- The "set aside" fault is remembered in memory. After an app restart, a set-aside manifest reads as "no course read yet"; the damaged copy stays on disk next to it.
+- A revoke answered with 400 counts as told: Google already holds that token as dead, so there is nothing left for him to remove.
+- There is still no stop route: only the app's shutdown sets the stop event.
+- Notes are now written with LF line endings (text mode on Windows wrote CRLF before). Every reader here handles both.
+
+**What the list missed, now fixed too.** The note writer had the same fixed `.tmp` name and single replace, and its OSError would have ended the run. A failed fetch that recorded Google's newer `modified` would have made the next run call a never-fetched version "unchanged"; the record keeps the copy's `modified` and the failed version separately. The sync's own end-of-run hand-off and a hand press on the same file could both send it; both now go through the same set.
+
+**Open.** Nothing was run against the real Google or his store: only the fake. Two accounts that both see one file now fetch it once (one `seen` set per run), but which account fetches it depends on the order of the accounts.
+
+## 2026-11-22 (later): the Google link's routes
+
+**Question.** The core of the Google link (sign-in, Classroom reading, a sync to disk) had no door. Can the UI reach it through one contract, can a Classroom test paper reach the paper desk without a second ingest path, and can the audit sandbox be kept from signing in?
+
+**Built.** `app/jarvis_app/routes_ww_gcr.py` (auto-mounted), routes G-01 to G-13 under `/api/mission/gcr`, the table in its docstring; two lines in `ww_check.py` and `ww_sandbox.py`; `tests/test_gcr_routes.py`.
+- One sign-in thread and one sync thread, each 409 on a second start. A failed sign-in keeps its sentence and G-01 shows it as `fault` until the next Connect. A sign-in that dies at the start of a sync ends the job `failed` with its sentence.
+- G-13 calls the existing `IngestJob` of the paper desk (`app.state.pyq_ingest`, or a private one when that feature is not mounted), so the two doors share one lock and one 409. A thread waits for the job and writes `paper_id` on the file record. A paper the rule found is sent the same way at the end of a sync, one after another, counted as `papers_sent`; one that fails is a line in `fault_lines` and the rest go on.
+- `JARVIS_GOOGLE=off` makes every route answer `planned` with one reason and Connect and Sync 400. The sandbox sets it and no longer copies `gcr/` (originals can be gigabytes).
+- G-12 opens a file only when its extension is on a closed list of 11 document types; a manifest line naming an `.exe` is 400 and the opener is not called.
+
+**Measured.** `tests/test_gcr_routes.py` 25 passed; with `test_gcr_core.py` (21) 46 passed. With `test_ww_gate.py` and every `test_pyq_*.py`: 352 passed in 88 s. `ww_check_pyq`: ok, 7 functions checked twice. `check_requirements.py`: OK (no new dependency). The route gate (`ww_check.route_drift`) reports no doc row without a route and no UI call without a route.
+
+**What surprised me.**
+- The route gate reads docstring tables only from a fixed file list (`DOC_FILES`); a new routes file is silently outside it until added. Added `routes_ww_gcr.py` explicitly.
+- Starlette's `FileResponse(filename=...)` writes `filename*=utf-8''...` as soon as the name has a space, not the plain quoted name the contract asks for; the header is now built by hand from an ASCII-only name.
+- An empty id (`PATCH /files/`) lands on the list route's address and answers 405, not 404; nothing is written either way, and the test says so.
+- The sync thread writes the whole manifest after every course, so a hand edit (G-07, G-09) or a G-13 write during a run would be lost. They are 409 while a sync runs, and a sync is 409 while a hand-off is pending. That is a limit, not a feature: two writers of one JSON file.
+
+**Open.** Counts shown while a sync runs are approximations from its events (courses read, files being fetched); the real counts replace them when it ends. A sign-in cannot be cancelled while its browser tab waits (it times out at 300 s). Original bytes are served by the same app that holds the token header, so an iframe or new tab on G-11 needs the UI's own way of sending the token; not tested here. Nothing was run against the real Google: only the fake.
+
 ## 2026-11-22: the first real papers through the reader, and a table grammar for them
 
 **Question.** The exam slice was proved on invented papers only. Does the reader work on the owner's real past papers, and can a practice paper be planned from one?

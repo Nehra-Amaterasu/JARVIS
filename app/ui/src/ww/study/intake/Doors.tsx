@@ -1,6 +1,8 @@
 // The four doors and the Classroom plate (package C03, spec 21.4.2 S6). Folder, Paste, Calendar file and Archive each take one
-// tab stop; Enter opens the door's sheet. The fifth tile is not a door: Classroom is drawn PLANNED with its reason until he signs
-// in, it is not focusable and says nothing about being linked. Each door carries its own lamp and the reason in words.
+// tab stop; Enter opens the door's sheet. The fifth tile is not a door: it is the Classroom plate. The desk hands it as `plate`
+// (the live one, with the keys of the link); without one the plate is drawn PLANNED with its reason, as before, not focusable and
+// saying nothing about being linked. Each door carries its own lamp and the reason in words.
+import type { ReactNode } from 'react'
 import { Lamp, readingOf, type LampReading } from '../../../shared/lamp'
 import { COPY } from './copy'
 
@@ -16,10 +18,13 @@ const DOORS: { id: DoorId; name: string; sub: string; key: string }[] = [
 export interface DoorsProps {
   readings: Record<DoorId, LampReading>
   onOpen: (id: DoorId) => void
-  classroom: LampReading
+  /** Used only when no `plate` is given. */
+  classroom?: LampReading
+  /** The Classroom plate, drawn by the desk (ClassroomPlate). */
+  plate?: ReactNode
 }
 
-export function Doors({ readings, onOpen, classroom }: DoorsProps) {
+export function Doors({ readings, onOpen, classroom = readingOf({ state: 'planned', reason: COPY.classroomReason }), plate }: DoorsProps) {
   return (
     <ul className="ik-doors" aria-label="Ways to bring items in" data-component="doors">
       {DOORS.map((d) => (
@@ -32,11 +37,13 @@ export function Doors({ readings, onOpen, classroom }: DoorsProps) {
         </li>
       ))}
       <li>
-        <div className="ik-door ik-plate" data-door="classroom" role="group" aria-label={`${COPY.classroomPlate}: ${classroom.state}. ${COPY.classroomReason}`}>
-          <span className="ik-door-top"><span className="ik-door-name">{COPY.classroomPlate}</span></span>
-          <span className="ik-door-sub">{COPY.classroomReason}</span>
-          <span className="ik-door-lamp"><Lamp reading={readingOf({ ...classroom, state: 'planned' })} /></span>
-        </div>
+        {plate ?? (
+          <div className="ik-door ik-plate" data-door="classroom" role="group" aria-label={`${COPY.classroomPlate}: ${classroom.state}. ${COPY.classroomReason}`}>
+            <span className="ik-door-top"><span className="ik-door-name">{COPY.classroomPlate}</span></span>
+            <span className="ik-door-sub">{COPY.classroomReason}</span>
+            <span className="ik-door-lamp"><Lamp reading={readingOf({ ...classroom, state: 'planned' })} /></span>
+          </div>
+        )}
       </li>
     </ul>
   )

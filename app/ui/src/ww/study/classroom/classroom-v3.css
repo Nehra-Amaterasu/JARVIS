@@ -1,0 +1,7 @@
+/* The Classroom shelf under the v3 look: COURSES, FILES and READER are the three trays the shell draws, so the shelf adds no
+   background, shadow or radius of its own to a tray (the contract in shell/v3/README.md). Every rule is under :root[data-look='v3']. */
+:root[data-look='v3'] .cr-shelf.cr-v3 { container-type: normal; padding: 0; inline-size: 100%; block-size: 100%; min-block-size: 0; display: block; }
+:root[data-look='v3'] .cr-v3 .cr-col { flex: 1 1 auto; }
+:root[data-look='v3'] .cr-v3 .cr-course, :root[data-look='v3'] .cr-v3 .cr-file { background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
+:root[data-look='v3'] .cr-v3 .cr-pick:hover { background: var(--surface-raised); }
+:root[data-look='v3'] .cr-v3 .cr-frame { block-size: 24rem; }

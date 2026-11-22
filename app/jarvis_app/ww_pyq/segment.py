@@ -398,10 +398,191 @@ def _bl(cell: str) -> Optional[int]:
     return int(m.group()) if m else None
 
 
-def read_tables(page, page_no: int) -> list[dict]:
+# ------------------------------------------------------------------ instruction tables
+# A second ruled layout, found on real papers on 22 Nov 2026: 11 of 11 text-layer papers of one university were read as
+# 121 questions with scrambled text and 0 marks, because their tables have no header that names a marks column. An
+# INSTRUCTION ROW heads each group instead ("1. | Attempt ALL questions in brief. | 2 x 5 = 10 | BL | CO") and the rows
+# under it are the items: the lettered parts of a numbered question, or whole numbered questions when the instruction row
+# carries no number. An "OR" row sits between alternatives. Each item becomes one question ("1a", "2b", "7"), so a
+# two-mark part can be practised alone. With this grammar the same 11 papers give 220 questions (20 each), all 220 with marks.
+_ARITH = re.compile(r"^\s*(?P<a>\d{1,2})\s*[xX×*]\s*(?P<b>\d{1,2})\s*=\s*(?P<t>\d{1,3})\s*$")
+_ITEM = re.compile(r"^\(?(?P<l>[a-jA-J]|\d{1,2}|i{1,3}|iv|vi{0,3}|ix|x)[.)]$")
+_ITEM_BARE = re.compile(r"^\(?(?P<l>[a-jA-J]|\d{1,2})[.)]?$")     # in the piece a page break cut off, "b." came out as "b"
+_CO_CELL = re.compile(r"^CO\s*\d{1,2}$", re.I)
+_GROUP_NO = re.compile(r"^(?:q\.?\s*)?(?P<n>\d{1,2})\s*[.)]?$", re.I)
+_GROUP_LEAD = re.compile(r"^(?:q\.?\s*)?(?P<n>\d{1,2})\s*[.)]\s+\S", re.I)
+_ANY = re.compile(r"\bany\s+(?P<n>one|two|three|four|five|six|seven|eight|nine|ten|\d{1,2})\b", re.I)
+_ALL = re.compile(r"\ball\b", re.I)
+_COUNT = {w: i for i, w in enumerate("one two three four five six seven eight nine ten".split(), 1)}
+
+
+def _group_marks(g: dict) -> tuple[Optional[float], str]:
+    """Marks of one item of a group, from its "a x b = t" and the number to attempt, with the reason when there are none.
+
+    The papers seen write marks x count ("7 x 1 = 07" is one question of 7 marks), but the order is not relied on: the
+    factor that equals the number to attempt (ALL means every item under the row) is the count and the other is the
+    marks. Arithmetic that does not multiply out, or that fits neither way, leaves the marks missing: never guessed."""
+    a, b, t = g["a"], g["b"], g["t"]
+    if a * b != t:
+        return None, f"{a} x {b} is not {t}"
+    if a == b:
+        return a, ""
+    k = g["attempt"] if g["attempt"] is not None else (len(g["items"]) if g["all"] else None)
+    if k is None:
+        return None, "the instruction does not say how many to attempt"
+    if b == k:
+        return a, ""
+    if a == k:
+        return b, ""
+    return None, f"neither {a} nor {b} is the number to attempt ({k})"
+
+
+def _cut_item(cells: list[str]) -> bool:
+    """An item row in the piece a page break cut off: a bare label, then a sentence. The row of a data table that the
+    piece swallowed ("f | 192 | 100 | 24") has the label and no words, and is not one."""
+    if len(cells) < 2 or not _ITEM_BARE.match(cells[0]):
+        return False
+    return sum(1 for w in " ".join(cells[1:]).split() if re.search(r"[A-Za-z]{2,}", w)) >= 3
+
+
+def _close_group(carry: dict) -> None:
+    g = carry.pop("open", None)
+    if not g:
+        return
+    marks, why = _group_marks(g)
+    for b in g["items"]:
+        b["own_marks"] = b["marks"] = marks
+        b["marks_source"] = "table" if marks is not None else "missing"
+    if why and g["items"]:
+        carry.setdefault("notes", []).append((g["page"], f"p{g['page']} {g['name']}: marks left for review, {why}"))
+
+
+def close_tables(carry: dict) -> list[tuple[int, str]]:
+    """After the last page: close a group still open and hand back the notes [(page, text)] about marks that could not
+    be read. A group may run onto the next page, and "attempt ALL" needs its whole item count, so marks are set here."""
+    _close_group(carry)
+    return carry.pop("notes", [])
+
+
+def _instruction_table(t, page_no: int, width: float, height: float, carry: dict) -> tuple[list[Box], int]:
+    """The boxes of a table laid out by instruction rows, and how many of them are questions; ([], 0) for any other table."""
+    rows = []
+    for row, r in zip(t.extract(), t.rows):
+        cells = [_ws(str(c or "")) for c in row]
+        if any(cells):
+            rows.append((cells, [float(v) for v in r.bbox]))
+    g = carry.get("open")
+    # A page break cuts a table in two, and the second piece comes out with other columns (6 became 5, and 9 where the
+    # data table of the question above was merged into it; the label "b." became "b"). So on a later page the first
+    # table that holds an OR row or an item row before any instruction row follows the open group, whatever its width.
+    key = (page_no, tuple(round(float(v)) for v in t.bbox))
+    follows = False
+    if g and rows and page_no > g["last_page"] and carry.get("followed_on") != page_no:
+        for cells, _ in rows:
+            full = [c for c in cells if c]
+            if any(_ARITH.match(c) for c in full):
+                break
+            if (len(full) == 1 and _OR.match(full[0])) or _cut_item(full):
+                follows = True
+                break
+        if follows:
+            g["home"], g["cut"] = key, True
+            carry["followed_on"] = page_no              # one cut-off piece a page: a later table of another width is not it
+    # Any other table with no instruction row is not part of the paper's frame: a data table inside a question (the x and f
+    # rows of a statistics question gave 7 false questions on 3 real papers before this) is left alone.
+    if not any(_ARITH.match(c) for cells, _ in rows for c in cells) and not follows:
+        return [], 0
+    boxes: list[Box] = []
+    k = 0
+    for cells, rb in rows:
+        full = [(j, c) for j, c in enumerate(cells) if c]
+        if len(full) == 1:
+            letter = _is_heading(full[0][1])
+            if letter:
+                _close_group(carry)
+                boxes.append({"kind": "section", "page": page_no, "letter": letter, "label": "", "text": "", "bbox": rb, "parts": []})
+                continue
+            if _OR.match(full[0][1]):
+                if carry.get("open") and carry["open"]["items"]:
+                    boxes.append({"kind": "or", "page": page_no, "label": "", "text": "", "bbox": rb, "parts": []})
+                continue
+        ai = next((j for j, c in full if _ARITH.match(c)), None)
+        if ai is not None:
+            _close_group(carry)
+            m = _ARITH.match(cells[ai])
+            bl_i = next((j for j, c in full if _BL_COL.match(c.lower())), None)
+            co_i = next((j for j, c in full if _CO_COL.match(c.lower())), None)
+            rest = [c for j, c in full if j not in (ai, bl_i, co_i)]
+            num = _GROUP_NO.match(rest[0]) if len(rest) > 1 else (_GROUP_LEAD.match(rest[0]) if rest else None)
+            words = " ".join(rest[1:] if num and len(rest) > 1 else rest)
+            any_n = _ANY.search(words)
+            attempt = None
+            if any_n:
+                w = any_n.group("n").lower()
+                attempt = _COUNT.get(w) or int(w)
+            number = num.group("n") if num else ""
+            carry["open"] = {"a": int(m["a"]), "b": int(m["b"]), "t": int(m["t"]), "attempt": attempt,
+                             "all": attempt is None and bool(_ALL.search(words)), "number": number, "bl": bl_i, "co": co_i,
+                             "ncols": t.col_count, "items": [], "page": page_no, "last_page": page_no, "home": key,
+                             "name": f"question {number}" if number else "the group of questions"}
+            continue
+        g = carry.get("open")
+        if not g or g["home"] != key:
+            continue
+        bl_i, co_i = g["bl"], g["co"]
+        if g.get("cut"):                                    # other columns: find CO and BL from the right end of the row
+            bl_i = co_i = None
+            if _CO_CELL.match(full[-1][1]):
+                co_i = full[-1][0]
+                if len(full) > 1 and re.fullmatch(r"[1-6]", full[-2][1]):
+                    bl_i = full[-2][0]
+        g["last_page"] = page_no
+        body = [c for j, c in full if j not in (bl_i, co_i)]
+        if not body:
+            continue
+        if g.get("cut"):
+            lm = _ITEM_BARE.match(body[0]) if _cut_item(body) else None
+        else:
+            lm = _ITEM.match(body[0]) if len(body) > 1 else None
+        if lm:
+            part = lm.group("l")
+            label = f"{g['number']}{part.lower()}" if g["number"] and not part.isdigit() else part
+            text = _ws(" ".join(body[1:]))
+        elif g["items"]:
+            # a row with no label carries on the item above it (a long question, or a table split by a page break)
+            last = g["items"][-1]
+            last["text"] = _ws(last["text"] + " " + " ".join(body))
+            if last["page"] == page_no:
+                last["bbox"] = pad_box([min(last["bbox"][0] + PAD, rb[0]), last["bbox"][1] + PAD, max(last["bbox"][2] - PAD, rb[2]), rb[3]], width, height)
+            continue
+        elif g["number"]:
+            label, text = g["number"], _ws(" ".join(body))      # a numbered question with one unlettered row
+        else:
+            continue
+        bl = _bl(cells[bl_i]) if bl_i is not None and bl_i < len(cells) else None
+        b: Box = {"kind": "question", "page": page_no, "label": label, "text": text, "bbox": pad_box(rb, width, height),
+                  "own_marks": None, "parts": [], "marks": None, "marks_source": "missing",
+                  "co": _co(cells[co_i]) if co_i is not None and co_i < len(cells) else "", "bl": bl,
+                  "closed": True}                                # a table row is whole: loose lines on the next page are not its text
+        if bl is not None:
+            b["difficulty"], b["difficulty_source"] = _BLOOM[bl], "bloom"
+        g["items"].append(b)
+        boxes.append(b)
+        k += 1
+    return boxes, k
+
+
+def read_tables(page, page_no: int, carry: Optional[dict] = None) -> list[dict]:
     """Every ruled table PyMuPDF finds on the page: {bbox, names, ncols, trace, boxes}. A table whose
     header names a question (or question number) column and a marks column gives one question per
-    row, with CO and BL read when those columns exist; any other table gives no boxes."""
+    row, with CO and BL read when those columns exist; a table laid out by instruction rows gives one
+    question per item (see above); any other table gives no boxes.
+
+    `carry` is one dict kept by the caller for the whole paper, because a group of items can run onto
+    the next page; the caller ends with close_tables(carry). Without it each page stands alone."""
+    own_carry = carry is None
+    if own_carry:
+        carry = {}
     try:
         # find_tables looks for ruled lines; a page with no vector drawing has none. The check costs
         # 0.5 ms a page against 61 ms for find_tables, measured on the 20-page text fixture.
@@ -417,7 +598,15 @@ def read_tables(page, page_no: int) -> list[dict]:
         info = {"bbox": [float(v) for v in t.bbox], "names": names, "ncols": t.col_count, "boxes": []}
         cols = _col_map(names)
         if cols is None:
-            info["trace"] = f"p{page_no} table {t.col_count} cols: {', '.join(names)}; not a question table"
+            try:
+                got, k = _instruction_table(t, page_no, width, height, carry)
+            except Exception:                           # a table PyMuPDF cannot extract is left to the line reader
+                got, k = [], 0
+            if got:
+                info["boxes"] = got
+                info["trace"] = f"p{page_no} table {t.col_count} cols: instruction rows, {k} read as {'a question' if k == 1 else 'questions'}"
+            else:
+                info["trace"] = f"p{page_no} table {t.col_count} cols: {', '.join(names)}; not a question table"
             out.append(info)
             continue
         info["trace"] = f"p{page_no} table {t.col_count} cols: {', '.join(names)}"
@@ -461,4 +650,6 @@ def read_tables(page, page_no: int) -> list[dict]:
                 b["text"] = _ws(" ".join([b["text"]] + [f"({p['label']}) {p['text']}" for p in b["parts"]]))
         info["boxes"] = boxes
         out.append(info)
+    if own_carry:
+        _close_group(carry)
     return out

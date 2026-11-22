@@ -229,13 +229,14 @@ def _read_pdf(doc, pid: str, store: Store, tr: _Trace) -> IngestResult:
     boxes: list[dict] = []               # every box of the paper in page order
     slide_pages: list[tuple[int, list[dict]]] = []
     maybe_slides = True                  # a deck saved as PDF: landscape pages and not one question start
+    carry: dict = {}                     # the open group of an instruction table: it can run onto the next page
     for n in range(1, doc.page_count + 1):
         page = doc[n - 1]
         w, h = float(page.rect.width), float(page.rect.height)
         sizes[n] = (w, h)
         im = crops.render_page_image(doc, n, store.paths.pages / pid / f"p{n:03d}.png", dpi=CROP_DPI)
         try:
-            new = _read_page(page, n, w, h, im, pid, store, tr, faults)
+            new = _read_page(page, n, w, h, im, pid, store, tr, faults, carry)
         finally:
             im.close()
         if new is None:
@@ -247,6 +248,8 @@ def _read_pdf(doc, pid: str, store: Store, tr: _Trace) -> IngestResult:
         elif maybe_slides:
             slide_pages.append((n, rows))
         boxes.extend(page_boxes)
+    for note_page, note in segment.close_tables(carry):     # marks are set on the boxes here, before they become drafts
+        tr("segment", note, note_page)
     drafts, total = _stitch(boxes, tr)
     method = "text-layer"
     if not drafts and maybe_slides and slide_pages:
@@ -269,7 +272,7 @@ def _read_pdf(doc, pid: str, store: Store, tr: _Trace) -> IngestResult:
     return {"paper": store.get_paper(pid), "question_ids": ids, "drafts": drafts, "trace": tr.events, "duplicate": False}
 
 
-def _read_page(page, n: int, w: float, h: float, im, pid: str, store: Store, tr: _Trace, faults: list[str]):
+def _read_page(page, n: int, w: float, h: float, im, pid: str, store: Store, tr: _Trace, faults: list[str], carry: Optional[dict] = None):
     """One page: the text-layer test, its tables, its boxes, and the crops of its questions cut from
     the page picture still in memory. None when the page gives nothing to read."""
     text = page.get_text("text", flags=_flags())
@@ -284,7 +287,7 @@ def _read_page(page, n: int, w: float, h: float, im, pid: str, store: Store, tr:
             tr("fault", msg, n)
             return None
     tr("page", f"p{n}: text layer, {chars} characters" + ("" if chars >= 40 else " (a short page, read as it is)"), n)
-    tables = segment.read_tables(page, n)
+    tables = segment.read_tables(page, n, carry)
     for t in tables:
         tr("table", t["trace"], n)
     d = page.get_text("dict")
@@ -292,10 +295,11 @@ def _read_page(page, n: int, w: float, h: float, im, pid: str, store: Store, tr:
     from_table = [b for t in tables for b in t["boxes"]]
     page_boxes = sorted(page_boxes + from_table, key=lambda b: (b["kind"] != "cont", b["bbox"][1]))
     questions = [b for b in page_boxes if b["kind"] == "question"]
-    k_line = len(questions) - len(from_table)
+    k_table = sum(1 for b in from_table if b["kind"] == "question")     # an instruction table also gives section and OR boxes
+    k_line = len(questions) - k_table
     if questions:
         tr("segment", f"p{n}: {_plural(k_line, 'question start', 'question starts')} at the left margin"
-           + (f", {_plural(len(from_table), 'table row', 'table rows')}" if from_table else ""), n)
+           + (f", {_plural(k_table, 'table row', 'table rows')}" if k_table else ""), n)
     else:
         tr("skip", f"p{n}: no question starts on this page", n)
     for b in questions:
@@ -371,8 +375,8 @@ def _stitch(boxes: list[dict], tr: _Trace) -> tuple[list[dict], Optional[float]]
         elif k == "total":
             total = b["value"] if total is None else total
         elif k == "cont":
-            if last is None:
-                continue                 # a title block or instructions at the top of the paper
+            if last is None or last.get("_closed"):
+                continue                 # a title block or instructions at the top of the paper; a table row takes no loose lines
             if b["text"]:
                 last["text"] = segment._ws(last["text"] + " " + b["text"])
             last["parts"] = list(last["parts"]) + list(b["parts"])
@@ -387,7 +391,7 @@ def _stitch(boxes: list[dict], tr: _Trace) -> tuple[list[dict], Optional[float]]
                   "crop": {"page": b["page"], "bbox": list(b["bbox"]), "png": "", "dpi": CROP_DPI}, "page": b["page"],
                   "marks": b["marks"], "marks_source": b["marks_source"], "type": "unknown", "section": section,
                   "choice_group": "", "co": b.get("co", ""), "bl": b.get("bl"), "parts": list(b["parts"]), "_own": b.get("own_marks"),
-                  "id": b.get("id"), "png": b.get("png", "")}
+                  "id": b.get("id"), "png": b.get("png", ""), "_closed": bool(b.get("closed"))}
             if b.get("difficulty_source"):
                 dr["difficulty"], dr["difficulty_source"] = b["difficulty"], b["difficulty_source"]
             if or_after is not None:
@@ -400,6 +404,7 @@ def _stitch(boxes: list[dict], tr: _Trace) -> tuple[list[dict], Optional[float]]
             last = dr
     for dr in drafts:
         dr.pop("_own", None)
+        dr.pop("_closed", None)
         dr["text"] = _cut_text(dr["text"], dr["label"], tr, dr["page"])
         dr["type"] = segment.guess_type(dr["text"])
         if dr["type"] == "mcq":

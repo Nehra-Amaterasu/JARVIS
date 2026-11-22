@@ -2,6 +2,34 @@
 
 The running research file of the engine lane (the Python side of Well Wisher). Newest section on top. The plan it serves is `docs/design/well-wisher-engine-plan.md`; the screens are the UI lane's (`docs/research/product-design-overhaul.md`).
 
+## 2026-11-22: the first real papers through the reader, and a table grammar for them
+
+**Question.** The exam slice was proved on invented papers only. Does the reader work on the owner's real past papers, and can a practice paper be planned from one?
+
+**Method.** The 16 end-semester papers already in the private data folder (one university, three sittings, 11 courses) were read with `ingest_file` into a scratch store, never the real one. Counted per paper: questions, questions with marks, the sum of marks, sections. One paper's drafts and PyMuPDF's own table rows were printed side by side.
+
+**Found.**
+
+| | Before | After |
+| --- | --- | --- |
+| Papers with no text layer (scans) | 5 of 16, 0 questions | the same: the scan package (X04) was planned and never built |
+| Text-layer papers | 11 | 11 |
+| Questions read | 121 (11 a paper), text scrambled | 220 (20 a paper) |
+| Questions with marks | 1 of 121 | 220 of 220 |
+| Sum of marks a paper | 0 | 105 (5 of 2, 10 of 7 in OR pairs, 5 of 5), which is the paper's 60 once the choices are taken |
+| Blueprint inferred from each paper | none possible | on 9 of 11: A 5 of 5 at 2, B 5 of 10 at 7, C 3 of 5 at 5, total 60, no issue; the other 2 raise one issue each (see below) |
+| Time a paper | 0.8 to 2.6 s | 1.0 to 2.4 s |
+
+- Why it failed: these papers are ruled tables with no header that names a marks column, so `read_tables` called each "not a question table" and the line reader then walked through the table cells in reading order. A question had no marks, so it could not be accepted: the chain stopped at its second step for every real paper.
+- The layout: an instruction row heads each group ("1. | Attempt ALL questions in brief. | 2 x 5 = 10 | BL | CO"); the rows under it are lettered parts, with an OR row between alternatives; the last section is whole numbered questions under an unnumbered instruction row. PyMuPDF's `find_tables` already returned these rows cleanly.
+- The marks rule: the arithmetic is marks times count on the papers seen ("7 x 1 = 07" is one question of 7), but the order is not relied on. The factor equal to the number to attempt (ALL means every item under the row) is the count; anything that does not multiply out or fits neither way stays missing with a trace line. Never guessed.
+- Three faults met on the real papers and fixed, each with a test on an invented paper: a table cut by a page break comes back with other columns (6 became 5, the label "b." became "b"), which lost one question on 6 papers; in one paper the cut-off piece had swallowed the data table of the question above it (9 columns); and data tables inside statistics questions (rows of x and f) gave 7 false questions on 3 papers until tables with no instruction row were left alone.
+- Each item is one question ("1a", "2b", "7") with its own crop, CO and Bloom level, so a two-mark part can be practised alone. Formula text comes out flattened; the crop is what the student reads.
+
+**What it changed.** `app/jarvis_app/ww_pyq/segment.py` (the instruction-table grammar, `close_tables`), `ingest.py` (one state kept across pages, marks set before stitching, a table row takes no loose lines), `app/tests/test_pyq_instruction_tables.py` (12 tests). Existing paper tests: 243 of 243 unchanged.
+
+**Left open.** Scans: 5 of the 16 papers give nothing until OCR exists. Two papers print "Max. Marks: 100" over a frame whose own arithmetic gives 60 attempted: the papers disagree with themselves, the reader reports the printed 100, and a blueprint inferred from either will say so. Only one university's layout was seen; other layouts keep the old paths. Source: the trial script and its counts (private scratch, 22 Nov); the papers themselves stay in the private data folder.
+
 ## 2026-11-14 (night): wave EW7 built, what it measured and what its reviews found
 
 **Question.** Does the exam slice work end to end on invented papers, how fast is it, and what did independent review find that the builders missed?

@@ -314,8 +314,12 @@ def test_unknown_and_hostile_ids_are_404_and_write_nothing(synced, fid):
             ("get", f"{B}/files/{fid}/original", {}), ("post", f"{B}/files/{fid}/open", {}), ("post", f"{B}/files/{fid}/to-papers", {})]
     for method, url, kw in urls:
         r = getattr(c, method)(url, **kw)
-        # an empty id leaves no id segment: PATCH /files/ is the list route's address, which has no PATCH (405), still nothing is changed
-        assert r.status_code == (405 if (fid == "" and method == "patch") else 404), (method, url, r.status_code)
+        # Refused either way, and the lines below prove nothing was changed. Which refusal depends on the checkout: an id
+        # with an encoded slash (or no id at all) is no longer one path segment, so it matches no route of this file. With
+        # no built UI that is a 404; in a checkout that has app/ui/dist the static handler is asked next and answers 405
+        # for a PATCH or POST (seen on main, 22 Nov 2026: 4 of these cases gave 405 there and 404 in a worktree).
+        shaped = fid == "" or "%2F" in fid
+        assert r.status_code == 404 or (shaped and method != "get" and r.status_code == 405), (method, url, r.status_code)
     assert (synced.store.root / "manifest.json").read_bytes() == before
     assert synced.opened == [] and len(synced.pyq.list_papers()) == papers_before
 

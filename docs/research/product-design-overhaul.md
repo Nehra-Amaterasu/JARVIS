@@ -2,6 +2,53 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-21: design language v3 built (window glass, tokens and kit, shell), then every view fitted in one fast pass
+
+**Question.** Can the v3 look of `docs/design/design-language-v3.md` be built beside the current look, inert until switched on, and can all 36 views be fitted into it in one day with no jury (the owner's exam week: complete, not polished)?
+
+**Answer.** Yes for built and fitted; no for finished. Everything is behind the "New look" key (More, "Current look" goes back). Nothing here was judged, so no score is claimed. The bar of `docs/design/budget-rules.md` 4c is paused until 28 Nov, not met.
+
+**Window glass (W1, `app/jarvis_app/backdrop.py`, `desktop.py`, 41 tests).** Measured on Windows 11 build 26300, a 144 Hz panel, 12 configurations and 36 samples, with the wallpaper set to pure black, pure white and a photo:
+
+| Case | Tone behind the page |
+| --- | --- |
+| Transparent window, no backdrop | the desktop shows through sharp (pixel deviation 98) |
+| Mica, dark and light mode | 32 and 243 on all three wallpapers, deviation 0.0 |
+| Acrylic, dark and light mode | 84 and 211 on all three wallpapers, deviation 0.0 |
+| Focused against unfocused | identical |
+| Frame rate with the page animating | 143 to 145 a second in all 12 |
+
+- So the system backdrops give one flat tone here, not a blurred desktop. 32 and 243 are the known solid fallback tones of mica; why the fallback is drawn was not established, and one build with one window style does not prove it for others.
+- Text contrast over the spec's tints (.76 ground, .74 spine): 14 px ink 17.0 to 1 and 11 px second ink 11.3 to 1 on the dark ground over mica; 14.9 and 10.8 on the light ground. Floor 4.5.
+- Decision: mica is the default, the setting `window.glass` is off by default, and the interface must not say "frosted glass over your desktop": it is a tinted ground. Real frost needs another route (an accent-policy blur, or mirroring the wallpaper inside the page); deferred until after 28 Nov.
+- A legacy blur-behind call returns success and paints black: not usable. The first frames after an apply are unsettled (3 samples of 36); the tone is stable from about 3 s.
+- One fix outside the package: `core/user_settings.py` `DEFAULTS` gained `"window": {}`, because the settings file is rebuilt from the defaults on every save and would have dropped the glass setting.
+
+**Tokens and kit (T1, `app/ui/src/styles/design/v3/glass.css`, `app/ui/src/shared/kit/v3/`, 88 tests).**
+
+- The token file is not in the clay folder: three existing tests fix that folder's import order, file count and lint (no colour literal, no gradient, no backdrop filter), and a file of tints and shadows cannot pass them.
+- The first run in a real browser found that every composed fill was invalid CSS: `rgb(var(--x-rgb) / var(--a))` mixes a comma triple with a slash, so the browser dropped it and nothing was painted. All 88 unit tests had passed, because they compute from token text and never render. Now `rgba(var(--x-rgb), var(--xa))`, a unit test forbids the slash form, and a browser test asserts a painted ground, tray and group. Lesson: token tests need one rendered check.
+- Worst-case contrast, from the token values, white behind dark and black behind light, no brightness help: second ink on the dark ground 5.46 to 1, on the spine 4.65 with the spine's own sheen token (4.04 with the full sheen, so the spine must use `--sheen-spine`), third ink on a well 8.7 (3.7 on a tray under the glare, so third ink lives on wells), locked label 4.6 after lightening it to `#ABAFB7`.
+- Jury points taken: numbered step labels (a numeral in a pressed well, `[1]` on the light ground) in place of three dots; a cooler dark tint; the locked key drawn pressed in, with its reason as real text; a number printed only under LIVE or SIMULATED, a dash otherwise.
+- Owed: the Sigil and the four marks are drawn from the mockup's idea, not from an owner reference; the light-ground locked label is about 3.5 to 1 over the worst case (found by the shell package, not fixed).
+
+**Shell (S1, `app/ui/src/shell/v3/`, contract in its README, 93 unit and 27 browser tests at merge).**
+
+- One branch in `ShellV2.tsx` to a lazy `ShellV3`; the spine (208 px), the top plate with one lamp pill, the canvas and the dock; the root keeps `data-shell="v2"` and the page wrapper its section and view attributes, so every existing selector still holds.
+- One lamp table feeds the pill and the spine, so they cannot disagree (a jury point). With nothing reported all seven lamps read WAITING with what each waits for.
+- At 1366x768, 1120x720 and 390x844: no document scroll, no overlap among the frame's pieces, every key and input 44 by 44 px or more, no text under 11 px. Contrast in the host: second ink 5.75 to 1 on the ground and 5.66 on the spine.
+- The dock keeps a half-typed line across a change of view; Ask keeps the text because the palette takes no starting query yet (open edit, in the README).
+
+**The fast layout pass (six builders in parallel, one pass each, no review).** Each view branches once on the look and gives three trays in the order the owner acts; a capture or command line moves to the dock; rarely used actions move to More. Merged: Memory, Room and Senses, Core and Console, Tree and Career, Day (which also gave the Season switch and the Roadmap key a home, closing gaps row 58), Focus and Study (which also fixed End session: it could never end a block).
+
+**Checks on the merged result.**
+
+- Type check clean. Unit: 3901 of 3905 on the first run; the four were three shell tests that assumed "a view that registers nothing" (the first views now register a dock mode) and one token test listing which files may name the clay layer; all four corrected in the tests.
+- Browser: shell specs 34 pass, 1 marked to be fixed. That one asserts that no v3 stylesheet loads with the look off; since the layout pass every view imports the tray frame, so the v3 sheets are downloaded with the look off. Every rule is scoped to the v3 root, so nothing draws differently (gaps row 61; the fix is to load each view's v3 branch lazily).
+- The view sweep under the look, 36 views at two sizes: 72 pairs, no page error, 49 clean. What remains is in gaps row 62: trays that scroll inside themselves on six views, a cramped classic card on Hardware, 36 px chips on Talk, and 5 to 85 px of sideways overflow of the tray frame at 390 px on five views.
+
+**What it changed.** The interface has a second, complete look that can be switched on and off, with its contract written down. The work after 28 Nov starts from a fitted app and a known list (gaps rows 59 to 62) rather than from a mockup. Sources: the builders' notes folded in here; `docs/design/design-language-v3.md`; `app/ui/src/shell/v3/README.md`; `docs/design/overhaul-gaps.md`.
+
 ## 2026-11-20: a new design language (v3), nine packages merged, and what a round of jury fixes is worth
 
 **Question.** The baseline jury put the interface at 6.1 for design and 6.3 for usability. Can jury fix lists lift sections above 8.0, and if not, what can?

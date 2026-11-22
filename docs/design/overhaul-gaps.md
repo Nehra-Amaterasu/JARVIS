@@ -111,9 +111,11 @@ Copied on 19 Nov from each builder's report, shortened. "Route" means the screen
 
 | # | Where | Gap | Kind |
 |---|---|---|---|
-| 58 | Well Wisher, the shell row | The Season switch and the Roadmap key have no home. They lived on the legacy frame, which carried them into the shell's view row; since every Well Wisher view has its own registration the frame is never mounted. `e2e/shell-fixes.spec.ts` test (a) is marked to be fixed until they have one. The new shell of design language v3 is to give them a place | parity |
+| 58 | Well Wisher, the shell row | The Season switch and the Roadmap key have no home. They lived on the legacy frame, which carried them into the shell's view row; since every Well Wisher view has its own registration the frame is never mounted. `e2e/shell-fixes.spec.ts` test (a) is marked to be fixed until they have one. The new shell of design language v3 is to give them a place. CLOSED under the v3 look by `fc6345a` (21 Nov): Season and Roadmap are rows of Today's More. Under the current look they still have no home, so test (a) stays marked | parity |
 | 59 | Day, Body | The water gauge's arc jumps instead of filling, and three shadow changes (Day, Career) are instant: the motion rules allow no transition on an arc length or a shadow. A token-driven way to move them is owed | motion |
 | 60 | Every rebuilt section | No package of 19 and 20 Nov is done: jury scores are 6.6 to 7.2 where judged (Week, Body, Close 6.6; Study plan and dMAT 6.6; Core Sound 7.2; Senses 6.8), and Tree, Career, Focus and Room have no jury score. They are judged again under design language v3 | score |
+| 61 | Every view, look off | Since the fast layout pass of 21 Nov each view imports the v3 tray frame, so the v3 shell's stylesheet and the section v3 sheets are downloaded with the look off. All their rules are scoped to the v3 root, so nothing draws differently. Fix: load each view's v3 branch lazily; `e2e/shell-v3.spec.ts` "look off" is marked to be fixed until then | bundle |
+| 62 | Design language v3, all sections | The layout pass of 21 Nov was one fast pass with no review and no jury (the owner's exam week): every view sits in three trays, but several trays scroll inside themselves (Rules, Teach, Plan exams, Library doors, Pipeline, Keep), Hardware's classic Wi-Fi card is cramped, Talk's voice-path chips are 36 px, and at 390 px the tray frame reports 5 to 85 px of sideways overflow on five views. To be redone to the bar after 28 Nov | score |
 
 ## D. Asked for and not yet in the product (audit of 15 Nov 2026)
 

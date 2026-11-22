@@ -194,7 +194,8 @@ describe('the clay files', () => {
       }
     }
     walk(SRC)
-    expect(offenders.map((p) => p.split(sep).join('/').replace(/^.*\/src\//, ''))).toEqual(['shell/ShellV2.tsx'])
+    // the v3 shell is a lazy chunk reached only through ShellV2's one branch, so it is part of the same flag-on code
+    expect(offenders.map((p) => p.split(sep).join('/').replace(/^.*\/src\//, '')).sort()).toEqual(['shell/ShellV2.tsx', 'shell/v3/ShellV3.tsx', 'shell/v3/shell-v3-tokens.css'])
     const app = read(join(SRC, 'App.tsx'))
     expect(app).toMatch(/lazy\(\(\) => import\('\.\/shell\/ShellV2'\)\)/)
     expect(app).not.toMatch(/from '\.\/shell\/ShellV2'/)

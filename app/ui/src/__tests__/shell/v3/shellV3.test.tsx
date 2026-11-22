@@ -7,6 +7,7 @@ import ShellV2 from '../../../shell/ShellV2'
 import { LOOK_KEY, resetLookForTests } from '../../../shell/look'
 import { resetShellForTests, useShell } from '../../../shell/store'
 import { resetPortsForTests } from '../../../shell/ports'
+import { setViewsForTests } from '../../../shell/views'
 import { useStore } from '../../../lib/store'
 
 const stub = (id: string) => () => createElement('div', { 'data-stub': id }, `stub ${id}`)
@@ -33,6 +34,7 @@ beforeEach(() => {
 afterEach(() => {
   m?.unmount()
   m = null
+  setViewsForTests(null)
   localStorage.clear()
   resetLookForTests()
 })
@@ -185,6 +187,9 @@ describe('the top plate', () => {
   })
 
   it('More counts its rarely needed actions in a tooltip (no badge) and holds the Frosted switch', async () => {
+    // the first views (Day / Today, Core / Talk) register a dock mode and More rows since the layout pass of 21 Nov; this test is about
+    // a view that registers nothing, so their registrations are hidden and the host page stands in
+    setViewsForTests(null, ['day.today', 'core.talk'])
     await render()
     const more = q('.s3-iconkey[aria-haspopup]')!
     expect(more.getAttribute('data-tip')).toBe('2 more actions')
@@ -339,6 +344,9 @@ describe('routing by hash (3.4)', () => {
 
 describe('the dock', () => {
   it('is the last element of the main column on every screen and is Ask alone when the view registers nothing', async () => {
+    // the first views (Day / Today, Core / Talk) register a dock mode and More rows since the layout pass of 21 Nov; this test is about
+    // a view that registers nothing, so their registrations are hidden and the host page stands in
+    setViewsForTests(null, ['day.today', 'core.talk'])
     await render()
     const main = q('.s3-main')!
     expect(main.lastElementChild).toBe(q('.s3-dock'))
@@ -347,6 +355,9 @@ describe('the dock', () => {
   })
 
   it('Enter in Ask opens the palette', async () => {
+    // the first views (Day / Today, Core / Talk) register a dock mode and More rows since the layout pass of 21 Nov; this test is about
+    // a view that registers nothing, so their registrations are hidden and the host page stands in
+    setViewsForTests(null, ['day.today', 'core.talk'])
     await render()
     click(q('.s3-send'))
     expect(useShell.getState().overlay).toBe('palette')

@@ -1,8 +1,8 @@
 /**
- * The drawn marks of the v3 shell, all in one house line (1.6 stroke, round caps) on a 20 or 24 unit box, taken from the
- * final mockup. Presentational only. The state glyph follows spec section 6: a shape per state so that colour only helps.
+ * The marks of the v3 shell. The state glyph and the small utility marks are drawn here; the project and section icons are lucide
+ * (25 Nov: the abstract drawn glyphs were hard to tell apart), chosen in this file only. Presentational only. The state glyph follows spec section 6: a shape per state so that colour only helps.
  */
-import type { ReactElement } from 'react'
+import { AudioLines, BookMarked, BookOpen, Bot, Brain, Briefcase, CalendarDays, Compass, Gauge, House, Mic, PanelLeftClose, PanelLeftOpen, Sprout, Star, Target, Waves, Wifi, type LucideIcon } from 'lucide-react'
 import type { LampState } from '../../shared/lamp/types'
 import type { SubProjectId } from './subprojects'
 
@@ -35,41 +35,15 @@ export function StateGlyph({ state, size = 14 }: { state: LampState; size?: numb
   )
 }
 
-const MARK: Record<SubProjectId, ReactElement> = {
-  jarvis: (
-    <>
-      <circle r="9" />
-      <path d="M0-6V-2.5M0 2.5V6M-6 0H-2.5M2.5 0H6M-4.2-4.2l1.8 1.8M4.2 4.2l-1.8-1.8M4.2-4.2l-1.8 1.8M-4.2 4.2l1.8-1.8" />
-    </>
-  ),
-  aankhen: (
-    <>
-      <path d="M-9-3a13 13 0 0 1 18 0M-6 1a8 8 0 0 1 12 0M-3 5a3.2 3.2 0 0 1 6 0" />
-      <circle cy="8.6" r=".9" fill="currentColor" stroke="none" />
-    </>
-  ),
-  yadaash: (
-    <>
-      <circle cx="-3.6" r="6" />
-      <circle cx="3.6" r="6" />
-      <circle r="1.4" fill="currentColor" stroke="none" />
-    </>
-  ),
-  wellwisher: (
-    <>
-      <path d="M-3-8H-8V8H-3M3-8H8V8H3" />
-      <circle r="1.5" fill="currentColor" stroke="none" />
-    </>
-  ),
-}
+/** One metaphor per project, drawn by lucide in one line weight (1.75) so four marks differ by their shape, not their detail:
+ *  JARVIS the voice (mic), Aankhen sensing by radio signal (Wi-Fi arcs; never an eye or a lens, the project has no camera),
+ *  Yadaash memory (brain), Well Wisher his day and wishes (star). */
+const PROJECT_ICON: Record<SubProjectId, LucideIcon> = { jarvis: Mic, aankhen: Wifi, yadaash: Brain, wellwisher: Star }
 
-/** A sub-project's own formed mark: a sigil ring with rays, three signal arcs, two linked loops, a bracket pair with a dot. */
-export function ProjectMark({ id, size = 22 }: { id: SubProjectId; size?: number }) {
-  return (
-    <svg className="s3-mark" viewBox="-12 -12 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-      {MARK[id]}
-    </svg>
-  )
+/** A sub-project's mark. 18 px in a spine row (the owner asked for clearer, smaller rows); the stroke stays 1.75 at every size. */
+export function ProjectMark({ id, size = 18 }: { id: SubProjectId; size?: number }) {
+  const Icon = PROJECT_ICON[id]
+  return <Icon className="s3-mark" size={size} strokeWidth={1.75} aria-hidden="true" focusable="false" />
 }
 
 /** The brand: four squares, two lit and two dimmed. */
@@ -84,66 +58,31 @@ export function BrandMark({ size = 22 }: { size?: number }) {
   )
 }
 
-const ICON: Record<string, ReactElement> = {
-  core: <path d="M4 10v0M7 6.5v7M10 3v14M13 6.5v7M16 9v2" />,
-  room: (
-    <>
-      <path d="M3 9.5 10 3.5l7 6V16.5H3z" />
-      <path d="M8.5 16.5v-4h3v4" />
-    </>
-  ),
-  console: (
-    <>
-      <path d="M3.5 14a6.5 6.5 0 1 1 13 0" />
-      <path d="M10 14l3-4.5" />
-    </>
-  ),
-  senses: (
-    <>
-      <path d="M3 8a10 10 0 0 1 14 0M5.8 10.8a6 6 0 0 1 8.4 0M8.6 13.6a2 2 0 0 1 2.8 0" />
-      <circle cx="10" cy="16" r=".8" fill="currentColor" />
-    </>
-  ),
-  memory: (
-    <>
-      <ellipse cx="10" cy="5.5" rx="6" ry="2.5" />
-      <path d="M4 5.5v4.5c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V5.5" />
-      <path d="M4 10v4.5c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V10" />
-    </>
-  ),
-  day: (
-    <>
-      <rect x="3" y="4.5" width="14" height="12" rx="2.5" />
-      <path d="M3 8.5h14M7 3v3M13 3v3" />
-    </>
-  ),
-  focus: (
-    <>
-      <circle cx="10" cy="10" r="6.5" />
-      <circle cx="10" cy="10" r="2.5" />
-    </>
-  ),
-  study: (
-    <>
-      <path d="M3.5 4.5c2.5-.6 5 0 6.5 1.5 1.5-1.5 4-2.1 6.5-1.5v10c-2.5-.6-5 0-6.5 1.5-1.5-1.5-4-2.1-6.5-1.5z" />
-      <path d="M10 6v10" />
-    </>
-  ),
-  tree: <path d="M10 17V9M10 9C10 6 8 4.5 5 4.5 5 7.5 7 9 10 9zM10 11.5c0-2.5 1.8-4 5-4 0 3-2 4-5 4z" />,
-  career: (
-    <>
-      <rect x="3" y="6.5" width="14" height="9.5" rx="2.5" />
-      <path d="M7.5 6.5V5a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 12.5 5v1.5M3 10.5h14" />
-    </>
-  ),
+/** One metaphor per section, all lucide at 1.75. The ten differ by silhouette: sound bars, a house, a gauge, radio arcs, a book with a
+ *  bookmark, a calendar, a target, an open book, a sprout, a briefcase; Agents (the planned row of Yadaash) is a bot. */
+const SECTION_ICON: Record<string, LucideIcon> = {
+  core: AudioLines,
+  room: House,
+  console: Gauge,
+  senses: Waves,
+  memory: BookMarked,
+  agents: Bot,
+  day: CalendarDays,
+  focus: Target,
+  study: BookOpen,
+  tree: Sprout,
+  career: Briefcase,
 }
 
-export function SectionIcon({ id, size = 20 }: { id: string; size?: number }) {
-  return (
-    <svg className="s3-icon" viewBox="0 0 20 20" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-      {ICON[id] ?? <circle cx="10" cy="10" r="5" />}
-    </svg>
-  )
+export function SectionIcon({ id, size = 18 }: { id: string; size?: number }) {
+  const Icon = SECTION_ICON[id] ?? Compass
+  return <Icon className="s3-icon" size={size} strokeWidth={1.75} aria-hidden="true" focusable="false" />
+}
+
+/** The fold key of the spine's foot: the chevron points the way the spine will go. */
+export function FoldGlyph({ folded, size = 18 }: { folded: boolean; size?: number }) {
+  const Icon = folded ? PanelLeftOpen : PanelLeftClose
+  return <Icon size={size} strokeWidth={1.75} aria-hidden="true" focusable="false" />
 }
 
 export function Chevron({ size = 14 }: { size?: number }) {

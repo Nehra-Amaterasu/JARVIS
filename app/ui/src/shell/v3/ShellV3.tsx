@@ -16,11 +16,10 @@ import { useNow } from '../../lib/format'
 import { useStore } from '../../lib/store'
 import { loadJarvisRegistry, loadWwShell, type WwShellBridge } from '../../pageLoaders'
 import { WhatIsComing } from '../../shared/overlays/WhatIsComing'
-import { setPlannedOpener } from '../../shared/planned/open'
+import { openPlanned, setPlannedOpener } from '../../shared/planned/open'
 import type { Registry } from '../../shared/planned/types'
-import { setShellV2 } from '../flag'
 import { isAppPlace, type Place, type ProductId } from '../ids'
-import { glassEnabled, setGlass, setLookV3 } from '../look'
+import { glassEnabled, setGlass } from '../look'
 import { Palette } from '../Palette'
 import { confirmRecord, readRecord } from '../record'
 import { SkipLink } from '../SkipLink'
@@ -50,6 +49,16 @@ export interface ShellFrameParts {
 export type ShellV3Props = ShellV2Props & { frame: ShellFrameParts }
 
 const THEME: Record<ProductId, string> = { jarvis: 'clay-dark', ww: 'clay-light' }
+
+/** The spine's fold (168 px full, 64 px icon rail) is a per-person convenience: kept in localStorage, never needed to render. */
+export const SPINE_KEY = 'app.spine'
+function spineFolded(): boolean {
+  try {
+    return localStorage.getItem(SPINE_KEY) === 'rail'
+  } catch {
+    return false
+  }
+}
 
 /** Alt with the arrows (3.5): Up and Down walk the ten sections in spine order, Left and Right the views of the section.
  *  It registers BEFORE the current key handler and claims these four combinations, so the Back binding on Alt+Left does not
@@ -131,8 +140,12 @@ function Frame({ pages, wwRoot, verbs, serverUp, frame }: ShellV3Props) {
   const [ww, setWw] = useState<WwShellBridge | null>(null)
   const [glass, setGlassOn] = useState(glassEnabled)
   const [deck, setDeck] = useState(false)
+  const [folded, setFolded] = useState(spineFolded)
   const now = useNow(15_000)
-  const ground = subProjectOfSection(place.section)?.ground ?? (product === 'ww' ? 'light' : 'dark')
+  const open = subProjectOfSection(place.section)
+  const ground = open?.ground ?? (product === 'ww' ? 'light' : 'dark')
+  // the open project's hue: on the root so portals (popovers, sheets, the planned pose) read the same accent as the shell
+  const hue = open?.id ?? (product === 'ww' ? 'wellwisher' : 'jarvis')
 
   // the root of the page carries the look and the glass choice (2.6: one attribute turns the whole look on and off)
   useLayoutEffect(() => {
@@ -146,6 +159,21 @@ function Frame({ pages, wwRoot, verbs, serverUp, frame }: ShellV3Props) {
       html.removeAttribute('data-host')
     }
   }, [glass])
+
+  useLayoutEffect(() => {
+    const html = document.documentElement
+    html.setAttribute('data-hue', hue)
+    return () => html.removeAttribute('data-hue')
+  }, [hue])
+
+  const onFold = useCallback((on: boolean) => {
+    setFolded(on)
+    try {
+      localStorage.setItem(SPINE_KEY, on ? 'rail' : 'full')
+    } catch {
+      /* storage blocked: the fold still holds for this load */
+    }
+  }, [])
 
   // the clay theme and product belong to <html>, as in the current shell (same observer, same reason)
   useLayoutEffect(() => {
@@ -216,7 +244,8 @@ function Frame({ pages, wwRoot, verbs, serverUp, frame }: ShellV3Props) {
     }
     deckWas.current = true
     const spine = document.getElementById('s3-spine')
-    const keys = () => [...(spine?.querySelectorAll<HTMLElement>('button:not([disabled])') ?? [])]
+    // the fold key is hidden on the phone, so it is not a stop of the sheet
+    const keys = () => [...(spine?.querySelectorAll<HTMLElement>('button:not([disabled]):not(.s3-fold)') ?? [])]
     keys()[0]?.focus()
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -246,22 +275,17 @@ function Frame({ pages, wwRoot, verbs, serverUp, frame }: ShellV3Props) {
     setGlass(on)
     setGlassOn(on)
   }, [])
-  const more = useMemo<MoreAction[]>(
-    () => [
-      ...(chrome?.more ?? []),
-      { id: 'current-look', label: 'Current look', onSelect: () => setLookV3(false) },
-      { id: 'classic-ui', label: 'Classic UI', onSelect: () => setShellV2(false) },
-    ],
-    [chrome?.more],
-  )
+  // one look (25 Nov): the older frame has no key here, so More holds only what the open view registers; the way back is the
+  // fragment look=off, kept for tests and for the owner's own debugging
+  const more = useMemo<MoreAction[]>(() => [...(chrome?.more ?? [])], [chrome?.more])
   const windowKeys = typeof window !== 'undefined' && !!window.pywebview
   return (
-    <div className="s2 s3" data-shell="v2" data-product={product} data-ground={ground} data-glass={glass ? 'on' : 'off'} data-deck={deck ? 'open' : 'closed'}>
+    <div className="s2 s3" data-shell="v2" data-product={product} data-project={hue} data-ground={ground} data-glass={glass ? 'on' : 'off'} data-deck={deck ? 'open' : 'closed'} data-spine={folded ? 'rail' : 'full'}>
       <div className="s3-ground" aria-hidden="true"
         style={glass ? { backdropFilter: 'var(--glass-filter, none)', WebkitBackdropFilter: 'var(--glass-filter, none)' } : undefined} />
       <SkipLink />
       <Slot name="boot" />
-      <Spine place={place} rows={rows} now={now} onGoSection={goSection} onChoose={() => setDeck(false)} />
+      <Spine place={place} rows={rows} now={now} onGoSection={goSection} onPlanned={openPlanned} folded={folded} onFold={onFold} onChoose={() => setDeck(false)} />
       <div className="s3-main">
         <TopPlate place={place} rows={rows} more={more} glass={glass} onGlass={onGlass} onGoSection={goSection} onSetView={setView}
           onShortcuts={() => useShell.getState().openOverlay('shortcuts')} windowKeys={windowKeys} />

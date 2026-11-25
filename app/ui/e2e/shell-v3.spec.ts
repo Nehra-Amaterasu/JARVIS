@@ -137,7 +137,7 @@ test.describe('Shell v3, look on', () => {
         expect(await page.locator('.s3-chipbtn').innerText()).toMatch(/\d OF \d VIEWS/)
       } else {
         const spine = await box(page, '#s3-spine')
-        expect(spine.width).toBe(208)
+        expect(spine.width).toBe(168) // 25 Nov: slim spine (was 208)
         expect(overlap(spine, top)).toBe(false)
         expect(overlap(spine, dock)).toBe(false)
         expect(overlap(spine, stage)).toBe(false)
@@ -339,9 +339,10 @@ test.describe('Shell v3, look on', () => {
   test('the spine names the four sub-projects, each with a state line, and the open one holds its sections', async ({ page, baseURL }) => {
     await open(page, baseURL)
     await expect(page.locator('#s3-spine .s3-grp')).toHaveCount(4)
-    const names = await page.locator('#s3-spine .s3-hn b').allInnerTexts()
+    const names = await page.locator('#s3-spine .s3-pn').allInnerTexts()
     expect(names.map((n) => n.toLowerCase())).toEqual(['jarvis', 'aankhen', 'yadaash', 'well wisher'])
-    for (const t of await page.locator('#s3-spine .s3-hn small').allInnerTexts()) expect(t).toMatch(/^(FAULT|WAITING|LIVE|SIMULATED|PLANNED)/)
+    // one line per project: the state word is the lamp's title, and printed only under the open project
+    for (const t of await page.locator('#s3-spine .s3-lamp').evaluateAll((els) => els.map((e) => e.getAttribute('title') ?? ''))) expect(t).toMatch(/^(FAULT|WAITING|LIVE|SIMULATED|PLANNED)/)
     await gotoSection(page, 'day', SIZES[0])
     await expect(page.locator('#s3-spine .s3-grp[data-open="true"]')).toHaveAttribute('data-p', 'wellwisher')
     await expect(page.locator('#s3-spine .s3-grp[data-open="true"] .s3-item')).toHaveCount(5)

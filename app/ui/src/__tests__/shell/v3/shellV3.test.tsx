@@ -98,10 +98,76 @@ describe('the spine', () => {
     expect(qa('.s3-grp').filter((g) => g.dataset.open === 'true').map((g) => g.dataset.p)).toEqual(['jarvis'])
     expect(qa('.s3-item').map((b) => b.dataset.section)).toEqual(['core', 'room', 'console'])
     for (const g of qa('.s3-grp')) {
-      // the tile line is the state word alone (one line at 208 px, review of S1); the reason is its title
-      expect(g.querySelector('small')!.textContent).toMatch(/^(LIVE|WAITING|SIMULATED|PLANNED|FAULT)$/)
-      expect(g.querySelector('small')!.getAttribute('title')).toMatch(/^(LIVE|WAITING|SIMULATED|PLANNED|FAULT) · \S/)
+      // every row is ONE line: icon, name and a lamp; the word and its reason are the lamp's title (and the row's accessible name)
+      expect(g.querySelector('.s3-lamp')!.getAttribute('title')).toMatch(/^(LIVE|WAITING|SIMULATED|PLANNED|FAULT) · \S/)
+      expect(g.querySelector('.s3-head')!.querySelectorAll('.s3-pi, .s3-pn, .s3-lamp')).toHaveLength(3)
     }
+    // the state is printed as a word only under the OPEN project
+    expect(qa('.s3-pw small').map((n) => n.closest('.s3-grp')!.getAttribute('data-p'))).toEqual(['jarvis'])
+    expect(q('.s3-pw small')!.textContent).toMatch(/^(LIVE|WAITING|SIMULATED|PLANNED|FAULT)$/)
+  })
+
+  it('shows the relation by order and one small gap between groups: the room, memory, his day', async () => {
+    await render()
+    expect(qa('.s3-grp').map((g) => g.dataset.gap)).toEqual(['0', '0', '1', '1'])
+  })
+
+  it('Yadaash carries one planned row, Agents, that opens the planned pose and never a place', async () => {
+    await render()
+    expect(q('[data-extra="agents"]')).toBeNull() // only under the open project
+    click(q('.s3-head[data-project="yadaash"]'))
+    expect(section()).toBe('memory')
+    const row = q<HTMLButtonElement>('.s3-extra[data-extra="agents"]')!
+    expect(row.getAttribute('data-state')).toBe('planned')
+    expect(row.getAttribute('aria-label')).toBe('Agents, planned. Agents are being planned; nothing runs here yet')
+    click(row)
+    expect(section()).toBe('memory') // the place did not change
+    expect(useShell.getState().overlay).toBe('roadmap')
+    expect(useShell.getState().roadmapFocus).toBe('jarvis.agents')
+  })
+
+  it('the open project sets the hue on the root and the shell, and the page ground follows it', async () => {
+    await render()
+    expect(document.documentElement.getAttribute('data-hue')).toBe('jarvis')
+    click(q('.s3-head[data-project="aankhen"]'))
+    expect(document.documentElement.getAttribute('data-hue')).toBe('aankhen')
+    expect(q('.s3')!.dataset.project).toBe('aankhen')
+    click(q('.s3-head[data-project="wellwisher"]'))
+    expect(document.documentElement.getAttribute('data-hue')).toBe('wellwisher')
+  })
+
+  it('folds to a 64 px icon rail, keeps every row reachable by its accessible name, and remembers the choice', async () => {
+    await render()
+    expect(q('.s3')!.dataset.spine).toBe('full')
+    const fold = q<HTMLButtonElement>('.s3-fold')!
+    expect(fold.getAttribute('aria-pressed')).toBe('false')
+    click(fold)
+    expect(q('.s3')!.dataset.spine).toBe('rail')
+    expect(localStorage.getItem('app.spine')).toBe('rail')
+    expect(q('.s3-fold')!.getAttribute('aria-label')).toBe('Unfold the sidebar')
+    // names live in the tooltip and the accessible name once the text is hidden by CSS
+    expect(q('.s3-head[data-project="aankhen"]')!.getAttribute('title')).toContain('Aankhen')
+    expect(q('.s3-item[data-section="room"]')!.getAttribute('aria-label')).toBe('Room')
+    click(q('.s3-item[data-section="room"]'))
+    expect(section()).toBe('room')
+    click(q('.s3-fold'))
+    expect(q('.s3')!.dataset.spine).toBe('full')
+    expect(localStorage.getItem('app.spine')).toBe('full')
+  })
+
+  it('reads the stored fold on load', async () => {
+    localStorage.setItem('app.spine', 'rail')
+    await render()
+    expect(q('.s3')!.dataset.spine).toBe('rail')
+  })
+
+  it('draws no look key: nothing to press switches to another look or to the classic interface', async () => {
+    await render()
+    const words = [...document.querySelectorAll('button')].map((b) => `${b.textContent} ${b.getAttribute('aria-label') ?? ''}`).join('|')
+    expect(words).not.toMatch(/New look|Current look|Classic UI|New UI/i)
+    click(q('.s3-iconkey[aria-haspopup]'))
+    expect(q('.s3-pop')!.textContent).not.toMatch(/look|Classic/i)
+    expect(q('[data-more="current-look"], [data-more="classic-ui"]')).toBeNull()
   })
 
   it('a section key goes to the section, a closed tile to its first section, and the tile opens', async () => {
@@ -125,7 +191,7 @@ describe('the spine', () => {
     for (const proj of ['jarvis', 'aankhen', 'yadaash', 'wellwisher']) {
       const tile = q(`.s3-head[data-project="${proj}"]`) // the open multi-section tile is not a key: it is already open
       if (tile) click(tile)
-      for (const b of qa('.s3-item')) {
+      for (const b of qa('.s3-item:not(.s3-extra)')) {
         click(b)
         seen.add(section()!)
       }
@@ -192,7 +258,8 @@ describe('the top plate', () => {
     setViewsForTests(null, ['day.today', 'core.talk'])
     await render()
     const more = q('.s3-iconkey[aria-haspopup]')!
-    expect(more.getAttribute('data-tip')).toBe('2 more actions')
+    // the two look keys are gone (25 Nov), so a view with no registered action has none: More holds the Frosted switch and the keys
+    expect(more.getAttribute('data-tip')).toBe('Appearance and keys')
     expect(more.textContent).toBe('')
     click(more)
     const sw = q('.s3-switch')!
@@ -203,7 +270,7 @@ describe('the top plate', () => {
     expect(q('.s3')!.dataset.glass).toBe('off')
     expect(q('.s3-switch')!.textContent).toContain('OFF')
     expect(localStorage.getItem('app.glass')).toBe('off')
-    expect(q('.s3-pop')!.textContent).toContain('RARELY NEEDED · 2')
+    expect(q('.s3-pop')!.textContent).not.toContain('RARELY NEEDED')
   })
 
   it('has no window keys outside the desktop window', async () => {
@@ -230,8 +297,8 @@ describe('the lamp pill', () => {
     await render()
     act(() => useStore.getState().reportCapability('steward', { state: 'fault', reason: 'Ollama is not answering' }))
     expect(q('.s3-grp[data-p="jarvis"] small')!.textContent).toBe('FAULT')
-    expect(q('.s3-grp[data-p="jarvis"] small')!.getAttribute('title')).toBe('FAULT · steward')
-    expect(q('.s3-grp[data-p="aankhen"] small')!.getAttribute('title')).toBe('WAITING · no sensor')
+    expect(q('.s3-grp[data-p="jarvis"] .s3-lamp')!.getAttribute('title')).toBe('FAULT · steward')
+    expect(q('.s3-grp[data-p="aankhen"] .s3-lamp')!.getAttribute('title')).toBe('WAITING · no sensor')
   })
 
   it('opens an opaque list headed STATE, WORST FIRST with a shape, a word and a reason per lamp, and Esc closes it and returns focus', async () => {

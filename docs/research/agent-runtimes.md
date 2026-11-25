@@ -3,6 +3,82 @@
 Open-source survey for the agent side of JARVIS: an agent runtime, memory designs worth borrowing, device
 and web tools. Memory-only research is in [yaadash.md](yaadash.md).
 
+## 2026-11-25 (later): workers on a free cloud machine, Hermes's channels, and the bar for memory
+
+### Question
+I want JARVIS to orchestrate and Hermes agents to do long tasks on a cloud virtual machine, on Oracle's free
+tier if possible. What does that machine really offer, what can Hermes do from it, what does it cost, and
+what does "industry standard" memory mean in numbers?
+
+### Method
+Oracle's own Always Free page and Hermes Agent's docs (v0.23.4) read on 25 Nov 2026; GitHub API for
+repository facts; two web searches for benchmark reports and free model limits. Nothing was signed up for or
+installed.
+
+### Found
+1. **Oracle's free Arm allowance is half what most guides say.** The official page gives 1,500 OCPU hours and
+   9,000 GB hours a month, which is 2 cores and 12 GB running all month. It was 3,000 and 18,000 (4 cores,
+   24 GB) until mid-2026. Sign-up needs a card and a phone number, and free resources live in one home
+   region.
+2. **That machine can host an agent process, not a model.** Two Arm cores and no GPU cannot run a model with
+   the 64,000-token window Hermes requires at a usable speed (arithmetic, not measured). The thinking has to
+   be a cloud model.
+3. **The model is the real cost.** Hermes's own Gemini guide says the free tier is too small for agent
+   sessions, because one user turn can mean several model calls. Published free limits conflict between
+   sources (from 20 to 1,500 requests a day depending on model); the only reliable number is the one in the
+   account's own console.
+4. **Hermes supports the orchestrator-and-workers shape directly.** An OpenAI-compatible API, an
+   agent-to-agent protocol for crossing machines (A2A, an open protocol, Apache-2.0), an MCP client with
+   per-server tool filters, cron, and delegation.
+5. **Channels.** Telegram with voice memos transcribed; WhatsApp two ways: an unofficial bridge that emulates
+   WhatsApp Web (its docs warn of ban risk and advise a dedicated number) and Meta's official Cloud API
+   (needs a business account, a public HTTPS address, and templates after 24 hours of silence); SMS; email;
+   Home Assistant through an official plug-in.
+6. **Calls.** An optional telephony skill provisions Twilio numbers and places outbound AI calls through
+   third-party services; its docs say it is not a real-time inbound phone gateway and that it must confirm
+   before any call or text. Cost per minute in India was not researched in this pass.
+7. **Skills.** 44 bundled skills and about 160 optional ones in categories that include email, productivity
+   (Google Workspace), research, social media, smart home, finance and security.
+8. **Memory benchmarks are vendor-reported.** Scores above 90 percent on LoCoMo and LongMemEval are claimed by
+   several systems, and the papers that tabulate them say the rows are not comparable (different answer
+   models, judges and ingestion). LongMemEval's code is MIT and public, so it can be run locally as a
+   cross-check.
+
+### Numbers
+| Number | Value | Source |
+|---|---|---|
+| Oracle Always Free Arm, per month | 1,500 OCPU hours, 9,000 GB hours | Oracle's Always Free Resources page |
+| Same, as an always-on machine | 2 cores, 12 GB | arithmetic (a 744-hour month) |
+| Hermes context floor | 64,000 tokens | Hermes docs |
+| Hermes bundled / optional skills | 44 / about 160 | its two catalogue pages, rows counted |
+| Laptop when measured | 16 GB RAM, 69 to 83 percent commit, 9.7 GB free disk | measured |
+
+### Sources
+- Oracle: [Always Free Resources](https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm);
+  reports of the cut: [InfoQ](https://www.infoq.com/news/2026/07/oracle-cloud-free-tier-limits/),
+  [Linuxiac](https://linuxiac.com/oracle-quietly-cuts-free-tier-ampere-a1-resources-in-half/).
+- Hermes Agent docs: [Telegram](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/messaging/telegram.md),
+  [WhatsApp bridge](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/messaging/whatsapp.md),
+  [WhatsApp Cloud API](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/messaging/whatsapp-cloud.md),
+  [A2A](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/messaging/a2a.md),
+  [Gemini guide](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/guides/google-gemini.md),
+  [bundled skills](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/reference/skills-catalog.md),
+  [optional skills](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/reference/optional-skills-catalog.md).
+- Benchmarks: [Mem0's own 2026 report](https://mem0.ai/blog/state-of-ai-agent-memory-2026) (vendor),
+  [LongMemEval](https://github.com/xiaowu0162/LongMemEval),
+  [Gemini rate limits](https://ai.google.dev/gemini-api/docs/rate-limits).
+- GitHub API, 25 Nov 2026: a2aproject/A2A, tailscale/tailscale, google-ai-edge/mediapipe, opencv/opencv,
+  veracrypt/VeraCrypt, NousResearch/hermes-official-plugins.
+
+### What it changed
+- The design is three places: the laptop orchestrates and keeps memory, an external drive holds the data, a
+  small cloud machine runs the workers. Personal data is tiered, and only the lowest tiers may reach a cloud
+  model.
+- The worker tier is planned as one worker with one skill on one channel first, measured, before more.
+- "Free" is corrected to "the machine is free, the model is not": a monthly ceiling is set before any worker
+  runs.
+- Memory is judged on my own golden set first, with one public benchmark run locally as a cross-check.
+
 ## 2026-11-25: Hermes Agent, and a licence and maintenance check of 45 open-source projects
 
 ### Question

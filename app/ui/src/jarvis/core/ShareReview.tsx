@@ -93,16 +93,19 @@ export function useShareReview(port: ReviewPort, simulated = false): ReviewApi {
 }
 
 /** The quiet key in the conversation header. It stays a plain key while the export runs (aria-busy, not removed). */
-export function ShareReviewKey({ review }: { review: ReviewApi }) {
+/** `short`: the v3 stage's corner prints "Review" (the corner beside the orb is 143 px wide at 1120 x 720; "Share a review"
+ *  needs 150); the accessible name keeps the full words. */
+export function ShareReviewKey({ review, short = false }: { review: ReviewApi; short?: boolean }) {
   const waiting = review.state.phase === 'waiting'
   return (
     <button
       type="button" className="jc-key jc-key-sm jc-key-quiet jc-share" onClick={() => void review.run()}
       aria-busy={waiting || undefined} aria-disabled={waiting || review.nothingYet || undefined}
+      aria-label={short ? 'Share a review' : undefined}
       data-testid="share-review"
     >
       <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 2.5h6l4 4v7H3zM9 2.5v4h4M5.5 9.5h5M5.5 11.5h3" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" strokeLinecap="round" /></svg>
-      Share a review
+      {short ? 'Review' : 'Share a review'}
       {review.nothingYet && <span className="jc-sr">Nothing to share yet: no turns in the last {REVIEW_DAYS} days.</span>}
     </button>
   )

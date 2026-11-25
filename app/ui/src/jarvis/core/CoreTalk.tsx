@@ -34,7 +34,10 @@ import { ReviewStatus, ShareReviewKey, LIVE_REVIEW, useShareReview, type ReviewA
 import { SpeechPanel, VoiceKey } from './SpeechPanel'
 import { LIVE_SPEECH, type SpeechPort } from './speech'
 import { useLastRecorded } from './lastRecorded'
-import { Transcript, TurnRow } from './Transcript'
+import { TalkLog, Transcript, TurnRow } from './Transcript'
+import { CoreOrb } from './CoreOrb'
+import { PathLamps } from './PathLamps'
+import { orbLine, orbModeOf } from './orb'
 import { FIT_TURNS, FIT_TURNS_PHONE, fitTurns, type Organ, type OrganId, type RibbonStage, type StageId, type StageMedian } from './model'
 import { useCoreLive, type CoreActions } from './useCoreLive'
 import './core.css'
@@ -178,6 +181,27 @@ function Controls({ core, busy, onWake, onSleep, mode, setMode, onAnatomy, simul
   )
 }
 
+/** v3: Voice or Text only, beside the Wake key (the same radiogroup and arrow keys as the classic controls). */
+function ModeSwitch({ mode, setMode }: { mode: 'voice' | 'text'; setMode: (m: 'voice' | 'text') => void }) {
+  const onKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return
+    e.preventDefault()
+    const next = mode === 'voice' ? 'text' : 'voice'
+    setMode(next)
+    const group = e.currentTarget
+    requestAnimationFrame(() => group.querySelector<HTMLElement>(`[data-mode='${next}']`)?.focus())
+  }
+  return (
+    <div className="jc-mode jc3-mode" role="radiogroup" aria-label="How to wake him" onKeyDown={onKey}>
+      {(['voice', 'text'] as const).map((m) => (
+        <button key={m} type="button" role="radio" aria-checked={mode === m} tabIndex={mode === m ? 0 : -1} data-mode={m} onClick={() => setMode(m)}>
+          {m === 'voice' ? 'Voice' : 'Text only'}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 /* ------------------------------------------------------------------ the stage */
 /** The pose of an empty stage: asleep (the core is off) or thinking (the core says so); null when the picture may draw. */
 function restPose(running: boolean, coreView: CoreView): 'asleep' | 'thinking' | null {
@@ -266,15 +290,27 @@ export function CoreTalkView(p: CoreTalkViewProps) {
   const [anat, setAnat] = useState<{ open: boolean; focus: OrganId | null }>({ open: false, focus: null })
   const [earlier, setEarlier] = useState(false)
   const [voiceOpen, setVoiceOpen] = useState(false)
+  // v3: the orb's Pause key, and the sentence the last Wake or Sleep press got back (shown under the orb, not only in a toast)
+  const [paused, setPaused] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
   const root = useRef<HTMLDivElement>(null)
 
-  const run = useCallback(async (fn: () => Promise<void>) => {
+  const run = useCallback(async (fn: () => Promise<void>, label: string) => {
     if (busy) return
     setBusy(true)
-    try { await fn() } catch { /* toasted by the action */ } finally { setBusy(false) }
+    try {
+      await fn()
+      setActionError(null)
+    } catch (e) {
+      // the action toasts too; the toast goes in 4 s, this line stays until the next press or the core wakes
+      setActionError(`${label}: ${(e as Error)?.message || 'the engine did not answer'}`)
+    } finally {
+      setBusy(false)
+    }
   }, [busy])
-  const wake = useCallback(() => void run(() => actions.wake(mode)), [run, actions, mode])
-  const sleep = useCallback(() => void run(() => actions.sleep()), [run, actions])
+  useEffect(() => { if (running) setActionError(null) }, [running])
+  const wake = useCallback(() => void run(() => actions.wake(mode), 'Could not wake'), [run, actions, mode])
+  const sleep = useCallback(() => void run(() => actions.sleep(), 'Could not put him to sleep'), [run, actions])
   const openAnat = useCallback((focus: OrganId | null = null) => setAnat({ open: true, focus }), [])
 
   // Ctrl+Shift+Space anywhere while the view is mounted; Alt+I anywhere; I only with focus inside the view
@@ -364,51 +400,80 @@ export function CoreTalkView(p: CoreTalkViewProps) {
 
   if (v3) {
     const wakeState: LampState = core?.last_error && !running ? 'fault' : running ? simState(core?.state === 'booting' ? 'waiting' : 'live', simulated) : 'waiting'
-    const pathState: LampState = organsShown.some((o) => o.reading.state === 'fault') ? 'fault' : ribbon.some((r) => r.state === 'live' || r.state === 'simulated') ? simState('live', simulated) : 'waiting'
+    const pathState: LampState = ribbon.some((r) => r.state === 'fault') ? 'fault' : ribbon.some((r) => r.state === 'live' || r.state === 'simulated') ? simState('live', simulated) : 'waiting'
+    const healthState: LampState = organsShown.some((o) => o.reading.state === 'fault') ? 'fault' : organsShown.some((o) => o.reading.state === 'live' || o.reading.state === 'simulated') ? simState('live', simulated) : 'waiting'
+    const orbMode = orbModeOf(core)
+    const asleep = !running
+    const up = running && core?.state !== 'booting' && showsNumber(wakeState) ? uptimeText(core?.uptime_s) : null
+    const statusReading: LampReading = { state: wakeState, since: null, reason: core?.status_line || (running ? `${core?.mode ?? 'voice'} mode` : 'asleep') }
     return (
       <div className="jc jc3" ref={root} data-core={running ? 'awake' : 'asleep'} data-narrow={narrow ? 'true' : undefined} data-simulated={simulated ? 'true' : undefined} onKeyDown={onRootKey}>
         <Zones
-          ratio="core"
+          ratio={[2.7, 1, 0.9]}
           first={{
-            job: 'WAKE', chip: <Chip state={wakeState} reason={core?.status_line || undefined} />, flare: running ? 1 : 0,
+            job: 'CONVERSATION', chip: <Chip state={wakeState} reason={statusReading.reason} />, flare: running ? 1 : 0,
             children: (
-              <>
-                <Controls core={core} busy={busy} onWake={wake} onSleep={sleep} mode={mode} setMode={setMode} onAnatomy={() => openAnat()} simulated={simulated} v3 />
-                <Stage signal={signal} coreView={coreView} running={running} simulated={simulated} motion={motion} onVoice={speech ? () => setVoiceOpen(true) : undefined} />
-              </>
+              <div className="jc3-talk">
+                <CoreOrb
+                  mode={orbMode} signal={signal} coreView={coreView} line={orbLine(orbMode, core, actionError)} simulated={simulated} motion={motion}
+                  paused={paused} onTogglePause={() => setPaused((x) => !x)} onWake={asleep ? wake : undefined} busy={busy}
+                  corners={{
+                    left: (
+                      <>
+                        <span className="jc3-status">
+                          <Lamp reading={statusReading} subject="JARVIS" />
+                          <span className="jc3-status-word">{running ? (core?.mode === 'text' ? 'Text only' : 'Voice') : 'Off'}</span>
+                          {up && <span className="jc3-mono">up {up}</span>}
+                        </span>
+                        <button type="button" className="jc-key jc-key-sm" aria-pressed={paused} onClick={() => setPaused((x) => !x)} aria-label={paused ? 'Resume voice picture' : 'Pause voice picture'} title="P with focus in the stage">
+                          {paused ? 'Resume' : 'Pause'}
+                        </button>
+                      </>
+                    ),
+                    right: (
+                      <>
+                        {speech && <VoiceKey onOpen={() => setVoiceOpen(true)} />}
+                        <button type="button" className="jc-key jc-key-sm" onClick={() => { if (fit.earlier.length) setEarlier(true) }} aria-disabled={!fit.earlier.length || undefined}
+                          aria-label={fit.earlier.length ? `Earlier turns, ${fit.earlier.length}` : 'Earlier turns: none yet'}>
+                          Earlier{fit.earlier.length > 0 && showsNumber(count.state) ? ` ${fit.earlier.length}` : ''}
+                        </button>
+                        {review && <ShareReviewKey review={review} short />}
+                      </>
+                    ),
+                  }}
+                >
+                  {asleep ? (
+                    <div className="jc3-act">
+                      <ModeSwitch mode={mode} setMode={setMode} />
+                      <button type="button" className="jc-wake jc3-wake" onClick={wake} aria-disabled={busy || undefined} aria-keyshortcuts="Control+Shift+Space">
+                        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 2v6M4.6 4.2a5 5 0 1 0 6.8 0" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                        <span>{busy ? 'Waking' : 'Wake JARVIS'}</span>
+                        <kbd aria-hidden="true">Ctrl Shift Space</kbd>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="jc3-act">
+                      <PathLamps stages={ribbon} />
+                      <button type="button" className="jc-key jc-key-sm jc-sleep" onClick={sleep} aria-disabled={busy || undefined} aria-keyshortcuts="Control+Shift+Space">Put to sleep</button>
+                    </div>
+                  )}
+                </CoreOrb>
+                <TalkLog
+                  turns={turns} all={turns} running={running} simulated={simulated} notifyPresent={notifyPresent} onFlag={actions.flag} onHandoff={onHandoff}
+                  recorded={recorded} footer={review ? <ReviewStatus review={review} /> : undefined}
+                />
+              </div>
             ),
           }}
           second={{
-            job: 'CONVERSATION', chip: <Chip state={count.state} reason={count.reason} />,
-            peek: { name: 'Conversation', lamp: count.state, note: showsNumber(count.state) ? `${turns.length} turns` : count.reason },
-            children: (
-              <>
-                <div className="jc3-convo-head">
-                  <span className="jc-count">
-                    {showsNumber(count.state) ? <span>{fit.shown.length} of {turns.length} turns</span> : <span className="jc-dim">{count.reason}</span>}
-                  </span>
-                  {review && <ShareReviewKey review={review} />}
-                  <button type="button" className="jc-key jc-key-sm" onClick={() => { if (fit.earlier.length) setEarlier(true) }} aria-disabled={!fit.earlier.length || undefined}>
-                    Earlier{fit.earlier.length > 0 && showsNumber(count.state) ? ` ${fit.earlier.length}` : ''}
-                  </button>
-                </div>
-                <Transcript
-                  turns={fit.shown} all={turns} running={running} simulated={simulated} notifyPresent={notifyPresent} onFlag={actions.flag} onHandoff={onHandoff}
-                  recorded={recorded} footer={review ? <ReviewStatus review={review} /> : undefined}
-                  header={fit.earlier.length > 0 ? <div className="g-line jc-earlier-rule" aria-hidden="true">── earlier turns are under Earlier ──</div> : undefined}
-                />
-              </>
-            ),
-          }}
-          third={{
             job: 'VOICE PATH', chip: <Chip state={pathState} />,
             peek: { name: 'Voice path', lamp: pathState, note: pathState === 'waiting' ? (running ? 'nothing timed yet' : 'core off') : undefined },
-            children: (
-              <>
-                <PipelineRibbon stages={ribbon} orientation="column" />
-                <OrganStrip organs={organsShown} onOpen={(id) => openAnat(id)} />
-              </>
-            ),
+            children: <PipelineRibbon stages={ribbon} orientation="column" />,
+          }}
+          third={{
+            job: 'HEALTH', chip: <Chip state={healthState} />,
+            peek: { name: 'Health', lamp: healthState, note: healthState === 'waiting' ? (running ? 'no fresh report' : 'core off') : undefined },
+            children: <OrganStrip organs={organsShown} onOpen={(id) => openAnat(id)} />,
           }}
         />
         <CoreDrawer open={anat.open} onClose={() => setAnat({ open: false, focus: null })} title="Anatomy" tag="SYS">

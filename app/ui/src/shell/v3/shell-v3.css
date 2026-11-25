@@ -494,8 +494,8 @@ button.s3-head:active { transform: none; box-shadow: var(--sh-press); }
   .s3-pill-note { font: 500 0.6875rem var(--s3-mono); color: var(--ink2); }
   .s3-zones[data-sheet='2'] .s3-scrim,
   .s3-zones[data-sheet='3'] .s3-scrim { opacity: 1; pointer-events: auto; }
-  /* the second and third tray open as opaque bottom sheets over a scrim, with a Done key */
-  .s3-tray[data-sheet='open'] { display: flex; position: fixed; left: 0.5rem; right: 0.5rem; bottom: 0.5rem; z-index: 40; max-height: 72%; overflow-y: auto; background-image: none; background-color: var(--pop); box-shadow: var(--sh-now), var(--edge); animation: s3-rise var(--s3-d-sheet) var(--s3-ease) both; }
+  /* the second and third tray open as opaque bottom sheets over a scrim, with a Done key. The sheet ends above the capture line (64 px) and the tab bar (70 px) at 390 px: at 0.5rem from the bottom its Done key lay under both, measured 776-820 against the tab bar at 774-844, so no press reached it; the top is kept clear of the top plate and its view chip (to 128 px at 844 px high) */
+  .s3-tray[data-sheet='open'] { display: flex; position: fixed; left: 0.5rem; right: 0.5rem; bottom: 9.5rem; z-index: 40; max-height: calc(100% - 17.5rem); overflow-y: auto; background-image: none; background-color: var(--pop); box-shadow: var(--sh-now), var(--edge); animation: s3-rise var(--s3-d-sheet) var(--s3-ease) both; }
   .s3-tray[data-sheet='open']::before { display: none; }
   .s3-tray[data-sheet='open'] .s3-done { display: inline-flex; align-self: flex-end; min-height: 44px; min-width: 88px; align-items: center; justify-content: center; padding: 0 1.125rem; border: 0; border-radius: 0.875rem; background-image: linear-gradient(145deg, var(--raised-hi), var(--raised)); background-color: var(--raised); box-shadow: var(--sh-raise); color: var(--ink); font-weight: 600; cursor: pointer; }
   .s3-dock { gap: 0.5rem; padding: 0.5rem; }

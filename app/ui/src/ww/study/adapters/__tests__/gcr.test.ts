@@ -167,3 +167,16 @@ describe('abort', () => {
     expect((await p).reason).toBe('Stopped: the view was closed.')
   })
 })
+
+describe('the account name rides in the body of connect and disconnect', () => {
+  it('G-02 and G-03 send {account} when one is named and an empty body when not', async () => {
+    const e = fakeEngine({ [`POST ${B}/connect`]: { json: env('waiting', 'Approve in the browser.', STATUS) }, [`POST ${B}/disconnect`]: { json: env('waiting', 'Not linked.', STATUS) } })
+    const g = make()
+    await g.client.connect('college')
+    await g.client.disconnect('college')
+    await g.client.connect()
+    await g.client.disconnect(undefined)
+    const sent = e.calls.filter((c) => /connect$/.test(c.path)).map((c) => `${c.path.split('/').pop()} ${JSON.stringify(c.body)}`)
+    expect(sent).toEqual(['connect {"account":"college"}', 'disconnect {"account":"college"}', 'connect {}', 'disconnect {}'])
+  })
+})

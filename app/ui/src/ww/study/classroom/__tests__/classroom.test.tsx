@@ -10,7 +10,8 @@ import type { GcrAnswer, GcrCourse, GcrFile, GcrJob, GcrStatusBody } from '../..
 import { nullIntakeDesk, type IntakeDeskPort } from '../../intake/port'
 import { ClassroomPlate } from '../ClassroomPlate'
 import { ClassroomShelf, SEARCH_MS } from '../ClassroomShelf'
-import { FAULTS_SHOWN } from '../LinkPanel'
+import { ACCOUNT_RULE, FAULTS_SHOWN } from '../LinkPanel'
+import { STALE_SENTENCE } from '../ShelfPanes'
 import { NoteView, parseNote } from '../markdown'
 import { APPROVE_SENTENCE } from '../useClassroomLink'
 
@@ -134,7 +135,7 @@ describe('the Classroom plate: keys per state', () => {
     const client = statusOnly(answer('waiting', 'Not linked yet.', body({ counts: null })))
     m = mount(<ClassroomPlate client={client} />)
     await flush()
-    expect(keys()).toEqual(['Connect'])
+    expect(keys()).toEqual(['Connect', 'Add account'])
     click(button(/^Connect$/)!)
     await flush()
     expect(client.connect).toHaveBeenCalledTimes(1)
@@ -159,7 +160,7 @@ describe('the Classroom plate: keys per state', () => {
     expect(q('[data-door="classroom"]').textContent).toContain('FAULT')
     expect(q('[data-door="classroom"]').textContent).toContain(reason)
     expect(q('[data-door="classroom"]').textContent).toContain('Not allowed yet: Read course files.')
-    expect(keys()).toEqual(['Connect'])
+    expect(keys()).toEqual(['Connect', 'Add account'])
   })
   it('LIVE draws the last sync time, the counts under its LIVE word, Sync now and Disconnect', async () => {
     const client = fakeClient()
@@ -169,7 +170,7 @@ describe('the Classroom plate: keys per state', () => {
     expect(t).toContain('LIVE')
     expect(t).toContain('Last sync: 2026-11-22 09:30')
     expect(q('[data-component="classroom-counts"]').textContent).toBe('2 courses, 3 files, 1 notes, 1 papers, 2 faults')
-    expect(keys()).toEqual(['Sync now', 'Open the shelf', 'Disconnect'])
+    expect(keys()).toEqual(['Sync now', 'Open the shelf', 'Disconnect', 'Add account'])
     click(button(/Sync now/)!)
     await flush()
     expect(client.sync).toHaveBeenCalledWith(undefined, expect.anything())
@@ -183,7 +184,7 @@ describe('the Classroom plate: keys per state', () => {
     click(button(/Disconnect/)!)
     await flush()
     expect(client.disconnect).toHaveBeenCalledTimes(1)
-    expect(keys()).toEqual(['Connect'])
+    expect(keys()).toEqual(['Connect', 'Add account'])
   })
   it('the faults of the last sync are listed as text: the first five, then "and N more"', async () => {
     const lines = Array.from({ length: 7 }, (_, i) => `File ${i + 1} could not be read.`)
@@ -435,5 +436,112 @@ describe('the face switch', () => {
     click(face('Intake'))
     await flush()
     expect(q('[data-door="classroom"]')).not.toBeNull()
+  })
+})
+
+// ------------------------------------------------------------------------------------------------ accounts, stale, also_in, stopped
+const ACCOUNTS = [{ name: 'main', state: 'live' as const, reason: 'Signed in and reading.' }, { name: 'college', state: 'waiting' as const, reason: 'Not signed in yet.' }]
+const withAccounts = (over: Partial<GcrStatusBody> = {}) => body({ accounts: ACCOUNTS, ...over })
+const nameOf = (b: HTMLElement) => b.getAttribute('aria-label') ?? (b.textContent ?? '').trim()
+
+describe('accounts on the plate', () => {
+  it('each account shows its name, state word and the engine reason, with the one key that fits it', async () => {
+    m = mount(<ClassroomPlate client={statusOnly(answer('live', 'Linked.', withAccounts()))} />)
+    await flush()
+    const rows = qa('[data-component="classroom-accounts"] li')
+    expect(rows.map((r) => r.dataset.account)).toEqual(['main', 'college'])
+    expect(rows[0].textContent).toContain('LIVE')
+    expect(rows[0].textContent).toContain('Signed in and reading.')
+    expect(rows[1].textContent).toContain('WAITING')
+    expect(rows[1].textContent).toContain('Not signed in yet.')
+    expect(qa('[data-door="classroom"] button').map(nameOf)).toEqual(['Disconnect main', 'Connect college', 'Sync now', 'Add account'])
+  })
+  it('Disconnect acts on the chosen account only: G-03 gets that name', async () => {
+    const client = statusOnly(answer('live', 'Linked.', withAccounts()))
+    m = mount(<ClassroomPlate client={client} />)
+    await flush()
+    click(qa('button').find((b) => nameOf(b) === 'Disconnect main')!)
+    await flush()
+    expect(client.disconnect).toHaveBeenCalledWith('main', expect.anything())
+  })
+  it('Connect on a waiting account sends its name to G-02', async () => {
+    const client = statusOnly(answer('live', 'Linked.', withAccounts()))
+    m = mount(<ClassroomPlate client={client} />)
+    await flush()
+    click(qa('button').find((b) => nameOf(b) === 'Connect college')!)
+    await flush()
+    expect(client.connect).toHaveBeenCalledWith('college', expect.anything())
+  })
+  it('Add account asks for a short name, refuses a bad one in the field with a plain sentence, and sends a good one', async () => {
+    const client = statusOnly(answer('live', 'Linked.', withAccounts()))
+    m = mount(<ClassroomPlate client={client} />)
+    await flush()
+    click(button(/^Add account$/)!)
+    const box = () => q('[data-component="classroom-add-account"]')
+    const input = () => box().querySelector('input') as HTMLInputElement
+    click(button(/Connect this account/)!)
+    expect(box().textContent).toContain('Type a short name first.')
+    typeInto(input(), 'My College')
+    expect(box().textContent).toContain(ACCOUNT_RULE)
+    expect(input().getAttribute('aria-invalid')).toBe('true')
+    typeInto(input(), 'a'.repeat(21))
+    expect(box().textContent).toContain(ACCOUNT_RULE)
+    click(button(/Connect this account/)!)
+    expect(client.connect).not.toHaveBeenCalled()
+    typeInto(input(), 'lab-2')
+    expect(box().textContent).not.toContain(ACCOUNT_RULE)
+    click(button(/Connect this account/)!)
+    await flush()
+    expect(client.connect).toHaveBeenCalledWith('lab-2', expect.anything())
+    expect(qa('[data-component="classroom-add-account"]')).toHaveLength(0)
+  })
+  it('PLANNED draws no Add account key, and an engine that sends no accounts keeps the single Connect and Disconnect', async () => {
+    m = mount(<ClassroomPlate client={statusOnly(answer<GcrStatusBody>('planned', 'Classroom is not built.', null, { from: 'app', status: 0 }))} />)
+    await flush()
+    expect(qa('[data-door="classroom"] button')).toHaveLength(0)
+    m.unmount()
+    m = mount(<ClassroomPlate client={fakeClient()} />)
+    await flush()
+    expect(button(/^Disconnect$/)).toBeTruthy()
+    expect(qa('[data-component="classroom-accounts"]')).toHaveLength(0)
+  })
+  it('the first pane of the shelf lists the accounts too', async () => {
+    m = mount(<ClassroomShelf client={statusOnly(answer('live', 'Linked.', withAccounts()))} desk={subjectsDesk} />)
+    await flush()
+    expect(q('[data-component="classroom-accounts"]').textContent).toContain('college')
+  })
+})
+
+describe('a stopped job, a stale file and the other courses of a file', () => {
+  const stopped: GcrJob = { status: 'stopped', started: 'a', finished: 'b', text: 'Stopped after 1 of 2 courses: Google asked the app to slow down.', counts: COUNTS, fault_lines: [] }
+  it('the job status stopped is a word and the engine sentence in full', async () => {
+    m = mount(<ClassroomPlate client={statusOnly(answer('live', 'Linked.', body({ job: stopped })))} />)
+    await flush()
+    expect(q('[data-component="classroom-job"]').dataset.status).toBe('stopped')
+    expect(q('[data-component="classroom-job"]').textContent).toBe(`Stopped. ${stopped.text}`)
+  })
+  it('a note that is waiting shows its own state word beside its reason, not the LIVE of the file alone', async () => {
+    const odd = file({ id: 'f-8', title: 'Scanned worksheet', note_state: 'waiting', note_reason: 'The scan has no readable text yet.' })
+    m = mount(<ClassroomShelf client={fakeClient({ files: vi.fn(async () => answer('live', 'ok', { items: [odd] })) })} desk={subjectsDesk} />)
+    await flush()
+    const note = q('[data-file="f-8"] [data-component="classroom-note-state"]')
+    expect(note.textContent).toContain('WAITING')
+    expect(note.textContent).toContain('The scan has no readable text yet.')
+  })
+  it('a stale file says it is an older copy, in the list and in the reader; also_in names the other courses', async () => {
+    const odd = file({ id: 'f-9', title: 'Old syllabus', stale: true, also_in: [{ course: 'Applied Maths', post_title: 'Syllabus' }, { course: 'Lab', post_title: 'Syllabus' }] })
+    const client = fakeClient({ files: vi.fn(async () => answer('live', 'ok', { items: [odd, F1] })) })
+    m = mount(<ClassroomShelf client={client} desk={subjectsDesk} />)
+    await flush()
+    const row = q('[data-file="f-9"]')
+    expect(row.textContent).toContain(STALE_SENTENCE)
+    expect(row.textContent).toContain('Also in: Applied Maths, Lab')
+    expect(q('[data-file="f-1"]').textContent).not.toContain('older copy')
+    expect(q('[data-file="f-1"]').textContent).not.toContain('Also in')
+    click(row.querySelector('.cr-pick')!)
+    await flush()
+    const card = q('[data-component="classroom-reader"]').textContent ?? ''
+    expect(card).toContain(STALE_SENTENCE)
+    expect(card).toContain('Also in: Applied Maths, Lab')
   })
 })

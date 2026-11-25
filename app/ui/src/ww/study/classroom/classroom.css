@@ -3,16 +3,27 @@
    Intake desk. Every control is 44 px real (the kit keys and the rows below), nothing is smaller than 0.75rem (12 px), and no
    text is cut: a reason is the state, so it wraps. */
 
-.cr-link { display: flex; flex-direction: column; gap: 0.375rem; min-inline-size: 0; }
+.cr-linkbox { display: flex; flex-direction: column; gap: 0.375rem; min-inline-size: 0; }
 .cr-state { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.125rem 0.5rem; min-inline-size: 0; }
-.cr-why, .cr-note, .cr-counts, .cr-sub, .cr-say { font-family: var(--font-ui, system-ui, sans-serif); font-size: 0.75rem; line-height: 1.35; color: var(--ink-2); overflow-wrap: anywhere; }
+.cr-why, .cr-note, .cr-counts, .cr-fine, .cr-say { font-family: var(--font-ui, system-ui, sans-serif); font-size: 0.75rem; line-height: 1.35; color: var(--ink-2); overflow-wrap: anywhere; }
 .cr-why { flex: 1 1 100%; min-inline-size: 0; }
+/* two lamps in one card (the file, then its note) need a word each, or the second LIVE reads as a repeat */
+.cr-tag { font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
 .cr-note, .cr-counts { margin: 0; }
 .cr-counts { font-family: var(--font-mono, ui-monospace, monospace); color: var(--ink-1); }
 .cr-say { margin: 0; display: flex; align-items: flex-start; gap: 0.5rem; color: var(--ink-1); }
 .cr-keys { display: flex; flex-wrap: wrap; gap: 0.5rem; min-inline-size: 0; }
 .cr-faults { margin: 0; padding-inline-start: 1rem; font-size: 0.75rem; line-height: 1.35; color: var(--ink-1); overflow-wrap: anywhere; }
 .cr-faults-more { color: var(--ink-2); list-style: none; margin-inline-start: -1rem; }
+
+/* the accounts the link knows: a short name, its state word and reason, and the one key that fits it */
+.cr-accounts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; min-inline-size: 0; }
+.cr-account { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; min-inline-size: 0; padding: 0.375rem 0.5rem; border-radius: var(--r-ctl, 0.875rem); background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
+.cr-account-name { font-size: 0.875rem; font-weight: 600; overflow-wrap: anywhere; }
+.cr-add { display: flex; flex-direction: column; gap: 0.5rem; inline-size: 100%; min-inline-size: 0; }
+/* a text input has an intrinsic width (about 12 rem) that held the field's grid track open: in the 10 rem DOORS tray of a 1120 px window the field stood 28 px outside it */
+.cr-add .ww-field { grid-template-columns: minmax(0, 1fr); }
+.cr-add .ww-field input { inline-size: 100%; min-inline-size: 0; box-sizing: border-box; }
 
 /* the plate keeps the desk's sunk tile and lets its keys and counts take the height they need */
 .cr-plate { display: flex; flex-direction: column; gap: 0.375rem; block-size: auto; min-block-size: 100px; min-inline-size: 0; cursor: default; }
@@ -30,10 +41,12 @@
 .cr-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr) minmax(0, 1.3fr); gap: 1rem; min-block-size: 0; }
 .cr-tray { box-sizing: border-box; min-inline-size: 0; min-block-size: 0; overflow-y: auto; padding: 0.75rem; background: var(--surface-raised); border-radius: var(--r-card); box-shadow: var(--elev-low); }
 .cr-col { display: flex; flex-direction: column; gap: 0.5rem; min-inline-size: 0; min-block-size: 0; }
-.cr-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+/* named facebar, linkbox, rows and fine because the Career page owns .cr-bar, .cr-link, .cr-list and .cr-sub and both stylesheets
+   are global: as .cr-bar this switch was hidden under v3 by the shell rule that hides Career's view switch (4 shared names, 25 Nov) */
+.cr-facebar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
 .cr-chip { display: inline-flex; align-items: center; }
 
-.cr-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; min-inline-size: 0; }
+.cr-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; min-inline-size: 0; }
 .cr-course, .cr-file { min-inline-size: 0; border-radius: var(--r-ctl, 0.875rem); background: var(--surface-ground); box-shadow: var(--elev-low); display: flex; flex-direction: column; gap: 0.25rem; padding-block-end: 0.5rem; }
 .cr-file { padding-block-end: 0; }
 .cr-pick {
@@ -73,12 +86,17 @@
 .cr-md-p, .cr-md-quote { margin: 0; white-space: pre-line; }
 .cr-md-quote { padding-inline-start: 0.75rem; border-inline-start: 2px solid var(--edge-ui); color: var(--ink-2); }
 
-/* the desk is narrow (a phone, or the app in a half window): one column, and the shelf scrolls as a page */
+/* the kind filter is four 44 px options; in a tray of 17 rem or less they would push the tray 21 px wider than itself (1120 px
+   window), so the options share the row and wrap before they spill */
+:root[data-theme] .cr-filter .ww-seg { display: flex; flex-wrap: wrap; box-sizing: border-box; max-inline-size: 100%; gap: 0.25rem; }
+:root[data-theme] .cr-filter .ww-seg .ww-seg-opt { flex: 1 1 auto; min-inline-size: 2.75rem; padding-inline: 0.5rem; }
+
+/* the desk is narrow (a phone, or the app in a half window): one column. The grid is the scroller, so the head stays in view; its
+   rows take the height of their content (a row that shrank below it laid the second tray over the first at 390 px) */
 @container (max-width: 900px) {
-  .cr-shelf { overflow-y: auto; grid-template-rows: auto auto; }
-  .cr-grid { grid-template-columns: minmax(0, 1fr); }
-  .cr-tray { overflow-y: visible; }
+  .cr-grid { grid-template-columns: minmax(0, 1fr); grid-auto-rows: max-content; overflow-y: auto; align-content: start; }
+  .cr-tray { overflow-y: visible; min-block-size: auto; }
 }
 @container (max-width: 480px) {
-  .cr-shelf { padding-inline: 1rem; }
+  .cr-grid { gap: 0.75rem; }
 }

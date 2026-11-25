@@ -7,7 +7,7 @@ export interface GcrCounts { courses: number; files: number; notes: number; pape
 
 /** G-05. `started` and `finished` are whatever stamp the engine writes; they are shown as text, never parsed. */
 export interface GcrJob {
-  status: 'idle' | 'running' | 'done' | 'failed'
+  status: 'idle' | 'running' | 'done' | 'failed' | 'stopped'
   started: string | null
   finished: string | null
   text: string
@@ -15,8 +15,12 @@ export interface GcrJob {
   fault_lines: string[]
 }
 
+/** One signed-in account of G-01: a short lower-case name, its own state word and the engine's sentence. */
+export interface GcrAccount { name: string; state: LampState; reason: string }
+
 /** G-01 (and G-03). */
 export interface GcrStatusBody {
+  accounts?: GcrAccount[]
   scopes: GcrScope[]
   connecting: boolean
   synced_at: string
@@ -63,6 +67,10 @@ export interface GcrFile {
   has_note: boolean
   has_original: boolean
   paper_id: string | null
+  /** True when the newer version of this file could not be fetched, so this is an older copy. */
+  stale?: boolean
+  /** Other courses the same file was posted in. */
+  also_in?: { course: string; post_title: string }[]
 }
 
 export interface GcrNoteBody { markdown: string; title: string; words: number | null; pages: number | null; scanned_pages: number | null }

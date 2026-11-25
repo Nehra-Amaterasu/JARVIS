@@ -2,11 +2,12 @@
 // as paper or notes, Send to paper desk), the sentence the engine gave for the last press, and what was opened. A note is Markdown
 // shown by NoteView. A PDF original goes in an <iframe> and an image in an <img>, both from a blob URL the shelf made from the bytes
 // of G-11 (an <iframe src> cannot send the token header); the shelf revokes the URL when the reader closes.
+import { useEffect, useRef, type RefObject } from 'react'
 import { Button } from '../../../shared/kit'
 import { Lamp, readingOf } from '../../../shared/lamp'
 import type { GcrAnswer, GcrFile, GcrNoteBody, GcrOriginal } from '../adapters/gcrTypes'
 import { NoteView } from './markdown'
-import { Pose } from './ShelfPanes'
+import { FileNotes, Pose } from './ShelfPanes'
 
 const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp']
 export const isPdf = (f: GcrFile): boolean => f.ext.toLowerCase().replace(/^\./, '') === 'pdf'
@@ -44,16 +45,33 @@ function Facts({ f }: { f: GcrFile }) {
   return parts.length ? <p className="cr-note">{parts.join(', ')}</p> : null
 }
 
+/** In one column (a phone) the reader sits below the lists, out of sight; this brings it up when the owner chooses a file or opens
+ *  something. With three columns it is already in view, so nothing moves. jsdom has no scrollIntoView, so it is called only where it exists. */
+function useBringIntoView(ref: RefObject<HTMLElement | null>, key: string) {
+  useEffect(() => {
+    const el = ref.current
+    const grid = el?.closest('.cr-grid')
+    if (!el || !grid || typeof el.scrollIntoView !== 'function') return
+    if (getComputedStyle(grid).gridTemplateColumns.trim().split(/\s+/).length > 1) return
+    el.scrollIntoView({ block: 'start' })
+  }, [ref, key])
+}
+
 export function Reader({ file, opened, busy, onNote, onOriginal, onProgram, onKind, onToPapers, onClose }: ReaderProps) {
+  const card = useRef<HTMLDivElement>(null)
+  const open = useRef<HTMLElement>(null)
+  useBringIntoView(card, file?.id ?? '')
+  useBringIntoView(open, opened && opened.fileId === file?.id ? `${opened.mode}-${opened.loading}` : '')
   if (!file) return <Pose title="Choose a file to read it here." reading={readingOf({ state: 'waiting', reason: 'no file chosen' })} />
   const inApp = showsInApp(file)
   return (
-    <div className="cr-reader" data-component="classroom-reader" data-file={file.id}>
+    <div className="cr-reader" ref={card} data-component="classroom-reader" data-file={file.id}>
       <header className="cr-card">
         <h3 className="cr-card-title">{file.title}</h3>
-        <p className="cr-state"><Lamp reading={readingOf({ state: file.state, reason: file.reason })} />{file.reason && <span className="cr-why">{file.reason}</span>}</p>
-        {file.note_reason && <p className="cr-state"><Lamp reading={readingOf({ state: file.note_state, reason: file.note_reason })} /><span className="cr-why">{file.note_reason}</span></p>}
+        <p className="cr-state"><span className="cr-tag">File</span><Lamp reading={readingOf({ state: file.state, reason: file.reason })} />{file.reason && <span className="cr-why">{file.reason}</span>}</p>
+        {file.note_reason && <p className="cr-state"><span className="cr-tag">Note</span><Lamp reading={readingOf({ state: file.note_state, reason: file.note_reason })} /><span className="cr-why">{file.note_reason}</span></p>}
         <Facts f={file} />
+        <FileNotes f={file} />
         <div className="cr-keys">
           <Button size="sm" grouped onClick={() => onNote(file)} disabledReason={file.has_note ? undefined : 'There is no note for this file yet.'}>Read note</Button>
           {inApp
@@ -68,7 +86,7 @@ export function Reader({ file, opened, busy, onNote, onOriginal, onProgram, onKi
         </div>
       </header>
       {opened && opened.fileId === file.id && (
-        <section className="cr-open" aria-label={opened.mode === 'note' ? 'The note' : 'The original'} data-component="classroom-open" data-mode={opened.mode}>
+        <section className="cr-open" ref={open} aria-label={opened.mode === 'note' ? 'The note' : 'The original'} data-component="classroom-open" data-mode={opened.mode}>
           <div className="cr-open-bar">
             <span className="cr-open-name">{opened.mode === 'note' ? 'Note' : 'Original'}</span>
             <Button size="sm" grouped onClick={onClose}>Close</Button>

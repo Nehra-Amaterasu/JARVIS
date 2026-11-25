@@ -39,8 +39,10 @@ type Env = { state?: unknown; reason?: unknown; source?: unknown } & Record<stri
 
 export interface GcrClient {
   status(signal?: AbortSignal): Promise<GcrAnswer<GcrStatusBody>>
-  connect(signal?: AbortSignal): Promise<GcrAnswer<GcrStatusBody>>
-  disconnect(signal?: AbortSignal): Promise<GcrAnswer<GcrStatusBody>>
+  /** G-02: `account` is a short lower-case name; absent means the main account. */
+  connect(account?: string, signal?: AbortSignal): Promise<GcrAnswer<GcrStatusBody>>
+  /** G-03: the same optional name. */
+  disconnect(account?: string, signal?: AbortSignal): Promise<GcrAnswer<GcrStatusBody>>
   /** G-04: start a sync of all courses, or of the ones named. */
   sync(courses?: string[], signal?: AbortSignal): Promise<GcrAnswer<{ job: GcrJob }>>
   /** G-05 */
@@ -121,8 +123,8 @@ export function createGcr(deps: GcrDeps): GcrAdapter {
 
   const client: GcrClient = {
     status: (signal) => get<GcrStatusBody>('/status', { ...planned<never>(NOT_BUILT_REASON), source: 'this window', from: 'app', status: 0, data: null }, signal),
-    connect: (signal) => send<GcrStatusBody>('POST', '/connect', {}, signal),
-    disconnect: (signal) => send<GcrStatusBody>('POST', '/disconnect', {}, signal),
+    connect: (account, signal) => send<GcrStatusBody>('POST', '/connect', account ? { account } : {}, signal),
+    disconnect: (account, signal) => send<GcrStatusBody>('POST', '/disconnect', account ? { account } : {}, signal),
     sync: (courses, signal) => send<{ job: GcrJob }>('POST', '/sync', courses ? { courses } : {}, signal),
     job: (signal) => get<{ job: GcrJob }>('/sync', noToken(), signal),
     courses: (signal) => get<{ items: GcrCourse[] }>('/courses', noToken(), signal),

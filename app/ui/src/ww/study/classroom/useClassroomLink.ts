@@ -21,8 +21,9 @@ export interface ClassroomLink {
   say: LinkSay | null
   /** Counts up each time a sync finishes, so a screen that lists courses and files knows to read them again. */
   finished: number
-  connect(): Promise<void>
-  disconnect(): Promise<void>
+  /** `account` is a short lower-case name; absent means the main account. */
+  connect(account?: string): Promise<void>
+  disconnect(account?: string): Promise<void>
   syncNow(courses?: string[]): Promise<void>
   refresh(): Promise<void>
 }
@@ -74,18 +75,18 @@ export function useClassroomLink(client: GcrClient): ClassroomLink {
     return () => clearTimeout(t)
   }, [polling, running, status, jobNow, client, refresh])
 
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (account?: string) => {
     setSay(null)
-    const r = await client.connect(signal())
+    const r = await client.connect(account, signal())
     if (!alive.current) return
     // a refusal (409 already connecting, for one) has no data: the engine's sentence is shown and the status stays as it was
     if (r.data) setStatus(r)
     else setSay({ state: r.state, text: r.reason })
   }, [client])
 
-  const disconnect = useCallback(async () => {
+  const disconnect = useCallback(async (account?: string) => {
     setSay(null)
-    const r = await client.disconnect(signal())
+    const r = await client.disconnect(account, signal())
     if (!alive.current) return
     if (r.data) { setStatus(r); setJobNow(r.data.job) } else setSay({ state: r.state, text: r.reason })
   }, [client])

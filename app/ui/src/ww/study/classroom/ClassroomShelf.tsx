@@ -213,12 +213,13 @@ export function ClassroomShelf({ client = gcrClient, desk = intakeDesk(), extra 
   if (lookV3Enabled()) {
     return (
       <div className="cr-shelf cr-v3" data-component="classroom-shelf" data-state={linkLamp.state}>
+        {/* the reader gets the widest tray: a note is the thing read here, and the courses need little more than a name */}
         <Zones
-          ratio="default"
+          ratio={[1.05, 1, 1.45]}
           first={{
             job: 'COURSES',
             chip: <span className="cr-chip"><Lamp reading={linkLamp} /></span>,
-            children: <div className="cr-col">{extra && <div className="cr-bar">{extra}</div>}{first}</div>,
+            children: <div className="cr-col">{extra && <div className="cr-facebar">{extra}</div>}{first}</div>,
           }}
           second={{ job: 'FILES', peek: { name: 'Files', lamp: files?.state ?? linkLamp.state, note: chosenCourse ? chosenCourse.name : 'every course' }, children: second }}
           third={{ job: 'READER', peek: { name: 'Reader', lamp: opened ? 'live' : 'waiting', note: file ? file.title : 'no file chosen' }, children: third }}

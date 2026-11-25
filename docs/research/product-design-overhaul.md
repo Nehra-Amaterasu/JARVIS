@@ -2,6 +2,32 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-25: the Classroom shelf seen in a browser
+
+**Question.** The Classroom plate, shelf and reader (built 22 Nov, unit-tested only) had never been seen in a browser. Do they hold at 1366x768, 1120x720 and 390x844 under the current look and under v3?
+
+**What was looked at.** `app/ui/e2e/classroom-shelf.spec.ts`: Chromium against the sandbox build (`dist-e2e`), the thirteen `/api/mission/gcr` routes mocked in the page with invented fixtures (2 accounts, 4 courses with long and short names, 12 files of mixed kinds and states, one note with front matter, a PDF and a PNG built in the spec). Per size and look it walks the plate (planned, waiting, connecting, fault, live, a sync that ends `stopped` with 7 fault lines) and the shelf (course, search, kind filter, note, PDF original, image original, mark as paper, send to the paper desk, open in its program), and asserts through the shared probe: no page error, no document scroll either way, no overlap among the visible panes, no ellipsis cut, keys and inputs 44 px or more, no text under 11 px, a focus ring on the keys it tabs through. 12 pictures were read in all; they go to `$TEMP/ui-cr-shots`, outside the repository.
+
+**What was broken, and the measurement.**
+- 390 px, current look: the shelf folded to one column but the row heights collapsed, so the second and third trays lay over the first (Connect and Disconnect floated over the Files list; a press on a course never landed). Fixed: the grid is the scroller and its rows size to their content.
+- 1120 px, current look: the Files tray pushed 21 px past its own edge (the four-option kind filter is wider than a 17 rem tray). Fixed: the options share the row and wrap.
+- Every size, v3 look: the face switch (Intake, Library, Classroom) was hidden, so the Classroom face had no way back. Cause: a name clash. The shell rule `.cr-bar > .ww-seg-wrap` (`shell.css`) hides the Career page's own view switch because the shell draws it, and the Classroom shelf had reused the class `cr-bar`. Career and Classroom shared 4 class names (`cr-bar`, `cr-link`, `cr-list`, `cr-sub`) in two global stylesheets, each restyling the other. Fixed by renaming the Classroom's four (`cr-facebar`, `cr-linkbox`, `cr-rows`, `cr-fine`); the shell rule stays. (The builder's first fix deleted the rule, which would have brought a second view switch back on Career; caught in review.)
+- 390 px, v3 look: the bottom sheets (Files, Reader, and the Intake Doors) ended 8 px above the screen edge, so their Done key (776 to 820 px) lay under the tab bar (774 to 844) and the capture line (702 to 766): no press reached it. The sheet now ends at 9.5 rem from the bottom and 17.5 rem is kept free above it (`shell-v3.css`, a shell file touched on purpose).
+- 1120 px, v3 look: the add-account field stood 28 px outside the 165 px Doors tray (an input's intrinsic width held its grid track). Fixed with a `minmax(0, 1fr)` track.
+- 390 px, current look: choosing a file or opening a note left the reader below the lists, out of sight. It now scrolls into view when the desk is one column.
+- Reader card showed two unlabelled LIVE lamps (the file, then its note). They are labelled File and Note, and a file in the list shows its note's own state word beside the note's reason (a waiting note no longer reads as LIVE).
+- v3 desktop: the reader tray was the narrowest (0.95 of 3.85). Ratio is now 1.05 : 1 : 1.45.
+
+**Added (the engine's newer contract).** G-01 `accounts` shown on the plate and in the first pane with state word and reason, each with its own Connect or Disconnect key (`aria-label` carries the name); an Add account key with a field that checks `^[a-z0-9-]{1,20}$` in place with plain sentences and sends `{account}` to G-02; G-03 takes `{account}`; `stale` shows "An older copy: the newer version could not be fetched"; `also_in` shows "Also in: <course>"; job status `stopped` shows "Stopped." and the engine's sentence. With no `accounts` field the old single Connect and Disconnect remain.
+
+**Numbers.** `npx tsc -b` exit 0. `npx vitest run src/ww/study src/__tests__/ww src/__tests__/shared src/__tests__/tokens.test.ts`: 46 files, 1625 tests passed (the 53 older Classroom tests kept, two of their key lists now also hold Add account). `src/__tests__/shell`: 183 passed. New spec 6 of 6, `cp2-ww-pages.spec.ts` 4 of 4, repository privacy tests 25 passed.
+
+**What remains.**
+- Not run against the real engine or a real Google sign-in (the sandbox has the link off, so every route was mocked); the PDF original is checked as a blob URL in an iframe, not rendered (headless Chromium has no PDF viewer).
+- v3 laptop: the reader tray holds the card (about 300 px) above the note, so a note starts half-way down a 768 px screen; a person scrolls the tray.
+- v3 phone: the shell's Done key floats over the last lines of a long sheet.
+- The sheet fix changes every v3 phone sheet (Detail, Doors, Files, Reader), not only Classroom; no other view was looked at.
+
 ## 2026-11-22: the Classroom shelf and the reader in Study
 
 **Question.** Can the read-only Classroom link (routes G-01 to G-13 under `/api/mission/gcr`, built on the engine side at the same time) get its screen in Study, against the fixed route contract, without touching anything outside `app/ui`?

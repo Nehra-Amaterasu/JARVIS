@@ -223,7 +223,7 @@ export interface ClassroomStatus {
   syncedAt?: string
   scopes?: { name: string; label: string; granted: boolean }[]
   counts?: { courses: number; files: number; notes: number; papers: number; faults: number } | null
-  job?: { status: 'idle' | 'running' | 'done' | 'failed'; started: string | null; finished: string | null; text: string; fault_lines: string[] } | null
+  job?: { status: 'idle' | 'running' | 'done' | 'failed' | 'stopped'; started: string | null; finished: string | null; text: string; fault_lines: string[] } | null
 }
 
 export interface QuestionFilter {

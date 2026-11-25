@@ -6,6 +6,18 @@ import { Lamp, readingOf, type LampReading, type LampState } from '../../../shar
 import type { GcrCourse, GcrFile, GcrKind } from '../adapters/gcrTypes'
 import type { SubjectOption } from '../intake/types'
 
+export const STALE_SENTENCE = 'An older copy: the newer version could not be fetched'
+/** The two honest notes of a file: an older copy, and the other courses it was posted in. */
+export function FileNotes({ f }: { f: GcrFile }) {
+  const also = (f.also_in ?? []).map((a) => a.course).filter(Boolean)
+  return (
+    <>
+      {f.stale && <span className="cr-fine" data-component="classroom-stale">{STALE_SENTENCE}</span>}
+      {also.length > 0 && <span className="cr-fine" data-component="classroom-also">{`Also in: ${also.join(', ')}`}</span>}
+    </>
+  )
+}
+
 /** A pose for an empty or unanswered list: the state word and the engine's reason, never a skeleton. */
 export function Pose({ reading, title }: { reading: LampReading; title: string }) {
   return (
@@ -40,16 +52,16 @@ export interface CoursesPaneProps {
 
 export function CoursesPane({ items, subjects, chosen, onChoose, onSubject, onInclude }: CoursesPaneProps) {
   return (
-    <ul className="cr-list" aria-label="Courses" data-component="classroom-courses">
+    <ul className="cr-rows" aria-label="Courses" data-component="classroom-courses">
       {items.map((c) => {
         const known = subjects.some((s) => s.id === c.subject)
         return (
           <li key={c.id} className="cr-course" data-course={c.id} data-chosen={chosen === c.id ? 'true' : undefined}>
             <button type="button" className="cr-pick" aria-pressed={chosen === c.id} onClick={() => onChoose(chosen === c.id ? null : c.id)}>
               <span className="cr-name">{c.name}</span>
-              {c.section && <span className="cr-sub">{c.section}</span>}
-              <span className="cr-sub"><Lamp reading={readingOf({ state: c.state, reason: '' })} /></span>
-              <span className="cr-sub">{`${c.files} files, ${c.notes} notes, ${c.papers} papers`}</span>
+              {c.section && <span className="cr-fine">{c.section}</span>}
+              <span className="cr-fine"><Lamp reading={readingOf({ state: c.state, reason: '' })} /></span>
+              <span className="cr-fine">{`${c.files} files, ${c.notes} notes, ${c.papers} papers`}</span>
             </button>
             <div className="cr-ctl">
               <Field kind="select" label={`Subject for ${c.name}`} value={c.subject} onChange={(e) => onSubject(c, e.target.value)} hint={c.subject && c.subject_source ? `from ${c.subject_source}` : undefined}>
@@ -90,14 +102,15 @@ export function FilesFilter({ query, onQuery, kind, onKind }: Pick<FilesPaneProp
 
 export function FilesPane({ items, chosen, onChoose }: Pick<FilesPaneProps, 'items' | 'chosen' | 'onChoose'>) {
   return (
-    <ul className="cr-list" aria-label="Files" data-component="classroom-files">
+    <ul className="cr-rows" aria-label="Files" data-component="classroom-files">
       {items.map((f) => (
         <li key={f.id} className="cr-file" data-file={f.id}>
           <button type="button" className="cr-pick" aria-pressed={chosen === f.id} onClick={() => onChoose(f.id)}>
             <span className="cr-name">{f.title}</span>
-            <span className="cr-sub">{[f.ext.toUpperCase(), f.post?.topic].filter(Boolean).join(', ')}</span>
-            <span className="cr-sub"><Lamp reading={readingOf({ state: f.state, reason: '' })} /></span>
-            {f.note_reason && <span className="cr-sub">{f.note_reason}</span>}
+            <span className="cr-fine">{[f.ext.toUpperCase(), f.post?.topic].filter(Boolean).join(', ')}</span>
+            <span className="cr-fine"><Lamp reading={readingOf({ state: f.state, reason: '' })} /></span>
+            {f.note_reason && <span className="cr-fine" data-component="classroom-note-state"><span className="cr-tag">Note</span> <Lamp reading={readingOf({ state: f.note_state, reason: '' })} /> {f.note_reason}</span>}
+            <FileNotes f={f} />
           </button>
         </li>
       ))}

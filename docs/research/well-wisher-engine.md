@@ -2,6 +2,32 @@
 
 The running research file of the engine lane (the Python side of Well Wisher). Newest section on top. The plan it serves is `docs/design/well-wisher-engine-plan.md`; the screens are the UI lane's (`docs/research/product-design-overhaul.md`).
 
+## 2026-11-25 (night): the local model drafts questions from his notes; the order of topics stays counted
+
+**Question.** He asked for a thinking model that rates topics and writes questions. What can a 4B local model be trusted with, and what must stay arithmetic?
+
+**Decided.** The order of topics is not asked of the model. R-17 already orders them from three counted terms (marks weight on the papers on file, the share of papers a topic was set in, one minus his proficiency from his own marks); it gains the syllabus weight of the topic's unit as a fourth printed term (3, 2, 1 for high, med, low; the gain is multiplied by weight over 2, so a med unit is unchanged). The order can be redone by hand from the answer. The model only drafts.
+
+**Built.** `ww_pyq/drafts.py`, `routes_ww_pyq_drafts.py` (R-50 draft from notes, R-51 list, R-52 accept or reject, R-35 the rules-only switch), a `question_drafts` task and validator in `ww_counsel.py`, `prompts/question_drafts.md`, `ww_pyq/settings.py`.
+- Passages: the paragraphs of his Classroom notes of the subject that mention the topic (all of its words for a topic of one or two words, half otherwise), best first, at most 6,000 characters; the draft records which notes they came from.
+- The validator refuses the whole answer when it brings anything but questions: an answer, a solution, a grade, marks the model made up, a probability, a topic of its own. Nine such answers are tested.
+- A draft is pending. A draft whose wording stands in the notes (0.7 or more of its 5-word runs) is stored rejected as a copy. Accepting needs marks and makes one accepted question with `origin: "model-draft"` in a paper named Drafts; the topic must be one of his syllabus.
+- With the rules-only switch on, the model is never called (a counting fake proves it). With no model, the answer is "The local model is not running." and nothing is invented.
+
+**Measured with the real local model** (qwen3 4B instruct through Ollama on loopback; invented notes of two paragraphs; three calls):
+
+| Call | Time | Result |
+| --- | --- | --- |
+| 1 (model load) | 11.1 s | 3 questions, all on the topic, none copied (similarity 0.0, 0.083, 0.0) |
+| 2 | 1.8 s | 2 new questions; the third repeated one already drafted and was not stored again |
+| 3 | 1.8 s | nothing new: "The model gave no question that is not already drafted." |
+
+One of the three first drafts had broken grammar ("Why is the sampling rate must be greater than ..."): he edits or rejects it in review. Calls 1 and 2 each gave a question that differs from the other only in its last word; the store treats only identical wording as the same draft.
+
+**Tests.** `test_pyq_drafts.py`: 17 with a fake model. Full app suite on a scratch data directory: 2354 passed, 16 skipped, 404 s. One earlier test changed on purpose (the set of printed terms of R-17 gained `syllabus_weight`).
+
+**Not verified.** The model was tried on two invented paragraphs, not on his notes: how well passages are found in 617 real notes, and how good the questions are on real material, is not measured. A draft is not checked for being answerable from the passages or for being correct physics; that is what his review is for. Near-duplicates are not merged.
+
 ## 2026-11-25 (evening): assignments, announcements, calendar and reminders from the Google link
 
 **Question.** The link read coursework and announcements at every sync and kept only their attachments. What does it take to show what is due, what Classroom says about his submission, and to remind him, without writing anything to Google?

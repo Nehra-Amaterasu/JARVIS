@@ -32,7 +32,7 @@ from typing import Callable, Optional
 PROMPTS = Path(__file__).with_name("prompts")
 OLLAMA = "http://127.0.0.1:11434"
 DEFAULT_MODEL = "qwen3:4b-instruct-2507-q4_K_M"
-TASKS = ("grade_explain", "quiz_from_text", "parse_day", "summarise")
+TASKS = ("grade_explain", "quiz_from_text", "parse_day", "summarise", "question_drafts")
 MAX_INPUT = 12000
 
 Provider = Callable[[str, str], str]      # (system, user) -> model text
@@ -105,8 +105,37 @@ def _clean_int(v, lo: int, hi: int) -> Optional[int]:
     return n if lo <= n <= hi else None
 
 
+# What a drafted question may never carry: the model writes questions and nothing that grades, answers or forecasts.
+_DRAFT_BANNED_KEYS = ("answer", "answers", "solution", "solutions", "key", "grade", "score", "marks", "marking", "probability", "likelihood", "topic", "topics")
+_DRAFT_BANNED_TEXT = re.compile(r"^\s*(?:answer|ans|solution|sol|marking scheme|hint)\s*[:.\-]", re.I)
+
+
+def _check_drafts(data: dict, fields: dict) -> Optional[dict]:
+    """{"questions": [text]} from the model's answer, or None. An answer that brings anything but questions (an answer,
+    a solution, a grade, marks it made up, a probability, a topic of its own) is refused whole, not trimmed: a model that
+    did not keep to the task once is not trusted for the rest of that answer."""
+    if set(data) - {"questions"} or not isinstance(data.get("questions"), list):
+        return None
+    out = []
+    for q in data["questions"]:
+        if isinstance(q, dict):
+            if any(k.lower() in _DRAFT_BANNED_KEYS for k in q) or set(q) - {"text", "question"}:
+                return None
+            q = q.get("text") or q.get("question")
+        if not isinstance(q, str):
+            return None
+        q = re.sub(r"\s+", " ", q).strip()
+        if _DRAFT_BANNED_TEXT.match(q) or re.search(r"\b(?:answer|solution)\s*:", q, re.I):
+            return None
+        if 15 <= len(q) <= 600 and re.search(r"[A-Za-z]{3}", q):
+            out.append(q)
+    return {"questions": out[:5]} if out else None
+
+
 def check_output(task: str, data: dict, fields: dict) -> Optional[dict]:
     """The validated answer for a task, or None when the model's JSON has the wrong shape."""
+    if task == "question_drafts":
+        return _check_drafts(data, fields)
     if task == "grade_explain":
         score = _clean_int(data.get("score"), 0, 3)
         missing = [str(x)[:200] for x in data.get("missing") or [] if str(x).strip()][:5]

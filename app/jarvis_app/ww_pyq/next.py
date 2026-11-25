@@ -31,6 +31,7 @@ MIN_ATTEMPTS = 5
 MINUTES_PER_MARK = 3.0
 UNMEASURED = 0.5
 MAX_RUN = 2
+SYLLABUS_DEFAULT = 2       # med: the weight of a unit he has not marked high or low, and the divisor that leaves such a topic unchanged
 
 
 class Pick(TypedDict, total=False):
@@ -48,8 +49,13 @@ def _plural(n: int, one: str, many: str) -> str:
 
 
 def practise_next(patterns: PatternSet, proficiency: dict[str, float], gap_minutes: int, *,
-                  attempts: Optional[dict[str, int]] = None, minutes_per_mark: float = MINUTES_PER_MARK) -> list[Pick]:
+                  attempts: Optional[dict[str, int]] = None, minutes_per_mark: float = MINUTES_PER_MARK,
+                  weights: Optional[dict[str, int]] = None) -> list[Pick]:
+    """`weights` is the syllabus weight of each topic's unit (3 high, 2 med, 1 low, from his own syllabus). The gain is
+    multiplied by weight / 2, so a topic of a med unit (or with no weight given) keeps the gain it had, and the weight
+    is printed with the other terms: the order can be redone by hand from the answer."""
     attempts = attempts or {}
+    weights = weights or {}
     cands: list[tuple[float, Pick]] = []
     for t in patterns.get("topics") or []:
         mw = (t.get("marks_weight") or {}).get("mean")
@@ -61,7 +67,9 @@ def practise_next(patterns: PatternSet, proficiency: dict[str, float], gap_minut
         prof = float(proficiency[t["key"]]) if measured else UNMEASURED
         share = t["k"] / t["n"]
         minutes = round(float(typical) * float(minutes_per_mark), 2)
-        gain = mw * share * (1 - prof)
+        weight = weights.get(t["key"], SYLLABUS_DEFAULT)
+        weight = weight if weight in (1, 2, 3) else SYLLABUS_DEFAULT
+        gain = mw * share * (1 - prof) * weight / SYLLABUS_DEFAULT
         if minutes <= 0:
             continue
         reason = (f"set in {t['k']} of {t['n']} papers on file; "
@@ -69,7 +77,7 @@ def practise_next(patterns: PatternSet, proficiency: dict[str, float], gap_minut
         cands.append((gain / minutes, {
             "key": t["key"], "unit": t["unit"], "topic": t["topic"], "gain": round(gain, 6),
             "terms": {"marks_weight": mw, "seen_share": round(share, 4), "proficiency": round(prof, 3),
-                      "measured": measured, "minutes": minutes},
+                      "measured": measured, "minutes": minutes, "syllabus_weight": weight},
             "question_ids": list(t["questions"]), "reason": reason}))
     cands.sort(key=lambda c: (-c[0], c[1]["key"]))
     left = [p for _, p in cands]

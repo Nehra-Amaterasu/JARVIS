@@ -101,7 +101,9 @@ def register(app: FastAPI, svc, bus) -> None:
             marks = (saved.get("paper_marks") or {}).get(sid) or {}
             prof = ww_generator.proficiency(states, marks, keys)
             attempts = {k: len(marks.get(k) or []) for k in keys}
-            picks = pnext.practise_next(ps, prof, gap_minutes, attempts=attempts)
+            # the unit's weight in his own syllabus (high, med, low) is the fourth printed term of the order
+            weights = {t["key"]: {"high": 3, "med": 2, "low": 1}.get(t.get("weight", "med"), 2) for t in tag.topics_of(sub)}
+            picks = pnext.practise_next(ps, prof, gap_minutes, attempts=attempts, weights=weights)
             extra = {"defaults": {"minutes_per_mark": pnext.MINUTES_PER_MARK}, "provisional": ps["provisional"], "footer": FOOTER}
             if ps["provisional"]:
                 return api.items(picks, "waiting", _need(ps["floor"], ps["n_untagged"]), SOURCE, **extra)

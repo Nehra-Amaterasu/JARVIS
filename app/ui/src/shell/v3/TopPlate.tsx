@@ -74,7 +74,7 @@ export function TopPlate({ place, rows, more, glass, onGlass, onGoSection, onSet
       <Popover open={menu === 'more'} onClose={close} triggerRef={moreBtn} label="More" className="s3-morewrap"
         trigger={
           <button ref={moreBtn} type="button" className="s3-key s3-iconkey" aria-haspopup="dialog" aria-expanded={menu === 'more'}
-            aria-label={`More: ${more.length} rarely needed ${more.length === 1 ? 'action' : 'actions'}`} data-tip={`${more.length} more ${more.length === 1 ? 'action' : 'actions'}`}
+            aria-label={more.length ? `More: ${more.length} rarely needed ${more.length === 1 ? 'action' : 'actions'}` : 'More: appearance and keys'} data-tip={more.length ? `${more.length} more ${more.length === 1 ? 'action' : 'actions'}` : 'Appearance and keys'}
             onClick={() => setMenu(menu === 'more' ? null : 'more')}>
             {WinGlyph.dots}
           </button>
@@ -108,7 +108,7 @@ function MoreRows({ more, onShortcuts }: { more: readonly MoreAction[]; onShortc
   return (
     <>
       <button type="button" className="s3-popitem" onClick={() => choose(onShortcuts)}>All shortcuts</button>
-      <p className="s3-cap">RARELY NEEDED {'·'} {more.length}</p>
+      {more.length > 0 && <p className="s3-cap">RARELY NEEDED {'·'} {more.length}</p>}
       {more.map((a) => (
         <button key={a.id} type="button" className="s3-popitem" data-more={a.id} onClick={() => choose(a.onSelect)}>{a.label}</button>
       ))}

@@ -207,3 +207,111 @@
     --glass-filter: none;
   }
 }
+
+/* ==========================================================================
+   Project hues (25 Nov: "everything too white, use some colours"). One hue per project, in meaning: JARVIS the voice and the room
+   (amber-orange, its present accent), AANKHEN sensing (cyan-blue), YADAASH memory and its agents (violet), WELL WISHER his day
+   (rust). Each is given twice, as r, g, b channels so the shell can make a tint of it: a lighter value for the dark ground and a
+   deeper one for the light ground (the same number would be 2.8 to 1 on one of them). They are decoration and orientation, never a
+   state: the five state colours below (--live, --fault, --sim, --locked and the ink greys) are not reused for them, and every state
+   keeps its shape and its word. Two hues sit near a state colour and are kept apart on purpose, measured in HSL: AANKHEN is 196 degrees where --live is
+   174 (22 apart, and bluer), YADAASH is 278 degrees (a magenta-leaning violet) where --sim is 253 (25 apart; the pale lavender
+   of --sim is 0.83 light, the hue 0.68). They are still the two closest pairs of the shell, so a hue is never the only carrier of a
+   state: every state is a shape and a word, and the hues appear only on project marks, tints and the accent key.
+
+   Contrast, worst backdrop (white behind the dark ground in the desktop host, black behind the light one), recomputed by
+   src/__tests__/shell/v3/css.test.ts: the hue is never text, so the floor is the 3 to 1 of a mark; the name beside every
+   mark is ink. What the tests hold is the TEXT on the tinted ground: ink2 and ink at least 4.5 to 1 on the ground with the
+   hue at 4 percent, on a tray at 5 percent and on the first tray at 8 percent, for every hue on both grounds.
+   ========================================================================== */
+:root:where([data-look='v3']) {
+  --hue-jarvis-rgb: 242, 89, 26;
+  --hue-aankhen-rgb: 41, 182, 232;
+  --hue-yadaash-rgb: 192, 108, 240;
+  --hue-wellwisher-rgb: 217, 138, 98;
+}
+:root:where([data-look='v3'][data-theme='clay-light']) {
+  --hue-jarvis-rgb: 196, 65, 12;
+  --hue-aankhen-rgb: 10, 116, 160;
+  --hue-yadaash-rgb: 138, 47, 194;
+  --hue-wellwisher-rgb: 168, 81, 47;
+}
+/* the open project's hue: ShellV3 puts data-hue on the root. Later and equal in specificity, so it wins over the two blocks above. */
+:root:where([data-look='v3']) { --hue-rgb: var(--hue-jarvis-rgb); }
+:root:where([data-look='v3'][data-hue='jarvis']) { --hue-rgb: var(--hue-jarvis-rgb); }
+:root:where([data-look='v3'][data-hue='aankhen']) { --hue-rgb: var(--hue-aankhen-rgb); }
+:root:where([data-look='v3'][data-hue='yadaash']) { --hue-rgb: var(--hue-yadaash-rgb); }
+:root:where([data-look='v3'][data-hue='wellwisher']) { --hue-rgb: var(--hue-wellwisher-rgb); }
+:root:where([data-look='v3']) {
+  --hue: rgb(var(--hue-rgb));
+  --hue-lo: rgba(var(--hue-rgb), 0.78);
+  --hue-jarvis: rgb(var(--hue-jarvis-rgb));
+  --hue-jarvis-lo: rgba(var(--hue-jarvis-rgb), 0.78);
+  --hue-aankhen: rgb(var(--hue-aankhen-rgb));
+  --hue-aankhen-lo: rgba(var(--hue-aankhen-rgb), 0.78);
+  --hue-yadaash: rgb(var(--hue-yadaash-rgb));
+  --hue-yadaash-lo: rgba(var(--hue-yadaash-rgb), 0.78);
+  --hue-wellwisher: rgb(var(--hue-wellwisher-rgb));
+  --hue-wellwisher-lo: rgba(var(--hue-wellwisher-rgb), 0.78);
+  /* a 12 percent tint for a selected row and an active tab; the ground takes 4 percent, a tray 5, the first tray 8 so the eye knows where to start */
+  --acc-soft: rgba(var(--hue-rgb), 0.12);
+  --acc-ground: rgba(var(--hue-rgb), 0.04);
+  --acc-tray: rgba(var(--hue-rgb), 0.05);
+  --acc-tray-1: rgba(var(--hue-rgb), 0.08);
+}
+
+/* the accent key of the open project: the same names the kit already reads (--accent, --accent-a, --accent-b, --on-accent, the glow and
+   the key cap). JARVIS keeps its own. Specificity (0,3,0) beats the tokens package's :root[data-look='v3'] (0,2,0). The label on each
+   fill is 5.1 to 8.0 to 1 (css.test.ts). */
+:root[data-look='v3'][data-hue='aankhen'] {
+  --accent: #29b6e8;
+  --accent-a: #4cc6f0;
+  --accent-b: #1ea6d8;
+  --on-accent: #04141a;
+  --accent-glow: 0 8px 26px rgba(41, 182, 232, 0.35);
+  --accent-glow-hover: 0 10px 32px rgba(41, 182, 232, 0.45);
+  --cap-fill: #0b5775;
+  --cap-ink: #e6f8ff;
+  --cap-sh: inset 1px 1px 2px rgba(0, 40, 60, 0.5), inset -1px -1px 2px rgba(160, 225, 250, 0.3);
+  --sh-accent-press: inset 3px 3px 9px rgba(0, 60, 90, 0.55), inset -2px -2px 6px rgba(170, 230, 250, 0.35);
+  --s3-glow: rgba(41, 182, 232, 0.35);
+  --s3-glow-hover: rgba(41, 182, 232, 0.45);
+  --s3-accent-press: inset 3px 3px 9px rgba(0, 60, 90, 0.55), inset -2px -2px 6px rgba(170, 230, 250, 0.35);
+  --s3-kcap-bg: #0b5775;
+  --s3-kcap-ink: #e6f8ff;
+}
+:root[data-look='v3'][data-hue='yadaash'] {
+  --accent: #c06cf0;
+  --accent-a: #cf86f4;
+  --accent-b: #b055e6;
+  --on-accent: #1a0628;
+  --accent-glow: 0 8px 26px rgba(192, 108, 240, 0.35);
+  --accent-glow-hover: 0 10px 32px rgba(192, 108, 240, 0.45);
+  --cap-fill: #4b2a8f;
+  --cap-ink: #f1e8ff;
+  --cap-sh: inset 1px 1px 2px rgba(40, 10, 90, 0.5), inset -1px -1px 2px rgba(210, 190, 250, 0.3);
+  --sh-accent-press: inset 3px 3px 9px rgba(50, 15, 110, 0.55), inset -2px -2px 6px rgba(215, 195, 252, 0.35);
+  --s3-glow: rgba(192, 108, 240, 0.35);
+  --s3-glow-hover: rgba(192, 108, 240, 0.45);
+  --s3-accent-press: inset 3px 3px 9px rgba(50, 15, 110, 0.55), inset -2px -2px 6px rgba(215, 195, 252, 0.35);
+  --s3-kcap-bg: #4b2a8f;
+  --s3-kcap-ink: #f1e8ff;
+}
+/* Well Wisher is on the light ground; five classes of specificity so the light-ground blocks of the tokens package cannot out-rank it */
+:root[data-look='v3'][data-hue='wellwisher'][data-theme='clay-light']:not([data-ground='dark']) {
+  --accent: #a8512f;
+  --accent-a: #b9623f;
+  --accent-b: #964526;
+  --on-accent: #fff6f0;
+  --accent-glow: 0 8px 26px rgba(168, 81, 47, 0.3);
+  --accent-glow-hover: 0 10px 32px rgba(168, 81, 47, 0.4);
+  --cap-fill: #6e2e14;
+  --cap-ink: #fff1e8;
+  --cap-sh: inset 1px 1px 2px rgba(70, 25, 5, 0.5), inset -1px -1px 2px rgba(255, 190, 150, 0.3);
+  --sh-accent-press: inset 3px 3px 9px rgba(80, 30, 8, 0.55), inset -2px -2px 6px rgba(255, 200, 165, 0.35);
+  --s3-glow: rgba(168, 81, 47, 0.3);
+  --s3-glow-hover: rgba(168, 81, 47, 0.4);
+  --s3-accent-press: inset 3px 3px 9px rgba(80, 30, 8, 0.55), inset -2px -2px 6px rgba(255, 200, 165, 0.35);
+  --s3-kcap-bg: #6e2e14;
+  --s3-kcap-ink: #fff1e8;
+}

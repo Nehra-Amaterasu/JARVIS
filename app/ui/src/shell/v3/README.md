@@ -3,13 +3,18 @@
 This folder is the shell and navigation of the v3 look ("the frosted deck", `docs/design/design-language-v3.md`, sections 3,
 4.1 to 4.7, 4.14 and 8.3). The layout pass of each section builds on it. Read this file, then `contract.tsx` (the types).
 
-Everything here is inert unless the look is v3: `shell/look.ts` reads `app.look` / the fragment `look=v3` once per page load
-(`look=off` turns it back), `ShellV2.tsx` takes one branch to `ShellV3`, and with the look off none of this code or CSS is
-downloaded.
+Since 25 Nov v3 is the ONE look and the default: `shell/look.ts` is on unless the fragment says `look=off`, `app.look` is `off`, or the
+build sets `VITE_LOOK_DEFAULT=off` (vitest and the e2e bundle do, because the older tests are written against the older frame, which
+stays in the code as a fixture). Nothing in the interface switches the look. `ShellV2.tsx` takes one branch to `ShellV3`.
+
+**Hues (25 Nov).** `ShellV3` puts `data-hue="jarvis|aankhen|yadaash|wellwisher"` on `<html>` (and `data-project` on `.s3`). Tokens for a view
+to use: `--hue` (the open project's colour), `--hue-lo`, `--acc-soft` (12 percent tint), `--acc-ground` (4), `--acc-tray` (5),
+`--acc-tray-1` (8), `--hue-<project>` and `--hue-<project>-lo` for a named project, and the existing `--accent`, `--accent-a`,
+`--accent-b`, `--on-accent` which now follow the open project (JARVIS keeps its orange). A hue is never a state colour.
 
 ## What the shell gives a view
 
-- **Frame.** A spine (208 px, left; on the phone a tab bar and a project sheet), a top plate (location as project / section /
+- **Frame.** A spine (184 px, left, folding to a 64 px icon rail; on the phone a tab bar and a project sheet), a top plate (location as project / section /
   view, the view switch, ONE lamp pill, More, the window keys), the canvas, and the dock at the foot. A view draws only inside
   the canvas. Until its own pass an existing view mounts unchanged and may scroll inside the canvas.
 - **Unchanged contracts.** Views still come from `shell/views` (`collectViews`) and mount as today. The root keeps
@@ -99,7 +104,7 @@ export function CoreTalk() { useViewChrome(CHROME); … }
   retry; any other result clears the input. The dock is never remounted on a place change, so a half-typed line and the picked mode
   survive a switch of view or section (the mode falls back to the first when the new view does not register it).
 - The registration is removed when the view unmounts, so a place change never leaves the last view's modes behind. A view
-  that registers nothing still gets a dock with Ask alone and a More with the shell's own rows ("Current look", "Classic UI").
+  that registers nothing still gets a dock with Ask alone and a More with the shell's own rows (appearance and keys).
 - `more` actions come before the shell's own rows under "RARELY NEEDED"; More's tooltip names the count ("5 more actions"), there is
   no number badge. The Appearance row (the Frosted switch) and the key hints are the shell's.
 - Outside the v3 shell `useViewChrome` does nothing, so a view may call it unconditionally.

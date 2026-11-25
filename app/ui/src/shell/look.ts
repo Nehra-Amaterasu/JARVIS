@@ -1,12 +1,20 @@
 /**
- * The switch for the v3 look, "the frosted deck" (docs/design/design-language-v3.md, 8.3). Default OFF: with it off the
- * shell renders today's frame, byte for byte (ShellV2.tsx takes one branch, and only when this says yes).
+ * The switch for the v3 look, "the frosted deck" (docs/design/design-language-v3.md, 8.3). Since 25 Nov 2026 it is the ONE look:
+ * the owner had three looks on screen and asked for them to be merged into the new one ("keep on building on top"). Default
+ * ON. The older frame stays in the code only as a fixture that about 3,900 unit tests and most browser specs were written
+ * against (ShellV2.tsx still takes its old branch when this says no); no key of the interface switches to it any more.
  *
- * ON when either holds, read ONCE per page load and kept (a look flipped mid-session must not swap the whole frame
- * under a half-typed form; same rule as shell/flag.ts):
- *   - localStorage key `app.look` is `v3`, or
- *   - the URL fragment carries `look=v3`, as in `/#t=<token>&shell=v2&look=v3`. The fragment is written to
- *     localStorage so the choice survives a reopen; `look=off` turns it back.
+ * OFF only when one of these says so, checked in this order:
+ *   1. the URL fragment carries `look=off` (or any value that is not on), as in `/#t=<token>&look=off`; it is written to
+ *      localStorage so a reopen keeps it, and `look=v3` writes it back;
+ *   2. localStorage key `app.look` is `off` (a stored `v3`, or a missing key, means on);
+ *   3. the build says so: `VITE_LOOK_DEFAULT=off` at build time. Vitest and the Playwright bundle (dist-e2e) set it, because
+ *      their specs are written against the older frame and rewriting them would cost far more than this one variable; the
+ *      production build (plain `vite build`) does not set it and gets v3. Read at call time, not at import, so a test can
+ *      stub it and prove both defaults.
+ *
+ * Read ONCE per page load and kept (a look flipped mid-session must not swap the whole frame under a half-typed form; same
+ * rule as shell/flag.ts).
  *
  * The fragment is captured when this module is EVALUATED, not when the look is first asked (the rule of flag.ts):
  * lib/api.ts reads the `t=` token and then wipes the whole fragment with history.replaceState. flag.ts is imported by
@@ -61,19 +69,31 @@ function store(key: string, value: string): void {
   }
 }
 
+/** The build-time default: `VITE_LOOK_DEFAULT=off` keeps the older frame (tests, the e2e bundle); anything else is v3. */
+function buildDefaultOn(): boolean {
+  try {
+    return (import.meta.env?.VITE_LOOK_DEFAULT ?? '').toString().toLowerCase() !== 'off'
+  } catch {
+    return true
+  }
+}
+
 export function lookV3Enabled(): boolean {
   if (cachedLook !== null) return cachedLook
-  let on = false
+  let on = buildDefaultOn()
   try {
     const f = fragmentValue('look')
     if (f !== null) {
       on = ON.has(f)
       store(LOOK_KEY, on ? 'v3' : 'off')
     } else {
-      on = ON.has((localStorage.getItem(LOOK_KEY) ?? '').toLowerCase())
+      const s = (localStorage.getItem(LOOK_KEY) ?? '').toLowerCase()
+      // a stored choice wins over the build default in both directions; an empty or unknown value defers to the build
+      if (ON.has(s)) on = true
+      else if (s === 'off') on = false
     }
   } catch {
-    on = false
+    /* storage blocked: the build default decides */
   }
   cachedLook = on
   return on
@@ -101,7 +121,7 @@ export function glassEnabled(): boolean {
   return on
 }
 
-/** The owner's preview switch: one button each way. The page reloads, because the look is read once per load. */
+/** The older frame's own key (ShellV2.tsx draws it only when the look is off, so no person reaches it from v3). The page reloads, because the look is read once per load. */
 export function setLookV3(on: boolean): void {
   store(LOOK_KEY, on ? 'v3' : 'off')
   if (typeof location !== 'undefined') location.reload()

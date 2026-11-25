@@ -9,6 +9,21 @@ import { SECTIONS, sectionById, type Place, type ProductId } from '../ids'
 export type SubProjectId = 'jarvis' | 'aankhen' | 'yadaash' | 'wellwisher'
 export type Ground = 'dark' | 'light'
 
+/** The owner's model of how the four relate (25 Nov): JARVIS is the voice and the room, AANKHEN is sensing (signals only, never a
+ *  camera), YADAASH is memory and the agents that work on it, WELL WISHER is his day, study, tree and career. The spine shows
+ *  it by order and one small gap between groups, never by boxes. */
+export type SpineGroup = 'room' | 'memory' | 'day'
+
+/** A row of the spine that is not a section of shell/ids.ts: a place that is planned and opens the planned pose instead. */
+export interface SpineExtra {
+  id: string
+  label: string
+  /** The planned entry it opens (shared/planned registries; jarvis/planned.ts holds `jarvis.agents`). */
+  plannedId: string
+  /** The honest sentence: it is the row's title and accessible description. */
+  sentence: string
+}
+
 export interface SubProject {
   id: SubProjectId
   name: string
@@ -17,13 +32,20 @@ export interface SubProject {
   ground: Ground
   /** Section ids in spine order. */
   sections: readonly string[]
+  group: SpineGroup
+  /** Planned rows listed after the sections; they are not places and take no part in Alt+Up/Down or the hash. */
+  extras?: readonly SpineExtra[]
 }
 
 export const SUBPROJECTS: readonly SubProject[] = [
-  { id: 'jarvis', name: 'JARVIS', product: 'jarvis', ground: 'dark', sections: ['core', 'room', 'console'] },
-  { id: 'aankhen', name: 'Aankhen', product: 'jarvis', ground: 'dark', sections: ['senses'] },
-  { id: 'yadaash', name: 'Yadaash', product: 'jarvis', ground: 'dark', sections: ['memory'] },
-  { id: 'wellwisher', name: 'Well Wisher', product: 'ww', ground: 'light', sections: ['day', 'focus', 'study', 'tree', 'career'] },
+  { id: 'jarvis', name: 'JARVIS', product: 'jarvis', ground: 'dark', sections: ['core', 'room', 'console'], group: 'room' },
+  { id: 'aankhen', name: 'Aankhen', product: 'jarvis', ground: 'dark', sections: ['senses'], group: 'room' },
+  {
+    id: 'yadaash', name: 'Yadaash', product: 'jarvis', ground: 'dark', sections: ['memory'], group: 'memory',
+    // the agents the owner is planning in the Yadaash chat: honest about it, a row that opens the planned pose and runs nothing
+    extras: [{ id: 'agents', label: 'Agents', plannedId: 'jarvis.agents', sentence: 'Agents are being planned; nothing runs here yet' }],
+  },
+  { id: 'wellwisher', name: 'Well Wisher', product: 'ww', ground: 'light', sections: ['day', 'focus', 'study', 'tree', 'career'], group: 'day' },
 ]
 
 /** The sub-projects this build has (a single-product build drops the other product's tiles). */

@@ -137,7 +137,7 @@ test.describe('Shell v3, look on', () => {
         expect(await page.locator('.s3-chipbtn').innerText()).toMatch(/\d OF \d VIEWS/)
       } else {
         const spine = await box(page, '#s3-spine')
-        expect(spine.width).toBe(208)
+        expect(spine.width).toBe(184) // 25 Nov: slim spine (was 208)
         expect(overlap(spine, top)).toBe(false)
         expect(overlap(spine, dock)).toBe(false)
         expect(overlap(spine, stage)).toBe(false)
@@ -329,8 +329,8 @@ test.describe('Shell v3, look on', () => {
     expect(await sw.getAttribute('aria-checked')).not.toBe(before)
     expect(await page.evaluate(() => document.documentElement.getAttribute('data-glass'))).toBe(before === 'true' ? 'off' : 'on')
     await expect(pop.locator('.s3-cap').nth(1)).toHaveText('KEYS')
-    await expect(pop.locator('.s3-cap').nth(2)).toContainText('RARELY NEEDED')
-    await expect(pop.locator('[data-more="current-look"]')).toBeVisible()
+    // 25 Nov, one look: no key leads back to the older frame
+    await expect(pop.locator('[data-more="current-look"]')).toHaveCount(0)
     await page.keyboard.press('Escape')
     await expect(pop).toHaveCount(0)
     await expect(more).toBeFocused()
@@ -339,9 +339,10 @@ test.describe('Shell v3, look on', () => {
   test('the spine names the four sub-projects, each with a state line, and the open one holds its sections', async ({ page, baseURL }) => {
     await open(page, baseURL)
     await expect(page.locator('#s3-spine .s3-grp')).toHaveCount(4)
-    const names = await page.locator('#s3-spine .s3-hn b').allInnerTexts()
+    const names = await page.locator('#s3-spine .s3-pn').allInnerTexts()
     expect(names.map((n) => n.toLowerCase())).toEqual(['jarvis', 'aankhen', 'yadaash', 'well wisher'])
-    for (const t of await page.locator('#s3-spine .s3-hn small').allInnerTexts()) expect(t).toMatch(/^(FAULT|WAITING|LIVE|SIMULATED|PLANNED)/)
+    // one line per project: the state word is the lamp's title, and printed only under the open project
+    for (const t of await page.locator('#s3-spine .s3-lamp').evaluateAll((els) => els.map((e) => e.getAttribute('title') ?? ''))) expect(t).toMatch(/^(FAULT|WAITING|LIVE|SIMULATED|PLANNED)/)
     await gotoSection(page, 'day', SIZES[0])
     await expect(page.locator('#s3-spine .s3-grp[data-open="true"]')).toHaveAttribute('data-p', 'wellwisher')
     await expect(page.locator('#s3-spine .s3-grp[data-open="true"] .s3-item')).toHaveCount(5)
@@ -443,6 +444,7 @@ test.describe('Shell v3, look on', () => {
   test('glass off paints the same hues opaque, and the frame still fits', async ({ page, baseURL }) => {
     await open(page, baseURL, SIZES[0], 'shell=v2&look=v3&glass=off')
     await expect(page.locator('.s3')).toHaveAttribute('data-glass', 'off')
+    await expect.poll(() => page.evaluate(() => getComputedStyle(document.querySelector('.s3-ground') as Element).backgroundColor)).toMatch(/^rgb\(|, 1\)$/)
     const a = await page.evaluate(() => ({
       ground: getComputedStyle(document.querySelector('.s3-ground') as Element).backgroundColor,
       well: getComputedStyle(document.querySelector('.s3-wellin') as Element).backgroundColor,

@@ -17,7 +17,7 @@
     "e2e:shots": "playwright test e2e/themes-visual.spec.ts",
     "e2e:perf": "playwright test e2e/perf-trace.spec.ts --workers=1",
     "e2e:update": "playwright test e2e/themes-visual.spec.ts --update-snapshots",
-    "bundle:check": "vite build --outDir dist-e2e && node scripts/bundle-budget.mjs dist-e2e",
+    "bundle:check": "node scripts/build-e2e.mjs && node scripts/bundle-budget.mjs dist-e2e",
     "ww:verify": "tsc -b && vitest run src/__tests__/ww && npm run springs:check && npm run bundle:check && playwright test"
   },
   "dependencies": {

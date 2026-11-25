@@ -167,8 +167,8 @@ describe('in the shell', () => {
     useStore.setState({ readings: { steward: { state: 'fault', since: 1, reason: 'Ollama is not answering' } } })
     await render()
     expect(q('.s3-pillbtn')!.getAttribute('aria-label')).toContain('1 FAULT')
-    const small = q('.s3-grp[data-p="jarvis"] .s3-hn small')!
+    const small = q('.s3-grp[data-p="jarvis"] .s3-pw small')!
     expect(small.textContent).toBe('FAULT')
-    expect(small.getAttribute('title')).toContain('steward')
+    expect(q('.s3-grp[data-p="jarvis"] .s3-lamp')!.getAttribute('title')).toContain('steward')
   })
 })

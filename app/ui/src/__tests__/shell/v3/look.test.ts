@@ -1,6 +1,6 @@
 // shell/look.ts: the switch of the v3 look. Read once per load, the fragment wins and is stored, `look=off` turns it back,
 // glass is on unless the fragment, the stored choice or the host says off.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GLASS_KEY, LOOK_KEY, glassEnabled, lookV3Enabled, resetLookForTests, setGlass } from '../../../shell/look'
 
 const load = (hash: string) => {
@@ -53,6 +53,41 @@ describe('lookV3Enabled', () => {
   it('an unknown value is off', () => {
     load('#look=banana')
     expect(lookV3Enabled()).toBe(false)
+  })
+})
+
+// the production default: one look, v3 (25 Nov). The three cases of the build default, the stored key and the fragment.
+describe('lookV3Enabled in a build that does not say off', () => {
+  beforeEach(() => vi.stubEnv('VITE_LOOK_DEFAULT', ''))
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('is ON by default: no key, no fragment', () => {
+    expect(lookV3Enabled()).toBe(true)
+  })
+  it('is OFF when the fragment says look=off, and that is stored', () => {
+    load('#look=off')
+    expect(lookV3Enabled()).toBe(false)
+    expect(localStorage.getItem(LOOK_KEY)).toBe('off')
+  })
+  it('is OFF when the stored key says off, and ON again for look=v3 in the fragment', () => {
+    localStorage.setItem(LOOK_KEY, 'off')
+    resetLookForTests()
+    expect(lookV3Enabled()).toBe(false)
+    load('#look=v3')
+    expect(lookV3Enabled()).toBe(true)
+    expect(localStorage.getItem(LOOK_KEY)).toBe('v3')
+  })
+  it('a stored v3 or an unknown stored value stays on', () => {
+    localStorage.setItem(LOOK_KEY, 'banana')
+    resetLookForTests()
+    expect(lookV3Enabled()).toBe(true)
+  })
+  it('VITE_LOOK_DEFAULT=off turns the default off, and a stored v3 still wins over it', () => {
+    vi.stubEnv('VITE_LOOK_DEFAULT', 'off')
+    expect(lookV3Enabled()).toBe(false)
+    localStorage.setItem(LOOK_KEY, 'v3')
+    resetLookForTests()
+    expect(lookV3Enabled()).toBe(true)
   })
 })
 

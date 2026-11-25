@@ -28,6 +28,8 @@ function findPython(): string {
 const SCRATCH = process.env.WW_SANDBOX_DIR ?? join(tmpdir(), 'jarvis-ww-e2e')
 mkdirSync(SCRATCH, { recursive: true })
 
+// The bundle under test is built with VITE_LOOK_DEFAULT=off (npm run bundle:check, or node scripts/build-e2e.mjs): the production
+// default is the v3 look, and most specs were written against the older frame. A spec that wants v3 puts look=v3 in its fragment.
 const haveBuild = existsSync(resolve('dist-e2e', 'index.html'))
 
 export default defineConfig({

@@ -12,7 +12,7 @@
   position: fixed;
   inset: 0;
   display: grid;
-  --s3-spine-w: 168px;
+  --s3-spine-w: 184px;
   grid-template-columns: var(--s3-spine-w) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   /* the fold moves the column, not a width on the spine: one number, and the canvas follows it frame by frame */
@@ -87,7 +87,7 @@
 .s3-flat:active { box-shadow: var(--sh-press); }
 
 /* ------------------------------------------------------------------ the spine
-   25 Nov: slim. 168 px (was 208), every row one line of 44 px (the plates were two lines of 56), folding to a 64 px rail.
+   25 Nov: slim. 184 px (was 208), every row one line of 44 px (the plates were two lines of 56), folding to a 64 px rail.
    The lit pill (.s3-ind) is one element that slides between the active rows; a row lights nothing itself. */
 .s3-spine {
   position: relative;
@@ -148,7 +148,7 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
 /* a project's mark carries its own hue: full strength for the open project, lower for the others */
 .s3-pi { flex: none; display: inline-grid; place-items: center; width: 1.5rem; height: 1.5rem; color: var(--g-lo); transition: color var(--s3-d-state) var(--s3-ease); }
 .s3-grp[data-open='true'] .s3-pi { color: var(--g); }
-.s3-pn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 650 0.9375rem var(--s3-ui); letter-spacing: -0.005em; }
+.s3-pn { flex: 1; min-width: 0; white-space: nowrap; font: 650 0.875rem var(--s3-ui); letter-spacing: -0.005em; }
 .s3-lamp { flex: none; display: inline-flex; color: var(--ink2); }
 .s3-lamp[data-state='fault'],
 .s3-pw[data-state='fault'] svg { color: var(--fault); }
@@ -181,7 +181,7 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
   transition: box-shadow var(--s3-d-key) var(--s3-ease), color var(--s3-d-state) var(--s3-ease), transform var(--s3-d-key) var(--s3-ease);
 }
 .s3-item svg { flex: none; }
-.s3-item span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.s3-item span { flex: 1; min-width: 0; white-space: nowrap; }
 .s3-item i { display: none; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--g); }
 .s3-item:hover { box-shadow: var(--sh-raise); color: var(--ink); transform: translateY(-1px); }
 .s3-item:active { box-shadow: var(--sh-press); transform: none; }

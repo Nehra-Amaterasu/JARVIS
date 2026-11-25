@@ -1,5 +1,5 @@
 /**
- * The spine (design-language-v3.md 3.2), slimmed on 25 Nov: 168 px on the left (it was 208), folding to a 64 px icon rail. The
+ * The spine (design-language-v3.md 3.2), slimmed on 25 Nov: 184 px on the left (it was 208), folding to a 64 px icon rail. The
  * owner called the nav "too fat": the four two-line plates with a state word each were 56 px tall and the word repeated a table
  * the lamp pill already holds. Now every row is ONE line of 44 px: a project row is icon, name and a small state lamp (the word
  * is the lamp's title and the row's accessible name, and is printed as text only under the open project); the open project's

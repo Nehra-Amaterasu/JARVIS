@@ -199,8 +199,8 @@ describe('project hues', () => {
 })
 
 describe('the slim spine (25 Nov)', () => {
-  it('is 168 px wide and 64 px folded, and the column animates by the sheet token', () => {
-    expect(sheet).toMatch(/--s3-spine-w:\s*168px/)
+  it('is 184 px wide and 64 px folded, and the column animates by the sheet token', () => {
+    expect(sheet).toMatch(/--s3-spine-w:\s*184px/)
     expect(sheet).toMatch(/\.s3\[data-spine='rail'\]\s*\{\s*--s3-spine-w:\s*64px/)
     expect(sheet).toMatch(/transition-property:\s*grid-template-columns/)
   })

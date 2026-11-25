@@ -5,7 +5,7 @@
 //   node scripts/build-e2e.mjs                (rebuild after a change the browser should see)
 //   WW_SANDBOX_PORT=8891 WW_PREVIEW_PORT=5291 WW_SANDBOX_DIR="$TEMP/jarvis-ui-shell-e2e" npx playwright test e2e/one-look.spec.ts
 //
-// At 1366x768, 1120x720 and 390x844: the spine is 168 px (or the phone's tab bar), folds to a 64 px rail and keeps the choice;
+// At 1366x768, 1120x720 and 390x844: the spine is 184 px (or the phone's tab bar), folds to a 64 px rail and keeps the choice;
 // every project and every section row is reachable by click and by keyboard; Agents is a planned row that opens the planned
 // pose; no key anywhere switches the look; rows are 44 px; nothing overlaps or scrolls the document; text is in the reading face
 // where it is a title, tab or tray job. One picture per project per size goes to $TEMP/ui-shell-shots (ONE_LOOK_SHOTS overrides).
@@ -95,7 +95,7 @@ test.describe('One look', () => {
 
       if (!phone(size)) {
         // ---- width, fold, memory of the fold
-        expect((await box(page, '#s3-spine')).width).toBe(168)
+        expect((await box(page, '#s3-spine')).width).toBe(184)
         await expect(page.locator('.s3-pn').first()).toBeVisible()
         await page.locator('.s3-fold').click()
         await expect(page.locator('.s3')).toHaveAttribute('data-spine', 'rail')
@@ -111,7 +111,7 @@ test.describe('One look', () => {
         await expect(page.locator('.s3')).toHaveAttribute('data-spine', 'rail') // remembered
         await page.locator('.s3-fold').click()
         await expect(page.locator('.s3')).toHaveAttribute('data-spine', 'full')
-        await expect.poll(async () => (await box(page, '#s3-spine')).width).toBe(168)
+        await expect.poll(async () => (await box(page, '#s3-spine')).width).toBe(184)
         await page.evaluate(() => localStorage.removeItem('app.spine'))
       }
 
@@ -169,7 +169,7 @@ test.describe('One look', () => {
     for (let i = 0; i < 4; i++) {
       const id = await page.evaluate(() => (document.activeElement as HTMLElement | null)?.getAttribute('data-section') ?? (document.activeElement as HTMLElement | null)?.getAttribute('data-project') ?? '')
       seen.push(id)
-      await page.keyboard.press('ArrowDown')
+      if (i < 3) await page.keyboard.press('ArrowDown')
     }
     expect(seen).toEqual(['core', 'room', 'console', 'aankhen'])
     await page.keyboard.press('Enter')

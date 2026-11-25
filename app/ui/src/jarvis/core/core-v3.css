@@ -79,7 +79,7 @@
 
 /* ---- the hero: the stage (orb and waves), the words, the act row */
 :root[data-look='v3'] .jc3 .jc3-hero {
-  --orb: clamp(11.25rem, 44cqh, 18rem);
+  --orb: clamp(11.25rem, 40cqh, 18rem);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -270,7 +270,8 @@
 
 /* ---- the conversation: a centred column under the orb, newest at the bottom, fading up into the ground.
    The mask is on the scroller's own box, so it stays put while the lines scroll through it: a line is fully opaque in the
-   lower 42 percent of the log and gone at its top edge. currentColor stands for "opaque" (a mask reads alpha only). */
+   lower 60 percent of the log and gone at its top edge (it was 42: at 768 px high the log is about 150 px, and a two-line newest
+   turn then began 14 px inside the fade). currentColor stands for "opaque" (a mask reads alpha only). */
 :root[data-look='v3'] .jc3 .jc3-log { position: relative; display: flex; flex-direction: column; justify-self: center; width: 100%; max-width: 46rem; min-height: 0; }
 :root[data-look='v3'] .jc3 .jc3-log-scroll {
   flex: 1 1 0;
@@ -281,8 +282,8 @@
   padding: 2rem 0.5rem 0.25rem;
   scrollbar-width: thin;
   scrollbar-color: var(--track) transparent;
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, currentColor 58%);
-  mask-image: linear-gradient(to bottom, transparent 0, currentColor 58%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, currentColor 40%);
+  mask-image: linear-gradient(to bottom, transparent 0, currentColor 40%);
 }
 :root[data-look='v3'] .jc3 .jc3-turns { display: grid; row-gap: 0.75rem; margin: auto 0 0; padding: 0; list-style: none; }
 :root[data-look='v3'] .jc3 .jc3-turn { display: grid; row-gap: 0.25rem; padding: 0.375rem 0.75rem; border-radius: 0.875rem; }

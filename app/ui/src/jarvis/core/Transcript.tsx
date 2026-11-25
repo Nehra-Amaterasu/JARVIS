@@ -202,6 +202,14 @@ export function TalkLog({ turns, all, running, simulated = false, notifyPresent,
     const el = scroller.current
     if (el && pinned.current) el.scrollTop = el.scrollHeight
   }, [turns.length, lastText, recorded.length])
+  // the log's own height changes when the stage above it grows or shrinks; without this the newest turn slid 12 px under the edge
+  useEffect(() => {
+    const el = scroller.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => { if (pinned.current) el.scrollTop = el.scrollHeight })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   const onScroll = () => {
     const el = scroller.current
     if (el) pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_PX

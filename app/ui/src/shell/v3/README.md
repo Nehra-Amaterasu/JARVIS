@@ -14,7 +14,7 @@ to use: `--hue` (the open project's colour), `--hue-lo`, `--acc-soft` (12 percen
 
 ## What the shell gives a view
 
-- **Frame.** A spine (168 px, left, folding to a 64 px icon rail; on the phone a tab bar and a project sheet), a top plate (location as project / section /
+- **Frame.** A spine (184 px, left, folding to a 64 px icon rail; on the phone a tab bar and a project sheet), a top plate (location as project / section /
   view, the view switch, ONE lamp pill, More, the window keys), the canvas, and the dock at the foot. A view draws only inside
   the canvas. Until its own pass an existing view mounts unchanged and may scroll inside the canvas.
 - **Unchanged contracts.** Views still come from `shell/views` (`collectViews`) and mount as today. The root keeps

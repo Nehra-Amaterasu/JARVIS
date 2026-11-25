@@ -103,13 +103,13 @@ async function expectKeys44(page: Page) {
   expect(small).toEqual([])
 }
 
-/** The newest turn: inside the log's viewport and in its fully opaque lower part (the mask is opaque below 58 percent). */
+/** The newest turn: inside the log's viewport and in its fully opaque lower part (the mask is opaque below 40 percent). */
 async function expectNewestClear(page: Page) {
   const r = await page.evaluate(() => {
     const sc = document.querySelector('.jc3-log-scroll')!.getBoundingClientRect()
     const rows = document.querySelectorAll('.jc3-log .jc3-turn')
     const last = rows[rows.length - 1].getBoundingClientRect()
-    return { top: last.top, bottom: last.bottom, scTop: sc.top, scBottom: sc.bottom, opaqueFrom: sc.top + sc.height * 0.58 }
+    return { top: last.top, bottom: last.bottom, scTop: sc.top, scBottom: sc.bottom, opaqueFrom: sc.top + sc.height * 0.4 }
   })
   expect(r.bottom).toBeLessThanOrEqual(r.scBottom + 0.5)
   expect(r.top).toBeGreaterThanOrEqual(r.opaqueFrom - 0.5)

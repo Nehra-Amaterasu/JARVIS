@@ -3,6 +3,104 @@
 Open-source survey for the agent side of JARVIS: an agent runtime, memory designs worth borrowing, device
 and web tools. Memory-only research is in [yaadash.md](yaadash.md).
 
+## 2026-11-25 (evening): a sweep of 9,046 assistant repositories, and which functions they really ship
+
+### Question
+Hundreds of people publish their own "Jarvis". What do those projects and their neighbours actually do,
+which parts can be used here instead of written again, and where is the open ground?
+
+### Method
+- 105 searches on GitHub's repository search API (assistants, computer control, phone, browser, home, memory,
+  MCP connectors, skills, life tools, vision, voice), 100 results each, sorted by stars, read through the
+  `gh` CLI on 25 Nov 2026.
+- Records merged by repository name; forks and archived projects set aside.
+- README files of 246 projects fetched and searched with 79 fixed patterns, one per capability.
+- Feature lists of 93 projects read: 59 well-known neighbours chosen by hand and 34 of the closest matches.
+- Nothing was cloned or installed. A README mention is a claim, not a tested feature, and stars measure
+  attention, not quality.
+
+### Numbers
+| Count | Value |
+|---|---:|
+| Distinct repositories found | 9,046 |
+| Neither archived nor forks | 8,868 |
+| Pushed since June 2025 | 7,392 |
+| Of those, 100 stars or more | 2,395 |
+| Personal-assistant builds with 60 stars or more | 541 |
+| Named Jarvis or Friday (40 stars or more, recent) | 77 |
+| Licences among the 2,395 | MIT 1,190; Apache-2.0 429; unclear 258; none 220; AGPL-3.0 132; GPL-3.0 94 |
+
+Share of 246 READMEs that mention each capability (the full table of 79 is kept with the data):
+
+| Common | Share | Rare | Share |
+|---|---:|---|---:|
+| workflows and automations | 66 % | reminders, alarms, timers | 19 % |
+| skills or plug-ins | 60 % | calendar | 16 % |
+| MCP connectors | 49 % | journaling, life log | 13 % |
+| personality | 47 % | smart home | 13 % |
+| sandbox and permissions | 44 % | daily briefing | 11 % |
+| local models | 42 % | proactive speech | 8 % |
+| screenshot and screen reading | 40 % | knowledge graph | 7 % |
+| email | 39 % | wake word; screen activity recording; learning from use; infrared control | 6 % each |
+| scheduling | 38 % | hand gestures; face recognition | 3 % each |
+| long-term memory | 27 % | focus sessions; wearables | 1 % each |
+
+### Found
+1. **The crowd builds plumbing.** Harnesses, skills, connectors and sandboxes dominate. Everyday functions
+   that a phone assistant has had for years are mentioned by fewer than one project in five.
+2. **The rare things are the ones this project is placed to do:** speaking first from evidence, a sense of
+   the room, memory that is measured, help with focus, and physical control.
+3. **Much can be used as it is.** Permissively licensed and maintained: `apprise` (one call to notify any
+   channel), `ntfy` (push to a phone), `syncthing` (phone to laptop file sync without a cloud),
+   `ActivityWatch` (automatic record of app, window and idle time on Windows and Android),
+   `changedetection.io` (watch a page), `JobSpy` (job listings as a table, including Indian boards),
+   `career-ops` (job scan and tailored CV that never submits), `gpt-researcher` and `local-deep-research`
+   (research reports with sources), `xiaozhi-esp32` (firmware for an ESP32-S3 voice puck), and two ready
+   interfaces for Hermes Agent, `hermes-desktop` and `hermes-webui`.
+4. **Designs worth reading rather than copying:** `CowAgent` (memory in three tiers with a nightly
+   distillation), `eadmin2/jarvis_ai` (a display for Hermes with live tool activity, a stop button and
+   approval cards), `Dayflow` and `screenpipe` (screen activity as a timeline, captured on events),
+   `N.E.K.O` (memory split into self, people and learned procedures), `monica` (the data model of a personal
+   CRM), `inbox-zero` (reply tracking and meeting briefs), `artemis` and `Mika` (handing a task to a phone).
+5. **Licences sort the list.** Half of the maintained projects are MIT. About 480 of the 2,395 have no
+   usable licence, so only their ideas can be taken. GPL and AGPL projects (`searxng`, `paperless-ngx`,
+   `karakeep`, `khoj`, `espectre`) can run as separate programs but their code is not pasted in.
+6. **Wi-Fi sensing has a crowd too.** `RuView` (MIT, 105k stars) and `espectre` (GPL-3.0) work on the same
+   idea as Aankhen. RuView's README lists vital signs and sleep stages; my own measurements on one link do
+   not support claims of that kind, so its methods are read with care and its claims are not repeated.
+
+### Sources
+- GitHub REST API, `search/repositories` and `repos/<owner>/<name>/readme`, 25 Nov 2026.
+- Projects named above, each at `https://github.com/<owner>/<name>`:
+  [caronc/apprise](https://github.com/caronc/apprise), [binwiederhier/ntfy](https://github.com/binwiederhier/ntfy),
+  [syncthing/syncthing](https://github.com/syncthing/syncthing),
+  [ActivityWatch/activitywatch](https://github.com/ActivityWatch/activitywatch),
+  [dgtlmoon/changedetection.io](https://github.com/dgtlmoon/changedetection.io),
+  [speedyapply/JobSpy](https://github.com/speedyapply/JobSpy),
+  [career-ops-hq/career-ops](https://github.com/career-ops-hq/career-ops),
+  [assafelovic/gpt-researcher](https://github.com/assafelovic/gpt-researcher),
+  [LearningCircuit/local-deep-research](https://github.com/LearningCircuit/local-deep-research),
+  [78/xiaozhi-esp32](https://github.com/78/xiaozhi-esp32),
+  [fathah/hermes-desktop](https://github.com/fathah/hermes-desktop),
+  [nesquena/hermes-webui](https://github.com/nesquena/hermes-webui),
+  [zhayujie/CowAgent](https://github.com/zhayujie/CowAgent), [eadmin2/jarvis_ai](https://github.com/eadmin2/jarvis_ai),
+  [JerryZLiu/Dayflow](https://github.com/JerryZLiu/Dayflow), [screenpipe/screenpipe](https://github.com/screenpipe/screenpipe),
+  [Project-N-E-K-O/N.E.K.O](https://github.com/Project-N-E-K-O/N.E.K.O), [monicahq/monica](https://github.com/monicahq/monica),
+  [elie222/inbox-zero](https://github.com/elie222/inbox-zero), [google/artemis](https://github.com/google/artemis),
+  [wangzan101/Mika](https://github.com/wangzan101/Mika), [ruvnet/RuView](https://github.com/ruvnet/RuView),
+  [francescopace/espectre](https://github.com/francescopace/espectre).
+
+### What it changed
+- The plan gained a catalogue of 295 functions in 15 groups, each with where it runs and what it needs
+  first: 90 need nothing new, 74 need the rebuilt memory, 53 need the worker tier, 29 need a piece of
+  hardware, 27 exist already.
+- Sixteen projects moved from "write it" to "use it", which removes the Researcher agent, the notification
+  layer, the phone file sync, the activity record and the job scan from the build list.
+- A hardware list of 21 items was written, with five cheap parts first (infrared parts, a door switch, NFC
+  tags, a climate sensor, a stronger supply for the relay box).
+- Candidate code is read later in a separate folder on an external drive, one project at a time, never in
+  this repository.
+
 ## 2026-11-25 (later): workers on a free cloud machine, Hermes's channels, and the bar for memory
 
 ### Question

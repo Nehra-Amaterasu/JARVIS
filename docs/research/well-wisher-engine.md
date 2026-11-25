@@ -2,6 +2,38 @@
 
 The running research file of the engine lane (the Python side of Well Wisher). Newest section on top. The plan it serves is `docs/design/well-wisher-engine-plan.md`; the screens are the UI lane's (`docs/research/product-design-overhaul.md`).
 
+## 2026-11-25: Word papers into the paper desk, and marks that stand in a heading
+
+**Question.** The owner's internal test papers and their solutions are Word files, and the paper desk read PDF only. Can they be read with pages and crops, without a new dependency, and does the reader then find their marks?
+
+**Method.** All counts are from the files pulled from Classroom on 22 Nov, read into scratch stores, never the real one; only counts and frame lines were looked at. Kinds on file: 93 PDF papers, 24 `.docx` papers, 1 `.doc` paper; among notes 89 `.docx` and 28 `.doc`.
+
+**Found.**
+
+| | Before | After |
+| --- | --- | --- |
+| Word papers the desk could read | 0 of 25 | 24 of 25 (Word dropped the connection on one; it says so) |
+| Time to print one to PDF with the local Word | - | 0.7 to 4.5 s, after a first start of 29 s |
+| Questions in the 25 Word papers, with marks | 3 of 614 | 248 of 686; 10 papers are fully marked. The rest are question banks and assignment lists that print no marks |
+| The 93 PDF papers: every question with marks | 1 | 20 |
+| The 93 PDF papers: some marks / none / no question / scans | 17 / 45 / 11 / 13 | 15 / 28 / 11 / 13 |
+
+- Why Word and not a parser: the desk is crop-first, and a `.docx` has no pages until something lays it out. These papers carry figures, equations (18 in one) and up to 25 tables. Word prints them as they print on paper; `python-docx` would give text with no place on a page. LibreOffice is not installed. No Python package is added: `ww_pyq/word.py` starts PowerShell with a fixed script and passes two paths as arguments.
+- Why the marks were missing: in both layouts seen the marks are not in the table. One prints "PART A: ANSWER ALL THE QUESTIONS Each question carries 1 mark 4x1=4" above a table of question, CO and BL columns. The other prints "2. Attempt any three of the following: 10*3 = 30" above a table of "(a) | text | CO" rows, so the question number is outside the table too. The old reader took those instruction lines for questions.
+- The marks rule (`ww_pyq/heads.py`): "each question carries N" is N; "a x b = t" must multiply out, and the marks factor is the one printed with M, or the other one when a Q is printed, or the one that is not the number to attempt (ALL means the questions under the heading, an OR pair counting once). A heading that gives a range, does not multiply out, or disagrees with itself gives nothing, with a trace line. Marks a question prints itself are kept.
+- A watermark printed across some pages garbles the table header ("E / . / Questions 2 5"): such a table is still read by its rows (most start with a bare "(a)" and a sentence), and the last digit is dropped because it cannot be told whether it is a CO or a BL.
+- A question that is only a picture (a circuit with "OR" between two pictures) arrives with no text and `text_status: "none"`: the crop is the question.
+
+**Measured.** New tests: `test_pyq_heads.py` 34, `test_pyq_word.py` 14 and 1 opt-in real conversion (passed here in 28 s), `test_gcr_doc_notes.py` 3. The reader's earlier tests are unchanged and pass (65), as do the routes and the Google link's tests (111 and 94). The app suite's figure is in the log line of the push.
+
+**Safety of the Word route.** A private copy is printed in a folder made for that call; Word runs hidden, in its own process, macros forced off, read only, with no dialogs; a `.docx` is checked as a zip first (declared size and part count); the call ends after 120 s and then exactly the Word it started is ended by process id. Left as it is: Word still parses a file from someone else, as PyMuPDF does a PDF.
+
+**Not verified.** No Word paper was accepted and turned into a practice paper end to end in the real store: the counts come from scratch stores. The 13 scanned papers still give nothing (OCR is next). Two PDFs print rules the reader does not know and stay unmarked. The `.doc` notes were tested with a fake printer; the 28 real `.doc` notes are made at the next sync.
+
+**Sources.** The trial scripts and their counts (private scratch, 25 Nov); the files stay in the private data folder.
+
+**What it changed.** `ww_pyq/heads.py` (new), `segment.py` and `ingest.py` (part headings, rule lines, `ingest_word`), `ww_pyq/word.py` and `word_to_pdf.ps1` (new), `folder.py`, `routes_ww_pyq_ingest.py`, `routes_ww_gcr.py` (G-13 and the automatic hand-off take Word files), `ww_gcr/sync.py` (`.doc` notes). Plan 9.0 has the dated line for the UI lane.
+
 ## 2026-11-22 (evening): the Google link after an independent review
 
 **Question.** An independent review of the Google link (`app/jarvis_app/ww_gcr/`, `routes_ww_gcr.py`) found ways to lose his hand edits, to end a whole run on one bad file, to show counts that were not true, and to trust names and ids from Google. Can each be closed with a test that fails on the old code, without changing the route contract the UI codes against?

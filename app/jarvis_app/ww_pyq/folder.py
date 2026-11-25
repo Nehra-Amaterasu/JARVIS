@@ -19,7 +19,7 @@ from typing import Optional
 from .schema import FolderState
 from .store import Store
 
-SUFFIXES = (".pdf", ".pptx")
+SUFFIXES = (".pdf", ".pptx", ".docx", ".doc")       # what the paper desk reads (ingest.SUFFIXES)
 _CHUNK = 1 << 20
 
 

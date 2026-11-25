@@ -33,6 +33,7 @@ import re
 from collections import Counter
 from typing import Iterable, Optional, Sequence, TypedDict
 
+from . import heads
 from .schema import Part, QType
 
 MARGIN_TOL = 12.0        # pt: a start this far from the modal margin is still a start (plan 9.1.4)
@@ -227,10 +228,11 @@ def _modal(xs: list[float]) -> float:
 
 
 def _is_heading(text: str) -> Optional[str]:
-    if len(text) > _HEAD_MAX or _START.match(text):
+    if _START.match(text):
         return None
-    m = _HEAD.match(text)
-    return m.group("l").upper() if m else None
+    m = _HEAD.match(text) if len(text) <= _HEAD_MAX else None
+    # "PART-A: Attempt all ... (1M x 4 = 4M)" is longer than a title and has a dash where a space was expected
+    return m.group("l").upper() if m else heads.part_letter(text)
 
 
 def _line_marks(text: str, row: dict, width: float) -> tuple[Optional[float], str]:
@@ -322,7 +324,7 @@ def segment_page(page: dict, *, page_no: int, skip: Iterable[Sequence[float]] = 
     "cont"), section headings, OR lines and the paper's printed total."""
     width, height = float(page.get("width") or 0), float(page.get("height") or 0)
     rows = rows_of(page, skip)
-    starts = [r["x0"] for r in rows if _START.match(r["text"]) and not _is_heading(r["text"])]
+    starts = [r["x0"] for r in rows if _START.match(r["text"]) and not _is_heading(r["text"]) and not heads.is_rule(r["text"])]
     margin = _modal(starts) if starts else None
     out: list[Box] = []
     lead: list[dict] = []
@@ -340,7 +342,13 @@ def segment_page(page: dict, *, page_no: int, skip: Iterable[Sequence[float]] = 
         letter = _is_heading(t)
         if letter:
             flush()
-            out.append({"kind": "section", "page": page_no, "letter": letter, "bbox": pad_box([r["x0"], r["y0"], r["x1"], r["y1"]], width, height, 0)})
+            out.append({"kind": "section", "page": page_no, "letter": letter, "text": t, "bbox": pad_box([r["x0"], r["y0"], r["x1"], r["y1"]], width, height, 0)})
+            phase = "between"
+            continue
+        if heads.is_rule(t):                        # "2. Attempt any three of the following: 10*3 = 30": marks for what follows
+            flush()
+            out.append({"kind": "rule", "page": page_no, "text": t, "label": heads.rule_number(t),
+                        "bbox": pad_box([r["x0"], r["y0"], r["x1"], r["y1"]], width, height, 0)})
             phase = "between"
             continue
         if _OR.match(t):
@@ -572,6 +580,32 @@ def _instruction_table(t, page_no: int, width: float, height: float, carry: dict
     return boxes, k
 
 
+def _headed(t, page_no: int, width: float, height: float, carry: dict) -> tuple[list[Box], int]:
+    """The boxes of a table with question, CO and BL columns and no marks column (heads.py). Marks stay
+    missing here: the heading above the table gives them once the whole part is read (ingest._stitch)."""
+    rows = [([_ws(str(c or "")) for c in row], [float(v) for v in r.bbox]) for row, r in zip(t.extract(), t.rows)]
+    boxes: list[Box] = []
+    k = 0
+    for e in heads.headed_table(rows, carry.setdefault("heads", {})):
+        rb = e["bbox"]
+        if e["ev"] == "or":
+            if any(b["kind"] == "question" for b in boxes) or carry["heads"].get("any"):
+                boxes.append({"kind": "or", "page": page_no, "label": "", "text": "", "bbox": rb, "parts": []})
+            continue
+        if e["ev"] == "section":
+            boxes.append({"kind": "section", "page": page_no, "letter": heads.part_letter(e["text"]), "label": "", "text": e["text"], "bbox": rb, "parts": []})
+            continue
+        b: Box = {"kind": "question", "page": page_no, "label": f"{e['num']}{e['letter']}", "text": e["text"], "bbox": pad_box(rb, width, height),
+                  "own_marks": None, "parts": [], "marks": None, "marks_source": "missing", "co": f"CO{e['co']}" if e.get("co") else "",
+                  "bl": e.get("bl"), "closed": True, "needs_number": not e["num"]}
+        if e.get("bl"):
+            b["difficulty"], b["difficulty_source"] = _BLOOM[e["bl"]], "bloom"
+        boxes.append(b)
+        carry["heads"]["any"] = True
+        k += 1
+    return boxes, k
+
+
 def read_tables(page, page_no: int, carry: Optional[dict] = None) -> list[dict]:
     """Every ruled table PyMuPDF finds on the page: {bbox, names, ncols, trace, boxes}. A table whose
     header names a question (or question number) column and a marks column gives one question per
@@ -602,6 +636,16 @@ def read_tables(page, page_no: int, carry: Optional[dict] = None) -> list[dict]:
                 got, k = _instruction_table(t, page_no, width, height, carry)
             except Exception:                           # a table PyMuPDF cannot extract is left to the line reader
                 got, k = [], 0
+            if not got:
+                try:
+                    got, k = _headed(t, page_no, width, height, carry)
+                except Exception:
+                    got, k = [], 0
+                if got:
+                    info["boxes"] = got
+                    info["trace"] = f"p{page_no} table {t.col_count} cols: question rows with CO or BL, {k} read as {'a question' if k == 1 else 'questions'}"
+                    out.append(info)
+                    continue
             if got:
                 info["boxes"] = got
                 info["trace"] = f"p{page_no} table {t.col_count} cols: instruction rows, {k} read as {'a question' if k == 1 else 'questions'}"

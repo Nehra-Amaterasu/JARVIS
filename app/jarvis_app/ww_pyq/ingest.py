@@ -2,7 +2,8 @@
 
     ingest_pdf(path, *, store, meta=None, ocr=None, on_event=None) -> IngestResult
     ingest_slides(path, *, store, meta=None, on_event=None) -> IngestResult
-    ingest_file(path, *, store, meta=None, on_event=None) -> IngestResult      by suffix: .pdf or .pptx
+    ingest_file(path, *, store, meta=None, on_event=None) -> IngestResult      by suffix: .pdf, .pptx, .docx or .doc
+    ingest_word(path, *, store, meta=None, on_event=None, convert=None)        a Word paper, printed to PDF first
     read_pdf_text(data, first=None, last=None) -> str                           plain text with PyMuPDF
     class IngestJob                                                             one background job at a time
 
@@ -36,11 +37,11 @@ from pathlib import Path
 from typing import Any, Callable, Optional, TypedDict
 
 from .. import ww_bank_store
-from . import api, crops, segment, slides
+from . import api, crops, heads, segment, slides, word
 from .schema import CROP_DPI, EXAM_KINDS, MAX_TEXT, PaperMeta, QuestionDraft, TraceEvent
 from .store import Store
 
-SUFFIXES = (".pdf", ".pptx")
+SUFFIXES = (".pdf", ".pptx") + word.SUFFIXES       # a Word paper is printed to PDF by the local Word (word.py)
 MAX_FILE = 200 * 1024 * 1024         # yaadash library.MAX_FILE_BYTES: a paper is a few MB, a 200 MB file is not one
 NO_TEXT = "p. {n}: no text layer; OCR arrives in EW8"
 UNREADABLE = "p. {n}: the text layer does not read as words; OCR arrives in EW8"
@@ -223,6 +224,37 @@ def ingest_pdf(path: Path, *, store: Store, meta: Optional[dict] = None, ocr=Non
         doc.close()
 
 
+def ingest_word(path: Path, *, store: Store, meta: Optional[dict] = None,
+                on_event: Optional[Callable[[TraceEvent], Any]] = None,
+                convert: Optional[Callable[[bytes, str], bytes]] = None) -> IngestResult:
+    """A .docx or .doc paper: Word prints it to PDF and the PDF is read like any other, so every question
+    keeps its crop. The paper is known by the hash of the Word file (the same file twice is a duplicate),
+    the Word file is the original that is kept, and the pages are the printed ones."""
+    path = Path(path)
+    suffix = path.suffix.lower()
+    tr = _Trace(on_event)
+    meta = _clean_meta(meta, path)
+    data = _read(path)
+    sha = hashlib.sha256(data).hexdigest()
+    tr("open", f"{path.name}: a Word file, {len(data) / 1024:.0f} KB")
+    pid = store.find_by_sha(sha)
+    if pid:
+        return _duplicate(store, pid, tr)
+    pdf = (convert or word.to_pdf)(data, suffix)
+    doc = _open_pdf(pdf)
+    try:
+        tr("open", f"printed by Word to {_plural(doc.page_count, 'page', 'pages')} in {tr.took():.1f} s")
+        pid = _new_paper(store, sha, path, "pdf", "text-layer", doc.page_count, meta)
+        try:
+            _keep_original(store, sha, suffix, data)
+            return _read_pdf(doc, pid, store, tr)
+        except BaseException:
+            store.delete_paper(pid)
+            raise
+    finally:
+        doc.close()
+
+
 def _read_pdf(doc, pid: str, store: Store, tr: _Trace) -> IngestResult:
     faults: list[str] = []
     sizes: dict[int, tuple[float, float]] = {}
@@ -357,6 +389,25 @@ def _add_with_crops(store: Store, pid: str, drafts: list[dict], sizes: dict, tr:
     return ids
 
 
+def _heading_marks(groups: list[dict], tr: _Trace) -> None:
+    """Give the questions under a heading the marks it prints, after the whole paper is read: "answer
+    all" needs the count of questions under it, an OR pair counting once. Marks a question prints
+    itself are never replaced, and a heading that gives none, or disagrees with itself, gives nothing."""
+    for g in groups:
+        open_ = [d for d in g["drafts"] if d["marks"] is None and not d["parts"]]
+        if not open_ or not g["text"]:
+            continue
+        units = len({d["choice_group"] or f"#{i}" for i, d in enumerate(g["drafts"])})
+        marks, why = heads.section_marks(g["text"], units)
+        if marks is None:
+            if why != "the heading gives no marks":
+                tr("segment", f"p{g['page']} heading: marks left for review, {why}", g["page"])
+            continue
+        for d in open_:
+            d["marks"], d["marks_source"] = int(marks) if marks == int(marks) else marks, "printed"
+        tr("segment", f"p{g['page']} heading gives {marks:g} marks each to {_plural(len(open_), 'question', 'questions')}", g["page"])
+
+
 def _stitch(boxes: list[dict], tr: _Trace) -> tuple[list[dict], Optional[float]]:
     """Boxes of all pages into drafts: carried-over pieces join the question before them, a heading
     sets the section, an OR line puts the questions on either side in one choice group."""
@@ -366,10 +417,20 @@ def _stitch(boxes: list[dict], tr: _Trace) -> tuple[list[dict], Optional[float]]
     last: Optional[dict] = None          # the question still open (a heading or OR closes it)
     or_after: Optional[dict] = None
     groups = 0
+    group: Optional[dict] = None         # the heading or rule in force and the questions under it: its marks are theirs
+    all_groups: list[dict] = []
     for b in boxes:
         k = b["kind"]
-        if k == "section":
-            section, last, or_after = b["letter"], None, None
+        if k in ("section", "rule"):
+            if k == "section":
+                section = b["letter"]
+            last, or_after = None, None
+            if group is not None and not group["drafts"]:        # "SECTION B" then "2. Attempt any three ... 10*3 = 30" is one heading
+                group["text"] = (group["text"] + " " + b.get("text", "")).strip()
+            else:
+                group = {"text": b.get("text", ""), "drafts": [], "page": b["page"], "number": ""}
+                all_groups.append(group)
+            group["number"] = b.get("label") or group["number"]
         elif k == "or":
             or_after, last = last, None
         elif k == "total":
@@ -394,6 +455,12 @@ def _stitch(boxes: list[dict], tr: _Trace) -> tuple[list[dict], Optional[float]]
                   "id": b.get("id"), "png": b.get("png", ""), "_closed": bool(b.get("closed"))}
             if b.get("difficulty_source"):
                 dr["difficulty"], dr["difficulty_source"] = b["difficulty"], b["difficulty_source"]
+            if b.get("needs_number") and group is not None and group["number"]:
+                dr["label"] = f"{group['number']}{dr['label']}"  # the number stands in the rule above the table
+            if not dr["text"] and b.get("closed"):
+                dr["text_status"] = "none"                       # a question that is only a picture: the crop is the question
+            if group is not None:
+                group["drafts"].append(dr)
             if or_after is not None:
                 if not or_after["choice_group"]:
                     groups += 1
@@ -402,6 +469,7 @@ def _stitch(boxes: list[dict], tr: _Trace) -> tuple[list[dict], Optional[float]]
                 or_after = None
             drafts.append(dr)
             last = dr
+    _heading_marks(all_groups, tr)
     for dr in drafts:
         dr.pop("_own", None)
         dr.pop("_closed", None)
@@ -462,7 +530,9 @@ def ingest_file(path: Path, *, store: Store, meta: Optional[dict] = None,
         return ingest_pdf(path, store=store, meta=meta, on_event=on_event)
     if suffix == ".pptx":
         return ingest_slides(path, store=store, meta=meta, on_event=on_event)
-    raise ValueError(f"I read .pdf and .pptx files; {suffix or 'this file'} is not one of them.")
+    if suffix in word.SUFFIXES:
+        return ingest_word(path, store=store, meta=meta, on_event=on_event)
+    raise ValueError(f"I read .pdf, .pptx, .docx and .doc files; {suffix or 'this file'} is not one of them.")
 
 
 # ------------------------------------------------------------------ the background job

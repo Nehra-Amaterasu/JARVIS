@@ -61,6 +61,7 @@ EXT_BY_MIME = {
 KNOWN_EXT = frozenset({"pdf", "pptx", "ppt", "docx", "doc", "xlsx", "xls", "odt", "odp", "ods", "rtf", "txt", "md", "csv",
                        "jpg", "jpeg", "png", "webp", "gif", "bmp", "tif", "tiff", "heic", "zip", "rar", "7z"})
 READABLE = {"pdf", "pptx", "docx", "txt", "md"}            # what yaadash.library.extract reads
+WORD_NOTES = {"doc"}                                       # read through the local Word, then as a PDF (_make_note)
 NO_NOTE = {"ppt": "An old PowerPoint file: open the original.", "doc": "An old Word file: open the original.",
            "jpg": "A picture: its text needs OCR.", "png": "A picture: its text needs OCR.", "webp": "A picture: its text needs OCR.",
            "xlsx": "A spreadsheet: open the original."}
@@ -283,8 +284,39 @@ def to_markdown(ex, rec: dict) -> tuple[str, int]:
     return "\n".join(head + body), words
 
 
-def _make_note(store: GcrStore, rec: dict, extract: Callable) -> None:
+def _word_pdf(path: Path) -> Path:
+    """An old .doc printed to PDF by the Word on this PC (ww_pyq/word.py), in a temporary file the caller removes."""
+    import tempfile
+    from ..ww_pyq import word
+    pdf = word.to_pdf(path.read_bytes(), ".doc")
+    fd, name = tempfile.mkstemp(prefix="ww-doc-note-", suffix=".pdf")
+    with os.fdopen(fd, "wb") as f:
+        f.write(pdf)
+    return Path(name)
+
+
+def _make_note(store: GcrStore, rec: dict, extract: Callable, word_pdf: Callable = _word_pdf) -> None:
     ext = rec["ext"]
+    if ext in WORD_NOTES:
+        # Nothing in Python here reads the old Word format, and 28 of his notes and 1 paper are .doc files. Word prints
+        # the file and the PDF is read. One try per version of the file: a file Word cannot print is not started again
+        # on every sync (a start costs 1 to 30 s).
+        rec["note_tried"] = rec.get("modified", "") or "once"
+        tmp = None
+        try:
+            tmp = word_pdf(store.root / rec["path"])
+            ex = extract(tmp)
+        except ValueError as e:
+            rec.update(note="", note_state="waiting", note_reason=str(e))
+            return
+        except Exception as e:
+            rec.update(note="", note_state="fault", note_reason=f"The file could not be read ({type(e).__name__}).")
+            return
+        finally:
+            if tmp is not None:
+                tmp.unlink(missing_ok=True)
+        _write_note(store, rec, ex)
+        return
     if ext not in READABLE:
         rec.update(note="", note_state="waiting", note_reason=NO_NOTE.get(ext, "This kind of file has no text to read: open the original."))
         return
@@ -293,6 +325,10 @@ def _make_note(store: GcrStore, rec: dict, extract: Callable) -> None:
     except Exception as e:                                   # a broken file keeps its original and says so
         rec.update(note="", note_state="fault", note_reason=f"The file could not be read ({type(e).__name__}).")
         return
+    _write_note(store, rec, ex)
+
+
+def _write_note(store: GcrStore, rec: dict, ex) -> None:
     text, words = to_markdown(ex, rec)
     rel = f"notes/{rec['course_slug']}/{rec['id']}.md"
     try:
@@ -667,7 +703,9 @@ def _one_file(api, store, c, cslug, subject, post, meta, extract, counts, faults
     have = (store.root / rel).is_file()
     if have and old.get("modified") == rec["modified"] and old.get("state") == "live" and not old.get("stale"):
         counts["unchanged"] += 1
-        if not old.get("note") and old.get("note_state") != "waiting":
+        # a .doc fetched before Word could print it has no note and says "waiting": it gets one try per version
+        retry_word = rec["ext"] in WORD_NOTES and not old.get("note") and old.get("note_tried") != (rec.get("modified", "") or "once")
+        if (not old.get("note") and old.get("note_state") != "waiting") or retry_word:
             _make_note(store, rec, extract)
         if rec != old:                                   # a run where nothing changed writes nothing per file
             _save_file(store, rec)

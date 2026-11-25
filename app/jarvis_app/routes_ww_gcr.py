@@ -12,7 +12,7 @@
     GET    /api/mission/gcr/files/{fid}/note           G-10 the Markdown note of a file
     GET    /api/mission/gcr/files/{fid}/original      G-11 the original bytes, inline
     POST   /api/mission/gcr/files/{fid}/open           G-12 opens the original in the PC's own program (document types only)
-    POST   /api/mission/gcr/files/{fid}/to-papers      G-13 hands a PDF to the paper desk; its questions arrive pending
+    POST   /api/mission/gcr/files/{fid}/to-papers      G-13 hands a PDF or a Word file to the paper desk; its questions arrive pending
 
 Every JSON answer is {state, reason, source, ...} (ww_pyq/api.py), so a screen prints the reason as it is. Read only towards
 Google: the sync, the sign-in and the Classroom reader are the ones in ww_gcr/; this file only starts them and reads what they
@@ -47,6 +47,7 @@ from .ww_pyq import store as pyq_store
 SOURCE = "your Google Classroom"
 OFF_REASON = "The Google link is switched off in this instance."
 KINDS = ("notes", "paper", "other")
+PAPER_EXT = ("pdf", "docx", "doc")     # what the paper desk reads from a Classroom original; Word files are printed to PDF there
 # A fetched file must never be executed: only document types are handed to the PC's default program. An .exe, .bat, .lnk or
 # .js named like a lecture would run with his rights; the list is closed, not a block list of bad names.
 OPENABLE = frozenset({"pdf", "pptx", "ppt", "docx", "doc", "xlsx", "txt", "md", "jpg", "png", "webp"})
@@ -174,8 +175,8 @@ class Gcr:
         rec = m["files"].get(fid)
         if not rec:
             raise KeyError("No such file.")
-        if rec.get("ext") != "pdf":
-            raise ValueError("Only a PDF can go to the paper desk.")
+        if rec.get("ext") not in PAPER_EXT:
+            raise ValueError("Only a PDF or a Word file can go to the paper desk.")
         try:
             path = store.original(fid)
         except KeyError:
@@ -322,7 +323,7 @@ class Gcr:
         """The rule's papers (kind paper, a PDF, no paper_id yet) one after another; a failure is a line, not the end."""
         m = _store().manifest()
         todo = [(fid, r) for fid, r in m["files"].items()
-                if r.get("kind") == "paper" and r.get("ext") == "pdf" and not r.get("paper_id") and r.get("state") == "live"
+                if r.get("kind") == "paper" and r.get("ext") in PAPER_EXT and not r.get("paper_id") and r.get("state") == "live"
                 and r.get("path") and (not only or r.get("course") in only)]
         sent = 0
         for fid, r in todo:

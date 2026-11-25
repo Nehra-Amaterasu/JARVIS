@@ -3,12 +3,12 @@
     POST   /api/mission/pyq/ingest                          R-12 {path} or {folder: true}, optional {subject, year, exam_kind, source_note}
     GET    /api/mission/pyq/ingest/{job}                    R-13 a reading job: progress, files, trace ("last" is the latest)
     PUT    /api/mission/pyq/crops/{qid}                     R-14 {bbox}: move a crop's edges, cut again from the stored page picture
-    POST   /api/mission/pyq/upload?name=&subject=&year=     R-15 the raw bytes of one .pdf or .pptx (40 MB at most), saved in inbox/ and read
+    POST   /api/mission/pyq/upload?name=&subject=&year=     R-15 the raw bytes of one .pdf, .pptx, .docx or .doc (40 MB at most), saved in inbox/ and read
 
 Every JSON answer is {state, reason, source, ...} (ww_pyq/api.py). Reading runs in one background
 thread, one job at a time (409 while one runs), so a route answers at once with the job and the
 screen polls R-13. A path he types is checked like routes_library.check_path (absolute, there, a
-file, .pdf or .pptx) and only that file is read; {folder: true} reads only the files of the chosen
+file, .pdf, .pptx, .docx or .doc) and only that file is read; {folder: true} reads only the files of the chosen
 folder that are not on file yet (ww_pyq/folder.py). An upload is written under the store's inbox/
 and nowhere else. Nothing here predicts a paper or a result.
 """
@@ -24,7 +24,7 @@ from fastapi import Body, FastAPI, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 
 from . import ww_bank_store
-from .ww_pyq import api, crops, folder, ingest
+from .ww_pyq import api, crops, folder, ingest, word
 from .ww_pyq import store as store_mod
 from .ww_pyq.schema import CROP_DPI, EXAM_KINDS
 
@@ -33,9 +33,9 @@ MAX_UPLOAD = 40 * 1024 * 1024      # R-15: a scanned 30-page paper is about 15 M
 MIN_SIDE = 8.0                     # pt: R-14, a crop narrower than this holds no readable line
 _EDGE = 1.0                        # pt a box may pass the page edge (the page size is read back from a 150 dpi PNG)
 # used with fullmatch: "$" alone also matches before a final newline, and a name ending in a newline then reached the filesystem
-_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._()-]{0,119}\.(pdf|pptx)$")
+_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 ._()-]{0,119}\.(pdf|pptx|docx|doc)$")
 _DEVICE = re.compile(r"^(?:con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)", re.I)   # Windows opens these names as devices, with any extension
-_MAGIC = {".pdf": b"%PDF-", ".pptx": b"PK\x03\x04"}
+_MAGIC = {".pdf": b"%PDF-", ".pptx": b"PK\x03\x04", **word.MAGIC}
 _META = ("subject", "year", "exam_kind", "source_note")
 
 
@@ -74,9 +74,9 @@ def _meta(body: dict) -> dict:
 
 
 def check_path(raw) -> Path:
-    """The file he typed: absolute, there, a file, a .pdf or a .pptx (the routes_library rule)."""
+    """The file he typed: absolute, there, a file, of a type the desk reads (the routes_library rule)."""
     if not isinstance(raw, str) or not raw.strip():
-        raise ValueError("Give the full path of a .pdf or .pptx file on this PC.")
+        raise ValueError("Give the full path of a .pdf, .pptx, .docx or .doc file on this PC.")
     text = raw.strip().strip('"').strip("'")
     if text.replace("/", "\\").startswith("\\\\"):
         # UNC, extended-length and device paths (two leading separators): exists() on a UNC name opens an SMB connection to that host
@@ -90,7 +90,7 @@ def check_path(raw) -> Path:
     if not p.is_file():
         raise ValueError("That is a folder; give one file, or read the watched folder.")
     if p.suffix.lower() not in ingest.SUFFIXES:
-        raise ValueError(f"I read .pdf and .pptx files; {p.suffix or 'this file'} is not one of them.")
+        raise ValueError(f"I read .pdf, .pptx, .docx and .doc files; {p.suffix or 'this file'} is not one of them.")
     return p
 
 
@@ -181,7 +181,7 @@ def register(app: FastAPI, svc, bus) -> None:
     async def upload(request: Request, name: Optional[str] = None, subject: Optional[str] = None, year: Optional[str] = None):
         def checks() -> tuple[str, dict]:
             if not isinstance(name, str) or not _NAME.fullmatch(name) or _DEVICE.match(name):
-                raise ValueError("Give the file a plain name ending in .pdf or .pptx, with no folder in it.")
+                raise ValueError("Give the file a plain name ending in .pdf, .pptx, .docx or .doc, with no folder in it.")
             return name, _meta({"subject": subject, "year": year})
 
         fname, meta = api.guard(checks)

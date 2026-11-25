@@ -77,3 +77,6 @@ sympy==1.13.1                    # exact keys of the generated numericals: app/j
 # --- Added 2026-11-22: the Google link (app/jarvis_app/ww_gcr), approved by the owner on 13 Nov 2026
 google-auth-oauthlib==1.5.0      # the desktop sign-in flow on a loopback port: ww_gcr/auth.py (REST calls go through httpx)
 keyring==25.7.0                  # the refresh token lives in the operating system's credential store, never in a file
+
+# --- Added 2026-11-25: OCR on demand for scanned papers (owner approval of 13 Nov); runs on the CPU, models ship in the wheel
+rapidocr-onnxruntime==1.4.4      # text on scanned pages: app/jarvis_app/ww_pyq/ocr.py (brings opencv-python, pyclipper, shapely)

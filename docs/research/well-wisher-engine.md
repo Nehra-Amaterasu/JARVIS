@@ -2,6 +2,34 @@
 
 The running research file of the engine lane (the Python side of Well Wisher). Newest section on top. The plan it serves is `docs/design/well-wisher-engine-plan.md`; the screens are the UI lane's (`docs/research/product-design-overhaul.md`).
 
+## 2026-11-25 (later): OCR on demand, and what it does and does not give on real scans
+
+**Question.** 13 of the 93 PDF papers from Classroom are scans and gave nothing. Can they be read on this PC without the network, how well, and what must never be shown as read?
+
+**Built.** `ww_pyq/ocr.py` (RapidOCR 1.4.4 on the CPU, models inside the wheel), `routes_ww_pyq_ocr.py` (R-28 status, R-48 start per paper, R-49 stop), the pin in `requirements.gpu.txt`. OCR never starts by itself. It reads the 150 dpi page picture the ingest already drew, turns the lines into the same page shape the text reader gives, and uses the same segmenter. Every question it makes is pending, `text_status: "unverified"`, with the mean confidence of its lines.
+
+**Measured on real scanned papers** (first scanned page of 8 papers, scratch store, counts only):
+
+| | Result |
+| --- | --- |
+| Printed pages | 7 of 8, mean line confidence 0.91 to 0.97 |
+| Handwritten page | 1 of 8, confidence 0.69: held back by the gate of 0.85, left as a picture with the number in its fault line |
+| Time a page on the CPU, other programs running | 4.4 to 11.7 s (28 to 170 lines a page) |
+| Pages where the rule found question starts | 2 of 7: 23 questions (7 with marks) and 20 questions (2 with marks) |
+| Pages read with no question start found | 5 of 7 |
+
+- Why 5 of 7 found none: these papers are ruled tables, and the engine returns the text of each cell with its box, not rows. The table reader of the text path (`find_tables`) needs drawn lines, which a scan does not have. So recognition works and splitting does not, on this layout.
+- What happens to such a page: it becomes **one whole-page draft** (label `p3`, the recognised text, the whole page as its crop, no marks), and the page keeps the line "read at confidence 0.95; no question start was found, so the whole page is one draft to split by hand". Before this fix a read page with no question simply left the list of faults and nothing reached review.
+- The engine drops thin spaces: "3. Calculate ... shown. (5 marks)" came back as "3.Calculate ... shown.(5 marks)", so no start was found on the first real reading. Only the join after a question label and the join before closing marks are opened again; no letter is changed. Six cases pin it.
+
+**Tests.** `test_pyq_ocr.py`: 16 with a fake engine (the gate, the wording, stop, 409, no engine, whole-page draft, the joins) and 1 opt-in with the real engine (passed here in 7 s).
+
+**Not verified.** Only the first scanned page of 8 papers was read, not all 13 papers and not the 3,374 scan pages of the notes. The accuracy of the recognised words against the page was not measured: confidence is the engine's own figure. Nothing ran in the real store. Rebuilding table rows from cell boxes on a scan is not built, so most scanned papers arrive as whole-page drafts.
+
+**Sources.** The trial script and its counts (private scratch, 25 Nov).
+
+**What it changed.** Plan 9.0 (the line of 25 Nov on OCR, written before the build). Open for the owner: OCR on the GPU.
+
 ## 2026-11-25: Word papers into the paper desk, and marks that stand in a heading
 
 **Question.** The owner's internal test papers and their solutions are Word files, and the paper desk read PDF only. Can they be read with pages and crops, without a new dependency, and does the reader then find their marks?

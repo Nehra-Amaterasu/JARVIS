@@ -11,7 +11,7 @@ A PDF, in order (each step is a TraceEvent, sent to on_event as it happens):
   open    hash the bytes (SHA-256); a hash on file already is a duplicate and nothing is added
   page    every page is drawn once at 150 dpi to pages/<paper>/p<nnn>.png, then the text-layer
           test of the specification (40 characters, 80 % word-like tokens); a page that fails it and
-          holds a picture is a fault ("p. 3: no text layer; OCR arrives in EW8") and the rest imports
+          holds a picture is a fault ("p. 3: no text layer; run OCR on this paper") and the rest imports
   table   a ruled table whose header names a question and a marks column: one question per row
   segment question starts at the modal left margin (segment.py), stitched across pages
   crop    the drafts are added first (Store.add_questions gives the ids), then each crop is cut from
@@ -43,9 +43,9 @@ from .store import Store
 
 SUFFIXES = (".pdf", ".pptx") + word.SUFFIXES       # a Word paper is printed to PDF by the local Word (word.py)
 MAX_FILE = 200 * 1024 * 1024         # yaadash library.MAX_FILE_BYTES: a paper is a few MB, a 200 MB file is not one
-NO_TEXT = "p. {n}: no text layer; OCR arrives in EW8"
-UNREADABLE = "p. {n}: the text layer does not read as words; OCR arrives in EW8"
-PICTURE_SLIDE = "slide {n}: pictures only, no text; OCR arrives in EW8"
+NO_TEXT = "p. {n}: no text layer; run OCR on this paper"
+UNREADABLE = "p. {n}: the text layer does not read as words; run OCR on this paper"
+PICTURE_SLIDE = "slide {n}: pictures only, no text"
 MAX_PAGES = 300                      # a paper is 2 to 30 pages; 300 pages at 0.13 s is 40 s and 300 PNGs, a bounded cost
 MAX_PAGE_AREA = 4.5e6                # pt squared: A1 is 4.0e6 and 150 dpi draws it as 19 Mpx (58 MB); 14400 x 14400 pt would be 2.5 GB
 MAX_PAGE_SIDE = 6000.0               # pt: a 6000 x 700 strip passes the area test and still draws 12500 px wide

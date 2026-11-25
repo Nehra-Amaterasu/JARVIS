@@ -136,7 +136,7 @@ def test_r13_is_fault_when_a_page_has_no_text_layer(env):
     c, st, tmp = env
     j = ingest_one(c, build_pdf(BY_NAME["scanned_page"], tmp / "in"))
     r = c.get(f"{B}/ingest/{j['job']['id']}").json()
-    assert r["state"] == "fault" and r["reason"] == "p. 2: no text layer; OCR arrives in EW8"
+    assert r["state"] == "fault" and r["reason"] == "p. 2: no text layer; run OCR on this paper"
     assert r["job"]["files"][0]["status"] == "added" and r["job"]["files"][0]["questions"] == 3
 
 

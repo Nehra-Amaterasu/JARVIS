@@ -80,6 +80,7 @@ nvidia-ml-py==13.615.71
 oauthlib==3.3.1
 ollama==0.6.2
 onnxruntime==1.27.0
+opencv-python==5.0.0.93
 openwakeword==0.6.0
 orjson==3.11.9
 overrides==7.7.0
@@ -95,6 +96,7 @@ psutil==7.2.2
 pyarrow==25.0.0
 pyasn1==0.6.5
 pyasn1_modules==0.4.2
+pyclipper==1.4.0
 pycparser==3.0
 pydantic==2.13.4
 pydantic_core==2.46.4
@@ -113,6 +115,7 @@ pywin32-ctypes==0.2.3
 PyYAML==6.0.3
 rank-bm25==0.2.2
 RapidFuzz==3.14.6
+rapidocr-onnxruntime==1.4.4
 regex==2026.7.19
 requests==2.34.2
 requests-oauthlib==2.0.0
@@ -124,6 +127,7 @@ scikit-learn==1.9.0
 scipy==1.17.1
 sentence-transformers==5.6.1
 setuptools==65.5.0
+shapely==2.2.0
 shellingham==1.5.4
 six==1.17.0
 sniffio==1.3.1

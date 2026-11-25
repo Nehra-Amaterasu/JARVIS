@@ -187,7 +187,7 @@ def test_every_page_is_rendered_once_and_the_original_is_kept(store, tmp_path):
 # ------------------------------------------------------------------ (4) a page with no text layer
 def test_a_page_without_a_text_layer_is_a_fault_and_the_rest_imports(store, tmp_path):
     res = run(BY_NAME["scanned_page"], store, tmp_path)
-    assert res["paper"]["faults"] == ["p. 2: no text layer; OCR arrives in EW8"]
+    assert res["paper"]["faults"] == ["p. 2: no text layer; run OCR on this paper"]
     assert [d["label"] for d in res["drafts"]] == ["1", "2", "4"]
     assert [e["page"] for e in res["trace"] if e["kind"] == "fault"] == [2]
     assert store.get_paper(res["paper"]["id"])["faults"] == res["paper"]["faults"]

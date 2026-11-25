@@ -168,7 +168,7 @@ SCANNED_PAGE = {
         {"image": ["3. Describe the construction of a Wheatstone bridge and its use. [5]"]},
         ["4. State the sources of error in a digital voltmeter. [5]"],
     ],
-    "expect": {"total": 20, "faults": ["p. 2: no text layer; OCR arrives in EW8"], "questions": [
+    "expect": {"total": 20, "faults": ["p. 2: no text layer; run OCR on this paper"], "questions": [
         {"label": "1", "marks": 5, "page": 1}, {"label": "2", "marks": 5, "page": 1}, {"label": "4", "marks": 5, "page": 3}]},
 }
 

@@ -5,7 +5,7 @@
 // Keys, only while focus is inside the list (WCAG 2.1.4): J and K (or Down and Up) move between turns, Home and End
 // jump, F opens the flag dock on the focused turn, Esc closes it. The dock is docked over the prompt line, so opening
 // it never reflows the rows. The four flags are the legacy page's: Good, Wrong, Slow for a reply, Misheard for you.
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
 import type { Turn } from '../../lib/api'
 import { Lamp, LAMP_SPECS, showsNumber, type LampReading } from '../../shared/lamp'
 import { Sigil, TermWell } from '../../shared/grammar'
@@ -144,6 +144,120 @@ function FlagDock({ turn, question, onFlag, onClose }: {
       )}
       <button ref={said || !canFlag ? first : undefined} type="button" className="jc-key jc-key-sm jc-dock-x" onClick={onClose}>Close</button>
     </form>
+  )
+}
+
+/* ------------------------------------------------------------------ the v3 log: plain readable lines under the orb */
+/** A turn of the v3 log: "You" or "Jarvis" as a small label, the time in mono, the sentence in the reading face. The terminal
+ *  brackets and prompt are gone (owner, 25 Nov: "the terminal look is making some part incomprehensible"); the lamp stays. */
+export function TalkTurn({ turn, simulated = false, notifyPresent, onHandoff, focusable, tabIndex, onFocus, lamp: given }: Parameters<typeof TurnRow>[0]) {
+  const you = turn.role === 'you'
+  const lamp = given ?? asSim(turnLamp(turn), simulated)
+  const text = cleanText(turn.text)
+  const h = handoffOf(turn)
+  const secs = !you && typeof turn.seconds === 'number' && showsNumber(lamp.state) ? `${turn.seconds.toFixed(1)} s` : null
+  return (
+    <li
+      className="jc3-turn" data-role={you ? 'you' : 'jarvis'} data-state={lamp.state} data-turn={turn.id}
+      tabIndex={focusable ? tabIndex : undefined} onFocus={onFocus}
+      aria-label={`${you ? 'You' : 'JARVIS'} at ${turnTime(turn.t)}: ${text || 'no text yet'}. ${LAMP_SPECS[lamp.state].label}${secs ? `, reply took ${secs}` : ''}${!showsNumber(lamp.state) && lamp.reason ? `, ${lamp.reason}` : ''}`}
+    >
+      <div className="jc3-turn-head" aria-hidden="true">
+        <b className="jc3-who">{you ? 'You' : 'Jarvis'}</b>
+        <time className="jc3-time">{turnTime(turn.t)}</time>
+        <Lamp reading={lamp} showLabel={false} size={12} />
+        {secs && <span className="jc3-time">{secs}</span>}
+        {!showsNumber(lamp.state) && lamp.reason && <span className="jc3-why">{lamp.reason}</span>}
+      </div>
+      <p className="jc3-turn-text" aria-hidden="true">{text || '…'}</p>
+      {h && (
+        <div className="jc-turn-hand">
+          <HandoffChip product="ww" target={h.target} label={h.label} notifyPresent={notifyPresent} onOpen={onHandoff} />
+        </div>
+      )}
+    </li>
+  )
+}
+
+/** Within this many px of the end, the log counts as "at the newest turn" and follows new lines; scrolled further up, it
+ *  stays where the reader put it (two lines of 1.5 x 15 px, so a wheel notch of slack does not unpin it). */
+const STICK_PX = 48
+
+/**
+ * The v3 conversation: every turn of the run, newest at the bottom, in one scroller under the orb. The scroller's own box
+ * carries a mask (core-v3.css), so the lines fade toward the orb and melt into the ground; the mask is fixed to the viewport
+ * of the log, so scrolling up brings older lines into the opaque zone. The fade is visual only: every line stays in the DOM,
+ * selectable, focusable (J, K, Home, End) and named for a screen reader. F opens the same flag dock as the classic look.
+ */
+export function TalkLog({ turns, all, running, simulated = false, notifyPresent, onFlag, onHandoff, footer, recorded = [] }: TranscriptProps) {
+  const list = useRef<HTMLOListElement>(null)
+  const scroller = useRef<HTMLDivElement>(null)
+  const pinned = useRef(true)
+  const [cur, setCur] = useState(Math.max(0, turns.length - 1))
+  const [dock, setDock] = useState<number | null>(null)
+  const idx = Math.min(cur, Math.max(0, turns.length - 1))
+  const lastText = turns.length ? turns[turns.length - 1].text : ''
+  // a new turn or a streamed chunk keeps the newest line in view, unless the reader scrolled up to read older ones
+  useLayoutEffect(() => {
+    const el = scroller.current
+    if (el && pinned.current) el.scrollTop = el.scrollHeight
+  }, [turns.length, lastText, recorded.length])
+  const onScroll = () => {
+    const el = scroller.current
+    if (el) pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_PX
+  }
+  const focusRow = (i: number) => {
+    const rows = list.current?.querySelectorAll<HTMLElement>('.jc3-turn')
+    const n = rows?.length ?? 0
+    if (!n) return
+    const j = Math.max(0, Math.min(n - 1, i))
+    setCur(j)
+    rows![j].focus()
+  }
+  const onKey = (e: KeyboardEvent<HTMLOListElement>) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return
+    const k = e.key
+    if (k === 'j' || k === 'J' || k === 'ArrowDown') { e.preventDefault(); focusRow(idx + 1) }
+    else if (k === 'k' || k === 'K' || k === 'ArrowUp') { e.preventDefault(); focusRow(idx - 1) }
+    else if (k === 'Home') { e.preventDefault(); focusRow(0) }
+    else if (k === 'End') { e.preventDefault(); focusRow(turns.length - 1) }
+    else if ((k === 'f' || k === 'F') && onFlag && turns[idx]) { e.preventDefault(); setDock(turns[idx].id) }
+  }
+  const docked = dock === null ? null : turns.find((t) => t.id === dock) ?? null
+  const question = (t: Turn) => {
+    const i = all.findIndex((x) => x.id === t.id)
+    return t.role === 'jarvis' ? all.slice(0, Math.max(0, i)).reverse().find((p) => p.role === 'you')?.text ?? '' : ''
+  }
+  const closeDock = () => {
+    setDock(null)
+    requestAnimationFrame(() => focusRow(idx))
+  }
+  return (
+    <div className="jc3-log" data-dock={docked ? 'open' : undefined}>
+      <div className="jc3-log-scroll" ref={scroller} onScroll={onScroll} data-testid="talk-log">
+        {turns.length === 0 ? (
+          <div className="jc3-log-empty">
+            {recorded.length > 0 && (
+              <ol className="jc3-turns" aria-label={simulated ? 'A fixture exchange, not a recording' : 'The last recorded exchange, from an earlier run'}>
+                {recorded.map((t) => <TalkTurn key={t.id} turn={t} notifyPresent={notifyPresent} lamp={simulated ? FIXTURE_RUN : EARLIER_RUN} />)}
+              </ol>
+            )}
+            <p className="jc3-log-note">{running ? 'No turns in this run yet.' : 'No turns in this run yet. Wake JARVIS to start one.'}</p>
+          </div>
+        ) : (
+          <ol ref={list} className="jc3-turns" aria-label={`Conversation, ${turns.length} turns. J and K move, F flags the focused turn`} onKeyDown={onKey}>
+            {turns.map((t, i) => (
+              <TalkTurn
+                key={t.id} turn={t} simulated={simulated} notifyPresent={notifyPresent} onHandoff={onHandoff}
+                focusable tabIndex={i === idx ? 0 : -1} onFocus={() => setCur(i)}
+              />
+            ))}
+          </ol>
+        )}
+        {footer}
+      </div>
+      {docked && onFlag && <FlagDock key={docked.id} turn={docked} question={question(docked)} onFlag={onFlag} onClose={closeDock} />}
+    </div>
   )
 }
 

@@ -140,7 +140,7 @@ def harvester(net: FakeNet, clock: Optional[FakeClock] = None, day: Optional[lis
 
 
 def pdf_reader_available() -> bool:
-    return ww_harvest.find_pdftotext() is not None
+    return ww_harvest.pdf_reader() is not None
 
 
 # ------------------------------------------------------------------ the cases
@@ -285,6 +285,27 @@ def run() -> dict:
         case("missing topics queued", [q["topic"] for q in queued] == ["Nyquist criterion"], str([q["topic"] for q in queued]))
         again = h.queue_missing_topics("control", units, [], tier="gate", want=1)
         case("queueing twice does not duplicate", len(h.status()["items"]) == 1 and len(again) == 1)
+
+        # paper sources (ww_harvest_sources): off means no request, a pointer means no request, a hidden link is never listed
+        from . import ww_harvest_sources as papers
+        net = FakeNet()
+        h = harvester(net)
+        try:
+            papers.index(h, "gate_papers")
+            off = False
+        except papers.Off:
+            off = True
+        case("a paper source is off until switched on, and asks nothing", off and net.calls == [] and all(not v["on"] for v in papers.view(h)))
+        page = ('<a href="static/doc/download/2026/QPs/EC.pdf">Electronics</a><a href="static/doc/download/2026/Keys/EC_Keys.pdf">EC</a>'
+                '<a hidden href="static/doc/download/2026/QPs/ZZ.pdf">x</a><a hidden href="/Rx9Invented=.html">y</a>')
+        net.add(papers.gate_papers.LISTING, page)
+        papers.set_switches(h, "gate_papers", {"on": True})
+        got = papers.index(h, "gate_papers")
+        case("a hidden link on a listing page is never listed", [i["kind"] for i in got["items"]] == ["paper", "key"] and "hidden" in got["note"], str(got))
+        before = len(net.calls)
+        entry, path = papers.fetch(h, "gate_papers", got["items"][0]["key"])
+        case("a pointer is written without asking the site", entry["local"] == "pointer only" and path is None and len(net.calls) == before
+             and not (Path(d) / "_harvest" / "papers").exists(), str(entry))
     finally:
         _restore(d, old)
 

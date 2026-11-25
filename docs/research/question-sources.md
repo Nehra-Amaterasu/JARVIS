@@ -2,6 +2,39 @@
 
 Legend: **[opened]** = I read the page or file this session. **[search]** = only a search-result summary or a secondary site, not the primary page. **[unverified]** = could not open (403, parse error, blocked) or contradictory sources. No scraping was done; pages were read one at a time.
 
+## 2026-11-25 (past papers): two official listing pages read by hand, and the harvest built on them
+
+**Question.** He asked for a harvest of public past papers: a university's own archive, and GATE. What do the official pages list, what do they allow, and what shape must the code take so it stays polite and honest?
+
+**Read by hand (25 Nov, one request per page, no paper file fetched).**
+
+| Page | robots.txt | Size | Rights line | Layout |
+| --- | --- | --- | --- | --- |
+| A state technical university's page of old question papers [opened] | HTTP 404, read as no rules (RFC 9309) | one static page, 337 KB | a copyright meta tag; no terms or licence page linked | one table, columns course, paper id, subject code, subject name; every cell of a row links the row's PDF; 679 rows, 679 files |
+| GATE 2027 download page, https://gate2027.iitm.ac.in/download [opened] | HTTP 404, no rules | one page, 184 KB | "(c) 2027 Indian Institute of Technology Madras. All Rights Reserved." | 402 links under `static/doc/download/`: the paper and the key of 30 subject codes for 2021 to 2026; 2007 to 2026 in bulk only as a shared folder on another service |
+
+**Findings that shaped the code.**
+- The university page is an old archive: old-scheme codes, no year column, one file per subject. It does not hold recent papers; those sit on third-party sites whose right to pass them on is unknown, so they are not sources and stay manual drop-in.
+- One of the 679 rows points its cells at two different files. The parser lists the file most cells agree on and says so on the row.
+- A paper id can look like a year (2030, 2032), and seven id cells hold a range of ids (2018-19). A year is read only from a column headed as one, or from a session in the title; six titles carry a real session (2006-2007).
+- The GATE page ends with one hidden link to a random address: a trap for crawlers. A parser lists only links that match the known pattern and are shown to a reader.
+- GATE file names follow no rule across years (EC.pdf, EC2025.pdf, EC24S7.pdf, ec_2023.pdf; keys under three different folder names), so an address is never built: a file is only one the page printed, on the source's own host.
+
+**Built (`app/jarvis_app/ww_harvest_sources/`, `ww_harvest.py`, `routes_ww_harvest.py`; routes R-43 to R-45, R-53, R-54).**
+- An adapter is a parser only: it gets the bytes of a listing page the harvester fetched and returns lines. Two adapters: `papers_table` (any one-page table whose rows link PDFs; the address is his to give and is kept in the private state, so the code names no site) and `gate_papers` (the download page above).
+- Each paper source has two switches, both off. Off: no request. On without the local copy: a fetch is a pointer line in the manifest and no request. With the local copy: one polite request, kept only when it is a PDF, under the private data directory, then sent to the paper desk like a dropped file.
+- The manifest (`_harvest/manifest.jsonl`): one line per file by hash, or per pointer by source and address; a file replaces its pointer; a file he downloads himself joins as `manual`.
+- Rate rules for every source: at least 3 s between two requests to one host, 200 a host a day, a 503 (and a 429 that names a time) honoured, a redirect of a paper file must stay on the source's hosts. The listing is read once a day and asked again with a conditional request.
+- PDF text now comes from PyMuPDF through the app's one reader; the `pdftotext` path is gone.
+
+**Measured.**
+- The two parsers on the two real pages already read (no new request): the table page gives 679 rows, 679 files, a code on every row, 6 years, 1 row noted, in 149 ms; the download page gives 402 files (201 papers, 201 keys, 30 codes, 2021 to 2026), 12 for EC, in 26 ms.
+- Tests: 25 new on invented pages with a fake transport, 35 existing harvester tests unchanged but for the PDF reader's name. Two mutations were caught: following hidden links (8 tests fail) and downloading on a pointer fetch (4 fail).
+
+**Not verified.** No paper file was fetched from either site, so: whether each link answers with a PDF, the file sizes, and how many of the old papers are scans is unknown. The local-copy path ran only against the fake transport. The host of the GATE page changes every year with the organising institute; the constant is the 2027 cycle's. Whether either publisher minds a local copy for private study is his reading of their terms, which is why it is his second switch.
+
+**Sources.** https://gate2027.iitm.ac.in/download ; the university page (its address is in the private research note of the same date); RFC 9309 section 2.3.1.3 on an unavailable robots.txt.
+
 ## 2026-11-10 (numericals): our own parameterised circuits and control numericals, exam and GATE tier
 
 **Question.** The bank runs dry after one paper on a thin topic, and the GATE tier had nothing of ours at all (the harvester only holds open-licence posts). Can we generate numericals whose keys we can prove, at exam level (one concept) and GATE level (two or more chained)?

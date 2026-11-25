@@ -1,7 +1,7 @@
 """The harvester (ww_harvest.py, routes_ww_harvest.py) on recorded fixtures: no network, ever.
 
 The transport is jarvis_app.ww_check_harvest.FakeNet over app/tests/fixtures/harvest/; the bank is a
-pytest tmp folder (WW_BANK_DIR). PDF tests need the local pdftotext and skip, loudly named, without it."""
+pytest tmp folder (WW_BANK_DIR). PDF tests need PyMuPDF and skip, loudly named, without it."""
 import json
 
 import pytest
@@ -13,7 +13,7 @@ from jarvis_app import ww_harvest as wh
 from jarvis_app.security import Guard
 from jarvis_app.server import create_app
 
-needs_pdf = pytest.mark.skipif(not fake.pdf_reader_available(), reason="pdftotext (poppler) is not installed")
+needs_pdf = pytest.mark.skipif(not fake.pdf_reader_available(), reason="PyMuPDF is not installed")
 TOKEN = "desk-token-123456"
 D = {"X-Jarvis-Token": TOKEN}
 
@@ -335,13 +335,13 @@ def test_the_subjects_map_to_the_gate_ec_headings():
 
 
 def test_a_missing_pdf_reader_is_a_clear_error_and_a_refusal_not_a_crash(monkeypatch):
-    monkeypatch.setattr(wh, "find_pdftotext", lambda: None)
+    monkeypatch.setattr(wh, "pdf_reader", lambda: None)
     with pytest.raises(wh.PdfReaderMissing) as e:
         wh.pdf_text(b"%PDF-1.4")
-    assert "pdftotext" in str(e.value) and "No Python PDF library" in str(e.value)
+    assert "PyMuPDF" in str(e.value) and "nothing was read" in str(e.value)
     h, net = start()
     it = one(h, sources=["mit_ocw"])
-    assert it["status"] == "refused" and it["reason_code"] == "pdf-reader-missing" and "pdftotext" in it["reason"]
+    assert it["status"] == "refused" and it["reason_code"] == "pdf-reader-missing" and "PyMuPDF" in it["reason"]
     assert h.sources_view()["pdf_reader"]["available"] is False
 
 

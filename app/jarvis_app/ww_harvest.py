@@ -17,7 +17,10 @@ cached on disk, never a login, never a 403 or 429 twice (a second one stops that
 Nothing runs by itself: no thread and no network at import. The queue is only worked by run() (the
 run route or the CLI), and only when the owner has switched the harvester on (resume). The queue and
 the page cache live beside the bank (data/bank/questions/_harvest/) so a restart loses nothing.
-PDF text comes from the local `pdftotext` binary; if it is absent the error says so (no Python PDF library).
+PDF text is read with PyMuPDF through ww_pyq.ingest.read_pdf_text: one reader for the whole app.
+
+Paper sources (whole past papers from a publisher's listing page) live in ww_harvest_sources/: each has its own two
+switches and uses the polite GET of this module, so every rule above holds for them too.
 """
 from __future__ import annotations
 
@@ -28,9 +31,6 @@ import json
 import os
 import random
 import re
-import shutil
-import subprocess
-import tempfile
 import threading
 import time
 import uuid
@@ -46,6 +46,9 @@ from . import ww_bank_store as store
 UA_TOKEN = "JARVIS-WellWisher-QuestionHarvester"
 USER_AGENT = f"{UA_TOKEN}/1.0 (personal, non-commercial study tool; obeys robots.txt; one request at a time)"
 DELAY = (2.0, 5.0)                 # seconds between two requests, drawn at random (research file section 6)
+HOST_GAP = 3.0                     # seconds between two requests to one host, whatever the random delay drew
+HOST_DAILY = 200                   # requests one host is asked in a day; the rest waits for tomorrow
+RETRY_DEFAULT = 600                # seconds a host is left alone after a 503 (or a 429 with Retry-After) that names no time
 MATH_BACKSLASH_DOLLAR = ("electronics",)
 SE_DAILY = 300                    # Stack Exchange anonymous requests per IP per day
 MAX_PAGE = 8 * 1024 * 1024
@@ -123,30 +126,24 @@ class PdfReaderMissing(RuntimeError):
 
 
 # ------------------------------------------------------------------ text helpers
-def find_pdftotext() -> Optional[str]:
-    # On this machine poppler comes with Git for Windows (C:\Program Files\Git\mingw64\bin), which is not on every shell's PATH.
-    pf = os.environ.get("ProgramFiles", r"C:\Program Files")
-    for cand in (os.environ.get("PDFTOTEXT"), shutil.which("pdftotext"), pf + r"\Git\mingw64\bin\pdftotext.exe",
-                 r"C:\msys64\mingw64\bin\pdftotext.exe", "/mingw64/bin/pdftotext", "/usr/bin/pdftotext"):
-        if cand and (Path(cand).exists() or Path(cand + ".exe").exists()):
-            return cand
-    return None
+def pdf_reader() -> Optional[str]:
+    """The PDF reader's name, or None when PyMuPDF cannot be loaded by this Python."""
+    try:
+        import fitz
+    except Exception:                  # a broken native wheel raises more than ImportError
+        return None
+    return ("PyMuPDF " + str(getattr(fitz, "VersionBind", "") or "")).strip()
 
 
 def pdf_text(data: bytes, first: Optional[int] = None, last: Optional[int] = None) -> str:
-    """Text of a PDF through the local pdftotext (poppler). No Python PDF library is installed or needed."""
-    exe = find_pdftotext()
-    if not exe:
-        raise PdfReaderMissing("PDF text needs the local pdftotext (poppler), which was not found; "
-                               "install it or set PDFTOTEXT to its path. No Python PDF library is used.")
-    with tempfile.TemporaryDirectory(prefix="ww-pdf-") as td:
-        src = Path(td) / "in.pdf"
-        src.write_bytes(data)
-        cmd = [exe, "-enc", "UTF-8", "-layout"] + (["-f", str(first)] if first else []) + (["-l", str(last)] if last else []) + [str(src), "-"]
-        r = subprocess.run(cmd, capture_output=True, timeout=90)
-    if r.returncode != 0:
-        raise Refused("network", "pdftotext could not read the file: " + r.stderr.decode("utf-8", "replace")[:120])
-    return r.stdout.decode("utf-8", "replace")
+    """Text of a PDF through the app's one reader (ww_pyq.ingest.read_pdf_text, PyMuPDF)."""
+    if not pdf_reader():
+        raise PdfReaderMissing("PDF text needs PyMuPDF, which this Python cannot load; nothing was read.")
+    from .ww_pyq.ingest import read_pdf_text
+    try:
+        return read_pdf_text(data, first, last)
+    except Exception as e:
+        raise Refused("network", "the PDF could not be read: " + type(e).__name__) from e
 
 
 _PROB = re.compile(r"^[ \t]*(?:Problem|Question|Exercise|Q\.?)[ \t]*(\d+[A-Za-z]?)[.:)]?[ \t]+(?=\S)|^[ \t]*(\d{1,2})[.)][ \t]+(?=[A-Z])", re.M)
@@ -225,6 +222,11 @@ def _httpx_transport(url: str, headers: dict, timeout: float, max_bytes: int) ->
         raise Refused("network", f"the request failed: {type(e).__name__}") from e
 
 
+def _papers():
+    from . import ww_harvest_sources          # late: that package imports this module for Refused and the limits
+    return ww_harvest_sources
+
+
 _SHARED: Optional["Harvester"] = None
 
 
@@ -242,7 +244,7 @@ class Harvester:
 
     def __init__(self, transport: Optional[Callable] = None, sleep: Callable[[float], None] = time.sleep,
                  clock: Callable[[], float] = time.time, today: Optional[Callable[[], str]] = None,
-                 delay: tuple[float, float] = DELAY, rng: Optional[random.Random] = None):
+                 delay: tuple[float, float] = DELAY, rng: Optional[random.Random] = None, host_gap: Optional[float] = None):
         self.transport = transport or _httpx_transport
         self.sleep, self.clock = sleep, clock
         self.today = today or (lambda: date.today().isoformat())
@@ -250,6 +252,8 @@ class Harvester:
         self._lock = threading.RLock()
         self._run_lock = threading.Lock()
         self._last_request = 0.0
+        self.host_gap = HOST_GAP if host_gap is None else host_gap
+        self._host_last: dict[str, float] = {}
         self._budget: Optional[int] = None
         self.requests_made = 0
 
@@ -272,6 +276,8 @@ class Harvester:
         st.setdefault("host_blocks", {})
         st.setdefault("blocked_urls", {})
         st.setdefault("backoff", {})
+        st.setdefault("host_counts", {})
+        st.setdefault("paper_sources", {})
         st.setdefault("se_requests", {"date": "", "n": 0})
         st.setdefault("openstax_licenses", {})
         st.setdefault("last_run", None)
@@ -402,10 +408,11 @@ class Harvester:
                     status, reason = "limit", f"{SE_DAILY} requests used today"
             rows.append({"id": sid, "name": s["name"], "kind": s["kind"], "status": status, "license": lic or "not recorded", "reason": reason,
                          "terms_url": s["terms_url"], "note": s["note"], "on_disk": by_src.get(sid, 0)})
-        pdf = find_pdftotext()
+        pdf = pdf_reader()
         used = st["se_requests"]["n"] if st["se_requests"]["date"] == today else 0
         return {"sources": rows, "not_used": NOT_USED, "user_agent": USER_AGENT, "delay_seconds": list(self.delay),
-                "pdf_reader": {"available": bool(pdf), "path": pdf or "", "note": "PDF text uses the local PDF reader when present. A Python PDF library is not installed."},
+                "pdf_reader": {"available": bool(pdf), "path": "", "note": "PDF text is read with PyMuPDF." if pdf else "PyMuPDF could not be loaded; PDFs are not read."},
+                "paper_sources": _papers().view(self),
                 "stackexchange_requests_today": used, "stackexchange_daily_limit": SE_DAILY}
 
     # ---- the polite GET
@@ -419,13 +426,16 @@ class Harvester:
                 raise Refused("budget", "this run's request budget is spent; the rest stays queued")
             self._budget -= 1
 
-    def _pace(self) -> None:
+    def _pace(self, host: str = "") -> None:
         wait = self.delay[0] + (self.delay[1] - self.delay[0]) * self.rng.random()
-        since = self.clock() - self._last_request
-        if self._last_request and since < wait:
-            self.sleep(wait - since)
+        need = wait - (self.clock() - self._last_request) if self._last_request else 0.0
+        last = self._host_last.get(host)
+        if host and last is not None:
+            need = max(need, self.host_gap - (self.clock() - last))      # one host is never asked twice inside HOST_GAP
+        if need > 0:
+            self.sleep(need)
 
-    def _request(self, st: dict, url: str, max_bytes: int) -> tuple[int, dict, bytes]:
+    def _request(self, st: dict, url: str, max_bytes: int, extra: Optional[dict] = None) -> tuple[int, dict, bytes]:
         """One network request, paced, counted, and with the 403/429 rule applied. Caller holds no lock on the net."""
         host = urlparse(url).hostname or ""
         if self._host_stopped(st, host):
@@ -435,12 +445,26 @@ class Harvester:
             raise Refused("backoff", f"{host} asked us to back off until {datetime.fromtimestamp(until).strftime('%H:%M')}")
         if st["blocked_urls"].get(url) == self.today():
             raise Refused("rate-limit", "this address already answered 403 or 429 today and is not asked again")
+        hc = st["host_counts"].get(host)
+        if not hc or hc.get("date") != self.today():
+            hc = st["host_counts"][host] = {"date": self.today(), "n": 0}
+        if hc["n"] >= HOST_DAILY:
+            raise Refused("quota", f"{host} was asked {HOST_DAILY} times today; the rest waits for tomorrow")
         self._spend()
-        self._pace()
-        self._last_request = self.clock()
+        self._pace(host)
+        self._last_request = self._host_last[host] = self.clock()
         self.requests_made += 1
+        hc["n"] += 1
         st["last_request_at"] = self._iso()
-        status, headers, body = self.transport(url, {"User-Agent": USER_AGENT, "Accept": "*/*", "Accept-Language": "en"}, 30.0, max_bytes)
+        status, headers, body = self.transport(url, {"User-Agent": USER_AGENT, "Accept": "*/*", "Accept-Language": "en", **(extra or {})}, 30.0, max_bytes)
+        ra = str(headers.get("retry-after") or "").strip()
+        if status == 503 or (status == 429 and ra):
+            # the host said when to come back (or, for a 503, that it is busy): it is left alone until then
+            wait_s = min(int(ra), 86400) if ra.isdigit() else RETRY_DEFAULT
+            st["backoff"][host] = self.clock() + wait_s
+            if status == 503:
+                self.save(st)
+                raise Refused("backoff", f"HTTP 503 from {host}; it is left alone for {max(1, wait_s // 60)} minutes")
         if status in (403, 429):
             b = st["host_blocks"].setdefault(host, {"date": self.today(), "strikes": 0, "status": status})
             if b.get("date") != self.today():
@@ -483,11 +507,19 @@ class Harvester:
         if not rp.can_fetch(UA_TOKEN, url):
             raise Refused("robots", f"robots.txt of {host} disallows {p.path or '/'}")
 
-    def get(self, url: str, st: dict, cache: bool = True, max_bytes: int = MAX_PAGE, hops: int = 0) -> tuple[int, dict, bytes]:
-        """robots, cache, pace, fetch. Raises Refused. A cached page costs no request and no delay."""
+    def _plain(self, url: str, allow_hosts: Optional[tuple]):
         p = urlparse(url)
         if p.scheme not in ("http", "https") or p.username or p.password or not p.hostname:
             raise Refused("blocked", "only plain http(s) addresses without a login are fetched")
+        if allow_hosts is not None and p.hostname not in allow_hosts:
+            raise Refused("blocked", f"the link leaves the source's own site ({p.hostname}); it is not followed")
+        return p
+
+    def get(self, url: str, st: dict, cache: bool = True, max_bytes: int = MAX_PAGE, hops: int = 0,
+            allow_hosts: Optional[tuple] = None) -> tuple[int, dict, bytes]:
+        """robots, cache, pace, fetch. Raises Refused. A cached page costs no request and no delay. With `allow_hosts`
+        the address and every redirect must stay on those hosts (a paper file never comes from somewhere else)."""
+        p = self._plain(url, allow_hosts)
         key = hashlib.sha256(url.encode()).hexdigest()[:24]
         cdir = self.root / "cache" / re.sub(r"[^a-z0-9.-]", "_", p.hostname)
         if cache and (cdir / f"{key}.body").exists():
@@ -495,7 +527,7 @@ class Harvester:
         self._robots_ok(st, url)
         status, headers, body = self._request(st, url, max_bytes)
         if status in (301, 302, 303, 307, 308) and headers.get("location") and hops < 3:
-            return self.get(urljoin(url, headers["location"]), st, cache, max_bytes, hops + 1)
+            return self.get(urljoin(url, headers["location"]), st, cache, max_bytes, hops + 1, allow_hosts)
         if status != 200:
             raise Refused("network", f"HTTP {status} from {p.hostname}")
         if cache:
@@ -503,6 +535,22 @@ class Harvester:
             (cdir / f"{key}.meta").write_text(json.dumps({"url": url, "fetched": self._iso(), "content-type": headers.get("content-type", "")}), encoding="utf-8")
             (cdir / f"{key}.body").write_bytes(body)
         return 200, headers, body
+
+    def get_fresh(self, url: str, st: dict, etag: str = "", last_modified: str = "", max_bytes: int = MAX_PAGE,
+                  allow_hosts: Optional[tuple] = None) -> tuple[int, dict, bytes]:
+        """A listing page asked again: robots, pace, and a conditional request when the last answer named an ETag or a
+        date. (304, headers, b"") means it has not changed. No page cache is read or written, and no redirect is followed."""
+        p = self._plain(url, allow_hosts)
+        self._robots_ok(st, url)
+        extra = {}
+        if etag:
+            extra["If-None-Match"] = etag
+        if last_modified:
+            extra["If-Modified-Since"] = last_modified
+        status, headers, body = self._request(st, url, max_bytes, extra)
+        if status not in (200, 304):
+            raise Refused("network", f"HTTP {status} from {p.hostname}")
+        return status, headers, body
 
     # ---- the queue worker
     def run(self, max_requests: int = 10) -> dict:

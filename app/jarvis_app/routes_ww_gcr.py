@@ -13,6 +13,12 @@
     GET    /api/mission/gcr/files/{fid}/original      G-11 the original bytes, inline
     POST   /api/mission/gcr/files/{fid}/open           G-12 opens the original in the PC's own program (document types only)
     POST   /api/mission/gcr/files/{fid}/to-papers      G-13 hands a PDF or a Word file to the paper desk; its questions arrive pending
+    DELETE /api/mission/gcr/sync                       G-14 stops the running sync after the file being fetched
+    GET    /api/mission/gcr/assignments?course=&show=  G-15 coursework with due date and time, what Classroom says of his submission, his reminder
+    POST   /api/mission/gcr/assignments/{wid}/open     G-16 opens the assignment page in the browser (turning in happens there)
+    POST   /api/mission/gcr/assignments/{wid}/remind   G-17 {at?} one reminder in the app list, by default 18:00 the day before it is due
+    GET    /api/mission/gcr/announcements?course=      G-18 the announcements read, newest first
+    GET    /api/mission/gcr/calendar?from=&to=         G-19 the events of his Google Calendar read at the last sync
 
 Every JSON answer is {state, reason, source, ...} (ww_pyq/api.py), so a screen prints the reason as it is. Read only towards
 Google: the sync, the sign-in and the Classroom reader are the ones in ww_gcr/; this file only starts them and reads what they
@@ -30,12 +36,13 @@ import re
 import threading
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+import webbrowser
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
 
 import httpx
-from fastapi import Body, FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from .ww_gcr import auth
@@ -47,6 +54,9 @@ from .ww_pyq import store as pyq_store
 SOURCE = "your Google Classroom"
 OFF_REASON = "The Google link is switched off in this instance."
 KINDS = ("notes", "paper", "other")
+CLASSROOM_URL = "https://classroom.google.com/"
+REMIND_HOUR = 18                       # a reminder he asks for without a time: 18:00 on the day before the due date
+open_url = webbrowser.open             # the browser, for an assignment page (tests put a list in its place)
 PAPER_EXT = ("pdf", "docx", "doc")     # what the paper desk reads from a Classroom original; Word files are printed to PDF there
 # A fetched file must never be executed: only document types are handed to the PC's default program. An .exe, .bat, .lnk or
 # .js named like a lecture would run with his rights; the list is closed, not a block list of bad names.
@@ -533,6 +543,166 @@ def register(app: FastAPI, svc, bus) -> None:
         state = {"idle": "waiting", "running": "live", "done": "fault" if j["fault_lines"] else "live", "failed": "fault",
                  "stopped": "waiting"}[j["status"]]
         return api.ok(state, reason, SOURCE, job=j)
+
+
+    # ------------------------------------------------------------------ G-14 to G-19: assignments, announcements, calendar
+    @app.delete("/api/mission/gcr/sync")
+    def sync_stop():
+        def work():
+            j = g.job_copy()
+            if not j or j["status"] != "running":
+                raise ValueError("No sync is running.")
+            g.stop.set()
+            return api.ok("waiting", "Stopping after the file being fetched.", SOURCE, job=g.job_copy())
+        return api.guard(work)
+
+    def _work_rows(m: dict, course: str = "") -> list[dict]:
+        made = m.get("reminders") or {}
+        store = getattr(svc, "reminders", None)
+        pending = {r["id"] for r in store.pending()} if store is not None else set()
+        today = datetime.now().date()
+        rows = []
+        for cid, c in m["courses"].items():
+            if course and cid != course:
+                continue
+            for w in c.get("work") or []:
+                left = None
+                if w.get("due"):
+                    try:
+                        left = (datetime.strptime(w["due"], "%Y-%m-%d").date() - today).days
+                    except ValueError:
+                        left = None
+                rem = made.get(w["id"])
+                rows.append({"id": w["id"], "course": cid, "course_name": c.get("name", ""), "subject": c.get("subject", ""),
+                             "title": w.get("title", ""), "due": w.get("due", ""), "due_time": w.get("due_time", ""), "days_left": left,
+                             "link": w.get("link", ""), "work": w.get("work", "unknown"), "late": bool(w.get("late")),
+                             "reminder": rem if rem and rem.get("id") in pending else None, "updated": w.get("updated", "")})
+        rows.sort(key=lambda r: (not r["due"], r["due"], r["due_time"], r["title"].lower()))
+        return rows
+
+    @app.get("/api/mission/gcr/assignments")
+    def assignments(course: str = "", show: str = "open"):
+        if _off():
+            return api.items([], "planned", OFF_REASON, SOURCE)
+
+        def work():
+            if show not in ("open", "all"):
+                raise ValueError("show is open or all.")
+            m = _store().manifest()
+            read = [c for c in m["courses"].values() if "work" in c]
+            if not read:
+                return api.items([], "waiting", "No coursework read yet: run a sync.", SOURCE)
+            rows = _work_rows(m, course)
+            is_open = lambda r: r["work"] in ("assigned", "unknown")       # noqa: E731
+            counts = {"open": sum(1 for r in rows if is_open(r)), "turned_in": sum(1 for r in rows if r["work"] in ("turned_in", "returned")),
+                      "late": sum(1 for r in rows if r["late"]), "no_due_date": sum(1 for r in rows if is_open(r) and not r["due"])}
+            soon = sum(1 for r in rows if is_open(r) and r["days_left"] is not None and 0 <= r["days_left"] <= 3)
+            shown = rows if show == "all" else [r for r in rows if is_open(r)]
+            refused = sum(1 for c in read if c.get("work_fault"))
+            reason = (f"{counts['open']} open: {soon} {'is' if soon == 1 else 'are'} due in the next 3 days." if counts["open"] else "Nothing is open.")
+            if refused:
+                reason += f" Classroom did not give the submission state for {_plural(refused, 'course', 'courses')}."
+            return api.items(shown, "live", reason, SOURCE, counts=counts, read_at=max((c.get("read_at", "") for c in read), default=""))
+        return guarded_items(work)
+
+    def _find_work(m: dict, wid: str) -> tuple[dict, dict]:
+        for c in m["courses"].values():
+            for w in c.get("work") or []:
+                if w["id"] == wid:
+                    return w, c
+        raise KeyError("No such assignment.")
+
+    @app.post("/api/mission/gcr/assignments/{wid}/open")
+    def assignment_open(wid: str):
+        if _off():
+            raise HTTPException(400, OFF_REASON)
+
+        def work():
+            w, _c = _find_work(_store().manifest(), wid)
+            link = str(w.get("link") or "")
+            if not link.startswith(CLASSROOM_URL):               # only an address Google gave for Classroom itself is opened
+                raise ValueError("Classroom gave no page for this assignment.")
+            open_url(link)
+            return api.ok("live", "Opened in the browser: turn it in there.", SOURCE, opened=True)
+        return guarded(work)
+
+    @app.post("/api/mission/gcr/assignments/{wid}/remind")
+    def assignment_remind(wid: str, body: dict = Body(default_factory=dict)):
+        if _off():
+            raise HTTPException(400, OFF_REASON)
+
+        def work():
+            rs = getattr(svc, "reminders", None)
+            if rs is None:
+                raise HTTPException(503, "the reminder list is not up yet")
+            st = _store()
+            w, c = _find_work(st.manifest(), wid)
+            old = (st.manifest().get("reminders") or {}).get(wid)
+            if old and any(r["id"] == old["id"] for r in rs.pending()):
+                return api.ok("live", "This assignment already has a reminder.", SOURCE, reminder=old)
+            at = body.get("at")
+            if at in (None, ""):
+                if not w.get("due"):
+                    raise ValueError("This assignment has no due date; give a time.")
+                when = datetime.strptime(w["due"], "%Y-%m-%d") - timedelta(days=1)
+                when = when.replace(hour=REMIND_HOUR, minute=0)
+            else:
+                try:
+                    when = datetime.fromisoformat(str(at))
+                except ValueError:
+                    raise ValueError("Give the time like 2026-11-27T18:00.") from None
+                if when.tzinfo is not None:
+                    when = when.astimezone().replace(tzinfo=None)
+            if when <= datetime.now():
+                raise ValueError("That time has passed.")
+            due = f" on {w['due']}" + (f" at {w['due_time']}" if w.get("due_time") else "") if w.get("due") else ""
+            text = f"Due{due}: {w.get('title', '')} ({c.get('name', '')})"
+            rec = rs.create(text=text, kind="reminder", due=when.timestamp(), origin="classroom")
+            made = {"id": rec["id"], "due": when.strftime("%Y-%m-%dT%H:%M"), "text": text[:300]}
+            st.update(lambda m: m.setdefault("reminders", {}).__setitem__(wid, made))
+            return api.ok("live", f"I will remind you on {when:%d %b} at {when:%H:%M}.", SOURCE, reminder=made)
+        return guarded(work)
+
+    @app.get("/api/mission/gcr/announcements")
+    def announcements(course: str = "", limit: int = 30):
+        if _off():
+            return api.items([], "planned", OFF_REASON, SOURCE)
+
+        def work():
+            m = _store().manifest()
+            rows = [{**a, "course": cid, "course_name": c.get("name", "")} for cid, c in m["courses"].items()
+                    if not course or cid == course for a in c.get("announcements") or []]
+            rows.sort(key=lambda r: r.get("posted", ""), reverse=True)
+            rows = rows[:max(1, min(int(limit), 200))]
+            if not rows:
+                return api.items([], "waiting", "No announcement read yet: run a sync.", SOURCE)
+            return api.items(rows, "live", f"{_plural(len(rows), 'announcement', 'announcements')}, newest first.", SOURCE)
+        return guarded_items(work)
+
+    @app.get("/api/mission/gcr/calendar")
+    def calendar(start: str = Query("", alias="from"), to: str = ""):
+        if _off():
+            return api.items([], "planned", OFF_REASON, SOURCE)
+
+        def work():
+            try:
+                lo = datetime.strptime(start, "%Y-%m-%d").date() if start else datetime.now().date()
+                hi = datetime.strptime(to, "%Y-%m-%d").date() if to else lo + timedelta(days=30)
+            except ValueError:
+                raise ValueError("Give dates like 2026-11-27.") from None
+            cals = _store().manifest().get("calendar") or {}
+            if not cals:
+                return api.items([], "waiting", "The calendar has not been read yet: run a sync.", SOURCE)
+            rows = [e for c in cals.values() for e in c.get("events") or [] if str(lo) <= str(e.get("start", ""))[:10] <= str(hi)]
+            rows.sort(key=lambda e: e.get("start", ""))
+            faults = [c.get("fault") for c in cals.values() if c.get("fault")]
+            if faults and not rows:
+                why = ("The calendar permission was not granted: connect again and tick it." if "permission" in faults
+                       else f"The calendar could not be read: {faults[0]}")
+                return api.items([], "fault", why, SOURCE)
+            read_at = max((c.get("read_at", "") for c in cals.values()), default="")
+            return api.items(rows, "live", f"{_plural(len(rows), 'event', 'events')} from {lo} to {hi}.", SOURCE, read_at=read_at)
+        return guarded_items(work)
 
     # ------------------------------------------------------------------ G-06, G-07
     @app.get("/api/mission/gcr/courses")

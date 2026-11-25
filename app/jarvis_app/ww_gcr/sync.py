@@ -511,6 +511,15 @@ def sync(api: GoogleApi, store: Optional[GcrStore] = None, *, subjects: Optional
             except Exception as e:                       # one course's bug or bad answer must not end the other courses
                 faults.append(f"{c['name']}: the course stopped part way ({_plain(e)}).")
                 counts["faults"] += 1
+        if only is None and not halted():
+            # his own calendar for the next 60 days, once per account and only on a full run
+            try:
+                cal = {"read_at": _now(), "events": classroom.calendar_events(api)[:500], "fault": ""}
+            except NotConnected:
+                raise
+            except (ApiError, httpx.HTTPError) as e:
+                cal = {"read_at": _now(), "events": [], "fault": "permission" if getattr(e, "status", 0) == 403 else as_reason(e)}
+            store.update(lambda m: m.setdefault("calendar", {}).__setitem__(account, cal), fresh_ok=True)
     except NotConnected as e:                            # the sign-in died part way: keep what was fetched, say so
         error = str(e)
         faults.append(error)
@@ -600,12 +609,28 @@ def _one_course(api, store, c, old, subjects, extract, counts, faults, say, halt
                 counts["files"] += 1
                 _one_file(api, store, c, cslug, subject, p, meta, extract, counts, faults, say, account)
 
+    # His own submission state, the coursework with its due date and time, and the announcements stay in the course
+    # record, so the assignments list needs no call to Google. A refusal here is kept as work_fault and shown on that
+    # list; it is not a fault of the file run, because every file was still read.
+    try:
+        subs, work_fault = classroom.submissions(api, cid), ""
+    except NotConnected:
+        raise
+    except (ApiError, httpx.HTTPError) as e:
+        subs, work_fault = {}, as_reason(e)
+    work = [{"id": p["id"], "title": _one_line(p["title"])[:200], "due": p.get("due_date", ""), "due_time": p.get("due_time", ""),
+             "link": p["link"], "updated": p["updated"], "work": (subs.get(p["id"]) or {}).get("work", "unknown"),
+             "late": bool((subs.get(p["id"]) or {}).get("late"))} for p in posts if p["kind"] == "coursework" and p["id"]][:500]
+    notices = [{"id": p["id"], "text": str(p["text"] or "").strip()[:600], "posted": p["created"], "link": p["link"]}
+               for p in posts if p["kind"] == "announcement" and p["id"]][:200]
+
     def put(m: dict) -> None:
         cur = m["courses"].get(cid, {})
         subj, src = (cur.get("subject", ""), "hand") if cur.get("subject_source") == "hand" else (subject, source)
         m["courses"][cid] = {**cur, "name": c["name"], "section": c["section"], "state": c["state"], "link": c["link"],
                              "account": account, "slug": cur.get("slug") or cslug, "subject": subj, "subject_source": src,
-                             "posts": len(posts), "files": len(in_course), "links": links[:200], "read_at": _now()}
+                             "posts": len(posts), "files": len(in_course), "links": links[:200], "read_at": _now(),
+                             "work": work, "announcements": notices, "work_fault": work_fault}
     store.update(put, fresh_ok=True)
 
 

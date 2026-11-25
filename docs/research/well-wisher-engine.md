@@ -2,6 +2,27 @@
 
 The running research file of the engine lane (the Python side of Well Wisher). Newest section on top. The plan it serves is `docs/design/well-wisher-engine-plan.md`; the screens are the UI lane's (`docs/research/product-design-overhaul.md`).
 
+## 2026-11-25 (evening): assignments, announcements, calendar and reminders from the Google link
+
+**Question.** The link read coursework and announcements at every sync and kept only their attachments. What does it take to show what is due, what Classroom says about his submission, and to remind him, without writing anything to Google?
+
+**Found in the code.** `classroom.posts` already returned coursework with a due date and announcements; the sync used them for attachments and dropped them. The due time was ignored, and the submission state was never asked for.
+
+**Built** (plan 9.0, routes G-14 to G-19, written before the build).
+- A sync now keeps, per course: the coursework (title, due date and time, link), his own submission state, and the announcements; and, on a full run, the events of his calendar for 60 days. One more request a course (his submissions) and one a run (the calendar).
+- **The due date moves with the time.** Classroom sends both in UTC. A deadline of 23:59 here is 18:29 there, and one of 03:00 here is on the day before there, so the old date-only field could be a day early. `due_local` converts date and time together; six cases pin it, with a fixed zone so the test does not depend on the PC's clock.
+- **Classroom's words, not a judgement.** `work` is `assigned`, `turned_in`, `returned` or `unknown`; a state Google may add later reads `unknown`. `late` is Classroom's own flag. No grade is read or shown.
+- **A reminder only on his press** (G-17): one per assignment, in the app's existing reminder list, by default at 18:00 the day before it is due; a second press answers the one already made; he removes it in the reminder list. The sync makes none.
+- **Opening, not turning in** (G-16): Google does not let an outside app turn work in, so the app opens the assignment's page, and only an address that begins with Classroom's own.
+- **A refusal is kept, not hidden.** If Google refuses the submissions or the calendar, the course keeps `work_fault` and the calendar keeps its reason; the lists say so. It is not counted as a fault of the file run, because every file was still read.
+- G-14 stops a running sync after the file being fetched (the UI lane asked for it).
+
+**Measured.** `test_gcr_assignments.py`: 17 tests against a fake Google that records every request; the only method it ever saw is GET. The Google link's earlier tests (125) pass with one changed on purpose: the count of documented routes is 19, was 13.
+
+**Not verified.** Nothing ran against the real Google: the shapes of `studentSubmissions` and of calendar events are as documented by Google and as the fake gives them. Whether the calendar permission was granted at his sign-in is not known here; if not, G-19 says so. The new lists fill at his next sync.
+
+**Not built, said in the plan.** A switch that makes a reminder for every due date by itself; reminders from announcements.
+
 ## 2026-11-25 (later): OCR on demand, and what it does and does not give on real scans
 
 **Question.** 13 of the 93 PDF papers from Classroom are scans and gave nothing. Can they be read on this PC without the network, how well, and what must never be shown as read?

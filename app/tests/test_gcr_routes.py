@@ -1,4 +1,4 @@
-"""The Google link's routes (routes_ww_gcr.py, G-01 to G-13) through the real app with only that feature and the paper desk mounted.
+"""The Google link's routes (routes_ww_gcr.py, G-01 to G-19) through the real app with only that feature and the paper desk mounted.
 
 Google is the fake of test_gcr_core.py (httpx.MockTransport); the credential store is a dict; the client file is invented; the
 paper desk writes into a Store under tmp_path; the program opener is a recorder. No test touches the network or his data.
@@ -87,12 +87,12 @@ def envelope(j):
 def test_every_documented_route_is_defined_and_the_gates_pass(env):
     c = env.c
     doc = R.__doc__
-    for n in range(1, 14):
+    for n in range(1, 20):
         assert f"G-{n:02d}" in doc
     rows = re.findall(r"^\s{2,}(GET|POST|PUT|PATCH|DELETE)\s+(/api/\S+)", doc, re.M)
     documented = {(m, p.split("?")[0]) for m, p in rows}
     defined = {(m, r.path) for r in c.app.routes for m in getattr(r, "methods", ()) if r.path.startswith(B) and m != "HEAD"}
-    assert len(rows) == 13 and documented == defined
+    assert len(rows) == 19 and documented == defined
     d = ww_check.route_drift()
     assert d["doc_without_route"] == [] and d["ui_without_route"] == []
     assert ww_check.routes_documented() >= documented            # the gate reads this file's table

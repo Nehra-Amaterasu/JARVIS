@@ -29,13 +29,15 @@ export interface CropCardProps {
   compact?: boolean
   /** A fixture crop is stamped, so a drawing is never read as a scan. */
   simulated?: boolean
+  /** The text was read by OCR: the engine's confidence as sent (null when it sent none), and whether the card is a whole page to split by hand. */
+  ocr?: { confidence: number | null; wholePage?: boolean }
   label?: string
 }
 
 const STATUS_WORD: Record<TextStatus, string> = { verified: 'TEXT verified', unverified: 'TEXT unverified', 'crop-only': 'CROP only' }
 const STATUS_NOTE: Record<TextStatus, string> = { verified: COPY.textVerified, unverified: COPY.textUnverified, 'crop-only': COPY.cropOnly }
 
-export function CropCard({ img, bbox, text, textStatus, chips, sideBySide, editing, onText, onVerify, size = 'card', compact, simulated, label = 'Question crop' }: CropCardProps) {
+export function CropCard({ img, bbox, text, textStatus, chips, sideBySide, editing, onText, onVerify, size = 'card', compact, simulated, ocr, label = 'Question crop' }: CropCardProps) {
   const state: CropCardState = editing ? 'editing' : textStatus
   const callout = size === 'callout'
   return (
@@ -52,6 +54,13 @@ export function CropCard({ img, bbox, text, textStatus, chips, sideBySide, editi
             </span>
             {chips}
           </span>
+          {ocr && (
+            <p className="rv-crop-ocr" data-component="ocr-note">
+              <span>{COPY.ocrRead}</span>
+              {ocr.confidence !== null && <span>{COPY.ocrConfidence(ocr.confidence)}</span>}
+              {ocr.wholePage && <span>{COPY.wholePage}</span>}
+            </p>
+          )}
           {editing ? (
             <textarea className="rv-crop-field" value={text ?? ''} aria-label="Question text" rows={3} onChange={(e) => onText?.(e.target.value)} />
           ) : textStatus === 'crop-only' ? (

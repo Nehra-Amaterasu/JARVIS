@@ -20,6 +20,10 @@ export interface ReviewItem {
   crop: CropInfo
   rubric: RubricPoint[]
   mergedFrom?: string[]
+  /** OCR read the text: the engine's mean line confidence (0 to 1). Absent for a text layer. The text stays unverified until he checks it. */
+  ocrConfidence?: number | null
+  /** One draft for a whole page, to split by hand. */
+  wholePage?: boolean
   /** The fields the student set by hand ("stem", "marks", "topic", "type"): each shows a HAND chip. */
   hand?: string[]
 }
@@ -40,6 +44,8 @@ export const CERTAIN_MARGIN = 0.5
 export const toItem = (q: QuestionRow): ReviewItem => ({
   id: q.id, paperId: q.paperId, number: q.number, year: q.year, topicId: q.topicId, type: q.type, marks: q.marks,
   tag: q.tag, margin: q.margin, status: q.status, stem: q.stem, crop: q.crop, rubric: q.rubric ?? [],
+  ...(q.ocrConfidence != null ? { ocrConfidence: q.ocrConfidence } : {}),
+  ...(q.wholePage ? { wholePage: true } : {}),
 })
 
 export function initialReview(rows: readonly QuestionRow[]): ReviewState {

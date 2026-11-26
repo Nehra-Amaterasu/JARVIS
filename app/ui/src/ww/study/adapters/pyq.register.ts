@@ -8,12 +8,18 @@
 // "engine routes not found", so the null adapter's honesty is never lost.
 import { TOKEN } from '../../../lib/api'
 import { createPyqPort } from './pyq'
+import { createPyqClient } from './pyqExtras'
 import type { StudyAdapterRegistration } from './types'
 
-const adapter = createPyqPort({ gate: () => import.meta.env.VITE_PRODUCT !== 'jarvis', token: () => TOKEN })
+const deps = { gate: () => import.meta.env.VITE_PRODUCT !== 'jarvis', token: () => TOKEN }
+const adapter = createPyqPort(deps)
+const client = createPyqClient(deps)
+
+/** The OCR and draft calls of the paper desk (R-28, R-48, R-49, R-50 to R-52). They are not members of the sixteen-member Study port. */
+export const pyqClient = client
 
 /** A view that reads the exam port calls this when it unmounts: every request and poll of the adapter stops. */
-export const abortPyq = (): void => adapter.abortAll()
+export const abortPyq = (): void => { adapter.abortAll(); client.abortAll() }
 /** The subject the pattern, practise-next and ingest members work on, when the papers do not say (null clears it). */
 export const setPyqSubject = (subject: string | null): void => adapter.setSubject(subject)
 

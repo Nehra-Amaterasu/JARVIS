@@ -7,17 +7,22 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type
 import { Chip, Button, PrimaryButton, Segmented } from '../../../shared/kit'
 import { Lamp, readingOf, showsNumber, type LampState } from '../../../shared/lamp'
 import { lookV3Enabled, Zones } from '../../../shell/v3'
+import { pyqClient } from '../adapters/pyq.register'
+import type { PyqClient } from '../adapters/types'
 import { STUDY_PORT, type IngestRoute, type PaperRow, type QueuedFile, type QuestionRow, type RouteId, type StudyPort, type Topic, type TraceEvent } from '../ports'
 import { ReviewDesk } from '../review/ReviewDesk'
 import { COPY, FOOTER } from './copy'
 import { CoverageLedger, EMPTY_COVERAGE } from './CoverageLedger'
+import { DraftsPanel } from './DraftsPanel'
 import { ExtractionTrace } from './ExtractionTrace'
 import { ImportTray } from './ImportTray'
+import { OcrPanel } from './OcrPanel'
 import { PAPER_ACCEPT } from './PaperDrop'
 import { PaperStrata } from './PaperStrata'
 import { cellsOf, coverageOf } from './strataModel'
 import './papers.css'
 import './papers-v3.css'
+import './ocr.css'
 import '../review/review.css'
 
 // the classic exam-date page is a face of this desk, loaded only when asked for (it moves, it is not rewritten)
@@ -63,6 +68,8 @@ export async function loadDesk(port: StudyPort): Promise<DeskData> {
 
 export interface PaperDeskProps {
   port?: StudyPort
+  /** The OCR and draft calls (not members of the Study port). Default: the engine's. A test hands in a fake. */
+  client?: PyqClient
   /** Hand the desk its data instead of reading the port (the gallery and the tests). */
   data?: DeskData
   /** Fixed clock for age texts. */
@@ -79,7 +86,7 @@ export interface PaperDeskProps {
 
 type Face = 'desk' | 'classic'
 
-export function PaperDesk({ port = STUDY_PORT, data, now, classic = true, trayOpen, reviewOpen, onIngested }: PaperDeskProps) {
+export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, classic = true, trayOpen, reviewOpen, onIngested }: PaperDeskProps) {
   const [loaded, setLoaded] = useState<DeskData | null>(data ?? null)
   const [face, setFace] = useState<Face>('desk')
   const [sel, setSel] = useState<string | null>(null)
@@ -109,6 +116,9 @@ export function PaperDesk({ port = STUDY_PORT, data, now, classic = true, trayOp
     return () => { live = false }
   }, [port, data])
 
+  // OCR ended or a draft was accepted: the paper has new questions and new fault lines, so the desk reads the port again
+  const reload = useCallback(() => { if (!data) void loadDesk(port).then(setLoaded) }, [port, data])
+
   const d = loaded ?? EMPTY_DATA
   const sorted = useMemo(() => [...d.papers].sort((a, b) => b.year - a.year), [d.papers])
   const years = useMemo(() => d.papers.map((p) => p.year), [d.papers])
@@ -126,6 +136,8 @@ export function PaperDesk({ port = STUDY_PORT, data, now, classic = true, trayOp
   const onFiles = async (files: File[]) => {
     const r = await port.ingest({ route: 'drop', files })
     say(r.state, r.state === 'live' || r.state === 'simulated' ? `${files.length} file${files.length === 1 ? '' : 's'} queued` : `Not read: ${r.reason}`)
+    // a paper that was just read is on file now, and a scan among them carries the fault line that offers OCR
+    if (r.state === 'live' || r.state === 'simulated') reload()
     onIngested?.(r.state, r.reason)
   }
   const onRoute = async (id: RouteId) => {
@@ -286,7 +298,6 @@ export function PaperDesk({ port = STUDY_PORT, data, now, classic = true, trayOp
             children: (
               <div className="pp3-col pp3-detail">
                 {face === 'desk' && faceSwitch}
-                <CoverageLedger coverage={coverage} state={d.state} reason={d.reason} now={now} />
                 {chosen ? (
                   <div className="pp-detail">
                     <h2>{chosen.label}</h2>
@@ -300,12 +311,16 @@ export function PaperDesk({ port = STUDY_PORT, data, now, classic = true, trayOp
                 ) : (
                   <div className="pp-detail pp-detail-none"><p>{sorted.length ? COPY.noPaper : 'Nothing on file yet.'}</p></div>
                 )}
+                {chosen && <OcrPanel client={client} paper={chosen} onFinished={reload} />}
                 {notice && (
                   <p className="pp-notice" role="status" data-state={notice.state}>
                     <Lamp reading={readingOf({ state: notice.state, reason: notice.text })} />
                     <span>{notice.text}</span>
                   </p>
                 )}
+                <DraftsPanel client={client} subject={chosen?.subject} topics={d.topics} onAccepted={reload} />
+                {/* what he acts on comes first (the paper, its OCR key, the upload notice); the ledger is reference and follows */}
+                <CoverageLedger coverage={coverage} state={d.state} reason={d.reason} now={now} />
                 {d.events.length > 0 && <ExtractionTrace events={d.events} max={3} />}
               </div>
             ),
@@ -405,6 +420,8 @@ export function PaperDesk({ port = STUDY_PORT, data, now, classic = true, trayOp
             ) : (
               <div className="pp-detail pp-detail-none"><p>{sorted.length ? COPY.noPaper : 'Nothing on file yet.'}</p></div>
             )}
+            {chosen && <OcrPanel client={client} paper={chosen} onFinished={reload} />}
+            <DraftsPanel client={client} subject={chosen?.subject} topics={d.topics} onAccepted={reload} />
             <div className="pp-detail-act">
               <PrimaryButton
                 claimId="paper-desk-review"

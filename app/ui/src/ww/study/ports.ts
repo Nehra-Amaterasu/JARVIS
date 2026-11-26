@@ -59,6 +59,12 @@ export interface PaperRow {
   questions: number
   reviewed: number
   pages: number
+  /** The subject slug the engine filed the paper under; absent when it sent none. */
+  subject?: string
+  /** The engine's fault lines of the paper ("p. 3: no text layer; run OCR on this paper"), as sent. */
+  faults?: string[]
+  /** How the engine read it: text-layer, ocr, mixed, typed, slides. Absent when it sent none. */
+  method?: string
 }
 
 export interface QuestionRow {
@@ -81,6 +87,12 @@ export interface QuestionRow {
   crop: CropInfo
   /** Rubric points, when the student or the model drafted any. */
   rubric?: RubricPoint[]
+  /** The mean line confidence of an OCR reading (0 to 1) as the engine sent it; absent for a question read from a text layer. */
+  ocrConfidence?: number | null
+  /** A page that OCR read but where no question start was found: one draft for the whole page, to split by hand (label "p3"). */
+  wholePage?: boolean
+  /** Where the question came from as the engine says (paper, hand, template, model-draft, harvest). */
+  origin?: string
 }
 
 export interface RubricPoint {

@@ -330,6 +330,7 @@ export function ReviewDesk({
                 sideBySide={side}
                 compact={rubric}
                 simulated={state === 'simulated'}
+                ocr={cur.ocrConfidence != null || cur.wholePage ? { confidence: cur.ocrConfidence ?? null, wholePage: cur.wholePage } : undefined}
                 label={`${cur.number} of ${topic(cur.topicId)?.label ?? 'topic'}`}
                 chips={<><TagChip source={cur.tag} label={`margin ${cur.margin.toFixed(2)}`} />{cur.hand?.includes('stem') && <TagChip source="HAND" label="text" />}</>}
               />

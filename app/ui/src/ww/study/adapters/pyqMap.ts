@@ -12,10 +12,12 @@ export interface ECrop { page?: number; bbox?: number[]; png?: string }
 export interface EPaper {
   id: string; title?: string; filename?: string; year?: number | null; subject?: string; pages?: number; total_marks?: number | null
   counts?: { questions?: number; pending?: number; accepted?: number; rejected?: number; marks_missing?: number }
+  faults?: unknown; method?: string
 }
 export interface EQuestion {
   id: string; paper_id: string; label?: string; text?: string; text_status?: string; crop?: ECrop | null; marks?: number | null; type?: string; status?: string
   unit?: number | null; topic?: string; tag_source?: string; tag_margin?: number | null; has_crop?: boolean; updated?: string
+  ocr_confidence?: number | null; origin?: string
 }
 export interface ETrace { t?: number; page?: number | null; kind?: string; text?: string }
 export interface EJobFile { file?: string; status?: string; paper_id?: string; pages?: number; questions?: number; method?: string; note?: string }
@@ -53,6 +55,9 @@ export function paperRow(p: EPaper): PaperRow {
     questions: c.questions ?? 0,
     reviewed: (c.accepted ?? 0) + (c.rejected ?? 0),
     pages: num(p.pages) ?? 0,
+    ...(str(p.subject) ? { subject: str(p.subject) } : {}),
+    ...(Array.isArray(p.faults) ? { faults: p.faults.filter((f): f is string => typeof f === 'string') } : {}),
+    ...(str(p.method) ? { method: str(p.method) } : {}),
   }
 }
 
@@ -100,6 +105,11 @@ export function questionRow(q: EQuestion, paper: EPaper | undefined, img?: strin
     status: STATUS[str(q.status)] ?? 'pending',
     stem: str(q.text),
     crop: cropInfo(q, img),
+    // an OCR reading: the engine's mean confidence travels as it came, and is never turned into a grade
+    ...(num(q.ocr_confidence) !== null ? { ocrConfidence: num(q.ocr_confidence) } : {}),
+    // "p3": the page was read but no question start was found, so the whole page is one draft (engine plan, 25 Nov, "OCR as built")
+    ...(/^p\d+$/i.test(label) ? { wholePage: true } : {}),
+    ...(str(q.origin) ? { origin: str(q.origin) } : {}),
   }
 }
 

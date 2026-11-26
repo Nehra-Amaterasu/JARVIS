@@ -170,3 +170,8 @@
   .rv-handle::before { background: CanvasText; box-shadow: none; }
   .rv-tag[data-src='MODEL'], .rv-pt[data-draft='true'], .rv-crop-status[data-status='unverified'] { outline-color: CanvasText; }
 }
+
+/* OCR (R-48): the card says the text was recognised, with the engine's confidence, and a picture-only question gets its crop at a size
+   one can read, because the crop is the question (text_status "none"). 88 px is a line or two of print; 220 px holds a table row. */
+.rv-crop-ocr { margin: 0; display: grid; gap: 0.125rem; font-size: 0.75rem; line-height: 1.4; color: var(--ink-2); }
+.rv-crop[data-state='crop-only'] .rv-crop-img img { max-block-size: 220px; }

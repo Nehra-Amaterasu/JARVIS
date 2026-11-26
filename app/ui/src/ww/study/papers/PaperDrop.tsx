@@ -1,4 +1,4 @@
-// PaperDrop (package Y01, spec 20.7.1): the Drop Slot, a neumorphic well that takes a PDF or photos of a paper. Drag files onto
+// PaperDrop (package Y01, spec 20.7.1): the Drop Slot, a neumorphic well that takes a PDF, a Word file or photos of a paper. Drag files onto
 // it or press the key (`A` on the desk) to choose. The ASCII rule is static; it sweeps only while a file is being read (3 s cap,
 // never at idle, and not at all under reduced motion). A file of another kind is refused in words, and nothing is read.
 import { useRef, useState, type DragEvent, type RefObject } from 'react'
@@ -30,7 +30,12 @@ export function acceptsFile(file: { name: string; type: string }, accept: readon
   })
 }
 
-export const PAPER_ACCEPT: readonly string[] = ['application/pdf', 'image/*', '.pdf']
+/** R-12 and R-15 take Word as well as PDF (engine plan, 25 Nov): a .docx or .doc is printed to PDF on the PC and read like any paper.
+ * The extensions are listed beside the MIME types because a browser often reports a Word file with an empty type. */
+export const PAPER_ACCEPT: readonly string[] = [
+  'application/pdf', 'image/*', '.pdf', '.docx', '.doc',
+  'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]
 
 const RULE = '+-------------------------+'
 
@@ -67,9 +72,9 @@ export function PaperDrop({ onFiles, accept, reading, variant = 'well', inputRef
     >
       <button type="button" className="pp-drop-btn" onClick={() => input.current?.click()} aria-keyshortcuts="A">
         <span className="pp-drop-rule" aria-hidden="true" data-rule={RULE} data-sweep={reading ? 'true' : undefined}>{RULE}</span>
-        <span className="pp-drop-title">{reading ? 'Reading the file' : variant === 'row' ? 'Drop PDF or photos' : 'Drop a paper here'}</span>
+        <span className="pp-drop-title">{reading ? 'Reading the file' : variant === 'row' ? 'Drop PDF, Word or photos' : 'Drop a paper here'}</span>
         <span className="pp-drop-sub">
-          {refused.length ? `${COPY.refusedType}: ${refused.slice(0, 2).join(', ')}` : variant === 'row' ? 'or choose files' : 'PDF or photos, or choose files'}
+          {refused.length ? `${COPY.refusedType}: ${refused.slice(0, 2).join(', ')}` : variant === 'row' ? 'or choose files' : 'PDF, Word or photos, or choose files'}
         </span>
         <kbd className="pp-key" aria-hidden="true">A</kbd>
       </button>

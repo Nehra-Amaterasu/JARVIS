@@ -31,7 +31,7 @@ describe('the mappers keep what the engine said and invent nothing', () => {
     expect(reply({ state: 'fine' }, 1, () => 1).state).toBe('fault')
   })
   it('a paper row: reviewed is accepted plus rejected, an unknown year is 0, there is no exam date', () => {
-    expect(paperRow(PAPER)).toEqual({ id: PAPER.id, year: 2023, label: 'Paper A', examAt: null, questions: 6, reviewed: 4, pages: 4 })
+    expect(paperRow(PAPER)).toEqual({ id: PAPER.id, year: 2023, label: 'Paper A', examAt: null, questions: 6, reviewed: 4, pages: 4, subject: 'signals' })
     expect(paperRow(PAPER_B).year).toBe(0)
   })
   it('a question row: Q prefix, the topic key as the generator spells it, the share of the paper, the box as x y w h', () => {

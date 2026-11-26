@@ -19,6 +19,8 @@
 
 /* the ledger is a column of readouts: each grows to hold its reason in words */
 :root[data-look='v3'] .pp3-detail { overflow-y: auto; }
+/* the tray scrolls instead of squeezing: with the OCR and draft panels added the readouts shrank into each other (seen at 1366 x 768) */
+:root[data-look='v3'] .pp3-detail > * { flex: none; }
 :root[data-look='v3'] .pp-v3 .pp-ledger { grid-template-columns: minmax(0, 1fr); }
 :root[data-look='v3'] .pp-v3 .pp-ledger .k-readout { block-size: auto; min-block-size: 3.5rem; padding-block-end: 0.5rem; }
 :root[data-look='v3'] .pp-v3 .pp-ledger .k-stamp { position: static; justify-self: start; margin-block-start: 0.125rem; }

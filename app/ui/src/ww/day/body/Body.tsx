@@ -21,6 +21,8 @@ import { attempt, localGet, localSet, useForm, useRead, useToday } from '../week
 import type { RackClass } from '../week/model'
 import { DEFAULT_GOAL, DROPS, clampGoal, lastWeekCount, monthRail, nextClass, recentSessions, remindAt, sessionStrip, tapDrop, type SessionLike } from './model'
 import { WaterGauge } from './WaterGauge'
+import { GymSession } from './GymSession'
+import { useGymSession } from './useGymSession'
 import '../../../styles/design/primitive.css'
 import '../today/today.css'
 import '../week/base.css'
@@ -29,7 +31,7 @@ import '../v3/day-v3.css'
 import { lookV3Enabled } from '../../../shell/look'
 import { useViewChrome, Zones, type ViewChromeSpec } from '../../../shell/v3'
 
-// the session builder is the existing Forge page: it needs room (muscles, exercises, sets), so it opens in a drawer and loads only then
+// the classic look keeps the Forge page in a drawer (it needs room: muscles, exercises, sets) and loads it only then; under v3 the session is part of this page
 const Forge = lazy(() => import('../../../germoney/pages/Forge').then((m) => ({ default: m.ForgePage })))
 
 const GOAL_KEY = 'ww.day.water.goal'
@@ -66,6 +68,7 @@ export function BodyPage({ port = DAY_PORT, stores = LEDGER_STORES, today: fixed
   const today = useToday(fixedToday)
   const [ledger, setLedger] = useState(initialLedger)
   const [log, setLog] = useState(initialLog)
+  const gymSession = useGymSession(initialLog && lookV3Enabled() ? 'pick' : 'idle')
   const [version, setVersion] = useState(0)
   const [said, setSaid] = useState<string | null>(null)
   const [goal, setGoal] = useState(() => { const n = Number(localGet(GOAL_KEY)); return n ? clampGoal(n) : DEFAULT_GOAL })
@@ -232,31 +235,33 @@ export function BodyPage({ port = DAY_PORT, stores = LEDGER_STORES, today: fixed
   )
   const drawers = (
     <>
-    <Drawer open={log} onClose={() => setLog(false)} title="Gym session" className="dy-sheet by-sheet">
-      <Suspense fallback={<p role="status" className="dy-note">Opening the session builder.</p>}>{log && <Forge />}</Suspense>
-    </Drawer>
+    {!v3 && (
+      <Drawer open={log} onClose={() => setLog(false)} title="Gym session" className="dy-sheet by-sheet">
+        <Suspense fallback={<p role="status" className="dy-note">Opening the session builder.</p>}>{log && <Forge />}</Suspense>
+      </Drawer>
+    )}
     <LedgerDrawer open={ledger} onClose={() => setLedger(false)} stores={stores} today={today} form={form} />
     </>
   )
 
-  // under the v3 look: the same plates in three trays (LOG, WATER, REMINDERS)
+  // under the v3 look: tray 1 is today's session in place (no sheet); tray 2 the week, the last four weeks and the water; tray 3 the reminders
   if (v3) {
+    const last = recent[0] ? `${shortDate(recent[0].date)}, ${recent[0].muscles}` : null
     return (
       <div ref={root} className="dy by" data-v3="" data-form={form} data-simulated={simulated ? 'true' : undefined}>
         <Zones
           ratio={[1.85, 1.05, 1]}
           first={{
-            job: 'LOG', className: 'tv3-flush',
+            job: 'SESSION',
             children: (
               <div className="tv3 tv3-log" ref={body}>
-                <Button tone="primary" size="lg" className="dy-primary" onClick={() => setLog(true)} data-act="log-session" aria-keyshortcuts="l">Log a session</Button>
-                <div className="dy-cell by-left">{gym}</div>
+                <GymSession gym={gymSession} lastSession={KINDS_OK(gymState) ? last : null} />
               </div>
             ),
           }}
           second={{
-            job: 'WATER', peek: { name: 'Water', lamp: wState, note: KINDS_OK(wState) ? undefined : 'not read yet' },
-            children: <div className="tv3"><div className="dy-cell by-water-cell">{waterPlate}</div></div>,
+            job: 'WEEK', peek: { name: 'Week and water', lamp: gymState, note: KINDS_OK(gymState) ? undefined : 'not read yet' },
+            children: <div className="tv3"><div className="dy-cell by-left">{gym}</div><div className="dy-cell by-water-cell">{waterPlate}</div></div>,
           }}
           third={{
             job: 'REMINDERS', peek: { name: 'Reminders', lamp: reminders ? reminders.state : 'waiting', note: reminders && KINDS_OK(reminders.state) ? undefined : 'not read yet' },

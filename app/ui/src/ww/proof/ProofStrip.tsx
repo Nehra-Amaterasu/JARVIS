@@ -4,7 +4,7 @@
 // ten classic Proof cards behind one fold (nothing the old panel showed lost its home).
 import { BarChart3 } from 'lucide-react'
 import { useMemo } from 'react'
-import { Drawer, Fold } from '../kit'
+import { Drawer } from '../kit'
 import type { LampState } from '../../shared/lamp'
 import { LampWord } from '../left/LampWord'
 import { useFrame } from '../frame/frameStore'
@@ -85,14 +85,12 @@ export function ProofPins({ stats, open, onOpen }: { stats: ProofStat[]; open: b
   )
 }
 
-/** The Proof drawer's body: the relief with its drill-down, then the ten classic cards behind one fold. */
+/** The Proof drawer's body: the relief with its drill-down, then Rank, Next steps and Stats as plain sections, the other seven cards behind one closed fold. */
 export function ProofBody({ data, stats }: { data: ProofData; stats: ProofStat[] }) {
   return (
     <div className="ps-body">
       <ProofRelief stats={stats} state={overallState(stats)} drill={(id) => drillOf(id, data)} />
-      <Fold title="Every proof card">
-        <ProofPanel mode="sheet" />
-      </Fold>
+      <ProofPanel mode="sheet" tidy />
     </div>
   )
 }

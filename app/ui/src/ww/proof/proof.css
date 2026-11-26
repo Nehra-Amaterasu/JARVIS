@@ -57,6 +57,10 @@
 .ww-sheet:has(.ww-proof[data-mode='rail']) {
   --sheet-w: 320px;
 }
+/* the Proof drawer of the v3 shell: 32 rem, enough for two stat cells a row; below that the sheet is the window's width */
+.ww-sheet.ps-drawer {
+  --sheet-w: 32rem;
+}
 
 /* ---- P1 Rank ---- */
 .ww-proof-rank {
@@ -70,8 +74,8 @@
   flex: none;
   inline-size: calc(var(--hit) * 1.5);
   aspect-ratio: 1;
-  border: 1px solid var(--line-ui);
   border-radius: var(--radius-pill);
+  background: var(--acc-soft, var(--surface-sunk));
   color: var(--ink-1);
   font-size: var(--text-heading);
   line-height: var(--leading-heading);
@@ -129,26 +133,24 @@
   display: grid;
   gap: var(--space-2);
   justify-items: start;
-  padding-block-end: var(--space-3);
-  border-block-end: 1px solid var(--line);
+  padding-block-end: var(--space-2);
 }
 .ww-proof-sugg:last-child,
 .ww-proof-advice:last-child {
-  border-block-end: 0;
   padding-block-end: 0;
 }
 
 /* ---- P3 stats and the 4-week slot ---- */
+/* auto-fit: two cells a row on a 440 px sheet, one on a 360 px phone, three where there is room; a cell never sets its own width */
 .ww-proof-tiles {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: var(--space-4) var(--space-5);
 }
 .ww-proof-weeks {
   display: grid;
   gap: var(--space-2);
-  padding-block-start: var(--space-3);
-  border-block-start: 1px solid var(--line);
+  padding-block-start: var(--space-4);
 }
 .ww-proof-counter {
   display: grid;
@@ -206,7 +208,6 @@
   display: grid;
   gap: var(--space-2);
   padding-block-start: var(--space-3);
-  border-block-start: 1px solid var(--line);
 }
 
 /* ---- P8 wins and P9 recent ---- */
@@ -247,4 +248,123 @@
   color: var(--ink-2);
   font-family: var(--f-mono);
   white-space: nowrap;
+}
+
+/* ==========================================================================
+   The drawer's form (25 Nov): `.ww-proof-flat`. Three plain sections with a heading each and room between them, no box inside
+   a box. A card keeps its element (the contract tests count them) but loses its face; the stat numerals are the reading face
+   (the old dotted display face was unreadable at 32 h or 2 /30 days). Everything may shrink to 0 and wraps, so nothing is cut
+   at the sheet's edge from 360 px up.
+   ========================================================================== */
+.ww-proof-flat {
+  gap: var(--space-6);
+  min-inline-size: 0;
+}
+.ww-proof-flat .ww-card-face {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.ww-proof-flat .ww-card-head {
+  margin-block-end: var(--space-4);
+}
+.ww-proof-flat .ww-card-title {
+  font-size: var(--text-heading);
+  line-height: var(--leading-heading);
+}
+.ww-proof-flat .ww-kicker {
+  font-family: var(--font-ui, var(--f-ui, system-ui, sans-serif));
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: var(--text-small);
+}
+.ww-proof-flat .ww-proof-stack {
+  gap: var(--space-4);
+}
+.ww-proof-flat .ww-proof-more {
+  gap: var(--space-6);
+  padding-block-start: var(--space-3);
+}
+.ww-proof-flat .ww-fold-body {
+  padding-inline: 0;
+}
+
+/* the stats: the reading face for the numeral and its label; the unit is the one mono word */
+.ww-proof .ww-stat {
+  gap: var(--space-1);
+}
+.ww-proof .ww-stat-label {
+  font-family: var(--font-ui, var(--f-ui, system-ui, sans-serif));
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-2);
+}
+.ww-proof .ww-stat-value {
+  font-family: var(--font-ui, var(--f-ui, system-ui, sans-serif));
+  font-size: var(--text-heading);
+  line-height: var(--leading-heading);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+.ww-proof .ww-stat-unit {
+  font-size: var(--text-small);
+}
+.ww-proof .ww-stat-next {
+  overflow-wrap: anywhere;
+}
+
+/* rank: the checklist is a plain list; Met and Open are words, the number is the one mono thing on the row */
+.ww-proof-flat .ww-proof-req {
+  grid-template-columns: minmax(3.25rem, auto) minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
+}
+.ww-proof-flat .ww-proof-reqword {
+  min-inline-size: 0;
+  font-family: var(--font-ui, var(--f-ui, system-ui, sans-serif));
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: var(--text-small);
+}
+.ww-proof-flat .ww-proof-sugg {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+.ww-proof-flat .ww-proof-sugg .ww-proof-text {
+  flex: 1 1 14rem;
+  min-inline-size: 0;
+}
+.ww-proof-flat .ww-proof-sugg > button {
+  flex: none;
+}
+.ww-proof-flat .ww-proof-sub {
+  font-family: var(--font-ui, var(--f-ui, system-ui, sans-serif));
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: var(--text-body);
+  color: var(--ink-1);
+}
+.ww-proof-flat .ww-proof-win,
+.ww-proof-flat .ww-proof-recent {
+  min-inline-size: 0;
+}
+
+/* the bars of Rank and Stats: a sunk track and a dark fill, so 32 of 60 reads as a bar that is more than half full and less than full */
+.ww-proof .ww-meter {
+  background: var(--surface-sunk, var(--surface-2));
+}
+/* the fill is a scaleX from the left (motion.css .ww-fill). The Proof drawer is drawn where that file's rule does not reach in the
+   built app, which painted every bar full (80 of 180 XP looked like 180 of 180); the same rule here keeps the number honest. */
+.ww-proof .ww-meter-fill {
+  background: var(--ink-1);
+  transform: scaleX(var(--v, 0));
+  transform-origin: left center;
 }

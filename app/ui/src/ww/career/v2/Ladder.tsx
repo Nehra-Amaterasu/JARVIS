@@ -225,7 +225,7 @@ export function LadderView(p: LadderProps) {
   return (
     <Frame
       simulated={p.simulated} view="ladder" ruler="LADDER" title={face === 'ladder' ? 'Ladder' : 'Path'} form={phone ? 'phone' : 'desk'} rootRef={rootRef} state={face === 'ladder' ? (p.ladder ? 'live' : 'waiting') : live ? 'live' : 'waiting'}
-      sub={face === 'ladder' ? 'The long goals as rungs and what each level asks of the next month. Your own plan, read from the plan store.' : 'Roles you wrote or imported, matched to your Tree nodes by keyword. A star is as bright as the share of its skills with evidence.'}
+      sub={face === 'ladder' ? 'Your long goals as steps. Press a level to see what it asks of the next month. Your own plan, read from the plan store.' : 'Roles you want, matched to your Tree nodes by keyword. Press Add a role to start. A star is as bright as the share of its skills with evidence.'}
       v3={{ ratio: [1.6, 1.15, 1], trays }}
       keys={
         <>

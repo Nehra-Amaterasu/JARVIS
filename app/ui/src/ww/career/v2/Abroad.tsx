@@ -229,7 +229,7 @@ export function AbroadView(p: AbroadProps) {
   return (
     <Frame
       simulated={p.simulated} view="abroad" ruler="ABROAD" title="Abroad" form={phone ? 'phone' : 'desk'} rootRef={rootRef} state={lampWhole}
-      sub={<>{cols.length} universit{cols.length === 1 ? 'y' : 'ies'} side by side{noneChosen ? ' (the first four from the list, none chosen yet)' : ''}. A university's cell is LIVE only after you confirm it from its own page. Proof of finances is one national figure, the same in every column.</>}
+      sub={<>Universities side by side for studying abroad. Press Compare two (C) to put two next to each other. {cols.length} universit{cols.length === 1 ? 'y' : 'ies'} side by side{noneChosen ? ' (the first four from the list, none chosen yet)' : ''}. A university's cell is LIVE only after you confirm it from its own page. Proof of finances is one national figure, the same in every column.</>}
       v3={{ ratio: [2.1, 1.05, 1.05], trays: [
         { job: 'COMPARE', node: specPlate, peek: { name: 'Checklist', lamp: anyDone ? 'live' : 'waiting', note: anyDone ? undefined : 'no key marked done' } },
         { job: 'CHECKLIST', node: rack, peek: { name: 'Checklist' } },

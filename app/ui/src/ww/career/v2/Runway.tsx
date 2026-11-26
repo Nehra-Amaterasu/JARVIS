@@ -18,6 +18,7 @@ import { flightNotches, flightTicks, stageCounts, stepNotch, appCellKey, HORIZON
 import { STALE_WHY, cellReadFor, stampText, useCareerLocal, type Cell } from './store'
 import { LampWord } from '../../left/LampWord'
 import { Frame, Plate, Stamped, useKeys, useWidth, PHONE_BELOW } from './ui'
+import { Ahead, ApplicationList, ThisApplication } from './ApplicationsV3'
 import { lookV3Enabled } from '../../../shell/v3'
 
 const PAGE = 5
@@ -206,7 +207,7 @@ export function RunwayView({ data, actions, campaigns, width, initialDrawer = nu
   const v3 = lookV3Enabled()
 
   const boardPlate = (
-    <Plate id="board" label="FLIGHT BOARD" state={state} reason={loaded ? `next ${HORIZON} days` : 'applications not read yet'} className="t2-boardplate">
+    <Plate id="board" label="NEXT 120 DAYS" state={state} reason={loaded ? `next ${HORIZON} days` : 'applications not read yet'} className="t2-boardplate">
       <FlightBoard notches={notches} ticks={ticks} counts={counts} hot={hot} setHot={setHot} selected={open} onOpen={openRow} phone={phone} loaded={loaded} />
     </Plate>
   )
@@ -235,27 +236,52 @@ export function RunwayView({ data, actions, campaigns, width, initialDrawer = nu
       ) : <p className="t2-quiet">No dated deadline ahead. Add an application with its closing date.</p>}
     </Plate>
   )
+  // ---- v3: one list, one chosen application, what lies ahead (ApplicationsV3.tsx). The first row is chosen until another is, so the
+  // second tray always answers "what do I do next" for the application that closes soonest.
+  const chosen = rows.find((r) => r.id === open) ?? rows[0] ?? null
+  const listNode = !loaded ? <p className="t2-quiet">WAITING: the applications store has not answered.</p>
+    : rows.length === 0 ? <p className="t2-quiet">No applications yet. Add the first one with its closing date.</p>
+    : <ApplicationList rows={rows} cells={cells} selected={chosen?.id ?? null} onPick={setOpen} />
+  const aheadNode = (
+    <Ahead
+      top={top}
+      onOpenTop={() => top && setOpen(top.ref)}
+      onDoTop={actions.next}
+      topDate={top ? (
+        <>
+          <Stamped label={`Date of ${top.what}`} read={topRead ?? { state: 'waiting', value: '', on: null }} fmt={(v) => stampText(v)} why={topRead?.stale ? STALE_WHY : 'not confirmed'} />
+          {topRead?.state !== 'live' && <Button size="md" onClick={() => actions.confirmDue(top)}>I checked this date today</Button>}
+        </>
+      ) : null}
+      board={<FlightBoard notches={notches} ticks={ticks} counts={counts} hot={hot} setHot={setHot} selected={chosen?.id ?? null} onOpen={setOpen} phone={phone} loaded={loaded} />}
+      campaigns={campaigns}
+    />
+  )
   return (
     <Frame
-      simulated={simulated} view="pipeline" ruler="RUNWAY" title="Runway" form={phone ? 'phone' : 'desk'} rootRef={rootRef} state={state}
-      v3={{ ratio: [1.7, 1.2, 0.9], trays: [
-        { job: 'APPLICATIONS', node: tablePlate, peek: { name: 'Next', lamp: top ? 'waiting' : 'live', note: top ? 'a date to confirm' : 'nothing dated' } },
-        { job: 'NEXT', node: <>{upPlate}{boardPlate}</>, peek: { name: 'Next', lamp: state, note: loaded ? undefined : 'not read yet' } },
-        { job: 'CAMPAIGNS', node: <div className="t2-v3-camps">{campaigns}</div>, peek: { name: 'Campaigns' } },
+      simulated={simulated} view="pipeline" ruler="APPLICATIONS" title="Applications" form={phone ? 'phone' : 'desk'} rootRef={rootRef} state={state}
+      v3={{ ratio: [1.6, 1.25, 1], trays: [
+        { job: 'APPLICATIONS', node: listNode, peek: { name: 'This application', lamp: top ? 'waiting' : 'live', note: top ? 'a date to confirm' : 'nothing dated' } },
+        { job: 'THIS APPLICATION', node: <ThisApplication a={chosen} cells={cells} actions={actions} />, peek: { name: 'This application' } },
+        { job: 'AHEAD', node: aheadNode, peek: { name: 'Ahead', lamp: state, note: loaded ? undefined : 'not read yet' } },
       ] }}
-      sub={loaded ? <>{rows.length} application{rows.length === 1 ? '' : 's'}{approx ? `. ${approx} closing date${approx === 1 ? ' is' : 's are'} unconfirmed (dashed)` : ''}</> : 'Reading the applications store. Nothing is shown until it answers.'}
-      keys={
-        <>
-          {!v3 && <Button size="lg" onClick={() => setCamp(true)}>Campaigns</Button>}
-          <Button size="lg" onClick={() => setAdding(true)}><Plus size={16} aria-hidden="true" /> Add application</Button>
-          <PrimaryButton claimId="career-next" rank="workspace" when={!!top} size="lg" onClick={actions.next} disabledReason={top ? undefined : 'No dated deadline'}>Do next step</PrimaryButton>
-        </>
-      }
+      sub={v3
+        ? <>Your applications, soonest closing date first. Choose one to see what to do next.{loaded && approx ? ` ${approx} closing date${approx === 1 ? ' is' : 's are'} not confirmed.` : ''}</>
+        : loaded ? <>{rows.length} application{rows.length === 1 ? '' : 's'}{approx ? `. ${approx} closing date${approx === 1 ? ' is' : 's are'} unconfirmed (dashed)` : ''}</> : 'Reading the applications store. Nothing is shown until it answers.'}
+      keys={v3
+        ? <PrimaryButton claimId="career-add" rank="workspace" size="lg" onClick={() => setAdding(true)}><Plus size={16} aria-hidden="true" /> Add application (N)</PrimaryButton>
+        : (
+          <>
+            <Button size="lg" onClick={() => setCamp(true)}>Campaigns</Button>
+            <Button size="lg" onClick={() => setAdding(true)}><Plus size={16} aria-hidden="true" /> Add application</Button>
+            <PrimaryButton claimId="career-next" rank="workspace" when={!!top} size="lg" onClick={actions.next} disabledReason={top ? undefined : 'No dated deadline'}>Do next step</PrimaryButton>
+          </>
+        )}
       extra={
         <>
           <AddDrawer open={adding} onClose={() => setAdding(false)} onAdd={actions.add} />
           {!v3 && <Drawer open={camp} onClose={() => setCamp(false)} title="Campaigns" className="t2-drawer">{campaigns}</Drawer>}
-          <RowDrawer a={opened} onClose={() => setOpen(null)} cells={cells} actions={actions} />
+          {!v3 && <RowDrawer a={opened} onClose={() => setOpen(null)} cells={cells} actions={actions} />}
         </>
       }
     >

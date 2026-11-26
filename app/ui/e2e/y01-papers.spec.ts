@@ -239,8 +239,8 @@ test.describe('Y01 keyboard path', () => {
     }
     await page.keyboard.press('Escape')
     await expect(page.locator('.rv-desk[role="dialog"]')).toHaveCount(0)
-    const back = await page.evaluate(() => (document.activeElement as HTMLElement).className)
-    expect(back).toContain('pp-dot')
+    // focus goes back one animation frame after the dialog closes (closeReview), so wait for it: read at once, this failed under two workers on 27 Nov
+    await expect.poll(() => page.evaluate(() => (document.activeElement as HTMLElement).className)).toContain('pp-dot')
   })
 
   test('the crop handles move an edge 4 px on Shift+arrow', async ({ page }) => {

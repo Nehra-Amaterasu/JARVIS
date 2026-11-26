@@ -1,5 +1,5 @@
 // The Classroom adapter of the Study port (package GC-UI): `classroom()` of the port from G-01, and a small typed client
-// (`GcrClient`) for the thirteen routes under /api/mission/gcr that the Classroom screens use.
+// (`GcrClient`) for the nineteen routes under /api/mission/gcr that the Classroom screens use (and DELETE /api/reminders/{id}, which removes the reminder G-17 made).
 //
 // What it promises, and where each promise is kept:
 //   - the engine's state and sentence are passed through (`answer`). A refusal (400 not connected, 409 busy) keeps the engine's own
@@ -12,10 +12,12 @@
 //   - the original file is fetched WITH the token header and handed over as a blob URL, because an <iframe src> or <img src> cannot
 //     send a header; whoever shows it revokes the URL (`revokeOriginal`).
 import { isLampState } from '../../../shared/lamp'
+import { api } from '../../../lib/api'
 import type { ClassroomStatus, PortReply, StudyPort } from '../ports'
 import { classify, faultReason, getJson, sendJson, type Fail } from './http'
 import type {
-  GcrAnswer, GcrCourse, GcrFile, GcrFileQuery, GcrJob, GcrKind, GcrNoteBody, GcrOriginal, GcrStatusBody,
+  GcrAnnouncement, GcrAnswer, GcrAssignmentQuery, GcrAssignmentsBody, GcrCourse, GcrEvent, GcrFile, GcrFileQuery, GcrJob, GcrKind, GcrNoteBody,
+  GcrOriginal, GcrReminder, GcrStatusBody,
 } from './gcrTypes'
 import { planned } from './types'
 
@@ -57,8 +59,22 @@ export interface GcrClient {
   revokeOriginal(url: string): void
   /** G-12: open the original in the PC's own program for its type. */
   openInProgram(id: string, signal?: AbortSignal): Promise<GcrAnswer<Record<string, unknown>>>
-  /** G-13: send a PDF to the paper desk. */
+  /** G-13: send a PDF or a Word file to the paper desk. */
   toPapers(id: string, signal?: AbortSignal): Promise<GcrAnswer<{ paper_id: string | null }>>
+  /** G-14: stop the running sync after the file being fetched. A 400 (none runs) keeps the engine's sentence and has no data. */
+  stopSync(signal?: AbortSignal): Promise<GcrAnswer<{ job: GcrJob }>>
+  /** G-15: the coursework; `show` is "open" (the engine's default) or "all". */
+  assignments(query?: GcrAssignmentQuery, signal?: AbortSignal): Promise<GcrAnswer<GcrAssignmentsBody>>
+  /** G-16: open the assignment's Classroom page in the browser. Turning in happens there: there is no call for it, Google forbids it. */
+  openAssignment(id: string, signal?: AbortSignal): Promise<GcrAnswer<Record<string, unknown>>>
+  /** G-17: one reminder, by default 18:00 the day before; `at` is local "YYYY-MM-DDTHH:MM". A second press answers the one already made. */
+  remind(id: string, at?: string, signal?: AbortSignal): Promise<GcrAnswer<{ reminder: GcrReminder }>>
+  /** DELETE /api/reminders/{id}: the reminder made by `remind`. Not under the gcr prefix; the answer is made LIVE from its `ok`. */
+  removeReminder(reminderId: string, signal?: AbortSignal): Promise<GcrAnswer<Record<string, unknown>>>
+  /** G-18 */
+  announcements(course?: string, limit?: number, signal?: AbortSignal): Promise<GcrAnswer<{ items: GcrAnnouncement[] }>>
+  /** G-19: `from` and `to` are "YYYY-MM-DD"; the engine's default is today and 30 days. */
+  calendar(range?: { from?: string; to?: string }, signal?: AbortSignal): Promise<GcrAnswer<{ items: GcrEvent[] }>>
 }
 
 export interface GcrAdapter {
@@ -152,6 +168,35 @@ export function createGcr(deps: GcrDeps): GcrAdapter {
     revokeOriginal: (url) => { try { URL.revokeObjectURL(url) } catch { /* a URL already gone */ } },
     openInProgram: (id, signal) => send<Record<string, unknown>>('POST', `/files/${enc(id)}/open`, {}, signal),
     toPapers: (id, signal) => send<{ paper_id: string | null }>('POST', `/files/${enc(id)}/to-papers`, {}, signal),
+    stopSync: (signal) => call<{ job: GcrJob }>(noToken(), signal, async (s) => answer<{ job: GcrJob }>(await api<Env>(`${BASE}/sync`, { method: 'DELETE', signal: s }), 200)),
+    assignments: (q = {}, signal) => {
+      const p = new URLSearchParams()
+      if (q.course) p.set('course', q.course)
+      if (q.show) p.set('show', q.show)
+      const s = p.toString()
+      return get<GcrAssignmentsBody>(`/assignments${s ? `?${s}` : ''}`, noToken(), signal)
+    },
+    openAssignment: (id, signal) => send<Record<string, unknown>>('POST', `/assignments/${enc(id)}/open`, {}, signal),
+    remind: (id, at, signal) => send<{ reminder: GcrReminder }>('POST', `/assignments/${enc(id)}/remind`, at ? { at } : {}, signal),
+    removeReminder: (reminderId, signal) => call<Record<string, unknown>>(noToken(), signal, async (s) => {
+      // the reminder list answers {ok, reminder} with no state word: a removal that came back ok is LIVE, and the sentence is ours
+      const r = await api<Record<string, unknown>>(`/api/reminders/${enc(reminderId)}`, { method: 'DELETE', signal: s })
+      return { state: 'live', reason: 'Reminder removed.', source: 'your reminders', from: 'engine', status: 200, since: now(), data: r }
+    }),
+    announcements: (course, limit, signal) => {
+      const p = new URLSearchParams()
+      if (course) p.set('course', course)
+      if (limit) p.set('limit', String(limit))
+      const s = p.toString()
+      return get<{ items: GcrAnnouncement[] }>(`/announcements${s ? `?${s}` : ''}`, noToken(), signal)
+    },
+    calendar: (range = {}, signal) => {
+      const p = new URLSearchParams()
+      if (range.from) p.set('from', range.from)
+      if (range.to) p.set('to', range.to)
+      const s = p.toString()
+      return get<{ items: GcrEvent[] }>(`/calendar${s ? `?${s}` : ''}`, noToken(), signal)
+    },
   }
 
   /** The status a refused byte fetch maps to: the same classes as every JSON call (404 "Not Found" is the engine being absent). */

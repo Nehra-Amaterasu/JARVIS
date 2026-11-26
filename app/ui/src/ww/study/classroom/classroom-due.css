@@ -1,0 +1,29 @@
+/* The Due view of the Classroom face (what is due, the chosen assignment, announcements, calendar). Tokens and rem only, as in
+   classroom.css. Every class starts with cr-due- because the Career page and the focus views own other cr- names and both
+   stylesheets are global; none of these exists there (grepped 27 Nov). A state colour is never decoration: "Late" and the work word
+   are plain ink, not a lamp, because they are what Classroom says and not a state of this link. Mono only for times, counts and days. */
+
+.cr-due-mono { font-family: var(--font-mono, ui-monospace, monospace); font-size: 0.75rem; color: var(--ink-1); }
+.cr-due-filter { display: flex; flex-direction: column; gap: 0.5rem; min-inline-size: 0; }
+/* the four counts sit two by two so a 12 rem tray never has to squeeze four numbers into one row */
+.cr-due-counts { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.25rem 0.75rem; min-inline-size: 0; }
+.cr-due-counts div { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; min-inline-size: 0; }
+.cr-due-counts dt { font-size: 0.75rem; color: var(--ink-2); overflow-wrap: anywhere; }
+.cr-due-counts dd { margin: 0; font-family: var(--font-mono, ui-monospace, monospace); font-size: 0.875rem; color: var(--ink-1); }
+
+.cr-due-when, .cr-due-wordrow { display: flex; flex-wrap: wrap; align-items: center; gap: 0.125rem 0.75rem; min-inline-size: 0; }
+.cr-due-work { font-size: 0.75rem; font-weight: 600; color: var(--ink-1); }
+.cr-due-late { font-weight: 700; color: var(--ink-1); }
+.cr-due-set { color: var(--ink-2); }
+
+.cr-due-detail { gap: 0.75rem; }
+.cr-due-facts { margin: 0; display: flex; flex-direction: column; gap: 0.25rem; min-inline-size: 0; }
+.cr-due-facts div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.125rem 0.75rem; min-inline-size: 0; }
+.cr-due-facts dt { min-inline-size: 3rem; font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
+.cr-due-facts dd { margin: 0; font-size: 0.875rem; color: var(--ink-1); display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.5rem; min-inline-size: 0; overflow-wrap: anywhere; }
+
+.cr-due-block { display: flex; flex-direction: column; gap: 0.375rem; min-inline-size: 0; padding: 0.5rem 0.75rem; border-radius: var(--r-ctl, 0.875rem); background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
+.cr-due-h { margin: 0; font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); font-weight: 600; }
+.cr-due-plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; min-inline-size: 0; }
+.cr-due-plain li { display: flex; flex-direction: column; gap: 0.125rem; min-inline-size: 0; }
+.cr-due-text { font-size: 0.875rem; line-height: 1.35; color: var(--ink-1); overflow-wrap: anywhere; }

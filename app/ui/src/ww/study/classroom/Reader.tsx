@@ -12,6 +12,10 @@ import { FileNotes, Pose } from './ShelfPanes'
 const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp']
 export const isPdf = (f: GcrFile): boolean => f.ext.toLowerCase().replace(/^\./, '') === 'pdf'
 export const isImage = (f: GcrFile): boolean => IMAGE_EXT.includes(f.ext.toLowerCase().replace(/^\./, ''))
+/** R-12, R-15 and G-13 read Word files too (the engine prints them to PDF with the Word on the PC, and says so when it has none). */
+export const isWord = (f: GcrFile): boolean => ['docx', 'doc'].includes(f.ext.toLowerCase().replace(/^\./, ''))
+/** The three types the paper desk takes from a Classroom original. */
+export const goesToPaperDesk = (f: GcrFile): boolean => isPdf(f) || isWord(f)
 /** What the app can show itself; every other type opens in the PC's own program. */
 export const showsInApp = (f: GcrFile): boolean => isPdf(f) || isImage(f)
 
@@ -47,7 +51,7 @@ function Facts({ f }: { f: GcrFile }) {
 
 /** In one column (a phone) the reader sits below the lists, out of sight; this brings it up when the owner chooses a file or opens
  *  something. With three columns it is already in view, so nothing moves. jsdom has no scrollIntoView, so it is called only where it exists. */
-function useBringIntoView(ref: RefObject<HTMLElement | null>, key: string) {
+export function useBringIntoView(ref: RefObject<HTMLElement | null>, key: string) {
   useEffect(() => {
     const el = ref.current
     const grid = el?.closest('.cr-grid')
@@ -80,7 +84,7 @@ export function Reader({ file, opened, busy, onNote, onOriginal, onProgram, onKi
           <Button size="sm" grouped onClick={() => onProgram(file)} disabledReason={file.has_original ? undefined : 'The original is not on this PC.'}>Open in its own program</Button>
           {file.kind !== 'paper' && <Button size="sm" grouped onClick={() => onKind(file, 'paper')} disabledReason={busy ? 'Working.' : undefined}>Mark as paper</Button>}
           {file.kind !== 'notes' && <Button size="sm" grouped onClick={() => onKind(file, 'notes')} disabledReason={busy ? 'Working.' : undefined}>Mark as notes</Button>}
-          {isPdf(file) && (
+          {goesToPaperDesk(file) && (
             <Button size="sm" grouped onClick={() => onToPapers(file)} disabledReason={file.kind !== 'paper' ? 'Mark it as a paper first.' : busy ? 'Working.' : undefined}>Send to paper desk</Button>
           )}
         </div>

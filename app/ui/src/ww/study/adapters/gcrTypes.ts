@@ -92,3 +92,41 @@ export interface GcrAnswer<T> {
 export interface GcrOriginal { url: string; mime: string; bytes: number }
 
 export interface GcrFileQuery { course?: string; kind?: GcrKind | ''; q?: string }
+
+// ---------------------------------------------------------------- G-14 to G-19 (what is due, announcements, calendar, reminders)
+
+/** What Classroom says of his own submission: the engine passes its word through, and the screen never turns it into a grade or a judgement. */
+export type GcrWork = 'assigned' | 'turned_in' | 'returned' | 'unknown'
+
+/** The reminder made for an assignment: its id is the one of /api/reminders, `due` is local "YYYY-MM-DDTHH:MM". */
+export interface GcrReminder { id: string; due: string; text?: string }
+
+export interface GcrAssignment {
+  id: string
+  course: string
+  course_name: string
+  subject: string
+  title: string
+  /** "YYYY-MM-DD", or "" when the work has no due date. */
+  due: string
+  /** "HH:MM" local time, or "". */
+  due_time: string
+  days_left: number | null
+  link: string
+  work: GcrWork
+  /** What Classroom reports; never a judgement made here. */
+  late: boolean
+  reminder: GcrReminder | null
+  updated?: string
+}
+
+export interface GcrAssignmentCounts { open: number; turned_in: number; late: number; no_due_date: number }
+
+/** G-15's fields. `read_at` is the engine's stamp of the last read, shown as text. */
+export interface GcrAssignmentsBody { items: GcrAssignment[]; counts: GcrAssignmentCounts | null; read_at: string }
+
+export interface GcrAnnouncement { id: string; course: string; course_name: string; text: string; posted: string; link: string }
+
+export interface GcrEvent { id: string; title: string; start: string; end: string; all_day: boolean; calendar: string; link: string }
+
+export interface GcrAssignmentQuery { course?: string; show?: 'open' | 'all' }

@@ -6,10 +6,12 @@ remembers, switches the room's real light and fan, and senses the room through W
 instead of a camera. It is built to say *"I don't know"* or *"unsure"* rather than
 invent an answer.
 
+Tests: the last merge (2026-11-25) ran 3,999 UI unit tests and 34 browser checks.
+
 > Subsystems carry Hindi names: **Yaadash** (याददाश्त, memory), **Aankhen** (आँखें,
 > eyes) and **Limbs** (the relays).
 
-This page is the honest overview, updated 2026-10-25. Every number is measured on the
+This page is the honest overview, updated 2026-11-27. Every number is measured on the
 target hardware unless it says otherwise; the method behind each one is in
 [`docs/DECISIONS.md`](docs/DECISIONS.md) or the dated note in
 [`docs/research/`](docs/research/README.md).
@@ -20,28 +22,33 @@ target hardware unless it says otherwise; the method behind each one is in
 
 | Area | What it does | Measured |
 |---|---|---|
-| **Brain** | Qwen3-4B-Instruct-2507 (Q4_K_M) through Ollama, kept resident at an 8192-token context | first token **0.85-0.93 s** warm, 10.2 s cold (was 22-97 s on the hybrid-reasoning Qwen3-4B) |
+| **Brain** | Qwen3-4B-Instruct-2507 (Q4_K_M) through Ollama, kept resident at an 8192-token context | first token **0.6 s** in the typed A/B that fixed the delay (was 22-97 s on the hybrid-reasoning Qwen3-4B); **0.85-0.93 s** warm in the always-on setup with the 8192 context pinned; 10.2 s cold |
 | **GPU budget** | Whisper turbo + Silero + the brain, both resident | **4.35-4.47 of 6 GB** |
 | **Speech-to-text** | Whisper large-v3-turbo on the GPU, then single-script Hinglish | 15 s Hinglish clip in **2.7 s**, word-accurate (was 10.7 s, garbled) |
 | **Voice turn** | end of my speech to his voice starting, 49 real spoken replies (week to 10-13) | median **4.12 s**, p90 8.09 s: still the weakest number |
 | **Memory: facts** | every confirmed fact in the system prompt, every turn | live audit, 33 questions x 6 seeds: **193/198 correct**; 12/12 abstain when no fact exists |
 | **Memory: people** | tie-strength model over a message archive | **95 % precision@20** against a hand-made list of closest people |
 | **Memory: chats** | conversations with JARVIS become memories (facts, corrections, preferences), "remember that." works | chat probes **0/7 to 5/7**; off-topic leaks 0/8; ≤ 250 tokens a turn |
-| **Light and fan** | an Arduino Uno relay board on USB switches the real loads; a switch counts only when the board's JSON reply confirms it | working since **2026-10-14**; no level or speed is ever claimed (relays only switch) |
+| **Light and fan** | relays wired in parallel with the wall switches, first on an Arduino Uno over USB, now by default on the ESP32-S3 board (six relays); a switch counts only when the board's reply confirms it | Uno working since **2026-10-14**; wall box: **18 of 18** relay clicks confirmed on the bench (2026-10-28) and a 231 s charger-only soak over Wi-Fi with every relay and pair confirmed (2026-11-06); no level or speed is ever claimed (relays only switch) |
 | **Always on** | brain kept loaded, voice core supervised and restarted with backoff, login watchdog, microphone watchdog, one health line a minute | private memory **5427 to 3882 MB** (-28 %) after the fix |
 | **Phone** | the laptop serves a remote page on the home Wi-Fi, **off by default**, QR pairing, hashed per-device tokens, instant revoke | light toggle **6.1 ms** median through the phone listener; page 21.8 KB |
 | **Aankhen: it sees a person** | ESP32-S3 Wi-Fi CSI on the real board, human-band (0.4-4 Hz) motion energy | first light 2026-10-12: still 1.1x noise, typing 6x, walking 9x, moving 31x |
+| **Aankhen: how far to trust it** | in room versus empty, scored on held-out data | **97.5 % inside one session**, about **80 %** on a second session the same evening; lower again across days (see Not done) |
 | **Aankhen: honest output** | confidence floors, out-of-range guard, empty-room reference per firmware and fan state, "waving" removed | replay of an unseen session: wrong answers shown **61.4 % to 50.0 %**, "waving" 68.6 % to 0 % |
 
 ---
 
 ## Experimental: built and tested, not yet proven at home
 
-- **ESP32-S3 firmware 3.5.0.** CSI frames and relay commands over a signed UDP link
-  beside USB (HMAC-SHA256, replay counters, a 5-relay table, mDNS). Flashed to the
-  board on 2026-10-23; **the Wi-Fi link has not been verified at home yet**. On a
-  loopback fake board: relay confirmed in 0.3 ms median, 500 Hz CSI in 63 datagrams
-  a second with 0 lost. Until it is verified, the Uno on USB is the relay path.
+- **ESP32-S3 firmware 3.9.0** (the version in the code; the last dated board run in the
+  research notes is 3.8.0). CSI frames and relay commands over a signed UDP link beside
+  USB (HMAC-SHA256, replay counters, an eight-row relay table with six relays wired,
+  mDNS). On a loopback fake board: relay confirmed in 0.3 ms median, 500 Hz CSI in 63
+  datagrams a second with 0 lost. On the real board over the home Wi-Fi, no cable: 297.6
+  CSI/s, 8,927 frames, 0 lost, longest gap 12 ms (3.6.0, 2026-10-28); on the wall box's
+  own charger, ping loss 0.18 %, a relay command confirmed in 32 ms and a 231 s soak with
+  0 reboots (3.8.0, 2026-11-06). **Not yet measured:** the 30-minute all-six hold and the
+  forced power dip. Only short runs are proven at home.
 - **Aankhen's zones and belief.** 15 zones in the room frame with a semi-Markov belief
   over them, drawn in the 3D twin as a dot cloud (dots in proportion to P(zone),
   opacity = confidence), not as a person.
@@ -58,7 +65,7 @@ target hardware unless it says otherwise; the method behind each one is in
 - **Presence brings the room back.** Opening the Uno's port resets it, so after an app
   start the light and fan come back on once if I am there (keyboard within 120 s, or
   the real board at occupied p ≥ 0.8 for 20 s). Quiet hours and manual switches win.
-- **Mission Germoney v2**, a study game inside the app: a skill tree as a real DAG
+- **Well Wisher** (earlier Mission Germoney v2), a study game inside the app: a skill tree as a real DAG
   (73 nodes, 0 loader errors), daily contracts generated from the tree that carry what
   to read first, steps and a "done when", an exam mode built on past-paper questions,
   an internship pipeline, a goal ladder from vision to week, gap re-entry after idle
@@ -72,7 +79,8 @@ target hardware unless it says otherwise; the method behind each one is in
 - **Multi-day Aankhen data.** Until the drills run on many days, zone and activity
   answers stay mostly "unsure". Across two sessions on different firmware the models
   fell to 35-56 %; one Wi-Fi link sees *that* a body moved, not how it is bent.
-- **The ESP32's Wi-Fi relay path at home** (above).
+- **Long runs of the wall box:** the 30-minute all-six hold, the forced power dip and an
+  overnight run (the 2026-11-06 soak was 231 s, on 3.8.0).
 - **A real overnight run** of the always-on stack: false wakes, remarks and the memory
   trend from its own logs.
 - **Voice latency.** About 4 s to the first spoken word is too slow.
@@ -110,9 +118,9 @@ flowchart LR
   app --- hub
   app --- limbs["Limbs: one owner per device"]
 
-  limbs -- "USB serial, confirmed by the board's reply" --> uno["Arduino Uno + relay module: light, fan"]
-  esp["ESP32-S3, firmware 3.5.0: Wi-Fi CSI + relay table"] -- "USB, or signed UDP" --> hub
-  limbs -. "Wi-Fi relay commands, not yet verified at home" .-> esp
+  limbs -- "USB serial, confirmed by the board's reply" --> uno["Arduino Uno + relay module: the first relay path, opt-in now"]
+  esp["ESP32-S3: Wi-Fi CSI + relay table"] -- "USB, or signed UDP" --> hub
+  limbs -. "relay commands: signed UDP or USB" .-> esp
   phone(["Phone browser, off by default"]) -- "LAN listener, paired token, 4 routes" --> app
 ```
 
@@ -169,7 +177,7 @@ stale one. Modes are editable on/off sets, usable by voice.
 ### App: `app/`
 FastAPI backend on 127.0.0.1 with a per-launch token, and a React/three.js UI in a
 native WebView2 window: Core, Yaadash, Aankhen (the 3D twin), Limbs, Connect (every
-sensor and model, checked live), System (VRAM, models, logs) and Mission. Details:
+sensor and model, checked live), System (VRAM, models, logs) and Well Wisher (the study game, earlier Mission). Details:
 [`app/README.md`](app/README.md).
 
 ---
@@ -177,10 +185,12 @@ sensor and model, checked live), System (VRAM, models, logs) and Mission. Detail
 ## Hardware
 
 - Laptop: Windows 11, NVIDIA RTX 4050 (6 GB), 16 GB RAM.
-- ESP32-S3 dev board (Aankhen) on USB; firmware 3.5.0 lets it run on its own 5 V phone
+- ESP32-S3 dev board: the Aankhen sensor and the wall box's six-relay board
+  (`docs/aankhen-esp32-relays.md`); firmware 3.9.0 lets it run on its own 5 V phone
   charger with no cable to the laptop.
-- Arduino Uno with an HL-52S relay module (active-low), contacts wired in parallel with
-  the wall switches of one light and one ceiling fan.
+- Arduino Uno with an HL-52S relay module (active-low), the first relay path and still
+  supported (opt-in): contacts wired in parallel with the wall switches of one light and
+  one ceiling fan.
 
 ## Mains safety
 

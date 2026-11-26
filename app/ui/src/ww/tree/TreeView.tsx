@@ -15,7 +15,7 @@ import { BranchSpine } from './BranchSpine'
 import { EvidenceLedger } from './EvidenceLedger'
 import { GroveRing } from './GroveRing'
 import { NodeDrawer } from './NodeDrawer'
-import { TreeStage, type StageApi } from './TreeStage'
+import { TreeKey, TreeStage, type StageApi } from './TreeStage'
 import { BranchMenu, TreePicker } from './ShellBars'
 import { branchGrowth, deriveTree, growth, ledgerLines, nextUp, summarise, STATE_WORD, type Derived } from './ledger'
 import { TREES, findNode, type TreeDef } from './model'
@@ -132,7 +132,8 @@ export function TreeView({ port = TREE_PORT, now: fixedNow, trees: given, form: 
   )
   const stage = tree && derived && tree.nodes.length > 0 ? (
     <div className="tg-stagewrap">
-      <TreeStage key={tree.id} tree={tree} derived={derived} ledgerState={reading.state} openId={openId} onOpen={setOpenId} occluded={false} apiRef={api} startId={startId} zoomEl={zoomEl} />
+      {v3 && <div className="tg-keyrow"><TreeKey earned={groups.filter((b) => b.done).length} branches={groups.length} counted={counted} /></div>}
+      <TreeStage key={tree.id} tree={tree} derived={derived} ledgerState={reading.state} openId={openId} onOpen={setOpenId} occluded={false} apiRef={api} startId={startId} zoomEl={zoomEl} chrome={!v3} />
       {controls}
     </div>
   ) : null
@@ -149,7 +150,7 @@ export function TreeView({ port = TREE_PORT, now: fixedNow, trees: given, form: 
     </header>
   )
   const drawerEl = tree && node && derived ? (
-    <NodeDrawer tree={tree} node={node} derived={derived} reading={reading} writable={port.writable} onAdd={ledger.add} onRemove={ledger.remove} onClose={closeNode} onJump={(id) => { setOpenId(id); api.current?.goTo(id) }} />
+    <NodeDrawer tree={tree} node={node} derived={derived} reading={reading} writable={port.writable} onAdd={ledger.add} onRemove={ledger.remove} onClose={closeNode} onJump={(id) => { setOpenId(id); api.current?.goTo(id) }} takeFocus={!v3} />
   ) : null
 
   if (v3) {

@@ -50,6 +50,8 @@ export interface NodeDrawerProps {
   onRemove: (id: string) => Promise<Outcome>
   onClose: () => void
   onJump: (id: string) => void
+  /** Take focus when a node opens (the overlay drawer does; the v3 tray does not, so the canvas keeps the keyboard and the arrows go on working). */
+  takeFocus?: boolean
 }
 
 function RecordRow({ r, writable, onRemove }: { r: EvidenceRecord; writable: boolean; onRemove: (id: string) => Promise<Outcome> }) {
@@ -70,7 +72,7 @@ function RecordRow({ r, writable, onRemove }: { r: EvidenceRecord; writable: boo
   )
 }
 
-export function NodeDrawer({ tree, node, derived, reading, writable, onAdd, onRemove, onClose, onJump }: NodeDrawerProps) {
+export function NodeDrawer({ tree, node, derived, reading, writable, onAdd, onRemove, onClose, onJump, takeFocus = true }: NodeDrawerProps) {
   const d = derived.get(node.id)
   const state = d?.state ?? 'open'
   const root = useRef<HTMLElement>(null)
@@ -83,7 +85,7 @@ export function NodeDrawer({ tree, node, derived, reading, writable, onAdd, onRe
   const counted = showsNumber(reading.state)
   const start: EvidenceKind = typable(next.kind) ? next.kind : 'artefact'
   useEffect(() => { setAdding(null); setDetail(''); setMsg('') }, [node.id])
-  useEffect(() => { root.current?.focus({ preventScroll: true }) }, [node.id])
+  useEffect(() => { if (takeFocus) root.current?.focus({ preventScroll: true }) }, [node.id, takeFocus])
   const reasonOff = writable ? undefined : 'No evidence store.'
 
   const submit = async (kind: EvidenceKind) => {
@@ -108,13 +110,13 @@ export function NodeDrawer({ tree, node, derived, reading, writable, onAdd, onRe
     <aside ref={root} tabIndex={-1} className="nd ww-insp" role="complementary" aria-label={`Node details: ${node.name}`} data-state={state} onKeyDown={onKey}>
       <header className="nd-head">
         <p className="nd-banner" aria-hidden="true">+--[ {TIER_WORD[node.tier].toUpperCase()} ]--{'-'.repeat(8)}</p>
-        <IconButton label="Close the node (Esc)" size="sm" onClick={onClose}><X size={16} aria-hidden="true" /></IconButton>
         <svg className="nd-glyph" viewBox="-30 -30 60 60" width="56" height="56" aria-hidden="true"><NodeGlyph tier={node.tier} state={state} /></svg>
         <div className="nd-title">
           <h3 className="nd-name">{node.name}</h3>
-          <p className="nd-sub">{tree.name} / {node.branch}</p>
+          <p className="nd-sub">{TIER_WORD[node.tier][0].toUpperCase() + TIER_WORD[node.tier].slice(1)} in {node.branch}, {tree.name}</p>
           <p className="nd-state"><b>{STATE_WORD[state]}</b> <span>{STATE_MEANS[state]}</span></p>
         </div>
+        <IconButton className="nd-close" label="Close the node (Esc)" size="sm" onClick={onClose}><X size={16} aria-hidden="true" /></IconButton>
       </header>
       <p className="nd-what">A {TIER_WORD[node.tier]} of {node.branch}. {node.tier === 1 ? 'Start here.' : node.tier === 3 ? 'It closes the branch.' : 'It builds on the step before.'}</p>
 

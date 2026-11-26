@@ -120,7 +120,10 @@ export function LinkPanel({ link, onShelf }: LinkPanelProps) {
         {live && (
           <Button size="sm" grouped onClick={() => void link.syncNow()} disabledReason={running ? 'A sync is running.' : undefined}>Sync now</Button>
         )}
-        {live && onShelf && <Button size="sm" grouped onClick={onShelf}>Open the shelf</Button>}
+        {live && running && (
+          <Button size="sm" grouped onClick={() => void link.stopSync()} disabledReason={link.stopping ? 'Stopping after the file being fetched.' : undefined}>Stop sync</Button>
+        )}
+        {live && onShelf &&<Button size="sm" grouped onClick={onShelf}>Open the shelf</Button>}
         {live && !perAccount && <Button size="sm" grouped onClick={() => void link.disconnect()}>Disconnect</Button>}
         {fromEngine && reading.state !== 'planned' && <AddAccount onAdd={(n) => void link.connect(n)} disabledReason={connecting ? APPROVE_SENTENCE : undefined} />}
       </div>

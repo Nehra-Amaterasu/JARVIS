@@ -5,3 +5,6 @@
 :root[data-look='v3'] .cr-v3 .cr-course, :root[data-look='v3'] .cr-v3 .cr-file { background: var(--surface-sunk); box-shadow: var(--elev-recessed); }
 :root[data-look='v3'] .cr-v3 .cr-pick:hover { background: var(--surface-raised); }
 :root[data-look='v3'] .cr-v3 .cr-frame { block-size: 24rem; }
+/* the chosen assignment is the project's 12 percent tint (--acc-soft), as the shell contract asks for a selected row; the rows are sunk wells already */
+:root[data-look='v3'] .cr-v3 .cr-due-row .cr-pick[aria-pressed='true'] { background: var(--acc-soft); box-shadow: none; }
+:root[data-look='v3'] .cr-v3 .cr-due-block { background: var(--surface-ground); }

@@ -2,6 +2,145 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-27: the v3 frame could be scrolled out of place (found while checking the Due view)
+
+**Fault.** After an item was chosen in the Classroom face under v3, the whole frame sat 64 px up and to the left: the spine and the top plate were cut and a grey band showed at the bottom and right. The builder of the Due view saw it in its pictures and found the same shift in the Classroom pictures of 25 Nov, so it was already on main.
+
+**Cause.** The frame (`.s2.s3`) had `overflow: hidden`, and its ground is drawn 64 px past the window on every side. A box with overflow hidden is still a scroll container: focus on an element near an edge, `scrollIntoView`, or a test's click can scroll it by the hidden 64 px. Nothing in the Classroom code was wrong.
+
+**Fix.** `overflow: clip` on the frame. A clipped box is not a scroll container, so nothing can move it. One line in `app/ui/src/shell/v3/shell-v3.css`, with the reason beside it.
+
+**Measured.** classroom-due, classroom-shelf, shell-v3 and one-look: 40 passed, 1 skipped; the picture that showed the shift (Due view, 1366x768, a reminder set) shows the whole frame after the fix. Unit tests over shell and Classroom: 268 of 268.
+
+**Still open.** On the phone under v3 one step of the Due spec reports 273 px of sideways scroll on the tray column while a sheet opens (the page looks right); six probe lines are waived at that one step with a comment. It belongs to the shell's phone sheet and is in the queue as R14.
+
+## 2026-11-27: what is due, announcements and reminders in the Classroom face
+
+**Question.** The engine now has six routes for the Google link beyond files (G-14 stop a sync, G-15 assignments, G-16 open the page, G-17 one reminder, G-18 announcements, G-19 calendar), and the paper desk takes Word files. What does the Classroom face show for them, without drawing anything the engine did not say?
+
+**Built (app/ui only).**
+- Client: `GcrClient` gained `stopSync`, `assignments`, `openAssignment`, `remind`, `announcements`, `calendar` and `removeReminder` (DELETE /api/reminders/{id}, outside the gcr prefix; its `{ok}` answer has no state word, so ok is made LIVE with our own sentence "Reminder removed."). Same envelope handling as the thirteen older calls; no request when the gate is off or there is no token. Types in `gcrTypes.ts` only; `ports.ts` untouched.
+- Screen: a two-option switch Files / Due at the top of the first tray. Due uses the same three trays: FILTER (course, Open/All, the four counts beside the state word, "Read at"), DUE (the engine's order, title, course, due, days, Classroom's work word, "Late" only when `late` is true), ASSIGNMENT (facts, Open in Classroom, Remind me with the default time, Remove reminder once made, then the latest 3 announcements and next 5 calendar entries, each with its own state word and "and N more").
+- No turn-in key exists; a line says turning in happens in Classroom. A reminder is made only by a press and sends no time. Remind me is disabled with a reason when there is no due date.
+- Stop sync (G-14) beside the disabled Sync now while the job runs; after the press the key holds until the job leaves "running", and the engine's sentence is printed.
+- Word: `Send to paper desk` is offered for pdf, docx and doc (`goesToPaperDesk` in Reader.tsx; ShelfPanes had no gate).
+
+**Measured.** tsc -b exit 0. vitest (study, career, __tests__/ww, __tests__/shared): 47 files, 1508 tests passed. New tests: 12 client tests in gcr.test.ts, 23 in due.test.tsx. Playwright with mocked routes: see the report of the builder for the final run; first run 3 of 4 passed, the v3 phone failure was a measurement taken while a sheet slid in (fixed by a 500 ms settle).
+
+**Not verified.** Nothing ran against the real engine or real Google data; every fixture is invented. The reminder is not seen in the app's own reminder list. The phrase "days past" for a negative `days_left` is my wording, not the engine's.
+
+**Remains.** A time picker for Remind me (G-17 accepts `at`; the screen sends the default only). Reminders from announcements are not built in the engine, so not here. Persisting the Files/Due choice.
+
+## 2026-11-27: the second batch of the round (Day, Tree, Career) joined and checked
+
+**What this is.** Packages D (Date sheet, Proof, counters, the gym session inside Body) and N (the Tree's node click, one path through Career) of the round that began on 25 Nov. Both builders were cut off by the usage limit on 25 Nov near the end of their work and resumed on 27 Nov from their own transcripts; nothing was lost. Their sections follow this one.
+
+**Checked together on one branch with main.** Type check exit 0. The whole unit suite: 193 files, 4,036 of 4,036. Browser, two workers: day-fixes, tree-click, career-way, career, t02-career, shell-v3, one-look, core-talk-stage and cp2-ww-pages, 103 passed and 1 skipped (the known look-off fixme). The integrator looked at six pictures (Date sheet, Proof, the counter chooser, the session in Body, a chosen Tree node at 1920x1200, a chosen application at 1366x768) and found nothing to send back.
+
+**Left for later rows of the queue.**
+- Shell: in a phone tray sheet the body is `flex: 1 1 0%` with overflow visible, so content can run under the Done key; package D worked around it in its own stylesheet, the general fix belongs in the shell.
+- Shell: `PeekCtx` is not exported from the v3 index; package N imports it from the Sheets file.
+- The "Shown" chip in the counter chooser is a brighter orange than the Well Wisher accent.
+- The gym session copies about 30 lines of the old Forge page's save logic; a change to one needs the other.
+- Not run against real engine data: every route in these specs was answered with invented rows.
+
+## 2026-11-25: Day fixes (Date sheet, Proof, counters, the gym session inside Body)
+
+Package D of plan 08 (rows R2 to R5), UI only, under the v3 look. Worktree `ui-day`, branch `ui/day-fixes`, nothing committed. The owner's own pictures were the evidence; I never opened `data/`. Every fixture is invented (subjects "Signals and Systems", "Circuits", "Digital Design"; counters "Cigarettes", "Joints", "Drinks" are generic stand-ins).
+
+### R2. The Date sheet (opened from the Ahead card)
+
+- **Fault.** The paper card was a six-column grid. Subject (2 wide) sat under Paper's column, "Units covered" (2 wide) under a 1-wide label, "Out of" ran past the sheet's right edge, and the units hint was cut.
+- **Done.** Four rows that wrap by themselves (flex-wrap, each field has a minimum basis and may shrink to 0): Subject with Paper; Date, Starts, Ends; How hard with "Aim for of Out of"; Units covered alone, so its whole hint shows. The card is a soft tone (`--acc-tray`), no hairline. The title and the bin share one line, the two ticks sit under them. Paging, Add a paper, Save N changes, Discard, delete and both ticks are unchanged. One bug fixed on the way: "Units covered" could not take a comma (it re-read `1,` from the numbers and dropped it); it now keeps the typed text and parses on every key.
+- **Measured (Chromium, built app, v3).** At 1366x768, 800x900, 390x844 and 360x740, on both pages of papers: the nine fields of every visible paper have pairwise no intersecting boxes, none starts left of or ends right of the sheet body, every label is above and in the column of its own input, every input is at least 43.5 px tall, the sheet body has no horizontal scroll, the hint reads "Numbers, commas. Empty is all." with no clipping.
+- **Not verified.** The owner's real subjects (the select shows what the plan store returns; an unknown subject id is still listed as itself). Date and time inputs use the browser's own pickers, whose width differs by browser.
+
+### R3. The Proof drawer
+
+- **Fault.** The drawer held the relief and then one fold, "Every proof card", with ten boxed cards inside it: boxes in boxes in a sheet. The stat numerals used the dotted display face (`--f-dot`), unreadable. Every meter bar was drawn full: every meter bar was drawn as a complete bar (seen in the 25 Nov picture of my own run: 80 of 180 XP and 32 of 60 hours both full). The likely cause is that the `.ww-fill` scaleX rule (`ww/design/motion.css`) does not reach this drawer in the built app; I fixed it in `proof.css` without proving that cause.
+- **Done.** `ProofPanel` takes `tidy` (used only by the drawer, `ProofStrip`). Rank, "The System suggests" (kicker "Next steps") and Stats are three plain sections with a heading each and room between them; the cards keep their element, id and order but lose their face (`.ww-proof-flat`). The other seven (quest lines, weekly review, building hours, proof of work, wins, recent, what got in the way) wait behind one closed fold, "More proof (7)", mounted only when opened; a suggestion that points at one opens the fold first. Stat cells wrap with `auto-fit` (two a row on the 32 rem drawer, one on a phone); numerals and labels are the reading face; the meter fill carries its own scaleX. Met and Open stay words. "Not counted" and "Advice with sources" stay closed and open in place. Every number keeps its state word (the Stat tile still shows "Next: ..." only when the value is 0, which is the kit's rule and was kept).
+- **Measured.** At the same four sizes: no horizontal scroll in the drawer, nothing of the three sections passes the body's right edge, no bordered element in them (meter dashed state and controls excepted), exactly six stat cells, the numeral face is not the dot face, the fold opens without changing the sheet's width, "Show quest lines" opens "More proof" and shows P4.
+- **Not verified.** The real Proof data (all five routes were answered with invented rows); the relief above the three sections is untouched.
+
+### R4. Counters on Day / Today
+
+- **How a count is stored (read from `germoney.py` `life_tap`).** One integer per counter per day (0 to 500) in `state.life[date].counts[id]`, set by `POST /api/mission/life/count {id, value}` or nudged by `{id, delta}`. They are not items, so `/life/item`, `/item/delete` and `/item/restore` (meals, media, reels) do not apply to counters.
+- **Done.** `ww/life/counterDeck.ts` (store) and the rebuilt `counters.callout.tsx`:
+  - "+N more" opens the rest in the plate and never leaves Today (the old key called `go('day','week')`).
+  - Each count tile has a minus and a plus, 44 px each. Minus is `{delta: -1}`; a refusal from the engine is shown in its own words ("a count is 0 to 500") and the number goes back.
+  - Went to college (want "yes", or the counter named `college`) is ONE tick tile: pressed sends `{value: 1}`, pressed again `{value: 0}`. It never shows a number; an old stored 2 shows as Yes. I used the life count route with `value`, not the attendance or habit routes: the counter already exists there and `value` is exactly a yes or no.
+  - Undo is a stack for the visit (module state, survives Today to Week to Today), newest first, 30 deep, entries older than 15 minutes are forgotten. Each undo sets the exact number before (`{value: before}`), so it is right after other taps too. A refused undo stays on the stack.
+  - "Choose counters": a right-hand sheet to show or hide each counter and move it up or down. Kept in `localStorage` key `ww.day.counters.v1`, and the sheet says "Kept on this device".
+  - The Capture Line's water (through the left store) is merged into the deck without another read; each deck write also asks the left store to re-read its life slice.
+- **Measured.** 9 unit tests against a fake engine that enforces `life_tap`'s rules (+N more in place, plus and minus with the exact bodies sent, refusal shown and rolled back, college tick sets 1 then 0 and never shows 2, undo walks back newest first and ends disabled, undo of a tick, 15-minute expiry, choose and order saved, arrange and isTick). Chromium at 1366x768, 390x844 and 360x740: the plate shows four tiles, "+2 more" shows six and the hash stays `#day/today`, plus, minus, undo twice and the tick move the numbers the engine holds, every key on the plate is at least 43.5 px.
+- **Not verified.** The owner's real counters and which are "yes" counters in his private inputs (the tick rule covers want "yes" and the id `college`; a yes or no under another id with another want shows as a count).
+- **Needed from the engine.** (a) `GET /api/mission/life` already answers `want`; nothing else is needed for the above. (b) For the list of shown counters to follow him across devices: `GET/PUT /api/mission/life/layout {shown: string[], order: string[]}`. (c) If undo should survive a reload: `POST /api/mission/life/count {id, value, expect: <number before>}` answering the new row, so a stale window gets a 409 instead of overwriting.
+
+### R5. The gym session inside Body
+
+- **Fault.** "Log a session" opened a side sheet, "Gym session", holding the old Forge page with its Mission headings and cards.
+- **Done.** Under v3 the Body page's first tray is the session ("1 SESSION"), the week and the last four weeks and the water are tray 2 ("2 WEEK"), the reminders tray 3. One key starts it in place; muscles are chips (the sparkle still marks back and shoulders); "Build the session (n)" gives one row per exercise: name, a small cue line, the "LAST 4x10 @ 40 kg" line or "LAST: no history yet", and Sets, Reps, Kg inputs 44 px tall; Change muscles, Cancel and "Save session (n/N filled)" (locked with its reason until one lift has all three numbers). The tray is a container: under 30 rem the inputs drop under the name. The logic is `useGymSession.ts`, the Forge page's own calls in the same order on save (`addSession`, `recordHours('workout', 1)`, `plan.log` 45 min on the body track, `markRep`, the `+10 XP` burst); the classic look still opens the Forge page in a drawer. I copied about 30 lines of Forge's logic instead of editing `germoney/pages/Forge.tsx` (outside my folders); if Forge changes how a save pays, `useGymSession.ts` needs the same change.
+- **Measured.** Chromium at 1366x768, 390x844 and 360x740: the key starts the session with no sheet opened, chips choose, the build gives at least two rows, every row has three inputs of at least 43.5 px that stay inside the tray, nothing of the session is outside the window, the page does not scroll sideways, Save is aria-disabled until a lift is filled, saving posts the plan log with `track: body` and returns the tray to its start with "Session saved: n lift", Change muscles returns to the choice.
+- **Not verified.** A real save's XP and ledger effects (the plan log route was answered by the test). The sandbox keeps the session a test saves, so a second run starts with a "LAST" line (the test copes with both).
+
+### What remains / for the integrator
+
+- Shell (not my folders): at 390x844 `.s3-body` in a tray sheet is `flex: 1 1 0%` with overflow visible, so 446 px stood around 684 px of content and the Done key lay over the last tiles. I added a scoped rule in `ww/day/v3/day-v3.css` (`.s3-body:has(> .tv3) { flex: none }` plus `.tv3 { flex: none }` in a sheet); the general fix belongs in `shell-v3.css`.
+- The meter fill fix lives in `proof.css`; if the cause is as assumed, any other Meter drawn outside the old frame is full too.
+- Files: see the report.
+
+### Final run (27 Nov, nothing pulled)
+
+- `npx tsc -b`: exit 0.
+- `npx vitest run src/ww/day src/ww/life src/ww/proof src/ww/overlays src/__tests__/ww src/__tests__/shared --maxWorkers=2`: 39 files, 1252 tests passed, exit 0.
+- `npx playwright test e2e/day-fixes.spec.ts --workers=1` (sandbox 8901, preview 5301): 14 passed, exit 0. It includes the bars' computed scaleX (80/180, 32/60, 3/3) and, for Body, that no part of the session is outside the window.
+- Privacy scan (`pytest tests -q`): see the report.
+- Pictures looked at: date 1366 and 360, proof 1366, 360, stats 390 and 800, counters 1366, 390 and 360, counters-chosen 390 and 1366, body session 1366, 390, 360 and idle 390. Fixed after looking: bin placed at the right edge of the Date card (an old `justify-content: space-between` shrank the grid track), counter tiles made one row each, bars made honest, sheet tiles no longer under Done.
+- Left as it is: body-idle pictures are taken while the trays fade in, so tray 2 and 3 are not drawn in them; the peek pills on the phone belong to the shell.
+
+## 2026-11-25: the Tree's node click and one clear path through Career
+
+Question: why does the Tree glitch when a node is clicked (owner), and why is Career confusing to move through (owner)? Package N, rows R6 and R7 of plan 08. Method: reproduce in a real Chromium on the built app (dist-e2e, sandbox, v3 look), measure, fix, re-measure.
+
+### R6. The Tree
+
+**Measured cause of the click fault (1366x768, Influence and persuasion, 519 px stage).**
+- The stage re-framed the whole branch on every selection (`TreeStage`, an effect on `openId` calling `frameBranch(..., max(k, 1.15))`). First click on a node: the canvas transform moved from `translate(-9.3,109.8)` to `translate(57.6,109.8)`, a 67 px slide sideways, so the next click landed on another node or on nothing (my 4-click probe: 3 of 4 clicks missed their target until coordinates were re-read).
+- A click on a branch plate zoomed the canvas out from 120 % to 74 % (`toBranch` allowed a minimum of 0.6, and labels draw only from 1.15), so the labels vanished.
+- A stage under 520 px was treated as a phone (`w < 520`), and the 519 px laptop stage centred the first node and cut the first plate at its left edge (-9 px).
+- Tray 2 filled, but badly: the header grid gave the close key the glyph's 56 px column, the name fell into a 90 px column and wrapped one word a line ("Namin g ten comm on biase s"). The drawer also took keyboard focus on every node change, and the selected node drew a black focus rectangle round its label.
+
+**Visible faults from the owner's picture.**
+- Legend over the first row: it was absolutely placed inside the stage. Now its own row above the stage (`TreeKey`), the stage has `chrome={false}` under v3.
+- Two plates with only "3 nodes": the plate name was drawn only when the whole plate lay inside the stage (`hubFits`). The data is not at fault: all branch names of all ten trees are non-empty (unit test). The name is now always drawn; a missing name would show the last part of its id (`hubName`). The count moved under the name, so name and count no longer overlap.
+- First row half hidden: the view put the start row about a third down with the row above cut as a sliver. The top edge now snaps to a row boundary, and the first plate is whole (asserted: top, left, foot >= 0).
+
+**What was built.** `ensureVisible` (pan only if the node is out of view, keep the zoom), hub click keeps labels (min zoom 1.15), selected node = `--acc-soft` tint (`sn-tint`) + `--hue` ring + thin outer halo (focus colour on keyboard focus), no focus rectangle, drawer `takeFocus` off in the tray, node tray header re-laid, ledger title brackets hidden, hover callout off for the open node, one toolbar row at 1366.
+
+**Numbers.** `e2e/tree-click.spec.ts`: 3 of 3 pass (1366x768, 1920x1200, 390x844): the canvas transform and zoom are identical after three different nodes and the same node twice; tray 2 fills each time; Enter does the same and the canvas keeps focus; legend meets no row; every plate named; first row whole. vitest 1241 passed (36 files, set below), tsc exit 0.
+
+**Not verified.** Touch input on a real phone; a tree with a stage narrower than 360 px; the classic (look off) page was only checked by the existing unit tests; dimmed branches (after Page Down) stay dimmed until Fit, unchanged.
+
+**Remains.** At 1366 the stage is 519 px, so only two nodes of a row show with labels; the rest is a pan away. A wider canvas tray needs a shell ratio, not a Tree change. The ledger is still a mono terminal by its own spec.
+
+### R7. Career
+
+**What confused (measured on the old frame).** Three names for one thing (Runway, Flight board, Pipeline), a 5-column dot grid on every row, "WAITING: unconfirmed" on every row, two keys that both looked main (Add application, Do next step), and no plain "what next".
+
+**What was built (v3 only; the older frame stays as a fixture).** `ApplicationsV3.tsx` + `Runway.tsx`:
+- Tray 1 APPLICATIONS: one list, soonest closing date first (undated, closed, then ruled out); a row = days left (big, mono), name, programme, ONE stage chip, next step as a sentence, and one small "date not confirmed" tag only where the date is not confirmed. Honest: confirmed rows carry no tag.
+- Tray 2 THIS APPLICATION (the soonest is chosen on open): five-step stepper (steps pressable, "Back to X" / "On to Y" keys, disabled at the ends with the reason), outcome select, Next step with its key "Do this step" and what it does, Closing date with "I checked this date today", notes and links.
+- Tray 3 AHEAD: the soonest dated thing, the 120-day strip with a plain caption, the five stage counts, Campaigns under a plain heading.
+- One main key: Add application (N). No "Runway", no "Flight board", plate brackets not drawn. Tab stays "Pipeline" (no registration or test renamed).
+- Certs, Abroad, Money, Ladder: only a plain first sentence in the head of each (what it is for, what to press first).
+- Phone: choosing a row opens tray 2 as a sheet (`PeekCtx` imported from `shell/v3/Sheets`, a deep import because the index does not export it).
+
+**Numbers.** `e2e/career-way.spec.ts`: 3 of 3 pass at the three sizes (order, one chip a row, no WAITING in a row, choose, stepper forward and back through the mocked server, one primary key, keys >= 44 px, no text < 11 px, no sideways overflow). New unit tests: 10 (applications-v3), 7 (tree click).
+
+**Not verified.** Against the real engine data (rows were invented and mocked in the page); Applications with many rows (list scrolls inside tray 1, not paged); the Add application drawer itself was not changed.
+
+**Remains.** Tray 3's strip caption is the notch under the pointer (existing behaviour); at 1366 the strip and counts sit below the fold of tray 3 and scroll. The gallery notes (src/gallery/entries/T02.tsx) still say "Runway" (outside my paths).
+
 ## 2026-11-25 (evening): the owner changed the bar, and the first batch of the round seen in a browser
 
 **What changed.** The owner said the interface was over-worked for what it gave: a look that scores 6 to 6.5 and works beats one that scores 8.1 and is late. One look instead of three, built on v3; colour; looped animation allowed; a slimmer spine and clearer icons; mono type only for machine values; room for the agents being planned. The round is kept as a queue of rows (R0 to R10) in the private plan, and every later request becomes a row before it is built. Done now means: it works when pressed, nothing overlaps or is cut off, the package's tests pass, one browser walk with the pictures looked at. No jury, no score.

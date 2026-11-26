@@ -153,7 +153,7 @@ export function MoneyView(p: MoneyProps) {
   return (
     <Frame
       simulated={p.simulated} view="money" ruler="MONEY" title="Money" form={phone ? 'phone' : 'desk'} rootRef={rootRef} state={bridgeState}
-      sub={<>Rupees and euros apart. A fee counts once you confirm it. {rate.live ? `Rate ${rate.value}, checked ${stampText(rate.on!)}.` : 'No rate typed yet.'}</>}
+      sub={<>What studying abroad costs, in rupees and euros apart. Press Add a source to say how it is paid for. A fee counts once you confirm it. {rate.live ? `Rate ${rate.value}, checked ${stampText(rate.on!)}.` : 'No rate typed yet.'}</>}
       v3={{ ratio: [1.2, 1.5, 0.85], trays: [
         { job: 'BRIDGE', node: bridgePlate, peek: { name: 'Costs', lamp: bridgeState, note: tot.counted === 0 ? 'no confirmed fee yet' : undefined } },
         { job: 'COSTS', node: ledgerPlate, peek: { name: 'Costs' } },

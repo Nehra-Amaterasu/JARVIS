@@ -112,6 +112,8 @@ function SkillNodeView({ tier, state, pips, label, x = 0, y = 0, id, compact = f
   return (
     <g className="tree-node sn" transform={`translate(${x},${y})`} {...common}>
       <path className="sn-ring" d={outlineD(tier)} />
+      {selected && <path className="sn-tint" d={outlineD(tier)} />}
+      {selected && <path className="sn-halo" d={hexD(r + 6, tier === 3)} />}
       {glyph && <path className="sn-glyph" d={glyph} />}
       {tier === 3 && <path className="sn-sigil" d={sigilD()} />}
       {core && <path className="sn-core" d={core} />}

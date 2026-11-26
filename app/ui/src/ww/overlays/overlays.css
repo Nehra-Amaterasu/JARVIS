@@ -136,35 +136,91 @@
   }
 }
 
-/* The Date sheet is wider than the other sheets so a paper's fields sit four to a line and two papers fit a page. */
+/* ---- The Date sheet (25 Nov rebuild). A paper is a soft card of four rows that wrap by themselves: Subject with Paper; Date,
+   Starts, Ends; How hard with "Aim for of Out of"; Units covered alone, so its whole hint shows. The old six-column grid
+   put a 2-wide field under a 1-wide label at 770 px and ran "Out of" past the edge. Each field has a minimum width
+   (flex-basis) and may shrink to 0, so at 360 px a row simply drops to the next line; nothing is placed by column number.
+   No hairline box: the card is a tone (--surface-sunk reads as a soft well on both grounds). ---- */
 .ww-sheet.ww-overlay:has([data-overlay='date']) {
   --sheet-w: 46rem;
 }
-[data-overlay='date'] .ov-grid {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: var(--space-2) var(--space-3);
+[data-overlay='date'] {
+  gap: var(--space-4);
+  min-inline-size: 0;
 }
 [data-overlay='date'] .ov-paper {
-  gap: var(--space-2);
-  padding: var(--space-3);
-}
-[data-overlay='date'] {
   gap: var(--space-3);
+  padding: var(--space-4);
+  border: 0;
+  border-radius: var(--card-radius);
+  background: var(--acc-tray, var(--surface-sunk));
+  min-inline-size: 0;
 }
-
+.ov-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+.ov-f {
+  flex: 1 1 8.5rem;
+  min-inline-size: 0;
+}
+.ov-f-wide {
+  flex: 2 1 12rem;
+}
+.ov-f-time {
+  flex: 1 1 6.5rem;
+}
+.ov-f-full {
+  flex: 1 1 100%;
+}
+.ov-f .ww-field,
+.ov-f .ww-input {
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+[data-overlay='date'] .ov-aim {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  grid-column: auto;
+}
+[data-overlay='date'] .ov-aim > .ww-field {
+  flex: 1 1 0;
+  min-inline-size: 0;
+}
+[data-overlay='date'] .ov-of {
+  flex: none;
+  padding-block-end: var(--space-3);
+  color: var(--ink-2);
+}
 .ov-grow {
   flex: 1 1 12rem;
 }
-[data-overlay='date'] .ov-s1 {
-  grid-column: span 1;
+[data-overlay='date'] .ov-paper-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: stretch; /* the older .ov-paper-head said space-between, which keeps a grid's one track as narrow as its content */
+  gap: var(--space-1);
+  min-inline-size: 0;
 }
-[data-overlay='date'] .ov-s2,
-[data-overlay='date'] .ov-aim {
-  grid-column: span 2;
+/* the title and the bin share one line; the two ticks wrap under them on their own */
+.ov-paper-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-inline-size: 0;
 }
-.ov-paper-head {
+.ov-paper-ticks {
+  display: flex;
   flex-wrap: wrap;
+  gap: 0 var(--space-5);
 }
-.ov-paper-title {
-  flex: 1 1 8rem;
+[data-overlay='date'] .ov-paper-title {
+  flex: 1 1 0;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
 }

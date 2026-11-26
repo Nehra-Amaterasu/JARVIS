@@ -31,8 +31,8 @@
 :root[data-look='v3'] .t2-v3 .t2-closing { grid-area: closing; width: 9.5rem; }
 :root[data-look='v3'] .t2-v3 .t2-stages { grid-area: stages; grid-template-columns: repeat(5, minmax(0, 1fr)); }
 :root[data-look='v3'] .t2-v3 .t2-stage { width: 100%; }
-:root[data-look='v3'] .t2-v3 .t2-board { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
-:root[data-look='v3'] .t2-v3 .t2-towers .t2-tower { height: 3rem; }
+.t2-v3 .t2-board { grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+.t2-v3 .t2-towers .t2-tower { height: 3rem; }
 :root[data-look='v3'] .t2-v3 .t2-upnext { align-self: stretch; }
 
 /* Certificates: the shelf fills as many tiles as the tray holds */
@@ -65,6 +65,61 @@
 :root[data-look='v3'] .t2-v3 .t2-sky { flex: none; min-height: 20rem; }
 :root[data-look='v3'] .t2-v3 .t2-skyplate .t2-plate-body { min-height: 0; }
 
+/* ---- R7 (25 Nov): Applications. One list, one chosen application, what lies ahead. The brackets of a plate's label are terminal
+   decoration and are not drawn here (these rules hang on .t2-v3, which only the v3 branch draws, so the gallery frame, which has no look attribute, is styled too); the label, the lamp word and the reason stay. ---- */
+.t2-v3 .t2-plate-label > span[aria-hidden='true'] { display: none; }
+.t2-v3 .t2-v3-h { margin: 0; text-wrap: balance; font: 600 0.8125rem/1.125rem var(--font-ui); color: var(--ink-1); }
+
+/* tray 1: a row is days left (big, mono), the name, the programme, the next step, ONE stage chip. No hairline: the chosen row is the tint. */
+.t2-v3 .t2-apps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.t2-v3 .t2-app {
+  width: 100%; min-height: 4.5rem; display: grid; grid-template-columns: 4.25rem minmax(0, 1fr) auto; align-items: start; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3); border: 0; border-radius: var(--r-card); background: transparent; color: var(--ink-1); text-align: left; cursor: pointer;
+  transition: background-color var(--dur-feedback) var(--ease-standard);
+}
+.t2-v3 .t2-app:hover { background: var(--acc-ground); }
+.t2-v3 .t2-app[aria-pressed='true'] { background: var(--acc-soft); }
+.t2-v3 .t2-app:focus-visible,
+.t2-v3 .t2-step:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.t2-v3 .t2-app-days { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.t2-v3 .t2-app-days b { font: 600 1.5rem/1.75rem var(--font-mono); color: var(--ink-1); overflow-wrap: anywhere; }
+/* a word instead of a number (no date, closed, today) is smaller, so it stays on one line in the 4.25 rem column */
+.t2-v3 .t2-app-days[data-word] b { font-size: 0.875rem; line-height: 1.5rem; }
+.t2-v3 .t2-app-days[data-closed] b { color: var(--ink-2); }
+.t2-v3 .t2-app-days small { font: 500 0.6875rem/0.875rem var(--font-ui); color: var(--ink-2); }
+.t2-v3 .t2-app-body { display: flex; flex-direction: column; gap: 0.125rem; min-width: 0; }
+.t2-v3 .t2-app-name { font: 600 1rem/1.25rem var(--font-ui); overflow-wrap: anywhere; }
+.t2-v3 .t2-app-prog { font: 400 0.8125rem/1.125rem var(--font-ui); color: var(--ink-2); overflow-wrap: anywhere; }
+.t2-v3 .t2-app-next { font: 400 0.8125rem/1.125rem var(--font-ui); color: var(--ink-1); overflow-wrap: anywhere; }
+.t2-v3 .t2-app-tag { font: 500 0.6875rem/0.875rem var(--font-ui); color: var(--ink-2); }
+.t2-v3 .t2-chip {
+  align-self: start; padding: 0.125rem var(--space-2); border-radius: var(--r-pill); background: var(--surface-sunk); color: var(--ink-1);
+  font: 600 0.75rem/1rem var(--font-ui); white-space: nowrap;
+}
+.t2-v3 .t2-chip[data-stage='rejected'],
+.t2-v3 .t2-chip[data-stage='not_eligible'] { color: var(--ink-2); }
+
+/* tray 2: the application, its stage as five steps, the next step, the closing date, notes */
+.t2-v3 .t2-this,
+.t2-v3 .t2-ahead { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+.t2-v3 .t2-this-sec { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); min-width: 0; }
+.t2-v3 .t2-this-sec > * { max-width: 100%; }
+.t2-v3 .t2-stepper { align-self: stretch; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-1); }
+.t2-v3 .t2-step {
+  width: 100%; min-height: 2.75rem; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--space-1) 0;
+  border: 0; border-radius: var(--r-ctl); background: var(--surface-sunk); color: var(--ink-2); font: 500 0.6875rem/0.875rem var(--font-ui); cursor: pointer;
+}
+.t2-v3 .t2-step[data-state='done'] { color: var(--ink-1); }
+.t2-v3 .t2-step[data-state='current'] { background: var(--acc-soft); color: var(--ink-1); font-weight: 650; }
+.t2-v3 .t2-this-keys { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.t2-v3 .t2-this-next { margin: 0; font: 500 1rem/1.375rem var(--font-ui); color: var(--ink-1); overflow-wrap: anywhere; }
+.t2-v3 .t2-this-list { margin: 0; padding-left: 1.125rem; font: var(--type-small); color: var(--ink-2); }
+
+.t2-v3 .t2-board-read { text-wrap: balance; }
+
+/* a link in a quiet line is a target: 44 px to press (the certificate gallery state measured "Its own page" at 17 px) */
+.t2-v3 .t2-quiet a { display: inline-flex; align-items: center; min-height: 2.75rem; }
+
 @media (max-width: 43.75rem) {
   :root[data-look='v3'] .t2-v3 .s3-body { overflow-y: visible; }
 }
@@ -72,4 +127,4 @@
 /* an empty table says it in one line: the key above already adds an application, and the drawing would take half the tray */
 :root[data-look='v3'] .t2-v3 .t2-empty > :not(.t2-quiet) { display: none; }
 :root[data-look='v3'] .t2-v3 .t2-empty::after { content: 'No applications yet.'; font: var(--type-small); color: var(--ink-2); }
-:root[data-look='v3'] .t2-v3 .t2-axis { padding-right: 2.5rem; }
+.t2-v3 .t2-axis { padding-right: 2.5rem; }

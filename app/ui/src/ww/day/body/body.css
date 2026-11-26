@@ -81,3 +81,42 @@
 /* A chosen chip is raised with an ink mark, not a warm fill: the one warm fill of this canvas belongs to the primary key. */
 :root[data-theme^='clay'] .by-before .ww-chip[aria-pressed='true'] { background: var(--surface-raised); color: var(--ink-1); box-shadow: var(--elev-raised); }
 :root[data-theme^='clay'] .by-before .ww-chip[aria-pressed='true']::before { content: ''; display: inline-block; vertical-align: middle; width: 8px; height: 8px; margin-right: var(--space-2); border-radius: 50%; background: var(--ink-1); }
+
+/* ---- the gym session inside the page (25 Nov, v3 tray 1) ----
+   One row per exercise: what it is on the left (name, the cue small, the last numbers), Sets, Reps and Kg on the right, each input 44 px
+   tall. The tray is a container, so when it is narrower than 30 rem (a phone, a 1120 px window) the three inputs drop under the name
+   instead of squeezing it. No box and no hairline: a row is a soft tone, a filled row a slightly lighter one. */
+.by-session { container-type: inline-size; display: flex; flex-direction: column; gap: var(--space-3); min-inline-size: 0; }
+.by-session-head { margin: 0; font-family: var(--font-ui); font-size: 1.125rem; line-height: 1.5rem; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
+.by-session-line { margin: 0; font-size: 0.875rem; line-height: 1.375rem; color: var(--ink2); overflow-wrap: anywhere; }
+.by-session-last { margin: 0; font-size: 0.875rem; line-height: 1.375rem; color: var(--ink); overflow-wrap: anywhere; text-transform: capitalize; }
+.by-session-lastlabel { color: var(--ink2); text-transform: none; margin-inline-end: var(--space-2); }
+.by-session-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2) var(--space-3); }
+.by-session-keys { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); }
+.by-session-keys .dy-primary { flex: 1 1 14rem; min-block-size: 3rem; }
+.by-muscles { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.by-muscles > * { min-block-size: 2.75rem; }
+.by-lifts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.by-lift {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-2) var(--space-4);
+  padding: var(--space-3); border-radius: var(--r-key); background: var(--acc-tray, var(--surface-sunk)); min-inline-size: 0;
+}
+.by-lift[data-filled] { background: var(--acc-soft, var(--surface-raised)); }
+.by-lift-what { display: flex; flex-direction: column; gap: 0.125rem; min-inline-size: 0; }
+.by-lift-name { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); font-family: var(--font-ui); font-size: 0.9375rem; line-height: 1.25rem; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.by-lift-n { font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink2); }
+.by-lift-cue { font-size: 0.75rem; line-height: 1rem; color: var(--ink2); overflow-wrap: anywhere; text-transform: capitalize; }
+.by-lift-last { font-family: var(--font-mono); font-size: 0.75rem; line-height: 1rem; color: var(--ink2); overflow-wrap: anywhere; }
+.by-lift-nums { display: flex; gap: var(--space-2); }
+.by-num { display: flex; flex-direction: column; gap: 0.125rem; }
+.by-num-label { font-size: 0.75rem; line-height: 1rem; color: var(--ink2); }
+.by-num-input {
+  inline-size: 4.25rem; min-block-size: 2.75rem; box-sizing: border-box; padding-inline: var(--space-2); text-align: center;
+  font-family: var(--font-mono); font-size: 1rem; color: var(--ink); background: var(--surface-ground); border: 0; border-radius: var(--r-key); box-shadow: var(--elev-recessed);
+}
+.by-num-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+@container (max-width: 30rem) {
+  .by-lift { grid-template-columns: minmax(0, 1fr); }
+  .by-lift-nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .by-num-input { inline-size: 100%; }
+}

@@ -7,7 +7,7 @@
 // Nothing here is invented: with no link, or no engine, the lists are a pose with the engine's reason; every state word is the
 // engine's own; the original is a blob URL that is revoked when the reader closes or the shelf goes away.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Button } from '../../../shared/kit'
+import { Button, Segmented } from '../../../shared/kit'
 import { Lamp, readingOf, showsNumber } from '../../../shared/lamp'
 import { lookV3Enabled, Zones } from '../../../shell/v3'
 import type { GcrClient } from '../adapters/gcr'
@@ -15,12 +15,19 @@ import { gcrClient } from '../adapters/gcr.register'
 import type { GcrAnswer, GcrCourse, GcrFile } from '../adapters/gcrTypes'
 import { intakeDesk, type IntakeDeskPort } from '../intake/port'
 import type { SubjectOption } from '../intake/types'
+import { DueDetail, DueFilter, DueList } from './DuePanes'
 import { LinkPanel, linkReading } from './LinkPanel'
 import { Reader, type OpenedView } from './Reader'
 import { CoursesPane, FilesFilter, FilesPane, NoticeLine, Pose, type KindFilter, type Notice } from './ShelfPanes'
 import { useClassroomLink } from './useClassroomLink'
+import { useDue } from './useDue'
 import './classroom.css'
 import './classroom-v3.css'
+import './classroom-due.css'
+
+/** The two views of the face: the files the link read (what the shelf always showed) and what is due. */
+export type ShelfMode = 'files' | 'due'
+const MODES: { id: ShelfMode; label: string }[] = [{ id: 'files', label: 'Files' }, { id: 'due', label: 'Due' }]
 
 /** The search waits this long after the last key before it asks the engine (G-08 takes the text as `q`). */
 export const SEARCH_MS = 300
@@ -47,6 +54,9 @@ export function ClassroomShelf({ client = gcrClient, desk = intakeDesk(), extra 
   const [opened, setOpened] = useState<OpenedView | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
   const [busy, setBusy] = useState(false)
+  const [mode, setMode] = useState<ShelfMode>('files')
+  // the due lists are read only while the Due view is open and the link is live: a closed view asks the engine for nothing
+  const due = useDue(client, live && mode === 'due', link.finished)
 
   const ctl = useRef<AbortController | null>(null)
   const alive = useRef(true)
@@ -177,8 +187,11 @@ export function ClassroomShelf({ client = gcrClient, desk = intakeDesk(), extra 
         ? <Pose title="No files to show." reading={readingOf({ state: files.state, reason: files.reason || 'nothing matches this search' })} />
         : <FilesPane items={fileList} chosen={fileId} onChoose={chooseFile} />
 
+  const modeSwitch = <Segmented<ShelfMode> variant="choice" label="Classroom view" value={mode} onChange={setMode} options={MODES} />
+
   const first = (
     <div className="cr-col">
+      {modeSwitch}
       <LinkPanel link={link} />
       {live && chosenCourse && (
         <Button size="sm" grouped onClick={() => void link.syncNow([chosenCourse.id])} disabledReason={link.running ? 'A sync is running.' : undefined}>Sync this course</Button>
@@ -210,20 +223,53 @@ export function ClassroomShelf({ client = gcrClient, desk = intakeDesk(), extra 
     </div>
   )
 
+  // ---- the Due view: the same three trays, a different job in each
+  const dueItems = due.list?.data?.items ?? []
+  const dueFirst = (
+    <div className="cr-col">
+      {modeSwitch}
+      {live && <DueFilter list={due.list} courses={courseItems} course={due.course} onCourse={due.setCourse} show={due.show} onShow={due.setShow} />}
+      <LinkPanel link={link} />
+    </div>
+  )
+  const dueBody = !live
+    ? <Pose title="What is due appears once the link answers." reading={linkLamp} />
+    : !due.list
+      ? <Pose title="Reading what is due." reading={asking} />
+      : due.list.state !== 'live' || dueItems.length === 0
+        ? <Pose title="No assignments to show." reading={readingOf({ state: due.list.state, reason: due.list.reason || 'nothing matches this filter' })} />
+        : <DueList items={dueItems} chosen={due.chosenId} onChoose={due.choose} />
+  const dueSecond = <div className="cr-col">{dueBody}</div>
+  const dueThird = <div className="cr-col"><DueDetail due={due} /></div>
+  const dueNote = due.list && showsNumber(due.list.state) && due.list.data?.counts ? `${due.list.data.counts.open} open` : 'not read yet'
+
   if (lookV3Enabled()) {
     return (
       <div className="cr-shelf cr-v3" data-component="classroom-shelf" data-state={linkLamp.state}>
         {/* the reader gets the widest tray: a note is the thing read here, and the courses need little more than a name */}
-        <Zones
-          ratio={[1.05, 1, 1.45]}
-          first={{
-            job: 'COURSES',
-            chip: <span className="cr-chip"><Lamp reading={linkLamp} /></span>,
-            children: <div className="cr-col">{extra && <div className="cr-facebar">{extra}</div>}{first}</div>,
-          }}
-          second={{ job: 'FILES', peek: { name: 'Files', lamp: files?.state ?? linkLamp.state, note: chosenCourse ? chosenCourse.name : 'every course' }, children: second }}
-          third={{ job: 'READER', peek: { name: 'Reader', lamp: opened ? 'live' : 'waiting', note: file ? file.title : 'no file chosen' }, children: third }}
-        />
+        {mode === 'due' ? (
+          <Zones
+            ratio={[1.05, 1, 1.45]}
+            first={{
+              job: 'FILTER',
+              chip: <span className="cr-chip"><Lamp reading={linkLamp} /></span>,
+              children: <div className="cr-col">{extra && <div className="cr-facebar">{extra}</div>}{dueFirst}</div>,
+            }}
+            second={{ job: 'DUE', peek: { name: 'Due list', lamp: due.list?.state ?? linkLamp.state, note: dueNote }, children: dueSecond }}
+            third={{ job: 'ASSIGNMENT', peek: { name: 'Assignment', lamp: due.chosen ? 'live' : 'waiting', note: due.chosen ? due.chosen.title : 'none chosen' }, children: dueThird }}
+          />
+        ) : (
+          <Zones
+            ratio={[1.05, 1, 1.45]}
+            first={{
+              job: 'COURSES',
+              chip: <span className="cr-chip"><Lamp reading={linkLamp} /></span>,
+              children: <div className="cr-col">{extra && <div className="cr-facebar">{extra}</div>}{first}</div>,
+            }}
+            second={{ job: 'FILES', peek: { name: 'Files', lamp: files?.state ?? linkLamp.state, note: chosenCourse ? chosenCourse.name : 'every course' }, children: second }}
+            third={{ job: 'READER', peek: { name: 'Reader', lamp: opened ? 'live' : 'waiting', note: file ? file.title : 'no file chosen' }, children: third }}
+          />
+        )}
       </div>
     )
   }
@@ -236,9 +282,19 @@ export function ClassroomShelf({ client = gcrClient, desk = intakeDesk(), extra 
         {extra}
       </header>
       <div className="cr-grid">
-        <section className="cr-tray" aria-label="Courses">{first}</section>
-        <section className="cr-tray" aria-label="Files">{second}</section>
-        <section className="cr-tray" aria-label="Reader">{third}</section>
+        {mode === 'due' ? (
+          <>
+            <section className="cr-tray" aria-label="Filter">{dueFirst}</section>
+            <section className="cr-tray" aria-label="Due">{dueSecond}</section>
+            <section className="cr-tray" aria-label="Assignment">{dueThird}</section>
+          </>
+        ) : (
+          <>
+            <section className="cr-tray" aria-label="Courses">{first}</section>
+            <section className="cr-tray" aria-label="Files">{second}</section>
+            <section className="cr-tray" aria-label="Reader">{third}</section>
+          </>
+        )}
       </div>
     </div>
   )

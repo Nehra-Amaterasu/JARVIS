@@ -25,7 +25,10 @@
   font-family: var(--s3-ui);
   font-size: 0.875rem;
   line-height: 1.35;
-  overflow: hidden;
+  /* clip, not hidden: the ground is drawn 64 px past the window, and a box with overflow hidden can still be scrolled by
+     focus or scrollIntoView. On 27 Nov that shifted the whole frame 64 px up and left after an item was chosen in Classroom
+     (spine and top plate cut). A clipped box is not a scroll container, so nothing can move it. */
+  overflow: clip;
 }
 .s3 *,
 .s3 *::before,

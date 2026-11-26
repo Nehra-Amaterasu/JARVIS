@@ -66,6 +66,14 @@ function fakeClient(over: Partial<GcrClient> = {}): GcrClient {
     revokeOriginal: vi.fn(),
     openInProgram: vi.fn(async () => answer('live', 'Opened in the PC program for PPTX.', {})),
     toPapers: vi.fn(async () => answer('live', 'Sent: its questions wait for your review.', { paper_id: 'p-1' })),
+    // the Due routes are tested in due.test.tsx; here they answer what an engine with nothing read answers
+    stopSync: vi.fn(async () => answer('waiting', 'Stopping after the file being fetched.', { job: { status: 'running', started: 'now', finished: '', text: 'Stopping', counts: null, fault_lines: [] } as GcrJob })),
+    assignments: vi.fn(async () => answer('waiting', 'No coursework read yet: run a sync.', null as never)),
+    openAssignment: vi.fn(async () => answer('live', 'Opened in your browser.', {})),
+    remind: vi.fn(async () => answer('waiting', 'No reminder was made.', null as never)),
+    removeReminder: vi.fn(async () => answer('live', 'Reminder removed.', {})),
+    announcements: vi.fn(async () => answer('waiting', 'No announcements read yet: run a sync.', null as never)),
+    calendar: vi.fn(async () => answer('waiting', 'The calendar has not been read yet: run a sync.', null as never)),
     ...over,
   }
   return c

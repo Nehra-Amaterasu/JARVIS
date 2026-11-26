@@ -25,6 +25,10 @@ export interface ClassroomLink {
   connect(account?: string): Promise<void>
   disconnect(account?: string): Promise<void>
   syncNow(courses?: string[]): Promise<void>
+  /** G-14: stop the running sync after the file being fetched. The job ends with status "stopped"; the poll reads it. */
+  stopSync(): Promise<void>
+  /** True from the press of Stop until the job is no longer running (the engine stops after the file being fetched, not at once). */
+  stopping: boolean
   refresh(): Promise<void>
 }
 
@@ -33,6 +37,7 @@ export function useClassroomLink(client: GcrClient): ClassroomLink {
   const [jobNow, setJobNow] = useState<GcrJob | null>(null)
   const [say, setSay] = useState<LinkSay | null>(null)
   const [finished, setFinished] = useState(0)
+  const [stopPressed, setStopPressed] = useState(false)
   const ctl = useRef<AbortController | null>(null)
   const alive = useRef(true)
 
@@ -56,6 +61,8 @@ export function useClassroomLink(client: GcrClient): ClassroomLink {
   const connecting = status?.data?.connecting === true
   const running = job?.status === 'running'
   const polling = connecting || running
+  // a stop is over when the job is: the next sync must not start out as "stopping"
+  useEffect(() => { if (!running) setStopPressed(false) }, [running])
 
   // one timeout per state change: the answer of a poll is a new state, which arms the next one
   useEffect(() => {
@@ -99,5 +106,17 @@ export function useClassroomLink(client: GcrClient): ClassroomLink {
     else setSay({ state: r.state, text: r.reason })
   }, [client])
 
-  return { status, job, connecting, running, say, finished, connect, disconnect, syncNow, refresh }
+  const stopSync = useCallback(async () => {
+    setSay(null)
+    setStopPressed(true)
+    const r = await client.stopSync(signal())
+    if (!alive.current) return
+    // the engine's sentence ("Stopping after the file being fetched.", or a refusal when none runs) is the answer to the press
+    if (r.data?.job) setJobNow(r.data.job)
+    else setStopPressed(false)
+    setSay({ state: r.state, text: r.reason })
+  }, [client])
+  const stopping = stopPressed && running
+
+  return { status, job, connecting, running, say, finished, connect, disconnect, syncNow, stopSync, stopping, refresh }
 }

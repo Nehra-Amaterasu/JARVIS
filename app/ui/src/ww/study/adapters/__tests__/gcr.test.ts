@@ -180,3 +180,87 @@ describe('the account name rides in the body of connect and disconnect', () => {
     expect(sent).toEqual(['connect {"account":"college"}', 'disconnect {"account":"college"}', 'connect {}', 'disconnect {}'])
   })
 })
+
+describe('G-14 to G-19 and the reminder removal', () => {
+  const ASG = { id: 'a-1', title: 'Lab sheet 3', due: '2026-11-27', due_time: '18:00', days_left: 2, work: 'assigned', late: false, reminder: null }
+  it('stopSync is DELETE /sync and keeps the engine envelope; a 400 keeps its sentence with no data', async () => {
+    const e = fakeEngine({ [`DELETE ${B}/sync`]: { json: env('waiting', 'Stopping after the file being fetched.', { job: JOB }) } })
+    const r = await make().client.stopSync()
+    expect(r).toMatchObject({ state: 'waiting', reason: 'Stopping after the file being fetched.', from: 'engine' })
+    expect(r.data?.job.status).toBe('running')
+    expect(e.calls[0].method).toBe('DELETE')
+    fakeEngine({ [`DELETE ${B}/sync`]: refuse(400, 'No sync is running.') })
+    expect(await make().client.stopSync()).toMatchObject({ state: 'waiting', reason: 'No sync is running.', status: 400, data: null })
+  })
+  it('assignments sends the course and show only when they are set, and returns the items, counts and read_at', async () => {
+    const e = fakeEngine({ [`GET ${B}/assignments`]: { json: env('live', '1 open: 1 is due in the next 3 days.', { items: [ASG], counts: { open: 1, turned_in: 0, late: 0, no_due_date: 0 }, read_at: '2026-11-25 09:00' }) } })
+    const g = make()
+    const r = await g.client.assignments({ course: 'c-1', show: 'all' })
+    await g.client.assignments()
+    expect([...e.calls[0].query.entries()]).toEqual([['course', 'c-1'], ['show', 'all']])
+    expect([...e.calls[1].query.entries()]).toEqual([])
+    expect(r.data?.items[0].title).toBe('Lab sheet 3')
+    expect(r.data?.read_at).toBe('2026-11-25 09:00')
+  })
+  it('a list nothing was read for is WAITING with the engine sentence and no data to draw as a number', async () => {
+    fakeEngine({ [`GET ${B}/assignments`]: { json: env('waiting', 'No coursework read yet: run a sync.', { items: [], counts: null, read_at: '' }) } })
+    const r = await make().client.assignments()
+    expect(r.state).toBe('waiting')
+    expect(r.reason).toBe('No coursework read yet: run a sync.')
+  })
+  it('open posts an empty body to the id; remind sends {at} only when a time is given', async () => {
+    const e = fakeEngine({
+      [`POST ${B}/assignments/a-1/open`]: { json: env('live', 'Opened in your browser.', {}) },
+      [`POST ${B}/assignments/a-1/remind`]: { json: env('live', 'I will remind you on 26 Nov at 18:00.', { reminder: { id: 'r-1', due: '2026-11-26T18:00', text: 'x' } }) },
+    })
+    const g = make()
+    await g.client.openAssignment('a-1')
+    const r = await g.client.remind('a-1')
+    await g.client.remind('a-1', '2026-11-26T09:30')
+    expect(e.calls.map((c) => `${c.method} ${c.path.replace(B, '')} ${JSON.stringify(c.body)}`)).toEqual([
+      'POST /assignments/a-1/open {}', 'POST /assignments/a-1/remind {}', 'POST /assignments/a-1/remind {"at":"2026-11-26T09:30"}',
+    ])
+    expect(r.data?.reminder.id).toBe('r-1')
+  })
+  it('remind keeps the 400 sentences as the engine wrote them', async () => {
+    fakeEngine({ [`POST ${B}/assignments/a-2/remind`]: refuse(400, 'This assignment has no due date; give a time.'), [`POST ${B}/assignments/a-3/remind`]: refuse(400, 'That time has passed.') })
+    const g = make()
+    expect(await g.client.remind('a-2')).toMatchObject({ state: 'waiting', reason: 'This assignment has no due date; give a time.', data: null })
+    expect((await g.client.remind('a-3')).reason).toBe('That time has passed.')
+  })
+  it('removeReminder is DELETE /api/reminders/{id} outside the gcr prefix; ok is LIVE, and a 404 sentence is kept', async () => {
+    const e = fakeEngine({ 'DELETE /api/reminders/r-1': { json: { ok: true, reminder: { id: 'r-1' } } }, 'DELETE /api/reminders/r-2': refuse(404, 'no such pending reminder') })
+    const g = make()
+    expect(await g.client.removeReminder('r-1')).toMatchObject({ state: 'live', reason: 'Reminder removed.', from: 'engine' })
+    expect(await g.client.removeReminder('r-2')).toMatchObject({ state: 'waiting', reason: 'no such pending reminder', status: 404, data: null })
+    expect(e.calls.map((c) => `${c.method} ${c.path}`)).toEqual(['DELETE /api/reminders/r-1', 'DELETE /api/reminders/r-2'])
+  })
+  it('announcements and the calendar send their filters only when set', async () => {
+    const e = fakeEngine({
+      [`GET ${B}/announcements`]: { json: env('live', 'ok', { items: [] }) },
+      [`GET ${B}/calendar`]: { json: env('live', 'ok', { items: [] }) },
+    })
+    const g = make()
+    await g.client.announcements('c-1', 5)
+    await g.client.announcements()
+    await g.client.calendar({ from: '2026-11-25', to: '2026-12-25' })
+    await g.client.calendar()
+    expect([...e.calls[0].query.entries()]).toEqual([['course', 'c-1'], ['limit', '5']])
+    expect([...e.calls[1].query.entries()]).toEqual([])
+    expect([...e.calls[2].query.entries()]).toEqual([['from', '2026-11-25'], ['to', '2026-12-25']])
+    expect([...e.calls[3].query.entries()]).toEqual([])
+  })
+  it('a calendar without its permission is a FAULT with the engine sentence, passed through', async () => {
+    fakeEngine({ [`GET ${B}/calendar`]: { json: env('fault', 'The calendar permission was not granted: connect again and tick it.', { items: [] }) } })
+    expect(await make().client.calendar()).toMatchObject({ state: 'fault', reason: 'The calendar permission was not granted: connect again and tick it.' })
+  })
+  it.each([
+    ['the product gate off', { gate: () => false }],
+    ['no token in the window', { token: () => '' }],
+  ] as const)('with %s the six new calls make no request', async (_n, over) => {
+    const e = fakeEngine({})
+    const c = make(over).client
+    await Promise.all([c.stopSync(), c.assignments(), c.openAssignment('a'), c.remind('a'), c.removeReminder('r'), c.announcements(), c.calendar()])
+    expect(e.calls).toHaveLength(0)
+  })
+})

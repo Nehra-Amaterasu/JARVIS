@@ -86,7 +86,7 @@ export function CertificatesView({ certs, today, cells, local, onConfirm, onClea
   return (
     <Frame
       simulated={simulated} view="certs" ruler="CERTIFICATES" title="Certificates" form={phone ? 'phone' : 'desk'} rootRef={rootRef} state={loaded ? 'live' : 'waiting'}
-      sub={loaded ? <>{held} held, {ordered.length - held} planned. A price is the bank's until you confirm it on the page.</> : 'Reading the certificate bank. Nothing is shown until it answers.'}
+      sub={loaded ? <>Your certificates, held ones first. Press one on the shelf to see its cost and what it covers. {held} held, {ordered.length - held} planned. A price is the bank's until you confirm it on the page.</> : 'Reading the certificate bank. Nothing is shown until it answers.'}
       v3={{ ratio: [1.7, 1.15, 1], trays: [
         { job: 'SHELF', node: shelf, peek: { name: 'One certificate', lamp: opened ? 'waiting' : 'planned', note: opened ? 'fee unconfirmed until you check it' : 'none opened' } },
         { job: 'ONE', node: opened ? <><h3 className="t2-v3-name">{opened.name}</h3><CertBody c={opened} part="one" {...bodyProps} /></> : pick, peek: { name: 'One certificate' } },

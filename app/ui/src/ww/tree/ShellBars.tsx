@@ -81,7 +81,7 @@ export function TreePicker({ value, options, onChange }: { value: string; option
   return (
     <>
       <span ref={anchor} className="ww-tree-keywrap">
-        <Button size="sm" className="ww-tree-key" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <Button size="sm" className="ww-tree-key ww-tree-pick" aria-label={`Tree ${cur ? `${cur.label} ${cur.count ?? ''}`.trim() : ''}`.trim()} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
           <span className="ww-tree-key-k">Tree</span>
           <span className="ww-tree-key-v">{cur ? `${cur.label} ${cur.count ?? ''}`.trim() : ''}</span>
           <ChevronDown size={16} aria-hidden="true" />

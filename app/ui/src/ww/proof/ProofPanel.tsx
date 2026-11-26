@@ -6,10 +6,10 @@
  * Data is read when the panel mounts, when it is opened again, and when the plan store refreshes after a log, so
  * a finished session shows in Recent without polling (a timer under 60 s would break the idle budget, 5.7.7).
  */
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePlan } from '../../germoney/game/plan'
 import { useFailureStore } from '../../germoney/stores/failure-store'
-import { Section } from '../kit'
+import { Fold, Section } from '../kit'
 import type { ProofMode } from '../frame/density'
 import { useFrame } from '../frame/frameStore'
 import { BuildingCard, GithubCard, QuestsCard, RankCard, RecentCard, StatsCard, SuggestCard, WayCard, WeeklyCard, WinsCard, type CardCtx } from './cards'
@@ -30,8 +30,17 @@ export const PROOF_CARDS = [
   { id: 'P10', hint: 'What got in the way, kept on this device', Card: WayCard },
 ] as const
 
-export function ProofPanel({ mode = 'rail' }: { mode?: ProofMode }) {
+/** The first three cards (Rank, Next steps, Stats) are the panel in the Proof drawer; the other seven sit behind one closed fold. */
+const MAIN = 3
+
+/**
+ * `tidy` is the drawer's form (25 Nov): the cards lose their boxes (proof.css, `.ww-proof-flat`), the first three stand as plain
+ * sections, and P4 to P10 wait behind one closed fold instead of ten boxes in a fold inside a sheet. The cards, their ids and
+ * their order are the same; only the wrapping differs, so a suggestion that points at a card in the fold opens the fold first.
+ */
+export function ProofPanel({ mode = 'rail', tidy = false }: { mode?: ProofMode; tidy?: boolean }) {
   const { data, reload } = useProofData()
+  const [more, setMore] = useState(false)
   const root = useRef<HTMLDivElement>(null)
 
   useEffect(() => void useFailureStore.getState().hydrate(), [])
@@ -57,24 +66,45 @@ export function ProofPanel({ mode = 'rail' }: { mode?: ProofMode }) {
   }, [planTick, reload])
 
   const showCard = useCallback((id: string) => {
-    const card = root.current?.querySelector<HTMLElement>(`[data-card="${id}"]`)
-    if (!card) return
-    card.scrollIntoView({ block: 'start' })
-    const head = card.querySelector<HTMLElement>('.ww-card-title')
-    if (head) {
-      head.tabIndex = -1
-      head.focus({ preventScroll: true })
+    const reach = () => {
+      const card = root.current?.querySelector<HTMLElement>(`[data-card="${id}"]`)
+      if (!card) return
+      card.scrollIntoView({ block: 'start' })
+      const head = card.querySelector<HTMLElement>('.ww-card-title')
+      if (head) {
+        head.tabIndex = -1
+        head.focus({ preventScroll: true })
+      }
     }
-  }, [])
+    // a card inside the closed fold has no box to scroll to until the fold is open: open it, then reach (next frame)
+    if (tidy && PROOF_CARDS.findIndex((c) => c.id === id) >= MAIN && !more) {
+      setMore(true)
+      setTimeout(reach, 0)
+      return
+    }
+    reach()
+  }, [tidy, more])
 
   const ctx: CardCtx = { data, mode, reload: reload as CardCtx['reload'], showCard }
+  const cards = (list: readonly (typeof PROOF_CARDS)[number][]) =>
+    list.map(({ id, hint, Card }) => (
+      <Section key={id} id={id} hint={hint} as="div">
+        <Card {...ctx} />
+      </Section>
+    ))
+  if (tidy) {
+    return (
+      <div ref={root} className="ww-proof ww-proof-flat" data-proof-panel="" data-mode={mode}>
+        {cards(PROOF_CARDS.slice(0, MAIN))}
+        <Fold title={`More proof (${PROOF_CARDS.length - MAIN})`} open={more} onToggle={setMore} lazy>
+          <div className="ww-proof ww-proof-more">{cards(PROOF_CARDS.slice(MAIN))}</div>
+        </Fold>
+      </div>
+    )
+  }
   return (
     <div ref={root} className="ww-proof" data-proof-panel="" data-mode={mode}>
-      {PROOF_CARDS.map(({ id, hint, Card }) => (
-        <Section key={id} id={id} hint={hint} as="div">
-          <Card {...ctx} />
-        </Section>
-      ))}
+      {cards(PROOF_CARDS)}
     </div>
   )
 }

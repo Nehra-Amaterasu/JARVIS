@@ -211,3 +211,37 @@ html[data-motion='calm'] .td-key { transition: none; }
   .td-arc-lamp, .td-more { border: 1px solid CanvasText; }
   .td-hour { stroke: Canvas; }
 }
+
+/* ---- Counters (25 Nov): a tile has its own minus and plus (44 px each), a yes or no is one tick tile, "+N more" opens in place ----
+   Two tiles a row (the tray is about 300 px wide at 1366), one on a very narrow phone; a tile is a soft tone, no hairline. */
+.td-ctiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: var(--space-2); }
+.td-ctile { min-width: 0; display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-1) var(--space-2); border-radius: var(--r-key); background: var(--surface-ground); box-shadow: var(--elev-recessed); }
+.td-ctile-name { flex: 1 1 0; min-width: 0; font: 500 13px/18px var(--font-ui); color: var(--ink-1); overflow-wrap: anywhere; }
+.td-ctile-row { flex: none; display: flex; align-items: center; gap: var(--space-1); }
+.td-ctile-n { min-width: 1.5rem; text-align: center; font: 500 20px/24px var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink-1); }
+.td-ctile-n[data-hollow] { color: var(--ink-3); }
+.td-step, .td-tick {
+  min-width: 44px; min-height: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex: none;
+  border: 0; border-radius: var(--r-key); background: var(--surface-raised); box-shadow: var(--elev-raised); color: var(--ink-1); cursor: pointer;
+  transition: transform var(--dur-feedback) var(--ease-standard);
+}
+.td-step:active, .td-tick:active { box-shadow: var(--elev-pressed); transform: translateY(1px); }
+.td-step:disabled, .td-tick:disabled { cursor: default; box-shadow: none; background: transparent; color: var(--ink-3); }
+.td-step:focus-visible, .td-tick:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.td-tick { flex: none; justify-content: flex-start; gap: var(--space-2); padding-inline: var(--space-2); }
+.td-tick[aria-pressed='true'] { background: var(--acc-soft, var(--surface-sunk)); box-shadow: var(--elev-pressed); }
+.td-tick-box { width: 1.5rem; height: 1.5rem; flex: none; display: inline-flex; align-items: center; justify-content: center; border-radius: 0.375rem; background: var(--surface-ground); box-shadow: var(--elev-recessed); }
+.td-tick[aria-pressed='true'] .td-tick-box { background: var(--ink-1); color: var(--surface-ground); box-shadow: none; }
+.td-tick-word { font: 600 13px/16px var(--font-ui); }
+.td-more-counters { margin-block-start: var(--space-2); }
+.td-ctiles-said { margin: var(--space-2) 0 0; font: 400 12px/16px var(--font-ui); color: var(--ink-1); overflow-wrap: anywhere; }
+.td-corner-keys { display: inline-flex; align-items: center; gap: var(--space-1); }
+.td-undo-n { margin-inline-start: 0.125rem; font: 600 11px/14px var(--font-mono); }
+.td-choose-body { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.td-choose-line { margin: 0; font: 400 14px/22px var(--font-ui); color: var(--ink-2); overflow-wrap: anywhere; }
+.td-choose-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.td-choose-row { display: flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: var(--space-1) var(--space-2); border-radius: var(--r-key); background: var(--surface-ground); }
+.td-choose-row[data-on='false'] .td-choose-name { color: var(--ink-3); }
+.td-choose-name { flex: 1 1 auto; min-width: 0; font: 500 14px/20px var(--font-ui); color: var(--ink-1); overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { .td-step, .td-tick { transition: none; } .td-step:active, .td-tick:active { transform: none; } }
+html[data-motion='calm'] .td-step, html[data-motion='calm'] .td-tick { transition: none; }

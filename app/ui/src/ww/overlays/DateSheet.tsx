@@ -1,7 +1,7 @@
 // O1 Date sheet (plan 4.13): one card per paper, every field labelled in words, dates and goals editable.
 // It edits the SAME `exams` draft as Setup > Dates (setup/saveModel.ts), so "Save 2 changes" here and the
 // dirty dot on the Setup page are one fact. Primary: Save N changes when something changed, else none (Close only).
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { usePlan } from '../../germoney/game/plan'
 import { EMPTY } from '../../germoney/ui'
@@ -28,6 +28,22 @@ export function countChanges(base: ExamRow[], now: ExamRow[]): number {
   }
   // what is left in `left` was removed or edited; an edit is one removed plus one added, which is one change
   return Math.max(added, left.length)
+}
+
+
+/** The unit list as the person types it. Kept as text so a comma can be typed (re-reading "1," from the numbers would
+ *  swallow it); the numbers are parsed on every key and the text is re-read only when the list changes from outside. */
+const parseUnits = (t: string) => t.split(/[,\s]+/).map(Number).filter((n) => n > 0)
+function UnitsField({ units, onUnits }: { units: number[]; onUnits: (u: number[]) => void }) {
+  const [text, setText] = useState(units.join(', '))
+  const mine = useRef(units.join(','))
+  useEffect(() => {
+    if (units.join(',') !== mine.current) { mine.current = units.join(','); setText(units.join(', ')) }
+  }, [units])
+  return (
+    <Field label="Units covered" hint="Numbers, commas. Empty is all." value={text}
+      onChange={(e) => { const u = parseUnits(e.target.value); setText(e.target.value); mine.current = u.join(','); onUnits(u) }} />
+  )
 }
 
 export function DateSheet() {
@@ -71,48 +87,59 @@ export function DateSheet() {
         return (
           <section key={i} className="ov-paper" data-paper={i} aria-label={`${name} ${kindLabel(r.kind)}`}>
             <header className="ov-paper-head">
-              <h3 className="ov-paper-title">{`${name}  ${kindLabel(r.kind)}`}</h3>
-              <label className="ov-check">
-                <input type="checkbox" checked={!!r.approx} onChange={(e) => patch(i, { approx: e.target.checked })} />
-                Tentative
-              </label>
-              <label className="ov-check">
-                <input type="checkbox" checked={!!r.may_miss} onChange={(e) => patch(i, { may_miss: e.target.checked })} />
-                I may not sit this paper
-              </label>
-              <IconButton label={`Remove ${name} ${kindLabel(r.kind)}`} size="sm" onClick={() => set(rows.filter((_, j) => j !== i))}>
-                <Trash2 size={16} aria-hidden="true" />
-              </IconButton>
+              <div className="ov-paper-top">
+                <h3 className="ov-paper-title">{`${name}  ${kindLabel(r.kind)}`}</h3>
+                <IconButton label={`Remove ${name} ${kindLabel(r.kind)}`} size="sm" onClick={() => set(rows.filter((_, j) => j !== i))}>
+                  <Trash2 size={16} aria-hidden="true" />
+                </IconButton>
+              </div>
+              <div className="ov-paper-ticks">
+                <label className="ov-check">
+                  <input type="checkbox" checked={!!r.approx} onChange={(e) => patch(i, { approx: e.target.checked })} />
+                  Tentative
+                </label>
+                <label className="ov-check">
+                  <input type="checkbox" checked={!!r.may_miss} onChange={(e) => patch(i, { may_miss: e.target.checked })} />
+                  I may not sit this paper
+                </label>
+              </div>
             </header>
-            <div className="ov-grid">
-              <div className="ov-s2">
+            {/* Four rows that wrap on their own (flex-wrap, not a six-column grid): a field never shares a column with the
+                next one's label, so nothing can run under its neighbour at 360 px or at 800 px (the 25 Nov overlap). */}
+            <div className="ov-row" data-row="subject">
+              <div className="ov-f ov-f-wide">
                 <Field label="Subject" kind="select" value={r.subject} onChange={(e) => patch(i, { subject: e.target.value, title: subjects.find((s) => s.id === e.target.value)?.name ?? r.title })}>
                   <option value="">choose a subject</option>
                   {subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   {r.subject && !subjects.some((s) => s.id === r.subject) && <option value={r.subject}>{r.subject}</option>}
                 </Field>
               </div>
-              <div className="ov-s1">
+              <div className="ov-f">
                 <Field label="Paper" kind="select" value={r.kind ?? 'other'} onChange={(e) => patch(i, { kind: e.target.value as ExamRow['kind'], max: r.max ?? (e.target.value === 'cie' ? 20 : 60) })}>
                   {KINDS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
                 </Field>
               </div>
-              <div className="ov-s2"><Field label="Date" kind="date" value={r.date} onChange={(e) => patch(i, { date: e.target.value })} /></div>
-              <div className="ov-s1">
+            </div>
+            <div className="ov-row" data-row="when">
+              <div className="ov-f ov-f-wide"><Field label="Date" kind="date" value={r.date} onChange={(e) => patch(i, { date: e.target.value })} /></div>
+              <div className="ov-f ov-f-time"><Field label="Starts" kind="time" value={r.start ?? ''} onChange={(e) => patch(i, { start: e.target.value || null })} /></div>
+              <div className="ov-f ov-f-time"><Field label="Ends" kind="time" value={r.end ?? ''} onChange={(e) => patch(i, { end: e.target.value || null })} /></div>
+            </div>
+            <div className="ov-row" data-row="aim">
+              <div className="ov-f">
                 <Field label="How hard" kind="select" value={r.difficulty ?? 'normal'} onChange={(e) => patch(i, { difficulty: e.target.value as ExamRow['difficulty'] })}>
                   <option value="easy">easy</option><option value="normal">normal</option><option value="hard">hard</option>
                 </Field>
               </div>
-              <div className="ov-s1"><Field label="Starts" kind="time" value={r.start ?? ''} onChange={(e) => patch(i, { start: e.target.value || null })} /></div>
-              <div className="ov-s1"><Field label="Ends" kind="time" value={r.end ?? ''} onChange={(e) => patch(i, { end: e.target.value || null })} /></div>
-              <div className="ov-s2">
-                <Field label="Units covered" hint="Numbers, commas. Empty is all." value={r.units.join(', ')}
-                  onChange={(e) => patch(i, { units: e.target.value.split(/[,\s]+/).map(Number).filter((n) => n > 0) })} />
-              </div>
-              <div className="ov-aim ov-s2" role="group" aria-label="Aim for">
+              <div className="ov-aim ov-f ov-f-wide" role="group" aria-label="Aim for">
                 <Field label="Aim for" kind="number" min={0} max={r.max ?? 20} value={r.target ?? ''} onChange={(e) => patch(i, { target: e.target.value === '' ? null : Number(e.target.value) })} />
                 <span className="ov-of" aria-hidden="true">of</span>
                 <Field label="Out of" kind="number" min={1} value={r.max ?? ''} onChange={(e) => patch(i, { max: e.target.value === '' ? undefined : Number(e.target.value) })} />
+              </div>
+            </div>
+            <div className="ov-row" data-row="units">
+              <div className="ov-f ov-f-full">
+                <UnitsField units={r.units} onUnits={(u) => patch(i, { units: u })} />
               </div>
             </div>
           </section>

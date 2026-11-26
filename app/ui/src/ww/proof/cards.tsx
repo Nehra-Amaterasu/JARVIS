@@ -103,7 +103,7 @@ export function SuggestCard({ data, reload, mode, showCard }: CardCtx) {
     }
   }
   return (
-    <Card data-card="P2" level={3} title="The System suggests" {...slotProps(slot, () => reload(['v2']))}>
+    <Card data-card="P2" level={3} title="The System suggests" kicker="Next steps" {...slotProps(slot, () => reload(['v2']))}>
       {v && (
         <div className="ww-proof-stack">
           {v.suggestions.length === 0 ? (

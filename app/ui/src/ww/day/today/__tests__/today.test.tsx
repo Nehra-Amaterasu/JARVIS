@@ -184,14 +184,11 @@ describe('the composed page', () => {
     expect(container.querySelector('.td-num[data-hollow]')).not.toBeNull()
   })
 
-  it('counter keys add one and Undo takes the last back; the phone form puts Now first', () => {
-    const tap = vi.fn()
-    const { container } = render(<TodayView ctx={ctxOf('day', { tapCount: tap, lastCount: 'water' })} size={{ w: 1302, h: 664 }} />)
-    click(buttons(container, /^Water: 4 today/)[0])
-    expect(tap).toHaveBeenLastCalledWith('water', 1)
-    click(buttons(container, 'Undo the last tap on Water')[0])
-    expect(tap).toHaveBeenLastCalledWith('water', -1)
-    expect(container.querySelectorAll('.td-key').length).toBeLessThanOrEqual(5)
+  it('the counters plate stands with its own tiles; the phone form puts Now first (the counter keys themselves: counters.test.tsx)', () => {
+    const { container } = render(<TodayView ctx={ctxOf('day')} size={{ w: 1302, h: 664 }} />)
+    // before the engine's own read answers, the tiles show Today's numbers and nothing can be pressed on a guess
+    expect(container.querySelectorAll('[data-callout="counters"] .td-ctile').length).toBeLessThanOrEqual(4)
+    expect(buttons(container, 'Nothing to undo yet')[0]?.disabled).toBe(true)
     cleanup()
     const { container: ph } = render(<TodayView ctx={ctxOf('day')} size={{ w: 358, h: 700 }} />)
     const first = ph.querySelector('.td[data-form="phone"] .td-plate')

@@ -10,7 +10,7 @@
 //   drawing           only the stage reads the ledger through `derived`; a node's state is never decided here.
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MutableRefObject, type PointerEvent } from 'react'
 import { showsNumber, type LampState } from '../../shared/lamp'
-import { HUB_H, HUB_W, drawPlan, labelLines, layoutTree, neighbour, type Dir } from './layout'
+import { HUB_H, HUB_W, LOD_FULL, ROW, drawPlan, labelLines, layoutTree, neighbour, type Dir } from './layout'
 import { STATES, STATE_WORD, branchGrowth, type Derived } from './ledger'
 import type { NodeDef, TreeDef } from './model'
 import { NodeGlyph, SkillNode } from './SkillNode'
@@ -43,6 +43,9 @@ export interface TreeStageProps {
   /** Size and view before anything is measured (the count test and the gallery draw a known view). */
   initialSize?: { w: number; h: number }
   initialView?: { x: number; y: number; k: number }
+  /** Draw the legend and the branch count over the stage (the classic page). The v3 page draws them as a row above the canvas, so
+   *  nothing of the key ever lies on a branch row (owner, 25 Nov: the legend hid the first row's name and labels). */
+  chrome?: boolean
 }
 
 const DIRS: Record<string, Dir> = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }
@@ -55,9 +58,27 @@ export function chainOf(tree: TreeDef, id: string | null): string[] {
   return out
 }
 
+/** A branch's plate name: the authored name, else the last part of its id. */
+export const hubName = (br: { id: string; name: string }): string => br.name.trim() || br.id.split('/').pop() || br.id
+
+/** The key to the six node states and the count of finished branches: one row. The classic page lays it over the stage; the v3 page
+ *  puts it in the canvas tray above the stage, where it cannot lie on a branch row. */
+export function TreeKey({ earned, branches, counted, className }: { earned: number; branches: number; counted: boolean; className?: string }) {
+  return (
+    <>
+      <ul className={`tg-legend${className ? ` ${className}` : ''}`} aria-label="Legend: six states, each told apart by shape and glyph">
+        {STATES.map((st) => (
+          <li key={st}><svg viewBox="-20 -20 40 40" width="28" height="28" aria-hidden="true"><NodeGlyph tier={2} state={st} /></svg><span>{STATE_WORD[st]}</span></li>
+        ))}
+      </ul>
+      <p className="tg-count" aria-live="off">{counted ? `${earned} of ${branches} branches complete` : `Branches complete: – – of ${branches}`}</p>
+    </>
+  )
+}
+
 interface Hover { id: string; x: number; y: number }
 
-export function TreeStage({ tree, derived, ledgerState, openId, onOpen, occluded, apiRef, startId = null, zoomEl = null, initialSize = { w: 846, h: 464 }, initialView }: TreeStageProps) {
+export function TreeStage({ tree, derived, ledgerState, openId, onOpen, occluded, apiRef, startId = null, zoomEl = null, initialSize = { w: 846, h: 464 }, initialView, chrome = true }: TreeStageProps) {
   const layout = useMemo(() => layoutTree(tree), [tree])
   const counted = showsNumber(ledgerState)
   const occ = useRef(false)
@@ -79,21 +100,42 @@ export function TreeStage({ tree, derived, ledgerState, openId, onOpen, occluded
   })
   const { centerOn, fit } = vp
 
-  /** Put a branch's row in view at zoom k: the whole row when it fits, else its left end (hub and seed first), in the upper part of the
-   *  stage so the rows below it show. */
+  /** Put a branch's row in view at zoom k: the whole row when it fits, else its left end (hub and seed first). The top edge of the stage is
+   *  snapped to the boundary between two rows (the row sits about a third down, never so that the row above shows as a cut sliver), so
+   *  every row that shows is whole and the first row of the tree is not half hidden (owner, 25 Nov). */
   const frameBranch = useCallback((b: number, k: number, instant = false, atX?: number) => {
     const box = layout.branchBox(b)
     const st = vp.stage.current
     const w = (st?.clientWidth || size.w) - (occ.current ? 404 : 0)
     const h = st?.clientHeight || size.h
     const vw = w / k
-    // a row wider than the stage: on a narrow stage (a phone) centre on the node asked for so it and its label are whole, else show the hub end
-    const narrow = atX !== undefined && w < 520
+    // a row wider than the stage: only on a phone-width stage (under 400 px) centre on the node asked for so it and its label are whole;
+    // on a laptop canvas (519 px at 1366) the hub end shows, hub whole. The old 520 px threshold put the 519 px stage on the phone path
+    // and cut the hub at the left edge.
+    const narrow = atX !== undefined && w < 400
     const cx = box.w <= vw ? box.x + box.w / 2 : narrow ? Math.min(box.x + box.w - vw / 2, Math.max(box.x + vw / 2, atX)) : box.x + vw / 2 - 8
-    // the row sits above the middle so the rows below show; a row's label hangs 24 to 50 units under it, so the row is placed on a whole
-    // pitch from the bottom edge and a label is never the thing the edge cuts (labels that would be cut are not drawn, see `fits`)
-    centerOn(cx, box.y + box.h / 2 + (h * 0.2) / k, k, instant)
+    const rowsAbove = Math.floor((h * 0.3) / (ROW * k))
+    const first = Math.max(0, b - rowsAbove)
+    const top = first === 0 ? layout.bounds.y : first * ROW - ROW / 2
+    centerOn(cx, top + h / (2 * k), k, instant)
   }, [layout, centerOn, size, vp.stage])
+
+  /** Bring a node into view only when it is not already comfortably in it, keeping the zoom (a click on a node must never move the node
+   *  from under the pointer: the old code re-framed the whole branch on every selection, a 67 px sideways jump at 1366 on the first click,
+   *  so the second click landed on another node or on nothing). */
+  const ensureVisible = useCallback((id: string) => {
+    const p = layout.byId.get(id)
+    if (!p) return
+    const v = vp.view.current
+    const st = vp.stage.current
+    const w = (st?.clientWidth || size.w) - (occ.current ? 404 : 0)
+    const h = st?.clientHeight || size.h
+    const sx = p.x * v.k + v.x
+    const sy = p.y * v.k + v.y
+    const inside = sx >= 28 && sx <= w - 28 && sy >= 28 && sy <= h - 28   // the whole hexagon (20 units x 2.4 at most) is in; a label the edge would cut is simply not drawn
+    if (inside) return
+    frameBranch(p.b, Math.max(v.k, LOD_FULL), false, p.x)
+  }, [layout, vp.view, vp.stage, size, frameBranch])
 
   // the first view: the row of the node the rules pick (or the first seed) at a readable zoom
   const placed = useRef(false)
@@ -101,15 +143,12 @@ export function TreeStage({ tree, derived, ledgerState, openId, onOpen, occluded
     if (!vp.ready || placed.current) return
     placed.current = true
     const p = layout.byId.get(startId ?? '') ?? layout.nodes[0]
-    if (p) frameBranch(p.b, 1.2, true, p.x)
+    if (p) frameBranch(p.b, 1.2, true, p.x)   // on a stage under 400 px (a phone) the node asked for is centred, else the hub end shows, plate whole
     else fit(true)
   }, [vp.ready, layout, startId, frameBranch, fit])
 
-  // the drawer opened or moved to another node: bring it clear of the drawer
-  useEffect(() => {
-    const p = openId ? layout.byId.get(openId) : null
-    if (p) frameBranch(p.b, Math.max(vp.view.current.k, 1.15))
-  }, [openId]) // eslint-disable-line react-hooks/exhaustive-deps
+  // a node opened or the open one changed: move the canvas only if the node is out of view (see ensureVisible)
+  useEffect(() => { if (openId) ensureVisible(openId) }, [openId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const plan = useMemo(() => drawPlan(layout, view, size, [focusId, openId]), [layout, view, size, focusId, openId])
   const ids = useMemo(() => new Set(plan.nodes), [plan])
@@ -155,7 +194,7 @@ export function TreeStage({ tree, derived, ledgerState, openId, onOpen, occluded
     const box = layout.branchBox(b)
     setActiveB(b)
     // never so far out that only hubs draw
-    frameBranch(b, Math.min(1.6, Math.max(0.6, Math.min((size.w - (occ.current ? 404 : 0) - 48) / box.w, (size.h - 48) / box.h))))
+    frameBranch(b, Math.min(1.6, Math.max(LOD_FULL, Math.min((size.w - (occ.current ? 404 : 0) - 48) / box.w, (size.h - 48) / box.h))))
     const first = tree.branches[b]?.nodes[0]
     if (first) { want.current = true; setFocusId(first.id) }
   }, [layout, frameBranch, tree, size])
@@ -206,7 +245,8 @@ export function TreeStage({ tree, derived, ledgerState, openId, onOpen, occluded
     if (!stage) return
     setHover({ id, x: (e ? e.clientX : (r?.left ?? 0) + (r?.width ?? 0) / 2) - stage.left, y: (e ? e.clientY : (r?.top ?? 0)) - stage.top })
   }
-  const hoverNode = hover ? tree.byId.get(hover.id) ?? null : null
+  // the open node is told in full by the node tray, so its pointer callout (which would lie over the next row) stays off
+  const hoverNode = hover && hover.id !== openId ? tree.byId.get(hover.id) ?? null : null
   const hoverD = hoverNode ? derived.get(hoverNode.id) : undefined
   const needs = hoverNode?.prereq ? tree.byId.get(hoverNode.prereq)?.name : null
 
@@ -225,12 +265,6 @@ export function TreeStage({ tree, derived, ledgerState, openId, onOpen, occluded
     const bottom = (p.y + r + 24 + 13 * (lines.length - 1) + 6) * k + view.y
     return sx - hw * k >= EDGE && sx + hw * k <= size.w - EDGE && top >= EDGE && bottom <= size.h - EDGE
   }
-  const hubFits = (h: { x: number; y: number }): boolean => {
-    const k = view.k
-    const sx = h.x * k + view.x
-    const sy = h.y * k + view.y
-    return sx >= EDGE && sx + HUB_W * k <= size.w - EDGE && sy - (HUB_H / 2) * k >= EDGE && sy + (HUB_H / 2) * k <= size.h - EDGE
-  }
   return (
     <div className="ww-tree-stage tg-stage" ref={vp.stage} data-moving="false" data-band={plan.band}>
       <svg ref={vp.svg} className="tg-svg" {...vp.handlers} role="group" data-band={plan.band}
@@ -247,14 +281,18 @@ export function TreeStage({ tree, derived, ledgerState, openId, onOpen, occluded
               const br = tree.branches[b]
               const h = layout.hubById.get(br.id)!
               const gb = groups[b]
-              const lines = labelLines(br.name, 16)
+              // a branch with no authored name shows its id's last part, plain: a row is never an unnamed plate. The name is always drawn
+              // (a row cut by the stage edge is part of a pannable canvas); the old rule drew it only when the whole plate was inside the
+              // stage, so the two rows at the bottom showed "3 nodes" and nothing else (owner picture, 25 Nov).
+              const shown = hubName(br)
+              const lines = labelLines(shown, 16).slice(0, 2)
               return (
                 <g key={br.id} className="tree-hub" role="button" tabIndex={focusId === br.id ? 0 : -1} data-id={br.id} data-dim={activeB !== null && activeB !== b ? 'true' : undefined} data-reserved={br.reserved ? 'true' : undefined}
-                  transform={`translate(${h.x},${h.y})`} aria-label={`${br.name} branch, ${counted ? `${gb.earned} of ${gb.total} nodes evidenced` : `${gb.total} nodes, evidence not counted`}. Enter zooms to it.`}
+                  transform={`translate(${h.x},${h.y})`} aria-label={`${shown} branch, ${counted ? `${gb.earned} of ${gb.total} nodes evidenced` : `${gb.total} nodes, evidence not counted`}. Enter zooms to it.`}
                   onClick={() => { focusTo(br.id, false); toBranch(b) }}>
                   <rect className="hub-face" x={0} y={-HUB_H / 2} width={HUB_W} height={HUB_H} rx={16} />
-                  {hubFits(h) && <text className="hub-name" x={14} y={lines.length > 1 ? -4 : 4}>{lines.map((l, i) => <tspan key={i} x={14} dy={i ? 14 : 0}>{l}</tspan>)}</text>}
-                  <text className="hub-n" x={HUB_W - 14} y={4} textAnchor="end" data-hollow={counted ? undefined : 'true'}>{counted ? `${gb.earned}/${gb.total}` : `${gb.total} nodes`}</text>
+                  <text className="hub-name" x={14} y={lines.length > 1 ? -12 : -4}>{lines.map((l, i) => <tspan key={i} x={14} dy={i ? 14 : 0}>{l}</tspan>)}</text>
+                  <text className="hub-n" x={14} y={lines.length > 1 ? 21 : 17} data-hollow={counted ? undefined : 'true'}>{counted ? `${gb.earned}/${gb.total}` : `${gb.total} nodes`}</text>
                 </g>
               )
             })}
@@ -281,12 +319,7 @@ export function TreeStage({ tree, derived, ledgerState, openId, onOpen, occluded
           {needs && <span>Needs: {needs}</span>}
         </div>
       )}
-      <ul className="tg-legend" aria-label="Legend: six states, each told apart by shape and glyph">
-        {STATES.map((s) => (
-          <li key={s}><svg viewBox="-20 -20 40 40" width="28" height="28" aria-hidden="true"><NodeGlyph tier={2} state={s} /></svg><span>{STATE_WORD[s]}</span></li>
-        ))}
-      </ul>
-      <p className="tg-count" aria-live="off">{counted ? `${earnedBranches} of ${groups.length} branches complete` : `Branches complete: – – of ${groups.length}`}</p>
+      {chrome && <TreeKey earned={earnedBranches} branches={groups.length} counted={counted} />}
     </div>
   )
 }

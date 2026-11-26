@@ -43,6 +43,47 @@
 :root[data-look='v3'] .tg-v3 .sp-cap { text-align: left; align-self: center; }
 :root[data-look='v3'] .tg-v3 .tg-ledger { flex: none; }
 
+/* ---- 25 Nov, owner: "tree is glitching in clicking on the node" and the legend lay on the first row ----
+   The key (six states and the branch count) is its own row above the stage, in flow, so it never lies on a branch row; the stage
+   takes what is left. The row wraps to a second line when the canvas tray is narrow (617 px at 1366). */
+:root[data-look='v3'] .tg-v3 .tg-stagewrap { grid-template-rows: auto minmax(0, 1fr); }
+:root[data-look='v3'] .tg-v3 .tg-keyrow { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--space-3); min-width: 0; }
+:root[data-look='v3'] .tg-v3 .tg-keyrow .tg-legend { position: static; gap: 0 var(--space-2); }
+:root[data-look='v3'] .tg-v3 .tg-keyrow .tg-legend li { gap: var(--space-1); }
+:root[data-look='v3'] .tg-v3 .tg-keyrow .tg-legend svg { width: 1.5rem; height: 1.5rem; }
+:root[data-look='v3'] .tg-v3 .tg-keyrow .tg-count { position: static; font: 500 0.6875rem/1rem var(--font-mono); }
+
+/* one toolbar row at 1366 (Grove, tree, Branches, Next need 576 px of the 583): the word "Tree" is on the key's accessible name, and the open
+   tree's name says what the key is. The zoom and pan keys wrap to a second column instead of running past the stage's foot. */
+:root[data-look='v3'] .tg-v3 .ww-tree-pick .ww-tree-key-k { display: none; }
+:root[data-look='v3'] .tg-v3 .tg-controls { max-height: 100%; flex-wrap: wrap; align-content: flex-start; }
+
+/* a chosen node is obvious: the tint of the open project's colour inside the hexagon, a ring of that colour and a second thin ring round it.
+   The focus ring is the thin outer ring's colour, so a node that is both chosen and focused shows both; no rectangle round the label. */
+:root[data-look='v3'] .tg-v3 .sn { outline: none; }
+:root[data-look='v3'] .tg-v3 .sn[data-selected='true'] { stroke: var(--hue); }
+:root[data-look='v3'] .tg-v3 .sn[data-selected='true'] .sn-ring,
+:root[data-look='v3'] .tg-v3 .sn[data-selected='true']:focus-visible .sn-ring { stroke: var(--hue); stroke-width: 3; }
+:root[data-look='v3'] .tg-v3 .sn-compact[data-selected='true'] { fill: var(--acc-soft); stroke: var(--hue); stroke-width: 3; }
+:root[data-look='v3'] .tg-v3 .sn-tint { fill: var(--acc-soft); stroke: none; pointer-events: none; }
+:root[data-look='v3'] .tg-v3 .sn-halo { fill: none; stroke: var(--hue); stroke-width: 1.5; pointer-events: none; }
+:root[data-look='v3'] .tg-v3 .sn:focus-visible .sn-halo { stroke: var(--focus-ring); stroke-width: 2.5; }
+:root[data-look='v3'] .tg-v3 .tree-hub:focus-visible { outline: none; }
+:root[data-look='v3'] .tg-v3 .tree-hub:focus-visible .hub-face { stroke: var(--focus-ring); stroke-width: 2.5; }
+
+/* the node tray: the glyph and the close key in one row, the name under them across the whole tray. The old grid gave the close key the
+   glyph's 56 px column and the name fell into a 90 px column, one word to a line (measured at 1366: "Namin g ten comm on biase s"); a
+   3-column header would still leave the name 111 px of the 242. The ASCII banner is decoration. */
+:root[data-look='v3'] .tg-v3 .nd-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'glyph close' 'title title'; align-items: center; gap: var(--space-2) var(--space-3); }
+:root[data-look='v3'] .tg-v3 .nd-banner { display: none; }
+:root[data-look='v3'] .tg-v3 .nd-glyph { grid-area: glyph; }
+:root[data-look='v3'] .tg-v3 .nd-title { grid-area: title; }
+:root[data-look='v3'] .tg-v3 .nd-head .nd-close { grid-area: close; position: static; inset: auto; justify-self: end; }
+:root[data-look='v3'] .tg-v3 .nd-name { overflow-wrap: break-word; hyphens: auto; }
+
+/* the ledger's title brackets (+--[ ]--) are terminal decoration; the title, the lamp word and the reason stay */
+:root[data-look='v3'] .tg-v3 .tg-ledger-head .tg-ascii { display: none; }
+
 @media (max-width: 43.75rem) {
   :root[data-look='v3'] .tg-v3 .s3-body { overflow-y: visible; }
   :root[data-look='v3'] .tg-v3 .tg-stagewrap { min-height: 22rem; }

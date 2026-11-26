@@ -112,3 +112,13 @@
   :root[data-look='v3'] .tv3-line { font-size: 1.375rem; }
   :root[data-look='v3'] .tv3-first .tv3-why { display: none; }
 }
+
+/* ---- phone: a tray that opens as a bottom sheet scrolls as a whole ----
+   .tv3 is flex: 1 with min-height: 0 so on the desk it shares the tray's height. In a sheet that let a long list (the counters, six tiles)
+   overflow its own box and run under the sheet's Done key (390 x 844: the plus of "Glasses of water" could not be pressed). Natural height
+   in a sheet makes the sheet itself scroll and keeps Done after the last line. */
+:root[data-look='v3'] .s3-tray[data-sheet='open'] .tv3 { flex: none; }
+/* measured at 390 x 844: .s3-body (the shell's) is flex: 1 1 0% with overflow visible, so it stayed 446 px tall around 684 px of content and
+   the Done key, which follows it, lay over the last tiles. A body holding a Day tray takes its natural height in the sheet. The same rule
+   belongs in shell-v3.css for every view (listed in the report); :has keeps this one to trays built on .tv3. */
+:root[data-look='v3'] .s3-tray[data-sheet='open'] .s3-body:has(> .tv3) { flex: none; }

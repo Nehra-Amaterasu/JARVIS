@@ -150,6 +150,50 @@ def reels_pending(log: dict, today: str) -> dict:
     return {"queued_today": queued, "due": due, "total": queued + due}
 
 
+# ---- the counter row's layout (R-63, EW9): which counters show and in what order, one choice for every device ----
+# The page kept this in the browser's localStorage, so the phone and the desktop disagreed. It now lives in the plan
+# state as {"shown": [...], "order": [...]}. `order` is stored whole (every counter known when he saved), so a counter
+# added in Settings later is recognisable as new: it goes to the end and is shown, since he never chose to hide it.
+def counter_ids(inputs: dict) -> list[str]:
+    """The configured counters in their Settings order (the defaults when none are typed)."""
+    return [str(c["id"]) for c in (((inputs.get("life") or {}).get("counters")) or DEFAULT_COUNTERS)]
+
+
+def _id_list(raw, field: str, ids: list[str]) -> list[str]:
+    if not isinstance(raw, list) or not all(isinstance(x, str) for x in raw):
+        raise ValueError(f"{field} is a list of counter ids")
+    unknown = [x for x in raw if x not in ids]
+    if unknown:
+        raise ValueError(f"no such counter: {', '.join(sorted(set(unknown)))}")
+    return list(dict.fromkeys(raw))          # a repeated id counts once, at its first place
+
+
+def clean_layout(payload: dict, ids: list[str], stored: Optional[dict] = None) -> dict:
+    """PUT body -> what is stored. Unknown ids are refused (ValueError -> 400); a counter missing from `order`
+    keeps its place at the end; a field left out keeps what was there (or the default)."""
+    if not isinstance(payload, dict) or ("shown" not in payload and "order" not in payload):
+        raise ValueError("a layout needs shown, order or both")
+    now = layout(stored, ids)
+    order = _id_list(payload["order"], "order", ids) if "order" in payload else now["order"]
+    order += [i for i in ids if i not in order]
+    shown = _id_list(payload["shown"], "shown", ids) if "shown" in payload else now["shown"]
+    return {"shown": [i for i in order if i in shown], "order": order}
+
+
+def layout(stored: Optional[dict], ids: list[str]) -> dict:
+    """The layout as the page should draw it today. No saved layout: every counter shown, in Settings order.
+    A saved id that Settings no longer has is dropped; a counter Settings gained since is appended and shown."""
+    stored = stored if isinstance(stored, dict) else {}
+    saved_order = [i for i in stored.get("order") or [] if isinstance(i, str)]
+    if not saved_order:
+        return {"shown": list(ids), "order": list(ids)}
+    order = [i for i in dict.fromkeys(saved_order) if i in ids]
+    new = [i for i in ids if i not in saved_order]
+    shown = {i for i in stored.get("shown") or [] if isinstance(i, str)} | set(new)
+    order += new
+    return {"shown": [i for i in order if i in shown], "order": order}
+
+
 ENGINE = EngineSpec(
     name="life", version=1, fn=life,
     about="The day in taps: counters with a gentle weekly taper, meals, media and reels with an explain-back.",

@@ -19,12 +19,16 @@ Tasks (each with its own prompt file and output check):
   quiz_from_text  a sheet section -> three recall questions with short answers
   parse_day       a sentence about the day + his counter ids -> counts per counter
   summarise       any text (a reel caption, an article) -> five lines + three questions
+  question_drafts passages of his notes -> exam questions only (R-50)
+  variant_descriptive  one of his questions -> new wordings of it, text only (R-29)
+  rubric_points   one of his questions and its marks -> the points a marker looks for (R-32)
 """
 from __future__ import annotations
 
 import json
 import os
 import re
+import unicodedata
 import urllib.request
 from pathlib import Path
 from typing import Callable, Optional
@@ -32,7 +36,7 @@ from typing import Callable, Optional
 PROMPTS = Path(__file__).with_name("prompts")
 OLLAMA = "http://127.0.0.1:11434"
 DEFAULT_MODEL = "qwen3:4b-instruct-2507-q4_K_M"
-TASKS = ("grade_explain", "quiz_from_text", "parse_day", "summarise", "question_drafts")
+TASKS = ("grade_explain", "quiz_from_text", "parse_day", "summarise", "question_drafts", "variant_descriptive", "rubric_points")
 MAX_INPUT = 12000
 
 Provider = Callable[[str, str], str]      # (system, user) -> model text
@@ -132,10 +136,90 @@ def _check_drafts(data: dict, fields: dict) -> Optional[dict]:
     return {"questions": out[:5]} if out else None
 
 
+# A forecast is never the model's to make (plan 9.2.5): words that say how often or how surely something is set are
+# refused in any text it writes, as is a mark count it put into the wording itself ("(5 marks)", "[5 M]").
+_FORECAST = re.compile(r"\b(?:probab\w*|likel\w*|chance\w*|predict\w*|forecast\w*|expected|important\w*|frequently asked|sure to (?:come|appear))\b", re.I)
+_MARKS_IN_TEXT = re.compile(r"[\(\[]\s*\d+(?:\.\d+)?\s*(?:marks?|m)\s*[\)\]]", re.I)
+# an answer after other words, with or without a colon ("Final answer: 8 kHz", "the answer is 8 kHz")
+_ANSWER_IN_TEXT = re.compile(r"\b(?:answer|solution|key)\s*:|\banswer\s+(?:is|=)", re.I)
+_ZERO_WIDTH = re.compile(r"[­​-‏⁠﻿]")
+
+
+def _plain(text: str) -> str:
+    """The text the checks read (the stored text is left as written): NFKC folds full-width letters and colons to ASCII
+    and zero-width marks are dropped, so "Ａｎｓｗｅｒ：" or "Ans​wer:" cannot slip past an ASCII pattern (review, 27 Nov)."""
+    return _ZERO_WIDTH.sub("", unicodedata.normalize("NFKC", text))
+_VARIANT_BANNED_KEYS = _DRAFT_BANNED_KEYS + ("unit", "difficulty", "chance", "confidence", "numbers", "value", "values")
+
+
+def _check_variants(data: dict, fields: dict) -> Optional[dict]:
+    """{"variants": [text]} from the model's answer, or None. Refused whole, as for drafts, when it brings anything but the
+    wording of a question: an answer or key (a descriptive variant carries no key at all, so a number it computed can never
+    pose as one), a grade, marks of its own, a topic or unit of its own, or a forecast word."""
+    if set(data) - {"variants"} or not isinstance(data.get("variants"), list):
+        return None
+    # a word the original question itself uses ("the expected value of X", "the probability of error") is its subject, not a forecast
+    own = {w.lower() for w in _FORECAST.findall(str(fields.get("stem") or ""))}
+    out = []
+    for v in data["variants"]:
+        if isinstance(v, dict):
+            if any(str(k).lower() in _VARIANT_BANNED_KEYS for k in v) or set(v) - {"text", "question"}:
+                return None
+            v = v.get("text") or v.get("question")
+        if not isinstance(v, str):
+            return None
+        v = re.sub(r"\s+", " ", v).strip()
+        p = _plain(v)
+        if (_DRAFT_BANNED_TEXT.match(p) or _ANSWER_IN_TEXT.search(p)
+                or any(w.lower() not in own for w in _FORECAST.findall(p)) or _MARKS_IN_TEXT.search(p)):
+            return None
+        if 15 <= len(v) <= 600 and re.search(r"[A-Za-z]{3}", v):
+            out.append(v)
+    return {"variants": out[:3]} if out else None
+
+
+_RUBRIC_BANNED_KEYS = ("answer", "answers", "solution", "solutions", "key", "grade", "score", "probability", "likelihood",
+                       "topic", "topics", "total", "student", "awarded")
+
+
+def _check_rubric(data: dict, fields: dict) -> Optional[dict]:
+    """{"points": [{text, marks}]} with 1 to 6 points, or None. The points may add up to something other than the question's
+    marks: that is not refused here but shown to him with the difference (ww_pyq/rubric.py), because a split he can fix by
+    hand is still a draft worth reading. What is refused whole: a point with no marks or marks over the question's, a full
+    answer or a grade, anything that scores a student, and a forecast word."""
+    if set(data) - {"points"} or not isinstance(data.get("points"), list) or not 1 <= len(data["points"]) <= 6:
+        return None
+    try:
+        total = float(fields.get("marks"))
+    except (TypeError, ValueError):
+        return None
+    own = {w.lower() for w in _FORECAST.findall(str(fields.get("stem") or ""))}
+    out = []
+    for p in data["points"]:
+        if not isinstance(p, dict) or set(p) - {"text", "marks"} or any(str(k).lower() in _RUBRIC_BANNED_KEYS for k in p):
+            return None
+        text, marks = p.get("text"), p.get("marks")
+        if not isinstance(text, str) or isinstance(marks, bool) or not isinstance(marks, (int, float)):
+            return None
+        text = re.sub(r"\s+", " ", text).strip()
+        if not 3 <= len(text) <= 300 or not 0 < marks <= total:
+            return None
+        p = _plain(text)
+        if (_DRAFT_BANNED_TEXT.match(p) or _ANSWER_IN_TEXT.search(p) or any(w.lower() not in own for w in _FORECAST.findall(p))
+                or re.search(r"\b(?:the student|you) (?:scored|got|gets|earned)\b", p, re.I)):
+            return None
+        out.append({"text": text, "marks": round(float(marks), 2)})
+    return {"points": out}
+
+
 def check_output(task: str, data: dict, fields: dict) -> Optional[dict]:
     """The validated answer for a task, or None when the model's JSON has the wrong shape."""
     if task == "question_drafts":
         return _check_drafts(data, fields)
+    if task == "variant_descriptive":
+        return _check_variants(data, fields)
+    if task == "rubric_points":
+        return _check_rubric(data, fields)
     if task == "grade_explain":
         score = _clean_int(data.get("score"), 0, 3)
         missing = [str(x)[:200] for x in data.get("missing") or [] if str(x).strip()][:5]

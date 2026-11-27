@@ -58,6 +58,11 @@ export const loadWwShell: (() => Promise<WwShellBridge>) | null = import.meta.en
   }))
   : null
 
+/** Setup under the v3 shell (R18): the page, and the call that shows one of its panes. A mounting file may name a Well Wisher module; ShellV3 may not. */
+export const loadWwSetup: (() => Promise<{ default: ComponentType; showSetupPane: (pane: string) => void }>) | null = import.meta.env.VITE_PRODUCT !== 'jarvis'
+  ? () => import('./ww/setup/SetupV3')
+  : null
+
 export const loadJarvisRegistry: (() => Promise<Registry>) | null = import.meta.env.VITE_PRODUCT !== 'ww'
   ? () => import('./jarvis/planned').then((m) => m.jarvisRegistry)
   : null

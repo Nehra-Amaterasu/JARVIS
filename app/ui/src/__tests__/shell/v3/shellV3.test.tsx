@@ -1,6 +1,6 @@
 // The v3 shell rendered through ShellV2's one branch in happy-dom: the contracts the rest of the app finds the shell by, the
 // spine, the top plate, the lamp pill, the dock and the keyboard paths. The look is switched on the way a person does it.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, createElement } from 'react'
 import { mount } from '../../ww/_stubs'
 import ShellV2 from '../../../shell/ShellV2'
@@ -9,6 +9,10 @@ import { resetShellForTests, useShell } from '../../../shell/store'
 import { resetPortsForTests } from '../../../shell/ports'
 import { setViewsForTests } from '../../../shell/views'
 import { useStore } from '../../../lib/store'
+
+// the Setup page is a lazy chunk of the panes, the plan store and their routes: these tests are about the place, the row and the keys, so the chunk is
+// a stub (the page itself is proved by ww/setup tests and by e2e/setup-v3.spec.ts)
+vi.mock('../../../ww/setup/SetupV3', () => ({ default: () => null, showSetupPane: () => undefined }))
 
 const stub = (id: string) => () => createElement('div', { 'data-stub': id }, `stub ${id}`)
 const PAGES = Object.fromEntries(['core', 'limbs', 'aankhen', 'yaadash', 'connect', 'system'].map((t) => [t, stub(t)]))
@@ -88,6 +92,52 @@ describe('the branch', () => {
     expect(ground.getAttribute('aria-hidden')).toBe('true')
     // nothing else in the shell sets a backdrop filter inline
     expect(qa('[style*="backdrop"]').filter((e) => e !== ground)).toHaveLength(0)
+  })
+})
+
+describe('Setup (R18): the page the older frame kept behind Alt+6', () => {
+  const at = () => [q('.s2-page')!.dataset.section, q('.s2-page')!.dataset.view]
+
+  it('is a row at the foot of the Well Wisher group, and the row opens it with its own hash', async () => {
+    await render()
+    click(q('.s3-head[data-project="wellwisher"]'))
+    const row = qa('.s3-slot .s3-item').pop()!
+    expect(row.dataset.section).toBe('setup')
+    expect(row.getAttribute('aria-keyshortcuts')).toBe('Alt+6')
+    click(row)
+    expect(at()).toEqual(['app', 'setup'])
+    expect(location.hash).toBe('#setup')
+    expect(q('.s3-item[data-section="setup"]')!.getAttribute('aria-current')).toBe('page')
+    // Well Wisher stays the open project, on its light ground, and no other row claims to be the place
+    expect(qa('.s3-grp').filter((g) => g.dataset.open === 'true').map((g) => g.dataset.p)).toEqual(['wellwisher'])
+    expect(q('.s3')!.dataset.ground).toBe('light')
+    expect(qa('.s3-item[aria-current="page"]')).toHaveLength(1)
+    expect(q('.s3-loc-s')!.textContent).toBe('Setup')
+  })
+
+  it('Alt+6 opens it from anywhere (the key of the older frame for Setup)', async () => {
+    await render()
+    expect(section()).toBe('core')
+    key('6', { altKey: true, code: 'Digit6' })
+    expect(at()).toEqual(['app', 'setup'])
+  })
+
+  it('#setup and #setup/<pane> open it; a hash of another place leaves it', async () => {
+    history.replaceState(null, '', '/#setup/subjects')
+    await render()
+    expect(at()).toEqual(['app', 'setup'])
+    act(() => { location.hash = '#today'; window.dispatchEvent(new HashChangeEvent('hashchange')) })
+    expect(at()).toEqual(['day', 'today'])
+  })
+
+  it('does not change the ten sections: Alt+Down still walks them and never stops on Setup', async () => {
+    await render()
+    const seen: string[] = []
+    for (let i = 0; i < 10; i++) {
+      key('ArrowDown', { altKey: true })
+      seen.push(section()!)
+    }
+    expect(seen).not.toContain('app')
   })
 })
 
@@ -182,7 +232,8 @@ describe('the spine', () => {
     expect(section()).toBe('day')
     expect(q('.s3')!.dataset.ground).toBe('light')
     expect(document.documentElement.getAttribute('data-theme')).toBe('clay-light')
-    expect(qa('.s3-item').map((b) => b.dataset.section)).toEqual(['day', 'focus', 'study', 'tree', 'career'])
+    // Setup (R18) is the last row of Well Wisher: a real place of the shell's own, not one of the ten sections
+    expect(qa('.s3-item').map((b) => b.dataset.section)).toEqual(['day', 'focus', 'study', 'tree', 'career', 'setup'])
   })
 
   it('every section of the ten is reachable by pointer through the spine', async () => {
@@ -191,7 +242,7 @@ describe('the spine', () => {
     for (const proj of ['jarvis', 'aankhen', 'yadaash', 'wellwisher']) {
       const tile = q(`.s3-head[data-project="${proj}"]`) // the open multi-section tile is not a key: it is already open
       if (tile) click(tile)
-      for (const b of qa('.s3-item:not(.s3-extra)')) {
+      for (const b of qa('.s3-item:not(.s3-extra):not([data-section="setup"])')) {
         click(b)
         seen.add(section()!)
       }

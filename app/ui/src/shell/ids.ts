@@ -54,8 +54,23 @@ export function sectionById(id: string): SectionDef | undefined {
  * every merged component (A.N01, mounted by the shell, D-V2-23). Not views of the table: never counted in 36.
  */
 export const APP_SECTION = 'app'
-export const APP_PLACES: Readonly<Record<string, string>> = { new: 'What is new' }
+export const APP_PLACES: Readonly<Record<string, string>> = { new: 'What is new', setup: 'Setup' }
 export const APP_NEW = 'app.new'
+/**
+ * Setup (R18, 27 Nov). The older frame had it as the sixth workspace (Alt+6); under v3 it is the shell's own place `app.setup` of
+ * Well Wisher, not a section of the table: the table stays at ten sections and 36 views, Ctrl+1..5 and Alt+Up/Down are unchanged,
+ * and an app place is never written to the resume record or the saved place, so a restart opens where work was, not on settings.
+ */
+export const APP_SETUP = 'app.setup'
+
+export function isSetupPlace(p: { section: string; view: string }): boolean {
+  return p.section === APP_SECTION && p.view === 'setup'
+}
+
+/** The place `app.setup`, always of Well Wisher: the product owns the settings. */
+export function setupPlace(): Place {
+  return { product: 'ww', section: APP_SECTION, view: 'setup' }
+}
 
 export function isAppPlace(p: { section: string }): boolean {
   return p.section === APP_SECTION

@@ -185,10 +185,22 @@ button.ik-door:focus-visible, .ik-row:focus-visible, .ik-pg:focus-visible, .ik-o
   .ik-door, .ik-ledger, .ik-detail, .ik-pg, .ik-sheet, .ik-empty, .ik-well, .ik-paste, .ik-select { border: 1px solid CanvasText; box-shadow: none; }
   .ik-plate { border: 1px dashed var(--line-ui); }
   .ik-row[aria-current='true'] { border: 2px solid Highlight; }
-  .ik-row:focus-visible, button.ik-door:focus-visible, .ik-pg:focus-visible, .ik-select:focus-visible { outline-color: Highlight; }
+  .ik-row:focus-visible, button.ik-door:focus-visible, .ik-pg:focus-visible, .ik-select:focus-visible, .ik-input:focus-visible { outline-color: Highlight; }
 }
 
 /* ---------------------------------------------------------------- gallery boxes (the shell canvas size) */
 .c03-box { position: relative; box-sizing: border-box; inline-size: 1230px; max-inline-size: 100%; block-size: 664px; display: grid; }
 @media (max-width: 1179px) { .c03-box { block-size: auto; } }
 .c03-parts { display: grid; gap: 1rem; max-inline-size: 640px; }
+
+/* ---------------------------------------------------------------- what the store set aside, and the per-entry keys of the export door */
+.ik-problems { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.25rem; max-inline-size: 60ch; text-align: start; }
+.ik-problems li { font: 12px/1.4 var(--font-mono, ui-monospace, monospace); color: var(--ink-1); overflow-wrap: anywhere; }
+.ik-problem-note { margin: 0; flex: 1 1 100%; min-inline-size: 0; font: 12px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-2); overflow-wrap: anywhere; }
+.ik-path { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.5rem; align-items: center; }
+.ik-input { box-sizing: border-box; inline-size: 100%; min-inline-size: 0; block-size: 44px; padding: 0 0.75rem; border: 0; border-radius: var(--r-ctl, 0.875rem); background: var(--surface-sunk); box-shadow: var(--elev-recessed); color: var(--ink-1); font: 13px/1.2 var(--font-mono, ui-monospace, monospace); }
+.ik-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.ik-entries li.ik-entry { grid-template-columns: minmax(0, 1fr) auto; row-gap: 0.25rem; padding-block: 0.5rem; }
+.ik-entry .ik-entry-meta { text-align: start; grid-column: 1; }
+.ik-entry .ik-entry-act { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.ik-entry .ik-entry-say { grid-column: 1 / -1; margin: 0; display: flex; align-items: center; gap: 0.5rem; font: 12px/1.4 var(--font-ui, system-ui, sans-serif); color: var(--ink-1); }

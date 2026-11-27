@@ -44,14 +44,15 @@ export function IcsBody({ desk, now, onRows, onDecline, onClose, initialText }: 
         <div className="ik-result" role="status" data-component="ics-reading">
           <p className="ik-result-head">
             <Lamp reading={readingOf({ state: res.state, reason: res.reason })} />
-            <span>{res.data ? `${items.length} event${items.length === 1 ? '' : 's'} read, ${res.data.skipped} skipped` : `Not read: ${res.reason}`}</span>
+            <span>{res.data ? `${items.length} event${items.length === 1 ? '' : 's'} read, ${res.data.skipped} skipped${res.data.past ? `, ${res.data.past} already over` : ''}` : `Not read: ${res.reason}`}</span>
           </p>
+          {res.data && <p className="ik-sheet-note">{res.reason}</p>}
           {res.data && (
             <ul className="ik-entries" aria-label="Events in the file">
               {items.map((r) => (
                 <li key={r.id}>
                   <span className="ik-entry-name">{r.title}</span>
-                  <span className="ik-entry-meta">{r.repeats ? `${dueWords(r.date, r.time, now)}, repeats, not expanded` : dueWords(r.date, r.time, now)}</span>
+                  <span className="ik-entry-meta">{r.repeats ? `${dueWords(r.date, r.time, now)}, repeats, ${r.repeatsWord ?? 'not expanded'}` : dueWords(r.date, r.time, now)}</span>
                   <Switch checked={keep[r.id] !== false} onChange={(v) => setKeep((k) => ({ ...k, [r.id]: v }))} label={`Keep ${r.title}`} />
                 </li>
               ))}

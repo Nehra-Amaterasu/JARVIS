@@ -50,11 +50,11 @@ export const COURSES: CourseRow[] = [
 export const ARCHIVE: ArchiveListing = {
   id: 'a1', name: 'classroom-export.zip',
   entries: [
-    { id: 'e1', name: 'week1-slides.pdf', size: 912_000 },
-    { id: 'e2', name: 'week2-slides.pdf', size: 1_050_000 },
-    { id: 'e3', name: 'tutorial-sheet.pdf', size: 220_000 },
-    { id: 'e4', name: 'recording.mp4', size: 52_000_000, refused: 'a video is not read' },
-    { id: 'e5', name: '../outside.pdf', size: 4_000, refused: 'a path that leaves the archive is refused' },
+    { id: 'week1-slides.pdf', name: 'week1-slides.pdf', size: 912_000, kind: 'pdf' },
+    { id: 'week2-slides.pptx', name: 'week2-slides.pptx', size: 1_050_000, kind: 'pptx' },
+    { id: 'tutorial-sheet.pdf', name: 'tutorial-sheet.pdf', size: 220_000, kind: 'pdf' },
+    { id: 'recording.mp4', name: 'recording.mp4', size: 52_000_000, kind: 'other' },
+    { id: '../outside.pdf', name: '../outside.pdf', size: 4_000, kind: 'pdf', refused: 'a path that leaves the archive is refused' },
   ],
 }
 
@@ -174,6 +174,7 @@ export function makeFixtureDesk(o: FixtureDeskOptions = {}): IntakeDeskPort {
       return ok(next)
     },
     archive: async () => ok(ARCHIVE, 'a fixture listing, not a real export'),
+    archivePath: async () => ok(ARCHIVE, 'a fixture listing, not a real export'),
     queueArchive: async (_id, ids) => ok({ queued: ids.length }),
   }
 }

@@ -12,6 +12,8 @@ import { canAccept, dueWords, provenanceLine, readingWords, sizeWords, type Draf
 import { ProvenanceChip } from './ProvenanceChip'
 import type { IntakeRow, SubjectOption } from './types'
 
+/** The engine's word for how an ambiguous date was read, in his words. */
+const ORDER_WORD: Record<string, string> = { 'day-month': ', day first', 'month-day': ', month first' }
 const STATE_WORD = { new: 'New, waiting for you', accepted: 'Accepted', declined: 'Declined', taken: 'Sent for reading' } as const
 
 export interface IntakeDetailProps {
@@ -23,7 +25,8 @@ export interface IntakeDetailProps {
   onAccept: (row: IntakeRow, draft: Draft) => void
   onDecline: (row: IntakeRow) => void
   onTake: (row: IntakeRow, to: 'papers' | 'notes') => void
-  onBack: (row: IntakeRow) => void
+  /** Absent when the store keeps a decision (no way back to new): the keys then change the decision to the other one. */
+  onBack?: (row: IntakeRow) => void
   onRemove: (row: IntakeRow) => void
 }
 
@@ -64,7 +67,7 @@ export function IntakeDetail({ row, subjects, now, head, onAccept, onDecline, on
             <dd>{row.ambiguous && !row.date ? (draft.date ? readingWords(draft.date, now) : 'not chosen') : dueWords(row.date, row.time, now)}</dd>
           </div>
         )}
-        {row.repeats && <div><dt>Repeats</dt><dd>not expanded</dd></div>}
+        {row.repeats && <div><dt>Repeats</dt><dd>{row.repeatsWord ?? 'not expanded'}</dd></div>}
         {isFile && row.file && <div><dt>File</dt><dd>{sizeWords(row.file.size)}{row.file.owned ? ', a copy the app holds' : ', in your folder'}</dd></div>}
         {!isNew && <div><dt>State</dt><dd>{STATE_WORD[row.state]}</dd></div>}
       </dl>
@@ -74,7 +77,7 @@ export function IntakeDetail({ row, subjects, now, head, onAccept, onDecline, on
           label={COPY.chooseDate}
           value={dateChoice}
           onChange={(v) => setDraft((d) => ({ ...d, date: v }))}
-          options={row.readings.map((r) => ({ id: r, label: readingWords(r, now) }))}
+          options={row.readings.map((r, i) => ({ id: r, label: `${readingWords(r, now)}${ORDER_WORD[row.readingOrders?.[i] ?? ''] ?? ''}` }))}
         />
       )}
       <div className="ik-subject">
@@ -104,7 +107,9 @@ export function IntakeDetail({ row, subjects, now, head, onAccept, onDecline, on
             <Button size="lg" onClick={() => onDecline(row)}>Decline<kbd className="ik-key" aria-hidden="true">D</kbd></Button>
           </>
         )}
-        {!isNew && <Button size="lg" onClick={() => onBack(row)}>Back to new<kbd className="ik-key" aria-hidden="true">U</kbd></Button>}
+        {!isNew && onBack && <Button size="lg" onClick={() => onBack(row)}>Back to new<kbd className="ik-key" aria-hidden="true">U</kbd></Button>}
+        {!onBack && row.state === 'declined' && !isFile && <Button size="lg" onClick={() => onAccept(row, { ...draft, subject })}>Accept instead</Button>}
+        {!onBack && row.state === 'accepted' && !isFile && <Button size="lg" onClick={() => onDecline(row)}>Decline instead</Button>}
       </div>
       {sure && <p id="ik-remove-note" className="ik-detail-note" role="status">Press Remove again to confirm. {COPY.removeNote}</p>}
       <p className="ik-detail-lamp"><Lamp reading={readingOf(head)} /></p>

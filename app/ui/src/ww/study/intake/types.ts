@@ -25,11 +25,15 @@ export interface IntakeRow {
   time: string | null
   /** Two readings ("03/04" is a 3 April or a 4 March) when the date is ambiguous; empty otherwise. */
   readings: string[]
+  /** The engine's word for how each reading was taken ("day-month" or "month-day"), parallel to `readings`; absent for the designed fixtures. */
+  readingOrders?: string[]
   ambiguous: boolean
   /** The confirmed subject id, or "". A suggestion is never applied by itself. */
   subject: string
   suggestion: { subject: string; score: number } | null
   repeats: boolean
+  /** The engine's word when a row repeats ("expanded" or "not expanded"); the designed fixtures leave it out and mean "not expanded". */
+  repeatsWord?: string
   file: { name: string; size: number; owned: boolean } | null
   /** The line or file name the item was read from, when the store kept it. Shown as provenance; absent is said, not invented. */
   raw?: string
@@ -53,14 +57,17 @@ export interface CourseRow {
 
 export interface UnreadLine { line: number; text: string; reason: string }
 export interface PasteResult { items: IntakeRow[]; unread: UnreadLine[] }
-export interface IcsResult { items: IntakeRow[]; skipped: number }
-export interface ArchiveEntry { id: string; name: string; size: number; refused?: string }
-export interface ArchiveListing { id: string; name: string; entries: ArchiveEntry[] }
+export interface IcsResult { items: IntakeRow[]; skipped: number; /** events already over, left out by the engine */ past?: number }
+/** An entry of a Classroom export. `id` is the entry's name: R-47 takes names, and the engine gives no other id. `kind` is the engine's (pdf, pptx or other). */
+export interface ArchiveEntry { id: string; name: string; size: number; kind?: 'pdf' | 'pptx' | 'other'; refused?: string }
+export interface ArchiveListing { id: string; name: string; entries: ArchiveEntry[]; totalSize?: number; note?: string }
 
 export interface DecidePatch {
   state: IntakeState
   date?: string
   subject?: string
+  title?: string
+  time?: string
 }
 
 /** The lamp state and reason a whole screen shows for its data. */

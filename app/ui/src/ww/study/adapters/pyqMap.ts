@@ -125,7 +125,7 @@ export function traceEvents(trace: ETrace[] | undefined, startedAt: number, idPr
 export const METHOD: Record<string, 'text-layer' | 'ocr' | 'pasted' | 'slides'> = { 'text-layer': 'text-layer', slides: 'slides', ocr: 'ocr', mixed: 'ocr', typed: 'pasted' }
 
 // ------------------------------------------------------------------------------------------------ patterns, blueprints, generated paper, check
-export interface EPatterns { n_papers?: number; topics?: { key?: string; unit?: number; topic?: string; k?: number }[] }
+export interface EPatterns { n_papers?: number; n_questions?: number; topics?: { key?: string; unit?: number; topic?: string; k?: number }[] }
 export function patternSet(p: EPatterns | undefined): PatternSet {
   const topics: Topic[] = []
   const topicCounts: Record<string, number> = {}
@@ -137,8 +137,31 @@ export function patternSet(p: EPatterns | undefined): PatternSet {
   return { topics, papers: num(p?.n_papers) ?? 0, topicCounts }
 }
 
-export interface EGain { key?: string; reason?: string }
-export const gainItems = (items: EGain[] | undefined): GainItem[] => (items ?? []).filter((i) => i.key).map((i) => ({ topicId: str(i.key), reason: str(i.reason) }))
+export interface ETerms { marks_weight?: unknown; seen_share?: unknown; proficiency?: unknown; measured?: unknown; minutes?: unknown; syllabus_weight?: unknown }
+export interface EGain { key?: string; reason?: string; terms?: ETerms | null }
+const SYLLABUS_WORD: Record<number, string> = { 3: 'high', 2: 'medium', 1: 'low' }
+
+/** R-17's printed terms as plain words, the engine's numbers as sent and nothing added; a term the engine did not send is left out. */
+export function termsText(t: ETerms | null | undefined): string {
+  if (!t || typeof t !== 'object') return ''
+  const parts: string[] = []
+  const mw = num(t.marks_weight)
+  if (mw !== null) parts.push(`marks weight ${mw.toFixed(2)}`)
+  const share = num(t.seen_share)
+  if (share !== null) parts.push(`set in ${Math.round(share * 100)} % of papers`)
+  const prof = num(t.proficiency)
+  if (prof !== null) parts.push(t.measured === true ? `proficiency ${prof.toFixed(2)} from your marks` : `proficiency ${prof.toFixed(2)}, not measured yet`)
+  const sw = num(t.syllabus_weight)
+  if (sw !== null) parts.push(`syllabus weight ${sw} of 3${SYLLABUS_WORD[sw] ? ` (${SYLLABUS_WORD[sw]})` : ''}`)
+  const min = num(t.minutes)
+  if (min !== null) parts.push(`about ${Math.round(min)} min`)
+  return parts.join('; ')
+}
+
+export const gainItems = (items: EGain[] | undefined): GainItem[] => (items ?? []).filter((i) => i.key).map((i) => {
+  const terms = termsText(i.terms)
+  return { topicId: str(i.key), reason: str(i.reason), ...(terms ? { terms } : {}) }
+})
 
 export function blueprint(bp: EBlueprint, examId: string, label: string): Blueprint {
   return {

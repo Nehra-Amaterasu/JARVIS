@@ -35,7 +35,7 @@ type Outcome = 'done' | 'stopped'
 interface Mock {
   scanFaults: string[]; scanQuestions: Record<string, unknown>[]
   job: Record<string, unknown> | null; polls: number; outcome: Outcome; startError: { status: number; detail: string } | null; stopping: boolean
-  draftMode: 'waiting' | 'planned' | 'live'; drafts: Record<string, unknown>[]; calls: string[]; uploadName: string
+  patterns: 'live' | 'provisional'; draftMode: 'waiting' | 'planned' | 'live'; drafts: Record<string, unknown>[]; calls: string[]; uploadName: string
 }
 const DRAFT = (id: string, over: Record<string, unknown> = {}) => ({
   id, subject: 'signals', unit: 2, topic: 'Sampling', text: 'State the sampling theorem and name one condition it needs to hold.', marks: null, status: 'pending', origin: 'model-draft',
@@ -43,7 +43,7 @@ const DRAFT = (id: string, over: Record<string, unknown> = {}) => ({
 })
 const newMock = (): Mock => ({
   scanFaults: [...SCAN_FAULTS], scanQuestions: [], job: null, polls: 0, outcome: 'done', startError: null, stopping: false,
-  draftMode: 'waiting', drafts: [], calls: [], uploadName: '',
+  patterns: 'live', draftMode: 'waiting', drafts: [], calls: [], uploadName: '',
 })
 
 function crc32(b: Buffer): number {
@@ -138,7 +138,15 @@ async function installMock(page: Page, m: Mock) {
       return json({ state: 'live', reason: `${items.length} questions.`, source: 'your papers', items, count: items.length, total: items.length })
     }
     if (path.startsWith('/crops/')) return route.fulfill({ status: 200, contentType: 'image/png', body: FAKE_CROP })
-    if (path === '/patterns') return json({ state: 'live', reason: 'ok', source: 'your papers', patterns: { n_papers: 3, topics: [{ key: '2|Sampling', unit: 2, topic: 'Sampling', k: 2 }, { key: '2|Aliasing', unit: 2, topic: 'Aliasing', k: 1 }] } })
+    if (path === '/patterns') {
+      // R-16 under its floor: WAITING with the counts still present and provisional true
+      if (m.patterns === 'provisional') return json({ state: 'waiting', reason: 'Too few papers to show a pattern: 1 more paper, 17 more reviewed questions.', source: 'your papers', provisional: true, floor: { papers: 3, questions: 20, papers_needed: 1, questions_needed: 17 }, patterns: { n_papers: 2, n_questions: 3, topics: [{ key: '2|Sampling', unit: 2, topic: 'Sampling', k: 2, n: 2 }] } })
+      return json({ state: 'live', reason: 'ok', source: 'your papers', provisional: false, patterns: { n_papers: 3, n_questions: 24, topics: [{ key: '2|Sampling', unit: 2, topic: 'Sampling', k: 2 }, { key: '2|Aliasing', unit: 2, topic: 'Aliasing', k: 1 }] } })
+    }
+    if (path === '/practise-next') {
+      if (m.patterns === 'provisional') return json({ state: 'waiting', reason: 'Too few papers to show a pattern.', source: 'your papers', provisional: true, items: [], count: 0 })
+      return json({ state: 'live', reason: '1 topic fits the gap.', source: 'your papers', provisional: false, items: [{ key: '2|Sampling', unit: 2, topic: 'Sampling', gain: 0.21, terms: { marks_weight: 0.31, seen_share: 0.8, proficiency: 0.5, measured: false, minutes: 12, syllabus_weight: 3 }, question_ids: ['qa'], reason: 'set in 2 of 3 papers on file; no marked attempts' }], count: 1 })
+    }
     if (path === '/ocr' && method === 'GET') {
       if (m.job && m.job.status === 'running') {
         m.polls++
@@ -218,11 +226,8 @@ async function closeSheet(page: Page) {
 }
 const choosePaper = async (page: Page, name: string) => {
   await openTray(page, /^Papers/i)
-  // the import tray opens on hover and would lie over the list under a pointer resting at the pill; a finger leaves no hover
-  await page.mouse.move(page.viewportSize()!.width / 2, 130)
+  // no pointer workaround: on a touch-width screen the import tray no longer opens under a resting pointer
   await page.locator('.pp-paper', { hasText: name }).first().click()
-  await closeSheet(page)
-  await openTray(page, /^Detail/i)
 }
 
 const shot = async (page: Page, name: string, w: number) => {
@@ -280,7 +285,16 @@ for (const { w, h } of SIZES) {
       await choosePaper(page, 'Mock paper A')
       const key = page.getByRole('button', { name: /Read with OCR/ })
       await expect(key).toBeVisible()
-      await expect(page.locator('.pp-faults')).toContainText('p. 3: no text layer; run OCR on this paper')
+      await expect(page.locator('.pp-ocr-hint')).toContainText('6 pages have no text layer: 2, 3, 4, 5, 6, 7.')
+      // the key is inside the visible part of its own tray: no scrolling to reach it (the third tray used to push it under the fold)
+      const where = await key.evaluate((el) => {
+        const tray = el.closest('.s3-tray, [data-sheet]') as HTMLElement
+        const k = el.getBoundingClientRect(); const t = tray.getBoundingClientRect()
+        return { top: k.top - t.top, bottom: t.bottom - k.bottom, vh: window.innerHeight - k.bottom }
+      })
+      expect(where.top, 'key below the tray top').toBeGreaterThanOrEqual(0)
+      expect(where.bottom, 'key above the tray bottom').toBeGreaterThanOrEqual(0)
+      expect(where.vh, 'key inside the window').toBeGreaterThanOrEqual(0)
       await measure(page, 'scanned paper', problems)
       await shot(page, '01-scanned-paper-ocr-key', w)
 
@@ -373,7 +387,9 @@ for (const { w, h } of SIZES) {
       await installMock(page, m)
       await openDesk(page, baseURL, w, h)
       await choosePaper(page, 'Mock paper B')
-      await page.getByRole('button', { name: 'Draft questions from my notes' }).click()
+      await closeSheet(page)
+      await openTray(page, /^Drafts/i)
+      await expect(page.getByRole('button', { name: 'Draft questions from my notes' })).toHaveAttribute('aria-expanded', 'true')
       const draftKey = page.getByRole('button', { name: 'Draft', exact: true })
       await expect(draftKey).toBeVisible()
       await expect(page.locator('.pp-drafts')).toContainText('Say which topic first.')
@@ -423,16 +439,48 @@ for (const { w, h } of SIZES) {
       await second.getByRole('button', { name: 'Edit then accept' }).click()
       await second.locator('textarea').fill('A tone sampled below its Nyquist rate is folded. Say what the samples then show.')
       await second.getByLabel('Marks').fill('4')
+      // the unit and the topic can be corrected before accepting
+      await second.locator('.pp-draft-where input').nth(0).fill('3')
+      await second.locator('.pp-draft-where input').nth(1).fill('Aliasing')
       await second.scrollIntoViewIfNeeded()
       await shot(page, '11-draft-editing', w)
       await second.getByRole('button', { name: 'Accept edited' }).click()
       await expect(second).toContainText('Accepted by you after an edit')
-      expect(m.calls.some((c) => c.startsWith('PATCH /drafts/d-2') && c.includes('"text":"A tone sampled'))).toBe(true)
+      expect(m.calls.some((c) => c.startsWith('PATCH /drafts/d-2') && c.includes('"text":"A tone sampled') && c.includes('"unit":3') && c.includes('"topic":"Aliasing"'))).toBe(true)
       await measure(page, 'drafts decided', problems)
       await noVerifiedClaim(page, '.pp-drafts', 'drafts decided', problems)
 
       m.drafts.push(DRAFT('d-3', { text: 'Invented third draft about a filter before the sampler.' }))
       await page.getByRole('button', { name: 'Draft', exact: true }).click()
+      expect(errors, 'page errors').toEqual([])
+      expect(problems).toEqual([])
+    })
+
+    test('the first tray: provisional counts are a note and draw no pattern; a live pattern shows the engine order with its terms', async ({ page, baseURL }) => {
+      const problems: string[] = []
+      const errors: string[] = []
+      page.on('pageerror', (e) => errors.push(String(e)))
+      const m = newMock()
+      m.patterns = 'provisional'
+      await installMock(page, m)
+      await openDesk(page, baseURL, w, h)
+      await expect(page.locator('.pp-prov')).toContainText('3 questions in 2 papers so far: too few to call a pattern.')
+      await expect(page.locator('.pp-prov')).toContainText('1 more paper, 17 more reviewed questions')
+      // no topic row, no suggestion and no weight is drawn from the provisional counts
+      await expect(page.locator('.pp-strata')).not.toContainText('Sampling')
+      await expect(page.locator('.pp-next')).toHaveCount(0)
+      await expect(page.locator('[data-component="paper-desk"]')).toHaveAttribute('data-state', 'live')
+      await shot(page, '13-provisional-counts-note', w)
+      // the mock reads m.patterns on every call, so a fresh load of the desk sees the live pattern
+      m.patterns = 'live'
+      await page.goto('about:blank')
+      await openDesk(page, baseURL, w, h)
+      await expect(page.locator('.pp-prov')).toHaveCount(0)
+      await expect(page.locator('.pp-strata')).toContainText('Sampling')
+      await expect(page.locator('.pp-next')).toContainText('Practise next, in the engine')
+      await expect(page.locator('.pp-next')).toContainText('syllabus weight 3 of 3 (high)')
+      await expect(page.locator('.pp-next')).toContainText('proficiency 0.50, not measured yet')
+      await shot(page, '14-practise-next-terms', w)
       expect(errors, 'page errors').toEqual([])
       expect(problems).toEqual([])
     })
@@ -449,8 +497,6 @@ for (const { w, h } of SIZES) {
       await page.locator('input[type="file"][aria-label="Choose paper files"]').setInputFiles({ name: 'mock-paper-a.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer: Buffer.from('PK invented') })
       await expect(page.locator('.pp-notice').first()).toContainText(WORD_SENTENCE, { timeout: 20_000 })
       expect(m.uploadName).toBe('mock-paper-a.docx')
-      await closeSheet(page)
-      await openTray(page, /^Detail/i)
       await expect(page.locator('.pp-notice').first()).toContainText('Word is not installed')
       await shot(page, '12-word-paper-failed-sentence', w)
       await page.locator('input[type="file"][aria-label="Choose paper files"]').setInputFiles({ name: 'notes.exe', mimeType: 'application/octet-stream', buffer: Buffer.from('x') })

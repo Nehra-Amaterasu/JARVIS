@@ -5,6 +5,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { usePlan } from '../../../germoney/game/plan'
 import { switchWorkspace } from '../../frame/navigate'
 import { showsNumber } from '../../../shared/lamp'
+import { lookV3Enabled } from '../../../shell/v3'
+import { LedgerFace } from '../ledger/LedgerView'
+import { Faces } from '../tonight/shared'
 import { STUDY_PORT, type StudyPort } from '../ports'
 import { useStudy } from '../studyStore'
 import { Waiting } from '../library/Waiting'
@@ -28,7 +31,18 @@ export function useRetention(port: StudyPort): RetentionReading {
   return r
 }
 
+/** Under the v3 look the Plan view has two faces (package N2): today's plan as it was, and the counted ledger of the syllabus. */
 export default function PlanView({ port = STUDY_PORT }: { port?: StudyPort }) {
+  if (!lookV3Enabled()) return <PlanToday port={port} />
+  return (
+    <Faces first="today" label="Plan faces" className="tsh-plan" faces={[
+      { id: 'today', label: 'Today', node: <PlanToday port={port} /> },
+      { id: 'ledger', label: 'Ledger', node: <LedgerFace /> },
+    ]} />
+  )
+}
+
+function PlanToday({ port }: { port: StudyPort }) {
   const today = usePlan((s) => s.today)
   const reroll = usePlan((s) => s.reroll)
   const choose = usePlan((s) => s.choose)

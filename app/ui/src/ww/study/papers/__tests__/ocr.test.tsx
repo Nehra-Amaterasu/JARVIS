@@ -72,10 +72,12 @@ describe('OCR panel', () => {
     const f = fake()
     m = mount(<OcrPanel client={f.client} paper={SCAN} />)
     await flush(0)
-    expect(text()).toContain('p. 3: no text layer; run OCR on this paper')
+    // the pages with no text layer are one line beside the key, with their numbers; every other line is printed as the engine wrote it
+    expect(text()).toContain('2 pages have no text layer: 3, 4.')
     expect(text()).toContain('p. 6: read at confidence 0.71, below 0.85; left as a picture')
     expect(byText('button', 'Read with OCR')).toBeTruthy()
-    expect(text()).toContain('2 pages have no text layer')
+    // the key comes before the lines
+    expect(q('.pp-ocr')!.firstElementChild!.className).toBe('pp-ocr-act')
   })
   it('a paper with nothing to read and no job draws nothing', async () => {
     const f = fake()

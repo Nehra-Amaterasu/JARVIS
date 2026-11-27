@@ -2,7 +2,7 @@
  * The marks of the v3 shell. The state glyph and the small utility marks are drawn here; the project and section icons are lucide
  * (25 Nov: the abstract drawn glyphs were hard to tell apart), chosen in this file only. Presentational only. The state glyph follows spec section 6: a shape per state so that colour only helps.
  */
-import { AudioLines, BookMarked, BookOpen, Bot, Brain, Briefcase, CalendarDays, Compass, Gauge, House, Mic, PanelLeftClose, PanelLeftOpen, Sprout, Star, Target, Waves, Wifi, type LucideIcon } from 'lucide-react'
+import { AudioLines, BookMarked, BookOpen, Bot, Brain, Briefcase, CalendarDays, Compass, Gauge, House, Mic, PanelLeftClose, PanelLeftOpen, SlidersHorizontal, Sprout, Star, Target, Waves, Wifi, type LucideIcon } from 'lucide-react'
 import type { LampState } from '../../shared/lamp/types'
 import type { SubProjectId } from './subprojects'
 
@@ -67,6 +67,7 @@ const SECTION_ICON: Record<string, LucideIcon> = {
   senses: Waves,
   memory: BookMarked,
   agents: Bot,
+  setup: SlidersHorizontal,
   day: CalendarDays,
   focus: Target,
   study: BookOpen,

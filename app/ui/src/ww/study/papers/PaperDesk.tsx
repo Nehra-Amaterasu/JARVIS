@@ -9,7 +9,7 @@ import { Lamp, readingOf, showsNumber, type LampState } from '../../../shared/la
 import { lookV3Enabled, Zones } from '../../../shell/v3'
 import { pyqClient } from '../adapters/pyq.register'
 import type { PyqClient } from '../adapters/types'
-import { STUDY_PORT, type IngestRoute, type PaperRow, type QueuedFile, type QuestionRow, type RouteId, type StudyPort, type Topic, type TraceEvent } from '../ports'
+import { STUDY_PORT, type GainItem, type IngestRoute, type PaperRow, type QueuedFile, type QuestionRow, type RouteId, type StudyPort, type Topic, type TraceEvent } from '../ports'
 import { ReviewDesk } from '../review/ReviewDesk'
 import { COPY, FOOTER } from './copy'
 import { CoverageLedger, EMPTY_COVERAGE } from './CoverageLedger'
@@ -17,6 +17,7 @@ import { DraftsPanel } from './DraftsPanel'
 import { ExtractionTrace } from './ExtractionTrace'
 import { ImportTray } from './ImportTray'
 import { OcrPanel } from './OcrPanel'
+import { PractiseNext, ProvisionalNote, type ProvisionalCounts } from './PatternNotes'
 import { PAPER_ACCEPT } from './PaperDrop'
 import { PaperStrata } from './PaperStrata'
 import { cellsOf, coverageOf } from './strataModel'
@@ -39,6 +40,10 @@ export interface DeskData {
   queued: QueuedFile[]
   routes: IngestRoute[]
   lastRun: number | null
+  /** R-17's picks with the engine's terms as words (LIVE only). Optional so a fixture need not carry them. */
+  gains?: GainItem[]
+  /** R-16 answered WAITING with the counts still present: a note under the grid, never a pattern. */
+  provisional?: ProvisionalCounts | null
 }
 
 export const WAITING_ROUTES: IngestRoute[] = [
@@ -52,9 +57,12 @@ export const EMPTY_DATA: DeskData = { state: 'waiting', reason: 'the paper engin
 
 /** Read the desk's data through the port. A WAITING answer keeps its reason; nothing is invented to fill the gap. */
 export async function loadDesk(port: StudyPort): Promise<DeskData> {
-  const [p, q, pat] = await Promise.all([port.papers(), port.questions(), port.patterns()])
+  const [p, q, pat, gain] = await Promise.all([port.papers(), port.questions(), port.patterns(), port.practiseNext?.() ?? Promise.resolve(null)])
   const ok = (s: LampState) => showsNumber(s)
-  const first = [p, q, pat].find((r) => !ok(r.state)) ?? p
+  // fewer than 3 papers or 20 counted questions: the patterns answer WAITING with the counts still present. The desk keeps its own
+  // state (the papers are on file and countable) and prints the counts as a note, so that answer does not hollow the whole desk.
+  const prov = pat.data?.provisional && !ok(pat.state) ? { papers: pat.data.papers, questions: pat.data.questions ?? 0, reason: pat.reason } : null
+  const first = [p, q, pat].find((r) => !ok(r.state) && !(r === pat && prov)) ?? p
   if (!ok(p.state) || !p.data) return { ...EMPTY_DATA, state: p.state, reason: p.reason }
   return {
     ...EMPTY_DATA,
@@ -63,6 +71,8 @@ export async function loadDesk(port: StudyPort): Promise<DeskData> {
     papers: p.data,
     questions: ok(q.state) && q.data ? q.data : [],
     topics: ok(pat.state) && pat.data ? pat.data.topics : [],
+    gains: gain && ok(gain.state) && gain.data ? gain.data : [],
+    provisional: prov,
   }
 }
 
@@ -208,7 +218,7 @@ export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, cl
             job: 'COVERAGE',
             flare: waitingTotal > 0 ? 1 : 0,
             children: (
-              <div className="pp3-col">
+              <div className="pp3-col pp3-cover">
                 {face === 'classic' ? (
                   <div className="pp-classic pp3-classic">
                     {faceSwitch}
@@ -229,6 +239,7 @@ export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, cl
                         onOpen={(qid) => { const q = d.questions.find((x) => x.id === qid); if (q) { setSel(q.paperId); openReview(qid) } }}
                       />
                     </div>
+                    {d.provisional && <ProvisionalNote counts={d.provisional} />}
                     <div className="pp-detail-act">
                       <PrimaryButton
                         claimId="paper-desk-review"
@@ -241,6 +252,9 @@ export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, cl
                         {waitingTotal > 0 ? COPY.reviewCta(reviewPaper ? waitingOf(reviewPaper) || waitingTotal : waitingTotal) : 'Review desk'}
                       </PrimaryButton>
                     </div>
+                    <CoverageLedger coverage={coverage} state={d.state} reason={d.reason} now={now} />
+                    <PractiseNext items={d.gains ?? []} topics={d.topics} />
+                    {d.events.length > 0 && <ExtractionTrace events={d.events} max={3} />}
                   </>
                 )}
                 <p className="pp-foot pp3-foot"><span>{FOOTER}</span></p>
@@ -251,7 +265,28 @@ export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, cl
             job: 'PAPERS',
             peek: { name: 'Papers', lamp: d.state, note: sorted.length ? `${sorted.length} on file` : 'nothing on file yet' },
             children: (
-              <div className="pp3-col">
+              <div className="pp3-col pp3-papers">
+                {/* the paper he is acting on comes first, so the OCR key is on screen without scrolling; the list scrolls under it */}
+                {chosen ? (
+                  <div className="pp-detail pp3-chosen">
+                    <h2>{chosen.label}</h2>
+                    <dl className="pp-facts pp-facts-row">
+                      <div><dt>Questions read</dt><dd>{live ? chosen.questions : '--'}</dd></div>
+                      <div><dt>Reviewed</dt><dd>{live ? `${chosen.questions - waitingOf(chosen)} of ${chosen.questions}` : '--'}</dd></div>
+                      <div><dt>Pages</dt><dd>{live ? chosen.pages : '--'}</dd></div>
+                    </dl>
+                    <Lamp reading={readingOf({ state: d.state, reason: d.reason })} />
+                    <OcrPanel client={client} paper={chosen} onFinished={reload} />
+                  </div>
+                ) : (
+                  <div className="pp-detail pp-detail-none pp3-chosen"><p>{sorted.length ? COPY.noPaper : 'Nothing on file yet.'}</p></div>
+                )}
+                {notice && (
+                  <p className="pp-notice" role="status" data-state={notice.state}>
+                    <Lamp reading={readingOf({ state: notice.state, reason: notice.text })} />
+                    <span>{notice.text}</span>
+                  </p>
+                )}
                 <nav className="pp-list pp3-list" aria-label="Papers on file">
                   {sorted.length === 0 ? (
                     <p className="pp-list-empty">{live ? 'No papers on file.' : `Waiting: ${d.reason}`}</p>
@@ -293,35 +328,12 @@ export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, cl
             ),
           }}
           third={{
-            job: 'DETAIL',
-            peek: { name: 'Detail', lamp: d.state, note: chosen ? chosen.label : 'no paper chosen' },
+            job: 'DRAFTS',
+            peek: { name: 'Drafts', lamp: d.state, note: 'written from your notes' },
             children: (
               <div className="pp3-col pp3-detail">
                 {face === 'desk' && faceSwitch}
-                {chosen ? (
-                  <div className="pp-detail">
-                    <h2>{chosen.label}</h2>
-                    <dl className="pp-facts">
-                      <div><dt>Questions read</dt><dd>{live ? chosen.questions : '--'}</dd></div>
-                      <div><dt>Reviewed</dt><dd>{live ? `${chosen.questions - waitingOf(chosen)} of ${chosen.questions}` : '--'}</dd></div>
-                      <div><dt>Pages</dt><dd>{live ? chosen.pages : '--'}</dd></div>
-                    </dl>
-                    <Lamp reading={readingOf({ state: d.state, reason: d.reason })} />
-                  </div>
-                ) : (
-                  <div className="pp-detail pp-detail-none"><p>{sorted.length ? COPY.noPaper : 'Nothing on file yet.'}</p></div>
-                )}
-                {chosen && <OcrPanel client={client} paper={chosen} onFinished={reload} />}
-                {notice && (
-                  <p className="pp-notice" role="status" data-state={notice.state}>
-                    <Lamp reading={readingOf({ state: notice.state, reason: notice.text })} />
-                    <span>{notice.text}</span>
-                  </p>
-                )}
-                <DraftsPanel client={client} subject={chosen?.subject} topics={d.topics} onAccepted={reload} />
-                {/* what he acts on comes first (the paper, its OCR key, the upload notice); the ledger is reference and follows */}
-                <CoverageLedger coverage={coverage} state={d.state} reason={d.reason} now={now} />
-                {d.events.length > 0 && <ExtractionTrace events={d.events} max={3} />}
+                <DraftsPanel client={client} subject={chosen?.subject} topics={d.topics} onAccepted={reload} defaultOpen />
               </div>
             ),
           }}
@@ -355,6 +367,8 @@ export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, cl
               selectedYear={chosen?.year ?? null}
               onOpen={(qid) => { const q = d.questions.find((x) => x.id === qid); if (q) { setSel(q.paperId); openReview(qid) } }}
             />
+            {d.provisional && <ProvisionalNote counts={d.provisional} />}
+            <PractiseNext items={d.gains ?? []} topics={d.topics} />
           </div>
 
           <div className="pp-col pp-col-list">

@@ -25,7 +25,7 @@ import { openOverlay } from '../frame/overlayRegistry'
 import { SetupCard } from './forms'
 import { Harvester } from './Harvester'
 import { dirtyIds, useSetup } from './saveModel'
-import { SECTION_LABEL } from './inputs'
+import { SECTION_LABEL, type SectionId } from './inputs'
 import {
   AboutSection, AttendanceSection, DeadlinesSection, GoalsSection, StudySection, SubjectsSection, TimetableSection,
 } from './sectionsInputs'
@@ -66,14 +66,12 @@ function View({ id, view, children }: { id: string; view: string; children: Reac
   return <div className="su-view" data-view-of={id} hidden={view !== id}>{children}</div>
 }
 
-export function SetupPage() {
+/** Everything a Setup page does when it mounts and while it lives: read the inputs once, follow the plan, carry the frame's dirty dot and
+ *  guard a window close. Shared by the older frame's page and the v3 host, so the two can never save differently. It never saves, and
+ *  never resets a field: opening Setup changes nothing the owner has typed. */
+export function useSetupLifecycle(): { dirty: SectionId[]; view: string } {
   const refresh = useSetup((s) => s.refresh)
   const syncPlan = useSetup((s) => s.syncPlan)
-  const saveAll = useSetup((s) => s.saveAll)
-  const saving = useSetup((s) => s.saving)
-  const report = useSetup((s) => s.report)
-  const source = useSetup((s) => s.source)
-  const load = useSetup((s) => s.load)
   const draft = useSetup((s) => s.draft)
   const dirty = dirtyIds(draft)
   const n = dirty.length
@@ -106,78 +104,133 @@ export function SetupPage() {
     window.addEventListener('beforeunload', guard)
     return () => window.removeEventListener('beforeunload', guard)
   }, [n])
+  return { dirty, view }
+}
 
+/** The index of the sections. `onPick` runs after the section is shown (the v3 host opens the phone sheet from it). */
+export function SetupIndex({ view, dirty, onPick }: { view: string; dirty: SectionId[]; onPick?: (anchor: string) => void }) {
+  return (
+    <nav className="su-index" aria-label="Setup sections">
+      <ol>
+        {INDEX.map(([a, label]) => (
+          <li key={a}>
+            <button type="button" className="su-index-btn ww-tap" data-index={a} aria-current={view === a ? 'true' : undefined} onClick={() => { goToSection(a); onPick?.(a) }}>
+              {label}
+              {sectionDirty(a, dirty) && <span className="su-dot" role="img" aria-label="unsaved changes" />}
+            </button>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  )
+}
+
+/** The save bar: what will be saved, Discard all, and the one Save key. */
+export function SetupSaveBar({ dirty }: { dirty: SectionId[] }) {
+  const saveAll = useSetup((s) => s.saveAll)
+  const saving = useSetup((s) => s.saving)
+  const n = dirty.length
+  return (
+    <div className="su-savebar" role="region" aria-label="Save">
+      <span className="su-savebar-text" data-save-state={n > 0 ? 'dirty' : 'clean'}>
+        {n === 0 ? 'Save: nothing to save' : `${n} section${n === 1 ? '' : 's'} changed: ${dirty.map((d) => SECTION_LABEL[d]).join(', ')}`}
+      </span>
+      {n > 0 && (
+        <Button size="sm" onClick={() => openOverlay('confirm', {
+          title: 'Discard all changes?',
+          body: `${n} unsaved section${n === 1 ? '' : 's'} will go back to what is saved.`,
+          confirmLabel: 'Discard',
+          destructive: true,
+          onConfirm: () => useSetup.getState().discard(),
+        })}>Discard all</Button>
+      )}
+      <PrimaryButton claimId="setup-save" rank="workspace" when={n > 0} loading={saving} disabled={n === 0}
+        onClick={() => void saveAll()}>{n === 0 ? 'Save' : `Save ${n} change${n === 1 ? '' : 's'}`}</PrimaryButton>
+    </div>
+  )
+}
+
+/** What the last save did, in the server's own words. */
+export function SetupReport() {
+  const report = useSetup((s) => s.report)
+  if (!report || (report.failed.length === 0 && report.dropped.length === 0 && report.saved.length === 0)) return null
+  return (
+    <div className="su-report" role="status" data-save-report="">
+      {report.saved.length > 0 && <p>{`Saved: ${report.saved.map((d) => SECTION_LABEL[d]).join(', ')}. The engines use it from now on.`}</p>}
+      {report.failed.map((f) => <p key={f.id}>{`Error: ${SECTION_LABEL[f.id]} was not saved: ${f.why}.`}</p>)}
+      {report.dropped.map((d) => <p key={d}>{`Ignored by the server: ${d}`}</p>)}
+    </div>
+  )
+}
+
+/** The honest line while the engines still read the fictional example. */
+export function SetupExample() {
+  const source = useSetup((s) => s.source)
+  const load = useSetup((s) => s.load)
+  if (load !== 'ready' || source === 'private') return null
+  return <p className="su-hint" data-su-example="">Right now the engines read the fictional example. The first save here makes engine-inputs.json yours.</p>
+}
+
+export function SetupNotes() {
+  return (
+    <>
+      <SetupReport />
+      <SetupExample />
+    </>
+  )
+}
+
+/** The eighteen sections, each in its own slot. */
+export function SetupPanes({ view }: { view: string }) {
+  const nDirty = dirtyIds(useSetup((s) => s.draft)).length
+  return (
+    <>
+      <View id="rotation" view={view}><RotationSection /></View>
+      <View id="dates" view={view}><DatesRow /></View>
+      <View id="subjects" view={view}><InputGate><SubjectsSection /></InputGate></View>
+      <View id="goals" view={view}><InputGate><GoalsSection /></InputGate></View>
+      <View id="timetable" view={view}><InputGate><TimetableSection /></InputGate></View>
+      <View id="attendance" view={view}><InputGate><AttendanceSection /></InputGate></View>
+      <View id="deadlines" view={view}><InputGate><DeadlinesSection /></InputGate></View>
+      <View id="study" view={view}><InputGate><StudySection /></InputGate></View>
+      <View id="about" view={view}><InputGate><AboutSection /></InputGate></View>
+      <View id="budget" view={view}><BudgetSection /></View>
+      <View id="style" view={view}><StyleSection /></View>
+      <View id="calibration" view={view}><CalibrationSection /></View>
+      <View id="career" view={view}><CareerSection /></View>
+      <View id="connections" view={view}><ConnectionsSection /></View>
+      <View id="phone" view={view}><PhoneRow primaryWhenUnpaired={nDirty === 0} /></View>
+      <View id="backup" view={view}><BackupSection /></View>
+      <View id="appearance" view={view}><AppearanceSection /></View>
+      <View id="harvester" view={view}><Harvester /></View>
+    </>
+  )
+}
+
+export function SetupPage() {
+  const { dirty, view } = useSetupLifecycle()
   return (
     <div className="su-page" data-page="setup" data-view={view}>
-      <nav className="su-index" aria-label="Setup sections">
-        <ol>
-          {INDEX.map(([a, label]) => (
-            <li key={a}>
-              <button type="button" className="su-index-btn ww-tap" data-index={a} aria-current={view === a ? 'true' : undefined} onClick={() => goToSection(a)}>
-                {label}
-                {sectionDirty(a, dirty) && <span className="su-dot" role="img" aria-label="unsaved changes" />}
-              </button>
-            </li>
-          ))}
-        </ol>
-      </nav>
-
+      <SetupIndex view={view} dirty={dirty} />
       <div className="su-main">
-        <div className="su-savebar" role="region" aria-label="Save">
-          <span className="su-savebar-text" data-save-state={n > 0 ? 'dirty' : 'clean'}>
-            {n === 0 ? 'Save: nothing to save' : `${n} section${n === 1 ? '' : 's'} changed: ${dirty.map((d) => SECTION_LABEL[d]).join(', ')}`}
-          </span>
-          {n > 0 && (
-            <Button size="sm" onClick={() => openOverlay('confirm', {
-              title: 'Discard all changes?',
-              body: `${n} unsaved section${n === 1 ? '' : 's'} will go back to what is saved.`,
-              confirmLabel: 'Discard',
-              destructive: true,
-              onConfirm: () => useSetup.getState().discard(),
-            })}>Discard all</Button>
-          )}
-          <PrimaryButton claimId="setup-save" rank="workspace" when={n > 0} loading={saving} disabled={n === 0}
-            onClick={() => void saveAll()}>{n === 0 ? 'Save' : `Save ${n} change${n === 1 ? '' : 's'}`}</PrimaryButton>
-        </div>
-        {report && (report.failed.length > 0 || report.dropped.length > 0 || report.saved.length > 0) && (
-          <div className="su-report" role="status" data-save-report="">
-            {report.saved.length > 0 && <p>{`Saved: ${report.saved.map((d) => SECTION_LABEL[d]).join(', ')}. The engines use it from now on.`}</p>}
-            {report.failed.map((f) => <p key={f.id}>{`Error: ${SECTION_LABEL[f.id]} was not saved: ${f.why}.`}</p>)}
-            {report.dropped.map((d) => <p key={d}>{`Ignored by the server: ${d}`}</p>)}
-          </div>
-        )}
-        {load === 'ready' && source !== 'private' && (
-          <p className="su-hint" data-su-example="">Right now the engines read the fictional example. The first save here makes engine-inputs.json yours.</p>
-        )}
-
-        <View id="rotation" view={view}><RotationSection /></View>
-        <View id="dates" view={view}><DatesRow /></View>
-        <View id="subjects" view={view}><InputGate><SubjectsSection /></InputGate></View>
-        <View id="goals" view={view}><InputGate><GoalsSection /></InputGate></View>
-        <View id="timetable" view={view}><InputGate><TimetableSection /></InputGate></View>
-        <View id="attendance" view={view}><InputGate><AttendanceSection /></InputGate></View>
-        <View id="deadlines" view={view}><InputGate><DeadlinesSection /></InputGate></View>
-        <View id="study" view={view}><InputGate><StudySection /></InputGate></View>
-        <View id="about" view={view}><InputGate><AboutSection /></InputGate></View>
-        <View id="budget" view={view}><BudgetSection /></View>
-        <View id="style" view={view}><StyleSection /></View>
-        <View id="calibration" view={view}><CalibrationSection /></View>
-        <View id="career" view={view}><CareerSection /></View>
-        <View id="connections" view={view}><ConnectionsSection /></View>
-        <View id="phone" view={view}><PhoneRow primaryWhenUnpaired={n === 0} /></View>
-        <View id="backup" view={view}><BackupSection /></View>
-        <View id="appearance" view={view}><AppearanceSection /></View>
-        <View id="harvester" view={view}><Harvester /></View>
+        <SetupSaveBar dirty={dirty} />
+        <SetupNotes />
+        <SetupPanes view={view} />
       </div>
     </div>
   )
+}
+
+/** The index anchor that shows a saved section (the reverse of SECTION_OF_ANCHOR). */
+export function anchorOf(section: string): string {
+  return Object.entries(SECTION_OF_ANCHOR).find(([, ids]) => ids.includes(section))?.[0] ?? section
 }
 
 const SECTION_OF_ANCHOR: Record<string, string[]> = {
   rotation: ['rotation'], dates: ['exams'], subjects: ['subjects'], goals: ['goals'], timetable: ['timetable'], attendance: ['attendance_rule'],
   deadlines: ['deadlines'], study: ['study'], about: ['profile'], budget: ['budget'], style: ['style'], career: ['career'],
 }
-function sectionDirty(anchor: string, dirty: string[]): boolean {
+function sectionDirty(anchor: string, dirty: readonly string[]): boolean {
   return (SECTION_OF_ANCHOR[anchor] ?? []).some((s) => dirty.includes(s))
 }
 

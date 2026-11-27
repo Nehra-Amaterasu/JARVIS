@@ -187,6 +187,10 @@ export interface PatternSet {
   topics: Topic[]
   /** Papers on file when the figures were counted. Figures are LIVE only at 3 or more. */
   papers: number
+  /** R-16 answered WAITING with the counts still present: fewer than 3 papers or 20 counted questions. The counts are a note, never a pattern. */
+  provisional?: boolean
+  /** Counted questions (accepted, with a unit and a topic); set with `provisional`. */
+  questions?: number
   /** Topic id to the number of papers it was set in. */
   topicCounts: Record<string, number>
 }
@@ -194,6 +198,8 @@ export interface GainItem {
   topicId: string
   /** A reason in words ("set in 5 of 6 papers, not practised"), never a forecast. */
   reason: string
+  /** The engine's printed terms of the order as plain words, so the order can be redone by hand; absent when the engine sent none. */
+  terms?: string
 }
 export interface CheckInput {
   qid: string

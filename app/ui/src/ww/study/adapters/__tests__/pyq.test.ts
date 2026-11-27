@@ -414,7 +414,16 @@ describe('patterns, practise-next and check', () => {
     expect(fx.calls.find((c) => c.path === `${B}/patterns`)!.query.get('subject')).toBe('signals')
     expect(r).toMatchObject({ state: 'live', data: { papers: 3, topicCounts: { '1|A': 2 } } })
     fakeEngine({ [`GET ${B}/papers`]: { json: list([PAPER]) }, [`GET ${B}/patterns`]: { json: env('waiting', 'Too few papers to show a pattern: 2 more papers, 9 more reviewed questions.', { patterns, provisional: true }) } })
-    expect(await make().port.patterns!()).toMatchObject({ state: 'waiting', reason: 'Too few papers to show a pattern: 2 more papers, 9 more reviewed questions.', data: null })
+    // R-16 says provisional: the counts are still there, as a note. No topic and no count per topic travels with them, so a grid cannot draw a pattern.
+    expect(await make().port.patterns!()).toEqual({
+      state: 'waiting', reason: 'Too few papers to show a pattern: 2 more papers, 9 more reviewed questions.', since: 5000,
+      data: { topics: [], papers: 3, topicCounts: {}, provisional: true, questions: 0 },
+    })
+    fakeEngine({ [`GET ${B}/papers`]: { json: list([PAPER]) }, [`GET ${B}/patterns`]: { json: env('waiting', 'Too few papers.', { patterns: { ...patterns, n_papers: 2, n_questions: 3 }, provisional: true }) } })
+    expect((await make().port.patterns!()).data).toMatchObject({ papers: 2, questions: 3, provisional: true })
+    // a WAITING answer that is not provisional keeps hiding the counts
+    fakeEngine({ [`GET ${B}/papers`]: { json: list([PAPER]) }, [`GET ${B}/patterns`]: { json: env('waiting', 'x', { patterns }) } })
+    expect((await make().port.patterns!()).data).toBeNull()
   })
   it('an unknown subject (404 "No such subject.") is FAULT, not "the engine is absent"', async () => {
     fakeEngine({ [`GET ${B}/papers`]: { json: list([PAPER]) }, [`GET ${B}/patterns`]: refuse(404, 'No such subject.') })

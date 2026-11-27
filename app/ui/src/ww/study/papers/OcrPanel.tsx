@@ -94,12 +94,33 @@ export function OcrPanel({ client, paper, onFinished, pollMs = POLL_MS }: OcrPan
   const elsewhere = running && !mine
   const shown = job && (mine || elsewhere) ? job : null
   const gate = reply?.data?.gate ?? 0.85
-  const lines = (paper.faults ?? []).slice(0, MAX_LINES)
-  const more = (paper.faults ?? []).length - lines.length
+  // a "no text layer" line is one more page waiting: its page number goes into the hint beside the key. Every other line (a page under
+  // the gate with its confidence, a whole page to split, an unreadable page) is printed as the engine wrote it.
+  const others = (paper.faults ?? []).filter((f) => !NO_TEXT.test(f))
+  const lines = others.slice(0, MAX_LINES)
+  const more = others.length - lines.length
   if (!pages.length && !shown && !(paper.faults ?? []).length && !said) return null
 
   return (
     <section className="pp-ocr" data-component="ocr-panel" data-job={shown?.status ?? 'none'} aria-label="Reading this paper with OCR">
+      <div className="pp-ocr-act">
+        {running && mine ? (
+          <Button size="md" grouped onClick={() => void stop()} loading={busy} aria-label="Stop reading after this page">Stop</Button>
+        ) : pages.length > 0 ? (
+          <Button
+            size="md"
+            grouped
+            onClick={() => void start()}
+            loading={busy}
+            disabledReason={elsewhere ? 'OCR is reading another paper.' : undefined}
+            aria-label={`Read with OCR: ${plural(pages.length, 'page', 'pages')} have no text layer`}
+          >
+            Read with OCR
+          </Button>
+        ) : null}
+        {pages.length > 0 && !running && <span className="pp-ocr-hint">{plural(pages.length, 'page has', 'pages have')} no text layer: {pages.length > 12 ? `${pages.slice(0, 12).join(', ')} and ${pages.length - 12} more` : pages.join(', ')}.</span>}
+      </div>
+
       {lines.length > 0 && (
         <ul className="pp-faults" aria-label="Fault lines of this paper">
           {lines.map((f) => <li key={f}>{f}</li>)}
@@ -143,23 +164,6 @@ export function OcrPanel({ client, paper, onFinished, pollMs = POLL_MS }: OcrPan
         </p>
       )}
 
-      <div className="pp-ocr-act">
-        {running && mine ? (
-          <Button size="md" grouped onClick={() => void stop()} loading={busy} aria-label="Stop reading after this page">Stop</Button>
-        ) : pages.length > 0 ? (
-          <Button
-            size="md"
-            grouped
-            onClick={() => void start()}
-            loading={busy}
-            disabledReason={elsewhere ? 'OCR is reading another paper.' : undefined}
-            aria-label={`Read with OCR: ${plural(pages.length, 'page', 'pages')} have no text layer`}
-          >
-            Read with OCR
-          </Button>
-        ) : null}
-        {pages.length > 0 && !running && <span className="pp-ocr-hint">{plural(pages.length, 'page has', 'pages have')} no text layer.</span>}
-      </div>
     </section>
   )
 }

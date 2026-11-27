@@ -1,0 +1,55 @@
+/* Setup under the v3 look (R18). Every rule is under :root[data-look='v3'] .su3, so the older frame's Setup page is untouched. The tray
+   owns the material, so the panes sit flat in it; each tray scrolls inside itself (the document never scrolls), and the Save bar is
+   sticky at the top of the pane tray, so it stays on screen while a long pane (Timetable, Subjects) scrolls under it. */
+
+:root[data-look='v3'] .su3 { position: absolute; inset: 0; display: block; padding: 0; overflow: hidden; background: transparent; }
+:root[data-look='v3'] .su3 .s3-zones { height: 100%; }
+:root[data-look='v3'] .su3 .s3-body { overflow-x: hidden; overflow-y: auto; gap: var(--space-3); scrollbar-width: thin; }
+
+/* tray 1: two columns of 44 px keys, nine each: eighteen keys in one column are 864 px, taller than any tray, and the last pane (the harvester) sat below a scroll nobody sees */
+:root[data-look='v3'] .su3 .su-index { position: static; max-block-size: none; overflow: visible; }
+:root[data-look='v3'] .su3 .su-index ol { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1); }
+:root[data-look='v3'] .su3 .su-index-btn { min-block-size: 2.75rem; padding-inline: var(--space-3); color: var(--ink-1); }
+:root[data-look='v3'] .su3 .su-index-btn:hover { background: var(--acc-soft); }
+:root[data-look='v3'] .su3 .su-index-btn[aria-current='true'] { background: var(--acc-soft); font-weight: 650; }
+/* the dirty dot is state, not decoration: it keeps the ink colour and a size a thumb can see */
+:root[data-look='v3'] .su3 .su-dot { inline-size: 0.5rem; block-size: 0.5rem; background: var(--ink-1); }
+
+/* tray 2: the Save bar sits above the pane; no hairline, the well is the edge */
+:root[data-look='v3'] .su3 .su3-pane { display: flex; flex-direction: column; gap: var(--space-3); min-block-size: 0; }
+/* the bar and the engine's answer are one sticky block, opaque: the pane scrolls under it, and the first version (a see-through bar, the
+   answer outside it) printed the pane's text through the bar and let the answer scroll away behind it on the phone (seen 27 Nov) */
+:root[data-look='v3'] .su3 .su3-top {
+  position: sticky; inset-block-start: 0; z-index: 2; display: flex; flex-direction: column; gap: var(--space-2);
+  margin: calc(var(--space-1) * -1); padding: var(--space-1); background-color: var(--pop, var(--surface-2)); border-radius: var(--radius-control);
+}
+:root[data-look='v3'] .su3 .su-savebar { position: static; border: 0; border-radius: var(--radius-control); background-color: var(--surface-2); box-shadow: var(--sh-raise, none); }
+:root[data-look='v3'] .su3 .su-savebar-text { flex: 1 1 10rem; color: var(--ink-1); }
+:root[data-look='v3'] .su3 .su-savebar .ww-btn,
+:root[data-look='v3'] .su3 .su-savebar button { min-block-size: 2.75rem; }
+:root[data-look='v3'] .su3 .su-main { gap: var(--space-3); }
+
+/* the panes keep their own inner styling; only what the light ground broke is set here */
+:root[data-look='v3'] .su3 .su-view button,
+:root[data-look='v3'] .su3 .su-view [role='button'],
+:root[data-look='v3'] .su3 .su-view select,
+:root[data-look='v3'] .su3 .su-view input:not([type='checkbox']):not([type='radio']) { min-block-size: 2.75rem; }
+
+/* tray 3 is reference: smaller type, the glassiest tray */
+:root[data-look='v3'] .su3 .su3-notes { display: flex; flex-direction: column; gap: var(--space-3); }
+
+@media (max-width: 700px) {
+  /* phone: the sheet holds the pane, and its Save bar must not wrap into three lines */
+  :root[data-look='v3'] .su3 .su-savebar { padding: var(--space-2); }
+  :root[data-look='v3'] .su3 .su-index-btn { padding-inline: var(--space-4); }
+}
+
+:root[data-look='v3'] .su3 .su3-unsaved { display: grid; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+
+/* a card inside the tray is flat: the tray is the material, and a bordered card inside it is a hairline box in a box */
+:root[data-look='v3'] .su3 .ww-card-face { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+:root[data-look='v3'] .su3 .ww-card-head { flex-wrap: wrap; }
+:root[data-look='v3'] .su3 .ww-card-headtext { flex: 1 1 10rem; }
+
+/* a link inside a pane (a source's licence page in the harvester) is a key too: 17 px tall as measured 27 Nov, 44 px now */
+:root[data-look='v3'] .su3 .su-view a[href] { display: inline-flex; align-items: center; min-block-size: 2.75rem; }

@@ -345,7 +345,8 @@ test.describe('Shell v3, look on', () => {
     for (const t of await page.locator('#s3-spine .s3-lamp').evaluateAll((els) => els.map((e) => e.getAttribute('title') ?? ''))) expect(t).toMatch(/^(FAULT|WAITING|LIVE|SIMULATED|PLANNED)/)
     await gotoSection(page, 'day', SIZES[0])
     await expect(page.locator('#s3-spine .s3-grp[data-open="true"]')).toHaveAttribute('data-p', 'wellwisher')
-    await expect(page.locator('#s3-spine .s3-grp[data-open="true"] .s3-item')).toHaveCount(5)
+    // five sections and, since 27 Nov (R18), the Setup row of Well Wisher
+    await expect(page.locator('#s3-spine .s3-grp[data-open="true"] .s3-item')).toHaveCount(6)
     // the ground follows the sub-project: Well Wisher is the light ground
     await expect(page.locator('.s3')).toHaveAttribute('data-ground', 'light')
     await gotoSection(page, 'core', SIZES[0])

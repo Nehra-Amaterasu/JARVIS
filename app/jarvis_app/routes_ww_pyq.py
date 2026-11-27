@@ -3,7 +3,7 @@
     GET    /api/mission/pyq/papers?subject=                 R-01 papers on file with counts of their questions
     POST   /api/mission/pyq/papers                          R-02 type a paper in: {title, subject?, year?, exam_kind?, source_note?, questions?}
     GET    /api/mission/pyq/papers/{pid}                    R-03 one paper, its counts and which page pictures exist
-    PATCH  /api/mission/pyq/papers/{pid}                    R-04 edit title, subject, year, exam_kind or source_note
+    PATCH  /api/mission/pyq/papers/{pid}                    R-04 edit title, subject, year, exam_kind, source_note or role (paper, question_bank, solution, notes)
     DELETE /api/mission/pyq/papers/{pid}                    R-05 remove a paper with its questions and crops
     GET    /api/mission/pyq/questions?paper=&subject=&status=&limit=&offset=   R-06 questions in review or accepted
     PATCH  /api/mission/pyq/questions                       R-07 {ids, set}: accept, reject or correct questions, all or none
@@ -31,7 +31,7 @@ from .ww_pyq import store as store_mod
 from .ww_pyq.schema import EXAM_KINDS, MAX_TEXT, Q_STATUSES, Q_TYPES
 
 SOURCE = "your papers on file"
-_PAPER_FIELDS = ("title", "subject", "year", "exam_kind", "source_note")
+_PAPER_FIELDS = ("title", "subject", "year", "exam_kind", "source_note", "role")
 _Q_FIELDS = ("status", "text", "marks", "type", "unit", "topic", "section", "difficulty")
 _MAX_TYPED = 300           # questions typed into one paper; a bigger paper comes through the file reader
 _MAX_IDS = 200
@@ -165,7 +165,13 @@ def register(app: FastAPI, svc, bus) -> None:
                 raise ValueError(f"A paper's {bad[0]} cannot be changed here.")
             if not body:
                 raise ValueError("Nothing to change.")
-            p = _store().update_paper(pid, body)
+            changes = dict(body)
+            if "role" in changes:
+                from .ww_pyq.prep import ROLES
+                if changes["role"] not in ROLES:
+                    raise ValueError("A paper's role is paper, question_bank, solution or notes.")
+                changes["role_source"] = "hand"          # the rule never writes over a role on file (wave EW11)
+            p = _store().update_paper(pid, changes)
             return api.ok("live", "Paper updated.", SOURCE, paper=p)
         return await run_in_threadpool(api.guard, work)
 

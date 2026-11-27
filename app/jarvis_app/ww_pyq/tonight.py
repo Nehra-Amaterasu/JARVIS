@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from .blueprint import write_json_atomic
+from .store import NOT_PRINTED
 
 SHEETS = "sheets"
 DIR = "tonight"
@@ -39,6 +40,7 @@ COUNT_MIN, COUNT_MAX = 3, 12          # fewer than 3 is not a sheet; 12 question
 HORIZON_MIN, HORIZON_MAX = 1, 60      # past 60 days a paper is next semester, not tonight
 RECENT_SHEETS = 3                     # a question does not come back while it stood on one of the last 3 sheets
 MAX_MINUTES = 600                     # ten hours on one question is a typo
+OUT_OF_MAX = 100                      # his own maximum for a question whose marks are not printed; a paper's whole is 100
 RETRY_S = 600                         # a day with nothing to set is looked at again every 10 min, not on every 30 s look:
                                       # each try recomputes R-17's order over the whole bank
 _SHEET_ID = re.compile(r"^(\d{4}-\d{2}-\d{2})-([a-z0-9][a-z0-9_-]{0,39})$")
@@ -212,16 +214,23 @@ def _draw(salt: str, qid: str) -> str:
     return hashlib.sha256(f"{salt}|{qid}".encode("utf-8")).hexdigest()
 
 
+def can_stand(q: dict) -> bool:
+    """Marks on file, or a question-bank question accepted with its marks not printed (wave EW11): he gives out_of
+    when he marks it (R-58)."""
+    return q.get("marks") is not None or q.get("marks_source") == NOT_PRINTED
+
+
 def choose(picks: list[dict], accepted: dict, exclude: set, count: int, salt: str) -> list[tuple[dict, dict]]:
-    """Walk the picks of R-17 in their order and take one question of each topic that is accepted, has marks, did
-    not stand on the last sheets and is not on this one yet. `salt` is the sheet id: the same id, the same draw."""
+    """Walk the picks of R-17 in their order and take one question of each topic that is accepted, can stand (marks, or
+    marks not printed), did not stand on the last sheets and is not on this one yet. `salt` is the sheet id: the same
+    id, the same draw."""
     chosen: list[tuple[dict, dict]] = []
     taken: set = set()
     for p in picks:
         if len(chosen) >= count:
             break
         cands = [qid for qid in p.get("question_ids") or []
-                 if qid in accepted and qid not in exclude and qid not in taken and accepted[qid].get("marks") is not None]
+                 if qid in accepted and qid not in exclude and qid not in taken and can_stand(accepted[qid])]
         if not cands:
             continue
         qid = min(cands, key=lambda q: (_draw(salt, q), q))
@@ -240,9 +249,9 @@ def why_of(pick: dict, days_left: Optional[int]) -> dict:
 def make_sheet(sid: str, day: str, subject: str, chosen: list[tuple[dict, dict]], built_at: str) -> dict:
     items = []
     for n, (p, q) in enumerate(chosen, 1):
-        m = float(q["marks"])
-        items.append({"n": n, "question_id": q["id"], "marks": int(m) if m == int(m) else m, "unit": p.get("unit"),
-                      "topic": p.get("topic") or "", "topic_key": p.get("key") or ""})
+        m = None if q.get("marks") is None else float(q["marks"])        # null: marks not printed, out_of comes with his mark
+        items.append({"n": n, "question_id": q["id"], "marks": None if m is None else int(m) if m == int(m) else m,
+                      "unit": p.get("unit"), "topic": p.get("topic") or "", "topic_key": p.get("key") or ""})
     return {"id": sid, "date": day, "subject": subject, "built_at": built_at, "items": items, "marks": []}
 
 
@@ -253,25 +262,46 @@ def _number(v: Any, what: str) -> float:
     return float(v)
 
 
+def keeps(rows: list) -> dict:
+    """{question_id: out_of} of the marks he asked to keep as the question's own marks (`keep: true`, R-58). Call it
+    only on rows apply_marks has passed."""
+    return {r["question_id"]: r["out_of"] for r in rows if r.get("keep") is True}
+
+
 def apply_marks(sheet: dict, rows: Any, at: str) -> tuple[dict, list[dict]]:
     """Check every mark before any is kept: a question on this sheet, `got` from 0 to its marks, minutes from 0 to 600
-    or none. A question marked again replaces its earlier mark. Returns the new sheet and the kept rows."""
+    or none. A question whose marks are not printed (its item's marks null) needs `out_of`, his own number from 1 to 100,
+    and `got` is from 0 to that; `keep` (true or false) may only come with out_of, and a question that prints its
+    marks takes neither. The kept row holds out_of as its max, so the ledger and proficiency read got over max as for
+    any other. A question marked again replaces its earlier mark. Returns the new sheet and the kept rows."""
     if not isinstance(rows, list) or not rows:
-        raise ValueError("Send the marks as {items: [{question_id, got, minutes?}]}.")
+        raise ValueError("Send the marks as {items: [{question_id, got, minutes?, out_of?, keep?}]}.")
     if len(rows) > COUNT_MAX:
         raise ValueError(f"A sheet holds at most {COUNT_MAX} questions.")
     on_sheet = {it["question_id"]: it for it in sheet.get("items") or []}
     kept, seen = [], set()
     for r in rows:
-        if not isinstance(r, dict) or set(r) - {"question_id", "got", "minutes"}:
-            raise ValueError("Each mark is {question_id, got, minutes?}.")
+        if not isinstance(r, dict) or set(r) - {"question_id", "got", "minutes", "out_of", "keep"}:
+            raise ValueError("Each mark is {question_id, got, minutes?, out_of?, keep?}.")
         qid = r.get("question_id")
         if not isinstance(qid, str) or qid not in on_sheet:
             raise ValueError("That question is not on this sheet.")
         if qid in seen:
             raise ValueError("A question is marked once in one post.")
         seen.add(qid)
-        mx = float(on_sheet[qid]["marks"])
+        printed = on_sheet[qid].get("marks")
+        if printed is None:
+            if "out_of" not in r:
+                raise ValueError("This question's marks are not printed: give out_of, your own number from 1 to 100.")
+            mx = _number(r["out_of"], "Out of")
+            if not 1 <= mx <= OUT_OF_MAX:
+                raise ValueError(f"Out of is a number from 1 to {OUT_OF_MAX}.")
+            if "keep" in r and not isinstance(r["keep"], bool):
+                raise ValueError("Keep is true or false.")
+        else:
+            if "out_of" in r or "keep" in r:
+                raise ValueError("This question prints its marks; out_of and keep are for one whose marks are not printed.")
+            mx = float(printed)
         got = _number(r.get("got"), "Got")
         if not 0 <= got <= mx:
             raise ValueError(f"Marks for a {_g(mx)}-mark question are from 0 to {_g(mx)}.")

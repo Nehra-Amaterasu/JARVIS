@@ -109,7 +109,7 @@ def test_the_docstring_lists_every_mounted_route_and_no_other():
     mounted = {(m, r.path) for r in app.routes if getattr(r, "path", "").startswith("/api/mission/pyq/prep")
                for m in (getattr(r, "methods", None) or ()) if m != "HEAD"}
     rows = set(re.findall(r"^\s{2,}(GET|POST|PUT|PATCH|DELETE)\s+(/api/\S+)", R.__doc__, re.M))
-    assert mounted == rows and len(rows) == 8
+    assert mounted == rows and len(rows) == 11
 
 
 # ------------------------------------------------------------------ R-65

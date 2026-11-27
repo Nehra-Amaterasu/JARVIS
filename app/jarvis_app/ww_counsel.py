@@ -237,27 +237,34 @@ def _check_subject_pick(data: dict, fields: dict) -> Optional[dict]:
 def _check_tag_topics(data: dict, fields: dict) -> Optional[dict]:
     """{"tags": [{q, topic}]} from the model's answer, or None. Refused whole when it brings anything but a question id and
     a topic id per row (a reason, a score, a unit of its own), names a question it was not given, or names one twice. A topic
-    that is not one of the subject's own ids is dropped row by row ({"topic": "", "dropped": ...}), never written (R-68)."""
+    that is not one of the subject's own ids is dropped row by row ({"topic": "", "dropped": ...}), never written (R-68).
+    Each row may also say `question: true|false` (wave EW11: solution sheets had been read as questions, 9 of 34 items
+    were questions); it is kept only as a real true or false, and a row without it is read as not judged."""
     if set(data) != {"tags"} or not isinstance(data["tags"], list):
         return None
     qids, tids = set(_ids(fields.get("question_ids"))), set(_ids(fields.get("topic_ids")))
     out, seen = [], set()
     for row in data["tags"]:
-        if not isinstance(row, dict) or set(row) != {"q", "topic"}:
+        if not isinstance(row, dict) or set(row) not in ({"q", "topic"}, {"q", "topic", "question"}):
             return None
         q, topic = row["q"], row["topic"]
         if not isinstance(q, str) or not isinstance(topic, str):
+            return None
+        if "question" in row and not isinstance(row["question"], bool):
             return None
         q, topic = q.strip().upper(), topic.strip()
         if q not in qids or q in seen:
             return None
         seen.add(q)
         if topic.lower() == "none":
-            out.append({"q": q, "topic": "none"})
+            r = {"q": q, "topic": "none"}
         elif topic.upper() in tids:
-            out.append({"q": q, "topic": topic.upper()})
+            r = {"q": q, "topic": topic.upper()}
         else:
-            out.append({"q": q, "topic": "", "dropped": topic[:60]})
+            r = {"q": q, "topic": "", "dropped": topic[:60]}
+        if "question" in row:
+            r["question"] = row["question"]
+        out.append(r)
     return {"tags": out}
 
 

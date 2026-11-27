@@ -141,7 +141,8 @@ def test_practise_next_prints_terms_and_defaults(env):
     assert j["count"] == len(j["items"]) > 0
     for it in j["items"]:
         assert set(it) == {"key", "unit", "topic", "gain", "terms", "question_ids", "reason"}
-        assert set(it["terms"]) == {"marks_weight", "seen_share", "proficiency", "measured", "minutes", "syllabus_weight"}
+        assert set(it["terms"]) == {"marks_weight", "seen_share", "proficiency", "measured", "minutes", "syllabus_weight", "marks_basis"}
+        assert it["terms"]["marks_basis"] == "printed"
         assert it["terms"]["measured"] is False and it["terms"]["proficiency"] == 0.5
         assert re.fullmatch(r"set in \d+ of 5 papers on file; no marked attempts", it["reason"])
     assert sum(it["terms"]["minutes"] for it in j["items"]) <= 120

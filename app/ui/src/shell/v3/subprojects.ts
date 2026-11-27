@@ -4,7 +4,7 @@
  * spine shows them as Aankhen and Yadaash. The ground follows the sub-project: Well Wisher is light, the other three dark.
  */
 import { PRODUCTS } from '../store'
-import { SECTIONS, sectionById, type Place, type ProductId } from '../ids'
+import { SECTIONS, isSetupPlace, sectionById, setupPlace, type Place, type ProductId } from '../ids'
 
 export type SubProjectId = 'jarvis' | 'aankhen' | 'yadaash' | 'wellwisher'
 export type Ground = 'dark' | 'light'
@@ -14,12 +14,15 @@ export type Ground = 'dark' | 'light'
  *  it by order and one small gap between groups, never by boxes. */
 export type SpineGroup = 'room' | 'memory' | 'day'
 
-/** A row of the spine that is not a section of shell/ids.ts: a place that is planned and opens the planned pose instead. */
+/** A row of the spine that is not a section of shell/ids.ts: a place that is planned and opens the planned pose instead, or (Setup)
+ *  a real place of the shell's own that is not one of the ten sections. */
 export interface SpineExtra {
   id: string
   label: string
-  /** The planned entry it opens (shared/planned registries; jarvis/planned.ts holds `jarvis.agents`). */
-  plannedId: string
+  /** The planned entry it opens (shared/planned registries; jarvis/planned.ts holds `jarvis.agents`). Absent on a real place. */
+  plannedId?: string
+  /** True for a row that opens a real place (`app.setup`) instead of a planned pose. */
+  place?: 'setup'
   /** The honest sentence: it is the row's title and accessible description. */
   sentence: string
 }
@@ -45,7 +48,11 @@ export const SUBPROJECTS: readonly SubProject[] = [
     // the agents the owner is planning in the Yadaash chat: honest about it, a row that opens the planned pose and runs nothing
     extras: [{ id: 'agents', label: 'Agents', plannedId: 'jarvis.agents', sentence: 'Agents are being planned; nothing runs here yet' }],
   },
-  { id: 'wellwisher', name: 'Well Wisher', product: 'ww', ground: 'light', sections: ['day', 'focus', 'study', 'tree', 'career'], group: 'day' },
+  {
+    id: 'wellwisher', name: 'Well Wisher', product: 'ww', ground: 'light', sections: ['day', 'focus', 'study', 'tree', 'career'], group: 'day',
+    // Setup holds the sixteen-plus panes the older frame kept behind Alt+6 (subjects, timetable, dates, goals, backup, harvester ...)
+    extras: [{ id: 'setup', label: 'Setup', place: 'setup', sentence: 'Subjects, timetable, dates, goals, connections, backup and the question harvester' }],
+  },
 ]
 
 /** The sub-projects this build has (a single-product build drops the other product's tiles). */
@@ -59,6 +66,12 @@ export function subProjectById(id: SubProjectId): SubProject {
 
 export function subProjectOfSection(section: string): SubProject | undefined {
   return SUBPROJECTS.find((p) => p.sections.includes(section))
+}
+
+/** The project a place belongs to: its section's, or Well Wisher for `app.setup` (the only real place that is not a section). */
+export function subProjectOfPlace(place: { section: string; view: string }): SubProject | undefined {
+  if (isSetupPlace(place)) return SUBPROJECTS.find((p) => p.extras?.some((x) => x.place === 'setup'))
+  return subProjectOfSection(place.section)
 }
 
 /** The ten sections in the order the spine shows them (Alt+Up and Alt+Down walk this list). */
@@ -102,6 +115,7 @@ const SHORT: Record<string, [string, string]> = { core: ['core', 'talk'], today:
 export function placeOfHash(hash: string): Place | null {
   const h = hash.replace(/^#\/?/, '').toLowerCase()
   if (!h) return null
+  if (h === 'setup' || h.startsWith('setup/')) return setupPlace()
   const parts = h.split(/[/.:]/)
   const [sec, view] = parts[1] === undefined && SHORT[parts[0]] ? SHORT[parts[0]] : [parts[0], parts[1]]
   const s = sectionById(sec)
@@ -110,6 +124,7 @@ export function placeOfHash(hash: string): Place | null {
 }
 
 export function hashOfPlace(p: { section: string; view: string }): string {
+  if (isSetupPlace(p)) return '#setup'
   for (const [alias, [sec, view]] of Object.entries(SHORT)) if (sec === p.section && view === p.view) return `#${alias}`
   return `#${p.section}/${p.view}`
 }

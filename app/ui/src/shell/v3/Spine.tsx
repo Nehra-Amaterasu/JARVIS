@@ -16,11 +16,11 @@
  */
 import { useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { clock } from '../../lib/format'
-import { sectionById, type Place } from '../ids'
+import { isSetupPlace, sectionById, type Place } from '../ids'
 import { hintFor, slotBindingOf } from '../keymap'
 import { BrandMark, FoldGlyph, ProjectMark, SectionIcon, StateGlyph } from './Glyphs'
 import { projectState, type LampRow } from './lamps'
-import { availableSubProjects, subProjectOfSection, type SpineExtra, type SubProject } from './subprojects'
+import { availableSubProjects, subProjectOfPlace, type SpineExtra, type SubProject } from './subprojects'
 import type { LampState } from '../../shared/lamp/types'
 
 export interface TileModel {
@@ -42,7 +42,7 @@ export interface TileModel {
 
 /** The spine's model, pure: every section reachable, the open project, the state lines. Tested without a DOM. */
 export function spineModel(place: Place, rows: readonly LampRow[], projects: readonly SubProject[] = availableSubProjects()): TileModel[] {
-  const open = subProjectOfSection(place.section)?.id
+  const open = subProjectOfPlace(place)?.id
   return projects.map((project, i) => {
     const st = projectState(project.id, rows)
     const extras = project.extras ?? []
@@ -73,6 +73,8 @@ export interface SpineProps {
   onGoSection: (section: string) => void
   /** A planned row (Agents) was pressed: open its pose. */
   onPlanned?: (plannedId: string) => void
+  /** The Setup row was pressed. */
+  onSetup?: () => void
   /** Folded to the 64 px icon rail (desktop only; the phone's sheet ignores it). */
   folded?: boolean
   onFold?: (folded: boolean) => void
@@ -99,7 +101,7 @@ interface Ind {
   show: boolean
 }
 
-export function Spine({ place, rows, now, onGoSection, onPlanned, folded = false, onFold, onChoose }: SpineProps) {
+export function Spine({ place, rows, now, onGoSection, onPlanned, onSetup, folded = false, onFold, onChoose }: SpineProps) {
   const tiles = spineModel(place, rows)
   const nav = useRef<HTMLElement>(null)
   const [ind, setInd] = useState<Ind>({ x: 0, y: 0, w: 0, h: 0, show: false })
@@ -174,12 +176,25 @@ export function Spine({ place, rows, now, onGoSection, onPlanned, folded = false
                         </button>
                       </li>
                     ))}
-                    {t.extras.map((x) => (
+                    {t.extras.map((x) => x.place === 'setup' ? (
+                      <li key={x.id}>
+                        <button type="button" className="s3-item" data-section={x.id} aria-current={isSetupPlace(place) ? 'page' : undefined}
+                          aria-keyshortcuts="Alt+6" aria-label={x.label} title={`${x.label} (Alt 6): ${x.sentence}`}
+                          onClick={() => {
+                            onSetup?.()
+                            onChoose?.()
+                          }}>
+                          <SectionIcon id={x.id} />
+                          <span>{x.label}</span>
+                          <i aria-hidden="true" />
+                        </button>
+                      </li>
+                    ) : (
                       <li key={x.id}>
                         <button type="button" className="s3-item s3-extra" data-extra={x.id} data-state="planned" aria-haspopup="dialog"
                           aria-label={`${x.label}, planned. ${x.sentence}`} title={`${x.label}: ${x.sentence}`}
                           onClick={() => {
-                            onPlanned?.(x.plannedId)
+                            if (x.plannedId) onPlanned?.(x.plannedId)
                             onChoose?.()
                           }}>
                           <SectionIcon id={x.id} />
@@ -206,7 +221,7 @@ export function Spine({ place, rows, now, onGoSection, onPlanned, folded = false
 
 /** The phone's bottom bar: "Projects" first (it opens the spine sheet), then the open project's sections, 52 px keys. */
 export function TabBar({ place, deckOpen, onDeck, onGoSection }: { place: Place; deckOpen: boolean; onDeck: (open: boolean) => void; onGoSection: (s: string) => void }) {
-  const project = subProjectOfSection(place.section)
+  const project = subProjectOfPlace(place)
   const ids = project?.sections ?? []
   return (
     <nav className="s3-tabbar" aria-label="Sections of the open project">

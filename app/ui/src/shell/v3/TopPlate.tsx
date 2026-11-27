@@ -10,7 +10,7 @@ import { WinGlyph } from './Glyphs'
 import { LampPill } from './LampPill'
 import type { LampRow } from './lamps'
 import { Popover, usePopoverChoose } from './Popover'
-import { subProjectOfSection } from './subprojects'
+import { subProjectOfPlace } from './subprojects'
 import { ViewChip } from './ViewChip'
 
 export type PlateMenu = 'pill' | 'more' | 'views' | null
@@ -25,16 +25,18 @@ export interface TopPlateProps {
   onGoSection: (section: string) => void
   onSetView: (view: string) => void
   onShortcuts: () => void
+  /** Setup (R18): a second way in beside the spine row, so the phone's tab bar, which has no row for it, still reaches it from More. */
+  onSetup?: () => void
   /** Window keys show only inside the desktop window. */
   windowKeys: boolean
 }
 
 export function projectNameOf(place: Place): string {
   if (isAppPlace(place)) return PRODUCT_LABEL[place.product]
-  return subProjectOfSection(place.section)?.name ?? PRODUCT_LABEL[place.product]
+  return subProjectOfPlace(place)?.name ?? PRODUCT_LABEL[place.product]
 }
 
-export function TopPlate({ place, rows, more, glass, onGlass, onGoSection, onSetView, onShortcuts, windowKeys }: TopPlateProps) {
+export function TopPlate({ place, rows, more, glass, onGlass, onGoSection, onSetView, onShortcuts, onSetup, windowKeys }: TopPlateProps) {
   const [menu, setMenu] = useState<PlateMenu>(null)
   const moreBtn = useRef<HTMLButtonElement>(null)
   const app = isAppPlace(place)
@@ -90,7 +92,7 @@ export function TopPlate({ place, rows, more, glass, onGlass, onGoSection, onSet
           <p><kbd>Alt</kbd> <kbd>{'↑'}</kbd> <kbd>{'↓'}</kbd> sections</p>
           <p><kbd>Alt</kbd> <kbd>{'←'}</kbd> <kbd>{'→'}</kbd> views</p>
         </div>
-        <MoreRows more={more} onShortcuts={onShortcuts} />
+        <MoreRows more={more} onShortcuts={onShortcuts} onSetup={onSetup} />
       </Popover>
       {windowKeys && (
         <div className="s3-wc" role="group" aria-label="Window">
@@ -103,10 +105,11 @@ export function TopPlate({ place, rows, more, glass, onGlass, onGoSection, onSet
   )
 }
 
-function MoreRows({ more, onShortcuts }: { more: readonly MoreAction[]; onShortcuts: () => void }) {
+function MoreRows({ more, onShortcuts, onSetup }: { more: readonly MoreAction[]; onShortcuts: () => void; onSetup?: () => void }) {
   const choose = usePopoverChoose()
   return (
     <>
+      {onSetup && <button type="button" className="s3-popitem" data-more="setup" onClick={() => choose(onSetup)}>Setup <kbd>Alt</kbd> <kbd>6</kbd></button>}
       <button type="button" className="s3-popitem" onClick={() => choose(onShortcuts)}>All shortcuts</button>
       {more.length > 0 && <p className="s3-cap">RARELY NEEDED {'·'} {more.length}</p>}
       {more.map((a) => (

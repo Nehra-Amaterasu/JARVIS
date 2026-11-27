@@ -225,19 +225,61 @@ describe('with the fixture desk (invented rows, SIMULATED)', () => {
     expect(decide).toHaveBeenCalledTimes(1)
     expect(decide.mock.calls[0][1]).toEqual({ state: 'declined' })
   })
-  it('the archive door lists the files inside before anything is queued, refuses a path that leaves the archive, and queues only the kept ones', async () => {
+  it('the archive door lists the files inside before anything is sent, refuses a path that leaves the archive, and sends one entry per press', async () => {
     const desk = makeFixtureDesk()
     const queue = vi.spyOn(desk, 'queueArchive')
     await start({ desk, open: 'archive', demo: true })
     await flush()
     const body = q('[data-component="archive-listing"]')
-    expect(body.textContent).toContain('5 entries')
+    expect(body.textContent).toContain('5 files in classroom-export.zip')
     expect(body.textContent).toContain('refused: a path that leaves the archive is refused')
+    expect(body.textContent).toContain('not a .pdf or .pptx; only those are read')
     expect(queue).not.toHaveBeenCalled()
-    expect(body.querySelectorAll('[role="switch"]')).toHaveLength(3)
-    click(button(/^Queue 3 files/))
+    // a key for each entry the paper desk reads; none for the refused one or the video
+    const keys = qa('[data-entry] button').filter((b) => /Send to paper desk/.test(b.textContent ?? ''))
+    expect(keys).toHaveLength(3)
+    expect(q('[data-entry="recording.mp4"] button')).toBeNull()
+    click(keys[1])
     await flush()
-    expect(queue).toHaveBeenCalledWith('a1', ['e1', 'e2', 'e3'])
+    expect(queue).toHaveBeenCalledTimes(1)
+    expect(queue).toHaveBeenCalledWith('a1', ['week2-slides.pptx'])
+    expect(q('[data-entry="week2-slides.pptx"]').textContent).toContain('Sent')
+    expect(q('[data-entry="week1-slides.pdf"]').textContent).toContain('Send to paper desk')
+  })
+  it('a path is listed on his press only; the engine decides whether it is a .zip', async () => {
+    const desk = makeFixtureDesk()
+    const byPath = vi.spyOn(desk, 'archivePath')
+    await start({ desk, open: 'archive' })
+    await flush()
+    expect(byPath).not.toHaveBeenCalled()
+    const input = q('#ik-zip-path') as HTMLInputElement
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'D:\Exports\classroom.zip')
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    click(button(/^List it$/))
+    await flush()
+    expect(byPath).toHaveBeenCalledWith('D:\Exports\classroom.zip')
+    expect(qa('[data-entry]')).toHaveLength(5)
+  })
+  it('a store that keeps a decision draws no Undo, no Back to new and no U key; a declined row can be accepted instead', async () => {
+    const desk = { ...makeFixtureDesk(), noUndo: 'The store keeps a decision.' }
+    const decide = vi.spyOn(desk, 'decide')
+    await start({ desk, initialFilter: 'declined' })
+    expect(button(/Back to new/)).toBeUndefined()
+    click(button(/Accept instead/))
+    await flush()
+    expect(decide.mock.calls[0][1]).toMatchObject({ state: 'accepted' })
+    expect(Array.from(q('.ww-toast').querySelectorAll('button')).some((b) => b.textContent === 'Undo')).toBe(false)
+  })
+  it('a fault prints the lines the store set aside, and the desk is not drawn as empty', async () => {
+    const lines = ['rows.json could not be parsed; kept beside it as rows.json.1.corrupt.']
+    const desk = { ...nullIntakeDesk, list: async () => ({ state: 'fault' as const, reason: lines[0], since: NOW, data: null }), problems: () => lines }
+    await start({ desk })
+    const empty = q('[data-component="intake-empty"]').textContent ?? ''
+    expect(empty).toContain('Fault: rows.json could not be parsed')
+    expect(q('[data-component="intake-problems"]').textContent).toContain('kept beside it as rows.json.1.corrupt')
+    expect(q('.ik-count-n').textContent).toBe('--')
   })
   it('the course mapper keeps a long name whole on focus, draws announcements PLANNED, has no auto-accept, and a suggestion is a chip he presses', async () => {
     const desk = makeFixtureDesk()

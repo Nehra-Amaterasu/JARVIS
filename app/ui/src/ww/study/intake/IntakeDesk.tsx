@@ -13,6 +13,7 @@ import { STUDY_PORT, type StudyPort } from '../ports'
 import type { GcrClient } from '../adapters/gcr'
 import { gcrClient } from '../adapters/gcr.register'
 import { ClassroomPlate } from '../classroom/ClassroomPlate'
+import './adapters/store.register'
 import { COPY } from './copy'
 import { Doors, type DoorId } from './Doors'
 import { ArchiveBody } from './ExportImportDrop'
@@ -57,6 +58,8 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, gcr = gcrC
   const now = useMemo(() => nowProp ?? Date.now(), [nowProp])
   const [head, setHead] = useState<DeskHead>(WAITING)
   const [rows, setRows] = useState<IntakeRow[]>([])
+  /** What the store set aside on its last list (a rows file it could not read); printed under a fault, never swallowed. */
+  const [problems, setProblems] = useState<string[]>([])
   const [subjects, setSubjects] = useState<SubjectOption[]>([])
   const [folder, setFolder] = useState<LampReading>(reading('waiting', 'choose a folder to watch'))
   const [filter, setFilter] = useState<Filter>(initialFilter)
@@ -71,6 +74,7 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, gcr = gcrC
   const load = useCallback(async () => {
     const [l, s] = await Promise.all([desk.list(), desk.subjects()])
     setHead({ state: l.state, reason: l.reason })
+    setProblems(desk.problems?.() ?? [])
     setRows(showsNumber(l.state) && l.data ? l.data : [])
     setSubjects(showsNumber(s.state) && s.data ? s.data : [])
   }, [desk])
@@ -109,7 +113,9 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, gcr = gcrC
     setToasts((t) => [...t.slice(-2), { id, message, action: undo ? { label: 'Undo', onAction: undo } : undefined }])
   }, [])
   const replace = (r: IntakeRow) => setRows((rs) => rs.map((x) => (x.id === r.id ? r : x)))
-  const merge = (items: IntakeRow[]) => { setRows((rs) => [...rs, ...items.filter((i) => !rs.some((x) => x.id === i.id))]); setFilter('new'); setPage(0) }
+  // the rows are drawn at once; the list is then read again, because a desk that opened EMPTY holds the store's WAITING head until it is (found 27 Nov
+  // against the real routes: rows on screen and the count still "--" with a WAITING lamp)
+  const merge = (items: IntakeRow[]) => { setRows((rs) => [...rs, ...items.filter((i) => !rs.some((x) => x.id === i.id))]); setFilter('new'); setPage(0); void load() }
   /** After a row leaves the filter, the next one in the walking order is chosen, so Accept can be pressed down the list. */
   const advance = (id: string) => {
     const i = order.findIndex((r) => r.id === id)
@@ -119,6 +125,8 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, gcr = gcrC
     setPage(next ? Math.floor(rest.indexOf(next) / PER_PAGE) : 0)
   }
 
+  /** A store that keeps a decision (R-39) has no way back to new: no Undo toast, no U key, no Back key. */
+  const canUndo = !desk.noUndo
   const back = async (ids: string[]) => {
     const rs = await Promise.all(ids.map((id) => desk.decide(id, { state: 'new' })))
     rs.forEach((r) => { if (showsNumber(r.state) && r.data) replace(r.data) })
@@ -129,7 +137,7 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, gcr = gcrC
     if (showsNumber(r.state) && r.data) {
       advance(row.id)
       replace(r.data)
-      say(`${state === 'accepted' ? 'Accepted' : 'Declined'} “${row.title}”`, () => void back([row.id]))
+      say(`${state === 'accepted' ? 'Accepted' : 'Declined'} “${row.title}”`, canUndo ? () => void back([row.id]) : undefined)
     } else say(`Not saved: ${r.reason}`)
   }
   const take = async (row: IntakeRow, to: 'papers' | 'notes') => {
@@ -151,7 +159,7 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, gcr = gcrC
     const done = rs.filter((r) => showsNumber(r.state)).length
     setSel(null)
     setPage(0)
-    say(done ? `Accepted ${done} that have a subject and a clear date` : `Not saved: ${rs[0]?.reason ?? ''}`, done ? () => void back(ids) : undefined)
+    say(done ? `Accepted ${done} that have a subject and a clear date` : `Not saved: ${rs.find((r) => !showsNumber(r.state))?.reason ?? ''}`, done && canUndo ? () => void back(ids) : undefined)
   }
 
   const readings: Record<DoorId, LampReading> = {
@@ -168,7 +176,7 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, gcr = gcrC
     const k = e.key.toLowerCase()
     const door: Partial<Record<string, Sheet>> = { f: 'folder', p: 'paste', c: 'ics', z: 'archive', m: 'courses' }
     if (door[k]) { e.preventDefault(); setSheet(door[k]!); return }
-    if (!selRow || selRow.state !== 'new') { if (k === 'u' && selRow) { e.preventDefault(); void back([selRow.id]) } return }
+    if (!selRow || selRow.state !== 'new') { if (k === 'u' && selRow && canUndo) { e.preventDefault(); void back([selRow.id]) } return }
     if (k === 'a' && e.shiftKey) { if (batch.length > 1) { e.preventDefault(); void acceptBatch() } return }
     if (k === 'a' && selRow.kind !== 'file' && (!selRow.ambiguous || selRow.date)) { e.preventDefault(); void decide(selRow, 'accepted', { subject: selRow.subject }) }
     else if (k === 'd') { e.preventDefault(); void decide(selRow, 'declined') }
@@ -176,8 +184,8 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, gcr = gcrC
 
   const close = () => setSheet(null)
   const plate = <ClassroomPlate client={gcr} onShelf={onShelf} />
-  const emptyTitle = !live ? `Waiting: ${head.reason}` : rows.length === 0 ? COPY.emptyTitle : COPY.noMatch
-  const emptyNote = rows.length === 0 ? COPY.emptyNote : filter === 'new' ? 'Nothing is waiting for you.' : 'Nothing here yet.'
+  const emptyTitle = !live ? `${head.state === 'fault' ? 'Fault' : 'Waiting'}: ${head.reason}` : rows.length === 0 ? COPY.emptyTitle : COPY.noMatch
+  const emptyNote = head.state === 'fault' ? COPY.faultNote : rows.length === 0 ? COPY.emptyNote : filter === 'new' ? 'Nothing is waiting for you.' : 'Nothing here yet.'
 
   const sheets = (
     <>
@@ -199,7 +207,7 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, gcr = gcrC
         <ArchiveBody
           desk={desk}
           onClose={close}
-          onQueued={(n) => say(`${n} file${n === 1 ? '' : 's'} queued as PENDING. Nothing is read until you review it.`)}
+          onSent={(name) => say(`Sent ${name} to the paper desk. It arrives as pending; nothing is accepted until you review it.`)}
           initial={open === 'archive' && demo ? { listing: ARCHIVE, state: 'simulated', reason: 'a fixture listing, not a real export' } : undefined}
         />
       </Drawer>
@@ -249,6 +257,7 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, gcr = gcrC
                     showOlder={showOlder}
                     onToggleOlder={() => setShowOlder((v) => !v)}
                     live={live && rows.length === 0}
+                    problems={problems}
                   />
                 </div>
                 <p className="ik-foot-line ik3-foot"><span>{head.state === 'simulated' ? `${COPY.footer} ${COPY.fixture}` : COPY.footer}</span></p>
@@ -269,7 +278,7 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, gcr = gcrC
                   onAccept={(r, dr) => void decide(r, 'accepted', dr)}
                   onDecline={(r) => void decide(r, 'declined')}
                   onTake={(r, to) => void take(r, to)}
-                  onBack={(r) => void back([r.id])}
+                  onBack={canUndo ? (r) => void back([r.id]) : undefined}
                   onRemove={(r) => void remove(r)}
                 />
               </div>
@@ -328,6 +337,7 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, gcr = gcrC
             showOlder={showOlder}
             onToggleOlder={() => setShowOlder((v) => !v)}
             live={live && rows.length === 0}
+            problems={problems}
           />
           <IntakeDetail
             key={selRow?.id ?? 'none'}
@@ -338,7 +348,7 @@ export function IntakeDesk({ desk = intakeDesk(), study = STUDY_PORT, gcr = gcrC
             onAccept={(r, d) => void decide(r, 'accepted', d)}
             onDecline={(r) => void decide(r, 'declined')}
             onTake={(r, to) => void take(r, to)}
-            onBack={(r) => void back([r.id])}
+            onBack={canUndo ? (r) => void back([r.id]) : undefined}
             onRemove={(r) => void remove(r)}
           />
         </div>

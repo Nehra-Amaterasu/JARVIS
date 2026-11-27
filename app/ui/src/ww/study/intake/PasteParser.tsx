@@ -57,6 +57,7 @@ export function PasteBody({ desk, now, onRows, onClose, initialText = '', autoRe
             <Lamp reading={readingOf({ state: res.state, reason: res.reason })} />
             <span>{res.data ? `${items.length} line${items.length === 1 ? '' : 's'} read, ${unread.length} not read` : `Not read: ${res.reason}`}</span>
           </p>
+          {res.data && <p className="ik-sheet-note">{res.reason}</p>}
           {res.data && (
             <ul className="ik-entries" aria-label="What was read">
               {items.map((r) => (

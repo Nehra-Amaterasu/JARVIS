@@ -33,6 +33,18 @@ const blurText = (page: Page) => page.evaluate(() => {
   const el = document.activeElement as HTMLElement | null
   if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) el.blur()
 })
+/** The ledger shows 7 rows a page: turn to the page that holds this row (first page first), or stop on the last page if it is not listed. */
+async function showRow(desk: import('@playwright/test').Locator, id: string) {
+  const earlier = desk.getByRole('button', { name: 'Earlier page' })
+  while ((await earlier.count()) && !(await earlier.isDisabled())) await earlier.click()
+  for (let guard = 0; guard < 10; guard++) {
+    if (await desk.locator(`.ik-row[data-row="${id}"]`).count()) return
+    const later = desk.getByRole('button', { name: 'Later page' })
+    if (!(await later.count()) || (await later.isDisabled())) return
+    await later.click()
+  }
+}
+
 async function openIntake(page: Page) {
   await page.goto('/#t=ww-e2e&shell=v2&look=v3')
   await expect(page.locator('[data-shell="v2"]')).toBeVisible({ timeout: 15_000 })
@@ -94,14 +106,27 @@ Fixture Signals quiz ${n} - due 04/05
     // ---- the desk's list equals the route's list again, row for row (title, state, date)
     const list = await engine('/api/mission/intake')
     const news = (list.json.items as any[]).filter((r) => r.state === 'new')
-    await expect(desk.locator('.ik-row')).toHaveCount(news.length)
-    for (const r of news) await expect(desk.locator(`.ik-row[data-row="${r.id}"]`)).toContainText(r.title)
+    // the ledger shows 7 rows a page (PER_PAGE in intake/model.ts). Since the engine's seed gained six intake rows on 27 Nov the list
+    // is longer than one page (8 new rows here), so the rows are read page by page and the whole set is compared with the route.
+    const seen = new Map<string, string>()
+    for (let guard = 0; guard < 10; guard++) {
+      await expect(desk.locator('.ik-row').first()).toBeVisible()
+      for (const el of await desk.locator('.ik-row').all()) seen.set((await el.getAttribute('data-row')) ?? '', (await el.textContent()) ?? '')
+      const later = desk.getByRole('button', { name: 'Later page' })
+      if (!(await later.count()) || (await later.isDisabled())) break
+      await later.click()
+    }
+    expect([...seen.keys()].sort(), 'the rows on every page against the route').toEqual(news.map((r) => r.id as string).sort())
+    for (const r of news) expect(seen.get(r.id), `row ${r.id}`).toContain(r.title)
+    const earlier = desk.getByRole('button', { name: 'Earlier page' })
+    while ((await earlier.count()) && !(await earlier.isDisabled())) await earlier.click()
     await expect(desk.locator('[data-component="intake-count"]')).toContainText(`${news.length} new`)
     await shot(page, 'intake-3-list')
 
     // ---- an ambiguous row (if the engine read one): the two readings on screen are the engine's; Accept sends the date he chose and the route agrees
     const amb = news.find((r) => r.ambiguous)
     if (amb) {
+      await showRow(desk, amb.id)
       await desk.locator(`.ik-row[data-row="${amb.id}"]`).click()
       const detail = page.locator('[data-component="intake-detail"]')
       await expect(detail.getByRole('button', { name: /^Accept/ })).toHaveAttribute('aria-disabled', 'true')
@@ -119,12 +144,14 @@ Fixture Signals quiz ${n} - due 04/05
     // ---- a decline: the screen's row leaves New and the route says declined
     const rest = (await engine('/api/mission/intake')).json.items.find((r: any) => r.state === 'new' && !r.ambiguous)
     if (rest) {
+      await showRow(desk, rest.id)
       await desk.locator(`.ik-row[data-row="${rest.id}"]`).click()
       await page.locator('[data-component="intake-detail"]').getByRole('button', { name: /^Decline/ }).click()
       await expect(desk.locator(`.ik-row[data-row="${rest.id}"]`)).toHaveCount(0)
       const state = (await engine('/api/mission/intake')).json.items.find((r: any) => r.id === rest.id).state
       if (state !== 'declined') mismatches.push(`declined on screen, the route says ${state}`)
       await desk.getByRole('radiogroup', { name: 'Show' }).getByRole('radio', { name: 'Declined' }).click()
+      await showRow(desk, rest.id)
       await expect(desk.locator(`.ik-row[data-row="${rest.id}"]`)).toHaveCount(1)
       await expect(page.locator('.ww-toast').last().getByRole('button', { name: 'Undo' })).toHaveCount(0)
     }

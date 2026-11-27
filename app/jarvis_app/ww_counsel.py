@@ -22,6 +22,8 @@ Tasks (each with its own prompt file and output check):
   question_drafts passages of his notes -> exam questions only (R-50)
   variant_descriptive  one of his questions -> new wordings of it, text only (R-29)
   rubric_points   one of his questions and its marks -> the points a marker looks for (R-32)
+  subject_pick    a paper's title and opening -> one of his subject ids or "none" (R-66)
+  tag_topics      up to 20 of his questions and one subject's topic list -> a topic id or "none" each (R-68)
 """
 from __future__ import annotations
 
@@ -36,7 +38,8 @@ from typing import Callable, Optional
 PROMPTS = Path(__file__).with_name("prompts")
 OLLAMA = "http://127.0.0.1:11434"
 DEFAULT_MODEL = "qwen3:4b-instruct-2507-q4_K_M"
-TASKS = ("grade_explain", "quiz_from_text", "parse_day", "summarise", "question_drafts", "variant_descriptive", "rubric_points")
+TASKS = ("grade_explain", "quiz_from_text", "parse_day", "summarise", "question_drafts", "variant_descriptive", "rubric_points",
+         "subject_pick", "tag_topics")
 MAX_INPUT = 12000
 
 Provider = Callable[[str, str], str]      # (system, user) -> model text
@@ -212,8 +215,58 @@ def _check_rubric(data: dict, fields: dict) -> Optional[dict]:
     return {"points": out}
 
 
+def _ids(value) -> list[str]:
+    return [x for x in str(value or "").split(",") if x]
+
+
+def _check_subject_pick(data: dict, fields: dict) -> Optional[dict]:
+    """{"subject": id | "none"} from the model's answer, or None. Any key but "subject" refuses the answer whole (a model
+    that adds a reason or a score has not kept to the task). A pick that is not one of his subject ids is not refused but
+    dropped: {"subject": "", "dropped": what it said}, so the caller counts it and writes nothing (R-66)."""
+    if set(data) != {"subject"} or not isinstance(data["subject"], str):
+        return None
+    v = data["subject"].strip()
+    if v.lower() == "none":
+        return {"subject": "none"}
+    allowed = {a.lower(): a for a in _ids(fields.get("subject_ids"))}
+    if v.lower() in allowed:
+        return {"subject": allowed[v.lower()]}
+    return {"subject": "", "dropped": v[:60]}
+
+
+def _check_tag_topics(data: dict, fields: dict) -> Optional[dict]:
+    """{"tags": [{q, topic}]} from the model's answer, or None. Refused whole when it brings anything but a question id and
+    a topic id per row (a reason, a score, a unit of its own), names a question it was not given, or names one twice. A topic
+    that is not one of the subject's own ids is dropped row by row ({"topic": "", "dropped": ...}), never written (R-68)."""
+    if set(data) != {"tags"} or not isinstance(data["tags"], list):
+        return None
+    qids, tids = set(_ids(fields.get("question_ids"))), set(_ids(fields.get("topic_ids")))
+    out, seen = [], set()
+    for row in data["tags"]:
+        if not isinstance(row, dict) or set(row) != {"q", "topic"}:
+            return None
+        q, topic = row["q"], row["topic"]
+        if not isinstance(q, str) or not isinstance(topic, str):
+            return None
+        q, topic = q.strip().upper(), topic.strip()
+        if q not in qids or q in seen:
+            return None
+        seen.add(q)
+        if topic.lower() == "none":
+            out.append({"q": q, "topic": "none"})
+        elif topic.upper() in tids:
+            out.append({"q": q, "topic": topic.upper()})
+        else:
+            out.append({"q": q, "topic": "", "dropped": topic[:60]})
+    return {"tags": out}
+
+
 def check_output(task: str, data: dict, fields: dict) -> Optional[dict]:
     """The validated answer for a task, or None when the model's JSON has the wrong shape."""
+    if task == "subject_pick":
+        return _check_subject_pick(data, fields)
+    if task == "tag_topics":
+        return _check_tag_topics(data, fields)
     if task == "question_drafts":
         return _check_drafts(data, fields)
     if task == "variant_descriptive":

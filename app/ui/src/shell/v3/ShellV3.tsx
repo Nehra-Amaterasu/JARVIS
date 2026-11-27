@@ -10,27 +10,27 @@
  * wrapper that held both would make a new backdrop root and the blur would see nothing. Only the ground blurs; the spine, the
  * top plate, the trays and the dock carry a tint.
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from 'react'
 import { Toasts } from '../../components/Shell'
 import { useNow } from '../../lib/format'
 import { useStore } from '../../lib/store'
-import { loadJarvisRegistry, loadWwShell, type WwShellBridge } from '../../pageLoaders'
+import { loadJarvisRegistry, loadWwSetup, loadWwShell, type WwShellBridge } from '../../pageLoaders'
 import { WhatIsComing } from '../../shared/overlays/WhatIsComing'
 import { openPlanned, setPlannedOpener } from '../../shared/planned/open'
 import type { Registry } from '../../shared/planned/types'
-import { isAppPlace, type Place, type ProductId } from '../ids'
+import { isAppPlace, isSetupPlace, setupPlace, type Place, type ProductId } from '../ids'
 import { glassEnabled, setGlass } from '../look'
 import { Palette } from '../Palette'
 import { confirmRecord, readRecord } from '../record'
 import { SkipLink } from '../SkipLink'
 import { Slot } from '../slots'
-import { currentPlace, touchRecord, useShell } from '../store'
+import { PRODUCTS, currentPlace, touchRecord, useShell } from '../store'
 import type { ShellV2Props } from '../ShellV2'
 import { ChromeProvider, useChromeSpec, type MoreAction } from './contract'
 import { Dock } from './Dock'
 import { collectLamps } from './lamps'
 import { Spine, TabBar } from './Spine'
-import { hashOfPlace, placeOfHash, stepSection, stepViewOf, subProjectOfSection } from './subprojects'
+import { hashOfPlace, placeOfHash, stepSection, stepViewOf, subProjectOfPlace } from './subprojects'
 import { TopPlate } from './TopPlate'
 import '../../styles/design/clay/index.css'
 import '../../shared/kit/clay.css'
@@ -50,6 +50,16 @@ export type ShellV3Props = ShellV2Props & { frame: ShellFrameParts }
 
 const THEME: Record<ProductId, string> = { jarvis: 'clay-dark', ww: 'clay-light' }
 
+/** The Setup page (R18), a lazy chunk. The product test is written in place so a JARVIS only build drops the import and holds no ww/ module here. */
+const Absent: ComponentType = () => null
+const SetupHost = lazy<ComponentType>(() => (loadWwSetup ? loadWwSetup() : Promise.resolve({ default: Absent })))
+
+/** Open Setup: the same place the spine row, More and Alt+6 reach. Nothing is read or reset on the way in. */
+export function goSetup(): void {
+  if (!PRODUCTS.includes('ww')) return
+  useShell.getState().go(setupPlace())
+}
+
 /** The spine's fold (168 px full, 64 px icon rail) is a per-person convenience: kept in localStorage, never needed to render. */
 export const SPINE_KEY = 'app.spine'
 function spineFolded(): boolean {
@@ -67,6 +77,15 @@ export function useV3Keys(): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || !e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+      // Alt+6 was the older frame's key for Setup; keymap.ts has no slot 6 (it swallows the key), so v3 claims it first
+      if (e.code === 'Digit6' || e.code === 'Numpad6' || e.key === '6') {
+        if (useShell.getState().overlay || !PRODUCTS.includes('ww')) return
+        e.preventDefault()
+        e.stopPropagation()
+        e.stopImmediatePropagation()
+        goSetup()
+        return
+      }
       const k = e.key
       if (k !== 'ArrowUp' && k !== 'ArrowDown' && k !== 'ArrowLeft' && k !== 'ArrowRight') return
       const s = useShell.getState()
@@ -94,19 +113,29 @@ export function useV3Keys(): void {
   }, [])
 }
 
+/** The pane ids of Setup, so a hash `#setup/<pane>` is checked without importing the panes. Kept equal to ww/setup INDEX by a test. */
+export const INDEX_IDS: ReadonlySet<string> = new Set(['rotation', 'dates', 'subjects', 'goals', 'timetable', 'attendance', 'deadlines', 'study', 'about', 'budget', 'style', 'calibration', 'career', 'connections', 'phone', 'backup', 'appearance', 'harvester'])
+
 /** `#section/view` onto the place store and back (3.4). The store stays the one place model. */
 function useHashRoute(place: Place): void {
   useEffect(() => {
     const apply = () => {
       const p = placeOfHash(location.hash)
-      if (p) useShell.getState().go(p)
+      if (!p) return
+      if (isSetupPlace(p)) {
+        if (!PRODUCTS.includes('ww')) return
+        // `#setup/subjects` opens that pane; an unknown pane leaves the one that was open
+        const pane = location.hash.replace(/^#\/?/, '').toLowerCase().split('/')[1]
+        if (pane && INDEX_IDS.has(pane)) void loadWwSetup?.().then((m) => m.showSetupPane(pane))
+      }
+      useShell.getState().go(p)
     }
     apply()
     window.addEventListener('hashchange', apply)
     return () => window.removeEventListener('hashchange', apply)
   }, [])
   useEffect(() => {
-    if (isAppPlace(place)) return
+    if (isAppPlace(place) && !isSetupPlace(place)) return
     const h = hashOfPlace(place)
     if (location.hash === h) return
     try {
@@ -142,7 +171,7 @@ function Frame({ pages, wwRoot, verbs, serverUp, frame }: ShellV3Props) {
   const [deck, setDeck] = useState(false)
   const [folded, setFolded] = useState(spineFolded)
   const now = useNow(15_000)
-  const open = subProjectOfSection(place.section)
+  const open = subProjectOfPlace(place)
   const ground = open?.ground ?? (product === 'ww' ? 'light' : 'dark')
   // the open project's hue: on the root so portals (popovers, sheets, the planned pose) read the same accent as the shell
   const hue = open?.id ?? (product === 'ww' ? 'wellwisher' : 'jarvis')
@@ -285,12 +314,20 @@ function Frame({ pages, wwRoot, verbs, serverUp, frame }: ShellV3Props) {
         style={glass ? { backdropFilter: 'var(--glass-filter, none)', WebkitBackdropFilter: 'var(--glass-filter, none)' } : undefined} />
       <SkipLink />
       <Slot name="boot" />
-      <Spine place={place} rows={rows} now={now} onGoSection={goSection} onPlanned={openPlanned} folded={folded} onFold={onFold} onChoose={() => setDeck(false)} />
+      <Spine place={place} rows={rows} now={now} onGoSection={goSection} onPlanned={openPlanned} onSetup={goSetup} folded={folded} onFold={onFold} onChoose={() => setDeck(false)} />
       <div className="s3-main">
-        <TopPlate place={place} rows={rows} more={more} glass={glass} onGlass={onGlass} onGoSection={goSection} onSetView={setView}
+        <TopPlate place={place} rows={rows} more={more} glass={glass} onGlass={onGlass} onGoSection={goSection} onSetView={setView} onSetup={goSetup}
           onShortcuts={() => useShell.getState().openOverlay('shortcuts')} windowKeys={windowKeys} />
         <div className="s3-stage">
-          <Canvas place={place} pages={pages} wwRoot={wwRoot} ww={ww} registries={registries} />
+          {isSetupPlace(place) ? (
+            <main className="s2-canvas" id="s2-canvas" tabIndex={-1} aria-label="Setup">
+              <div className="s2-page" id="s2-panel" data-product="ww" data-section="app" data-view="setup">
+                <Suspense fallback={<div className="s2-loading" role="status">Loading…</div>}><SetupHost /></Suspense>
+              </div>
+            </main>
+          ) : (
+            <Canvas place={place} pages={pages} wwRoot={wwRoot} ww={ww} registries={registries} />
+          )}
         </div>
         <Dock spec={chrome?.dock ?? null} onAsk={() => useShell.getState().openOverlay('palette')} />
       </div>

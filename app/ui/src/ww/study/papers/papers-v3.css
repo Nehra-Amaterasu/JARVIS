@@ -21,9 +21,28 @@
 :root[data-look='v3'] .pp3-detail { overflow-y: auto; }
 /* the tray scrolls instead of squeezing: with the OCR and draft panels added the readouts shrank into each other (seen at 1366 x 768) */
 :root[data-look='v3'] .pp3-detail > * { flex: none; }
-:root[data-look='v3'] .pp-v3 .pp-ledger { grid-template-columns: minmax(0, 1fr); }
-:root[data-look='v3'] .pp-v3 .pp-ledger .k-readout { block-size: auto; min-block-size: 3.5rem; padding-block-end: 0.5rem; }
+/* the ledger sits in the first tray, under the grid and the one primary: three readouts a row (five readouts in one column took the grid's room) */
+:root[data-look='v3'] .pp-v3 .pp-ledger { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.375rem; }
+:root[data-look='v3'] .pp-v3 .pp-ledger .k-readout { block-size: auto; min-block-size: 3.5rem; padding-block-end: 0.375rem; }
 :root[data-look='v3'] .pp-v3 .pp-ledger .k-stamp { position: static; justify-self: start; margin-block-start: 0.125rem; }
 :root[data-look='v3'] .pp-v3 .pp-ledger .k-readout-why { position: static; text-align: start; white-space: normal; overflow: visible; text-overflow: clip; }
 :root[data-look='v3'] .pp-v3 .pp-detail { box-shadow: var(--elev-recessed); background: var(--surface-sunk); }
 :root[data-look='v3'] .pp-v3 .pp-detail-act .k-btn { inline-size: 100%; }
+
+/* the second tray: the chosen paper and its OCR panel above the list, so the OCR key is on screen without scrolling; the list takes what is left */
+:root[data-look='v3'] .pp3-chosen { flex: none; }
+:root[data-look='v3'] .pp-v3 .pp3-chosen h2 { font-size: 1rem; }
+:root[data-look='v3'] .pp-v3 .pp-facts-row { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
+:root[data-look='v3'] .pp-v3 .pp-facts-row > div { flex-direction: column; align-items: flex-start; gap: 0.0625rem; }
+:root[data-look='v3'] .pp-v3 .pp-facts-row dd { font-size: 0.875rem; }
+:root[data-look='v3'] .pp-v3 .pp3-chosen .pp-ocr { padding: 0; background: none; box-shadow: none; }
+/* the tray scrolls when a finished reading has said a lot: the paper and its key stay on top, the list keeps 8 rem and the import tray stays reachable */
+:root[data-look='v3'] .pp3-papers { overflow-y: auto; }
+:root[data-look='v3'] .pp3-papers > * { flex: none; }
+:root[data-look='v3'] .pp-v3 .pp3-papers > .pp3-list { flex: 1 0 8rem; min-block-size: 8rem; }
+
+/* the first tray holds the grid, two notes, the one primary and the ledger: the parts keep their size and the grid takes the rest (never less
+   than 18 rem: its own chrome is 205 px, two topic rows are 88 px more), and the tray scrolls rather than let the ledger lie over the foot (seen at 1366 x 768 with a practise-next note) */
+:root[data-look='v3'] .pp3-cover { overflow-y: auto; }
+:root[data-look='v3'] .pp3-cover > * { flex: none; }
+:root[data-look='v3'] .pp3-cover > .pp3-strata { flex: 1 1 18rem; min-block-size: 18rem; }

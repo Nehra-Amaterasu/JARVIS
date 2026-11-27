@@ -1,5 +1,5 @@
 // ImportTray (package Y01, spec 21.3.2 S1): the Drop Slot grown into a route list. Closed it is the 300 x 100 well; open (on
-// hover, on focus inside it, on a drag, or by its key) it becomes a 300 x 260 tray of four 44 px route rows (Drop, Paste,
+// hover above 700 px, on focus inside it, on a drag, or by its key) it becomes a 300 x 260 tray of four 44 px route rows (Drop, Paste,
 // Folder, Classroom), each with its lamp, and the file being read with a words-per-page trace. Keys on the desk: `A` files,
 // `V` paste, `W` folder; Enter on a queued row opens its Extraction Trace. The Classroom row is PLANNED and opens the honest
 // explanation, never a form. Esc closes the tray.
@@ -21,6 +21,10 @@ export interface ImportTrayProps {
   /** Keep the tray open (the gallery shows the open state). */
   defaultOpen?: boolean
 }
+
+/** On a touch-width screen (700 px, where the desk's trays become sheets) the tray opens on a press or a focus only: a pointer resting
+ * where the sheet's pill was would otherwise open it over the paper list, with nothing under the finger to close it. */
+const touchWidth = () => typeof window !== 'undefined' && !!window.matchMedia?.('(max-width: 700px)').matches
 
 const KEY: Record<RouteId, string> = { drop: 'A', paste: 'V', folder: 'W', classroom: '' }
 const METHOD: Record<QueuedFile['method'], string> = { 'text-layer': 'text layer', ocr: 'OCR', pasted: 'pasted', slides: 'slides' }
@@ -52,7 +56,7 @@ export function ImportTray({ routes, queued, onFiles, accept, onRoute, onOpenTra
       data-component="import-tray"
       data-state={state}
       data-open={expanded ? 'true' : 'false'}
-      onPointerEnter={() => setOpen(true)}
+      onPointerEnter={() => { if (!touchWidth()) setOpen(true) }}
       onPointerLeave={(e) => { if (!e.currentTarget.contains(document.activeElement)) setOpen(false) }}
       onFocus={() => setOpen(true)}
       onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false) }}

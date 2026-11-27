@@ -4,7 +4,7 @@
  */
 export { Zones, type ZonesProps } from './Zones'
 export { Tray, Glint, Ruler, asciiRuler, type TrayProps } from './Tray'
-export { PhonePeeks } from './Sheets'
+export { PhonePeeks, PeekCtx, type PeekApi } from './Sheets'
 export {
   ViewChrome,
   useViewChrome,

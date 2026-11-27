@@ -21,8 +21,8 @@ const j = (e: Omit<PlannedEntry, 'product' | 'since' | 'reviewBy' | 'owner'>): P
 
 export const JARVIS_PLANNED: PlannedEntry[] = [
   j({ id: 'jarvis.agents', home: 'console.crew', pattern: 'coming', label: 'Agents', blocker: 'decision',
-    line: 'Agents that act on their own are not built. The staff roster below only reports what runs now.',
-    needs: 'A decision on what an agent may do without asking.' }),
+    line: 'Agents are being planned; nothing runs here yet. They would work on memory and tasks; the staff roster below only reports what runs now.',
+    needs: 'The memory lane designs agents for memory and tasks, the engine lane builds them, and this row is their place. Still to decide: what an agent may do without asking.' }),
   j({ id: 'jarvis.spotify-play', home: 'core.sound', pattern: 'disabled', label: 'Play a track by name', blocker: 'account',
     line: 'Starting a track by name is not built. The Spotify app opens on a search and you press play.',
     needs: 'A Spotify developer account and its sign-in.' }),

@@ -1330,7 +1330,9 @@ def default_plan_state(today: str) -> dict:
             # merge_plan_state keeps only keys listed here: habit taps, recalls and exam taps were
             # dropped on every reload until these three were added (found 2026-10-26).
             "habits": {}, "learn": {"seen": {}, "reviews": {}}, "exam_prep": {}, "work_sessions": {},
-            "study": {}, "life": {}, "tree_proofs": {}, "attendance": {}, "paper_marks": {}}
+            "study": {}, "life": {}, "tree_proofs": {}, "attendance": {}, "paper_marks": {},
+            # the counter row's layout (R-63): beside "life", not in it, since "life" is keyed by date and trimmed to 400 days
+            "life_layout": {}}
 
 
 def merge_plan_state(raw: Any, today: str) -> dict:
@@ -2121,6 +2123,15 @@ def word_score(query: str, target: str) -> float:
         return 0.0
     t = set(norm(target))
     return sum(1 for w in q if w in t or any(x.startswith(w) or w.startswith(x) for x in t)) / len(q)
+
+
+class StaleCount(Exception):
+    """A count tap whose `expect` no longer matches the stored count (the route answers 409 with `present`).
+    Not a ValueError, so the mission guard does not turn it into a 400."""
+
+    def __init__(self, counter: str, present: Optional[int]):
+        super().__init__(f"{counter} changed since you saw it; it is now {present if present is not None else 'not logged'}")
+        self.counter, self.present = counter, present
 
 
 # ------------------------------------------------------------------ the store (one writer)
@@ -2971,6 +2982,16 @@ class Plan:
                 if cid not in ids:
                     raise ValueError("no such counter")
                 counts = log.setdefault(today, {}).setdefault("counts", {})
+                if "expect" in payload:
+                    # The value he saw on screen. An undo sends {value: before, expect: after}: if another window
+                    # counted since, writing `before` would wipe that newer count, so it is refused and nothing is
+                    # written. The page shows "not logged" as 0, so an absent count compares as 0 (and null as 0).
+                    seen = 0 if payload.get("expect") is None else _num(payload.get("expect"))
+                    if seen is None:
+                        raise ValueError("expect is the count you saw, a number")
+                    present = counts.get(cid)
+                    if (present or 0) != seen:
+                        raise StaleCount(cid, present)
                 if "value" in payload:
                     v = _num(payload.get("value"))
                 else:

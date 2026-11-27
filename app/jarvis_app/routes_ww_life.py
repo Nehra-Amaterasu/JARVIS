@@ -4,6 +4,9 @@
                                           "reels_pending" {queued_today, due, total}, counted without the engine's cap of 3
     POST /api/mission/life/item/delete    {index, kind, text}   take today's item out; answers {removed, index, ...day}
     POST /api/mission/life/item/restore   {index, item}         put a removed item back (the undo); answers the day
+    GET  /api/mission/life/layout         R-63 the counter row: {shown, order, saved}; before any PUT, every counter in Settings order
+    PUT  /api/mission/life/layout         R-63 {shown?, order?}  kept in the plan state ("life_layout"), so every device draws the
+                                          same row; an unknown id is a 400, a counter missing from order keeps its place at the end
 
 Additive and live-safe: no existing route or state key changes. These two routes edit the same plan-state
 log that POST /api/mission/life/item writes (state["life"][date]["items"]), under the Plan's own lock, so
@@ -21,7 +24,7 @@ from typing import Optional
 from fastapi import Body, FastAPI, HTTPException
 from starlette.concurrency import run_in_threadpool
 
-from . import germoney, ww_life
+from . import germoney, ww_engines, ww_life
 
 
 def day_view(plan, today: Optional[str] = None) -> dict:
@@ -52,6 +55,25 @@ def restore(plan, index, item: dict, today: Optional[str] = None) -> dict:
     return day_view(plan, today)
 
 
+def _counter_ids() -> list[str]:
+    # the same Settings counters life_tap accepts, read each call so a counter added in Settings shows at once
+    return ww_life.counter_ids(ww_engines.load_inputs())
+
+
+def layout_view(plan, today: Optional[str] = None) -> dict:
+    stored = plan.load(today).get("life_layout") or {}
+    return {**ww_life.layout(stored, _counter_ids()), "saved": bool(stored.get("order"))}
+
+
+def save_layout(plan, payload: dict, today: Optional[str] = None) -> dict:
+    ids = _counter_ids()
+    with plan._lock:
+        st = plan.load(today)
+        st["life_layout"] = ww_life.clean_layout(payload, ids, st.get("life_layout"))
+        plan.save(st)
+    return layout_view(plan, today)
+
+
 def register(app: FastAPI, svc, bus) -> None:
     # routes_mission registers first (alphabetical) and leaves its Plan on svc; a test that loads only this
     # feature gets a Plan of its own over the same store.
@@ -77,3 +99,11 @@ def register(app: FastAPI, svc, bus) -> None:
         if not isinstance(item, dict):
             raise HTTPException(400, "restore needs the item that was removed")
         return await guard(restore, plan, payload.get("index"), item)
+
+    @app.get("/api/mission/life/layout")
+    async def life_layout():
+        return await run_in_threadpool(layout_view, plan)
+
+    @app.put("/api/mission/life/layout")
+    async def life_layout_put(payload: dict = Body(...)):
+        return await guard(save_layout, plan, payload)

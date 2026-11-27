@@ -59,7 +59,7 @@
     GET    /api/mission/study/{node}       one node: resource -> study -> contracts -> follow-ups (ww_study.py)
     POST   /api/mission/study/{node}/{op}  op primary {resource} | review {ok}
     GET    /api/mission/life               the day: counters with taper lines, items, reels to explain (ww_life.py)
-    POST   /api/mission/life/{op}          op count {id, value|delta} | item {kind, text, minutes?, url?} | explained {date, index}
+    POST   /api/mission/life/{op}          op count {id, value|delta, expect?} (409 {present} when expect differs) | item {kind, text, minutes?, url?} | explained {date, index}
     GET    /api/mission/trees              the life trees with each node's status and evidence (ww_trees.py)
     POST   /api/mission/trees/{tree}/{node}/proof  {url?, note?}  file a link for a "link" node
     POST   /api/mission/counsel/{task}     grade_explain | quiz_from_text | parse_day | summarise, via Ollama or an API (ww_counsel.py)
@@ -305,7 +305,10 @@ def register(app: FastAPI, svc, bus) -> None:
 
     @app.post("/api/mission/life/{op}")
     async def life_tap(op: str, payload: dict = Body(...)):
-        return await run_in_threadpool(guard, plan.life_tap, op, payload)
+        try:
+            return await run_in_threadpool(guard, plan.life_tap, op, payload)
+        except germoney.StaleCount as e:          # count with `expect` that no longer matches: nothing was written
+            raise HTTPException(409, {"message": str(e), "id": e.counter, "present": e.present})
 
     @app.get("/api/mission/trees")
     async def life_trees():

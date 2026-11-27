@@ -10,6 +10,10 @@ paths, not from hand-written JSON: the Classroom rows come from sync.sync() read
 the papers from ingest.ingest_pdf() reading invented PDFs, the tags from Store.update_questions(), the drafts from
 drafts.draft_from_notes() with a fixture drafter in the model's place, the plan from ww_engines.save_section(), the life
 counts from Plan.life_tap(), the pointer from the harvester's own fetch() over a fake network (ww_check_harvest.FakeNet).
+Wave EW9: the evening sheets, their marks and the practice papers come from the real routes (routes_ww_pyq_tonight and
+routes_ww_pyq_gen on a bare app in this process, _Routes), and today's sheet and its one reminder from the sheet's own
+clock; the variants and rubrics from variants.make()/decide() and rubric.draft()/put() with the fixture drafter; the
+intake rows from parse_paste()/parse_ics() and the intake store; the export is a zip written to the scratch folder.
 
 Nothing of the owner's is read: seed_study refuses to run unless JARVIS_DATA_DIR points the app at a scratch folder, and it
 refuses a target inside the repository's data/ folder. Every name, course, title and text below is made up and says so.
@@ -29,7 +33,8 @@ import tempfile
 import threading
 import time
 from contextlib import contextmanager
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from datetime import time as dtime                # `time` is the module (sleep) in this file
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable, Optional
@@ -51,7 +56,9 @@ SUBJECTS = [
         {"n": 2, "title": "Made-up transients", "exam_weight": "med", "topics": ["Toy capacitor charging", "Invented switch timing"]}]},
     {"id": "fixture-signals", "name": "Fixture Signals", "code": "FX202", "units": [
         {"n": 1, "title": "Pretend waves", "exam_weight": "high", "topics": ["Toy sine sketches", "Invented sampling grids"]},
-        {"n": 2, "title": "Made-up filters", "exam_weight": "low", "topics": ["Imaginary low-pass shapes"]}]},
+        # the second topic is the one a numerical template fits (ww_numericals rc_tau reads "RC" and "time constant"):
+        # no other invented topic matches a template, and a numerical variant needs one (R-29)
+        {"n": 2, "title": "Made-up filters", "exam_weight": "low", "topics": ["Imaginary low-pass shapes", "Pretend RC time constant"]}]},
 ]
 COUNTERS = [
     {"id": "fixture-water", "name": "Glasses of water (invented)", "want": "more"},
@@ -112,6 +119,26 @@ HARVEST_PAGE = ("<html><body><table><tr><th>Subject code</th><th>Subject name</t
                 f"<td><a href=\"{HARVEST_PDF}\">Invented Fixture Circuits sample paper (not a real exam)</a></td><td>2026</td></tr>"
                 "</table></body></html>")
 
+# ------------------------------------------------------------------ wave EW9: the evening sheet, marks, variants, intake, export
+TONIGHT_SUBJECT = "fixture-circuits"      # the paper nearest in date inside the sheet's 21-day horizon (12 days)
+GEN_EXAM = "fx-exam-circuits"
+MEASURED_TOPIC = "1|Imaginary resistor ladders"    # marked 5 times or more, so R-17 prints it measured
+UNMEASURED_TOPIC = "2|Invented switch timing"      # marked under 5 times
+GEN_SEEDS = 6                             # papers drawn at most until MEASURED_TOPIC has 5 marks; one paper seats about 2 of a topic
+SHEET_MARKS = [(None, 14), (-3, None), (-1, 9), (1, None)]      # (marks lost, or a fixed got when positive; minutes)
+PAPER_GOT = [4, 2, 5, 3, 1]
+TYPED_PAPER = "p-fx-typed-signals"
+TYPED_QUESTION = "q-" + hashlib.sha256(b"ww-seed:typed-signals:1").hexdigest()[:12]
+TYPED_TEXT = ("An invented fixture filter puts a pretend 2 kOhm resistor in series with an imaginary 5 uF capacitor. "
+              "Find its made-up time constant.")
+TYPED_TOPIC = (2, "Pretend RC time constant")
+HAND_RUBRIC = [{"text": "Invented rubric point: names the made-up parts the question asks about.", "marks": 2},
+               {"text": "Invented rubric point: explains each pretend step of the fixture kit in order.", "marks": 3}]
+EXPORT = "exports/fixture-classroom-export.zip"   # under the seed folder; R-46 is typed this path joined to the folder
+EXPORT_TIME = (2026, 11, 1, 9, 0, 0)       # every entry's zip time, so the archive is the same bytes on every run
+EXPORT_REFUSED = "../Outside the export (invented).pdf"
+MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
 _seed_lock = threading.Lock()
 
 
@@ -152,21 +179,29 @@ class _Ids:
 @contextmanager
 def _seeding(data_dir: Path):
     """Point every call-time lookup at the scratch folder for the length of the seed, then put everything back."""
-    from . import paths
-    from .ww_pyq import drafts, ingest
+    from . import paths, reminders
+    from .ww_pyq import drafts, ingest, variants
+    from .ww_pyq import store as store_mod
     ids = _Ids()
+    # The store draws an accepted variant's question and paper ids from uuid4, and also every temporary file name; its
+    # own counter keeps those writes from moving the ids drawn from `ids` (shared, every file written before an ingest
+    # would shift that paper's question ids)
+    ids.side = _Ids()
     env = {"JARVIS_ENGINE_INPUTS": str(data_dir / "engine-inputs.json"), "WW_BANK_DIR": str(data_dir / "bank" / "questions")}
     old_env = {k: os.environ.get(k) for k in env}
-    old = (paths.DATA, ingest._new_id, drafts.uuid)
+    old = (paths.DATA, ingest._new_id, drafts.uuid, variants.uuid, store_mod.uuid, reminders.secrets)
     with _seed_lock:
         os.environ.update(env)
         paths.DATA = data_dir
         ingest._new_id = lambda: f"q-{ids.hex12()}"
         drafts.uuid = SimpleNamespace(uuid4=lambda: SimpleNamespace(hex=ids.hex12()))
+        variants.uuid = SimpleNamespace(uuid4=lambda: SimpleNamespace(hex=ids.hex12()))
+        store_mod.uuid = SimpleNamespace(uuid4=lambda: SimpleNamespace(hex=ids.side.hex12()))
+        reminders.secrets = SimpleNamespace(token_hex=lambda n: ids.hex12()[:2 * n])
         try:
             yield ids
         finally:
-            paths.DATA, ingest._new_id, drafts.uuid = old
+            paths.DATA, ingest._new_id, drafts.uuid, variants.uuid, store_mod.uuid, reminders.secrets = old
             for k, v in old_env.items():
                 if v is None:
                     os.environ.pop(k, None)
@@ -376,16 +411,22 @@ def plan_subjects() -> list[dict]:
 
 
 # ================================================================== the areas
+def _plan(data_dir: Path):
+    """The plan store of the seed folder, built the way routes_mission builds svc.plan."""
+    from . import germoney
+    root = data_dir / "germoney"
+    kv = germoney.KVStore(root=root / "kv", backups=root / "backups")
+    return germoney.Plan(kv, academics_loader=lambda: germoney.load_academics(root / "academics" / "academics.json"))
+
+
 def _seed_plan(data_dir: Path, today: date) -> dict:
-    from . import germoney, ww_engines
+    from . import ww_engines
     inputs = data_dir / "engine-inputs.json"
     ww_engines.save_section("subjects", [dict(s) for s in SUBJECTS], path=inputs, today=today.isoformat())
     exams = [{k: v for k, v in e.items() if k != "days"} | {"date": (today + timedelta(days=e["days"])).isoformat()} for e in EXAMS]
     ww_engines.save_section("exams", exams, path=inputs, today=today.isoformat())
     ww_engines.save_section("life", {"counters": [dict(c) for c in COUNTERS]}, path=inputs, today=today.isoformat())
-    root = data_dir / "germoney"
-    kv = germoney.KVStore(root=root / "kv", backups=root / "backups")
-    plan = germoney.Plan(kv, academics_loader=lambda: germoney.load_academics(root / "academics" / "academics.json"))
+    plan = _plan(data_dir)
     for cid, v in COUNTS.items():
         plan.life_tap("count", {"id": cid, "value": v}, today=today.isoformat())
     return {"subjects": [s["id"] for s in SUBJECTS], "exams": [e["id"] for e in EXAMS],
@@ -453,13 +494,45 @@ def _seed_papers(data_dir: Path, ids: _Ids) -> dict:
 
 def fixture_drafter(system: str, user: str) -> str:
     """Stands where the local model stands (ww_counsel provider): invented questions on the topic the request names, in the
-    JSON shape asked for. It reads only the request, so the same request gives the same drafts."""
+    JSON shape asked for. It reads only the request, so the same request gives the same drafts. The three prompts it can
+    meet are told apart by their own fixed lines (prompts/*.md): "Original question:" asks for variants (R-29), a first
+    line "Marks:" for rubric points (R-32), anything else for drafts from notes (R-50)."""
+    if "Original question:" in user:
+        return _fixture_variants(user)
+    if user.lstrip().startswith("Marks:"):
+        return _fixture_rubric(user)
     topic = (re.search(r"^Topic:\s*(.+)$", user, re.M) or [None, "the topic"])[1].strip()
     count = int((re.search(r"^Number of questions:\s*(\d)", user, re.M) or [None, "2"])[1])
     qs = [f"Fixture draft (invented, no model was asked): explain {topic} with one made-up example from the fixture kit.",
           f"Fixture draft (invented, no model was asked): compare two pretend cases of {topic} and say which is simpler.",
           f"Fixture draft (invented, no model was asked): sketch {topic} and label two invented parts."]
     return json.dumps({"questions": qs[:max(1, min(count, 3))]})
+
+
+def _fixture_variants(user: str) -> str:
+    """Two rewordings of the stem: the first keeps two thirds of its words and adds a new tail (inside the 0.2 to 0.7
+    shared-wording band, so the real rule keeps it pending), the second is the stem with two words added (over 0.7, so
+    the same rule sets it aside as rejected). The band is variants.BAND's; the verdict is the rule's, not this fixture's."""
+    stem = user.split("Original question:", 1)[1].strip()
+    count = int((re.search(r"^Number of new questions:\s*(\d)", user, re.M) or [None, "2"])[1])
+    words = stem.rstrip(".?!").split()
+    near = " ".join(words[:max(5, (len(words) * 2) // 3)]) + " told again with a made-up example of three invented rungs."
+    copy = stem.rstrip(".?!") + ", once more."
+    return json.dumps({"variants": [near, copy][:max(1, min(count, 2))]})
+
+
+def _fixture_rubric(user: str) -> str:
+    """Two invented points that add up to the marks the request names, in halves (the finest marks a rubric holds)."""
+    m = float((re.search(r"^Marks:\s*([\d.]+)", user, re.M) or [None, "2"])[1])
+    a = max(0.5, round(m * 0.4 * 2) / 2)
+    points = [{"text": "Fixture rubric point (invented, no model was asked): names the made-up parts the question asks about.",
+               "marks": a}]
+    if m - a > 0:
+        points.append({"text": "Fixture rubric point (invented, no model was asked): explains each pretend step in order.",
+                       "marks": m - a})
+    else:
+        points[0]["marks"] = m
+    return json.dumps({"points": points})
 
 
 def _seed_drafts(data_dir: Path, ids: _Ids) -> dict:
@@ -503,6 +576,281 @@ def _seed_harvest(data_dir: Path) -> dict:
     return {"sources": sorted(papers.ADAPTERS), "pointer": {"source": sid, "key": key, "url": HARVEST_PDF}}
 
 
+# ================================================================== wave EW9 (routes R-29 to R-34, R-36 to R-47, R-55 to R-63)
+@contextmanager
+def _swapped(pairs: list):
+    """Set (object, name, value) for the length of the block, then put every one back."""
+    old = [(o, n, getattr(o, n)) for o, n, _ in pairs]
+    for o, n, v in pairs:
+        setattr(o, n, v)
+    try:
+        yield
+    finally:
+        for o, n, v in reversed(old):
+            setattr(o, n, v)
+
+
+def _at(module, when: datetime):
+    """A route module's `date` and `datetime` answering `when` for today() and now(): a sheet built for yesterday is
+    stamped yesterday evening and its marks the same night, the way he would have typed them, so R-62 counts two days."""
+    class _Date(date):
+        @classmethod
+        def today(cls):
+            return cls(when.year, when.month, when.day)
+
+    class _DateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            v = cls(when.year, when.month, when.day, when.hour, when.minute, when.second)
+            return v if tz is None else v.astimezone(tz)
+    return _swapped([(module, "date", _Date), (module, "datetime", _DateTime)])
+
+
+class _Routes:
+    """The real routes of the evening sheet (R-55 to R-59) and of the practice paper (R-19 to R-27) on a bare app in this
+    process, called through its test client: the rows they write are the rows the running app writes, with no server,
+    no port and no scheduler (the clock is called by hand, through the same app.state.pyq_tonight_clock the tick calls)."""
+
+    def __init__(self, plan, reminders):
+        from fastapi import FastAPI
+        from starlette.testclient import TestClient
+        from . import routes_ww_pyq_gen, routes_ww_pyq_tonight
+        self.app = FastAPI()
+        svc = SimpleNamespace(plan=plan, reminders=reminders)
+        bus = SimpleNamespace(publish=lambda *a, **k: None)
+        routes_ww_pyq_gen.register(self.app, svc, bus)
+        routes_ww_pyq_tonight.register(self.app, svc, bus)
+        self.client = TestClient(self.app)
+
+    def call(self, method: str, url: str, **kw) -> dict:
+        r = self.client.request(method, url, **kw)
+        if r.status_code != 200:
+            raise RuntimeError(f"Seeding stopped: {method} {url} answered {r.status_code}: {r.text[:300]}")
+        return r.json()
+
+    def close(self) -> None:
+        self.client.close()
+
+
+def _attempts(plan, today: date, key: str) -> int:
+    """Marked attempts at a topic as R-17 counts them: the length of its paper_marks list."""
+    pm = (plan.load(today.isoformat()).get("paper_marks") or {}).get(TONIGHT_SUBJECT) or {}
+    return len(pm.get(key) or [])
+
+
+def _seed_paper_marks(r: _Routes, st, plan, today: date, papers: dict) -> dict:
+    """A blueprint inferred from paper A (R-21), set to the exam row's 70 marks and saved (R-20), practice papers drawn
+    (R-22) and marked (R-27): the first paper whole, the later ones on MEASURED_TOPIC only, until it has 5 marks."""
+    from . import routes_ww_pyq_gen, ww_generator
+    from .ww_pyq import blueprint as bpm
+    from .ww_pyq import generate as gen
+    from .ww_pyq import next as pnext
+    P = "/api/mission/pyq"
+    exam = next(e for e in EXAMS if e["id"] == GEN_EXAM)
+    drawn = []
+    with _at(routes_ww_pyq_gen, datetime.combine(today, dtime(9, 30))):
+        if bpm.load_blueprint(st, GEN_EXAM) is None:
+            bp = r.call("POST", f"{P}/blueprints/infer", json={"paper": papers["text"], "exam": GEN_EXAM})["blueprint"]
+            # paper A prints 40 marks and the exam row is 70: he keeps the inferred section and sets its count to the row
+            sec = dict(bp["sections"][0])
+            n = int(exam["max"] // float(sec["marks"]))
+            sec.update(questions=n, attempt=n)
+            r.call("PUT", f"{P}/blueprints/{GEN_EXAM}", json={"blueprint": {**bp, "total": exam["max"], "sections": [sec]}})
+        for seed in range(GEN_SEEDS):
+            have = {p.get("seed"): p for p in gen.list_generated(st, exam=GEN_EXAM)}
+            # the stop is looked at only before drawing a new paper: a second seed walks every paper already on file and
+            # so answers the same list of papers
+            if seed not in have and _attempts(plan, today, MEASURED_TOPIC) >= pnext.MIN_ATTEMPTS:
+                break
+            paper = have.get(seed) or r.call("POST", f"{P}/papers/generate", json={"exam": GEN_EXAM, "seed": seed})["paper"]
+            drawn.append(paper["id"])
+            if not any(a.get("paper_id") == paper["id"] for a in gen.read_attempts(st)):
+                seats = [x for s in paper.get("sections") or [] for x in s.get("slots") or []
+                         if x.get("source") != "hollow" and x.get("question_id")]
+                if seed:
+                    seats = [x for x in seats if ww_generator.topic_key(x.get("unit"), str(x.get("topic") or "")) == MEASURED_TOPIC]
+                if seats:
+                    items = [{"id": x["question_id"], "got": min(float(x["marks"]), PAPER_GOT[i % len(PAPER_GOT)])}
+                             for i, x in enumerate(seats)]
+                    r.call("POST", f"{P}/generated/{paper['id']}/marks", json={"items": items})
+    return {"subject": TONIGHT_SUBJECT, "exam": GEN_EXAM, "papers": drawn,
+            "measured_topic": MEASURED_TOPIC, "unmeasured_topic": UNMEASURED_TOPIC}
+
+
+def _seed_tonight(data_dir: Path, today: date, ids: _Ids, papers: dict) -> tuple[dict, dict]:
+    """The evening sheet switched on (R-56); yesterday's sheet built (R-57) and every question marked (R-58), so nothing
+    awaits marks; practice papers marked (R-27); then today's sheet built by the clock itself at the sheet's hour, which
+    raises the one reminder of the day and writes the day as handled, so the app's first tick raises none."""
+    from . import reminders as rem
+    from . import routes_ww_pyq_tonight
+    from .ww_pyq import tonight
+    from .ww_pyq.store import Store
+    st = Store(data_dir / "pyq")
+    plan = _plan(data_dir)
+    rs = rem.ReminderStore(path=data_dir / "reminders.json")      # the file the app's ReminderStore() opens in the box
+    r = _Routes(plan, rs)
+    T = "/api/mission/pyq/tonight"
+    yday = today - timedelta(days=1)
+    try:
+        settings = r.call("PUT", f"{T}/settings", json={"on": True})["settings"]
+        with _at(routes_ww_pyq_tonight, datetime.combine(yday, dtime(19, 0))):
+            y = r.call("POST", f"{T}/build", json={"date": yday.isoformat(), "subject": TONIGHT_SUBJECT})["sheet"]
+        if y["unmarked"]:
+            rows = []
+            for i, it in enumerate(y["items"]):
+                lost, minutes = SHEET_MARKS[i % len(SHEET_MARKS)]
+                got = it["marks"] if lost is None else (lost if lost > 0 else max(0, it["marks"] + lost))
+                rows.append({"question_id": it["question_id"], "got": got, "minutes": minutes})
+            with _at(routes_ww_pyq_tonight, datetime.combine(yday, dtime(21, 15))):
+                r.call("POST", f"{T}/{y['id']}/marks", json={"items": rows})
+        ledger = _seed_paper_marks(r, st, plan, today, papers)
+        h, m = (int(x) for x in settings["hour"].split(":"))
+        at = datetime.combine(today, dtime(h, m))
+        if today == date.today():
+            at = max(at, datetime.now().replace(microsecond=0))
+        sid = tonight.sheet_id(today.isoformat(), TONIGHT_SUBJECT)
+        ids.name("tonight-reminder")
+        with _at(routes_ww_pyq_tonight, at):
+            r.app.state.pyq_tonight_clock(at.timestamp())
+            if tonight.find_sheet(st, sid) is None:
+                # the clock had the day already (a seed that stopped half way): the sheet is built the way R-57 builds it
+                r.call("POST", f"{T}/build", json={"date": today.isoformat(), "subject": TONIGHT_SUBJECT})
+    finally:
+        r.close()
+    today_sheet = tonight.load_sheet(st, sid)
+    y_sheet = tonight.load_sheet(st, y["id"])
+    rs = rem.ReminderStore(path=data_dir / "reminders.json")
+    mine = [x for x in rs.pending() + rs.recent(within_s=3 * 86400, limit=50) if x.get("origin") == "tonight"]
+    return ({"subject": TONIGHT_SUBJECT, "on": True, "hour": settings["hour"], "today": sid, "yesterday": y["id"],
+             "today_questions": [it["question_id"] for it in today_sheet["items"]],
+             "yesterday_questions": [it["question_id"] for it in y_sheet["items"]],
+             "awaiting_marks": [], "reminders": sorted(x["id"] for x in mine)}, ledger)
+
+
+def _seed_variants(data_dir: Path, ids: _Ids, papers: dict) -> tuple[dict, dict]:
+    """A typed numerical question of Fixture Signals with two template variants, one accepted (a question with origin
+    "template" and source_question); two drafted rewordings of a question of paper A, the rule keeping one pending and
+    setting the other aside; a rubric drafted for one question and one he wrote for another. The fixture drafter stands
+    where the model stands; no model is asked."""
+    from .ww_pyq import rubric, variants
+    from .ww_pyq.store import Store
+    st = Store(data_dir / "pyq")
+    st.add_paper({"id": TYPED_PAPER, "kind": "hand", "method": "typed", "subject": "fixture-signals", "exam_kind": "other",
+                  "title": "Invented Fixture Signals typed questions (sandbox, not a real exam)", "year": None, "pages": 0,
+                  "faults": [], "source_note": "invented for the sandbox"})
+    if TYPED_QUESTION not in {q["id"] for q in st.list_questions(TYPED_PAPER)}:
+        st.add_questions(TYPED_PAPER, [{"id": TYPED_QUESTION, "label": "1", "kind": "question", "text": TYPED_TEXT,
+                                        "text_status": "verified", "crop": None, "page": 0, "marks": 5, "marks_source": "hand",
+                                        "type": "numerical", "section": "", "choice_group": "", "co": "", "bl": None, "parts": []}])
+    q = st.get_question(TYPED_QUESTION)
+    if (q["status"], q.get("unit"), q.get("topic")) != ("accepted", *TYPED_TOPIC):
+        st.update_question(TYPED_QUESTION, {"status": "accepted", "unit": TYPED_TOPIC[0], "topic": TYPED_TOPIC[1]}, by="hand")
+    a_qs = papers["questions"][papers["text"]]
+    worded = a_qs[0]
+    for qid, provider in ((TYPED_QUESTION, None), (worded, fixture_drafter)):
+        if not variants.list_variants(st, question=qid):
+            ids.name(f"variants:{qid}")
+            variants.make(st, qid, count=2, provider=provider)
+    nums = variants.list_variants(st, question=TYPED_QUESTION)
+    if not any(v["status"] == "accepted" for v in nums):
+        first = min((v for v in nums if v["status"] == "pending"), key=lambda v: v["id"])
+        ids.side.name("variant-accept")
+        variants.decide(st, first["id"], {"status": "accepted"})
+        nums = variants.list_variants(st, question=TYPED_QUESTION)
+    acc = next(v for v in nums if v["status"] == "accepted")
+    words = variants.list_variants(st, question=worded)
+    out_v = {"numerical_question": TYPED_QUESTION, "numerical_pending": [v["id"] for v in nums if v["status"] == "pending"],
+             "accepted": acc["id"], "accepted_question": acc["accepted_as"], "descriptive_question": worded,
+             "descriptive_pending": [v["id"] for v in words if v["status"] == "pending"],
+             "descriptive_rejected": [v["id"] for v in words if v["status"] == "rejected"]}
+    drafted, written = a_qs[1], a_qs[2]
+    if rubric.get(st, drafted) is None:
+        rubric.draft(st, drafted, provider=fixture_drafter)
+    if (rubric.get(st, written) or {}).get("status") != "accepted":
+        rubric.put(st, written, HAND_RUBRIC)
+    return out_v, {"pending": drafted, "accepted": written}
+
+
+def _day(d: date) -> str:
+    return f"{d.day} {MONTHS[d.month - 1]} {d.year}"      # "4 Dec 2026", a form C01 reads; never the PC's locale
+
+
+def _ics(today: date) -> str:
+    one, first = today + timedelta(days=8), today + timedelta(days=1)
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Invented fixture//Sandbox//EN",
+             "BEGIN:VEVENT", "UID:fx-ics-seminar@invented-fixture.example", f"DTSTART;VALUE=DATE:{one:%Y%m%d}",
+             f"DTEND;VALUE=DATE:{one + timedelta(days=1):%Y%m%d}", "SUMMARY:Invented fixture seminar (sandbox)", "END:VEVENT",
+             "BEGIN:VEVENT", "UID:fx-ics-tutorial@invented-fixture.example", f"DTSTART:{first:%Y%m%d}T090000",
+             f"DTEND:{first:%Y%m%d}T100000", "RRULE:FREQ=WEEKLY;COUNT=3", "SUMMARY:Invented fixture weekly tutorial (sandbox)",
+             "END:VEVENT", "END:VCALENDAR"]
+    return "\r\n".join(lines) + "\r\n"
+
+
+def _seed_intake(data_dir: Path, today: date) -> dict:
+    """Four pasted lines (C01 parse_paste, then the store): one left new, one accepted with a date (R-42 lists it), one
+    whose date reads two ways and stays unresolved, one declined; and a calendar file of two events, one repeating
+    weekly three times, as rows. Accept and decline are the store update R-39 makes."""
+    from .ww_intake import parse_ics, parse_paste
+    from .ww_intake.store import IntakeStore
+    st = IntakeStore(data_dir / "intake")
+    now = datetime.combine(today, dtime(9, 0)).astimezone()
+    lines = {"new": f"Invented fixture lab report due {_day(today + timedelta(days=4))}",
+             "accepted": f"Invented fixture circuits quiz on {_day(today + timedelta(days=6))} at 10:00",
+             "ambiguous": "Invented fixture viva on 03/04",
+             "declined": f"Invented fixture poster deadline {_day(today + timedelta(days=9))}"}
+    res = parse_paste("\n".join(lines.values()), now)
+    st.add_paste(res)
+    title_of = {it["raw"]: it["title"] or it["raw"] for it in res["items"]}
+    by_title = {r["title"]: r for r in st.list_rows() if r["source"] == "paste"}
+    rid = {k: by_title[title_of[v]]["id"] for k, v in lines.items()}
+    for k, change in (("accepted", {"state": "accepted", "subject": TONIGHT_SUBJECT}), ("declined", {"state": "declined"})):
+        if st.get(rid[k])["state"] == "new":
+            st.update(rid[k], change)
+    st.add_events(parse_ics(_ics(today), now), today=today.isoformat())
+    ics = sorted((r for r in st.list_rows() if r["source"] == "ics"), key=lambda r: (r["date"] or "", r["time"] or "", r["id"]))
+    return {"paste": rid, "accepted_date": st.get(rid["accepted"])["date"],
+            "ics_single": [r["id"] for r in ics if "seminar" in r["title"]],
+            "ics_repeating": [r["id"] for r in ics if "weekly" in r["title"]]}
+
+
+def _pptx(title: str, body: str) -> bytes:
+    from pptx import Presentation
+    p = Presentation()
+    s = p.slides.add_slide(p.slide_layouts[1])
+    s.shapes.title.text = title
+    s.placeholders[1].text = body
+    buf = io.BytesIO()
+    p.save(buf)
+    return buf.getvalue()
+
+
+def _seed_export(data_dir: Path) -> dict:
+    """An invented Classroom export for R-46: two PDFs and a deck R-47 may take, and one entry whose name climbs out
+    with "..", which the door must refuse. Written once, never listed or accepted here."""
+    path = data_dir / EXPORT
+    entries = [   # built only when the archive is written: a second seed reads none of them
+        ("Invented Fixture Circuits/Unit 1 notes (invented).pdf",
+         lambda: _pdf([[("box", "Invented export notes of the fixture kit: an imaginary resistor ladder, nothing real.")]])),
+        ("Invented Fixture Signals/Lab sheet (invented).pdf",
+         lambda: _pdf([[("box", "Invented export lab sheet: sketch a toy sine wave on the pretend grid.")]])),
+        ("Invented Fixture Circuits/Unit 2 slides (invented).pptx",
+         lambda: _pptx("Invented Fixture Circuits unit 2 (sandbox)", "Toy capacitor charging, made up for the sandbox.")),
+        (EXPORT_REFUSED, lambda: _pdf([[("box", "An invented file whose name climbs out of the export folder.")]])),
+    ]
+    if not path.is_file():
+        import zipfile
+        path.parent.mkdir(parents=True, exist_ok=True)
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            for name, build in entries:
+                data = build()
+                info = zipfile.ZipInfo(name, date_time=EXPORT_TIME)
+                info.compress_type = zipfile.ZIP_DEFLATED
+                z.writestr(info, data)
+        path.write_bytes(buf.getvalue())
+    return {"archive": EXPORT, "entries": [n for n, _ in entries if n != EXPORT_REFUSED], "refused": [EXPORT_REFUSED]}
+
+
 def seed_study(data_dir, today: Optional[date] = None) -> dict:
     """Fill `data_dir` with the invented study rows. The ids come back grouped by area; a second run into the same folder
     finds every row on file and gives the same ids (dates move with the day it runs: an exam stays in the future)."""
@@ -518,6 +866,12 @@ def seed_study(data_dir, today: Optional[date] = None) -> dict:
         out["papers"] = _seed_papers(data_dir, ids)
         out["drafts"] = _seed_drafts(data_dir, ids)
         out["harvest"] = _seed_harvest(data_dir)
+        out["tonight"], out["ledger"] = _seed_tonight(data_dir, today, ids, out["papers"])
+        out["variants"], out["rubric"] = _seed_variants(data_dir, ids, out["papers"])
+        out["intake"] = _seed_intake(data_dir, today)
+        out["takeout"] = _seed_export(data_dir)
+        # R-63 is left unsaved on purpose, so a first visit sees the default row: the same rule routes_ww_life reads
+        out["life_layout"] = {"saved": bool((_plan(data_dir).load(today.isoformat()).get("life_layout") or {}).get("order"))}
     (data_dir / MARKER).write_text(json.dumps(out, indent=1), encoding="utf-8")
     return out
 

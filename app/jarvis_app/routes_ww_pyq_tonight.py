@@ -3,7 +3,7 @@
     GET    /api/mission/pyq/tonight                   R-55 today's sheet, earlier sheets awaiting marks, the settings, the papers ahead
     PUT    /api/mission/pyq/tonight/settings          R-56 {on?, hour? "HH:MM", count? 3 to 12, horizon_days? 1 to 60}
     POST   /api/mission/pyq/tonight/build             R-57 {date?, subject?}: the sheet of a day, each item with its text and why
-    POST   /api/mission/pyq/tonight/{sid}/marks       R-58 {items: [{question_id, got, minutes?}]}: kept in the sheet and the plan
+    POST   /api/mission/pyq/tonight/{sid}/marks       R-58 {items: [{question_id, got, minutes?, out_of?, keep?}]}: kept in the sheet and the plan
     GET    /api/mission/pyq/tonight/{sid}/print       R-59 the sheet as A4 HTML through the print set of R-25
 
 The subject is the paper nearest in date on his date sheet (ww_engines inputs, the rows ww_exams reads) unless he names
@@ -39,6 +39,8 @@ SOURCE_MARKS = "the marks you typed"
 _ALL_MINUTES = 10 ** 9           # the whole counted order of R-17, not the topics of one gap
 _CLOCK_EVERY_S = 30.0            # the scheduler ticks every second; once in 30 s is plenty for a sheet set by the minute
 _LETTERS = "ABCDEFGHIJKL"        # one print section per marks value; a sheet holds at most 12 questions
+NOT_PRINTED_NOTE = "marks not printed"
+_UNPRINTED = "__marks-not-printed__"   # stands for a null marks value through the print set, then is replaced by the note
 
 
 def _store():
@@ -113,9 +115,13 @@ def register(app: FastAPI, svc, bus) -> None:
         return next((r["days_left"] for r in papers_ahead(day, None) if r["subject"] == subject_id), None)
 
     def accepted_of(st, sid: str) -> dict:
-        # a question prints from its words or its page crop; one with neither cannot stand on a sheet
+        # a question prints from its words or its page crop; one with neither cannot stand on a sheet. Marks on file, or
+        # marks not printed (a question bank's, wave EW11). A solution's items and an item judged not a question never
+        # stand: the counted order leaves them out already (patterns), and so does this.
+        sols = {p["id"] for p in st.list_papers(sid) if p.get("role") == "solution"}
         return {q["id"]: q for q in st.list_questions(subject=sid, status="accepted")
-                if q.get("marks") is not None and (str(q.get("text") or "").strip() or (q.get("crop") or {}).get("png"))}
+                if tonight.can_stand(q) and q["paper_id"] not in sols and q.get("not_question") is not True
+                and (str(q.get("text") or "").strip() or (q.get("crop") or {}).get("png"))}
 
     def counted_order(st, sub: dict, sid: str) -> tuple[list[dict], dict]:
         """R-17 as routes_ww_pyq_patterns computes it: the same patterns, proficiency, attempts and syllabus weights."""
@@ -142,7 +148,7 @@ def register(app: FastAPI, svc, bus) -> None:
             except (KeyError, ValueError, OSError):
                 q, crop = {}, None                 # deleted since: the row stays, its words are gone
             items.append({**it, "text": str(q.get("text") or ""), "crop": crop, "why": why.get(qid),
-                          "mark": got.get(qid)})
+                          "mark": got.get(qid), "marks_note": NOT_PRINTED_NOTE if it.get("marks") is None else ""})
         return {**sheet, "items": items, "unmarked": tonight.unmarked(sheet)}
 
     def build(day: str, subject: Any = None) -> tuple[str, str, Optional[dict], Optional[dict], Optional[int]]:
@@ -251,10 +257,11 @@ def register(app: FastAPI, svc, bus) -> None:
             p = plan()
             st = _store()
             if not isinstance(body, dict) or set(body) != {"items"}:
-                raise ValueError("Send the marks as {items: [{question_id, got, minutes?}]}.")
+                raise ValueError("Send the marks as {items: [{question_id, got, minutes?, out_of?, keep?}]}.")
             with tonight._LOCK:
                 sheet = tonight.load_sheet(st, sid)
                 new, kept = tonight.apply_marks(sheet, body["items"], datetime.now().isoformat(timespec="seconds"))
+                keep = tonight.keeps(body["items"])
                 by_q = {it["question_id"]: it for it in sheet["items"]}
                 day = today()
                 # where R-27 writes (Plan.paper_marks): the topic's list in paper_marks, oldest first, 40 kept. The tag
@@ -272,13 +279,26 @@ def register(app: FastAPI, svc, bus) -> None:
                     keys = sorted({by_q[m["question_id"]]["topic_key"] for m in kept})
                     prof = ww_generator.proficiency(states, pm, keys)
                 tonight.save_sheet(st, new)
+            # keep: his out_of becomes the question's own marks, set by hand (marks_source "hand"); the sheet's item stays
+            # as it was built, its mark row holds the same number as max
+            remembered, lost = [], []
+            for qid, out_of in keep.items():
+                try:
+                    st.update_question(qid, {"marks": out_of}, "hand")
+                    remembered.append(qid)
+                except (KeyError, ValueError):
+                    lost.append(qid)                       # gone since the sheet was built: the mark itself is kept
             got_sum, max_sum = sum(m["got"] for m in kept), sum(m["max"] for m in kept)
             left = tonight.unmarked(new)
             publish(f"sheet marks saved: {_g(got_sum)} of {_g(max_sum)}")
             reason = (f"Saved marks for {_plural(len(kept), 'question', 'questions')}: {_g(got_sum)} of {_g(max_sum)}."
-                      + (f" {_plural(left, 'question is', 'questions are')} still unmarked." if left else " Every question is marked."))
+                      + (f" {_plural(left, 'question is', 'questions are')} still unmarked." if left else " Every question is marked.")
+                      + (f" Your out of is kept as the marks of {_plural(len(remembered), 'question', 'questions')}." if remembered else "")
+                      + (f" {_plural(len(lost), 'question is', 'questions are')} no longer on file, so its out of was not kept."
+                         if lost else ""))
             return api.ok("live", reason, SOURCE_MARKS, sheet=answer_of(st, new), saved=len(kept),
-                          total={"got": got_sum, "max": max_sum}, marked_by="you", proficiency={k: prof.get(k) for k in keys})
+                          total={"got": got_sum, "max": max_sum}, marked_by="you", proficiency={k: prof.get(k) for k in keys},
+                          kept_marks=remembered)
         return await run_in_threadpool(api.guard, work)
 
     # ------------------------------------------------------------------ R-59
@@ -295,19 +315,28 @@ def register(app: FastAPI, svc, bus) -> None:
                 title = sheet["subject"]
             sections: list[dict] = []
             for it in ans["items"]:
-                sec = next((x for x in sections if float(x["marks"]) == float(it["marks"])), None)
+                # a question whose marks are not printed has its own section; its marks never pass through float()
+                mk = _UNPRINTED if it["marks"] is None else it["marks"]
+                sec = next((x for x in sections if (x["marks"] == mk if mk == _UNPRINTED or x["marks"] == _UNPRINTED
+                                                    else float(x["marks"]) == float(mk))), None)
                 if sec is None:
-                    sec = {"name": _LETTERS[len(sections)], "marks": it["marks"], "slots": []}
+                    sec = {"name": _LETTERS[len(sections)], "marks": mk, "slots": []}
                     sections.append(sec)
                 sec["slots"].append({"n": it["n"], "source": "hand", "question_id": it["question_id"], "text": it["text"],
-                                     "has_crop": it["crop"] is not None, "marks": it["marks"]})
+                                     "has_crop": it["crop"] is not None, "marks": mk})
             for sec in sections:
                 sec["attempt"] = sec["set"] = len(sec["slots"])
-            paper = {"id": sheet["id"], "title": f"Tonight, {sheet['date']}: {title}", "seed": None,
-                     "header": "Practice sheet from your bank. Not an official paper.",
-                     "total_marks": sum(float(it["marks"]) for it in ans["items"]), "duration_min": None,
-                     "made": sheet.get("built_at"), "sections": sections}
+            unprinted = sum(1 for it in ans["items"] if it["marks"] is None)
+            header = "Practice sheet from your bank. Not an official paper."
+            if unprinted:
+                header += (f" {_plural(unprinted, 'question prints', 'questions print')} no marks: give your own out of "
+                           "when you mark it; the total counts only printed marks.")
+            paper = {"id": sheet["id"], "title": f"Tonight, {sheet['date']}: {title}", "seed": None, "header": header,
+                     "total_marks": sum(float(it["marks"]) for it in ans["items"] if it["marks"] is not None),
+                     "duration_min": None, "made": sheet.get("built_at"), "sections": sections}
             html = printset.render_print(paper, "paper", store=st)
+            html = (html.replace(f"{_UNPRINTED} marks each", NOT_PRINTED_NOTE)
+                    .replace(f"[{_UNPRINTED}]", f"[{NOT_PRINTED_NOTE}]").replace(_UNPRINTED, NOT_PRINTED_NOTE))
             # the print set's footer names a generated paper's seed; a sheet has none, so the line names the sheet
             return html.replace("<footer>Seed . Paper ", "<footer>Sheet ", 1)
         html = await run_in_threadpool(api.guard, work)

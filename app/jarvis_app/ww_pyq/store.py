@@ -29,7 +29,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from .. import ww_bank_store
 from .schema import (EXAM_KINDS, FLOOR_PAPERS, FLOOR_QUESTIONS, MAX_TEXT, Q_STATUSES, Q_TYPES,
@@ -41,6 +41,7 @@ _DIFFICULTIES = ("easy", "medium", "hard", "")
 _MAX_MARKS = 1000          # a number this large is a typo, not a question
 _REPLACE_TRIES = 8         # Windows can hold a target for a few ms (antivirus, an open reader)
 _MAX_PROBLEMS = 50
+NOT_PRINTED = "not printed"  # marks_source of a question-bank question that prints no marks (ww_pyq/prep.py, R-70)
 
 # keys no caller may change through update_paper / update_question: they are the record's identity
 _PAPER_FIXED = ("id", "sha256")
@@ -349,6 +350,23 @@ class Store:
             self._save(self._qpath(paper_id), rows + new)
             return [q["id"] for q in new]
 
+    def replace_questions(self, paper_id: str, drafts: list[QuestionDraft],
+                          before: Optional[Callable[[list[dict]], None]] = None) -> list[str]:
+        """A paper's questions replaced by new drafts in one atomic write (R-67, a paper read again). Every draft is
+        checked before anything happens; then `before(current questions)` runs under the store's lock and may raise to
+        keep the paper as it is (or move files that belong with the new reading); then the one write. Each new question
+        arrives pending, keeping its id when no other paper uses it."""
+        with self._lock:
+            if _check_id(paper_id) not in self._papers():
+                raise KeyError("No such paper.")
+            cur = self._questions_of(paper_id)
+            taken = {q["id"] for q in self._all_ids() if q["paper_id"] != paper_id}
+            new = [self._draft(d, paper_id, taken) for d in drafts]          # all valid or none written
+            if before is not None:
+                before(cur)
+            self._save(self._qpath(paper_id), new)
+            return [q["id"] for q in new]
+
     def _all_ids(self) -> list[dict]:
         out = []
         for f in self._qdir.glob("*.json"):
@@ -442,8 +460,10 @@ class Store:
             new[k] = v
         if by == "hand" and ("unit" in changes or "topic" in changes) and "tag_source" not in changes:
             new["tag_source"] = "hand"
-        if new["status"] == "accepted" and new.get("marks") is None:
-            raise ValueError("Give its marks first.")            # a question without marks never reaches the bank
+        # a question without marks never reaches the bank, except one of a question bank that prints none (wave EW11:
+        # his teacher's banks hold 10 to 24 questions each and none prints marks); it says so on every screen
+        if new["status"] == "accepted" and new.get("marks") is None and new.get("marks_source") != NOT_PRINTED:
+            raise ValueError("Give its marks first.")
         new["updated"] = _now()
         return new
 

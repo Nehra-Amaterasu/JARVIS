@@ -449,3 +449,25 @@ def test_the_gate_reports_a_difference(monkeypatch):
 def test_the_gate_main_prints_and_exits_zero_when_clean(capsys):
     assert ww_check_pyq.main() == 0
     assert "ok" in capsys.readouterr().out.lower()
+
+
+def test_a_topic_taught_only_through_a_question_bank_is_weighed_and_says_on_what_basis():
+    """A question bank prints no marks. On a copy of the real store (28 Nov 2026) one subject had 94 accepted questions
+    and no topic in the counted order, because a topic without printed marks had no weight at all."""
+    def q(i, paper, topic, marks):
+        return {"id": f"q{i}", "paper_id": paper, "status": "accepted", "unit": 1, "topic": topic, "marks": marks,
+                "text": f"Invented question {i} about {topic}.", "kind": "question"}
+    papers = [{"id": "exam", "year": 2025, "total_marks": 20, "subject": "s"},
+              {"id": "bank", "year": 2025, "total_marks": None, "subject": "s", "role": "question_bank"}]
+    qs = ([q(i, "exam", "Alpha", m) for i, m in enumerate((2, 8, 10))]                  # printed: median 8
+          + [q(10 + i, "bank", "Beta", None) for i in range(4)]                           # only in the bank
+          + [q(20, "bank", "Alpha", None)])
+    ps = patterns.compute_patterns(qs, papers, floor_papers=1, floor_questions=1)
+    by = {t["topic"]: t for t in ps["topics"]}
+    assert by["Beta"]["marks_basis"] == "assumed" and by["Beta"]["assumed_marks"] == 8.0 and by["Beta"]["typical_marks"] == 8.0
+    assert by["Beta"]["marks_weight"]["mean"] == round(32 / 40, 4)       # 4 of the bank's 5 questions, each counted as 8
+    assert by["Alpha"]["marks_basis"] == "mixed"
+    picks = {p["topic"]: p for p in nxt.practise_next(ps, {}, 600)}
+    assert "Beta" in picks and picks["Beta"]["terms"]["marks_basis"] == "assumed"
+    only_printed = patterns.compute_patterns(qs[:3], papers[:1], floor_papers=1, floor_questions=1)
+    assert only_printed["topics"][0]["marks_basis"] == "printed" and only_printed["topics"][0]["assumed_marks"] is None

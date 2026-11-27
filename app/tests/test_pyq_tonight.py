@@ -603,3 +603,72 @@ def test_no_forecast_word_anywhere_in_the_answers(env):
     for j in (c.get(T).json(), c.post(f"{T}/build", json={}).json(), c.get(T).json()):
         for text in strings(j):
             assert "forecast" not in text.lower(), text
+
+
+# ------------------------------------------------------------------ wave EW11: marks that are not printed
+def unmarked_sheet(st):
+    """The invented bank, plus an invented question bank whose one question prints no marks, accepted as the rule of R-70
+    accepts it; and a sheet of today with that question and one that prints its marks."""
+    bank(st)
+    pid = st.add_paper({"title": "Invented unit 2 question bank", "subject": "signals", "role": "question_bank", "sha256": "e" * 64})
+    qid = st.add_questions(pid, [{"text": "Explain the time constant of an invented first order network.", "text_status": "verified"}])[0]
+    st.update_question(qid, {"marks_source": "not printed"}, "rule")
+    st.update_question(qid, {"status": "accepted", "unit": 2, "topic": "time constant"}, "rule")
+    marked = next(q for q in st.list_questions(subject="signals", status="accepted") if q["topic"] == "sampling theorem")
+    day = TODAY.isoformat()
+    sid = tonight.sheet_id(day, "signals")
+    sheet = tonight.make_sheet(sid, day, "signals", [({"unit": 2, "topic": "time constant", "key": "2|time constant"}, st.get_question(qid)),
+                                                     ({"unit": 1, "topic": "sampling theorem", "key": "1|sampling theorem"}, marked)],
+                               f"{day}T19:00:00")
+    tonight.save_sheet(st, sheet, {})
+    return sid, qid, marked["id"]
+
+
+def test_choose_takes_a_question_whose_marks_are_not_printed_and_never_one_without_marks():
+    picks = [{"key": "k", "question_ids": ["q-a", "q-b"]}]
+    acc = {"q-a": {"id": "q-a", "marks": None, "marks_source": "missing"}, "q-b": {"id": "q-b", "marks": None, "marks_source": "not printed"}}
+    chosen = tonight.choose(picks, acc, set(), 3, "2026-11-27-signals")
+    assert [q["id"] for _, q in chosen] == ["q-b"]
+    assert tonight.make_sheet("2026-11-27-signals", "2026-11-27", "signals", chosen, "t")["items"][0]["marks"] is None
+
+
+def test_a_question_whose_marks_are_not_printed_takes_his_out_of(env):
+    c, st, plan, _ = env
+    sid, qid, marked = unmarked_sheet(st)
+    raw = json.loads((Path(st.root) / "sheets" / f"{sid}.json").read_text(encoding="utf-8"))
+    assert [i["marks"] for i in raw["items"]] == [None, 5]
+    for bad in ({"question_id": qid, "got": 3}, {"question_id": qid, "got": 3, "out_of": 0}, {"question_id": qid, "got": 3, "out_of": 101},
+                {"question_id": qid, "got": 3, "out_of": "10"}, {"question_id": qid, "got": 3, "out_of": True},
+                {"question_id": qid, "got": 11, "out_of": 10}, {"question_id": qid, "got": 3, "out_of": 10, "keep": "yes"},
+                {"question_id": marked, "got": 2, "out_of": 5}, {"question_id": marked, "got": 2, "keep": True}):
+        assert c.post(f"{T}/{sid}/marks", json={"items": [bad]}).status_code == 400, bad
+    assert tonight.load_sheet(st, sid)["marks"] == []
+    j = c.post(f"{T}/{sid}/marks", json={"items": [{"question_id": qid, "got": 6, "out_of": 10}, {"question_id": marked, "got": 4}]}).json()
+    envelope(j)
+    assert j["total"] == {"got": 10, "max": 15} and j["kept_marks"] == []
+    q = st.get_question(qid)
+    assert (q["marks"], q["marks_source"], q["status"]) == (None, "not printed", "accepted")      # no keep: the question stays unmarked
+    kept = tonight.load_sheet(st, sid)["marks"]
+    assert [(m["question_id"], m["got"], m["max"]) for m in kept] == [(qid, 6, 10), (marked, 4, 5)]
+    assert all(set(m) == {"question_id", "got", "max", "minutes", "at"} for m in kept)                # the shared shape
+    row = plan.load()["paper_marks"]["signals"]["2|time constant"][-1]
+    assert (row["got"], row["max"], row["q"]) == (6, 10, qid)                                     # proficiency reads got over max
+    item = next(i for i in j["sheet"]["items"] if i["question_id"] == qid)
+    assert item["marks_note"] == "marks not printed" and item["marks"] is None
+    j = c.post(f"{T}/{sid}/marks", json={"items": [{"question_id": qid, "got": 7, "out_of": 8, "keep": True}]}).json()
+    assert j["kept_marks"] == [qid] and "kept as the marks of 1 question" in j["reason"]
+    q = st.get_question(qid)
+    assert (q["marks"], q["marks_source"]) == (8, "hand")                                          # his number, set by hand
+    assert [(m["got"], m["max"]) for m in tonight.load_sheet(st, sid)["marks"] if m["question_id"] == qid] == [(7, 8)]
+    html = c.get(f"{T}/{sid}/print").text
+    assert "marks not printed" in html and "None" not in html and "__marks" not in html
+    assert "Section A: marks not printed" in html and "Total 5 marks" in html
+
+
+def test_the_ledger_counts_a_mark_on_a_question_whose_marks_are_not_printed_as_got_over_out_of(env):
+    c, st, plan, _ = env
+    sid, qid, _ = unmarked_sheet(st)
+    c.post(f"{T}/{sid}/marks", json={"items": [{"question_id": qid, "got": 3, "out_of": 4}]})
+    from jarvis_app.ww_pyq import ledger
+    rows, skipped = ledger.sheet_rows([{"file": f"{sid}.json", "sheet": tonight.load_sheet(st, sid)}], "signals")
+    assert skipped == [] and [(r["question_id"], r["got"], r["max"], r["topic_key"]) for r in rows] == [(qid, 3.0, 4.0, "2|time constant")]

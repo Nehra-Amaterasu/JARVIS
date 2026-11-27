@@ -77,7 +77,9 @@ def practise_next(patterns: PatternSet, proficiency: dict[str, float], gap_minut
         cands.append((gain / minutes, {
             "key": t["key"], "unit": t["unit"], "topic": t["topic"], "gain": round(gain, 6),
             "terms": {"marks_weight": mw, "seen_share": round(share, 4), "proficiency": round(prof, 3),
-                      "measured": measured, "minutes": minutes, "syllabus_weight": weight},
+                      "measured": measured, "minutes": minutes, "syllabus_weight": weight,
+                      # "printed", or "assumed" / "mixed" when a question bank printed no marks (patterns.py says how)
+                      "marks_basis": t.get("marks_basis", "printed")},
             "question_ids": list(t["questions"]), "reason": reason}))
     cands.sort(key=lambda c: (-c[0], c[1]["key"]))
     left = [p for _, p in cands]

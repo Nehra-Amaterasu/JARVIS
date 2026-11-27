@@ -19,16 +19,22 @@ The subject rules, in order, each saying which one spoke (measured 28 Nov: rules
 Two subjects matched by the same rule is no proposal. With apply, course and code and name are written as the subject
 (subject_source "rule", subject_rule naming the rule); a model pick only as subject_suggestion (with subject_suggestion_model)
 for him to press. A paper that has a subject is never touched: whatever set it, he chose or kept it.
+
+R-66 also proposes each paper's role (prep.role_by_rule: a solution or a question bank from its title and file name;
+written as role with role_source "rule", never over a role on file), and records a solution's paper (`solution_of`, with
+solution_of_source "rule") when exactly one paper of the same subject names the same exam in its title (prep.exam_key)
+and no year on them differs. Nothing more is done with the pair in this wave. R-65 answers solutions separately: their
+papers and items are in no other count, because they are answers, not questions.
 """
 from __future__ import annotations
 
 import re
 from collections import Counter
-from typing import Optional
+from typing import Callable, Optional
 
 from . import next as pnext
-from .prep import Model, ask
-from .store import Store
+from .prep import ROLES, Model, ask, exam_key, role_by_rule, role_of
+from .store import NOT_PRINTED, Store
 
 OPENING = 600
 FIRST_QUESTIONS = 3
@@ -130,7 +136,9 @@ def _opening(store: Store, paper: dict) -> str:
 # ------------------------------------------------------------------ R-65
 def counts(store: Store, subjects: list[dict], manifest: Optional[dict], fault: str = "") -> dict:
     names = {sid: str(s.get("name") or sid) for sid, s in _subject_ids(subjects).items()}
-    papers = store.list_papers()
+    every = store.list_papers()
+    sols = [p for p in every if role_of(p) == "solution"]
+    papers = [p for p in every if role_of(p) != "solution"]
     by: dict[str, dict] = {}
     blank = {"papers": 0, "questions": 0, "pending": 0, "accepted": 0, "with_marks": 0, "tagged": 0, "sheet_ready_topics": 0}
     for sid in names:
@@ -164,6 +172,17 @@ def counts(store: Store, subjects: list[dict], manifest: Optional[dict], fault: 
         for k in blank:
             total[k] += row[k] if k != "papers" else 0
     total["papers"] = len(papers)
+    banks = [p for p in papers if role_of(p) == "question_bank"]
+    kept = [q for p in papers for q in store.list_questions(paper_id=p["id"]) if q.get("status") != "rejected"]
+    extra = {
+        "solutions": {"papers": len(sols), "items": sum(len(store.list_questions(paper_id=p["id"])) for p in sols),
+                      "paired": sum(1 for p in sols if p.get("solution_of"))},
+        "question_banks": len(banks),
+        "not_questions": sum(1 for q in kept if q.get("not_question") is True),
+        # questions of a bank that print no marks: accepted ones say "not printed", the rest are still pending
+        "marks_not_printed": sum(1 for p in banks for q in store.list_questions(paper_id=p["id"])
+                                 if q.get("marks") is None and q.get("status") != "rejected"),
+        "accepted_unmarked": sum(1 for q in kept if q.get("status") == "accepted" and q.get("marks_source") == NOT_PRINTED)}
     if manifest is None:
         courses = {"mapped": None, "unmapped": None, "state": "fault" if fault else "waiting",
                    "reason": fault or "No Classroom sync on file."}
@@ -172,7 +191,7 @@ def counts(store: Store, subjects: list[dict], manifest: Optional[dict], fault: 
         mapped = sum(1 for c in cs.values() if isinstance(c, dict) and c.get("subject"))
         courses = {"mapped": mapped, "unmapped": len(cs) - mapped, "state": "live", "reason": ""}
     return {**total, "without_subject": len(loose), "by_subject": sorted(by.values(), key=lambda r: r["subject"]),
-            "courses": courses}
+            "courses": courses, **extra}
 
 
 # ------------------------------------------------------------------ R-66
@@ -188,8 +207,59 @@ def _course_rows(subjects: dict[str, dict], manifest: Optional[dict]) -> list[di
     return out
 
 
+def _roles(store: Store, apply: bool) -> list[dict]:
+    """A role for each paper with none on file, when the rule finds one. A role on file (his, or the rule's of an earlier
+    call) stands."""
+    out = []
+    for p in store.list_papers():
+        if p.get("role") in ROLES:
+            continue
+        r = role_by_rule(p.get("title"), p.get("filename"))
+        if not r:
+            continue
+        row = {"paper": p["id"], "title": p.get("title") or "", "role": r, "written": False}
+        if apply and store.get_paper(p["id"]).get("role") not in ROLES:       # he may have chosen one while this ran
+            store.update_paper(p["id"], {"role": r, "role_source": "rule"})
+            row["written"] = True
+        out.append(row)
+    return out
+
+
+def _pairs(store: Store, proposed: dict[str, str], apply: bool) -> list[dict]:
+    """A solution and the one paper of its subject that names the same exam in its title. With apply false the subjects
+    and roles this call would write count as written, so the answer says what apply would do."""
+    papers = store.list_papers()
+
+    def subj(p):
+        return str(p.get("subject") or proposed.get(p["id"], ""))
+
+    def role(p):
+        return role_of(p) if p.get("role") in ROLES else (role_by_rule(p.get("title"), p.get("filename")) or "paper")
+
+    out = []
+    for s in papers:
+        if role(s) != "solution" or s.get("solution_of") or not subj(s):
+            continue
+        key = exam_key(s.get("title"))
+        if not key:
+            continue
+        match = [p for p in papers if p["id"] != s["id"] and role(p) == "paper" and subj(p) == subj(s)
+                 and exam_key(p.get("title")) == key
+                 and (p.get("year") is None or s.get("year") is None or p.get("year") == s.get("year"))]
+        if len(match) != 1:
+            continue                                     # none, or two papers of that exam: not guessed
+        row = {"solution": s["id"], "paper": match[0]["id"], "exam": key, "written": False}
+        if apply and not store.get_paper(s["id"]).get("solution_of"):
+            store.update_paper(s["id"], {"solution_of": match[0]["id"], "solution_of_source": "rule"})
+            row["written"] = True
+        out.append(row)
+    return out
+
+
 def propose(store: Store, subjects: list[dict], manifest: Optional[dict], *, apply: bool, use_model: bool, model: Model,
-            limit: int = MAX_PAPERS) -> dict:
+            limit: int = MAX_PAPERS, stop: Optional[Callable[[], bool]] = None,
+            progress: Optional[Callable[[int], None]] = None) -> dict:
+    """R-66. `stop` (the job's R-74) is looked at before each paper without a subject, `progress` told after each."""
     if not isinstance(apply, bool) or not isinstance(use_model, bool):
         raise ValueError("Apply and use_model are true or false.")
     if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= MAX_PAPERS:
@@ -199,10 +269,15 @@ def propose(store: Store, subjects: list[dict], manifest: Optional[dict], *, app
     tally = Counter()
     items = []
     asked = 0
+    stopped = False
+    roles = _roles(store, apply)
     for p in store.list_papers():
         if p.get("subject"):
             tally["has_subject"] += 1
             continue
+        if stop is not None and stop():
+            stopped = True
+            break
         item = {"paper": p["id"], "title": p.get("title") or "", "subject": "", "rule": "", "written": "", "reason": ""}
         sid = course_subject(manifest, classroom_file(manifest, p))
         rule = "course" if sid in subs else ""
@@ -249,6 +324,11 @@ def propose(store: Store, subjects: list[dict], manifest: Optional[dict], *, app
             tally["none"] += 1
             item["reason"] = item["reason"] or "No rule found a subject."
         items.append(item)
+        if progress is not None:
+            progress(1)
+    proposed = {it["paper"]: it["subject"] for it in items if it["subject"] and it["rule"] in ("course", "code", "name")}
     return {"items": items, "counts": {k: tally.get(k, 0) for k in ("course", "code", "name", "model", "none", "has_subject",
                                                                       "model_failed", "model_dropped")},
-            "asked": asked, "courses": _course_rows(subs, manifest)}
+            "asked": asked, "courses": _course_rows(subs, manifest), "roles": roles,
+            "role_counts": {r: sum(1 for x in roles if x["role"] == r) for r in ("question_bank", "solution")},
+            "pairs": _pairs(store, proposed, apply), "stopped": stopped}

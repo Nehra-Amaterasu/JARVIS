@@ -74,6 +74,16 @@ def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
     return (0.0 if k <= 0 else max(0.0, centre - half)), (1.0 if k >= n else min(1.0, centre + half))
 
 
+def _evidence(qs: list[Question], papers: list[PaperMeta]) -> tuple[list[Question], list[PaperMeta]]:
+    """What may count as a past question (wave EW11): a solution sheet's items are answers, never questions (in two such
+    files of his only 9 of 34 items read like questions), and an item judged not a question (`not_question`, by rule or
+    the model) is left out too. Both go before anything is counted, so k, N, the marks weight and the order of R-17
+    never see them."""
+    gone = {p.get("id") for p in papers if p.get("role") == "solution"}
+    return ([q for q in qs if q.get("paper_id") not in gone and q.get("not_question") is not True],
+            [p for p in papers if p.get("id") not in gone])
+
+
 def _counted(qs: list[Question]) -> list[Question]:
     return [q for q in qs if q.get("status") == "accepted" and q.get("unit") is not None and q.get("topic")]
 
@@ -93,6 +103,7 @@ def _with_accepted(qs: list[Question], papers: list[PaperMeta]) -> list[PaperMet
 
 
 def quiet_topics(qs: list[Question], papers: list[PaperMeta], r: int = QUIET_R) -> list[str]:
+    qs, papers = _evidence(qs, papers)
     on_file = _ordered(_with_accepted(qs, papers))
     recent = {p["id"] for p in on_file[-min(r, len(on_file)):]} if on_file else set()
     seen_before, seen_recent = set(), set()
@@ -110,6 +121,7 @@ def _plural(n: int, one: str, many: str) -> str:
 
 def compute_patterns(qs: list[Question], papers: list[PaperMeta], floor_papers: int = FLOOR_PAPERS,
                      floor_questions: int = FLOOR_QUESTIONS) -> PatternSet:
+    qs, papers = _evidence(qs, papers)
     on_file = _ordered(_with_accepted(qs, papers))
     ids = {p["id"] for p in on_file}
     N = len(on_file)
@@ -117,11 +129,21 @@ def compute_patterns(qs: list[Question], papers: list[PaperMeta], floor_papers: 
     accepted_all = [q for q in qs if q.get("status") == "accepted" and q.get("paper_id") in ids]
     years = {p["id"]: p.get("year") for p in on_file}
     newest = max((y for y in years.values() if y is not None), default=None)
+    # A question bank prints no marks. Its questions still have to be weighed, or a topic taught only through the
+    # teacher's question bank never reaches a sheet (28 Nov 2026, a copy of the real store: 94 accepted questions of one
+    # subject, 0 topics ranked). Such a question counts as the median of the marks that ARE printed among the counted
+    # questions (1 when none is), and every topic says on what basis it was weighed (`marks_basis`), so the assumption
+    # is on the screen and not only in this file.
+    printed = [float(q["marks"]) for q in counted if q.get("marks")]
+    assumed = float(median(printed)) if printed else 1.0
+
+    def _m(q) -> float:
+        return float(q["marks"]) if q.get("marks") else assumed
     # the paper's own total when printed; else what its accepted questions add up to
     totals = {}
     for p in on_file:
         t = p.get("total_marks")
-        totals[p["id"]] = float(t) if t else sum(float(q.get("marks") or 0) for q in accepted_all if q["paper_id"] == p["id"])
+        totals[p["id"]] = float(t) if t else sum(_m(q) for q in accepted_all if q["paper_id"] == p["id"])
 
     by_topic: dict[str, list[Question]] = {}
     for q in counted:
@@ -134,11 +156,13 @@ def compute_patterns(qs: list[Question], papers: list[PaperMeta], floor_papers: 
         weights = []
         for pid in in_papers:
             if totals.get(pid):
-                weights.append(sum(float(q.get("marks") or 0) for q in rows if q["paper_id"] == pid) / totals[pid])
+                weights.append(sum(_m(q) for q in rows if q["paper_id"] == pid) / totals[pid])
         lo, hi = wilson(len(in_papers), N)
         dated = [years[pid] for pid in in_papers if years.get(pid) is not None]
         last = max(dated) if dated else None
-        marks = [float(q["marks"]) for q in rows if q.get("marks") is not None]
+        n_printed = sum(1 for q in rows if q.get("marks"))
+        basis = "printed" if n_printed == len(rows) else "assumed" if n_printed == 0 else "mixed"
+        marks = [_m(q) for q in rows]
         topics.append({
             "key": key, "unit": rows[0]["unit"], "topic": str(rows[0]["topic"]), "k": len(in_papers), "n": N,
             "low": round(lo, 4), "high": round(hi, 4), "last_year": last,
@@ -146,6 +170,7 @@ def compute_patterns(qs: list[Question], papers: list[PaperMeta], floor_papers: 
             "marks_weight": ({"mean": round(sum(weights) / len(weights), 4), "min": round(min(weights), 4), "max": round(max(weights), 4)}
                              if weights else {"mean": None, "min": None, "max": None}),
             "typical_marks": float(median(marks)) if marks else None,
+            "marks_basis": basis, "assumed_marks": None if basis == "printed" else assumed,
             "questions": sorted(q["id"] for q in rows)})
     topics.sort(key=lambda t: (-t["k"], t["unit"], t["topic"]))
 

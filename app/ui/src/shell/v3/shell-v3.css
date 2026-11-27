@@ -535,7 +535,7 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
   .s3-lampwrap .s3-pop { position: fixed; left: 1rem; right: 1rem; top: 4.75rem; width: auto; max-width: none; }
   .s3-morewrap .s3-pop { position: fixed; left: 1rem; right: 1rem; top: 4.75rem; max-height: calc(100% - 9rem); overflow-y: auto; }
   .s3-pillbtn { max-width: 11.5rem; }
-  .s3-zones { display: flex; flex-direction: column; gap: 0.75rem; overflow-y: auto; padding: 0.125rem 0.125rem 0.5rem; scrollbar-width: none; }
+  .s3-zones { display: flex; flex-direction: column; gap: 0.75rem; overflow-y: auto; overflow-x: hidden; padding: 0.125rem 0.125rem 0.5rem; scrollbar-width: none; }
   .s3-tray { flex: none; padding: 0.875rem 0.875rem 1rem; gap: 0.5rem; border-radius: 1.375rem; }
   .s3-tray[data-step='1'] { border-radius: 1.875rem; }
   .s3-tray[data-step='2'],
@@ -544,6 +544,10 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
   .s3-peeks,
   .s3-peeks-fallback { display: flex; gap: 0.5rem; flex: none; }
   .s3-peeks-fallback { display: flex; }
+  /* the sideways scroll on the phone (273 px, 631 against 358): a view that places no <PhonePeeks /> gets the fallback row, a flex row, and the
+     .s3-peeks inside it is flex: none, so it kept its max-content width, two pills side by side with a long note each, 629 px in a 354 px
+     row; .s3-zones (overflow-y: auto, which makes overflow-x auto) then scrolled, and focusing the sheet's Done key moved it 273 px */
+  .s3-peeks-fallback > .s3-peeks { flex: 1 1 0%; min-width: 0; }
   .s3-pill { flex: 1; min-width: 0; min-height: 44px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.125rem; padding: 0.25rem 0.75rem; border: 0; border-radius: 1rem; background-image: linear-gradient(145deg, var(--raised-hi), var(--raised)); background-color: var(--raised); box-shadow: var(--sh-raise); color: var(--ink); font-weight: 600; text-align: left; cursor: pointer; }
   .s3-pill:active { box-shadow: var(--sh-press); }
   .s3-pill-name { display: inline-flex; align-items: center; gap: 0.375rem; }
@@ -559,6 +563,11 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
   .s3-tray[data-sheet='open'] { display: flex; position: fixed; left: 0.5rem; right: 0.5rem; bottom: 9.5rem; z-index: 40; max-height: calc(100% - 17.5rem); overflow-y: auto; background-image: none; background-color: var(--pop); box-shadow: var(--sh-now), var(--edge); animation: s3-rise var(--s3-d-sheet) var(--s3-ease) both; }
   .s3-tray[data-sheet='open']::before { display: none; }
   .s3-tray[data-sheet='open'] .s3-done { display: inline-flex; align-self: flex-end; min-height: 44px; min-width: 88px; align-items: center; justify-content: center; padding: 0 1.125rem; border: 0; border-radius: 0.875rem; background-image: linear-gradient(145deg, var(--raised-hi), var(--raised)); background-color: var(--raised); box-shadow: var(--sh-raise); color: var(--ink); font-weight: 600; cursor: pointer; }
+  /* the sheet's body was flex: 1 1 0% with overflow visible: the tray's own box (max-height, 17.5rem short of the screen) never grew past
+     its head and Done key, so a long view ran out of the body and under Done. The body is now the part that scrolls, between the head and
+     the Done key, which stay put; the 0.25rem padding with the same negative margin keeps a focus ring (5 px) from being cut by the clip */
+  .s3-tray[data-sheet='open'] .s3-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0.25rem; margin: -0.25rem; overscroll-behavior: contain; }
+  .s3-tray[data-sheet='open'] .s3-done { flex: none; }
   .s3-dock { gap: 0.5rem; padding: 0.5rem; }
   .s3-mode { gap: 0.25rem; padding: 0; background-color: transparent; box-shadow: none; }
   .s3-mode button { min-width: 44px; padding: 0 0.625rem; }

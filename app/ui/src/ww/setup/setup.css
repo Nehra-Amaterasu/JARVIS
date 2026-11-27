@@ -273,3 +273,129 @@
 .su-row[data-dense] .su-row-fields > .ww-field {
   flex-basis: 6.5rem;
 }
+
+/* ---- Past-paper sources (PaperSources.tsx). A soft card on the surface tone, no border: the card is told apart by its ground. ---- */
+.su-pps {
+  display: grid;
+  gap: var(--space-3);
+}
+/* keys and fields on this pane are 44 px (--hit), not the kit's 40: the probe measured 40 x 71 to 202 on every key and the 405 x 40 address field */
+.su-pps .ww-btn {
+  --ctl-h: var(--hit);
+}
+.su-pps .ww-input {
+  min-block-size: var(--hit);
+}
+.su-ps {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--card-pad);
+  border-radius: var(--card-radius);
+  background: var(--surface-2);
+}
+.su-ps-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.su-ps-name {
+  margin: 0;
+  font-size: var(--text-title);
+  font-weight: var(--weight-strong);
+  color: var(--ink-1);
+}
+.su-ps-meta {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  overflow-wrap: anywhere;
+}
+/* the terms note is the sentence he must read before a switch: body size, reading leading, full ink */
+.su-ps-terms {
+  margin: 0;
+  color: var(--ink-1);
+  font-size: var(--text-body);
+  line-height: var(--leading-read);
+}
+.su-ps-switches,
+.su-ps-address,
+.su-ps-readrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+.su-ps-address > .ww-field,
+.su-ps-readrow > .ww-field {
+  flex: 1 1 12rem;
+  min-inline-size: 0;
+}
+.su-ps-switch {
+  gap: var(--space-2);
+}
+.su-ps-switch[data-on='true'] {
+  background: var(--selected-bg);
+}
+.su-ps-switch-state {
+  color: var(--ink-2);
+  font-size: var(--text-small);
+}
+.su-ps-say {
+  margin: 0;
+  color: var(--ink-1);
+  font-size: var(--text-small);
+  line-height: var(--leading-small);
+  overflow-wrap: anywhere;
+}
+.su-ps-say[data-tone='refused'] {
+  font-weight: var(--weight-medium);
+}
+.su-ps-list {
+  display: grid;
+  gap: var(--space-2);
+}
+.su-ps-count {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--ink-1);
+  font-size: var(--text-small);
+}
+.su-ps-items {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.su-ps-items > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--btn-quiet-bg);
+}
+.su-ps-item-text {
+  display: grid;
+  flex: 1 1 14rem;
+  gap: 0;
+  min-inline-size: 0;
+}
+.su-ps-item-title {
+  color: var(--ink-1);
+  font-size: var(--text-body);
+  overflow-wrap: anywhere;
+}
+.su-ps-item-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

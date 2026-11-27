@@ -223,12 +223,8 @@ for (const look of LOOKS) {
       await expect(detail.getByRole('button', { name: /turn.?in|submit/i })).toHaveCount(0)
       await expect(detail.locator('[data-component="classroom-announcements"]')).toContainText('The lab moves to room 4')
       await expect(detail.locator('[data-component="classroom-calendar"]')).toContainText('28 Nov 2026, 10:00')
-      // v3 phone, first opening of the Assignment sheet only: the shell's strip of trays (.s3-zones, 631 px of scroll width in a 358 px box) is
-      // scrolled 273 px sideways, so the first tray behind the opaque sheet is flagged as sideways and cut (6 lines). The picture is clean and the
-      // later sheets, opened the same way, measure clean; it is the shell's sheet mechanism and is reported, so those six lines are waived here.
-      const before = problems.length
+      // 27 Nov: the 273 px sideways scroll of the tray strip on the v3 phone (a pill row 629 px wide in a 354 px box) is fixed in the shell, so nothing is waived here any more
       await measure(page, tag('due detail late'), problems)
-      if (look.id === 'v3' && size.w === 390) problems.splice(before, problems.length - before, ...problems.slice(before).filter((x) => !/s3-zones|text cut by a clipping box: cr-(why|note|due-mono)/.test(x)))
       await noOverlap(page, tag('due detail late'), problems); await shot(page, look.id, size, 'due-4-detail-late')
 
       // ---- Open in Classroom, then one reminder per press, then its removal

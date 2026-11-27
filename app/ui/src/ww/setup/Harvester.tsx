@@ -24,12 +24,15 @@ import { Planned } from '../Planned'
 import { openOverlay } from '../frame/overlayRegistry'
 import { SetupCard } from './forms'
 import { PagerBar, usePaged } from './pager'
+import { PaperSources, type PaperSource } from './PaperSources'
 
 export interface HarvestSource { id: string; name: string; kind: string; status: string; license: string; reason: string; terms_url: string; note: string; on_disk: number }
 export interface HarvestSources {
   sources: HarvestSource[]
   not_used?: { name: string; reason: string }[]
   pdf_reader?: { available: boolean; note: string }
+  /** Past-paper sources with their own two switches (engine R-44); absent on an older engine, and then the pane is not offered. */
+  paper_sources?: PaperSource[]
 }
 export interface HarvestItem { id: string; subject: string; topic: string; tier: string; status: string; fetched?: number; added?: number; reason?: string }
 export interface HarvestQueue {
@@ -68,7 +71,7 @@ export function Harvester() {
   const [tier, setTier] = useState('gate')
   const pg = usePaged(q?.items.length ?? 0, 3)
   // two panes, one at a time (the owner's no-scroll rule): the licences first, because they come before the switch
-  const [pane, setPane] = useState<'sources' | 'queue'>('sources')
+  const [pane, setPane] = useState<'sources' | 'papers' | 'queue'>('sources')
 
   const load = useCallback(async () => {
     const [a, b] = await Promise.allSettled([api<HarvestQueue>(`${PATH}/queue`), api<HarvestSources>(`${PATH}/sources`)])
@@ -131,6 +134,7 @@ export function Harvester() {
   }
 
   const off = !q.enabled
+  const papers = src.paper_sources ?? []
   const switchOn = () => openOverlay('confirm', {
     title: 'Switch the question harvester on?',
     body: 'It fetches only from the sources marked on above, one request at a time, 2 to 5 seconds apart, and keeps what it fetches on this laptop. A source with no recorded licence stays off. You can pause it any time.',
@@ -142,8 +146,8 @@ export function Harvester() {
   return (
     <SetupCard n="SU18" anchor="harvester" title="Question harvester" hint="Questions from openly licensed sources, saved on this laptop. Official papers and textbooks are pointers only: a link, a topic and marks, never the text."
       action={<span className="su-meta" data-harvest="disk">{`questions on disk: ${q.on_disk}`}</span>}>
-      <Segmented<'sources' | 'queue'> label="Harvester view" variant="compact" value={pane} onChange={setPane}
-        options={[{ id: 'sources', label: 'Sources' }, { id: 'queue', label: `Queue (${q.items.length})` }]} />
+      <Segmented<'sources' | 'papers' | 'queue'> label="Harvester view" variant="compact" value={pane} onChange={setPane}
+        options={[{ id: 'sources', label: 'Sources' }, ...(papers.length > 0 ? [{ id: 'papers' as const, label: 'Past papers' }] : []), { id: 'queue', label: `Queue (${q.items.length})` }]} />
       <div className="su-actions">
         {off
           ? <Button disabled={busy} onClick={switchOn}>Switch the harvester on</Button>
@@ -178,6 +182,11 @@ export function Harvester() {
       {src.pdf_reader && !src.pdf_reader.available && <Planned id="harvester-pdf" />}
 
       </div>
+      {papers.length > 0 && (
+        <div data-harvest-pane="papers" hidden={pane !== 'papers'}>
+          <PaperSources sources={papers} pdfNote={src.pdf_reader} onChange={(n) => setSrc({ ...src, paper_sources: papers.map((p) => (p.id === n.id ? n : p)) })} />
+        </div>
+      )}
       <div data-harvest-pane="queue" hidden={pane !== 'queue'}>
       <h3 className="su-sub">{`Queue (${q.items.length})`}</h3>
       {q.items.length === 0

@@ -13,7 +13,7 @@ filled greedily into the gap, never three in a row from one unit (a block of one
 of a gap; two still lets a deep topic have a pair). The terms of every pick are printed with it, so
 he can disagree with a number instead of trusting a ranking.
 
-Proficiency is MEASURED only from MIN_ATTEMPTS (5) marked attempts at the topic (the same count after
+Proficiency is MEASURED only from MIN_ATTEMPTS (3) marked attempts at the topic (the same count after
 which a paper's marks stop being a handful of lucky answers); with fewer the term is 0.5 and
 `measured` is false, whatever the caller passed. `attempts` is {topic key: marked attempts}; a call
 without it treats every topic as unmeasured. 3.0 minutes per mark is a starting assumption (a 10 mark
@@ -27,7 +27,7 @@ from typing import Optional, TypedDict
 from .patterns import PatternSet
 
 MIN_QUESTIONS = 3
-MIN_ATTEMPTS = 5
+MIN_ATTEMPTS = 3        # the owner's number (27 Nov 2026; it was 5): at one question a topic an evening, 5 marks took five evenings, with papers 11 days away
 MINUTES_PER_MARK = 3.0
 UNMEASURED = 0.5
 MAX_RUN = 2

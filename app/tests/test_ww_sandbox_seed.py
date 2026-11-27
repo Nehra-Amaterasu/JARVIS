@@ -320,7 +320,7 @@ def test_r60_to_r62_count_marks_from_sheets_and_papers(client):
     c, _, ids, _ = client
     led = ok(c.get(f"{P}/ledger", params={"subject": "fixture-circuits"}), "live")
     items = {i["key"]: i for i in led["items"]}
-    assert items[seed.MEASURED_TOPIC]["attempts"] >= 5 and items[seed.UNMEASURED_TOPIC]["attempts"] < 5
+    assert items[seed.MEASURED_TOPIC]["attempts"] >= 5 and items[seed.UNMEASURED_TOPIC]["attempts"] == 1
     assert led["totals"]["practised"] == led["totals"]["topics"] == 4 and led["skipped"] == []
     rows = ok(c.get(f"{P}/ledger/attempts", params={"subject": "fixture-circuits"}), "live")["items"]
     assert {r["source"] for r in rows} == {"sheet", "paper"}

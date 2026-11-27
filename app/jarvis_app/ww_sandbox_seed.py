@@ -123,6 +123,7 @@ HARVEST_PAGE = ("<html><body><table><tr><th>Subject code</th><th>Subject name</t
 TONIGHT_SUBJECT = "fixture-circuits"      # the paper nearest in date inside the sheet's 21-day horizon (12 days)
 GEN_EXAM = "fx-exam-circuits"
 MEASURED_TOPIC = "1|Imaginary resistor ladders"    # marked 5 times or more, so R-17 prints it measured
+SEED_MARKS = 5                                    # marks the seed gives MEASURED_TOPIC: a fixed number, so the seeded papers do not change when the rule does
 UNMEASURED_TOPIC = "2|Invented switch timing"      # marked under 5 times
 GEN_SEEDS = 6                             # papers drawn at most until MEASURED_TOPIC has 5 marks; one paper seats about 2 of a topic
 SHEET_MARKS = [(None, 14), (-3, None), (-1, 9), (1, None)]      # (marks lost, or a fixed got when positive; minutes)
@@ -302,7 +303,15 @@ class FakeClassroom:
     def api(self):
         import httpx
         from .ww_gcr.api import GoogleApi
-        return GoogleApi(token=lambda: "fixture-token", transport=httpx.MockTransport(self.handler))
+        return GoogleApi(token=lambda: "fixture-token", transport=httpx.MockTransport(self._paced))
+
+    def _paced(self, request):
+        """JARVIS_SANDBOX_SYNC_DELAY: seconds to wait on every Google request (5 at most). Without it the fixture sync is
+        over in about 0.3 s, too fast for a browser to see a running job or press Stop (UI lane, 27 Nov)."""
+        delay = min(5.0, float(os.environ.get("JARVIS_SANDBOX_SYNC_DELAY") or 0))
+        if delay > 0:
+            time.sleep(delay)
+        return self.handler(request)
 
     def _day(self, n: int) -> date:
         return self.today + timedelta(days=n)
@@ -660,15 +669,20 @@ def _seed_paper_marks(r: _Routes, st, plan, today: date, papers: dict) -> dict:
             have = {p.get("seed"): p for p in gen.list_generated(st, exam=GEN_EXAM)}
             # the stop is looked at only before drawing a new paper: a second seed walks every paper already on file and
             # so answers the same list of papers
-            if seed not in have and _attempts(plan, today, MEASURED_TOPIC) >= pnext.MIN_ATTEMPTS:
+            if seed not in have and _attempts(plan, today, MEASURED_TOPIC) >= SEED_MARKS:
                 break
             paper = have.get(seed) or r.call("POST", f"{P}/papers/generate", json={"exam": GEN_EXAM, "seed": seed})["paper"]
             drawn.append(paper["id"])
             if not any(a.get("paper_id") == paper["id"] for a in gen.read_attempts(st)):
                 seats = [x for s in paper.get("sections") or [] for x in s.get("slots") or []
                          if x.get("source") != "hollow" and x.get("question_id")]
+                key = lambda x: ww_generator.topic_key(x.get("unit"), str(x.get("topic") or ""))
                 if seed:
-                    seats = [x for x in seats if ww_generator.topic_key(x.get("unit"), str(x.get("topic") or "")) == MEASURED_TOPIC]
+                    seats = [x for x in seats if key(x) == MEASURED_TOPIC]
+                else:
+                    # UNMEASURED_TOPIC keeps only its one mark from yesterday's sheet, so it stays under the rule's
+                    # threshold whatever that number is set to (5 until 27 Nov 2026, 3 since)
+                    seats = [x for x in seats if key(x) != UNMEASURED_TOPIC]
                 if seats:
                     items = [{"id": x["question_id"], "got": min(float(x["marks"]), PAPER_GOT[i % len(PAPER_GOT)])}
                              for i, x in enumerate(seats)]
@@ -913,7 +927,7 @@ def install_fixtures(setter: Callable[[Any, str, Any], None] = setattr) -> None:
 
     def status(account: str = auth.MAIN) -> dict:
         auth._slot(account)
-        return {"state": "live", "reason": GOOGLE_REASON, "scopes": scopes, "missing": []}
+        return {"state": "live", "reason": GOOGLE_REASON, "scopes": scopes, "missing": [], "fixture": True}
 
     def connect(*a, **k) -> dict:
         raise auth.NotConnected("Fixture mode: there is no Google account to connect in the sandbox; the Classroom rows are invented.")

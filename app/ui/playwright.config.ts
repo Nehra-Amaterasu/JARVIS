@@ -7,6 +7,11 @@ import { dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { defineConfig } from '@playwright/test'
 
+// 26 spec files bundle a gallery page themselves with vite's build(), in this process, not from dist-e2e. Vite reads VITE_* from
+// process.env, so the older-frame default has to be set here too: without it those pages rendered in the v3 look and 78 older-frame
+// tests failed (19 spec files: 21 failures before the look default changed, 99 after; measured 27 Nov). A run may still override it.
+process.env.VITE_LOOK_DEFAULT ??= 'off'
+
 export const SANDBOX_PORT = Number(process.env.WW_SANDBOX_PORT ?? 8790)
 export const PREVIEW_PORT = Number(process.env.WW_PREVIEW_PORT ?? 5174)
 export const SANDBOX_TOKEN = 'ww-e2e'

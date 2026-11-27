@@ -154,6 +154,14 @@ def register(app: FastAPI, svc, bus) -> None:
             if on > today:
                 raise ValueError("The day you sent it cannot be after today.")
             row = K.default_store().mark_sent(rid, on)
-            return api.ok("live", f"Marked sent on {row['sent_on']}, by you; the follow-up now counts from that day.",
-                          SOURCE, row=view(row, by_id()))
+            apps = by_id()
+            a = apps.get(row["application"])
+            began = K.applied_at(a) if a else None
+            if began and row["sent_on"] < began:
+                # K-08 counts from a sent day only when it is on or after the applied day; the sentence says the same
+                why = (f"Marked sent on {row['sent_on']}, by you; that is before you applied on {began}, "
+                       f"so the follow-up still counts from {began}.")
+            else:
+                why = f"Marked sent on {row['sent_on']}, by you; the follow-up now counts from that day."
+            return api.ok("live", why, SOURCE, row=view(row, apps))
         return await run_in_threadpool(api.guard, work)

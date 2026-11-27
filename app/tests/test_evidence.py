@@ -535,6 +535,21 @@ def test_a_typed_line_repeated_exactly_answers_the_first_and_writes_nothing(env)
     assert other["id"] != first["id"] and env.c.get(B).json()["count"] == 2
 
 
+def test_a_repeat_of_a_removed_line_is_filed_again_and_other_nodes_still_match(tmp_path):
+    # the match is kind, title, link and file of a line that is not removed (review of 2026-11-27): node_ids are not
+    # part of it, so a retry with other nodes answers the first line; a removed line never matches
+    data = tmp_path / "data"
+    led = E.Ledger(data / "evidence", data)
+    body = {"kind": "artefact", "title": "Same proof", "link": "https://example.org/s"}
+    first = led.add(body, TODAY)
+    size = led.path.stat().st_size
+    assert led.add({**body, "node_ids": ["n1"]}, TODAY)["id"] == first["id"] and led.path.stat().st_size == size
+    led.remove(first["id"], TODAY)
+    again = led.add(body, TODAY)
+    assert again["id"] != first["id"] and len(led.lines()[0]) == 2
+    assert led.add({**body, "link": "https://example.org/other"}, TODAY)["id"] != again["id"]
+
+
 def test_the_package_files_avoid_the_banned_words():
     here = Path(E.__file__).parent
     for f in (here / "ww_evidence.py", here / "routes_ww_evidence.py"):

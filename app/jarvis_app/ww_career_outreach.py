@@ -7,7 +7,7 @@ counted from the day he applied, and the drafts he writes and marks as sent hims
     store.edit(id, fields)                    a draft's text; a sent row is Conflict (409)
     store.mark_sent(id, sent_on)              his own mark after he sent it himself; a second mark is Conflict (409)
     store.set_days(application, days)         the follow-up gap he typed for one application (1 to 120)
-    applied_at(application) -> str or None    the first "applied" entry of the application's own history
+    applied_at(application) -> str or None    the first "applied" day of the current round of its history
     followups(applications, store, today)     the K-08 answer, without the envelope
 
 Rules that decided the shape:
@@ -113,7 +113,7 @@ class OutreachStore:
         if problem not in self.problems:
             self.problems.append(problem)
 
-    def _load(self) -> dict:
+    def _load(self, for_write: bool = False) -> dict:
         """The whole file; unknown keys are kept so a later wave's fields survive a round trip."""
         empty = {"version": SCHEMA_VERSION, "rows": [], "follow_up_days": {}}
         try:
@@ -122,22 +122,35 @@ class OutreachStore:
             return empty
         except OSError as e:
             self._say(f"{self.path.name} could not be read ({type(e).__name__}).")
+            if for_write:      # an unreadable file is still his file: writing now would replace it with an empty one
+                raise Conflict(f"{self.path.name} could not be read; nothing was written over it.")
             return empty
         try:
             data = json.loads(raw)
             if not isinstance(data, dict):
                 raise ValueError("wrong shape")
         except ValueError:
-            # set aside, never overwritten: the next write would destroy what he can still recover by hand
-            aside = self.path.with_name(f"{self.path.name}.{int(time.time())}.corrupt")
+            # set aside, never overwritten: the next write would destroy what he can still recover by hand. The name
+            # carries a random part because two bad files in one second shared a name and the second replaced the first.
+            aside = self.path.with_name(f"{self.path.name}.{int(time.time())}-{uuid.uuid4().hex[:6]}.corrupt")
             try:
                 os.replace(self.path, aside)
-            except OSError:
-                pass
+            except OSError as e:
+                # still in place: every write is refused until it can be moved (review 27 Nov: a held file was written over)
+                self._say(f"{self.path.name} could not be parsed and could not be moved aside ({type(e).__name__}); "
+                          "nothing will be written over it.")
+                if for_write:
+                    raise Conflict(f"{self.path.name} could not be parsed or moved aside; nothing was written over it.")
+                return empty
             self._say(f"{self.path.name} could not be parsed; kept beside it as {aside.name}.")
             return empty
-        data["rows"] = [r for r in data.get("rows") or [] if isinstance(r, dict) and valid_id(r.get("id"))
-                        and r.get("state") in STATES and isinstance(r.get("application"), str)]
+        rows = data.get("rows") if isinstance(data.get("rows"), list) else []
+        good = [r for r in rows if isinstance(r, dict) and valid_id(r.get("id"))
+                and r.get("state") in STATES and isinstance(r.get("application"), str)]
+        # a row this version cannot read (a later wave's state, a hand edit) is left out of every answer but kept on
+        # disk: _save puts it back, so a draft saved today does not erase it
+        data["_unread"] = [r for r in rows if not any(r is g for g in good)]
+        data["rows"] = good
         days = data.get("follow_up_days")
         data["follow_up_days"] = {k: v for k, v in (days.items() if isinstance(days, dict) else [])
                                   if isinstance(k, str) and isinstance(v, int) and not isinstance(v, bool)
@@ -147,7 +160,9 @@ class OutreachStore:
 
     def _save(self, data: dict) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        blob = json.dumps(data, ensure_ascii=False, indent=1).encode("utf-8")
+        out = {k: v for k, v in data.items() if k != "_unread"}
+        out["rows"] = list(data["rows"]) + list(data.get("_unread") or [])
+        blob = json.dumps(out, ensure_ascii=False, indent=1).encode("utf-8")
         tmp = self.path.with_name(f".{self.path.name}.{uuid.uuid4().hex[:8]}.tmp")
         try:
             with open(tmp, "wb") as f:
@@ -191,7 +206,7 @@ class OutreachStore:
     # ------------------------------------------------------------------ writes
     def set_days(self, application: str, days: int) -> None:
         with self._lock:
-            data = self._load()
+            data = self._load(for_write=True)
             data["follow_up_days"][application] = check_days(days)
             self._save(data)
 
@@ -200,7 +215,7 @@ class OutreachStore:
                "subject": subject, "body": body, "state": "draft", "made": _today().isoformat(),
                "updated": _now(), "sent_on": None}
         with self._lock:
-            data = self._load()
+            data = self._load(for_write=True)
             data["rows"].append(row)
             if days is not None:
                 data["follow_up_days"][application] = check_days(days)
@@ -212,7 +227,7 @@ class OutreachStore:
         if not valid_id(rid):
             raise KeyError("No such message.")
         with self._lock:
-            data = self._load()
+            data = self._load(for_write=True)
             row = next((r for r in data["rows"] if r["id"] == rid), None)
             if row is None:
                 raise KeyError("No such message.")
@@ -231,7 +246,7 @@ class OutreachStore:
         if not valid_id(rid):
             raise KeyError("No such message.")
         with self._lock:
-            data = self._load()
+            data = self._load(for_write=True)
             row = next((r for r in data["rows"] if r["id"] == rid), None)
             if row is None:
                 raise KeyError("No such message.")
@@ -263,15 +278,29 @@ def title_of(a: dict) -> str:
 
 
 def applied_at(application: dict) -> Optional[str]:
-    """The first day the history says "applied"; None when it never does (never a guessed date)."""
-    days = []
+    """The first "applied" day of the current round; None when the history never says applied (never a guessed date).
+
+    A closed status (offer, rejected, not_eligible) ends a round, so applying again after a rejection starts the clock
+    on the new day (review 27 Nov: the first applied day ever made a second round 300 days overdue at once). A slip
+    back to idea or preparing does not end a round: the first applied day stays."""
+    entries = []
     for h in application.get("history") or []:
-        if isinstance(h, dict) and h.get("status") == "applied" and isinstance(h.get("at"), str):
+        if isinstance(h, dict) and isinstance(h.get("at"), str):
             try:
-                days.append(date.fromisoformat(h["at"]).isoformat())
+                entries.append((date.fromisoformat(h["at"]).isoformat(), h.get("status")))
             except ValueError:
                 continue
-    return min(days) if days else None
+    entries.sort(key=lambda e: e[0])      # stable: entries of one day keep the order set_status wrote them
+    start, ended = None, None             # the open round's first applied day; the last closed round's
+    for on, status in entries:
+        if status in CLOSED:
+            if start is not None:
+                ended = start
+            start = None
+        elif status == "applied" and start is None:
+            start = on
+    # a round that ended (rejected, no new application) is still listed from its day; its closed status keeps it not due
+    return start or ended
 
 
 def _last(rows: list[dict]) -> Optional[dict]:
@@ -302,7 +331,8 @@ def followups(applications: list[dict], store: OutreachStore, today: date) -> di
             anchor, counts_from = max(sent), "sent"
         days = typed.get(aid, DEFAULT_DAYS)
         due_on = date.fromisoformat(anchor) + timedelta(days=days)
-        open_ = a.get("status") not in CLOSED
+        # due only while he is waiting on an answer: closed, or moved back to idea or preparing, is never due
+        open_ = a.get("status") in ("applied", "interview")
         items.append({"application": aid, "title": title_of(a), "status": a.get("status"), "applied_at": on,
                       "follow_up_days": days, "follow_up_days_typed": aid in typed,
                       "counts_from": counts_from, "from_date": anchor, "follow_up_on": due_on.isoformat(),

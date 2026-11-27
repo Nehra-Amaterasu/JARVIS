@@ -415,6 +415,81 @@ def test_rows_and_gaps_edited_badly_by_hand_are_dropped_on_load(tmp_path):
     assert json.loads(p.read_text(encoding="utf-8"))["future_key"] == [1]        # a later wave's field survives
 
 
+def test_a_corrupt_file_that_cannot_be_moved_aside_is_never_written_over(tmp_path, monkeypatch):
+    # review 27 Nov: when the move aside failed (a reader holding the file on Windows), the next save wrote an empty
+    # store over the only copy, and the problem sentence still said it was kept beside it
+    p = tmp_path / "outreach.json"
+    p.write_text("{ not json", encoding="utf-8")
+    real = os.replace
+
+    def held(src, dst):
+        if str(dst).endswith(".corrupt"):
+            raise PermissionError("held by another reader")
+        return real(src, dst)
+
+    monkeypatch.setattr(K.os, "replace", held)
+    st = K.OutreachStore(p)
+    assert st.rows() == [] and "could not be moved aside" in st.problems[-1]
+    with pytest.raises(K.Conflict):
+        st.add("w", "", "s", "b")
+    with pytest.raises(K.Conflict):
+        st.set_days("w", 5)
+    assert p.read_text(encoding="utf-8") == "{ not json"
+
+
+def test_two_corrupt_files_in_the_same_second_are_both_kept(tmp_path, monkeypatch):
+    p = tmp_path / "outreach.json"
+    monkeypatch.setattr(K.time, "time", lambda: 1000.0)
+    st = K.OutreachStore(p)
+    p.write_text("{ first", encoding="utf-8")
+    st.rows()
+    p.write_text("{ second", encoding="utf-8")
+    st.rows()
+    kept = sorted(x.read_text(encoding="utf-8") for x in tmp_path.iterdir() if x.name.endswith(".corrupt"))
+    assert kept == ["{ first", "{ second"]
+
+
+def test_a_row_this_version_cannot_read_stays_on_disk_after_a_write(tmp_path):
+    # a later wave's state ("replied") is left out of every answer, but a save must not erase it from his file
+    p = tmp_path / "outreach.json"
+    good = {"id": "o-0123456789ab", "application": "w", "to_note": "", "subject": "s", "body": "b",
+            "state": "draft", "made": "2026-11-27", "updated": "", "sent_on": None}
+    later = {**good, "id": "o-0123456789ac", "state": "replied"}
+    p.write_text(json.dumps({"version": 1, "rows": [good, later]}), encoding="utf-8")
+    st = K.OutreachStore(p)
+    assert [r["id"] for r in st.rows()] == ["o-0123456789ab"]
+    st.set_days("w", 5)
+    st.add("w", "", "s2", "b2")
+    on_disk = json.loads(p.read_text(encoding="utf-8"))["rows"]
+    assert later in on_disk and len(on_disk) == 3 and len(st.rows()) == 2
+
+
+def test_k08_a_new_application_after_a_rejection_counts_from_the_new_applied_day():
+    # review 27 Nov: the first "applied" ever was used, so a second round after a rejection was 300 days overdue at once
+    a = {"id": "w", "org": "Widget Lab", "status": "applied",
+         "history": hist(("applied", "2026-01-05"), ("rejected", "2026-02-01"), ("applied", "2026-11-20"))}
+    assert K.applied_at(a) == "2026-11-20"
+    a2 = {**a, "history": hist(("applied", "2026-11-10"), ("idea", "2026-11-11"), ("applied", "2026-11-15"))}
+    assert K.applied_at(a2) == "2026-11-10"          # a slip back to idea is not a new round
+
+
+def test_k08_an_application_moved_back_to_idea_is_never_due(tmp_path):
+    st = K.OutreachStore(tmp_path / "o.json")
+    a = {"id": "w", "org": "Widget Lab", "status": "idea", "history": hist(("applied", "2026-10-01"), ("idea", "2026-10-02"))}
+    it = K.followups([a], st, TODAY)["items"][0]
+    assert it["due"] is False and it["follow_up_on"] == "2026-10-15"
+
+
+def test_k10_a_sent_day_before_the_applied_day_says_the_clock_stays_on_the_applied_day(env):
+    c, apps, store, clock, tmp = env
+    write_apps(tmp / "applications.json", {"widget-lab": {"org": "Widget Lab", "status": "applied",
+                                                          "history": hist(("applied", "2026-11-10"))}})
+    row = draft(c)
+    out = ok(c.post(f"{O}/{row['id']}/sent", json={"sent_on": "2026-11-01"}))
+    assert "2026-11-10" in out["reason"] and "counts from that day" not in out["reason"]
+    assert ok(c.get(F))["items"][0]["counts_from"] == "applied"
+
+
 # ------------------------------------------------------------------ nothing is sent
 def test_every_route_runs_with_the_network_blocked_and_nothing_is_sent(env):
     c, apps, store, clock, tmp = env

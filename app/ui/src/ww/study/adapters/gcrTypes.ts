@@ -32,7 +32,11 @@ export interface GcrCourse {
   id: string
   name: string
   section: string
+  /** The lamp word the screen draws. The engine's item `state` is Google's own course state ("active", "archived", ...), so the adapter
+   *  maps it (courseLamp) and keeps the engine's word in `google_state`. */
   state: LampState
+  /** Google's course state as the engine sent it, when it was not a lamp word. */
+  google_state?: string
   subject: string
   subject_source: string
   include: boolean

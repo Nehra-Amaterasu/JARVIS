@@ -1,5 +1,5 @@
 """The loop across three packages of wave EW9, over HTTP: a sheet is built (N01), marks are typed (N01), the ledger
-counts them once (N02), and the counted order of topics (R-17) holds them until a topic has five marks. Each package was built and reviewed alone, in its
+counts them once (N02), and the counted order of topics (R-17) holds them until a topic has three marks (five until 27 Nov 2026). Each package was built and reviewed alone, in its
 own worktree; the two meet only through the sheet file's shape, so this test is where a mismatch would show.
 
 Everything here is invented. Stores and the plan live under tmp_path; nothing reads the real data directory.
@@ -71,7 +71,7 @@ def order(c):
     return {p["key"]: p for p in j["items"]}
 
 
-def test_a_sheet_s_marks_reach_the_ledger_once_and_the_order_waits_for_five(loop):
+def test_a_sheet_s_marks_reach_the_ledger_once_and_the_order_waits_for_three(loop):
     c = loop
     assert c.put(f"{B}/tonight/settings", json={"on": True}).status_code == 200
     built = c.post(f"{B}/tonight/build", json={}).json()
@@ -104,7 +104,7 @@ def test_a_sheet_s_marks_reach_the_ledger_once_and_the_order_waits_for_five(loop
     assert sorted((m["source"], m["source_id"], m["question_id"], m["got"], m["max"]) for m in marks) == sorted([
         ("sheet", sheet["id"], first["question_id"], 1, 5), ("sheet", sheet["id"], second["question_id"], 5, 5)]), "each mark once"
 
-    # The counted order does NOT move yet, and says why: R-17 calls a topic measured only from 5 marked attempts
+    # The counted order does NOT move yet, and says why: R-17 calls a topic measured only from 3 marked attempts
     # (next.MIN_ATTEMPTS), so one evening's mark is on file and counted but the order still uses the neutral 0.5.
     prof1 = order(c)
     for item in (first, second):

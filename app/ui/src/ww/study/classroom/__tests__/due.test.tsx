@@ -77,6 +77,11 @@ describe('the pure words', () => {
     expect(dueText(A3)).toBe('No due date')
     expect(formatStamp('2026-11-26T18:00')).toBe('26 Nov 2026, 18:00')
     expect(formatStamp('not a stamp')).toBe('not a stamp')
+    // the real engine writes UTC stamps ("...Z"): they are read on the viewer's own clock, not as written (seen against the seeded sandbox)
+    const utc = new Date('2026-11-26T09:00:00Z')
+    const p2 = (n: number) => String(n).padStart(2, '0')
+    expect(formatStamp('2026-11-26T09:00:00Z')).toBe(`${utc.getDate()} Nov ${utc.getFullYear()}, ${p2(utc.getHours())}:${p2(utc.getMinutes())}`)
+    expect(formatStamp('2026-11-29T10:00:00+05:30')).toMatch(/^\d+ Nov 2026, \d\d:\d\d$/)
     expect([daysText(0), daysText(1), daysText(3), daysText(-1), daysText(-4), daysText(null)]).toEqual(['today', '1 day left', '3 days left', '1 day past', '4 days past', ''])
   })
   it('Word files go to the paper desk beside PDFs; slides and pictures do not', () => {
@@ -117,7 +122,7 @@ describe('the switch and the Due view', () => {
     expect(f.textContent).toContain('LIVE')
     expect(f.textContent).toContain('2 open: 1 is due in the next 3 days.')
     expect(Array.from(f.querySelectorAll('[data-component="classroom-due-counts"] div')).map((d) => d.textContent)).toEqual(['open3', 'turned in1', 'late1', 'no due date1'])
-    expect(q('[data-component="classroom-due-read"]').textContent).toBe('Read at 2026-11-25 09:00')
+    expect(q('[data-component="classroom-due-read"]').textContent).toBe('Read at 25 Nov 2026, 09:00')
   })
   it('the course and the open/all switch go to G-15 and G-18 as they are chosen', async () => {
     const c = client()

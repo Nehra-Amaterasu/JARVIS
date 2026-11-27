@@ -2,6 +2,92 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-27: the tonight sheet and the ledger, checked by the whole suite before the merge
+
+**Measured on the branch (ui/tonight-ledger with main 1c30e02 merged in).** Type check exit 0. Unit suite: 202 files, 4,213 of 4,213. Browser suite, two workers, 52.2 minutes: 943 passed, 33 failed, 16 skipped, 2 did not run.
+
+**The 33.** The known 32, plus a second state of the Career Money page (`money-unknown`) that runs 16 px over its box for the same reason as the known `money` failure (a first sentence was added to that view on 27 Nov). It is the same fault, already in the triage, and it sits on the boundary: it passed in the three earlier runs of the day. Nothing in the list comes from the tonight sheet or the ledger.
+
+**Not run against real routes.** The engine's seed has no tonight or ledger rows on main yet, so both screens are checked only against routes mocked to the shapes of the engine's own tests. Five things the shapes made awkward went to the engine lane as board request 18.
+
+The builder's section follows.
+
+## 2026-11-27: the tonight sheet in Practice and the counted ledger in Plan
+
+**Question.** The engine lane merged two packages with no screen (board requests 12 and 13, EW9): the evening sheet (R-55 to R-59: build by the clock, settings, marks typed back, print) and the counted ledger (R-60 to R-62: per-topic counts with holes, every mark on file, a pace line). Where do they go in the v3 look, and what must a screen print so nothing is invented?
+
+**Where each screen went, and why.**
+- Tonight sheet: Study / Practice. The view already has three trays (the practice-paper maker). Rather than rewrite those, the view got two faces behind one 44 px switch: "Tonight's sheet" (first, the default) and "Practice paper" (the old desk, untouched and one press away). The tonight face is its own three trays: 1 TONIGHT (the sheet or the engine's reason there is none, Build, Print), 2 MARKS (waiting sheets, a field per question, Save marks), 3 SETTINGS (on or off, time, count, days ahead, Save settings, the papers ahead). The face not shown is not mounted, so it holds no request.
+- Ledger: Study / Plan, as a second face ("Today" first, "Ledger") for the same reason: least change, nothing of the plan board lost. Three trays: 1 TOPICS (subject picker, one row per topic in the engine's order), 2 MARKS ON FILE (R-61 for the opened topic, the engine's sentence for each hole, the rows behind the counts), 3 PACE (R-62).
+- Both faces exist only under the v3 look; with the look off the views render exactly as before.
+
+**What was built (all in app/ui, uncommitted).** `adapters/pyqTonight.ts` (a client of its own beside the paper desk's, so pyq.ts, pyqMap.ts and pyqExtras.ts are untouched); `tonight/` (TonightView, shared, tonight.css); `ledger/` (LedgerView, ledger.css); two small edits to place them (`generator/GeneratorView.tsx`, `plan/PlanView.tsx`); unit tests (`adapters/__tests__/pyqTonight.test.ts`, `tonight/__tests__/tonight.test.tsx`); one browser spec (`e2e/tonight-ledger.spec.ts`).
+
+**Rules kept.** Every engine sentence is printed as sent beside its lamp word; a 400 is FAULT with the engine's sentence (a mark over the question's maximum keeps what he typed), a 409 is WAITING with its sentence. Nothing is built, saved or scheduled except by his press of Build, Save marks or Save settings (no timer, no poll). Marks are labelled "typed by you"; the engine's `marked_by: "you"` is shown; no grade, total of the page's own or forecast word exists in the code or the screen (the e2e fails on "will pass", "chance of", "predicted", "grade:"). The sheet says plainly that the order of topics moves only after 5 marks on a topic (the engine's MIN_ATTEMPTS). In the ledger no row is coloured for being weak (the e2e compares the computed colours of unchosen rows); only the chosen row takes `--acc-soft`. A pace that is waiting prints the engine's sentence and no number at all.
+
+**Where the plan text, the engine's tests and what the screen needed did not meet.**
+1. R-55 to R-59 have no "read one sheet" route. The marks tray lists `awaiting_marks` (id, date, subject, unmarked only), so an earlier sheet is opened with R-57 `build {date, subject}`, which answers the stored sheet unchanged. It works because a kept sheet is never rebuilt, but it is a POST named build used to read; a GET `/tonight/{id}` would be cleaner.
+2. A sheet's `why.proficiency` is R-17's number even when the topic is not measured (the engine uses a placeholder for fewer than 5 marks) and the sheet's `why` has no `measured` flag, so the screen prints "proficiency 0.5" without being able to say it is a default. The standing line about 5 marks is the only honest cover.
+3. Items carry no origin: the request asked that a question built from model drafts or OCR text say so "if the engine marks it". The sheet items do not mark it (the store holds `text_status` and `origin` per question, not on the sheet item), so the screen cannot say so per question.
+4. R-58 takes `minutes` and R-60 and R-61 return them, but the marks tray has no minutes field (kept short for 390 px); the ledger shows minutes where the engine has them.
+5. R-62's sentence includes "At that rate the topics left (N) take M more days with a mark." The screen prints the sentence as given, as asked; that clause is an extrapolation in the engine's words, not the screen's.
+6. The board says seed rows for tonight sheets and the ledger are "not seeded yet", so there is no `real-tonight.spec.ts`: the screens were checked against mocks built from the engine's own tests, not against live routes.
+
+**Measured (27 Nov, this worktree).** `npx tsc -b` exit 0. The new unit files: 27 tests for the client (every state and refusal of R-55 to R-62, the two silent cases, each mapper) and 20 for the components (151 of 151 across `src/ww/study/tonight` and `adapters`). The requested vitest run (`src/ww/study src/__tests__/ww src/__tests__/shared`, 2 workers) was 1,574 of 1,575 passed with one failure that was my own test's capital letter ("Typed by you"), fixed and re-run green. Browser spec `e2e/tonight-ledger.spec.ts`, 4 tests (two screens at 1366x768 and 390x844, routes mocked in the page): 4 passed (last run 3.0 min on a loaded laptop; 1.3 min earlier); each size asserts no key or field under 43.5 px high or wide, no text under 10.95 px, nothing wider than its tray, no sideways document scroll, no page error, and no forecast or grade word. Pictures looked at: 26 (13 states x 2 sizes) in `$TEMP/ui-tonight-shots`. Privacy scan (`pytest tests`): 25 passed. Defects found by looking and fixed: the lamp glyph shrank into the text of a long sentence in the narrow pace tray; the settings tray ran past its foot at 768 px (count and days now share a row); the answer to a press landed below the fold (it is now scrolled into view); the mark columns misaligned between "of 5" and "of 10"; an earlier sheet was tinted as chosen before it was opened.
+
+**Not verified.** No run against the real routes (no seed rows for these packages; the mocks follow test_pyq_tonight.py and test_pyq_ledger.py by reading them, not by calling them). Print was checked only to the point that the engine's HTML reaches a frame and the frame's print() is called (headless Chromium draws no dialog); no paper was printed and no A4 was looked at. The engine's own clock (a sheet built by itself at the set time) is the engine's and was not exercised. A scanned-crop question is drawn through the token-carrying image read; a real crop was not seen. Real touch on a phone was not tried: the 390 x 844 view is a desktop browser at that size.
+
+## 2026-11-27: the contract-check branch, checked by the whole suite before the merge
+
+**Measured on the branch (ui/real-routes with main 8a8b5c8 merged in).** Type check exit 0. Unit suite: 200 files, 4,156 of 4,156. Browser suite, two workers, 34.9 minutes: 940 passed, 32 failed (the same known list as the paper desk branch), 16 skipped (the 10 older skips plus the 6 no-mock tests, which run only with the seed switch), 2 did not run.
+
+**The four no-mock specs with the seed switch, after main came in: 4 passed, 2 failed.** Both failures are in real-papers and are the spec's, not the screen's: the paper desk was re-arranged the same day (the "no text layer" lines became one line beside the OCR key; the drafts panel became its own tray with other key names), so the spec looks for elements that moved. real-classroom, real-day and real-sources pass. The spec is being brought in line by the triage package without weakening what it compares with the real routes. Until then the claim for the paper desk against real routes is the one measured before the re-arrangement (6 of 6), not after.
+
+The builder's section, with the full mismatch table, follows.
+
+## 2026-11-27: the first run of the UI against the engine's real routes (seeded sandbox)
+
+**Question.** Every screen built this week was tested against routes mocked in the page. Do the screens and the engine's real answers agree?
+
+**How the run is started.** `WW_SANDBOX_SEED=study` makes `playwright.config.ts` add `--seed study --fresh` to the sandbox command (without it nothing changes for the 60-odd older specs, which count on an empty sandbox; `--fresh` makes each run start from the same rows). From `app/ui`:
+
+```
+export WW_SANDBOX_PORT=8961 WW_PREVIEW_PORT=5361 WW_SANDBOX_DIR="$TEMP/jarvis-ui-real-e2e" WW_SANDBOX_SEED=study
+node scripts/build-e2e.mjs
+npx playwright test e2e/real-*.spec.ts --workers=1
+```
+
+Four specs, no route mock, 1366x768, v3 look: `real-classroom` (files and Due), `real-papers` (OCR run, stop, run again; review desk; drafts; ledger), `real-day` (counters, R-63, R-64), `real-sources` (harvester Past papers; opened in the older frame because `#setup` does not open under v3 in this worktree). Each step fetches the same route with the token and compares; every 4xx the page receives is logged. Pictures: `$TEMP/ui-real-shots`.
+
+**Result.** First run: 3 of 6 failed on real mismatches. After the UI-side fixes below: 6 of 6 pass (1.2 min). Unit: 1431 tests pass (43 files), `tsc -b` clean.
+
+### Mismatch table (sorted by harm)
+
+| # | Route | Field | Screen expected / engine sent | Where | Status |
+|---|---|---|---|---|---|
+| 1 | G-06 courses | item.state | lamp word / `"active"` (Google's course state): every course drew WAITING "no report" | adapters/gcr.ts (courses, patchCourse); ShelfPanes.tsx CoursesPane | FIXED: `courseLamp` maps active to LIVE, other Google words to WAITING with the word kept |
+| 2 | life/count | 409 detail | string / object `{message,id,present}`: lib/api.ts reads `j.detail` and made "[object Object]" | lib/api.ts:44 (not mine) | worked around in life/counterDeck.ts `postCount`; fix for api.ts below |
+| 3 | G-01, G-15, G-18, G-19 | synced_at, read_at, posted, start | local clock / UTC `...Z`: 09:00 UTC read as 09:00 in IST (5 h 30 min early); status and read stamps drawn raw ISO | classroom/DuePanes.tsx formatStamp, LinkPanel.tsx, DueFilter | FIXED: zoned stamps converted to the viewer's clock |
+| 4 | G-07 files | also_in[].course | name / a course id (10 digits in real life): "Also in: fx1002" | classroom/ShelfPanes.tsx FileNotes | FIXED: names from the courses read (context), id only when unknown |
+| 5 | life/count | expect | not sent / engine takes it | life/counterDeck.ts | FIXED (R-64), plus presses serialised so a quick second press is not a false 409 |
+| 6 | R-63 layout | shown, order | device only / engine keeps it | life/counterDeck.ts, callouts/counters.callout.tsx | FIXED, device copy is the fallback, the sheet says which is in use |
+| 7 | pyq papers | year | unknown year / `?? 0`: the ledger draws columns headed "0" | adapters/pyqMap.ts:52,98 (not mine) | listed |
+| 8 | harvest index | read_at | local time / `2026-11-27T12:53:40+00:00` raw in "read ..." | setup/PaperSources.tsx (line with `read ${idx.read_at}`) (not mine) | listed |
+| 9 | pyq practise-next (R-32) | whole route | shown somewhere / no screen calls `practiseNext()`; patterns only reach the ledger | adapters/pyq.ts:250, no component | listed |
+| 10 | pyq ocr (R-28) | pages_total, pages_read, questions | per paper / per RUN: after Stop and a second run the panel says "Pages read 0 of 1, Drafts to review 0" while the paper has 2 pages and Review says 1 waiting | papers/OcrPanel.tsx facts | listed |
+| 11 | G-01/G-03 | accounts[main] | no sign-in in a fixture / `state live`, "Disconnect" and "Add account" offered though the sentence says no account is connected | LinkPanel (UI draws what the engine says) | engine-side ask |
+| 12 | life/count 409 | message | name / uses the id: "fixture-water changed since you saw it" | engine | engine-side ask |
+| 13 | G-04, G-14 | fixture sync | can be stopped / ends in 0.3 s; the screen keeps "running" and Stop until its 2 s poll, then Stop answers 400 "No sync is running." (shown honestly) | engine fixture | engine-side ask: sync delay switch |
+| 14 | G-01 | counts, Reader Facts | "1 papers, 1 faults, 1 pages" | LinkPanel.tsx, Reader.tsx | FIXED (plurals) |
+
+Also observed and fine: fixture said as fixture (the sentence and the counts); stale file says its reason; Late only where the engine says; Open in Classroom refusal and Remind-me "That time has passed." both shown in the engine's words; the 409 sentence, the tile shows `present`, no undo step; OCR text "unverified" with its confidence in the review desk; drafts show engine similarity, sources and the rejected one's reason; accepted marks reach the engine. Not exercised: Stop sync on a long job; a picture-only OCR question (the seeded scan gives a whole-page draft and one under-gate page); review desk shows "page image not rendered" for the big page pane while the small crop renders.
+
+### What changed
+Files: playwright.config.ts, e2e/real-*.spec.ts (4) and real-helpers.ts, classroom/{DuePanes,LinkPanel,Reader,ShelfPanes,ClassroomShelf}.tsx, adapters/{gcr.ts,gcrTypes.ts}, life/counterDeck.ts, day/today/callouts/counters.callout.tsx, and the tests for them.
+
+### Not covered by the seed yet
+Tonight sheets, ledger marks, variants, rubric, intake rows, an export archive; a long-running sync; a picture-only OCR question; Setup under v3 (worktree lacks it).
+
 ## 2026-11-27: the paper desk follow-ups, checked by the whole suite before the merge
 
 **Measured on the branch (ui/paper-desk-2 with main 1f9e8e2 merged in).** Type check exit 0. Unit suite: 200 files, 4,148 of 4,148. Browser suite, two workers, 26.6 minutes: 940 passed, 32 failed, 10 skipped, 2 did not run.

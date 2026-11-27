@@ -5,10 +5,13 @@ Every test works in tmp folders: never the real data directory, never the networ
 engine, the real sign-in or a model. One seed is shared by the route tests (module scope) because a seed reads several PDFs
 and the machine is short of memory; the tests that change it run last in the file.
 """
+import hashlib
 import json
 import re
 import sys
 import threading
+from datetime import date, datetime, timedelta
+from datetime import time as dtime
 from pathlib import Path
 
 import pytest
@@ -22,7 +25,9 @@ from jarvis_app.server import create_app
 
 TOKEN = "t" * 32
 FEATURES = ["mission", "reminders", "ww_gcr", "ww_harvest", "ww_life", "ww_pyq", "ww_pyq_drafts", "ww_pyq_ingest",
-            "ww_pyq_ocr", "ww_pyq_patterns"]
+            "ww_pyq_ocr", "ww_pyq_patterns",
+            # wave EW9
+            "ww_intake", "ww_pyq_gen", "ww_pyq_ledger", "ww_pyq_takeout", "ww_pyq_tonight", "ww_pyq_variants"]
 G, P, H = "/api/mission/gcr", "/api/mission/pyq", "/api/mission/harvest"
 
 
@@ -241,6 +246,187 @@ def test_the_ocr_job_runs_stops_and_finishes_with_a_whole_page_draft_and_a_page_
     qs = ok(c.get(f"{P}/questions", params={"paper": pid}))["items"]
     assert len(qs) == 1 and qs[0]["page"] == 1 and qs[0]["text_status"] == "unverified" and qs[0]["status"] == "pending"
     assert "Fixture OCR" in qs[0]["text"]
+
+
+# ------------------------------------------------------------------ wave EW9: the evening sheet, R-55 to R-59
+def tonight_reminders(store) -> list:
+    return sorted(r["id"] for r in store.pending() + store.recent(within_s=3 * 86400, limit=50) if r.get("origin") == "tonight")
+
+
+def test_the_ew9_ids_are_fixed_strings_of_the_stores_shapes(seeded):
+    _, ids = seeded
+    t = ids["tonight"]
+    day = date.today()
+    assert t["today"] == f"{day.isoformat()}-fixture-circuits" and t["yesterday"] == f"{(day - timedelta(days=1)).isoformat()}-fixture-circuits"
+    assert len(t["today_questions"]) == 4 and len(t["yesterday_questions"]) == 4      # one question a topic, four topics
+    assert not set(t["today_questions"]) & set(t["yesterday_questions"])               # a question waits out the last sheets
+    assert t["awaiting_marks"] == [] and len(t["reminders"]) == 1 and re.fullmatch(r"r_[0-9a-f]{8}", t["reminders"][0])
+    assert all(re.fullmatch(r"g-[0-9a-f]{12}", g) for g in ids["ledger"]["papers"]) and len(ids["ledger"]["papers"]) >= 2
+    v = ids["variants"]
+    for vid in [v["accepted"], *v["numerical_pending"], *v["descriptive_pending"], *v["descriptive_rejected"]]:
+        assert re.fullmatch(r"v-[0-9a-f]{12}", vid)
+    assert len(v["numerical_pending"]) == len(v["descriptive_pending"]) == len(v["descriptive_rejected"]) == 1
+    assert re.fullmatch(r"q-[0-9a-f]{12}", v["accepted_question"]) and v["numerical_question"] == seed.TYPED_QUESTION
+    p = ids["intake"]["paste"]
+    assert set(p) == {"new", "accepted", "ambiguous", "declined"} and all(re.fullmatch(r"i-[0-9a-f]{12}", x) for x in p.values())
+    assert len(ids["intake"]["ics_single"]) == 1 and len(ids["intake"]["ics_repeating"]) == 3
+    assert ids["takeout"]["archive"] == "exports/fixture-classroom-export.zip" and ids["life_layout"] == {"saved": False}
+
+
+def test_r55_answers_live_with_todays_sheet_and_nothing_awaiting_marks(client):
+    c, _, ids, _ = client
+    t = ids["tonight"]
+    j = ok(c.get(f"{P}/tonight"), "live")
+    assert j["settings"]["on"] is True and j["settings"]["hour"] == t["hour"]
+    assert j["sheet"]["id"] == t["today"] and [it["question_id"] for it in j["sheet"]["items"]] == t["today_questions"]
+    assert j["sheet"]["unmarked"] == 4 and all(it["text"] and it["why"] for it in j["sheet"]["items"])
+    assert j["awaiting_marks"] == [] and "waiting for marks" not in j["reason"]
+    assert j["next_papers"][0]["subject"] == "fixture-circuits"
+    again = ok(c.post(f"{P}/tonight/build", json={}), "live")                     # a sheet once built is kept as it is
+    assert again["sheet"]["id"] == t["today"] and [it["question_id"] for it in again["sheet"]["items"]] == t["today_questions"]
+
+
+def test_yesterdays_sheet_carries_every_mark_some_lost_and_one_with_minutes(client):
+    c, _, ids, _ = client
+    t = ids["tonight"]
+    j = ok(c.post(f"{P}/tonight/build", json={"date": t["yesterday"][:10], "subject": "fixture-circuits"}), "live")
+    assert j["sheet"]["id"] == t["yesterday"] and j["sheet"]["unmarked"] == 0
+    marks = [it["mark"] for it in j["sheet"]["items"]]
+    assert all(m is not None for m in marks)
+    assert any(m["got"] < m["max"] for m in marks) and any(m["minutes"] for m in marks)
+    assert all(m["at"].startswith(t["yesterday"][:10]) for m in marks)                # typed the same night
+    r = c.get(f"{P}/tonight/{t['yesterday']}/print")
+    assert r.status_code == 200 and "Sheet " in r.text and "Practice sheet from your bank" in r.text
+
+
+def test_the_first_tick_after_start_raises_no_second_reminder_for_today(client):
+    c, d, ids, app = client
+    from jarvis_app import reminders
+    seeded_store = reminders.ReminderStore(path=d / "reminders.json")
+    assert tonight_reminders(seeded_store) == ids["tonight"]["reminders"]             # the one the seed's clock raised
+    clock = json.loads((d / "pyq" / "tonight" / "clock.json").read_text(encoding="utf-8"))
+    assert clock["day"] == date.today().isoformat()
+    svc = app.state.svc
+    before = tonight_reminders(svc.reminders)
+    at = max(datetime.combine(date.today(), dtime(19, 30)), datetime.now()) + timedelta(minutes=1)
+    svc.reminder_scheduler.tick(at.timestamp())                    # the scheduler's own tick, which looks at the sheet's clock
+    assert app.state.pyq_tonight_clock(at.timestamp() + 60) is None
+    assert tonight_reminders(svc.reminders) == before
+    assert tonight_reminders(reminders.ReminderStore(path=d / "reminders.json")) == ids["tonight"]["reminders"]
+
+
+# ------------------------------------------------------------------ the ledger R-60 to R-62, and R-17 with measured marks
+def test_r60_to_r62_count_marks_from_sheets_and_papers(client):
+    c, _, ids, _ = client
+    led = ok(c.get(f"{P}/ledger", params={"subject": "fixture-circuits"}), "live")
+    items = {i["key"]: i for i in led["items"]}
+    assert items[seed.MEASURED_TOPIC]["attempts"] >= 5 and items[seed.UNMEASURED_TOPIC]["attempts"] == 1
+    assert led["totals"]["practised"] == led["totals"]["topics"] == 4 and led["skipped"] == []
+    rows = ok(c.get(f"{P}/ledger/attempts", params={"subject": "fixture-circuits"}), "live")["items"]
+    assert {r["source"] for r in rows} == {"sheet", "paper"}
+    assert {r["source_id"] for r in rows if r["source"] == "paper"} <= set(ids["ledger"]["papers"])
+    assert {r["source_id"] for r in rows if r["source"] == "sheet"} == {ids["tonight"]["yesterday"]}
+    one = ok(c.get(f"{P}/ledger/attempts", params={"subject": "fixture-circuits", "topic": seed.MEASURED_TOPIC}), "live")["items"]
+    assert len(one) == items[seed.MEASURED_TOPIC]["attempts"]
+    pace = ok(c.get(f"{P}/ledger/pace", params={"subject": "fixture-circuits"}), "live")
+    assert pace["days_counted"] == 2 and pace["practised"] == 4 and pace["days_left"] == 12
+
+
+def test_r17_prints_one_topic_measured_and_another_not(client):
+    c, _, _, _ = client
+    j = ok(c.get(f"{P}/practise-next", params={"subject": "fixture-circuits", "gap_minutes": 1440}), "live")
+    picks = {p["key"]: p for p in j["items"]}
+    assert picks[seed.MEASURED_TOPIC]["terms"]["measured"] is True
+    assert picks[seed.UNMEASURED_TOPIC]["terms"]["measured"] is False
+
+
+# ------------------------------------------------------------------ variants and rubrics, R-29 to R-34
+def test_r30_lists_numerical_and_descriptive_variants_in_every_state(client):
+    c, _, ids, _ = client
+    v = ids["variants"]
+    nums = {x["id"]: x for x in ok(c.get(f"{P}/variants", params={"question": v["numerical_question"]}), "live")["items"]}
+    assert nums[v["numerical_pending"][0]]["status"] == "pending" and nums[v["numerical_pending"][0]]["key"]
+    acc = nums[v["accepted"]]
+    assert acc["status"] == "accepted" and acc["kind"] == "numerical" and acc["accepted_as"] == v["accepted_question"]
+    words = {x["id"]: x for x in ok(c.get(f"{P}/variants", params={"question": v["descriptive_question"]}), "live")["items"]}
+    pend, rej = words[v["descriptive_pending"][0]], words[v["descriptive_rejected"][0]]
+    assert pend["status"] == "pending" and pend["origin"] == "model-draft" and pend["key"] is None
+    assert rej["status"] == "rejected" and "Too close" in rej["reason"]
+    qs = ok(c.get(f"{P}/questions", params={"subject": "fixture-signals", "status": "accepted"}))["items"]
+    made = next(q for q in qs if q["id"] == v["accepted_question"])
+    assert made["origin"] == "template" and made["source_question"] == v["numerical_question"]
+
+
+def test_r33_shows_a_drafted_rubric_and_one_he_accepted(client):
+    c, _, ids, _ = client
+    pend = ok(c.get(f"{P}/rubric/{ids['rubric']['pending']}"), "live")["rubric"]
+    assert pend["status"] == "pending" and pend["origin"] == "model-draft" and pend["difference"] == 0
+    assert all("Fixture rubric point" in p["text"] for p in pend["points"])
+    acc = ok(c.get(f"{P}/rubric/{ids['rubric']['accepted']}"), "live")
+    assert acc["reason"] == "Your rubric." and acc["rubric"]["status"] == "accepted" and acc["rubric"]["points"] == seed.HAND_RUBRIC
+
+
+# ------------------------------------------------------------------ intake R-36 to R-42, the export door R-46, R-63
+def test_r36_and_r42_list_the_pasted_lines_and_calendar_rows(client):
+    c, _, ids, _ = client
+    i = ids["intake"]
+    rows = {r["id"]: r for r in ok(c.get("/api/mission/intake"), "live")["items"]}
+    p = i["paste"]
+    assert (rows[p["new"]]["state"], rows[p["accepted"]]["state"], rows[p["declined"]]["state"]) == ("new", "accepted", "declined")
+    amb = rows[p["ambiguous"]]
+    assert amb["ambiguous"] is True and amb["date"] is None and len(amb["readings"]) == 2 and amb["state"] == "new"
+    assert rows[i["ics_single"][0]]["kind"] == "event" and rows[i["ics_single"][0]]["repeats"] == "none"
+    assert all(rows[x]["repeats"] not in ("", "none") for x in i["ics_repeating"])
+    dl = ok(c.get("/api/mission/intake/deadlines"), "live")["items"]
+    assert [d["id"] for d in dl] == [p["accepted"]] and dl[0]["date"] == i["accepted_date"] and dl[0]["time"] == "10:00"
+
+
+def test_r63_counter_row_is_unsaved_so_a_first_visit_sees_the_default(client):
+    c, _, _, _ = client
+    r = c.get("/api/mission/life/layout")
+    assert r.status_code == 200, r.text
+    assert r.json()["saved"] is False and r.json()["order"] == [x["id"] for x in seed.COUNTERS]
+
+
+def test_r46_lists_the_invented_export_and_refuses_the_entry_that_climbs_out(client):
+    c, d, ids, _ = client
+    path = d / ids["takeout"]["archive"]
+    j = ok(c.post(f"{P}/takeout", json={"path": str(path)}), "live")
+    entries = {e["name"]: e for e in j["listing"]["entries"]}
+    assert set(entries) == set(ids["takeout"]["entries"]) | set(ids["takeout"]["refused"])
+    assert "'..'" in entries[seed.EXPORT_REFUSED]["refused"]
+    assert all(entries[n]["refused"] is None for n in ids["takeout"]["entries"])
+    assert sorted(entries[n]["kind"] for n in ids["takeout"]["entries"]) == ["pdf", "pdf", "pptx"]
+
+
+def ew9_counts(d: Path) -> dict:
+    """Every row of the EW9 areas a second seed could add or change."""
+    from jarvis_app.ww_intake.store import IntakeStore
+    from jarvis_app.ww_pyq import generate as gen
+    from jarvis_app.ww_pyq import variants
+    from jarvis_app.ww_pyq.store import Store
+    st = Store(d / "pyq")
+    state = seed._plan(d).load()
+    sheets = sorted((d / "pyq" / "sheets").glob("*.json"))
+    return {"sheets": [json.loads(f.read_text(encoding="utf-8")) for f in sheets],
+            "paper_marks": state["paper_marks"], "exam_prep": state.get("exam_prep"),
+            "attempts": gen.read_attempts(st), "generated": sorted(p["id"] for p in gen.list_generated(st)),
+            "variants": sorted((v["id"], v["status"]) for v in variants.list_variants(st)),
+            "rubrics": sorted(f.name for f in (d / "pyq" / "rubrics").glob("*.json")),
+            "signals": sorted(q["id"] for q in st.list_questions(subject="fixture-signals", status="accepted")),
+            "intake": sorted((r["id"], r["state"], r["date"]) for r in IntakeStore(d / "intake").list_rows()),
+            "reminders": json.loads((d / "reminders.json").read_text(encoding="utf-8"))["items"],
+            "clock": json.loads((d / "pyq" / "tonight" / "clock.json").read_text(encoding="utf-8")),
+            "export": hashlib.sha256((d / seed.EXPORT).read_bytes()).hexdigest()}
+
+
+def test_a_second_seed_of_the_same_folder_adds_no_ew9_row_and_gives_the_same_ids(client):
+    c, d, ids, _ = client
+    before = ew9_counts(d)
+    again = seed.seed_study(d)
+    for k in ("tonight", "ledger", "variants", "rubric", "intake", "takeout", "life_layout"):
+        assert again[k] == ids[k], k
+    assert ew9_counts(d) == before
 
 
 # ------------------------------------------------------------------ the command, the second seed, the real data

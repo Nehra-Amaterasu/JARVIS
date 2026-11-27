@@ -21,9 +21,16 @@ export interface IntakeDeskPort {
   remove(id: string): Promise<PortReply<{ row: boolean; file: boolean }>>
   courses(): Promise<PortReply<CourseRow[]>>
   mapCourse(id: string, subject: string): Promise<PortReply<CourseRow>>
-  /** E17: lists what a Classroom export holds; nothing is queued by listing. */
+  /** R-46 with a file: lists what a Classroom export holds, from a copy of the .zip he picked; nothing is extracted by listing. */
   archive(file: File): Promise<PortReply<ArchiveListing>>
+  /** R-46 with a path: the same listing for an absolute .zip path on this PC (a 500 MB export is not sent through the browser). */
+  archivePath?(path: string): Promise<PortReply<ArchiveListing>>
+  /** R-47: extracts only the named entries into the paper desk's reading job; the desk calls it with one name per press. */
   queueArchive(listingId: string, entryIds: string[]): Promise<PortReply<{ queued: number }>>
+  /** The lines the store set aside on its last list (a rows file it could not read), for a screen to print under a fault. */
+  problems?(): string[]
+  /** Set when the store keeps a decision: R-39 takes accepted or declined only, so no Undo is drawn and no row goes back to new. */
+  noUndo?: string
 }
 
 const ENGINE = 'the intake store has not answered yet'

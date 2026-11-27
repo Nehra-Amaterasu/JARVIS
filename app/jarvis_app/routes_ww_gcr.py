@@ -394,7 +394,8 @@ class Gcr:
     # ------------------------------------------------------------------ answers
     def status_body(self) -> dict:
         names = auth.accounts() or [auth.MAIN]
-        each = [{"name": n, **{k: v for k, v in auth.status(n).items() if k in ("state", "reason")}} for n in names]
+        # `fixture` is set only by the seeded sandbox: a screen must not offer Disconnect or Add account on an invented link
+        each = [{"name": n, **{k: v for k, v in auth.status(n).items() if k in ("state", "reason", "fixture")}} for n in names]
         live = next((n for n in names if auth.status(n)["state"] == "live"), names[0])
         st = auth.status(live)                           # the link is live when any account is
         with self.lock:

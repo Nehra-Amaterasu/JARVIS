@@ -1,14 +1,15 @@
-// ExportImportDrop (package C03, spec 21.4.2 S6, door 4): a well that takes one file he made himself (a Classroom export .zip, or a
-// calendar file .ics through the same well) and, for an archive, lists what is inside BEFORE anything is queued. Each entry has
-// a keep switch; an entry that cannot be read (a video, a path that leaves the archive) is listed with its reason and has no
-// switch. Nothing is fetched and nothing is queued until the queue key is pressed.
+// ExportImportDrop (package C03 and row R25, spec 21.4.2 S6, door 4): the door takes a Classroom export .zip he made himself, by a path
+// on this PC or by picking the file (R-46), and lists what is inside BEFORE anything is taken. Each entry carries the engine's verdict
+// (a kind it reads, or its own refusal sentence), and a Send to paper desk key of its own (R-47, one name per press, the engine's
+// answer printed under that entry). Nothing is extracted and nothing is sent until that key is pressed. The same well also takes a
+// calendar file .ics (IcsPreview).
 import { useRef, useState, type DragEvent } from 'react'
-import { Button, PrimaryButton, Switch } from '../../../shared/kit'
+import { Button, PrimaryButton } from '../../../shared/kit'
 import { Lamp, readingOf, showsNumber, type LampState } from '../../../shared/lamp'
 import { COPY } from './copy'
 import { sizeWords } from './model'
 import type { IntakeDeskPort } from './port'
-import type { ArchiveListing } from './types'
+import type { ArchiveEntry, ArchiveListing } from './types'
 
 export interface DropWellProps {
   /** Extensions that are taken, lower case with the dot (".zip"). */
@@ -49,59 +50,95 @@ export interface ArchiveBodyProps {
   desk: IntakeDeskPort
   /** Hand the body a listing already read (the gallery). */
   initial?: { listing: ArchiveListing; state: 'live' | 'simulated'; reason: string }
-  onQueued?: (n: number) => void
+  /** Told after the engine accepted one entry, with its name. */
+  onSent?: (name: string) => void
   onClose: () => void
 }
 
-export function ArchiveBody({ desk, initial, onQueued, onClose }: ArchiveBodyProps) {
+type Say = { state: LampState; reason: string }
+/** What an entry can be: a kind the paper desk reads and no refusal; anything else says why not, in the engine's words when it has some. */
+export const entryVerdict = (e: ArchiveEntry): { sendable: boolean; word: string } => {
+  if (e.refused) return { sendable: false, word: `refused: ${e.refused}` }
+  if (e.kind === 'other') return { sendable: false, word: 'not a .pdf or .pptx; only those are read' }
+  return { sendable: true, word: `${e.kind ? e.kind.toUpperCase() : 'file'}, ${sizeWords(e.size)}` }
+}
+
+export function ArchiveBody({ desk, initial, onSent, onClose }: ArchiveBodyProps) {
   const [res, setRes] = useState<{ state: LampState; reason: string; listing: ArchiveListing | null } | null>(initial ? { ...initial } : null)
-  const [keep, setKeep] = useState<Record<string, boolean>>(() => Object.fromEntries((initial?.listing.entries ?? []).map((e) => [e.id, !e.refused])))
-  const [done, setDone] = useState<string | null>(null)
-  const read = async (f: File) => {
-    const r = await desk.archive(f)
-    setRes({ state: r.state, reason: r.reason, listing: r.data })
-    setKeep(Object.fromEntries((r.data?.entries ?? []).map((e) => [e.id, !e.refused])))
-    setDone(null)
+  const [path, setPath] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [said, setSaid] = useState<Record<string, Say>>({})
+  const [sending, setSending] = useState<Record<string, boolean>>({})
+  const show = (r: { state: LampState; reason: string; data: ArchiveListing | null }) => {
+    setRes({ state: r.state, reason: r.reason, listing: showsNumber(r.state) ? r.data : null })
+    setSaid({})
+    setSending({})
+  }
+  const readFile = async (f: File) => { setBusy(true); show(await desk.archive(f)); setBusy(false) }
+  const readPath = async () => {
+    if (!desk.archivePath || !path.trim()) return
+    setBusy(true)
+    show(await desk.archivePath(path.trim()))
+    setBusy(false)
+  }
+  const send = async (e: ArchiveEntry) => {
+    if (!res?.listing) return
+    setSending((s) => ({ ...s, [e.id]: true }))
+    const r = await desk.queueArchive(res.listing.id, [e.id])
+    setSending((s) => ({ ...s, [e.id]: false }))
+    setSaid((s) => ({ ...s, [e.id]: { state: r.state, reason: r.reason } }))
+    if (showsNumber(r.state)) onSent?.(e.name)
   }
   const entries = res?.listing?.entries ?? []
-  const chosen = entries.filter((e) => !e.refused && keep[e.id])
-  const queue = async () => {
-    if (!res?.listing) return
-    const r = await desk.queueArchive(res.listing.id, chosen.map((e) => e.id))
-    const n = r.data?.queued ?? 0
-    setDone(showsNumber(r.state) ? `${n} file${n === 1 ? '' : 's'} queued as PENDING for review` : `Not queued: ${r.reason}`)
-    if (showsNumber(r.state)) onQueued?.(n)
-  }
   return (
-    <div className="ik-sheet-body">
+    <div className="ik-sheet-body" data-component="archive-door">
       <p className="ik-sheet-note">{COPY.archiveNote}</p>
-      <DropWell accept={['.zip']} title="Choose a Classroom export" sub="a .zip you made yourself; nothing is read until you pick it" onFile={(f) => void read(f)} />
+      {desk.archivePath && (
+        <div className="ik-path">
+          <label className="ww-sr-only" htmlFor="ik-zip-path">Full path of the export .zip on this PC</label>
+          <input
+            id="ik-zip-path"
+            className="ik-input"
+            value={path}
+            placeholder="Full path of the .zip on this PC, like D:\Exports\classroom.zip"
+            onChange={(e) => setPath(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void readPath() } }}
+          />
+          <PrimaryButton claimId="intake-archive-list" rank="overlay" disabled={!path.trim() || busy} onClick={() => void readPath()}>List it</PrimaryButton>
+        </div>
+      )}
+      <DropWell accept={['.zip']} title="Or choose a Classroom export" sub="a .zip you made yourself; it is only listed until you send an entry" onFile={(f) => void readFile(f)} />
       {res && (
         <div className="ik-result" role="status" data-component="archive-listing">
           <p className="ik-result-head">
             <Lamp reading={readingOf({ state: res.state, reason: res.reason })} />
-            <span>{res.listing ? `${entries.length} entries in ${res.listing.name}` : `Not listed: ${res.reason}`}</span>
+            <span>{res.listing ? `${entries.length} file${entries.length === 1 ? '' : 's'} in ${res.listing.name}` : `Not listed: ${res.reason}`}</span>
           </p>
+          {res.listing && <p className="ik-sheet-note">{res.reason}{res.listing.note ? ` ${res.listing.note}` : ''}</p>}
           {res.listing && (
             <ul className="ik-entries" aria-label="Files inside the export">
-              {entries.map((e) => (
-                <li key={e.id} data-refused={e.refused ? 'true' : undefined}>
-                  <span className="ik-entry-name">{e.name}</span>
-                  <span className="ik-entry-meta">{e.refused ? `refused: ${e.refused}` : sizeWords(e.size)}</span>
-                  {!e.refused && <Switch checked={!!keep[e.id]} onChange={(v) => setKeep((k) => ({ ...k, [e.id]: v }))} label={`Keep ${e.name}`} />}
-                </li>
-              ))}
+              {entries.map((e) => {
+                const v = entryVerdict(e)
+                const a = said[e.id]
+                const sent = !!a && showsNumber(a.state)
+                return (
+                  <li key={e.id} className="ik-entry" data-entry={e.id} data-refused={v.sendable ? undefined : 'true'}>
+                    <span className="ik-entry-name">{e.name}</span>
+                    <span className="ik-entry-meta">{v.word}</span>
+                    {v.sendable && (
+                      <span className="ik-entry-act">
+                        <Button disabled={sent || !!sending[e.id]} onClick={() => void send(e)}>{sent ? 'Sent' : 'Send to paper desk'}</Button>
+                      </span>
+                    )}
+                    {a && <p className="ik-entry-say" role="status"><Lamp reading={readingOf(a)} /><span>{a.reason}</span></p>}
+                  </li>
+                )
+              })}
             </ul>
           )}
-          {done && <p className="ik-sheet-note">{done}</p>}
         </div>
       )}
-      <div className="ik-sheet-act">
-        <Button onClick={onClose}>Close</Button>
-        <PrimaryButton claimId="intake-archive-queue" rank="overlay" disabled={chosen.length === 0 || !!done} onClick={() => void queue()}>
-          {`Queue ${chosen.length} file${chosen.length === 1 ? '' : 's'}`}
-        </PrimaryButton>
-      </div>
+      <div className="ik-sheet-act"><Button onClick={onClose}>Close</Button></div>
     </div>
   )
 }

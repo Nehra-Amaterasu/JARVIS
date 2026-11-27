@@ -2129,8 +2129,8 @@ class StaleCount(Exception):
     """A count tap whose `expect` no longer matches the stored count (the route answers 409 with `present`).
     Not a ValueError, so the mission guard does not turn it into a 400."""
 
-    def __init__(self, counter: str, present: Optional[int]):
-        super().__init__(f"{counter} changed since you saw it; it is now {present if present is not None else 'not logged'}")
+    def __init__(self, counter: str, present: Optional[int], label: Optional[str] = None):
+        super().__init__(f"{label or counter} changed since you saw it; it is now {present if present is not None else 'not logged'}")
         self.counter, self.present = counter, present
 
 
@@ -2973,7 +2973,8 @@ class Plan:
         op "explained" {date, index, text?}: a reel he has now explained in his own words."""
         today = today or date.today().isoformat()
         inputs = ww_engines.load_inputs()
-        ids = {c["id"] for c in ((inputs.get("life") or {}).get("counters") or ww_life.DEFAULT_COUNTERS)}
+        counters = (inputs.get("life") or {}).get("counters") or ww_life.DEFAULT_COUNTERS
+        ids = {c["id"] for c in counters}
         with self._lock:
             st = self.load(today)
             log = st.setdefault("life", {})
@@ -2991,7 +2992,9 @@ class Plan:
                         raise ValueError("expect is the count you saw, a number")
                     present = counts.get(cid)
                     if (present or 0) != seen:
-                        raise StaleCount(cid, present)
+                        # the sentence is read by him, so it names the counter as the screen does, not its id (UI lane, 27 Nov)
+                        label = next((str(c.get("name") or c.get("label") or cid) for c in counters if c["id"] == cid), cid)
+                        raise StaleCount(cid, present, label)
                 if "value" in payload:
                     v = _num(payload.get("value"))
                 else:
@@ -3733,6 +3736,18 @@ def clean_application(a: Any, src: str = "you") -> Optional[dict]:
     return out
 
 
+def _app_history(v: Any) -> list[dict]:
+    # set_status has always stored these dated changes, and every view dropped them (audit 27 Nov); the follow-up
+    # date of EW10 counts from the day he applied, so they now travel with the row. A hand-edited entry with an
+    # impossible date or an unknown status is left out, never guessed; 200 bounds a file edited by hand (a real
+    # application changes status under ten times).
+    out = []
+    for h in _as_list(v)[-200:]:
+        if isinstance(h, dict) and h.get("status") in APP_STATUSES and _date_or_none(h.get("at")):
+            out.append({"status": h["status"], "at": h["at"], "note": str(h.get("note") or "")[:200]})
+    return out
+
+
 class Applications:
     """The internship pipeline and the long-term goals, one JSON file he owns."""
 
@@ -3758,12 +3773,12 @@ class Applications:
         for a in _as_list(cal):
             c = clean_application(a, "research")
             if c:
-                merged[c["id"]] = c
+                merged[c["id"]] = {**c, "history": []}     # a calendar row has no status changes of his
         for aid, mine in self._state()["applications"].items():
             base = merged.get(aid, {})
             c = clean_application({**base, **mine, "id": aid}, base.get("source", "you"))
             if c:
-                merged[aid] = c
+                merged[aid] = {**c, "history": _app_history(mine.get("history"))}
         return list(merged.values())
 
     def view(self, today: Optional[str] = None, bank: Optional[dict] = None, plan_state: Optional[dict] = None) -> dict:

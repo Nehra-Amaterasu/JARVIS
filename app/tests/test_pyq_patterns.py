@@ -342,12 +342,14 @@ def test_a_measured_proficiency_is_used_and_flagged():
     assert picks[0]["key"] == b                                                        # the weaker topic gains more per minute
 
 
-def test_a_topic_with_fewer_than_five_marked_attempts_is_unmeasured_even_if_a_value_is_passed():
+def test_a_topic_with_fewer_than_three_marked_attempts_is_unmeasured_even_if_a_value_is_passed():
     ps = hand_set([topic(1, 1, "Alpha")])
     a = ww_generator.topic_key(1, "Alpha")
-    p = nxt.practise_next(ps, {a: 0.9}, 600, attempts={a: 4})[0]
+    p = nxt.practise_next(ps, {a: 0.9}, 600, attempts={a: 2})[0]
     assert p["terms"]["measured"] is False and p["terms"]["proficiency"] == 0.5
-    assert "4 marked attempts" in p["reason"]
+    assert "2 marked attempts" in p["reason"]
+    assert nxt.MIN_ATTEMPTS == 3                     # the owner's number since 27 Nov 2026
+    assert nxt.practise_next(ps, {a: 0.9}, 600, attempts={a: 3})[0]["terms"]["measured"] is True
 
 
 def test_never_more_than_two_picks_in_a_row_from_one_unit():

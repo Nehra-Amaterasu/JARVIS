@@ -31,9 +31,11 @@ export interface IntakeLedgerProps {
   onToggleOlder: () => void
   /** True when the desk is LIVE and empty: the tray picture moves. A WAITING desk shows it still. */
   live?: boolean
+  /** The lines the store set aside (a rows file it could not read). Under an empty ledger they are the reason; under rows they are a note. */
+  problems?: readonly string[]
 }
 
-export function IntakeLedger({ rows, subjects, now, page, onPage, selId, onSelect, emptyTitle, emptyNote, older, showOlder, onToggleOlder, live = false }: IntakeLedgerProps) {
+export function IntakeLedger({ rows, subjects, now, page, onPage, selId, onSelect, emptyTitle, emptyNote, older, showOlder, onToggleOlder, live = false, problems = [] }: IntakeLedgerProps) {
   const pg = pageOf(rows, page, now)
   const root = useRef<HTMLDivElement>(null)
   const pending = useRef<string | null>(null)
@@ -68,6 +70,11 @@ export function IntakeLedger({ rows, subjects, now, page, onPage, selId, onSelec
             <TrayArt moving={live} />
             <p className="ik-empty-line">{emptyTitle}</p>
             <p className="ik-empty-note">{emptyNote}</p>
+            {problems.length > 0 && (
+              <ul className="ik-problems" aria-label="What the store set aside" data-component="intake-problems">
+                {problems.map((p) => <li key={p}>{p}</li>)}
+              </ul>
+            )}
           </div>
         ) : (
           pg.groups.map((g) => (
@@ -106,6 +113,9 @@ export function IntakeLedger({ rows, subjects, now, page, onPage, selId, onSelec
         )}
       </div>
       <div className="ik-foot">
+        {rows.length > 0 && problems.length > 0 && (
+          <p className="ik-problem-note" role="status" data-component="intake-problems">{`${COPY.setAside} ${problems.join(' ')}`}</p>
+        )}
         {older > 0 && (
           <button type="button" className="ik-older" aria-expanded={showOlder} onClick={onToggleOlder}>
             {showOlder ? `Hide ${older} older item${older === 1 ? '' : 's'}` : `${older} older item${older === 1 ? '' : 's'}, ${COPY.olderNote}`}

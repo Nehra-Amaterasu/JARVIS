@@ -1,15 +1,21 @@
 // The two lists of the Classroom shelf: the courses (name, section, state, the subject he maps it to, the include switch, the counts)
 // and the files of the chosen course (title, type, the post's topic, state, why the note is what it is). Both are presentational:
 // the shelf owns the data and the presses, so a list never calls the engine itself.
+import { createContext, useContext } from 'react'
 import { Field, Segmented, Switch } from '../../../shared/kit'
 import { Lamp, readingOf, type LampReading, type LampState } from '../../../shared/lamp'
 import type { GcrCourse, GcrFile, GcrKind } from '../adapters/gcrTypes'
 import type { SubjectOption } from '../intake/types'
 
+/** Course id -> name, from the courses the shelf read. "Also in" is an id on the wire (a Google course id, 10 digits in real life), and
+ *  an id is not a thing to read: the shelf provides the names, and a course not in the list falls back to the post's title. */
+export const CourseNames = createContext<Readonly<Record<string, string>>>({})
+
 export const STALE_SENTENCE = 'An older copy: the newer version could not be fetched'
 /** The two honest notes of a file: an older copy, and the other courses it was posted in. */
 export function FileNotes({ f }: { f: GcrFile }) {
-  const also = (f.also_in ?? []).map((a) => a.course).filter(Boolean)
+  const names = useContext(CourseNames)
+  const also = (f.also_in ?? []).map((a) => names[a.course] || a.course).filter(Boolean)
   return (
     <>
       {f.stale && <span className="cr-fine" data-component="classroom-stale">{STALE_SENTENCE}</span>}
@@ -60,7 +66,7 @@ export function CoursesPane({ items, subjects, chosen, onChoose, onSubject, onIn
             <button type="button" className="cr-pick" aria-pressed={chosen === c.id} onClick={() => onChoose(chosen === c.id ? null : c.id)}>
               <span className="cr-name">{c.name}</span>
               {c.section && <span className="cr-fine">{c.section}</span>}
-              <span className="cr-fine"><Lamp reading={readingOf({ state: c.state, reason: '' })} /></span>
+              <span className="cr-fine"><Lamp reading={readingOf({ state: c.state, reason: c.state === 'live' || !c.google_state ? '' : `Google says: ${c.google_state}` })} /></span>
               <span className="cr-fine">{`${c.files} files, ${c.notes} notes, ${c.papers} papers`}</span>
             </button>
             <div className="cr-ctl">

@@ -150,7 +150,9 @@ test.describe('T01: the Tree under the new shell', () => {
       const clipped = await page.evaluate(() => {
         const st = document.querySelector('.tg-stage')!.getBoundingClientRect()
         const out: string[] = []
-        for (const t of document.querySelectorAll('.tg-svg .sn-label, .tg-svg .hub-name')) {
+        // 27 Nov (b): a branch plate's name is always drawn now (owner, 25 Nov: two plates showed "3 nodes" and no name), so a plate the stage
+        // edge cuts shows part of its name; that is the plate, not a loose label. Node labels (.sn-label) still must not be cut.
+        for (const t of document.querySelectorAll('.tg-svg .sn-label')) {
           const r = t.getBoundingClientRect()
           if (r.width < 1) continue
           const partly = (r.left < st.left || r.right > st.right || r.top < st.top || r.bottom > st.bottom) && r.right > st.left && r.left < st.right && r.bottom > st.top && r.top < st.bottom
@@ -168,8 +170,11 @@ test.describe('T01: the Tree under the new shell', () => {
         const seen = (r: DOMRect) => r.left < st.right && st.left < r.right && r.top < st.bottom && st.top < r.bottom   // clipped by the stage means not drawn
         const out: string[] = []
         for (const t of document.querySelectorAll('.tg-svg [data-id], .tg-svg .sn-label, .tg-svg .hub-name')) {
-          const r = t.getBoundingClientRect()
-          if (r.width < 1 || !seen(r)) continue
+          const r0 = t.getBoundingClientRect()
+          if (r0.width < 1 || !seen(r0)) continue
+          // the part the stage actually draws: a plate or a label the stage edge cuts has a box that runs on past the clip (27 Nov, (b):
+          // the box of a cut plate overlapped the keys that sit just outside the stage, where nothing is drawn)
+          const r = { left: Math.max(r0.left, st.left), right: Math.min(r0.right, st.right), top: Math.max(r0.top, st.top), bottom: Math.min(r0.bottom, st.bottom) }
           if (r.left < c.right && c.left < r.right && r.top < c.bottom && c.top < r.bottom) out.push(((t.textContent || t.getAttribute('data-id') || '').slice(0, 24)))
         }
         return out
@@ -197,7 +202,7 @@ test.describe('T01: the Tree under the new shell', () => {
         const c = document.querySelector('.tg-controls')!.getBoundingClientRect()
         const st = document.querySelector('.tg-stage')!.getBoundingClientRect()
         const seen = (r: DOMRect) => r.left < st.right && st.left < r.right && r.top < st.bottom && st.top < r.bottom   // clipped by the stage means not drawn
-        return [...document.querySelectorAll('.tg-svg [data-id]')].filter((t) => { const r = t.getBoundingClientRect(); return r.width > 1 && seen(r) && r.left < c.right && c.left < r.right && r.top < c.bottom && c.top < r.bottom }).length
+        return [...document.querySelectorAll('.tg-svg [data-id]')].filter((t) => { const r0 = t.getBoundingClientRect(); const r = { left: Math.max(r0.left, st.left), right: Math.min(r0.right, st.right), top: Math.max(r0.top, st.top), bottom: Math.min(r0.bottom, st.bottom) }; return r0.width > 1 && seen(r0) && r.left < c.right && c.left < r.right && r.top < c.bottom && c.top < r.bottom }).length
       })
       expect(under, 'drawer open: nodes under the view controls').toBe(0)
       // E with no store says why and invents nothing

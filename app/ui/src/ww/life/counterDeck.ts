@@ -18,7 +18,7 @@
 // long enough to fix a run of mis-taps, short enough that it never becomes a second history.
 import { useEffect } from 'react'
 import { create } from 'zustand'
-import { ApiError, TOKEN, api } from '../../lib/api'
+import { ApiError, api, post } from '../../lib/api'
 import { useLeft } from '../left/store'
 
 export interface DeckCounter { id: string; name: string; want: 'less' | 'more' | 'yes'; today: number | null }
@@ -37,20 +37,19 @@ export class CountConflict extends Error {
 }
 
 /**
- * POST /api/mission/life/count. Not lib/api's `post`: that reads a 409's `detail` as a string, and this detail is an object, which came
- * out as "[object Object]" (api.ts, the line that reads j.detail; the engine's sentence was lost). The same token header, and every
- * other refusal is still an ApiError with the engine's string.
+ * POST /api/mission/life/count. A 409 carries detail {message, id, present}: lib/api now keeps the object on the ApiError and reads its
+ * message (R32, 27 Nov), so the local fetch that stood here to dodge "[object Object]" is gone. Every other refusal stays an ApiError.
  */
 async function postCount(body: Record<string, unknown>): Promise<LifeRes> {
-  const res = await fetch('/api/mission/life/count', { method: 'POST', headers: { 'X-Jarvis-Token': TOKEN, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-  if (res.ok) return (await res.json()) as LifeRes
-  let detail: unknown = null
-  try { detail = ((await res.json()) as { detail?: unknown }).detail } catch { /* not JSON */ }
-  if (res.status === 409 && detail && typeof detail === 'object') {
-    const d = detail as { message?: unknown; id?: unknown; present?: unknown }
-    if (typeof d.present === 'number') throw new CountConflict(typeof d.message === 'string' && d.message ? d.message : 'That counter changed in another window.', typeof d.id === 'string' ? d.id : String(body.id), d.present)
+  try {
+    return await post<LifeRes>('/api/mission/life/count', body)
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 409 && e.detail && typeof e.detail === 'object') {
+      const d = e.detail as { message?: unknown; id?: unknown; present?: unknown }
+      if (typeof d.present === 'number') throw new CountConflict(typeof d.message === 'string' && d.message ? d.message : 'That counter changed in another window.', typeof d.id === 'string' ? d.id : String(body.id), d.present)
+    }
+    throw e
   }
-  throw new ApiError(res.status, typeof detail === 'string' && detail ? detail : res.statusText)
 }
 
 export const PREFS_KEY = 'ww.day.counters.v1'

@@ -9,6 +9,7 @@
 import { useRef } from 'react'
 import { Button, Field, Segmented } from '../../../shared/kit'
 import { Lamp, readingOf, showsNumber } from '../../../shared/lamp'
+import { formatDay, formatStamp } from '../../../shared/stamp'
 import type { GcrAnnouncement, GcrAnswer, GcrAssignment, GcrAssignmentsBody, GcrCourse, GcrEvent, GcrWork } from '../adapters/gcrTypes'
 import { useBringIntoView } from './Reader'
 import { NoticeLine, Pose } from './ShelfPanes'
@@ -21,33 +22,8 @@ export const NO_LINK_SENTENCE = 'The engine gave no Classroom link for this one.
 export const NO_DATE_SENTENCE = 'This assignment has no due date, so there is no default time for a reminder.'
 export const TURN_IN_NOTE = 'Turning in happens in Classroom, not here.'
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-/** "YYYY-MM-DD" (and an optional "HH:MM") as "27 Nov 2026, 18:00"; a stamp that does not parse is shown as the engine wrote it. */
-export function formatDay(day: string, time = ''): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(day)
-  if (!m) return day
-  const month = MONTHS[Number(m[2]) - 1]
-  if (!month) return day
-  return `${Number(m[3])} ${month} ${m[1]}${time ? `, ${time}` : ''}`
-}
-/**
- * A stamp that may carry a time ("2026-11-26T18:00" or "2026-11-26 18:00"): the day, then the time when there is one.
- * A stamp that carries a zone ("...Z" or "+05:30") is what the real engine writes for posted, start, read_at and synced_at, and it is a
- * UTC clock: written as it stands, an announcement of 09:00 UTC read 09:00 on a screen in IST, 5 h 30 min early (seen against the seeded
- * sandbox, 27 Nov). It is converted to the viewer's own clock. A stamp with no zone is already local and is left as written.
- */
-export function formatStamp(s: string): string {
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/.test(s)) {
-    const d = new Date(s)
-    if (!Number.isNaN(d.getTime())) {
-      const p = (n: number) => String(n).padStart(2, '0')
-      return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${p(d.getHours())}:${p(d.getMinutes())}`
-    }
-  }
-  const m = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/.exec(s)
-  return m ? formatDay(m[1], m[2]) : formatDay(s)
-}
+// formatDay and formatStamp live in shared/stamp (Setup's paper sources print the same kind of stamp); re-exported so the Classroom panes and their tests keep one door
+export { formatDay, formatStamp }
 export function dueText(a: Pick<GcrAssignment, 'due' | 'due_time'>): string {
   return a.due ? formatDay(a.due, a.due_time) : NO_DUE
 }

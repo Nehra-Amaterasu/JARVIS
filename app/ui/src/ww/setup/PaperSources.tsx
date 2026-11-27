@@ -19,6 +19,7 @@ import { useState } from 'react'
 import { Check } from 'lucide-react'
 import { api } from '../../lib/api'
 import { Lamp, type LampState } from '../../shared/kit/Lamp'
+import { formatStamp } from '../../shared/stamp'
 import { Button, Chip, Field, Segmented } from '../kit'
 import { PagerBar, usePaged } from './pager'
 
@@ -165,7 +166,7 @@ function Card({ source, onChange }: { source: PaperSource; onChange: (s: PaperSo
           <div data-index-state={idx.state}>
             <p className="su-ps-count">
               <Lamp state={lampOf(idx.state)} reason={idx.reason} />
-              <span data-index-reason="">{live ? `${idx.items.length} shown of the ${idx.listed} listed${idx.read_at ? `, read ${idx.read_at}` : ''}.` : idx.reason}</span>
+              <span data-index-reason="">{live ? `${idx.items.length} shown of the ${idx.listed} listed${idx.read_at ? `, read ${formatStamp(idx.read_at)}` : ''}.` : idx.reason}</span>
             </p>
             {idx.note && <p className="su-ps-meta" data-index-note="">{idx.note}</p>}
             {live && idx.items.length === 0 && <p className="su-hint">Nothing in the listing matches that search.</p>}

@@ -130,8 +130,8 @@ export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, cl
   const reload = useCallback(() => { if (!data) void loadDesk(port).then(setLoaded) }, [port, data])
 
   const d = loaded ?? EMPTY_DATA
-  const sorted = useMemo(() => [...d.papers].sort((a, b) => b.year - a.year), [d.papers])
-  const years = useMemo(() => d.papers.map((p) => p.year), [d.papers])
+  const sorted = useMemo(() => [...d.papers].sort((a, b) => (b.year ?? -Infinity) - (a.year ?? -Infinity)), [d.papers])
+  const years = useMemo(() => d.papers.flatMap((p) => (p.year === null ? [] : [p.year])), [d.papers])
   const cells = useMemo(() => cellsOf(d.questions), [d.questions])
   const coverage = useMemo(() => (d.papers.length || d.questions.length ? coverageOf(d.papers, d.questions, d.lastRun) : EMPTY_COVERAGE), [d.papers, d.questions, d.lastRun])
   const chosen = sorted.find((p) => p.id === sel) ?? null
@@ -297,7 +297,7 @@ export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, cl
                         return (
                           <li key={p.id}>
                             <button type="button" className="pp-paper" aria-current={sel === p.id ? 'true' : undefined} onClick={() => setSel(sel === p.id ? null : p.id)}>
-                              <span className="pp-paper-name">{p.label}</span>
+                              <span className="pp-paper-name">{p.label}{p.year === null && <span className="pp-paper-nd" title="No year on file, so this paper is not in the year columns"> n.d.</span>}</span>
                               <span className="pp-paper-meta">{live ? `${p.questions} questions, ${w ? `${w} waiting` : 'reviewed'}` : 'not reported'}</span>
                               {live && <Chip tone={w ? 'sim' : 'neutral'}>{w ? 'to review' : 'reviewed'}</Chip>}
                             </button>
@@ -382,7 +382,7 @@ export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, cl
                     return (
                       <li key={p.id}>
                         <button type="button" className="pp-paper" aria-current={sel === p.id ? 'true' : undefined} onClick={() => setSel(sel === p.id ? null : p.id)}>
-                          <span className="pp-paper-name">{p.label}</span>
+                          <span className="pp-paper-name">{p.label}{p.year === null && <span className="pp-paper-nd" title="No year on file, so this paper is not in the year columns"> n.d.</span>}</span>
                           <span className="pp-paper-meta">{live ? `${p.questions} questions, ${w ? `${w} waiting` : 'reviewed'}` : 'not reported'}</span>
                           {live && <Chip tone={w ? 'sim' : 'neutral'}>{w ? 'to review' : 'reviewed'}</Chip>}
                         </button>

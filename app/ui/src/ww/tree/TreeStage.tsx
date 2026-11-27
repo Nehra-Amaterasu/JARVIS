@@ -100,6 +100,19 @@ export function TreeStage({ tree, derived, ledgerState, openId, onOpen, occluded
   })
   const { centerOn, fit } = vp
 
+  // The stage's pixel size is React state that labelFits reads. It was refreshed only when a pan or zoom came to rest, and since the 27 Nov
+  // fix a click no longer pans, so opening the node tray (the stage 846 -> 664 px at 1366) left `size` stale and labels the new edge cuts
+  // ("Systems and") were still drawn. Watch the stage itself.
+  useEffect(() => {
+    const el = vp.stage.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => {
+      if (el.clientWidth > 0) setSize((z) => (z.w === el.clientWidth && z.h === el.clientHeight ? z : { w: el.clientWidth, h: el.clientHeight }))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [vp.stage])
+
   /** Put a branch's row in view at zoom k: the whole row when it fits, else its left end (hub and seed first). The top edge of the stage is
    *  snapped to the boundary between two rows (the row sits about a third down, never so that the row above shows as a cut sliver), so
    *  every row that shows is whole and the first row of the tree is not half hidden (owner, 25 Nov). */

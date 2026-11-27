@@ -2,8 +2,7 @@
 // the two sources the engine knows, their terms and switches, a switch pressed, an address refused or kept, and the listing asked of an
 // address that is no site (the engine's own fault sentence must reach the screen). No route is mocked. 1366x768. Only with WW_SANDBOX_SEED=study.
 //
-// Setup is reached under v3 only after another branch merges: this spec first tries `#setup` under the v3 shell and, when that does not open
-// it, opens Setup in the older frame (shell=off) the way e2e/paper-sources.spec.ts does, and says so in the log.
+// Setup is opened under the v3 look with `#setup` (27 Nov, R32: it opened in the older frame while `#setup` did not exist).
 import type { Page } from '@playwright/test'
 import { expect as baseExpect, test } from './fixtures'
 import { NEEDS_SEED, SEEDED, engine, shot, watch } from './real-helpers'
@@ -17,32 +16,22 @@ const blurText = (page: Page) => page.evaluate(() => {
   if (el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) el.blur()
 })
 
-async function openSetup(page: Page, baseURL: string | undefined): Promise<'v3' | 'older frame'> {
+/** Setup under the v3 look (R32, 27 Nov): `#setup` opens it since R18, so the older-frame fallback this spec carried is gone. */
+async function openSetup(page: Page, baseURL: string | undefined): Promise<void> {
   const res = await fetch(baseURL!).catch(() => null)
   test.skip(!res || !res.ok, 'dist-e2e is not built; run `node scripts/build-e2e.mjs` first')
   await page.setViewportSize({ width: 1366, height: 768 })
   await page.goto('/#t=ww-e2e&shell=v2&look=v3')
   await expect(page.locator('.s3')).toBeVisible({ timeout: 20_000 })
   await page.evaluate(() => { location.hash = '#setup' })
-  const viaV3 = await page.locator('[data-page="setup"]').waitFor({ state: 'visible', timeout: 4000 }).then(() => true, () => false)
-  if (viaV3) return 'v3'
-  await page.goto('about:blank') // a hash-only change would keep the v3 shell alive
-  await page.goto('/#t=ww-e2e&shell=off')
-  await page.getByText('Study', { exact: true }).first().click()
-  await expect(page.locator('.ww-frame [role="tab"]').first()).toBeVisible({ timeout: 20_000 })
-  await blurText(page)
-  await page.mouse.click(8, 8)
-  await page.keyboard.press('Alt+6')
   await expect(page.locator('[data-page="setup"]')).toBeVisible({ timeout: 20_000 })
-  return 'older frame'
 }
 
 test.describe('real routes: the harvester past-paper sources', () => {
   test('the sources, their terms, a switch, an address, a listing that cannot be read', async ({ page, baseURL }) => {
     test.setTimeout(120_000)
     const w = watch(page)
-    const frame = await openSetup(page, baseURL)
-    console.log(`Setup opened in the ${frame}${frame === 'older frame' ? ' (#setup does not open under v3 in this worktree)' : ''}`)
+    await openSetup(page, baseURL)
     await page.locator('[data-index="harvester"]').click()
     await expect(page.locator('#su-harvester')).toBeVisible()
     await page.locator('#su-harvester').getByRole('radio', { name: 'Past papers' }).click()
@@ -101,8 +90,8 @@ test.describe('real routes: the harvester past-paper sources', () => {
     console.log('index answer:', JSON.stringify(idx).slice(0, 400))
     await expect.soft(sec.locator('[data-listing]'), 'the listing says what the engine said').toContainText(`${idx.items.length} shown of the ${idx.listed} listed`)
     const listing = await sec.locator('[data-listing]').innerText()
-    // setup/** is another builder's folder: the raw stamp is reported as a note, not failed here (see the mismatch list)
-    if (/[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}/.test(listing)) test.info().annotations.push({ type: 'MISMATCH', description: 'PaperSources shows the listing read stamp raw: ' + (listing.match(/read [^.]*/)?.[0] ?? '') })
+    // R32, 27 Nov: the engine's read stamp is UTC; the screen prints it in the viewer's clock ("27 Nov 2026, 14:30"), never the raw ISO text
+    expect(listing, 'the listing prints the read stamp raw').not.toMatch(/[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}/)
     await expect.soft(sec.locator('[data-listing]')).not.toContainText(/\b0 shown of the 0 listed\b/)
     await shot(page, 'sources-listing')
 

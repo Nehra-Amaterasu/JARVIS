@@ -51,7 +51,8 @@ export interface CropInfo {
 
 export interface PaperRow {
   id: string
-  year: number
+  /** The exam year, or null when the engine does not know it (R32, 27 Nov: it was 0, which drew a year column headed "0"). */
+  year: number | null
   /** The student's own label for the file ("Paper 2023"); never an institution or course name in a tracked file. */
   label: string
   /** The exam date, epoch ms, or null when unknown. */
@@ -72,7 +73,8 @@ export interface QuestionRow {
   paperId: string
   /** The number printed on the paper ("Q4"). */
   number: string
-  year: number
+  /** The year of its paper; null when that paper has no known year. */
+  year: number | null
   topicId: string
   type: QType
   /** Marks as read; null when the paper's marks were not found. */

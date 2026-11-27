@@ -1,7 +1,7 @@
 // O1 Date sheet (plan 4.13): one card per paper, every field labelled in words, dates and goals editable.
 // It edits the SAME `exams` draft as Setup > Dates (setup/saveModel.ts), so "Save 2 changes" here and the
 // dirty dot on the Setup page are one fact. Primary: Save N changes when something changed, else none (Close only).
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { usePlan } from '../../germoney/game/plan'
 import { EMPTY } from '../../germoney/ui'
@@ -57,9 +57,22 @@ export function DateSheet() {
   const saving = useSetup((s) => s.saving)
   const report = useSetup((s) => s.report)
   const subjects = usePlan((s) => s.academics?.subjects) ?? EMPTY
-  // two papers a page: the sheet fits 1366x768 without scrolling (the owner's rule), however many papers there are
+  // The owner's rule is that the sheet fits without scrolling, however many papers there are. Two cards a page fitted until the
+  // card became four wrapping rows on 27 Nov (a card is about 250 px; two overflowed the 1366x768 sheet by 319 px), so the page
+  // size is measured: two while two fit, one when they do not. 'size' goes back to two on a resize, then is measured again.
   const rowsNow = (draft ?? base).length
-  const pg = usePaged(rowsNow, 2)
+  const [size, setSize] = useState(2)
+  const pg = usePaged(rowsNow, size)
+  const bodyRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const sc = bodyRef.current?.closest('.ww-sheet-body') as HTMLElement | null
+    if (size > 1 && sc && sc.scrollHeight - sc.clientHeight > 1) setSize(1)
+  })
+  useEffect(() => {
+    const again = () => setSize(2)
+    window.addEventListener('resize', again)
+    return () => window.removeEventListener('resize', again)
+  }, [])
   useEffect(() => {
     if (load !== 'ready') void refresh()
     void usePlan.getState().loadAcademics()
@@ -81,7 +94,7 @@ export function DateSheet() {
   const tentative = rows.filter((r) => r.approx).length
 
   return (
-    <div className="ov-body" data-overlay="date" data-primary-none={changes === 0 ? '' : undefined}>
+    <div className="ov-body" ref={bodyRef} data-overlay="date" data-primary-none={changes === 0 ? '' : undefined}>
       {pg.slice(rows).map(({ item: r, index: i }) => {
         const name = subjects.find((s) => s.id === r.subject)?.name ?? (r.title || 'New paper')
         return (

@@ -170,7 +170,8 @@ test.describe('Glitch sweep, flag on', () => {
     }))
     for (let round = 1; round <= 3; round++) {
       where = `toggle round ${round} to classic`
-      await page.locator('.s2-classic').click()
+      // 27 Nov (b): the "New look" key shares the s2-classic class, so the bare class matched two buttons; this one is Classic UI
+      await page.locator('.s2-classic', { hasText: 'Classic UI' }).click()
       await expect(page.locator('.app .dock')).toBeVisible({ timeout: 15_000 })
       const c = await chrome()
       if (c.shells !== 0 || c.titles !== 0) noteHard(`${where}: the new chrome is still mounted (${JSON.stringify(c)})`)

@@ -21,7 +21,7 @@ let m: ReturnType<typeof mount> | null = null
 afterEach(() => { m?.unmount(); m = null })
 
 const FIX: DeskData = { state: 'simulated', reason: 'invented papers', papers: PAPERS, questions: QUESTIONS, topics: TOPICS, events: TRACE, queued: [], routes: [], lastRun: NOW - 3 * 3_600_000 }
-const subset = (n: number): DeskData => { const ys = YEARS.slice(0, n); return { ...FIX, papers: PAPERS.filter((p) => ys.includes(p.year)), questions: QUESTIONS.filter((q) => ys.includes(q.year)) } }
+const subset = (n: number): DeskData => { const ys = YEARS.slice(0, n); return { ...FIX, papers: PAPERS.filter((p) => p.year !== null && ys.includes(p.year)), questions: QUESTIONS.filter((q) => q.year !== null && ys.includes(q.year)) } }
 const key = (el: Element, k: string, init: KeyboardEventInit = {}) => act(() => { el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init })) })
 const q = (sel: string) => m!.container.querySelector(sel) as HTMLElement
 const qa = (sel: string) => Array.from(m!.container.querySelectorAll<HTMLElement>(sel))
@@ -53,6 +53,13 @@ describe('Paper Desk', () => {
     expect(qa('.pp-ledger .k-readout-value').map((e) => e.textContent?.replace(/\s+/g, ' ').trim())).toEqual(['6', '42', '35 of 42', String(QUESTIONS.filter((x) => x.tag === 'HAND').length), '3 h ago'])
     expect(qa('.pp-ledger .k-stamp')).toHaveLength(5)
     expect(m.container.textContent).toContain('SIMULATED')
+  })
+  it('a paper with no known year is listed as "n.d." and gets no year column (R32, 27 Nov: it drew a column headed "0")', () => {
+    const undated = { ...PAPERS[0], id: 'p-undated', label: 'Scan with no year', year: null }
+    m = mount(<PaperDesk data={{ ...FIX, papers: [...PAPERS, undated] }} classic={false} now={NOW} />)
+    expect(m.container.textContent).toContain('Scan with no year')
+    expect(qa('.pp-paper-nd').map((e) => e.textContent?.trim())).toEqual(['n.d.'])
+    expect(qa('.pp-yearhead *').map((e) => e.textContent?.trim()), 'a column headed 0').not.toContain('0')
   })
   it('the Strata is one grid with one tab stop; arrows move the stop and the Enter key opens the question in the Review Desk', () => {
     m = mount(<PaperDesk data={FIX} classic={false} now={NOW} />)

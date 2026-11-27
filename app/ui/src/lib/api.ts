@@ -21,10 +21,24 @@ export const TOKEN = readToken()
 
 export class ApiError extends Error {
   status: number
-  constructor(status: number, message: string) {
+  /** The engine's `detail` as it came: a string, or an object such as {message, id, present} on a 409. Null when there was none. */
+  detail: unknown
+  constructor(status: number, message: string, detail: unknown = null) {
     super(message)
     this.status = status
+    this.detail = detail
   }
+}
+
+/** The sentence of an error body. `detail` is a string on most refusals and an object on a 409 (R32, 27 Nov: `msg = j.detail` printed
+ *  "[object Object]" and lost the engine's sentence), so an object's `message` is read, then the body's `error`, then the status text. */
+export function errorSentence(j: unknown, fallback: string): string {
+  const b = (j && typeof j === 'object' ? j : {}) as { detail?: unknown; error?: unknown }
+  const d = b.detail
+  if (typeof d === 'string' && d) return d
+  if (d && typeof d === 'object' && typeof (d as { message?: unknown }).message === 'string' && (d as { message: string }).message) return (d as { message: string }).message
+  if (typeof b.error === 'string' && b.error) return b.error
+  return fallback
 }
 
 export async function api<T = unknown>(path: string, init: { method?: string; body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
@@ -36,13 +50,15 @@ export async function api<T = unknown>(path: string, init: { method?: string; bo
   })
   if (!res.ok) {
     let msg = res.statusText
+    let detail: unknown = null
     try {
       const j = await res.json()
-      msg = j.detail ?? j.error ?? msg
+      msg = errorSentence(j, msg)
+      detail = j?.detail ?? null
     } catch {
       /* not JSON */
     }
-    throw new ApiError(res.status, msg)
+    throw new ApiError(res.status, msg, detail)
   }
   return res.json() as Promise<T>
 }

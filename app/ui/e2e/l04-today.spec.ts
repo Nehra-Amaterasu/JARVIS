@@ -213,7 +213,10 @@ test.describe('L04 Today after the jury', () => {
       expect(r.clipped, 'words wider than their box').toEqual([])
       expect(r.out, 'drawings cut at the well edge').toBe(0)
       expect(r.docX).toBeLessThanOrEqual(0)
-      expect(r.h, `the phone page is ${r.h} px tall`).toBeLessThanOrEqual(1400)
+      // 27 Nov (b): the Counters card became four 52 px tiles with a 44 px minus and plus each, in one column at 390 px (the tray is too narrow
+      // for two 15 rem tiles), and a "+N more" key. That is 238 px more than the one row of keys this limit was set against (1,400 on 15 Nov);
+      // a full day now measures 1,638 px. The page scrolls inside its own box on a phone, so the new length is the card's, not a fault.
+      expect(r.h, `the phone page is ${r.h} px tall`).toBeLessThanOrEqual(1650)
     })
   }
 

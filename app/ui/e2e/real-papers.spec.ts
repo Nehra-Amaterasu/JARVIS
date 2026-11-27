@@ -45,7 +45,19 @@ test.describe('real routes: the paper desk', () => {
     await choose(page, scanned.title.slice(0, 40))
     const panel = page.locator('[data-component="ocr-panel"]')
     await expect.soft(panel).toBeVisible()
-    for (const f of scanned.faults) await expect.soft(page.locator('.pp-faults'), `fault line "${f}"`).toContainText(f)
+    // 27 Nov (b): the desk no longer prints one "p. N: no text layer" line per page; it prints ONE line beside the OCR key
+    // ("6 pages have no text layer: 2, 3, 4, 5, 6, 7.") and every other fault line as the engine wrote it. Both halves are compared with the
+    // route: the page numbers on that line against the pages of the route's "no text layer" lines, the rest line for line.
+    const noText = (scanned.faults as string[]).map((f) => /^p\.\s*(\d+):\s*no text layer; run OCR on this paper/.exec(f)).filter((m): m is RegExpExecArray => !!m).map((m) => Number(m[1]))
+    const hint = await panel.locator('.pp-ocr-hint').innerText().catch(() => '')
+    const shownPages = [...(hint.split(':')[1] ?? '').matchAll(/\d+/g)].map((m) => Number(m[0]))
+    if (noText.length) {
+      expect.soft(hint, 'the pages without a text layer are counted').toContain(`${noText.length} page${noText.length === 1 ? ' has' : 's have'} no text layer`)
+      expect.soft(shownPages.slice(0, 12), 'the page numbers on that line are the route pages').toEqual([...new Set(noText)].sort((a, b) => a - b).slice(0, 12))
+    }
+    for (const f of (scanned.faults as string[]).filter((x) => !/^p\.\s*\d+:\s*no text layer; run OCR on this paper/.test(x)).slice(0, 6)) {
+      await expect.soft(page.locator('.pp-faults'), `fault line "${f}"`).toContainText(f)
+    }
     const ocr0 = (await engine(`${P}/ocr`)).body
     await expect.soft(panel.locator('.pp-ocr-state')).toContainText(ocr0.reason)
     await shot(page, 'papers-scanned-waiting')
@@ -107,7 +119,10 @@ test.describe('real routes: the paper desk', () => {
     const drafts = (await engine(`${P}/drafts`)).body
     const pending = drafts.items.find((d: any) => d.status === 'pending')
     const rejected = drafts.items.find((d: any) => d.status === 'rejected')
-    await page.getByRole('button', { name: 'Draft questions from my notes' }).click()
+    // 27 Nov (b): the drafts panel is its own DRAFTS tray and its fold is open on arrival (paper-ocr.spec asserts aria-expanded true), so
+    // pressing the fold key closed it. Open it only when it is shut.
+    const fold = page.getByRole('button', { name: 'Draft questions from my notes' })
+    if ((await fold.getAttribute('aria-expanded')) !== 'true') await fold.click()
     const panel = page.locator('[data-component="drafts-panel"]')
 
     // ---- R-51: both drafts are listed with their state, their engine checks and their sources; none is called verified

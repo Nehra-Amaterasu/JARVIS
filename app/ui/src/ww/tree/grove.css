@@ -192,6 +192,8 @@
 
 /* ---- 390 px: one column; the page box scrolls, the document never does ---- */
 .tg[data-form='phone'] { display: flex; flex-direction: column; overflow-x: hidden; overflow-y: auto; padding: var(--space-3); }
+/* every child of the phone column keeps its own height: the bar (two rows of keys) shrank to 58 px and its second row, Branches and Next, lay over the stage (measured 27 Nov, 390x844); the page box scrolls instead */
+.tg[data-form='phone'] > * { flex-shrink: 0; }
 .tg[data-form='phone'] .tg-title, .tg[data-form='phone'] .tg-bar-why, .tg[data-form='phone'] .tg-bar-lamp { display: none; }
 .tg[data-form='phone'] .tg-controls { align-self: stretch; flex-direction: row; flex-wrap: wrap; justify-content: center; }
 .tg[data-form='phone'][data-drawer='open'] .tg-legend { display: none; }
@@ -206,9 +208,9 @@
 .tg[data-form='phone'] .gr-arc { display: none; }
 .tg[data-form='phone'] .gr-name { position: static; translate: none; width: auto; flex: 1 1 0; min-width: 0; text-align: left; }
 .tg[data-form='phone'] .gr-seed[data-dashed] { box-shadow: var(--elev-recessed); }
-.tg[data-form='phone'] .tg-body { display: flex; flex-direction: column; }
+.tg[data-form='phone'] .tg-body { display: flex; flex-direction: column; flex: none; } /* min-height 0 let the body shrink to 426 px under a 500 px stage wrap, so the zoom keys lay over the ledger (measured 27 Nov, 390x844); the page box scrolls instead */
 .tg[data-form='phone'] .tg-spine { display: none; }
-.tg[data-form='phone'] .tg-stagewrap { flex: none; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(260px, min(52vh, 400px)) auto; height: auto; }
+.tg[data-form='phone'] .tg-stagewrap { flex: none; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(240px, min(42vh, 350px)) auto; height: auto; } /* 52vh/400 px made the body 44 px taller than the page box at 390x844, so the box scrolled and its bar slid under the stage (27 Nov); 42vh/350 px fits whole */
 .tg[data-form='phone'] .tg-foot { flex: none; }
 .tg[data-form='phone'][data-drawer='open'] { padding-inline-end: var(--space-3); }
 .tg[data-form='phone'] .tg-drawer { position: fixed; left: var(--space-3); right: var(--space-3); top: auto; bottom: var(--space-3); width: auto; max-height: 78vh; }

@@ -137,12 +137,13 @@ export function OcrPanel({ client, paper, onFinished, pollMs = POLL_MS }: OcrPan
           ) : (
             <p className="pp-ocr-head" data-end={shown.status}><strong>{END_WORD[shown.status as keyof typeof END_WORD]}</strong></p>
           )}
+          {/* R32, 27 Nov: after Stop and a second run these counts are of that run only, so beside "1 waiting" they read as wrong; each says so */}
           <dl className="pp-ocr-facts">
-            <div><dt>Pages read</dt><dd>{shown.pagesRead} of {shown.pagesTotal}</dd></div>
-            <div><dt>Below the {gate.toFixed(2)} gate</dt><dd>{shown.pagesBelowGate}</dd></div>
+            <div><dt>Pages read this run</dt><dd>{shown.pagesRead} of {shown.pagesTotal}</dd></div>
+            <div><dt>Below the {gate.toFixed(2)} gate this run</dt><dd>{shown.pagesBelowGate}</dd></div>
             <div><dt>Time per page</dt><dd>{shown.secondsPerPage === null ? 'not measured yet' : `${shown.secondsPerPage.toFixed(1)} s`}</dd></div>
             {running && shown.pageNow !== null && <div><dt>Paper page</dt><dd>{shown.pageNow}</dd></div>}
-            {!running && <div><dt>Drafts to review</dt><dd>{shown.questions}</dd></div>}
+            {!running && <div><dt>Drafts to review this run</dt><dd>{shown.questions}</dd></div>}
           </dl>
           {!running && shown.pagesBelowGate > 0 && (
             <p className="pp-ocr-note">{plural(shown.pagesBelowGate, 'page was', 'pages were')} below the gate and {shown.pagesBelowGate === 1 ? 'stays a picture' : 'stay pictures'}; its fault line says the confidence.</p>

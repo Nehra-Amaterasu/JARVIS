@@ -53,20 +53,21 @@
 :root[data-look='v3'] .tv3-plan .wk-week { overflow-y: auto; scrollbar-width: thin; }
 :root[data-look='v3'] .tv3-plan .wk-foot { flex: none; flex-wrap: wrap; gap: var(--space-2); }
 :root[data-look='v3'] .tv3-plan .dy-primary { min-height: 3rem; }
-/* the seven day chips of the narrow form: 44 px each, a raised key, today's ink mark under its date */
-:root[data-look='v3'] .wk-strip { display: grid; grid-template-columns: repeat(7, minmax(44px, 1fr)); gap: 0.125rem; }
-:root[data-look='v3'] .wk-chip {
+/* the seven day chips of the narrow form (not gated on the v3 look since 27 Nov: the older frame draws the same strip and showed it unstyled, 20 px tall): 44 px each, a raised key, today's ink mark under its date */
+.wk-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(44px, 1fr)); gap: 0.125rem; } /* the older frame's phone box is 272 px: seven 44 px keys do not fit, so they wrap (l03-day, 27 Nov) */
+:root[data-look='v3'] .wk-strip { grid-template-columns: repeat(7, minmax(44px, 1fr)); }
+.wk-chip {
   min-width: 44px; min-height: 44px; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
   border: 0; border-radius: var(--r-key); background: var(--surface-raised); box-shadow: var(--elev-raised); color: var(--ink-1); cursor: pointer;
   font: var(--type-small);
 }
-:root[data-look='v3'] .wk-chip[aria-pressed='true'] { background: var(--surface-sunk); box-shadow: var(--elev-pressed); }
-:root[data-look='v3'] .wk-chip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-:root[data-look='v3'] .wk-chip-name { font-size: 0.6875rem; line-height: 0.875rem; color: var(--ink-2); }
-:root[data-look='v3'] .wk-chip-num { font-size: 0.8125rem; line-height: 1rem; }
-:root[data-look='v3'] .wk-chip-dot { width: 0.25rem; height: 0.25rem; border-radius: 50%; background: transparent; }
-:root[data-look='v3'] .wk-chip-dot[data-on='true'] { background: var(--ink-1); }
-:root[data-look='v3'] .wk-chip[data-today='true'] .wk-chip-num { text-decoration: underline; }
+.wk-chip[aria-pressed='true'] { background: var(--surface-sunk); box-shadow: var(--elev-pressed); }
+.wk-chip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.wk-chip-name { font-size: 0.6875rem; line-height: 0.875rem; color: var(--ink-2); }
+.wk-chip-num { font-size: 0.8125rem; line-height: 1rem; }
+.wk-chip-dot { width: 0.25rem; height: 0.25rem; border-radius: 50%; background: transparent; }
+.wk-chip-dot[data-on='true'] { background: var(--ink-1); }
+.wk-chip[data-today='true'] .wk-chip-num { text-decoration: underline; }
 :root[data-look='v3'] .wk[data-v3] .wk-slot { min-height: 3rem; }
 /* the move keys are 44 px targets */
 :root[data-look='v3'] .wk[data-v3] .wk-movekeys button { min-height: 44px; }

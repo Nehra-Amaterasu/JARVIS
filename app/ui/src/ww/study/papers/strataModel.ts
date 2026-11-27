@@ -94,9 +94,9 @@ export function walk(row: number, col: number, key: Walk, rows: number, cols: nu
   }
 }
 
-/** The Strata cells of a question list: a rejected question is not on the paper's record, a pending one is (it is shown, tagged as it stands). */
+/** The Strata cells of a question list (a question of a paper with no known year has no column, so it is left out): a rejected question is not on the paper's record, a pending one is (it is shown, tagged as it stands). */
 export const cellsOf = (qs: readonly QuestionRow[]): StrataCell[] =>
-  qs.filter((q) => q.status !== 'rejected').map((q) => ({ year: q.year, topicId: q.topicId, share: q.share ?? 0, type: q.type, qid: q.id, tag: q.tag, margin: q.margin, crop: q.crop }))
+  qs.filter((q) => q.status !== 'rejected' && q.year !== null).map((q) => ({ year: q.year as number, topicId: q.topicId, share: q.share ?? 0, type: q.type, qid: q.id, tag: q.tag, margin: q.margin, crop: q.crop }))
 
 /** The five counts of the Coverage Ledger, from the papers and questions as they stand. */
 export function coverageOf(papers: readonly PaperRow[], qs: readonly QuestionRow[], lastRun: number | null): Coverage {

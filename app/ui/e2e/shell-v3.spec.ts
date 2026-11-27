@@ -315,6 +315,27 @@ test.describe('Shell v3, look on', () => {
     })
   }
 
+  // R30 (27 Nov): Log minutes and the season switch were reachable only from the old left rail and the old frame's top bar. Under v3 they are
+  // rows of Today's More; this opens each in a real browser. (Tree and Career have no season of their own: the season is read from Today.)
+  test('Today: More has Season and Log minutes; Log minutes opens its sheet and Season steps Auto, Exams, Normal', async ({ page, baseURL }) => {
+    await open(page, baseURL, SIZES[0])
+    if ((await page.locator('[data-shell="v2"]').getAttribute('data-product')) !== 'ww') await page.keyboard.press('Alt+0')
+    await expect(page.locator('[data-shell="v2"]')).toHaveAttribute('data-product', 'ww')
+    await page.keyboard.press('Control+1')
+    await expect(page.locator('.s3-morewrap > button')).toBeVisible()
+    await page.locator('.s3-morewrap > button').click()
+    const pop = page.locator('.s3-morewrap .s3-pop')
+    await expect(pop).toBeVisible()
+    const season = pop.getByRole('button', { name: /^Season: Auto/ })
+    await expect(season).toBeVisible()
+    await season.click()
+    await page.locator('.s3-morewrap > button').click()
+    await expect(pop.getByRole('button', { name: /^Season: Exams/ })).toBeVisible()
+    await pop.getByRole('button', { name: 'Log minutes' }).click()
+    await expect(page.locator('[data-overlay="log"]')).toBeVisible({ timeout: 10_000 })
+    await page.keyboard.press('Escape')
+  })
+
   test('More opens an opaque popover headed Appearance with the Frosted switch, Keys and Rarely needed, and Esc closes it', async ({ page, baseURL }) => {
     await open(page, baseURL)
     const more = page.locator('.s3-morewrap > button')

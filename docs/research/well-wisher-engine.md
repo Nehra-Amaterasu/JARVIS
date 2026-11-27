@@ -2,6 +2,33 @@
 
 The running research file of the engine lane (the Python side of Well Wisher). Newest section on top. The plan it serves is `docs/design/well-wisher-engine-plan.md`; the screens are the UI lane's (`docs/research/product-design-overhaul.md`).
 
+## 2026-11-27: wave EW9, the loop a chat model cannot hold, built by five builders and reviewed by five reviewers
+
+**Question.** On 25 Nov the owner agreed that pasting his syllabus, papers and notes into a chat model answers as well as this app. What can the engine do that a chat cannot, and does it hold up under review?
+
+**Built (routes in plan 9.0, the two lines of 27 Nov).** A clock: an evening sheet the app builds by itself with one reminder (R-55 to R-59). A measured memory: every mark he types, kept per question, topic and day, in a ledger where every number is counted (R-60 to R-62). Drafts that wait for him: variants and rubric points (R-29 to R-34). Doors for what he brings in: the intake store (R-36 to R-42) and the Classroom export archive (R-46, R-47). Two counter routes the UI lane asked for (R-63, a guarded count). A seeded sandbox so the screens can run against the real routes.
+
+**Method.** One Opus builder a package, each in its own worktree with disjoint files; the two packages that meet do so through one file shape written in the plan first. Then one reviewer a package with four duties: rerun, attack, check the contract, one mutation; every fix needs a failing test first. The integrator merged, wrote one test across the three loop packages, and ran the full suite once.
+
+**What the reviews found (all fixed with a failing test first unless marked).**
+
+| Package | Tests (builder, then after review) | Defects found | Worst one | Mutation |
+| --- | --- | --- | --- | --- |
+| Tonight | 23, 41 | 2 fixed, 1 left by choice | a day with nothing to build at the hour gave no sheet and no reminder that whole evening | last-three-sheets rule removed: 1 fails |
+| Ledger | 10, 19 | 5 fixed | a corrected mark was counted twice; a NaN in a file answered 500 | sheet de-duplication dropped: 3 fail; rejected questions counted: 1 fails |
+| Variants and rubric | 113, 126 (with neighbours) | 5 fixed | at accept a numerical key was read from the file: a key edited to "999 s" was accepted | banned-key check removed: 5 fail |
+| Intake | 93, 98 | 2 fixed in review, 1 by the integrator | a 45 KB calendar file of 500 open daily repeats became 60,500 events, 40 MB, 7.7 s | delete containment removed: 2 fail |
+| Export door and counters | 44, 47 (126 with neighbours) | 2 fixed | a zip64 record was read only when the short end record said so: a header claiming 1 entry let 6,000 through | ".." refusal removed: 2 fail |
+| Seeded sandbox | 14, 15 | 1 fixed by the integrator | the file route could still serve from one fixed folder in the home directory | not run |
+
+The ledger reviewer recounted an invented case by hand (two units, four topics, three papers, eight questions, one generated paper, two sheets, three notes) and every field of R-60, R-61 and R-62 matched.
+
+**The loop across packages (integrator's test, `test_pyq_loop.py`).** A sheet is built, two marks are typed, the ledger shows each once with its minutes, a corrected mark replaces the first, and the pace line answers. One thing the test made plain: the counted order calls a topic measured only from 5 marked attempts, so one evening's marks do not move it. At one question a topic an evening that is five evenings. Left as it is; the owner decides (the rule guards against one lucky mark; 2 would move sooner).
+
+**Not verified.** Nothing ran on his real data: no real sync, no real paper, no real note, no real 19:00 on the wall clock, no real Classroom export, no real local model for the variant and rubric prompts. The sandbox has not been driven by a browser. Known and left: the rule for "a note mentions a topic" ignores words under 3 letters, so a topic such as "rl circuit" counts every note that says "circuit"; Cyrillic look-alike letters pass the answer checks; a variant of a variant is compared only with its direct parent; the layout routes sit in a file the route gate does not read.
+
+**Machine.** Memory commit stood at 96 to 97 percent of its limit with 0.7 GB of RAM free while six agents ran, and one git command took over two minutes; builders ran only their own tests. Disk stayed at 43 to 46 GB free.
+
 ## 2026-11-25 (night): the local model drafts questions from his notes; the order of topics stays counted
 
 **Question.** He asked for a thinking model that rates topics and writes questions. What can a 4B local model be trusted with, and what must stay arithmetic?

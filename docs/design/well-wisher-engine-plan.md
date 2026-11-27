@@ -383,3 +383,42 @@ Per package: its own tests; a reviewer reruns them, makes one mutation that a te
 **Left out or open, known.** (1) A two-column paper would have its columns merged: rows are grouped across the full width, and no two-column fixture exists; column detection goes to EW8 with OCR. (2) Scanned pages are a fault until OCR (X04, EW8). (3) Confirming a family, model proposals for an uncertain tag, variants and rubric points are EW8. (4) R-27 writes the proficiency first and the attempt line second; a failed append would leave the attempt unlogged (local file, accepted). (5) An upload with the name of a file already in `inbox/` replaces it; the original is kept by hash. (6) The store has an in-process lock only. (7) Every threshold is still the specification's assumption: none has met a real paper. (8) `ww_generator.py` still carries an institution name in its docstring and strings that predate the rule.
 
 **What only the owner can do next.** Drop one real text-layer paper into the app once the UI lane's adapters (AD08) are merged, or hand it to the engine lane for a smoke test on a scratch data directory: that is the first real measurement of the segmentation and the tag thresholds.
+
+
+## 10. The owner's direction, function by function (27 and 28 Nov 2026)
+
+He reviewed the whole app and said what Well Wisher must be able to do. This section holds every function he named, what exists for it today, what is missing, and the order of building. A route's shape still goes into 9.0 before it is built. The test for every row is the one of 25 Nov: it must need a clock, a measured memory, hands or proof, or it is a call to a model and not a feature.
+
+### 10.1 The functions
+
+| # | What he asked for | Exists today | Missing |
+|---|---|---|---|
+| F1 | Past papers for every subject the Classroom link brings in: university papers, internal tests, end-semester papers, GATE, the aptitude test for study abroad and a management entrance test | The harvester core with a manifest and two switches a source (R-43 to R-45, R-53, R-54); two parsers (a one-page table whose address he gives, the GATE download page); third-party pages reach it through the table parser with his address | A search by subject: from a subject's code and name to the rows of a listing, queued for him; parsers for a page of links (not a table) and for the two entrance tests; a source list per kind of exam |
+| F2 | He marks the subjects of each semester, and papers are fetched and questions made for those subjects and their goals | Subjects in the academics file; courses mapped to subjects by hand (8 of 32 today); a goal per subject is not stored | Semesters with their subjects and a state (now, backlog, done, later); a goal per subject (pass, a grade, mastery) that sets how deep the ladder of F3 goes; one screen's worth of routes to mark them |
+| F3 | Questions in levels: theory that fixes a concept, a numerical base, the two combined, case studies, applications in the world; the level follows how well he understands | The question store, patterns, variants (numerical ones from templates with proven keys, descriptive ones drafted), drafts from notes, the counted order, the evening sheet | A `level` on every question (1 recall, 2 concept, 3 numerical, 4 combined, 5 case or application), set by rule where it can be and by the model otherwise, with who set it; a rule that picks the level for a topic from his marks at the level below (3 marks, as the order of topics); drafts at the upper levels |
+| F4 | He answers by writing or by a photo, and is marked on the answer | Marks he types (R-27, R-58); rubric points for a question (R-32 to R-34); OCR on demand | An answer kept with the question on a sheet (text, or a photo stored beside it); a proposed mark: the answer against the rubric points and the key, each point met or not with the words it rests on, proposed and never final until he accepts; handwriting is the weak part (0.69 confidence on the one page measured) |
+| F5 | Answer keys, from his notes and solution sheets and from forums on the internet | 16 solution sheets recognised and paired with their paper where the titles agree; the numeric check (R-26); one forum's API with its licence recorded | A key per question drawn from the paired solution (the model finds the passage, he accepts); a pointer to forum answers where the terms allow, never copied text without its licence |
+| F6 | Uploading the syllabus sets the system; uploading the date sheet sets the dates and makes the plans | The academics file (typed by hand); the exam rows (typed by hand from his date sheet on 25 Nov); the block plan | A reader for a syllabus file: units and topics proposed, pending until he accepts; a reader for a date sheet: the rows of his branch and semester proposed as exam rows; both through the intake desk |
+| F7 | Everything works on one shared memory, and the voice assistant controls it: start a study block, log the day, count a counter, teach a concept, open a subject's notes, build the sheet | The stores of this lane; a planned set of four voice phrases | One list of the engine's actions (name, parameters, route, what it changes) that the assistant reads instead of guessing, so it stops denying what the app can do; a feed of what happened (marks, sheets, deadlines, counters) for the memory to take in; the memory itself and the voice turn belong to the other lane |
+| F8 | One next step at a time: short steps, little typing, nothing that needs a long session to set up | Reasons in words on every answer; the evening sheet; reminders | A single "what now" answer across study, deadlines and the day; every long step as a job that runs without him |
+| F9 | Skills, courses, certificates and jobs he wants are part of the plan, with questions for them too | The evidence ledger, deadline rows, follow-ups (K-01 to K-10); the trees; the job pipeline designed (research file) | A topic list for a skill, a course or a certificate (given by him, or proposed and pending), so F3 and the sheet work for them as for a subject; custom skills and links between them; the job pipeline's first slice (K-21 to K-29) |
+| F10 | The week and the month keep what happened: past days' log and plan, and a planned block on any day can be edited | The day log and counters of today; the block plan | The log and the plan of past days kept and listed; routes to edit a block of any day |
+| F11 | Study links per topic from the web, rated | Researched (research file): an open courseware catalogue and an encyclopedia without a key, course playlists on a video site with his key | The first slice |
+| F12 | The desktop window, voice levels, a section for media, alarms and timers, the recording desk of the room sensing | In other lanes' files or the desktop shell | Ownership to be settled with him before this lane touches them |
+
+### 10.2 What was built in this chat and was not in the plan before
+
+The preparation pipeline (roles of a paper, question banks without marks, items that are not questions, the job), Claude through the command-line tool, the evening sheet and the ledger, the evidence ledger, deadline rows, follow-ups and outreach, the seeded sandbox, and the two research files (study links, the job pipeline). Their shapes are in 9.0 under their dates; this section is where they join his list: the pipeline serves F1 to F3, the sheet and ledger F3, F4 and F8, the career packages F9.
+
+### 10.3 Order
+
+1. His real store prepared (the pipeline run of 28 Nov) and the UI lane's findings closed, so what exists is usable by him.
+2. F4 and F3 together: an answer kept and a mark proposed, levels on questions and the rule that moves him up. This is what turns a list of questions into being tested.
+3. F6: the two readers, so a new term needs no typing.
+4. F1 and F2: papers by subject, semesters and goals.
+5. F7: the action list and the feed, with the other lane.
+6. F11, then F9 (the job pipeline's first slice, topic lists for skills and courses), then F10.
+
+### 10.4 Not decided
+
+Whether a proposed mark may ever count without his accept (today's rule: never). Whether drafts at the upper levels may reach a sheet before he has read them (today: no). Which lane builds F12.

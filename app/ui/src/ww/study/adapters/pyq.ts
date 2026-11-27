@@ -13,7 +13,7 @@
 import { nullStudyPort } from './null.register'
 import { waiting } from './types'
 import type {
-  CheckInput, CropRequest, Decision, GenerateRequest, IngestInput, PortReply, QuestionFilter, StudyMember, StudyPort,
+  CheckInput, CropRequest, Decision, GenerateRequest, IngestInput, PatternSet, PortReply, QuestionFilter, StudyMember, StudyPort,
 } from '../ports'
 import { classify, faultReason, getImage, getJson, sendJson } from './http'
 import { BASE, ingestInput, type IngestCtx } from './pyqIngest'
@@ -240,7 +240,14 @@ export function createPyqPort(deps: PyqDeps): PyqAdapter {
     patterns: () => guarded('patterns', async (signal) => {
       const subject = await subjectOf(signal)
       if (!subject) return bare('waiting', NO_SUBJECT, now())
-      const env = await getJson<EnvelopeIn & { patterns?: EPatterns }>(`${BASE}/patterns?subject=${enc(subject)}`, signal)
+      const env = await getJson<EnvelopeIn & { patterns?: EPatterns; provisional?: boolean }>(`${BASE}/patterns?subject=${enc(subject)}`, signal)
+      // fewer than 3 papers or 20 counted questions: WAITING with the counts still present. The counts travel as a note
+      // (`provisional`), with no topic and no count per topic, so nothing can be drawn as a pattern from them.
+      if (env.provisional === true && env.state === 'waiting') {
+        const p = env.patterns
+        const data: PatternSet = { topics: [], papers: typeof p?.n_papers === 'number' ? p.n_papers : 0, topicCounts: {}, provisional: true, questions: typeof p?.n_questions === 'number' ? p.n_questions : 0 }
+        return { state: 'waiting', reason: typeof env.reason === 'string' ? env.reason : '', since: now(), data }
+      }
       return reply(env, now(), (e) => patternSet((e as { patterns?: EPatterns }).patterns))
     }),
 

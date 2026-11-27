@@ -47,3 +47,20 @@
 
 /* the lamp keeps its own width: on the phone a wrapped sentence squeezed it and its word ran into the sentence (seen at 390 px) */
 .pp-ocr-state > :first-child, .pp-drafts-say > :first-child, .pp-draft-say > :first-child { flex: none; }
+
+/* notes under the grid: the provisional counts of R-16, and the order of R-17 with its terms in words */
+.pp-prov, .pp-next { margin: 0; display: grid; gap: 0.25rem; font-size: 0.75rem; line-height: 1.4; color: var(--ink-2); }
+.pp-prov-why { color: var(--ink-3); }
+.pp-next-head { margin: 0; color: var(--ink-1); }
+.pp-next-list { margin: 0; padding: 0 0 0 1.25rem; display: grid; gap: 0.25rem; }
+.pp-next-list li { display: grid; gap: 0.0625rem; }
+.pp-next-list strong { color: var(--ink-1); font-weight: 600; }
+.pp-next-terms { overflow-wrap: anywhere; }
+
+.pp-draft-where { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 0.5rem; }
+.pp-ocr-hint { min-inline-size: 0; overflow-wrap: anywhere; }
+
+/* two fields in a row share the width: without a zero minimum an input kept its own width and lay under its neighbour (seen at 390 px) */
+.pp-draft-where > *, .pp-drafts-form > * { min-inline-size: 0; }
+.pp-draft-where .ww-field-box, .pp-drafts-form .ww-field-box { min-inline-size: 0; }
+.pp-draft-where .ww-input, .pp-drafts-form .ww-input { inline-size: 100%; min-inline-size: 0; box-sizing: border-box; }

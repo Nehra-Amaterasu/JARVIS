@@ -11,7 +11,7 @@
 //   - a view that closes stops the work: every call takes the caller's AbortSignal, and `abortAll()` cancels all of them.
 //   - the original file is fetched WITH the token header and handed over as a blob URL, because an <iframe src> or <img src> cannot
 //     send a header; whoever shows it revokes the URL (`revokeOriginal`).
-import { isLampState } from '../../../shared/lamp'
+import { isLampState, type LampState } from '../../../shared/lamp'
 import { api } from '../../../lib/api'
 import type { ClassroomStatus, PortReply, StudyPort } from '../ports'
 import { classify, faultReason, getJson, sendJson, type Fail } from './http'
@@ -86,6 +86,26 @@ export interface GcrAdapter {
 
 const enc = encodeURIComponent
 
+/**
+ * G-06 and the PATCH of a course send `state: "active"` on each item: Google's own course state (ACTIVE, ARCHIVED, PROVISIONED, DECLINED,
+ * SUSPENDED), not one of the five lamp words. Read as a lamp word it is invalid and every course drew WAITING "no report" (seen against
+ * the seeded sandbox, 27 Nov), though the engine had just read it. An active course is LIVE; any other Google state is WAITING with the
+ * word Google used, so the row says why instead of claiming a report that never came.
+ */
+export function courseLamp(raw: unknown): { state: LampState; google?: string } {
+  if (isLampState(raw)) return { state: raw }
+  const g = typeof raw === 'string' ? raw.toLowerCase() : ''
+  return g === 'active' ? { state: 'live', google: g } : { state: 'waiting', google: g || undefined }
+}
+const lampCourse = (c: GcrCourse): GcrCourse => {
+  const l = courseLamp(c.state)
+  return { ...c, state: l.state, ...(l.google ? { google_state: l.google } : {}) }
+}
+function withCourseStates<T extends { items?: GcrCourse[]; course?: GcrCourse }>(r: GcrAnswer<T>): GcrAnswer<T> {
+  if (!r.data) return r
+  return { ...r, data: { ...r.data, ...(r.data.items ? { items: r.data.items.map(lampCourse) } : {}), ...(r.data.course ? { course: lampCourse(r.data.course) } : {}) } }
+}
+
 /** One signal that fires when either does; a missing one is ignored. */
 function joined(a: AbortSignal, b?: AbortSignal): AbortSignal {
   if (!b) return a
@@ -143,8 +163,8 @@ export function createGcr(deps: GcrDeps): GcrAdapter {
     disconnect: (account, signal) => send<GcrStatusBody>('POST', '/disconnect', account ? { account } : {}, signal),
     sync: (courses, signal) => send<{ job: GcrJob }>('POST', '/sync', courses ? { courses } : {}, signal),
     job: (signal) => get<{ job: GcrJob }>('/sync', noToken(), signal),
-    courses: (signal) => get<{ items: GcrCourse[] }>('/courses', noToken(), signal),
-    patchCourse: (id, patch, signal) => send<{ course: GcrCourse }>('PATCH', `/courses/${enc(id)}`, patch, signal),
+    courses: async (signal) => withCourseStates(await get<{ items: GcrCourse[] }>('/courses', noToken(), signal)),
+    patchCourse: async (id, patch, signal) => withCourseStates(await send<{ course: GcrCourse }>('PATCH', `/courses/${enc(id)}`, patch, signal)),
     files: (q = {}, signal) => {
       const p = new URLSearchParams()
       if (q.course) p.set('course', q.course)

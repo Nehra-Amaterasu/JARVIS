@@ -2,6 +2,82 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-27: the contract-check branch, checked by the whole suite before the merge
+
+**Measured on the branch (ui/real-routes with main 8a8b5c8 merged in).** Type check exit 0. Unit suite: 200 files, 4,156 of 4,156. Browser suite, two workers, 34.9 minutes: 940 passed, 32 failed (the same known list as the paper desk branch), 16 skipped (the 10 older skips plus the 6 no-mock tests, which run only with the seed switch), 2 did not run.
+
+**The four no-mock specs with the seed switch, after main came in: 4 passed, 2 failed.** Both failures are in real-papers and are the spec's, not the screen's: the paper desk was re-arranged the same day (the "no text layer" lines became one line beside the OCR key; the drafts panel became its own tray with other key names), so the spec looks for elements that moved. real-classroom, real-day and real-sources pass. The spec is being brought in line by the triage package without weakening what it compares with the real routes. Until then the claim for the paper desk against real routes is the one measured before the re-arrangement (6 of 6), not after.
+
+The builder's section, with the full mismatch table, follows.
+
+## 2026-11-27: the first run of the UI against the engine's real routes (seeded sandbox)
+
+**Question.** Every screen built this week was tested against routes mocked in the page. Do the screens and the engine's real answers agree?
+
+**How the run is started.** `WW_SANDBOX_SEED=study` makes `playwright.config.ts` add `--seed study --fresh` to the sandbox command (without it nothing changes for the 60-odd older specs, which count on an empty sandbox; `--fresh` makes each run start from the same rows). From `app/ui`:
+
+```
+export WW_SANDBOX_PORT=8961 WW_PREVIEW_PORT=5361 WW_SANDBOX_DIR="$TEMP/jarvis-ui-real-e2e" WW_SANDBOX_SEED=study
+node scripts/build-e2e.mjs
+npx playwright test e2e/real-*.spec.ts --workers=1
+```
+
+Four specs, no route mock, 1366x768, v3 look: `real-classroom` (files and Due), `real-papers` (OCR run, stop, run again; review desk; drafts; ledger), `real-day` (counters, R-63, R-64), `real-sources` (harvester Past papers; opened in the older frame because `#setup` does not open under v3 in this worktree). Each step fetches the same route with the token and compares; every 4xx the page receives is logged. Pictures: `$TEMP/ui-real-shots`.
+
+**Result.** First run: 3 of 6 failed on real mismatches. After the UI-side fixes below: 6 of 6 pass (1.2 min). Unit: 1431 tests pass (43 files), `tsc -b` clean.
+
+### Mismatch table (sorted by harm)
+
+| # | Route | Field | Screen expected / engine sent | Where | Status |
+|---|---|---|---|---|---|
+| 1 | G-06 courses | item.state | lamp word / `"active"` (Google's course state): every course drew WAITING "no report" | adapters/gcr.ts (courses, patchCourse); ShelfPanes.tsx CoursesPane | FIXED: `courseLamp` maps active to LIVE, other Google words to WAITING with the word kept |
+| 2 | life/count | 409 detail | string / object `{message,id,present}`: lib/api.ts reads `j.detail` and made "[object Object]" | lib/api.ts:44 (not mine) | worked around in life/counterDeck.ts `postCount`; fix for api.ts below |
+| 3 | G-01, G-15, G-18, G-19 | synced_at, read_at, posted, start | local clock / UTC `...Z`: 09:00 UTC read as 09:00 in IST (5 h 30 min early); status and read stamps drawn raw ISO | classroom/DuePanes.tsx formatStamp, LinkPanel.tsx, DueFilter | FIXED: zoned stamps converted to the viewer's clock |
+| 4 | G-07 files | also_in[].course | name / a course id (10 digits in real life): "Also in: fx1002" | classroom/ShelfPanes.tsx FileNotes | FIXED: names from the courses read (context), id only when unknown |
+| 5 | life/count | expect | not sent / engine takes it | life/counterDeck.ts | FIXED (R-64), plus presses serialised so a quick second press is not a false 409 |
+| 6 | R-63 layout | shown, order | device only / engine keeps it | life/counterDeck.ts, callouts/counters.callout.tsx | FIXED, device copy is the fallback, the sheet says which is in use |
+| 7 | pyq papers | year | unknown year / `?? 0`: the ledger draws columns headed "0" | adapters/pyqMap.ts:52,98 (not mine) | listed |
+| 8 | harvest index | read_at | local time / `2026-11-27T12:53:40+00:00` raw in "read ..." | setup/PaperSources.tsx (line with `read ${idx.read_at}`) (not mine) | listed |
+| 9 | pyq practise-next (R-32) | whole route | shown somewhere / no screen calls `practiseNext()`; patterns only reach the ledger | adapters/pyq.ts:250, no component | listed |
+| 10 | pyq ocr (R-28) | pages_total, pages_read, questions | per paper / per RUN: after Stop and a second run the panel says "Pages read 0 of 1, Drafts to review 0" while the paper has 2 pages and Review says 1 waiting | papers/OcrPanel.tsx facts | listed |
+| 11 | G-01/G-03 | accounts[main] | no sign-in in a fixture / `state live`, "Disconnect" and "Add account" offered though the sentence says no account is connected | LinkPanel (UI draws what the engine says) | engine-side ask |
+| 12 | life/count 409 | message | name / uses the id: "fixture-water changed since you saw it" | engine | engine-side ask |
+| 13 | G-04, G-14 | fixture sync | can be stopped / ends in 0.3 s; the screen keeps "running" and Stop until its 2 s poll, then Stop answers 400 "No sync is running." (shown honestly) | engine fixture | engine-side ask: sync delay switch |
+| 14 | G-01 | counts, Reader Facts | "1 papers, 1 faults, 1 pages" | LinkPanel.tsx, Reader.tsx | FIXED (plurals) |
+
+Also observed and fine: fixture said as fixture (the sentence and the counts); stale file says its reason; Late only where the engine says; Open in Classroom refusal and Remind-me "That time has passed." both shown in the engine's words; the 409 sentence, the tile shows `present`, no undo step; OCR text "unverified" with its confidence in the review desk; drafts show engine similarity, sources and the rejected one's reason; accepted marks reach the engine. Not exercised: Stop sync on a long job; a picture-only OCR question (the seeded scan gives a whole-page draft and one under-gate page); review desk shows "page image not rendered" for the big page pane while the small crop renders.
+
+### What changed
+Files: playwright.config.ts, e2e/real-*.spec.ts (4) and real-helpers.ts, classroom/{DuePanes,LinkPanel,Reader,ShelfPanes,ClassroomShelf}.tsx, adapters/{gcr.ts,gcrTypes.ts}, life/counterDeck.ts, day/today/callouts/counters.callout.tsx, and the tests for them.
+
+### Not covered by the seed yet
+Tonight sheets, ledger marks, variants, rubric, intake rows, an export archive; a long-running sync; a picture-only OCR question; Setup under v3 (worktree lacks it).
+
+## 2026-11-27: the paper desk follow-ups, checked by the whole suite before the merge
+
+**Measured on the branch (ui/paper-desk-2 with main 1f9e8e2 merged in).** Type check exit 0. Unit suite: 200 files, 4,148 of 4,148. Browser suite, two workers, 26.6 minutes: 940 passed, 32 failed, 10 skipped, 2 did not run.
+
+**The 32 are exactly the known list.** Older than the round, 21: theme pictures 14, surfaces 2, Day 2, Month 2, one sweep cell. From the round and waiting for the triage, 11: Today in the older frame 4, Papers pictures 3, the Tree 2, Career Money 1, the Date sheet 1. The three load-sensitive ones of earlier runs (a v3 kit contrast check, the gallery walk, the bench) passed with the machine quieter. Nothing new from this branch.
+
+The builder's section follows.
+
+## 2026-11-27: the paper desk after its first pass (split tray, provisional counts, draft edits)
+
+**Question.** After package O, what was still open: the third tray held too much at 1366 x 768, a draft's unit and topic could not be corrected, the UI ignored two engine rules (R-16 `provisional`, R-17 `terms.syllabus_weight`), the import tray opened under a resting pointer at 390 px, and two older browser specs needed a look.
+
+**Built (app/ui only).**
+- **Three trays, one job each.** COVERAGE: the Topics by year grid (never under 18 rem; its own chrome is 205 px and two topic rows are 88 px more), the provisional note, the one primary, the ledger (three readouts a row instead of five in a column), the practise-next note, the trace. PAPERS: the chosen paper's facts with its OCR panel on top, then the list (it scrolls), then the import tray. DRAFTS: the face switch and the "Draft questions from my notes" panel, open from the start. The OCR key is now the first thing in its panel and sits inside the visible part of the tray; the spec measures that at 1366 x 768 and 390 x 844. The "no text layer" fault lines became one line beside the key with the page numbers; every other fault line (under the gate with its confidence, a whole page to split, an unreadable page) is printed as the engine wrote it.
+- **Drafts.** Edit then accept shows Unit and Topic; the PATCH carries `unit` and `topic` only when they changed (R-52). The engine still checks the topic against the syllabus and answers in its own sentence.
+- **R-16 provisional.** `pyq.ts` keeps the counts of a WAITING answer with `provisional: true` as `{topics: [], papers, topicCounts: {}, provisional, questions}`; `loadDesk` keeps the desk's own state and prints "3 questions in 2 papers so far: too few to call a pattern." plus the engine's sentence. No topic row, no weight and no suggestion is drawn from those counts (the spec checks that "Sampling" is absent from the grid).
+- **R-17 terms.** `GainItem.terms` carries the engine's printed terms as words: marks weight, share of papers, proficiency (from his marks, or "not measured yet"), syllabus weight "3 of 3 (high)", minutes. Nothing screen-side consumed R-17 before; the desk now prints the first three picks under the ledger. `PracticeCell.tsx` was not touched: it never read practise-next.
+- **Import tray.** `ImportTray` ignores hover at 700 px and below and opens on a press or a focus; the pointer workaround in the spec is gone.
+
+**Measured.** See the report for the test counts. Screenshots in `$TEMP/ui-desk-shots`.
+
+**Not verified.** Still no real engine, scan, OCR engine or local model: R-16, R-17 and the draft routes are mocked with the plan's field names. A phone was not used; 390 px is a desktop browser window driven with a mouse.
+
+**Remains.** A queue for "read the next paper" over 3,374 scan pages; the practise-next note shows only three picks and no gap-minutes control (R-17 takes `gap_minutes`).
+
 ## 2026-11-27: Setup under v3, checked by the whole suite before the merge
 
 **Rule applied for the first time.** A batch is merged only after the whole unit suite and the whole browser suite have run on its branch, not only its own specs (the lesson of the harness fault found the same day).

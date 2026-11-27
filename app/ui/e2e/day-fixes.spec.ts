@@ -91,6 +91,8 @@ async function mockLife(page: Page) {
   ]
   const posts: Record<string, unknown>[] = []
   await page.route(/\/api\/mission\/life$/, (r) => json(r, { status: 'ok', counters: rows }))
+  // R-63 is not mocked here: the older choice sheet is proved on this device's copy, so the layout route answers as an engine without it (the real route is in real-day.spec.ts)
+  await page.route('**/api/mission/life/layout', (r) => json(r, { detail: 'Not Found' }, 404))
   await page.route(/\/api\/mission\/life\/count$/, (r) => {
     const body = r.request().postDataJSON() as Record<string, unknown>
     posts.push(body)

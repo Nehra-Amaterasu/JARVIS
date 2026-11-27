@@ -2,6 +2,35 @@
 
 The running research file of the engine lane (the Python side of Well Wisher). Newest section on top. The plan it serves is `docs/design/well-wisher-engine-plan.md`; the screens are the UI lane's (`docs/research/product-design-overhaul.md`).
 
+## 2026-11-28: the first look at the real stores, and why none of the loop can run on them yet
+
+**Question.** The owner said, rightly, that everything so far was verified only on invented rows. What do the real stores hold, and what stands between them and a working evening sheet?
+
+**Measured (read-only, counts only, 28 Nov).**
+
+| What | Number |
+| --- | --- |
+| Papers on file | 89, all PDF (87 with a text layer, 2 slide decks) |
+| Questions | 880, every one `pending`; 785 have more than 40 characters of text; all `verified` text |
+| Questions with marks | 66 of 880 (60 printed, 6 from a table); the store was read on 21 and 22 Nov, before part-heading marks and Word papers were built |
+| Questions with a unit and topic | 0 |
+| Papers with a subject | 17 of 89 |
+| Accepted questions, sheets, generated papers, marks | 0, 0, 0, 0 |
+| Topics that could stand on an evening sheet (3 accepted questions) | 0 in every subject |
+| Classroom courses mapped to a subject | 8 of 32; 515 of 688 files sit in the 24 unmapped courses |
+| Notes read into Markdown | 513 |
+| Assignments stored | 0 (the last sync predates those routes) |
+
+**How far rules alone go.**
+- A subject for the 72 papers without one, from the course code or the subject name in the title, file name or first questions: 3 of 72.
+- Unit and topic by the rule tagger, on the 204 questions whose paper has a subject: 55 of 204 (27 percent). The median score is 0.30 against a threshold of 0.25; most fail the margin of 0.15 between the best and second topic.
+
+**Conclusion.** The loop is correct on invented data and idle on his: every route answers `waiting`, and would until he reviewed 880 questions by hand, which will not happen eleven days before a paper. The blocker is not a missing feature but an empty middle: subject, marks, topic and acceptance.
+
+**Claude inside the app without an API key (tested).** The Claude command-line tool on this PC answers a prompt non-interactively on his subscription. A plain call carried 46,777 tokens of setup from installed plugins; with the tools off, MCP ignored and a short system prompt of our own (`-p --model haiku --output-format json --system-prompt ... --tools "" --strict-mcp-config --no-session-persistence`) one call used 1,330 input tokens and took 4.1 s. The minimal mode flag cannot be used: it reads only an API key. Cost to him: each call counts against the same usage window as his chats. Whatever is sent leaves the PC.
+
+**What it changes.** The next wave is not new features: it is one pipeline that fills the middle on his real store (plan 9.0, the line of 28 Nov), measured before and after on these same counts.
+
 ## 2026-11-27: wave EW9, the loop a chat model cannot hold, built by five builders and reviewed by five reviewers
 
 **Question.** On 25 Nov the owner agreed that pasting his syllabus, papers and notes into a chat model answers as well as this app. What can the engine do that a chat cannot, and does it hold up under review?

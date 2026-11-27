@@ -29,10 +29,13 @@ const marksOf = (s: string): number | null => {
   return s.trim() !== '' && Number.isFinite(n) && n > 0 ? n : null
 }
 
-function DraftCard({ d, client, onDecided }: { d: DraftRow; client: PyqClient; onDecided: (row: DraftRow) => void }) {
+function DraftCard({ d, client, onDecided, listId }: { d: DraftRow; client: PyqClient; onDecided: (row: DraftRow) => void; listId: string }) {
   const [marks, setMarks] = useState(d.marks === null ? '' : String(d.marks))
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(d.text)
+  // the unit and the topic can be corrected before accepting (R-52 takes both; the engine checks them against the syllabus)
+  const [unit, setUnit] = useState(d.unit === null ? '' : String(d.unit))
+  const [topic, setTopic] = useState(d.topic)
   const [busy, setBusy] = useState(false)
   const [said, setSaid] = useState<Say | null>(null)
   const pending = d.status === 'pending'
@@ -41,8 +44,14 @@ function DraftCard({ d, client, onDecided }: { d: DraftRow; client: PyqClient; o
   const decide = async (status: 'accepted' | 'rejected') => {
     setBusy(true)
     setSaid(null)
+    const u = unit.trim() === '' ? null : Number(unit)
     const patch = status === 'accepted'
-      ? { status, ...(m !== null ? { marks: m } : {}), ...(editing && text.trim() && text !== d.text ? { text: text.trim() } : {}) } as const
+      ? {
+        status, ...(m !== null ? { marks: m } : {}),
+        ...(editing && text.trim() && text !== d.text ? { text: text.trim() } : {}),
+        ...(editing && u !== null && Number.isInteger(u) && u !== d.unit ? { unit: u } : {}),
+        ...(editing && topic.trim() && topic.trim() !== d.topic ? { topic: topic.trim() } : {}),
+      } as const
       : { status } as const
     const r = await client.draftsDecide(d.id, patch)
     setBusy(false)
@@ -53,7 +62,15 @@ function DraftCard({ d, client, onDecided }: { d: DraftRow; client: PyqClient; o
     <li className="pp-draft" data-component="draft" data-status={d.status} data-draft={d.id}>
       <p className="pp-draft-tag"><TagChip source="MODEL" label={DRAFT_TAG} /></p>
       {editing
-        ? <Field kind="area" label="Question text" value={text} onChange={(e) => setText(e.target.value)} />
+        ? (
+          <>
+            <Field kind="area" label="Question text" value={text} onChange={(e) => setText(e.target.value)} />
+            <div className="pp-draft-where">
+              <Field kind="number" label="Unit" value={unit} min={1} step={1} inputMode="numeric" onChange={(e) => setUnit(e.target.value)} />
+              <Field label="Topic" value={topic} list={listId} autoComplete="off" onChange={(e) => setTopic(e.target.value)} />
+            </div>
+          </>
+        )
         : <p className="pp-draft-text">{d.text}</p>}
       <p className="pp-draft-meta">
         <span>{d.topic}{d.unit !== null ? `, unit ${d.unit}` : ''}</span>
@@ -70,7 +87,7 @@ function DraftCard({ d, client, onDecided }: { d: DraftRow; client: PyqClient; o
               {editing ? 'Accept edited' : 'Accept'}
             </Button>
             {editing
-              ? <Button size="md" grouped onClick={() => { setEditing(false); setText(d.text) }}>Cancel edit</Button>
+              ? <Button size="md" grouped onClick={() => { setEditing(false); setText(d.text); setUnit(d.unit === null ? '' : String(d.unit)); setTopic(d.topic) }}>Cancel edit</Button>
               : <Button size="md" grouped onClick={() => setEditing(true)}>Edit then accept</Button>}
             <Button size="md" grouped loading={busy} onClick={() => void decide('rejected')}>Reject</Button>
           </div>
@@ -166,7 +183,7 @@ export function DraftsPanel({ client, subject = '', topics = [], onAccepted, def
             <>
               <p className="pp-drafts-count">{pendingCount === 0 ? 'No draft is waiting for your review.' : `${pendingCount} ${pendingCount === 1 ? 'draft is' : 'drafts are'} waiting for your review.`}</p>
               <ul className="pp-draftlist" aria-label="Drafts from your notes">
-                {shown.map((d) => <DraftCard key={d.id} d={d} client={client} onDecided={decided} />)}
+                {shown.map((d) => <DraftCard key={d.id} d={d} client={client} onDecided={decided} listId={listId.current} />)}
               </ul>
               {rows.length > shown.length && <p className="pp-drafts-note">{rows.length - shown.length} older on file.</p>}
             </>

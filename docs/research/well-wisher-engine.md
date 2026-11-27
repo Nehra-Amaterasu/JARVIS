@@ -2,6 +2,36 @@
 
 The running research file of the engine lane (the Python side of Well Wisher). Newest section on top. The plan it serves is `docs/design/well-wisher-engine-plan.md`; the screens are the UI lane's (`docs/research/product-design-overhaul.md`).
 
+## 2026-11-28 (later): the preparation pipeline on a copy of the real store, and what his own papers taught it
+
+**Question.** Does the pipeline of wave EW11 make the real store usable, and what does it get wrong on real material?
+
+**Run.** A scratch copy of the real question store, the Classroom manifest, the syllabus and the date sheet; the real store untouched. Claude Haiku through the command-line tool for the model steps.
+
+| Step | Before | After | Time |
+| --- | --- | --- | --- |
+| Papers read again with today's reader (32 of 89 changed) | 880 questions, 66 with marks | 1,134 questions, 409 with marks | 510 s |
+| Subject by rule for the 72 papers without one | 0 | 0 | 2 s |
+| Subject suggested by the model (12 asked) | 0 | 11 suggested | 138 s |
+| Unit and topic by rule, four subjects | 0 | 64 | under 1 s |
+| Unit and topic by the model, one subject (64 asked) | 48 | 108 of 112 | 97 s |
+| Unit and topic by the model, another subject (70 asked) | 15 | 67 of 86, 8 fitting no topic | 146 s |
+| Accepted by rule, the two subjects | 0 | 47 and 17 | under 1 s |
+| Topics ready for an evening sheet | 0 | 7 and 1 | |
+
+The evening sheet then built on his own questions for the first time (one question, for the paper 11 days off).
+
+**The model's picks by eye.** A sample of 12 model tags in one subject: all 12 name the right topic (frequency hopping to the spread-spectrum topic, an 8-ary symbol rate to M-ary communication, conditions of a random process to random processes).
+
+**What his real papers showed (three faults of ours, not of the model).**
+1. **Solutions are read as questions.** Two of the five files of one subject are solution sheets (their titles say so): of 34 items only 9 look like questions; the rest are paragraphs of an answer. Accepted by rule, they would stand on a sheet as questions.
+2. **A question bank prints no marks.** Five of the seven files of another subject are the teacher's unit question banks: 94 questions, 84 of them question-like, none with marks. The acceptance rule requires marks, so it took 17 of 112.
+3. **The unit is in the title** of every question bank ("Unit 4 Question Bank"), and the tagger ignored it.
+
+**Also seen.** Five of the nine subjects with a paper ahead have no paper on the desk at all. The notes count of the ledger read 0 only because the copy held the manifest without the note files.
+
+**Not verified.** Nobody has checked the 11 subject suggestions; the 12-question sample is small; nothing has been applied to the real store.
+
 ## 2026-11-28: the first look at the real stores, and why none of the loop can run on them yet
 
 **Question.** The owner said, rightly, that everything so far was verified only on invented rows. What do the real stores hold, and what stands between them and a working evening sheet?

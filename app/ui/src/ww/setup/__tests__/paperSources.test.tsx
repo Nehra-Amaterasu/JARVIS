@@ -104,7 +104,7 @@ describe('past-paper sources', () => {
 
   it('lists found papers under the engine state; a count only when live; Fetch only with the local copy on', async () => {
     const f = fakeFetch({
-      'GET /api/mission/harvest/sources/board_papers/index': [200, { state: 'live', reason: '2 of the 41 listed.', items: ITEMS, count: 2, listed: 41, read_at: '2026-11-27', note: '' }],
+      'GET /api/mission/harvest/sources/board_papers/index': [200, { state: 'live', reason: '2 of the 41 listed.', items: ITEMS, count: 2, listed: 41, read_at: new Date(2026, 10, 27, 9, 5).toISOString(), note: '' }],
       'POST /api/mission/harvest/sources/board_papers/fetch': [200, { state: 'live', reason: 'A pointer is on record; the site was not asked.', entry: { url: ITEMS[0].url, sha256: null }, job: null }],
     })
     const opened = vi.fn()
@@ -113,7 +113,7 @@ describe('past-paper sources', () => {
     expect(f.calls).toHaveLength(0) // nothing is read until he presses the key
     click(byText('button', 'Read the listing')!)
     await settle()
-    expect(document.querySelector('[data-index-reason]')!.textContent).toBe('2 shown of the 41 listed, read 2026-11-27.')
+    expect(document.querySelector('[data-index-reason]')!.textContent).toBe('2 shown of the 41 listed, read 27 Nov 2026, 09:05.') // R32, 27 Nov: the engine's UTC stamp is shown in the viewer's clock, not raw
     expect(byText('button', /^Fetch/)).toBeUndefined()
     expect(document.body.textContent).toContain('IB200, year not stated, answer key, on file')
     click(byText('button', 'Open the link')!)

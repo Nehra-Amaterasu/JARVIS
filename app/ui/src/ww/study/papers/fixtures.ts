@@ -96,7 +96,7 @@ export const TRACE: TraceEvent[] = [
 
 /** Cells of the Strata for the first `n` papers of the fixture: one per topic and year, sized by the share of marks. */
 export function cellsFor(years: number[]) {
-  return QUESTIONS.filter((q) => years.includes(q.year)).map((q) => ({
-    year: q.year, topicId: q.topicId, share: q.share ?? 0, type: q.type, qid: q.id, tag: q.tag, margin: q.margin, crop: q.crop,
+  return QUESTIONS.flatMap((q) => (q.year !== null && years.includes(q.year) ? [q] : [])).map((q) => ({
+    year: q.year as number, topicId: q.topicId, share: q.share ?? 0, type: q.type, qid: q.id, tag: q.tag, margin: q.margin, crop: q.crop,
   }))
 }

@@ -153,7 +153,9 @@ const SURFACES: Surface[] = [
   },
   {
     id: 'tree view settings popover', products: ['ww'], desktop: true,
-    open: async (p) => { await p.keyboard.press('Control+4'); await press(p, 'View settings') },
+    // 27 Nov (b): the Tree bar has no "View settings" key any more (the legend is its own row, the stage keys sit beside the stage). The
+    // in-tree panel this surface was written to check is still drawn, now behind the "Tree <name> <count>" key (TreePicker), so that opens it.
+    open: async (p) => { await p.keyboard.press('Control+4'); await press(p, /^Tree \S/) },
     // under the shell the Tree draws its own in-tree panel (CP2, ww/tree/ShellBars.tsx Panel), not the portaled kit popover
     panel: '.ww-popover[data-state="open"], .ww-tree-panel[role="dialog"]',
   },

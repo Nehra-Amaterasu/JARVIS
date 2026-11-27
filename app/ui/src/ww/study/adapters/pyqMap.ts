@@ -48,8 +48,9 @@ export function paperRow(p: EPaper): PaperRow {
   const c = p.counts ?? {}
   return {
     id: p.id,
-    // The engine allows a paper whose year is unknown (null); the port's year is a number, so an unknown year is 0 and says nothing else.
-    year: num(p.year) ?? 0,
+    // The engine allows a paper whose year is unknown (null). It stays null (R32, 27 Nov: 0 drew a year column headed "0"); the desk
+    // prints such a paper as "n.d." and leaves it out of the year columns.
+    year: num(p.year),
     label: str(p.title) || str(p.filename) || p.id,
     examAt: null, // the engine records no exam date on a paper
     questions: c.questions ?? 0,
@@ -95,7 +96,7 @@ export function questionRow(q: EQuestion, paper: EPaper | undefined, img?: strin
     id: q.id,
     paperId: q.paper_id,
     number: /^\d/.test(label) ? `Q${label}` : label || '?',
-    year: num(paper?.year) ?? 0,
+    year: num(paper?.year),
     topicId: topicKey(q.unit, q.topic),
     type: QTYPE[str(q.type)] ?? 'short',
     marks,

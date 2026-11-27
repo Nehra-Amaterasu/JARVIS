@@ -125,6 +125,7 @@
 .pp-paper[aria-current='true'] { background: var(--selected-fill); }
 .pp-paper:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
 .pp-paper-name { font: 600 14px/1.2 var(--font-ui, system-ui, sans-serif); }
+.pp-paper-nd { font: var(--type-small); font-weight: 500; color: var(--ink-2); }
 .pp-paper-meta { grid-column: 1; font: 12px/1.2 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pp-paper .ww-chip { grid-row: 1 / span 2; grid-column: 2; }
 .pp-listpager { display: flex; align-items: center; justify-content: space-between; font: 12px/1 var(--font-mono, ui-monospace, monospace); color: var(--ink-2); padding-top: 0.25rem; }

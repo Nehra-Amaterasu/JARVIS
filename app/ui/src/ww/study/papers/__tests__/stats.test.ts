@@ -76,6 +76,12 @@ describe('windows and counts of the fixture', () => {
     expect(setIn(cells, 't12', YEARS)).toBe(5)
     expect(setIn(cells, 't10', YEARS)).toBe(2)
   })
+  it('a question of a paper with no known year has no column: it is left out of the cells, never drawn under "0" (R32, 27 Nov)', () => {
+    const undated = { ...QUESTIONS[0], id: 'q-undated', year: null }
+    const cells = cellsOf([...QUESTIONS, undated])
+    expect(cells).toHaveLength(cellsOf(QUESTIONS).length)
+    expect(cells.some((c) => c.qid === 'q-undated')).toBe(false)
+  })
   it('the ledger counts come from the rows, rejected questions excluded', () => {
     const c = coverageOf(PAPERS, QUESTIONS, 5)
     expect(c.papers).toBe(6)

@@ -9,7 +9,7 @@ export interface ReviewItem {
   id: string
   paperId: string
   number: string
-  year: number
+  year: number | null
   topicId: string
   type: QType
   marks: number | null

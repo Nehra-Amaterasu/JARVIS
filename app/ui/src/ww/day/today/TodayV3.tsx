@@ -133,6 +133,8 @@ export function TodayV3({ ctx, onCapture, children }: { ctx: TodayCtx; onCapture
         label: `Season: ${SEASON_LABEL[seasonMode]}, change`,
         onSelect: () => useFrame.getState().setSeasonMode(SEASON_MODES[(SEASON_MODES.indexOf(seasonMode) + 1) % SEASON_MODES.length]),
       },
+      // R30, 27 Nov: Log minutes (overlay O6) was opened only by keys of the old left rail, which v3 does not draw; a row of More is its way in
+      { id: 'log', label: 'Log minutes', onSelect: () => openOverlay('log') },
       { id: 'roadmap', label: 'Roadmap', onSelect: () => openOverlay('roadmap') },
     ],
   }), [onCapture, seasonMode])

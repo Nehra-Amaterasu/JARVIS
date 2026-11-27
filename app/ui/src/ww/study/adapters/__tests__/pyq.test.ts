@@ -30,9 +30,10 @@ describe('the mappers keep what the engine said and invent nothing', () => {
     expect(reply({ reason: 'x' }, 1, () => 1).state).toBe('fault')
     expect(reply({ state: 'fine' }, 1, () => 1).state).toBe('fault')
   })
-  it('a paper row: reviewed is accepted plus rejected, an unknown year is 0, there is no exam date', () => {
+  it('a paper row: reviewed is accepted plus rejected, an unknown year stays null (R32, 27 Nov: it was 0), there is no exam date', () => {
     expect(paperRow(PAPER)).toEqual({ id: PAPER.id, year: 2023, label: 'Paper A', examAt: null, questions: 6, reviewed: 4, pages: 4, subject: 'signals' })
-    expect(paperRow(PAPER_B).year).toBe(0)
+    expect(paperRow(PAPER_B).year).toBeNull()
+    expect(questionRow(QUESTION, PAPER_B).year).toBeNull()
   })
   it('a question row: Q prefix, the topic key as the generator spells it, the share of the paper, the box as x y w h', () => {
     const r = questionRow(QUESTION, PAPER, 'data:image/png;base64,AAAA')

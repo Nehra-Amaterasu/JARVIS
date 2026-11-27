@@ -36,7 +36,7 @@ const FIX: DeskData = {
 }
 const subset = (n: number): DeskData => {
   const ys = YEARS.slice(0, n)
-  return { ...FIX, papers: PAPERS.filter((p) => ys.includes(p.year)), questions: QUESTIONS.filter((q) => ys.includes(q.year)), events: [], queued: [] }
+  return { ...FIX, papers: PAPERS.filter((p) => p.year !== null && ys.includes(p.year)), questions: QUESTIONS.filter((q) => q.year !== null && ys.includes(q.year)), events: [], queued: [] }
 }
 
 /** The desk's own box: 1230 x 664 at desktop widths (the shell canvas), the full width and natural height on a phone. */

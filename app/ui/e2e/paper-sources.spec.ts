@@ -204,7 +204,7 @@ for (const size of SIZES) {
     // ---- 4. the listing: a state word, a count only when live, three papers a page, links that record a pointer
     await card('gate_papers').getByRole('button', { name: 'Read the listing' }).click()
     await expect(card('gate_papers').locator('[data-index-state="live"]')).toBeVisible()
-    await expect(card('gate_papers').locator('[data-index-reason]')).toContainText('5 shown of the 41 listed, read 2026-11-27.')
+    await expect(card('gate_papers').locator('[data-index-reason]')).toContainText('5 shown of the 41 listed, read 27 Nov 2026.') // 27 Nov (b): the read stamp is formatted, not printed raw (R32); this mock sends a day with no time
     await expect(card('gate_papers').locator('[data-paper-key]')).toHaveCount(3)
     await expect(card('gate_papers')).toContainText('The local copy is off, so each paper is a link to the publisher.')
     await expect(card('gate_papers').getByRole('button', { name: /^Fetch / })).toHaveCount(0)

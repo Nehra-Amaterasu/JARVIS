@@ -29,6 +29,14 @@ function findPython(): string {
   return 'python'
 }
 
+// WW_SANDBOX_SEED=study starts the sandbox in seed mode (`--seed study --fresh`): an empty folder filled with invented, shape-true rows
+// by the engine's own code, so the REAL routes answer and the e2e/real-*.spec.ts files can run with no route mock. It is a switch and not
+// the default because the 60-odd older specs mock their routes against the plain sandbox and some of them count on it being empty (no
+// papers, Google off); --fresh makes every run start from the same rows, since a spec that presses a key writes to that folder.
+// JARVIS_SANDBOX_OCR_DELAY (seconds a page, default 2) passes through the environment.
+export const SEEDED = process.env.WW_SANDBOX_SEED === 'study'
+const SEED_ARGS = SEEDED ? ' --seed study --fresh' : ''
+
 // A scratch data dir that already exists, so ww_sandbox does not copy the owner's data/app.
 const SCRATCH = process.env.WW_SANDBOX_DIR ?? join(tmpdir(), 'jarvis-ww-e2e')
 mkdirSync(SCRATCH, { recursive: true })
@@ -51,7 +59,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: `"${findPython()}" -m jarvis_app.ww_sandbox --port ${SANDBOX_PORT} --token ${SANDBOX_TOKEN} --dir "${SCRATCH}"`,
+      command: `"${findPython()}" -m jarvis_app.ww_sandbox --port ${SANDBOX_PORT} --token ${SANDBOX_TOKEN} --dir "${SCRATCH}"${SEED_ARGS}`,
       cwd: resolve('..'),
       url: `http://127.0.0.1:${SANDBOX_PORT}/api/health`,
       reuseExistingServer: true,

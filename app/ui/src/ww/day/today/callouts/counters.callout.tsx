@@ -4,7 +4,8 @@
 //   - a counter that is a yes or no (want "yes", and the college counter) is ONE tick tile: pressed = yes, pressed again = no, never a 2;
 //   - "+N more" opens the rest in this plate, it does not leave Today;
 //   - Undo walks back through every tap of this visit, newest first;
-//   - "Choose counters" picks which show and their order, kept on this device (the engine has no route for that list).
+//   - "Choose counters" picks which show and their order, kept by the engine (R-63) so it follows him across devices, with this device's
+//     copy as the fallback when the engine has no such list; the sheet says which one is in use.
 // How a count is stored and what the engine answers: ww/life/counterDeck.ts.
 import { useState } from 'react'
 import { ArrowDown, ArrowUp, Check, ListChecks, Minus, Plus, Undo2 } from 'lucide-react'
@@ -47,9 +48,11 @@ function Tile({ c, ready, onStep, onTick }: { c: DeckCounter; ready: boolean; on
 function Choose({ open, onClose, all }: { open: boolean; onClose: () => void; all: DeckCounter[] }) {
   const prefs = useDeck((s) => s.prefs)
   const setPrefs = useDeck((s) => s.setPrefs)
+  const source = useDeck((s) => s.layoutSource)
+  const layoutSaid = useDeck((s) => s.layoutSaid)
   const { shown, hidden } = arrange(all, prefs)
   const order = [...shown, ...hidden].map((c) => c.id)
-  const save = (o: string[], h: string[]) => setPrefs({ order: o, hidden: h })
+  const save = (o: string[], h: string[]) => void setPrefs({ order: o, hidden: h })
   const move = (id: string, d: -1 | 1) => {
     const i = order.indexOf(id), j = i + d
     if (i < 0 || j < 0 || j >= order.length) return
@@ -76,7 +79,10 @@ function Choose({ open, onClose, all }: { open: boolean; onClose: () => void; al
             )
           })}
         </ol>
-        <p className="td-choose-line" data-kept="">Kept on this device. The engine has no list of its own for this yet, so another phone or window has its own choice.</p>
+        {layoutSaid && <p className="td-choose-line" role="status" data-said="">{layoutSaid}</p>}
+        {source === 'engine'
+          ? <p className="td-choose-line" data-kept="engine">Kept by the engine: this choice follows you to your other phones and windows.</p>
+          : <p className="td-choose-line" data-kept="device">Kept on this device. The engine did not give a list of its own for this, so another phone or window has its own choice.</p>}
       </div>
     </Drawer>
   )

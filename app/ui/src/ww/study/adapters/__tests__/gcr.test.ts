@@ -52,6 +52,20 @@ describe('G-01 mapped onto the port member classroom()', () => {
   })
 })
 
+describe('G-06: the engine sends the course state of Google, not a lamp word', () => {
+  it('"active" is LIVE, any other Google state is WAITING with its word kept, and a lamp word passes as it is', async () => {
+    const row = (id: string, state: string) => ({ id, name: id, section: '', state, subject: '', subject_source: '', include: true, files: 0, notes: 0, papers: 0, read_at: '', link: '' })
+    fakeEngine({
+      [`GET ${B}/courses`]: { json: env('live', '3 courses read.', { items: [row('a', 'active'), row('b', 'archived'), row('c', 'live')] }) },
+      [`PATCH ${B}/courses/a`]: { json: env('live', 'ok', { course: row('a', 'active') }) },
+    })
+    const g = make()
+    const r = await g.client.courses()
+    expect(r.data?.items.map((c) => [c.state, c.google_state])).toEqual([['live', 'active'], ['waiting', 'archived'], ['live', undefined]])
+    expect((await g.client.patchCourse('a', { include: true })).data?.course).toMatchObject({ state: 'live', google_state: 'active' })
+  })
+})
+
 describe('the engine is absent, or refuses', () => {
   it('a 404 "Not Found" on the prefix is WAITING "engine routes not found", from the app, with no data', async () => {
     fakeEngine({})

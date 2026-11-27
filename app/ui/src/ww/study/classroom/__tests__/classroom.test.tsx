@@ -176,8 +176,8 @@ describe('the Classroom plate: keys per state', () => {
     await flush()
     const t = q('[data-door="classroom"]').textContent ?? ''
     expect(t).toContain('LIVE')
-    expect(t).toContain('Last sync: 2026-11-22 09:30')
-    expect(q('[data-component="classroom-counts"]').textContent).toBe('2 courses, 3 files, 1 notes, 1 papers, 2 faults')
+    expect(t).toContain('Last sync: 22 Nov 2026, 09:30')
+    expect(q('[data-component="classroom-counts"]').textContent).toBe('2 courses, 3 files, 1 note, 1 paper, 2 faults')
     expect(keys()).toEqual(['Sync now', 'Open the shelf', 'Disconnect', 'Add account'])
     click(button(/Sync now/)!)
     await flush()

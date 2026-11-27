@@ -18,7 +18,7 @@ import type { SubjectOption } from '../intake/types'
 import { DueDetail, DueFilter, DueList } from './DuePanes'
 import { LinkPanel, linkReading } from './LinkPanel'
 import { Reader, type OpenedView } from './Reader'
-import { CoursesPane, FilesFilter, FilesPane, NoticeLine, Pose, type KindFilter, type Notice } from './ShelfPanes'
+import { CourseNames, CoursesPane, FilesFilter, FilesPane, NoticeLine, Pose, type KindFilter, type Notice } from './ShelfPanes'
 import { useClassroomLink } from './useClassroomLink'
 import { useDue } from './useDue'
 import './classroom.css'
@@ -160,6 +160,7 @@ export function ClassroomShelf({ client = gcrClient, desk = intakeDesk(), extra 
 
   const courseItems = courses?.data?.items ?? []
   const chosenCourse = courseItems.find((c) => c.id === course) ?? null
+  const names = useMemo(() => Object.fromEntries(courseItems.map((c) => [c.id, c.name])), [courseItems])
   const asking = readingOf({ state: 'waiting', reason: 'asking the engine' })
 
   const coursesBody = !live
@@ -245,6 +246,7 @@ export function ClassroomShelf({ client = gcrClient, desk = intakeDesk(), extra 
 
   if (lookV3Enabled()) {
     return (
+      <CourseNames.Provider value={names}>
       <div className="cr-shelf cr-v3" data-component="classroom-shelf" data-state={linkLamp.state}>
         {/* the reader gets the widest tray: a note is the thing read here, and the courses need little more than a name */}
         {mode === 'due' ? (
@@ -271,9 +273,11 @@ export function ClassroomShelf({ client = gcrClient, desk = intakeDesk(), extra 
           />
         )}
       </div>
+      </CourseNames.Provider>
     )
   }
   return (
+    <CourseNames.Provider value={names}>
     <div className="cr-shelf" data-component="classroom-shelf" data-state={linkLamp.state}>
       <header className="cr-head">
         <h2 className="cr-title">Classroom</h2>
@@ -297,5 +301,6 @@ export function ClassroomShelf({ client = gcrClient, desk = intakeDesk(), extra 
         )}
       </div>
     </div>
+    </CourseNames.Provider>
   )
 }

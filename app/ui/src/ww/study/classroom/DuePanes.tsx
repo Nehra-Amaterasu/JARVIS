@@ -31,8 +31,20 @@ export function formatDay(day: string, time = ''): string {
   if (!month) return day
   return `${Number(m[3])} ${month} ${m[1]}${time ? `, ${time}` : ''}`
 }
-/** A stamp that may carry a time ("2026-11-26T18:00" or "2026-11-26 18:00"): the day, then the time when there is one. */
+/**
+ * A stamp that may carry a time ("2026-11-26T18:00" or "2026-11-26 18:00"): the day, then the time when there is one.
+ * A stamp that carries a zone ("...Z" or "+05:30") is what the real engine writes for posted, start, read_at and synced_at, and it is a
+ * UTC clock: written as it stands, an announcement of 09:00 UTC read 09:00 on a screen in IST, 5 h 30 min early (seen against the seeded
+ * sandbox, 27 Nov). It is converted to the viewer's own clock. A stamp with no zone is already local and is left as written.
+ */
 export function formatStamp(s: string): string {
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/.test(s)) {
+    const d = new Date(s)
+    if (!Number.isNaN(d.getTime())) {
+      const p = (n: number) => String(n).padStart(2, '0')
+      return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${p(d.getHours())}:${p(d.getMinutes())}`
+    }
+  }
   const m = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/.exec(s)
   return m ? formatDay(m[1], m[2]) : formatDay(s)
 }
@@ -79,7 +91,7 @@ export function DueFilter({ list, courses, course, onCourse, show, onShow }: Due
           <div><dt>no due date</dt><dd>{c.no_due_date}</dd></div>
         </dl>
       )}
-      {list && showsNumber(list.state) && readAt && <p className="cr-note" data-component="classroom-due-read">Read at <span className="cr-due-mono">{readAt}</span></p>}
+      {list && showsNumber(list.state) && readAt && <p className="cr-note" data-component="classroom-due-read">Read at <span className="cr-due-mono">{formatStamp(readAt)}</span></p>}
     </div>
   )
 }

@@ -41,9 +41,9 @@ export interface ReaderProps {
 
 function Facts({ f }: { f: GcrFile }) {
   const parts = [
-    f.pages ? `${f.pages} pages` : '',
-    f.words ? `${f.words} words` : '',
-    f.scanned_pages ? `${f.scanned_pages} scanned pages` : '',
+    f.pages ? `${f.pages} ${f.pages === 1 ? 'page' : 'pages'}` : '',
+    f.words ? `${f.words} ${f.words === 1 ? 'word' : 'words'}` : '',
+    f.scanned_pages ? `${f.scanned_pages} scanned ${f.scanned_pages === 1 ? 'page' : 'pages'}` : '',
     f.course_name,
   ].filter(Boolean)
   return parts.length ? <p className="cr-note">{parts.join(', ')}</p> : null

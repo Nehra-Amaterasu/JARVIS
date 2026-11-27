@@ -8,7 +8,11 @@ import { useState } from 'react'
 import { Button, Field } from '../../../shared/kit'
 import { Lamp, readingOf, showsNumber, type LampReading } from '../../../shared/lamp'
 import type { GcrJob } from '../adapters/gcrTypes'
+import { formatStamp } from './DuePanes'
 import { APPROVE_SENTENCE, type ClassroomLink } from './useClassroomLink'
+
+/** "1 paper", "2 papers": the engine sends bare numbers, and "1 papers, 1 faults" was on screen (27 Nov). */
+const n = (k: number, one: string) => `${k} ${one}${k === 1 ? '' : 's'}`
 
 /** How many fault lines are listed before "and N more". */
 export const FAULTS_SHOWN = 5
@@ -91,9 +95,9 @@ export function LinkPanel({ link, onShelf }: LinkPanelProps) {
       {missing.length > 0 && <p className="cr-note">{`Not allowed yet: ${missing.map((s) => s.label).join(', ')}.`}</p>}
       {live && (
         <>
-          <p className="cr-note" data-component="classroom-synced">{body?.synced_at ? `Last sync: ${body.synced_at}` : 'Not synced yet.'}</p>
+          <p className="cr-note" data-component="classroom-synced">{body?.synced_at ? `Last sync: ${formatStamp(body.synced_at)}` : 'Not synced yet.'}</p>
           {counts && showsNumber(reading.state) && (
-            <p className="cr-counts" data-component="classroom-counts">{`${counts.courses} courses, ${counts.files} files, ${counts.notes} notes, ${counts.papers} papers, ${counts.faults} faults`}</p>
+            <p className="cr-counts" data-component="classroom-counts">{`${n(counts.courses, 'course')}, ${n(counts.files, 'file')}, ${n(counts.notes, 'note')}, ${n(counts.papers, 'paper')}, ${n(counts.faults, 'fault')}`}</p>
           )}
           {job && <JobLine job={job} />}
           <FaultLines lines={job?.fault_lines ?? []} />

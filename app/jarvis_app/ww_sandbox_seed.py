@@ -2,7 +2,8 @@
 
     seed_study(data_dir) -> {area: ids}       fill one scratch folder; the same ids on every run, no duplicates
     install_fixtures(setter=setattr)          swap Google, the OCR engine's answer sentences and the opening of pages
-    attach(app, ocr_delay)                    give one built app the fixture OCR reader and the fixture drafter
+    attach(app, ocr_delay, prep_delay_s)      give one built app the fixture OCR reader, the fixture drafter and the fixture
+                                              model of the preparation pipeline (JARVIS_SANDBOX_PREP_DELAY s a batch)
 
 Why: every browser test of the UI lane fakes the routes inside the page, so a drift between the plan text and what the
 engine really answers was never seen. Here the real app runs on rows the real code wrote. Shape-truth comes from the code
@@ -139,6 +140,31 @@ EXPORT = "exports/fixture-classroom-export.zip"   # under the seed folder; R-46 
 EXPORT_TIME = (2026, 11, 1, 9, 0, 0)       # every entry's zip time, so the archive is the same bytes on every run
 EXPORT_REFUSED = "../Outside the export (invented).pdf"
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+# ------------------------------------------------------------------ wave EW11: work for the preparation pipeline (R-64 to R-74)
+# Three papers left pending, untagged and without a subject, so every step of R-72 has something to do. Their titles carry
+# the subject's name (the rule of R-66 finds it), a unit (a question bank's unit comes from its title) and "Solution".
+PREP_BANK = ("fixture-signals-unit2-bank", "Fixture Signals Unit 2 Question Bank (invented)")
+PREP_SOLUTION = ("fixture-circuits-quiz-solution", "Solution of Fixture Circuits quiz (invented)")
+PREP_PLAIN = ("fixture-circuits-paper-d", "Invented Fixture Circuits practice paper D (sandbox, not a real exam)")
+# over 40 characters each (R-70 trusts nothing shorter) and with no syllabus word, so the rule tagger leaves them to the model
+BANK_QUESTIONS = ["Describe one invented trick of the fixture kit for a made-up board, step by step.",
+                  "Explain why the fixture kit uses a pretend part twice in one invented board.",
+                  "Sketch a made-up board of the fixture kit and label three invented parts.",
+                  "Compare two invented boards of the fixture kit and say which one is simpler.",
+                  "List four made-up parts of the fixture kit and give one invented use of each."]
+SOLUTION_ITEMS = ["The ladder of the fixture kit splits the pretend supply into four equal steps.",
+                  "The node sum of the invented kit is zero, so the third made-up current is 2 units.",
+                  "The toy capacitor charges to the pretend supply in about five invented steps."]
+# plainly not a question: a note numbered like an item. Not an instruction line ("Answer any two"), which the segmenter
+# drops before it is an item; the rule cannot tell either (25 to 300 characters long), so the model says so
+NOT_A_QUESTION = "Note: the made-up parts of the fixture kit are drawn on the back page."
+PLAIN_QUESTIONS = ["Explain the pretend node sum rule of the fixture kit with one made-up node. [5]",
+                   "Describe the toy capacitor charging of the fixture kit in three invented steps. [5]"]
+FIXTURE_MODEL = "fixture (sandbox: invented answers, no model was asked)"
+PREP_SOURCE = "the preparation run on this PC, with the fixture model of the sandbox (invented answers; no model was asked)"
+PREP_DELAY = 1.0                         # s a model batch: a browser sees the job running and can press stop
+PREP_DELAY_MAX = 5.0                     # a longer wait only slows the browser suite; a real batch took 30 to 50 s
 
 _seed_lock = threading.Lock()
 
@@ -865,6 +891,33 @@ def _seed_export(data_dir: Path) -> dict:
     return {"archive": EXPORT, "entries": [n for n, _ in entries if n != EXPORT_REFUSED], "refused": [EXPORT_REFUSED]}
 
 
+def _seed_prep(data_dir: Path, ids: _Ids) -> dict:
+    """Wave EW11: a question bank of one unit with no marks, a solution sheet of answer paragraphs and an ordinary paper
+    holding one instruction line, all read by the real ingest and left pending, untagged and without a subject. Seeded
+    last, so the store's shared counter (temporary names, variant ids) has moved for every earlier row before these."""
+    from .ww_pyq import ingest
+    from .ww_pyq.store import Store
+    st = Store(data_dir / "pyq")
+    sheets = [(PREP_BANK, [f"{i}. {t}" for i, t in enumerate(BANK_QUESTIONS, 1)]),
+              (PREP_SOLUTION, [f"{i}. {t}" for i, t in enumerate(SOLUTION_ITEMS, 1)]),
+              (PREP_PLAIN, [f"1. {PLAIN_QUESTIONS[0]}", f"2. {PLAIN_QUESTIONS[1]}", f"3. {NOT_A_QUESTION}"])]
+    pids, qids = [], []
+    with tempfile.TemporaryDirectory(prefix="ww-seed-") as tmp:
+        for (name, title), lines in sheets:
+            data = _pdf([[(150, title), (72, "(invented for the sandbox; not a real paper)"), *((72, ln) for ln in lines)]])
+            p = Path(tmp) / f"{name}.pdf"
+            p.write_bytes(data)
+            ids.name(hashlib.sha256(data).hexdigest())
+            pid = ingest.ingest_pdf(p, store=st, meta={"title": title, "year": 2026, "exam_kind": "other",
+                                                       "source_note": "invented for the sandbox"})["paper"]["id"]
+            pids.append(pid)
+            qids.append([q["id"] for q in st.list_questions(pid)])
+    plain = {q["text"]: q["id"] for q in st.list_questions(pids[2])}
+    return {"question_bank": pids[0], "bank_questions": qids[0], "solution": pids[1], "solution_items": qids[1],
+            "plain": pids[2], "plain_questions": qids[2],
+            "not_a_question": next((i for t, i in plain.items() if NOT_A_QUESTION[:30] in t), "")}
+
+
 def seed_study(data_dir, today: Optional[date] = None) -> dict:
     """Fill `data_dir` with the invented study rows. The ids come back grouped by area; a second run into the same folder
     finds every row on file and gives the same ids (dates move with the day it runs: an exam stays in the future)."""
@@ -884,6 +937,7 @@ def seed_study(data_dir, today: Optional[date] = None) -> dict:
         out["variants"], out["rubric"] = _seed_variants(data_dir, ids, out["papers"])
         out["intake"] = _seed_intake(data_dir, today)
         out["takeout"] = _seed_export(data_dir)
+        out["prep"] = _seed_prep(data_dir, ids)
         # R-63 is left unsaved on purpose, so a first visit sees the default row: the same rule routes_ww_life reads
         out["life_layout"] = {"saved": bool((_plan(data_dir).load(today.isoformat()).get("life_layout") or {}).get("order"))}
     (data_dir / MARKER).write_text(json.dumps(out, indent=1), encoding="utf-8")
@@ -908,6 +962,52 @@ def fixture_reader(delay: float = OCR_DELAY) -> Callable[[Path], dict]:
         lines = [{"text": t, "confidence": conf, "box": [150.0, 200.0 + 60 * i, 1100.0, 232.0 + 60 * i]} for i, t in enumerate(texts)]
         return {"lines": lines, "mean_confidence": conf, "seconds": delay, "device": "fixture"}
     return read
+
+
+def prep_delay() -> float:
+    """JARVIS_SANDBOX_PREP_DELAY: seconds a model batch of the preparation run, 1 by default, at most 5."""
+    try:
+        v = float(os.environ.get("JARVIS_SANDBOX_PREP_DELAY") or PREP_DELAY)
+    except ValueError:
+        v = PREP_DELAY
+    return min(max(0.0, v), PREP_DELAY_MAX)
+
+
+def _block(user: str, head: str) -> list[str]:
+    """The lines under `head` in a filled prompt, up to the first blank line."""
+    out, on = [], False
+    for ln in user.splitlines():
+        if on:
+            if not ln.strip():
+                break
+            out.append(ln.strip())
+        elif ln.strip() == head:
+            on = True
+    return out
+
+
+def fixture_prep_model(delay: Optional[float] = None) -> Callable[[str, str], str]:
+    """Stands where the model stands for the preparation pipeline (app.state.pyq_prep_provider), answering the two tasks
+    in the JSON their validators in ww_counsel take: subject_pick names the subject whose name the title holds (else the
+    first offered), tag_topics picks the first offered topic for every item and says question true for every item but the
+    seeded instruction line. It reads only the prompt it is given, so the same batch always gets the same answer."""
+    wait = prep_delay() if delay is None else max(0.0, delay)
+
+    def provider(system: str, user: str) -> str:
+        time.sleep(wait)
+        if "His subjects (id: name):" in user:
+            title = (re.search(r"^Title:\s*(.*)$", user, re.M) or [None, ""])[1].lower()
+            subs = [ln.split(":", 1) for ln in _block(user, "His subjects (id: name):") if ":" in ln]
+            pick = next((sid for sid, name in subs if name.strip().lower() in title), subs[0][0] if subs else "none")
+            return json.dumps({"subject": pick.strip()})
+        if "Topics (id: unit, topic):" in user:
+            first = next((ln.split(":", 1)[0].strip() for ln in _block(user, "Topics (id: unit, topic):") if ":" in ln), "none")
+            rows = [ln.split(":", 1) for ln in _block(user, "Questions:") if ":" in ln]
+            return json.dumps({"tags": [{"q": q.strip(), "topic": first, "question": NOT_A_QUESTION[:30] not in text}
+                                        for q, text in rows]})
+        return "{}"                                  # any other task: refused by its validator, so nothing is written
+    provider.fixture = True
+    return provider
 
 
 def fixture_engine_info() -> dict:
@@ -953,18 +1053,32 @@ def install_fixtures(setter: Callable[[Any, str, Any], None] = setattr) -> None:
     setter(ocr, "engine_info", fixture_engine_info)
     setter(routes_ww_pyq_ocr, "SOURCE", OCR_SOURCE)
     setter(routes_ww_pyq_drafts, "SOURCE", DRAFTS_SOURCE)
+    # the preparation run: its source says fixture, and a value the fixture model sets names the fixture, not "local"
+    from . import routes_ww_pyq_prep
+    from .ww_pyq import prep
+    real_model_for = prep.model_for
+
+    def model_for(store, override=None):
+        m = real_model_for(store, override)
+        if override is not None and getattr(override, "fixture", False) and m.mode != "off":
+            return prep.Model(m.mode, override, FIXTURE_MODEL)
+        return m
+    setter(prep, "model_for", model_for)
+    setter(routes_ww_pyq_prep, "SOURCE_RUN", PREP_SOURCE)
     # The file route serves from four folders. Three follow the scratch data directory; the fourth is a fixed folder in the
     # home directory (germoney.COLLEGE), which a sandbox must not be able to list or serve. It is pointed inside the box.
     from . import germoney
     setter(germoney, "COLLEGE", Path(os.environ.get("JARVIS_DATA_DIR") or tempfile.gettempdir()) / "no-college-folder")
 
 
-def attach(app, ocr_delay: float = OCR_DELAY) -> None:
-    """One built app: its OCR job reads with the fixture reader, and R-50 asks the fixture drafter instead of the model."""
+def attach(app, ocr_delay: float = OCR_DELAY, prep_delay_s: Optional[float] = None) -> None:
+    """One built app: its OCR job reads with the fixture reader, R-50 asks the fixture drafter instead of the model, and
+    the preparation pipeline (R-66, R-68, R-72) asks the fixture model: no real model, Claude tool or network is reached."""
     from .ww_pyq import ocr
     bus = getattr(getattr(app.state, "svc", None), "bus", None)
     app.state.pyq_ocr = ocr.OcrJob(bus, ocr=fixture_reader(ocr_delay))
     app.state.pyq_draft_provider = fixture_drafter
+    app.state.pyq_prep_provider = fixture_prep_model(prep_delay_s)
 
 
 def wrap_create_app(create_app: Callable, ocr_delay: float = OCR_DELAY) -> Callable:

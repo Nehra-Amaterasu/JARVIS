@@ -3,7 +3,7 @@
     GET     /api/mission/intake?state=&source=       R-36 the rows: pasted lines, calendar events, files of the watched folder
     POST    /api/mission/intake/paste                R-37 {text} (20,000 characters at most): one line, one row, state "new"; unreadable lines in `unread`
     POST    /api/mission/intake/ics                  R-38 the raw text/calendar body (2 MB at most): one row per event, state "new"
-    PATCH   /api/mission/intake/{id}                 R-39 {state: accepted|declined, title?, date?, time?, subject?}
+    PATCH   /api/mission/intake/{id}                 R-39 {state: accepted|declined|new, title?, date?, time?, subject?}; new undoes a decision
     POST    /api/mission/intake/{id}/take            R-40 {to: papers|notes}: a file row goes to the paper desk's or the notes library's reading job
     DELETE  /api/mission/intake/{id}                 R-41 the row, and its file only when it is a copy the app owns under intake/files/
     GET     /api/mission/intake/deadlines?from=&to=  R-42 accepted rows with a date, for the Life calendar
@@ -82,6 +82,7 @@ def _subjects(svc) -> list[tuple[str, str]]:
 def _view(row: dict, subjects: list[tuple[str, str]]) -> dict:
     """The row as the screen sees it: a suggestion is computed now, for a row with no subject chosen, and never stored."""
     out = dict(row)
+    out.setdefault("raw", "")              # a row stored before raw was kept (27 Nov) shows no pasted line
     out["subject_suggestion"] = None
     if not out.get("subject") and out.get("kind") != "file":
         out["subject_suggestion"] = intake_store.suggest(out.get("title") or "", subjects)
@@ -115,10 +116,10 @@ def register(app: FastAPI, svc, bus) -> None:
                 return r, False
         raise KeyError("No such row.")
 
-    def save(row: dict, stored: bool, changes: dict) -> dict:
+    def save(row: dict, stored: bool, changes: dict, expect: Optional[tuple] = None) -> dict:
         if stored:
-            return _store().update(row["id"], changes)
-        return _store().put({**row, **changes, "updated": intake_store._now()})
+            return _store().update(row["id"], changes, expect=expect)
+        return _store().put({**row, **changes, "updated": intake_store._now()}, expect=expect)
 
     # ------------------------------------------------------------------ R-36
     @app.get("/api/mission/intake")
@@ -226,10 +227,13 @@ def register(app: FastAPI, svc, bus) -> None:
             b = _body(body)
             row, stored = find(rid)
             new_state = b.get("state")
-            if new_state not in ("accepted", "declined"):
-                raise ValueError("The state is accepted or declined.")
+            if new_state not in ("accepted", "declined", "new"):
+                raise ValueError("The state is accepted, declined or new.")
             if row["state"] == "taken":
                 raise ValueError("This file was already taken; delete the row instead.")
+            # new is the undo of a decision he made; a row that was never decided has nothing to undo
+            if new_state == "new" and row["state"] not in ("accepted", "declined"):
+                raise ValueError("This row is new already; nothing to undo.")
             ch: dict = {"state": new_state}
             if "title" in b:
                 t = b["title"]
@@ -250,8 +254,11 @@ def register(app: FastAPI, svc, bus) -> None:
                 ch["subject"] = (s or "").strip()[:intake_store.MAX_SUBJECT]
             if new_state == "accepted" and row.get("ambiguous") and "date" not in ch:
                 raise ValueError("This date can be read two ways; give the date before accepting.")
-            out = save(row, stored, ch)
-            return api.ok("live", f"Row {new_state}.", SOURCE, row=_view(out, _subjects(svc)))
+            # the state read above may be old by now: the store checks it again under its lock
+            out = save(row, stored, ch, expect=("accepted", "declined") if new_state == "new"
+                       else ("new", "accepted", "declined"))
+            said = "Row back to new." if new_state == "new" else f"Row {new_state}."
+            return api.ok("live", said, SOURCE, row=_view(out, _subjects(svc)))
         return await run_in_threadpool(api.guard, work)
 
     # ------------------------------------------------------------------ R-40

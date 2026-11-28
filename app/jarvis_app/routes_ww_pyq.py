@@ -181,7 +181,7 @@ def register(app: FastAPI, svc, bus) -> None:
             st = _store()
             st.get_paper(pid)                           # 404 before anything is counted
             qs = st.list_questions(paper_id=pid)
-            crops = sum(1 for q in qs if st.crop_path(q["id"]) is not None)
+            crops = sum(1 for q in qs if st.crop_path_of(q) is not None)
             st.delete_paper(pid)
             publish("paper removed")
             return api.ok("live", f"Removed the paper and {_plural(len(qs), 'question', 'questions')}.", SOURCE,
@@ -201,7 +201,7 @@ def register(app: FastAPI, svc, bus) -> None:
             rows = st.list_questions(paper_id=paper or None, status=status_, subject=_subject(subject))
             total = len(rows)
             lo, n = max(0, offset), max(1, min(limit, 500))
-            page = [{**q, "has_crop": st.crop_path(q["id"]) is not None} for q in rows[lo:lo + n]]
+            page = [{**q, "has_crop": st.crop_path_of(q) is not None} for q in rows[lo:lo + n]]
             if not total:
                 return api.items(page, "waiting", "No questions match.", SOURCE, total=0)
             return api.items(page, "live", f"{_plural(total, 'question', 'questions')}.", SOURCE, total=total)

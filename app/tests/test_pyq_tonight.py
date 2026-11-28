@@ -116,10 +116,10 @@ def sheet_files(st):
 def test_every_route_is_in_the_docstring_and_no_other(env):
     c, st, plan, _ = env
     doc = R.__doc__
-    for rid in ("R-55", "R-56", "R-57", "R-58", "R-59"):
+    for rid in ("R-55", "R-56", "R-57", "R-58", "R-59", "R-85"):
         assert rid in doc
     rows = re.findall(r"^\s{2,}(GET|POST|PUT|PATCH|DELETE)\s+(/api/\S+)", doc, re.M)
-    assert len(rows) == 5
+    assert len(rows) == 6
     defined = {(m, r.path) for r in c.app.routes for m in getattr(r, "methods", ()) if r.path.startswith(T)}
     assert {x for x in defined if x[0] != "HEAD"} == {(m, p) for m, p in rows}
     assert c.get(T, headers={"X-Jarvis-Token": "wrong"}).status_code in (401, 403)
@@ -187,7 +187,8 @@ def test_the_sheet_follows_the_counted_order_and_prints_its_terms(env):
         assert it["n"] == n and it["marks"] == 5 and it["text"].startswith("Explain invented idea") and it["crop"] is None
         t = by[it["topic_key"]]["terms"]
         assert it["why"] == {"days_left": 4, "marks_weight": t["marks_weight"], "share": t["seen_share"],
-                             "proficiency": t["proficiency"], "syllabus_weight": t["syllabus_weight"]}
+                             "proficiency": t["proficiency"], "measured": t["measured"], "syllabus_weight": t["syllabus_weight"]}
+        assert it["why"]["measured"] is False and it["origin"] == "paper" and it["text_status"] == "verified"
         assert it["question_id"] in by[it["topic_key"]]["question_ids"]
     assert j["reason"] == "Tonight's sheet: 4 questions, Signals, paper in 4 days. 4 topics had a question to give."
     # the file holds the shared shape and nothing else (the ledger reads it)
@@ -584,7 +585,7 @@ def test_only_accepted_questions_stand_and_the_file_has_the_shared_shape(env):
     assert set(raw) == {"id", "date", "subject", "built_at", "items", "marks"}
     assert all(set(i) == {"n", "question_id", "marks", "unit", "topic", "topic_key"} for i in raw["items"])
     for it in sheet["items"]:
-        assert set(it["why"]) == {"days_left", "marks_weight", "share", "proficiency", "syllabus_weight"}
+        assert set(it["why"]) == {"days_left", "marks_weight", "share", "proficiency", "measured", "syllabus_weight"}
 
 
 @pytest.mark.parametrize("sid", ["2026-11-27-..\\x", "2026-11-27-c:x", "C:%5Cx", "2026-11-27-signäls", "2026-11-27-%2e%2e"])
@@ -672,3 +673,47 @@ def test_the_ledger_counts_a_mark_on_a_question_whose_marks_are_not_printed_as_g
     from jarvis_app.ww_pyq import ledger
     rows, skipped = ledger.sheet_rows([{"file": f"{sid}.json", "sheet": tonight.load_sheet(st, sid)}], "signals")
     assert skipped == [] and [(r["question_id"], r["got"], r["max"], r["topic_key"]) for r in rows] == [(qid, 3.0, 4.0, "2|time constant")]
+
+
+# ------------------------------------------------------------------ R-85 one sheet
+def test_one_sheet_reads_as_the_build_answers_it_and_builds_nothing(env):
+    c, st, plan, _ = env
+    bank(st)
+    sid = f"{TODAY.isoformat()}-signals"
+    assert c.get(f"{T}/sheets/{sid}").status_code == 404           # not built yet: 404, and still nothing on file
+    assert sheet_files(st) == []
+    built = c.post(f"{T}/build", json={}).json()["sheet"]
+    j = c.get(f"{T}/sheets/{sid}").json()
+    envelope(j)
+    assert j["state"] == "live" and j["sheet"] == built
+    assert j["reason"] == "The sheet of " + TODAY.isoformat() + ": 4 questions, 4 still unmarked."
+    for it in j["sheet"]["items"]:
+        assert {"why", "marks", "origin", "text_status"} <= set(it) and isinstance(it["why"]["measured"], bool)
+    for bad in ("2026-13-40-signals", "nope", "2026-11-27-..%5Cx"):
+        assert c.get(f"{T}/sheets/{bad}").status_code == 404
+    assert c.get(f"{T}/sheets/{(TODAY + timedelta(days=1)).isoformat()}-signals").status_code == 404
+    assert sheet_files(st) == [f"{sid}.json"]
+
+
+def test_origin_and_text_status_follow_the_question_and_old_why_reads_measured(env):
+    c, st, plan, _ = env
+    bank(st)
+    sheet = c.post(f"{T}/build", json={}).json()["sheet"]
+    qid = sheet["items"][0]["question_id"]
+    st.update_question(qid, {"origin": "model-draft", "text_status": "unverified"})
+    # a why file written before measured existed: the field is read from the default proficiency
+    wp = Path(st.root) / "tonight" / "why" / f"{sheet['id']}.json"
+    old = json.loads(wp.read_text(encoding="utf-8"))
+    for w in old.values():
+        w.pop("measured")
+    first = next(iter(old.values()))
+    first["proficiency"] = None                  # a term missing or null is not a measurement
+    wp.write_text(json.dumps(old), encoding="utf-8")
+    got = c.get(f"{T}/sheets/{sheet['id']}").json()["sheet"]["items"]
+    assert got[0]["origin"] == "model-draft" and got[0]["text_status"] == "unverified"
+    for it in got:
+        p = it["why"]["proficiency"]
+        assert it["why"]["measured"] is (isinstance(p, (int, float)) and p != 0.5)
+    assert any(it["why"]["proficiency"] is None and it["why"]["measured"] is False for it in got)
+    raw = json.loads((Path(st.root) / "sheets" / f"{sheet['id']}.json").read_text(encoding="utf-8"))
+    assert all(set(it) == {"n", "question_id", "marks", "unit", "topic", "topic_key"} for it in raw["items"])

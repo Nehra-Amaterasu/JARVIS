@@ -109,7 +109,8 @@ def _finish(st, tmp: Path, name: str) -> dict:
     (d / f"{aid}.json").write_text(json.dumps(listing, indent=1), encoding="utf-8")
     _prune(d)
     ok_n = sum(1 for e in listing["entries"] if e["refused"] is None and e["kind"] != "other")
-    bad_n = sum(1 for e in listing["entries"] if e["refused"] is not None)
+    # an entry the door does not read carries a sentence too, but it is not refused for being hostile: counted apart
+    bad_n = sum(1 for e in listing["entries"] if e["refused"] is not None and e["kind"] != "other")
     reason = (f"Listed {len(listing['entries'])} files in {name}: {ok_n} papers or decks you can read"
               + (f", {bad_n} refused" if bad_n else "") + ". Nothing was extracted.")
     return api.ok("live", reason, SOURCE, listing=listing)
@@ -120,7 +121,9 @@ def _load(st, aid: str) -> dict:
     f = d / f"{_check_id(aid)}.json"
     if not f.is_file() or not (d / f"{aid}.zip").is_file():
         raise KeyError("No such export listing.")
-    return json.loads(f.read_text(encoding="utf-8"))
+    listing = json.loads(f.read_text(encoding="utf-8"))
+    takeout.mend_entries(listing.get("entries") or [])
+    return listing
 
 
 def _accept(st, listing: dict, names, runner: ingest.IngestJob) -> dict:
@@ -132,7 +135,7 @@ def _accept(st, listing: dict, names, runner: ingest.IngestJob) -> dict:
         e = by_name.get(n)
         if e is None:
             raise ValueError(f"{n} is not in this listing.")
-        if e["refused"]:
+        if e["refused"] and e["refused"] != takeout.NOT_READ:      # a hostile name says so before its kind
             raise ValueError(f"{n} was refused: {e['refused']}")
         if e["kind"] == "other":
             raise ValueError(f"{n} is not a .pdf or .pptx; I read only those.")

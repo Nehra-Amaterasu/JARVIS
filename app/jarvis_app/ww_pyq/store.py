@@ -32,6 +32,10 @@ from types import SimpleNamespace
 from typing import Any, Callable, Optional
 
 from .. import ww_bank_store
+
+_TEXTS: dict[str, tuple[int, int, str]] = {}      # path -> (time of change in ns, size, text): see Store._read_text
+_TEXTS_LOCK = threading.Lock()
+_TEXTS_MAX = 512
 from .schema import (EXAM_KINDS, FLOOR_PAPERS, FLOOR_QUESTIONS, MAX_TEXT, Q_STATUSES, Q_TYPES,
                      Coverage, Crop, PaperMeta, Question, QuestionDraft)
 
@@ -91,6 +95,26 @@ class Store:
             d.mkdir(parents=True, exist_ok=True)
 
     # ------------------------------------------------------------------ disk
+    @staticmethod
+    def _read_text(path: Path) -> str:
+        """The file's text, from memory while the file on disk is the one that was read (same time of change to
+        100 ns, same size). Every read route used to open all 89 question files again: 0.15 to 0.3 s a call on the real
+        store, most of it opening files, and the Prepare counts (1.2 s) and the ledger (1.6 s) read the store several
+        times a call (measured 28 Nov 2026). The text is kept, not the parsed rows, so every caller still gets rows of
+        its own to change. A write by this or any other process changes the file's time, so it is read again."""
+        st = path.stat()                                   # FileNotFoundError goes up, as from read_text
+        key = str(path)
+        with _TEXTS_LOCK:
+            hit = _TEXTS.get(key)
+        if hit is not None and hit[0] == st.st_mtime_ns and hit[1] == st.st_size:
+            return hit[2]
+        raw = path.read_text(encoding="utf-8")
+        with _TEXTS_LOCK:
+            if len(_TEXTS) >= _TEXTS_MAX:                  # a store of 89 papers holds 90 texts; 512 is room, not a tuned number
+                _TEXTS.clear()
+            _TEXTS[key] = (st.st_mtime_ns, st.st_size, raw)
+        return raw
+
     def _problem(self, text: str) -> None:
         self.problems.append(text)
         del self.problems[:-_MAX_PROBLEMS]
@@ -99,7 +123,7 @@ class Store:
         """Parsed JSON of the wanted kind, or an empty one. A broken file is set aside, not deleted."""
         empty = kind()
         try:
-            raw = path.read_text(encoding="utf-8")
+            raw = self._read_text(path)
         except FileNotFoundError:
             return empty
         except OSError as e:
@@ -494,7 +518,12 @@ class Store:
 
     def crop_path(self, qid: str) -> Optional[Path]:
         """The crop picture, or None when the question has none or the file is gone (test T3)."""
-        q = self.get_question(qid)
+        return self.crop_path_of(self.get_question(qid))
+
+    def crop_path_of(self, q: dict) -> Optional[Path]:
+        """The same answer for a question already in hand. A list must use this one: crop_path(id) finds the question
+        by reading every question file, so a page of 50 read 89 files 50 times on the real store and took 1.8 to
+        2.2 s (measured 28 Nov 2026); the screens asked for several such pages at once and the app stopped answering."""
         png = ((q.get("crop") or {}).get("png") or "")
         if not png:
             return None

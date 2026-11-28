@@ -27,7 +27,9 @@ TOKEN = "t" * 32
 FEATURES = ["mission", "reminders", "ww_gcr", "ww_harvest", "ww_life", "ww_pyq", "ww_pyq_drafts", "ww_pyq_ingest",
             "ww_pyq_ocr", "ww_pyq_patterns",
             # wave EW9
-            "ww_intake", "ww_pyq_gen", "ww_pyq_ledger", "ww_pyq_takeout", "ww_pyq_tonight", "ww_pyq_variants"]
+            "ww_intake", "ww_pyq_gen", "ww_pyq_ledger", "ww_pyq_takeout", "ww_pyq_tonight", "ww_pyq_variants",
+            # wave EW11: the preparation pipeline
+            "ww_pyq_prep", "ww_pyq_model"]
 G, P, H = "/api/mission/gcr", "/api/mission/pyq", "/api/mission/harvest"
 
 
@@ -66,7 +68,7 @@ def client(seeded):
         mp.delenv("JARVIS_GOOGLE", raising=False)
         seed.install_fixtures(mp.setattr)                             # undone with the context: later test files see the real modules
         app = create_app(Guard(8777, TOKEN, extra_hosts=["testserver"]), autostart_aankhen="off", features=FEATURES)
-        seed.attach(app, ocr_delay=0.3)
+        seed.attach(app, ocr_delay=0.3, prep_delay_s=0)
         svc = app.state.svc
         # germoney's kv folder was fixed when it was imported (the conftest scratch folder): point the plan at the seed's
         kv = germoney.KVStore(root=d / "germoney" / "kv", backups=d / "germoney" / "backups")
@@ -424,7 +426,7 @@ def test_a_second_seed_of_the_same_folder_adds_no_ew9_row_and_gives_the_same_ids
     c, d, ids, _ = client
     before = ew9_counts(d)
     again = seed.seed_study(d)
-    for k in ("tonight", "ledger", "variants", "rubric", "intake", "takeout", "life_layout"):
+    for k in ("tonight", "ledger", "variants", "rubric", "intake", "takeout", "life_layout", "prep"):
         assert again[k] == ids[k], k
     assert ew9_counts(d) == before
 
@@ -541,3 +543,95 @@ def test_in_fixture_mode_the_file_route_cannot_reach_a_folder_outside_the_box(tm
     seed.install_fixtures(monkeypatch.setattr)
     assert germoney.COLLEGE == tmp_path / "box" / "no-college-folder" and germoney.COLLEGE != home_folder
     assert germoney.COLLEGE in germoney.file_roots() and home_folder not in germoney.file_roots()
+
+
+# ------------------------------------------------------------------ wave EW11: the preparation pipeline on the seed
+PREP = f"{P}/prep"
+
+
+def _run_until_done(c, limit_s=60.0):
+    import time
+    end = time.monotonic() + limit_s
+    while True:
+        j = ok(c.get(f"{PREP}/run"))
+        if j["status"] != "running" or time.monotonic() > end:
+            return j
+        time.sleep(0.05)
+
+
+def test_the_prep_papers_list_pending_untagged_and_without_a_subject(client):
+    c, d, ids, _ = client
+    p = ids["prep"]
+    for k in ("question_bank", "solution", "plain"):
+        assert re.fullmatch(r"p-[0-9a-f]{12}", p[k])
+    assert len(p["bank_questions"]) == 5 and len(p["solution_items"]) == 3 and len(p["plain_questions"]) == 3
+    assert p["not_a_question"] in p["plain_questions"]
+    papers = {x["id"]: x for x in ok(c.get(f"{P}/papers"), "live")["items"]}
+    for k in ("question_bank", "solution", "plain"):
+        assert papers[p[k]]["subject"] in ("", None) and not papers[p[k]].get("role")
+    bank = ok(c.get(f"{P}/questions", params={"paper": p["question_bank"]}))["items"]
+    assert [q["id"] for q in bank] == p["bank_questions"]
+    assert all(q["status"] == "pending" and q["marks"] is None and q.get("unit") is None for q in bank)
+    # the seeded papers of the earlier waves are listed as before: three text papers, the scan, the typed one
+    assert {ids["papers"]["text"], ids["papers"]["scanned"], *ids["papers"]["text_more"]} <= set(papers)
+
+
+def test_r65_answers_live_with_the_counts_of_the_refinement(client):
+    c, *_ = client
+    j = ok(c.get(PREP), "live")
+    k = j["counts"]
+    assert {"question_banks", "solutions", "not_questions", "marks_not_printed"} <= set(k)
+    assert k["without_subject"] >= 3 and set(k["solutions"]) == {"papers", "items", "paired"}
+
+
+def test_r74_stops_a_run_after_the_batch_in_hand(client):
+    c, d, ids, app = client
+    gate, asked = threading.Event(), threading.Event()
+
+    def held(system, user):                          # the fixture model, held until the test lets it go
+        asked.set()
+        gate.wait(10)
+        return "{}"                                  # refused by the validator: the batch fails and writes nothing
+    held.fixture = True
+    keep = app.state.pyq_prep_provider
+    app.state.pyq_prep_provider = held
+    try:
+        r = c.post(f"{PREP}/run", json={"steps": ["subjects", "tags"], "use_model": True})
+        assert r.status_code == 200, r.text
+        assert asked.wait(30)
+        stopping = ok(c.delete(f"{PREP}/run"), "waiting")
+        assert stopping["reason"] == "Stopping after the batch or paper in hand."
+        gate.set()
+        j = _run_until_done(c)
+        assert j["status"] == "stopped" and seed.PREP_SOURCE == j["source"]
+    finally:
+        gate.set()
+        app.state.pyq_prep_provider = keep
+    bank = ok(c.get(f"{P}/questions", params={"paper": ids["prep"]["question_bank"]}))["items"]
+    assert all(q["status"] == "pending" and not q.get("topic") for q in bank)      # nothing of the held batch was written
+
+
+def test_r72_runs_subjects_tags_and_accept_to_done_with_the_fixture_model(client):
+    c, d, ids, _ = client
+    p = ids["prep"]
+    assert ok(c.put(f"{PREP}/policy", json={"auto_accept": True}))["policy"]["auto_accept"] is True
+    r = c.post(f"{PREP}/run", json={"steps": ["subjects", "tags", "accept"], "use_model": True})
+    assert r.status_code == 200, r.text
+    j = _run_until_done(c)
+    assert j["status"] == "done", j
+    assert j["source"] == seed.PREP_SOURCE and "fixture" in j["source"]
+    papers = {x["id"]: x for x in ok(c.get(f"{P}/papers"))["items"]}
+    assert (papers[p["question_bank"]]["role"], papers[p["question_bank"]]["subject"]) == ("question_bank", "fixture-signals")
+    assert (papers[p["solution"]]["role"], papers[p["solution"]]["subject"]) == ("solution", "fixture-circuits")
+    bank = ok(c.get(f"{P}/questions", params={"paper": p["question_bank"]}))["items"]
+    assert len(bank) == 5
+    for q in bank:
+        assert q["status"] == "accepted" and q["marks"] is None and q["marks_source"] == "not printed"
+        assert q["unit"] == 2 and q["topic"] == "Imaginary low-pass shapes" and q["tag_model"] == seed.FIXTURE_MODEL
+    sol = ok(c.get(f"{P}/questions", params={"paper": p["solution"]}))["items"]
+    assert all(q["status"] == "pending" for q in sol)                               # a solution is never a question
+    nq = {q["id"]: q for q in ok(c.get(f"{P}/questions", params={"paper": p["plain"]}))["items"]}[p["not_a_question"]]
+    assert nq["not_question"] is True and nq["not_question_source"] == "model" and nq["status"] == "pending"
+    k = ok(c.get(PREP), "live")["counts"]
+    assert (k["question_banks"], k["solutions"]["papers"], k["solutions"]["items"]) == (1, 1, 3)
+    assert k["not_questions"] == 1 and k["marks_not_printed"] == 5 and k["accepted_unmarked"] == 5

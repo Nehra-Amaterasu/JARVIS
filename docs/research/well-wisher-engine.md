@@ -2,6 +2,38 @@
 
 The running research file of the engine lane (the Python side of Well Wisher). Newest section on top. The plan it serves is `docs/design/well-wisher-engine-plan.md`; the screens are the UI lane's (`docs/research/product-design-overhaul.md`).
 
+## 2026-11-28 (night): the pipeline on the real store, on the owner's go, and what it left undone
+
+**Question.** After the run on a copy, what does the same pipeline do to the real store, and is the loop usable on it?
+
+**Run.** The owner's go of 28 Nov: Claude Haiku through the command-line tool, acceptance by rule on. A backup of the papers file and every question file was taken first (90 files, under the store's `backups` folder). Steps in order: roles and subjects by rule, every paper read again, topics per subject (rule, then the model in rounds of 60), acceptance by rule per subject, subject suggestions from the model for papers without one (80 asked at most).
+
+| What | Before | After |
+| --- | --- | --- |
+| Questions counted (solution sheets apart) | 880 on 89 papers | 889 on 73 papers; 16 solution sheets with 144 items counted apart |
+| Papers replaced by the new reading | | 23 of 89 (613 s) |
+| Accepted | 0 | 172 (112 by rule) |
+| With marks | 66 | 246 |
+| With a unit and topic | 0 | 146 |
+| Marks not printed (question banks) | | 378, of them 104 accepted |
+| Items the model or a rule called not a question | | 9 |
+| Papers with a subject | 17 | 17; the model suggests a subject for 27 more, 45 have none |
+| Topics the order of topics ranks | 0 and 0 | 13 in one subject, 6 in another |
+| Subjects whose order answers live | 0 of 9 | 2 of 9 |
+
+Topics by rule and by the model in the two subjects that have papers: 53 and 47 (3 fitting no topic); 12 and 34.
+
+**What is wrong or unfinished (found by reading the result, not assumed).**
+1. **Seven of nine subjects still have nothing to practise.** One has only solution sheets (its questions were never read as questions); the rest have no paper with their subject. The pipeline cannot make papers that are not there.
+2. **The model's subject suggestions are not safe to apply unread.** Of the 27, about half name the right course by the paper's own title; 3 name a first-year course by its code and were put under a fifth-semester subject because the content is near; the rest cannot be judged by title. They stay suggestions. A rule to add: a course code in the title that is not the code of the suggested subject drops the suggestion.
+3. **65 questions carry "accepted by hand"** with stamps between 01:37 and 01:47 on the night of the run, on 13 papers, 26 of them on papers without a subject and 5 on solution sheets. No engine step writes that; it comes only through the question route of the running app. Whether it was the owner in the paper desk or a test against the live app is not known; nothing was changed, and the question is open with both.
+4. **The script printed no totals** between steps: it read a key the route does not have. The numbers above were read again afterwards, read-only.
+5. The evening sheet is switched on in the real store (19:00, 10 questions) and names the first subject with a paper 10 days off; it has not yet built on the real store, because the running app predates these routes and needs a restart by the owner.
+
+**Not verified.** The 146 topic tags on the real store were not sampled by eye (12 of 12 were right on the copy, one subject only). No sheet has been built or marked on real questions. The 9 not-a-question calls were not read.
+
+**What it changes.** The next work is papers for the seven subjects (the harvest by subject, F1 of the plan's section 10, and question lines out of solution sheets), not more pipeline.
+
 ## 2026-11-28 (later): the preparation pipeline on a copy of the real store, and what his own papers taught it
 
 **Question.** Does the pipeline of wave EW11 make the real store usable, and what does it get wrong on real material?

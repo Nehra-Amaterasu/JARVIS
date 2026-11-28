@@ -13,7 +13,8 @@
 
 IntakeRow (plan 9.2.5): {id, source: paste|ics|folder, kind: deadline|event|file, state: new|accepted|declined|taken,
 title, date or null, time or null, readings, ambiguous, subject or "", subject_suggestion or null, repeats,
-file: {name, size, owned} or null, raw_hash, added, updated}.
+file: {name, size, owned} or null, raw, raw_hash, added, updated}. `raw` is the pasted line as he typed it (500
+characters at most, so the desk can show what he pasted); "" for a calendar event or a file.
 
 Rules that decided the shape:
 - Nothing here writes to the date sheet, the calendar or the question store. A row is only a row; an accepted
@@ -53,9 +54,10 @@ KINDS = ("deadline", "event", "file")
 SUGGEST_AT = 0.6           # plan 9.2.5 and spec 21.4.3: a name match of 0.6 or more is offered, below is unmapped
 MAX_TITLE = 200
 MAX_SUBJECT = 120
+MAX_RAW = 500          # a deadline line is 20 to 80 characters; 500 keeps a long pasted sentence whole and no page
 MAX_FILE = 40 * 1024 * 1024    # the paper desk's upload cap (routes_ww_pyq_ingest.MAX_UPLOAD): a scanned 30-page paper is ~15 MB
 MAX_NAME = 120
-_FIXED = ("id", "source", "kind", "raw_hash", "added", "file")   # a row's identity: update() never changes these
+_FIXED = ("id", "source", "kind", "raw", "raw_hash", "added", "file")   # a row's identity: update() never changes these
 _ID = re.compile(r"^i-[0-9a-f]{12}$")
 _TIME = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 _DEVICE = re.compile(r"^(?:con|prn|aux|nul|com[0-9]|lpt[0-9])(?:\.|$)", re.I)   # Windows opens these names as devices
@@ -137,6 +139,8 @@ class IntakeStore:
         self.files = self.root / "files"
         self._lock = threading.RLock()
         self.problems: list[str] = []      # what was found broken and set aside; R-36 prints it
+        self._kept: set[str] = set()       # set-aside notices: the only pointer at a copy he can recover, kept until
+                                           # the process ends or he dismisses them (clear_problems), not by a clean read
         self.root.mkdir(parents=True, exist_ok=True)
         self.files.mkdir(parents=True, exist_ok=True)
 
@@ -170,7 +174,9 @@ class IntakeStore:
                 os.replace(self._path, aside)
             except OSError:
                 pass
-            self._say(f"rows.json could not be parsed; kept beside it as {aside.name}.")
+            note = f"rows.json could not be parsed; kept beside it as {aside.name}."
+            self._kept.add(note)
+            self._say(note)
             return empty
         data["rows"] = [r for r in data.get("rows") or [] if isinstance(r, dict) and valid_id(r.get("id"))]
         mended = 0
@@ -183,6 +189,12 @@ class IntakeStore:
                 mended += 1
         if mended:
             self._say(f"{mended} row(s) in rows.json had no date or state; they are listed first and as new.")
+        else:
+            # rows.json exists and reads cleanly: a fault found earlier is over, so its line goes (request 20: a
+            # problem printed on every R-36 after the file was mended read as a fault that never ended). A missing
+            # file does not count, because right after a corrupt file is set aside the notice must still show.
+            # A set-aside notice stays: a fresh rows.json reads cleanly while the copy is still beside it.
+            self.problems[:] = [p for p in self.problems if p in self._kept]
         data["dismissed"] = [d for d in data.get("dismissed") or [] if valid_id(d)]
         data.setdefault("version", SCHEMA_VERSION)
         return data
@@ -217,12 +229,13 @@ class IntakeStore:
     @staticmethod
     def make_row(*, source: str, kind: str, title: str, raw_hash: str, date: Optional[str] = None,
                  time_: Optional[str] = None, readings: Optional[list] = None, ambiguous: bool = False,
-                 repeats: str = "none", file: Optional[dict] = None) -> dict:
+                 repeats: str = "none", file: Optional[dict] = None, raw: str = "") -> dict:
         now = _now()
         return {"id": row_id(raw_hash), "source": source, "kind": kind, "state": "new",
                 "title": (title or "")[:MAX_TITLE], "date": date, "time": time_, "readings": list(readings or []),
                 "ambiguous": bool(ambiguous), "subject": "", "subject_suggestion": None,
-                "repeats": repeats, "file": file, "raw_hash": raw_hash, "added": now, "updated": now}
+                "repeats": repeats, "file": file, "raw": (raw or "")[:MAX_RAW], "raw_hash": raw_hash,
+                "added": now, "updated": now}
 
     def _add(self, rows: list[dict]) -> list[dict]:
         with self._lock:
@@ -246,7 +259,7 @@ class IntakeStore:
             key = it["raw"] + "|" + ",".join(r["date"] for r in it["readings"])
             rows.append(self.make_row(
                 source="paste", kind="deadline", title=it["title"] or it["raw"], raw_hash=_hash("paste|" + key),
-                date=it["date"], time_=it["time"], readings=it["readings"], ambiguous=it["ambiguous"]))
+                date=it["date"], time_=it["time"], readings=it["readings"], ambiguous=it["ambiguous"], raw=it["raw"]))
         return self._add(rows)
 
     def add_events(self, events: list[dict], today: Optional[str] = None) -> tuple[list[dict], int, int]:
@@ -306,18 +319,37 @@ class IntakeStore:
                     return dict(r)
         raise KeyError("No such row.")
 
-    def put(self, row: dict) -> dict:
-        """Store (or replace) one row by id: how a computed folder row becomes a stored one."""
+    def clear_problems(self) -> None:
+        """He dismissed the notices, the set-aside ones too."""
+        with self._lock:
+            self.problems.clear()
+            self._kept.clear()
+
+    @staticmethod
+    def _expect(row: dict, expect) -> None:
+        # checked under the lock, on the row as stored now: a take that finished after the caller read the row must not
+        # be undone by an accept, a decline or a return to new
+        if expect is not None and row.get("state") not in expect:
+            raise ValueError("This file was already taken; delete the row instead." if row.get("state") == "taken"
+                             else f"This row is {row.get('state')} now; look again.")
+
+    def put(self, row: dict, expect: Optional[tuple] = None) -> dict:
+        """Store (or replace) one row by id: how a computed folder row becomes a stored one. With `expect`, a row of
+        that id already stored must be in one of those states."""
         if not valid_id(row.get("id")):
             raise KeyError("No such row.")
         with self._lock:
             data = self._load()
+            for r in data["rows"]:
+                if r["id"] == row["id"]:
+                    self._expect(r, expect)
             data["rows"] = [r for r in data["rows"] if r["id"] != row["id"]] + [dict(row)]
             data["dismissed"] = [d for d in data["dismissed"] if d != row["id"]]
             self._save(data)
         return dict(row)
 
-    def update(self, rid: str, changes: dict) -> dict:
+    def update(self, rid: str, changes: dict, expect: Optional[tuple] = None) -> dict:
+        """Change one row; with `expect`, only while its state is one of those (checked under the lock)."""
         if not valid_id(rid):
             raise KeyError("No such row.")
         clean = {k: v for k, v in changes.items() if k not in _FIXED}
@@ -325,6 +357,7 @@ class IntakeStore:
             data = self._load()
             for r in data["rows"]:
                 if r["id"] == rid:
+                    self._expect(r, expect)
                     r.update(clean)
                     r["updated"] = _now()
                     self._save(data)

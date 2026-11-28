@@ -138,7 +138,8 @@ test.describe('The Tree under v3: clicking a node', () => {
           const sel = document.querySelector('.tg-svg [data-selected="true"]')!
           const ring = sel.querySelector('.sn-ring')!
           const tint = sel.querySelector('.sn-tint')
-          const hue = getComputedStyle(document.documentElement).getPropertyValue('--hue').replace(/\s/g, '')
+          const probe = document.createElement('i'); probe.style.color = 'var(--hue)'; document.body.appendChild(probe)
+          const hue = getComputedStyle(probe).color.replace(/\s/g, ''); probe.remove() // 28 Nov: the token is hex since the design reset; resolve it before comparing
           return { ring: getComputedStyle(ring).stroke.replace(/\s/g, ''), hue, tint: tint ? getComputedStyle(tint).fill : '' }
         })
         expect(look.ring, 'the ring is the project hue').toBe(look.hue)

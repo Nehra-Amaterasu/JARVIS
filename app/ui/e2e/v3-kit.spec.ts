@@ -231,7 +231,8 @@ for (const vp of [DESKTOP, PHONE]) {
         const pick = (pose: string) => {
           const cell = [...root.querySelectorAll('span')].find((s) => s.textContent === pose)?.parentElement
           const b = cell?.querySelector<HTMLElement>('button')
-          return b ? { shadow: getComputedStyle(b).boxShadow, transform: getComputedStyle(b).transform, bg: getComputedStyle(b).backgroundImage } : null
+          // 28 Nov: no gradient fills since the design reset, so a key's fill is its colour when it has no image
+          return b ? { shadow: getComputedStyle(b).boxShadow, transform: getComputedStyle(b).transform, bg: getComputedStyle(b).backgroundImage === 'none' ? getComputedStyle(b).backgroundColor : getComputedStyle(b).backgroundImage } : null
         }
         return { rest: pick('key rest'), hover: pick('key hover'), pressed: pick('key pressed'), focus: pick('key focus'), lit: pick('lit: ON, selected'), accent: pick('accent rest'), accentPressed: pick('accent pressed'), locked: pick('locked'), lockedHover: pick('locked, hover (no change)') }
       })

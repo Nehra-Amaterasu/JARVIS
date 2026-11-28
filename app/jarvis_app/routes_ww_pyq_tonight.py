@@ -145,7 +145,7 @@ def register(app: FastAPI, svc, bus) -> None:
             qid = it["question_id"]
             try:
                 q = st.get_question(qid)
-                crop = f"/api/mission/pyq/crops/{qid}" if st.crop_path(qid) is not None else None
+                crop = f"/api/mission/pyq/crops/{qid}" if st.crop_path_of(q) is not None else None
             except (KeyError, ValueError, OSError):
                 q, crop = {}, None                 # deleted since: the row stays, its words are gone
             w = why.get(qid)

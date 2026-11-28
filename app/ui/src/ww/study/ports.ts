@@ -66,7 +66,13 @@ export interface PaperRow {
   faults?: string[]
   /** How the engine read it: text-layer, ocr, mixed, typed, slides. Absent when it sent none. */
   method?: string
+  /** Wave EW11: paper, question_bank, solution or notes; absent when the engine sent none. A solution's items are never questions. */
+  role?: PaperRole
+  /** Who set the role: "rule" (from the title or file name) or "hand" (his choice through R-04). */
+  roleSource?: string
 }
+
+export type PaperRole = 'paper' | 'question_bank' | 'solution' | 'notes'
 
 export interface QuestionRow {
   id: string
@@ -95,6 +101,16 @@ export interface QuestionRow {
   wholePage?: boolean
   /** Where the question came from as the engine says (paper, hand, template, model-draft, harvest). */
   origin?: string
+  /** Wave EW11: marks null with marks_source "not printed" (a question bank prints none). Drawn "marks not printed", never 0. */
+  marksNotPrinted?: boolean
+  /** Wave EW11: the item is not a question (a heading, an answer paragraph). It is kept out of acceptance. */
+  notQuestion?: boolean
+  /** Who judged it not a question: "rule", or the model's name. */
+  notQuestionBy?: string
+  /** The model's name when tag_source is "model". */
+  tagModel?: string
+  /** "rule" when R-70 accepted it by rule, not he. */
+  acceptedBy?: string
 }
 
 export interface RubricPoint {

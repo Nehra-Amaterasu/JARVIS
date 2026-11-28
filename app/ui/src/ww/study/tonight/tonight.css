@@ -53,6 +53,10 @@
 .tsh-pair .tsh-num { max-inline-size: none; }
 .tsh-num { max-inline-size: 7rem; font-family: var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; }
 .tsh-markrow .tsh-num { max-inline-size: none; }
+/* a question whose marks are not printed (wave EW11): his mark, then "out of" his own number, then the keep switch under the pair */
+.tsh-markset { display: flex; flex-direction: column; gap: 0.375rem; min-inline-size: 0; }
+.tsh-markrow-of { grid-template-columns: minmax(0, 1fr) 4.5rem auto 4.5rem; }
+@media (max-width: 700px) { .tsh-markrow-of { grid-template-columns: minmax(0, 1fr) 4.5rem; } }
 .tsh-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
 .tsh-ahead { display: flex; flex-direction: column; gap: 0.375rem; }

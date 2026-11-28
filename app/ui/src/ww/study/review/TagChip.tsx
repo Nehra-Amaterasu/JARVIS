@@ -5,7 +5,8 @@ import type { TagSource } from '../ports'
 
 const MEANS: Record<TagSource, string> = {
   RULE: 'tagged by a counted rule',
-  MODEL: 'suggested by the local model, not yet your decision',
+  // since R-64 (28 Nov) the model may be the local one or Claude; the review desk names it beside the chip
+  MODEL: 'set by a model, not yet your decision',
   HAND: 'set by you',
 }
 const GLYPH: Record<TagSource, string> = { RULE: '#', MODEL: '~', HAND: '+' }

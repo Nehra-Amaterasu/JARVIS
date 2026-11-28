@@ -4,12 +4,14 @@
 // answers WAITING with a reason, so a fresh install draws an honest empty desk: hollow ledger, an empty grid, "Drop the first paper
 // here". A gallery or a test hands it `data` (invented papers, SIMULATED) instead of a port.
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { Chip, Button, PrimaryButton, Segmented } from '../../../shared/kit'
+import { Chip, Button, Field, PrimaryButton, Segmented } from '../../../shared/kit'
 import { Lamp, readingOf, showsNumber, type LampState } from '../../../shared/lamp'
 import { lookV3Enabled, Zones } from '../../../shell/v3'
 import { pyqClient } from '../adapters/pyq.register'
 import type { PyqClient } from '../adapters/types'
-import { STUDY_PORT, type GainItem, type IngestRoute, type PaperRow, type QueuedFile, type QuestionRow, type RouteId, type StudyPort, type Topic, type TraceEvent } from '../ports'
+import { prepClient, type PrepClient } from '../adapters/pyqPrep'
+import { STUDY_PORT, type GainItem, type IngestRoute, type PaperRole, type PaperRow, type QueuedFile, type QuestionRow, type RouteId, type StudyPort, type Topic, type TraceEvent } from '../ports'
+import { PrepFace } from '../prep/PrepFace'
 import { ReviewDesk } from '../review/ReviewDesk'
 import { COPY, FOOTER } from './copy'
 import { CoverageLedger, EMPTY_COVERAGE } from './CoverageLedger'
@@ -44,6 +46,8 @@ export interface DeskData {
   gains?: GainItem[]
   /** R-16 answered WAITING with the counts still present: a note under the grid, never a pattern. */
   provisional?: ProvisionalCounts | null
+  /** The state of R-01 itself: the desk's own state is the first that is not LIVE (a waiting pattern), but the empty poses ask the papers. */
+  papersState?: LampState
 }
 
 export const WAITING_ROUTES: IngestRoute[] = [
@@ -73,6 +77,7 @@ export async function loadDesk(port: StudyPort): Promise<DeskData> {
     topics: ok(pat.state) && pat.data ? pat.data.topics : [],
     gains: gain && ok(gain.state) && gain.data ? gain.data : [],
     provisional: prov,
+    papersState: p.state,
   }
 }
 
@@ -92,13 +97,28 @@ export interface PaperDeskProps {
   reviewOpen?: boolean
   /** Told when files are chosen and the port has answered. */
   onIngested?: (state: LampState, reason: string) => void
+  /** The preparation routes (R-64 to R-74) and the role of a paper (R-04). Default: the engine's. A test hands in a fake. */
+  prep?: PrepClient
+  /** The face the desk opens on (the gallery and the tests). */
+  startFace?: Face
 }
 
-type Face = 'desk' | 'classic'
+type Face = 'desk' | 'prep' | 'classic'
 
-export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, classic = true, trayOpen, reviewOpen, onIngested }: PaperDeskProps) {
+/** A paper's role in words (wave EW11), and who set it. */
+export const ROLE_WORD: Record<PaperRole, string> = { paper: 'paper', question_bank: 'question bank', solution: 'solution sheet', notes: 'notes' }
+export const roleText = (p: PaperRow): string =>
+  p.role ? `${ROLE_WORD[p.role]}, set by ${p.roleSource === 'hand' ? 'you' : p.roleSource === 'rule' ? 'the rule' : p.roleSource || 'nobody named'}` : ''
+/** A solution sheet's items are never questions he was set, and notes are not a paper (prep.HELD_ROLES): neither is offered "to review". */
+const held = (p: PaperRow) => p.role === 'solution' || p.role === 'notes'
+
+/** The two plain poses of an empty desk (queue row V8): no paper at all, or papers with nothing accepted yet. */
+export const EMPTY_NONE = 'No paper on file. Drop one here, or pull them from Classroom in Library.'
+export const EMPTY_UNREADY = 'Nothing is ready for the study screens yet. Open Prepare.'
+
+export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, classic = true, trayOpen, reviewOpen, onIngested, prep = prepClient, startFace = 'desk' }: PaperDeskProps) {
   const [loaded, setLoaded] = useState<DeskData | null>(data ?? null)
-  const [face, setFace] = useState<Face>('desk')
+  const [face, setFace] = useState<Face>(startFace)
   const [sel, setSel] = useState<string | null>(null)
   const [reviewing, setReviewing] = useState<{ startId?: string } | null>(reviewOpen ? {} : null)
   const [pasting, setPasting] = useState(false)
@@ -136,7 +156,7 @@ export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, cl
   const coverage = useMemo(() => (d.papers.length || d.questions.length ? coverageOf(d.papers, d.questions, d.lastRun) : EMPTY_COVERAGE), [d.papers, d.questions, d.lastRun])
   const chosen = sorted.find((p) => p.id === sel) ?? null
   const live = showsNumber(d.state)
-  const waitingOf = (p: PaperRow) => d.questions.filter((q) => q.paperId === p.id && q.status === 'pending').length
+  const waitingOf = (p: PaperRow) => (held(p) ? 0 : d.questions.filter((q) => q.paperId === p.id && q.status === 'pending' && !q.notQuestion).length)
   const PER = 7
   const pages = Math.max(1, Math.ceil(sorted.length / PER))
   const shown = sorted.slice(page * PER, page * PER + PER)
@@ -174,9 +194,20 @@ export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, cl
   const openReview = (startId?: string) => { lastFocus.current = document.activeElement as HTMLElement | null; setReviewing({ startId }) }
   const closeReview = () => { setReviewing(null); requestAnimationFrame(() => lastFocus.current?.focus?.()) }
 
-  const reviewPaper = chosen ?? sorted.find((p) => waitingOf(p) > 0) ?? null
+  const reviewPaper = (chosen && !held(chosen) ? chosen : null) ?? sorted.find((p) => waitingOf(p) > 0) ?? null
   const reviewQs = reviewPaper ? d.questions.filter((q) => q.paperId === reviewPaper.id) : []
-  const waitingTotal = d.questions.filter((q) => q.status === 'pending').length
+  const heldIds = new Set(d.papers.filter(held).map((p) => p.id))
+  const waitingTotal = d.questions.filter((q) => q.status === 'pending' && !q.notQuestion && !heldIds.has(q.paperId)).length
+  // the empty poses (V8): said only once the port answered LIVE, never over a desk still loading or an engine that is not there
+  const emptyPose = loaded && face === 'desk' && (live || d.papersState === 'live') ? (d.papers.length === 0 ? 'none' : d.questions.some((q) => q.status === 'accepted') ? null : 'unready') : null
+
+  const [roleSaid, setRoleSaid] = useState<{ state: LampState; text: string } | null>(null)
+  const changeRole = async (paper: PaperRow, role: string) => {
+    setRoleSaid(null)
+    const r = await prep.setRole(paper.id, role)
+    setRoleSaid({ state: r.state, text: r.state === 'live' ? `Role set to ${ROLE_WORD[role as PaperRole] ?? role} by you.` : r.reason })
+    if (r.state === 'live') reload()
+  }
 
   const overlays = (
     <>
@@ -207,9 +238,25 @@ export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, cl
         label="Desk face"
         value={face}
         onChange={setFace}
-        options={[{ id: 'desk', label: 'Papers on file' }, { id: 'classic', label: 'Exam dates' }]}
+        options={[{ id: 'desk', label: 'Papers on file' }, { id: 'prep', label: 'Prepare' }, { id: 'classic', label: 'Exam dates' }]}
       />
     ) : null
+    if (face === 'prep') {
+      return (
+        <div className="pp-desk pp-v3" data-component="paper-desk" data-state={d.state} data-face={face}>
+          <PrepFace client={prep} faceSwitch={faceSwitch} papers={d.papers} onChanged={reload} />
+          {overlays}
+        </div>
+      )
+    }
+    const pose = emptyPose && (
+      <div className="pp3-pose" role="status" data-pose={emptyPose}>
+        <p className="pp3-pose-line">{emptyPose === 'none' ? EMPTY_NONE : EMPTY_UNREADY}</p>
+        {emptyPose === 'none'
+          ? <Button size="lg" onClick={() => input.current?.click()} data-key="pose-drop">Choose a file</Button>
+          : classic && <Button size="lg" onClick={() => setFace('prep')} data-key="pose-prepare">Open Prepare</Button>}
+      </div>
+    )
     return (
       <div className="pp-desk pp-v3" data-component="paper-desk" data-state={d.state} data-face={face} onKeyDown={onKey}>
         <Zones
@@ -226,6 +273,9 @@ export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, cl
                   </div>
                 ) : (
                   <>
+                    {/* the face switch heads the first tray on every face (28 Nov: with Prepare it needs about 300 px, more than the third tray had) */}
+                    {faceSwitch}
+                    {pose}
                     <div className="pp3-strata" ref={strataBox}>
                       <PaperStrata
                         rowsPerPage={strataRows}
@@ -272,14 +322,29 @@ export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, cl
                     <h2>{chosen.label}</h2>
                     <dl className="pp-facts pp-facts-row">
                       <div><dt>Questions read</dt><dd>{live ? chosen.questions : '--'}</dd></div>
-                      <div><dt>Reviewed</dt><dd>{live ? `${chosen.questions - waitingOf(chosen)} of ${chosen.questions}` : '--'}</dd></div>
+                      <div><dt>Reviewed</dt><dd>{live ? (held(chosen) ? 'not questions' : `${chosen.questions - waitingOf(chosen)} of ${chosen.questions}`) : '--'}</dd></div>
                       <div><dt>Pages</dt><dd>{live ? chosen.pages : '--'}</dd></div>
+                      <div data-fact="role"><dt>Role</dt><dd>{chosen.role ? roleText(chosen) : 'not reported'}</dd></div>
                     </dl>
                     <Lamp reading={readingOf({ state: d.state, reason: d.reason })} />
-                    <OcrPanel client={client} paper={chosen} onFinished={reload} />
+                    {live && (
+                      <Field kind="select" label="Change the role" value={chosen.role ?? ''} onChange={(e) => void changeRole(chosen, (e.target as unknown as HTMLSelectElement).value)} data-role-select="">
+                        {!chosen.role && <option value="">not reported</option>}
+                        {(Object.keys(ROLE_WORD) as PaperRole[]).map((r) => <option key={r} value={r}>{ROLE_WORD[r]}</option>)}
+                      </Field>
+                    )}
+                    {roleSaid && (
+                      <p className="pp-notice" role="status" data-state={roleSaid.state} data-role-said="">
+                        <Lamp reading={readingOf({ state: roleSaid.state, reason: roleSaid.text })} />
+                        <span>{roleSaid.text}</span>
+                      </p>
+                    )}
+                    {chosen.role === 'solution'
+                      ? <p className="pp-notice" data-solution="">A solution sheet: its items are never questions, so it is not read for questions or offered for review.</p>
+                      : <OcrPanel client={client} paper={chosen} onFinished={reload} />}
                   </div>
                 ) : (
-                  <div className="pp-detail pp-detail-none pp3-chosen"><p>{sorted.length ? COPY.noPaper : 'Nothing on file yet.'}</p></div>
+                  <div className="pp-detail pp-detail-none pp3-chosen"><p>{sorted.length ? COPY.noPaper : EMPTY_NONE}</p></div>
                 )}
                 {notice && (
                   <p className="pp-notice" role="status" data-state={notice.state}>
@@ -294,12 +359,13 @@ export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, cl
                     <ul>
                       {shown.map((p) => {
                         const w = waitingOf(p)
+                        const hold = held(p)
                         return (
                           <li key={p.id}>
-                            <button type="button" className="pp-paper" aria-current={sel === p.id ? 'true' : undefined} onClick={() => setSel(sel === p.id ? null : p.id)}>
+                            <button type="button" className="pp-paper" aria-current={sel === p.id ? 'true' : undefined} onClick={() => setSel(sel === p.id ? null : p.id)} data-role={p.role ?? ''}>
                               <span className="pp-paper-name">{p.label}{p.year === null && <span className="pp-paper-nd" title="No year on file, so this paper is not in the year columns"> n.d.</span>}</span>
-                              <span className="pp-paper-meta">{live ? `${p.questions} questions, ${w ? `${w} waiting` : 'reviewed'}` : 'not reported'}</span>
-                              {live && <Chip tone={w ? 'sim' : 'neutral'}>{w ? 'to review' : 'reviewed'}</Chip>}
+                              <span className="pp-paper-meta">{live ? `${hold ? `${p.questions} items, not questions` : `${p.questions} questions, ${w ? `${w} waiting` : 'reviewed'}`}${p.role ? `; ${roleText(p)}` : ''}` : 'not reported'}</span>
+                              {live && <Chip tone={w ? 'sim' : 'neutral'}>{hold ? ROLE_WORD[p.role as PaperRole] : w ? 'to review' : 'reviewed'}</Chip>}
                             </button>
                           </li>
                         )
@@ -332,7 +398,6 @@ export function PaperDesk({ port = STUDY_PORT, client = pyqClient, data, now, cl
             peek: { name: 'Drafts', lamp: d.state, note: 'written from your notes' },
             children: (
               <div className="pp3-col pp3-detail">
-                {face === 'desk' && faceSwitch}
                 <DraftsPanel client={client} subject={chosen?.subject} topics={d.topics} onAccepted={reload} defaultOpen />
               </div>
             ),

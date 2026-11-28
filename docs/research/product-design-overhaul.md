@@ -2,6 +2,22 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-28: the no-mock paper desk and Prepare specs, run again after the merge; the seeded sandbox's start time
+
+**Question.** Two things were left unverified when the design reset and the Prepare face were merged (`fd2ed4c`): the no-mock paper desk spec (it had failed 1 of 2 on 27 Nov when the engine's seed changed) and the Prepare face against real routes.
+
+**What happened first.** The run did not start: Playwright waited 90 s for the seeded sandbox (`--seed study --fresh`) and gave up before any spec ran. Nothing was listening on the test ports and 30 GB of disk was free.
+
+**Measured.** Started by hand on a scratch folder, the seeded sandbox answered after 97 s, with two Opus builders running their own test suites on the same machine. The server was not at fault; the limit was 7 s too short under load.
+
+**Change.** `app/ui/playwright.config.ts`: a seeded start gets 240 s, the plain start keeps 90 s (commit `eb8ad4f`).
+
+**Result after it.** `e2e/real-papers.spec.ts` and `e2e/real-prep.spec.ts` with `WW_SANDBOX_SEED=study`, one worker: 3 of 3 passed in 1.3 minutes; no refusals received by the page in any of the three.
+- The paper desk's OCR walk (run, stop, run again, done) passes again on the seed as it is now.
+- The Prepare face now runs to the end on the seed (the run reported `done`, steps `subjects` and `tags`, 0 failures), and accept by rule (3 questions) and take back (3 returned) both answer live. On 28 Nov at 01:20 the seed could not drive the run to done; it can now.
+
+**Not verified.** The Prepare face on the owner's real question store (only the seeded store was run). The start time on an idle machine was not measured.
+
 ## 2026-11-28: the design reset and the Prepare face, finished by the integrator and checked by the whole suite
 
 **How this batch ended.** Both builders (Opus) were cut off by the usage limit after about 84 minutes each, near the end of their work. The owner asked that only the integrating chat continue, within a small usage budget, so the integrator finished them: looked at the specimen page and two real views, ran the tests, corrected three stale expectations, and merged.

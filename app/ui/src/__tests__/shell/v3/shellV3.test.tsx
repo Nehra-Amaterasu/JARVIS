@@ -186,26 +186,50 @@ describe('the spine', () => {
     expect(document.documentElement.getAttribute('data-hue')).toBe('wellwisher')
   })
 
-  it('folds to a 64 px icon rail, keeps every row reachable by its accessible name, and remembers the choice', async () => {
+  // 28 Nov (V1): the spine now folds by itself below 1420 px of window (ShellV3 AUTO_RAIL_BELOW) and the stored key is a PIN,
+  // kept only while it differs from what the window would choose. These two tests used to start full at any width and store
+  // every choice; they now set the window width and hold the pin rule.
+  const width = (w: number) => Object.defineProperty(window, 'innerWidth', { configurable: true, value: w })
+  afterEach(() => {
+    delete (window as unknown as { innerWidth?: number }).innerWidth
+  })
+  it('on a wide window starts open, folds to a 64 px icon rail, keeps every row reachable by its accessible name, and pins the choice', async () => {
+    width(1600)
     await render()
     expect(q('.s3')!.dataset.spine).toBe('full')
+    expect(q('.s3')!.dataset.spinePin).toBe('auto')
     const fold = q<HTMLButtonElement>('.s3-fold')!
     expect(fold.getAttribute('aria-pressed')).toBe('false')
     click(fold)
     expect(q('.s3')!.dataset.spine).toBe('rail')
+    expect(q('.s3')!.dataset.spinePin).toBe('pinned')
     expect(localStorage.getItem('app.spine')).toBe('rail')
     expect(q('.s3-fold')!.getAttribute('aria-label')).toBe('Unfold the sidebar')
-    // names live in the tooltip and the accessible name once the text is hidden by CSS
+    // names live in the tooltip, the flyout and the accessible name once the text is hidden by CSS
     expect(q('.s3-head[data-project="aankhen"]')!.getAttribute('title')).toContain('Aankhen')
     expect(q('.s3-item[data-section="room"]')!.getAttribute('aria-label')).toBe('Room')
+    expect(q('.s3-item[data-section="room"]')!.getAttribute('data-fly')).toBe('Room')
     click(q('.s3-item[data-section="room"]'))
     expect(section()).toBe('room')
+    // folding back to what the window wants returns the sidebar to automatic and forgets the pin
+    click(q('.s3-fold'))
+    expect(q('.s3')!.dataset.spine).toBe('full')
+    expect(q('.s3')!.dataset.spinePin).toBe('auto')
+    expect(localStorage.getItem('app.spine')).toBeNull()
+  })
+
+  it('on a 1366 px window starts as the rail by itself, and pinning it open is kept', async () => {
+    width(1366)
+    await render()
+    expect(q('.s3')!.dataset.spine).toBe('rail')
+    expect(q('.s3')!.dataset.spinePin).toBe('auto')
     click(q('.s3-fold'))
     expect(q('.s3')!.dataset.spine).toBe('full')
     expect(localStorage.getItem('app.spine')).toBe('full')
   })
 
   it('reads the stored fold on load', async () => {
+    width(1600)
     localStorage.setItem('app.spine', 'rail')
     await render()
     expect(q('.s3')!.dataset.spine).toBe('rail')

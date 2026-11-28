@@ -205,7 +205,7 @@ export function PaperStrata({
                   {cols.map((y, c) => {
                     const cell = cellAt(t, y)
                     const name = cell
-                      ? `${t.label}, ${y}: ${TYPE_WORD[cell.type]}, ${cell.share > 0 ? `${Math.round(cell.share * 100)} percent of the marks` : 'marks not found'}, tagged by ${cell.tag}, margin ${cell.margin.toFixed(2)}. Enter opens the question.`
+                      ? `${t.label}, ${y}: ${TYPE_WORD[cell.type]}, ${cell.share > 0 ? `${Math.round(cell.share * 100)} percent of the marks` : cell.marksNotPrinted ? 'marks not printed' : 'marks not found'}, tagged by ${cell.tag}, margin ${cell.margin.toFixed(2)}. Enter opens the question.`
                       : `${t.label}, ${y}: not set in this paper`
                     return (
                       <div key={y} role="gridcell" className="pp-cell" data-selected={selectedYear === y ? 'true' : undefined}>

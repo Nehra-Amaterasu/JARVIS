@@ -1,0 +1,70 @@
+/* ==========================================================================
+   The character art of the design reset (shared/kit/v3/Art.tsx). The same lint as the kit sheet (src/__tests__/v3/art.test.tsx):
+   no colour literal, no px for font-size, radius, padding, margin or gap, no literal duration or easing, every transition names
+   its properties, and the only infinite animations are the two named states (LIVE breathes, WAITING sweeps one dot), both
+   stopped under reduced motion and the calm setting.
+   ========================================================================== */
+@import '../../../styles/design/v3/glass.css';
+
+.v3-dotglyph { display: block; flex: none; overflow: visible; color: inherit; }
+.v3-dot-on { opacity: 1; }
+.v3-dot-half { opacity: 0.45; }
+/* the unlit grid: the same ink, faint, so the figure reads as a display and not as scattered dots */
+.v3-dot-off { opacity: 0.14; }
+
+/* a mark is ink; the shell colours the open project's mark with the accent (shell-v3.css) */
+.v3-dotmark { color: currentColor; }
+
+/* the state figures: only FAULT has a colour of its own; LIVE takes the accent; the other three are ink */
+.v3-statefig { color: var(--ink2); }
+.v3-statefig[data-state='live'] { color: var(--live); }
+.v3-statefig[data-state='fault'] { color: var(--fault); }
+.v3-statefig[data-state='planned'] { color: var(--ink3); }
+/* LIVE breathes: the lit dots rise and fall together (the one motion that means "a real source is reporting now") */
+.v3-statefig[data-state='live'] .v3-dot-on { animation: v3-art-breathe var(--d-breathe) var(--ease) infinite; }
+/* WAITING sweeps: one lit dot of the ring brightens in turn, the eye reads "expecting", no number moves */
+.v3-statefig[data-state='waiting'] .v3-dot-on { animation: v3-art-wait var(--d-ping) var(--ease-linear) infinite; animation-delay: calc(var(--i, 0) * var(--d-rise-step)); }
+
+.v3-empty {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-16);
+  min-width: 0;
+  padding: var(--sp-12) var(--sp-4);
+  color: var(--ink);
+}
+.v3-empty[data-compact='true'] { gap: var(--sp-12); padding: var(--sp-8) var(--sp-2); }
+.v3-empty-words { display: grid; gap: var(--sp-4); min-width: 0; }
+.v3-empty-title { margin: 0; font: 600 var(--t-16) / 1.25 var(--f-ui); letter-spacing: -0.01em; color: var(--ink); text-wrap: balance; }
+.v3-empty[data-compact='true'] .v3-empty-title { font-size: var(--t-14); }
+.v3-empty-reason { margin: 0; font: 400 var(--t-13) / 1.45 var(--f-ui); color: var(--ink2); text-wrap: pretty; }
+.v3-empty-word { font: 600 var(--t-11) / 1 var(--f-ui); letter-spacing: 0.08em; color: var(--ink2); margin-right: var(--sp-4); }
+.v3-empty[data-state='fault'] .v3-empty-word { color: var(--fault); }
+.v3-empty[data-state='live'] .v3-empty-word { color: var(--live); }
+.v3-empty-act { margin-left: auto; flex: none; }
+
+.v3-dotlevel { display: inline-flex; color: var(--ink2); }
+.v3-dotlevel[data-state='live'] { color: var(--live); }
+.v3-dotlevel[data-state='fault'] { color: var(--fault); }
+
+.v3-dotring { display: block; color: var(--ink2); overflow: visible; }
+.v3-dotring[data-state='live'] { color: var(--live); }
+.v3-dotring[data-state='fault'] { color: var(--fault); }
+.v3-dotring[data-state='live'] .v3-dot-on { animation: v3-art-breathe var(--d-breathe) var(--ease) infinite; }
+
+@keyframes v3-art-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@keyframes v3-art-wait { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion='full']) .v3-statefig .v3-dot-on,
+  :root:not([data-motion='full']) .v3-dotring .v3-dot-on { animation: none; }
+}
+:root[data-motion='calm'] .v3-statefig .v3-dot-on,
+:root[data-motion='calm'] .v3-dotring .v3-dot-on { animation: none; }
+
+@media (forced-colors: active) {
+  .v3-statefig,
+  .v3-dotring,
+  .v3-dotlevel { color: CanvasText; }
+  .v3-dot-off { opacity: 0.3; }
+}

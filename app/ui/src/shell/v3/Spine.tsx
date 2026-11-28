@@ -77,6 +77,8 @@ export interface SpineProps {
   onSetup?: () => void
   /** Folded to the 64 px icon rail (desktop only; the phone's sheet ignores it). */
   folded?: boolean
+  /** The fold is the person's pinned choice, not the window's automatic one (ShellV3, AUTO_RAIL_BELOW). */
+  pinned?: boolean
   onFold?: (folded: boolean) => void
   /** Phone: a choice closes the sheet. */
   onChoose?: () => void
@@ -101,7 +103,7 @@ interface Ind {
   show: boolean
 }
 
-export function Spine({ place, rows, now, onGoSection, onPlanned, onSetup, folded = false, onFold, onChoose }: SpineProps) {
+export function Spine({ place, rows, now, onGoSection, onPlanned, onSetup, folded = false, pinned = false, onFold, onChoose }: SpineProps) {
   const tiles = spineModel(place, rows)
   const nav = useRef<HTMLElement>(null)
   const [ind, setInd] = useState<Ind>({ x: 0, y: 0, w: 0, h: 0, show: false })
@@ -159,7 +161,7 @@ export function Spine({ place, rows, now, onGoSection, onPlanned, onSetup, folde
               {t.open && !t.single ? (
                 <div className="s3-head">{head}</div>
               ) : (
-                <button type="button" className="s3-head" data-project={t.project.id} aria-current={t.current ? 'page' : undefined}
+                <button type="button" className="s3-head" data-project={t.project.id} aria-current={t.current ? 'page' : undefined} data-fly={t.project.name}
                   aria-label={`${t.project.name}, ${t.stateText}`} title={folded ? `${t.project.name}, ${t.stateText}` : t.stateText} onClick={() => go(t.project.sections[0])}>{head}</button>
               )}
               {t.open && !t.single && (
@@ -168,7 +170,7 @@ export function Spine({ place, rows, now, onGoSection, onPlanned, onSetup, folde
                   <ul className="s3-slot">
                     {t.sections.map((s) => (
                       <li key={s.id}>
-                        <button type="button" className="s3-item" data-section={s.id} aria-current={s.current ? 'page' : undefined}
+                        <button type="button" className="s3-item" data-section={s.id} aria-current={s.current ? 'page' : undefined} data-fly={s.label}
                           aria-keyshortcuts={s.hint?.replace(' ', '+')} aria-label={s.label} title={s.hint ? `${s.label} (${s.hint})` : s.label} onClick={() => go(s.id)}>
                           <SectionIcon id={s.id} />
                           <span>{s.label}</span>
@@ -178,7 +180,7 @@ export function Spine({ place, rows, now, onGoSection, onPlanned, onSetup, folde
                     ))}
                     {t.extras.map((x) => x.place === 'setup' ? (
                       <li key={x.id}>
-                        <button type="button" className="s3-item" data-section={x.id} aria-current={isSetupPlace(place) ? 'page' : undefined}
+                        <button type="button" className="s3-item" data-section={x.id} aria-current={isSetupPlace(place) ? 'page' : undefined} data-fly={x.label}
                           aria-keyshortcuts="Alt+6" aria-label={x.label} title={`${x.label} (Alt 6): ${x.sentence}`}
                           onClick={() => {
                             onSetup?.()
@@ -191,7 +193,7 @@ export function Spine({ place, rows, now, onGoSection, onPlanned, onSetup, folde
                       </li>
                     ) : (
                       <li key={x.id}>
-                        <button type="button" className="s3-item s3-extra" data-extra={x.id} data-state="planned" aria-haspopup="dialog"
+                        <button type="button" className="s3-item s3-extra" data-extra={x.id} data-state="planned" aria-haspopup="dialog" data-fly={`${x.label}, planned`}
                           aria-label={`${x.label}, planned. ${x.sentence}`} title={`${x.label}: ${x.sentence}`}
                           onClick={() => {
                             if (x.plannedId) onPlanned?.(x.plannedId)
@@ -211,9 +213,11 @@ export function Spine({ place, rows, now, onGoSection, onPlanned, onSetup, folde
         })}
       </nav>
       <button type="button" className="s3-key s3-fold" aria-pressed={folded} aria-label={folded ? 'Unfold the sidebar' : 'Fold the sidebar to icons'}
+        data-fly={folded ? (pinned ? 'Unfold (folded by you)' : 'Unfold (folded for this width)') : undefined}
         title={folded ? 'Unfold the sidebar' : 'Fold the sidebar to icons'} onClick={() => onFold?.(!folded)}>
         <FoldGlyph folded={folded} />
         <span>Fold</span>
+        <small>{pinned ? 'PINNED' : 'AUTO'}</small>
       </button>
     </aside>
   )

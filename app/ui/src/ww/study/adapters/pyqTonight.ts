@@ -25,7 +25,9 @@ export interface Why { daysLeft: number | null; marksWeight: number | null; shar
 /** A mark he typed (R-58): his, with the maximum the engine holds for the question. */
 export interface SheetMark { got: number; max: number; minutes: number | null; at: string }
 export interface SheetItem {
-  n: number; questionId: string; marks: number; unit: number | null; topic: string; topicKey: string
+  /** null only when the question's marks are not printed (a question bank, wave EW11): then marksNotPrinted is true and R-58 needs his out_of. */
+  n: number; questionId: string; marks: number | null; unit: number | null; topic: string; topicKey: string
+  marksNotPrinted?: boolean
   text: string
   /** The path of the page crop when the question is a picture (read with the token, never an <img src>). */
   crop: string | null
@@ -37,8 +39,9 @@ export interface TonightSettings { on: boolean; hour: string; count: number; hor
 export interface AwaitingRow { id: string; date: string; subject: string; unmarked: number }
 export interface NextPaper { subject: string; title: string; date: string; daysLeft: number }
 export interface TonightView { sheet: Sheet | null; awaiting: AwaitingRow[]; settings: TonightSettings | null; nextPapers: NextPaper[] }
-export interface MarksSaved { sheet: Sheet | null; saved: number; total: { got: number; max: number } | null; markedBy: string }
-export interface MarkInput { questionId: string; got: number; minutes?: number }
+export interface MarksSaved { sheet: Sheet | null; saved: number; total: { got: number; max: number } | null; markedBy: string; keptMarks?: string[] }
+/** outOf and keep only for a question whose marks are not printed: outOf his own number (1 to 100), keep to remember it as the question's marks. */
+export interface MarkInput { questionId: string; got: number; minutes?: number; outOf?: number; keep?: boolean }
 export interface SettingsPatch { on?: boolean; hour?: string; count?: number; horizonDays?: number }
 
 export interface LedgerRow {
@@ -100,9 +103,11 @@ export function sheetMark(m: unknown): SheetMark | null {
 export function sheetItem(i: R): SheetItem | null {
   const q = str(i.question_id)
   const marks = num(i.marks)
-  if (!q || marks === null) return null
+  // marks null is kept only when the engine says why (marks_note "marks not printed", R-57 since wave EW11); any other gap is dropped
+  const notPrinted = marks === null && str(i.marks_note) === 'marks not printed'
+  if (!q || (marks === null && !notPrinted)) return null
   return {
-    n: num(i.n) ?? 0, questionId: q, marks, unit: num(i.unit), topic: str(i.topic), topicKey: str(i.topic_key),
+    n: num(i.n) ?? 0, questionId: q, marks, marksNotPrinted: notPrinted, unit: num(i.unit), topic: str(i.topic), topicKey: str(i.topic_key),
     text: str(i.text), crop: str(i.crop) || null, why: whyOf(i.why), mark: sheetMark(i.mark),
   }
 }
@@ -237,11 +242,14 @@ export function createTonightClient(deps: TonightClientDeps): TonightClient {
       return envelope(e, () => sheet, true)
     }),
     saveMarks: (sheetId, items) => call(async (s) => {
-      const body = { items: items.map((m) => ({ question_id: m.questionId, got: m.got, ...(m.minutes !== undefined ? { minutes: m.minutes } : {}) })) }
+      const body = { items: items.map((m) => ({
+        question_id: m.questionId, got: m.got, ...(m.minutes !== undefined ? { minutes: m.minutes } : {}),
+        ...(m.outOf !== undefined ? { out_of: m.outOf } : {}), ...(m.outOf !== undefined && m.keep !== undefined ? { keep: m.keep } : {}),
+      })) }
       const e = await sendJson<Env>(`${BASE_T}/${enc(sheetId)}/marks`, 'POST', body, s)
       const t = e.total && typeof e.total === 'object' ? (e.total as R) : null
       return envelope(e, () => ({
-        sheet: sheetOf(e.sheet), saved: num(e.saved) ?? 0, markedBy: str(e.marked_by),
+        sheet: sheetOf(e.sheet), saved: num(e.saved) ?? 0, markedBy: str(e.marked_by), keptMarks: Array.isArray(e.kept_marks) ? e.kept_marks.filter((x): x is string => typeof x === 'string') : [],
         total: t && num(t.got) !== null && num(t.max) !== null ? { got: num(t.got) as number, max: num(t.max) as number } : null,
       }))
     }),

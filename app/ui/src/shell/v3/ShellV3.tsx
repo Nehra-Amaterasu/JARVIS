@@ -10,7 +10,7 @@
  * wrapper that held both would make a new backdrop root and the blur would see nothing. Only the ground blurs; the spine, the
  * top plate, the trays and the dock carry a tint.
  */
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type RefObject } from 'react'
 import { Toasts } from '../../components/Shell'
 import { useNow } from '../../lib/format'
 import { useStore } from '../../lib/store'
@@ -60,14 +60,115 @@ export function goSetup(): void {
   useShell.getState().go(setupPlace())
 }
 
-/** The spine's fold (168 px full, 64 px icon rail) is a per-person convenience: kept in localStorage, never needed to render. */
+/** The spine's fold (184 px full, 64 px icon rail) is a per-person convenience: kept in localStorage, never needed to render.
+ *  Since 28 Nov the key holds a PIN: 'rail' or 'full' when the person chose one that differs from the automatic fold below,
+ *  absent when the sidebar follows the window. */
 export const SPINE_KEY = 'app.spine'
-function spineFolded(): boolean {
+type SpinePin = 'rail' | 'full' | null
+function spinePin(): SpinePin {
   try {
-    return localStorage.getItem(SPINE_KEY) === 'rail'
+    const v = localStorage.getItem(SPINE_KEY)
+    return v === 'rail' || v === 'full' ? v : null
   } catch {
-    return false
+    return null
   }
+}
+
+/**
+ * Below this window width the spine folds to its rail by itself (V1, 28 Nov). Measured from the grid, not guessed: the three
+ * trays split the canvas 1.85 : 1.05 : .95 after the main padding (16 px), the zones padding (16) and two gaps (28). With the
+ * 184 px spine at 1366 px the third tray is (1366 - 184 - 60) x .95 / 3.85 = 277 px, under the 288 px (18rem) a third tray
+ * needs for a row with its state word and a key; at 1420 it is 290. With the 64 px rail at 1366 it is 306. So the rail is the
+ * default on the owner's 1366 x 768 screen and the full spine returns from 1420 px up, unless the sidebar is pinned.
+ */
+export const AUTO_RAIL_BELOW = 1420
+/** Under this window height the top plate stays slim (one 44 px line) whatever the scroll: a 768 px screen maximised leaves about 720. */
+export const SLIM_PLATE_BELOW_HEIGHT = 760
+
+function useWindowSize(): { w: number; h: number } {
+  const read = () => (typeof window === 'undefined' ? { w: 1600, h: 900 } : { w: window.innerWidth, h: window.innerHeight })
+  const [size, setSize] = useState(read)
+  useEffect(() => {
+    let raf = 0
+    const on = () => {
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        setSize((o) => {
+          const n = read()
+          return o.w === n.w && o.h === n.h ? o : n
+        })
+      })
+    }
+    window.addEventListener('resize', on)
+    return () => {
+      window.removeEventListener('resize', on)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [])
+  return size
+}
+
+/** The accent scheme (design reset, 28 Nov): 'one' accent for the whole System (default) or one 'project' accent each. The
+ *  fragment `accent=one|project` sets and stores it, so the owner can compare the two from pictures. */
+export const ACCENT_KEY = 'app.accent'
+export type AccentScheme = 'one' | 'project'
+export function accentScheme(): AccentScheme {
+  try {
+    // lib/api.ts wipes the fragment after reading its token, before this lazy chunk runs; the navigation entry still holds
+    // the URL the page was opened with (the same recovery as shell/look.ts)
+    let hash = typeof location === 'undefined' ? '' : location.hash
+    if (!/accent=/.test(hash)) {
+      const nav = typeof performance === 'undefined' ? undefined : (performance.getEntriesByType?.('navigation')[0] as PerformanceNavigationTiming | undefined)
+      const i = nav?.name.indexOf('#') ?? -1
+      if (nav && i >= 0) hash = nav.name.slice(i)
+    }
+    const m = /(?:^|[#&])accent=(one|project)(?![\w-])/.exec(hash)
+    if (m) {
+      localStorage.setItem(ACCENT_KEY, m[1])
+      return m[1] as AccentScheme
+    }
+    return localStorage.getItem(ACCENT_KEY) === 'project' ? 'project' : 'one'
+  } catch {
+    return 'one'
+  }
+}
+
+/**
+ * The top plate compresses when the view's content is scrolled: a scroll anywhere inside the stage (a tray body, a view's own
+ * list, the canvas) past 24 px makes it slim, and it opens again when that scroller is back at its top. Listened for on the
+ * stage in the capture phase (scroll does not bubble), throttled to one read a frame, and reset on every place change.
+ */
+function useScrolledStage(stage: RefObject<HTMLElement | null>, placeKey: string): boolean {
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    setScrolled(false)
+    const el = stage.current
+    if (!el) return
+    let raf = 0
+    let last: HTMLElement | null = null
+    const read = () => {
+      raf = 0
+      const t = last
+      if (!t) return
+      const top = t.scrollTop
+      setScrolled((was) => (was ? top > 0 : top > 24))
+    }
+    const on = (e: Event) => {
+      const t = e.target
+      if (!(t instanceof HTMLElement)) return
+      // a sideways scroller (a strip of keys) is not a scroll of the page's content
+      if (t.scrollHeight <= t.clientHeight + 1) return
+      last = t
+      if (!raf) raf = requestAnimationFrame(read)
+    }
+    el.addEventListener('scroll', on, { capture: true, passive: true })
+    return () => {
+      el.removeEventListener('scroll', on, { capture: true })
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [stage, placeKey])
+  return scrolled
 }
 
 /** Alt with the arrows (3.5): Up and Down walk the ten sections in spine order, Left and Right the views of the section.
@@ -169,7 +270,14 @@ function Frame({ pages, wwRoot, verbs, serverUp, frame }: ShellV3Props) {
   const [ww, setWw] = useState<WwShellBridge | null>(null)
   const [glass, setGlassOn] = useState(glassEnabled)
   const [deck, setDeck] = useState(false)
-  const [folded, setFolded] = useState(spineFolded)
+  const [pin, setPin] = useState<SpinePin>(spinePin)
+  const [accent, setAccentState] = useState<AccentScheme>(accentScheme)
+  const win = useWindowSize()
+  const autoRail = win.w < AUTO_RAIL_BELOW
+  const folded = pin ? pin === 'rail' : autoRail
+  const stageRef = useRef<HTMLDivElement>(null)
+  const scrolled = useScrolledStage(stageRef, `${place.section}/${place.view}`)
+  const slim = scrolled || win.h < SLIM_PLATE_BELOW_HEIGHT
   const now = useNow(15_000)
   const open = subProjectOfPlace(place)
   const ground = open?.ground ?? (product === 'ww' ? 'light' : 'dark')
@@ -195,14 +303,32 @@ function Frame({ pages, wwRoot, verbs, serverUp, frame }: ShellV3Props) {
     return () => html.removeAttribute('data-hue')
   }, [hue])
 
-  const onFold = useCallback((on: boolean) => {
-    setFolded(on)
+  useLayoutEffect(() => {
+    const html = document.documentElement
+    html.setAttribute('data-accent', accent)
+    return () => html.removeAttribute('data-accent')
+  }, [accent])
+  const onAccent = useCallback((next: AccentScheme) => {
+    setAccentState(next)
     try {
-      localStorage.setItem(SPINE_KEY, on ? 'rail' : 'full')
+      localStorage.setItem(ACCENT_KEY, next)
+    } catch {
+      /* storage blocked: the choice holds for this load */
+    }
+  }, [])
+
+  // the fold key always does what it shows; the choice is kept as a pin only while it differs from what the window would
+  // choose, so folding back to the automatic state returns the sidebar to automatic
+  const onFold = useCallback((on: boolean) => {
+    const next: SpinePin = on === autoRail ? null : on ? 'rail' : 'full'
+    setPin(next)
+    try {
+      if (next) localStorage.setItem(SPINE_KEY, next)
+      else localStorage.removeItem(SPINE_KEY)
     } catch {
       /* storage blocked: the fold still holds for this load */
     }
-  }, [])
+  }, [autoRail])
 
   // the clay theme and product belong to <html>, as in the current shell (same observer, same reason)
   useLayoutEffect(() => {
@@ -308,17 +434,22 @@ function Frame({ pages, wwRoot, verbs, serverUp, frame }: ShellV3Props) {
   // fragment look=off, kept for tests and for the owner's own debugging
   const more = useMemo<MoreAction[]>(() => [...(chrome?.more ?? [])], [chrome?.more])
   const windowKeys = typeof window !== 'undefined' && !!window.pywebview
+  // the ground is frosted only when the host says the window itself is translucent (window.jarvisHost.glass); in a plain browser
+  // or a host that cannot make the window transparent there is nothing behind it to show, and a translucent ground over the page's
+  // own black was a muddy grey (28 Nov pictures), so the ground is opaque there
+  const translucent = glass && typeof window !== 'undefined' && window.jarvisHost?.glass === true
   return (
-    <div className="s2 s3" data-shell="v2" data-product={product} data-project={hue} data-ground={ground} data-glass={glass ? 'on' : 'off'} data-deck={deck ? 'open' : 'closed'} data-spine={folded ? 'rail' : 'full'}>
+    <div className="s2 s3" data-shell="v2" data-product={product} data-project={hue} data-ground={ground} data-glass={glass ? 'on' : 'off'} data-deck={deck ? 'open' : 'closed'}
+      data-spine={folded ? 'rail' : 'full'} data-spine-pin={pin ? 'pinned' : 'auto'} data-plate={slim ? 'slim' : 'full'} data-window={translucent ? 'translucent' : 'opaque'}>
       <div className="s3-ground" aria-hidden="true"
         style={glass ? { backdropFilter: 'var(--glass-filter, none)', WebkitBackdropFilter: 'var(--glass-filter, none)' } : undefined} />
       <SkipLink />
       <Slot name="boot" />
-      <Spine place={place} rows={rows} now={now} onGoSection={goSection} onPlanned={openPlanned} onSetup={goSetup} folded={folded} onFold={onFold} onChoose={() => setDeck(false)} />
+      <Spine place={place} rows={rows} now={now} onGoSection={goSection} onPlanned={openPlanned} onSetup={goSetup} folded={folded} pinned={!!pin} onFold={onFold} onChoose={() => setDeck(false)} />
       <div className="s3-main">
-        <TopPlate place={place} rows={rows} more={more} glass={glass} onGlass={onGlass} onGoSection={goSection} onSetView={setView} onSetup={goSetup}
+        <TopPlate place={place} rows={rows} more={more} glass={glass} onGlass={onGlass} accent={accent} onAccent={onAccent} slim={slim} onGoSection={goSection} onSetView={setView} onSetup={goSetup}
           onShortcuts={() => useShell.getState().openOverlay('shortcuts')} windowKeys={windowKeys} />
-        <div className="s3-stage">
+        <div className="s3-stage" ref={stageRef}>
           {isSetupPlace(place) ? (
             <main className="s2-canvas" id="s2-canvas" tabIndex={-1} aria-label="Setup">
               <div className="s2-page" id="s2-panel" data-product="ww" data-section="app" data-view="setup">

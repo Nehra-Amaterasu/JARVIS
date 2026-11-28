@@ -12,3 +12,6 @@ export type { DialProps, FormProps } from './Forms'
 export { Sigil, Mark } from './Marks'
 export type { SigilProps, MarkProps, MarkKind } from './Marks'
 // Wall (the demo backdrop, colour literals) is a gallery fixture: import it from './Wall' directly, never through this barrel.
+// The character art of the design reset (28 Nov): dot-matrix marks, state figures, the empty pose, and two readers of real values.
+export { DotGlyph, DotMark, StateFigure, EmptyPose, DotLevel, DotRing, DOT_MARKS, stateRows, litCount } from './Art'
+export type { DotRows, DotGlyphProps, DotMarkKind, DotMarkProps, StateFigureProps, EmptyPoseProps, DotLevelProps, DotRingProps } from './Art'

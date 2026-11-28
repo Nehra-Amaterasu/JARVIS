@@ -7,10 +7,23 @@ Since 25 Nov v3 is the ONE look and the default: `shell/look.ts` is on unless th
 build sets `VITE_LOOK_DEFAULT=off` (vitest and the e2e bundle do, because the older tests are written against the older frame, which
 stays in the code as a fixture). Nothing in the interface switches the look. `ShellV2.tsx` takes one branch to `ShellV3`.
 
-**Hues (25 Nov).** `ShellV3` puts `data-hue="jarvis|aankhen|yadaash|wellwisher"` on `<html>` (and `data-project` on `.s3`). Tokens for a view
-to use: `--hue` (the open project's colour), `--hue-lo`, `--acc-soft` (12 percent tint), `--acc-ground` (4), `--acc-tray` (5),
-`--acc-tray-1` (8), `--hue-<project>` and `--hue-<project>-lo` for a named project, and the existing `--accent`, `--accent-a`,
-`--accent-b`, `--on-accent` which now follow the open project (JARVIS keeps its orange). A hue is never a state colour.
+**The design reset (28 Nov), read this first.** `docs/design/design-reset-1128.md` holds the rules every view inherits: monochrome
+first (one ground, ONE tray surface, one raised step, no gradient fill, no tint, no glow), colour as a signal (the accent only as a
+dot, a 2 px rule, the one primary key, a live value or a selected mark), the strict type scale (11 12 13 14 16 20 28, Inter and
+Geist Mono), and the character art (`shared/kit/v3/Art.tsx`: `DotMark`, `StateFigure`, `EmptyPose`, `DotLevel`, `DotRing`). The
+values come from one file, `styles/design/v3/glass.css`, which `shell-v3-tokens.css` imports. The specimen is the gallery entry
+`v3/Reset`.
+
+**Accent (28 Nov).** `ShellV3` puts `data-hue="jarvis|aankhen|yadaash|wellwisher"` and `data-accent="one|project"` on `<html>`.
+Scheme `one` (default) is one amber for the whole System; scheme `project` gives each project one signal accent. A view reads
+`--accent`, `--on-accent` and `--live` and never a project's name. The 25 Nov names still resolve, neutral: `--acc-ground`,
+`--acc-tray`, `--acc-tray-1` are transparent, `--acc-soft` is the ink at 8 percent (a selected row), `--hue` is the accent (a
+selected mark). Do not add a tint back: `src/__tests__/shell/v3/css.test.ts` and `e2e/design-reset.spec.ts` fail on one.
+
+**Chrome (28 Nov, V1).** The spine folds to its 64 px rail by itself below 1420 px (`AUTO_RAIL_BELOW`) unless pinned
+(`data-spine-pin`); the top plate is 56 px and slims to 44 (`data-plate="slim"`) when anything in the stage is scrolled or the window
+is under 760 px tall; the dock is a 44 px line that opens on hover, focus and "/" without changing height; every tray body scrolls
+its own content with a soft edge (`useScrollEdges`, exported from `Tray.tsx`, for a view's own scroller too).
 
 ## What the shell gives a view
 

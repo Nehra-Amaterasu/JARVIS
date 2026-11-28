@@ -22,7 +22,8 @@ describe('shell-v3.css', () => {
     expect(sheet).not.toMatch(/transition(-property)?\s*:\s*all\b/)
     for (const m of sheet.matchAll(/transition\s*:\s*([^;}]+)[;}]/g)) {
       if (/^\s*none\s*$/.test(m[1])) continue
-      for (const part of m[1].split(/,(?![^(]*\))/)) expect(part.trim(), m[0]).toMatch(/^(background-color|background|box-shadow|transform|opacity|color)\s/)
+      // 28 Nov: the tray body's soft edge transitions its two registered lengths (--s3-fade-t, --s3-fade-b), still named, never all
+      for (const part of m[1].split(/,(?![^(]*\))/)) expect(part.trim(), m[0]).toMatch(/^(background-color|background|box-shadow|transform|opacity|color|--s3-fade-[tb])\s/)
     }
   })
   it('writes no pixel literal for font-size, border-radius, padding, margin or gap (rem), 0 and 1 px excepted', () => {
@@ -53,148 +54,73 @@ describe('shell-v3.css', () => {
   })
 })
 
-describe('contrast floors of spec 2.7, recomputed from the token file', () => {
-  const lin = (c: number) => ((c /= 255) <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
-  const lum = (rgb: number[]) => 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2])
-  const ratio = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
-  const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16))
-  const over = (tint: number[], a: number, back: number) => tint.map((c) => c * a + back * (1 - a))
-  const prop = (block: string, name: string) => block.match(new RegExp(`${name}:\\s*([^;]+);`))![1].trim()
-  const dark = tokens.slice(tokens.indexOf(":root:where([data-look='v3']) {"), tokens.indexOf(":root:where([data-look='v3'][data-theme='clay-light'])"))
-  const light = tokens.slice(tokens.indexOf(":root:where([data-look='v3'][data-theme='clay-light'])"), tokens.indexOf(":root:where([data-look='v3'][data-host]"))
-  const host = tokens.slice(tokens.indexOf(":root:where([data-look='v3'][data-host]"), tokens.indexOf("[data-glass='off']"))
-  const rgb = (block: string, name: string) => prop(block, name).split(',').map((n) => Number(n))
+// 28 Nov, the design reset (docs/design/design-reset-1128.md). The contrast floors of spec 2.7 and the 25 Nov project hues were
+// tested here against the copy of the ground values this file used to hold. That copy is gone: shell-v3-tokens.css imports the
+// one token file (styles/design/v3/glass.css), and src/__tests__/v3/tokens-v3.test.ts recomputes every floor from it, on both
+// grounds and for both accent schemes. What this file holds now is the reset's own rules for the shell: the one source of the
+// values, the neutral names the views read, no gradient fill and no tint in the chrome, the accent used only as a signal, the
+// tray body that scrolls, and the chrome sizes that give room back.
+describe('the design reset in the shell (28 Nov)', () => {
+  const raw = readFileSync(join(DIR, 'shell-v3-tokens.css'), 'utf8')
+  const rules = [...sheet.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ sel: m[1].trim(), body: m[2] }))
+  const block = (sel: string) => {
+    const r = rules.find((x) => x.sel === sel)
+    expect(r, sel).toBeTruthy()
+    return r!.body
+  }
 
-  it('dark ground in the desktop host (no brightness term), worst backdrop white: ink2 on ground and spine is at least 4.5 to 1', () => {
-    const ga = Number(prop(host, '--ga'))
-    const sa = Number(prop(host, '--sa'))
-    const ground = over(rgb(dark, '--ground-rgb'), ga, 255)
-    const spine = over(rgb(dark, '--spine-rgb'), sa, 255)
-    const ink2 = lum(hex(prop(dark, '--ink2')))
-    expect(ratio(ink2, lum(ground))).toBeGreaterThanOrEqual(4.5)
-    expect(ratio(ink2, lum(spine))).toBeGreaterThanOrEqual(4.5)
-    expect(ratio(lum(hex(prop(dark, '--ink'))), lum(spine))).toBeGreaterThanOrEqual(4.5)
+  it('takes every material value from the one token file, and keeps no copy of a ground', () => {
+    expect(raw.trimStart()).toMatch(/^\/\*[\s\S]*?\*\/\s*@import '\.\.\/\.\.\/styles\/design\/v3\/glass\.css';/)
+    expect(tokens).not.toMatch(/--(ground|tray|trayn|trayl|spine|well)-rgb:/)
+    expect(tokens).not.toMatch(/--ink2?:/)
   })
-  it('dark ground in a plain browser (brightness .5 lowers a white backdrop to 128): ink2 is at least 4.5 to 1', () => {
-    const ground = over(rgb(dark, '--ground-rgb'), Number(prop(dark, '--ga')), 128)
-    const spine = over(rgb(dark, '--spine-rgb'), Number(prop(dark, '--sa')), 128)
-    const ink2 = lum(hex(prop(dark, '--ink2')))
-    expect(ratio(ink2, lum(ground))).toBeGreaterThanOrEqual(4.5)
-    expect(ratio(ink2, lum(spine))).toBeGreaterThanOrEqual(4.5)
+  it('makes the names the views read neutral: no tint on a ground or a tray, a selected row in ink, a selected mark in the accent', () => {
+    const where = tokens.slice(tokens.indexOf('--hue: var(--accent)'))
+    expect(where).toMatch(/--acc-ground:\s*transparent;/)
+    expect(where).toMatch(/--acc-tray:\s*transparent;/)
+    expect(where).toMatch(/--acc-tray-1:\s*transparent;/)
+    expect(where).toMatch(/--acc-soft:\s*color-mix\(in srgb, var\(--ink\) 8%, transparent\);/)
+    // the 25 Nov hue per project is gone from the shell: no channels, no per-project accent block
+    expect(tokens).not.toMatch(/--hue-(jarvis|aankhen|yadaash|wellwisher)/)
+    expect(tokens).not.toMatch(/\[data-hue=/)
   })
-  it('light ground, worst backdrop black: ink2 on the ground and ink on the first tray are at least 4.5 to 1', () => {
-    const ground = over(rgb(light, '--ground-rgb'), Number(prop(light, '--ga')), 0)
-    expect(ratio(lum(hex(prop(light, '--ink2'))), lum(ground))).toBeGreaterThanOrEqual(4.5)
-    const tray = over(rgb(light, '--trayn-rgb'), Number(prop(light, '--tna')), 0)
-    expect(ratio(lum(hex(prop(light, '--ink'))), lum(tray))).toBeGreaterThanOrEqual(4.5)
+  it('draws no gradient fill and no glow anywhere in the chrome: the only gradient is the mask of the tray body soft edge', () => {
+    expect(sheet).not.toMatch(/background-image\s*:/)
+    for (const m of sheet.matchAll(/([\w-]+)\s*:\s*[^;{}]*gradient\(/g)) expect(m[1], m[0]).toMatch(/^(-webkit-)?mask-image$/)
+    expect(sheet).not.toMatch(/--s3-glow|--acc-|--hue\b|text-shadow/)
   })
-  it('the text wells never drop below .93 and the locked label, ink3 on a well and the accent label hold 4.5 to 1', () => {
-    expect(Number(prop(dark, '--wa'))).toBeGreaterThanOrEqual(0.93)
-    expect(Number(prop(light, '--wa'))).toBeGreaterThanOrEqual(0.93)
-    const well = rgb(dark, '--well-rgb')
-    expect(ratio(lum(hex(prop(dark, '--locked'))), lum(well))).toBeGreaterThanOrEqual(4.5)
-    expect(ratio(lum(hex(prop(dark, '--ink3'))), lum(well))).toBeGreaterThanOrEqual(4.5)
-    expect(ratio(lum(hex(prop(dark, '--on-accent'))), lum(hex(prop(dark, '--accent-lo'))))).toBeGreaterThanOrEqual(4.5)
-    expect(ratio(lum(hex(prop(tokens, '--s3-kcap-ink'))), lum(hex(prop(tokens, '--s3-kcap-bg'))))).toBeGreaterThanOrEqual(4.5)
+  it('uses the accent only as a signal: a dot, a 2 px rule, the open mark, the caret, the ON switch and the flare', () => {
+    const readers = rules.filter((r) => /var\(--accent\)/.test(r.body)).map((r) => r.sel.replace(/\s+/g, ' '))
+    expect(readers.sort()).toEqual([
+      '.s3-flare',
+      ".s3-grp[data-open='true'] .s3-pi",
+      '.s3-item i',
+      ".s3-seg button[aria-current='page']::before",
+      ".s3-switch[aria-checked='true'] .s3-track::after",
+      '.s3-wellin input',
+      ".s3[data-spine='rail'] .s3-item[aria-current='page']::before",
+    ].sort())
+    // each of them is small: a 6 px dot, a 2 px rule, a 20 px thumb, an inset 2 px edge, a caret, a 24 px mark
+    expect(block('.s3-item i')).toMatch(/width: 6px; height: 6px/)
+    expect(block(".s3[data-spine='rail'] .s3-item[aria-current='page']::before")).toMatch(/width: 2px/)
+    expect(block('.s3-flare')).toMatch(/box-shadow: inset 0 0 0 2px var\(--accent\)/)
   })
-  it('glass off sets every alpha to 1 and the filter to none', () => {
-    const off = tokens.slice(tokens.indexOf("[data-glass='off']"), tokens.indexOf('@supports'))
-    for (const a of ['--ga', '--sa', '--ta', '--tna', '--tla', '--wa']) expect(prop(off, a), a).toBe('1')
-    expect(prop(off, '--glass-filter')).toBe('none')
+  it('every tray body scrolls its own content, with a soft edge only on the side that has more', () => {
+    const body = block('.s3-body')
+    expect(body).toMatch(/overflow-y: auto;/)
+    expect(body).toMatch(/min-height: 0;/)
+    expect(body).toContain('mask-image: linear-gradient(to bottom, transparent 0, currentColor var(--s3-fade-t), currentColor calc(100% - var(--s3-fade-b)), transparent 100%)')
+    expect(block(".s3-body[data-more-up='1']")).toMatch(/--s3-fade-t: 1\.5rem/)
+    expect(block(".s3-body[data-more-down='1']")).toMatch(/--s3-fade-b: 1\.5rem/)
+    expect(sheet).toMatch(/@property --s3-fade-t/)
   })
-})
-
-// 25 Nov: one hue per project, as tokens, with the contrast of the text that sits on a tinted ground recomputed here.
-describe('project hues', () => {
-  const lin = (c: number) => ((c /= 255) <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
-  const lum = (rgb: number[]) => 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2])
-  const ratio = (a: number[], b: number[]) => (Math.max(lum(a), lum(b)) + 0.05) / (Math.min(lum(a), lum(b)) + 0.05)
-  const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16))
-  const over = (tint: number[], a: number, back: number[]) => tint.map((c, i) => c * a + back[i] * (1 - a))
-  const prop = (block: string, name: string) => block.match(new RegExp(`${name}:\\s*([^;]+);`))![1].trim()
-  const channels = (v: string) => v.split(',').map((n) => Number(n))
-  const IDS = ['jarvis', 'aankhen', 'yadaash', 'wellwisher'] as const
-  // the first four --hue-*-rgb are the dark ground's, the next four the light ground's (file order)
-  const all = [...tokens.matchAll(/--hue-(jarvis|aankhen|yadaash|wellwisher)-rgb:\s*([^;]+);/g)].map((m) => [m[1], channels(m[2])] as const)
-  const darkHue = Object.fromEntries(all.slice(0, 4)) as Record<(typeof IDS)[number], number[]>
-  const lightHue = Object.fromEntries(all.slice(4, 8)) as Record<(typeof IDS)[number], number[]>
-  const dark = tokens.slice(tokens.indexOf(":root:where([data-look='v3']) {"), tokens.indexOf(":root:where([data-look='v3'][data-theme='clay-light'])"))
-  const light = tokens.slice(tokens.indexOf(":root:where([data-look='v3'][data-theme='clay-light']) {"), tokens.indexOf(":root:where([data-look='v3'][data-host]"))
-  const host = tokens.slice(tokens.indexOf(":root:where([data-look='v3'][data-host]"), tokens.indexOf("[data-glass='off']"))
-  const rgb = (block: string, name: string) => channels(prop(block, name))
-  const hues = tokens.slice(tokens.indexOf('--hue-jarvis-rgb'))
-  const WHITE = [255, 255, 255]
-  const BLACK = [0, 0, 0]
-
-  it('gives every project a hue on both grounds, and the tint steps are the stated ones', () => {
-    expect(all).toHaveLength(8)
-    expect(Object.keys(darkHue).sort()).toEqual([...IDS].sort())
-    expect(prop(hues, '--acc-ground')).toBe('rgba(var(--hue-rgb), 0.04)')
-    expect(prop(hues, '--acc-tray')).toBe('rgba(var(--hue-rgb), 0.05)')
-    expect(prop(hues, '--acc-tray-1')).toBe('rgba(var(--hue-rgb), 0.08)')
-    expect(prop(hues, '--acc-soft')).toBe('rgba(var(--hue-rgb), 0.12)')
-  })
-
-  it('DARK ground, worst backdrop white in the desktop host: text holds 4.5 to 1 on the ground, the spine and the first tray with the hue laid over', () => {
-    const ink2 = hex(prop(dark, '--ink2'))
-    const ink = hex(prop(dark, '--ink'))
-    const ga = Number(prop(host, '--ga'))
-    const sa = Number(prop(host, '--sa'))
-    for (const id of ['jarvis', 'aankhen', 'yadaash'] as const) {
-      const h = darkHue[id]
-      const ground = over(h, 0.04, over(rgb(dark, '--ground-rgb'), ga, WHITE))
-      const spine = over(h, 0.05, over(rgb(dark, '--spine-rgb'), sa, WHITE))
-      const first = over(h, 0.08, over(rgb(dark, '--trayn-rgb'), Number(prop(dark, '--tna')), WHITE))
-      expect(ratio(ink2, ground), `${id} ground`).toBeGreaterThanOrEqual(4.5)
-      expect(ratio(ink2, spine), `${id} spine`).toBeGreaterThanOrEqual(4.5)
-      expect(ratio(ink, first), `${id} first tray`).toBeGreaterThanOrEqual(4.5)
-    }
-  })
-  it('DARK ground in a plain browser (backdrop 128): the open project mark holds 3 to 1 on the spine', () => {
-    const spine = over(rgb(dark, '--spine-rgb'), Number(prop(dark, '--sa')), [128, 128, 128])
-    for (const id of ['jarvis', 'aankhen', 'yadaash'] as const) expect(ratio(darkHue[id], spine), id).toBeGreaterThanOrEqual(3)
-  })
-  it('LIGHT ground, worst backdrop black: ink and ink2 hold 4.5 to 1 on the tinted ground, tray and first tray; the mark holds 3 to 1 on the first tray', () => {
-    const h = lightHue.wellwisher
-    const ground = over(h, 0.04, over(rgb(light, '--ground-rgb'), Number(prop(light, '--ga')), BLACK))
-    const tray = over(h, 0.05, over(rgb(light, '--tray-rgb'), Number(prop(light, '--ta')), BLACK))
-    const first = over(h, 0.08, over(rgb(light, '--trayn-rgb'), Number(prop(light, '--tna')), BLACK))
-    expect(ratio(hex(prop(light, '--ink2')), ground)).toBeGreaterThanOrEqual(4.5)
-    expect(ratio(hex(prop(light, '--ink')), tray)).toBeGreaterThanOrEqual(4.5)
-    expect(ratio(hex(prop(light, '--ink')), first)).toBeGreaterThanOrEqual(4.5)
-    expect(ratio(h, rgb(light, '--trayn-rgb'))).toBeGreaterThanOrEqual(3)
-  })
-
-  it('the label on every accent fill, and on every key cap, holds 4.5 to 1', () => {
-    for (const id of ['aankhen', 'yadaash', 'wellwisher']) {
-      const i = hues.indexOf(`:root[data-look='v3'][data-hue='${id}']`)
-      expect(i, id).toBeGreaterThan(-1)
-      const block = hues.slice(i, hues.indexOf('\n}', i))
-      expect(ratio(hex(prop(block, '--on-accent')), hex(prop(block, '--accent'))), `${id} label`).toBeGreaterThanOrEqual(4.5)
-      expect(ratio(hex(prop(block, '--on-accent')), hex(prop(block, '--accent-b'))), `${id} label on the pressed end`).toBeGreaterThanOrEqual(4.5)
-      expect(ratio(hex(prop(block, '--cap-ink')), hex(prop(block, '--cap-fill'))), `${id} cap`).toBeGreaterThanOrEqual(4.5)
-      expect(ratio(hex(prop(block, '--s3-kcap-ink')), hex(prop(block, '--s3-kcap-bg'))), `${id} s3 cap`).toBeGreaterThanOrEqual(4.5)
-    }
-  })
-
-  it('a hue is not a state colour: each of the four sits at least 20 degrees from the live green-teal and the simulated violet', () => {
-    const hsl = (c: number[]) => {
-      const [r, g, b] = c.map((x) => x / 255)
-      const mx = Math.max(r, g, b)
-      const d = mx - Math.min(r, g, b)
-      if (!d) return 0
-      const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4
-      return (h * 60 + 360) % 360
-    }
-    const gap = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b))
-    for (const [set, ground] of [[darkHue, dark], [lightHue, light]] as const) {
-      const live = hsl(hex(prop(ground, '--live')))
-      const sim = hsl(hex(prop(ground, '--sim')))
-      for (const id of IDS) {
-        expect(gap(hsl(set[id]), live), `${id} vs live`).toBeGreaterThanOrEqual(20)
-        expect(gap(hsl(set[id]), sim), `${id} vs simulated`).toBeGreaterThanOrEqual(20)
-      }
-    }
+  it('gives room back: a 56 px plate that slims to 44, a 44 px dock that never changes height when it opens', () => {
+    expect(block('.s3-top')).toMatch(/min-height: 56px/)
+    expect(block(".s3[data-plate='slim'] .s3-top")).toMatch(/min-height: 44px/)
+    expect(block('.s3-dock')).toMatch(/min-height: 44px;\s*padding: 0;/)
+    for (const r of rules.filter((x) => x.sel.includes("[data-open='true']"))) expect(r.body, r.sel).not.toMatch(/height|padding|margin|width/)
+    // the slim plate changes the title by a transform, not a font size, so the compression is drawn by the compositor
+    expect(block(".s3[data-plate='slim'] .s3-loc-s")).toMatch(/transform: scale\(0\.8\)/)
   })
 })
 
@@ -210,9 +136,12 @@ describe('the slim spine (25 Nov)', () => {
       expect(sheet.slice(i, sheet.indexOf('}', i)), sel).toMatch(/min-height:\s*44px/)
     }
   })
-  it('the tint of the ground, the trays and the first tray come from tokens', () => {
-    expect(sheet).toMatch(/\.s3-ground\s*\{[^}]*var\(--acc-ground\)/)
-    expect(sheet).toMatch(/\.s3-tray\[data-step='1'\]\s*\{[^}]*var\(--acc-tray-1\)/)
+  // 28 Nov: this test read "the tint of the ground, the trays and the first tray come from tokens"; the reset removed the
+  // tints, so it now holds the rule that replaced them: the ground and every tray are one flat colour each, no image over them
+  it('the ground and the trays are one flat colour each, from the tokens, with no image laid over them', () => {
+    expect(sheet).toMatch(/\.s3-ground\s*\{[^}]*background-color: var\(--s3-ground\)/)
+    expect(sheet).toMatch(/\.s3-tray\[data-step='1'\]\s*\{[^}]*background-color: var\(--s3-trayn\)/)
+    expect(sheet).not.toMatch(/\.s3-(ground|tray)[^{]*\{[^}]*background-image/)
   })
   it('the ruler under a tray head is not drawn, and the reading face (not mono) names jobs, captions and tabs', () => {
     expect(sheet).toMatch(/\.s3-ruler\s*\{\s*display:\s*none/)

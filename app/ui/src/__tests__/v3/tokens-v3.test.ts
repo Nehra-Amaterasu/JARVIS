@@ -53,21 +53,42 @@ describe('the token file', () => {
       expect(light[k], `light ${k}`).toBeTruthy()
     }
   })
+  // 28 Nov, the design reset: the alphas are the host values with no brightness help (ground .78 dark, .82 light), the spine
+  // sits on the ground (the same alpha) and the three tray tiers are ONE surface (one alpha)
   it('the six alphas are tokens, and the host values are the stricter ones of 2.7 on the dark ground', () => {
     for (const a of ALPHAS) expect(Number.isFinite(num(dark[a])) && Number.isFinite(num(light[a])), a).toBe(true)
-    expect([dark['--ga'], dark['--sa']]).toEqual(['0.76', '0.74'])
-    expect([dark['--ta'], dark['--tna'], dark['--tla'], dark['--wa']]).toEqual(['0.5', '0.74', '0.34', '0.93'])
-    expect([light['--ga'], light['--sa'], light['--ta'], light['--tna'], light['--tla'], light['--wa']]).toEqual(['0.76', '0.78', '0.72', '0.88', '0.58', '0.94'])
+    expect([dark['--ga'], dark['--sa']]).toEqual(['0.78', '0.78'])
+    expect([dark['--ta'], dark['--tna'], dark['--tla'], dark['--wa']]).toEqual(['0.94', '0.94', '0.94', '0.95'])
+    expect([light['--ga'], light['--sa'], light['--ta'], light['--tna'], light['--tla'], light['--wa']]).toEqual(['0.82', '0.82', '0.95', '0.95', '0.95', '0.95'])
   })
-  it('the wells stay near opaque (never below .92) and the trays grade by opacity: first > second > third', () => {
+  // 28 Nov: this test said "the trays grade by opacity: first > second > third". The reset's rule is the opposite on purpose
+  // (one tray surface; hierarchy by order, type and shadow depth), so the test now holds that, and the wells stay near opaque
+  it('the wells stay near opaque (never below .92) and the three tray tiers are one surface: one colour, one alpha', () => {
     for (const t of [dark, light]) {
       expect(num(t['--wa'])).toBeGreaterThanOrEqual(0.92)
-      expect(num(t['--tna'])).toBeGreaterThan(num(t['--ta']))
-      expect(num(t['--ta'])).toBeGreaterThan(num(t['--tla']))
+      expect(t['--tna']).toBe(t['--ta'])
+      expect(t['--tla']).toBe(t['--ta'])
+      expect(t['--trayn-rgb']).toBe(t['--tray-rgb'])
+      expect(t['--trayl-rgb']).toBe(t['--tray-rgb'])
+      expect(t['--spine-rgb']).toBe(t['--ground-rgb'])
     }
   })
+  it('monochrome first: every ground, surface and raised step is neutral (channels within 1 dark, within 5 for the warm off-white)', () => {
+    const spread = (c: RGB) => Math.max(...c) - Math.min(...c)
+    for (const [t, max] of [[dark, 1], [light, 5]] as const) {
+      for (const k of ['--ground-rgb', '--spine-rgb', '--tray-rgb', '--trayn-rgb', '--trayl-rgb', '--well-rgb']) expect(spread(triple(t[k])), k).toBeLessThanOrEqual(max)
+      for (const k of ['--pop', '--raised', '--raised-hi', '--lit-a', '--lit-b', '--gap']) expect(spread(colour(t[k]).rgb), k).toBeLessThanOrEqual(max)
+      for (const k of ['--ink', '--ink2', '--ink3', '--locked']) expect(spread(colour(t[k]).rgb), k).toBeLessThanOrEqual(5)
+    }
+  })
+  it('no gradient light and no glow: glare, sheen and the specular dot are transparent, and the accent key has no glow', () => {
+    for (const t of [dark, light]) for (const k of ['--glare', '--glare-l', '--sheen', '--sheen-spine', '--spec']) expect(t[k], k).toBe('transparent')
+    expect(dark['--accent-glow']).toBe('0 0 0 0 transparent')
+    expect(dark['--sh-accent']).toBe(dark['--sh-raise'])
+    expect(tokensCss()).not.toMatch(/gradient\(/)
+  })
   it('the shadow recipes are the spec ones and read the two light tokens: one light from the top left', () => {
-    expect(dark['--sh-raise']).toBe('-4px -4px 10px rgba(255, 255, 255, 0.075), 6px 6px 14px rgba(0, 0, 0, 0.58)')
+    expect(dark['--sh-raise']).toBe('-4px -4px 10px rgba(255, 255, 255, 0.06), 6px 6px 14px rgba(0, 0, 0, 0.6)')
     expect(dark['--sh-press']).toContain('inset 3px 3px 8px')
     for (const k of ['--sh-raise', '--sh-raise-hover', '--sh-tray', '--sh-now', '--sh-later']) {
       const first = dark[k].split(/,(?![^(]*\))/)[0].trim()
@@ -77,20 +98,26 @@ describe('the token file', () => {
   })
   it('radii, accent and motion are the spec values', () => {
     expect([dark['--rad-now'], dark['--rad-tray'], dark['--rad-plate'], dark['--rad-key'], dark['--rad-key-big'], dark['--rad-slot'], dark['--rad-cap'], dark['--rad-chip']]).toEqual(['30px', '22px', '16px', '14px', '18px', '16px', '13px', '12px'])
-    expect([dark['--accent'], dark['--accent-a'], dark['--accent-b'], dark['--on-accent']]).toEqual(['#f2591a', '#ff6e2e', '#ec5314', '#190b04'])
+    // 28 Nov: the accent of scheme A is an instrument amber (the stock orange #f2591a was named slop), rest and pressed solids
+    expect([dark['--accent'], dark['--accent-a'], dark['--accent-b'], dark['--on-accent']]).toEqual(['#edaa3a', '#edaa3a', '#e09e2e', '#1a1204'])
+    expect([light['--accent'], light['--accent-a'], light['--accent-b'], light['--on-accent']]).toEqual(['#8a5806', '#8a5806', '#7c4e04', '#fff8ec'])
     expect([dark['--d-key'], dark['--d-roll'], dark['--d-rise'], dark['--d-flare']]).toEqual(['140ms', '160ms', '500ms', '1.3s'])
     expect(dark['--ease']).toBe('cubic-bezier(0.2, 0.8, 0.2, 1)')
   })
-  it('the fault red is a cool red and the lamp colours are the spec ones', () => {
-    expect([dark['--live'], dark['--fault'], dark['--sim']]).toEqual(['#46d6c8', '#e5484d', '#b9a6ff'])
-    expect([light['--live'], light['--fault'], light['--sim']]).toEqual(['#0a7a72', '#b3261e', '#5b3fc4'])
-  })
-  it('the dark ground is cooler than the old warm grey: blue leads red in every dark tint (jury round 3)', () => {
-    for (const k of ['--ground-rgb', '--spine-rgb', '--tray-rgb', '--trayn-rgb', '--trayl-rgb', '--well-rgb']) {
-      const [r, , b] = triple(dark[k])
-      expect(b, k).toBeGreaterThan(r)
+  // 28 Nov: the states get quieter. Only FAULT keeps a colour of its own; LIVE takes the accent; SIMULATED is ink2 (its diamond
+  // and its word carry it); WAITING and PLANNED were already ink. The five shapes and words are unchanged (shared/lamp)
+  it('only the fault has a colour of its own: live is the accent and simulated is ink', () => {
+    expect([dark['--live'], dark['--fault'], dark['--sim']]).toEqual(['#edaa3a', '#ff5f57', '#b4b4af'])
+    expect([light['--live'], light['--fault'], light['--sim']]).toEqual(['#8a5806', '#b3261e', '#474743'])
+    for (const t of [dark, light]) {
+      expect(t['--live']).toBe(t['--accent'])
+      expect(t['--sim']).toBe(t['--ink2'])
     }
-    expect(dark['--glass-filter']).toMatch(/saturate\(1\.\d+\)/)
+  })
+  // 28 Nov: this test held the cool, saturated glass of jury round 3 ("blue leads red", saturate above 1). The reset asks for
+  // the opposite: a neutral ground, and a desktop that comes through desaturated, so a wallpaper never tints the System
+  it('the glass lets the desktop through desaturated (saturate under 1) on both grounds', () => {
+    for (const t of [dark, light]) expect(t['--glass-filter']).toMatch(/blur\(48px\) saturate\(0\.6\)/)
   })
 })
 
@@ -144,19 +171,19 @@ describe('glass off', () => {
     const hex = (v: string) => triple(v).map((c) => c.toString(16).padStart(2, '0')).join('')
     // same hue family as the table (the dark table is slightly cooler after jury round 3): within 6 per channel of 2.6
     const near = (got: string, want: string) => triple(got).every((c, i) => Math.abs(c - parseInt(want.slice(i * 2, i * 2 + 2), 16)) <= 6)
-    expect(near(off['--ground-rgb'], '0d0d0f'), hex(off['--ground-rgb'])).toBe(true)
-    expect(near(off['--spine-rgb'], '09090b')).toBe(true)
-    expect(near(off['--tray-rgb'], '24262b')).toBe(true)
-    expect(near(off['--trayn-rgb'], '32353c')).toBe(true)
-    expect(near(off['--trayl-rgb'], '1e2024')).toBe(true)
-    expect(near(off['--well-rgb'], '08080a')).toBe(true)
+    // 28 Nov: the opaque table of the reset (the ground, ONE tray, the well), replacing the graded table of 2.6
+    expect(near(off['--ground-rgb'], '0c0c0d'), hex(off['--ground-rgb'])).toBe(true)
+    expect(near(off['--spine-rgb'], '0c0c0d')).toBe(true)
+    expect(near(off['--tray-rgb'], '161617')).toBe(true)
+    expect(near(off['--trayn-rgb'], '161617')).toBe(true)
+    expect(near(off['--trayl-rgb'], '161617')).toBe(true)
+    expect(near(off['--well-rgb'], '080809')).toBe(true)
   })
-  it('the same switch is in the file for a browser without backdrop-filter, and the first tray keeps its wash', () => {
+  // 28 Nov: the first tray's wash with the glass off (a 3 percent lighter corner) is gone with the reset: one surface, no wash
+  it('the same switch is in the file for a browser without backdrop-filter, and no tray gets a wash of its own', () => {
     const css = tokensCss()
     expect(css).toMatch(/@supports not \(\(backdrop-filter: blur\(1px\)\)/)
-    expect(tokens('dark', 'off')['--trayn-wash']).not.toBe('transparent')
-    expect(tokens('light', 'off')['--trayn-wash']).toBe('#ffffff')
-    expect(tokens('dark', 'on')['--trayn-wash']).toBe('transparent')
+    for (const g of ['dark', 'light'] as const) for (const glass of ['on', 'off'] as const) expect(tokens(g, glass)['--trayn-wash'], `${g} ${glass}`).toBe('transparent')
   })
 })
 
@@ -164,8 +191,8 @@ describe('contrast floors of 2.7, from the token values, over the worst backdrop
   const FLOOR = 4.5
   it('DARK, white behind: ink and ink2 on the ground, the spine, every tray and the well', () => {
     const s = stacks('dark')
-    const ink = triple('243,244,246')
-    const ink2 = triple('198,201,207')
+    const ink = triple('237,237,234')
+    const ink2 = triple('180,180,175')
     expect(colour(s.t['--ink']).rgb).toEqual(ink)
     expect(colour(s.t['--ink2']).rgb).toEqual(ink2)
     for (const [name, bg] of Object.entries({ ground: s.g, spine: s.spine, tray: s.tray, trayn: s.trayn, trayl: s.trayl, well: s.well })) {

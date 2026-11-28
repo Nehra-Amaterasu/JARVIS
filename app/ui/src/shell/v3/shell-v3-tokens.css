@@ -1,144 +1,42 @@
 /* ==========================================================================
    The v3 shell's TOKEN layer: a token file in the sense of the repo's style lint (colour, duration and easing values live
-   here and nowhere else in this folder). It holds the NAMES of design-language-v3.md section 2 with the section's values, so the
-   shell draws correctly before the tokens package (styles/design/clay/glass.css) lands and after it.
+   here and nowhere else in this folder).
 
-   Why :root:where([data-look='v3']): specificity (0,1,0). That beats the legacy :root rules of styles/tokens.css (same
-   specificity, this file loads later) and LOSES to the tokens package's :root[data-look='v3'] (0,2,0), so when glass.css
-   lands its values win without an edit here. Every value below is the spec's, except the dark ground, which carries the
-   round-3 jury's cooler, more saturated glass (blur 40, saturate 1.5, brightness .5 over a blue-leaning tint, an inner
-   top-left glare of .07). The tokens package should adopt those three numbers; see README.md.
+   28 Nov, the design reset (docs/design/design-reset-1128.md). The values of the material now come from ONE file, the tokens
+   package styles/design/v3/glass.css, imported here so the shell never draws on a stale copy (until the reset this file kept
+   its own copy of every ground value, which is how the two drifted). What stays here are the shell's own names (--s3-*), the
+   names the views already read (--hue, --acc-*), and the element-level glass switches. Every block is written :where(), so a
+   specimen wrapper with data-look='v3' (the gallery) gets the same names as the root does.
 
-   Contrast (spec 2.7), dark ground, worst backdrop white: the brightness term lowers it to 128, ground = 16 x .72 + 128 x .28 =
-   47 and the spine 11 x .66 + 128 x .34 = 51, so ink2 (#C6C9CF) reads 8.1 to 1 or better. The desktop host cannot apply the
-   brightness term, so there (data-host) the alphas rise to .78 and .76: ground 16 x .78 + 255 x .22 = 69, spine 11 x .76 +
-   255 x .24 = 70, ink2 5.7 to 1.
+   The project hues of 25 Nov are gone. The owner's words on 28 Nov: "the accents we chose for all sections are ai slop ...
+   because of the colours and the gradients". So the names the views read are kept and made neutral: --acc-ground, --acc-tray
+   and --acc-tray-1 (the 4, 5 and 8 percent tints of every ground and tray) are transparent, --acc-soft (a selected row) is
+   the ink at 8 percent, and --hue (a selected mark) is the accent. Colour is a signal: see the accent schemes in glass.css.
    ========================================================================== */
-:root:where([data-look='v3']) {
-  --ink: #f3f4f6;
-  --ink2: #c6c9cf;
-  --ink3: #a9adb5;
-  --ground-rgb: 16, 17, 20;
-  --ga: 0.72;
-  --spine-rgb: 11, 12, 15;
-  --sa: 0.66;
-  --tray-rgb: 36, 38, 43;
-  --ta: 0.5;
-  --trayn-rgb: 50, 53, 60;
-  --tna: 0.74;
-  --trayl-rgb: 30, 32, 36;
-  --tla: 0.34;
-  --well-rgb: 8, 8, 10;
-  --wa: 0.94;
-  --glass-filter: blur(40px) saturate(1.5) brightness(0.5);
-  --edge: inset 1px 1px 0 rgba(255, 255, 255, 0.07);
-  --pop: #1d1f23;
-  --raised: #282a2e;
-  --raised-hi: #33363b;
-  --lit-a: #4a4e57;
-  --lit-b: #383b42;
-  --hi: rgba(255, 255, 255, 0.075);
-  --lo: rgba(0, 0, 0, 0.58);
-  --lot: rgba(0, 0, 0, 0.58);
-  --glare: rgba(255, 255, 255, 0.1);
-  --sheen: rgba(255, 255, 255, 0.1);
-  --live: #46d6c8;
-  --live-ping: rgba(70, 214, 200, 0.5);
-  --fault: #e5484d;
-  --sim: #b9a6ff;
-  --locked: #9a9ea6;
-  --track: rgba(255, 255, 255, 0.1);
-  --focus: #ffffff;
-  --gap: #0d0d0f;
-  --accent: #f2591a;
-  --accent-hi: #ff6e2e;
-  --accent-lo: #ec5314;
-  --on-accent: #190b04;
-  --s3-off-lift: rgba(255, 255, 255, 0.035);
-  --s3-scrim: rgba(0, 0, 0, 0.35);
-  --s3-glow: rgba(242, 89, 26, 0.35);
-  --s3-glow-hover: rgba(242, 89, 26, 0.45);
-  --s3-accent-press: inset 3px 3px 9px rgba(120, 30, 0, 0.55), inset -2px -2px 6px rgba(255, 180, 140, 0.35);
-  --s3-flare: rgba(255, 255, 255, 0.34);
+@import '../../styles/design/v3/glass.css';
+
+:where([data-look='v3']) {
+  /* the shell's names for the accent's two ends: solids, never a gradient */
+  --accent-hi: var(--accent);
+  --accent-lo: var(--accent-b);
+  --s3-off-lift: transparent;
+  --s3-scrim: rgba(0, 0, 0, 0.45);
+  --s3-glow: transparent;
+  --s3-glow-hover: transparent;
+  --s3-accent-press: var(--sh-accent-press);
+  --s3-flare: transparent;
+  /* the accent key's caps are pressed-in wells (5.2 to 1 dark, 7.5 light, from glass.css) */
+  --s3-kcap-bg: var(--cap-fill);
+  --s3-kcap-ink: var(--cap-ink);
+  --s3-kcap-sh: var(--cap-sh);
+}
+:where(:root[data-look='v3'][data-theme='clay-light'], [data-look='v3'][data-ground='light']) {
+  --s3-scrim: rgba(22, 22, 20, 0.32);
 }
 
-/* the light ground (Well Wisher) follows the clay theme the shell already sets on <html> */
-:root:where([data-look='v3'][data-theme='clay-light']) {
-  --ink: #15181c;
-  --ink2: #2c3238;
-  --ink3: #363c44;
-  --ground-rgb: 228, 232, 235;
-  --ga: 0.76;
-  --spine-rgb: 238, 241, 243;
-  --sa: 0.78;
-  --tray-rgb: 242, 245, 247;
-  --ta: 0.72;
-  --trayn-rgb: 252, 253, 254;
-  --tna: 0.88;
-  --trayl-rgb: 236, 240, 243;
-  --tla: 0.58;
-  --well-rgb: 214, 219, 223;
-  --wa: 0.94;
-  --glass-filter: blur(40px) saturate(1.15) brightness(1.35);
-  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 1px 0 0 rgba(255, 255, 255, 0.5);
-  --pop: #f5f7f8;
-  --raised: #edf0f2;
-  --raised-hi: #f9fafb;
-  --lit-a: #ffffff;
-  --lit-b: #f1f3f5;
-  --hi: rgba(255, 255, 255, 0.95);
-  --lo: rgba(98, 110, 122, 0.4);
-  --lot: rgba(98, 110, 122, 0.5);
-  --glare: rgba(255, 255, 255, 0.65);
-  --sheen: rgba(255, 255, 255, 0.55);
-  --live: #0a7a72;
-  --live-ping: rgba(10, 122, 114, 0.4);
-  --fault: #b3261e;
-  --sim: #5b3fc4;
-  --locked: #575d65;
-  --track: rgba(21, 24, 28, 0.1);
-  --focus: #15181c;
-  --gap: #eef1f3;
-  --s3-off-lift: #ffffff;
-  --s3-scrim: rgba(21, 24, 28, 0.35);
-}
-
-/* the desktop host cannot apply the brightness term of the glass filter: the stricter alphas of spec 2.7 (dark ground only) */
-:root:where([data-look='v3'][data-host]:not([data-theme='clay-light'])) {
-  --ga: 0.78;
-  --sa: 0.76;
-}
-
-/* glass off: the same hues, fully opaque (spec 2.6) */
-:root:where([data-look='v3'][data-glass='off']) {
-  --ga: 1;
-  --sa: 1;
-  --ta: 1;
-  --tna: 1;
-  --tla: 1;
-  --wa: 1;
-  --glass-filter: none;
-}
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  :root:where([data-look='v3']) {
-    --ga: 1;
-    --sa: 1;
-    --ta: 1;
-    --tna: 1;
-    --tla: 1;
-    --wa: 1;
-    --glass-filter: none;
-  }
-}
-
-/* shared by both grounds: the soft-key shadows and radii of spec 2.4 */
-:root:where([data-look='v3']) {
-  --sh-raise: -4px -4px 10px var(--hi), 6px 6px 14px var(--lo);
-  --sh-raise-hover: -5px -5px 13px var(--hi), 8px 8px 19px var(--lo);
-  --sh-press: inset 3px 3px 8px var(--lo), inset -3px -3px 8px var(--hi);
-  --sh-tray: -6px -6px 18px var(--hi), 10px 10px 28px var(--lot, var(--lo));
-  --sh-now: -9px -9px 26px var(--hi), 16px 16px 42px var(--lo);
-  --sh-later: -3px -3px 10px var(--hi), 6px 6px 16px var(--lo);
+/* shared by both grounds: the shell's motion names (spec 2.4). Every one of them is zeroed by the reduced-motion block of
+   shell-v3.css; the chrome uses --s3-d-state for the slim/open changes so a fold, a compression and the dock read as one family. */
+:where([data-look='v3']) {
   --s3-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --s3-d-key: 140ms;
   --s3-d-digit: 160ms;
@@ -153,17 +51,24 @@
   --s3-delay-glint: 450ms;
   --s3-d-flare: 1300ms;
   --s3-d-ping: 1400ms;
-  /* the accent key: only warm fill; its key caps are pressed-in wells with a 5.9 to 1 label (spec 2.4) */
-  --s3-kcap-bg: #a23a0d;
-  --s3-kcap-ink: #ffede3;
-  --s3-kcap-sh: inset 1px 1px 2px rgba(120, 30, 0, 0.5), inset -1px -1px 2px rgba(255, 180, 140, 0.3);
 }
 
-/* the tinted layers are declared ON the shell element, so a high-contrast or forced-colours override of an alpha (below) reaches them */
+/* the names the views read, neutral since the reset. :where() on any v3 element, so a specimen wrapper recomputes them with its
+   own ground's ink */
+:where([data-look='v3']) {
+  --hue: var(--accent);
+  --hue-lo: var(--ink2);
+  --acc-soft: color-mix(in srgb, var(--ink) 8%, transparent);
+  --acc-ground: transparent;
+  --acc-tray: transparent;
+  --acc-tray-1: transparent;
+}
+
+/* the layers are declared ON the shell element, so a high-contrast or forced-colours override of an alpha (below) reaches them */
 .s3 {
-  /* the tinted layers: a colour and its alpha, never a blur (spec 2.1) */
+  /* a colour and its alpha, never a blur (spec 2.1) */
   --s3-ground: rgba(var(--ground-rgb), var(--ga));
-  --s3-rim: rgba(var(--ground-rgb), 0.16);
+  --s3-rim: transparent;
   --s3-spine: rgba(var(--spine-rgb), var(--sa));
   --s3-tray: rgba(var(--tray-rgb), var(--ta));
   --s3-trayn: rgba(var(--trayn-rgb), var(--tna));
@@ -183,6 +88,15 @@
   --tna: 1;
   --tla: 1;
   --wa: 1;
+  --glass-filter: none;
+}
+
+/* the window is not translucent (a plain browser, or a host that cannot make the window transparent): the ground and the spine
+   are opaque, because there is no desktop behind them to show (28 Nov: a translucent ground over the page's own black read as a
+   muddy grey). The trays keep their alpha over the now opaque ground. */
+.s3:not([data-window='translucent']) {
+  --ga: 1;
+  --sa: 1;
   --glass-filter: none;
 }
 
@@ -206,112 +120,4 @@
     --wa: 1;
     --glass-filter: none;
   }
-}
-
-/* ==========================================================================
-   Project hues (25 Nov: "everything too white, use some colours"). One hue per project, in meaning: JARVIS the voice and the room
-   (amber-orange, its present accent), AANKHEN sensing (cyan-blue), YADAASH memory and its agents (violet), WELL WISHER his day
-   (rust). Each is given twice, as r, g, b channels so the shell can make a tint of it: a lighter value for the dark ground and a
-   deeper one for the light ground (the same number would be 2.8 to 1 on one of them). They are decoration and orientation, never a
-   state: the five state colours below (--live, --fault, --sim, --locked and the ink greys) are not reused for them, and every state
-   keeps its shape and its word. Two hues sit near a state colour and are kept apart on purpose, measured in HSL: AANKHEN is 196 degrees where --live is
-   174 (22 apart, and bluer), YADAASH is 278 degrees (a magenta-leaning violet) where --sim is 253 (25 apart; the pale lavender
-   of --sim is 0.83 light, the hue 0.68). They are still the two closest pairs of the shell, so a hue is never the only carrier of a
-   state: every state is a shape and a word, and the hues appear only on project marks, tints and the accent key.
-
-   Contrast, worst backdrop (white behind the dark ground in the desktop host, black behind the light one), recomputed by
-   src/__tests__/shell/v3/css.test.ts: the hue is never text, so the floor is the 3 to 1 of a mark; the name beside every
-   mark is ink. What the tests hold is the TEXT on the tinted ground: ink2 and ink at least 4.5 to 1 on the ground with the
-   hue at 4 percent, on a tray at 5 percent and on the first tray at 8 percent, for every hue on both grounds.
-   ========================================================================== */
-:root:where([data-look='v3']) {
-  --hue-jarvis-rgb: 242, 89, 26;
-  --hue-aankhen-rgb: 41, 182, 232;
-  --hue-yadaash-rgb: 192, 108, 240;
-  --hue-wellwisher-rgb: 217, 138, 98;
-}
-:root:where([data-look='v3'][data-theme='clay-light']) {
-  --hue-jarvis-rgb: 196, 65, 12;
-  --hue-aankhen-rgb: 10, 116, 160;
-  --hue-yadaash-rgb: 138, 47, 194;
-  --hue-wellwisher-rgb: 168, 81, 47;
-}
-/* the open project's hue: ShellV3 puts data-hue on the root. Later and equal in specificity, so it wins over the two blocks above. */
-:root:where([data-look='v3']) { --hue-rgb: var(--hue-jarvis-rgb); }
-:root:where([data-look='v3'][data-hue='jarvis']) { --hue-rgb: var(--hue-jarvis-rgb); }
-:root:where([data-look='v3'][data-hue='aankhen']) { --hue-rgb: var(--hue-aankhen-rgb); }
-:root:where([data-look='v3'][data-hue='yadaash']) { --hue-rgb: var(--hue-yadaash-rgb); }
-:root:where([data-look='v3'][data-hue='wellwisher']) { --hue-rgb: var(--hue-wellwisher-rgb); }
-:root:where([data-look='v3']) {
-  --hue: rgb(var(--hue-rgb));
-  --hue-lo: rgba(var(--hue-rgb), 0.78);
-  --hue-jarvis: rgb(var(--hue-jarvis-rgb));
-  --hue-jarvis-lo: rgba(var(--hue-jarvis-rgb), 0.78);
-  --hue-aankhen: rgb(var(--hue-aankhen-rgb));
-  --hue-aankhen-lo: rgba(var(--hue-aankhen-rgb), 0.78);
-  --hue-yadaash: rgb(var(--hue-yadaash-rgb));
-  --hue-yadaash-lo: rgba(var(--hue-yadaash-rgb), 0.78);
-  --hue-wellwisher: rgb(var(--hue-wellwisher-rgb));
-  --hue-wellwisher-lo: rgba(var(--hue-wellwisher-rgb), 0.78);
-  /* a 12 percent tint for a selected row and an active tab; the ground takes 4 percent, a tray 5, the first tray 8 so the eye knows where to start */
-  --acc-soft: rgba(var(--hue-rgb), 0.12);
-  --acc-ground: rgba(var(--hue-rgb), 0.04);
-  --acc-tray: rgba(var(--hue-rgb), 0.05);
-  --acc-tray-1: rgba(var(--hue-rgb), 0.08);
-}
-
-/* the accent key of the open project: the same names the kit already reads (--accent, --accent-a, --accent-b, --on-accent, the glow and
-   the key cap). JARVIS keeps its own. Specificity (0,3,0) beats the tokens package's :root[data-look='v3'] (0,2,0). The label on each
-   fill is 5.1 to 8.0 to 1 (css.test.ts). */
-:root[data-look='v3'][data-hue='aankhen'] {
-  --accent: #29b6e8;
-  --accent-a: #4cc6f0;
-  --accent-b: #1ea6d8;
-  --on-accent: #04141a;
-  --accent-glow: 0 8px 26px rgba(41, 182, 232, 0.35);
-  --accent-glow-hover: 0 10px 32px rgba(41, 182, 232, 0.45);
-  --cap-fill: #0b5775;
-  --cap-ink: #e6f8ff;
-  --cap-sh: inset 1px 1px 2px rgba(0, 40, 60, 0.5), inset -1px -1px 2px rgba(160, 225, 250, 0.3);
-  --sh-accent-press: inset 3px 3px 9px rgba(0, 60, 90, 0.55), inset -2px -2px 6px rgba(170, 230, 250, 0.35);
-  --s3-glow: rgba(41, 182, 232, 0.35);
-  --s3-glow-hover: rgba(41, 182, 232, 0.45);
-  --s3-accent-press: inset 3px 3px 9px rgba(0, 60, 90, 0.55), inset -2px -2px 6px rgba(170, 230, 250, 0.35);
-  --s3-kcap-bg: #0b5775;
-  --s3-kcap-ink: #e6f8ff;
-}
-:root[data-look='v3'][data-hue='yadaash'] {
-  --accent: #c06cf0;
-  --accent-a: #cf86f4;
-  --accent-b: #b055e6;
-  --on-accent: #1a0628;
-  --accent-glow: 0 8px 26px rgba(192, 108, 240, 0.35);
-  --accent-glow-hover: 0 10px 32px rgba(192, 108, 240, 0.45);
-  --cap-fill: #4b2a8f;
-  --cap-ink: #f1e8ff;
-  --cap-sh: inset 1px 1px 2px rgba(40, 10, 90, 0.5), inset -1px -1px 2px rgba(210, 190, 250, 0.3);
-  --sh-accent-press: inset 3px 3px 9px rgba(50, 15, 110, 0.55), inset -2px -2px 6px rgba(215, 195, 252, 0.35);
-  --s3-glow: rgba(192, 108, 240, 0.35);
-  --s3-glow-hover: rgba(192, 108, 240, 0.45);
-  --s3-accent-press: inset 3px 3px 9px rgba(50, 15, 110, 0.55), inset -2px -2px 6px rgba(215, 195, 252, 0.35);
-  --s3-kcap-bg: #4b2a8f;
-  --s3-kcap-ink: #f1e8ff;
-}
-/* Well Wisher is on the light ground; five classes of specificity so the light-ground blocks of the tokens package cannot out-rank it */
-:root[data-look='v3'][data-hue='wellwisher'][data-theme='clay-light']:not([data-ground='dark']) {
-  --accent: #a8512f;
-  --accent-a: #b9623f;
-  --accent-b: #964526;
-  --on-accent: #fff6f0;
-  --accent-glow: 0 8px 26px rgba(168, 81, 47, 0.3);
-  --accent-glow-hover: 0 10px 32px rgba(168, 81, 47, 0.4);
-  --cap-fill: #6e2e14;
-  --cap-ink: #fff1e8;
-  --cap-sh: inset 1px 1px 2px rgba(70, 25, 5, 0.5), inset -1px -1px 2px rgba(255, 190, 150, 0.3);
-  --sh-accent-press: inset 3px 3px 9px rgba(80, 30, 8, 0.55), inset -2px -2px 6px rgba(255, 200, 165, 0.35);
-  --s3-glow: rgba(168, 81, 47, 0.3);
-  --s3-glow-hover: rgba(168, 81, 47, 0.4);
-  --s3-accent-press: inset 3px 3px 9px rgba(80, 30, 8, 0.55), inset -2px -2px 6px rgba(255, 200, 165, 0.35);
-  --s3-kcap-bg: #6e2e14;
-  --s3-kcap-ink: #fff1e8;
 }

@@ -15,6 +15,8 @@ export interface StrataCell {
   /** The tagging margin, 0 to 1. */
   margin: number
   crop?: CropInfo
+  /** A question bank prints no marks (wave EW11): the tick then says "marks not printed", not "marks not found". */
+  marksNotPrinted?: boolean
 }
 
 /** Dot widths in px: a tick for 0, then five steps from 4 to 26 (spec 20.7.1). */
@@ -70,7 +72,7 @@ export function mergeCells(cells: readonly StrataCell[]): StrataCell[] {
     else {
       have.share += c.share
       // the cell opens the question with the lowest margin: that is the one a student most needs to look at
-      if (c.margin < have.margin) { have.qid = c.qid; have.tag = c.tag; have.margin = c.margin; have.crop = c.crop; have.type = c.type }
+      if (c.margin < have.margin) { have.qid = c.qid; have.tag = c.tag; have.margin = c.margin; have.crop = c.crop; have.type = c.type; have.marksNotPrinted = c.marksNotPrinted }
     }
   }
   return [...by.values()]
@@ -96,7 +98,7 @@ export function walk(row: number, col: number, key: Walk, rows: number, cols: nu
 
 /** The Strata cells of a question list (a question of a paper with no known year has no column, so it is left out): a rejected question is not on the paper's record, a pending one is (it is shown, tagged as it stands). */
 export const cellsOf = (qs: readonly QuestionRow[]): StrataCell[] =>
-  qs.filter((q) => q.status !== 'rejected' && q.year !== null).map((q) => ({ year: q.year as number, topicId: q.topicId, share: q.share ?? 0, type: q.type, qid: q.id, tag: q.tag, margin: q.margin, crop: q.crop }))
+  qs.filter((q) => q.status !== 'rejected' && q.year !== null).map((q) => ({ year: q.year as number, topicId: q.topicId, share: q.share ?? 0, type: q.type, qid: q.id, tag: q.tag, margin: q.margin, crop: q.crop, ...(q.marksNotPrinted ? { marksNotPrinted: true } : {}) }))
 
 /** The five counts of the Coverage Ledger, from the papers and questions as they stand. */
 export function coverageOf(papers: readonly PaperRow[], qs: readonly QuestionRow[], lastRun: number | null): Coverage {

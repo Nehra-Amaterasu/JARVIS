@@ -157,11 +157,11 @@ describe('R-21 marks', () => {
     expect(qa('[data-tray="marks"] input.tsh-num')).toHaveLength(2)
     expect(keys[0].getAttribute('aria-current')).toBe('true')
   })
-  it('says plainly that the marks are his and that the order moves only after 5 marks on a topic', async () => {
+  it('says plainly that the marks are his and that the order moves only after 3 marks on a topic', async () => {
     await tonight(fake())
     const t = q('[data-tray="marks"]').textContent!
     expect(t).toContain('Typed by you')
-    expect(t).toContain('The order of topics moves only after 5 marks on a topic.')
+    expect(t).toContain('The order of topics moves only after 3 marks on a topic.')
     expect(t).not.toMatch(/grade:|will pass|predict/i)
   })
 })

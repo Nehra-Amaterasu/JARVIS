@@ -1,7 +1,7 @@
 // ReviewDesk (package Y01, spec 20.7.2 and 21.3.2 S2): turn a paper into reviewed questions without anything entering the bank
 // unseen. Left, the page with the reader's boxes (the selected box has four 44 px corner handles; Shift+arrow moves an edge
 // 4 px). Right, the run's real trace, the crop with its text layer, the fields each with its RULE, MODEL or HAND chip, and the
-// actions: Accept (Enter), Edit (E) and Reject (Backspace, undo for 10 s) stand on the row; Merge with previous (M), Split (S),
+// actions: Accept (A), Edit (E) and Reject (Backspace, undo for 10 s) stand on the row; Merge with previous (M), Split (S),
 // Next uncertain (N) and the two view switches (T, R) are behind one "More" key (the keys themselves work either way, 14 Nov jury).
 // The run's trace is one line that opens (it was a 130 px terminal and the loudest thing on the desk).
 // The one warm fill is "Accept all certain and review the rest": it takes only a RULE tag at margin 0.5 or more with its marks
@@ -64,7 +64,6 @@ const TYPES: { id: QType; label: string }[] = [
   { id: 'numerical', label: 'numerical' }, { id: 'derivation', label: 'derivation' }, { id: 'short', label: 'short answer' }, { id: 'mcq', label: 'multiple choice' },
 ]
 const isEntry = (t: EventTarget | null) => t instanceof HTMLElement && !!t.closest('input, textarea, select, [contenteditable="true"]')
-const isButton = (t: EventTarget | null) => t instanceof HTMLElement && !!t.closest('button, a, [role="switch"]')
 
 /** The run's trace as ONE line: the newest event with its lamp and word, how many there are, and a key that opens the whole log. Real
  *  events only (nothing is invented to fill the line); with none it says there is no run. */
@@ -192,7 +191,10 @@ export function ReviewDesk({
     const k = e.key
     if (e.shiftKey && k === 'A') { e.preventDefault(); acceptCertain(); return }
     if (e.shiftKey) return
-    if (k === 'Enter' && !isButton(e.target)) { e.preventDefault(); accept() }
+    // 28 Nov: Enter accepted a question, and the owner walked 65 questions on 13 papers into his real bank in ten minutes
+    // by pressing it without reading. Accept is a letter of its own now, like every other decision on this desk; Enter on
+    // the desk does nothing (a focused Accept button still takes Enter and Space, as any button does).
+    if (k === 'a' || k === 'A') { e.preventDefault(); accept() }
     else if (k === 'Backspace') { e.preventDefault(); reject() }
     else if (k === 'e' || k === 'E') { e.preventDefault(); setEditing((v) => !v) }
     else if (k === 'm' || k === 'M') { e.preventDefault(); merge() }
@@ -389,8 +391,8 @@ export function ReviewDesk({
               ) : (
                 <>
                   {cur?.notQuestion
-                    ? <Button size="sm" disabledReason="Not a question: it has no Accept." aria-keyshortcuts="Enter">Accept</Button>
-                    : <Button size="sm" onClick={accept} disabled={!cur || cur.status === 'accepted'} aria-keyshortcuts="Enter">Accept</Button>}
+                    ? <Button size="sm" disabledReason="Not a question: it has no Accept." aria-keyshortcuts="A">Accept</Button>
+                    : <Button size="sm" onClick={accept} disabled={!cur || cur.status === 'accepted'} aria-keyshortcuts="A">Accept</Button>}
                   <Button size="sm" onClick={() => setEditing(true)} disabled={!cur} aria-keyshortcuts="E">Edit</Button>
                   <Button size="sm" onClick={reject} disabled={!cur || cur.status === 'rejected'} aria-keyshortcuts="Backspace">Reject</Button>
                   <Button size="sm" tone="quiet" aria-expanded={more} aria-controls={moreId} onClick={() => setMore((v) => !v)}>More</Button>
@@ -409,7 +411,7 @@ export function ReviewDesk({
               <Switch checked={rubric} onChange={setRubric} label="Rubric strip (R)" />
             </div>
           </div>
-          <p className="rv-keys" aria-hidden="true">Enter accept · E edit · M merge · S split · Backspace reject · N next uncertain · U undo · J K step · T text · R rubric</p>
+          <p className="rv-keys" aria-hidden="true">A accept · E edit · M merge · S split · Backspace reject · N next uncertain · U undo · J K step · T text · R rubric</p>
         </section>
       </div>
 

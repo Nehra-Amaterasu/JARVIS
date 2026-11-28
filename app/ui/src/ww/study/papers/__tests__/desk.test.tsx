@@ -116,10 +116,14 @@ describe('Review Desk keyboard path', () => {
   const desk = () => q('[data-component="review-desk"]')
   const count = () => q('.rv-count b').textContent
 
-  it('Enter accepts, N jumps to the lowest margin, Backspace rejects with an undo, U takes it back', () => {
+  it('A accepts (Enter does not), N jumps to the lowest margin, Backspace rejects with an undo, U takes it back', () => {
     const onDecide = mountDesk()
     expect(count()).toBe('0 of 7')
+    // 28 Nov: Enter must not accept (65 questions were accepted unread with it)
     key(desk(), 'Enter')
+    expect(count()).toBe('0 of 7')
+    expect(onDecide).not.toHaveBeenCalled()
+    key(desk(), 'a')
     expect(count()).toBe('1 of 7')
     expect(onDecide).toHaveBeenCalledWith({ kind: 'accept', qid: 'q2024-1' })
     key(desk(), 'n')

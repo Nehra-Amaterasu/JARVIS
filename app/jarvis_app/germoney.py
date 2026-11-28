@@ -33,6 +33,7 @@ import re
 import shutil
 import threading
 import time
+import uuid
 import xml.etree.ElementTree as ET
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -50,6 +51,21 @@ CALENDAR = ROOT / "calendar.json"
 OLLAMA = "http://127.0.0.1:11434"
 MODEL = "qwen3:4b-instruct-2507-q4_K_M"
 KEY_RE = re.compile(r"^[@A-Za-z0-9_.:\-]{1,120}$")
+# Windows refuses a replace (WinError 5) while any handle holds the target, even a reader's for a
+# few ms; the browser suite hit it when the UI mirrored two keys on load. 8 tries with a growing
+# wait (20 ms to 160 ms, 720 ms in all) is the figure ww_intake/store.py already runs on.
+_REPLACE_TRIES = 8
+# One lock per folder, not per instance: the server and the sandbox seed each build a KVStore on
+# the same folder, and a lock held by one instance never stopped the other.
+_ROOT_LOCKS: dict[str, threading.Lock] = {}
+_ROOT_LOCKS_GUARD = threading.Lock()
+
+
+def _root_lock(root: Path) -> threading.Lock:
+    # realpath first: a junction or symlink to the folder (a worktree junction on this PC) is the same folder
+    key = os.path.normcase(os.path.realpath(os.path.abspath(root)))
+    with _ROOT_LOCKS_GUARD:
+        return _ROOT_LOCKS.setdefault(key, threading.Lock())
 
 
 # ============================================================== key-value store
@@ -57,7 +73,7 @@ class KVStore:
     def __init__(self, root: Path = KV, backups: Path = BACKUPS, keep_days: int = 14):
         self.root, self.backups, self.keep = root, backups, keep_days
         self.root.mkdir(parents=True, exist_ok=True)
-        self._lock = threading.Lock()
+        self._lock = _root_lock(self.root)
 
     @staticmethod
     def _check(key: str) -> str:
@@ -71,10 +87,17 @@ class KVStore:
         return self.root / f"{name}.json"
 
     def get(self, key: str) -> Optional[str]:
-        try:
-            return json.loads(self._file(key).read_text(encoding="utf-8"))["value"]
-        except FileNotFoundError:
-            return None
+        path = self._file(key)
+        for i in range(_REPLACE_TRIES):
+            try:
+                return json.loads(path.read_text(encoding="utf-8"))["value"]
+            except FileNotFoundError:
+                return None
+            except PermissionError:             # a replace of this file is in flight
+                if i == _REPLACE_TRIES - 1:
+                    raise
+                time.sleep(0.02 * (i + 1))
+        return None
 
     def set(self, key: str, value: str) -> None:
         if not isinstance(value, str):
@@ -84,9 +107,20 @@ class KVStore:
         with self._lock:
             self._daily_backup()
             path = self._file(key)
-            tmp = path.with_suffix(".tmp")
-            tmp.write_text(json.dumps({"key": key, "value": value, "updated": time.time()}), encoding="utf-8")
-            tmp.replace(path)                       # atomic on NTFS: never a half-written save
+            # A name no other writer shares: two writers of one key once met on '<key>.tmp'.
+            tmp = path.with_name(f".{path.stem}.{uuid.uuid4().hex[:8]}.tmp")
+            try:
+                tmp.write_text(json.dumps({"key": key, "value": value, "updated": time.time()}), encoding="utf-8")
+                for i in range(_REPLACE_TRIES):
+                    try:
+                        os.replace(tmp, path)   # atomic on NTFS: never a half-written save
+                        return
+                    except PermissionError:
+                        if i == _REPLACE_TRIES - 1:
+                            raise
+                        time.sleep(0.02 * (i + 1))
+            finally:
+                tmp.unlink(missing_ok=True)
 
     def delete(self, key: str) -> None:
         with self._lock:

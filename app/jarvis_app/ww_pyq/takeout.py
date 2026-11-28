@@ -2,9 +2,10 @@
 
     precheck(zip_path)                        the archive's end record alone: refuses too many entries or an oversized
                                               central directory before zipfile parses a single entry
-    list_archive(zip_path)                    the entries with name, declared size, kind and a refusal reason; reads the
+    list_archive(zip_path)                    the entries with id, name, declared size, kind and a refusal reason; reads the
                                               central directory only, so nothing is inflated and nothing is written
     refusal(name, size, ...)                  the reason one entry may never be extracted, or None
+    mend_entries(entries)                     a listing kept before ids (28 Nov): ids and the not-read sentence added
     extract_entry(zf, info, dest)             one entry, streamed with a byte cap equal to its declared size
     safe_flat_name(archive_id, n, name)       the name an accepted entry gets in the inbox: made by the code, flat
 
@@ -59,6 +60,9 @@ _PLAIN = re.compile(r"[^A-Za-z0-9_()-]+")
 _EOCD = b"PK\x05\x06"
 _EOCD64_LOC = b"PK\x06\x07"
 _EOCD64 = b"PK\x06\x06"
+
+
+NOT_READ = "This is not a .pdf or .pptx; the door reads only those."
 
 
 def new_id() -> str:
@@ -173,7 +177,18 @@ def list_archive(zip_path: Path) -> dict:
             if why is None and folded["/".join(_parts(i.filename)).casefold()] > 1:
                 why = "Another entry has the same name, up to capital letters."
             entries.append({"name": i.filename, "size": i.file_size, "kind": kind_of(i.filename), "refused": why})
-    return {"entries": entries, "total_size": total, "note": NOTE}
+    return {"entries": mend_entries(entries), "total_size": total, "note": NOTE}
+
+
+def mend_entries(entries: list[dict]) -> list[dict]:
+    """Each entry gets a stable id, its position in the listing as a string (request 20: a screen keyed rows by name,
+    and two names can differ only in a way it cannot show), and an entry of a kind the door does not read carries
+    the sentence why instead of null, so refused is null only for an entry that can be accepted."""
+    for n, e in enumerate(entries):
+        e.setdefault("id", str(n))
+        if e.get("refused") is None and e.get("kind") == "other":
+            e["refused"] = NOT_READ
+    return entries
 
 
 def safe_flat_name(archive_id: str, n: int, name: str) -> str:

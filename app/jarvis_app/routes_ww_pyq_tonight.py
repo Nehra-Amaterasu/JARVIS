@@ -3,6 +3,7 @@
     GET    /api/mission/pyq/tonight                   R-55 today's sheet, earlier sheets awaiting marks, the settings, the papers ahead
     PUT    /api/mission/pyq/tonight/settings          R-56 {on?, hour? "HH:MM", count? 3 to 12, horizon_days? 1 to 60}
     POST   /api/mission/pyq/tonight/build             R-57 {date?, subject?}: the sheet of a day, each item with its text and why
+    GET    /api/mission/pyq/tonight/sheets/{sid}      R-85 one stored sheet as R-57 answers it; 404 unknown or malformed; builds nothing
     POST   /api/mission/pyq/tonight/{sid}/marks       R-58 {items: [{question_id, got, minutes?, out_of?, keep?}]}: kept in the sheet and the plan
     GET    /api/mission/pyq/tonight/{sid}/print       R-59 the sheet as A4 HTML through the print set of R-25
 
@@ -147,7 +148,18 @@ def register(app: FastAPI, svc, bus) -> None:
                 crop = f"/api/mission/pyq/crops/{qid}" if st.crop_path(qid) is not None else None
             except (KeyError, ValueError, OSError):
                 q, crop = {}, None                 # deleted since: the row stays, its words are gone
-            items.append({**it, "text": str(q.get("text") or ""), "crop": crop, "why": why.get(qid),
+            w = why.get(qid)
+            if isinstance(w, dict) and "measured" not in w:
+                # a sheet built before why carried measured: the stored proficiency is R-17's default exactly when the
+                # topic was unmeasured, so a measured 0.5 reads as unmeasured, never the other way round; a missing or
+                # null term is no measurement at all
+                p = w.get("proficiency")
+                real = isinstance(p, (int, float)) and not isinstance(p, bool)
+                w = {**w, "measured": real and p != pnext.UNMEASURED}
+            # origin and text_status come from the question, so a model draft, a variant or OCR text is marked on the
+            # sheet; added to the answer only, the sheet file keeps its shared shape
+            items.append({**it, "text": str(q.get("text") or ""), "crop": crop, "why": w,
+                          "origin": q.get("origin") or ("paper" if q else None), "text_status": q.get("text_status"),
                           "mark": got.get(qid), "marks_note": NOT_PRINTED_NOTE if it.get("marks") is None else ""})
         return {**sheet, "items": items, "unmarked": tonight.unmarked(sheet)}
 
@@ -247,6 +259,19 @@ def register(app: FastAPI, svc, bus) -> None:
                 raise ValueError("Say which subject.")
             state, reason, sheet, _, _ = build(day, subject)
             return api.ok(state, reason, SOURCE, sheet=sheet)
+        return await run_in_threadpool(api.guard, work)
+
+    # ------------------------------------------------------------------ R-85
+    @app.get("/api/mission/pyq/tonight/sheets/{sid}")
+    async def get_sheet(sid: str):
+        def work():
+            tonight.check_sheet_id(sid)                # a malformed id is an unknown sheet: 404, no path is built
+            st = _store()
+            sheet = tonight.load_sheet(st, sid)        # reads only; a missing sheet is 404, never built here
+            left = tonight.unmarked(sheet)
+            reason = (f"The sheet of {sheet['date']}: {_plural(len(sheet['items']), 'question', 'questions')}, "
+                      + (f"{left} still unmarked." if left else "every question marked."))
+            return api.ok("live", reason, SOURCE, sheet=answer_of(st, sheet))
         return await run_in_threadpool(api.guard, work)
 
     # ------------------------------------------------------------------ R-58

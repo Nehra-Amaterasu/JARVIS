@@ -242,8 +242,11 @@ def choose(picks: list[dict], accepted: dict, exclude: set, count: int, salt: st
 def why_of(pick: dict, days_left: Optional[int]) -> dict:
     """The printed terms of R-17 that put this topic on the sheet, and the days to the paper."""
     t = pick.get("terms") or {}
+    # measured as R-17 has it: false while the topic has fewer than MIN_ATTEMPTS marks, so a screen can say the
+    # proficiency printed is the neutral default and not his own
     return {"days_left": days_left, "marks_weight": t.get("marks_weight"), "share": t.get("seen_share"),
-            "proficiency": t.get("proficiency"), "syllabus_weight": t.get("syllabus_weight")}
+            "proficiency": t.get("proficiency"), "measured": t.get("measured") is True,
+            "syllabus_weight": t.get("syllabus_weight")}
 
 
 def make_sheet(sid: str, day: str, subject: str, chosen: list[tuple[dict, dict]], built_at: str) -> dict:

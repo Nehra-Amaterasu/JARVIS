@@ -24,6 +24,7 @@ Tasks (each with its own prompt file and output check):
   rubric_points   one of his questions and its marks -> the points a marker looks for (R-32)
   subject_pick    a paper's title and opening -> one of his subject ids or "none" (R-66)
   tag_topics      up to 20 of his questions and one subject's topic list -> a topic id or "none" each (R-68)
+  answer_check    his answer and a question's rubric points -> met or not per point, with his words quoted (R-83)
 """
 from __future__ import annotations
 
@@ -39,7 +40,7 @@ PROMPTS = Path(__file__).with_name("prompts")
 OLLAMA = "http://127.0.0.1:11434"
 DEFAULT_MODEL = "qwen3:4b-instruct-2507-q4_K_M"
 TASKS = ("grade_explain", "quiz_from_text", "parse_day", "summarise", "question_drafts", "variant_descriptive", "rubric_points",
-         "subject_pick", "tag_topics")
+         "subject_pick", "tag_topics", "answer_check")
 MAX_INPUT = 12000
 
 Provider = Callable[[str, str], str]      # (system, user) -> model text
@@ -268,8 +269,39 @@ def _check_tag_topics(data: dict, fields: dict) -> Optional[dict]:
     return {"tags": out}
 
 
+_ANSWER_QUOTE_MAX = 600          # the prompt asks for at most 40 words, about 250 characters; past 600 it copied the answer
+
+
+def _check_answer_check(data: dict, fields: dict) -> Optional[dict]:
+    """{"points": [{n, met, quote}]} with exactly one row for each of the n_points rubric points, or None. Refused whole
+    when it brings anything but n, met and quote (a score, marks, a total, a grade), names a point twice or one that does
+    not exist, or leaves one out: a model that did not keep to the task once is not trusted for the rest of that answer.
+    Whether a quote is really in his answer is not checked here but by the caller (ww_pyq/answers.py), against his full
+    text; a met point with no quote comes back as it is and the caller sets it to not met."""
+    try:
+        n_points = int(fields.get("n_points"))
+    except (TypeError, ValueError):
+        return None
+    if set(data) != {"points"} or not isinstance(data["points"], list) or len(data["points"]) != n_points:
+        return None
+    out, seen = [], set()
+    for row in data["points"]:
+        if not isinstance(row, dict) or not {"n", "met"} <= set(row) or set(row) - {"n", "met", "quote"}:
+            return None
+        n, met, quote = row["n"], row["met"], row.get("quote")
+        if isinstance(n, bool) or not isinstance(n, int) or not 1 <= n <= n_points or n in seen or not isinstance(met, bool):
+            return None
+        if quote is not None and (not isinstance(quote, str) or len(quote) > _ANSWER_QUOTE_MAX):
+            return None
+        seen.add(n)
+        out.append({"n": n, "met": met, "quote": quote.strip() if isinstance(quote, str) and quote.strip() else None})
+    return {"points": sorted(out, key=lambda r: r["n"])}
+
+
 def check_output(task: str, data: dict, fields: dict) -> Optional[dict]:
     """The validated answer for a task, or None when the model's JSON has the wrong shape."""
+    if task == "answer_check":
+        return _check_answer_check(data, fields)
     if task == "subject_pick":
         return _check_subject_pick(data, fields)
     if task == "tag_topics":

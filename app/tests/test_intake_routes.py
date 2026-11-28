@@ -253,7 +253,7 @@ def test_r39_edits_title_date_and_time_and_refuses_bad_values(env):
     out = c.patch(f"{B}/{rid}", json={"state": "accepted", "title": " Widget report ", "date": "2026-11-21",
                                       "time": "09:30"}).json()["row"]
     assert (out["title"], out["date"], out["time"]) == ("Widget report", "2026-11-21", "09:30")
-    for bad in ({"state": "taken"}, {"state": "new"}, {}, {"state": "accepted", "date": "21/11/2026"},
+    for bad in ({"state": "taken"}, {}, {"state": "accepted", "date": "21/11/2026"},
                 {"state": "accepted", "time": "25:00"}, {"state": "accepted", "title": ""},
                 {"state": "accepted", "subject": 5}, ["accepted"]):
         r = c.patch(f"{B}/{rid}", json=bad)
@@ -405,3 +405,44 @@ def test_after_a_restart_the_store_reloads_what_it_wrote(env, tmp_path):
     assert after == before
     assert c.get(f"{B}/deadlines").json()["items"][0]["subject"] == "sig"
     assert c.patch(f"{B}/{items[1]['id']}", json={"state": "accepted"}).status_code == 400   # still ambiguous
+
+
+# ------------------------------------------------------------------ request 20
+def test_r39_new_undoes_accepted_or_declined_and_a_taken_row_stays_refused(env):
+    c, holder, *_ = env
+    rid = paste(c, "Widget lab report due 2026-11-20")["items"][0]["id"]
+    r = c.patch(f"{B}/{rid}", json={"state": "new"})
+    assert r.status_code == 400 and "nothing to undo" in r.json()["detail"]
+    for decided in ("accepted", "declined"):
+        assert c.patch(f"{B}/{rid}", json={"state": decided}).status_code == 200
+        j = c.patch(f"{B}/{rid}", json={"state": "new"}).json()
+        envelope(j)
+        assert j["row"]["state"] == "new" and j["reason"] == "Row back to new."
+    assert c.get(f"{B}/deadlines").json()["items"] == []
+    row = holder["intake"].add_file("copy.pdf", b"%PDF-1.4 invented")
+    holder["intake"].update(row["id"], {"state": "taken"})
+    r = c.patch(f"{B}/{row['id']}", json={"state": "new"})
+    assert r.status_code == 400 and holder["intake"].get(row["id"])["state"] == "taken"
+
+
+def test_r37_a_pasted_row_carries_its_raw_line(env):
+    c, *_ = env
+    j = paste(c, "Widget lab report due 2026-11-20")
+    assert j["items"][0]["raw"] == "Widget lab report due 2026-11-20"
+    assert c.get(B).json()["items"][0]["raw"] == "Widget lab report due 2026-11-20"
+
+
+def test_r39_a_take_finishing_between_the_read_and_the_write_is_not_undone(env, monkeypatch):
+    c, holder, *_ = env
+    st = holder["intake"]
+    rid = paste(c, "Widget lab report due 2026-11-20")["items"][0]["id"]
+    c.patch(f"{B}/{rid}", json={"state": "accepted"})
+    stale = st.get(rid)
+    st.update(rid, {"state": "taken"})                # the take lands after R-39 read the row
+    st.get = lambda r: dict(stale)                    # R-39's read sees the row as it was
+    try:
+        r = c.patch(f"{B}/{rid}", json={"state": "new"})
+    finally:
+        del st.get
+    assert r.status_code == 400
+    assert st.get(rid)["state"] == "taken"

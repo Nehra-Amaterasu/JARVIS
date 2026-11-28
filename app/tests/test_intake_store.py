@@ -17,7 +17,7 @@ from jarvis_app.ww_pyq.store import Store
 NOW = datetime(2026, 11, 14, 10, 0, tzinfo=timezone.utc)
 TODAY = NOW.date().isoformat()
 ROW_KEYS = {"id", "source", "kind", "state", "title", "date", "time", "readings", "ambiguous", "subject",
-            "subject_suggestion", "repeats", "file", "raw_hash", "added", "updated"}
+            "subject_suggestion", "repeats", "file", "raw", "raw_hash", "added", "updated"}
 
 
 def cal(*events: str) -> str:
@@ -408,3 +408,63 @@ def test_a_row_edited_by_hand_without_its_date_or_state_is_mended_and_said_once(
     st.list_rows()
     assert len([p for p in st.problems if "no date or state" in p]) == 1, "said once, however often the file is read"
 
+
+
+# ------------------------------------------------------------------ request 20
+def test_a_problem_goes_once_rows_json_reads_cleanly_again(tmp_path):
+    root = tmp_path / "intake"
+    st = S.IntakeStore(root)
+    (root / "rows.json").write_text("{not json", encoding="utf-8")
+    st.list_rows()
+    assert st.problems
+    st.list_rows()                                   # the file is set aside and missing: the notice still shows
+    assert st.problems
+    st.add_paste(parse_paste("Widget lab report due 2026-11-20", NOW))
+    st.list_rows()                                   # written anew and read cleanly: the set-aside notice stays,
+    assert any(".corrupt" in p for p in st.problems)  # the only pointer at the copy he can still recover
+    st.clear_problems()                              # until he dismisses it
+    assert st.problems == []
+    bare = {"id": "i-" + "c" * 12, "source": "paste", "kind": "deadline", "title": "No state"}
+    (root / "rows.json").write_text(json.dumps({"version": S.SCHEMA_VERSION, "rows": [bare]}), encoding="utf-8")
+    st.list_rows()
+    assert any("no date or state" in p for p in st.problems)
+    st.update(bare["id"], {"state": "new"})          # the mend is saved; the next read is clean
+    st.list_rows()
+    assert st.problems == []
+
+
+def test_a_pasted_row_keeps_its_line_and_a_calendar_row_keeps_none(st):
+    line = "Widget lab report due 2026-11-20"
+    r = st.add_paste(parse_paste(line, NOW))[0]
+    assert r["raw"] == line
+    long = "Gizmo quiz 2026-11-22 " + "x" * 700
+    assert len(st.add_paste(parse_paste(long, NOW))[0]["raw"]) == S.MAX_RAW == 500
+    ev = st.add_events(parse_ics(cal(vev("UID:z@x", "SUMMARY:Gizmo seminar", "DTSTART:20261120T090000Z")), NOW),
+                       today=TODAY)[0][0]
+    assert ev["raw"] == ""
+    assert st.update(r["id"], {"raw": "changed"})["raw"] == line      # what he pasted is fixed
+
+
+def test_the_set_aside_notice_outlives_a_mended_notice(tmp_path):
+    root = tmp_path / "intake"
+    st = S.IntakeStore(root)
+    (root / "rows.json").write_text("{not json", encoding="utf-8")
+    st.list_rows()
+    bare = {"id": "i-" + "d" * 12, "source": "paste", "kind": "deadline", "title": "No state"}
+    (root / "rows.json").write_text(json.dumps({"version": S.SCHEMA_VERSION, "rows": [bare]}), encoding="utf-8")
+    st.list_rows()
+    st.update(bare["id"], {"state": "new"})
+    st.list_rows()
+    assert len(st.problems) == 1 and ".corrupt" in st.problems[0]
+
+
+def test_update_refuses_under_the_lock_when_the_state_moved_on(st):
+    rid = st.add_paste(parse_paste("Widget lab report due 2026-11-20", NOW))[0]["id"]
+    st.update(rid, {"state": "taken"})
+    with pytest.raises(ValueError):
+        st.update(rid, {"state": "new"}, expect=("accepted", "declined"))
+    assert st.get(rid)["state"] == "taken"
+    row = st.get(rid)
+    with pytest.raises(ValueError):                  # a folder row stored by a take in between is not put back
+        st.put({**row, "state": "accepted"}, expect=("new", "accepted", "declined"))
+    assert st.get(rid)["state"] == "taken"

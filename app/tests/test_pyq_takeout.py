@@ -92,7 +92,9 @@ def test_a_zip_is_listed_and_nothing_is_extracted(env):
     assert re.fullmatch(r"tk-[0-9a-f]{10}", ls["id"]) and ls["name"] == "export.zip"
     kinds = {e["name"]: (e["kind"], e["refused"]) for e in ls["entries"]}
     assert kinds["Class A/paper one.pdf"] == ("pdf", None) and kinds["Class A/deck.pptx"] == ("pptx", None)
-    assert kinds["Class A/notes.txt"] == ("other", None)
+    assert kinds["Class A/notes.txt"] == ("other", takeout.NOT_READ)
+    assert [e["id"] for e in ls["entries"]] == [str(n) for n in range(len(ls["entries"]))]
+    assert all(e["refused"] is not None for e in ls["entries"] if e["kind"] == "other")
     assert ls["total_size"] == sum(e["size"] for e in ls["entries"])
     assert inbox_files(st) == []
     new = set(tree(st.root)) - set(before)
@@ -502,3 +504,20 @@ def test_no_forecast_words_in_any_output_string(env):
     text = json.dumps(ls).lower()
     for w in ("important", "likely", "expected", "will be asked", "probability", "chance"):
         assert w not in text
+
+
+def test_a_listing_kept_before_ids_reads_with_ids_and_the_sentence(env):
+    c, st, tmp = env[:3]
+    ls = listing(c, good_zip(tmp))
+    f = st.root / "takeout" / f"{ls['id']}.json"
+    old = json.loads(f.read_text("utf-8"))
+    for e in old["entries"]:
+        e.pop("id")
+        if e["kind"] == "other":
+            e["refused"] = None
+    f.write_text(json.dumps(old), encoding="utf-8")
+    r = c.post(f"/api/mission/pyq/takeout/{ls['id']}/accept", json={"entries": ["Class A/notes.txt"]})
+    assert r.status_code == 400 and "not a .pdf" in r.json()["detail"]
+    mended = takeout.mend_entries(old["entries"])
+    assert [e["id"] for e in mended] == [str(n) for n in range(len(mended))]
+    assert all(e["refused"] == takeout.NOT_READ for e in mended if e["kind"] == "other")

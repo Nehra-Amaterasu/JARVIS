@@ -63,7 +63,9 @@ export default defineConfig({
       cwd: resolve('..'),
       url: `http://127.0.0.1:${SANDBOX_PORT}/api/health`,
       reuseExistingServer: true,
-      timeout: 90_000,
+      // 28 Nov: the seeded start (`--seed study --fresh` fills a whole scratch store first) took 97 s with two builders
+      // loading the machine, so 90 s failed the run before any spec started; the plain start keeps its 90 s
+      timeout: SEEDED ? 240_000 : 90_000,
     },
     // The built UI is served only when `npm run bundle:check` (or vite build --outDir dist-e2e) has run.
     ...(haveBuild

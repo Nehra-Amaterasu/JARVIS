@@ -2,6 +2,20 @@
 
 One file for the JARVIS + Well Wisher product-design overhaul (the design source of truth is `docs/design/jarvis-product-overhaul.md`). Newest dated section on top. Owner-specific asset notes (the private reference collages and what each picture is used for) live in the private notes, not here.
 
+## 2026-11-28: a key pressed by habit accepted questions into the bank; accept moved from Enter to A
+
+**Question.** The engine lane found 65 questions on 13 papers in the owner's real store marked accepted by hand within ten minutes (01:37 to 01:47). Was it a test, or the screen?
+
+**Found.** Not a test: the two UI builders running then never addressed the live app's port (their sandboxes ran on other ports with scratch folders), and the owner confirmed he did it himself while exploring. The screen made it easy: in the review desk (`app/ui/src/ww/study/review/ReviewDesk.tsx`) a plain Enter on the desk accepted the question under the cursor and moved on, so holding or tapping Enter walks a whole paper into the bank unread.
+
+**Change (merge `908b45e`).** Accept is the letter A, like the desk's other decisions (E edit, M merge, S split); Enter on the desk does nothing; a focused Accept button still takes Enter and Space as any button does. The hint line and the key hints on the buttons say A.
+
+**Measured.** Type check exit 0; unit suite 4,314 of 4,314; the paper desk browser spec 9 of 9 (it now presses Enter first and expects the count to stay at 0 of 7, then A and expects 1 of 7). The whole browser suite was NOT run for this merge; it runs with the next batch.
+
+**The rule this leaves.** A key pressed by habit (Enter, Space on the page) never writes to his data; a write takes a deliberate key or a press on a named button. The larger change is queued as row V13 of the plan: acceptance by rule is the default path and the desk shows only the exceptions, each with the engine's reason (`held` on every pending question, coming with the engine's next merge).
+
+**Also measured the same evening.** The plain sandbox start missed Playwright's 90 s as well while two builders ran, so both starts wait 240 s now (`ce503d2`). The privacy scan took 463 s under that load and 24 s an hour later on the same tree.
+
 ## 2026-11-28: the no-mock paper desk and Prepare specs, run again after the merge; the seeded sandbox's start time
 
 **Question.** Two things were left unverified when the design reset and the Prepare face were merged (`fd2ed4c`): the no-mock paper desk spec (it had failed 1 of 2 on 27 Nov when the engine's seed changed) and the Prepare face against real routes.

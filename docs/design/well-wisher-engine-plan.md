@@ -406,6 +406,8 @@ He reviewed the whole app and said what Well Wisher must be able to do. This sec
 | F10 | The week and the month keep what happened: past days' log and plan, and a planned block on any day can be edited | The day log and counters of today; the block plan | The log and the plan of past days kept and listed; routes to edit a block of any day |
 | F11 | Study links per topic from the web, rated | Researched (research file): an open courseware catalogue and an encyclopedia without a key, course playlists on a video site with his key | The first slice |
 | F12 | The desktop window, voice levels, a section for media, alarms and timers, the recording desk of the room sensing | In other lanes' files or the desktop shell | Ownership to be settled with him before this lane touches them |
+| F13 | (28 Nov, evening) His own account exports arrive every week in a folder of his cloud drive, sent there by the provider; the app should fetch and read them by itself, with the voice assistant's transcripts, so the memory stays current without a manual download and import | The import door for an exported archive (`app/jarvis_app/imports.py`: a file from Downloads or a dropped file is classified, saved and read in the background); the Google connection used for Classroom | A pull from one drive folder he names: list what is new since the last pull (by file id and time of change), fetch each archive once into the same import door, a ledger of what was fetched and read, one job at a time, off until he switches it on and connects the drive scope himself at the browser; nothing is deleted on the drive; the reading itself and what the memory keeps belong to the memory lane |
+| F14 | (28 Nov, evening) The app must answer on his real store: it stopped answering when the study screens opened | Fixed the same day: a list of 50 questions read 89 files 50 times (2.0 s to 0.07 s on the real store); a file's text is kept until the file changes | A speed floor as a test on a store of the real size (90 papers, 900 questions): no read route over 0.5 s, none reading a question file more than once a call; the ledger route (1.0 to 1.6 s, its notes read on every call) brought under it; the long steps stay jobs |
 
 ### 10.2 What was built in this chat and was not in the plan before
 
@@ -419,6 +421,7 @@ The preparation pipeline (roles of a paper, question banks without marks, items 
 4. F1 and F2: papers by subject, semesters and goals.
 5. F7: the action list and the feed, with the other lane.
 6. F11, then F9 (the job pipeline's first slice, topic lists for skills and courses), then F10.
+7. F14 runs beside every step from now on (the floor is a test, so a slow route fails the suite). F13 after F6, since both feed through the intake and import doors; its drive scope needs him at the browser once.
 
 ### 10.4 Not decided
 

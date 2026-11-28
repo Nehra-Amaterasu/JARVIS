@@ -24,6 +24,7 @@ Tasks (each with its own prompt file and output check):
   rubric_points   one of his questions and its marks -> the points a marker looks for (R-32)
   subject_pick    a paper's title and opening -> one of his subject ids or "none" (R-66)
   tag_topics      up to 20 of his questions and one subject's topic list -> a topic id or "none" each (R-68)
+  level_pick      up to 20 of his questions -> a level 1 to 5 each (R-75)
   answer_check    his answer and a question's rubric points -> met or not per point, with his words quoted (R-83)
 """
 from __future__ import annotations
@@ -40,7 +41,8 @@ PROMPTS = Path(__file__).with_name("prompts")
 OLLAMA = "http://127.0.0.1:11434"
 DEFAULT_MODEL = "qwen3:4b-instruct-2507-q4_K_M"
 TASKS = ("grade_explain", "quiz_from_text", "parse_day", "summarise", "question_drafts", "variant_descriptive", "rubric_points",
-         "subject_pick", "tag_topics", "answer_check")
+         "subject_pick", "tag_topics",
+         "level_pick", "answer_check")
 MAX_INPUT = 12000
 
 Provider = Callable[[str, str], str]      # (system, user) -> model text
@@ -298,6 +300,38 @@ def _check_answer_check(data: dict, fields: dict) -> Optional[dict]:
     return {"points": sorted(out, key=lambda r: r["n"])}
 
 
+def _check_level_pick(data: dict, fields: dict) -> Optional[dict]:
+    """{"picks": [{id, level}], "dropped": n} from the model's answer, or None. Refused whole when it brings anything but
+    an id and a level per row (a reason, a score, a topic of its own): a model that did not keep to the task once is not
+    trusted for the rest of that answer. Row by row, an id it was not sent and a level that is not a whole number 1 to 5
+    are dropped and counted. An id named twice with the same level is kept once; named with two levels, every row of it
+    is dropped (the model did not decide). A dropped question stays without a level (R-75)."""
+    if set(data) != {"picks"} or not isinstance(data["picks"], list):
+        return None
+    qids = set(_ids(fields.get("question_ids")))
+    by_id: dict[str, list[int]] = {}
+    dropped = 0
+    for row in data["picks"]:
+        if not isinstance(row, dict) or set(row) != {"id", "level"}:
+            return None
+        qid, level = row["id"], row["level"]
+        qid = qid.strip().upper() if isinstance(qid, str) else ""
+        if isinstance(level, float) and level.is_integer():
+            level = int(level)
+        if qid not in qids or isinstance(level, bool) or not isinstance(level, int) or not 1 <= level <= 5:
+            dropped += 1
+            continue
+        by_id.setdefault(qid, []).append(level)
+    out = []
+    for qid, levels in by_id.items():
+        if len(set(levels)) > 1:
+            dropped += len(levels)
+            continue
+        dropped += len(levels) - 1
+        out.append({"id": qid, "level": levels[0]})
+    return {"picks": out, "dropped": dropped}
+
+
 def check_output(task: str, data: dict, fields: dict) -> Optional[dict]:
     """The validated answer for a task, or None when the model's JSON has the wrong shape."""
     if task == "answer_check":
@@ -306,6 +340,8 @@ def check_output(task: str, data: dict, fields: dict) -> Optional[dict]:
         return _check_subject_pick(data, fields)
     if task == "tag_topics":
         return _check_tag_topics(data, fields)
+    if task == "level_pick":
+        return _check_level_pick(data, fields)
     if task == "question_drafts":
         return _check_drafts(data, fields)
     if task == "variant_descriptive":

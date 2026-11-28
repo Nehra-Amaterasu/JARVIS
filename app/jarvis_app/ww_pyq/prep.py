@@ -10,6 +10,7 @@
     policy(store) / set_policy(store, on)                 -> {"auto_accept": bool}   R-69, off by default
     accept(store, sid) / unaccept(store, sid)             -> dict    R-70 and R-71
     PrepJob                                               R-72 to R-74: the steps in one background job, one at a time
+                                                          (the step `levels`, R-75, is ww_pyq/levels.level_subject)
 
 Why each rule is what it is (measured on his store on 28 Nov: 880 questions, all pending, 0 tagged, 66 with marks; and on
 a scratch copy of it the same day, the later section of the research file):
@@ -78,7 +79,7 @@ ROLES = ("paper", "question_bank", "solution", "notes")
 HELD_ROLES = ("solution", "notes")              # their items are not questions he was set
 SHORT_ITEM = 25                                  # under this, an item is a heading or a stub ("Q1", "Section B", "OR")
 LONG_ITEM = 300                                  # over this with no asking, an answer paragraph
-STEPS = ("subjects", "reread", "tags", "accept")
+STEPS = ("subjects", "reread", "tags", "levels", "accept")     # levels (EW13, ww_pyq/levels.py) after tags, before accept
 MAX_JOB_SUBJECTS = 50
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 # a verb of asking, as a word start: "stat" also meets "statement", which only ever makes the rule say "question" and
@@ -229,7 +230,9 @@ def held_by_him(rows: list[dict]) -> str:
     acc = sum(1 for q in rows if q.get("status") == "accepted")
     hand = sum(1 for q in rows if q.get("tag_source") == "hand")
     edited = sum(1 for q in rows if q.get("edited"))
-    parts = [s for n, s in ((acc, f"{acc} accepted"), (hand, f"{hand} tagged by you"), (edited, f"{edited} edited by you")) if n]
+    level = sum(1 for q in rows if q.get("level_source") == "hand")      # a level he set counts like a tag he set (EW13)
+    parts = [s for n, s in ((acc, f"{acc} accepted"), (hand, f"{hand} tagged by you"), (edited, f"{edited} edited by you"),
+                            (level, f"{level} given a level by you")) if n]
     return ", ".join(parts)
 
 
@@ -625,7 +628,7 @@ def unaccept(store: Store, sid: str) -> dict:
 
 # ------------------------------------------------------------------ R-72 to R-74 the job
 def check_steps(steps: Any) -> list[str]:
-    """The steps asked for, in the one order they run (subjects, reread, tags, accept)."""
+    """The steps asked for, in the one order they run (subjects, reread, tags, levels, accept)."""
     if not isinstance(steps, list) or not steps or not all(isinstance(s, str) for s in steps):
         raise ValueError(f"Give the steps as a list of {', '.join(STEPS)}.")
     bad = [s for s in steps if s not in STEPS]
@@ -817,6 +820,36 @@ class PrepJob:
                 cut = True
                 break
         self._result("tags", res)
+        return cut
+
+    def _step_levels(self, ctx: dict) -> bool:
+        from . import levels                               # levels imports this module; the import waits for the step
+        st, md = ctx["store"], ctx["model"]
+        subs = ctx["subjects"]
+        by_model = md.mode != "off"
+        if by_model:
+            dry = [levels.level_subject(st, s, apply=False, use_model=False, limit=None, model=OFF)["left"] for s in subs]
+            self._set(unit="questions", total=sum(dry))
+        else:
+            self._set(unit="subjects", total=len(subs))
+        res, cut = {}, False
+        for s in subs:
+            if self._stop.is_set():
+                cut = True
+                break
+            r = levels.level_subject(st, s, apply=True, use_model=by_model, limit=None, model=md, stop=self._stop.is_set,
+                                     progress=self._tick if by_model else None)
+            if r["failed_batches"]:
+                self._note(f"{s.get('name') or s['id']}: {_plural(r['failed_batches'], 'batch', 'batches')} of the model "
+                           f"failed; {'its' if r['failed_batches'] == 1 else 'their'} questions are as they were.",
+                           r["failed_batches"])
+            if not by_model:
+                self._tick(1)
+            res[str(s["id"]).lower()] = {k: r[k] for k in ("rule", "model", "none", "left", "failed_batches")}
+            if r["stopped"]:
+                cut = True
+                break
+        self._result("levels", res)
         return cut
 
     def _step_accept(self, ctx: dict) -> bool:

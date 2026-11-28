@@ -8,7 +8,8 @@
     PUT    /api/mission/pyq/prep/policy            R-69 {auto_accept: bool}
     POST   /api/mission/pyq/prep/accept            R-70 {subject} accepts only the questions safe to trust without his eye, when the policy is on
     POST   /api/mission/pyq/prep/unaccept          R-71 {subject} every question accepted by rule goes back to pending
-    POST   /api/mission/pyq/prep/run               R-72 {steps: [subjects|reread|tags|accept], subjects?, use_model?} the steps in one background job
+    POST   /api/mission/pyq/prep/levels            R-75 {subject, apply?, use_model?, limit?} a level 1 to 5 on each question: rule first, then the model in batches of 20
+    POST   /api/mission/pyq/prep/run               R-72 {steps: [subjects|reread|tags|levels|accept], subjects?, use_model?} the steps in one background job
     GET    /api/mission/pyq/prep/run               R-73 {status, step, done, total, counts_before, counts_now, seconds, failures} of that job
     DELETE /api/mission/pyq/prep/run               R-74 stops it after the batch or paper in hand
 
@@ -20,8 +21,9 @@ one 400, a plan that is not up yet 503. Every answer is the {state, reason, sour
 
 The job (R-72): a model batch of 20 took 30 to 50 s and reading 89 papers again 510 s on his store (28 Nov), so a screen
 cannot wait on those steps. One run at a time, on a thread of its own (app.state.pyq_prep_job), the steps in the order
-subjects, reread, tags, accept, each with apply on; 409 while it, the paper desk (app.state.pyq_ingest) or OCR
-(app.state.pyq_ocr) runs, and the steps that write (R-66 and R-68 with apply, R-67, R-70, R-71) are 409 while it runs.
+subjects, reread, tags, levels, accept, each with apply on; 409 while it, the paper desk (app.state.pyq_ingest) or OCR
+(app.state.pyq_ocr) runs, and the steps that write (R-66, R-68 and R-75 with apply, R-67, R-70, R-71) are 409 while it runs.
+R-75 (wave EW13) answers `planned` when the model was asked for and is off or rules only is on: the rule part still runs.
 A failed model batch is counted in `failures` and leaves its questions as they were; R-74 stops after the batch or the
 paper in hand, so no paper is half replaced.
 """
@@ -30,7 +32,7 @@ from __future__ import annotations
 from fastapi import Body, FastAPI, HTTPException
 from starlette.concurrency import run_in_threadpool
 
-from .ww_pyq import api, assign, prep
+from .ww_pyq import api, assign, levels, prep, settings
 from .ww_pyq import store as store_mod
 
 SOURCE = "your papers on file"
@@ -185,6 +187,30 @@ def register(app: FastAPI, svc, bus) -> None:
             r = prep.tag_subject(_store(), sub, apply=apply, use_model=use_model, limit=limit, model=md)
             state, reason = r.pop("state"), r.pop("reason")
             return api.ok(state, reason, "rule on the syllabus words" + (f", then {md.name}" if r["model_name"] else ""),
+                          subject=str(sub["id"]).lower(), **r)
+        return await run_in_threadpool(api.guard, work)
+
+    # ------------------------------------------------------------------ R-75
+    @app.post("/api/mission/pyq/prep/levels")
+    async def prep_levels(body: dict = Body(...)):
+        def work():
+            b = _keys(body, {"subject", "apply", "use_model", "limit"})
+            sub = subject_of(b.get("subject"))
+            apply, use_model = _flag(b, "apply"), _flag(b, "use_model")
+            limit = b.get("limit", prep.DEFAULT_LIMIT)
+            if limit is None:
+                raise ValueError(f"The limit is between 1 and {prep.MAX_LIMIT}.")
+            if apply:
+                not_while_running()
+            st = _store()
+            md = model() if use_model else prep.OFF
+            r = levels.level_subject(st, sub, apply=apply, use_model=use_model, limit=limit, model=md)
+            state, reason = r.pop("state"), r.pop("reason")
+            if use_model and md.mode == "off" and state == "live":
+                state = "planned"
+                reason += (" The model part is planned: rules only is on." if settings.rules_only(st)
+                           else " The model part is planned: the model is off.")
+            return api.ok(state, reason, "rule on the asking verbs and given values" + (f", then {md.name}" if r["model_name"] else ""),
                           subject=str(sub["id"]).lower(), **r)
         return await run_in_threadpool(api.guard, work)
 

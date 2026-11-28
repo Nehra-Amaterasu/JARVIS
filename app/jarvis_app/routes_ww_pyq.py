@@ -6,7 +6,7 @@
     PATCH  /api/mission/pyq/papers/{pid}                    R-04 edit title, subject, year, exam_kind, source_note or role (paper, question_bank, solution, notes)
     DELETE /api/mission/pyq/papers/{pid}                    R-05 remove a paper with its questions and crops
     GET    /api/mission/pyq/questions?paper=&subject=&status=&limit=&offset=   R-06 questions in review or accepted
-    PATCH  /api/mission/pyq/questions                       R-07 {ids, set}: accept, reject or correct questions, all or none
+    PATCH  /api/mission/pyq/questions                       R-07 {ids, set}: accept, reject or correct questions (level 1 to 5 or null too), all or none
     GET    /api/mission/pyq/crops/{qid}                     R-08 the page crop of a question as image/png
     GET    /api/mission/pyq/coverage?subject=               R-09 what a subject has, against the floor for a pattern
     GET    /api/mission/pyq/folder                          R-10 the watched folder and the files in it not read yet
@@ -32,7 +32,8 @@ from .ww_pyq.schema import EXAM_KINDS, MAX_TEXT, Q_STATUSES, Q_TYPES
 
 SOURCE = "your papers on file"
 _PAPER_FIELDS = ("title", "subject", "year", "exam_kind", "source_note", "role")
-_Q_FIELDS = ("status", "text", "marks", "type", "unit", "topic", "section", "difficulty")
+# `level` (1 to 5 or null, wave EW13) is written with level_source "hand" by the store; no rule or model writes over it
+_Q_FIELDS = ("status", "text", "marks", "type", "unit", "topic", "section", "difficulty", "level")
 _MAX_TYPED = 300           # questions typed into one paper; a bigger paper comes through the file reader
 _MAX_IDS = 200
 

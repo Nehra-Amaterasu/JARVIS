@@ -46,6 +46,7 @@ _MAX_MARKS = 1000          # a number this large is a typo, not a question
 _REPLACE_TRIES = 8         # Windows can hold a target for a few ms (antivirus, an open reader)
 _MAX_PROBLEMS = 50
 NOT_PRINTED = "not printed"  # marks_source of a question-bank question that prints no marks (ww_pyq/prep.py, R-70)
+_LEVEL_SOURCES = ("none", "model", "rule", "hand")    # who set a question's level, in the order of trust (wave EW13)
 
 # keys no caller may change through update_paper / update_question: they are the record's identity
 _PAPER_FIXED = ("id", "sha256")
@@ -54,6 +55,10 @@ _Q_FIXED = ("id", "paper_id")
 
 def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
+
+
+def _trust(source: Any) -> int:
+    return _LEVEL_SOURCES.index(source) if source in _LEVEL_SOURCES else 0
 
 
 def _check_id(value: Any) -> str:
@@ -239,6 +244,8 @@ class Store:
         q.setdefault("tag_margin", None)
         q.setdefault("difficulty", "")
         q.setdefault("difficulty_source", "")
+        q.setdefault("level", None)                 # 1 to 5 (wave EW13, ww_pyq/levels.py), with who set it
+        q.setdefault("level_source", "none")
         q.setdefault("family_id", "")
         q.setdefault("edited", False)
         q.setdefault("updated", "")
@@ -432,19 +439,38 @@ class Store:
             return out
 
     def update_questions(self, ids: list[str], changes: dict, by: str = "hand") -> list[Question]:
-        """All the changes or none: every id and value is checked before the first write."""
+        """All the changes or none: every id and value is checked before the first write.
+
+        One pass over the question files finds every id (each file read at most once, the pass ending when all are
+        found), the rows change in memory, and only then is each touched file saved once. It was a `_find` per id,
+        each reading files until it hit: 20 s under the lock for one R-75 write on 89 papers and 890 questions (28 Nov).
+        An id in two files is taken from the first in name order, as `_find` does."""
         with self._lock:
+            want = list(dict.fromkeys(ids))
+            for qid in want:
+                _check_id(qid)
             files: dict[str, list[dict]] = {}
-            targets: list[tuple[str, dict]] = []
-            for qid in dict.fromkeys(ids):
-                pid, rows, _ = self._find(qid)
-                rows = files.setdefault(pid, rows)
-                targets.append((pid, next(r for r in rows if r["id"] == qid)))
+            where: dict[str, str] = {}
+            left = set(want)
+            for f in sorted(self._qdir.glob("*.json")):
+                if not left:
+                    break
+                if not _ID.match(f.stem):
+                    continue
+                rows = self._questions_of(f.stem)
+                hit = [r["id"] for r in rows if r["id"] in left]
+                if hit:
+                    files[f.stem] = rows
+                    for h in hit:
+                        where[h] = f.stem
+                    left.difference_update(hit)
+            if left:
+                raise KeyError("No such question.")
             changed = []
-            for pid, q in targets:
-                new = self._apply(q, changes or {}, by)
-                rows = files[pid]
-                rows[rows.index(q)] = new
+            for qid in want:                                  # every change is checked (trust guard too) before a save
+                rows = files[where[qid]]
+                i = next(k for k, r in enumerate(rows) if r["id"] == qid)
+                rows[i] = new = self._apply(rows[i], changes or {}, by)
                 changed.append(new)
             for pid, rows in files.items():
                 self._save(self._qpath(pid), rows)
@@ -481,9 +507,21 @@ class Store:
             elif k in ("topic", "section"):
                 if not isinstance(v, str) or len(v) > 200:
                     raise ValueError(f"The {k} is words of up to 200 characters.")
+            elif k == "level":
+                if v is not None and (isinstance(v, bool) or not isinstance(v, int) or not 1 <= v <= 5):
+                    raise ValueError("A level is a whole number from 1 to 5, or null.")
+            elif k == "level_source" and v not in _LEVEL_SOURCES:
+                raise ValueError("A level is set by rule, model or hand.")
             new[k] = v
         if by == "hand" and ("unit" in changes or "topic" in changes) and "tag_source" not in changes:
             new["tag_source"] = "hand"
+        if "level" in changes:
+            if by == "hand" and "level_source" not in changes:
+                new["level_source"], new["level_model"] = "hand", ""
+            # the order of trust (wave EW13): none < model < rule < hand. The rule never writes over his level, the model
+            # never over the rule's or his; checked here so a click that lands while the model thinks still stands
+            if by != "hand" and _trust(new.get("level_source")) < _trust(q.get("level_source")):
+                raise ValueError("A level set with more trust is kept.")
         # a question without marks never reaches the bank, except one of a question bank that prints none (wave EW11:
         # his teacher's banks hold 10 to 24 questions each and none prints marks); it says so on every screen
         if new["status"] == "accepted" and new.get("marks") is None and new.get("marks_source") != NOT_PRINTED:

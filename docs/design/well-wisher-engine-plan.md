@@ -413,15 +413,32 @@ He reviewed the whole app and said what Well Wisher must be able to do. This sec
 
 The preparation pipeline (roles of a paper, question banks without marks, items that are not questions, the job), Claude through the command-line tool, the evening sheet and the ledger, the evidence ledger, deadline rows, follow-ups and outreach, the seeded sandbox, and the two research files (study links, the job pipeline). Their shapes are in 9.0 under their dates; this section is where they join his list: the pipeline serves F1 to F3, the sheet and ledger F3, F4 and F8, the career packages F9.
 
-### 10.3 Order
+### 10.3 Order: the exams first (set 28 Nov 2026, evening, on the owner's word)
 
-1. His real store prepared (the pipeline run of 28 Nov) and the UI lane's findings closed, so what exists is usable by him.
-2. F4 and F3 together: an answer kept and a mark proposed, levels on questions and the rule that moves him up. This is what turns a list of questions into being tested.
-3. F6: the two readers, so a new term needs no typing.
-4. F1 and F2: papers by subject, semesters and goals.
-5. F7: the action list and the feed, with the other lane.
-6. F11, then F9 (the job pipeline's first slice, topic lists for skills and courses), then F10.
-7. F14 runs beside every step from now on (the floor is a test, so a slow route fails the suite). F13 after F6, since both feed through the intake and import doors; its drive scope needs him at the browser once.
+He said the building had run ahead of the exams. Six papers fall between 8 and 21 Dec and three backlog papers on 28, 29 and 31 Dec; the first is 10 days off. Until 31 Dec a piece of work is built only if it puts questions he can practise in front of him, tells him what to do next, or keeps the app answering. Everything else waits, written down below so it is not lost.
+
+**The test for the exam queue:** would he score more on a paper in the next three weeks because of it? If the answer needs a new habit, a long setup or a review of hundreds of items from him, it fails the test.
+
+**Queue A, before the first paper (8 Dec), in this order.**
+1. **The app answers on his real store** (F14). Done on 28 Nov: the question list 2.0 s to 0.07 s. Left: the ledger route under 0.5 s, and the speed floor as a test.
+2. **Questions for the seven subjects that have none.** Measured on 28 Nov: 2 of 9 subjects can be practised. In order of yield and of the date of the paper:
+   a. the 27 subject suggestions and the 24 unmapped courses (515 of his 688 files) shown for one press each, with a rule that drops a suggestion whose title names another course's code; then the pipeline runs for the newly named subjects;
+   b. question lines read out of solution sheets, so a subject with only solution sheets has questions;
+   c. drafts from his own notes for a subject with no paper at all, by the outside model, labelled as written by the model;
+   d. past papers fetched by subject from the sources he allowed (F1), each a pointer or a file he can open, read by the same pipeline.
+3. **The evening sheet on real questions, every evening, for the nearest paper**: built by itself, the level he stands on (wave EW13, built, in review), his answer kept and a mark proposed (built and reviewed), the review desk showing only what the rule held back (`held` on R-06).
+4. **One answer to "what now"** (F8): the nearest paper, the topic, the sheet or the notes to open, in one sentence the voice assistant can also say.
+
+**Queue B, between the papers (8 to 21 Dec), only if A stands.**
+5. Study links per topic for the topics he scores under half on (F11, the two sources that need no key first).
+6. An answer key per question from the paired solution sheets (F5), so a mark can be proposed without a rubric he has to accept first.
+7. The paper of the next subject prepared two days ahead: its sheet count raised, its unmeasured topics first.
+
+**Queue C, for the backlog papers (28 to 31 Dec).** The same as A.2 for the three backlog subjects; their papers are the oldest and the thinnest on file.
+
+**After 31 Dec, in the old order.** F6 (syllabus and date-sheet readers: this term's dates and syllabus are already typed in), F2 (semesters and goals), F7 (the action list for the voice assistant, beyond the one sentence of item 4), F9 (skills, courses, jobs), F10 (day history and plan edits), F12 (window, voice levels, media, the recording desk), F13 (the weekly exports on his drive), the Tree store, playlists.
+
+**His decision that changes A.2c.** Today a question drafted by the model waits until he accepts it. For the five subjects with no paper that means reading every draft before the first practice. The engine's recommendation: for this exam season let a drafted question stand on a sheet unread, marked on the sheet as written by the model and not checked, and never counted in the pattern of past papers. Until he says so, the old rule holds.
 
 ### 10.4 Not decided
 

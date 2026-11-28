@@ -26,6 +26,14 @@ export interface ReviewItem {
   wholePage?: boolean
   /** The fields the student set by hand ("stem", "marks", "topic", "type"): each shows a HAND chip. */
   hand?: string[]
+  /** Wave EW11: a question bank prints no marks; drawn "marks not printed", never 0. */
+  marksNotPrinted?: boolean
+  /** Wave EW11: not a question (judged by the rule or a model, named in notQuestionBy). It has no Accept. */
+  notQuestion?: boolean
+  notQuestionBy?: string
+  /** The model's name behind a MODEL tag, and "rule" when R-70 accepted it by rule. */
+  tagModel?: string
+  acceptedBy?: string
 }
 
 export interface ReviewState {
@@ -46,6 +54,10 @@ export const toItem = (q: QuestionRow): ReviewItem => ({
   tag: q.tag, margin: q.margin, status: q.status, stem: q.stem, crop: q.crop, rubric: q.rubric ?? [],
   ...(q.ocrConfidence != null ? { ocrConfidence: q.ocrConfidence } : {}),
   ...(q.wholePage ? { wholePage: true } : {}),
+  ...(q.marksNotPrinted ? { marksNotPrinted: true } : {}),
+  ...(q.notQuestion ? { notQuestion: true, notQuestionBy: q.notQuestionBy ?? 'rule' } : {}),
+  ...(q.tagModel ? { tagModel: q.tagModel } : {}),
+  ...(q.acceptedBy ? { acceptedBy: q.acceptedBy } : {}),
 })
 
 export function initialReview(rows: readonly QuestionRow[]): ReviewState {
@@ -54,7 +66,8 @@ export function initialReview(rows: readonly QuestionRow[]): ReviewState {
   return { items, cursorId: first?.id ?? null, undo: null }
 }
 
-export const isCertain = (i: ReviewItem): boolean => i.status === 'pending' && i.tag === 'RULE' && i.margin >= CERTAIN_MARGIN && i.marks !== null
+// an item judged not a question is never accepted, by one press or by many (the engine keeps it out of acceptance, prep.why_not_trusted)
+export const isCertain = (i: ReviewItem): boolean => i.status === 'pending' && !i.notQuestion && i.tag === 'RULE' && i.margin >= CERTAIN_MARGIN && i.marks !== null
 
 export const pending = (s: ReviewState): ReviewItem[] => s.items.filter((i) => i.status === 'pending')
 export const certain = (s: ReviewState): ReviewItem[] => s.items.filter(isCertain)
@@ -109,8 +122,8 @@ export function reduceReview(s: ReviewState, a: ReviewAction): ReviewState {
     case 'accept': {
       const id = target(a.id)
       const cur = s.items.find((i) => i.id === id)
-      if (!id || !cur || cur.status === 'accepted') return s
-      const items = patchItem(s.items, id, (i) => ({ ...i, status: 'accepted' }))
+      if (!id || !cur || cur.status === 'accepted' || cur.notQuestion) return s
+      const items = patchItem(s.items, id, (i) => ({ ...i, status: 'accepted', acceptedBy: undefined }))
       return { ...s, items, cursorId: afterDecision(items, id, s.cursorId) }
     }
     case 'acceptCertain': {

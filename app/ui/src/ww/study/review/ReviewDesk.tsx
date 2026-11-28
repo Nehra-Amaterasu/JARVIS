@@ -21,6 +21,7 @@ import { RubricChips } from './RubricChips'
 import { TagChip } from './TagChip'
 import { dragCorner, moveEdge, EDGE_STEP_PX, type ArrowKey, type Box, type Corner } from './cropModel'
 import { certain, initialReview, pending, reduceReview, rubricSum, UNDO_MS, type ReviewAction, type ReviewItem } from './reviewModel'
+import { provenanceWords } from '../adapters/pyqMap'
 
 export interface ReviewDeskProps {
   questions: readonly QuestionRow[]
@@ -150,7 +151,7 @@ export function ReviewDesk({
     if (d) onDecide?.(d)
     if (spoken) setSay(spoken)
   }
-  const accept = () => { if (cur && cur.status !== 'accepted') act({ type: 'accept' }, { kind: 'accept', qid: cur.id }, `Accepted ${cur.number}. ${Math.max(0, waiting.length - 1)} waiting.`) }
+  const accept = () => { if (cur && cur.status !== 'accepted' && !cur.notQuestion) act({ type: 'accept' }, { kind: 'accept', qid: cur.id }, `Accepted ${cur.number}. ${Math.max(0, waiting.length - 1)} waiting.`) }
   const reject = () => { if (cur && cur.status !== 'rejected') act({ type: 'reject', now: now() }, { kind: 'reject', qid: cur.id }, `Rejected ${cur.number}. Undo within 10 seconds.`) }
   const undo = () => { if (rs.undo) act({ type: 'undo', now: now() }, { kind: 'undo', qid: rs.undo.id }, 'Rejection undone.') }
   const merge = () => { if (cur) act({ type: 'merge' }, { kind: 'merge', qid: cur.id }, `Merged ${cur.number} with the question before it.`) }
@@ -293,7 +294,7 @@ export function ReviewDesk({
               return (
                 <div key={i.id} className="rv-boxwrap" style={{ left: `${(x / PAGE.w) * 100}%`, top: `${(y / PAGE.h) * 100}%`, width: `${(w / PAGE.w) * 100}%`, height: `${(h / PAGE.h) * 100}%` }}>
                   <button type="button" className="rv-box" data-sel={sel ? 'true' : undefined} data-status={i.status} onClick={() => dispatch({ type: 'go', id: i.id })} aria-label={`${i.number}, ${i.status}${sel ? ', current' : ''}`} aria-current={sel ? 'true' : undefined}>
-                    <span className="rv-box-no">{i.status === 'accepted' ? '✓ ' : i.status === 'rejected' ? '× ' : ''}{i.number}</span>
+                    <span className="rv-box-no">{i.status === 'accepted' ? '✓ ' : i.status === 'rejected' ? '× ' : ''}{i.number}{i.notQuestion ? ', not a question' : ''}</span>
                   </button>
                   {sel && (['tl', 'tr', 'bl', 'br'] as Corner[]).map((c) => (
                     <button
@@ -348,7 +349,7 @@ export function ReviewDesk({
               ) : (
                 <div className="rv-fields">
                   <Field name="marks" chip={cur.hand?.includes('marks') ? 'HAND' : 'RULE'}>
-                    {editing && draft ? <input className="rv-input" inputMode="numeric" aria-label="Marks" value={draft.marks} onChange={(e) => setDraft({ ...draft, marks: e.target.value })} /> : cur.marks === null ? <em className="rv-miss">not found</em> : cur.marks}
+                    {editing && draft ? <input className="rv-input" inputMode="numeric" aria-label="Marks" value={draft.marks} onChange={(e) => setDraft({ ...draft, marks: e.target.value })} /> : cur.marks === null ? <em className="rv-miss" data-marks={cur.marksNotPrinted ? 'not-printed' : 'missing'}>{cur.marksNotPrinted ? 'marks not printed' : 'not found'}</em> : cur.marks}
                   </Field>
                   <Field name="topic" chip={cur.tag}>
                     {editing && draft ? (
@@ -365,6 +366,12 @@ export function ReviewDesk({
                       </select>
                     ) : TYPES.find((t) => t.id === cur.type)?.label}
                   </Field>
+                  {(cur.notQuestion || provenanceWords(cur)) && (
+                    <p className="rv-prov" data-prov="">
+                      {cur.notQuestion && <span data-notq="">Not a question, judged by {cur.notQuestionBy === 'rule' || !cur.notQuestionBy ? 'the rule' : `the model ${cur.notQuestionBy}`}: it is kept out of acceptance. </span>}
+                      {provenanceWords(cur) && <span>{provenanceWords(cur)}.</span>}
+                    </p>
+                  )}
                 </div>
               )}
             </>
@@ -381,7 +388,9 @@ export function ReviewDesk({
                 </>
               ) : (
                 <>
-                  <Button size="sm" onClick={accept} disabled={!cur || cur.status === 'accepted'} aria-keyshortcuts="Enter">Accept</Button>
+                  {cur?.notQuestion
+                    ? <Button size="sm" disabledReason="Not a question: it has no Accept." aria-keyshortcuts="Enter">Accept</Button>
+                    : <Button size="sm" onClick={accept} disabled={!cur || cur.status === 'accepted'} aria-keyshortcuts="Enter">Accept</Button>}
                   <Button size="sm" onClick={() => setEditing(true)} disabled={!cur} aria-keyshortcuts="E">Edit</Button>
                   <Button size="sm" onClick={reject} disabled={!cur || cur.status === 'rejected'} aria-keyshortcuts="Backspace">Reject</Button>
                   <Button size="sm" tone="quiet" aria-expanded={more} aria-controls={moreId} onClick={() => setMore((v) => !v)}>More</Button>

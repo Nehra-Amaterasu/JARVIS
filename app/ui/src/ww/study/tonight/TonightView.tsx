@@ -9,16 +9,16 @@
  * Build or Save (the page has no timer and no poll).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Lamp, PrimaryButton, Segmented, type LampState } from '../../../shared/kit'
+import { Button, Lamp, PrimaryButton, Segmented, Switch, type LampState } from '../../../shared/kit'
 import { Zones } from '../../../shell/v3'
 import { getImage } from '../adapters/http'
-import { tonightClient, type AwaitingRow, type Sheet, type SheetItem, type TonightClient, type TonightSettings, type TonightView as View } from '../adapters/pyqTonight'
+import { tonightClient, type AwaitingRow, type MarkInput, type Sheet, type SheetItem, type TonightClient, type TonightSettings, type TonightView as View } from '../adapters/pyqTonight'
 import type { ClientReply } from '../adapters/types'
 import { nameOf, Said, useSubjects } from './shared'
 import './tonight.css'
 
-/** The engine counts a topic as measured from 5 marks (ww_pyq/next.py MIN_ATTEMPTS, board request 12), so one evening does not move the order. */
-const MARKS_TO_MEASURE = 5
+/** The engine counts a topic as measured from 3 marks (ww_pyq/next.py MIN_ATTEMPTS: the owner's number of 27 Nov, it was 5; board request 17). */
+const MARKS_TO_MEASURE = 3
 const WEIGHT_WORD: Record<number, string> = { 3: 'high', 2: 'middle', 1: 'low' }
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 const g = (n: number) => String(Math.round(n * 1000) / 1000)
@@ -91,7 +91,7 @@ function QuestionList({ sheet }: { sheet: Sheet }) {
           <p className="tsh-item-head">
             <span className="tsh-n">Q{it.n}</span>
             <span className="tsh-topic">{it.topic || 'No topic named'}{it.unit !== null ? `, unit ${it.unit}` : ''}</span>
-            <span className="tsh-marks">{plural(it.marks, 'mark', 'marks')}</span>
+            <span className="tsh-marks" data-marks={it.marks === null ? 'not-printed' : ''}>{it.marks === null ? 'marks not printed' : plural(it.marks, 'mark', 'marks')}</span>
           </p>
           {it.text ? <p className="tsh-text">{it.text}</p> : it.crop ? <Crop path={it.crop} /> : <p className="tsh-line">The engine sent no words or picture for this question.</p>}
           {it.why && <p className="tsh-why">Why this one: {whyLine(it.why) || 'the engine sent no terms'}.</p>}
@@ -112,6 +112,9 @@ function Marks({ client, subjects, today, awaiting, onSaved }: MarksProps) {
   const [openId, setOpenId] = useState<string | null>(null)
   const [others, setOthers] = useState<Record<string, Sheet>>({})
   const [typed, setTyped] = useState<Record<string, string>>({})
+  // a question whose marks are not printed (wave EW11): his own "out of", and whether to keep it as the question's marks (R-58 keep)
+  const [outOf, setOutOf] = useState<Record<string, string>>({})
+  const [keep, setKeep] = useState<Record<string, boolean>>({})
   const [note, setNote] = useState<Note | null>(null)
   const [busy, setBusy] = useState(false)
   // his default is tonight's sheet; an earlier sheet opens only on his press of its key (opening one asks the engine for it)
@@ -135,12 +138,22 @@ function Marks({ client, subjects, today, awaiting, onSaved }: MarksProps) {
 
   const save = async () => {
     if (!sheet) return
-    const items: { questionId: string; got: number }[] = []
+    const items: MarkInput[] = []
     for (const it of sheet.items) {
       const t = (typed[key(it.questionId)] ?? '').trim()
       if (t === '') continue
       if (!/^\d+(\.\d+)?$/.test(t)) { setNote({ state: 'fault', text: `Q${it.n}: type the mark as a number, for example 3 or 2.5.` }); return }
-      items.push({ questionId: it.questionId, got: Number(t) })
+      const row: MarkInput = { questionId: it.questionId, got: Number(t) }
+      if (it.marksNotPrinted) {
+        // sent as typed: an empty "out of" goes without it, and the engine's 400 sentence says what is missing (R-58)
+        const o = (outOf[key(it.questionId)] ?? (it.mark ? String(it.mark.max) : '')).trim()
+        if (o !== '') {
+          if (!/^\d+(\.\d+)?$/.test(o)) { setNote({ state: 'fault', text: `Q${it.n}: type out of as a number, for example 10.` }); return }
+          row.outOf = Number(o)
+          if (keep[key(it.questionId)]) row.keep = true
+        }
+      }
+      items.push(row)
     }
     if (!items.length) { setNote({ state: 'waiting', text: 'Type at least one mark first.' }); return }
     setBusy(true)
@@ -148,7 +161,10 @@ function Marks({ client, subjects, today, awaiting, onSaved }: MarksProps) {
       const r = await client.saveMarks(sheet.id, items)
       if (r.state === 'live' && r.data?.sheet) {
         const next = r.data.sheet
-        setTyped((t) => Object.fromEntries(Object.entries(t).filter(([k]) => !k.startsWith(`${sheet.id}|`))))
+        const mine = ([k]: [string, unknown]) => !k.startsWith(`${sheet.id}|`)
+        setTyped((t) => Object.fromEntries(Object.entries(t).filter(mine)))
+        setOutOf((t) => Object.fromEntries(Object.entries(t).filter(mine)))
+        setKeep((t) => Object.fromEntries(Object.entries(t).filter(mine)))
         if (today && next.id === today.id) onSaved(next)
         else { setOthers((o) => ({ ...o, [next.id]: next })); onSaved(null) }
         setNote({ state: 'live', text: `${r.reason} Marked by ${r.data.markedBy || 'you'}; kept as you typed them.` })
@@ -183,6 +199,27 @@ function Marks({ client, subjects, today, awaiting, onSaved }: MarksProps) {
           {sheet.items.map((it) => {
             const id = `tsh-m-${sheet.id}-${it.n}`
             const typedHere = typed[key(it.questionId)]
+            if (it.marks === null) {
+              const oid = `${id}-of`
+              const k = key(it.questionId)
+              const ofHere = outOf[k] ?? (it.mark ? String(it.mark.max) : '')
+              return (
+                <div key={it.questionId} className="tsh-markset" data-notprinted={it.questionId}>
+                  <div className="tsh-markrow tsh-markrow-of">
+                    <label htmlFor={id} className="tsh-marklabel"><span className="tsh-n">Q{it.n}</span> {it.topic || 'No topic named'}: marks not printed</label>
+                    <input id={id} className="tsh-input tsh-num" type="number" inputMode="decimal" min={0} step="any"
+                      value={typedHere ?? (it.mark ? String(it.mark.got) : '')} placeholder="mark"
+                      onChange={(e) => setTyped((t) => ({ ...t, [k]: e.target.value }))} data-q={it.questionId} />
+                    <label htmlFor={oid} className="tsh-of">out of</label>
+                    <input id={oid} className="tsh-input tsh-num" type="number" inputMode="decimal" min={1} max={100} step="any" required
+                      value={ofHere} placeholder="1-100"
+                      onChange={(e) => setOutOf((t) => ({ ...t, [k]: e.target.value }))} data-out-of={it.questionId} />
+                  </div>
+                  <p className="tsh-line">The paper prints no marks for this question: say what you marked it out of, from 1 to 100. Needed to save its mark.</p>
+                  <Switch checked={!!keep[k]} onChange={(v) => setKeep((x) => ({ ...x, [k]: v }))} label="Keep this number as the question's own marks, set by you" />
+                </div>
+              )
+            }
             return (
               <div key={it.questionId} className="tsh-markrow">
                 <label htmlFor={id} className="tsh-marklabel"><span className="tsh-n">Q{it.n}</span> {it.topic || 'No topic named'}</label>

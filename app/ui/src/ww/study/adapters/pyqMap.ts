@@ -3,7 +3,7 @@
 // did not send stays absent, null or empty; no mapper fills a gap with a plausible value.
 import { isLampState, showsNumber, type LampState } from '../../../shared/lamp'
 import type {
-  Blueprint, CheckResult, CropInfo, GainItem, GeneratedPaper, PaperRow, PatternSet, PortReply, QType, QuestionRow, ReviewStatus, TagSource, TextStatus, Topic, TraceEvent,
+  Blueprint, CheckResult, CropInfo, GainItem, GeneratedPaper, PaperRole, PaperRow, PatternSet, PortReply, QType, QuestionRow, ReviewStatus, TagSource, TextStatus, Topic, TraceEvent,
 } from '../ports'
 
 // ------------------------------------------------------------------------------------------------ the engine's records
@@ -13,11 +13,15 @@ export interface EPaper {
   id: string; title?: string; filename?: string; year?: number | null; subject?: string; pages?: number; total_marks?: number | null
   counts?: { questions?: number; pending?: number; accepted?: number; rejected?: number; marks_missing?: number }
   faults?: unknown; method?: string
+  /** Wave EW11: paper, question_bank, solution or notes, and who set it (rule or hand). */
+  role?: string; role_source?: string
 }
 export interface EQuestion {
   id: string; paper_id: string; label?: string; text?: string; text_status?: string; crop?: ECrop | null; marks?: number | null; type?: string; status?: string
   unit?: number | null; topic?: string; tag_source?: string; tag_margin?: number | null; has_crop?: boolean; updated?: string
   ocr_confidence?: number | null; origin?: string
+  /** Wave EW11 (board request 23): marks null with marks_source "not printed"; not_question with who judged it; the model behind a tag; who accepted. */
+  marks_source?: string; not_question?: boolean; not_question_source?: string; not_question_model?: string; tag_model?: string; accepted_by?: string; status_by?: string
 }
 export interface ETrace { t?: number; page?: number | null; kind?: string; text?: string }
 export interface EJobFile { file?: string; status?: string; paper_id?: string; pages?: number; questions?: number; method?: string; note?: string }
@@ -59,8 +63,14 @@ export function paperRow(p: EPaper): PaperRow {
     ...(str(p.subject) ? { subject: str(p.subject) } : {}),
     ...(Array.isArray(p.faults) ? { faults: p.faults.filter((f): f is string => typeof f === 'string') } : {}),
     ...(str(p.method) ? { method: str(p.method) } : {}),
+    ...(ROLES.includes(str(p.role) as PaperRole) ? { role: str(p.role) as PaperRole } : {}),
+    ...(str(p.role_source) ? { roleSource: str(p.role_source) } : {}),
   }
 }
+
+const ROLES: readonly PaperRole[] = ['paper', 'question_bank', 'solution', 'notes']
+/** The engine's marks_source for a question of a question bank that prints no marks (ww_pyq/store.py NOT_PRINTED). */
+export const NOT_PRINTED = 'not printed'
 
 /** The engine's question types are seven; the port draws four glyphs. descriptive reads as a long answer, the rest as short. */
 export const QTYPE: Record<string, QType> = { numerical: 'numerical', derivation: 'derivation', short: 'short', mcq: 'mcq', descriptive: 'derivation', slide: 'short', unknown: 'short' }
@@ -111,7 +121,26 @@ export function questionRow(q: EQuestion, paper: EPaper | undefined, img?: strin
     // "p3": the page was read but no question start was found, so the whole page is one draft (engine plan, 25 Nov, "OCR as built")
     ...(/^p\d+$/i.test(label) ? { wholePage: true } : {}),
     ...(str(q.origin) ? { origin: str(q.origin) } : {}),
+    // a question bank prints no marks: null stays null and says so, it is never 0 (board request 23)
+    ...(marks === null && str(q.marks_source) === NOT_PRINTED ? { marksNotPrinted: true } : {}),
+    ...(q.not_question === true ? { notQuestion: true, notQuestionBy: str(q.not_question_model) || str(q.not_question_source) || 'rule' } : {}),
+    ...(str(q.tag_source) === 'model' && str(q.tag_model) ? { tagModel: str(q.tag_model) } : {}),
+    // accepted by rule and not since by his hand (prep.unaccept reads the same two fields)
+    ...(str(q.status) === 'accepted' && str(q.accepted_by) === 'rule' && str(q.status_by) !== 'hand' ? { acceptedBy: 'rule' } : {}),
   }
+}
+
+/** The words for a question's marks wherever they are drawn: the number, "marks not printed" for a question bank, or "marks not found". */
+export const marksWords = (q: Pick<QuestionRow, 'marks' | 'marksNotPrinted'>): string =>
+  q.marks !== null ? `${q.marks} ${q.marks === 1 ? 'mark' : 'marks'}` : q.marksNotPrinted ? 'marks not printed' : 'marks not found'
+
+const TAG_WORD: Record<TagSource, string> = { RULE: 'the rule', MODEL: 'a model', HAND: 'you' }
+/** Who set a question's topic, and who accepted it, in plain words (tag_source, tag_model, accepted_by). A model's tag is never his. */
+export function provenanceWords(q: Pick<QuestionRow, 'tag' | 'tagModel' | 'status' | 'acceptedBy' | 'topicId'>): string {
+  const bits: string[] = []
+  if (q.topicId) bits.push(q.tag === 'MODEL' ? `Topic set by the model${q.tagModel ? ` ${q.tagModel}` : ''}, not checked by you` : `Topic set by ${TAG_WORD[q.tag]}`)
+  if (q.status === 'accepted') bits.push(q.acceptedBy === 'rule' ? 'accepted by the rule, not by you' : 'accepted by you')
+  return bits.join('; ')
 }
 
 // ------------------------------------------------------------------------------------------------ the ingest job
@@ -138,7 +167,12 @@ export function patternSet(p: EPatterns | undefined): PatternSet {
   return { topics, papers: num(p?.n_papers) ?? 0, topicCounts }
 }
 
-export interface ETerms { marks_weight?: unknown; seen_share?: unknown; proficiency?: unknown; measured?: unknown; minutes?: unknown; syllabus_weight?: unknown }
+export interface ETerms { marks_weight?: unknown; seen_share?: unknown; proficiency?: unknown; measured?: unknown; minutes?: unknown; syllabus_weight?: unknown; marks_basis?: unknown }
+/** R-17's marks_basis (wave EW11): on what the topic was weighed when its questions print no marks (ww_pyq/patterns.py). */
+const BASIS_WORDS: Record<string, string> = {
+  assumed: 'weighed on assumed marks (the median of the marks printed in this subject)',
+  mixed: 'weighed partly on assumed marks (the median of the marks printed in this subject)',
+}
 export interface EGain { key?: string; reason?: string; terms?: ETerms | null }
 const SYLLABUS_WORD: Record<number, string> = { 3: 'high', 2: 'medium', 1: 'low' }
 
@@ -156,6 +190,9 @@ export function termsText(t: ETerms | null | undefined): string {
   if (sw !== null) parts.push(`syllabus weight ${sw} of 3${SYLLABUS_WORD[sw] ? ` (${SYLLABUS_WORD[sw]})` : ''}`)
   const min = num(t.minutes)
   if (min !== null) parts.push(`about ${Math.round(min)} min`)
+  // "printed" is the plain case and says nothing new; the other two are said, so an assumption is never read as a printed mark
+  const basis = BASIS_WORDS[str(t.marks_basis)]
+  if (basis) parts.push(basis)
   return parts.join('; ')
 }
 

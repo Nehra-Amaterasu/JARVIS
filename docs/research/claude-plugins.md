@@ -79,11 +79,16 @@ Disabled at user scope (`enabledPlugins` in `~/.claude/settings.json`), taking e
 
 Kept and working: ECC (synced), agentkeeper (local mode, no account key), agentic-sdlc, claude-context-optimizer, security-guidance, claude-mem (newest copy; waits for Bun), and every skill-only plugin.
 
-### Still open (needs the owner)
+### Repaired after the owner's go-ahead (same day)
 
-- **claude-damn** works only once `python3` is real. Once it runs, it blocks every Bash command over 500 characters, with more than 10 statements, or with an inline Python/Node script. Turning it on mid-wave would stall the running lanes, so it waits for a decision.
-- **claude-mem** needs Bun and `npx claude-mem install`. It records every tool call; the observer can be pointed at an outside model API, which matters for the private notes.
-- **The real speed-up** is fewer chats open at once and fewer plugins per chat. Six chats × 262 plugins is what saturates the CPU; disabling the 22 above removes their hooks and processes but leaves about 230 skill-only plugins in the context.
+- **claude-damn: on.** `python3` now resolves to a hard link `python3.exe` beside `python.exe` in `%LOCALAPPDATA%\Programs\Python\Python314` (3.14.3), ahead of the Store stub on PATH. Tested through the hook: `ls -la` allowed, an inline heredoc denied, a 605-character command denied. Minutes later it denied a real 11-statement command of mine. Each check took 4-17 s on the loaded machine against its 10 s limit; idle Python starts in about 0.2 s.
+- **claude-mem: on.** Bun 1.4.5 installed through winget (`Oven-sh.Bun`). The plugin's own `ensure-launcher.cjs` compiled `%LOCALAPPDATA%\claude-mem\bin\claude-mem.exe` (115 MB, protocol 4) and added that folder to the user PATH. Its SessionStart context hook then ran in 2.9 s with exit 0. `npx claude-mem install` was not used, because it fetches the latest package and could register a second copy. Its first output is an advert for its paid Cloud Sync, which would upload the recorded tool calls; it is not enabled.
+- Chats that were open before this need a restart to pick up the new PATH and the disables.
+
+### Still open
+
+- **The real speed-up** is fewer chats open at once and fewer plugins per chat. Six chats × 262 plugins is what saturates the CPU. The 23 disables remove their hooks and processes but leave about 240 plugins, mostly skill-only, in every chat's context.
+- agentkeeper costs 1.2-1.4 s idle on every tool call before and after (local mode); claude-context-optimizer's prompt coach injects guessed file names that are often wrong. Both are kept for now.
 
 ### What it changed
 

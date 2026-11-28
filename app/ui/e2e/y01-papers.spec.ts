@@ -2,7 +2,7 @@
 // Built in memory by Vite from a virtual entry that draws one state of the entry bare in the shell canvas (nothing is written near dist, no port is used). Proves:
 //   geometry   the desk at the shell canvas size (1230 x 664) has no inner scrollbar, no clipped row, every control of the desk at
 //              44 px or more; at 390 px it is one column with no sideways scroll
-//   keyboard   the Strata is one tab stop with arrows; Enter opens the Review Desk on that question; inside it Enter accepts, N jumps
+//   keyboard   the Strata is one tab stop with arrows; Enter opens the Review Desk on that question; inside it A accepts (Enter does not, since 28 Nov), N jumps
 //              to the least certain, Backspace rejects with an undo, U takes it back, Shift+A accepts the certain ones, Tab stays
 //              inside the dialog, Escape closes it and the focus returns to the cell
 // Screenshots go to Y01_SHOTS when it is set (outside the repository), else nowhere.
@@ -220,7 +220,10 @@ test.describe('Y01 keyboard path', () => {
 
     const count = () => dlg.locator('.rv-count b').textContent()
     expect(await count()).toBe('0 of 7')
+    // 28 Nov: Enter must not accept (65 questions were accepted unread with it)
     await page.keyboard.press('Enter')
+    expect(await count()).toBe('0 of 7')
+    await page.keyboard.press('a')
     expect(await count()).toBe('1 of 7')
     await page.keyboard.press('n')
     await expect(dlg.locator('.rv-box[data-sel="true"]')).toHaveAttribute('aria-label', /Q5/)

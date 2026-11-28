@@ -109,6 +109,8 @@ export function tokens(ground: 'dark' | 'light', glass: 'on' | 'off'): TokenMap 
 export type RGB = [number, number, number]
 export function colour(v: string): { rgb: RGB; a: number } {
   const s = v.trim()
+  // 28 Nov: the reset sets the glare, sheen and specular tokens to transparent (no gradient light on a surface)
+  if (s === 'transparent') return { rgb: [0, 0, 0], a: 0 }
   const hex = /^#([0-9a-f]{6})$/i.exec(s)
   if (hex) return { rgb: [0, 2, 4].map((i) => parseInt(hex[1].slice(i, i + 2), 16)) as RGB, a: 1 }
   const m = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/.exec(s)

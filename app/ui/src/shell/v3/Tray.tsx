@@ -4,7 +4,7 @@
  * the graded material (tint, radius, shadow and type size per step, in shell-v3.css). A view does not style its trays: it
  * passes a TraySpec to <Zones> and puts its content inside.
  */
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import type { StepNumber, TraySpec } from './contract'
 import './shell-v3.css'
 
@@ -63,6 +63,56 @@ export function Glint() {
   return <span className="s3-glint" aria-hidden="true" />
 }
 
+/**
+ * The edges of a scroller that have more content beyond them (28 Nov: several trays clipped their content with no way to reach
+ * it). Read from the real scroll position, the scroll height and the box, on scroll and on every resize of the box or its
+ * content, so the soft edge shows exactly where there is more and never where there is not. 2 px of slack absorbs the
+ * sub-pixel rounding of a zoomed window. Returns nothing: it writes data-more-up and data-more-down on the element, so a
+ * scroll never re-renders the view inside.
+ */
+export function useScrollEdges(ref: RefObject<HTMLElement | null>): void {
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    let raf = 0
+    const read = () => {
+      raf = 0
+      const up = el.scrollTop > 2
+      const down = el.scrollTop + el.clientHeight < el.scrollHeight - 2
+      const u = up ? '1' : '0'
+      const d = down ? '1' : '0'
+      if (el.dataset.moreUp !== u) el.dataset.moreUp = u
+      if (el.dataset.moreDown !== d) el.dataset.moreDown = d
+    }
+    const soon = () => {
+      if (!raf) raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(read) : (read(), 0)
+    }
+    read()
+    el.addEventListener('scroll', soon, { passive: true })
+    let ro: ResizeObserver | null = null
+    let mo: MutationObserver | null = null
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(soon)
+      ro.observe(el)
+      for (const c of el.children) ro.observe(c)
+    }
+    // content that arrives later (a list that loads) changes the scroll height without resizing the box
+    if (typeof MutationObserver !== 'undefined') {
+      mo = new MutationObserver(() => {
+        if (ro) for (const c of el.children) ro.observe(c)
+        soon()
+      })
+      mo.observe(el, { childList: true })
+    }
+    return () => {
+      el.removeEventListener('scroll', soon)
+      ro?.disconnect()
+      mo?.disconnect()
+      if (raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf)
+    }
+  }, [ref])
+}
+
 export interface TrayProps extends TraySpec {
   step: StepNumber
   /** Phone: this tray is the open sheet. */
@@ -73,6 +123,8 @@ export interface TrayProps extends TraySpec {
 export function Tray({ step, job, chip, ruler, flare, label, className, children, sheet, onDone }: TrayProps) {
   const id = useId()
   const done = useRef<HTMLButtonElement>(null)
+  const body = useRef<HTMLDivElement>(null)
+  useScrollEdges(body)
   useEffect(() => {
     if (sheet) done.current?.focus()
   }, [sheet])
@@ -98,7 +150,7 @@ export function Tray({ step, job, chip, ruler, flare, label, className, children
         {chip != null && <span className="s3-headchip">{chip}</span>}
       </header>
       {rule && <Ruler />}
-      <div className="s3-body">{children as ReactNode}</div>
+      <div className="s3-body" ref={body}>{children as ReactNode}</div>
       {step === 1 && fired > 0 && <span className="s3-flare" key={fired} data-flare={fired} aria-hidden="true" />}
       {step !== 1 && (
         <button type="button" className="s3-done" ref={done} onClick={onDone}>Done</button>

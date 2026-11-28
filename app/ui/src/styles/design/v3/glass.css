@@ -15,83 +15,99 @@
    THE GROUND. Dark is the default ground (JARVIS, Aankhen, Yadaash). Light (Well Wisher) applies when the page theme is
    clay-light, or when the element says data-ground='light'. data-ground='dark' forces dark inside a light theme.
 
-   GLASS OFF. [data-glass='off'] sets the six alphas to 1 and the blur to none. The hues stay the same, and the first tray
-   keeps a 3 percent lighter top left wash so the focal tray still lifts (spec 2.6). Nothing else changes.
+   GLASS OFF. [data-glass='off'] sets the six alphas to 1 and the blur to none. Nothing else changes (since the 28 Nov reset
+   the first tray has no wash of its own: it lifts by its deeper shadow).
 
    ALPHAS. --ga and --sa are the HOST values (.76 and .74), not the mockup's .70 and .66 (spec 2.7): the real window cannot
    apply the mockup's brightness(.8) to the desktop, so over a pure white wallpaper the tint carries the contrast alone.
    The floors are recomputed from these numbers by the test, over white behind dark and black behind light.
 
-   ROUND 3 OF THE JURY, what changed here: the dark glass is cooler and more saturated (a blue-leaning tint, saturate
-   1.45) so a bright wallpaper survives as hue and not as olive mud; the locked key has its own pressed-in shadow
-   (--sh-locked); the step label has a numeral well (the three dots read as pagination).
+   THE RESET OF 28 NOV replaced the cooler, more saturated glass of jury round 3 (the owner called the tints and gradients
+   "slop"): neutral grounds, one tray surface, one accent used as a signal, two accent schemes behind data-accent.
    ========================================================================== */
 
-/* ---- 1. both grounds: the shared tokens, and the DARK ground as the default ------------------------------------------ */
+/* ---- 1. both grounds: the shared tokens, and the DARK ground as the default ------------------------------------------
+   28 Nov, the design reset (docs/design/design-reset-1128.md). The owner rejected the hue per project, the 4 to 8 percent
+   tints and the gradient fills as "slop". So: MONOCHROME FIRST. One ground, ONE tray surface a single step above it, ONE
+   raised step for controls, all of chroma 0 (each channel within 1 of the others). The three tray tiers keep their names
+   (the kit and the views read them) but hold the same colour and the same alpha: hierarchy is made by order, type and
+   shadow depth, never by a second fill. Glare, sheen and the specular dot are transparent: a soft key keeps its two-shadow
+   relief, which is light, not a colour gradient.
+
+   Contrast over the worst backdrop with no brightness help (the desktop host cannot apply it, spec 2.7), white behind the
+   dark ground: ground 12 x .78 + 255 x .22 = 65, so ink 8.6 and ink2 4.9 to 1 on the bare ground; a tray (.94 over that)
+   is 25, ink3 5.4 there. ink3 is never set on the bare ground or spine (3.1). Every pair is recomputed by
+   src/__tests__/v3/tokens-v3.test.ts. */
 :root[data-look='v3'],
 [data-look='v3'] {
   color-scheme: dark;
 
   /* the glass layers: tint colour, effective alpha (--ga ...), and the alpha of the glass ON state (--ga-on ...) */
-  --ground-rgb: 14, 15, 19;
-  --spine-rgb: 9, 10, 13;
-  --tray-rgb: 35, 38, 45;
-  --trayn-rgb: 49, 53, 63;
-  --trayl-rgb: 28, 31, 38;
-  --well-rgb: 7, 8, 11;
-  --ga-on: 0.76;
-  --sa-on: 0.74;
-  --ta-on: 0.5;
-  --tna-on: 0.74;
-  --tla-on: 0.34;
-  --wa-on: 0.93;
+  --ground-rgb: 12, 12, 13;
+  --spine-rgb: 12, 12, 13; /* the spine sits on the ground: the same layer, not a second panel */
+  --tray-rgb: 22, 22, 23;
+  --trayn-rgb: 22, 22, 23;
+  --trayl-rgb: 22, 22, 23;
+  --well-rgb: 8, 8, 9;
+  --ga-on: 0.78;
+  --sa-on: 0.78;
+  --ta-on: 0.94;
+  --tna-on: 0.94;
+  --tla-on: 0.94;
+  --wa-on: 0.95;
   --ga: var(--ga-on);
   --sa: var(--sa-on);
   --ta: var(--ta-on);
   --tna: var(--tna-on);
   --tla: var(--tla-on);
   --wa: var(--wa-on);
-  --glass-filter: blur(40px) saturate(1.9) brightness(0.92); /* the stand-in for the system backdrop; the host column of spec 2.7 holds without it */
+  /* the desktop comes through as a soft, desaturated light (saturate .6): colour stays a signal, never the wallpaper's tint */
+  --glass-filter: blur(48px) saturate(0.6) brightness(0.7);
   --trayn-wash: transparent;
 
-  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 1px 0 0 rgba(255, 255, 255, 0.035);
-  --pop: #1d1f24;
-  --raised: #282b30;
-  --raised-hi: #343840;
-  --lit-a: #4a4f59;
-  --lit-b: #383c44;
-  --hi: rgba(255, 255, 255, 0.075);
-  --lo: rgba(0, 0, 0, 0.58);
+  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.055);
+  --pop: #1c1c1d;
+  --raised: #202021;
+  --raised-hi: #272728;
+  --lit-a: #2f2f30; /* the lit (selected, ON) key is one solid step brighter: lit-a and lit-b are the same since the reset */
+  --lit-b: #2f2f30;
+  --hi: rgba(255, 255, 255, 0.06);
+  --lo: rgba(0, 0, 0, 0.6);
   --lot: var(--lo);
-  --glare: rgba(255, 255, 255, 0.1);
-  --glare-l: rgba(255, 255, 255, 0.045);
-  --sheen: rgba(255, 255, 255, 0.1);
-  --sheen-spine: rgba(255, 255, 255, 0.05); /* the spine's own band: at .10 ink2 on it falls to 4.0 to 1 over white, at .05 it holds 4.6 */
-  --spec: rgba(255, 255, 255, 0.4);
+  --glare: transparent;
+  --glare-l: transparent;
+  --sheen: transparent;
+  --sheen-spine: transparent;
+  --spec: transparent;
 
-  --ink: #f3f4f6;
-  --ink2: #c6c9cf;
-  --ink3: #a9adb5;
-  --live: #46d6c8;
-  --live-ping: rgba(70, 214, 200, 0.5);
-  --fault: #e5484d;
-  --sim: #b9a6ff;
-  --locked: #abafb7; /* spec 2.2 says #9A9EA6, which falls to 3.8 to 1 under the tray glare at its corner; this holds 4.6 */
+  --ink: #ededea;
+  --ink2: #b4b4af;
+  --ink3: #8f8f8a;
+  /* the five states: only FAULT has a colour of its own; LIVE takes the accent (it is repeated here as a literal so the
+     contrast test reads it, and every accent block below restates it); WAITING, SIMULATED and PLANNED are ink, told apart
+     by their shapes (half disc, diamond, dashed ring) and their words */
+  --live: #edaa3a;
+  --live-ping: rgba(237, 170, 58, 0.4);
+  --fault: #ff5f57; /* 3.45 to 1 as a shape on the bare ground over white, 5.9 on a tray */
+  --sim: #b4b4af;
+  --locked: #9a9a95;
   --track: rgba(255, 255, 255, 0.1);
   --focus: #ffffff;
-  --gap: #0d0e11;
+  --gap: #0c0c0d;
   --hair: transparent; /* no outline on a labelled control; high contrast and forced colours turn it back on */
 
-  /* shared by both grounds (spec 2.4) */
-  --accent: #f2591a;
-  --accent-a: #ff6e2e;
-  --accent-b: #ec5314;
-  --on-accent: #190b04;
-  --accent-glow: 0 8px 26px rgba(242, 89, 26, 0.35);
-  --accent-glow-hover: 0 10px 32px rgba(242, 89, 26, 0.45);
-  --cap-fill: #a23a0d; /* a key cap inside the accent key: a pressed-in well, not a chip (label 5.9 to 1) */
-  --cap-ink: #ffede3;
-  --cap-sh: inset 1px 1px 2px rgba(120, 30, 0, 0.5), inset -1px -1px 2px rgba(255, 180, 140, 0.3);
+  /* the accent, scheme A (the default): ONE instrument amber for the whole System. 8.7 to 1 on a tray as text, 9.2 to 1 under
+     its own dark label. It appears as a dot, a 2 px rule, the one primary key of a view, a live value or a selected mark:
+     never as a panel. --accent-a and --accent-b are kept for the kit: rest and pressed, two solids, never a gradient. */
+  --accent: #edaa3a;
+  --accent-a: #edaa3a;
+  --accent-b: #e09e2e;
+  --on-accent: #1a1204;
+  --accent-glow: 0 0 0 0 transparent; /* no glow (28 Nov): kept as a valid empty shadow so the recipes that list it still parse */
+  --accent-glow-hover: 0 0 0 0 transparent;
+  --cap-fill: #b57d1c; /* a key cap inside the accent key: a pressed-in well, not a chip (label 5.2 to 1) */
+  --cap-ink: #1a1204;
+  --cap-sh: inset 1px 1px 2px rgba(0, 0, 0, 0.35), inset -1px -1px 2px rgba(255, 255, 255, 0.22);
 
   --sh-raise: -4px -4px 10px var(--hi), 6px 6px 14px var(--lo);
   --sh-raise-hover: -5px -5px 13px var(--hi), 8px 8px 19px var(--lo);
@@ -100,9 +116,9 @@
   --sh-tray: -6px -6px 18px var(--hi), 10px 10px 28px var(--lot, var(--lo));
   --sh-now: -9px -9px 26px var(--hi), 16px 16px 42px var(--lo);
   --sh-later: -3px -3px 10px var(--hi), 6px 6px 16px var(--lo);
-  --sh-accent: var(--sh-raise), var(--accent-glow);
-  --sh-accent-hover: var(--sh-raise-hover), var(--accent-glow-hover);
-  --sh-accent-press: inset 3px 3px 9px rgba(120, 30, 0, 0.55), inset -2px -2px 6px rgba(255, 180, 140, 0.35);
+  --sh-accent: var(--sh-raise);
+  --sh-accent-hover: var(--sh-raise-hover);
+  --sh-accent-press: inset 3px 3px 9px rgba(0, 0, 0, 0.35), inset -2px -2px 6px rgba(255, 255, 255, 0.22);
   --ring-focus: 0 0 0 3px var(--gap), 0 0 0 5px var(--focus); /* a 3 px gap, then a 2 px ring; it replaces the key shadow */
 
   /* radii */
@@ -116,17 +132,25 @@
   --rad-chip: 12px;
   --rad-cap-s: 8px; /* a key cap */
 
-  /* type: nothing under 11 px (spec 2.7) */
+  /* type, the strict scale of the reset: 11 12 13 14 16 20 28 (40 for a hero numeral). Nothing under 11 px (spec 2.7).
+     The older names keep working and snap onto the scale: 15 reads 14, 17 reads 16, 21 reads 20, 32 reads 28. */
   --t-11: 11px;
   --t-12: 12px;
   --t-13: 13px;
   --t-14: 14px;
-  --t-15: 15px;
-  --t-17: 17px;
-  --t-21: 21px;
-  --t-32: 32px;
-  --f-ui: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --f-mono: var(--font-mono, Consolas, 'Cascadia Mono', 'Courier New', monospace);
+  --t-15: 14px;
+  --t-16: 16px;
+  --t-17: 16px;
+  --t-20: 20px;
+  --t-21: 20px;
+  --t-28: 28px;
+  --t-32: 28px;
+  --t-40: 40px;
+  /* one reading face, one mono: Inter Variable and Geist Mono Variable are bundled (styles/tokens.css), so every machine draws
+     the same letters; Doto, the bundled dot-matrix face, is kept for the character art and nothing else */
+  --f-ui: 'Inter Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --f-mono: 'Geist Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --f-dot: 'Doto Variable', 'Geist Mono Variable', ui-monospace, monospace;
 
   /* space: 8 px grid, 6 px inside a group, 16 px between groups */
   --sp-2: 2px;
@@ -159,51 +183,136 @@
   --d-ping: 1.4s;
 }
 
-/* ---- 2. the LIGHT ground (Well Wisher) -------------------------------------------------------------------------------- */
+/* ---- 2. the LIGHT ground (Well Wisher) --------------------------------------------------------------------------------
+   A warm neutral off-white (chroma about .005, not the cream band): ground #f1f0ec, ONE tray #faf9f6, raised #fdfcfa. Over a
+   black backdrop the ground is 198 at .82: ink 10.5 and ink2 5.4 to 1 on it, ink3 6.0 on a tray. */
 :root[data-look='v3'][data-theme='clay-light']:not([data-ground='dark']),
 [data-look='v3'][data-ground='light'] {
   color-scheme: light;
 
-  --ground-rgb: 228, 232, 235;
-  --spine-rgb: 238, 241, 243;
-  --tray-rgb: 242, 245, 247;
-  --trayn-rgb: 252, 253, 254;
-  --trayl-rgb: 236, 240, 243;
-  --well-rgb: 214, 219, 223;
-  --ga-on: 0.76;
-  --sa-on: 0.78;
-  --ta-on: 0.72;
-  --tna-on: 0.88;
-  --tla-on: 0.58;
-  --wa-on: 0.94;
-  --glass-filter: blur(40px) saturate(1.15) brightness(1.35);
+  --ground-rgb: 241, 240, 236;
+  --spine-rgb: 241, 240, 236;
+  --tray-rgb: 250, 249, 246;
+  --trayn-rgb: 250, 249, 246;
+  --trayl-rgb: 250, 249, 246;
+  --well-rgb: 232, 231, 227;
+  --ga-on: 0.82;
+  --sa-on: 0.82;
+  --ta-on: 0.95;
+  --tna-on: 0.95;
+  --tla-on: 0.95;
+  --wa-on: 0.95;
+  --glass-filter: blur(48px) saturate(0.6) brightness(1.25);
 
-  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 1px 0 0 rgba(255, 255, 255, 0.5);
-  --pop: #f5f7f8;
-  --raised: #edf0f2;
-  --raised-hi: #f9fafb;
+  --edge: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  --pop: #fbfaf8;
+  --raised: #fdfcfa;
+  --raised-hi: #ffffff;
   --lit-a: #ffffff;
-  --lit-b: #f1f3f5;
+  --lit-b: #ffffff;
   --hi: rgba(255, 255, 255, 0.95);
-  --lo: rgba(98, 110, 122, 0.4);
-  --lot: rgba(98, 110, 122, 0.5); /* the lower shadow of a tray only: keeps tray edges from melting into a pale wallpaper */
-  --glare: rgba(255, 255, 255, 0.65);
-  --glare-l: rgba(255, 255, 255, 0.29);
-  --sheen: rgba(255, 255, 255, 0.55);
-  --sheen-spine: rgba(255, 255, 255, 0.55);
-  --spec: rgba(255, 255, 255, 0.95);
+  --lo: rgba(84, 80, 70, 0.26);
+  --lot: rgba(84, 80, 70, 0.32); /* the lower shadow of a tray only: keeps tray edges from melting into a pale wallpaper */
+  --glare: transparent;
+  --glare-l: transparent;
+  --sheen: transparent;
+  --sheen-spine: transparent;
+  --spec: transparent;
 
-  --ink: #15181c;
-  --ink2: #2c3238;
-  --ink3: #363c44;
-  --live: #0a7a72;
-  --live-ping: rgba(10, 122, 114, 0.4);
+  --ink: #161614;
+  --ink2: #474743;
+  --ink3: #5e5e59;
+  --live: #8a5806;
+  --live-ping: rgba(138, 88, 6, 0.35);
   --fault: #b3261e;
-  --sim: #5b3fc4;
-  --locked: #575d65;
-  --track: rgba(21, 24, 28, 0.1);
-  --focus: #15181c;
-  --gap: #eef1f3;
+  --sim: #474743;
+  --locked: #5e5e59;
+  --track: rgba(22, 22, 20, 0.1);
+  --focus: #161614;
+  --gap: #f1f0ec;
+
+  /* the same amber, deepened for a light ground: 5.2 to 1 on a tray as text, 5.3 under its pale label */
+  --accent: #8a5806;
+  --accent-a: #8a5806;
+  --accent-b: #7c4e04;
+  --on-accent: #fff8ec;
+  --cap-fill: #5c3a03;
+  --cap-ink: #fff3df;
+  --cap-sh: inset 1px 1px 2px rgba(0, 0, 0, 0.35), inset -1px -1px 2px rgba(255, 255, 255, 0.25);
+  --sh-accent-press: inset 3px 3px 9px rgba(0, 0, 0, 0.3), inset -2px -2px 6px rgba(255, 255, 255, 0.3);
+}
+
+/* ---- 2b. the accent, scheme B: one signal accent per project, chosen by the owner from pictures (data-accent='project') ----
+   Same usage rules as scheme A, only the colour differs: JARVIS keeps the amber, AANKHEN a phosphor green (a trace on a
+   scope: sensing is signals), YADAASH a cobalt (memory, ink), WELL WISHER a deep rose. Each is given for the dark and the
+   light ground, and every value is checked by the contrast test: 7.4 to 10.9 to 1 on a dark tray, 4.9 to 6.1 on a light
+   one, and the label on each fill 5.3 to 11.1. ShellV3 puts data-hue on <html>; a specimen may put both attributes on its
+   own wrapper (the second form of each selector). Specificity (0,5,0) beats the light-ground block above (0,4,0). */
+:root[data-look='v3'][data-accent='project'][data-hue='aankhen']:not([data-theme='clay-light']),
+[data-look='v3'][data-accent='project'][data-hue='aankhen'][data-ground='dark'] {
+  --accent: #86e07a;
+  --accent-a: #86e07a;
+  --accent-b: #74cf68;
+  --on-accent: #0e1a0c;
+  --live: #86e07a;
+  --live-ping: rgba(134, 224, 122, 0.4);
+  --cap-fill: #3f7a36;
+  --cap-ink: #f0ffec;
+}
+:root[data-look='v3'][data-accent='project'][data-hue='yadaash']:not([data-theme='clay-light']),
+[data-look='v3'][data-accent='project'][data-hue='yadaash'][data-ground='dark'] {
+  --accent: #8ea6ff;
+  --accent-a: #8ea6ff;
+  --accent-b: #7b94f0;
+  --on-accent: #0b1030;
+  --live: #8ea6ff;
+  --live-ping: rgba(142, 166, 255, 0.4);
+  --cap-fill: #3b4f9e;
+  --cap-ink: #eef1ff;
+}
+:root[data-look='v3'][data-accent='project'][data-hue='wellwisher']:not([data-theme='clay-light']),
+[data-look='v3'][data-accent='project'][data-hue='wellwisher'][data-ground='dark'] {
+  --accent: #ff7ea9;
+  --accent-a: #ff7ea9;
+  --accent-b: #f06a97;
+  --on-accent: #2a0714;
+  --live: #ff7ea9;
+  --live-ping: rgba(255, 126, 169, 0.4);
+  --cap-fill: #9c2f57;
+  --cap-ink: #fff0f5;
+}
+:root[data-look='v3'][data-accent='project'][data-hue='aankhen'][data-theme='clay-light'],
+[data-look='v3'][data-accent='project'][data-hue='aankhen'][data-ground='light'] {
+  --accent: #2f7a3a;
+  --accent-a: #2f7a3a;
+  --accent-b: #276b31;
+  --on-accent: #ffffff;
+  --live: #2f7a3a;
+  --live-ping: rgba(47, 122, 58, 0.35);
+  --cap-fill: #1b4a22;
+  --cap-ink: #effbef;
+}
+:root[data-look='v3'][data-accent='project'][data-hue='yadaash'][data-theme='clay-light'],
+[data-look='v3'][data-accent='project'][data-hue='yadaash'][data-ground='light'] {
+  --accent: #3651c9;
+  --accent-a: #3651c9;
+  --accent-b: #2d45b0;
+  --on-accent: #ffffff;
+  --live: #3651c9;
+  --live-ping: rgba(54, 81, 201, 0.35);
+  --cap-fill: #1f2f7a;
+  --cap-ink: #eef1ff;
+}
+:root[data-look='v3'][data-accent='project'][data-hue='wellwisher'][data-theme='clay-light'],
+[data-look='v3'][data-accent='project'][data-hue='wellwisher'][data-ground='light'] {
+  --accent: #b0245e;
+  --accent-a: #b0245e;
+  --accent-b: #9a1f52;
+  --on-accent: #ffffff;
+  --live: #b0245e;
+  --live-ping: rgba(176, 36, 94, 0.35);
+  --cap-fill: #6a1238;
+  --cap-ink: #fff0f5;
 }
 
 /* ---- 3. GLASS OFF and no backdrop-filter: the same hues, fully opaque (spec 2.6) --------------------------------------- */
@@ -217,14 +326,14 @@
   --tla: 1;
   --wa: 1;
   --glass-filter: none;
-  --trayn-wash: rgba(255, 255, 255, 0.035);
+  --trayn-wash: transparent; /* one tray surface since 28 Nov: glass off changes the alpha and nothing else */
 }
 [data-look='v3'][data-ground='light'][data-glass='off'],
 :root[data-look='v3'][data-theme='clay-light'][data-glass='off']:not([data-ground='dark']),
 [data-glass='off'] [data-look='v3'][data-ground='light'] {
   /* the light-ground block above is more specific than the off block, so its blur has to be switched off here again */
   --glass-filter: none;
-  --trayn-wash: #ffffff;
+  --trayn-wash: transparent;
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   :root[data-look='v3'],
@@ -276,6 +385,11 @@
     --state-planned: var(--ink3);
     --accent-fill: var(--accent);
     --accent-on: var(--on-accent);
+    /* 28 Nov: the clay accent roles the views still read (a today notch, an accent ink, a hover fill) follow the one signal
+       accent, not the clay orange, so no view keeps a second accent of its own */
+    --accent-fill-hover: var(--accent-b);
+    --accent-ink: var(--accent);
+    --accent-state: var(--accent);
     --selected-fill: var(--lit-a); /* the neutral lit state, never the accent (the gradient itself is drawn by the kit) */
     --selected-ink: var(--ink);
     --focus-ring: var(--focus);

@@ -74,16 +74,16 @@
   border-radius: var(--rad-tray);
   color: var(--ink);
   font: 400 var(--t-14) / 1.4 var(--f-ui);
-  background: linear-gradient(135deg, var(--glare), transparent 38%), var(--c-tray);
+  background: var(--c-tray); /* one tray surface, one flat colour (design reset, 28 Nov): the glare band is gone */
   box-shadow: var(--sh-tray), var(--edge);
 }
 .v3-plate[data-tier='first'] {
   border-radius: var(--rad-now);
-  background: linear-gradient(135deg, var(--glare), transparent 38%), linear-gradient(135deg, var(--trayn-wash), transparent 55%), var(--c-trayn);
+  background: var(--c-trayn);
   box-shadow: var(--sh-now), var(--edge);
 }
 .v3-plate[data-tier='third'] {
-  background: linear-gradient(135deg, var(--glare-l), transparent 38%), var(--c-trayl);
+  background: var(--c-trayl);
   box-shadow: var(--sh-later), var(--edge);
   font-size: var(--t-12);
 }
@@ -195,8 +195,9 @@
   border-radius: inherit;
   pointer-events: none;
 }
+/* the flare answers a real event: once, a 2 px accent rule inside the plate's edge that fades (no gradient since the reset) */
 .v3-flare {
-  background: linear-gradient(135deg, var(--sheen), transparent 60%);
+  box-shadow: inset 0 0 0 2px var(--accent);
   opacity: 0;
   animation: v3-flare var(--d-flare) var(--ease) 1 both;
 }
@@ -211,7 +212,7 @@
   left: -50%;
   width: 34%;
   transform: skewX(-14deg);
-  background: linear-gradient(100deg, transparent, var(--sheen), transparent);
+  background: transparent; /* the glint sweep was a gradient: kept as an element, drawn as nothing since the reset */
   opacity: 0;
   animation: v3-glint var(--d-glint) var(--ease) var(--d-rise) 1 both;
 }
@@ -355,7 +356,7 @@
   flex-wrap: wrap; /* a long label keeps its line and its key caps drop under it, instead of both squeezing */
   row-gap: var(--sp-6);
   padding-block: var(--sp-8);
-  background: linear-gradient(145deg, var(--raised-hi), var(--raised));
+  background: var(--raised);
   box-shadow: var(--sh-raise);
   transition: transform var(--d-key) var(--ease), box-shadow var(--d-key) var(--ease);
 }
@@ -385,7 +386,7 @@
   width: var(--hit);
 }
 .v3-key[data-lit='true'] {
-  background: linear-gradient(145deg, var(--lit-a), var(--lit-b));
+  background: var(--lit-a);
   font-weight: 650;
 }
 .v3-key[data-lit='true']::before {
@@ -394,17 +395,16 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--ink);
-  box-shadow: 0 0 6px var(--ink3);
+  background: var(--accent); /* the ON mark of a lit key: the accent as a 6 px dot, no glow (28 Nov) */
 }
 .v3-key[data-lit='true']:active,
 .v3-key[data-lit='true'][data-demo='pressed'] {
-  background: linear-gradient(145deg, var(--lit-b), var(--lit-a));
+  background: var(--lit-b);
 }
 .v3-key[data-accent='true'] {
   color: var(--on-accent);
-  font-weight: 700;
-  background: linear-gradient(145deg, var(--accent-a), var(--accent-b));
+  font-weight: 650;
+  background: var(--accent-a);
   box-shadow: var(--sh-accent);
 }
 .v3-key[data-accent='true']:hover,
@@ -550,7 +550,7 @@
 .v3-ledger-row[data-selectable='true'] {
   cursor: pointer;
   padding: var(--sp-6) var(--sp-12);
-  background: linear-gradient(145deg, var(--raised-hi), var(--raised));
+  background: var(--raised);
   box-shadow: var(--sh-raise);
   transition: transform var(--d-key) var(--ease), box-shadow var(--d-key) var(--ease);
 }
@@ -559,7 +559,7 @@
   box-shadow: var(--sh-raise-hover);
 }
 .v3-ledger-row[data-selected='true'] {
-  background: linear-gradient(145deg, var(--lit-a), var(--lit-b));
+  background: var(--lit-a);
 }
 .v3-ledger-row[data-selectable='true']:has(.v3-ledger-main:focus-visible) {
   box-shadow: var(--ring-focus);
@@ -849,7 +849,7 @@
   box-shadow: var(--sh-press);
 }
 .v3-mark-disc[data-lit='true'] {
-  background: linear-gradient(145deg, var(--lit-a), var(--lit-b));
+  background: var(--lit-a);
   box-shadow: var(--sh-raise);
 }
 

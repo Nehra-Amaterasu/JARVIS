@@ -11,10 +11,12 @@
    (--sh-press). Motion: the loops below are allowed since 25 Nov; reduced motion and the app's calm setting stop all of them.
    ========================================================================== */
 :root[data-look='v3'] .jc3 {
-  --orb-amber: var(--accent-hi);
+  /* design reset, 28 Nov: the orb's four inks (amber, orange, red, violet derived from the accent) were what the owner called
+     slop. One signal colour and the inks: the accent carries the live voice, ink2 and ink3 the quiet lines */
+  --orb-amber: var(--accent);
   --orb-orange: var(--accent);
-  --orb-red: var(--accent-lo);
-  --orb-violet: var(--accent-lo);
+  --orb-red: var(--ink2);
+  --orb-violet: var(--ink3);
   --orb-breath: 5s;
   position: absolute;
   inset: 0;
@@ -23,13 +25,6 @@
   overflow: hidden;
   color: var(--ink);
   font-family: var(--s3-ui);
-}
-@supports (color: oklch(from red l c h)) {
-  :root[data-look='v3'] .jc3 {
-    --orb-amber: oklch(from var(--accent) calc(l + 0.13) c calc(h + 34));
-    --orb-red: oklch(from var(--accent) calc(l - 0.04) calc(c * 1.05) calc(h - 20));
-    --orb-violet: oklch(from var(--accent) calc(l + 0.02) calc(c * 0.9) calc(h - 108));
-  }
 }
 :root[data-look='v3'] .jc3 .s3-zones { height: 100%; }
 :root[data-look='v3'] .jc3 .jc-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -46,7 +41,6 @@
   gap: 0.5rem;
   border: 0;
   border-radius: 0.875rem;
-  background-image: linear-gradient(145deg, var(--raised-hi), var(--raised));
   background-color: var(--raised);
   box-shadow: var(--sh-raise);
   color: var(--ink);
@@ -125,7 +119,6 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background-image: linear-gradient(145deg, var(--lit-a), var(--raised) 55%, var(--lit-b));
   background-color: var(--raised);
   box-shadow: var(--sh-now), var(--edge);
 }
@@ -145,11 +138,9 @@
   position: absolute;
   inset: 4%;
   border-radius: 50%;
-  background-image: radial-gradient(circle at 50% 52%,
-    color-mix(in oklab, var(--orb-amber) 70%, transparent) 0%,
-    color-mix(in oklab, var(--orb-orange) 46%, transparent) 26%,
-    color-mix(in oklab, var(--orb-violet) 22%, transparent) 50%,
-    transparent 70%);
+  /* a flat disc of the accent, not a radial glow (28 Nov); its scale still follows only a measured level */
+  inset: 24%;
+  background-color: color-mix(in oklab, var(--orb-orange) 34%, transparent);
   opacity: var(--orb-o);
   /* --orb-l is written per frame by the loop, 0..1, and only from a measured level (CoreOrb.tsx) */
   transform: scale(calc(var(--orb-s) + 0.24 * var(--orb-l, 0)));
@@ -232,21 +223,20 @@
 :root[data-look='v3'] .jc3 .jc3-act { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0.625rem 0.75rem; }
 :root[data-look='v3'] .jc3 .jc3-mode { display: inline-flex; gap: 0.25rem; padding: 0.25rem; border: 0; border-radius: 1.125rem; background-color: var(--s3-well-50); box-shadow: var(--sh-press); }
 :root[data-look='v3'] .jc3 .jc3-mode button { min-height: 44px; padding: 0 0.875rem; border: 0; border-radius: 0.875rem; background: transparent; color: var(--ink2); font: 600 0.8125rem/1 var(--s3-ui); cursor: pointer; }
-:root[data-look='v3'] .jc3 .jc3-mode button[aria-checked='true'] { background-image: linear-gradient(145deg, var(--raised-hi), var(--raised)); background-color: var(--raised); box-shadow: var(--sh-raise); color: var(--ink); }
+:root[data-look='v3'] .jc3 .jc3-mode button[aria-checked='true'] { background-color: var(--raised); box-shadow: var(--sh-raise); color: var(--ink); }
 :root[data-look='v3'] .jc3 .jc3-wake {
   min-height: 52px;
   padding: 0 0.875rem 0 1.125rem;
   gap: 0.625rem;
   border: 0;
   border-radius: 1rem;
-  background-image: linear-gradient(145deg, var(--accent-hi), var(--accent-lo));
   background-color: var(--accent);
-  box-shadow: var(--sh-raise), 0 0 1.75rem var(--s3-glow);
+  box-shadow: var(--sh-raise);
   color: var(--on-accent);
   font: 650 0.9375rem/1 var(--s3-ui);
   transition: transform var(--s3-d-key) var(--s3-ease), box-shadow var(--s3-d-key) var(--s3-ease);
 }
-:root[data-look='v3'] .jc3 .jc3-wake:hover { background-image: linear-gradient(145deg, var(--accent-hi), var(--accent)); box-shadow: var(--sh-raise-hover), 0 0 2rem var(--s3-glow-hover); transform: translateY(-1px); }
+:root[data-look='v3'] .jc3 .jc3-wake:hover { box-shadow: var(--sh-raise-hover); transform: translateY(-1px); }
 :root[data-look='v3'] .jc3 .jc3-wake:active { box-shadow: var(--s3-accent-press); transform: none; }
 :root[data-look='v3'] .jc3 .jc3-wake kbd {
   padding: 0.25rem 0.5rem;
@@ -264,7 +254,7 @@
 :root[data-look='v3'] .jc3 .jc3-path { display: flex; gap: 0.25rem; margin: 0; padding: 0.25rem; list-style: none; border-radius: 1.125rem; background-color: var(--s3-well-50); box-shadow: var(--sh-press); }
 :root[data-look='v3'] .jc3 .jc3-path-step { display: inline-flex; align-items: center; gap: 0.375rem; min-height: 2.25rem; padding: 0 0.75rem; border-radius: 0.875rem; color: var(--ink2); font: 600 0.75rem/1 var(--s3-ui); transition: background-color var(--s3-d-state) var(--s3-ease), box-shadow var(--s3-d-state) var(--s3-ease), color var(--s3-d-state) var(--s3-ease); }
 :root[data-look='v3'] .jc3 .jc3-path-lamp { width: 0.6875rem; height: 0.6875rem; color: var(--lamp-ink, var(--ink3)); }
-:root[data-look='v3'] .jc3 .jc3-path-step[data-on] { background-image: linear-gradient(145deg, var(--raised-hi), var(--raised)); background-color: var(--raised); box-shadow: var(--sh-raise), 0 0 1rem var(--s3-glow); color: var(--ink); }
+:root[data-look='v3'] .jc3 .jc3-path-step[data-on] { background-color: var(--raised); box-shadow: var(--sh-raise); color: var(--ink); }
 :root[data-look='v3'] .jc3 .jc3-path-step[data-on] .jc3-path-lamp { animation: jc3-blink 1.4s ease-in-out infinite; }
 @keyframes jc3-blink { 50% { opacity: 0.35; } }
 
@@ -317,7 +307,7 @@
 /* ---- tray 2: the voice path, one column, its seconds and medians */
 :root[data-look='v3'] .jc3 .s3-tray[data-step='2'] .s3-body { overflow-y: auto; }
 :root[data-look='v3'] .jc3 .s3-tray[data-step='2'] .jc-ribbon[data-orientation='column'] { padding: 0.25rem 0.25rem 0.375rem; }
-:root[data-look='v3'] .jc3 .s3-tray[data-step='2'] .jc-rib-node { min-height: 2.75rem; padding: 0 0.75rem; border: 0; border-radius: 0.875rem; background-image: linear-gradient(145deg, var(--raised-hi), var(--raised)); background-color: var(--raised); box-shadow: var(--sh-raise); color: var(--ink); }
+:root[data-look='v3'] .jc3 .s3-tray[data-step='2'] .jc-rib-node { min-height: 2.75rem; padding: 0 0.75rem; border: 0; border-radius: 0.875rem; background-color: var(--raised); box-shadow: var(--sh-raise); color: var(--ink); }
 :root[data-look='v3'] .jc3 .s3-tray[data-step='2'] .jc-rib-step:not([data-state='live']):not([data-state='simulated']) .jc-rib-node { background-image: none; background-color: var(--s3-well-30); box-shadow: var(--sh-press); color: var(--ink2); }
 :root[data-look='v3'] .jc3 .s3-tray[data-step='2'] .jc-rib-step[data-running] .jc-rib-node { box-shadow: var(--sh-raise), 0 0 1rem var(--s3-glow); }
 :root[data-look='v3'] .jc3 .s3-tray[data-step='2'] .jc-ribbon[data-orientation='column'] .jc-rib-track { height: 0.5rem; background-color: var(--track); background-image: none; }
@@ -325,7 +315,7 @@
 /* ---- tray 3: the five organs, one column */
 :root[data-look='v3'] .jc3 .s3-tray[data-step='3'] .s3-body { overflow-y: auto; }
 :root[data-look='v3'] .jc3 .s3-tray[data-step='3'] .jc-organs { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
-:root[data-look='v3'] .jc3 .s3-tray[data-step='3'] .jc-organ { grid-template-columns: 0.75rem auto minmax(0, 1fr); grid-template-rows: auto; align-items: center; min-height: 44px; column-gap: 0.5rem; padding: 0 0.75rem; border: 0; border-radius: 0.875rem; background-image: linear-gradient(145deg, var(--raised-hi), var(--raised)); background-color: var(--raised); box-shadow: var(--sh-raise); color: var(--ink); font: 600 0.75rem/1 var(--s3-mono); }
+:root[data-look='v3'] .jc3 .s3-tray[data-step='3'] .jc-organ { grid-template-columns: 0.75rem auto minmax(0, 1fr); grid-template-rows: auto; align-items: center; min-height: 44px; column-gap: 0.5rem; padding: 0 0.75rem; border: 0; border-radius: 0.875rem; background-color: var(--raised); box-shadow: var(--sh-raise); color: var(--ink); font: 600 0.75rem/1 var(--s3-mono); }
 :root[data-look='v3'] .jc3 .s3-tray[data-step='3'] .jc-organ:not([data-state='live']):not([data-state='simulated']) { background-image: none; background-color: var(--s3-well-30); box-shadow: var(--sh-press); }
 :root[data-look='v3'] .jc3 .s3-tray[data-step='3'] .jc-organ-lamp { grid-row: auto; }
 :root[data-look='v3'] .jc3 .s3-tray[data-step='3'] .jc-organ-word { justify-self: end; max-width: none; text-overflow: clip; white-space: normal; text-align: right; color: var(--ink2); font-family: var(--s3-ui); }

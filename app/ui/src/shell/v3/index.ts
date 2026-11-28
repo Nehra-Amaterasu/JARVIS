@@ -3,7 +3,7 @@
  * TopPlate, LampPill, Dock, ViewChip) is mounted by ShellV2.tsx and is not exported: a view never renders it.
  */
 export { Zones, type ZonesProps } from './Zones'
-export { Tray, Glint, Ruler, asciiRuler, type TrayProps } from './Tray'
+export { Tray, Glint, Ruler, asciiRuler, useScrollEdges, type TrayProps } from './Tray'
 export { PhonePeeks, PeekCtx, type PeekApi } from './Sheets'
 export {
   ViewChrome,

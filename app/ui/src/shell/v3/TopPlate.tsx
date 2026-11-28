@@ -6,6 +6,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { APP_PLACES, PRODUCT_LABEL, VIEW_LABEL, isAppPlace, sectionById, type Place } from '../ids'
 import type { MoreAction } from './contract'
+import type { AccentScheme } from './ShellV3'
 import { WinGlyph } from './Glyphs'
 import { LampPill } from './LampPill'
 import type { LampRow } from './lamps'
@@ -22,6 +23,11 @@ export interface TopPlateProps {
   more: readonly MoreAction[]
   glass: boolean
   onGlass: (on: boolean) => void
+  /** The accent scheme of the design reset: one accent for the System, or one per project (glass.css, 2b). */
+  accent?: AccentScheme
+  onAccent?: (next: AccentScheme) => void
+  /** The slim one-line form (the view is scrolled or the window is short); ShellV3 also marks it on .s3 for the CSS. */
+  slim?: boolean
   onGoSection: (section: string) => void
   onSetView: (view: string) => void
   onShortcuts: () => void
@@ -36,7 +42,7 @@ export function projectNameOf(place: Place): string {
   return subProjectOfPlace(place)?.name ?? PRODUCT_LABEL[place.product]
 }
 
-export function TopPlate({ place, rows, more, glass, onGlass, onGoSection, onSetView, onShortcuts, onSetup, windowKeys }: TopPlateProps) {
+export function TopPlate({ place, rows, more, glass, onGlass, accent = 'one', onAccent, slim = false, onGoSection, onSetView, onShortcuts, onSetup, windowKeys }: TopPlateProps) {
   const [menu, setMenu] = useState<PlateMenu>(null)
   const moreBtn = useRef<HTMLButtonElement>(null)
   const app = isAppPlace(place)
@@ -49,7 +55,7 @@ export function TopPlate({ place, rows, more, glass, onGlass, onGoSection, onSet
   const lampOpen = setOpen('pill')
   const pickView = (v: string) => onSetView(v)
   return (
-    <header className="s3-top pywebview-drag-region" aria-label="Place and state">
+    <header className="s3-top pywebview-drag-region" aria-label="Place and state" data-slim={slim ? 'true' : 'false'}>
       <div className="s3-loc">
         <span className="s3-loc-p">{projectNameOf(place)}</span>
         <h1 className="s3-loc-s" aria-label={app ? sectionLabel : `${sectionLabel}, ${viewLabel}`}>
@@ -87,10 +93,18 @@ export function TopPlate({ place, rows, more, glass, onGlass, onGoSection, onSet
           <em>{glass ? 'ON' : 'OFF'}</em>
           <span className="s3-track" aria-hidden="true" />
         </button>
+        {onAccent && (
+          <button type="button" className="s3-switch" role="switch" aria-checked={accent === 'project'} data-switch="accent" onClick={() => onAccent(accent === 'project' ? 'one' : 'project')}>
+            <span>Colour per project</span>
+            <em>{accent === 'project' ? 'ON' : 'OFF'}</em>
+            <span className="s3-track" aria-hidden="true" />
+          </button>
+        )}
         <p className="s3-cap">KEYS</p>
         <div className="s3-keys">
           <p><kbd>Alt</kbd> <kbd>{'↑'}</kbd> <kbd>{'↓'}</kbd> sections</p>
           <p><kbd>Alt</kbd> <kbd>{'←'}</kbd> <kbd>{'→'}</kbd> views</p>
+          <p><kbd>/</kbd> type in the dock</p>
         </div>
         <MoreRows more={more} onShortcuts={onShortcuts} onSetup={onSetup} />
       </Popover>

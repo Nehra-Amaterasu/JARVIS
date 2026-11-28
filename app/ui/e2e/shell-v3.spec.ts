@@ -137,12 +137,14 @@ test.describe('Shell v3, look on', () => {
         expect(await page.locator('.s3-chipbtn').innerText()).toMatch(/\d OF \d VIEWS/)
       } else {
         const spine = await box(page, '#s3-spine')
-        expect(spine.width).toBe(184) // 25 Nov: slim spine (was 208)
+        // 25 Nov: slim spine (was 208); 28 Nov: below 1420 px of window it is the 64 px rail by itself (design reset, V1)
+        expect(spine.width).toBe(size.w < 1420 ? 64 : 184)
         expect(overlap(spine, top)).toBe(false)
         expect(overlap(spine, dock)).toBe(false)
         expect(overlap(spine, stage)).toBe(false)
-        expect(top.height).toBeGreaterThanOrEqual(64)
-        expect(top.height).toBeLessThan(80)
+        // 28 Nov (V1): the top plate is a 56 px line, 44 px slim on a short window (it was a 64 px plate)
+        expect(top.height).toBeGreaterThanOrEqual(43.5)
+        expect(top.height).toBeLessThan(58)
       }
       // the dock is the last element of the main column, in every size
       expect(dock.y + dock.height).toBeGreaterThan(top.y + top.height)
@@ -343,7 +345,7 @@ test.describe('Shell v3, look on', () => {
     const pop = page.locator('.s3-morewrap .s3-pop')
     await expect(pop).toBeVisible()
     await expect(pop.locator('.s3-cap').nth(0)).toHaveText('APPEARANCE')
-    const sw = pop.locator('.s3-switch')
+    const sw = pop.locator('.s3-switch').first() // 28 Nov: Appearance has a second switch, "Colour per project" (the accent schemes)
     await expect(sw).toHaveAttribute('role', 'switch')
     const before = await sw.getAttribute('aria-checked')
     await sw.click()
@@ -469,7 +471,8 @@ test.describe('Shell v3, look on', () => {
     await expect.poll(() => page.evaluate(() => getComputedStyle(document.querySelector('.s3-ground') as Element).backgroundColor)).toMatch(/^rgb\(|, 1\)$/)
     const a = await page.evaluate(() => ({
       ground: getComputedStyle(document.querySelector('.s3-ground') as Element).backgroundColor,
-      well: getComputedStyle(document.querySelector('.s3-wellin') as Element).backgroundColor,
+      // 28 Nov: the dock's well is transparent at rest (the slim dock); the tray is the opaque layer to read
+      well: getComputedStyle(document.querySelector('.s3-tray') as Element ?? document.querySelector('.s3-ground') as Element).backgroundColor,
       filter: getComputedStyle(document.querySelector('.s3-ground') as Element).backdropFilter,
     }))
     for (const c of [a.ground, a.well]) expect(c).toMatch(/^rgb\(|, 1\)$/)

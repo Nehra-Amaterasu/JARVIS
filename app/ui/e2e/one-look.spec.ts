@@ -94,23 +94,27 @@ test.describe('One look', () => {
       await page.keyboard.press('Escape')
 
       if (!phone(size)) {
-        // ---- width, fold, memory of the fold
-        expect((await box(page, '#s3-spine')).width).toBe(184)
-        await expect(page.locator('.s3-pn').first()).toBeVisible()
+        // ---- width, fold, memory of the fold. 28 Nov (V1): below 1420 px of window the spine starts as its 64 px rail by
+        // itself (ShellV3 AUTO_RAIL_BELOW) and the fold key PINS the other state; this block used to start at 184 px at every size
+        const auto = size.w < 1420 ? 'rail' : 'full'
+        const other = auto === 'rail' ? 'full' : 'rail'
+        const px = (s: string) => (s === 'rail' ? 64 : 184)
+        expect((await box(page, '#s3-spine')).width).toBe(px(auto))
         await page.locator('.s3-fold').click()
-        await expect(page.locator('.s3')).toHaveAttribute('data-spine', 'rail')
-        await expect.poll(async () => (await box(page, '#s3-spine')).width).toBe(64)
-        expect(await page.evaluate(() => localStorage.getItem('app.spine'))).toBe('rail')
+        await expect(page.locator('.s3')).toHaveAttribute('data-spine', other)
+        await expect.poll(async () => (await box(page, '#s3-spine')).width).toBe(px(other))
+        expect(await page.evaluate(() => localStorage.getItem('app.spine'))).toBe(other)
+        if (other === 'full') await page.locator('.s3-fold').click() // the rail picture below is of the rail
         await expect(page.locator('.s3-pn').first()).toBeHidden()
         await frame()
         // a folded row still names itself: the accessible name and the tooltip
         await expect(page.locator('#s3-spine .s3-head[data-project="aankhen"]')).toHaveAttribute('aria-label', /Aankhen/)
         await expect(page.locator('#s3-spine .s3-item[data-section="room"]')).toHaveAttribute('aria-label', 'Room')
         await page.screenshot({ path: resolve(SHOTS, `rail-${size.name}.png`) })
-        await page.reload()
-        await expect(page.locator('.s3')).toHaveAttribute('data-spine', 'rail') // remembered
         await page.locator('.s3-fold').click()
         await expect(page.locator('.s3')).toHaveAttribute('data-spine', 'full')
+        await page.reload()
+        await expect(page.locator('.s3')).toHaveAttribute('data-spine', 'full') // remembered (a pin on a narrow window, automatic on a wide one)
         await expect.poll(async () => (await box(page, '#s3-spine')).width).toBe(184)
         await page.evaluate(() => localStorage.removeItem('app.spine'))
       }
@@ -157,7 +161,9 @@ test.describe('One look', () => {
       })
       expect(looks.rulerShown).toBe(false)
       for (const k of ['step', 'loc', 'pn'] as const) expect(looks[k], k).not.toMatch(/consolas|mono|courier/i)
-      if (looks.trayImage) expect(looks.trayImage).toContain('linear-gradient')
+      // 28 Nov, the design reset: this read "the open project's tint is laid over the first tray as a linear-gradient"; the reset
+      // removed every tint, so the first tray now carries no image at all
+      expect(looks.trayImage).toBe('none')
     })
   }
 
@@ -179,9 +185,11 @@ test.describe('One look', () => {
     await page.keyboard.press('Enter')
     await expect(pageRoot(page)).toHaveAttribute('data-section', 'memory')
     // the fold key is a real key too
+    // 28 Nov: at 1366 px the spine is the rail by itself, so Enter on the fold key pins it open (it used to fold it)
+    const was = await page.locator('.s3').getAttribute('data-spine')
     await page.locator('.s3-fold').focus()
     await page.keyboard.press('Enter')
-    await expect(page.locator('.s3')).toHaveAttribute('data-spine', 'rail')
+    await expect(page.locator('.s3')).toHaveAttribute('data-spine', was === 'rail' ? 'full' : 'rail')
     await page.evaluate(() => localStorage.removeItem('app.spine'))
   })
 

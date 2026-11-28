@@ -118,6 +118,14 @@
 :root[data-theme^='clay'] :is([data-state='disabled'], [aria-disabled='true']) { color: var(--ink-3); border-color: var(--rim-shade, var(--edge-ui)); box-shadow: var(--elev-imprint, none); background-color: transparent; }
 :root[data-theme^='clay'] :is(.k-key, .k-btn, .k-console-follow, .k-toast-undo, .k-dialog-x, .ww-btn):is([data-state='disabled'], [aria-disabled='true'])::before { opacity: 0; }
 :root[data-theme^='clay'] [data-state='planned'] { color: var(--ink-2); border-style: dashed; border-color: var(--edge-ui); box-shadow: none; background: transparent; }
+/* The design reset (28 Nov): under the v3 look no element is boxed by a dashed hairline because it is PLANNED. The rule above
+   gives ANY element with data-state='planned' a dashed border, and one with no border width of its own takes the default
+   medium (3 px): that is the dashed "terminal box" the owner rejected. Under v3 the state is said by the dashed-ring glyph and
+   the word PLANNED, so the border goes; high contrast and forced colours keep it (they want edges back). */
+@media not (forced-colors: active) {
+  :root[data-look='v3']:not([data-contrast='high']) [data-state='planned'],
+  [data-look='v3']:not([data-contrast='high']) [data-state='planned'] { border-style: none; }
+}
 /* a failed action glows (round two: the 2 px red ring read as an outline, off the soft recipe). The glow is --glow-fault
    over the part's own material; the triangle and the words beside it carry the fault without colour. Forced colours keep
    the 2 px CanvasText border (the branch at the end). The wells and the panel and slider compose their own below. */

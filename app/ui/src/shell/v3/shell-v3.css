@@ -1,14 +1,29 @@
 /* ==========================================================================
-   Shell v3, the frosted deck (docs/design/design-language-v3.md). Scoped to .s3, which only ShellV3 renders, so with the look
-   off nothing here applies. No colour, duration or easing literal: the values are tokens (shell-v3-tokens.css), written in
-   the names of spec section 2. Sizes in rem (1rem = 16px): 11px .6875, 12px .75, 14px .875.
+   Shell v3 after the design reset of 28 Nov (docs/design/design-reset-1128.md). Scoped to .s3, which only ShellV3 renders, so
+   with the look off nothing here applies. No colour, duration or easing literal: the values are tokens (shell-v3-tokens.css,
+   which imports styles/design/v3/glass.css). Sizes in rem (1rem = 16px): 11px .6875, 12px .75, 13px .8125, 14px .875.
 
-   Light comes from the top left: every highlight is up and left, every shade down and right. No 1 px outline on any labelled
-   control, tray or plate; a surface is lifted by shadow and light, rows are grouped by space and a caption.
+   The rules of the reset, as this sheet keeps them:
+   - Monochrome first. The ground, ONE tray surface and ONE raised step. No background-image anywhere in the chrome, no tint,
+     no glow. A soft key keeps its two-shadow relief (light from the top left), which is lighting, not a colour gradient.
+   - Colour is a signal: the accent appears only as a dot, a 2 px rule, the one primary key, a live value or a selected mark.
+   - The chrome gives room back: the spine folds to its rail by itself below 1420 px, the top plate compresses to one line when
+     the view is scrolled or the window is short, the dock is a slim line until it is wanted, and every tray scrolls its body.
    ========================================================================== */
+@property --s3-fade-t {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+@property --s3-fade-b {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
 .s2.s3 {
-  --s3-mono: Consolas, 'Cascadia Mono', 'Courier New', monospace;
-  --s3-ui: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --s3-mono: var(--f-mono);
+  --s3-ui: var(--f-ui);
   position: fixed;
   inset: 0;
   display: grid;
@@ -24,7 +39,9 @@
   color: var(--ink);
   font-family: var(--s3-ui);
   font-size: 0.875rem;
-  line-height: 1.35;
+  line-height: 1.4;
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
   /* clip, not hidden: the ground is drawn 64 px past the window, and a box with overflow hidden can still be scrolled by
      focus or scrollIntoView. On 27 Nov that shifted the whole frame 64 px up and left after an item was chosen in Classroom
      (spine and top plate cut). A clipped box is not a scroll container, so nothing can move it. */
@@ -42,26 +59,17 @@
 .s3 ul { list-style: none; }
 .s3 .s3-vis { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-/* ------------------------------------------------------------------ the ground: a sibling behind the content, 64 px past the window */
+/* ------------------------------------------------------------------ the ground: a sibling behind the content, 64 px past the window.
+   One flat colour at its alpha. With the host's glass on, the desktop comes through it blurred and desaturated (glass.css). */
 .s3-ground {
   position: absolute;
   inset: -64px;
   z-index: 0;
   background-color: var(--s3-ground);
-  /* the ground takes 4 percent of the open project's hue: the owner found the shell "too white" and wanted colour by meaning */
-  background-image: linear-gradient(var(--acc-ground), var(--acc-ground));
   transition: background-color var(--s3-d-tint) var(--s3-ease);
 }
-/* the outer 24 px of the window take a little more tint, so a hard shape in the wallpaper dissolves into a hue (jury round 3) */
-.s3-ground::after {
-  content: '';
-  position: absolute;
-  inset: 64px;
-  box-shadow: inset 0 0 0 24px var(--s3-rim);
-  pointer-events: none;
-}
 
-/* ------------------------------------------------------------------ keys: raised pillows */
+/* ------------------------------------------------------------------ keys: raised pillows, one solid raised step */
 .s3-key {
   display: inline-flex;
   align-items: center;
@@ -69,44 +77,42 @@
   gap: 0.625rem;
   min-height: 44px;
   min-width: 44px;
-  padding: 0 1.125rem;
+  padding: 0 1rem;
   border: 0;
   border-radius: 0.875rem;
-  background-image: linear-gradient(145deg, var(--raised-hi), var(--raised));
   background-color: var(--raised);
   box-shadow: var(--sh-raise);
   color: var(--ink);
   font-weight: 600;
   cursor: pointer;
-  transition: transform var(--s3-d-key) var(--s3-ease), box-shadow var(--s3-d-key) var(--s3-ease);
+  transition: transform var(--s3-d-key) var(--s3-ease), box-shadow var(--s3-d-key) var(--s3-ease), background-color var(--s3-d-key) var(--s3-ease);
 }
-.s3-key:hover { transform: translateY(-1px); box-shadow: var(--sh-raise-hover); }
-.s3-key:active { transform: none; box-shadow: var(--sh-press); }
+.s3-key:hover { transform: translateY(-1px); box-shadow: var(--sh-raise-hover); background-color: var(--raised-hi); }
+.s3-key:active { transform: none; box-shadow: var(--sh-press); background-color: var(--raised); }
 .s3-key:disabled,
-.s3-key[aria-disabled='true'] { background-image: none; background-color: var(--s3-well-30); box-shadow: none; color: var(--locked); cursor: not-allowed; transform: none; }
+.s3-key[aria-disabled='true'] { background-color: var(--s3-well-30); box-shadow: none; color: var(--locked); cursor: not-allowed; transform: none; }
 .s3-iconkey { padding: 0; width: 44px; flex: none; }
-.s3-flat { background-image: none; background-color: transparent; box-shadow: none; border-radius: 0.75rem; }
-.s3-flat:hover { background-image: linear-gradient(145deg, var(--raised-hi), var(--raised)); background-color: var(--raised); box-shadow: var(--sh-raise); }
+.s3-flat { background-color: transparent; box-shadow: none; border-radius: 0.75rem; }
+.s3-flat:hover { background-color: var(--raised); box-shadow: var(--sh-raise); }
 .s3-flat:active { box-shadow: var(--sh-press); }
 
 /* ------------------------------------------------------------------ the spine
-   25 Nov: slim. 184 px (was 208), every row one line of 44 px (the plates were two lines of 56), folding to a 64 px rail.
-   The lit pill (.s3-ind) is one element that slides between the active rows; a row lights nothing itself. */
+   It sits ON the ground (no panel of its own): a column of 44 px rows. The lit pill (.s3-ind) is one element that slides
+   between the active rows; the active row adds the one accent mark of the spine, a 6 px dot. Project marks are the dot-matrix
+   character marks (Glyphs.tsx) in ink; the open project's mark takes the accent. */
 .s3-spine {
   position: relative;
   z-index: 2;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 0.875rem 0.5rem 0.625rem;
-  background-image: linear-gradient(160deg, var(--sheen), transparent 45%), linear-gradient(var(--acc-tray), var(--acc-tray));
-  background-color: var(--s3-spine);
-  box-shadow: 10px 0 30px var(--lo), var(--edge);
+  padding: 0.75rem 0.5rem 0.625rem;
+  background-color: transparent;
 }
-.s3-brand { display: flex; align-items: center; gap: 0.5rem; height: 40px; padding: 0 0.25rem 0 0.5rem; margin-bottom: 0.375rem; }
+.s3-brand { display: flex; align-items: center; gap: 0.5rem; height: 40px; padding: 0 0.25rem 0 0.625rem; margin-bottom: 0.5rem; color: var(--ink); }
 .s3-brand svg { flex: none; }
-.s3-brand b { flex: 1; font: 700 0.75rem var(--s3-ui); letter-spacing: 0.14em; white-space: nowrap; }
-.s3-brand time { font: 500 0.75rem var(--s3-mono); color: var(--ink2); }
+.s3-brand b { flex: 1; font: 650 0.75rem var(--s3-ui); letter-spacing: 0.12em; white-space: nowrap; }
+.s3-brand time { font: 500 0.75rem var(--s3-mono); color: var(--ink2); font-variant-numeric: tabular-nums; }
 .s3-nav { position: relative; display: flex; flex-direction: column; gap: 0.125rem; flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; }
 .s3-nav::-webkit-scrollbar { display: none; }
 /* the pill under the active row: a measured translate, so a move from Room to Console travels 88 px instead of jumping */
@@ -116,19 +122,14 @@
   left: 0;
   z-index: 0;
   border-radius: 0.8125rem;
-  background-image: linear-gradient(var(--acc-soft), var(--acc-soft)), linear-gradient(145deg, var(--lit-a), var(--lit-b));
-  background-color: var(--lit-b);
+  background-color: var(--raised);
   box-shadow: var(--sh-raise);
   pointer-events: none;
 }
 .s3-ind[data-ready='1'] { transition: transform var(--s3-d-sheet) var(--s3-ease), opacity var(--s3-d-state) var(--s3-ease); }
 /* the four relate by order: the voice and the room, memory with its agents, his day. One small gap between groups, never a box */
-.s3-grp { position: relative; z-index: 1; --g: var(--hue); --g-lo: var(--hue-lo); }
-.s3-grp[data-gap='1'] { margin-top: 0.875rem; }
-.s3-grp[data-p='jarvis'] { --g: var(--hue-jarvis); --g-lo: var(--hue-jarvis-lo); }
-.s3-grp[data-p='aankhen'] { --g: var(--hue-aankhen); --g-lo: var(--hue-aankhen-lo); }
-.s3-grp[data-p='yadaash'] { --g: var(--hue-yadaash); --g-lo: var(--hue-yadaash-lo); }
-.s3-grp[data-p='wellwisher'] { --g: var(--hue-wellwisher); --g-lo: var(--hue-wellwisher-lo); }
+.s3-grp { position: relative; z-index: 1; }
+.s3-grp[data-gap='1'] { margin-top: 0.75rem; }
 .s3-head {
   position: relative;
   display: flex;
@@ -148,23 +149,21 @@ button.s3-head:hover { box-shadow: var(--sh-raise); color: var(--ink); transform
 button.s3-head:active { box-shadow: var(--sh-press); transform: none; }
 button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; transform: none; }
 .s3-grp[data-open='true'] > .s3-head { color: var(--ink); }
-/* a project's mark carries its own hue: full strength for the open project, lower for the others */
-.s3-pi { flex: none; display: inline-grid; place-items: center; width: 1.5rem; height: 1.5rem; color: var(--g-lo); transition: color var(--s3-d-state) var(--s3-ease); }
-.s3-grp[data-open='true'] .s3-pi { color: var(--g); }
-.s3-pn { flex: 1; min-width: 0; white-space: nowrap; font: 650 0.875rem var(--s3-ui); letter-spacing: -0.005em; }
+/* a project is told apart by its mark and its name, never by a colour: every mark is ink, the open one takes the accent */
+.s3-pi { flex: none; display: inline-grid; place-items: center; width: 1.5rem; height: 1.5rem; color: var(--ink2); transition: color var(--s3-d-state) var(--s3-ease); }
+.s3-grp[data-open='true'] .s3-pi { color: var(--accent); }
+.s3-pn { flex: 1; min-width: 0; white-space: nowrap; font: 600 0.875rem var(--s3-ui); letter-spacing: -0.006em; }
 .s3-lamp { flex: none; display: inline-flex; color: var(--ink2); }
 .s3-lamp[data-state='fault'],
 .s3-pw[data-state='fault'] svg { color: var(--fault); }
 .s3-lamp[data-state='live'],
 .s3-pw[data-state='live'] svg { color: var(--live); }
-.s3-lamp[data-state='simulated'],
-.s3-pw[data-state='simulated'] svg { color: var(--sim); }
 .s3-lamp[data-state='planned'] { color: var(--ink3); }
 .s3-glyph-bar { stroke: var(--gap); }
 /* the open project says its state in words, once, under its name; the other three say it in the lamp's title and the row's name */
-.s3-pw { display: flex; align-items: center; gap: 0.375rem; margin: 0; padding: 0 0.75rem 0.1875rem 2.875rem; color: var(--ink2); }
+.s3-pw { display: flex; align-items: center; gap: 0.375rem; margin: 0; padding: 0 0.75rem 0.25rem 2.875rem; color: var(--ink2); }
 .s3-pw svg { flex: none; width: 11px; height: 11px; }
-.s3-pw small { font: 650 0.6875rem var(--s3-ui); letter-spacing: 0.1em; line-height: 1.25; white-space: nowrap; }
+.s3-pw small { font: 600 0.6875rem var(--s3-ui); letter-spacing: 0.08em; line-height: 1.25; white-space: nowrap; }
 .s3-slot { display: flex; flex-direction: column; gap: 0.125rem; padding: 0 0 0 0.875rem; }
 .s3-item {
   position: relative;
@@ -178,27 +177,29 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
   border-radius: 0.8125rem;
   background: transparent;
   color: var(--ink2);
-  font-weight: 550;
+  font-weight: 500;
   text-align: left;
   cursor: pointer;
   transition: box-shadow var(--s3-d-key) var(--s3-ease), color var(--s3-d-state) var(--s3-ease), transform var(--s3-d-key) var(--s3-ease);
 }
 .s3-item svg { flex: none; }
 .s3-item span { flex: 1; min-width: 0; white-space: nowrap; }
-.s3-item i { display: none; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--g); }
+.s3-item i { display: none; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .s3-item:hover { box-shadow: var(--sh-raise); color: var(--ink); transform: translateY(-1px); }
 .s3-item:active { box-shadow: var(--sh-press); transform: none; }
-.s3-item[aria-current='page'] { color: var(--ink); font-weight: 650; box-shadow: none; transform: none; }
+.s3-item[aria-current='page'] { color: var(--ink); font-weight: 600; box-shadow: none; transform: none; }
 .s3-item[aria-current='page'] i { display: block; }
-.s3-item[aria-current='page'] svg { color: var(--g); }
 /* a planned row (Agents): dimmer, a dashed ring where a live row has its dot, and it opens the planned pose */
 .s3-extra { color: var(--ink2); }
 .s3-extralamp { flex: none; display: inline-flex; color: var(--ink3); }
-.s3-fold { flex: none; justify-content: flex-start; width: 100%; margin-top: 0.375rem; padding: 0 0.75rem; gap: 0.625rem; background-image: none; background-color: transparent; box-shadow: none; color: var(--ink2); font-weight: 550; }
-.s3-fold:hover { background-image: linear-gradient(145deg, var(--raised-hi), var(--raised)); background-color: var(--raised); box-shadow: var(--sh-raise); color: var(--ink); }
+.s3-fold { flex: none; justify-content: flex-start; width: 100%; margin-top: 0.375rem; padding: 0 0.75rem; gap: 0.625rem; background-color: transparent; box-shadow: none; color: var(--ink2); font-weight: 500; }
+.s3-fold:hover { background-color: var(--raised); box-shadow: var(--sh-raise); color: var(--ink); }
 .s3-fold:active { box-shadow: var(--sh-press); }
+.s3-fold small { margin-left: auto; font: 600 0.6875rem var(--s3-ui); letter-spacing: 0.06em; color: var(--ink2); }
 
-/* the 64 px icon rail (desktop only: the phone's sheet always shows labels). Names move to the tooltip and the accessible name. */
+/* the 64 px icon rail (desktop only: the phone's sheet always shows labels). It is chosen by the shell below 1420 px of window
+   (ShellV3.tsx, AUTO_RAIL_BELOW, measured there) unless the person pinned the sidebar. Names move to a flyout label beside the
+   row on hover and focus, the tooltip and the accessible name. */
 @media (min-width: 701px) {
   .s3[data-spine='rail'] { --s3-spine-w: 64px; }
   .s3[data-spine='rail'] .s3-spine { padding-left: 0.5rem; padding-right: 0.5rem; }
@@ -210,13 +211,43 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
   .s3[data-spine='rail'] .s3-item span,
   .s3[data-spine='rail'] .s3-item i,
   .s3[data-spine='rail'] .s3-extralamp,
-  .s3[data-spine='rail'] .s3-fold span { display: none; }
+  .s3[data-spine='rail'] .s3-fold span,
+  .s3[data-spine='rail'] .s3-fold small { display: none; }
   .s3[data-spine='rail'] .s3-head,
   .s3[data-spine='rail'] .s3-item,
   .s3[data-spine='rail'] .s3-fold { justify-content: center; padding: 0; }
   .s3[data-spine='rail'] .s3-slot { padding-left: 0; }
-  /* the lamp stays visible in the rail, a corner dot of the project's icon */
+  /* in the rail the open project's sections are a column of icons under its mark; the active one keeps the accent dot as a
+     2 px rule on its left edge, so the place still reads without a label */
+  .s3[data-spine='rail'] .s3-item[aria-current='page']::before { content: ''; position: absolute; left: 0.1875rem; top: 0.875rem; bottom: 0.875rem; width: 2px; border-radius: 1px; background: var(--accent); }
+  /* the lamp stays visible in the rail, a corner mark of the project's icon */
   .s3[data-spine='rail'] .s3-lamp { position: absolute; top: 0.3125rem; right: 0.3125rem; }
+  /* the flyout: the row's name, an opaque small plate to the right, on hover and on keyboard focus */
+  .s3[data-spine='rail'] :is(.s3-item, button.s3-head, .s3-fold)[data-fly]::after {
+    content: attr(data-fly);
+    position: absolute;
+    left: calc(100% + 0.625rem);
+    top: 50%;
+    z-index: 30;
+    padding: 0.4375rem 0.6875rem;
+    border-radius: 0.625rem;
+    background: var(--pop);
+    color: var(--ink);
+    font: 600 0.75rem var(--s3-ui);
+    white-space: nowrap;
+    box-shadow: var(--sh-now);
+    opacity: 0;
+    transform: translate(-0.25rem, -50%);
+    pointer-events: none;
+    transition: opacity var(--s3-d-pop) var(--s3-ease), transform var(--s3-d-pop) var(--s3-ease);
+  }
+  .s3[data-spine='rail'] :is(.s3-item, button.s3-head, .s3-fold)[data-fly]:is(:hover, :focus-visible)::after { opacity: 1; transform: translate(0, -50%); }
+  /* the flyouts sit outside the 64 px column, so the nav must not clip them; on a window under 700 px tall the rows may not fit,
+     and there the nav scrolls again (the flyout gives way to the title tooltip) */
+  .s3[data-spine='rail'] .s3-nav { overflow: visible; }
+}
+@media (min-width: 701px) and (max-height: 699px) {
+  .s3[data-spine='rail'] .s3-nav { overflow-y: auto; }
 }
 @media (max-width: 700px) {
   .s3-fold { display: none; }
@@ -229,49 +260,50 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 0.875rem;
-  padding: 1rem;
+  gap: 0.5rem;
+  padding: 0.625rem 0.625rem 0.625rem 0.375rem;
   min-width: 0;
   min-height: 0;
 }
 .s3-stage { position: relative; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
-/* the canvas keeps its class and id; under v3 it is a plate, not the recess of the current frame, and the view row of the
-   current frame is replaced by the top plate (the Well Wisher frame's own tools still portal into .s2-frametools) */
+/* the canvas keeps its class and id. Under the reset it is NOT a surface: the trays inside it are the one surface, so a view
+   never sits in a tray inside a tray. A view that has no trays yet reads on the ground (ink and ink2 hold 4.9 to 1 there). */
 .s3 .s2-canvas {
   grid-area: auto;
   flex: 1;
   min-height: 0;
   border-radius: 1.375rem;
-  background-color: var(--s3-tray);
-  background-image: linear-gradient(var(--acc-tray), var(--acc-tray));
-  box-shadow: var(--sh-tray), var(--edge);
+  background-color: transparent;
+  box-shadow: none;
 }
 .s3 .s2-canvas::after { display: none; }
 .s3 .s2-views { display: none; }
 .s3 .s2-views:has(.s2-frametools > *) { display: flex; min-height: 0; padding: 0.375rem 0.75rem 0.125rem; justify-content: flex-end; }
 
-/* ------------------------------------------------------------------ top plate */
+/* ------------------------------------------------------------------ top plate
+   A bare line on the ground (no panel): the location, the view switch, the one lamp pill, More, the window keys. Full: 56 px,
+   the project over "Section / View". Slim (data-plate='slim', when the view is scrolled or the window is under 760 px tall):
+   one line of 44 px, the project label folds away and the section title shrinks by a transform, so the change is drawn by the
+   compositor. The view switch stays in the line in both, so the views are one press away. */
 .s3-top {
   position: relative;
   z-index: 6;
   display: flex;
   align-items: center;
-  gap: 0.875rem;
-  min-height: 64px;
-  padding: 0.25rem 0.625rem 0.25rem 1.25rem;
-  border-radius: 1.375rem;
+  gap: 0.75rem;
+  min-height: 56px;
+  padding: 0 0.25rem 0 0.75rem;
+  border-radius: 1rem;
   container-type: inline-size;
-  background-image: linear-gradient(135deg, var(--glare), transparent 40%), linear-gradient(var(--acc-tray), var(--acc-tray));
-  background-color: var(--s3-tray);
-  box-shadow: var(--sh-tray), var(--edge);
+  background-color: transparent;
 }
-.s3-loc { display: flex; flex-direction: column; line-height: 1.12; flex: none; }
-.s3-loc-p { font: 700 0.75rem var(--s3-ui); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink2); }
-.s3-loc-s { font: 650 1.3125rem var(--s3-ui); letter-spacing: -0.01em; white-space: nowrap; }
+.s3-loc { display: flex; flex-direction: column; justify-content: center; line-height: 1.15; flex: none; min-height: 44px; }
+.s3-loc-p { font: 600 0.6875rem var(--s3-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink2); transition: opacity var(--s3-d-state) var(--s3-ease), transform var(--s3-d-state) var(--s3-ease); }
+.s3-loc-s { font: 600 1.25rem var(--s3-ui); letter-spacing: -0.015em; white-space: nowrap; transform-origin: left center; transition: transform var(--s3-d-state) var(--s3-ease); }
 .s3-loc-s em { font-style: normal; font-weight: 450; color: var(--ink2); }
 .s3-seg {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.25rem;
   padding: 0.25rem;
   border-radius: 1rem;
   background-color: var(--s3-well-28);
@@ -285,26 +317,34 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
 .s3-seg button {
   flex: none;
   min-height: 44px;
-  min-width: 56px;
-  padding: 0 1rem;
+  min-width: 52px;
+  padding: 0 0.875rem;
   border: 0;
   border-radius: 0.8125rem;
   background: transparent;
   color: var(--ink2);
-  font-weight: 550;
+  font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
-  transition: box-shadow var(--s3-d-key) var(--s3-ease), color var(--s3-d-state) var(--s3-ease);
+  transition: box-shadow var(--s3-d-key) var(--s3-ease), color var(--s3-d-state) var(--s3-ease), background-color var(--s3-d-key) var(--s3-ease);
 }
 .s3-seg button:hover { color: var(--ink); box-shadow: var(--sh-raise); }
 .s3-seg button:active { box-shadow: var(--sh-press); }
-.s3-seg button[aria-current='page'] { background-image: linear-gradient(var(--acc-soft), var(--acc-soft)), linear-gradient(145deg, var(--lit-a), var(--lit-b)); background-color: var(--lit-b); color: var(--ink); font-weight: 650; box-shadow: var(--sh-raise); }
-.s3-seg button[aria-current='page']::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 0.5rem; border-radius: 50%; background: var(--hue); vertical-align: 1px; }
+/* the current view: the one raised key of the well, with the accent as a 6 px dot (a selected mark, never a fill) */
+.s3-seg button[aria-current='page'] { background-color: var(--lit-a); color: var(--ink); font-weight: 600; box-shadow: var(--sh-raise); }
+.s3-seg button[aria-current='page']::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 0.5rem; border-radius: 50%; background: var(--accent); vertical-align: 1px; }
 .s3-spacer { flex: 1; min-width: 0; }
 .s3-chiprow { display: none; }
 
+/* the slim plate: one 44 px line (56 to 44, and the location title from 20 px to 16 px by a scale of .8) */
+.s3[data-plate='slim'] .s3-top { min-height: 44px; }
+.s3[data-plate='slim'] .s3-loc { display: grid; }
+.s3[data-plate='slim'] .s3-loc-p { grid-area: 1 / 1; opacity: 0; transform: translateY(-0.375rem); pointer-events: none; }
+.s3[data-plate='slim'] .s3-loc-s { grid-area: 1 / 1; align-self: center; transform: scale(0.8); }
+.s3[data-plate='slim'] .s3-seg { padding: 0; background-color: transparent; box-shadow: none; }
+
 /* the lamp pill: a ring of one arc per lamp, then the worst state first */
-.s3-pillbtn { padding: 0 1rem 0 0.75rem; gap: 0.625rem; font: 700 0.75rem var(--s3-ui); letter-spacing: 0.05em; text-align: left; }
+.s3-pillbtn { padding: 0 1rem 0 0.75rem; gap: 0.625rem; font: 650 0.75rem var(--s3-ui); letter-spacing: 0.05em; text-align: left; }
 .s3-pilltext { display: flex; flex-wrap: wrap; align-items: center; column-gap: 0.25rem; row-gap: 0; line-height: 1.2; }
 .s3-pillpart { display: inline-flex; align-items: center; gap: 0.375rem; white-space: nowrap; }
 .s3-pill-tri { display: inline-flex; color: var(--fault); }
@@ -313,7 +353,6 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
 .s3-ring-arc { stroke: var(--ink2); }
 .s3-ring-arc[data-state='fault'] { stroke: var(--fault); }
 .s3-ring-arc[data-state='live'] { stroke: var(--live); }
-.s3-ring-arc[data-state='simulated'] { stroke: var(--sim); }
 .s3-ring-arc[data-state='planned'] { stroke: var(--ink3); }
 
 /* popovers are opaque: --pop, never a blur (spec 2.1) */
@@ -335,10 +374,11 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
 .s3-pop[data-align='right'] { right: 0; }
 .s3-pop[data-align='left'] { left: 0; }
 .s3-lampwrap .s3-pop { width: 22rem; max-width: calc(100vw - 2rem); }
-.s3-cap { font: 700 0.6875rem var(--s3-ui); letter-spacing: 0.12em; color: var(--ink2); padding: 0.375rem 0.625rem 0.125rem; }
+.s3-cap { font: 600 0.6875rem var(--s3-ui); letter-spacing: 0.1em; color: var(--ink2); padding: 0.375rem 0.625rem 0.125rem; }
 .s3-popitem {
   display: flex;
   align-items: center;
+  gap: 0.375rem;
   width: 100%;
   min-height: 44px;
   padding: 0 0.875rem;
@@ -351,7 +391,7 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
 }
 .s3-popitem:hover { box-shadow: var(--sh-raise); }
 .s3-popitem:active { box-shadow: var(--sh-press); }
-.s3-popitem[aria-current='page'] { background-image: linear-gradient(145deg, var(--lit-a), var(--lit-b)); background-color: var(--lit-b); font-weight: 650; box-shadow: var(--sh-raise); }
+.s3-popitem[aria-current='page'] { background-color: var(--lit-a); font-weight: 600; box-shadow: var(--sh-raise); }
 .s3-lamplist { display: flex; flex-direction: column; gap: 0.25rem; }
 .s3-lamprow { display: flex; align-items: center; gap: 0.625rem; width: 100%; min-height: 44px; padding: 0.25rem 0.625rem; border: 0; border-radius: 0.75rem; background: transparent; text-align: left; cursor: pointer; }
 .s3-lamprow:hover { box-shadow: var(--sh-raise); }
@@ -360,20 +400,19 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
 .s3-lampshape svg { width: 16px; height: 16px; }
 .s3-lampshape[data-state='fault'] { color: var(--fault); }
 .s3-lampshape[data-state='live'] { color: var(--live); }
-.s3-lampshape[data-state='simulated'] { color: var(--sim); }
 .s3-lampshape[data-state='planned'] { color: var(--ink3); }
 .s3-lamptext { display: flex; flex-direction: column; min-width: 0; }
 .s3-lamptext b { font-weight: 600; font-size: 0.8125rem; }
-.s3-lampword { font: 700 0.6875rem var(--s3-ui); letter-spacing: 0.08em; }
+.s3-lampword { font: 650 0.6875rem var(--s3-ui); letter-spacing: 0.08em; }
 .s3-lamptext small { color: var(--ink2); font-size: 0.75rem; line-height: 1.3; }
 .s3-keys { padding: 0.25rem 0.75rem 0.5rem; line-height: 2; color: var(--ink2); font-size: 0.75rem; }
 .s3 kbd { font: 600 0.6875rem var(--s3-mono); padding: 0.125rem 0.375rem; border-radius: 0.4375rem; background-color: var(--s3-well-50); box-shadow: var(--sh-press); color: var(--ink2); }
 .s3-switch { display: flex; align-items: center; gap: 0.5rem; width: 100%; min-height: 44px; padding: 0 0.625rem 0 0.75rem; border: 0; border-radius: 1rem; background: transparent; color: var(--ink2); cursor: pointer; text-align: left; font-size: 0.8125rem; }
 .s3-switch:hover { box-shadow: var(--sh-raise); }
-.s3-switch em { font: 700 0.6875rem var(--s3-ui); font-style: normal; letter-spacing: 0.08em; color: var(--ink); margin-left: auto; }
+.s3-switch em { font: 650 0.6875rem var(--s3-ui); font-style: normal; letter-spacing: 0.08em; color: var(--ink); margin-left: auto; }
 .s3-track { position: relative; flex: none; width: 44px; height: 26px; border-radius: 0.8125rem; box-shadow: var(--sh-press); }
-.s3-track::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background-image: linear-gradient(145deg, var(--lit-a), var(--lit-b)); box-shadow: var(--sh-raise); transition: transform var(--s3-d-sheet) var(--s3-ease); }
-.s3-switch[aria-checked='true'] .s3-track::after { transform: translateX(18px); }
+.s3-track::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background-color: var(--lit-a); box-shadow: var(--sh-raise); transition: transform var(--s3-d-sheet) var(--s3-ease), background-color var(--s3-d-state) var(--s3-ease); }
+.s3-switch[aria-checked='true'] .s3-track::after { transform: translateX(18px); background-color: var(--accent); }
 
 /* the tooltip of More: an opaque small plate under the key, on hover and focus */
 [data-tip] { position: relative; }
@@ -402,72 +441,100 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
 
 @container (max-width: 1060px) {
   .s3-loc-s em { display: none; }
-  .s3-seg { gap: 0.25rem; }
-  .s3-seg button { padding: 0 0.75rem; min-width: 0; }
+  .s3-seg button { padding: 0 0.625rem; min-width: 0; }
   .s3-top { gap: 0.5rem; }
 }
 
-/* ------------------------------------------------------------------ the dock: the last element of every screen */
+/* ------------------------------------------------------------------ the dock: the last element of every screen
+   A slim line of 44 px (it was 76: 12 + 52 + 12). It does not change height when it opens, so nothing above it moves: at
+   rest it is a quiet line on the ground (the mode keys flat, the well without its press, the send key hidden but keeping its
+   place), and on hover, on focus inside it, or on the "/" key (ShellV3) it lights: the well sinks, the mode keys and the
+   send key appear. Only colours, shadows and opacity change, so it is drawn by the compositor. */
 .s3-dock {
   position: relative;
   z-index: 5;
   display: flex;
   align-items: center;
-  gap: 0.875rem;
-  padding: 0.75rem 0.875rem 0.75rem 1.375rem;
-  border-radius: 1.375rem;
-  background-image: linear-gradient(135deg, var(--glare), transparent 40%), linear-gradient(var(--acc-tray), var(--acc-tray));
-  background-color: var(--s3-tray);
-  box-shadow: var(--sh-tray), var(--edge);
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 1rem;
+  background-color: transparent;
+  box-shadow: none;
+  transition: background-color var(--s3-d-state) var(--s3-ease), box-shadow var(--s3-d-state) var(--s3-ease);
 }
-.s3-mode { display: flex; gap: 0.25rem; padding: 0.25rem; border-radius: 1rem; box-shadow: var(--sh-press); background-color: var(--s3-well-28); flex: none; }
-.s3-mode button { min-height: 44px; min-width: 60px; padding: 0 0.75rem; border: 0; border-radius: 0.8125rem; background: transparent; color: var(--ink2); font-weight: 550; cursor: pointer; }
-.s3-mode button[aria-pressed='true'] { background-image: linear-gradient(145deg, var(--lit-a), var(--lit-b)); background-color: var(--lit-b); color: var(--ink); font-weight: 650; box-shadow: var(--sh-raise); }
-.s3-wellin { flex: 1; display: flex; align-items: center; gap: 0.625rem; min-width: 0; min-height: 52px; padding: 0 0.25rem 0 1.125rem; border-radius: 1rem; background-color: var(--s3-well); box-shadow: var(--sh-press); }
-.s3-prompt { flex: none; font: 700 0.9375rem/1 var(--s3-mono); color: var(--ink2); }
-.s3-wellin input { flex: 1; min-width: 0; min-height: 44px; border: 0; background: transparent; font: 500 0.9063rem/1 var(--s3-mono); color: var(--ink); outline: none; caret-color: var(--ink); padding: 0; }
-.s3-wellin input::placeholder { color: var(--ink3); opacity: 0.74; }
+.s3-mode { display: flex; gap: 0.25rem; padding: 0; border-radius: 0.875rem; background-color: transparent; box-shadow: none; flex: none; transition: box-shadow var(--s3-d-state) var(--s3-ease), background-color var(--s3-d-state) var(--s3-ease); }
+.s3-mode button { min-height: 44px; min-width: 56px; padding: 0 0.75rem; border: 0; border-radius: 0.8125rem; background: transparent; color: var(--ink2); font-weight: 500; cursor: pointer; transition: box-shadow var(--s3-d-key) var(--s3-ease), color var(--s3-d-state) var(--s3-ease), background-color var(--s3-d-key) var(--s3-ease); }
+.s3-mode button[aria-pressed='true'] { color: var(--ink); font-weight: 600; }
+.s3-wellin { flex: 1; display: flex; align-items: center; gap: 0.625rem; min-width: 0; min-height: 44px; padding: 0 0.25rem 0 1rem; border-radius: 0.875rem; background-color: transparent; box-shadow: none; transition: box-shadow var(--s3-d-state) var(--s3-ease), background-color var(--s3-d-state) var(--s3-ease); }
+.s3-prompt { flex: none; font: 600 0.875rem/1 var(--s3-mono); color: var(--ink2); }
+.s3-wellin input { flex: 1; min-width: 0; min-height: 44px; border: 0; background: transparent; font: 450 0.875rem/1 var(--s3-mono); color: var(--ink); outline: none; caret-color: var(--accent); padding: 0; }
+.s3-wellin input::placeholder { color: var(--ink2); opacity: 1; }
+.s3-dockkey { flex: none; display: inline-flex; align-items: center; gap: 0.25rem; color: var(--ink2); font-size: 0.75rem; transition: opacity var(--s3-d-state) var(--s3-ease); }
+.s3-send { flex: none; min-width: 64px; opacity: 0; transform: translateX(0.25rem); pointer-events: none; transition: opacity var(--s3-d-state) var(--s3-ease), transform var(--s3-d-state) var(--s3-ease), box-shadow var(--s3-d-key) var(--s3-ease); }
+.s3-dock[data-open='true'] { background-color: var(--s3-tray); box-shadow: var(--sh-tray), var(--edge); }
+.s3-dock[data-open='true'] .s3-mode { background-color: var(--s3-well-28); box-shadow: var(--sh-press); }
+.s3-dock[data-open='true'] .s3-mode button[aria-pressed='true'] { background-color: var(--lit-a); box-shadow: var(--sh-raise); }
+.s3-dock[data-open='true'] .s3-wellin { background-color: var(--s3-well); box-shadow: var(--sh-press); }
+.s3-dock[data-open='true'] .s3-send { opacity: 1; transform: none; pointer-events: auto; }
+.s3-dock[data-open='true'] .s3-dockkey { opacity: 0; }
 .s3-wellin:focus-within { box-shadow: var(--sh-press), 0 0 0 3px var(--gap), 0 0 0 5px var(--focus); }
-.s3-send { flex: none; min-width: 64px; }
 
 /* ------------------------------------------------------------------ the three-tray frame */
-.s3-zones { display: grid; gap: 1rem; height: 100%; min-height: 0; grid-template-columns: 1.85fr 1.05fr 0.95fr; padding: 0.5rem; }
+.s3-zones { display: grid; gap: 0.875rem; height: 100%; min-height: 0; grid-template-columns: 1.85fr 1.05fr 0.95fr; padding: 0.375rem 0.5rem 0.5rem; }
 .s3-tray {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.625rem;
   min-height: 0;
   min-width: 0;
-  padding: 1.125rem 1.25rem 1.25rem;
+  padding: 1rem 1.125rem 0.75rem;
   border-radius: 1.375rem;
   background-color: var(--s3-tray);
-  background-image: linear-gradient(var(--acc-tray), var(--acc-tray));
   box-shadow: var(--sh-tray), var(--edge);
   overflow: hidden;
   animation: s3-rise var(--s3-d-rise) var(--s3-ease) both;
 }
-.s3-tray::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background-image: linear-gradient(135deg, var(--glare), transparent 38%); pointer-events: none; }
 .s3-tray > * { position: relative; z-index: 1; }
-/* hierarchy is felt as material: the first tray is the most lifted and most opaque, the second one step flatter, the third the glassiest, in smaller type */
-/* the first tray takes 8 percent of the hue against the others' 5, so the eye knows where to start */
-.s3-tray[data-step='1'] { border-radius: 1.875rem; background-color: var(--s3-trayn); background-image: linear-gradient(var(--acc-tray-1), var(--acc-tray-1)); box-shadow: var(--sh-now), var(--edge); }
+/* hierarchy is felt by order, type and depth, never by a second fill: the first tray is the most lifted (its shadow) and its
+   job reads in ink; the second and third read their job in ink2, the third in the smaller body size */
+.s3-tray[data-step='1'] { border-radius: 1.625rem; background-color: var(--s3-trayn); box-shadow: var(--sh-now), var(--edge); }
 .s3-tray[data-step='2'] { animation-delay: var(--s3-delay-2); }
-.s3-tray[data-step='3'] { background-color: var(--s3-trayl); box-shadow: var(--sh-later), var(--edge); font-size: 0.75rem; animation-delay: var(--s3-delay-3); }
-.s3-tray[data-step='3']::before { opacity: 0.45; }
-.s3[data-glass='off'] .s3-tray[data-step='1'] { background-image: linear-gradient(var(--acc-tray-1), var(--acc-tray-1)), linear-gradient(135deg, var(--s3-off-lift), transparent 55%); }
-.s3-thead { display: flex; align-items: center; gap: 0.75rem; min-height: 28px; }
-.s3-step { display: inline-flex; align-items: center; gap: 0.5rem; font: 700 0.75rem/1 var(--s3-ui); letter-spacing: 0.12em; color: var(--ink2); white-space: nowrap; }
+.s3-tray[data-step='3'] { background-color: var(--s3-trayl); box-shadow: var(--sh-later), var(--edge); font-size: 0.8125rem; animation-delay: var(--s3-delay-3); }
+/* the head: ONE small label style, the job in caps; no numeral well, no bracket, no tick (they read as terminal noise). The
+   numeral stays in the markup for the tests and the screen reader's "Step 1:", visually hidden. */
+.s3-thead { display: flex; align-items: center; gap: 0.75rem; min-height: 24px; }
+.s3-step { display: inline-flex; align-items: center; gap: 0.5rem; font: 600 0.6875rem/1 var(--s3-ui); letter-spacing: 0.1em; color: var(--ink2); white-space: nowrap; }
 .s3-tray[data-step='1'] .s3-step { color: var(--ink); }
-.s3-num { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background-color: var(--s3-well-50); box-shadow: var(--sh-press); font: 700 0.6875rem/1 var(--s3-mono); color: var(--ink); letter-spacing: 0; }
-/* the numeral is carried in its own language: a corner tick on the dark ground, an ASCII bracket on the light one */
-.s3[data-ground='dark'] .s3-step::before { content: ''; width: 6px; height: 6px; border-top: 2px solid var(--ink3); border-left: 2px solid var(--ink3); margin-right: 0.125rem; }
-/* inline-flex here: the base rule is a one-column grid, which stacked the two brackets and the numeral on three lines */
-.s3[data-ground='light'] .s3-num { display: inline-flex; width: auto; height: auto; background-color: transparent; box-shadow: none; }
-.s3[data-ground='light'] .s3-num::before { content: '['; }
-.s3[data-ground='light'] .s3-num::after { content: ']'; }
-.s3-headchip { margin-left: auto; display: inline-flex; align-items: center; font: 700 0.6875rem var(--s3-ui); letter-spacing: 0.08em; }
-.s3-body { display: flex; flex-direction: column; gap: 0.75rem; min-height: 0; flex: 1; }
+.s3-num { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.s3-headchip { margin-left: auto; display: inline-flex; align-items: center; font: 600 0.6875rem var(--s3-ui); letter-spacing: 0.06em; }
+/* THE TRAY BODY SCROLLS (28 Nov: "several trays cannot be scrolled"). It was a flex column with no overflow inside a tray that
+   clips, so a long body was cut with no way to reach it. Now the body scrolls itself when its content is taller, with a 24 px
+   soft edge at the side that has more (Tray.tsx sets data-more-up and data-more-down from the real scroll position). The
+   0.3125rem padding with the same negative margin keeps a focus ring (5 px) from being cut by the clip. A child that is
+   flex: 1 with its own scroller still gets the body's whole height, so a view's own list keeps working. */
+.s3-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--track) transparent;
+  padding: 0.3125rem;
+  margin: -0.3125rem;
+  --s3-fade-t: 0px;
+  --s3-fade-b: 0px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, currentColor var(--s3-fade-t), currentColor calc(100% - var(--s3-fade-b)), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, currentColor var(--s3-fade-t), currentColor calc(100% - var(--s3-fade-b)), transparent 100%);
+  transition: --s3-fade-t var(--s3-d-state) var(--s3-ease), --s3-fade-b var(--s3-d-state) var(--s3-ease);
+}
+.s3-body[data-more-up='1'] { --s3-fade-t: 1.5rem; }
+.s3-body[data-more-down='1'] { --s3-fade-b: 1.5rem; }
 /* decoration only (25 Nov: "the terminal look makes some part incomprehensible"): the element stays for the views and tests that mount it, and is not drawn */
 .s3-ruler { display: none; position: relative; height: 0.625rem; margin: -0.25rem 0 0; overflow: hidden; white-space: nowrap; pointer-events: none; flex: none; }
 .s3-ruler-marks { display: block; color: var(--ink3); opacity: 0.75; }
@@ -475,22 +542,20 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
 .s3-ruler-probe { font: 500 0.6875rem/0.625rem var(--s3-mono); white-space: pre; }
 .s3-ruler-ascii { display: none; color: var(--ink3); }
 .s3-ruler-probe { position: absolute; left: 0; top: 0; visibility: hidden; }
-.s3[data-ground='light'] .s3-ruler-marks { display: none; }
-.s3[data-ground='light'] .s3-ruler-ascii { display: block; }
 .s3-done { display: none; }
-.s3-glint { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; }
-.s3-glint::before { content: ''; position: absolute; top: -20%; bottom: -20%; width: 34%; left: -50%; transform: skewX(-14deg); background-image: linear-gradient(100deg, transparent, var(--sheen), transparent); opacity: 0; animation: s3-glint var(--s3-d-glint) var(--s3-delay-glint) var(--s3-ease) both; }
-/* the light follows the state: the first tray's glare brightens once on a wake, a block start or a cleared fault */
-.s3-flare { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background-image: linear-gradient(135deg, var(--s3-flare), transparent 64%); animation: s3-flare var(--s3-d-flare) var(--s3-ease) both; }
+/* the glint was a gradient sweep: gone with the reset (no gradient in chrome); the element stays so views that place it compile */
+.s3-glint { display: none; }
+/* the flare answers a real event (a wake, a block start, a cleared fault): once, a 2 px accent rule inside the first tray's
+   edge that fades. A state, drawn in the one colour that means "this happened". */
+.s3-flare { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 2px var(--accent); animation: s3-flare var(--s3-d-flare) var(--s3-ease) both; }
 .s3-peeks,
 .s3-peeks-fallback,
 .s3-scrim,
 .s3-deckscrim,
 .s3-tabbar { display: none; }
 
-@keyframes s3-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-@keyframes s3-glint { 0% { left: -50%; opacity: 1; } 100% { left: 130%; opacity: 1; } }
-@keyframes s3-flare { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes s3-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes s3-flare { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: 0; } }
 
 /* ------------------------------------------------------------------ the phone: its own composition, not the desktop squeezed (3.6) */
 @media (max-width: 700px) {
@@ -503,9 +568,8 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
     z-index: 30;
     max-height: calc(100% - 9rem);
     padding: 0.75rem;
-    border-radius: 1.875rem;
+    border-radius: 1.625rem;
     overflow-y: auto;
-    background-image: none;
     background-color: var(--pop);
     box-shadow: var(--sh-now);
     visibility: hidden;
@@ -516,11 +580,10 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
   .s3-scrim { display: block; position: fixed; inset: 0; z-index: 35; background: var(--s3-scrim); opacity: 0; pointer-events: none; transition: opacity var(--s3-d-pop) var(--s3-ease); }
   .s3-deckscrim { z-index: 25; }
   .s3[data-deck='open'] .s3-deckscrim { opacity: 1; pointer-events: auto; }
-  .s3-main { padding: 0.625rem 1rem 0.5rem; gap: 0.625rem; }
-  /* the top plate is flatter than the first tray (lower tint, the small shadow), so the first tray is plainly the first surface */
-  .s3-top { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: 'loc pill more' 'chip chip chip'; gap: 0.375rem 0.5rem; padding: 0.5rem 0.5rem 0.5rem 1rem; min-height: 0; container-type: normal; background-image: none; box-shadow: var(--sh-later), var(--edge); }
+  .s3-main { padding: 0.5rem 0.75rem 0.5rem; gap: 0.5rem; }
+  .s3-top { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: 'loc pill more' 'chip chip chip'; gap: 0.375rem 0.5rem; padding: 0.25rem 0 0.25rem 0.5rem; min-height: 0; container-type: normal; }
   .s3-loc { grid-area: loc; min-width: 0; }
-  .s3-loc-s { font-size: 1.1875rem; }
+  .s3-loc-s { font-size: 1.125rem; }
   .s3-loc-s em { display: none; }
   .s3-seg,
   .s3-wc,
@@ -537,7 +600,9 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
   .s3-pillbtn { max-width: 11.5rem; }
   .s3-zones { display: flex; flex-direction: column; gap: 0.75rem; overflow-y: auto; overflow-x: hidden; padding: 0.125rem 0.125rem 0.5rem; scrollbar-width: none; }
   .s3-tray { flex: none; padding: 0.875rem 0.875rem 1rem; gap: 0.5rem; border-radius: 1.375rem; }
-  .s3-tray[data-step='1'] { border-radius: 1.875rem; }
+  .s3-tray[data-step='1'] { border-radius: 1.625rem; }
+  /* on the phone the first tray grows with its content and the column scrolls, so its body must not be a second scroller */
+  .s3-tray[data-step='1'] .s3-body { overflow: visible; -webkit-mask-image: none; mask-image: none; }
   .s3-tray[data-step='2'],
   .s3-tray[data-step='3'] { display: none; }
   .s3-ruler { display: none; }
@@ -548,35 +613,31 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
      .s3-peeks inside it is flex: none, so it kept its max-content width, two pills side by side with a long note each, 629 px in a 354 px
      row; .s3-zones (overflow-y: auto, which makes overflow-x auto) then scrolled, and focusing the sheet's Done key moved it 273 px */
   .s3-peeks-fallback > .s3-peeks { flex: 1 1 0%; min-width: 0; }
-  .s3-pill { flex: 1; min-width: 0; min-height: 44px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.125rem; padding: 0.25rem 0.75rem; border: 0; border-radius: 1rem; background-image: linear-gradient(145deg, var(--raised-hi), var(--raised)); background-color: var(--raised); box-shadow: var(--sh-raise); color: var(--ink); font-weight: 600; text-align: left; cursor: pointer; }
+  .s3-pill { flex: 1; min-width: 0; min-height: 44px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.125rem; padding: 0.25rem 0.75rem; border: 0; border-radius: 1rem; background-color: var(--raised); box-shadow: var(--sh-raise); color: var(--ink); font-weight: 600; text-align: left; cursor: pointer; }
   .s3-pill:active { box-shadow: var(--sh-press); }
   .s3-pill-name { display: inline-flex; align-items: center; gap: 0.375rem; }
   .s3-pill-lamp { display: inline-flex; color: var(--ink2); }
   .s3-pill-lamp[data-state='fault'] { color: var(--fault); }
   .s3-pill-lamp[data-state='live'] { color: var(--live); }
-  .s3-pill-lamp[data-state='simulated'] { color: var(--sim); }
-  .s3-pill-word { font: 700 0.6875rem var(--s3-ui); letter-spacing: 0.08em; }
+  .s3-pill-word { font: 650 0.6875rem var(--s3-ui); letter-spacing: 0.08em; }
   .s3-pill-note { font: 500 0.75rem var(--s3-ui); color: var(--ink2); }
   .s3-zones[data-sheet='2'] .s3-scrim,
   .s3-zones[data-sheet='3'] .s3-scrim { opacity: 1; pointer-events: auto; }
   /* the second and third tray open as opaque bottom sheets over a scrim, with a Done key. The sheet ends above the capture line (64 px) and the tab bar (70 px) at 390 px: at 0.5rem from the bottom its Done key lay under both, measured 776-820 against the tab bar at 774-844, so no press reached it; the top is kept clear of the top plate and its view chip (to 128 px at 844 px high) */
-  .s3-tray[data-sheet='open'] { display: flex; position: fixed; left: 0.5rem; right: 0.5rem; bottom: 9.5rem; z-index: 40; max-height: calc(100% - 17.5rem); overflow-y: auto; background-image: none; background-color: var(--pop); box-shadow: var(--sh-now), var(--edge); animation: s3-rise var(--s3-d-sheet) var(--s3-ease) both; }
-  .s3-tray[data-sheet='open']::before { display: none; }
-  .s3-tray[data-sheet='open'] .s3-done { display: inline-flex; align-self: flex-end; min-height: 44px; min-width: 88px; align-items: center; justify-content: center; padding: 0 1.125rem; border: 0; border-radius: 0.875rem; background-image: linear-gradient(145deg, var(--raised-hi), var(--raised)); background-color: var(--raised); box-shadow: var(--sh-raise); color: var(--ink); font-weight: 600; cursor: pointer; }
-  /* the sheet's body was flex: 1 1 0% with overflow visible: the tray's own box (max-height, 17.5rem short of the screen) never grew past
-     its head and Done key, so a long view ran out of the body and under Done. The body is now the part that scrolls, between the head and
-     the Done key, which stay put; the 0.25rem padding with the same negative margin keeps a focus ring (5 px) from being cut by the clip */
-  .s3-tray[data-sheet='open'] .s3-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0.25rem; margin: -0.25rem; overscroll-behavior: contain; }
+  .s3-tray[data-sheet='open'] { display: flex; position: fixed; left: 0.5rem; right: 0.5rem; bottom: 9.5rem; z-index: 40; max-height: calc(100% - 17.5rem); overflow-y: auto; background-color: var(--pop); box-shadow: var(--sh-now), var(--edge); animation: s3-rise var(--s3-d-sheet) var(--s3-ease) both; }
+  .s3-tray[data-sheet='open'] .s3-done { display: inline-flex; align-self: flex-end; min-height: 44px; min-width: 88px; align-items: center; justify-content: center; padding: 0 1.125rem; border: 0; border-radius: 0.875rem; background-color: var(--raised); box-shadow: var(--sh-raise); color: var(--ink); font-weight: 600; cursor: pointer; }
+  /* the sheet's body is the part that scrolls, between the head and the Done key, which stay put */
+  .s3-tray[data-sheet='open'] .s3-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
   .s3-tray[data-sheet='open'] .s3-done { flex: none; }
-  .s3-dock { gap: 0.5rem; padding: 0.5rem; }
-  .s3-mode { gap: 0.25rem; padding: 0; background-color: transparent; box-shadow: none; }
+  .s3-dock { gap: 0.25rem; }
   .s3-mode button { min-width: 44px; padding: 0 0.625rem; }
-  .s3-wellin { min-height: 48px; padding-left: 0.75rem; gap: 0.5rem; }
-  .s3-wellin input { font-size: 0.8438rem; }
+  .s3-wellin { padding-left: 0.75rem; gap: 0.5rem; }
+  .s3-wellin input { font-size: 0.8125rem; }
   .s3-send { min-width: 44px; padding: 0 0.75rem; }
-  .s3-tabbar { display: flex; position: relative; z-index: 6; gap: 0.25rem; padding: 0.5rem 0.625rem 0.625rem; background-color: var(--s3-spine); box-shadow: 0 -10px 28px var(--lo), var(--edge); }
-  .s3-tab { flex: 1; min-width: 44px; min-height: 52px; border: 0; border-radius: 0.875rem; background: transparent; color: var(--ink2); font-size: 0.6875rem; font-weight: 550; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1875rem; cursor: pointer; }
-  .s3-tab[aria-current='page'] { background-image: linear-gradient(145deg, var(--lit-a), var(--lit-b)); background-color: var(--lit-b); color: var(--ink); box-shadow: var(--sh-raise); font-weight: 650; }
+  .s3-dockkey { display: none; }
+  .s3-tabbar { display: flex; position: relative; z-index: 6; gap: 0.25rem; padding: 0.5rem 0.625rem 0.625rem; background-color: var(--s3-ground); box-shadow: var(--edge); }
+  .s3-tab { flex: 1; min-width: 44px; min-height: 52px; border: 0; border-radius: 0.875rem; background: transparent; color: var(--ink2); font-size: 0.6875rem; font-weight: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1875rem; cursor: pointer; }
+  .s3-tab[aria-current='page'] { background-color: var(--raised); color: var(--ink); box-shadow: var(--sh-raise); font-weight: 600; }
   .s3-tab:active { box-shadow: var(--sh-press); }
 }
 
@@ -587,13 +648,13 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
 :root .s3 :is(button, input, a):focus-visible { outline: none; box-shadow: 0 0 0 3px var(--gap), 0 0 0 5px var(--focus); }
 :root .s3 .s3-wellin input:focus-visible { box-shadow: none; }
 
-/* ------------------------------------------------------------------ reduced motion: every motion has a still, so all animation and transition go (spec 5) */
+/* ------------------------------------------------------------------ reduced motion: every motion has a still, so all animation and transition go (spec 5).
+   The chrome still changes state (rail, slim plate, open dock), instantly. */
 @media (prefers-reduced-motion: reduce) {
   :root .s3,
   :root .s3 *,
   :root .s3 *::before,
   :root .s3 *::after { animation: none; transition: none; }
-  :root .s3 .s3-glint::before { opacity: 0; }
 }
 
 /* ------------------------------------------------------------------ forced colours: system colours, a real edge on every control */
@@ -610,4 +671,5 @@ button.s3-head[aria-current='page'] { color: var(--ink); box-shadow: none; trans
   .s3 [aria-current='page'],
   .s3 [aria-pressed='true'] { border-color: Highlight; }
   .s3 .s3-pop { border: 1px solid CanvasText; }
+  .s3 .s3-body { -webkit-mask-image: none; mask-image: none; }
 }
